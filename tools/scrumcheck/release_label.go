@@ -20,7 +20,6 @@ func runReleaseLabelChecks(
 	org string,
 	projectNums []int,
 	limit int,
-	labelFilter map[string]struct{},
 ) []ReleaseLabelIssue {
 	out := make([]ReleaseLabelIssue, 0)
 	for _, projectNum := range projectNums {
@@ -33,15 +32,12 @@ func runReleaseLabelChecks(
 			if it.Content.Issue.Number == 0 {
 				continue
 			}
-			if !matchesLabelFilter(it, labelFilter) {
-				continue
-			}
-			if inDoneColumn(it) {
-				continue
-			}
 			labels := issueLabels(it)
 			hasProduct := labelsContain(labels, productLabel)
 			hasRelease := labelsContain(labels, releaseLabel)
+			if inDoneColumn(it) && !hasProduct {
+				continue
+			}
 			if !hasProduct && hasRelease {
 				continue
 			}

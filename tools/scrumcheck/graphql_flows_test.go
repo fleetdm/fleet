@@ -148,7 +148,7 @@ func TestGraphQLFlowHelpersAndChecks(t *testing.T) {
 		t.Fatalf("drafting len=%d want=1", len(drafting))
 	}
 
-	release := runReleaseLabelChecks(ctx, client, "fleetdm", []int{67, 71, 97}, 20, nil)
+	release := runReleaseLabelChecks(ctx, client, "fleetdm", []int{67, 71, 97}, 20)
 	if len(release) != 1 || release[0].ProjectNum != 71 {
 		t.Fatalf("unexpected release results: %#v", release)
 	}

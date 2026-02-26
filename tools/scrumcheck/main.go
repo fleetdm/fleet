@@ -167,7 +167,7 @@ func main() {
 
 	tracker.phaseStart(phaseReleaseLabel)
 	start = time.Now()
-	releaseLabelIssues := runReleaseLabelChecks(ctx, client, *org, projectNums, *limit, labelFilter)
+	releaseLabelIssues := runReleaseLabelChecks(ctx, client, *org, projectNums, *limit)
 	tracker.phaseDone(phaseReleaseLabel, phaseSummaryKV(
 		fmt.Sprintf("issues=%d", len(releaseLabelIssues)),
 		shortDuration(time.Since(start)),
@@ -337,7 +337,7 @@ func main() {
 			refMissingMilestones := runMissingMilestoneChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter)
 			refMissingSprints := runMissingSprintChecks(refreshCtx, client, *org, projectNums, *limit, labelFilter)
 			refMissingAssignees := runMissingAssigneeChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter)
-			refReleaseIssues := runReleaseLabelChecks(refreshCtx, client, *org, projectNums, *limit, labelFilter)
+			refReleaseIssues := runReleaseLabelChecks(refreshCtx, client, *org, projectNums, *limit)
 			refReleaseTODO := runReleaseStoryTODOChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter)
 			refUnreleased := runUnassignedUnreleasedBugChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter, groupLabels)
 			refTimestamp := checkUpdatesTimestamp(refreshCtx, time.Now().UTC())
