@@ -72,7 +72,7 @@ func main() {
 	tracker := newPhaseTracker([]string{
 		"QA checklist gate scan",
 		"Drafting estimation gate scan",
-		"Missing milestone audit",
+		"Missing milestone/sprint/assignee audit",
 		"Updates timestamp expiry check",
 		"Rendering report deck",
 		"Opening browser bridge",
@@ -105,9 +105,11 @@ func main() {
 	start = time.Now()
 	missingMilestones := runMissingMilestoneChecks(ctx, client, *org, projectNums, *limit, token)
 	missingSprints := runMissingSprintChecks(ctx, client, *org, projectNums, *limit)
+	missingAssignees := runMissingAssigneeChecks(ctx, client, *org, projectNums, *limit, token)
 	tracker.phaseDone(phaseMilestones, phaseSummaryKV(
 		fmt.Sprintf("missing milestones=%d", len(missingMilestones)),
 		fmt.Sprintf("missing sprint=%d", len(missingSprints)),
+		fmt.Sprintf("assignee issues=%d", len(missingAssignees)),
 		shortDuration(time.Since(start)),
 	))
 
@@ -132,7 +134,7 @@ func main() {
 
 	tracker.phaseStart(phaseReport)
 	start = time.Now()
-	policy := buildBridgePolicy(badDrafting, missingMilestones, missingSprints)
+	policy := buildBridgePolicy(badDrafting, missingMilestones, missingSprints, missingAssignees)
 	bridge, err := startUIBridge(token, time.Duration(*bridgeIdleMinutes)*time.Minute, tracker.bridgeSignal, policy)
 	if err != nil {
 		log.Printf("could not start UI bridge: %v", err)
@@ -152,6 +154,7 @@ func main() {
 			byStatus,
 			missingMilestones,
 			missingSprints,
+			missingAssignees,
 			timestampCheck,
 			bridgeEnabled,
 			bridgeBaseURL,

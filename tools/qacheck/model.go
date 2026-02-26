@@ -17,6 +17,11 @@ type Item struct {
 			Title     githubv4.String
 			Body      githubv4.String
 			URL       githubv4.URI
+			Assignees struct {
+				Nodes []struct {
+					Login githubv4.String
+				}
+			} `graphql:"assignees(first: 30)"`
 			Milestone struct {
 				Title githubv4.String
 			} `graphql:"milestone"`
@@ -79,4 +84,17 @@ type MissingMilestoneIssue struct {
 type MilestoneOption struct {
 	Number int
 	Title  string
+}
+
+type MissingAssigneeIssue struct {
+	Item               Item
+	ProjectNum         int
+	RepoOwner          string
+	RepoName           string
+	CurrentAssignees   []string
+	SuggestedAssignees []AssigneeOption
+}
+
+type AssigneeOption struct {
+	Login string
 }

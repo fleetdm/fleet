@@ -44,6 +44,7 @@ type uiBridge struct {
 
 	allowChecklist  map[string]map[string]bool
 	allowMilestones map[string]map[int]bool
+	allowAssignees  map[string]map[string]bool
 	allowSprints    map[string]sprintApplyTarget
 }
 
@@ -76,6 +77,7 @@ func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string)
 		reason:          "bridge closed",
 		allowChecklist:  policy.ChecklistByIssue,
 		allowMilestones: policy.MilestonesByIssue,
+		allowAssignees:  policy.AssigneesByIssue,
 		allowSprints:    policy.SprintsByItemID,
 	}
 
@@ -84,6 +86,7 @@ func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string)
 	mux.HandleFunc("/api/apply-milestone", b.handleApplyMilestone)
 	mux.HandleFunc("/api/apply-checklist", b.handleApplyChecklist)
 	mux.HandleFunc("/api/apply-sprint", b.handleApplySprint)
+	mux.HandleFunc("/api/add-assignee", b.handleAddAssignee)
 	mux.HandleFunc("/api/close", b.handleClose)
 	mux.HandleFunc("/healthz", b.handleHealth)
 	b.srv = &http.Server{
@@ -363,6 +366,51 @@ func (b *uiBridge) handleApplySprint(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+func (b *uiBridge) handleAddAssignee(w http.ResponseWriter, r *http.Request) {
+	if !b.prepareRequest(w, r) {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBridgeBodyBytes)
+	var req struct {
+		Repo     string `json:"repo"`
+		Issue    string `json:"issue"`
+		Assignee string `json:"assignee"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	if req.Repo == "" || req.Issue == "" || strings.TrimSpace(req.Assignee) == "" {
+		http.Error(w, "repo, issue, and assignee are required", http.StatusBadRequest)
+		return
+	}
+	if !isValidRepoSlug(req.Repo) {
+		http.Error(w, "invalid repo slug", http.StatusBadRequest)
+		return
+	}
+	issueNum, err := strconv.Atoi(req.Issue)
+	if err != nil || issueNum <= 0 {
+		http.Error(w, "invalid issue number", http.StatusBadRequest)
+		return
+	}
+	assignee := strings.TrimSpace(req.Assignee)
+	if !b.isAllowedAssignee(req.Repo, issueNum, assignee) {
+		http.Error(w, "operation not allowed for this issue/assignee", http.StatusForbidden)
+		return
+	}
+
+	b.signal(fmt.Sprintf("👤 caller=%s add assignee %s to %s#%d", callerAddr(r), assignee, req.Repo, issueNum))
+	endpoint := fmt.Sprintf("https://api.github.com/repos/%s/issues/%d/assignees", req.Repo, issueNum)
+	payload := map[string]any{
+		"assignees": []string{assignee},
+	}
+	if err := b.githubJSON(r.Context(), http.MethodPost, endpoint, payload, nil); err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
 func callerAddr(r *http.Request) string {
 	hostPort := strings.TrimSpace(r.RemoteAddr)
 	if hostPort == "" {
@@ -487,6 +535,15 @@ func (b *uiBridge) isAllowedChecklist(repo string, issue int, checklistText stri
 		return false
 	}
 	return choices[strings.TrimSpace(checklistText)]
+}
+
+func (b *uiBridge) isAllowedAssignee(repo string, issue int, assignee string) bool {
+	key := issueKey(repo, issue)
+	choices, ok := b.allowAssignees[key]
+	if !ok {
+		return false
+	}
+	return choices[strings.ToLower(strings.TrimSpace(assignee))]
 }
 
 func (b *uiBridge) allowedSprintForItem(itemID string) (sprintApplyTarget, bool) {

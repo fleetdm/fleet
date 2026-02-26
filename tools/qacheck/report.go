@@ -89,6 +89,32 @@ type MissingSprintProjectReport struct {
 	Columns    []MissingSprintGroupReport
 }
 
+type AssigneeSuggestion struct {
+	Login string
+}
+
+type MissingAssigneeReportItem struct {
+	ProjectNum         int
+	Number             int
+	Title              string
+	URL                string
+	Repo               string
+	Status             string
+	CurrentAssignees   []string
+	SuggestedAssignees []AssigneeSuggestion
+}
+
+type MissingAssigneeGroupReport struct {
+	Key   string
+	Label string
+	Items []MissingAssigneeReportItem
+}
+
+type MissingAssigneeProjectReport struct {
+	ProjectNum int
+	Columns    []MissingAssigneeGroupReport
+}
+
 type MilestoneSuggestion struct {
 	Number int
 	Title  string
@@ -105,11 +131,13 @@ type HTMLReportData struct {
 	DraftingSections []DraftingStatusReport
 	MissingMilestone []MissingMilestoneProjectReport
 	MissingSprint    []MissingSprintProjectReport
+	MissingAssignee  []MissingAssigneeProjectReport
 	TotalAwaiting    int
 	TotalStale       int
 	TotalDrafting    int
 	TotalNoMilestone int
 	TotalNoSprint    int
+	TotalAssignee    int
 	TimestampCheck   TimestampCheckResult
 	AwaitingClean    bool
 	StaleClean       bool
@@ -117,6 +145,7 @@ type HTMLReportData struct {
 	TimestampClean   bool
 	MilestoneClean   bool
 	SprintClean      bool
+	AssigneeClean    bool
 }
 
 func buildHTMLReportData(
@@ -128,6 +157,7 @@ func buildHTMLReportData(
 	byStatus map[string][]DraftingCheckViolation,
 	missingMilestones []MissingMilestoneIssue,
 	missingSprints []MissingSprintViolation,
+	missingAssignees []MissingAssigneeIssue,
 	timestampCheck TimestampCheckResult,
 	bridgeEnabled bool,
 	bridgeBaseURL string,
@@ -353,6 +383,74 @@ func buildHTMLReportData(
 		})
 	}
 
+	groupedAssigneeByProject := make(map[int]map[string][]MissingAssigneeReportItem)
+	for _, v := range missingAssignees {
+		repo := v.RepoOwner + "/" + v.RepoName
+		status := itemStatus(v.Item)
+		group := sprintColumnGroup(status)
+		if groupedAssigneeByProject[v.ProjectNum] == nil {
+			groupedAssigneeByProject[v.ProjectNum] = map[string][]MissingAssigneeReportItem{
+				"ready":       {},
+				"in_progress": {},
+				"awaiting_qa": {},
+				"other":       {},
+			}
+		}
+		suggestions := make([]AssigneeSuggestion, 0, len(v.SuggestedAssignees))
+		for _, a := range v.SuggestedAssignees {
+			login := strings.TrimSpace(a.Login)
+			if login == "" {
+				continue
+			}
+			suggestions = append(suggestions, AssigneeSuggestion{Login: login})
+		}
+		groupedAssigneeByProject[v.ProjectNum][group] = append(groupedAssigneeByProject[v.ProjectNum][group], MissingAssigneeReportItem{
+			ProjectNum:         v.ProjectNum,
+			Number:             getNumber(v.Item),
+			Title:              getTitle(v.Item),
+			URL:                getURL(v.Item),
+			Repo:               repo,
+			Status:             status,
+			CurrentAssignees:   append([]string(nil), v.CurrentAssignees...),
+			SuggestedAssignees: suggestions,
+		})
+	}
+	assigneeProjects := make([]MissingAssigneeProjectReport, 0, len(groupedAssigneeByProject))
+	totalAssignee := 0
+	projectNumsForAssignees := make([]int, 0, len(groupedAssigneeByProject))
+	for p := range groupedAssigneeByProject {
+		projectNumsForAssignees = append(projectNumsForAssignees, p)
+	}
+	sort.Ints(projectNumsForAssignees)
+	for _, p := range projectNumsForAssignees {
+		grouped := groupedAssigneeByProject[p]
+		projectTotal := 0
+		for _, key := range []string{"ready", "in_progress", "awaiting_qa", "other"} {
+			items := grouped[key]
+			projectTotal += len(items)
+			totalAssignee += len(items)
+		}
+		if projectTotal == 0 {
+			continue
+		}
+		columns := make([]MissingAssigneeGroupReport, 0, 4)
+		for _, key := range []string{"ready", "in_progress", "awaiting_qa", "other"} {
+			items := grouped[key]
+			if len(items) == 0 {
+				continue
+			}
+			columns = append(columns, MissingAssigneeGroupReport{
+				Key:   key,
+				Label: sprintColumnLabel(key),
+				Items: items,
+			})
+		}
+		assigneeProjects = append(assigneeProjects, MissingAssigneeProjectReport{
+			ProjectNum: p,
+			Columns:    columns,
+		})
+	}
+
 	return HTMLReportData{
 		GeneratedAt:      time.Now().Format(time.RFC1123),
 		Org:              org,
@@ -364,11 +462,13 @@ func buildHTMLReportData(
 		DraftingSections: drafting,
 		MissingMilestone: milestoneProjects,
 		MissingSprint:    sprintProjects,
+		MissingAssignee:  assigneeProjects,
 		TotalAwaiting:    totalAwaiting,
 		TotalStale:       totalStale,
 		TotalDrafting:    totalDrafting,
 		TotalNoMilestone: totalNoMilestone,
 		TotalNoSprint:    totalNoSprint,
+		TotalAssignee:    totalAssignee,
 		TimestampCheck:   timestampCheck,
 		AwaitingClean:    totalAwaiting == 0,
 		StaleClean:       totalStale == 0,
@@ -376,6 +476,7 @@ func buildHTMLReportData(
 		TimestampClean:   timestampCheck.Error == "" && timestampCheck.OK,
 		MilestoneClean:   totalNoMilestone == 0,
 		SprintClean:      totalNoSprint == 0,
+		AssigneeClean:    totalAssignee == 0,
 	}
 }
 
@@ -644,6 +745,8 @@ var htmlReportTemplate = `<!doctype html>
     .copied-note { margin-left: 6px; font-size: 12px; color: var(--muted); }
     .milestone-search { min-width: 240px; }
     .milestone-select { min-width: 260px; }
+    .assignee-search { min-width: 240px; }
+    .assignee-select { min-width: 260px; }
     .bridge-controls {
       margin-top: 10px;
       display: flex;
@@ -687,6 +790,7 @@ var htmlReportTemplate = `<!doctype html>
         <span class="pill">Stale Awaiting QA items: {{.TotalStale}}</span>
         <span class="pill">Missing milestones (selected projects): {{.TotalNoMilestone}}</span>
         <span class="pill">Missing sprint (selected projects): {{.TotalNoSprint}}</span>
+        <span class="pill">Assignee issues (selected projects): {{.TotalAssignee}}</span>
         <span class="pill">Drafting checklist violations: {{.TotalDrafting}}</span>
       </div>
       {{if .BridgeEnabled}}
@@ -714,6 +818,9 @@ var htmlReportTemplate = `<!doctype html>
         </button>
         <button class="menu-btn" data-tab="sprint" role="tab">
           <span class="status-dot {{if .SprintClean}}ok{{end}}"></span>🗓️ Missing sprint
+        </button>
+        <button class="menu-btn" data-tab="assignee" role="tab">
+          <span class="status-dot {{if .AssigneeClean}}ok{{end}}"></span>👤 Missing assignee coverage
         </button>
         <button class="menu-btn" data-tab="drafting" role="tab">
           <span class="status-dot {{if .DraftingClean}}ok{{end}}"></span>🧭 Drafting estimation gate
@@ -938,6 +1045,62 @@ var htmlReportTemplate = `<!doctype html>
           <p class="empty">🟢 No missing sprint items found.</p>
         {{end}}
       </section>
+
+      <section id="tab-assignee" class="panel" role="tabpanel">
+        <h2>👤 Missing assignee coverage (selected projects)</h2>
+        <p class="subtle">Items with no assignee or currently assigned to you. Choose a teammate and add without removing existing assignees.</p>
+        {{if .MissingAssignee}}
+          {{range .MissingAssignee}}
+            <div class="project">
+              <h3>Project {{.ProjectNum}}</h3>
+              {{range .Columns}}
+                <div class="status">
+                  <div class="column-head">
+                    <h3>{{.Label}}</h3>
+                    {{if and $.BridgeEnabled .Items}}
+                      <button class="fix-btn apply-assignee-column-btn">Assign selected in column</button>
+                    {{end}}
+                  </div>
+                  {{if .Items}}
+                    {{range .Items}}
+                      <article class="item">
+                        <div><strong>#{{.Number}} - {{.Title}}</strong></div>
+                        <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
+                        <ul>
+                          <li>Status: {{if .Status}}{{.Status}}{{else}}(unset){{end}}</li>
+                          <li>Repository: {{.Repo}}</li>
+                          <li>Current assignees: {{if .CurrentAssignees}}{{range $i, $a := .CurrentAssignees}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}(none){{end}}</li>
+                        </ul>
+                        <div class="actions">
+                          {{if .SuggestedAssignees}}
+                            <input class="fix-btn assignee-search" type="text" placeholder="Search assignee...">
+                            <select class="fix-btn assignee-select" data-issue="{{.Number}}" data-repo="{{.Repo}}">
+                              {{range .SuggestedAssignees}}
+                                <option value="{{.Login}}">{{.Login}}</option>
+                              {{end}}
+                            </select>
+                            {{if $.BridgeEnabled}}
+                              <button class="fix-btn apply-assignee-btn">Assign</button>
+                            {{else}}
+                              <span class="copied-note">Bridge offline: rerun qacheck to enable assign.</span>
+                            {{end}}
+                          {{else}}
+                            <span class="copied-note">No assignee options found for this repo.</span>
+                          {{end}}
+                        </div>
+                      </article>
+                    {{end}}
+                  {{else}}
+                    <p class="empty">🟢 No items in this group.</p>
+                  {{end}}
+                </div>
+              {{end}}
+            </div>
+          {{end}}
+        {{else}}
+          <p class="empty">🟢 No assignee coverage issues found.</p>
+        {{end}}
+      </section>
       </div>
     </div>
   </div>
@@ -986,6 +1149,40 @@ var htmlReportTemplate = `<!doctype html>
               opt.value = o.title;
               opt.textContent = o.title;
               opt.dataset.number = o.number;
+              select.appendChild(opt);
+            });
+          }
+
+          searchInput.addEventListener('input', () => renderFiltered(searchInput.value));
+        });
+      }
+
+      function installAssigneeFiltering() {
+        const actionBlocks = document.querySelectorAll('.actions');
+        actionBlocks.forEach((actions) => {
+          const searchInput = actions.querySelector('.assignee-search');
+          const select = actions.querySelector('.assignee-select');
+          if (!searchInput || !select) return;
+
+          const allOptions = Array.from(select.options).map((opt) => ({
+            login: opt.value,
+          }));
+
+          function renderFiltered(term) {
+            const q = term.trim().toLowerCase();
+            const filtered = allOptions.filter((o) => o.login.toLowerCase().includes(q));
+            select.innerHTML = '';
+            if (filtered.length === 0) {
+              const none = document.createElement('option');
+              none.textContent = 'No matching assignees';
+              none.value = '';
+              select.appendChild(none);
+              return;
+            }
+            filtered.forEach((o) => {
+              const opt = document.createElement('option');
+              opt.value = o.login;
+              opt.textContent = o.login;
               select.appendChild(opt);
             });
           }
@@ -1187,6 +1384,77 @@ var htmlReportTemplate = `<!doctype html>
         });
       });
 
+      async function applyAssigneeButton(btn) {
+        const actions = btn.closest('.actions');
+        const select = actions && actions.querySelector('.assignee-select');
+        if (!select) return false;
+        const issue = select.dataset.issue || '';
+        const repo = select.dataset.repo || '';
+        const assignee = select.value || '';
+        if (!issue || !repo || !assignee) return false;
+
+        const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
+        if (!bridgeURL) {
+          window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
+          return false;
+        }
+        const endpoint = bridgeURL + '/api/add-assignee';
+        const payload = { repo: repo, issue: issue, assignee: assignee };
+        const prev = btn.textContent;
+        btn.textContent = 'Assigning...';
+        btn.disabled = true;
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            const body = await res.text();
+            throw new Error('Bridge error ' + res.status + ': ' + body);
+          }
+          btn.textContent = 'Assigned';
+          setTimeout(() => { btn.textContent = prev; }, 1200);
+          return true;
+        } catch (err) {
+          window.alert('Could not assign user. ' + err);
+          btn.textContent = prev;
+          return false;
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      const applyAssigneeButtons = document.querySelectorAll('.apply-assignee-btn');
+      applyAssigneeButtons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          await applyAssigneeButton(btn);
+        });
+      });
+
+      const applyAssigneeColumnButtons = document.querySelectorAll('.apply-assignee-column-btn');
+      applyAssigneeColumnButtons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const statusCard = btn.closest('.status');
+          if (!statusCard) return;
+          const rowButtons = Array.from(statusCard.querySelectorAll('.apply-assignee-btn'));
+          if (rowButtons.length === 0) return;
+
+          const prev = btn.textContent;
+          btn.textContent = 'Assigning column...';
+          btn.disabled = true;
+          for (const rowBtn of rowButtons) {
+            await applyAssigneeButton(rowBtn);
+          }
+          btn.textContent = 'Column assigned';
+          setTimeout(() => { btn.textContent = prev; }, 1200);
+          btn.disabled = false;
+        });
+      });
+
       const closeSessionButton = document.getElementById('close-session-btn');
       if (closeSessionButton) {
         closeSessionButton.addEventListener('click', async () => {
@@ -1211,7 +1479,7 @@ var htmlReportTemplate = `<!doctype html>
               const body = await res.text();
               throw new Error('Bridge error ' + res.status + ': ' + body);
             }
-            document.querySelectorAll('.apply-milestone-btn, .apply-milestone-column-btn, .apply-drafting-check-btn, .apply-sprint-btn, .apply-sprint-column-btn').forEach((el) => {
+            document.querySelectorAll('.apply-milestone-btn, .apply-milestone-column-btn, .apply-drafting-check-btn, .apply-sprint-btn, .apply-sprint-column-btn, .apply-assignee-btn, .apply-assignee-column-btn').forEach((el) => {
               el.disabled = true;
             });
             closeSessionButton.textContent = 'Closed';
@@ -1224,6 +1492,7 @@ var htmlReportTemplate = `<!doctype html>
       }
 
       installMilestoneFiltering();
+      installAssigneeFiltering();
     })();
   </script>
 </body>

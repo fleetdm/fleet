@@ -8,6 +8,7 @@ import (
 type bridgePolicy struct {
 	ChecklistByIssue  map[string]map[string]bool
 	MilestonesByIssue map[string]map[int]bool
+	AssigneesByIssue  map[string]map[string]bool
 	SprintsByItemID   map[string]sprintApplyTarget
 }
 
@@ -17,10 +18,16 @@ type sprintApplyTarget struct {
 	IterationID string
 }
 
-func buildBridgePolicy(drafting []DraftingCheckViolation, missing []MissingMilestoneIssue, missingSprints []MissingSprintViolation) bridgePolicy {
+func buildBridgePolicy(
+	drafting []DraftingCheckViolation,
+	missing []MissingMilestoneIssue,
+	missingSprints []MissingSprintViolation,
+	missingAssignees []MissingAssigneeIssue,
+) bridgePolicy {
 	p := bridgePolicy{
 		ChecklistByIssue:  make(map[string]map[string]bool),
 		MilestonesByIssue: make(map[string]map[int]bool),
+		AssigneesByIssue:  make(map[string]map[string]bool),
 		SprintsByItemID:   make(map[string]sprintApplyTarget),
 	}
 
@@ -66,6 +73,20 @@ func buildBridgePolicy(drafting []DraftingCheckViolation, missing []MissingMiles
 			ProjectID:   projectID,
 			FieldID:     fieldID,
 			IterationID: iterationID,
+		}
+	}
+
+	for _, v := range missingAssignees {
+		key := issueKey(v.RepoOwner+"/"+v.RepoName, getNumber(v.Item))
+		if p.AssigneesByIssue[key] == nil {
+			p.AssigneesByIssue[key] = make(map[string]bool)
+		}
+		for _, a := range v.SuggestedAssignees {
+			login := strings.TrimSpace(strings.ToLower(a.Login))
+			if login == "" {
+				continue
+			}
+			p.AssigneesByIssue[key][login] = true
 		}
 	}
 
