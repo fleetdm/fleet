@@ -307,62 +307,129 @@ var htmlReportTemplate = `<!doctype html>
   <title>qacheck report</title>
   <style>
     :root {
-      --bg: #f3f6fb;
-      --card: #ffffff;
-      --text: #0f172a;
-      --muted: #475569;
-      --line: #cbd5e1;
-      --link: #1d4ed8;
-      --tab-bg: #f8fafc;
-      --tab-active: #e2e8f0;
-      --ok: #16a34a;
-      --bad: #dc2626;
+      --bg: #f5f7fb;
+      --header: #ffffff;
+      --panel: #ffffff;
+      --muted-panel: #f9fafc;
+      --text: #192147;
+      --muted: #515774;
+      --line: #d9dce8;
+      --accent: #00a794;
+      --accent-dark: #0f7f73;
+      --ok: #27ae60;
+      --bad: #eb5757;
+      --active: #eaf8f6;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      padding: 28px 16px 48px;
       font-family: "Avenir Next", "Segoe UI", Helvetica, Arial, sans-serif;
-      background: linear-gradient(180deg, #eef4ff 0%, var(--bg) 60%);
+      background: var(--bg);
       color: var(--text);
     }
-    .wrap { max-width: 1000px; margin: 0 auto; }
-    .header, .panel {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 20px;
-      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+    .topbar {
+      background: var(--header);
+      border-bottom: 1px solid var(--line);
+      padding: 12px 20px 0;
     }
-    h1 { margin: 0; font-size: 28px; }
-    h2 { margin: 0 0 10px; font-size: 20px; }
-    h3 { margin: 0 0 6px; font-size: 17px; }
+    .topbar-inner {
+      max-width: 1360px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+    .fleet-logo {
+      width: 20px;
+      height: 20px;
+      display: grid;
+      grid-template-columns: repeat(2, 6px);
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+    .fleet-logo span { width: 6px; height: 6px; border-radius: 50%; }
+    .fleet-logo .d1 { background: #8a6ff0; }
+    .fleet-logo .d2 { background: #34c759; }
+    .fleet-logo .d3 { background: #4da3ff; }
+    .fleet-logo .d4 { background: #ff7d4d; }
+    .top-nav {
+      display: flex;
+      gap: 26px;
+      align-items: center;
+      font-size: 15px;
+      color: var(--muted);
+      margin-bottom: 1px;
+    }
+    .top-nav .active {
+      color: var(--text);
+      border-bottom: 2px solid var(--text);
+      padding-bottom: 13px;
+    }
+    .wrap {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    h1 { margin: 0; font-size: 38px; line-height: 1.1; }
+    h2 { margin: 0 0 10px; font-size: 27px; line-height: 1.2; }
+    h3 { margin: 0 0 6px; font-size: 18px; line-height: 1.25; }
     .meta { margin-top: 8px; color: var(--muted); font-size: 14px; }
     .counts { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 10px; }
     .pill {
-      font-size: 14px; border: 1px solid var(--line); border-radius: 999px;
-      padding: 6px 10px; background: #f8fafc;
-    }
-    .tabs {
-      margin-top: 16px;
-      display: flex;
-      flex-wrap: nowrap;
-      gap: 8px;
-      overflow-x: auto;
-      padding-bottom: 4px;
-    }
-    .tab-btn {
-      flex: 0 0 auto;
-      text-align: left;
+      font-size: 14px;
       border: 1px solid var(--line);
-      background: var(--tab-bg);
-      border-radius: 10px;
-      padding: 10px 12px;
+      border-radius: 999px;
+      padding: 6px 12px;
+      background: var(--muted-panel);
+    }
+    .app-shell {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .menu {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      position: sticky;
+      top: 12px;
+    }
+    .menu h4 {
+      margin: 4px 8px 10px;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .menu-btn {
+      width: 100%;
+      text-align: left;
+      border: 1px solid transparent;
+      background: transparent;
+      border-radius: 8px;
+      padding: 10px 10px;
       cursor: pointer;
       font-size: 14px;
       color: var(--text);
+      margin-bottom: 6px;
     }
-    .tab-btn.active { background: var(--tab-active); }
+    .menu-btn:hover {
+      background: #f2f5fb;
+      border-color: var(--line);
+    }
+    .menu-btn.active {
+      background: var(--active);
+      border-color: rgba(0, 167, 148, 0.35);
+    }
     .status-dot {
       display: inline-block;
       width: 10px;
@@ -371,31 +438,37 @@ var htmlReportTemplate = `<!doctype html>
       margin-right: 8px;
       vertical-align: middle;
       background: var(--bad);
-      box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15);
+      box-shadow: 0 0 0 2px rgba(235, 87, 87, 0.18);
     }
     .status-dot.ok {
       background: var(--ok);
-      box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.15);
+      box-shadow: 0 0 0 2px rgba(39, 174, 96, 0.16);
     }
-    .panel-wrap { margin-top: 12px; }
-    .panel { display: none; }
+    .panel-wrap { min-width: 0; }
+    .panel {
+      display: none;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 18px;
+    }
     .panel.active { display: block; }
     .subtle { color: var(--muted); margin: 0 0 12px; font-size: 14px; }
     .project, .status {
       margin-top: 12px;
       border: 1px solid var(--line);
-      border-radius: 12px;
+      border-radius: 10px;
       padding: 12px;
-      background: #f8fafc;
+      background: var(--muted-panel);
     }
     .item {
-      border-left: 4px solid #fecaca;
+      border-left: 3px solid #f5c5c5;
       background: #fff;
       border-radius: 8px;
       margin: 10px 0 0;
       padding: 10px 12px;
     }
-    .item a { color: var(--link); text-decoration: none; }
+    .item a { color: #2f45cc; text-decoration: none; }
     .item a:hover { text-decoration: underline; }
     ul { margin: 8px 0 0 20px; }
     li { margin: 5px 0; }
@@ -414,45 +487,61 @@ var htmlReportTemplate = `<!doctype html>
       gap: 8px;
     }
     .fix-btn {
-      border: 1px solid var(--line);
+      border: 1px solid #b8bfd5;
       background: #fff;
       border-radius: 8px;
-      padding: 6px 10px;
+      padding: 7px 12px;
       font-size: 13px;
       color: var(--text);
       cursor: pointer;
     }
-    .fix-btn:hover {
-      background: #f1f5f9;
-    }
-    .fix-btn.link {
-      text-decoration: none;
-      display: inline-block;
-    }
-    .copied-note {
-      margin-left: 6px;
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .milestone-search {
-      min-width: 240px;
-    }
-    .milestone-select {
-      min-width: 260px;
-    }
+    .fix-btn:hover { background: #f2f5fb; }
+    .copied-note { margin-left: 6px; font-size: 12px; color: var(--muted); }
+    .milestone-search { min-width: 240px; }
+    .milestone-select { min-width: 260px; }
     .bridge-controls {
       margin-top: 10px;
       display: flex;
       gap: 8px;
       align-items: center;
+      flex-wrap: wrap;
     }
     .empty { margin: 0; color: var(--muted); font-style: italic; }
+    @media (max-width: 960px) {
+      h1 { font-size: 30px; }
+      h2 { font-size: 23px; }
+      h3 { font-size: 18px; }
+      .app-shell {
+        grid-template-columns: 1fr;
+      }
+      .menu {
+        position: static;
+      }
+      .top-nav {
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+    }
   </style>
 </head>
 <body data-bridge-url="{{.BridgeBaseURL}}">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="fleet-logo" aria-hidden="true">
+        <span class="d1"></span><span class="d2"></span><span class="d3"></span><span class="d4"></span>
+      </div>
+      <nav class="top-nav" aria-label="main">
+        <span class="active">Hosts</span>
+        <span>Controls</span>
+        <span>Software</span>
+        <span>Reports</span>
+        <span>Policies</span>
+      </nav>
+    </div>
+  </header>
   <div class="wrap">
     <section class="header">
-      <h1>🧪 qacheck report</h1>
+      <h1>All fleets</h1>
       <p class="meta">Org: {{.Org}} | Generated: {{.GeneratedAt}}</p>
       <div class="counts">
         <span class="pill">Awaiting QA violations: {{.TotalAwaiting}}</span>
@@ -468,25 +557,27 @@ var htmlReportTemplate = `<!doctype html>
       {{end}}
     </section>
 
-    <div class="tabs" role="tablist">
-      <button class="tab-btn active" data-tab="awaiting" role="tab">
-        <span class="status-dot {{if .AwaitingClean}}ok{{end}}"></span>✔ Awaiting QA
-      </button>
-      <button class="tab-btn" data-tab="stale" role="tab">
-        <span class="status-dot {{if .StaleClean}}ok{{end}}"></span>⏳ Awaiting QA stale watchdog
-      </button>
-      <button class="tab-btn" data-tab="timestamp" role="tab">
-        <span class="status-dot {{if .TimestampClean}}ok{{end}}"></span>🕒 Updates timestamp expiry
-      </button>
-      <button class="tab-btn" data-tab="milestone" role="tab">
-        <span class="status-dot {{if .MilestoneClean}}ok{{end}}"></span>🎯 Missing milestones
-      </button>
-      <button class="tab-btn" data-tab="drafting" role="tab">
-        <span class="status-dot {{if .DraftingClean}}ok{{end}}"></span>🧭 Drafting estimation gate
-      </button>
-    </div>
+    <div class="app-shell">
+      <aside class="menu" role="tablist" aria-label="checks">
+        <h4>Checks</h4>
+        <button class="menu-btn active" data-tab="awaiting" role="tab">
+          <span class="status-dot {{if .AwaitingClean}}ok{{end}}"></span>✔ Awaiting QA gate
+        </button>
+        <button class="menu-btn" data-tab="stale" role="tab">
+          <span class="status-dot {{if .StaleClean}}ok{{end}}"></span>⏳ Awaiting QA stale watchdog
+        </button>
+        <button class="menu-btn" data-tab="timestamp" role="tab">
+          <span class="status-dot {{if .TimestampClean}}ok{{end}}"></span>🕒 Updates timestamp expiry
+        </button>
+        <button class="menu-btn" data-tab="milestone" role="tab">
+          <span class="status-dot {{if .MilestoneClean}}ok{{end}}"></span>🎯 Missing milestones
+        </button>
+        <button class="menu-btn" data-tab="drafting" role="tab">
+          <span class="status-dot {{if .DraftingClean}}ok{{end}}"></span>🧭 Drafting estimation gate
+        </button>
+      </aside>
 
-    <div class="panel-wrap">
+      <div class="panel-wrap">
       <section id="tab-awaiting" class="panel active" role="tabpanel">
         <h2>✅ Awaiting QA gate</h2>
         <p class="subtle">Items in <strong>` + awaitingQAColumn + `</strong> where engineer test-plan confirmation is unchecked.</p>
@@ -639,11 +730,12 @@ var htmlReportTemplate = `<!doctype html>
           <p class="empty">🟢 No drafting violations.</p>
         {{end}}
       </section>
+      </div>
     </div>
   </div>
   <script>
     (function () {
-      const buttons = document.querySelectorAll('.tab-btn');
+      const buttons = document.querySelectorAll('.menu-btn');
       const panels = document.querySelectorAll('.panel');
       function activate(tabName) {
         buttons.forEach((btn) => {
