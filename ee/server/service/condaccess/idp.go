@@ -607,8 +607,7 @@ func (s *idpService) buildIdentityProvider(ctx context.Context, serverURL string
 	}
 	ssoURL = ssoURL.JoinPath(idpSSOPath)
 
-	// Create kitlog adapter for SAML library
-	samlLogger := &kitlogAdapter{logger: s.logger.With("component", "saml-idp")}
+	samlLogger := &slogAdapter{ctx: ctx, logger: s.logger.SlogLogger().With("component", "saml-idp")}
 
 	// Build IdentityProvider
 	// Note: SessionProvider is set dynamically in serveSSO based on the authenticated device
