@@ -1127,7 +1127,6 @@ const (
 func BatchSoftwareInstallerRetryInterval() time.Duration {
 	defaultInterval := 30 * time.Second
 	d := dev_mode.Env("FLEET_DEV_BATCH_RETRY_INTERVAL")
-	fmt.Printf("d: %v\n", d)
 	if d != "" {
 		t, err := time.ParseDuration(d)
 		if err != nil {
