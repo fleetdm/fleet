@@ -151,12 +151,14 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	dev_mode.SetOverride("FLEET_DEV_BATCH_RETRY_INTERVAL", "1s")
 }
 
+func (s *integrationEnterpriseTestSuite) TearDownSuite() {
+	dev_mode.ClearOverride("FLEET_DEV_BATCH_RETRY_INTERVAL")
+}
+
 func (s *integrationEnterpriseTestSuite) TearDownTest() {
 	// reset the mock
 	s.lq.Mock = mock.Mock{}
 	s.withServer.commonTearDownTest(s.T())
-
-	dev_mode.ClearOverride("FLEET_DEV_BATCH_RETRY_INTERVAL")
 }
 
 // clearOktaConditionalAccess clears all Okta conditional access configuration fields.
@@ -13391,6 +13393,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	t := s.T()
 	ctx := context.Background()
+
+	fmt.Printf("dev_mode.Env(\"FLEET_DEV_BATCH_RETRY_INTERVAL\"): %v\n", dev_mode.Env("FLEET_DEV_BATCH_RETRY_INTERVAL"))
 
 	// non-existent team
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{}, http.StatusNotFound, "team_name", "foo")
