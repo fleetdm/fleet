@@ -16,7 +16,7 @@ You trust that it’s patching correctly. You trust that it’s detecting the ri
 
 But in an era of zero-day vulnerabilities, distributed workforces, and heterogeneous OS environments, **blind trust is no longer a viable strategy**. Modern organizations need to move beyond "Click-Ops" (manual, error-prone processes for managing devices via a web GUI) and adopt an engineering-driven approach. 
 
-Why embrace automation? Because it’s relatively easy to reverse version-contraolled automation, and very hard to unclick buttons.
+Why embrace automation? Because it’s relatively easy to reverse version-controlled automation, and very hard to unclick buttons.
 
 Implementing this idea requires a fundamental shift in the stack. It means moving away from opaque, proprietary tools and toward a transparent, composable architecture built on three pillars: 
 
