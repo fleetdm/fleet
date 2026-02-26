@@ -56,6 +56,7 @@ jobs:
       suite: activity
       mysql: ${{ matrix.mysql }}
       cover_pkg: 'github.com/fleetdm/fleet/v4/server/activity/...'
+      generate_go: false
       is_cron: ${{ github.event_name == 'schedule' }}
     secrets: inherit
 
@@ -73,6 +74,7 @@ jobs:
       suite: activity
       mysql: ${{ matrix.mysql }}
       cover_pkg: 'github.com/fleetdm/fleet/v4/server/activity/...'
+      generate_go: false
       is_cron: true
     secrets: inherit
 

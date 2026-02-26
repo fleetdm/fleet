@@ -19,6 +19,11 @@ on:
         required: false
         type: string
         default: ''
+      generate_go:
+        description: 'Whether to run make generate-go before tests. Disable for suites that do not need generated static files.'
+        required: false
+        type: boolean
+        default: true
       is_cron:
         description: 'Whether this is a scheduled (cron) run. Enables race detector and longer timeouts.'
         required: false
@@ -127,6 +132,7 @@ jobs:
       run: sudo apt update && sudo apt install -y zsh
 
     - name: Generate static files
+      if: ${{ inputs.generate_go }}
       run: |
         export PATH=$PATH:~/go/bin
         make generate-go
