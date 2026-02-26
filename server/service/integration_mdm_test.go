@@ -5967,7 +5967,8 @@ func (s *integrationMDMTestSuite) TestSSO() {
 				"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
 			},
 			"macos_setup": {
-				"enable_end_user_authentication": true
+				"enable_end_user_authentication": true,
+				"lock_end_user_info": true
 			}
 		}
 	}`), http.StatusOK, &acResp)
@@ -6444,6 +6445,8 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	var fullAccCmd *micromdm.CommandPayload
 	require.NoError(t, plist.Unmarshal(accCmd.Raw, &fullAccCmd))
 	// We setup the test with Lock End User Account info disabled, so this should be false
+	require.NotNil(t, fullAccCmd.Command)
+	require.NotNil(t, fullAccCmd.Command.AccountConfiguration)
 	assert.False(t, fullAccCmd.Command.AccountConfiguration.LockPrimaryAccountInfo)
 	assert.Equal(t, displayName, fullAccCmd.Command.AccountConfiguration.PrimaryAccountFullName)
 	assert.Equal(t, "sso_user_no_displayname", fullAccCmd.Command.AccountConfiguration.PrimaryAccountUserName)

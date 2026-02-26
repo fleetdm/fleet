@@ -1293,6 +1293,22 @@ func TestMDMConfig(t *testing.T) {
 			},
 			expectedError: fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg,
 		},
+		{
+			name:        "try to disable End User Authentication with Lock End User Info enabled",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{
+					LockEndUserInfo:             optjson.SetBool(true),
+					EnableEndUserAuthentication: false,
+				},
+				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+					EntityID:    "fleet",
+					MetadataURL: "http://isser.metadata.com",
+					IDPName:     "onelogin",
+				}},
+			},
+			expectedError: "Couldn't enable macos_setup.lock_end_user_info because macos_setup.enable_end_user_authentication is not enabled.",
+		},
 	}
 
 	for _, tt := range testCases {
