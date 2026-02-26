@@ -17,5 +17,7 @@
 | [Bluesky](https://bsky.app/profile/fleetdm.bsky.social) | FleetDM |
 | [Mastodon](https://mastodon.social/@Fleet@discuss.systems) | Fleet |
 
+[Internal table](https://docs.google.com/spreadsheets/d/1WMiVzHQ-QV_llgDCBRX0P7uxuDNJaooYKPX1XKW6SSc/edit?gid=0#gid=0)
+
 <meta name="maintainedBy" value="akuthiala">
 <meta name="title" value="🫧 Fleet social media">
