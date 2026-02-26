@@ -1,6 +1,6 @@
 //go:build darwin
 
-package go_packages
+package go_binaries
 
 import (
 	"context"
@@ -12,11 +12,11 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// GenerateGoPackages is called to return the results for the go_packages table at query time.
-func GenerateGoPackages(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
+// GenerateGoBinaries is called to return the results for the go_binaries table at query time.
+func GenerateGoBinaries(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 	homeDirs, err := darwinHomeDirs()
 	if err != nil {
-		log.Debug().Err(err).Msg("go_packages: failed to list home directories")
+		log.Debug().Err(err).Msg("go_binaries: failed to list home directories")
 		return nil, nil
 	}
 	return generateForDirs(homeDirs), nil

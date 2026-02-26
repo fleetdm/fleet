@@ -658,13 +658,13 @@ SELECT package, MAX(atime) AS last_opened_at
 		GROUP BY package
 ```
 
-## software_go_packages
+## software_go_binaries
 
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, darwin, windows
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'go_packages'
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'go_binaries'
 ```
 
 - Query:
@@ -674,12 +674,12 @@ SELECT
   version AS version,
   '' AS extension_id,
   '' AS extension_for,
-  'go_packages' AS source,
+  'go_binaries' AS source,
   '' AS release,
   '' AS vendor,
   '' AS arch,
   installed_path AS installed_path
-FROM go_packages
+FROM go_binaries
 WHERE version <> '' AND version <> '(devel)'
 ```
 

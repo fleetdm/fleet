@@ -1136,22 +1136,22 @@ FROM fleetd_pacman_packages`,
 	// the results of this query are appended to the results of the other software queries.
 }
 
-var softwareGoPackages = DetailQuery{
+var softwareGoBinaries = DetailQuery{
 	Query: `
 SELECT
   name AS name,
   version AS version,
   '' AS extension_id,
   '' AS extension_for,
-  'go_packages' AS source,
+  'go_binaries' AS source,
   '' AS release,
   '' AS vendor,
   '' AS arch,
   installed_path AS installed_path
-FROM go_packages
+FROM go_binaries
 WHERE version <> '' AND version <> '(devel)'`,
 	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
-	Discovery: discoveryTable("go_packages"),
+	Discovery: discoveryTable("go_binaries"),
 	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
@@ -3135,7 +3135,7 @@ func GetDetailQueries(
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 		generatedMap["software_linux_fleetd_pacman"] = softwareLinuxPacman
 		generatedMap["software_jetbrains_plugins"] = softwareJetbrainsPlugins
-		generatedMap["software_go_packages"] = softwareGoPackages
+		generatedMap["software_go_binaries"] = softwareGoBinaries
 
 		for key, query := range SoftwareOverrideQueries {
 			generatedMap["software_"+key] = query

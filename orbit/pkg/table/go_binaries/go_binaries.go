@@ -1,4 +1,4 @@
-package go_packages
+package go_binaries
 
 import (
 	"debug/buildinfo"
@@ -9,8 +9,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// GoPackagesColumns is the schema of the go_packages table.
-func GoPackagesColumns() []table.ColumnDefinition {
+// GoBinariesColumns is the schema of the go_binaries table.
+func GoBinariesColumns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
 		table.TextColumn("name"),
 		table.TextColumn("version"),
@@ -50,7 +50,7 @@ func generateForDirs(homeDirs []string) []map[string]string {
 func readGoBinary(path string) map[string]string {
 	info, err := buildinfo.ReadFile(path)
 	if err != nil {
-		log.Debug().Err(err).Str("path", path).Msg("go_packages: failed to read build info")
+		log.Debug().Err(err).Str("path", path).Msg("go_binaries: failed to read build info")
 		return nil
 	}
 	return map[string]string{

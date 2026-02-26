@@ -19,7 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/find_cmd"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firmware_eficheck_integrity_check"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firmwarepasswd"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/go_packages"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/go_binaries"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ioreg"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/macos_user_profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/nvram_info"
@@ -114,7 +114,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("santa_allowed", santa.LogColumns(), santa.GenerateAllowed),
 		table.NewPlugin("santa_denied", santa.LogColumns(), santa.GenerateDenied),
 		table.NewPlugin("executable_hashes", executable_hashes.Columns(), executable_hashes.Generate),
-		table.NewPlugin("go_packages", go_packages.GoPackagesColumns(), go_packages.GenerateGoPackages),
+		table.NewPlugin("go_binaries", go_binaries.GoBinariesColumns(), go_binaries.GenerateGoBinaries),
 	}
 
 	// append platform specific tables

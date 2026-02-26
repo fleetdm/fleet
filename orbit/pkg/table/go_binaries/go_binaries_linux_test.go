@@ -1,6 +1,6 @@
 //go:build linux
 
-package go_packages
+package go_binaries
 
 import (
 	"strings"

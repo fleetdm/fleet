@@ -1,4 +1,4 @@
-package go_packages
+package go_binaries
 
 import (
 	"io"

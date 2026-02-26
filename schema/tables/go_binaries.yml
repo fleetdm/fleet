@@ -1,4 +1,4 @@
-name: go_packages
+name: go_binaries
 platforms:
   - darwin
   - linux
@@ -37,22 +37,22 @@ columns:
     description: |-
       The absolute filesystem path to the binary.
 examples: |-
-  List all Go packages:
+  List all Go binaries:
 
   ```
-  SELECT * FROM go_packages;
+  SELECT * FROM go_binaries;
   ```
 
-  List Go packages with real versions (installed via `go install`):
+  List Go binaries with real versions (installed via `go install`):
 
   ```
-  SELECT * FROM go_packages WHERE version <> '(devel)';
+  SELECT * FROM go_binaries WHERE version <> '(devel)';
   ```
 
-  Find all Go packages for a specific module:
+  Find all Go binaries for a specific module:
 
   ```
-  SELECT * FROM go_packages WHERE module_path LIKE 'github.com/hashicorp/%';
+  SELECT * FROM go_binaries WHERE module_path LIKE 'github.com/hashicorp/%';
   ```
 
 notes: |-
