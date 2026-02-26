@@ -16,12 +16,18 @@ import (
 )
 
 const (
-	phaseQAGate = iota
-	phaseDrafting
-	phaseMilestones
-	phaseTimestamp
-	phaseReport
-	phaseBrowser
+	phaseMissingSprint = iota
+	phaseMissingMilestones
+	phaseReleaseLabel
+	phaseAwaitingQAStale
+	phaseAwaitingQAGate
+	phaseDraftingGate
+	phaseMissingAssignee
+	phaseAssignedToMe
+	phaseUnassignedUnreleased
+	phaseTimestampExpiry
+	phaseUIAssembly
+	phaseBrowserBridge
 )
 
 func main() {
@@ -31,18 +37,24 @@ func main() {
 	bridgeIdleMinutes := flag.Int("bridge-idle-minutes", defaultBridgeIdleMinutes, "Minutes to keep UI bridge alive without activity")
 	openReport := flag.Bool("open-report", true, "Open HTML report in browser when finished")
 	var projectNums intListFlag
+	var labels stringListFlag
 	flag.Var(&projectNums, "project", "Project number(s)")
 	flag.Var(&projectNums, "p", "Project number(s) shorthand")
+	flag.Var(&labels, "label", "Label filter(s); items must match at least one (supports values with or without leading #)")
+	flag.Var(&labels, "l", "Label filter(s) shorthand")
 	flag.Parse()
 
 	for _, arg := range flag.Args() {
-		n, err := strconv.Atoi(arg)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "unexpected argument %q: only project numbers are allowed after -p\n\n", arg)
-			flag.Usage()
-			os.Exit(2)
+		arg = strings.TrimSpace(arg)
+		if strings.HasPrefix(arg, "-") {
+			continue
 		}
-		projectNums = append(projectNums, n)
+		n, err := strconv.Atoi(arg)
+		if err == nil {
+			projectNums = append(projectNums, n)
+			continue
+		}
+		labels = append(labels, arg)
 	}
 
 	if len(projectNums) == 0 {
@@ -70,71 +82,115 @@ func main() {
 	src := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
 	client := githubv4.NewClient(oauth2.NewClient(ctx, src))
 	tracker := newPhaseTracker([]string{
-		"QA checklist gate scan",
-		"Drafting estimation gate scan",
-		"Missing milestone/sprint/assignee/release audit",
-		"Updates timestamp expiry check",
-		"Rendering report deck",
+		"Missing sprint check",
+		"Missing milestones check",
+		"Release label guard",
+		"Awaiting QA stale watchdog",
+		"Awaiting QA gate",
+		"Drafting estimation gate",
+		"Missing assignee",
+		"Assigned to me",
+		"Unassigned unreleased bugs",
+		"Updates timestamp expiry",
+		"Assembling UI and report",
 		"Opening browser bridge",
 	})
 
 	projectNums = uniqueInts(projectNums)
+	labelFilter := compileLabelFilter(labels)
+	groupLabels := orderedGroupLabels(labels)
 
-	tracker.phaseStart(phaseQAGate)
+	tracker.phaseStart(phaseAwaitingQAGate)
+	tracker.phaseStart(phaseAwaitingQAStale)
 	start := time.Now()
 	staleAfter := time.Duration(*staleDays) * 24 * time.Hour
-	awaitingByProject, staleByProject := runAwaitingQACheck(ctx, client, *org, *limit, projectNums, staleAfter)
-	tracker.phaseDone(phaseQAGate,
-		phaseSummaryKV(
-			fmt.Sprintf("awaiting violations=%d", countAwaitingViolations(awaitingByProject)),
-			fmt.Sprintf("stale=%d", countStaleViolations(staleByProject)),
-			shortDuration(time.Since(start)),
-		),
-	)
+	awaitingByProject, staleByProject := runAwaitingQACheck(ctx, client, *org, *limit, projectNums, staleAfter, labelFilter)
+	awaitingElapsed := shortDuration(time.Since(start))
+	tracker.phaseDone(phaseAwaitingQAGate, phaseSummaryKV(
+		fmt.Sprintf("awaiting violations=%d", countAwaitingViolations(awaitingByProject)),
+		awaitingElapsed,
+	))
+	tracker.phaseDone(phaseAwaitingQAStale, phaseSummaryKV(
+		fmt.Sprintf("stale=%d", countStaleViolations(staleByProject)),
+		awaitingElapsed,
+	))
 
-	tracker.phaseStart(phaseDrafting)
+	tracker.phaseStart(phaseDraftingGate)
 	start = time.Now()
-	badDrafting := runDraftingCheck(ctx, client, *org, *limit)
+	badDrafting := runDraftingCheck(ctx, client, *org, *limit, labelFilter)
 	byStatus := groupViolationsByStatus(badDrafting)
-	tracker.phaseDone(phaseDrafting, phaseSummaryKV(
+	tracker.phaseDone(phaseDraftingGate, phaseSummaryKV(
 		fmt.Sprintf("drafting violations=%d", len(badDrafting)),
 		shortDuration(time.Since(start)),
 	))
 
-	tracker.phaseStart(phaseMilestones)
+	tracker.phaseStart(phaseMissingMilestones)
 	start = time.Now()
-	missingMilestones := runMissingMilestoneChecks(ctx, client, *org, projectNums, *limit, token)
-	missingSprints := runMissingSprintChecks(ctx, client, *org, projectNums, *limit)
-	missingAssignees := runMissingAssigneeChecks(ctx, client, *org, projectNums, *limit, token)
-	releaseLabelIssues := runReleaseLabelChecks(ctx, client, *org, projectNums, *limit)
-	tracker.phaseDone(phaseMilestones, phaseSummaryKV(
-		fmt.Sprintf("missing milestones=%d", len(missingMilestones)),
-		fmt.Sprintf("missing sprint=%d", len(missingSprints)),
-		fmt.Sprintf("assignee issues=%d", len(missingAssignees)),
-		fmt.Sprintf("release label issues=%d", len(releaseLabelIssues)),
+	missingMilestones := runMissingMilestoneChecks(ctx, client, *org, projectNums, *limit, token, labelFilter)
+	tracker.phaseDone(phaseMissingMilestones, phaseSummaryKV(
+		fmt.Sprintf("issues=%d", len(missingMilestones)),
 		shortDuration(time.Since(start)),
 	))
 
-	tracker.phaseStart(phaseTimestamp)
+	tracker.phaseStart(phaseMissingSprint)
+	start = time.Now()
+	missingSprints := runMissingSprintChecks(ctx, client, *org, projectNums, *limit, labelFilter)
+	tracker.phaseDone(phaseMissingSprint, phaseSummaryKV(
+		fmt.Sprintf("issues=%d", len(missingSprints)),
+		shortDuration(time.Since(start)),
+	))
+
+	tracker.phaseStart(phaseMissingAssignee)
+	tracker.phaseStart(phaseAssignedToMe)
+	start = time.Now()
+	missingAssignees := runMissingAssigneeChecks(ctx, client, *org, projectNums, *limit, token, labelFilter)
+	missingAssigneeCount, assignedToMeCount := splitAssigneeCounts(missingAssignees)
+	assigneeElapsed := shortDuration(time.Since(start))
+	tracker.phaseDone(phaseMissingAssignee, phaseSummaryKV(
+		fmt.Sprintf("issues=%d", missingAssigneeCount),
+		assigneeElapsed,
+	))
+	tracker.phaseDone(phaseAssignedToMe, phaseSummaryKV(
+		fmt.Sprintf("issues=%d", assignedToMeCount),
+		assigneeElapsed,
+	))
+
+	tracker.phaseStart(phaseReleaseLabel)
+	start = time.Now()
+	releaseLabelIssues := runReleaseLabelChecks(ctx, client, *org, projectNums, *limit, labelFilter)
+	tracker.phaseDone(phaseReleaseLabel, phaseSummaryKV(
+		fmt.Sprintf("issues=%d", len(releaseLabelIssues)),
+		shortDuration(time.Since(start)),
+	))
+
+	tracker.phaseStart(phaseUnassignedUnreleased)
+	start = time.Now()
+	unassignedUnreleasedBugs := runUnassignedUnreleasedBugChecks(ctx, client, *org, projectNums, *limit, token, labelFilter, groupLabels)
+	tracker.phaseDone(phaseUnassignedUnreleased, phaseSummaryKV(
+		fmt.Sprintf("issues=%d", len(unassignedUnreleasedBugs)),
+		shortDuration(time.Since(start)),
+	))
+
+	tracker.phaseStart(phaseTimestampExpiry)
 	start = time.Now()
 	timestampCheck := checkUpdatesTimestamp(ctx, time.Now().UTC())
 	if timestampCheck.Error != "" {
-		tracker.phaseWarn(phaseTimestamp, phaseSummaryKV("timestamp check unavailable", timestampCheck.Error, shortDuration(time.Since(start))))
+		tracker.phaseWarn(phaseTimestampExpiry, phaseSummaryKV("check unavailable", timestampCheck.Error, shortDuration(time.Since(start))))
 	} else if !timestampCheck.OK {
 		daysLeft := int(timestampCheck.DurationLeft.Hours() / 24)
-		tracker.phaseFail(phaseTimestamp, phaseSummaryKV(
+		tracker.phaseFail(phaseTimestampExpiry, phaseSummaryKV(
 			fmt.Sprintf("expires in %d days (min %d)", daysLeft, timestampCheck.MinDays),
 			shortDuration(time.Since(start)),
 		))
 	} else {
 		daysLeft := int(timestampCheck.DurationLeft.Hours() / 24)
-		tracker.phaseDone(phaseTimestamp, phaseSummaryKV(
+		tracker.phaseDone(phaseTimestampExpiry, phaseSummaryKV(
 			fmt.Sprintf("expires in %d days", daysLeft),
 			shortDuration(time.Since(start)),
 		))
 	}
 
-	tracker.phaseStart(phaseReport)
+	tracker.phaseStart(phaseUIAssembly)
 	start = time.Now()
 	policy := buildBridgePolicy(badDrafting, missingMilestones, missingSprints, missingAssignees, releaseLabelIssues)
 	bridge, err := startUIBridge(token, time.Duration(*bridgeIdleMinutes)*time.Minute, tracker.bridgeSignal, policy)
@@ -158,6 +214,8 @@ func main() {
 			missingSprints,
 			missingAssignees,
 			releaseLabelIssues,
+			unassignedUnreleasedBugs,
+			groupLabels,
 			timestampCheck,
 			bridgeEnabled,
 			bridgeBaseURL,
@@ -167,9 +225,9 @@ func main() {
 		log.Printf("could not write HTML report: %v", err)
 		return
 	}
-	tracker.phaseDone(phaseReport, phaseSummaryKV("report generated", shortDuration(time.Since(start))))
+	tracker.phaseDone(phaseUIAssembly, phaseSummaryKV("report + bridge ready", shortDuration(time.Since(start))))
 
-	tracker.phaseStart(phaseBrowser)
+	tracker.phaseStart(phaseBrowserBridge)
 	tracker.waitingForBrowser(reportPath)
 	if *openReport {
 		openTarget := reportPath
@@ -179,12 +237,12 @@ func main() {
 		}
 		if err := openInBrowser(openTarget); err != nil {
 			log.Printf("could not auto-open report: %v", err)
-			tracker.phaseWarn(phaseBrowser, "browser auto-open failed")
+			tracker.phaseWarn(phaseBrowserBridge, "browser auto-open failed")
 			return
 		}
-		tracker.phaseDone(phaseBrowser, "browser open signal sent")
+		tracker.phaseDone(phaseBrowserBridge, "browser open signal sent")
 	} else {
-		tracker.phaseWarn(phaseBrowser, "auto-open disabled (-open-report=false)")
+		tracker.phaseWarn(phaseBrowserBridge, "auto-open disabled (-open-report=false)")
 	}
 
 	if bridge == nil {
@@ -205,6 +263,7 @@ func runAwaitingQACheck(
 	limit int,
 	projectNums []int,
 	staleAfter time.Duration,
+	labelFilter map[string]struct{},
 ) (map[int][]Item, map[int][]StaleAwaitingViolation) {
 	awaitingByProject := make(map[int][]Item)
 	staleByProject := make(map[int][]StaleAwaitingViolation)
@@ -216,6 +275,9 @@ func runAwaitingQACheck(
 		var badAwaitingQA []Item
 		var staleAwaiting []StaleAwaitingViolation
 		for _, it := range items {
+			if !matchesLabelFilter(it, labelFilter) {
+				continue
+			}
 			if !inAwaitingQA(it) {
 				continue
 			}
@@ -238,11 +300,23 @@ func runAwaitingQACheck(
 	return awaitingByProject, staleByProject
 }
 
+func splitAssigneeCounts(items []MissingAssigneeIssue) (missingAssignee int, assignedToMe int) {
+	for _, it := range items {
+		if it.AssignedToMe {
+			assignedToMe++
+			continue
+		}
+		missingAssignee++
+	}
+	return missingAssignee, assignedToMe
+}
+
 func runDraftingCheck(
 	ctx context.Context,
 	client *githubv4.Client,
 	org string,
 	limit int,
+	labelFilter map[string]struct{},
 ) []DraftingCheckViolation {
 	draftingProjectID := fetchProjectID(ctx, client, org, draftingProjectNum)
 	draftingItems := fetchItems(ctx, client, draftingProjectID, limit)
@@ -250,6 +324,9 @@ func runDraftingCheck(
 	needles := strings.Split(draftingStatusNeedle, ",")
 	var badDrafting []DraftingCheckViolation
 	for _, it := range draftingItems {
+		if !matchesLabelFilter(it, labelFilter) {
+			continue
+		}
 		status, ok := matchedStatus(it, needles)
 		if !ok {
 			continue

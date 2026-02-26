@@ -74,7 +74,7 @@ func (p *phaseTracker) clearScreen() {
 }
 
 func (p *phaseTracker) renderAll() {
-	fmt.Printf("%s🚀 qacheck flight console%s\n", clrCyan, clrReset)
+	fmt.Printf("%s🚀 scrumcheck flight console%s\n", clrCyan, clrReset)
 	fmt.Printf("%sMission control online. Tracking scan phases in real time.%s\n\n", clrDim, clrReset)
 	fmt.Println(p.renderGlobalLine())
 	fmt.Println()
