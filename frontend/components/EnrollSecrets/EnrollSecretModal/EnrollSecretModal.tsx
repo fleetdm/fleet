@@ -100,7 +100,7 @@ const EnrollSecretModal = ({
               info={
                 <>
                   Add secret(s) to enroll hosts
-                  {primoMode ? (
+                  {primoMode || teamInfo?.name === "Unassigned" ? (
                     ""
                   ) : (
                     <>
