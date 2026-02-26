@@ -541,12 +541,12 @@ func (c *Client) ApplyGroup(
 	// specs.Queries must be applied before specs.Packs because packs reference queries.
 	if len(specs.Queries) > 0 {
 		if opts.DryRun {
-			logfn("[!] ignoring queries, dry run mode only supported for 'config' and 'fleet' specs\n")
+			logfn("[!] ignoring reports, dry run mode only supported for 'config' and 'fleet' specs\n")
 		} else {
 			if err := c.ApplyQueries(specs.Queries); err != nil {
-				return nil, nil, nil, nil, fmt.Errorf("applying queries: %w", err)
+				return nil, nil, nil, nil, fmt.Errorf("applying reports: %w", err)
 			}
-			logfn(appliedFormat, numberWithPluralization(len(specs.Queries), "query", "queries"))
+			logfn(appliedFormat, numberWithPluralization(len(specs.Queries), "report", "reports"))
 		}
 	}
 
@@ -2330,7 +2330,7 @@ func (c *Client) DoGitOps(
 			teamID, ok := teamIDsByName[*incoming.TeamName]
 			if ok && teamID == 0 {
 				if dryRun {
-					logFn("[+] would've added any policies/queries to new fleet %s\n", *incoming.TeamName)
+					logFn("[+] would've added any policies/reports to new fleet %s\n", *incoming.TeamName)
 
 					numCerts := 0
 					if incoming.Controls.AndroidSettings != nil {
@@ -2922,14 +2922,14 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 	// Get the ids and names of current queries to figure out which ones to delete
 	queries, err := c.GetQueries(config.TeamID, nil)
 	if err != nil {
-		return fmt.Errorf("error getting current queries: %w", err)
+		return fmt.Errorf("error getting current reports: %w", err)
 	}
 	if len(config.Queries) > 0 {
 		numQueries := len(config.Queries)
 		if dryRun {
-			logFn("[+] would've applied %s\n", numberWithPluralization(numQueries, "query", "queries"))
+			logFn("[+] would've applied %s\n", numberWithPluralization(numQueries, "report", "reports"))
 		} else {
-			logFn("[+] applying %s\n", numberWithPluralization(numQueries, "query", "queries"))
+			logFn("[+] applying %s\n", numberWithPluralization(numQueries, "report", "reports"))
 		}
 		if !dryRun {
 			appliedCount := 0
@@ -2941,9 +2941,9 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 				appliedCount += end - i
 				// Note: We are reusing the spec flow here for adding/updating queries, instead of creating a new flow for GitOps.
 				if err := c.ApplyQueries(config.Queries[i:end]); err != nil {
-					return fmt.Errorf("error applying queries: %w", err)
+					return fmt.Errorf("error applying reports: %w", err)
 				}
-				logFn("[+] applied %s\n", numberWithPluralization(appliedCount, "query", "queries"))
+				logFn("[+] applied %s\n", numberWithPluralization(appliedCount, "report", "reports"))
 			}
 		}
 	}
@@ -2959,17 +2959,17 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 		if !found {
 			queriesToDelete = append(queriesToDelete, oldQuery.ID)
 			if !dryRun {
-				fmt.Printf("[-] deleting query %s\n", oldQuery.Name)
+				fmt.Printf("[-] deleting report %s\n", oldQuery.Name)
 			} else {
-				fmt.Printf("[-] would've deleted query %s\n", oldQuery.Name)
+				fmt.Printf("[-] would've deleted report %s\n", oldQuery.Name)
 			}
 		}
 	}
 	if len(queriesToDelete) > 0 {
 		if dryRun {
-			logFn("[-] would've deleted %s\n", numberWithPluralization(len(queriesToDelete), "query", "queries"))
+			logFn("[-] would've deleted %s\n", numberWithPluralization(len(queriesToDelete), "report", "reports"))
 		} else {
-			logFn("[-] deleting %s\n", numberWithPluralization(len(queriesToDelete), "query", "queries"))
+			logFn("[-] deleting %s\n", numberWithPluralization(len(queriesToDelete), "report", "reports"))
 			deleteCount := 0
 			for i := 0; i < len(queriesToDelete); i += batchSize {
 				end := i + batchSize
@@ -2978,9 +2978,9 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 				}
 				deleteCount += end - i
 				if err := c.DeleteQueries(queriesToDelete[i:end]); err != nil {
-					return fmt.Errorf("error deleting queries: %w", err)
+					return fmt.Errorf("error deleting reports: %w", err)
 				}
-				logFn("[-] deleted %s\n", numberWithPluralization(deleteCount, "query", "queries"))
+				logFn("[-] deleted %s\n", numberWithPluralization(deleteCount, "report", "reports"))
 			}
 		}
 	}
