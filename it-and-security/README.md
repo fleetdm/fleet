@@ -28,6 +28,7 @@
 - TODO: (sgress454) Exclude secrets by default from gitops.
 - TODO: (mikermcneil) Finish fancy comments for global manifest, big 3 built-in fleet manifests, and 
 - TODO: (mikermcneil) Finish template README.md
+- TODO: (?) Improve "normal-ness" feeling of getting `fleetctl` in the first place
 - TODO: (noahtalerman+sgress454) Variable gitops-mode (labels+software)
   - TODO: Figure out -- and then explore whether it makes sense per fleet?)
   - TODO: Explore defaulting to this and excluding labels+software by default?
