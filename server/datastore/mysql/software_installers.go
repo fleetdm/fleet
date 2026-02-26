@@ -3453,9 +3453,8 @@ WHERE
 }
 
 func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
-	// check appropriate installers/in-house apps/vpp apps for the payload type
-	switch {
-	case payload.Extension == "ipa":
+	// if this is an in-house app, check if an installer exists
+	if payload.Extension == "ipa" {
 		// at the point where this method is called, we attempt to create both iOS and iPadOS entries
 		// for ipa apps, so check for conflicts on either platform.
 		for platform, source := range map[string]string{
@@ -3478,18 +3477,22 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 				return alreadyExists("VPP app", payload.Title)
 			}
 		}
-	case fleet.InstallableDevicePlatform(payload.Platform).IsApplePlatform():
+	} else {
 		// check if a VPP app already exists for that software title in the same
 		// platform and team.
-		exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx), payload.TeamID, payload.Platform, payload.BundleIdentifier, payload.Source, "")
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "check if VPP app exists for title identifier")
-		}
-		if exists {
-			return alreadyExists("VPP app", payload.Title)
+		if payload.Platform == string(fleet.MacOSPlatform) || payload.Platform == string(fleet.IOSPlatform) || payload.Platform == string(fleet.IPadOSPlatform) {
+			exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx), payload.TeamID, payload.Platform, payload.BundleIdentifier, payload.Source, "")
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "check if VPP app exists for title identifier")
+			}
+			if exists {
+				return alreadyExists("VPP app", payload.Title)
+			}
 		}
 
-		// check if an in-house app with the same bundle id already exists.
+		// Check if an in-house app with the same bundle id already exists.
+		// Also check if equivalent installers exist, since we relaxed the uniqueness constraints to allow
+		// multiple FMA installer versions.
 		if payload.BundleIdentifier != "" {
 			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, payload.Platform, softwareTypeInHouseApp)
 			if err != nil {
@@ -3498,14 +3501,24 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 			if exists {
 				return alreadyExists("in-house app", payload.Title)
 			}
+
+			exists, err = ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, payload.Platform, softwareTypeInstaller)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "check if installer exists for title identifier")
+			}
+			if exists {
+				return alreadyExists("installer", payload.Title)
+			}
 		}
-	case payload.Platform == "windows":
-		exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.Title, payload.Platform, softwareTypeInstaller)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "check if installer exists for title identifier")
-		}
-		if exists {
-			return alreadyExists("installer", payload.Title)
+
+		if payload.Platform == "windows" {
+			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.Title, payload.Platform, softwareTypeInstaller)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "check if installer exists for title identifier")
+			}
+			if exists {
+				return alreadyExists("installer", payload.Title)
+			}
 		}
 	}
 
