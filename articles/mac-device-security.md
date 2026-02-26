@@ -121,10 +121,10 @@ The macOS Security Compliance Project (mSCP) provides code-ready YAML configurat
 
 Yes. MDM tools that manage multiple operating systems, like Fleet, provide unified management consoles for macOS, Windows, and Linux devices. However, you should verify actual feature parity during evaluation, as capabilities vary across operating systems due to architectural differences. Fleet offers multi-platform device management with support for configuration-as-code approaches. [Schedule a demo](https://fleetdm.com/contact) to see how Fleet handles your specific fleet mix.
 
-<meta name="articleTitle" value="ac device security: Apple's native protections and third-party tools">
+<meta name="articleTitle" value="Mac device security: Apple's native protections and third-party tools">
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-02-25">
-<meta name="description" value="Learn how Mac endpoint security works, from Apple's native protections (SIP, XProtect, TCC) to third-party EDR tools for enterprise visibility and compliance.">
+<meta name="description" value="Learn how Mac endpoint security works, from Apple's protections (SIP, XProtect, TCC) to third-party tools for enterprise visibility and compliance.">
 

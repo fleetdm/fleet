@@ -1032,7 +1032,10 @@ func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
 	aclAdapter := activityacl.NewFleetServiceAdapter(lookupSvc)
 
 	// Create service via bootstrap (the public API for creating the bounded context)
-	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, aclAdapter, server.PostJSONWithTimeout, slog.New(slog.DiscardHandler))
+	discardLogger := slog.New(slog.DiscardHandler)
+	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, aclAdapter, func(ctx context.Context, url string, payload any) error {
+		return server.PostJSONWithTimeout(ctx, url, payload, discardLogger)
+	}, discardLogger)
 	return svc
 }
 

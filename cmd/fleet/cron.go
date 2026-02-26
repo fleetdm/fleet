@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
 	"strconv"
@@ -100,7 +101,7 @@ func cronVulnerabilities(
 		return nil
 	}
 
-	vulnPath := configureVulnPath(*config, appConfig, logger)
+	vulnPath := configureVulnPath(ctx, *config, appConfig, logger)
 	if vulnPath != "" {
 		logger.InfoContext(ctx, "scanning vulnerabilities")
 		if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath); err != nil {
@@ -1285,6 +1286,7 @@ func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet
 		name            = string(fleet.CronUsageStatistics)
 		defaultInterval = 1 * time.Hour
 	)
+	slogLogger := logger.SlogLogger()
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger.With("cron", name)),
@@ -1293,7 +1295,7 @@ func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet
 			func(ctx context.Context) error {
 				// NOTE(mna): this is not a route from the fleet server (not in server/service/handler.go) so it
 				// will not automatically support the /latest/ versioning. Leaving it as /v1/ for that reason.
-				return trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", config)
+				return trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", config, slogLogger)
 			},
 		),
 	)
@@ -1301,7 +1303,7 @@ func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet
 	return s, nil
 }
 
-func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, config config.FleetConfig) error {
+func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, config config.FleetConfig, logger *slog.Logger) error {
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {
 		return err
@@ -1320,7 +1322,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return nil
 	}
 
-	if err := server.PostJSONWithTimeout(ctx, url, stats); err != nil {
+	if err := server.PostJSONWithTimeout(ctx, url, stats, logger); err != nil {
 		return err
 	}
 

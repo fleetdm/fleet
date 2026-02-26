@@ -103,6 +103,10 @@ _Slack message_
 
 ## The GitOps advantage
 
+![pull-request](../website/assets/images/articles/pull-request-1000x425@2x.png)
+
+_Pull Request adding an additional rule_
+
 By leveraging GitOps principles through Fleet, Santa management becomes:
 
 - **Version Controlled:** Every rule change is tracked in Git with full audit trails
@@ -110,19 +114,7 @@ By leveraging GitOps principles through Fleet, Santa management becomes:
 - **Automatically Deployed:** CI/CD pipelines handle rule distribution without manual intervention
 - **Easily Rollbacked:** Git reverts enable instant rollback of problematic rule changes
 
-![pull-request](../website/assets/images/articles/pull-request-1000x425@2x.png)
-
-_Pull Request adding an additional rule_
-
-## The bottom line
-
-Fleet believes in reducing complexity. Fleet's GitOps-native approach provides all the functionality of a custom Santa sync server while adding enterprise device management, operational simplicity, and modern change management capabilities while eliminating infrastructure maintenance. It's a more scalable and secure approach to binary authorization that aligns with modern infrastructure practices.
-
-Ready to modernize your Santa deployment? Fleet's open-source platform makes it easier than ever to implement GitOps-driven binary authorization without the operational overhead of traditional sync servers.
-
-Additional progress and discussion on a native Santa + Fleet integration can be tracked in this feature request: https://github.com/fleetdm/fleet/issues/24910
-
-Fleet is an open-source device management platform that provides GitOps-native configuration management, comprehensive device visibility, and enterprise-grade security for organizations managing thousands of endpoints. Learn more at https://fleetdm.com.
+About the author: [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) is a Solutions Consultant / individual contributor and head of IT at Fleet Device Management.
 
 <meta name="articleTitle" value="How we deployed Santa at Fleet">
 <meta name="authorFullName" value="Allen Houchins">
