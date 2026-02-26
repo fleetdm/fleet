@@ -53,7 +53,7 @@ This is [**Fleet**](https://fleetdm.com/).
 Fleet is the most widely used open-source control plane for `osquery`. It is designed to scale from a startup's first ten Macs to an enterprise's 300,000 mixed-OS servers and workstations. Fleet is designed and architected "API-first" - all of Fleet’s features and functions are available 1:1 in the GUI and the API.
 
 - **Fleet Free** provides the essential tools for querying devices in real-time and piping that data into your SIEM or data lake (like Snowflake, Splunk, or ELK) for analysis.  
-- **Fleet Premium adds MDM**, upgrading the stack from observation to fully-operational multi-platform device management for Apple, Linux, Windows, Android & ChromeOS. [Fleet premium](https://fleetdm.com/pricing ) allows organizations to enforce disk encryption, push software profiles, manage updates, and remotely wipe devices - all using the same lightweight agent that provides the best device visibility solution available.
+- **Fleet Premium adds MDM** upgrades the stack from observation to fully-operational multi-platform device management for Apple, Linux, Windows, Android & ChromeOS. [Fleet premium](https://fleetdm.com/pricing) allows organizations to enforce disk encryption, push software profiles, manage updates, and remotely wipe devices - all using the same lightweight, robust agent that provides the best device visibility solution available.
 
 **The Value for IT Leaders:** Fleet consolidates your tool sprawl. Instead of separate agents for observation, inventory data collection, software vulnerability detection, MDM and compliance enforcement, you have one platform. Because Fleet’s core is open-source, you are never locked into a black box. The API is open, the code is auditable, and the roadmap is transparent.
 
@@ -69,7 +69,7 @@ A policy requiring FileVault encryption on macOS can be controlled with a checkb
 
 But, that checkbox can also be declaratively controlled with a text file containing the FileVault configuration. 
 
-By adding the text file into a version-controlled  `git` repository, the "code" is merged into the "main" code branch, the "source of truth" that stores all of the latest configuration updates. The merge action kicks off a [CI / CD pipeline](https://about.gitlab.com/topics/ci-cd/cicd-pipeline/) automation using Fleet’s API via [`fleetctl`](https://fleetdm.com/guides/fleetctl#basic-article) (Fleet's GitOps-native CLI binary for controlling the Fleet UI) to push configurations out to managed devices in scope.
+By adding the text file into a version-controlled  `git` repository, the "code" is "merged" into the "main" code branch - the "source of truth" that stores all of the latest repository updates. The merge action kicks off a [CI / CD pipeline](https://about.gitlab.com/topics/ci-cd/cicd-pipeline/) automation using Fleet’s API via [`fleetctl`](https://fleetdm.com/guides/fleetctl#basic-article) (Fleet's GitOps-native CLI binary for controlling the Fleet UI). This action updates Fleet and pushes configurations out to managed devices in scope.
 
 **The Value for IT Leaders:** IaC introduces engineering rigor to IT operations.
 
