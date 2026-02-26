@@ -235,6 +235,7 @@ func main() {
 		bridgeSessionToken,
 	)
 	if bridge != nil {
+		bridge.setReportData(reportData)
 		bridge.setUnassignedUnreleasedResults(reportData.UnassignedUnreleased)
 		bridge.setReleaseStoryTODOResults(reportData.ReleaseStoryTODO)
 		bridge.setMissingSprintResults(reportData.MissingSprint)
@@ -316,6 +317,52 @@ func main() {
 			).MissingSprint
 			refreshedPolicy := buildBridgePolicy(nil, nil, fresh, nil, nil)
 			return report, refreshedPolicy.SprintsByItemID, nil
+		})
+		bridge.setRefreshAllState(func(ctx context.Context) (HTMLReportData, bridgePolicy, error) {
+			refreshCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
+			defer cancel()
+
+			staleAfter := time.Duration(*staleDays) * 24 * time.Hour
+			refAwaitingByProject, refStaleByProject := runAwaitingQACheck(
+				refreshCtx,
+				client,
+				*org,
+				*limit,
+				projectNums,
+				staleAfter,
+				labelFilter,
+			)
+			refDrafting := runDraftingCheck(refreshCtx, client, *org, *limit, labelFilter)
+			refByStatus := groupViolationsByStatus(refDrafting)
+			refMissingMilestones := runMissingMilestoneChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter)
+			refMissingSprints := runMissingSprintChecks(refreshCtx, client, *org, projectNums, *limit, labelFilter)
+			refMissingAssignees := runMissingAssigneeChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter)
+			refReleaseIssues := runReleaseLabelChecks(refreshCtx, client, *org, projectNums, *limit, labelFilter)
+			refReleaseTODO := runReleaseStoryTODOChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter)
+			refUnreleased := runUnassignedUnreleasedBugChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter, groupLabels)
+			refTimestamp := checkUpdatesTimestamp(refreshCtx, time.Now().UTC())
+
+			refData := buildHTMLReportData(
+				*org,
+				projectNums,
+				refAwaitingByProject,
+				refStaleByProject,
+				*staleDays,
+				refByStatus,
+				refMissingMilestones,
+				refMissingSprints,
+				refMissingAssignees,
+				refReleaseIssues,
+				refReleaseTODO,
+				refUnreleased,
+				groupLabels,
+				refTimestamp,
+				bridgeEnabled,
+				bridgeBaseURL,
+				bridgeSessionToken,
+			)
+			refPolicy := buildBridgePolicy(refDrafting, refMissingMilestones, refMissingSprints, refMissingAssignees, refReleaseIssues)
+			return refData, refPolicy, nil
 		})
 	}
 

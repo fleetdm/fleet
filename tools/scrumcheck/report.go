@@ -1049,18 +1049,8 @@ var htmlReportTemplate = `<!doctype html>
         <h1>Scrum check</h1>
       </div>
       <p class="meta">Org: {{.Org}} | Generated: {{.GeneratedAt}}</p>
-      <div class="counts">
-        <span class="pill">Release stories with TODO (selected projects): {{.TotalReleaseStoryTODO}}</span>
-        <span class="pill">Awaiting QA violations: {{.TotalAwaiting}}</span>
-        <span class="pill">Stale Awaiting QA items: {{.TotalStale}}</span>
-        <span class="pill">Missing milestones (selected projects): {{.TotalNoMilestone}}</span>
-        <span class="pill">Missing sprint (selected projects): {{.TotalNoSprint}}</span>
-        <span class="pill">Missing assignee (selected projects): {{.TotalMissingAssignee}}</span>
-        <span class="pill">Assigned to me (selected projects): {{.TotalAssignedToMe}}</span>
-        <span class="pill">Unassigned unreleased bugs (selected projects): {{.TotalUnassignedUnreleased}}</span>
-        <span class="pill">Tracked unreleased bugs (assigned): {{.TotalTrackedUnreleased}}</span>
-        <span class="pill">Release label issues (selected projects): {{.TotalRelease}}</span>
-        <span class="pill">Drafting checklist violations: {{.TotalDrafting}}</span>
+      <div id="counts-content" class="counts">
+        <span class="pill">Loading check totals…</span>
       </div>
       {{if .BridgeEnabled}}
         <div class="bridge-controls">
@@ -1121,62 +1111,24 @@ var htmlReportTemplate = `<!doctype html>
       </section>
 
       <section id="tab-awaiting" class="panel" role="tabpanel">
-        <h2>✅ Awaiting QA gate</h2>
+        <div class="column-head">
+          <h2>✅ Awaiting QA gate</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="awaiting">Refresh</button>
+        </div>
         <p class="subtle">Items in <strong>` + awaitingQAColumn + `</strong> where engineer test-plan confirmation is unchecked.</p>
-        {{if .AwaitingSections}}
-          {{range .AwaitingSections}}
-            <div class="project">
-              <h3>Project {{.ProjectNum}}</h3>
-              {{if .Items}}
-                {{range .Items}}
-                  <article class="item">
-                    <div><strong>#{{.Number}} - {{.Title}}</strong></div>
-                    <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
-                    <ul>
-                      <li>Assignees: {{if .Assignees}}{{range $i, $a := .Assignees}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}(empty){{end}}</li>
-                    </ul>
-                    {{if .Unchecked}}
-                      <ul>
-                        {{range .Unchecked}}<li>[ ] {{.}}</li>{{end}}
-                      </ul>
-                    {{end}}
-                  </article>
-                {{end}}
-              {{else}}
-                <p class="empty">🟢 No violations in this project.</p>
-              {{end}}
-            </div>
-          {{end}}
-        {{else}}
-          <p class="empty">🟢 No project data found.</p>
-        {{end}}
+        <div id="awaiting-content">
+          <p class="empty">🛰️ Loading Awaiting QA data from bridge…</p>
+        </div>
       </section>
       <section id="tab-stale" class="panel" role="tabpanel">
-        <h2>⏳ Awaiting QA stale watchdog</h2>
+        <div class="column-head">
+          <h2>⏳ Awaiting QA stale watchdog</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="stale">Refresh</button>
+        </div>
         <p class="subtle">Items in <strong>` + awaitingQAColumn + `</strong> with no updates for at least {{.StaleThreshold}} days.</p>
-        {{if .StaleSections}}
-          {{range .StaleSections}}
-            <div class="project">
-              <h3>Project {{.ProjectNum}}</h3>
-              {{if .Items}}
-                {{range .Items}}
-                  <article class="item">
-                    <div><strong>#{{.Number}} - {{.Title}}</strong></div>
-                    <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
-                    <ul>
-                      <li>Last updated: {{.LastUpdated}}</li>
-                      <li>Age: {{.StaleDays}} days</li>
-                    </ul>
-                  </article>
-                {{end}}
-              {{else}}
-                <p class="empty">🟢 No stale items in this project.</p>
-              {{end}}
-            </div>
-          {{end}}
-        {{else}}
-          <p class="empty">🟢 No project data found.</p>
-        {{end}}
+        <div id="stale-content">
+          <p class="empty">🛰️ Loading stale Awaiting QA data from bridge…</p>
+        </div>
       </section>
 
       <section id="tab-timestamp" class="panel" role="tabpanel">
@@ -1191,109 +1143,25 @@ var htmlReportTemplate = `<!doctype html>
       </section>
 
       <section id="tab-milestone" class="panel" role="tabpanel">
-        <h2>🎯 Missing milestones (selected projects)</h2>
+        <div class="column-head">
+          <h2>🎯 Missing milestones (selected projects)</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="milestone">Refresh</button>
+        </div>
         <p class="subtle">Issues in selected projects without a milestone. Type to filter milestones, choose one, then apply directly.</p>
-        {{if .MissingMilestone}}
-          {{range .MissingMilestone}}
-            <div class="project">
-              <h3>Project {{.ProjectNum}}</h3>
-              {{range .Columns}}
-                <div class="status">
-                  <div class="column-head">
-                    <h3>{{.Label}}</h3>
-                    {{if and $.BridgeEnabled .Items}}
-                      <button class="fix-btn apply-milestone-column-btn">Apply selected milestones in column</button>
-                    {{end}}
-                  </div>
-                  {{if .Items}}
-                    {{range .Items}}
-                      <article class="item">
-                        <div><strong>#{{.Number}} - {{.Title}}</strong></div>
-                        <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
-                        <ul>
-                          <li>Status: {{if .Status}}{{.Status}}{{else}}(unset){{end}}</li>
-                          <li>Repository: {{.Repo}}</li>
-                          <li>Assignees: {{if .Assignees}}{{range $i, $a := .Assignees}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}(empty){{end}}</li>
-                          <li>Labels: {{if .Labels}}{{range $i, $l := .Labels}}{{if $i}}, {{end}}{{$l}}{{end}}{{else}}(empty){{end}}</li>
-                          <li>Snippet:</li>
-                          {{if .BodyPreview}}
-                            {{range .BodyPreview}}
-                              <li>{{.}}</li>
-                            {{end}}
-                          {{else}}
-                            <li>(empty)</li>
-                          {{end}}
-                        </ul>
-                        <div class="actions">
-                          {{if .Suggestions}}
-                            <input class="fix-btn milestone-search" type="text" placeholder="Search milestone...">
-                            <select class="fix-btn milestone-select" data-issue="{{.Number}}" data-repo="{{.Repo}}">
-                              {{range .Suggestions}}
-                                <option value="{{.Title}}" data-number="{{.Number}}">{{.Title}}</option>
-                              {{end}}
-                            </select>
-                            {{if $.BridgeEnabled}}
-                              <button class="fix-btn apply-milestone-btn">Apply milestone</button>
-                            {{else}}
-                              <span class="copied-note">Bridge offline: rerun qacheck to enable apply.</span>
-                            {{end}}
-                          {{else}}
-                            <span class="copied-note">No milestone suggestions found for this repo.</span>
-                          {{end}}
-                        </div>
-                      </article>
-                    {{end}}
-                  {{else}}
-                    <p class="empty">🟢 No items in this group.</p>
-                  {{end}}
-                </div>
-              {{end}}
-            </div>
-          {{end}}
-        {{else}}
-          <p class="empty">🟢 No missing milestones found.</p>
-        {{end}}
+        <div id="milestone-content">
+          <p class="empty">🛰️ Loading missing milestones from bridge…</p>
+        </div>
       </section>
 
       <section id="tab-drafting" class="panel" role="tabpanel">
-        <h2>🧭 Drafting estimation gate (project ` + fmt.Sprintf("%d", draftingProjectNum) + `)</h2>
+        <div class="column-head">
+          <h2>🧭 Drafting estimation gate (project ` + fmt.Sprintf("%d", draftingProjectNum) + `)</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="drafting">Refresh</button>
+        </div>
         <p class="subtle">Items in estimation statuses with unchecked checklist items.</p>
-        {{if .DraftingSections}}
-          {{range .DraftingSections}}
-            <div class="status">
-              <h3>{{.Emoji}} {{.Status}}</h3>
-              <p class="subtle">{{.Intro}}</p>
-              {{if .Items}}
-                {{range .Items}}
-                  <article class="item">
-                    <div><strong>#{{.Number}} - {{.Title}}</strong></div>
-                    <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
-                    <ul>
-                      <li>Assignees: {{if .Assignees}}{{range $i, $a := .Assignees}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}(empty){{end}}</li>
-                    </ul>
-                    {{if .Unchecked}}
-                      {{$item := .}}
-                      <div>
-                        {{range .Unchecked}}
-                          <div class="checklist-row">
-                            <span class="checklist-text">• [ ] {{.}}</span>
-                            {{if and $.BridgeEnabled $item.Repo}}
-                              <button class="fix-btn apply-drafting-check-btn" data-repo="{{$item.Repo}}" data-issue="{{$item.Number}}" data-check="{{.}}">Check on GitHub</button>
-                            {{end}}
-                          </div>
-                        {{end}}
-                      </div>
-                    {{end}}
-                  </article>
-                {{end}}
-              {{else}}
-                <p class="empty">🟢 No violations in this status.</p>
-              {{end}}
-            </div>
-          {{end}}
-        {{else}}
-          <p class="empty">🟢 No drafting violations.</p>
-        {{end}}
+        <div id="drafting-content">
+          <p class="empty">🛰️ Loading drafting data from bridge…</p>
+        </div>
       </section>
 
       <section id="tab-sprint" class="panel" role="tabpanel">
@@ -1308,149 +1176,36 @@ var htmlReportTemplate = `<!doctype html>
       </section>
 
       <section id="tab-missing-assignee" class="panel" role="tabpanel">
-        <h2>👤 Missing assignee (selected projects)</h2>
+        <div class="column-head">
+          <h2>👤 Missing assignee (selected projects)</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="missing-assignee">Refresh</button>
+        </div>
         <p class="subtle">Items with no assignee. If any item appears here, this check fails.</p>
-        {{if .MissingAssignee}}
-          {{range .MissingAssignee}}
-            <div class="project">
-              <h3>Project {{.ProjectNum}}</h3>
-              {{range .Columns}}
-                <div class="status">
-                  <div class="column-head">
-                    <h3>{{.Label}}</h3>
-                    {{if and $.BridgeEnabled .Items}}
-                      <button class="fix-btn apply-assignee-column-btn">Assign selected in column</button>
-                    {{end}}
-                  </div>
-                  {{if .Items}}
-                    {{range .Items}}
-                      <article class="item {{if .AssignedToMe}}assigned-to-me{{end}}">
-                        <div><strong>#{{.Number}} - {{.Title}}</strong></div>
-                        <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
-                        <ul>
-                          <li>Status: {{if .Status}}{{.Status}}{{else}}(unset){{end}}</li>
-                          <li>Repository: {{.Repo}}</li>
-                          <li>Current assignees: {{if .CurrentAssignees}}{{range $i, $a := .CurrentAssignees}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}(none){{end}}</li>
-                        </ul>
-                        <div class="actions">
-                          {{if .SuggestedAssignees}}
-                            <input class="fix-btn assignee-search" type="text" placeholder="Search assignee...">
-                            <select class="fix-btn assignee-select" data-issue="{{.Number}}" data-repo="{{.Repo}}">
-                              {{range .SuggestedAssignees}}
-                                <option value="{{.Login}}">{{.Login}}</option>
-                              {{end}}
-                            </select>
-                            {{if $.BridgeEnabled}}
-                              <button class="fix-btn apply-assignee-btn">Assign</button>
-                            {{else}}
-                              <span class="copied-note">Bridge offline: rerun qacheck to enable assign.</span>
-                            {{end}}
-                          {{else}}
-                            <span class="copied-note">No assignee options found for this repo.</span>
-                          {{end}}
-                        </div>
-                      </article>
-                    {{end}}
-                  {{else}}
-                    <p class="empty">🟢 No items in this group.</p>
-                  {{end}}
-                </div>
-              {{end}}
-            </div>
-          {{end}}
-        {{else}}
-          <p class="empty">🟢 No missing-assignee items found.</p>
-        {{end}}
+        <div id="missing-assignee-content">
+          <p class="empty">🛰️ Loading missing assignee data from bridge…</p>
+        </div>
       </section>
 
       <section id="tab-assigned-to-me" class="panel" role="tabpanel">
-        <h2>🧍 Assigned to me (selected projects)</h2>
+        <div class="column-head">
+          <h2>🧍 Assigned to me (selected projects)</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="assigned-to-me">Refresh</button>
+        </div>
         <p class="subtle">Items currently assigned to you. If any item appears here, this check fails.</p>
-        {{if .AssignedToMe}}
-          {{range .AssignedToMe}}
-            <div class="project">
-              <h3>Project {{.ProjectNum}}</h3>
-              {{range .Columns}}
-                <div class="status">
-                  <div class="column-head">
-                    <h3>{{.Label}}</h3>
-                    {{if and $.BridgeEnabled .Items}}
-                      <button class="fix-btn apply-assignee-column-btn">Assign selected in column</button>
-                    {{end}}
-                  </div>
-                  {{if .Items}}
-                    {{range .Items}}
-                      <article class="item assigned-to-me">
-                        <div><strong>#{{.Number}} - {{.Title}}</strong></div>
-                        <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
-                        <ul>
-                          <li>Status: {{if .Status}}{{.Status}}{{else}}(unset){{end}}</li>
-                          <li>Repository: {{.Repo}}</li>
-                          <li>Current assignees: {{if .CurrentAssignees}}{{range $i, $a := .CurrentAssignees}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}(none){{end}}</li>
-                        </ul>
-                        <div class="mine-badge">Assigned to me</div>
-                        <div class="actions">
-                          {{if .SuggestedAssignees}}
-                            <input class="fix-btn assignee-search" type="text" placeholder="Search assignee...">
-                            <select class="fix-btn assignee-select" data-issue="{{.Number}}" data-repo="{{.Repo}}">
-                              {{range .SuggestedAssignees}}
-                                <option value="{{.Login}}">{{.Login}}</option>
-                              {{end}}
-                            </select>
-                            {{if $.BridgeEnabled}}
-                              <button class="fix-btn apply-assignee-btn">Assign</button>
-                            {{else}}
-                              <span class="copied-note">Bridge offline: rerun qacheck to enable assign.</span>
-                            {{end}}
-                          {{else}}
-                            <span class="copied-note">No assignee options found for this repo.</span>
-                          {{end}}
-                        </div>
-                      </article>
-                    {{end}}
-                  {{else}}
-                    <p class="empty">🟢 No items in this group.</p>
-                  {{end}}
-                </div>
-              {{end}}
-            </div>
-          {{end}}
-        {{else}}
-          <p class="empty">🟢 No assigned-to-me items found.</p>
-        {{end}}
+        <div id="assigned-to-me-content">
+          <p class="empty">🛰️ Loading assigned-to-me data from bridge…</p>
+        </div>
       </section>
 
       <section id="tab-release" class="panel" role="tabpanel">
-        <h2>🏷️ Release label guard (selected projects)</h2>
+        <div class="column-head">
+          <h2>🏷️ Release label guard (selected projects)</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="release">Refresh</button>
+        </div>
         <p class="subtle">For selected projects (excluding project ` + fmt.Sprintf("%d", draftingProjectNum) + `): if ticket has <code>` + productLabel + `</code> or is missing <code>` + releaseLabel + `</code>, apply release labeling policy.</p>
-        {{if .ReleaseLabel}}
-          {{range .ReleaseLabel}}
-            <div class="project">
-              <div class="column-head">
-                <h3>Project {{.ProjectNum}}</h3>
-                {{if and $.BridgeEnabled .Items}}
-                  <button class="fix-btn apply-release-project-btn">Apply release label</button>
-                {{end}}
-              </div>
-              {{if .Items}}
-                {{range .Items}}
-                  <article class="item release-item" data-repo="{{.Repo}}" data-issue="{{.Number}}">
-                    <div><strong>#{{.Number}} - {{.Title}}</strong></div>
-                    <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
-                    <ul>
-                      <li>Status: {{if .Status}}{{.Status}}{{else}}(unset){{end}}</li>
-                      <li>Labels: {{if .CurrentLabels}}{{range $i, $l := .CurrentLabels}}{{if $i}}, {{end}}{{$l}}{{end}}{{else}}(none){{end}}</li>
-                    </ul>
-                  </article>
-                {{end}}
-              {{else}}
-                <p class="empty">🟢 No release-label issues in this project.</p>
-              {{end}}
-            </div>
-          {{end}}
-        {{else}}
-          <p class="empty">🟢 No release-label issues found.</p>
-        {{end}}
+        <div id="release-content">
+          <p class="empty">🛰️ Loading release label data from bridge…</p>
+        </div>
       </section>
 
       <section id="tab-unassigned-unreleased" class="panel" role="tabpanel">
@@ -1853,6 +1608,225 @@ var htmlReportTemplate = `<!doctype html>
         }
       }
 
+      function listOrEmpty(values, emptyText) {
+        return Array.isArray(values) && values.length > 0 ? values.join(', ') : emptyText;
+      }
+
+      function renderCounts(state) {
+        const root = document.getElementById('counts-content');
+        if (!root || !state) return;
+        root.innerHTML = '' +
+          '<span class="pill">Release stories with TODO (selected projects): ' + escHTML(state.TotalReleaseStoryTODO) + '</span>' +
+          '<span class="pill">Awaiting QA violations: ' + escHTML(state.TotalAwaiting) + '</span>' +
+          '<span class="pill">Stale Awaiting QA items: ' + escHTML(state.TotalStale) + '</span>' +
+          '<span class="pill">Missing milestones (selected projects): ' + escHTML(state.TotalNoMilestone) + '</span>' +
+          '<span class="pill">Missing sprint (selected projects): ' + escHTML(state.TotalNoSprint) + '</span>' +
+          '<span class="pill">Missing assignee (selected projects): ' + escHTML(state.TotalMissingAssignee) + '</span>' +
+          '<span class="pill">Assigned to me (selected projects): ' + escHTML(state.TotalAssignedToMe) + '</span>' +
+          '<span class="pill">Unassigned unreleased bugs (selected projects): ' + escHTML(state.TotalUnassignedUnreleased) + '</span>' +
+          '<span class="pill">Tracked unreleased bugs (assigned): ' + escHTML(state.TotalTrackedUnreleased) + '</span>' +
+          '<span class="pill">Release label issues (selected projects): ' + escHTML(state.TotalRelease) + '</span>' +
+          '<span class="pill">Drafting checklist violations: ' + escHTML(state.TotalDrafting) + '</span>';
+      }
+
+      function renderAwaitingFromState(state) {
+        const root = document.getElementById('awaiting-content');
+        if (!root) return;
+        const sections = Array.isArray(state.AwaitingSections) ? state.AwaitingSections : [];
+        if (sections.length === 0) {
+          root.innerHTML = '<p class="empty">🟢 No project data found.</p>';
+          setTabClean('awaiting', true);
+          return;
+        }
+        let total = 0;
+        root.innerHTML = sections.map((sec) => {
+          const items = Array.isArray(sec.Items) ? sec.Items : [];
+          total += items.length;
+          if (items.length === 0) {
+            return '<div class="project"><h3>Project ' + escHTML(sec.ProjectNum) + '</h3><p class="empty">🟢 No violations in this project.</p></div>';
+          }
+          return '<div class="project"><h3>Project ' + escHTML(sec.ProjectNum) + '</h3>' + items.map((it) => {
+            const unchecked = Array.isArray(it.Unchecked) ? it.Unchecked : [];
+            const uncheckedHTML = unchecked.length > 0 ? '<ul>' + unchecked.map((u) => '<li>[ ] ' + escHTML(u) + '</li>').join('') + '</ul>' : '';
+            return '' +
+              '<article class="item">' +
+                '<div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div>' +
+                '<div><a href="' + escHTML(it.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(it.URL) + '</a></div>' +
+                '<ul><li>Assignees: ' + escHTML(listOrEmpty(it.Assignees, '(empty)')) + '</li></ul>' +
+                uncheckedHTML +
+              '</article>';
+          }).join('') + '</div>';
+        }).join('');
+        setTabClean('awaiting', total === 0);
+      }
+
+      function renderStaleFromState(state) {
+        const root = document.getElementById('stale-content');
+        if (!root) return;
+        const sections = Array.isArray(state.StaleSections) ? state.StaleSections : [];
+        if (sections.length === 0) {
+          root.innerHTML = '<p class="empty">🟢 No project data found.</p>';
+          setTabClean('stale', true);
+          return;
+        }
+        let total = 0;
+        root.innerHTML = sections.map((sec) => {
+          const items = Array.isArray(sec.Items) ? sec.Items : [];
+          total += items.length;
+          if (items.length === 0) {
+            return '<div class="project"><h3>Project ' + escHTML(sec.ProjectNum) + '</h3><p class="empty">🟢 No stale items in this project.</p></div>';
+          }
+          return '<div class="project"><h3>Project ' + escHTML(sec.ProjectNum) + '</h3>' + items.map((it) => (
+            '<article class="item">' +
+              '<div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div>' +
+              '<div><a href="' + escHTML(it.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(it.URL) + '</a></div>' +
+              '<ul><li>Last updated: ' + escHTML(it.LastUpdated) + '</li><li>Age: ' + escHTML(it.StaleDays) + ' days</li></ul>' +
+            '</article>'
+          )).join('') + '</div>';
+        }).join('');
+        setTabClean('stale', total === 0);
+      }
+
+      function renderMilestoneFromState(state) {
+        const root = document.getElementById('milestone-content');
+        if (!root) return;
+        const projects = Array.isArray(state.MissingMilestone) ? state.MissingMilestone : [];
+        if (projects.length === 0) {
+          root.innerHTML = '<p class="empty">🟢 No missing milestones found.</p>';
+          setTabClean('milestone', true);
+          return;
+        }
+        let total = 0;
+        root.innerHTML = projects.map((proj) => {
+          const cols = Array.isArray(proj.Columns) ? proj.Columns : [];
+          const colsHTML = cols.map((col) => {
+            const items = Array.isArray(col.Items) ? col.Items : [];
+            total += items.length;
+            const colButton = items.length > 0 ? '<button class="fix-btn apply-milestone-column-btn">Apply selected milestones in column</button>' : '';
+            const itemsHTML = items.length === 0 ? '<p class="empty">🟢 No items in this group.</p>' : items.map((it) => {
+              const suggestions = Array.isArray(it.Suggestions) ? it.Suggestions : [];
+              const options = suggestions.map((s) => '<option value="' + escHTML(s.Title) + '" data-number="' + escHTML(s.Number) + '">' + escHTML(s.Title) + '</option>').join('');
+              const actionHTML = suggestions.length > 0
+                ? '<div class="actions"><select class="fix-btn milestone-select" data-issue="' + escHTML(it.Number) + '" data-repo="' + escHTML(it.Repo) + '">' + options + '</select><button class="fix-btn apply-milestone-btn">Apply milestone</button></div>'
+                : '<div class="actions"><span class="copied-note">No milestone suggestions found for this repo.</span></div>';
+              const preview = Array.isArray(it.BodyPreview) && it.BodyPreview.length > 0 ? it.BodyPreview : ['(empty)'];
+              const previewHTML = preview.map((p) => '<li>' + escHTML(p) + '</li>').join('');
+              return '' +
+                '<article class="item">' +
+                  '<div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div>' +
+                  '<div><a href="' + escHTML(it.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(it.URL) + '</a></div>' +
+                  '<ul><li>Status: ' + escHTML(it.Status || '(unset)') + '</li><li>Repository: ' + escHTML(it.Repo) + '</li><li>Assignees: ' + escHTML(listOrEmpty(it.Assignees, '(empty)')) + '</li><li>Labels: ' + escHTML(listOrEmpty(it.Labels, '(empty)')) + '</li><li>Snippet:</li>' + previewHTML + '</ul>' +
+                  actionHTML +
+                '</article>';
+            }).join('');
+            return '<div class="status"><div class="column-head"><h3>' + escHTML(col.Label) + '</h3>' + colButton + '</div>' + itemsHTML + '</div>';
+          }).join('');
+          return '<div class="project"><h3>Project ' + escHTML(proj.ProjectNum) + '</h3>' + colsHTML + '</div>';
+        }).join('');
+        setTabClean('milestone', total === 0);
+      }
+
+      function renderDraftingFromState(state) {
+        const root = document.getElementById('drafting-content');
+        if (!root) return;
+        const sections = Array.isArray(state.DraftingSections) ? state.DraftingSections : [];
+        if (sections.length === 0) {
+          root.innerHTML = '<p class="empty">🟢 No drafting violations.</p>';
+          setTabClean('drafting', true);
+          return;
+        }
+        let total = 0;
+        root.innerHTML = sections.map((sec) => {
+          const items = Array.isArray(sec.Items) ? sec.Items : [];
+          total += items.length;
+          const itemsHTML = items.length === 0 ? '<p class="empty">🟢 No violations in this status.</p>' : items.map((it) => {
+            const unchecked = Array.isArray(it.Unchecked) ? it.Unchecked : [];
+            const checksHTML = unchecked.map((c) => '<div class="checklist-row"><span class="checklist-text">• [ ] ' + escHTML(c) + '</span><button class="fix-btn apply-drafting-check-btn" data-repo="' + escHTML(it.Repo) + '" data-issue="' + escHTML(it.Number) + '" data-check="' + escHTML(c) + '">Check on GitHub</button></div>').join('');
+            return '<article class="item"><div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div><div><a href="' + escHTML(it.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(it.URL) + '</a></div><ul><li>Assignees: ' + escHTML(listOrEmpty(it.Assignees, '(empty)')) + '</li></ul><div>' + checksHTML + '</div></article>';
+          }).join('');
+          return '<div class="status"><h3>' + escHTML(sec.Emoji) + ' ' + escHTML(sec.Status) + '</h3><p class="subtle">' + escHTML(sec.Intro) + '</p>' + itemsHTML + '</div>';
+        }).join('');
+        setTabClean('drafting', total === 0);
+      }
+
+      function renderAssigneeSection(rootID, tabKey, projects, showMineBadge) {
+        const root = document.getElementById(rootID);
+        if (!root) return;
+        if (!Array.isArray(projects) || projects.length === 0) {
+          root.innerHTML = '<p class="empty">🟢 No items found.</p>';
+          setTabClean(tabKey, true);
+          return;
+        }
+        let total = 0;
+        root.innerHTML = projects.map((proj) => {
+          const cols = Array.isArray(proj.Columns) ? proj.Columns : [];
+          const colsHTML = cols.map((col) => {
+            const items = Array.isArray(col.Items) ? col.Items : [];
+            total += items.length;
+            const colBtn = items.length > 0 ? '<button class="fix-btn apply-assignee-column-btn">Assign selected in column</button>' : '';
+            const itemsHTML = items.length === 0 ? '<p class="empty">🟢 No items in this group.</p>' : items.map((it) => {
+              const options = (Array.isArray(it.SuggestedAssignees) ? it.SuggestedAssignees : []).map((s) => '<option value="' + escHTML(s.Login) + '">' + escHTML(s.Login) + '</option>').join('');
+              const actions = options ? '<div class="actions"><select class="fix-btn assignee-select" data-issue="' + escHTML(it.Number) + '" data-repo="' + escHTML(it.Repo) + '">' + options + '</select><button class="fix-btn apply-assignee-btn">Assign</button></div>' : '<div class="actions"><span class="copied-note">No assignee options found for this repo.</span></div>';
+              const badge = showMineBadge ? '<div class="mine-badge">Assigned to me</div>' : '';
+              return '<article class="item' + (it.AssignedToMe ? ' assigned-to-me' : '') + '"><div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div><div><a href="' + escHTML(it.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(it.URL) + '</a></div><ul><li>Status: ' + escHTML(it.Status || '(unset)') + '</li><li>Repository: ' + escHTML(it.Repo) + '</li><li>Current assignees: ' + escHTML(listOrEmpty(it.CurrentAssignees, '(none)')) + '</li></ul>' + badge + actions + '</article>';
+            }).join('');
+            return '<div class="status"><div class="column-head"><h3>' + escHTML(col.Label) + '</h3>' + colBtn + '</div>' + itemsHTML + '</div>';
+          }).join('');
+          return '<div class="project"><h3>Project ' + escHTML(proj.ProjectNum) + '</h3>' + colsHTML + '</div>';
+        }).join('');
+        setTabClean(tabKey, total === 0);
+      }
+
+      function renderReleaseFromState(state) {
+        const root = document.getElementById('release-content');
+        if (!root) return;
+        const projects = Array.isArray(state.ReleaseLabel) ? state.ReleaseLabel : [];
+        if (projects.length === 0) {
+          root.innerHTML = '<p class="empty">🟢 No release-label issues found.</p>';
+          setTabClean('release', true);
+          return;
+        }
+        let total = 0;
+        root.innerHTML = projects.map((proj) => {
+          const items = Array.isArray(proj.Items) ? proj.Items : [];
+          total += items.length;
+          const btn = items.length > 0 ? '<button class="fix-btn apply-release-project-btn">Apply release label</button>' : '';
+          const itemsHTML = items.length === 0 ? '<p class="empty">🟢 No release-label issues in this project.</p>' : items.map((it) => '<article class="item release-item" data-repo="' + escHTML(it.Repo) + '" data-issue="' + escHTML(it.Number) + '"><div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div><div><a href="' + escHTML(it.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(it.URL) + '</a></div><ul><li>Status: ' + escHTML(it.Status || '(unset)') + '</li><li>Labels: ' + escHTML(listOrEmpty(it.CurrentLabels, '(none)')) + '</li></ul></article>').join('');
+          return '<div class="project"><div class="column-head"><h3>Project ' + escHTML(proj.ProjectNum) + '</h3>' + btn + '</div>' + itemsHTML + '</div>';
+        }).join('');
+        setTabClean('release', total === 0);
+      }
+
+      async function fetchStateAndRender(forceRefresh) {
+        const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
+        if (!bridgeURL || !bridgeSession) {
+          throw new Error('Bridge unavailable');
+        }
+        const query = forceRefresh ? '?refresh=1' : '';
+        const res = await fetch(bridgeURL + '/api/check/state' + query, {
+          method: 'GET',
+          headers: { 'X-Qacheck-Session': bridgeSession },
+        });
+        if (!res.ok) {
+          const body = await res.text();
+          throw new Error('Bridge error ' + res.status + ': ' + body);
+        }
+        const payload = await res.json();
+        const state = payload.state || {};
+        renderCounts(state);
+        renderAwaitingFromState(state);
+        renderStaleFromState(state);
+        renderMilestoneFromState(state);
+        renderDraftingFromState(state);
+        renderAssigneeSection('missing-assignee-content', 'missing-assignee', state.MissingAssignee, false);
+        renderAssigneeSection('assigned-to-me-content', 'assigned-to-me', state.AssignedToMe, true);
+        renderReleaseFromState(state);
+        await refreshReleaseStoryTODOPanel(false);
+        await refreshMissingSprintPanel(false);
+        await refreshTimestampPanel(false);
+        await refreshUnreleasedPanel(false);
+      }
+
       function installMilestoneFiltering() {
         const actionBlocks = document.querySelectorAll('.actions');
         actionBlocks.forEach((actions) => {
@@ -1962,84 +1936,51 @@ var htmlReportTemplate = `<!doctype html>
         }
       }
 
-      const applyButtons = document.querySelectorAll('.apply-milestone-btn');
-      applyButtons.forEach((btn) => {
-        btn.addEventListener('click', async () => {
-          await applyMilestoneButton(btn);
-        });
-      });
+      async function applyDraftingCheckButton(btn) {
+        const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
+        if (!bridgeURL || !bridgeSession) {
+          window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
+          return false;
+        }
+        const repo = btn.dataset.repo || '';
+        const issue = btn.dataset.issue || '';
+        const checkText = btn.dataset.check || '';
+        if (!repo || !issue || !checkText) return false;
 
-      const applyMilestoneColumnButtons = document.querySelectorAll('.apply-milestone-column-btn');
-      applyMilestoneColumnButtons.forEach((btn) => {
-        btn.addEventListener('click', async () => {
-          const statusCard = btn.closest('.status');
-          if (!statusCard) return;
-          const rowButtons = Array.from(statusCard.querySelectorAll('.apply-milestone-btn'));
-          if (rowButtons.length === 0) return;
-
-          setButtonWorking(btn, 'Applying column...');
-          let ok = true;
-          for (const rowBtn of rowButtons) {
-            // sequential requests keep updates readable and avoid API bursts.
-            const rowOK = await applyMilestoneButton(rowBtn);
-            ok = ok && rowOK;
+        const endpoint = bridgeURL + '/api/apply-checklist';
+        setButtonWorking(btn, 'Checking...');
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: bridgeJSONHeaders(),
+            body: JSON.stringify({ repo: repo, issue: issue, check_text: checkText }),
+          });
+          if (!res.ok) {
+            const body = await res.text();
+            throw new Error('Bridge error ' + res.status + ': ' + body);
           }
-          if (ok) {
-            setButtonDone(btn, 'Done');
-          } else {
-            setButtonFailed(btn);
-          }
-        });
-      });
-
-      const applyDraftingCheckButtons = document.querySelectorAll('.apply-drafting-check-btn');
-      applyDraftingCheckButtons.forEach((btn) => {
-        btn.addEventListener('click', async () => {
-          const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
-          if (!bridgeURL || !bridgeSession) {
-            window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
-            return;
-          }
-
-          const repo = btn.dataset.repo || '';
-          const issue = btn.dataset.issue || '';
-          const checkText = btn.dataset.check || '';
-          if (!repo || !issue || !checkText) return;
-
-          const endpoint = bridgeURL + '/api/apply-checklist';
-          setButtonWorking(btn, 'Checking...');
-          try {
-            const res = await fetch(endpoint, {
-              method: 'POST',
-              headers: bridgeJSONHeaders(),
-              body: JSON.stringify({ repo: repo, issue: issue, check_text: checkText }),
-            });
-            if (!res.ok) {
-              const body = await res.text();
-              throw new Error('Bridge error ' + res.status + ': ' + body);
+          const payload = await res.json();
+          if (!payload.updated) {
+            if (payload.already_checked) {
+              setButtonDone(btn, 'Done');
+            } else {
+              setButtonFailed(btn);
             }
-            const payload = await res.json();
-            if (!payload.updated) {
-              if (payload.already_checked) {
-                setButtonDone(btn, 'Done');
-              } else {
-                setButtonFailed(btn);
-              }
-              return;
-            }
-
-            setButtonDone(btn, 'Done');
-            const row = btn.closest('.checklist-row');
-            const textEl = row && row.querySelector('.checklist-text');
-            if (textEl) {
-              textEl.textContent = '• [x] ' + checkText;
-            }
-          } catch (err) {
-            window.alert('Could not apply checklist update. ' + err);
-            setButtonFailed(btn);
+            return false;
           }
-        });
-      });
+          setButtonDone(btn, 'Done');
+          const row = btn.closest('.checklist-row');
+          const textEl = row && row.querySelector('.checklist-text');
+          if (textEl) {
+            textEl.textContent = '• [x] ' + checkText;
+          }
+          return true;
+        } catch (err) {
+          window.alert('Could not apply checklist update. ' + err);
+          setButtonFailed(btn);
+          return false;
+        }
+      }
 
       async function applySprintButton(btn) {
         const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
@@ -2071,6 +2012,34 @@ var htmlReportTemplate = `<!doctype html>
         }
       }
       document.addEventListener('click', async (event) => {
+        const milestoneBtn = event.target.closest('.apply-milestone-btn');
+        if (milestoneBtn) {
+          await applyMilestoneButton(milestoneBtn);
+          return;
+        }
+
+        const milestoneColBtn = event.target.closest('.apply-milestone-column-btn');
+        if (milestoneColBtn) {
+          const statusCard = milestoneColBtn.closest('.status');
+          if (!statusCard) return;
+          const rowButtons = Array.from(statusCard.querySelectorAll('.apply-milestone-btn'));
+          if (rowButtons.length === 0) return;
+          setButtonWorking(milestoneColBtn, 'Applying column...');
+          let ok = true;
+          for (const rowBtn of rowButtons) {
+            const rowOK = await applyMilestoneButton(rowBtn);
+            ok = ok && rowOK;
+          }
+          if (ok) setButtonDone(milestoneColBtn, 'Done'); else setButtonFailed(milestoneColBtn);
+          return;
+        }
+
+        const draftingBtn = event.target.closest('.apply-drafting-check-btn');
+        if (draftingBtn) {
+          await applyDraftingCheckButton(draftingBtn);
+          return;
+        }
+
         const rowBtn = event.target.closest('.apply-sprint-btn');
         if (rowBtn) {
           await applySprintButton(rowBtn);
@@ -2078,22 +2047,62 @@ var htmlReportTemplate = `<!doctype html>
         }
 
         const colBtn = event.target.closest('.apply-sprint-column-btn');
-        if (!colBtn) return;
-        const statusCard = colBtn.closest('.status');
-        if (!statusCard) return;
-        const rowButtons = Array.from(statusCard.querySelectorAll('.apply-sprint-btn'));
-        if (rowButtons.length === 0) return;
-
-        setButtonWorking(colBtn, 'Setting column...');
-        let ok = true;
-        for (const rowBtnEl of rowButtons) {
-          const rowOK = await applySprintButton(rowBtnEl);
-          ok = ok && rowOK;
+        if (colBtn) {
+          const statusCard = colBtn.closest('.status');
+          if (!statusCard) return;
+          const rowButtons = Array.from(statusCard.querySelectorAll('.apply-sprint-btn'));
+          if (rowButtons.length === 0) return;
+          setButtonWorking(colBtn, 'Setting column...');
+          let ok = true;
+          for (const rowBtnEl of rowButtons) {
+            const rowOK = await applySprintButton(rowBtnEl);
+            ok = ok && rowOK;
+          }
+          if (ok) setButtonDone(colBtn, 'Done'); else setButtonFailed(colBtn);
+          return;
         }
-        if (ok) {
-          setButtonDone(colBtn, 'Done');
-        } else {
-          setButtonFailed(colBtn);
+
+        const assigneeBtn = event.target.closest('.apply-assignee-btn');
+        if (assigneeBtn) {
+          await applyAssigneeButton(assigneeBtn);
+          return;
+        }
+
+        const assigneeColBtn = event.target.closest('.apply-assignee-column-btn');
+        if (assigneeColBtn) {
+          const statusCard = assigneeColBtn.closest('.status');
+          if (!statusCard) return;
+          const rowButtons = Array.from(statusCard.querySelectorAll('.apply-assignee-btn'));
+          if (rowButtons.length === 0) return;
+          setButtonWorking(assigneeColBtn, 'Assigning column...');
+          let ok = true;
+          for (const rowBtnEl of rowButtons) {
+            const rowOK = await applyAssigneeButton(rowBtnEl);
+            ok = ok && rowOK;
+          }
+          if (ok) setButtonDone(assigneeColBtn, 'Done'); else setButtonFailed(assigneeColBtn);
+          return;
+        }
+
+        const releaseProjectBtn = event.target.closest('.apply-release-project-btn');
+        if (releaseProjectBtn) {
+          const project = releaseProjectBtn.closest('.project');
+          if (!project) return;
+          const items = Array.from(project.querySelectorAll('.release-item'));
+          if (items.length === 0) return;
+          setButtonWorking(releaseProjectBtn, 'Applying...');
+          try {
+            let ok = true;
+            for (const item of items) {
+              const itemOK = await applyReleaseItem(item);
+              ok = ok && itemOK;
+            }
+            if (ok) setButtonDone(releaseProjectBtn, 'Done'); else setButtonFailed(releaseProjectBtn);
+          } catch (err) {
+            window.alert('Could not apply release label. ' + err);
+            setButtonFailed(releaseProjectBtn);
+          }
+          return;
         }
       });
 
@@ -2133,34 +2142,6 @@ var htmlReportTemplate = `<!doctype html>
         }
       }
 
-      const applyAssigneeButtons = document.querySelectorAll('.apply-assignee-btn');
-      applyAssigneeButtons.forEach((btn) => {
-        btn.addEventListener('click', async () => {
-          await applyAssigneeButton(btn);
-        });
-      });
-
-      const applyAssigneeColumnButtons = document.querySelectorAll('.apply-assignee-column-btn');
-      applyAssigneeColumnButtons.forEach((btn) => {
-        btn.addEventListener('click', async () => {
-          const statusCard = btn.closest('.status');
-          if (!statusCard) return;
-          const rowButtons = Array.from(statusCard.querySelectorAll('.apply-assignee-btn'));
-          if (rowButtons.length === 0) return;
-
-          setButtonWorking(btn, 'Assigning column...');
-          let ok = true;
-          for (const rowBtn of rowButtons) {
-            const rowOK = await applyAssigneeButton(rowBtn);
-            ok = ok && rowOK;
-          }
-          if (ok) {
-            setButtonDone(btn, 'Done');
-          } else {
-            setButtonFailed(btn);
-          }
-        });
-      });
 
       async function applyReleaseItem(itemEl) {
         const repo = itemEl.dataset.repo || '';
@@ -2185,32 +2166,6 @@ var htmlReportTemplate = `<!doctype html>
         return true;
       }
 
-      const releaseProjectButtons = document.querySelectorAll('.apply-release-project-btn');
-      releaseProjectButtons.forEach((btn) => {
-        btn.addEventListener('click', async () => {
-          const project = btn.closest('.project');
-          if (!project) return;
-          const items = Array.from(project.querySelectorAll('.release-item'));
-          if (items.length === 0) return;
-
-          setButtonWorking(btn, 'Applying...');
-          try {
-            let ok = true;
-            for (const item of items) {
-              const itemOK = await applyReleaseItem(item);
-              ok = ok && itemOK;
-            }
-            if (ok) {
-              setButtonDone(btn, 'Done');
-            } else {
-              setButtonFailed(btn);
-            }
-          } catch (err) {
-            window.alert('Could not apply release label. ' + err);
-            setButtonFailed(btn);
-          }
-        });
-      });
 
       const closeSessionButton = document.getElementById('close-session-btn');
       if (closeSessionButton) {
@@ -2245,18 +2200,9 @@ var htmlReportTemplate = `<!doctype html>
       const refreshButtons = document.querySelectorAll('.refresh-check-btn');
       refreshButtons.forEach((btn) => {
         btn.addEventListener('click', async () => {
-          const key = btn.dataset.refreshCheck || '';
           setButtonWorking(btn, 'Refreshing...');
           try {
-            if (key === 'release-story-todo') {
-              await refreshReleaseStoryTODOPanel(true);
-            } else if (key === 'missing-sprint') {
-              await refreshMissingSprintPanel(true);
-            } else if (key === 'unassigned-unreleased') {
-              await refreshUnreleasedPanel(true);
-            } else if (key === 'timestamp') {
-              await refreshTimestampPanel(true);
-            }
+            await fetchStateAndRender(true);
             btn.classList.remove('done', 'failed');
             btn.textContent = 'Refresh';
             btn.disabled = false;
@@ -2266,12 +2212,9 @@ var htmlReportTemplate = `<!doctype html>
         });
       });
 
-      installMilestoneFiltering();
-      installAssigneeFiltering();
-      refreshReleaseStoryTODOPanel(false);
-      refreshMissingSprintPanel(false);
-      refreshTimestampPanel(false);
-      refreshUnreleasedPanel(false);
+      fetchStateAndRender(false).catch((err) => {
+        console.error(err);
+      });
     })();
   </script>
 </body>

@@ -207,12 +207,14 @@ func TestHandleTimestampCheck(t *testing.T) {
 		t.Fatalf("expected response to include timestamp URL, got %s", rr.Body.String())
 	}
 
-	b.setTimestampRefresher(func(context.Context) (TimestampCheckResult, error) {
-		return TimestampCheckResult{
-			URL:     "https://updates.fleetdm.com/timestamp.json",
-			MinDays: 5,
-			OK:      true,
-		}, nil
+	b.setRefreshAllState(func(context.Context) (HTMLReportData, bridgePolicy, error) {
+		return HTMLReportData{
+			TimestampCheck: TimestampCheckResult{
+				URL:     "https://updates.fleetdm.com/timestamp.json",
+				MinDays: 5,
+				OK:      true,
+			},
+		}, bridgePolicy{}, nil
 	})
 	rr = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodGet, "/api/check/timestamp?refresh=1", nil)
@@ -381,5 +383,41 @@ func TestHandleMissingSprintCheck(t *testing.T) {
 	}
 	if !strings.Contains(rr.Body.String(), "ITEM_40408") || !strings.Contains(rr.Body.String(), "40408") {
 		t.Fatalf("expected response payload with item and issue, got %s", rr.Body.String())
+	}
+}
+
+func TestHandleStateCheck(t *testing.T) {
+	t.Parallel()
+	b := newTestBridge()
+	b.setReportData(HTMLReportData{
+		Org:                   "fleetdm",
+		TotalNoSprint:         1,
+		SprintClean:           false,
+		TotalReleaseStoryTODO: 2,
+	})
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/check/state", nil)
+	b.handleStateCheck(rr, req)
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusMethodNotAllowed)
+	}
+
+	rr = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/check/state", nil)
+	b.handleStateCheck(rr, req)
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusUnauthorized)
+	}
+
+	rr = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/check/state", nil)
+	req.Header.Set("X-Qacheck-Session", "sess")
+	b.handleStateCheck(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d want=%d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), `"TotalNoSprint":1`) {
+		t.Fatalf("expected state payload with TotalNoSprint=1, got %s", rr.Body.String())
 	}
 }
