@@ -3904,7 +3904,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 // slice was shared via a shallow copy. In-place variable substitution for Host 1
 // corrupted the cached CA entry, so Host 2 and later hosts received Host 1's
 // substituted UPN instead of their own.
-func TestPreprocessProfileContentsDigiCertUPNMultiHost(t *testing.T) {
+func TestPreprocessProfileContentsDigiCertUPNIsUniqueForMultipleHosts(t *testing.T) {
 	ctx := context.Background()
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	logger := logging.NewNopLogger()
@@ -4002,14 +4002,15 @@ func TestPreprocessProfileContentsDigiCertUPNMultiHost(t *testing.T) {
 	}
 
 	// Mock datastore: return each host's own hardware serial when queried.
+	hostsByUUID := map[string]*fleet.Host{
+		host1UUID: {ID: 1, UUID: host1UUID, HardwareSerial: host1Serial, Platform: "darwin"},
+		host2UUID: {ID: 2, UUID: host2UUID, HardwareSerial: host2Serial, Platform: "darwin"},
+	}
 	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
 		var hosts []*fleet.Host
 		for _, uuid := range uuids {
-			switch uuid {
-			case host1UUID:
-				hosts = append(hosts, &fleet.Host{ID: 1, UUID: host1UUID, HardwareSerial: host1Serial, Platform: "darwin"})
-			case host2UUID:
-				hosts = append(hosts, &fleet.Host{ID: 2, UUID: host2UUID, HardwareSerial: host2Serial, Platform: "darwin"})
+			if h, ok := hostsByUUID[uuid]; ok {
+				hosts = append(hosts, h)
 			}
 		}
 		return hosts, nil
