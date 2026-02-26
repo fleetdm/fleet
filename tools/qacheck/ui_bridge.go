@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"regexp"
 	"strconv"
 	"strings"
@@ -227,7 +228,7 @@ func (b *uiBridge) handleApplyMilestone(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	b.signal(fmt.Sprintf("📡 UI cmd: apply milestone #%d to %s#%d", req.MilestoneNumber, req.Repo, issueNum))
+	b.signal(fmt.Sprintf("📡 caller=%s apply milestone #%d to %s#%d", callerAddr(r), req.MilestoneNumber, req.Repo, issueNum))
 	endpoint := fmt.Sprintf("https://api.github.com/repos/%s/issues/%d", req.Repo, issueNum)
 	payload := map[string]any{"milestone": req.MilestoneNumber}
 	if err := b.githubJSON(r.Context(), http.MethodPatch, endpoint, payload, nil); err != nil {
@@ -269,7 +270,7 @@ func (b *uiBridge) handleApplyChecklist(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	b.signal(fmt.Sprintf("🛰️ UI cmd: apply checklist check on %s#%d", req.Repo, issueNum))
+	b.signal(fmt.Sprintf("🛰️ caller=%s apply checklist check on %s#%d", callerAddr(r), req.Repo, issueNum))
 	endpoint := fmt.Sprintf("https://api.github.com/repos/%s/issues/%d", req.Repo, issueNum)
 	var issueResp struct {
 		Body string `json:"body"`
@@ -312,11 +313,30 @@ func (b *uiBridge) handleClose(w http.ResponseWriter, r *http.Request) {
 	if reason == "" {
 		reason = "closed from UI"
 	}
-	b.signal("🧯 UI requested bridge shutdown")
+	b.signal(fmt.Sprintf("🧯 caller=%s requested bridge shutdown", callerAddr(r)))
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 	go func() {
 		_ = b.stop(reason)
 	}()
+}
+
+func callerAddr(r *http.Request) string {
+	hostPort := strings.TrimSpace(r.RemoteAddr)
+	if hostPort == "" {
+		return "unknown"
+	}
+	host, _, err := net.SplitHostPort(hostPort)
+	if err != nil {
+		return hostPort
+	}
+	addr, err := netip.ParseAddr(host)
+	if err != nil {
+		return hostPort
+	}
+	if addr.IsLoopback() {
+		return hostPort + " (loopback)"
+	}
+	return hostPort + " (non-loopback)"
 }
 
 func (b *uiBridge) prepareRequest(w http.ResponseWriter, r *http.Request) bool {

@@ -40,7 +40,9 @@ type phaseTracker struct {
 	globalRow  int
 	phaseRow   int
 	footerRow  int
+	logRow     int
 	statusText string
+	logLines   []string
 }
 
 func newPhaseTracker(names []string) *phaseTracker {
@@ -53,6 +55,8 @@ func newPhaseTracker(names []string) *phaseTracker {
 		globalRow: 4,
 		phaseRow:  6,
 		footerRow: 6 + len(phases) + 1,
+		logRow:    6 + len(phases) + 3,
+		logLines:  make([]string, 0, 24),
 	}
 	p.clearScreen()
 	p.renderAll()
@@ -73,6 +77,8 @@ func (p *phaseTracker) renderAll() {
 	}
 	fmt.Println()
 	fmt.Println(p.renderFooterLine())
+	fmt.Printf("\033[%d;1H%sBridge activity log%s\n", p.logRow, clrDim, clrReset)
+	fmt.Printf("\033[%d;1H", p.footerRow)
 }
 
 func (p *phaseTracker) renderPhaseLine(i int) string {
@@ -175,6 +181,7 @@ func (p *phaseTracker) bridgeListening(baseURL string, idleTimeout time.Duration
 		"%s🛸 UI uplink listening on %s%s%s | idle timeout %s%s%s | Press Ctrl+C to close",
 		clrCyan, clrBlue, baseURL, clrReset, clrYellow, idleTimeout.Round(time.Minute).String(), clrReset,
 	)
+	p.appendBridgeLogLocked("🛸 listening at " + baseURL)
 	p.redrawFooter()
 }
 
@@ -182,6 +189,7 @@ func (p *phaseTracker) bridgeSignal(msg string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.statusText = fmt.Sprintf("%s%s%s", clrCyan, msg, clrReset)
+	p.appendBridgeLogLocked(msg)
 	p.redrawFooter()
 }
 
@@ -189,8 +197,18 @@ func (p *phaseTracker) bridgeStopped(reason string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.statusText = fmt.Sprintf("%s🧯 UI uplink offline: %s%s", clrDim, reason, clrReset)
+	p.appendBridgeLogLocked("🧯 stopped: " + reason)
 	p.redrawFooter()
 	fmt.Println()
+}
+
+func (p *phaseTracker) appendBridgeLogLocked(msg string) {
+	ts := time.Now().Format("15:04:05")
+	line := fmt.Sprintf("[%s] %s", ts, msg)
+	p.logLines = append(p.logLines, line)
+	row := p.logRow + len(p.logLines)
+	fmt.Printf("\033[%d;1H\033[2K%s%s%s", row, clrDim, line, clrReset)
+	fmt.Printf("\033[%d;1H", p.footerRow)
 }
 
 func (p *phaseTracker) phaseVisual(status phaseStatus) (icon, color, bar string) {
