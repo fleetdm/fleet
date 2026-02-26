@@ -128,4 +128,4 @@ Timelines depends on fleet size and configuration complexity. Fleet supports zer
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-02-26">
-<meta name="description" value="Compare Fleet, Jamf Pro, and Microsoft Intune for device fleet management. Platform coverage, security features, GitOps support, and pricing differences explained.">
+<meta name="description" value="Compare the Fleet, Jamf Pro, and Microsoft Intune product offerings.">
