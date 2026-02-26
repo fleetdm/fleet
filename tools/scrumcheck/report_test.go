@@ -94,8 +94,15 @@ func TestBuildHTMLReportDataIncludesAllSelectedProjects(t *testing.T) {
 	if len(data.MissingAssignee) != 2 {
 		t.Fatalf("expected 2 assignee project sections, got %d", len(data.MissingAssignee))
 	}
-	if data.TotalNoMilestone != 1 || data.TotalNoSprint != 1 || data.TotalAssignee != 1 || data.TotalRelease != 1 {
-		t.Fatalf("unexpected totals: milestone=%d sprint=%d assignee=%d release=%d", data.TotalNoMilestone, data.TotalNoSprint, data.TotalAssignee, data.TotalRelease)
+	if data.TotalNoMilestone != 1 || data.TotalNoSprint != 1 || data.TotalMissingAssignee != 1 || data.TotalAssignedToMe != 0 || data.TotalRelease != 1 {
+		t.Fatalf(
+			"unexpected totals: milestone=%d sprint=%d missing-assignee=%d assigned-to-me=%d release=%d",
+			data.TotalNoMilestone,
+			data.TotalNoSprint,
+			data.TotalMissingAssignee,
+			data.TotalAssignedToMe,
+			data.TotalRelease,
+		)
 	}
 
 	sprintColumns := data.MissingSprint[0].Columns
@@ -104,6 +111,106 @@ func TestBuildHTMLReportDataIncludesAllSelectedProjects(t *testing.T) {
 	}
 	if sprintColumns[3].Label != "In review" {
 		t.Fatalf("expected In review column at fixed order index, got %q", sprintColumns[3].Label)
+	}
+}
+
+func TestBuildHTMLReportDataAssignedToMeIsSeparateAndFails(t *testing.T) {
+	t.Parallel()
+
+	inReviewItem := testIssueWithStatus(201, "Assigned to me", "https://github.com/fleetdm/fleet/issues/201", "🦃 In review")
+
+	data := buildHTMLReportData(
+		"fleetdm",
+		[]int{71},
+		map[int][]Item{71: {}},
+		map[int][]StaleAwaitingViolation{71: {}},
+		21,
+		map[string][]DraftingCheckViolation{},
+		nil,
+		nil,
+		[]MissingAssigneeIssue{{
+			Item:               inReviewItem,
+			ProjectNum:         71,
+			RepoOwner:          "fleetdm",
+			RepoName:           "fleet",
+			CurrentAssignees:   []string{"sharon-fdm"},
+			AssignedToMe:       true,
+			SuggestedAssignees: []AssigneeOption{{Login: "alice"}},
+		}},
+		nil,
+		TimestampCheckResult{},
+		false,
+		"",
+	)
+
+	if data.TotalMissingAssignee != 0 {
+		t.Fatalf("expected zero missing-assignee items, got %d", data.TotalMissingAssignee)
+	}
+	if !data.MissingAssigneeClean {
+		t.Fatal("expected missing-assignee check to be clean when no missing-assignee items exist")
+	}
+	if data.TotalAssignedToMe != 1 {
+		t.Fatalf("expected one assigned-to-me item, got %d", data.TotalAssignedToMe)
+	}
+	if data.AssignedToMeClean {
+		t.Fatal("expected assigned-to-me check to fail when assigned-to-me items exist")
+	}
+	if len(data.AssignedToMe) != 1 || len(data.AssignedToMe[0].Columns) == 0 {
+		t.Fatal("expected assigned-to-me project/columns data to be present")
+	}
+	foundAssignedToMe := false
+	for _, col := range data.AssignedToMe[0].Columns {
+		for _, item := range col.Items {
+			if item.Number == 201 && item.AssignedToMe {
+				foundAssignedToMe = true
+			}
+		}
+	}
+	if !foundAssignedToMe {
+		t.Fatal("expected assigned-to-me item to be preserved in report output")
+	}
+}
+
+func TestBuildHTMLReportDataMissingSprintExcludesReadyForRelease(t *testing.T) {
+	t.Parallel()
+
+	readyForReleaseItem := testIssueWithStatus(301, "Ready for release", "https://github.com/fleetdm/fleet/issues/301", "✅ Ready for release")
+
+	data := buildHTMLReportData(
+		"fleetdm",
+		[]int{71},
+		map[int][]Item{71: {}},
+		map[int][]StaleAwaitingViolation{71: {}},
+		21,
+		map[string][]DraftingCheckViolation{},
+		nil,
+		[]MissingSprintViolation{{
+			ProjectNum:    71,
+			ItemID:        githubv4.ID("ITEM_301"),
+			Item:          readyForReleaseItem,
+			Status:        "✅ Ready for release",
+			CurrentSprint: "",
+		}},
+		nil,
+		nil,
+		TimestampCheckResult{},
+		false,
+		"",
+	)
+
+	if data.TotalNoSprint != 0 {
+		t.Fatalf("expected zero missing sprint failures for ready-for-release, got %d", data.TotalNoSprint)
+	}
+	if !data.SprintClean {
+		t.Fatal("expected sprint check to be clean when only ready-for-release item is missing sprint")
+	}
+	if len(data.MissingSprint) != 1 {
+		t.Fatalf("expected one sprint project section, got %d", len(data.MissingSprint))
+	}
+	for _, col := range data.MissingSprint[0].Columns {
+		if col.Key == "ready_for_release" {
+			t.Fatal("ready_for_release column should not be present in missing sprint check")
+		}
 	}
 }
 

@@ -43,7 +43,8 @@ func runMissingAssigneeChecks(
 				continue
 			}
 			currentAssignees := issueAssignees(it)
-			if len(currentAssignees) > 0 && !containsLogin(currentAssignees, viewer) {
+			assignedToMe := containsLogin(currentAssignees, viewer)
+			if len(currentAssignees) > 0 && !assignedToMe {
 				continue
 			}
 
@@ -63,6 +64,7 @@ func runMissingAssigneeChecks(
 				RepoOwner:          owner,
 				RepoName:           repo,
 				CurrentAssignees:   currentAssignees,
+				AssignedToMe:       assignedToMe,
 				SuggestedAssignees: suggestions,
 			})
 		}

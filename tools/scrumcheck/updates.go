@@ -12,6 +12,7 @@ type TimestampCheckResult struct {
 	URL          string
 	ExpiresAt    time.Time
 	DurationLeft time.Duration
+	DaysLeft     float64
 	MinDays      int
 	OK           bool
 	Error        string
@@ -61,6 +62,7 @@ func checkUpdatesTimestamp(ctx context.Context, now time.Time) TimestampCheckRes
 
 	result.ExpiresAt = expiresAt.UTC()
 	result.DurationLeft = result.ExpiresAt.Sub(now.UTC())
+	result.DaysLeft = result.DurationLeft.Hours() / 24
 	result.OK = result.DurationLeft >= (time.Duration(minTimestampDays) * 24 * time.Hour)
 	return result
 }

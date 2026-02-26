@@ -97,6 +97,7 @@ type MissingAssigneeIssue struct {
 	RepoOwner          string
 	RepoName           string
 	CurrentAssignees   []string
+	AssignedToMe       bool
 	SuggestedAssignees []AssigneeOption
 }
 

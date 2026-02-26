@@ -19,6 +19,7 @@ type ReportItem struct {
 	Repo      string
 	Title     string
 	URL       string
+	Assignees []string
 	Unchecked []string
 }
 
@@ -54,6 +55,9 @@ type MissingMilestoneReportItem struct {
 	URL         string
 	Repo        string
 	Status      string
+	Assignees   []string
+	Labels      []string
+	BodyPreview []string
 	Suggestions []MilestoneSuggestion
 }
 
@@ -76,6 +80,10 @@ type MissingSprintReportItem struct {
 	URL           string
 	Status        string
 	CurrentSprint string
+	Milestone     string
+	Assignees     []string
+	Labels        []string
+	BodyPreview   []string
 }
 
 type MissingSprintGroupReport struct {
@@ -100,6 +108,7 @@ type MissingAssigneeReportItem struct {
 	URL                string
 	Repo               string
 	Status             string
+	AssignedToMe       bool
 	CurrentAssignees   []string
 	SuggestedAssignees []AssigneeSuggestion
 }
@@ -136,34 +145,37 @@ type MilestoneSuggestion struct {
 }
 
 type HTMLReportData struct {
-	GeneratedAt      string
-	Org              string
-	BridgeEnabled    bool
-	BridgeBaseURL    string
-	AwaitingSections []AwaitingProjectReport
-	StaleSections    []StaleAwaitingProjectReport
-	StaleThreshold   int
-	DraftingSections []DraftingStatusReport
-	MissingMilestone []MissingMilestoneProjectReport
-	MissingSprint    []MissingSprintProjectReport
-	MissingAssignee  []MissingAssigneeProjectReport
-	ReleaseLabel     []ReleaseLabelProjectReport
-	TotalAwaiting    int
-	TotalStale       int
-	TotalDrafting    int
-	TotalNoMilestone int
-	TotalNoSprint    int
-	TotalAssignee    int
-	TotalRelease     int
-	TimestampCheck   TimestampCheckResult
-	AwaitingClean    bool
-	StaleClean       bool
-	DraftingClean    bool
-	TimestampClean   bool
-	MilestoneClean   bool
-	SprintClean      bool
-	AssigneeClean    bool
-	ReleaseClean     bool
+	GeneratedAt          string
+	Org                  string
+	BridgeEnabled        bool
+	BridgeBaseURL        string
+	AwaitingSections     []AwaitingProjectReport
+	StaleSections        []StaleAwaitingProjectReport
+	StaleThreshold       int
+	DraftingSections     []DraftingStatusReport
+	MissingMilestone     []MissingMilestoneProjectReport
+	MissingSprint        []MissingSprintProjectReport
+	MissingAssignee      []MissingAssigneeProjectReport
+	AssignedToMe         []MissingAssigneeProjectReport
+	ReleaseLabel         []ReleaseLabelProjectReport
+	TotalAwaiting        int
+	TotalStale           int
+	TotalDrafting        int
+	TotalNoMilestone     int
+	TotalNoSprint        int
+	TotalMissingAssignee int
+	TotalAssignedToMe    int
+	TotalRelease         int
+	TimestampCheck       TimestampCheckResult
+	AwaitingClean        bool
+	StaleClean           bool
+	DraftingClean        bool
+	TimestampClean       bool
+	MilestoneClean       bool
+	SprintClean          bool
+	MissingAssigneeClean bool
+	AssignedToMeClean    bool
+	ReleaseClean         bool
 }
 
 func buildHTMLReportData(
@@ -194,6 +206,7 @@ func buildHTMLReportData(
 				Repo:      owner + "/" + repo,
 				Title:     getTitle(it),
 				URL:       getURL(it),
+				Assignees: issueAssignees(it),
 				Unchecked: []string{checkText},
 			})
 		}
@@ -235,6 +248,7 @@ func buildHTMLReportData(
 				Repo:      owner + "/" + repo,
 				Title:     getTitle(v.Item),
 				URL:       getURL(v.Item),
+				Assignees: issueAssignees(v.Item),
 				Unchecked: v.Unchecked,
 			})
 		}
@@ -303,6 +317,9 @@ func buildHTMLReportData(
 			URL:         getURL(v.Item),
 			Repo:        repo,
 			Status:      status,
+			Assignees:   issueAssignees(v.Item),
+			Labels:      issueLabels(v.Item),
+			BodyPreview: previewBodyLines(getBody(v.Item), 3),
 			Suggestions: suggestions,
 		})
 	}
@@ -332,16 +349,20 @@ func buildHTMLReportData(
 		})
 	}
 
+	sprintOrder := sprintColumnsWithoutReadyForRelease()
 	groupedSprintByProject := make(map[int]map[string][]MissingSprintReportItem)
 	for _, p := range projectNums {
 		groupedSprintByProject[p] = make(map[string][]MissingSprintReportItem)
-		for _, key := range sprintColumnOrder() {
+		for _, key := range sprintOrder {
 			groupedSprintByProject[p][key] = []MissingSprintReportItem{}
 		}
 	}
 	for _, v := range missingSprints {
 		itemID := fmt.Sprintf("%v", v.ItemID)
 		group := sprintColumnGroup(v.Status)
+		if group == "ready_for_release" {
+			continue
+		}
 		groupedSprintByProject[v.ProjectNum][group] = append(groupedSprintByProject[v.ProjectNum][group], MissingSprintReportItem{
 			ProjectNum:    v.ProjectNum,
 			ItemID:        itemID,
@@ -350,6 +371,10 @@ func buildHTMLReportData(
 			URL:           getURL(v.Item),
 			Status:        v.Status,
 			CurrentSprint: v.CurrentSprint,
+			Milestone:     strings.TrimSpace(string(v.Item.Content.Issue.Milestone.Title)),
+			Assignees:     issueAssignees(v.Item),
+			Labels:        issueLabels(v.Item),
+			BodyPreview:   previewBodyLines(getBody(v.Item), 3),
 		})
 	}
 	sprintProjects := make([]MissingSprintProjectReport, 0, len(groupedSprintByProject))
@@ -357,14 +382,12 @@ func buildHTMLReportData(
 	projectNumsForSprint := append([]int(nil), projectNums...)
 	for _, p := range projectNumsForSprint {
 		grouped := groupedSprintByProject[p]
-		projectTotal := 0
-		for _, key := range sprintColumnOrder() {
+		for _, key := range sprintOrder {
 			items := grouped[key]
-			projectTotal += len(items)
 			totalNoSprint += len(items)
 		}
-		columns := make([]MissingSprintGroupReport, 0, len(sprintColumnOrder()))
-		for _, key := range sprintColumnOrder() {
+		columns := make([]MissingSprintGroupReport, 0, len(sprintOrder))
+		for _, key := range sprintOrder {
 			items := grouped[key]
 			columns = append(columns, MissingSprintGroupReport{
 				Key:   key,
@@ -378,11 +401,14 @@ func buildHTMLReportData(
 		})
 	}
 
-	groupedAssigneeByProject := make(map[int]map[string][]MissingAssigneeReportItem)
+	groupedMissingAssigneeByProject := make(map[int]map[string][]MissingAssigneeReportItem)
+	groupedAssignedToMeByProject := make(map[int]map[string][]MissingAssigneeReportItem)
 	for _, p := range projectNums {
-		groupedAssigneeByProject[p] = make(map[string][]MissingAssigneeReportItem)
+		groupedMissingAssigneeByProject[p] = make(map[string][]MissingAssigneeReportItem)
+		groupedAssignedToMeByProject[p] = make(map[string][]MissingAssigneeReportItem)
 		for _, key := range sprintColumnOrder() {
-			groupedAssigneeByProject[p][key] = []MissingAssigneeReportItem{}
+			groupedMissingAssigneeByProject[p][key] = []MissingAssigneeReportItem{}
+			groupedAssignedToMeByProject[p][key] = []MissingAssigneeReportItem{}
 		}
 	}
 	for _, v := range missingAssignees {
@@ -397,42 +423,50 @@ func buildHTMLReportData(
 			}
 			suggestions = append(suggestions, AssigneeSuggestion{Login: login})
 		}
-		groupedAssigneeByProject[v.ProjectNum][group] = append(groupedAssigneeByProject[v.ProjectNum][group], MissingAssigneeReportItem{
+		item := MissingAssigneeReportItem{
 			ProjectNum:         v.ProjectNum,
 			Number:             getNumber(v.Item),
 			Title:              getTitle(v.Item),
 			URL:                getURL(v.Item),
 			Repo:               repo,
 			Status:             status,
+			AssignedToMe:       v.AssignedToMe,
 			CurrentAssignees:   append([]string(nil), v.CurrentAssignees...),
 			SuggestedAssignees: suggestions,
-		})
-	}
-	assigneeProjects := make([]MissingAssigneeProjectReport, 0, len(groupedAssigneeByProject))
-	totalAssignee := 0
-	projectNumsForAssignees := append([]int(nil), projectNums...)
-	for _, p := range projectNumsForAssignees {
-		grouped := groupedAssigneeByProject[p]
-		projectTotal := 0
-		for _, key := range sprintColumnOrder() {
-			items := grouped[key]
-			projectTotal += len(items)
-			totalAssignee += len(items)
 		}
-		columns := make([]MissingAssigneeGroupReport, 0, len(sprintColumnOrder()))
-		for _, key := range sprintColumnOrder() {
-			items := grouped[key]
-			columns = append(columns, MissingAssigneeGroupReport{
-				Key:   key,
-				Label: sprintColumnLabel(key),
-				Items: items,
+		if v.AssignedToMe {
+			groupedAssignedToMeByProject[v.ProjectNum][group] = append(groupedAssignedToMeByProject[v.ProjectNum][group], item)
+			continue
+		}
+		groupedMissingAssigneeByProject[v.ProjectNum][group] = append(groupedMissingAssigneeByProject[v.ProjectNum][group], item)
+	}
+	buildAssigneeProjects := func(groupedByProject map[int]map[string][]MissingAssigneeReportItem) ([]MissingAssigneeProjectReport, int) {
+		projects := make([]MissingAssigneeProjectReport, 0, len(groupedByProject))
+		total := 0
+		projectNumsForAssignees := append([]int(nil), projectNums...)
+		for _, p := range projectNumsForAssignees {
+			grouped := groupedByProject[p]
+			for _, key := range sprintColumnOrder() {
+				total += len(grouped[key])
+			}
+			columns := make([]MissingAssigneeGroupReport, 0, len(sprintColumnOrder()))
+			for _, key := range sprintColumnOrder() {
+				items := grouped[key]
+				columns = append(columns, MissingAssigneeGroupReport{
+					Key:   key,
+					Label: sprintColumnLabel(key),
+					Items: items,
+				})
+			}
+			projects = append(projects, MissingAssigneeProjectReport{
+				ProjectNum: p,
+				Columns:    columns,
 			})
 		}
-		assigneeProjects = append(assigneeProjects, MissingAssigneeProjectReport{
-			ProjectNum: p,
-			Columns:    columns,
-		})
+		return projects, total
 	}
+	missingAssigneeProjects, totalMissingAssignee := buildAssigneeProjects(groupedMissingAssigneeByProject)
+	assignedToMeProjects, totalAssignedToMe := buildAssigneeProjects(groupedAssignedToMeByProject)
 
 	groupedReleaseByProject := make(map[int][]ReleaseLabelReportItem)
 	for _, v := range releaseIssues {
@@ -467,34 +501,37 @@ func buildHTMLReportData(
 	}
 
 	return HTMLReportData{
-		GeneratedAt:      time.Now().Format(time.RFC1123),
-		Org:              org,
-		BridgeEnabled:    bridgeEnabled,
-		BridgeBaseURL:    bridgeBaseURL,
-		AwaitingSections: sections,
-		StaleSections:    staleSections,
-		StaleThreshold:   staleDays,
-		DraftingSections: drafting,
-		MissingMilestone: milestoneProjects,
-		MissingSprint:    sprintProjects,
-		MissingAssignee:  assigneeProjects,
-		ReleaseLabel:     releaseProjects,
-		TotalAwaiting:    totalAwaiting,
-		TotalStale:       totalStale,
-		TotalDrafting:    totalDrafting,
-		TotalNoMilestone: totalNoMilestone,
-		TotalNoSprint:    totalNoSprint,
-		TotalAssignee:    totalAssignee,
-		TotalRelease:     totalRelease,
-		TimestampCheck:   timestampCheck,
-		AwaitingClean:    totalAwaiting == 0,
-		StaleClean:       totalStale == 0,
-		DraftingClean:    totalDrafting == 0,
-		TimestampClean:   timestampCheck.Error == "" && timestampCheck.OK,
-		MilestoneClean:   totalNoMilestone == 0,
-		SprintClean:      totalNoSprint == 0,
-		AssigneeClean:    totalAssignee == 0,
-		ReleaseClean:     totalRelease == 0,
+		GeneratedAt:          time.Now().Format(time.RFC1123),
+		Org:                  org,
+		BridgeEnabled:        bridgeEnabled,
+		BridgeBaseURL:        bridgeBaseURL,
+		AwaitingSections:     sections,
+		StaleSections:        staleSections,
+		StaleThreshold:       staleDays,
+		DraftingSections:     drafting,
+		MissingMilestone:     milestoneProjects,
+		MissingSprint:        sprintProjects,
+		MissingAssignee:      missingAssigneeProjects,
+		AssignedToMe:         assignedToMeProjects,
+		ReleaseLabel:         releaseProjects,
+		TotalAwaiting:        totalAwaiting,
+		TotalStale:           totalStale,
+		TotalDrafting:        totalDrafting,
+		TotalNoMilestone:     totalNoMilestone,
+		TotalNoSprint:        totalNoSprint,
+		TotalMissingAssignee: totalMissingAssignee,
+		TotalAssignedToMe:    totalAssignedToMe,
+		TotalRelease:         totalRelease,
+		TimestampCheck:       timestampCheck,
+		AwaitingClean:        totalAwaiting == 0,
+		StaleClean:           totalStale == 0,
+		DraftingClean:        totalDrafting == 0,
+		TimestampClean:       timestampCheck.Error == "" && timestampCheck.OK,
+		MilestoneClean:       totalNoMilestone == 0,
+		SprintClean:          totalNoSprint == 0,
+		MissingAssigneeClean: totalMissingAssignee == 0,
+		AssignedToMeClean:    totalAssignedToMe == 0,
+		ReleaseClean:         totalRelease == 0,
 	}
 }
 
@@ -510,6 +547,25 @@ func itemStatus(it Item) string {
 		}
 	}
 	return ""
+}
+
+func previewBodyLines(body string, maxLines int) []string {
+	if maxLines <= 0 {
+		return nil
+	}
+	lines := strings.Split(body, "\n")
+	out := make([]string, 0, maxLines)
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		out = append(out, trimmed)
+		if len(out) >= maxLines {
+			break
+		}
+	}
+	return out
 }
 
 func writeHTMLReport(data HTMLReportData) (string, error) {
@@ -725,6 +781,22 @@ var htmlReportTemplate = `<!doctype html>
       margin: 10px 0 0;
       padding: 10px 12px;
     }
+    .item.assigned-to-me {
+      border-left-color: #72c08a;
+      box-shadow: inset 0 0 0 1px rgba(39, 174, 96, 0.2);
+      background: #f4fbf6;
+    }
+    .mine-badge {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid #83d2a5;
+      background: #e9f8ef;
+      color: #1d6e3e;
+      font-size: 12px;
+      font-weight: 600;
+    }
     .item a { color: #2f45cc; text-decoration: none; }
     .item a:hover { text-decoration: underline; }
     ul { margin: 8px 0 0 20px; }
@@ -827,7 +899,8 @@ var htmlReportTemplate = `<!doctype html>
         <span class="pill">Stale Awaiting QA items: {{.TotalStale}}</span>
         <span class="pill">Missing milestones (selected projects): {{.TotalNoMilestone}}</span>
         <span class="pill">Missing sprint (selected projects): {{.TotalNoSprint}}</span>
-        <span class="pill">Assignee issues (selected projects): {{.TotalAssignee}}</span>
+        <span class="pill">Missing assignee (selected projects): {{.TotalMissingAssignee}}</span>
+        <span class="pill">Assigned to me (selected projects): {{.TotalAssignedToMe}}</span>
         <span class="pill">Release label issues (selected projects): {{.TotalRelease}}</span>
         <span class="pill">Drafting checklist violations: {{.TotalDrafting}}</span>
       </div>
@@ -860,8 +933,11 @@ var htmlReportTemplate = `<!doctype html>
         <button class="menu-btn" data-tab="drafting" role="tab">
           <span class="status-dot {{if .DraftingClean}}ok{{end}}"></span>🧭 Drafting estimation gate
         </button>
-        <button class="menu-btn" data-tab="assignee" role="tab">
-          <span class="status-dot {{if .AssigneeClean}}ok{{end}}"></span>👤 Missing assignee coverage
+        <button class="menu-btn" data-tab="missing-assignee" role="tab">
+          <span class="status-dot {{if .MissingAssigneeClean}}ok{{end}}"></span>👤 Missing assignee
+        </button>
+        <button class="menu-btn" data-tab="assigned-to-me" role="tab">
+          <span class="status-dot {{if .AssignedToMeClean}}ok{{end}}"></span>🧍 Assigned to me
         </button>
         <button class="menu-btn" data-tab="timestamp" role="tab">
           <span class="status-dot {{if .TimestampClean}}ok{{end}}"></span>🕒 Updates timestamp expiry
@@ -881,6 +957,9 @@ var htmlReportTemplate = `<!doctype html>
                   <article class="item">
                     <div><strong>#{{.Number}} - {{.Title}}</strong></div>
                     <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
+                    <ul>
+                      <li>Assignees: {{if .Assignees}}{{range $i, $a := .Assignees}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}(empty){{end}}</li>
+                    </ul>
                     {{if .Unchecked}}
                       <ul>
                         {{range .Unchecked}}<li>[ ] {{.}}</li>{{end}}
@@ -935,6 +1014,7 @@ var htmlReportTemplate = `<!doctype html>
             <p><strong>🟢 OK</strong></p>
             <ul>
               <li>Expires: {{.TimestampCheck.ExpiresAt.Format "2006-01-02T15:04:05Z07:00"}}</li>
+              <li>Days remaining: {{printf "%.1f" .TimestampCheck.DaysLeft}}</li>
               <li>Hours remaining: {{printf "%.1f" .TimestampCheck.DurationLeft.Hours}}</li>
               <li>Minimum required days: {{.TimestampCheck.MinDays}}</li>
             </ul>
@@ -944,6 +1024,7 @@ var htmlReportTemplate = `<!doctype html>
             <p><strong>🔴 Failing threshold</strong></p>
             <ul>
               <li>Expires: {{.TimestampCheck.ExpiresAt.Format "2006-01-02T15:04:05Z07:00"}}</li>
+              <li>Days remaining: {{printf "%.1f" .TimestampCheck.DaysLeft}}</li>
               <li>Hours remaining: {{printf "%.1f" .TimestampCheck.DurationLeft.Hours}}</li>
               <li>Minimum required days: {{.TimestampCheck.MinDays}}</li>
             </ul>
@@ -974,6 +1055,16 @@ var htmlReportTemplate = `<!doctype html>
                         <ul>
                           <li>Status: {{if .Status}}{{.Status}}{{else}}(unset){{end}}</li>
                           <li>Repository: {{.Repo}}</li>
+                          <li>Assignees: {{if .Assignees}}{{range $i, $a := .Assignees}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}(empty){{end}}</li>
+                          <li>Labels: {{if .Labels}}{{range $i, $l := .Labels}}{{if $i}}, {{end}}{{$l}}{{end}}{{else}}(empty){{end}}</li>
+                          <li>Snippet:</li>
+                          {{if .BodyPreview}}
+                            {{range .BodyPreview}}
+                              <li>{{.}}</li>
+                            {{end}}
+                          {{else}}
+                            <li>(empty)</li>
+                          {{end}}
                         </ul>
                         <div class="actions">
                           {{if .Suggestions}}
@@ -1019,6 +1110,9 @@ var htmlReportTemplate = `<!doctype html>
                   <article class="item">
                     <div><strong>#{{.Number}} - {{.Title}}</strong></div>
                     <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
+                    <ul>
+                      <li>Assignees: {{if .Assignees}}{{range $i, $a := .Assignees}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}(empty){{end}}</li>
+                    </ul>
                     {{if .Unchecked}}
                       {{$item := .}}
                       <div>
@@ -1067,6 +1161,17 @@ var htmlReportTemplate = `<!doctype html>
                         <ul>
                           <li>Status: {{if .Status}}{{.Status}}{{else}}(unset){{end}}</li>
                           <li>Current sprint: {{if .CurrentSprint}}{{.CurrentSprint}}{{else}}(unknown){{end}}</li>
+                          <li>Milestone: {{.Milestone}}</li>
+                          <li>Assignees: {{if .Assignees}}{{range $i, $a := .Assignees}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}(empty){{end}}</li>
+                          <li>Labels: {{if .Labels}}{{range $i, $l := .Labels}}{{if $i}}, {{end}}{{$l}}{{end}}{{else}}(empty){{end}}</li>
+                          <li>Snippet:</li>
+                          {{if .BodyPreview}}
+                            {{range .BodyPreview}}
+                              <li>{{.}}</li>
+                            {{end}}
+                          {{else}}
+                            <li>(empty)</li>
+                          {{end}}
                         </ul>
                         {{if $.BridgeEnabled}}
                           <div class="actions">
@@ -1087,9 +1192,9 @@ var htmlReportTemplate = `<!doctype html>
         {{end}}
       </section>
 
-      <section id="tab-assignee" class="panel" role="tabpanel">
-        <h2>👤 Missing assignee coverage (selected projects)</h2>
-        <p class="subtle">Items with no assignee or currently assigned to you. Choose a teammate and add without removing existing assignees.</p>
+      <section id="tab-missing-assignee" class="panel" role="tabpanel">
+        <h2>👤 Missing assignee (selected projects)</h2>
+        <p class="subtle">Items with no assignee. If any item appears here, this check fails.</p>
         {{if .MissingAssignee}}
           {{range .MissingAssignee}}
             <div class="project">
@@ -1104,7 +1209,7 @@ var htmlReportTemplate = `<!doctype html>
                   </div>
                   {{if .Items}}
                     {{range .Items}}
-                      <article class="item">
+                      <article class="item {{if .AssignedToMe}}assigned-to-me{{end}}">
                         <div><strong>#{{.Number}} - {{.Title}}</strong></div>
                         <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
                         <ul>
@@ -1139,7 +1244,64 @@ var htmlReportTemplate = `<!doctype html>
             </div>
           {{end}}
         {{else}}
-          <p class="empty">🟢 No assignee coverage issues found.</p>
+          <p class="empty">🟢 No missing-assignee items found.</p>
+        {{end}}
+      </section>
+
+      <section id="tab-assigned-to-me" class="panel" role="tabpanel">
+        <h2>🧍 Assigned to me (selected projects)</h2>
+        <p class="subtle">Items currently assigned to you. If any item appears here, this check fails.</p>
+        {{if .AssignedToMe}}
+          {{range .AssignedToMe}}
+            <div class="project">
+              <h3>Project {{.ProjectNum}}</h3>
+              {{range .Columns}}
+                <div class="status">
+                  <div class="column-head">
+                    <h3>{{.Label}}</h3>
+                    {{if and $.BridgeEnabled .Items}}
+                      <button class="fix-btn apply-assignee-column-btn">Assign selected in column</button>
+                    {{end}}
+                  </div>
+                  {{if .Items}}
+                    {{range .Items}}
+                      <article class="item assigned-to-me">
+                        <div><strong>#{{.Number}} - {{.Title}}</strong></div>
+                        <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
+                        <ul>
+                          <li>Status: {{if .Status}}{{.Status}}{{else}}(unset){{end}}</li>
+                          <li>Repository: {{.Repo}}</li>
+                          <li>Current assignees: {{if .CurrentAssignees}}{{range $i, $a := .CurrentAssignees}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}(none){{end}}</li>
+                        </ul>
+                        <div class="mine-badge">Assigned to me</div>
+                        <div class="actions">
+                          {{if .SuggestedAssignees}}
+                            <input class="fix-btn assignee-search" type="text" placeholder="Search assignee...">
+                            <select class="fix-btn assignee-select" data-issue="{{.Number}}" data-repo="{{.Repo}}">
+                              {{range .SuggestedAssignees}}
+                                <option value="{{.Login}}">{{.Login}}</option>
+                              {{end}}
+                            </select>
+                            {{if $.BridgeEnabled}}
+                              <button class="fix-btn apply-assignee-btn">Assign</button>
+                            {{else}}
+                              <span class="copied-note">Bridge offline: rerun qacheck to enable assign.</span>
+                            {{end}}
+                          {{else}}
+                            <span class="copied-note">No assignee options found for this repo.</span>
+                          {{end}}
+                        </div>
+                      </article>
+                    {{end}}
+                  {{else}}
+                    <p class="empty">🟢 No items in this group.</p>
+                  {{end}}
+                </div>
+              {{end}}
+            </div>
+          {{end}}
+        {{else}}
+          <p class="empty">🟢 No assigned-to-me items found.</p>
         {{end}}
       </section>
 

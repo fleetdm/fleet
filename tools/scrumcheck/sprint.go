@@ -263,6 +263,17 @@ func sprintColumnOrder() []string {
 	}
 }
 
+func sprintColumnsWithoutReadyForRelease() []string {
+	return []string{
+		"ready",
+		"waiting",
+		"in_progress",
+		"in_review",
+		"awaiting_qa",
+		"other",
+	}
+}
+
 func sprintColumnLabel(group string) string {
 	switch group {
 	case "ready":
