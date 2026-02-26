@@ -7,7 +7,8 @@ import (
 	"github.com/shurcooL/githubv4"
 )
 
-// TestBuildBridgePolicy provides scrumcheck behavior for this unit.
+// TestBuildBridgePolicy verifies policy generation populates all expected
+// allowlists (checklist, milestone, assignee, sprint, and release label).
 func TestBuildBridgePolicy(t *testing.T) {
 	t.Parallel()
 
@@ -85,7 +86,8 @@ func TestBuildBridgePolicy(t *testing.T) {
 	}
 }
 
-// TestBridgeAllowlistChecks provides scrumcheck behavior for this unit.
+// TestBridgeAllowlistChecks verifies bridge helper methods enforce allowlist
+// membership correctly for each supported action type.
 func TestBridgeAllowlistChecks(t *testing.T) {
 	t.Parallel()
 
@@ -139,7 +141,7 @@ func TestBridgeAllowlistChecks(t *testing.T) {
 	}
 }
 
-// testIssueItem provides scrumcheck behavior for this unit.
+// testIssueItem builds a minimal issue-backed project item for policy tests.
 func testIssueItem(num int, issueURL string) Item {
 	var it Item
 	it.Content.Issue.Number = githubv4.Int(num)

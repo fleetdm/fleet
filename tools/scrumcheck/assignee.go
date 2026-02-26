@@ -18,7 +18,10 @@ type userLoginResponse struct {
 
 var searchAssignedIssuesByProject = fetchAssignedIssuesByProject
 
-// runMissingAssigneeChecks provides scrumcheck behavior for this unit.
+// runMissingAssigneeChecks builds the combined assignee findings used by both
+// "Missing assignee" and "Assigned to me" checks.
+// It scans selected projects, skips Done-column items, and augments results
+// with direct GitHub search hits for assignee:@me in each selected project.
 func runMissingAssigneeChecks(
 	ctx context.Context,
 	client *githubv4.Client,
@@ -136,7 +139,8 @@ func runMissingAssigneeChecks(
 	return out
 }
 
-// fetchAssignedIssuesByProject provides scrumcheck behavior for this unit.
+// fetchAssignedIssuesByProject runs a GitHub issue search for open tickets
+// assigned to the current user in one project, excluding Done status.
 func fetchAssignedIssuesByProject(ctx context.Context, token, org string, projectNum int) []searchIssueItem {
 	query := fmt.Sprintf(`is:issue is:open project:%s/%d assignee:@me -status:"Done" repo:%s/fleet`, org, projectNum, org)
 	endpoint := fmt.Sprintf("https://api.github.com/search/issues?q=%s&per_page=100", urlQueryEscape(query))
@@ -147,7 +151,7 @@ func fetchAssignedIssuesByProject(ctx context.Context, token, org string, projec
 	return body.Items
 }
 
-// fetchViewerLogin provides scrumcheck behavior for this unit.
+// fetchViewerLogin resolves the login of the current GitHub token owner.
 func fetchViewerLogin(ctx context.Context, token string) string {
 	endpoint := "https://api.github.com/user"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
@@ -174,7 +178,8 @@ func fetchViewerLogin(ctx context.Context, token string) string {
 	return strings.TrimSpace(body.Login)
 }
 
-// fetchRepoAssignees provides scrumcheck behavior for this unit.
+// fetchRepoAssignees returns assignable users for a repo, deduplicated and
+// sorted alphabetically for stable UI suggestion lists.
 func fetchRepoAssignees(ctx context.Context, token, owner, repo string) []AssigneeOption {
 	endpoint := fmt.Sprintf(
 		"https://api.github.com/repos/%s/%s/assignees?per_page=100",
@@ -224,7 +229,8 @@ func fetchRepoAssignees(ctx context.Context, token, owner, repo string) []Assign
 	return out
 }
 
-// issueAssignees provides scrumcheck behavior for this unit.
+// issueAssignees extracts issue assignees from a project item, normalizes and
+// de-duplicates them, then returns a stable alphabetical list.
 func issueAssignees(it Item) []string {
 	out := make([]string, 0, len(it.Content.Issue.Assignees.Nodes))
 	seen := make(map[string]bool)
@@ -246,7 +252,8 @@ func issueAssignees(it Item) []string {
 	return out
 }
 
-// containsLogin provides scrumcheck behavior for this unit.
+// containsLogin reports whether the requested login is present in the list,
+// using case-insensitive comparison.
 func containsLogin(logins []string, wantedLower string) bool {
 	for _, l := range logins {
 		if strings.EqualFold(strings.TrimSpace(l), wantedLower) {

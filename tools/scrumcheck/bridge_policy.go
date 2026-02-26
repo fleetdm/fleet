@@ -24,7 +24,9 @@ type releaseLabelTarget struct {
 	NeedsReleaseAdd     bool
 }
 
-// buildBridgePolicy provides scrumcheck behavior for this unit.
+// buildBridgePolicy creates per-issue allowlists used by bridge mutation APIs.
+// The policy is derived from current check findings so UI actions are limited
+// to items/options that were surfaced by the report.
 func buildBridgePolicy(
 	drafting []DraftingCheckViolation,
 	missing []MissingMilestoneIssue,
