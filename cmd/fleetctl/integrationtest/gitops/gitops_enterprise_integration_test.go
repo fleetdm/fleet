@@ -176,6 +176,17 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 		return err
 	})
 
+	// Remove policy_labels and query_labels rows before deleting labels to avoid
+	// FK constraint violations (label_id is now ON DELETE RESTRICT on both tables).
+	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM policy_labels`)
+		return err
+	})
+	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM query_labels`)
+		return err
+	})
+
 	lbls, err := s.DS.ListLabels(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	for _, lbl := range lbls {
