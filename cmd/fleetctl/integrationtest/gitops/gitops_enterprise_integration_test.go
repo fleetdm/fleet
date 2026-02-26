@@ -1192,7 +1192,7 @@ settings:
 	s.assertDryRunOutput(t, output)
 
 	// Check that webhook settings are mentioned in the output
-	require.Contains(t, output, "would've applied webhook settings for 'No team'")
+	require.Contains(t, output, "would've applied webhook settings for unassigned hosts")
 
 	// Apply the configuration (non-dry-run)
 	output = fleetctl.RunAppForTest(t,
@@ -1200,8 +1200,8 @@ settings:
 	s.assertRealRunOutput(t, output)
 
 	// Verify the output mentions webhook settings were applied
-	require.Contains(t, output, "applying webhook settings for 'No team'")
-	require.Contains(t, output, "applied webhook settings for 'No team'")
+	require.Contains(t, output, "applying webhook settings for unassigned hosts")
+	require.Contains(t, output, "applied webhook settings for unassigned hosts")
 
 	// Verify webhook settings were actually applied by checking the database
 	verifyNoTeamWebhookSettings(ctx, t, s.DS, fleet.FailingPoliciesWebhookSettings{
@@ -1247,8 +1247,8 @@ settings:
 		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePathUpdated})
 
 	// Verify the output still mentions webhook settings were applied
-	require.Contains(t, output, "applying webhook settings for 'No team'")
-	require.Contains(t, output, "applied webhook settings for 'No team'")
+	require.Contains(t, output, "applying webhook settings for unassigned hosts")
+	require.Contains(t, output, "applied webhook settings for unassigned hosts")
 
 	// Verify webhook settings were updated
 	verifyNoTeamWebhookSettings(ctx, t, s.DS, fleet.FailingPoliciesWebhookSettings{
@@ -1285,8 +1285,8 @@ software:
 		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePathNoWebhook})
 
 	// Verify webhook settings are mentioned as being applied (they're applied as nil to clear)
-	require.Contains(t, output, "applying webhook settings for 'No team'")
-	require.Contains(t, output, "applied webhook settings for 'No team'")
+	require.Contains(t, output, "applying webhook settings for unassigned hosts")
+	require.Contains(t, output, "applied webhook settings for unassigned hosts")
 
 	// Verify webhook settings were cleared
 	verifyNoTeamWebhookSettings(ctx, t, s.DS, fleet.FailingPoliciesWebhookSettings{
@@ -1297,7 +1297,7 @@ software:
 	// First, set webhook settings again
 	output = fleetctl.RunAppForTest(t,
 		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath})
-	require.Contains(t, output, "applied webhook settings for 'No team'")
+	require.Contains(t, output, "applied webhook settings for unassigned hosts")
 
 	// Verify webhook was set
 	webhookSettings = getNoTeamWebhookSettings(ctx, t, s.DS)
@@ -1330,8 +1330,8 @@ settings:
 		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePathTeamNoWebhook})
 
 	// Verify webhook settings are cleared
-	require.Contains(t, output, "applying webhook settings for 'No team'")
-	require.Contains(t, output, "applied webhook settings for 'No team'")
+	require.Contains(t, output, "applying webhook settings for unassigned hosts")
+	require.Contains(t, output, "applied webhook settings for unassigned hosts")
 
 	// Verify webhook settings are disabled
 	verifyNoTeamWebhookSettings(ctx, t, s.DS, fleet.FailingPoliciesWebhookSettings{
@@ -1342,7 +1342,7 @@ settings:
 	// First, set webhook settings again
 	output = fleetctl.RunAppForTest(t,
 		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath})
-	require.Contains(t, output, "applied webhook settings for 'No team'")
+	require.Contains(t, output, "applied webhook settings for unassigned hosts")
 
 	// Verify webhook was set
 	webhookSettings = getNoTeamWebhookSettings(ctx, t, s.DS)
@@ -1376,8 +1376,8 @@ settings:
 		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePathWebhookNoFailing})
 
 	// Verify webhook settings are cleared
-	require.Contains(t, output, "applying webhook settings for 'No team'")
-	require.Contains(t, output, "applied webhook settings for 'No team'")
+	require.Contains(t, output, "applying webhook settings for unassigned hosts")
+	require.Contains(t, output, "applied webhook settings for unassigned hosts")
 
 	// Verify webhook settings are disabled
 	verifyNoTeamWebhookSettings(ctx, t, s.DS, fleet.FailingPoliciesWebhookSettings{
