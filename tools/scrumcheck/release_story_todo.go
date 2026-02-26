@@ -80,20 +80,7 @@ func runReleaseStoryTODOChecks(
 	return out
 }
 
-func fetchReleaseStoryTODOByProject(ctx context.Context, token, org string, projectNum int) []struct {
-	Number        int    `json:"number"`
-	Title         string `json:"title"`
-	HTMLURL       string `json:"html_url"`
-	State         string `json:"state"`
-	RepositoryURL string `json:"repository_url"`
-	Body          string `json:"body"`
-	Assignees     []struct {
-		Login string `json:"login"`
-	} `json:"assignees"`
-	Labels []struct {
-		Name string `json:"name"`
-	} `json:"labels"`
-} {
+func fetchReleaseStoryTODOByProject(ctx context.Context, token, org string, projectNum int) []searchIssueItem {
 	query := fmt.Sprintf(`is:open is:issue label:%s todo in:body label:%s project:%s/%d repo:%s/fleet`, storyLabel, releaseLabel, org, projectNum, org)
 	endpoint := fmt.Sprintf("https://api.github.com/search/issues?q=%s&per_page=100", urlQueryEscape(query))
 	body, ok := executeIssueSearchRequest(ctx, endpoint, token)

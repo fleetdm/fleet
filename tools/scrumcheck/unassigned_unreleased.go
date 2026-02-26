@@ -16,20 +16,22 @@ import (
 )
 
 type searchIssueResponse struct {
-	Items []struct {
-		Number        int    `json:"number"`
-		Title         string `json:"title"`
-		HTMLURL       string `json:"html_url"`
-		State         string `json:"state"`
-		RepositoryURL string `json:"repository_url"`
-		Body          string `json:"body"`
-		Assignees     []struct {
-			Login string `json:"login"`
-		} `json:"assignees"`
-		Labels []struct {
-			Name string `json:"name"`
-		} `json:"labels"`
-	} `json:"items"`
+	Items []searchIssueItem `json:"items"`
+}
+
+type searchIssueItem struct {
+	Number        int    `json:"number"`
+	Title         string `json:"title"`
+	HTMLURL       string `json:"html_url"`
+	State         string `json:"state"`
+	RepositoryURL string `json:"repository_url"`
+	Body          string `json:"body"`
+	Assignees     []struct {
+		Login string `json:"login"`
+	} `json:"assignees"`
+	Labels []struct {
+		Name string `json:"name"`
+	} `json:"labels"`
 }
 
 var searchUnreleasedIssuesByGroup = fetchUnreleasedIssuesByGroup

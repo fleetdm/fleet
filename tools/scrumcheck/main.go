@@ -153,7 +153,7 @@ func main() {
 	tracker.phaseStart(phaseMissingAssignee)
 	tracker.phaseStart(phaseAssignedToMe)
 	start = time.Now()
-	missingAssignees := runMissingAssigneeChecks(ctx, client, *org, projectNums, *limit, token, labelFilter)
+	missingAssignees := runMissingAssigneeChecks(ctx, client, *org, projectNums, *limit, token)
 	missingAssigneeCount, assignedToMeCount := splitAssigneeCounts(missingAssignees)
 	assigneeElapsed := shortDuration(time.Since(start))
 	tracker.phaseDone(phaseMissingAssignee, phaseSummaryKV(
@@ -336,7 +336,7 @@ func main() {
 			refByStatus := groupViolationsByStatus(refDrafting)
 			refMissingMilestones := runMissingMilestoneChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter)
 			refMissingSprints := runMissingSprintChecks(refreshCtx, client, *org, projectNums, *limit, labelFilter)
-			refMissingAssignees := runMissingAssigneeChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter)
+			refMissingAssignees := runMissingAssigneeChecks(refreshCtx, client, *org, projectNums, *limit, token)
 			refReleaseIssues := runReleaseLabelChecks(refreshCtx, client, *org, projectNums, *limit)
 			refReleaseTODO := runReleaseStoryTODOChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter)
 			refUnreleased := runUnassignedUnreleasedBugChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter, groupLabels)
