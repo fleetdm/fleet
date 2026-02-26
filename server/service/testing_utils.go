@@ -79,7 +79,7 @@ func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore,
 func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) (fleet.Service, context.Context) {
 	lic := &fleet.LicenseInfo{Tier: fleet.TierFree}
 	logger := platformlogging.NewNopLogger()
-	writer, err := logging.NewFilesystemLogWriter(fleetConfig.Filesystem.StatusLogFile, logger.SlogLogger(), fleetConfig.Filesystem.EnableLogRotation,
+	writer, err := logging.NewFilesystemLogWriter(t.Context(), fleetConfig.Filesystem.StatusLogFile, logger.SlogLogger(), fleetConfig.Filesystem.EnableLogRotation,
 		fleetConfig.Filesystem.EnableLogCompression, 500, 28, 3)
 	require.NoError(t, err)
 

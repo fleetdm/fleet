@@ -16,11 +16,11 @@ import (
 )
 
 func TestFilesystemLogger(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	tempPath := t.TempDir()
 	require.NoError(t, os.Chmod(tempPath, 0o755)) // nolint:gosec // G302
 	fileName := filepath.Join(tempPath, "filesystemLogWriter")
-	lgr, err := NewFilesystemLogWriter(fileName, slog.New(slog.DiscardHandler), false, false, 500, 28, 3)
+	lgr, err := NewFilesystemLogWriter(ctx, fileName, slog.New(slog.DiscardHandler), false, false, 500, 28, 3)
 	require.Nil(t, err)
 	defer os.Remove(fileName)
 
@@ -73,7 +73,7 @@ func TestFilesystemLoggerPermission(t *testing.T) {
 		{name: "without-rotation", rotation: false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := NewFilesystemLogWriter(fileName, slog.New(slog.DiscardHandler), tc.rotation, false, 500, 28, 3)
+			_, err := NewFilesystemLogWriter(t.Context(), fileName, slog.New(slog.DiscardHandler), tc.rotation, false, 500, 28, 3)
 			require.Error(t, err)
 			require.True(t, errors.Is(err, fs.ErrPermission), err)
 		})
@@ -83,7 +83,7 @@ func TestFilesystemLoggerPermission(t *testing.T) {
 func BenchmarkFilesystemLogger(b *testing.B) {
 	ctx := context.Background()
 	fileName := filepath.Join(b.TempDir(), "filesystemLogWriter")
-	lgr, err := NewFilesystemLogWriter(fileName, slog.New(slog.DiscardHandler), false, false, 500, 28, 3)
+	lgr, err := NewFilesystemLogWriter(ctx, fileName, slog.New(slog.DiscardHandler), false, false, 500, 28, 3)
 	if err != nil {
 		b.Fatal("new failed ", err)
 	}
@@ -119,7 +119,7 @@ func BenchmarkLumberjackWithCompression(b *testing.B) {
 func benchLumberjack(b *testing.B, compression bool) {
 	ctx := context.Background()
 	fileName := filepath.Join(b.TempDir(), "lumberjack")
-	lgr, err := NewFilesystemLogWriter(fileName, slog.New(slog.DiscardHandler), true, compression, 500, 28, 3)
+	lgr, err := NewFilesystemLogWriter(ctx, fileName, slog.New(slog.DiscardHandler), true, compression, 500, 28, 3)
 	if err != nil {
 		b.Fatal("new failed ", err)
 	}

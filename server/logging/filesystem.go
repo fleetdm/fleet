@@ -28,7 +28,7 @@ type filesystemLogWriter struct {
 // enableRotation is true
 //
 // The enableCompression argument is only used when enableRotation is true.
-func NewFilesystemLogWriter(path string, appLogger *slog.Logger, enableRotation, enableCompression bool, maxSize, maxAge, maxBackups int) (*filesystemLogWriter, error) {
+func NewFilesystemLogWriter(ctx context.Context, path string, appLogger *slog.Logger, enableRotation, enableCompression bool, maxSize, maxAge, maxBackups int) (*filesystemLogWriter, error) {
 	// Fail early if the process does not have the necessary
 	// permissions to open the file at path.
 	file, err := openFile(path)
@@ -57,7 +57,7 @@ func NewFilesystemLogWriter(path string, appLogger *slog.Logger, enableRotation,
 		for {
 			<-sig // block on signal
 			if err := fsLogger.Rotate(); err != nil {
-				appLogger.ErrorContext(context.TODO(), "log rotation error", "err", err)
+				appLogger.ErrorContext(ctx, "log rotation error", "err", err)
 			}
 		}
 	}()

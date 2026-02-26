@@ -109,6 +109,7 @@ func NewJSONLogger(ctx context.Context, name string, config Config, logger *slog
 		fallthrough
 	case "filesystem":
 		writer, err := NewFilesystemLogWriter(
+			ctx,
 			config.Filesystem.LogFile,
 			logger,
 			config.Filesystem.EnableLogRotation,
