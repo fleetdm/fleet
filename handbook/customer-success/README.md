@@ -291,11 +291,11 @@ All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1. W
 
 ### Communicate feedback on prioritized customer requests
 
-When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Product Designer (PD) brings one or more a user stories through [drafting](https://fleetdm.com/handbook/product-design#drafting).
+When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Product Designer (PD) brings one or more user stories through [drafting](https://fleetdm.com/handbook/product-design#drafting).
 
 After the user stories are released and the relevant Customer Solutions Architect (CSA) confirms that the request is fulfilled during [confirm and celebrate](https://fleetdm.com/handbook/product-design#confirm-and-celebrate), it's up to the Customer Success Manager (CSM) to inform the customer and close the issue.
 
-If we learn the improvements are missing something in order to meet the customer's needs, the CSM re-opens the issue, adds feedback as comment (Gong snippet, Slack thread, or meetings notes), and @ mentions the HPD.
+If we learn the improvements are missing something in order to meet the customer's needs, the CSM re-opens the issue, adds feedback in a comment (Gong snippet, Slack thread, or meetings notes), and @ mentions the HPD.
 
 ### Manage DNS records
 
