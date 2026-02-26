@@ -13,7 +13,9 @@ const get = (): string | null => {
 };
 
 const remove = (): void => {
-  Cookie.remove("__Host-token");
+  // NOTE: the entire cookie including the name and values must be provided
+  // to correctly remove. That is why we include the options here as well.
+  Cookie.remove("__Host-token", { secure: true, sameSite: "lax" });
 };
 
 export default {
