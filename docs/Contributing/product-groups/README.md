@@ -21,7 +21,7 @@ The [Orchestration product group](orchestration/README.md) focuses on device orc
 - Scheduled queries
 - Query packs
 - Host vitals
-- Teams and access control
+- Fleets and access control
 - File carving
 - Policies
 - Scripts

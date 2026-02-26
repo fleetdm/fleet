@@ -46,11 +46,11 @@ This checklist provides a list of questions contributors will commonly ask when 
 9. Do hosts require going through any sort of proxy, VPN or other connectivity to access internet resources?  
    1. Are fleet’s server URLs and update URLs allowlisted?  
    2. Are Apple’s cloud services(including APNS, ABM) allowlisted?  
-10. Is the issue isolated to a single host, a single class of hosts(e.g. Specific team, version, or specific region), or all hosts? Does the issue persist after a reboot?  
+10. Is the issue isolated to a single host, a single class of hosts(e.g. Specific fleet, version, or specific region), or all hosts? Does the issue persist after a reboot?  
    1. If possible: Does the issue persist after a wipe?  
-11. Are any detail queries disabled for the team in Fleet?  
+11. Are any detail queries disabled for the fleet in Fleet?  
 12. If the issue is enrollment related:  
-    1. Is end user authentication enabled on the team?  
+    1. Is end user authentication enabled on the fleet?  
     2. Do hosts have fleetd installed before MDM enrollment?  
 13. For Apple related issues:  
     1. Is the APNS certificate valid? Has the APNS certificate been renewed recently?  

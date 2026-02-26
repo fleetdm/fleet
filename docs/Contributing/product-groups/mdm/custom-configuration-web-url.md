@@ -6,13 +6,13 @@ Some customers require end users to authenticate with a custom web application i
 
 How to require end users to authenticate with a custom web application:
 
-1. Use Fleet's `team` YAML to create a "Workstations" team.
+1. Use Fleet's `fleet` YAML to create a "Workstations" fleet.
 
 2. Create an automatic enrollment (DEP) profile w/ the `configuration_web_url` set to the URL of the custom web application and `await_device_configured` set to `true`.
 
-3. In the "Workstations" `team` YAML, set the `macos_setup_assistant` option to the DEP profile.
+3. In the "Workstations" `fleet` YAML, set the `macos_setup_assistant` option to the DEP profile.
 
-4. In the Fleet UI, go to **Settings > Integrations > Automatic enrollment > Apple Business manager** and set the **Team** to "Workstations".
+4. In the Fleet UI, go to **Settings > Integrations > Automatic enrollment > Apple Business manager** and set the **Fleet** to "Workstations".
 
 5. Update the custom web application to send a manual enrollment profile, with the end user's email, to a Mac after the end user enters valid credentials. Here's an example snippet of an enrollment profile:
 

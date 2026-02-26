@@ -17,7 +17,7 @@ A collection of guides to help you with Fleet.
 
 ## Further learning
 <!--Highest level organizational unit-->
-[Teams](https://fleetdm.com/guides/teams)
+[Fleets](https://fleetdm.com/guides/teams)
 
 [Enroll BYOD iOS/iPadOS hosts](https://fleetdm.com/guides/enroll-byod-ios-ipados-hosts)
 
