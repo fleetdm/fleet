@@ -6,6 +6,14 @@ Fleet can help your end users connect to Wi-Fi or VPN by deploying certificates 
 
 Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS), Windows, and Android hosts before expiration. Learn more in the [Renewal section](#renewal).
 
+Currently, these are supported platforms for each certificate authority:
+- **DigiCert**: macOS, iOS, and iPadOS
+- **Microsoft NDES**: macOS and Windows
+- **Smallstep**: macOS, iOS, and iPadOS
+- **Hydrant**: Linux, macOS, and Windows
+- **Custom SCEP server**: macOS, Windows, iOS, iPadOS, and Android
+- **Custom EST**: Linux, macOS, and Windows
+
 ## DigiCert
 
 The following steps show how to connect end users to Wi-Fi or VPN with DigiCert certificates.
@@ -711,7 +719,7 @@ Automatic renewal is only supported if the validity period is set to 2 days or l
 
 If an end user is on vacation (offline for more than 30 days), their certificate might expire, and they'll lose access to Wi-Fi or VPN. To reconnect them, ask your end users to temporarily connect to a different network so that Fleet can deliver a new certificate.
 
-Fleet automatically retries each failed macOS, iOS, iPadOS, Windows, and Android certificate once per host, checking every 30 seconds for certificates to resend. Learn more in the [4.38.0 release article](https://fleetdm.com/releases/fleet-4-38-0#failed-profile-redelivery).
+Fleet automatically retries each failed macOS, iOS, iPadOS, and Windows certificate once per host, checking every 30 seconds for certificates to resend. Learn more in the [4.38.0 release article](https://fleetdm.com/releases/fleet-4-38-0#failed-profile-redelivery). Automatic retries for Android is coming soon.
 
 > Currently, for NDES, Smallstep, and custom SCEP CAs, Fleet requires that the ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` variable is in the certificate's OU (Organizational Unit) for automatic renewal to work for Apple and Windows hosts. For some CAs, including [NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/active-directory-domain-services-maximum-limits?utm_source=chatgpt.com#:~:text=OU%20names%20can%20only%20be%2064%20characters%20long.), the OU has a maximum length of 64 characters so any characters beyond this limit get truncated, causing the renewal to fail.
 >
@@ -767,11 +775,10 @@ fetch_cert -ca <EST-CA-ID> -fleeturl "<Fleet-server-URL>" -csr CustomerUserNetwo
 
 * NDES SCEP proxy is currently supported for macOS devices via Apple config profiles. Support for DDM (Declarative Device Management) is coming soon, as is support for iOS, iPadOS, Windows, and Linux.
 * Fleet server assumes a one-time challenge password expiration time of 60 minutes.
-* On **Windows**, SCEP challenge strings should NOT include `base64` encoding or special characters such as `! @ # $ % ^ & * _`, and Common Names (CN) should NOT include `+` characters. 
-* The SCEP Server used for **Windows**, should accept `/pkiclient.exe` at the end, as Windows will always append this to the SCEP URL. If using a Certificate Authority and Fleet Variables, Fleet handles this and strips it away from the request sent to the backing SCEP server.
-* On **Windows** hosts, Fleet will not verify the SCEP profile via osquery reports. Fleet will mark it as verified, if a successful request went through, even if the certificate is not present.
-* On **Windows** hosts, Fleet will not remove certificates from profiles, when removing the profile from the host, or transferring teams.
-* On **Android** hosts, only a custom SCEP certificate authority is currently supported.
+* On **Windows**, SCEP challenge strings should NOT include `base64` encoding or special characters such as `! @ # $ % ^ & * _`, and Common Names (CN) should NOT include `+` characters.
+* The Windows SCEP client adds ⁠/pkiclient.exe to the SCEP server URL. When using Fleet's custom SCEP proxy to deploy certificates, Fleet removes it, allowing you to use non-NDES SCEP servers.
+* On **Windows** hosts, Fleet will not verify the SCEP profile via osquery. Fleet will mark it as verified, if a successful request went through, even if the certificate is not present.
+* On **Windows** hosts, Fleet will not remove deployed certificate, when respective configuration profile is removed from Fleet, or when host is transfered to another team.
 
 ### How the SCEP proxy works
 
