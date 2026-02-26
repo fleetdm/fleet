@@ -64,8 +64,8 @@ type MilestoneSuggestion struct {
 type HTMLReportData struct {
 	GeneratedAt      string
 	Org              string
+	BridgeEnabled    bool
 	BridgeBaseURL    string
-	BridgeSession    string
 	AwaitingSections []AwaitingProjectReport
 	StaleSections    []StaleAwaitingProjectReport
 	StaleThreshold   int
@@ -92,8 +92,8 @@ func buildHTMLReportData(
 	byStatus map[string][]DraftingCheckViolation,
 	missingMilestones []MissingMilestoneIssue,
 	timestampCheck TimestampCheckResult,
+	bridgeEnabled bool,
 	bridgeBaseURL string,
-	bridgeSession string,
 ) HTMLReportData {
 	sections := make([]AwaitingProjectReport, 0, len(projectNums))
 	totalAwaiting := 0
@@ -215,8 +215,8 @@ func buildHTMLReportData(
 	return HTMLReportData{
 		GeneratedAt:      time.Now().Format(time.RFC1123),
 		Org:              org,
+		BridgeEnabled:    bridgeEnabled,
 		BridgeBaseURL:    bridgeBaseURL,
-		BridgeSession:    bridgeSession,
 		AwaitingSections: sections,
 		StaleSections:    staleSections,
 		StaleThreshold:   staleDays,
@@ -440,10 +440,16 @@ var htmlReportTemplate = `<!doctype html>
     .milestone-select {
       min-width: 260px;
     }
+    .bridge-controls {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
     .empty { margin: 0; color: var(--muted); font-style: italic; }
   </style>
 </head>
-<body data-bridge-url="{{.BridgeBaseURL}}" data-bridge-session="{{.BridgeSession}}">
+<body data-bridge-url="{{.BridgeBaseURL}}">
   <div class="wrap">
     <section class="header">
       <h1>🧪 qacheck report</h1>
@@ -454,6 +460,12 @@ var htmlReportTemplate = `<!doctype html>
         <span class="pill">Missing milestones (selected projects): {{.TotalNoMilestone}}</span>
         <span class="pill">Drafting checklist violations: {{.TotalDrafting}}</span>
       </div>
+      {{if .BridgeEnabled}}
+        <div class="bridge-controls">
+          <button id="close-session-btn" class="fix-btn">Close bridge session</button>
+          <span class="copied-note">This will stop GitHub actions from the report until next qacheck run.</span>
+        </div>
+      {{end}}
     </section>
 
     <div class="tabs" role="tablist">
@@ -574,7 +586,11 @@ var htmlReportTemplate = `<!doctype html>
                       <option value="{{.Title}}" data-number="{{.Number}}">{{.Title}}</option>
                     {{end}}
                   </select>
-                  <button class="fix-btn apply-milestone-btn">Apply milestone</button>
+                  {{if $.BridgeEnabled}}
+                    <button class="fix-btn apply-milestone-btn">Apply milestone</button>
+                  {{else}}
+                    <span class="copied-note">Bridge offline: rerun qacheck to enable apply.</span>
+                  {{end}}
                 {{else}}
                   <span class="copied-note">No milestone suggestions found for this repo.</span>
                 {{end}}
@@ -605,7 +621,7 @@ var htmlReportTemplate = `<!doctype html>
                         {{range .Unchecked}}
                           <div class="checklist-row">
                             <span class="checklist-text">• [ ] {{.}}</span>
-                            {{if and $.BridgeBaseURL $.BridgeSession $item.Repo}}
+                            {{if and $.BridgeEnabled $item.Repo}}
                               <button class="fix-btn apply-drafting-check-btn" data-repo="{{$item.Repo}}" data-issue="{{$item.Number}}" data-check="{{.}}">Check on GitHub</button>
                             {{end}}
                           </div>
@@ -690,9 +706,8 @@ var htmlReportTemplate = `<!doctype html>
           const milestoneNumber = parseInt((select.selectedOptions[0] && select.selectedOptions[0].dataset.number) || '', 10);
           if (!issue || !repo || !milestoneTitle || Number.isNaN(milestoneNumber)) return;
 
-          const bridgeURL = document.body.dataset.bridgeUrl || '';
-          const bridgeSession = document.body.dataset.bridgeSession || '';
-          if (!bridgeURL || !bridgeSession) {
+          const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
+          if (!bridgeURL) {
             window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
             return;
           }
@@ -707,8 +722,8 @@ var htmlReportTemplate = `<!doctype html>
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'X-QACheck-Session': bridgeSession,
               },
+              credentials: 'same-origin',
               body: JSON.stringify(payload),
             });
             if (!res.ok) {
@@ -729,9 +744,8 @@ var htmlReportTemplate = `<!doctype html>
       const applyDraftingCheckButtons = document.querySelectorAll('.apply-drafting-check-btn');
       applyDraftingCheckButtons.forEach((btn) => {
         btn.addEventListener('click', async () => {
-          const bridgeURL = document.body.dataset.bridgeUrl || '';
-          const bridgeSession = document.body.dataset.bridgeSession || '';
-          if (!bridgeURL || !bridgeSession) {
+          const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
+          if (!bridgeURL) {
             window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
             return;
           }
@@ -750,8 +764,8 @@ var htmlReportTemplate = `<!doctype html>
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'X-QACheck-Session': bridgeSession,
               },
+              credentials: 'same-origin',
               body: JSON.stringify({ repo: repo, issue: issue, check_text: checkText }),
             });
             if (!res.ok) {
@@ -780,6 +794,42 @@ var htmlReportTemplate = `<!doctype html>
           }
         });
       });
+
+      const closeSessionButton = document.getElementById('close-session-btn');
+      if (closeSessionButton) {
+        closeSessionButton.addEventListener('click', async () => {
+          const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
+          if (!bridgeURL) {
+            window.alert('Bridge unavailable.');
+            return;
+          }
+          const prev = closeSessionButton.textContent;
+          closeSessionButton.textContent = 'Closing...';
+          closeSessionButton.disabled = true;
+          try {
+            const res = await fetch(bridgeURL + '/api/close', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              credentials: 'same-origin',
+              body: JSON.stringify({ reason: 'closed from UI' }),
+            });
+            if (!res.ok) {
+              const body = await res.text();
+              throw new Error('Bridge error ' + res.status + ': ' + body);
+            }
+            document.querySelectorAll('.apply-milestone-btn, .apply-drafting-check-btn').forEach((el) => {
+              el.disabled = true;
+            });
+            closeSessionButton.textContent = 'Closed';
+          } catch (err) {
+            window.alert('Could not close session. ' + err);
+            closeSessionButton.textContent = prev;
+            closeSessionButton.disabled = false;
+          }
+        });
+      }
 
       installMilestoneFiltering();
     })();

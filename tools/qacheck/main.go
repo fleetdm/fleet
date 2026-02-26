@@ -130,14 +130,15 @@ func main() {
 
 	tracker.phaseStart(phaseReport)
 	start = time.Now()
-	bridge, err := startUIBridge(token, time.Duration(*bridgeIdleMinutes)*time.Minute, tracker.bridgeSignal)
+	policy := buildBridgePolicy(badDrafting, missingMilestones)
+	bridge, err := startUIBridge(token, time.Duration(*bridgeIdleMinutes)*time.Minute, tracker.bridgeSignal, policy)
 	if err != nil {
 		log.Printf("could not start UI bridge: %v", err)
 	}
-	bridgeBaseURL, bridgeSession := "", ""
+	bridgeEnabled, bridgeBaseURL := false, ""
 	if bridge != nil {
+		bridgeEnabled = true
 		bridgeBaseURL = bridge.baseURL
-		bridgeSession = bridge.session
 	}
 	reportPath, err := writeHTMLReport(
 		buildHTMLReportData(
@@ -149,8 +150,8 @@ func main() {
 			byStatus,
 			missingMilestones,
 			timestampCheck,
+			bridgeEnabled,
 			bridgeBaseURL,
-			bridgeSession,
 		),
 	)
 	if err != nil {
@@ -162,7 +163,12 @@ func main() {
 	tracker.phaseStart(phaseBrowser)
 	tracker.waitingForBrowser(reportPath)
 	if *openReport {
-		if err := openInBrowser(reportPath); err != nil {
+		openTarget := reportPath
+		if bridge != nil {
+			bridge.setReportPath(reportPath)
+			openTarget = bridge.reportURL()
+		}
+		if err := openInBrowser(openTarget); err != nil {
 			log.Printf("could not auto-open report: %v", err)
 			tracker.phaseWarn(phaseBrowser, "browser auto-open failed")
 			return

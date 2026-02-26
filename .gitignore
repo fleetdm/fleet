@@ -124,3 +124,8 @@ Fleet\ Desktop.app
 
 # custom golangci-lint executable
 custom-gcl
+
+# qacheck local artifacts
+tools/qacheck/qacheck
+tools/qacheck/qacheck-report/
+tools/qacheck.zip

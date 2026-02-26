@@ -18,6 +18,10 @@ import (
 	"time"
 )
 
+const maxBridgeBodyBytes = 16 * 1024
+
+var repoSlugPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
+
 type uiBridge struct {
 	baseURL     string
 	session     string
@@ -25,16 +29,21 @@ type uiBridge struct {
 	idleTimeout time.Duration
 	onEvent     func(string)
 
-	srv      *http.Server
-	listener net.Listener
+	srv        *http.Server
+	listener   net.Listener
+	reportPath string
+	origin     string
 
 	mu     sync.Mutex
 	timer  *time.Timer
 	done   chan struct{}
 	reason string
+
+	allowChecklist  map[string]map[string]bool
+	allowMilestones map[string]map[int]bool
 }
 
-func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string)) (*uiBridge, error) {
+func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string), policy bridgePolicy) (*uiBridge, error) {
 	if strings.TrimSpace(token) == "" {
 		return nil, errors.New("missing token")
 	}
@@ -52,21 +61,29 @@ func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string)
 	}
 
 	b := &uiBridge{
-		baseURL:     "http://" + ln.Addr().String(),
-		session:     session,
-		token:       token,
-		idleTimeout: idleTimeout,
-		onEvent:     onEvent,
-		listener:    ln,
-		done:        make(chan struct{}),
-		reason:      "bridge closed",
+		baseURL:         "http://" + ln.Addr().String(),
+		origin:          "http://" + ln.Addr().String(),
+		session:         session,
+		token:           token,
+		idleTimeout:     idleTimeout,
+		onEvent:         onEvent,
+		listener:        ln,
+		done:            make(chan struct{}),
+		reason:          "bridge closed",
+		allowChecklist:  policy.ChecklistByIssue,
+		allowMilestones: policy.MilestonesByIssue,
 	}
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("/report", b.handleReport)
 	mux.HandleFunc("/api/apply-milestone", b.handleApplyMilestone)
 	mux.HandleFunc("/api/apply-checklist", b.handleApplyChecklist)
+	mux.HandleFunc("/api/close", b.handleClose)
 	mux.HandleFunc("/healthz", b.handleHealth)
-	b.srv = &http.Server{Handler: mux}
+	b.srv = &http.Server{
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
 	b.timer = time.AfterFunc(idleTimeout, func() {
 		b.signal("⌛ UI uplink idle timeout reached")
 		_ = b.stop("idle timeout")
@@ -83,6 +100,16 @@ func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string)
 	}()
 
 	return b, nil
+}
+
+func (b *uiBridge) setReportPath(path string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.reportPath = path
+}
+
+func (b *uiBridge) reportURL() string {
+	return b.baseURL + "/report"
 }
 
 func (b *uiBridge) stop(reason string) error {
@@ -143,10 +170,35 @@ func (b *uiBridge) handleHealth(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+func (b *uiBridge) handleReport(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	b.touch()
+	b.mu.Lock()
+	reportPath := b.reportPath
+	b.mu.Unlock()
+	if strings.TrimSpace(reportPath) == "" {
+		http.Error(w, "report not ready", http.StatusServiceUnavailable)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "qacheck_session",
+		Value:    b.session,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+	})
+	http.ServeFile(w, r, reportPath)
+}
+
 func (b *uiBridge) handleApplyMilestone(w http.ResponseWriter, r *http.Request) {
 	if !b.prepareRequest(w, r) {
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBridgeBodyBytes)
 	var req struct {
 		Repo            string `json:"repo"`
 		Issue           string `json:"issue"`
@@ -160,10 +212,18 @@ func (b *uiBridge) handleApplyMilestone(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "repo, issue, and milestone_number are required", http.StatusBadRequest)
 		return
 	}
+	if !isValidRepoSlug(req.Repo) {
+		http.Error(w, "invalid repo slug", http.StatusBadRequest)
+		return
+	}
 
 	issueNum, err := strconv.Atoi(req.Issue)
 	if err != nil || issueNum <= 0 {
 		http.Error(w, "invalid issue number", http.StatusBadRequest)
+		return
+	}
+	if !b.isAllowedMilestone(req.Repo, issueNum, req.MilestoneNumber) {
+		http.Error(w, "operation not allowed for this issue/milestone", http.StatusForbidden)
 		return
 	}
 
@@ -181,6 +241,7 @@ func (b *uiBridge) handleApplyChecklist(w http.ResponseWriter, r *http.Request) 
 	if !b.prepareRequest(w, r) {
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBridgeBodyBytes)
 	var req struct {
 		Repo      string `json:"repo"`
 		Issue     string `json:"issue"`
@@ -194,9 +255,17 @@ func (b *uiBridge) handleApplyChecklist(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "repo, issue, and check_text are required", http.StatusBadRequest)
 		return
 	}
+	if !isValidRepoSlug(req.Repo) {
+		http.Error(w, "invalid repo slug", http.StatusBadRequest)
+		return
+	}
 	issueNum, err := strconv.Atoi(req.Issue)
 	if err != nil || issueNum <= 0 {
 		http.Error(w, "invalid issue number", http.StatusBadRequest)
+		return
+	}
+	if !b.isAllowedChecklist(req.Repo, issueNum, req.CheckText) {
+		http.Error(w, "operation not allowed for this issue/checklist item", http.StatusForbidden)
 		return
 	}
 
@@ -230,17 +299,48 @@ func (b *uiBridge) handleApplyChecklist(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
+func (b *uiBridge) handleClose(w http.ResponseWriter, r *http.Request) {
+	if !b.prepareRequest(w, r) {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBridgeBodyBytes)
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	reason := strings.TrimSpace(req.Reason)
+	if reason == "" {
+		reason = "closed from UI"
+	}
+	b.signal("🧯 UI requested bridge shutdown")
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	go func() {
+		_ = b.stop(reason)
+	}()
+}
+
 func (b *uiBridge) prepareRequest(w http.ResponseWriter, r *http.Request) bool {
-	writeCORSHeaders(w)
+	origin := strings.TrimSpace(r.Header.Get("Origin"))
+	if origin != "" && origin != b.origin {
+		http.Error(w, "forbidden origin", http.StatusForbidden)
+		return false
+	}
+	referer := strings.TrimSpace(r.Header.Get("Referer"))
+	if referer != "" && !strings.HasPrefix(referer, b.baseURL+"/report") {
+		http.Error(w, "forbidden referer", http.StatusForbidden)
+		return false
+	}
 	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusNoContent)
+		w.Header().Set("Allow", "POST")
+		w.WriteHeader(http.StatusMethodNotAllowed)
 		return false
 	}
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return false
 	}
-	if r.Header.Get("X-QACheck-Session") != b.session {
+	cookie, err := r.Cookie("qacheck_session")
+	if err != nil || cookie.Value != b.session {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return false
 	}
@@ -286,14 +386,7 @@ func (b *uiBridge) githubJSON(ctx context.Context, method, endpoint string, reqB
 	return nil
 }
 
-func writeCORSHeaders(w http.ResponseWriter) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-QACheck-Session")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-}
-
 func writeJSON(w http.ResponseWriter, status int, v any) {
-	writeCORSHeaders(w)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
@@ -307,44 +400,69 @@ func randomHex(bytesLen int) (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
+func isValidRepoSlug(value string) bool {
+	return repoSlugPattern.MatchString(strings.TrimSpace(value))
+}
+
+func issueKey(repo string, issue int) string {
+	return strings.ToLower(strings.TrimSpace(repo)) + "#" + strconv.Itoa(issue)
+}
+
+func (b *uiBridge) isAllowedMilestone(repo string, issue int, milestone int) bool {
+	key := issueKey(repo, issue)
+	choices, ok := b.allowMilestones[key]
+	if !ok {
+		return false
+	}
+	return choices[milestone]
+}
+
+func (b *uiBridge) isAllowedChecklist(repo string, issue int, checklistText string) bool {
+	key := issueKey(repo, issue)
+	choices, ok := b.allowChecklist[key]
+	if !ok {
+		return false
+	}
+	return choices[strings.TrimSpace(checklistText)]
+}
+
 func replaceUncheckedChecklistLine(body string, checkText string) (string, bool, bool) {
 	text := strings.TrimSpace(checkText)
 	if text == "" {
 		return body, false, false
 	}
+	lines := strings.Split(body, "\n")
 
-	escaped := regexp.QuoteMeta(text)
-	checkedPatterns := []*regexp.Regexp{
-		regexp.MustCompile(`(?im)(^|\n)\s*[-*]\s*\[x\]\s*` + escaped + `(?=\n|$)`),
-		regexp.MustCompile(`(?im)(^|\n)\s*\[x\]\s*` + escaped + `(?=\n|$)`),
+	uncheckedPrefixToChecked := map[string]string{
+		"- [ ] ": "- [x] ",
+		"* [ ] ": "* [x] ",
+		"[ ] ":   "[x] ",
 	}
-	for _, p := range checkedPatterns {
-		if p.MatchString(body) {
-			return body, false, true
+	checkedPrefixes := []string{
+		"- [x] ", "- [X] ",
+		"* [x] ", "* [X] ",
+		"[x] ", "[X] ",
+	}
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		for _, prefix := range checkedPrefixes {
+			if strings.HasPrefix(trimmed, prefix) && strings.TrimSpace(strings.TrimPrefix(trimmed, prefix)) == text {
+				return body, false, true
+			}
 		}
 	}
 
-	unchecked := []struct {
-		pattern     *regexp.Regexp
-		replacement string
-	}{
-		{
-			pattern:     regexp.MustCompile(`(?im)(^|\n)\s*-\s*\[ \]\s*` + escaped + `(?=\n|$)`),
-			replacement: `$1- [x] ` + text,
-		},
-		{
-			pattern:     regexp.MustCompile(`(?im)(^|\n)\s*\*\s*\[ \]\s*` + escaped + `(?=\n|$)`),
-			replacement: `$1* [x] ` + text,
-		},
-		{
-			pattern:     regexp.MustCompile(`(?im)(^|\n)\s*\[ \]\s*` + escaped + `(?=\n|$)`),
-			replacement: `$1[x] ` + text,
-		},
-	}
-	for _, p := range unchecked {
-		if p.pattern.MatchString(body) {
-			return p.pattern.ReplaceAllString(body, p.replacement), true, false
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		for unchecked, checked := range uncheckedPrefixToChecked {
+			if strings.HasPrefix(trimmed, unchecked) && strings.TrimSpace(strings.TrimPrefix(trimmed, unchecked)) == text {
+				leading := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+				lines[i] = leading + checked + text
+				return strings.Join(lines, "\n"), true, false
+			}
 		}
 	}
+
 	return body, false, false
 }
