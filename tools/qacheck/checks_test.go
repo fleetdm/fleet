@@ -3,6 +3,7 @@ package main
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestHasUncheckedChecklistLine(t *testing.T) {
@@ -123,5 +124,33 @@ func TestUniqueInts(t *testing.T) {
 	got := uniqueInts(in)
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("uniqueInts() = %#v, want %#v", got, want)
+	}
+}
+
+func TestAwaitingAndDoneAndMatchedStatusAndStale(t *testing.T) {
+	t.Parallel()
+
+	awaiting := testIssueWithStatus(1, "A", "https://github.com/fleetdm/fleet/issues/1", "✔️Awaiting QA")
+	if !inAwaitingQA(awaiting) {
+		t.Fatal("expected awaiting QA")
+	}
+	if inDoneColumn(awaiting) {
+		t.Fatal("did not expect done")
+	}
+
+	done := testIssueWithStatus(2, "B", "https://github.com/fleetdm/fleet/issues/2", "✅ Done")
+	if !inDoneColumn(done) {
+		t.Fatal("expected done")
+	}
+
+	inProgress := testIssueWithStatus(3, "C", "https://github.com/fleetdm/fleet/issues/3", "In progress")
+	if got, ok := matchedStatus(inProgress, []string{"ready", "progress"}); !ok || got != "progress" {
+		t.Fatalf("matchedStatus got=(%q,%v), want (progress,true)", got, ok)
+	}
+
+	var stale Item
+	stale.UpdatedAt.Time = time.Now().UTC().Add(-48 * time.Hour)
+	if !isStaleAwaitingQA(stale, time.Now().UTC(), 24*time.Hour) {
+		t.Fatal("expected stale item")
 	}
 }
