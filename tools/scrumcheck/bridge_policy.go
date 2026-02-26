@@ -1,0 +1,110 @@
+package main
+
+import (
+	"fmt"
+	"strings"
+)
+
+type bridgePolicy struct {
+	ChecklistByIssue  map[string]map[string]bool
+	MilestonesByIssue map[string]map[int]bool
+	AssigneesByIssue  map[string]map[string]bool
+	SprintsByItemID   map[string]sprintApplyTarget
+	ReleaseByIssue    map[string]releaseLabelTarget
+}
+
+type sprintApplyTarget struct {
+	ProjectID   string
+	FieldID     string
+	IterationID string
+}
+
+type releaseLabelTarget struct {
+	NeedsProductRemoval bool
+	NeedsReleaseAdd     bool
+}
+
+func buildBridgePolicy(
+	drafting []DraftingCheckViolation,
+	missing []MissingMilestoneIssue,
+	missingSprints []MissingSprintViolation,
+	missingAssignees []MissingAssigneeIssue,
+	releaseIssues []ReleaseLabelIssue,
+) bridgePolicy {
+	p := bridgePolicy{
+		ChecklistByIssue:  make(map[string]map[string]bool),
+		MilestonesByIssue: make(map[string]map[int]bool),
+		AssigneesByIssue:  make(map[string]map[string]bool),
+		SprintsByItemID:   make(map[string]sprintApplyTarget),
+		ReleaseByIssue:    make(map[string]releaseLabelTarget),
+	}
+
+	for _, v := range drafting {
+		owner, repo := parseRepoFromIssueURL(getURL(v.Item))
+		if owner == "" || repo == "" {
+			continue
+		}
+		key := issueKey(owner+"/"+repo, getNumber(v.Item))
+		if p.ChecklistByIssue[key] == nil {
+			p.ChecklistByIssue[key] = make(map[string]bool)
+		}
+		for _, text := range v.Unchecked {
+			if text == "" {
+				continue
+			}
+			p.ChecklistByIssue[key][text] = true
+		}
+	}
+
+	for _, v := range missing {
+		key := issueKey(v.RepoOwner+"/"+v.RepoName, getNumber(v.Item))
+		if p.MilestonesByIssue[key] == nil {
+			p.MilestonesByIssue[key] = make(map[int]bool)
+		}
+		for _, m := range v.SuggestedMilestones {
+			if m.Number <= 0 {
+				continue
+			}
+			p.MilestonesByIssue[key][m.Number] = true
+		}
+	}
+
+	for _, v := range missingSprints {
+		itemID := strings.TrimSpace(fmt.Sprintf("%v", v.ItemID))
+		projectID := strings.TrimSpace(fmt.Sprintf("%v", v.ProjectID))
+		fieldID := strings.TrimSpace(fmt.Sprintf("%v", v.SprintFieldID))
+		iterationID := strings.TrimSpace(v.CurrentSprintID)
+		if itemID == "" || projectID == "" || fieldID == "" || iterationID == "" {
+			continue
+		}
+		p.SprintsByItemID[itemID] = sprintApplyTarget{
+			ProjectID:   projectID,
+			FieldID:     fieldID,
+			IterationID: iterationID,
+		}
+	}
+
+	for _, v := range missingAssignees {
+		key := issueKey(v.RepoOwner+"/"+v.RepoName, getNumber(v.Item))
+		if p.AssigneesByIssue[key] == nil {
+			p.AssigneesByIssue[key] = make(map[string]bool)
+		}
+		for _, a := range v.SuggestedAssignees {
+			login := strings.TrimSpace(strings.ToLower(a.Login))
+			if login == "" {
+				continue
+			}
+			p.AssigneesByIssue[key][login] = true
+		}
+	}
+
+	for _, v := range releaseIssues {
+		key := issueKey(v.RepoOwner+"/"+v.RepoName, getNumber(v.Item))
+		p.ReleaseByIssue[key] = releaseLabelTarget{
+			NeedsProductRemoval: v.HasProduct,
+			NeedsReleaseAdd:     !v.HasRelease,
+		}
+	}
+
+	return p
+}

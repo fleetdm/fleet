@@ -126,6 +126,6 @@ Fleet\ Desktop.app
 custom-gcl
 
 # qacheck local artifacts
-tools/qacheck/qacheck
-tools/qacheck/qacheck-report/
-tools/qacheck.zip
+tools/scrumcheck/scrumcheck
+tools/scrumcheck/scrumcheck-report/
+tools/scrumcheck.zip

@@ -1,0 +1,2604 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>qacheck report</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --header: #ffffff;
+      --panel: #ffffff;
+      --muted-panel: #f9fafc;
+      --text: #192147;
+      --muted: #515774;
+      --line: #d9dce8;
+      --accent: #00a794;
+      --accent-dark: #0f7f73;
+      --ok: #27ae60;
+      --bad: #eb5757;
+      --active: #eaf8f6;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Avenir Next", "Segoe UI", Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .title-logo {
+      width: 28px;
+      height: 28px;
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .title-logo svg {
+      display: block;
+      width: 26px;
+      height: 26px;
+    }
+    h1 { margin: 0; font-size: 38px; line-height: 1.1; }
+    h2 { margin: 0 0 10px; font-size: 27px; line-height: 1.2; }
+    h3 { margin: 0 0 6px; font-size: 18px; line-height: 1.25; }
+    .meta { margin-top: 8px; color: var(--muted); font-size: 14px; }
+    .counts { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 10px; }
+    .pill {
+      font-size: 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 12px;
+      background: var(--muted-panel);
+    }
+    .app-shell {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .menu {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      position: sticky;
+      top: 12px;
+    }
+    .menu h4 {
+      margin: 4px 8px 10px;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .menu-btn {
+      width: 100%;
+      text-align: left;
+      border: 1px solid transparent;
+      background: transparent;
+      border-radius: 8px;
+      padding: 10px 10px;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .menu-btn:hover {
+      background: #f2f5fb;
+      border-color: var(--line);
+    }
+    .menu-btn.active {
+      background: var(--active);
+      border-color: rgba(0, 167, 148, 0.35);
+    }
+    .status-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 8px;
+      vertical-align: middle;
+      background: var(--bad);
+      box-shadow: 0 0 0 2px rgba(235, 87, 87, 0.18);
+    }
+    .status-dot.ok {
+      background: var(--ok);
+      box-shadow: 0 0 0 2px rgba(39, 174, 96, 0.16);
+    }
+    .panel-wrap { min-width: 0; }
+    .panel {
+      display: none;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 18px;
+    }
+    .panel.active { display: block; }
+    .subtle { color: var(--muted); margin: 0 0 12px; font-size: 14px; }
+    .project, .status {
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      background: var(--muted-panel);
+    }
+    .item {
+      border-left: 3px solid #f5c5c5;
+      background: #fff;
+      border-radius: 8px;
+      margin: 10px 0 0;
+      padding: 10px 12px;
+    }
+    .item a { color: #2f45cc; text-decoration: none; }
+    .item a:hover { text-decoration: underline; }
+    ul { margin: 8px 0 0 20px; }
+    li { margin: 5px 0; }
+    .checklist-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin: 6px 0;
+    }
+    .checklist-text { flex: 1 1 320px; }
+    .actions {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .column-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .fix-btn {
+      border: 1px solid #b8bfd5;
+      background: #fff;
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .fix-btn:hover { background: #f2f5fb; }
+    .fix-btn.done {
+      border-color: #83d2a5;
+      background: #e9f8ef;
+      color: #1d6e3e;
+      cursor: default;
+    }
+    .fix-btn.failed {
+      border-color: #e3a0a0;
+      background: #fff1f1;
+      color: #8e1b1b;
+    }
+    #close-session-btn {
+      border-color: #e9a5a5;
+      background: #fff2f2;
+      color: #8b1e1e;
+    }
+    #close-session-btn:hover {
+      background: #ffe8e8;
+    }
+    .copied-note { margin-left: 6px; font-size: 12px; color: var(--muted); }
+    .milestone-search { min-width: 240px; }
+    .milestone-select { min-width: 260px; }
+    .assignee-search { min-width: 240px; }
+    .assignee-select { min-width: 260px; }
+    .bridge-controls {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .empty { margin: 0; color: var(--muted); font-style: italic; }
+    @media (max-width: 960px) {
+      h1 { font-size: 30px; }
+      h2 { font-size: 23px; }
+      h3 { font-size: 18px; }
+      .app-shell {
+        grid-template-columns: 1fr;
+      }
+      .menu {
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body data-bridge-url="http://127.0.0.1:50821">
+  <div class="wrap">
+    <section class="header">
+      <div class="title-row">
+        <span class="title-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" role="img" aria-label="Fleet logo">
+            <circle cx="4" cy="4" r="2.2" fill="#8b6ff0"></circle>
+            <circle cx="12" cy="4" r="2.2" fill="#34c759"></circle>
+            <circle cx="20" cy="4" r="2.2" fill="#eb5757"></circle>
+            <circle cx="4" cy="12" r="2.2" fill="#4da3ff"></circle>
+            <circle cx="12" cy="12" r="2.2" fill="#ff8a3d"></circle>
+            <circle cx="4" cy="20" r="2.2" fill="#54d58f"></circle>
+          </svg>
+        </span>
+        <h1>Scrum check</h1>
+      </div>
+      <p class="meta">Org: fleetdm | Generated: Wed, 25 Feb 2026 21:00:23 EST</p>
+      <div class="counts">
+        <span class="pill">Awaiting QA violations: 2</span>
+        <span class="pill">Stale Awaiting QA items: 1</span>
+        <span class="pill">Missing milestones (selected projects): 2</span>
+        <span class="pill">Missing sprint (selected projects): 12</span>
+        <span class="pill">Assignee issues (selected projects): 1</span>
+        <span class="pill">Release label issues (selected projects): 24</span>
+        <span class="pill">Drafting checklist violations: 9</span>
+      </div>
+      
+        <div class="bridge-controls">
+          <button id="close-session-btn" class="fix-btn">Close bridge session</button>
+          <span class="copied-note">This will stop GitHub actions from the report until next qacheck run.</span>
+        </div>
+      
+    </section>
+
+    <div class="app-shell">
+      <aside class="menu" role="tablist" aria-label="checks">
+        <h4>Checks</h4>
+        <button class="menu-btn active" data-tab="sprint" role="tab">
+          <span class="status-dot "></span>🗓️ Missing sprint
+        </button>
+        <button class="menu-btn" data-tab="milestone" role="tab">
+          <span class="status-dot "></span>🎯 Missing milestones
+        </button>
+        <button class="menu-btn" data-tab="release" role="tab">
+          <span class="status-dot "></span>🏷️ Release label guard
+        </button>
+        <button class="menu-btn" data-tab="stale" role="tab">
+          <span class="status-dot "></span>⏳ Awaiting QA stale watchdog
+        </button>
+        <button class="menu-btn" data-tab="awaiting" role="tab">
+          <span class="status-dot "></span>✔ Awaiting QA gate
+        </button>
+        <button class="menu-btn" data-tab="drafting" role="tab">
+          <span class="status-dot "></span>🧭 Drafting estimation gate
+        </button>
+        <button class="menu-btn" data-tab="assignee" role="tab">
+          <span class="status-dot "></span>👤 Missing assignee coverage
+        </button>
+        <button class="menu-btn" data-tab="timestamp" role="tab">
+          <span class="status-dot ok"></span>🕒 Updates timestamp expiry
+        </button>
+      </aside>
+
+      <div class="panel-wrap">
+      <section id="tab-awaiting" class="panel" role="tabpanel">
+        <h2>✅ Awaiting QA gate</h2>
+        <p class="subtle">Items in <strong>✔️Awaiting QA</strong> where engineer test-plan confirmation is unchecked.</p>
+        
+          
+            <div class="project">
+              <h3>Project 97</h3>
+              
+                
+                  <article class="item">
+                    <div><strong>#36105 - Okta conditional access: Specify policies that have bypass option (currently all or nothing)</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/36105" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/36105</a></div>
+                    
+                      <ul>
+                        <li>[ ] Engineer: Added comment to user story confirming successful completion of test plan.</li>
+                      </ul>
+                    
+                  </article>
+                
+                  <article class="item">
+                    <div><strong>#38034 - Surface issues in Fleet Android agent app when something is not working properly</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/38034" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/38034</a></div>
+                    
+                      <ul>
+                        <li>[ ] Engineer: Added comment to user story confirming successful completion of test plan.</li>
+                      </ul>
+                    
+                  </article>
+                
+              
+            </div>
+          
+            <div class="project">
+              <h3>Project 71</h3>
+              
+                <p class="empty">🟢 No violations in this project.</p>
+              
+            </div>
+          
+        
+      </section>
+      <section id="tab-stale" class="panel" role="tabpanel">
+        <h2>⏳ Awaiting QA stale watchdog</h2>
+        <p class="subtle">Items in <strong>✔️Awaiting QA</strong> with no updates for at least 21 days.</p>
+        
+          
+            <div class="project">
+              <h3>Project 97</h3>
+              
+                <p class="empty">🟢 No stale items in this project.</p>
+              
+            </div>
+          
+            <div class="project">
+              <h3>Project 71</h3>
+              
+                
+                  <article class="item">
+                    <div><strong>#37426 - Install script fails on ARM Linux</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/37426" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/37426</a></div>
+                    <ul>
+                      <li>Last updated: 2026-02-03</li>
+                      <li>Age: 22 days</li>
+                    </ul>
+                  </article>
+                
+              
+            </div>
+          
+        
+      </section>
+
+      <section id="tab-timestamp" class="panel" role="tabpanel">
+        <h2>🕒 Updates timestamp.json expiry</h2>
+        <p class="subtle">Checks that <a href="https://updates.fleetdm.com/timestamp.json" target="_blank" rel="noopener noreferrer">https://updates.fleetdm.com/timestamp.json</a> expires at least 5 days from now.</p>
+        
+          <div class="project">
+            <p><strong>🟢 OK</strong></p>
+            <ul>
+              <li>Expires: 2026-03-10T13:30:08Z</li>
+              <li>Hours remaining: 299.5</li>
+              <li>Minimum required days: 5</li>
+            </ul>
+          </div>
+        
+      </section>
+
+      <section id="tab-milestone" class="panel" role="tabpanel">
+        <h2>🎯 Missing milestones (selected projects)</h2>
+        <p class="subtle">Issues in selected projects without a milestone. Type to filter milestones, choose one, then apply directly.</p>
+        
+          
+            <div class="project">
+              <h3>Project 97</h3>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Ready</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Waiting</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>In progress</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>In review</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Awaiting QA</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Ready for release</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Other</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+            </div>
+          
+            <div class="project">
+              <h3>Project 71</h3>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Ready</h3>
+                    
+                      <button class="fix-btn apply-milestone-column-btn">Apply selected milestones in column</button>
+                    
+                  </div>
+                  
+                    
+                      <article class="item">
+                        <div><strong>#39684 - Improve our QA process by accommodating for idP functionality and enrollment</strong></div>
+                        <div><a href="https://github.com/fleetdm/fleet/issues/39684" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/39684</a></div>
+                        <ul>
+                          <li>Status: 🥚 Ready</li>
+                          <li>Repository: fleetdm/fleet</li>
+                        </ul>
+                        <div class="actions">
+                          
+                            <input class="fix-btn milestone-search" type="text" placeholder="Search milestone...">
+                            <select class="fix-btn milestone-select" data-issue="39684" data-repo="fleetdm/fleet">
+                              
+                                <option value="4.89.0" data-number="222">4.89.0</option>
+                              
+                                <option value="4.88.0" data-number="210">4.88.0</option>
+                              
+                                <option value="4.87.0" data-number="209">4.87.0</option>
+                              
+                                <option value="4.86.0" data-number="208">4.86.0</option>
+                              
+                                <option value="4.85.0" data-number="207">4.85.0</option>
+                              
+                                <option value="4.84.0" data-number="206">4.84.0</option>
+                              
+                                <option value="4.83.0" data-number="205">4.83.0</option>
+                              
+                                <option value="4.82.0" data-number="204">4.82.0</option>
+                              
+                                <option value="4.81.0" data-number="203">4.81.0</option>
+                              
+                                <option value="4.80.2" data-number="223">4.80.2</option>
+                              
+                                <option value="4.80.0" data-number="202">4.80.0</option>
+                              
+                                <option value="4.79.1" data-number="218">4.79.1</option>
+                              
+                                <option value="4.75.2" data-number="216">4.75.2</option>
+                              
+                                <option value="4.76.2" data-number="215">4.76.2</option>
+                              
+                                <option value="4.77.1" data-number="214">4.77.1</option>
+                              
+                                <option value="4.78.3" data-number="213">4.78.3</option>
+                              
+                                <option value="4.78.2" data-number="212">4.78.2</option>
+                              
+                                <option value="4.79.0" data-number="191">4.79.0</option>
+                              
+                                <option value="4.78.0" data-number="190">4.78.0</option>
+                              
+                                <option value="4.77.0" data-number="173">4.77.0</option>
+                              
+                                <option value="fleetd-v1.50.1" data-number="195">fleetd-v1.50.1</option>
+                              
+                                <option value="4.76.0" data-number="172">4.76.0</option>
+                              
+                                <option value="4.75.1" data-number="193">4.75.1</option>
+                              
+                                <option value="4.75.0" data-number="171">4.75.0</option>
+                              
+                                <option value="4.73.5" data-number="188">4.73.5</option>
+                              
+                                <option value="4.74.0" data-number="170">4.74.0</option>
+                              
+                                <option value="4.73.4" data-number="187">4.73.4</option>
+                              
+                                <option value="4.73.3" data-number="186">4.73.3</option>
+                              
+                                <option value="4.73.2" data-number="184">4.73.2</option>
+                              
+                                <option value="4.73.1" data-number="180">4.73.1</option>
+                              
+                                <option value="fleetd-1.47.3" data-number="183">fleetd-1.47.3</option>
+                              
+                                <option value="4.72.1" data-number="178">4.72.1</option>
+                              
+                                <option value="4.73.0" data-number="169">4.73.0</option>
+                              
+                                <option value="4.72.0" data-number="166">4.72.0</option>
+                              
+                                <option value="4.71.0" data-number="163">4.71.0</option>
+                              
+                                <option value="4.70.1" data-number="167">4.70.1</option>
+                              
+                                <option value="4.70.0" data-number="162">4.70.0</option>
+                              
+                                <option value="4.69.0" data-number="158">4.69.0</option>
+                              
+                                <option value="Fleetd-1.43.0" data-number="160">Fleetd-1.43.0</option>
+                              
+                                <option value="4.67.4" data-number="159">4.67.4</option>
+                              
+                                <option value="4.68.0" data-number="154">4.68.0</option>
+                              
+                                <option value="4.67.3" data-number="157">4.67.3</option>
+                              
+                                <option value="Fleetd-1.42.0" data-number="153">Fleetd-1.42.0</option>
+                              
+                                <option value="4.67.1" data-number="155">4.67.1</option>
+                              
+                                <option value="Fleetd-1.41.0" data-number="150">Fleetd-1.41.0</option>
+                              
+                                <option value="4.66.0" data-number="144">4.66.0</option>
+                              
+                                <option value="4.64.2" data-number="145">4.64.2</option>
+                              
+                                <option value="4.65.0" data-number="140">4.65.0</option>
+                              
+                                <option value="4.64.1" data-number="143">4.64.1</option>
+                              
+                                <option value="4.63.1" data-number="142">4.63.1</option>
+                              
+                                <option value="4.64.0" data-number="133">4.64.0</option>
+                              
+                                <option value="4.63.0" data-number="132">4.63.0</option>
+                              
+                                <option value="4.62.2" data-number="137">4.62.2</option>
+                              
+                                <option value="4.62.0" data-number="128">4.62.0</option>
+                              
+                                <option value="4.61.0" data-number="122">4.61.0</option>
+                              
+                                <option value="4.60.1" data-number="125">4.60.1</option>
+                              
+                                <option value="4.60.0" data-number="120">4.60.0</option>
+                              
+                                <option value="4.59.1" data-number="123">4.59.1</option>
+                              
+                                <option value="4.59.0" data-number="114">4.59.0</option>
+                              
+                                <option value="4.57.3" data-number="117">4.57.3</option>
+                              
+                                <option value="4.58.0" data-number="111">4.58.0</option>
+                              
+                                <option value="4.57.2" data-number="115">4.57.2</option>
+                              
+                                <option value="x.x.x" data-number="2">x.x.x</option>
+                              
+                                <option value="4.57.1" data-number="113">4.57.1</option>
+                              
+                                <option value="4.57.0" data-number="108">4.57.0</option>
+                              
+                                <option value="4.54.2" data-number="109">4.54.2</option>
+                              
+                                <option value="4.56.0" data-number="105">4.56.0</option>
+                              
+                                <option value="4.55.1" data-number="107">4.55.1</option>
+                              
+                                <option value="4.55.0" data-number="101">4.55.0</option>
+                              
+                                <option value="4.54.1" data-number="104">4.54.1</option>
+                              
+                                <option value="4.54.0" data-number="98">4.54.0</option>
+                              
+                                <option value="4.53.1" data-number="100">4.53.1</option>
+                              
+                                <option value="4.53.2" data-number="99">4.53.2</option>
+                              
+                                <option value="4.53.0" data-number="93">4.53.0</option>
+                              
+                                <option value="4.52.0" data-number="97">4.52.0</option>
+                              
+                                <option value="fleetd-v1.26.0" data-number="95">fleetd-v1.26.0</option>
+                              
+                                <option value="4.51.1" data-number="94">4.51.1</option>
+                              
+                                <option value="4.51.0" data-number="89">4.51.0</option>
+                              
+                                <option value="4.50.2" data-number="92">4.50.2</option>
+                              
+                                <option value="4.50.1" data-number="91">4.50.1</option>
+                              
+                                <option value="4.49.4" data-number="90">4.49.4</option>
+                              
+                                <option value="4.50.0" data-number="85">4.50.0</option>
+                              
+                                <option value="4.49.3" data-number="88">4.49.3</option>
+                              
+                                <option value="4.49.2" data-number="87">4.49.2</option>
+                              
+                                <option value="4.49.1" data-number="86">4.49.1</option>
+                              
+                                <option value="4.49.0" data-number="80">4.49.0</option>
+                              
+                                <option value="4.48.3" data-number="83">4.48.3</option>
+                              
+                                <option value="4.48.2" data-number="82">4.48.2</option>
+                              
+                                <option value="4.48.1" data-number="81">4.48.1</option>
+                              
+                                <option value="4.48.0" data-number="73">4.48.0</option>
+                              
+                                <option value="4.47.3" data-number="79">4.47.3</option>
+                              
+                                <option value="4.47.2" data-number="78">4.47.2</option>
+                              
+                                <option value="4.47.1" data-number="76">4.47.1</option>
+                              
+                                <option value="4.47.0" data-number="66">4.47.0</option>
+                              
+                                <option value="4.46.2" data-number="67">4.46.2</option>
+                              
+                                <option value="4.46.1" data-number="71">4.46.1</option>
+                              
+                                <option value="4.46.0" data-number="69">4.46.0</option>
+                              
+                                <option value="4.45.0" data-number="62">4.45.0</option>
+                              
+                                <option value="4.44.0" data-number="57">4.44.0</option>
+                              
+                                <option value="4.43.3" data-number="61">4.43.3</option>
+                              
+                            </select>
+                            
+                              <button class="fix-btn apply-milestone-btn">Apply milestone</button>
+                            
+                          
+                        </div>
+                      </article>
+                    
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Waiting</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>In progress</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>In review</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Awaiting QA</h3>
+                    
+                      <button class="fix-btn apply-milestone-column-btn">Apply selected milestones in column</button>
+                    
+                  </div>
+                  
+                    
+                      <article class="item">
+                        <div><strong>#39257 - Query created_at date is wrong in API response for newly created query</strong></div>
+                        <div><a href="https://github.com/fleetdm/fleet/issues/39257" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/39257</a></div>
+                        <ul>
+                          <li>Status: ✔️Awaiting QA</li>
+                          <li>Repository: fleetdm/fleet</li>
+                        </ul>
+                        <div class="actions">
+                          
+                            <input class="fix-btn milestone-search" type="text" placeholder="Search milestone...">
+                            <select class="fix-btn milestone-select" data-issue="39257" data-repo="fleetdm/fleet">
+                              
+                                <option value="4.89.0" data-number="222">4.89.0</option>
+                              
+                                <option value="4.88.0" data-number="210">4.88.0</option>
+                              
+                                <option value="4.87.0" data-number="209">4.87.0</option>
+                              
+                                <option value="4.86.0" data-number="208">4.86.0</option>
+                              
+                                <option value="4.85.0" data-number="207">4.85.0</option>
+                              
+                                <option value="4.84.0" data-number="206">4.84.0</option>
+                              
+                                <option value="4.83.0" data-number="205">4.83.0</option>
+                              
+                                <option value="4.82.0" data-number="204">4.82.0</option>
+                              
+                                <option value="4.81.0" data-number="203">4.81.0</option>
+                              
+                                <option value="4.80.2" data-number="223">4.80.2</option>
+                              
+                                <option value="4.80.0" data-number="202">4.80.0</option>
+                              
+                                <option value="4.79.1" data-number="218">4.79.1</option>
+                              
+                                <option value="4.75.2" data-number="216">4.75.2</option>
+                              
+                                <option value="4.76.2" data-number="215">4.76.2</option>
+                              
+                                <option value="4.77.1" data-number="214">4.77.1</option>
+                              
+                                <option value="4.78.3" data-number="213">4.78.3</option>
+                              
+                                <option value="4.78.2" data-number="212">4.78.2</option>
+                              
+                                <option value="4.79.0" data-number="191">4.79.0</option>
+                              
+                                <option value="4.78.0" data-number="190">4.78.0</option>
+                              
+                                <option value="4.77.0" data-number="173">4.77.0</option>
+                              
+                                <option value="fleetd-v1.50.1" data-number="195">fleetd-v1.50.1</option>
+                              
+                                <option value="4.76.0" data-number="172">4.76.0</option>
+                              
+                                <option value="4.75.1" data-number="193">4.75.1</option>
+                              
+                                <option value="4.75.0" data-number="171">4.75.0</option>
+                              
+                                <option value="4.73.5" data-number="188">4.73.5</option>
+                              
+                                <option value="4.74.0" data-number="170">4.74.0</option>
+                              
+                                <option value="4.73.4" data-number="187">4.73.4</option>
+                              
+                                <option value="4.73.3" data-number="186">4.73.3</option>
+                              
+                                <option value="4.73.2" data-number="184">4.73.2</option>
+                              
+                                <option value="4.73.1" data-number="180">4.73.1</option>
+                              
+                                <option value="fleetd-1.47.3" data-number="183">fleetd-1.47.3</option>
+                              
+                                <option value="4.72.1" data-number="178">4.72.1</option>
+                              
+                                <option value="4.73.0" data-number="169">4.73.0</option>
+                              
+                                <option value="4.72.0" data-number="166">4.72.0</option>
+                              
+                                <option value="4.71.0" data-number="163">4.71.0</option>
+                              
+                                <option value="4.70.1" data-number="167">4.70.1</option>
+                              
+                                <option value="4.70.0" data-number="162">4.70.0</option>
+                              
+                                <option value="4.69.0" data-number="158">4.69.0</option>
+                              
+                                <option value="Fleetd-1.43.0" data-number="160">Fleetd-1.43.0</option>
+                              
+                                <option value="4.67.4" data-number="159">4.67.4</option>
+                              
+                                <option value="4.68.0" data-number="154">4.68.0</option>
+                              
+                                <option value="4.67.3" data-number="157">4.67.3</option>
+                              
+                                <option value="Fleetd-1.42.0" data-number="153">Fleetd-1.42.0</option>
+                              
+                                <option value="4.67.1" data-number="155">4.67.1</option>
+                              
+                                <option value="Fleetd-1.41.0" data-number="150">Fleetd-1.41.0</option>
+                              
+                                <option value="4.66.0" data-number="144">4.66.0</option>
+                              
+                                <option value="4.64.2" data-number="145">4.64.2</option>
+                              
+                                <option value="4.65.0" data-number="140">4.65.0</option>
+                              
+                                <option value="4.64.1" data-number="143">4.64.1</option>
+                              
+                                <option value="4.63.1" data-number="142">4.63.1</option>
+                              
+                                <option value="4.64.0" data-number="133">4.64.0</option>
+                              
+                                <option value="4.63.0" data-number="132">4.63.0</option>
+                              
+                                <option value="4.62.2" data-number="137">4.62.2</option>
+                              
+                                <option value="4.62.0" data-number="128">4.62.0</option>
+                              
+                                <option value="4.61.0" data-number="122">4.61.0</option>
+                              
+                                <option value="4.60.1" data-number="125">4.60.1</option>
+                              
+                                <option value="4.60.0" data-number="120">4.60.0</option>
+                              
+                                <option value="4.59.1" data-number="123">4.59.1</option>
+                              
+                                <option value="4.59.0" data-number="114">4.59.0</option>
+                              
+                                <option value="4.57.3" data-number="117">4.57.3</option>
+                              
+                                <option value="4.58.0" data-number="111">4.58.0</option>
+                              
+                                <option value="4.57.2" data-number="115">4.57.2</option>
+                              
+                                <option value="x.x.x" data-number="2">x.x.x</option>
+                              
+                                <option value="4.57.1" data-number="113">4.57.1</option>
+                              
+                                <option value="4.57.0" data-number="108">4.57.0</option>
+                              
+                                <option value="4.54.2" data-number="109">4.54.2</option>
+                              
+                                <option value="4.56.0" data-number="105">4.56.0</option>
+                              
+                                <option value="4.55.1" data-number="107">4.55.1</option>
+                              
+                                <option value="4.55.0" data-number="101">4.55.0</option>
+                              
+                                <option value="4.54.1" data-number="104">4.54.1</option>
+                              
+                                <option value="4.54.0" data-number="98">4.54.0</option>
+                              
+                                <option value="4.53.1" data-number="100">4.53.1</option>
+                              
+                                <option value="4.53.2" data-number="99">4.53.2</option>
+                              
+                                <option value="4.53.0" data-number="93">4.53.0</option>
+                              
+                                <option value="4.52.0" data-number="97">4.52.0</option>
+                              
+                                <option value="fleetd-v1.26.0" data-number="95">fleetd-v1.26.0</option>
+                              
+                                <option value="4.51.1" data-number="94">4.51.1</option>
+                              
+                                <option value="4.51.0" data-number="89">4.51.0</option>
+                              
+                                <option value="4.50.2" data-number="92">4.50.2</option>
+                              
+                                <option value="4.50.1" data-number="91">4.50.1</option>
+                              
+                                <option value="4.49.4" data-number="90">4.49.4</option>
+                              
+                                <option value="4.50.0" data-number="85">4.50.0</option>
+                              
+                                <option value="4.49.3" data-number="88">4.49.3</option>
+                              
+                                <option value="4.49.2" data-number="87">4.49.2</option>
+                              
+                                <option value="4.49.1" data-number="86">4.49.1</option>
+                              
+                                <option value="4.49.0" data-number="80">4.49.0</option>
+                              
+                                <option value="4.48.3" data-number="83">4.48.3</option>
+                              
+                                <option value="4.48.2" data-number="82">4.48.2</option>
+                              
+                                <option value="4.48.1" data-number="81">4.48.1</option>
+                              
+                                <option value="4.48.0" data-number="73">4.48.0</option>
+                              
+                                <option value="4.47.3" data-number="79">4.47.3</option>
+                              
+                                <option value="4.47.2" data-number="78">4.47.2</option>
+                              
+                                <option value="4.47.1" data-number="76">4.47.1</option>
+                              
+                                <option value="4.47.0" data-number="66">4.47.0</option>
+                              
+                                <option value="4.46.2" data-number="67">4.46.2</option>
+                              
+                                <option value="4.46.1" data-number="71">4.46.1</option>
+                              
+                                <option value="4.46.0" data-number="69">4.46.0</option>
+                              
+                                <option value="4.45.0" data-number="62">4.45.0</option>
+                              
+                                <option value="4.44.0" data-number="57">4.44.0</option>
+                              
+                                <option value="4.43.3" data-number="61">4.43.3</option>
+                              
+                            </select>
+                            
+                              <button class="fix-btn apply-milestone-btn">Apply milestone</button>
+                            
+                          
+                        </div>
+                      </article>
+                    
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Ready for release</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Other</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+            </div>
+          
+        
+      </section>
+
+      <section id="tab-drafting" class="panel" role="tabpanel">
+        <h2>🧭 Drafting estimation gate (project 67)</h2>
+        <p class="subtle">Items in estimation statuses with unchecked checklist items.</p>
+        
+          
+            <div class="status">
+              <h3>🧩 Ready to estimate</h3>
+              <p class="subtle">These items are in &#34;Ready to estimate&#34; but still have checklist items not checked.</p>
+              
+                
+                  <article class="item">
+                    <div><strong>#40007 - Fix false positive: Mattermost Desktop on Windows</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/40007" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/40007</a></div>
+                    
+                      
+                      <div>
+                        
+                          <div class="checklist-row">
+                            <span class="checklist-text">• [ ] Have been confirmed to consistently lead to reproduction in multiple Fleet instances.</span>
+                            
+                              <button class="fix-btn apply-drafting-check-btn" data-repo="fleetdm/fleet" data-issue="40007" data-check="Have been confirmed to consistently lead to reproduction in multiple Fleet instances.">Check on GitHub</button>
+                            
+                          </div>
+                        
+                      </div>
+                    
+                  </article>
+                
+              
+            </div>
+          
+            <div class="status">
+              <h3>📏 Estimated</h3>
+              <p class="subtle">These items are in &#34;Estimated&#34; but still have checklist items not checked.</p>
+              
+                
+                  <article class="item">
+                    <div><strong>#40076 - Fleet attempts SCEP renewal with Jamf enrollment profile error on non-migrated hosts (seamless migration)</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/40076" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/40076</a></div>
+                    
+                      
+                      <div>
+                        
+                          <div class="checklist-row">
+                            <span class="checklist-text">• [ ] Have been confirmed to consistently lead to reproduction in multiple Fleet instances.</span>
+                            
+                              <button class="fix-btn apply-drafting-check-btn" data-repo="fleetdm/fleet" data-issue="40076" data-check="Have been confirmed to consistently lead to reproduction in multiple Fleet instances.">Check on GitHub</button>
+                            
+                          </div>
+                        
+                      </div>
+                    
+                  </article>
+                
+                  <article class="item">
+                    <div><strong>#37097 - Linux endpoints flap between Online and Offline every 2 or 3 minutes</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/37097" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/37097</a></div>
+                    
+                      
+                      <div>
+                        
+                          <div class="checklist-row">
+                            <span class="checklist-text">• [ ] Have been confirmed to consistently lead to reproduction in multiple Fleet instances.</span>
+                            
+                              <button class="fix-btn apply-drafting-check-btn" data-repo="fleetdm/fleet" data-issue="37097" data-check="Have been confirmed to consistently lead to reproduction in multiple Fleet instances.">Check on GitHub</button>
+                            
+                          </div>
+                        
+                          <div class="checklist-row">
+                            <span class="checklist-text">• [ ] Describe the workflow that led to the error, but have not yet been reproduced in multiple Fleet instances.</span>
+                            
+                              <button class="fix-btn apply-drafting-check-btn" data-repo="fleetdm/fleet" data-issue="37097" data-check="Describe the workflow that led to the error, but have not yet been reproduced in multiple Fleet instances.">Check on GitHub</button>
+                            
+                          </div>
+                        
+                      </div>
+                    
+                  </article>
+                
+                  <article class="item">
+                    <div><strong>#38965 - Preserve team context when accessing Add app store page from host&#39;s software library</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/38965" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/38965</a></div>
+                    
+                      
+                      <div>
+                        
+                          <div class="checklist-row">
+                            <span class="checklist-text">• [ ] Describe the workflow that led to the error, but have not yet been reproduced in multiple Fleet instances.</span>
+                            
+                              <button class="fix-btn apply-drafting-check-btn" data-repo="fleetdm/fleet" data-issue="38965" data-check="Describe the workflow that led to the error, but have not yet been reproduced in multiple Fleet instances.">Check on GitHub</button>
+                            
+                          </div>
+                        
+                      </div>
+                    
+                  </article>
+                
+                  <article class="item">
+                    <div><strong>#40178 - Fleet UI: Software table has too much white space</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/40178" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/40178</a></div>
+                    
+                      
+                      <div>
+                        
+                          <div class="checklist-row">
+                            <span class="checklist-text">• [ ] Have been confirmed to consistently lead to reproduction in multiple Fleet instances.</span>
+                            
+                              <button class="fix-btn apply-drafting-check-btn" data-repo="fleetdm/fleet" data-issue="40178" data-check="Have been confirmed to consistently lead to reproduction in multiple Fleet instances.">Check on GitHub</button>
+                            
+                          </div>
+                        
+                          <div class="checklist-row">
+                            <span class="checklist-text">• [ ] Describe the workflow that led to the error, but have not yet been reproduced in multiple Fleet instances.</span>
+                            
+                              <button class="fix-btn apply-drafting-check-btn" data-repo="fleetdm/fleet" data-issue="40178" data-check="Describe the workflow that led to the error, but have not yet been reproduced in multiple Fleet instances.">Check on GitHub</button>
+                            
+                          </div>
+                        
+                      </div>
+                    
+                  </article>
+                
+                  <article class="item">
+                    <div><strong>#34433 - Speed up macOS profile delivery during automated enrollments</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/34433" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/34433</a></div>
+                    
+                      
+                      <div>
+                        
+                          <div class="checklist-row">
+                            <span class="checklist-text">• [ ] Test plan is finalized</span>
+                            
+                              <button class="fix-btn apply-drafting-check-btn" data-repo="fleetdm/fleet" data-issue="34433" data-check="Test plan is finalized">Check on GitHub</button>
+                            
+                          </div>
+                        
+                          <div class="checklist-row">
+                            <span class="checklist-text">• [ ] Contributor API changes: No changes</span>
+                            
+                              <button class="fix-btn apply-drafting-check-btn" data-repo="fleetdm/fleet" data-issue="34433" data-check="Contributor API changes: No changes">Check on GitHub</button>
+                            
+                          </div>
+                        
+                          <div class="checklist-row">
+                            <span class="checklist-text">• [ ] Feature guide changes: No changes</span>
+                            
+                              <button class="fix-btn apply-drafting-check-btn" data-repo="fleetdm/fleet" data-issue="34433" data-check="Feature guide changes: No changes">Check on GitHub</button>
+                            
+                          </div>
+                        
+                          <div class="checklist-row">
+                            <span class="checklist-text">• [ ] Database schema migrations: No changes</span>
+                            
+                              <button class="fix-btn apply-drafting-check-btn" data-repo="fleetdm/fleet" data-issue="34433" data-check="Database schema migrations: No changes">Check on GitHub</button>
+                            
+                          </div>
+                        
+                          <div class="checklist-row">
+                            <span class="checklist-text">• [ ] Load testing: No</span>
+                            
+                              <button class="fix-btn apply-drafting-check-btn" data-repo="fleetdm/fleet" data-issue="34433" data-check="Load testing: No">Check on GitHub</button>
+                            
+                          </div>
+                        
+                          <div class="checklist-row">
+                            <span class="checklist-text">• [ ] Load testing/osquery-perf improvements: No changes</span>
+                            
+                              <button class="fix-btn apply-drafting-check-btn" data-repo="fleetdm/fleet" data-issue="34433" data-check="Load testing/osquery-perf improvements: No changes">Check on GitHub</button>
+                            
+                          </div>
+                        
+                      </div>
+                    
+                  </article>
+                
+                  <article class="item">
+                    <div><strong>#39308 - Team maintainers or admins can not add Certificate templates either via UI/API or Gitops flows</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/39308" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/39308</a></div>
+                    
+                      
+                      <div>
+                        
+                          <div class="checklist-row">
+                            <span class="checklist-text">• [ ] Describe the workflow that led to the error, but have not yet been reproduced in multiple Fleet instances.</span>
+                            
+                              <button class="fix-btn apply-drafting-check-btn" data-repo="fleetdm/fleet" data-issue="39308" data-check="Describe the workflow that led to the error, but have not yet been reproduced in multiple Fleet instances.">Check on GitHub</button>
+                            
+                          </div>
+                        
+                      </div>
+                    
+                  </article>
+                
+                  <article class="item">
+                    <div><strong>#38002 - Apple: Throttle certificate requests to ease CA server load</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/38002" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/38002</a></div>
+                    
+                      
+                      <div>
+                        
+                          <div class="checklist-row">
+                            <span class="checklist-text">• [ ] Test plan is finalized</span>
+                            
+                              <button class="fix-btn apply-drafting-check-btn" data-repo="fleetdm/fleet" data-issue="38002" data-check="Test plan is finalized">Check on GitHub</button>
+                            
+                          </div>
+                        
+                      </div>
+                    
+                  </article>
+                
+                  <article class="item">
+                    <div><strong>#38356 - Failure to update existing software package</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/38356" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/38356</a></div>
+                    
+                      
+                      <div>
+                        
+                          <div class="checklist-row">
+                            <span class="checklist-text">• [ ] Have been confirmed to consistently lead to reproduction in multiple Fleet instances.</span>
+                            
+                              <button class="fix-btn apply-drafting-check-btn" data-repo="fleetdm/fleet" data-issue="38356" data-check="Have been confirmed to consistently lead to reproduction in multiple Fleet instances.">Check on GitHub</button>
+                            
+                          </div>
+                        
+                      </div>
+                    
+                  </article>
+                
+              
+            </div>
+          
+        
+      </section>
+
+      <section id="tab-sprint" class="panel active" role="tabpanel">
+        <h2>🗓️ Missing sprint (selected projects)</h2>
+        <p class="subtle">Items in selected projects without a sprint set. Grouped by column focus.</p>
+        
+          
+            <div class="project">
+              <h3>Project 97</h3>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Ready</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Waiting</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>In progress</h3>
+                    
+                      <button class="fix-btn apply-sprint-column-btn">Set current sprint for column</button>
+                    
+                  </div>
+                  
+                    
+                      <article class="item">
+                        <div><strong>#40540 - slog migration (3)</strong></div>
+                        <div><a href="https://github.com/fleetdm/fleet/issues/40540" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/40540</a></div>
+                        <ul>
+                          <li>Status: 🐣 In progress</li>
+                          <li>Current sprint: Sprint 55</li>
+                        </ul>
+                        
+                          <div class="actions">
+                            <button class="fix-btn apply-sprint-btn" data-item-id="PVTI_lADOBDAnic4BEDFqzgmLd9c">Set current sprint</button>
+                          </div>
+                        
+                      </article>
+                    
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>In review</h3>
+                    
+                      <button class="fix-btn apply-sprint-column-btn">Set current sprint for column</button>
+                    
+                  </div>
+                  
+                    
+                      <article class="item">
+                        <div><strong>#40564 - Add OpenTelemetry HTTP instrumentation to Fleet&#39;s HTTP client</strong></div>
+                        <div><a href="https://github.com/fleetdm/fleet/issues/40564" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/40564</a></div>
+                        <ul>
+                          <li>Status: 🦤 ‎In review</li>
+                          <li>Current sprint: Sprint 55</li>
+                        </ul>
+                        
+                          <div class="actions">
+                            <button class="fix-btn apply-sprint-btn" data-item-id="PVTI_lADOBDAnic4BEDFqzgmL9kc">Set current sprint</button>
+                          </div>
+                        
+                      </article>
+                    
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Awaiting QA</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Ready for release</h3>
+                    
+                      <button class="fix-btn apply-sprint-column-btn">Set current sprint for column</button>
+                    
+                  </div>
+                  
+                    
+                      <article class="item">
+                        <div><strong>#34370 - UI Improvement: Vertical spacing for profile status cards</strong></div>
+                        <div><a href="https://github.com/fleetdm/fleet/issues/34370" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/34370</a></div>
+                        <ul>
+                          <li>Status: ✅ Ready for release</li>
+                          <li>Current sprint: Sprint 55</li>
+                        </ul>
+                        
+                          <div class="actions">
+                            <button class="fix-btn apply-sprint-btn" data-item-id="PVTI_lADOBDAnic4BEDFqzgl2zws">Set current sprint</button>
+                          </div>
+                        
+                      </article>
+                    
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Other</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+            </div>
+          
+            <div class="project">
+              <h3>Project 71</h3>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Ready</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Waiting</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>In progress</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>In review</h3>
+                    
+                      <button class="fix-btn apply-sprint-column-btn">Set current sprint for column</button>
+                    
+                  </div>
+                  
+                    
+                      <article class="item">
+                        <div><strong>#14501 - [Severity: Medium] Blind SSRF via SAML IdP metadata URL fetch missing SSRF protection</strong></div>
+                        <div><a href="https://github.com/fleetdm/confidential/issues/14501" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/confidential/issues/14501</a></div>
+                        <ul>
+                          <li>Status: 🦤 ‎In review</li>
+                          <li>Current sprint: Sprint 55</li>
+                        </ul>
+                        
+                          <div class="actions">
+                            <button class="fix-btn apply-sprint-btn" data-item-id="PVTI_lADOBDAnic4A4BExzgmA80E">Set current sprint</button>
+                          </div>
+                        
+                      </article>
+                    
+                      <article class="item">
+                        <div><strong>#32835 - Unable to clear IdP settings in UI</strong></div>
+                        <div><a href="https://github.com/fleetdm/fleet/issues/32835" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/32835</a></div>
+                        <ul>
+                          <li>Status: 🦤 ‎In review</li>
+                          <li>Current sprint: Sprint 55</li>
+                        </ul>
+                        
+                          <div class="actions">
+                            <button class="fix-btn apply-sprint-btn" data-item-id="PVTI_lADOBDAnic4A4BExzgl_65M">Set current sprint</button>
+                          </div>
+                        
+                      </article>
+                    
+                      <article class="item">
+                        <div><strong>#33427 - Deleted hosts aren&#39;t removed from the finished script runs on the batch script progress page</strong></div>
+                        <div><a href="https://github.com/fleetdm/fleet/issues/33427" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/33427</a></div>
+                        <ul>
+                          <li>Status: 🦤 ‎In review</li>
+                          <li>Current sprint: Sprint 55</li>
+                        </ul>
+                        
+                          <div class="actions">
+                            <button class="fix-btn apply-sprint-btn" data-item-id="PVTI_lADOBDAnic4A4BExzgl_6s0">Set current sprint</button>
+                          </div>
+                        
+                      </article>
+                    
+                      <article class="item">
+                        <div><strong>#40476 - Fleet v4.81.0 Query Results Cleanup Error</strong></div>
+                        <div><a href="https://github.com/fleetdm/fleet/issues/40476" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/40476</a></div>
+                        <ul>
+                          <li>Status: 🦤 ‎In review</li>
+                          <li>Current sprint: Sprint 55</li>
+                        </ul>
+                        
+                          <div class="actions">
+                            <button class="fix-btn apply-sprint-btn" data-item-id="PVTI_lADOBDAnic4A4BExzgmKnRA">Set current sprint</button>
+                          </div>
+                        
+                      </article>
+                    
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Awaiting QA</h3>
+                    
+                      <button class="fix-btn apply-sprint-column-btn">Set current sprint for column</button>
+                    
+                  </div>
+                  
+                    
+                      <article class="item">
+                        <div><strong>#14489 - [Severity: High]: Cross-Team Host Transfer Authorization Bypass — Fleet-Wide Device Compromise via Team Maintainer</strong></div>
+                        <div><a href="https://github.com/fleetdm/confidential/issues/14489" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/confidential/issues/14489</a></div>
+                        <ul>
+                          <li>Status: ✔️Awaiting QA</li>
+                          <li>Current sprint: Sprint 55</li>
+                        </ul>
+                        
+                          <div class="actions">
+                            <button class="fix-btn apply-sprint-btn" data-item-id="PVTI_lADOBDAnic4A4BExzgmAbSM">Set current sprint</button>
+                          </div>
+                        
+                      </article>
+                    
+                      <article class="item">
+                        <div><strong>#15744 - Improve host search by end user email address</strong></div>
+                        <div><a href="https://github.com/fleetdm/fleet/issues/15744" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/15744</a></div>
+                        <ul>
+                          <li>Status: ✔️Awaiting QA</li>
+                          <li>Current sprint: Sprint 55</li>
+                        </ul>
+                        
+                          <div class="actions">
+                            <button class="fix-btn apply-sprint-btn" data-item-id="PVTI_lADOBDAnic4A4BExzgl_2EA">Set current sprint</button>
+                          </div>
+                        
+                      </article>
+                    
+                      <article class="item">
+                        <div><strong>#39257 - Query created_at date is wrong in API response for newly created query</strong></div>
+                        <div><a href="https://github.com/fleetdm/fleet/issues/39257" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/39257</a></div>
+                        <ul>
+                          <li>Status: ✔️Awaiting QA</li>
+                          <li>Current sprint: Sprint 55</li>
+                        </ul>
+                        
+                          <div class="actions">
+                            <button class="fix-btn apply-sprint-btn" data-item-id="PVTI_lADOBDAnic4A4BExzgl2GLg">Set current sprint</button>
+                          </div>
+                        
+                      </article>
+                    
+                      <article class="item">
+                        <div><strong>#39837 - Review and test PR with new FMA statistics</strong></div>
+                        <div><a href="https://github.com/fleetdm/fleet/issues/39837" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/39837</a></div>
+                        <ul>
+                          <li>Status: ✔️Awaiting QA</li>
+                          <li>Current sprint: Sprint 55</li>
+                        </ul>
+                        
+                          <div class="actions">
+                            <button class="fix-btn apply-sprint-btn" data-item-id="PVTI_lADOBDAnic4A4BExzgl_2jI">Set current sprint</button>
+                          </div>
+                        
+                      </article>
+                    
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Ready for release</h3>
+                    
+                      <button class="fix-btn apply-sprint-column-btn">Set current sprint for column</button>
+                    
+                  </div>
+                  
+                    
+                      <article class="item">
+                        <div><strong>#39260 - Use consistent UI for &#34;No enroll secrets&#34;</strong></div>
+                        <div><a href="https://github.com/fleetdm/fleet/issues/39260" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/39260</a></div>
+                        <ul>
+                          <li>Status: ✅ Ready for release</li>
+                          <li>Current sprint: Sprint 55</li>
+                        </ul>
+                        
+                          <div class="actions">
+                            <button class="fix-btn apply-sprint-btn" data-item-id="PVTI_lADOBDAnic4A4BExzglo9Y4">Set current sprint</button>
+                          </div>
+                        
+                      </article>
+                    
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Other</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+            </div>
+          
+        
+      </section>
+
+      <section id="tab-assignee" class="panel" role="tabpanel">
+        <h2>👤 Missing assignee coverage (selected projects)</h2>
+        <p class="subtle">Items with no assignee or currently assigned to you. Choose a teammate and add without removing existing assignees.</p>
+        
+          
+            <div class="project">
+              <h3>Project 97</h3>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Ready</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Waiting</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>In progress</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>In review</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Awaiting QA</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Ready for release</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Other</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+            </div>
+          
+            <div class="project">
+              <h3>Project 71</h3>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Ready</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Waiting</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>In progress</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>In review</h3>
+                    
+                      <button class="fix-btn apply-assignee-column-btn">Assign selected in column</button>
+                    
+                  </div>
+                  
+                    
+                      <article class="item">
+                        <div><strong>#14276 - Claude Scan:  [Severity Medium] Review the SSRF vulnerability finding</strong></div>
+                        <div><a href="https://github.com/fleetdm/confidential/issues/14276" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/confidential/issues/14276</a></div>
+                        <ul>
+                          <li>Status: 🦤 ‎In review</li>
+                          <li>Repository: fleetdm/confidential</li>
+                          <li>Current assignees: nulmete, sharon-fdm</li>
+                        </ul>
+                        <div class="actions">
+                          
+                            <input class="fix-btn assignee-search" type="text" placeholder="Search assignee...">
+                            <select class="fix-btn assignee-select" data-issue="14276" data-repo="fleetdm/confidential">
+                              
+                                <option value="AdamBaali">AdamBaali</option>
+                              
+                                <option value="akuthiala">akuthiala</option>
+                              
+                                <option value="alexmitchelliii">alexmitchelliii</option>
+                              
+                                <option value="allenhouchins">allenhouchins</option>
+                              
+                                <option value="ambrusps">ambrusps</option>
+                              
+                                <option value="andreasn-work">andreasn-work</option>
+                              
+                                <option value="AndreyKizimenko">AndreyKizimenko</option>
+                              
+                                <option value="AnthonySnyder8">AnthonySnyder8</option>
+                              
+                                <option value="BCTBB">BCTBB</option>
+                              
+                                <option value="Brajim20">Brajim20</option>
+                              
+                                <option value="cdcme">cdcme</option>
+                              
+                                <option value="chazmac6">chazmac6</option>
+                              
+                                <option value="chrstphr84">chrstphr84</option>
+                              
+                                <option value="dantecatalfamo">dantecatalfamo</option>
+                              
+                                <option value="ddribeiro">ddribeiro</option>
+                              
+                                <option value="ds0x">ds0x</option>
+                              
+                                <option value="eashaw">eashaw</option>
+                              
+                                <option value="edwardsb">edwardsb</option>
+                              
+                                <option value="ericswenson0">ericswenson0</option>
+                              
+                                <option value="escomeau">escomeau</option>
+                              
+                                <option value="fleet-release">fleet-release</option>
+                              
+                                <option value="fleetsecurityautomation">fleetsecurityautomation</option>
+                              
+                                <option value="georgekarrv">georgekarrv</option>
+                              
+                                <option value="getvictor">getvictor</option>
+                              
+                                <option value="ghernandez345">ghernandez345</option>
+                              
+                                <option value="gillespi314">gillespi314</option>
+                              
+                                <option value="GrayW">GrayW</option>
+                              
+                                <option value="harrisonravazzolo">harrisonravazzolo</option>
+                              
+                                <option value="headmin">headmin</option>
+                              
+                                <option value="hollidayn">hollidayn</option>
+                              
+                                <option value="iansltx">iansltx</option>
+                              
+                                <option value="ireedy">ireedy</option>
+                              
+                                <option value="irenareedy">irenareedy</option>
+                              
+                                <option value="jacobshandling">jacobshandling</option>
+                              
+                                <option value="jahzielv">jahzielv</option>
+                              
+                                <option value="jakestenger">jakestenger</option>
+                              
+                                <option value="jkatz01">jkatz01</option>
+                              
+                                <option value="johnjeremiah">johnjeremiah</option>
+                              
+                                <option value="JordanMontgomery">JordanMontgomery</option>
+                              
+                                <option value="juan-fdz-hawa">juan-fdz-hawa</option>
+                              
+                                <option value="karmine05">karmine05</option>
+                              
+                                <option value="kc9wwh">kc9wwh</option>
+                              
+                                <option value="kevinmalkin12">kevinmalkin12</option>
+                              
+                                <option value="kitzy">kitzy</option>
+                              
+                                <option value="ksatter">ksatter</option>
+                              
+                                <option value="ksykulev">ksykulev</option>
+                              
+                                <option value="lppepper2">lppepper2</option>
+                              
+                                <option value="lucasmrod">lucasmrod</option>
+                              
+                                <option value="lukeheath">lukeheath</option>
+                              
+                                <option value="MagnusHJensen">MagnusHJensen</option>
+                              
+                                <option value="maribell-fleetdm">maribell-fleetdm</option>
+                              
+                                <option value="marko-lisica">marko-lisica</option>
+                              
+                                <option value="mason-buettner">mason-buettner</option>
+                              
+                                <option value="melpike">melpike</option>
+                              
+                                <option value="mike-j-thomas">mike-j-thomas</option>
+                              
+                                <option value="mikermcneil">mikermcneil</option>
+                              
+                                <option value="mna">mna</option>
+                              
+                                <option value="mostlikelee">mostlikelee</option>
+                              
+                                <option value="MunkiMind">MunkiMind</option>
+                              
+                                <option value="NickBlee">NickBlee</option>
+                              
+                                <option value="noahtalerman">noahtalerman</option>
+                              
+                                <option value="nonpunctual">nonpunctual</option>
+                              
+                                <option value="nulmete">nulmete</option>
+                              
+                                <option value="pfd76">pfd76</option>
+                              
+                                <option value="phtardif1">phtardif1</option>
+                              
+                                <option value="pintomi1989">pintomi1989</option>
+                              
+                                <option value="rachaelshaw">rachaelshaw</option>
+                              
+                                <option value="RachelElysia">RachelElysia</option>
+                              
+                                <option value="rfairburn">rfairburn</option>
+                              
+                                <option value="rfoo2015">rfoo2015</option>
+                              
+                                <option value="Sampfluger88">Sampfluger88</option>
+                              
+                                <option value="SFriendLee">SFriendLee</option>
+                              
+                                <option value="sgress454">sgress454</option>
+                              
+                                <option value="sharon-fdm">sharon-fdm</option>
+                              
+                                <option value="spalmesano0">spalmesano0</option>
+                              
+                                <option value="srm60">srm60</option>
+                              
+                                <option value="SteveCarlinCO">SteveCarlinCO</option>
+                              
+                                <option value="ThomasSalomon4">ThomasSalomon4</option>
+                              
+                                <option value="tombasgil">tombasgil</option>
+                              
+                                <option value="tux234">tux234</option>
+                              
+                                <option value="xpkoala">xpkoala</option>
+                              
+                                <option value="zayhanlon">zayhanlon</option>
+                              
+                                <option value="zwass">zwass</option>
+                              
+                            </select>
+                            
+                              <button class="fix-btn apply-assignee-btn">Assign</button>
+                            
+                          
+                        </div>
+                      </article>
+                    
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Awaiting QA</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Ready for release</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+                <div class="status">
+                  <div class="column-head">
+                    <h3>Other</h3>
+                    
+                  </div>
+                  
+                    <p class="empty">🟢 No items in this group.</p>
+                  
+                </div>
+              
+            </div>
+          
+        
+      </section>
+
+      <section id="tab-release" class="panel" role="tabpanel">
+        <h2>🏷️ Release label guard (selected projects)</h2>
+        <p class="subtle">For selected projects (excluding project 67): if ticket has <code>:product</code> or is missing <code>:release</code>, apply release labeling policy.</p>
+        
+          
+            <div class="project">
+              <div class="column-head">
+                <h3>Project 71</h3>
+                
+                  <button class="fix-btn apply-release-project-btn">Apply release label</button>
+                
+              </div>
+              
+                
+                  <article class="item release-item" data-repo="fleetdm/confidential" data-issue="14322">
+                    <div><strong>#14322 - [Severity: Medium] Technician Role Leaks All Team Enrollment Secrets via Team Listing Endpoints</strong></div>
+                    <div><a href="https://github.com/fleetdm/confidential/issues/14322" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/confidential/issues/14322</a></div>
+                    <ul>
+                      <li>Status: ✔️Awaiting QA</li>
+                      <li>Labels: #g-orchestration, bug, p2, security, ~unreleased bug</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/confidential" data-issue="14489">
+                    <div><strong>#14489 - [Severity: High]: Cross-Team Host Transfer Authorization Bypass — Fleet-Wide Device Compromise via Team Maintainer</strong></div>
+                    <div><a href="https://github.com/fleetdm/confidential/issues/14489" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/confidential/issues/14489</a></div>
+                    <ul>
+                      <li>Status: ✔️Awaiting QA</li>
+                      <li>Labels: #g-orchestration, bug, p1, security</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/fleet" data-issue="31633">
+                    <div><strong>#31633 - Linux disk encryption: Popup doesn&#39;t open on Linux workstations w/ multiple users</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/31633" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/31633</a></div>
+                    <ul>
+                      <li>Status: ✔️Awaiting QA</li>
+                      <li>Labels: #g-orchestration, :help-customers, bug, customer-fiorella, P2, ~old bug</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/fleet" data-issue="39303">
+                    <div><strong>#39303 - Queries page: &#34;Manage Automations&#34; button not visible</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/39303" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/39303</a></div>
+                    <ul>
+                      <li>Status: ✅ Ready for release</li>
+                      <li>Labels: #g-orchestration, ~sub-task</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/fleet" data-issue="39304">
+                    <div><strong>#39304 - Policies page: &#34;Manage Automations&#34; button not visible</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/39304" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/39304</a></div>
+                    <ul>
+                      <li>Status: ✅ Ready for release</li>
+                      <li>Labels: #g-orchestration, ~sub-task</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/fleet" data-issue="39684">
+                    <div><strong>#39684 - Improve our QA process by accommodating for idP functionality and enrollment</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/39684" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/39684</a></div>
+                    <ul>
+                      <li>Status: 🥚 Ready</li>
+                      <li>Labels: #g-orchestration, ~postmortem-action-item, ~timebox</li>
+                    </ul>
+                  </article>
+                
+              
+            </div>
+          
+            <div class="project">
+              <div class="column-head">
+                <h3>Project 97</h3>
+                
+                  <button class="fix-btn apply-release-project-btn">Apply release label</button>
+                
+              </div>
+              
+                
+                  <article class="item release-item" data-repo="fleetdm/confidential" data-issue="14284">
+                    <div><strong>#14284 - [Severity: Medium] NDES Admin URL SSRF with NTLM Hash &#43; Plaintext Credential Relay to Attacker-Controlled Server</strong></div>
+                    <div><a href="https://github.com/fleetdm/confidential/issues/14284" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/confidential/issues/14284</a></div>
+                    <ul>
+                      <li>Status: ✔️Awaiting QA</li>
+                      <li>Labels: #g-security-compliance, bug, p2, security</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/confidential" data-issue="14323">
+                    <div><strong>#14323 - [Severity: High]: ORDER BY Column Oracle — Extract node_keys, Disk Encryption Keys, Password Hashes</strong></div>
+                    <div><a href="https://github.com/fleetdm/confidential/issues/14323" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/confidential/issues/14323</a></div>
+                    <ul>
+                      <li>Status: ✔️Awaiting QA</li>
+                      <li>Labels: #g-security-compliance, bug, p2, security</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/fleet" data-issue="35799">
+                    <div><strong>#35799 - Improve software endpoint performance</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/35799" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/35799</a></div>
+                    <ul>
+                      <li>Status: 🐣 In progress</li>
+                      <li>Labels: #g-security-compliance, :product, bug, ~aging bug</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/fleet" data-issue="35805">
+                    <div><strong>#35805 - dead rows accumulate in software_host_counts</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/35805" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/35805</a></div>
+                    <ul>
+                      <li>Status: ✔️Awaiting QA</li>
+                      <li>Labels: #g-security-compliance, :product, bug, ~aging bug</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/fleet" data-issue="37497">
+                    <div><strong>#37497 - Escrow macOS Recovery Lock passwords</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/37497" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/37497</a></div>
+                    <ul>
+                      <li>Status: 🐣 In progress</li>
+                      <li>Labels: #g-security-compliance, :product, customer-schur, story, ~customer promise</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/fleet" data-issue="37853">
+                    <div><strong>#37853 - Retrospective action items</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/37853" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/37853</a></div>
+                    <ul>
+                      <li>Status: 🐣 In progress</li>
+                      <li>Labels: #g-security-compliance, ~timebox</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/fleet" data-issue="38405">
+                    <div><strong>#38405 - Windows BitLocker encyption looping</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/38405" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/38405</a></div>
+                    <ul>
+                      <li>Status: ✔️Awaiting QA</li>
+                      <li>Labels: #g-security-compliance, :product, bug, customer-juliana, customer-jultayu, customer-mozartia</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/fleet" data-issue="38536">
+                    <div><strong>#38536 - Activity bounded context: Complete write operations</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/38536" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/38536</a></div>
+                    <ul>
+                      <li>Status: 🐣 In progress</li>
+                      <li>Labels: #g-security-compliance, story, ~engineering-initiated</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/fleet" data-issue="38889">
+                    <div><strong>#38889 - slog migration (1)</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/38889" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/38889</a></div>
+                    <ul>
+                      <li>Status: ✔️Awaiting QA</li>
+                      <li>Labels: #g-security-compliance, story, ~engineering-initiated</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/fleet" data-issue="39608">
+                    <div><strong>#39608 - Flaky Go server/worker tests</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/39608" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/39608</a></div>
+                    <ul>
+                      <li>Status: ✅ Ready for release</li>
+                      <li>Labels: #g-security-compliance, bug, ~released bug</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/fleet" data-issue="39716">
+                    <div><strong>#39716 - Flaky test: TestHostIdentityCertificate_PublicKey/invalid_format_-_missing_0x04_prefix</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/39716" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/39716</a></div>
+                    <ul>
+                      <li>Status: ✅ Ready for release</li>
+                      <li>Labels: bug, flaky-ci-tests, ~released bug</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/fleet" data-issue="39898">
+                    <div><strong>#39898 - False negative CPEs</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/39898" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/39898</a></div>
+                    <ul>
+                      <li>Status: ✅ Ready for release</li>
+                      <li>Labels: #g-security-compliance, bug, ~assisting qa, ~released bug</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/fleet" data-issue="40021">
+                    <div><strong>#40021 - Fix false positive CVEs on Ubuntu</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/40021" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/40021</a></div>
+                    <ul>
+                      <li>Status: ✔️Awaiting QA</li>
+                      <li>Labels: #g-security-compliance, :product, bug, customer-faltona, ~released bug</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/fleet" data-issue="40028">
+                    <div><strong>#40028 - Client errors show up as server errors in Dogfood OTEL</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/40028" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/40028</a></div>
+                    <ul>
+                      <li>Status: ✅ Ready for release</li>
+                      <li>Labels: bug, ~dogfood, ~released bug</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/fleet" data-issue="40054">
+                    <div><strong>#40054 - slog migration (2)</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/40054" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/40054</a></div>
+                    <ul>
+                      <li>Status: 🦤 ‎In review</li>
+                      <li>Labels: #g-security-compliance, story, ~engineering-initiated</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/fleet" data-issue="40540">
+                    <div><strong>#40540 - slog migration (3)</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/40540" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/40540</a></div>
+                    <ul>
+                      <li>Status: 🐣 In progress</li>
+                      <li>Labels: #g-security-compliance, story, ~engineering-initiated</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/fleet" data-issue="40563">
+                    <div><strong>#40563 - Escrow passwords: Gitops</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/40563" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/40563</a></div>
+                    <ul>
+                      <li>Status: 🐣 In progress</li>
+                      <li>Labels: #g-security-compliance, ~sub-task</li>
+                    </ul>
+                  </article>
+                
+                  <article class="item release-item" data-repo="fleetdm/fleet" data-issue="40564">
+                    <div><strong>#40564 - Add OpenTelemetry HTTP instrumentation to Fleet&#39;s HTTP client</strong></div>
+                    <div><a href="https://github.com/fleetdm/fleet/issues/40564" target="_blank" rel="noopener noreferrer">https://github.com/fleetdm/fleet/issues/40564</a></div>
+                    <ul>
+                      <li>Status: 🦤 ‎In review</li>
+                      <li>Labels: #g-security-compliance, story, ~engineering-initiated</li>
+                    </ul>
+                  </article>
+                
+              
+            </div>
+          
+        
+      </section>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const buttons = document.querySelectorAll('.menu-btn');
+      const panels = document.querySelectorAll('.panel');
+      function activate(tabName) {
+        buttons.forEach((btn) => {
+          btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+        panels.forEach((panel) => {
+          panel.classList.toggle('active', panel.id === 'tab-' + tabName);
+        });
+      }
+      buttons.forEach((btn) => {
+        btn.addEventListener('click', () => activate(btn.dataset.tab));
+      });
+
+      function setButtonDone(btn, text) {
+        btn.classList.remove('failed');
+        btn.classList.add('done');
+        btn.textContent = text;
+        btn.disabled = true;
+      }
+
+      function setButtonFailed(btn) {
+        btn.classList.remove('done');
+        btn.classList.add('failed');
+        btn.textContent = 'Failed (retry)';
+        btn.disabled = false;
+      }
+
+      function setButtonWorking(btn, text) {
+        btn.classList.remove('done', 'failed');
+        btn.textContent = text;
+        btn.disabled = true;
+      }
+
+      function installMilestoneFiltering() {
+        const actionBlocks = document.querySelectorAll('.actions');
+        actionBlocks.forEach((actions) => {
+          const searchInput = actions.querySelector('.milestone-search');
+          const select = actions.querySelector('.milestone-select');
+          if (!searchInput || !select) return;
+
+          const allOptions = Array.from(select.options).map((opt) => ({
+            title: opt.value,
+            number: opt.dataset.number || '',
+          }));
+
+          function renderFiltered(term) {
+            const q = term.trim().toLowerCase();
+            const filtered = allOptions.filter((o) => o.title.toLowerCase().includes(q));
+            select.innerHTML = '';
+            if (filtered.length === 0) {
+              const none = document.createElement('option');
+              none.textContent = 'No matching milestones';
+              none.value = '';
+              none.dataset.number = '';
+              select.appendChild(none);
+              return;
+            }
+            filtered.forEach((o) => {
+              const opt = document.createElement('option');
+              opt.value = o.title;
+              opt.textContent = o.title;
+              opt.dataset.number = o.number;
+              select.appendChild(opt);
+            });
+          }
+
+          searchInput.addEventListener('input', () => renderFiltered(searchInput.value));
+        });
+      }
+
+      function installAssigneeFiltering() {
+        const actionBlocks = document.querySelectorAll('.actions');
+        actionBlocks.forEach((actions) => {
+          const searchInput = actions.querySelector('.assignee-search');
+          const select = actions.querySelector('.assignee-select');
+          if (!searchInput || !select) return;
+
+          const allOptions = Array.from(select.options).map((opt) => ({
+            login: opt.value,
+          }));
+
+          function renderFiltered(term) {
+            const q = term.trim().toLowerCase();
+            const filtered = allOptions.filter((o) => o.login.toLowerCase().includes(q));
+            select.innerHTML = '';
+            if (filtered.length === 0) {
+              const none = document.createElement('option');
+              none.textContent = 'No matching assignees';
+              none.value = '';
+              select.appendChild(none);
+              return;
+            }
+            filtered.forEach((o) => {
+              const opt = document.createElement('option');
+              opt.value = o.login;
+              opt.textContent = o.login;
+              select.appendChild(opt);
+            });
+          }
+
+          searchInput.addEventListener('input', () => renderFiltered(searchInput.value));
+        });
+      }
+
+      async function applyMilestoneButton(btn) {
+        const actions = btn.closest('.actions');
+        const select = actions && actions.querySelector('.milestone-select');
+        if (!select) return false;
+        const issue = select.dataset.issue || '';
+        const repo = select.dataset.repo || '';
+        const milestoneTitle = select.value || '';
+        const milestoneNumber = parseInt((select.selectedOptions[0] && select.selectedOptions[0].dataset.number) || '', 10);
+        if (!issue || !repo || !milestoneTitle || Number.isNaN(milestoneNumber)) return false;
+
+        const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
+        if (!bridgeURL) {
+          window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
+          return false;
+        }
+
+        const endpoint = bridgeURL + '/api/apply-milestone';
+        const payload = { repo: repo, issue: issue, milestone_number: milestoneNumber };
+        setButtonWorking(btn, 'Applying...');
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            const body = await res.text();
+            throw new Error('Bridge error ' + res.status + ': ' + body);
+          }
+          setButtonDone(btn, 'Done');
+          return true;
+        } catch (err) {
+          window.alert('Could not apply milestone. ' + err);
+          setButtonFailed(btn);
+          return false;
+        }
+      }
+
+      const applyButtons = document.querySelectorAll('.apply-milestone-btn');
+      applyButtons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          await applyMilestoneButton(btn);
+        });
+      });
+
+      const applyMilestoneColumnButtons = document.querySelectorAll('.apply-milestone-column-btn');
+      applyMilestoneColumnButtons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const statusCard = btn.closest('.status');
+          if (!statusCard) return;
+          const rowButtons = Array.from(statusCard.querySelectorAll('.apply-milestone-btn'));
+          if (rowButtons.length === 0) return;
+
+          setButtonWorking(btn, 'Applying column...');
+          let ok = true;
+          for (const rowBtn of rowButtons) {
+            
+            const rowOK = await applyMilestoneButton(rowBtn);
+            ok = ok && rowOK;
+          }
+          if (ok) {
+            setButtonDone(btn, 'Done');
+          } else {
+            setButtonFailed(btn);
+          }
+        });
+      });
+
+      const applyDraftingCheckButtons = document.querySelectorAll('.apply-drafting-check-btn');
+      applyDraftingCheckButtons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
+          if (!bridgeURL) {
+            window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
+            return;
+          }
+
+          const repo = btn.dataset.repo || '';
+          const issue = btn.dataset.issue || '';
+          const checkText = btn.dataset.check || '';
+          if (!repo || !issue || !checkText) return;
+
+          const endpoint = bridgeURL + '/api/apply-checklist';
+          setButtonWorking(btn, 'Checking...');
+          try {
+            const res = await fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              credentials: 'same-origin',
+              body: JSON.stringify({ repo: repo, issue: issue, check_text: checkText }),
+            });
+            if (!res.ok) {
+              const body = await res.text();
+              throw new Error('Bridge error ' + res.status + ': ' + body);
+            }
+            const payload = await res.json();
+            if (!payload.updated) {
+              if (payload.already_checked) {
+                setButtonDone(btn, 'Done');
+              } else {
+                setButtonFailed(btn);
+              }
+              return;
+            }
+
+            setButtonDone(btn, 'Done');
+            const row = btn.closest('.checklist-row');
+            const textEl = row && row.querySelector('.checklist-text');
+            if (textEl) {
+              textEl.textContent = '• [x] ' + checkText;
+            }
+          } catch (err) {
+            window.alert('Could not apply checklist update. ' + err);
+            setButtonFailed(btn);
+          }
+        });
+      });
+
+      async function applySprintButton(btn) {
+        const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
+        if (!bridgeURL) {
+          window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
+          return false;
+        }
+        const itemID = btn.dataset.itemId || '';
+        if (!itemID) return false;
+
+        const endpoint = bridgeURL + '/api/apply-sprint';
+        setButtonWorking(btn, 'Setting...');
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ item_id: itemID }),
+          });
+          if (!res.ok) {
+            const body = await res.text();
+            throw new Error('Bridge error ' + res.status + ': ' + body);
+          }
+          setButtonDone(btn, 'Done');
+          return true;
+        } catch (err) {
+          window.alert('Could not set sprint. ' + err);
+          setButtonFailed(btn);
+          return false;
+        }
+      }
+
+      const applySprintButtons = document.querySelectorAll('.apply-sprint-btn');
+      applySprintButtons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          await applySprintButton(btn);
+        });
+      });
+
+      const applySprintColumnButtons = document.querySelectorAll('.apply-sprint-column-btn');
+      applySprintColumnButtons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const statusCard = btn.closest('.status');
+          if (!statusCard) return;
+          const rowButtons = Array.from(statusCard.querySelectorAll('.apply-sprint-btn'));
+          if (rowButtons.length === 0) return;
+
+          setButtonWorking(btn, 'Setting column...');
+          let ok = true;
+          for (const rowBtn of rowButtons) {
+            const rowOK = await applySprintButton(rowBtn);
+            ok = ok && rowOK;
+          }
+          if (ok) {
+            setButtonDone(btn, 'Done');
+          } else {
+            setButtonFailed(btn);
+          }
+        });
+      });
+
+      async function applyAssigneeButton(btn) {
+        const actions = btn.closest('.actions');
+        const select = actions && actions.querySelector('.assignee-select');
+        if (!select) return false;
+        const issue = select.dataset.issue || '';
+        const repo = select.dataset.repo || '';
+        const assignee = select.value || '';
+        if (!issue || !repo || !assignee) return false;
+
+        const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
+        if (!bridgeURL) {
+          window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
+          return false;
+        }
+        const endpoint = bridgeURL + '/api/add-assignee';
+        const payload = { repo: repo, issue: issue, assignee: assignee };
+        setButtonWorking(btn, 'Assigning...');
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            const body = await res.text();
+            throw new Error('Bridge error ' + res.status + ': ' + body);
+          }
+          setButtonDone(btn, 'Done');
+          return true;
+        } catch (err) {
+          window.alert('Could not assign user. ' + err);
+          setButtonFailed(btn);
+          return false;
+        }
+      }
+
+      const applyAssigneeButtons = document.querySelectorAll('.apply-assignee-btn');
+      applyAssigneeButtons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          await applyAssigneeButton(btn);
+        });
+      });
+
+      const applyAssigneeColumnButtons = document.querySelectorAll('.apply-assignee-column-btn');
+      applyAssigneeColumnButtons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const statusCard = btn.closest('.status');
+          if (!statusCard) return;
+          const rowButtons = Array.from(statusCard.querySelectorAll('.apply-assignee-btn'));
+          if (rowButtons.length === 0) return;
+
+          setButtonWorking(btn, 'Assigning column...');
+          let ok = true;
+          for (const rowBtn of rowButtons) {
+            const rowOK = await applyAssigneeButton(rowBtn);
+            ok = ok && rowOK;
+          }
+          if (ok) {
+            setButtonDone(btn, 'Done');
+          } else {
+            setButtonFailed(btn);
+          }
+        });
+      });
+
+      async function applyReleaseItem(itemEl) {
+        const repo = itemEl.dataset.repo || '';
+        const issue = itemEl.dataset.issue || '';
+        if (!repo || !issue) return false;
+
+        const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
+        if (!bridgeURL) {
+          window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
+          return false;
+        }
+        const endpoint = bridgeURL + '/api/apply-release-label';
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({ repo: repo, issue: issue }),
+        });
+        if (!res.ok) {
+          const body = await res.text();
+          throw new Error('Bridge error ' + res.status + ': ' + body);
+        }
+        return true;
+      }
+
+      const releaseProjectButtons = document.querySelectorAll('.apply-release-project-btn');
+      releaseProjectButtons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const project = btn.closest('.project');
+          if (!project) return;
+          const items = Array.from(project.querySelectorAll('.release-item'));
+          if (items.length === 0) return;
+
+          setButtonWorking(btn, 'Applying...');
+          try {
+            let ok = true;
+            for (const item of items) {
+              const itemOK = await applyReleaseItem(item);
+              ok = ok && itemOK;
+            }
+            if (ok) {
+              setButtonDone(btn, 'Done');
+            } else {
+              setButtonFailed(btn);
+            }
+          } catch (err) {
+            window.alert('Could not apply release label. ' + err);
+            setButtonFailed(btn);
+          }
+        });
+      });
+
+      const closeSessionButton = document.getElementById('close-session-btn');
+      if (closeSessionButton) {
+        closeSessionButton.addEventListener('click', async () => {
+          const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
+          if (!bridgeURL) {
+            window.alert('Bridge unavailable.');
+            return;
+          }
+          setButtonWorking(closeSessionButton, 'Closing...');
+          try {
+            const res = await fetch(bridgeURL + '/api/close', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              credentials: 'same-origin',
+              body: JSON.stringify({ reason: 'closed from UI' }),
+            });
+            if (!res.ok) {
+              const body = await res.text();
+              throw new Error('Bridge error ' + res.status + ': ' + body);
+            }
+            document.querySelectorAll('.apply-milestone-btn, .apply-milestone-column-btn, .apply-drafting-check-btn, .apply-sprint-btn, .apply-sprint-column-btn, .apply-assignee-btn, .apply-assignee-column-btn, .apply-release-project-btn').forEach((el) => {
+              el.disabled = true;
+            });
+            setButtonDone(closeSessionButton, 'Done');
+          } catch (err) {
+            window.alert('Could not close session. ' + err);
+            setButtonFailed(closeSessionButton);
+          }
+        });
+      }
+
+      installMilestoneFiltering();
+      installAssigneeFiltering();
+    })();
+  </script>
+</body>
+</html>
