@@ -1675,11 +1675,11 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	}
 
 	r := s.Do("POST", "/api/latest/fleet/teams", teamReserved, http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(r.Body), `"No team" is a reserved team name`)
+	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
 
 	teamReserved.Name = "AlL TeaMS"
 	r = s.Do("POST", "/api/latest/fleet/teams", teamReserved, http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(r.Body), `"All teams" is a reserved team name`)
+	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
 
 	// create a team with too many secrets
 	team3 := &fleet.Team{
@@ -1782,10 +1782,10 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	// try to rename to reserved names
 	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), fleet.TeamPayload{Name: ptr.String("no TEAM")}, http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(r.Body), `"No team" is a reserved team name`)
+	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
 
 	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), fleet.TeamPayload{Name: ptr.String("ALL teAMs")}, http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(r.Body), `"All teams" is a reserved team name`)
+	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
 
 	// Modify team's calendar config
 	modifyCalendar := fleet.TeamPayload{
@@ -8006,7 +8006,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	// attempt to run a team script on a non-team host
 	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &savedTmScript.ID}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `The script does not belong to the same team`)
+	require.Contains(t, errMsg, `The script does not belong to the same fleet`)
 
 	// make sure the host is still seen as "online"
 	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
@@ -8200,7 +8200,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	// attempt to run sync with an existing team script that belongs to a team different from the host's team
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f1337.sh", TeamID: tm2.ID}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `The script does not belong to the same team`)
+	require.Contains(t, errMsg, `The script does not belong to the same fleet`)
 
 	// create a valid sync script execution request by script name, fails because the
 	// request will time-out waiting for a result.
@@ -8243,7 +8243,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	// attempt to run async with an existing team script that belongs to a team different from the host's team
 	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f1337.sh", TeamID: tm2.ID}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `The script does not belong to the same team`)
+	require.Contains(t, errMsg, `The script does not belong to the same fleet`)
 
 	var runSyncResp3 runScriptSyncResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f13372.sh"}, http.StatusAccepted, &runSyncResp3)
@@ -8560,7 +8560,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {"123"}})
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusNotFound, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "The team does not exist.")
+	require.Contains(t, errMsg, "The fleet does not exist.")
 
 	// create a team
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
@@ -12735,7 +12735,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// Check uninstall script
 		uninstallScript := file.GetUninstallScript("deb")
-		uninstallScript = strings.ReplaceAll(uninstallScript, "$PACKAGE_ID", "\"ruby\"")
+		uninstallScript = strings.ReplaceAll(uninstallScript, "$PACKAGE_ID", "'ruby'")
 		respTitle = getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &respTitle, "team_id",
 			fmt.Sprintf("%d", createTeamResp.Team.ID))
@@ -14426,7 +14426,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		fmt.Sprintf("%d", *teamID))
 	require.NotNil(t, respTitle.SoftwareTitle.SoftwarePackage)
 	assert.Equal(t, "another install script", respTitle.SoftwareTitle.SoftwarePackage.InstallScript)
-	assert.Equal(t, `another uninstall script with "ruby"`, respTitle.SoftwareTitle.SoftwarePackage.UninstallScript)
+	assert.Equal(t, `another uninstall script with 'ruby'`, respTitle.SoftwareTitle.SoftwarePackage.UninstallScript)
 
 	// Upload another package for another platform
 	payloadDummy := &fleet.UploadSoftwareInstallerPayload{
@@ -21009,7 +21009,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 
 # Fleet extracts and saves package IDs.
 pkg_ids=(
-  "com.example.dummy"
+  'com.example.dummy'
 )
 
 # For each package id, get all .app folders associated with the package and remove them.

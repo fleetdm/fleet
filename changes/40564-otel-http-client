@@ -1,0 +1,1 @@
+* Added OTEL instrumentation to Fleet's internal HTTP client.

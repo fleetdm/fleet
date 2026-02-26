@@ -511,7 +511,7 @@ the way that the Fleet server works.
 			loggingConfig.KafkaREST.Topic = config.KafkaREST.StatusTopic
 			loggingConfig.Nats.Subject = config.Nats.StatusSubject
 
-			osquerydStatusLogger, err := logging.NewJSONLogger("status", loggingConfig, logger)
+			osquerydStatusLogger, err := logging.NewJSONLogger(cmd.Context(), "status", loggingConfig, logger.SlogLogger())
 			if err != nil {
 				initFatal(err, "initializing osqueryd status logging")
 			}
@@ -528,7 +528,7 @@ the way that the Fleet server works.
 			loggingConfig.KafkaREST.Topic = config.KafkaREST.ResultTopic
 			loggingConfig.Nats.Subject = config.Nats.ResultSubject
 
-			osquerydResultLogger, err := logging.NewJSONLogger("result", loggingConfig, logger)
+			osquerydResultLogger, err := logging.NewJSONLogger(cmd.Context(), "result", loggingConfig, logger.SlogLogger())
 			if err != nil {
 				initFatal(err, "initializing osqueryd result logging")
 			}
@@ -546,7 +546,7 @@ the way that the Fleet server works.
 				loggingConfig.KafkaREST.Topic = config.KafkaREST.AuditTopic
 				loggingConfig.Nats.Subject = config.Nats.AuditSubject
 
-				auditLogger, err = logging.NewJSONLogger("audit", loggingConfig, logger)
+				auditLogger, err = logging.NewJSONLogger(cmd.Context(), "audit", loggingConfig, logger.SlogLogger())
 				if err != nil {
 					initFatal(err, "initializing audit logging")
 				}
@@ -875,7 +875,7 @@ the way that the Fleet server works.
 			digiCertService := digicert.NewService(digicert.WithLogger(logger))
 			ctx = ctxerr.NewContext(ctx, eh)
 
-			activitiesModule := activities.NewActivityModule(ds, logger)
+			activitiesModule := activities.NewActivityModule()
 			config.MDM.AndroidAgent.Validate(initFatal)
 			androidSvc, err := android_service.NewService(
 				ctx,
@@ -1040,6 +1040,9 @@ the way that the Fleet server works.
 
 			// Bootstrap activity bounded context (needed for cron schedules and HTTP routes)
 			activitySvc, activityRoutes := createActivityBoundedContext(svc, dbConns, logger.SlogLogger())
+			// Inject the activity bounded context into the main service and activity module
+			svc.SetActivityService(activitySvc)
+			activitiesModule.SetService(activitySvc)
 
 			// Perform a cleanup of cron_stats outside of the cronSchedules because the
 			// schedule package uses cron_stats entries to decide whether a schedule will
@@ -1232,6 +1235,7 @@ the way that the Fleet server works.
 					ds,
 					logger,
 					config.License.Key,
+					svc.NewActivity,
 				)
 			}); err != nil {
 				initFatal(err, "failed to register mdm_android_device_reconciler schedule")
@@ -1462,9 +1466,10 @@ the way that the Fleet server works.
 					license.IsPremium(),
 					logger,
 					redis_key_value.New(redisPool),
+					svc.NewActivity,
 				)
 
-				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay))
+				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay, svc.NewActivity))
 				mdmCheckinAndCommandService.RegisterResultsHandler(fleet.DeviceLocationCmdName, service.NewDeviceLocationResultsHandler(ds, commander, logger))
 
 				hasSCEPChallenge, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
@@ -1808,6 +1813,9 @@ func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBCon
 		dbConns,
 		activityAuthorizer,
 		activityACLAdapter,
+		func(ctx context.Context, url string, payload any) error {
+			return server.PostJSONWithTimeout(ctx, url, payload, logger)
+		},
 		logger,
 	)
 	// Create auth middleware for activity bounded context

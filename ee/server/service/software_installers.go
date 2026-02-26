@@ -245,6 +245,12 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) er
 		// do nothing, this could be a FMA which won't include the installer when editing the scripts
 		return nil
 	}
+
+	// Validate that package identifiers and upgrade codes don't contain shell metacharacters
+	if err := file.ValidatePackageIdentifiers(payload.PackageIDs, payload.UpgradeCode); err != nil {
+		return err
+	}
+
 	var packageID string
 	switch payload.Extension {
 	case "dmg", "zip":
@@ -253,12 +259,12 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) er
 		var sb strings.Builder
 		_, _ = sb.WriteString("(\n")
 		for _, pkgID := range payload.PackageIDs {
-			_, _ = sb.WriteString(fmt.Sprintf("  \"%s\"\n", pkgID))
+			_, _ = sb.WriteString(fmt.Sprintf("  '%s'\n", pkgID))
 		}
 		_, _ = sb.WriteString(")") // no ending newline
 		packageID = sb.String()
 	default:
-		packageID = fmt.Sprintf("\"%s\"", payload.PackageIDs[0])
+		packageID = fmt.Sprintf("'%s'", payload.PackageIDs[0])
 	}
 
 	payload.UninstallScript = file.PackageIDRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("%s${suffix}", packageID))
@@ -269,7 +275,7 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) er
 			return errors.New("blank upgrade code when required in script")
 		}
 
-		payload.UninstallScript = file.UpgradeCodeRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("\"%s\"${suffix}", payload.UpgradeCode))
+		payload.UninstallScript = file.UpgradeCodeRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("'%s'${suffix}", payload.UpgradeCode))
 	}
 
 	return nil
@@ -287,7 +293,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	payload.UserID = vc.UserID()
 
 	if payload.TeamID == nil {
-		return nil, &fleet.BadRequestError{Message: "team_id is required; enter 0 for no team"}
+		return nil, &fleet.BadRequestError{Message: "fleet_id is required; enter 0 for unassigned"}
 	}
 
 	var teamName *string
@@ -764,7 +770,7 @@ func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, exi
 
 func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error {
 	if teamID == nil {
-		return fleet.NewInvalidArgumentError("team_id", "is required")
+		return fleet.NewInvalidArgumentError("fleet_id", "is required")
 	}
 
 	// we authorize with SoftwareInstaller here, but it uses the same AuthzType
@@ -969,7 +975,7 @@ func (svc *Service) GenerateSoftwareInstallerToken(ctx context.Context, alt stri
 
 	if teamID == nil {
 		svc.authz.SkipAuthorization(ctx)
-		return "", fleet.NewInvalidArgumentError("team_id", "is required")
+		return "", fleet.NewInvalidArgumentError("fleet_id", "is required")
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err != nil {
@@ -1043,7 +1049,7 @@ func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, skipAuthz boo
 
 	if teamID == nil {
 		svc.authz.SkipAuthorization(ctx)
-		return nil, fleet.NewInvalidArgumentError("team_id", "is required")
+		return nil, fleet.NewInvalidArgumentError("fleet_id", "is required")
 	}
 
 	meta, err := svc.GetSoftwareInstallerMetadata(ctx, skipAuthz, titleID, teamID)
@@ -2219,13 +2225,23 @@ func (svc *Service) softwareBatchUpload(
 		return resp, tfr, nil
 	}
 
+	var manualAgentInstall bool
 	tmID := ptr.ValOrZero(teamID)
-	team, err := svc.ds.TeamLite(ctx, tmID)
-	if err != nil {
-		batchErr = fmt.Errorf("Couldn't get team for team ID %d: %w", tmID, err)
-		return
+	if tmID == 0 {
+		ac, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			batchErr = fmt.Errorf("Couldn't get app config: %w", err)
+			return
+		}
+		manualAgentInstall = ac.MDM.MacOSSetup.ManualAgentInstall.Value
+	} else {
+		team, err := svc.ds.TeamLite(ctx, tmID)
+		if err != nil {
+			batchErr = fmt.Errorf("Couldn't get team for team ID %d: %w", tmID, err)
+			return
+		}
+		manualAgentInstall = team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
 	}
-	manualAgentInstall := team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
 
 	var g errgroup.Group
 	g.SetLimit(1) // TODO: consider whether we can increase this limit, see https://github.com/fleetdm/fleet/issues/22704#issuecomment-2397407837
