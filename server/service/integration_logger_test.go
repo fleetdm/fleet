@@ -68,10 +68,11 @@ func (s *integrationLoggerTestSuite) TestLogger() {
 
 	s.getConfig()
 
-	params := fleet.QueryPayload{
-		Name:        ptr.String("somequery"),
-		Description: ptr.String("desc"),
-		Query:       ptr.String("select 1 from osquery;"),
+	params := map[string]any{
+		"name":        "somequery",
+		"description": "desc",
+		"query":       "select 1 from osquery;",
+		"fleet_id":    nil,
 	}
 	var createResp createQueryResponse
 	s.DoJSON("POST", "/api/latest/fleet/queries", params, http.StatusOK, &createResp)
@@ -94,12 +95,14 @@ func (s *integrationLoggerTestSuite) TestLogger() {
 			assert.Equal(t, "/api/latest/fleet/config", attrs["uri"])
 			assert.Equal(t, "admin1@example.com", attrs["user"])
 		case 2:
-			assert.Equal(t, slog.LevelDebug, rec.Level)
+			assert.Equal(t, slog.LevelWarn, rec.Level) // Warn because /queries is a deprecated path
 			assert.Equal(t, "POST", attrs["method"])
 			assert.Equal(t, "/api/latest/fleet/queries", attrs["uri"])
 			assert.Equal(t, "admin1@example.com", attrs["user"])
 			assert.Equal(t, "somequery", attrs["name"])
 			assert.Equal(t, "select 1 from osquery;", attrs["sql"])
+			assert.Equal(t, "/api/_version_/fleet/queries", attrs["deprecated_path"])
+			assert.Contains(t, attrs["deprecation_warning"], "deprecated")
 		default:
 			t.Fail()
 		}

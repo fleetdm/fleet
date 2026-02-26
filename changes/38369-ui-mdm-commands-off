@@ -1,2 +1,0 @@
-- Fixed bug in host activity card UI where activities related to MDM commands should be hidden when
-  Apple MDM features are turned off in Fleet.

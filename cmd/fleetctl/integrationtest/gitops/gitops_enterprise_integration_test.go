@@ -37,7 +37,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-git/go-git/v5"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -111,7 +110,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 		SCEPStorage:            scepStorage,
 		Pool:                   redisPool,
 		APNSTopic:              "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
-		SCEPConfigService:      eeservice.NewSCEPConfigService(kitlog.NewLogfmtLogger(os.Stdout), nil),
+		SCEPConfigService:      eeservice.NewSCEPConfigService(logging.NewLogfmtLogger(os.Stdout), nil),
 		DigiCertService:        digicert.NewService(),
 		SoftwareTitleIconStore: softwareTitleIconStore,
 	}
@@ -188,6 +187,11 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutput(t *testing.T, output string) {
+	s.assertDryRunOutputWithDeprecation(t, output, false)
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutputWithDeprecation(t *testing.T, output string, expectDeprecation bool) {
+	var sawDeprecation bool
 	allowedVerbs := []string{
 		"moved",
 		"deleted",
@@ -200,13 +204,24 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutput(t *testing.T, 
 	pattern := fmt.Sprintf("\\[([+\\-!])] would've (%s)", strings.Join(allowedVerbs, "|"))
 	reg := regexp.MustCompile(pattern)
 	for line := range strings.SplitSeq(output, "\n") {
+		if expectDeprecation && line != "" && strings.Contains(line, "is deprecated") {
+			sawDeprecation = true
+			continue
+		}
 		if line != "" && !strings.Contains(line, "succeeded") {
 			assert.Regexp(t, reg, line, "on dry run")
 		}
 	}
+	if expectDeprecation {
+		assert.True(t, sawDeprecation, "expected to see deprecation warning in dry run output")
+	}
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) assertRealRunOutput(t *testing.T, output string) {
+	s.assertRealRunOutputWithDeprecation(t, output, false)
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) assertRealRunOutputWithDeprecation(t *testing.T, output string, allowDeprecation bool) {
 	allowedVerbs := []string{
 		"moving",
 		"deleted",
@@ -221,6 +236,9 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertRealRunOutput(t *testing.T,
 	pattern := fmt.Sprintf("\\[([+\\-!])] (%s)", strings.Join(allowedVerbs, "|"))
 	reg := regexp.MustCompile(pattern)
 	for line := range strings.SplitSeq(output, "\n") {
+		if allowDeprecation && line != "" && strings.Contains(line, "is deprecated") {
+			continue
+		}
 		if line != "" && !strings.Contains(line, "succeeded") {
 			assert.Regexp(t, reg, line, "on real run")
 		}
@@ -230,6 +248,9 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertRealRunOutput(t *testing.T,
 // TestFleetGitops runs `fleetctl gitops` command on configs in https://github.com/fleetdm/fleet-gitops repo.
 // Changes to that repo may cause this test to fail.
 func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitops() {
+	os.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
+	defer os.Unsetenv("FLEET_ENABLE_LOG_TOPICS")
+
 	t := s.T()
 
 	user := s.createGitOpsUser(t)
@@ -277,11 +298,11 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitops() {
 			`
 controls:
 software:
-queries:
+reports:
 policies:
 agent_options:
 name: %s
-team_settings:
+settings:
   secrets: [{"secret":"deleted_team_secret"}]
 `, deletedTeamName,
 		),
@@ -291,16 +312,18 @@ team_settings:
 	test.CreateInsertGlobalVPPToken(t, s.DS)
 
 	// Apply the team to be deleted
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", deletedTeamFile.Name()}))
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", deletedTeamFile.Name()}), true)
 
 	// Dry run
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "--dry-run"}))
+	// NOTE: The fleet-gitops repo may still use deprecated keys (queries, team_settings),
+	// so we allow deprecation warnings in this test.
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "--dry-run"}), true)
 	for _, fileName := range teamFileNames {
 		// When running no-teams, global config must also be provided ...
 		if strings.Contains(fileName, "no-team.yml") {
-			s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName, "-f", globalFile, "--dry-run"}))
+			s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName, "-f", globalFile, "--dry-run"}), true)
 		} else {
-			s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName, "--dry-run"}))
+			s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName, "--dry-run"}), true)
 		}
 	}
 
@@ -309,39 +332,39 @@ team_settings:
 	for _, fileName := range teamFileNames {
 		args = append(args, "-f", fileName)
 	}
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, args))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, args), true)
 
 	// Real run with all the files, but don't delete other teams
 	args = []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile}
 	for _, fileName := range teamFileNames {
 		args = append(args, "-f", fileName)
 	}
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, args))
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, args), true)
 
 	// Check that all the teams exist
 	teamsJSON := fleetctl.RunAppForTest(t, []string{"get", "teams", "--config", fleetctlConfig.Name(), "--json"})
-	assert.Equal(t, 6, strings.Count(teamsJSON, "team_id"))
+	assert.Equal(t, 12, strings.Count(teamsJSON, "fleet_id"))
 
 	// Real run with all the files, and delete other teams
 	args = []string{"gitops", "--config", fleetctlConfig.Name(), "--delete-other-teams", "-f", globalFile}
 	for _, fileName := range teamFileNames {
 		args = append(args, "-f", fileName)
 	}
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, args))
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, args), true)
 
 	// Check that only the right teams exist
 	teamsJSON = fleetctl.RunAppForTest(t, []string{"get", "teams", "--config", fleetctlConfig.Name(), "--json"})
-	assert.Equal(t, 5, strings.Count(teamsJSON, "team_id"))
+	assert.Equal(t, 10, strings.Count(teamsJSON, "fleet_id"))
 	assert.NotContains(t, teamsJSON, deletedTeamName)
 
 	// Real run with one file at a time
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile}))
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile}), true)
 	for _, fileName := range teamFileNames {
 		// When running no-teams, global config must also be provided ...
 		if strings.Contains(fileName, "no-team.yml") {
-			s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName, "-f", globalFile}))
+			s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName, "-f", globalFile}), true)
 		} else {
-			s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName}))
+			s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName}), true)
 		}
 	}
 }
@@ -395,7 +418,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-queries:
+reports:
 `)
 	require.NoError(t, err)
 
@@ -407,11 +430,11 @@ queries:
 			`
 controls:
 software:
-queries:
+reports:
 policies:
 agent_options:
 name: %s
-team_settings:
+settings:
   secrets: [{"secret":"enroll_secret"}]
 `, teamName,
 		),
@@ -596,7 +619,7 @@ org_settings:
         url: %s
         challenge: challenge
 policies:
-queries:
+reports:
 `,
 		dirPath,
 		digiCertServer.URL,
@@ -666,7 +689,7 @@ org_settings:
         url: %s
         challenge: challenge
 policies:
-queries:
+reports:
 `,
 		dirPath,
 		digiCertServer.URL,
@@ -709,7 +732,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-queries:
+reports:
 `)
 	require.NoError(t, err)
 
@@ -756,7 +779,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-queries:
+reports:
 `
 		withLabelsIncludeAny = `
         labels_include_any:
@@ -772,11 +795,11 @@ controls:
       - path: %s
 %s
 software:
-queries:
+reports:
 policies:
 agent_options:
 name: %s
-team_settings:
+settings:
   secrets: [{"secret":"enroll_secret"}]
 `
 		withLabelsIncludeAll = `
@@ -870,7 +893,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-queries:
+reports:
 `
 
 		noTeamTemplate = `name: No team
@@ -894,11 +917,11 @@ software:
   packages:
     - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
 %s
-queries:
+reports:
 policies:
 agent_options:
 name: %s
-team_settings:
+settings:
   secrets: [{"secret":"enroll_secret"}]
 `
 		withLabelsExcludeAny = `
@@ -1017,7 +1040,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-queries:
+reports:
 `
 	)
 
@@ -1063,7 +1086,7 @@ software:
 		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"}))
 	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath}))
 
-	// Check script existance
+	// Check script existence
 	_, err = s.DS.GetSetupExperienceScript(ctx, nil)
 	require.NoError(t, err)
 
@@ -1120,7 +1143,7 @@ org_settings:
   secrets:
     - secret: global_secret
 policies:
-queries:
+reports:
 `
 
 	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -1140,7 +1163,7 @@ policies:
     resolution: This is a test
 controls:
 software:
-team_settings:
+settings:
   webhook_settings:
     failing_policies_webhook:
       enable_failing_policies_webhook: true
@@ -1197,7 +1220,7 @@ policies:
     resolution: This is a test
 controls:
 software:
-team_settings:
+settings:
   webhook_settings:
     failing_policies_webhook:
       enable_failing_policies_webhook: false
@@ -1289,7 +1312,7 @@ policies:
     resolution: This is a test
 controls:
 software:
-team_settings:
+settings:
 `
 	noTeamFileTeamNoWebhook, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -1334,7 +1357,7 @@ policies:
     resolution: This is a test
 controls:
 software:
-team_settings:
+settings:
   webhook_settings:
 `
 	noTeamFileWebhookNoFailing, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -1394,7 +1417,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-queries:
+reports:
 `
 	)
 
@@ -1424,7 +1447,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-queries:
+reports:
 `
 	)
 
@@ -1461,7 +1484,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-queries:
+reports:
 `
 
 		globalConfigOnly = `
@@ -1476,7 +1499,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-queries:
+reports:
 `
 
 		noTeamConfig = `name: No team
@@ -1492,11 +1515,11 @@ controls:
   macos_setup:
     manual_agent_install: %t
 software:
-queries:
+reports:
 policies:
 agent_options:
 name: %s
-team_settings:
+settings:
   secrets: [{"secret":"enroll_secret"}]
 `
 	)
@@ -1692,7 +1715,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-queries:
+reports:
 `)
 	require.NoError(t, err)
 
@@ -1779,7 +1802,7 @@ controls:
   macos_settings:
     custom_settings:
       - path: %s
-queries: []
+reports: []
 policies: []
 `, s.Server.URL, profilePath)
 
@@ -1903,7 +1926,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestFleetSecretInDataTag() {
 	// Create a team GitOps config file that references the profile
 	teamConfig := fmt.Sprintf(`
 name: %s
-team_settings:
+settings:
   secrets:
     - secret: test_secret
 agent_options:
@@ -1915,7 +1938,7 @@ controls:
   macos_settings:
     custom_settings:
       - path: %s
-queries:
+reports:
 policies:
 software:
 `, team.Name, profilePath)
@@ -2013,7 +2036,7 @@ org_settings:
   secrets:
   - secret: test_secret
 policies:
-queries:
+reports:
 labels:
   - name: my-label
     label_membership_type: manual
@@ -2069,7 +2092,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-queries:
+reports:
 labels:
   - name: Label1
     label_membership_type: dynamic
@@ -2088,11 +2111,11 @@ controls:
 software:
   packages:
 %s
-queries:
+reports:
 policies:
 agent_options:
 name: %s
-team_settings:
+settings:
   secrets: [{"secret":"enroll_secret"}]
 `
 	)
@@ -2279,7 +2302,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-queries:
+reports:
 `
 
 		noTeamTemplate = `name: No team
@@ -2297,11 +2320,11 @@ software:
   packages:
     - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
       display_name: Team Custom Ruby
-queries:
+reports:
 policies:
 agent_options:
 name: %s
-team_settings:
+settings:
   secrets: [{"secret":"enroll_secret"}]
 `
 	)
@@ -2397,7 +2420,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-queries:
+reports:
 `
 
 		noTeamTemplate = `name: No team
@@ -2425,11 +2448,11 @@ software:
     - slug: foo/darwin
       icon:
         path: %s/testdata/gitops/lib/icon.png
-queries:
+reports:
 policies:
 agent_options:
 name: %s
-team_settings:
+settings:
   secrets: [{"secret":"enroll_secret"}]
 `
 	)
@@ -2553,7 +2576,7 @@ team_settings:
 	// Verify the custom icon is stored in the database for team
 	var teamIconFilenames []string
 	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
-		stmt, args, err := sqlx.In("SELECT filename FROM software_title_icons WHERE team_id = ? AND software_title_id IN (?)", 0, teamTitleIDs)
+		stmt, args, err := sqlx.In("SELECT filename FROM software_title_icons WHERE team_id = ? AND software_title_id IN (?)", team.ID, teamTitleIDs)
 		if err != nil {
 			return err
 		}
@@ -2585,7 +2608,7 @@ org_settings:
   secrets:
   - secret: test_secret
 policies:
-queries:
+reports:
 labels:
   - name: global-label-one
     label_membership_type: dynamic
@@ -2621,11 +2644,11 @@ labels:
 		`
 controls:
 software:
-queries:
+reports:
 policies:
 agent_options:
 name: %s
-team_settings:
+settings:
   secrets: [{"secret":"enroll_secret"}]
 labels:
   - name: team-one-label-one
@@ -2654,11 +2677,11 @@ labels:
 		`
 controls:
 software:
-queries:
+reports:
 policies:
 agent_options:
 name: %s
-team_settings:
+settings:
   secrets: [{"secret":"enroll_secret"}]
 labels:
   - name: team-one-label-one
@@ -2687,7 +2710,7 @@ org_settings:
   secrets:
   - secret: test_secret
 policies:
-queries:
+reports:
 labels:
   - name: global-label-one
     label_membership_type: dynamic
@@ -2700,11 +2723,11 @@ labels:
 		`
 controls:
 software:
-queries:
+reports:
 policies:
 agent_options:
 name: %s
-team_settings:
+settings:
   secrets: [{"secret":"enroll_secret"}]
 labels:
   - name: team-one-label-two
@@ -2722,11 +2745,11 @@ labels:
 	require.NoError(t, os.WriteFile(teamTwoFile.Name(), fmt.Appendf(nil, `
 controls:
 software:
-queries:
+reports:
 policies:
 agent_options:
 name: %s
-team_settings:
+settings:
   secrets: [{"secret":"enroll_secret2"}]
 labels:
   - name: team-one-label-one
@@ -2799,12 +2822,12 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabelsMultipleRepos
 	teamCfgTmpl, err := template.New("t1").Parse(`
 controls:
 software:
-queries:{{ .Queries }}
+reports:{{ .Queries }}
 policies:
 labels:{{ .Labels }}
 agent_options:
 name:{{ .Name }}
-team_settings:
+settings:
   secrets: [{"secret":"{{ .Name}}_secret"}]
 `)
 	require.NoError(t, err)
@@ -2825,7 +2848,7 @@ team_settings:
 		}))
 
 		args := []string{"gitops", "--config", cfgPaths[i].Name(), "-f", globalFile, "-f", newTeamCfgFile.Name()}
-		s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, args))
+		s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, args), true)
 	}
 
 	for i, user := range users {
@@ -2872,7 +2895,7 @@ team_settings:
 		require.NoError(t, teamCfgTmpl.Execute(newTeamCfgFile, params))
 
 		args := []string{"gitops", "--config", cfgPaths[i].Name(), "-f", globalFile, "-f", newTeamCfgFile.Name()}
-		s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, args))
+		s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, args), true)
 	}
 
 	for i, user := range users {
@@ -2958,7 +2981,7 @@ org_settings:
         teams:
           - %s
 policies:
-queries:
+reports:
 `, teamName)
 
 	teamTemplate := `
@@ -2977,11 +3000,11 @@ software:
       auto_update_enabled: true
       auto_update_window_start: "03:00"
       auto_update_window_end: "07:00"
-queries:
+reports:
 policies:
 agent_options:
 name: %s
-team_settings:
+settings:
   secrets: [{"secret":"enroll_secret"}]
 `
 
@@ -3076,11 +3099,11 @@ software:
     - app_store_id: "2"
       platform: ipados
       self_service: false
-queries:
+reports:
 policies:
 agent_options:
 name: %s
-team_settings:
+settings:
   secrets: [{"secret":"enroll_secret"}]
 `
 
@@ -3150,7 +3173,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestFleetDesktopSettingsBrowserAl
 	globalCfgTpl, err := template.New("t1").Parse(`
 agent_options:
 controls:
-queries:
+reports:
 policies:
 org_settings:
   secrets:
@@ -3243,7 +3266,7 @@ org_settings:
         teams:
           - %s
 policies:
-queries:
+reports:
 `
 
 	teamTemplate := `
@@ -3262,11 +3285,11 @@ software:
       auto_update_enabled: true
       auto_update_window_start: "03:00"
       auto_update_window_end: "07:00"
-queries:
+reports:
 policies:
 agent_options:
 name: %s
-team_settings:
+settings:
   %s
 `
 
@@ -3365,7 +3388,7 @@ controls:
 queries:
 `
 
-	testAll := `
+	testVPP := `
 controls:
   macos_setup:
     manual_agent_install: true
@@ -3389,7 +3412,7 @@ team_settings:
 `
 
 	//nolint:gosec // test code
-	testPackagesFail := `
+	testPackages := `
 controls:
   macos_setup:
     manual_agent_install: true
@@ -3418,7 +3441,7 @@ team_settings:
 			testName:     "All VPP with setup experience",
 			VPPTeam:      "All teams",
 			teamName:     teamName,
-			teamTemplate: testAll,
+			teamTemplate: testVPP,
 			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
 			errContains:  ptr.String("Couldn't edit software."),
 		},
@@ -3426,15 +3449,22 @@ team_settings:
 			testName:     "Packages fail",
 			VPPTeam:      "All teams",
 			teamName:     teamName,
-			teamTemplate: testPackagesFail,
+			teamTemplate: testPackages,
 			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
 			errContains:  ptr.String("Couldn't edit software."),
 		},
 		{
-			testName:     "No team",
+			testName:     "No team VPP",
 			VPPTeam:      "No team",
 			teamName:     "No team",
-			teamTemplate: testAll,
+			teamTemplate: testVPP,
+			errContains:  ptr.String("Couldn't edit software."),
+		},
+		{
+			testName:     "No team Installers",
+			VPPTeam:      "No team",
+			teamName:     "No team",
+			teamTemplate: testPackages,
 			errContains:  ptr.String("Couldn't edit software."),
 		},
 		// left out more possible combinations of setup experience being set for different platforms
@@ -3469,7 +3499,6 @@ team_settings:
 			testing_utils.StartAndServeVPPServer(t)
 
 			// Don't attempt dry runs because they would not actually create the team, so the config would not be found
-
 			_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFileName})
 
 			if tc.errContains != nil {

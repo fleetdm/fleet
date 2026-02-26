@@ -30,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
@@ -108,6 +109,66 @@ spec:
   roles:
     admin1@example.com:
       global_role: admin
+      fleets: null
+    admin2@example.com:
+      global_role: null
+      fleets:
+      - role: maintainer
+        fleet: team1
+`)
+	require.NoError(t, err)
+	assert.Equal(t, "[+] applied user roles\n", RunAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
+	require.Len(t, userRoleSpecList[1].Teams, 1)
+	assert.Equal(t, fleet.RoleMaintainer, userRoleSpecList[1].Teams[0].Role)
+}
+
+func TestApplyUserRolesDeprecated(t *testing.T) {
+	t.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
+
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+		return userRoleSpecList, nil
+	}
+
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		if email == "admin1@example.com" {
+			return userRoleSpecList[0], nil
+		}
+		return userRoleSpecList[1], nil
+	}
+
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return &fleet.Team{
+			ID:        1,
+			CreatedAt: time.Now(),
+			Name:      "team1",
+		}, nil
+	}
+
+	ds.SaveUsersFunc = func(ctx context.Context, users []*fleet.User) error {
+		for _, u := range users {
+			switch u.Email {
+			case "admin1@example.com":
+				userRoleList[0] = u
+			case "admin2@example.com":
+				userRoleList[1] = u
+			}
+		}
+		return nil
+	}
+
+	tmpFile, err := os.CreateTemp(os.TempDir(), "*.yml")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	_, err = tmpFile.WriteString(`
+---
+apiVersion: v1
+kind: user_roles
+spec:
+  roles:
+    admin1@example.com:
+      global_role: admin
       teams: null
     admin2@example.com:
       global_role: null
@@ -116,9 +177,29 @@ spec:
         team: team1
 `)
 	require.NoError(t, err)
-	assert.Equal(t, "[+] applied user roles\n", RunAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
+	expected := "[!] In user_roles: `team` is deprecated, please use `fleet` instead.\n[!] In user_roles: `teams` is deprecated, please use `fleets` instead.\n[+] applied user roles\n"
+	assert.Equal(t, expected, RunAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
 	require.Len(t, userRoleSpecList[1].Teams, 1)
 	assert.Equal(t, fleet.RoleMaintainer, userRoleSpecList[1].Teams[0].Role)
+
+	_, err = tmpFile.WriteString(`
+---
+apiVersion: v1
+kind: user_roles
+spec:
+  roles:
+    admin1@example.com:
+      global_role: admin
+      teams: null
+    admin2@example.com:
+      global_role: null
+      teams:
+      - role: maintainer
+        team: team1
+        fleet: team1
+`)
+	require.NoError(t, err)
+	RunAppCheckErr(t, []string{"apply", "-f", tmpFile.Name()}, "in user_roles spec: Conflicting field names: cannot specify both `team` (deprecated) and `fleet` in the same request")
 }
 
 func TestApplyTeamSpecs(t *testing.T) {
@@ -187,12 +268,6 @@ func TestApplyTeamSpecs(t *testing.T) {
 	}
 
 	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
-		return nil
-	}
-
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
 		return nil
 	}
 
@@ -604,6 +679,8 @@ func writeTmpJSON(t *testing.T, v any) string {
 }
 
 func TestApplyAppConfig(t *testing.T) {
+	t.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
+
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
 
@@ -612,12 +689,6 @@ func TestApplyAppConfig(t *testing.T) {
 	}
 
 	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
-		return nil
-	}
-
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
 		return nil
 	}
 
@@ -729,6 +800,33 @@ spec:
 	// agent options were not modified, since they were not provided
 	assert.Equal(t, string(defaultAgentOpts), string(*savedAppConfig.AgentOptions))
 
+	// Test key rewriting (deprecated -> new)
+	name = writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  server_settings:
+    report_cap: 100
+`)
+
+	assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	require.NotNil(t, savedAppConfig)
+	assert.Equal(t, 100, savedAppConfig.ServerSettings.QueryReportCap)
+
+	// Test deprecation warnings
+	expected := "[!] In config: `query_report_cap` is deprecated, please use `report_cap` instead.\n[+] applied fleet config\n"
+	name = writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  server_settings:
+    query_report_cap: 200
+`)
+
+	assert.Equal(t, expected, RunAppForTest(t, []string{"apply", "-f", name}))
+	require.NotNil(t, savedAppConfig)
+	assert.Equal(t, 200, savedAppConfig.ServerSettings.QueryReportCap)
+
 	name = writeTmpYml(t, `---
 apiVersion: v1
 kind: config
@@ -781,6 +879,20 @@ spec:
 	assert.Equal(t, newMDMSettings, savedAppConfig.MDM)
 }
 
+func TestApplyAppConfigAliasConfict(t *testing.T) {
+	// Test conflict error
+	name := writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  server_settings:
+    query_report_cap: 200
+    report_cap: 200
+`)
+
+	RunAppCheckErr(t, []string{"apply", "-f", name}, "in config spec: Conflicting field names: cannot specify both `query_report_cap` (deprecated) and `report_cap` in the same request")
+}
+
 func TestApplyAppConfigDryRunIssue(t *testing.T) {
 	// reproduces the bug fixed by https://github.com/fleetdm/fleet/pull/8194
 	_, ds := testing_utils.RunServerWithMockedDS(t)
@@ -794,12 +906,6 @@ func TestApplyAppConfigDryRunIssue(t *testing.T) {
 			return userRoleSpecList[0], nil
 		}
 		return userRoleSpecList[1], nil
-	}
-
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
 	}
 
 	currentAppConfig := &fleet.AppConfig{
@@ -1012,7 +1118,7 @@ spec:
   description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
   resolution: "Run the following command in the Terminal app: /usr/sbin/spctl --master-enable"
   platform: darwin
-  team: Team1
+  fleet: Team1
 ---
 apiVersion: v1
 kind: policy
@@ -1041,7 +1147,7 @@ spec:
   description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
   resolution: "Run the following command in the Terminal app: /usr/sbin/spctl --master-enable"
   platform: darwin
-  team: Team1
+  fleet: Team1
 ---
 apiVersion: v1
 kind: policy
@@ -1051,7 +1157,7 @@ spec:
   description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
   resolution: "Run the following command in the Terminal app: /usr/sbin/spctl --master-enable"
   platform: darwin
-  team: Team1
+  fleet: Team1
 `
 	duplicateGlobalPolicySpec = `---
 apiVersion: v1
@@ -1138,12 +1244,12 @@ apiVersion: v1
 kind: pack
 spec:
   name: osquery_monitoring
-  queries:
-    - query: osquery_version
+  reports:
+    - report: osquery_version
       name: osquery_version_snapshot
       interval: 7200
       snapshot: true
-    - query: osquery_version
+    - report: osquery_version
       name: osquery_version_differential
       interval: 7200
 `
@@ -1171,12 +1277,6 @@ func TestApplyPolicies(t *testing.T) {
 		}
 		return nil, errors.New("unexpected team name!")
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
-
 	name := writeTmpYml(t, policySpec)
 
 	assert.Equal(t, "[+] applied 3 policies\n", RunAppForTest(t, []string{"apply", "-f", name}))
@@ -1265,12 +1365,6 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return gitOps, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
-
 	currentAppConfig := &fleet.AppConfig{
 		OrgInfo: fleet.OrgInfo{
 			OrgName: "Fleet",
@@ -1858,12 +1952,6 @@ func TestApplyPacks(t *testing.T) {
 	ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
 		return nil, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
-
 	var appliedPacks []*fleet.PackSpec
 	ds.ApplyPackSpecsFunc = func(ctx context.Context, specs []*fleet.PackSpec) error {
 		appliedPacks = specs
@@ -1883,7 +1971,7 @@ apiVersion: v1
 kind: pack
 spec:
   name: test_bad_interval
-  queries:
+  reports:
     - query: good_interval
       name: good_interval
       interval: 7200
@@ -1910,12 +1998,6 @@ func TestApplyQueries(t *testing.T) {
 		appliedQueries = queries
 		return nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
-
 	name := writeTmpYml(t, queriesSpec)
 
 	assert.Equal(t, "[+] applied 1 query\n", RunAppForTest(t, []string{"apply", "-f", name}))
@@ -2041,11 +2123,6 @@ func TestApplyMacosSetup(t *testing.T) {
 		}
 		teamsByID := map[uint]*fleet.Team{
 			tm1.ID: tm1,
-		}
-		ds.NewActivityFunc = func(
-			ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-		) error {
-			return nil
 		}
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 			return job, nil
@@ -2428,7 +2505,7 @@ spec:
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Set.yml"))
 		require.NoError(t, err)
-		expectedTm1Set := fmt.Sprintf(string(b), "", "")
+		expectedTm1Set := fmt.Sprintf(string(b), "", "", "", "")
 		expectedTm1SetReleaseAndRequireEnabled := strings.ReplaceAll(expectedTm1Set, `enable_release_device_manually: false`, `enable_release_device_manually: true`)
 		expectedTm1SetReleaseAndRequireEnabled = strings.ReplaceAll(expectedTm1SetReleaseAndRequireEnabled, `require_all_software_macos: false`, `require_all_software_macos: true`)
 
@@ -2438,7 +2515,7 @@ spec:
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1And2Set.yml"))
 		require.NoError(t, err)
-		expectedTm1And2Set := fmt.Sprintf(string(b), "", emptyMacosSetup)
+		expectedTm1And2Set := fmt.Sprintf(string(b), "", emptyMacosSetup, "", emptyMacosSetup, "", emptyMacosSetup, "", emptyMacosSetup)
 
 		// get without setup assistant set
 		assert.YAMLEq(t, expectedEmptyAppCfg, RunAppForTest(t, []string{"get", "config", "--yaml"}))
@@ -2891,13 +2968,6 @@ func TestApplySpecs(t *testing.T) {
 			return true, nil
 		}
 		ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
-			return nil
-		}
-
-		// activities
-		ds.NewActivityFunc = func(
-			ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-		) error {
 			return nil
 		}
 
@@ -4194,10 +4264,6 @@ func TestApplyWindowsUpdates(t *testing.T) {
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (fleet.MDMProfilesUpdates, error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
-	}
-
 	t.Run("with values", func(t *testing.T) {
 		// Reset call trackers
 		setOrUpdateCalls = nil

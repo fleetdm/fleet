@@ -22,6 +22,7 @@ import {
   CUSTOM_TARGET_OPTIONS,
   generateSelectedLabels,
   getCustomTarget,
+  getDisplayedSoftwareName,
   generateHelpText,
   getTargetType,
 } from "pages/SoftwarePage/helpers";
@@ -122,7 +123,13 @@ const EditAutoUpdateConfigModal = ({
       renderFlash(
         "success",
         <>
-          <strong>{softwareTitle.name}</strong> configuration updated.
+          <strong>
+            {getDisplayedSoftwareName(
+              softwareTitle.name,
+              softwareTitle.display_name
+            )}
+          </strong>{" "}
+          configuration updated.
         </>
       );
 
@@ -209,7 +216,13 @@ const EditAutoUpdateConfigModal = ({
                 <div className={`form-field`}>
                   <div className="form-field__label">Auto updates</div>
                   <div className="form-field__subtitle">
-                    Automatically update <strong>{softwareTitle.name}</strong>{" "}
+                    Automatically update{" "}
+                    <strong>
+                      {getDisplayedSoftwareName(
+                        softwareTitle.name,
+                        softwareTitle.display_name
+                      )}
+                    </strong>{" "}
                     on all targeted hosts when a new version is available.
                   </div>
                   <div>

@@ -41,9 +41,17 @@ Engineering-initiated stories are types of user stories created by engineers to 
 
 It's important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users.
 
+Engineering-initiated stories are for work that no customer or stakeholder has directly asked for but that makes Fleet better. If any of the following apply, the issue should go through normal product prioritization instead of being labeled `~engineering-initiated`:
+
+- The work was motivated by a **customer report or request** (has a `customer-*` label).
+- The issue is a **bug or defect** (has a `~released bug` or `bug` label).
+- The issue is a **postmortem action item** (has a `~postmortem-action-item` label).
+
+These categories compete for priority in the normal product pipeline so that product and customer stakeholders have full visibility into the work being done on their behalf.
+
 1. Create a new engineering-initiated story using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=lukeheath&labels=story,~engineering-initiated&projects=&template=story.md&title=). Make sure the `~engineering-initiated` label is added, the `:product` label is removed, and the engineering output and architecture DRI (@lukeheath) is assigned.
 
-2. Remove the "Product" section and checklist from the issue description. 
+2. Remove the "Product" section and checklist from the issue description.
 
 3. Create the issue. The new user story will be automatically placed in the "New Requests" column of the [engineering GitHub board](https://github.com/orgs/fleetdm/projects/73). If you feel the issue is urgent, tag your EM or the engineering output and architecture DRI (@lukeheath) in a comment.
 
@@ -52,7 +60,7 @@ It's important to frame engineering-initiated user stories the same way we frame
 
 ### Draft an engineering-initiated story
 
-The engineering output and architecture DRI reviews and triages engineering-initiated stories weekly on the [Engineering board](https://github.com/orgs/fleetdm/projects/73) and selects stories to prioritize for drafting by adding the `:product` label, placing it in the "Ready" column, and assigning to the engineer listed as the product designer. 
+The engineering output and architecture DRI reviews and triages engineering-initiated stories weekly on the [Engineering board](https://github.com/orgs/fleetdm/projects/73) and selects stories to prioritize for drafting by adding the `:product` label, placing it in the "Ready" column, and assigning an engineer. 
 
 1. The assigned engineer is responsible for completing the user story drafting process by completing the specs and [defining done](https://fleetdm.com/handbook/company/product-groups#defining-done). Move the issue into "In progress" on the drafting board and populate all TODOs in the issue description, define implementation details, and draft the first version of the test plan.
 
@@ -151,7 +159,7 @@ Fleet responds to all P0 incidents by initiating our incident response process:
 
 1. Create a new [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md) in our confidential repo. 
 2. Edit the issue template to reflect the details of the incident. 
-3. Assign to the on-call engineer that received the incident for initial triage, as well as the current infrastrucure on-call engineer. 
+3. Assign to the current business hours or after hours on-call engineer (based on time of the incident) and the current infrastrucure on-call engineer. 
 4. Complete the steps listed based on the type of incident.
 
 Mitigating the outage may require writing and merging code. The current infrastructure on-call engineer is first line for all reviews and QA required to deploy a hot-fix. If additional code review or engineering support is needed, the responding engineer should escalate to their manager.
@@ -231,7 +239,13 @@ Our goal is to keep these dependencies up-to-date with each release of Fleet. If
 
 If an announcement is found for either data source that may impact data feed availability, notify the current [on-call engineer](https://fleetdm.com/handbook/engineering#business-hours-oncall-engineer). Notify them that it is their responsibility to investigate and file a bug or take further action as necessary. 
 
-5. [Fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd) components
+5. Vulnerability OS coverage
+- Check whether any new major operating system versions have been released since the last check.
+- **Windows**: Verify that new Windows Server and Windows desktop versions are included in the [MSRC product mapping](https://github.com/fleetdm/fleet/blob/main/server/vulnerabilities/msrc/parsed/product.go).
+
+If a new OS version is missing, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=).
+
+6. [Fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd) components
 - Check for code changes to [Orbit](https://github.com/fleetdm/fleet/blob/main/orbit/) or [Desktop](https://github.com/fleetdm/fleet/tree/main/orbit/cmd/desktop) since the last `orbit-*` tag was published.
 - Check for code changes to the [fleetd-chrome extension](https://github.com/fleetdm/fleet/tree/main/ee/fleetd-chrome) since the last `fleetd-chrome-*` tag was published.
 

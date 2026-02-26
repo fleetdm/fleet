@@ -154,21 +154,19 @@ const Vitals = ({
         fleet_desktop_version,
       } = vitalsData;
 
-      if (isChromeHost) {
-        vitals.push({
-          sortKey: "Agent",
-          element: (
-            <DataSet key="agent" title="Agent" value={osquery_version} />
-          ),
-        });
-      } else if (orbit_version !== DEFAULT_EMPTY_CELL_VALUE) {
-        vitals.push({
-          sortKey: "Agent",
-          element: (
-            <DataSet
-              key="agent"
-              title="Agent"
-              value={
+      const isChromeOrVanillaOsqueryHost =
+        isChromeHost || orbit_version === DEFAULT_EMPTY_CELL_VALUE;
+
+      vitals.push({
+        sortKey: "Agent",
+        element: (
+          <DataSet
+            key="agent"
+            title="Agent"
+            value={
+              isChromeOrVanillaOsqueryHost ? (
+                osquery_version
+              ) : (
                 <TooltipWrapper
                   tipContent={
                     <>
@@ -186,18 +184,11 @@ const Vitals = ({
                 >
                   {orbit_version}
                 </TooltipWrapper>
-              }
-            />
-          ),
-        });
-      } else {
-        vitals.push({
-          sortKey: "Osquery",
-          element: (
-            <DataSet key="osquery" title="Osquery" value={osquery_version} />
-          ),
-        });
-      }
+              )
+            }
+          />
+        ),
+      });
     }
 
     // Battery condition
@@ -309,38 +300,34 @@ const Vitals = ({
     }
 
     // Device identity
-    if (!(isAndroidHost && mdm && mdm.enrollment_status !== "On (personal)")) {
-      if (mdm && isBYODAccountDrivenUserEnrollment(mdm.enrollment_status)) {
-        //  Personal (BYOD) devices do not report their serial numbers, so show the enrollment id instead.
-        vitals.push({
-          sortKey: "Enrollment ID",
-          element: (
-            <DataSet
-              key="enrollment-id"
-              title={
-                <TooltipWrapper tipContent="Enrollment ID is a unique identifier for personal hosts. Personal (BYOD) devices don't report their serial numbers. The Enrollment ID changes with each enrollment.">
-                  Enrollment ID
-                </TooltipWrapper>
-              }
-              value={<TooltipTruncatedText value={vitalsData.uuid} />}
-            />
-          ),
-        });
-      } else {
-        // for all other host types, show the serial number
-        vitals.push({
-          sortKey: "Serial number",
-          element: (
-            <DataSet
-              key="serial-number"
-              title="Serial number"
-              value={
-                <TooltipTruncatedText value={vitalsData.hardware_serial} />
-              }
-            />
-          ),
-        });
-      }
+    if (mdm && isBYODAccountDrivenUserEnrollment(mdm.enrollment_status)) {
+      //  Personal (BYOD) devices do not report their serial numbers, so show the enrollment id instead.
+      vitals.push({
+        sortKey: "Enrollment ID",
+        element: (
+          <DataSet
+            key="enrollment-id"
+            title={
+              <TooltipWrapper tipContent="Enrollment ID is a unique identifier for personal hosts. Personal (BYOD) devices don't report their serial numbers. The Enrollment ID changes with each enrollment.">
+                Enrollment ID
+              </TooltipWrapper>
+            }
+            value={<TooltipTruncatedText value={vitalsData.uuid} />}
+          />
+        ),
+      });
+    } else {
+      // for all other host types, show the serial number
+      vitals.push({
+        sortKey: "Serial number",
+        element: (
+          <DataSet
+            key="serial-number"
+            title="Serial number"
+            value={<TooltipTruncatedText value={vitalsData.hardware_serial} />}
+          />
+        ),
+      });
     }
 
     // Hardware model

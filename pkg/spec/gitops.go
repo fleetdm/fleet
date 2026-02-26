@@ -285,52 +285,83 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		return nil, fmt.Errorf("failed to expand environment in file %s: %w", filePath, err)
 	}
 
-	var top map[string]json.RawMessage
-	if err := yaml.Unmarshal(b, &top); err != nil {
+	// First unmarshal to map[string]any for deprecation handling
+	var rawData map[string]any
+	if err := yaml.Unmarshal(b, &rawData); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal file %w: \n", err)
+	}
+
+	// Apply deprecated key mappings (e.g., team_settings -> settings, queries -> reports)
+	if err := ApplyDeprecatedKeyMappings(rawData, logFn); err != nil {
+		return nil, fmt.Errorf("failed to process deprecated keys in file %s: %w", filePath, err)
+	}
+
+	// Re-marshal and unmarshal to map[string]json.RawMessage for existing parsing logic
+	updatedBytes, err := json.Marshal(rawData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to re-marshal file %s: %w", filePath, err)
+	}
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(updatedBytes, &top); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal file %s: %w", filePath, err)
 	}
 
 	var multiError *multierror.Error
 	result := &GitOps{}
 	result.FleetSecrets = make(map[string]string)
 
-	topKeys := []string{"name", "team_settings", "org_settings", "agent_options", "controls", "policies", "queries", "software", "labels"}
+	topKeys := []string{"name", "settings", "org_settings", "agent_options", "controls", "policies", "reports", "software", "labels"}
 	for k := range top {
 		if !slices.Contains(topKeys, k) {
 			multiError = multierror.Append(multiError, fmt.Errorf("unknown top-level field: %s", k))
 		}
 	}
 
-	// Figure out if this is an org or team settings file
+	// Figure out if this is an org or fleet settings file
 	teamRaw, teamOk := top["name"]
-	teamSettingsRaw, teamSettingsOk := top["team_settings"]
+	settingsRaw, settingsOk := top["settings"]
 	orgSettingsRaw, orgOk := top["org_settings"]
 	switch {
 	case orgOk:
-		if teamOk || teamSettingsOk {
-			multiError = multierror.Append(multiError, errors.New("'org_settings' cannot be used with 'name', 'team_settings'"))
+		if teamOk || settingsOk {
+			multiError = multierror.Append(multiError, errors.New("'org_settings' cannot be used with 'name', 'settings'"))
 		} else {
 			multiError = parseOrgSettings(orgSettingsRaw, result, baseDir, filePath, multiError)
 		}
 	case teamOk:
 		multiError = parseName(teamRaw, result, filePath, multiError)
-		if result.IsNoTeam() {
-			if filepath.Base(filePath) != "no-team.yml" {
-				multiError = multierror.Append(multiError, fmt.Errorf("file %q for 'No team' must be named 'no-team.yml'", filePath))
+		// If the file is no-team.yml, the name must be "No team".
+		switch {
+		case filepath.Base(filePath) == "no-team.yml" && !result.IsNoTeam():
+			multiError = multierror.Append(multiError, fmt.Errorf("file %q must have team name 'No Team'", filePath))
+			return result, multiError.ErrorOrNil()
+		case filepath.Base(filePath) == "unassigned.yml" && !result.IsUnassignedTeam():
+			multiError = multierror.Append(multiError, fmt.Errorf("file %q must have team name 'Unassigned'", filePath))
+			return result, multiError.ErrorOrNil()
+		case result.IsNoTeam() && filepath.Base(filePath) != "no-team.yml":
+			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for No Team must be named `no-team.yml`", filePath))
+			multiError = multierror.Append(multiError, errors.New("no-team.yml is deprecated; please rename the file to 'unassigned.yml' and update the team name to 'Unassigned'."))
+			return result, multiError.ErrorOrNil()
+		case result.IsUnassignedTeam() && filepath.Base(filePath) != "unassigned.yml":
+			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for unassigned hosts must be named `unassigned.yml`", filePath))
+			return result, multiError.ErrorOrNil()
+		case result.IsNoTeam() || result.IsUnassignedTeam():
+			// Coerce to "No Team" for easier processing.
+			// TODO - Remove No Team in Fleet 5
+			result.TeamName = ptr.String(noTeam)
+			// For No Team, we allow settings but only process webhook_settings from it
+			if settingsOk {
+				multiError = parseNoTeamSettings(settingsRaw, result, filePath, multiError)
 			}
-			// For No Team, we allow team_settings but only process webhook_settings from it
-			if teamSettingsOk {
-				multiError = parseNoTeamSettings(teamSettingsRaw, result, filePath, multiError)
-			}
-		} else {
-			if !teamSettingsOk {
-				multiError = multierror.Append(multiError, errors.New("'team_settings' is required when 'name' is provided"))
+		default:
+			if !settingsOk {
+				multiError = multierror.Append(multiError, errors.New("'settings' is required when 'name' is provided"))
 			} else {
-				multiError = parseTeamSettings(teamSettingsRaw, result, baseDir, filePath, multiError)
+				multiError = parseTeamSettings(settingsRaw, result, baseDir, filePath, multiError)
 			}
 		}
 	default:
-		multiError = multierror.Append(multiError, errors.New("either 'org_settings' or 'name' and 'team_settings' is required"))
+		multiError = multierror.Append(multiError, errors.New("either 'org_settings' or 'name' and 'settings' is required"))
 	}
 
 	// Get the labels. If `labels:` is specified but no labels are listed, this will
@@ -378,11 +409,11 @@ func (g *GitOps) IsGlobal() bool {
 }
 
 func (g *GitOps) IsNoTeam() bool {
-	return g.TeamName != nil && isNoTeam(*g.TeamName)
+	return g.TeamName != nil && strings.EqualFold(*g.TeamName, noTeam)
 }
 
-func isNoTeam(teamName string) bool {
-	return strings.EqualFold(teamName, noTeam)
+func (g *GitOps) IsUnassignedTeam() bool {
+	return g.TeamName != nil && strings.EqualFold(*g.TeamName, unassignedTeamName)
 }
 
 func (g *GitOps) CoercedTeamName() string {
@@ -392,7 +423,10 @@ func (g *GitOps) CoercedTeamName() string {
 	return *g.TeamName
 }
 
-const noTeam = "No team"
+const (
+	noTeam             = "No team"
+	unassignedTeamName = "Unassigned"
+)
 
 func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
 	var orgSettingsTop BaseItem
@@ -449,7 +483,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
 	var teamSettingsTop BaseItem
 	if err := json.Unmarshal(raw, &teamSettingsTop); err != nil {
-		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"team_settings"}, err))
+		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"settings"}, err))
 	}
 	noError := true
 	if teamSettingsTop.Path != nil {
@@ -470,7 +504,7 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, file
 				if err := YamlUnmarshal(fileBytes, &pathTeamSettings); err != nil {
 					noError = false
 					multiError = multierror.Append(
-						multiError, MaybeParseTypeError(*teamSettingsTop.Path, []string{"team_settings"}, err),
+						multiError, MaybeParseTypeError(*teamSettingsTop.Path, []string{"settings"}, err),
 					)
 				} else {
 					if pathTeamSettings.Path != nil {
@@ -489,7 +523,7 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, file
 	if noError {
 		if err := YamlUnmarshal(raw, &result.TeamSettings); err != nil {
 			// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
-			multiError = multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"team_settings"}, err))
+			multiError = multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"settings"}, err))
 		} else {
 			multiError = parseSecrets(result, multiError)
 			// Validate webhook settings for regular teams
@@ -504,17 +538,17 @@ func validateTeamWebhookSettings(teamSettings map[string]any, multiError *multie
 	if webhookSettings, hasWebhook := teamSettings["webhook_settings"]; hasWebhook && webhookSettings != nil {
 		webhookMap, ok := webhookSettings.(map[string]any)
 		if !ok {
-			return multierror.Append(multiError, errors.New("'team_settings.webhook_settings' must be an object or null"))
+			return multierror.Append(multiError, errors.New("'settings.webhook_settings' must be an object or null"))
 		}
 
 		// Validate failing_policies_webhook if present
 		if fpw, hasFPW := webhookMap["failing_policies_webhook"]; hasFPW && fpw != nil {
 			fpwMap, ok := fpw.(map[string]any)
 			if !ok {
-				multiError = multierror.Append(multiError, errors.New("'team_settings.webhook_settings.failing_policies_webhook' must be an object or null"))
+				multiError = multierror.Append(multiError, errors.New("'settings.webhook_settings.failing_policies_webhook' must be an object or null"))
 			} else {
 				// Validate failing_policies_webhook structure
-				if err := validateFailingPoliciesWebhook(fpwMap, "team_settings.webhook_settings.failing_policies_webhook"); err != nil {
+				if err := validateFailingPoliciesWebhook(fpwMap, "settings.webhook_settings.failing_policies_webhook"); err != nil {
 					multiError = multierror.Append(multiError, err)
 				}
 			}
@@ -540,21 +574,21 @@ func validateFailingPoliciesWebhook(fpwMap map[string]any, keyPath string) error
 	return nil
 }
 
-// parseNoTeamSettings parses team_settings for "No Team" files, but only processes webhook_settings
+// parseNoTeamSettings parses settings for "No Team" files, but only processes webhook_settings
 func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, multiError *multierror.Error) *multierror.Error {
 	// Parse the raw JSON into a map to extract only webhook_settings
 	var teamSettingsMap map[string]interface{}
 	if err := json.Unmarshal(raw, &teamSettingsMap); err != nil {
-		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"team_settings"}, err))
+		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"settings"}, err))
 	}
 
-	// For No Team, only webhook_settings is allowed in team_settings
+	// For No Team, only webhook_settings is allowed in settings
 	// Jira/Zendesk integrations are not supported in gitops: https://github.com/fleetdm/fleet/issues/20287
 	// Check for any other keys and error if found
 	for key := range teamSettingsMap {
 		if key != "webhook_settings" {
 			multiError = multierror.Append(multiError,
-				fmt.Errorf("unsupported team_settings option '%s' for 'No team' - only 'webhook_settings' is allowed", key))
+				fmt.Errorf("unsupported settings option '%s' in %s - only 'webhook_settings' is allowed", key, filepath.Base(filePath)))
 		}
 	}
 
@@ -572,22 +606,22 @@ func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, m
 		} else {
 			webhookMap, ok := webhookRaw.(map[string]any)
 			if !ok {
-				return multierror.Append(multiError, errors.New("'team_settings.webhook_settings' must be an object or null"))
+				return multierror.Append(multiError, errors.New("'settings.webhook_settings' must be an object or null"))
 			}
 			for key := range webhookMap {
 				if key != "failing_policies_webhook" {
 					multiError = multierror.Append(multiError,
-						fmt.Errorf("unsupported webhook_settings option '%s' for 'No team'; only 'failing_policies_webhook' is allowed", key))
+						fmt.Errorf("unsupported webhook_settings option '%s' in %s - only 'failing_policies_webhook' is allowed", key, filepath.Base(filePath)))
 				}
 			}
 			// If present, ensure failing_policies_webhook is an object or null
 			if fpw, ok := webhookMap["failing_policies_webhook"]; ok && fpw != nil {
 				fpwMap, ok := fpw.(map[string]any)
 				if !ok {
-					multiError = multierror.Append(multiError, errors.New("'team_settings.webhook_settings.failing_policies_webhook' must be an object or null"))
+					multiError = multierror.Append(multiError, errors.New("'settings.webhook_settings.failing_policies_webhook' must be an object or null"))
 				} else {
 					// Validate failing_policies_webhook structure
-					if err := validateFailingPoliciesWebhook(fpwMap, "team_settings.webhook_settings.failing_policies_webhook"); err != nil {
+					if err := validateFailingPoliciesWebhook(fpwMap, "settings.webhook_settings.failing_policies_webhook"); err != nil {
 						multiError = multierror.Append(multiError, err)
 					}
 				}
@@ -611,7 +645,7 @@ func parseSecrets(result *GitOps, multiError *multierror.Error) *multierror.Erro
 	} else {
 		rawSecrets, ok = result.TeamSettings["secrets"]
 		if !ok {
-			return multierror.Append(multiError, errors.New("'team_settings.secrets' is required"))
+			return multierror.Append(multiError, errors.New("'settings.secrets' is required"))
 		}
 	}
 	// When secrets slice is empty, all secrets are removed.
@@ -654,7 +688,7 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 	agentOptionsRaw, ok := top["agent_options"]
 	if result.IsNoTeam() {
 		if ok {
-			logFn("[!] 'agent_options' is not supported for \"No team\". This key will be ignored.\n")
+			logFn("[!] 'agent_options' is not supported in %s. This key will be ignored.\n", filepath.Base(filePath))
 		}
 		return multiError
 	} else if !ok {
@@ -1010,6 +1044,7 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 }
 
 func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
+	parentFilePath := filePath
 	policiesRaw, ok := top["policies"]
 	if !ok {
 		return multierror.Append(multiError, errors.New("'policies' key is required"))
@@ -1024,7 +1059,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy install_software %q: %v", item.Name, err))
 				continue
 			}
-			if err := parsePolicyRunScript(baseDir, result.TeamName, &item, result.Controls.Scripts); err != nil {
+			if err := parsePolicyRunScript(baseDir, parentFilePath, result.TeamName, &item, result.Controls.Scripts); err != nil {
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy run_script %q: %v", item.Name, err))
 				continue
 			}
@@ -1060,7 +1095,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy install_software %q: %v", pp.Name, err))
 								continue
 							}
-							if err := parsePolicyRunScript(filepath.Dir(filePath), result.TeamName, pp, result.Controls.Scripts); err != nil {
+							if err := parsePolicyRunScript(filepath.Dir(filePath), parentFilePath, result.TeamName, pp, result.Controls.Scripts); err != nil {
 								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy run_script %q: %v", pp.Name, err))
 								continue
 							}
@@ -1087,7 +1122,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			item.Team = ""
 		}
 		if item.CalendarEventsEnabled && result.IsNoTeam() {
-			multiError = multierror.Append(multiError, fmt.Errorf("calendar events are not supported on \"No team\" policies: %q", item.Name))
+			multiError = multierror.Append(multiError, fmt.Errorf("calendar events are not supported on policies included in `%s`: %q", filepath.Base(parentFilePath), item.Name))
 		}
 	}
 	duplicates := getDuplicateNames(
@@ -1101,7 +1136,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	return multiError
 }
 
-func parsePolicyRunScript(baseDir string, teamName *string, policy *Policy, scripts []BaseItem) error {
+func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *string, policy *Policy, scripts []BaseItem) error {
 	if policy.RunScript == nil {
 		policy.ScriptID = ptr.Uint(0) // unset the script
 		return nil
@@ -1129,7 +1164,7 @@ func parsePolicyRunScript(baseDir string, teamName *string, policy *Policy, scri
 	}
 	if !scriptOnTeamFound {
 		if *teamName == noTeam {
-			return fmt.Errorf("policy script %s was not defined in controls in no-team.yml", scriptPath)
+			return fmt.Errorf("policy script %s was not defined in controls in %s", scriptPath, filepath.Base(parentFilePath))
 		}
 		return fmt.Errorf("policy script %s was not defined in controls for %s", scriptPath, *teamName)
 	}
@@ -1209,18 +1244,18 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 }
 
 func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, filePath string, multiError *multierror.Error) *multierror.Error {
-	queriesRaw, ok := top["queries"]
+	reportsRaw, ok := top["reports"]
 	if result.IsNoTeam() {
 		if ok {
-			logFn("[!] 'queries' is not supported for \"No team\". This key will be ignored.\n")
+			logFn("[!] 'reports' is not supported in %s. This key will be ignored.\n", filepath.Base(filePath))
 		}
 		return multiError
 	} else if !ok {
-		return multierror.Append(multiError, errors.New("'queries' key is required"))
+		return multierror.Append(multiError, errors.New("'reports' key is required"))
 	}
 	var queries []Query
-	if err := json.Unmarshal(queriesRaw, &queries); err != nil {
-		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"queries"}, err))
+	if err := json.Unmarshal(reportsRaw, &queries); err != nil {
+		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"reports"}, err))
 	}
 	for _, item := range queries {
 		if item.Path == nil {
@@ -1228,7 +1263,7 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 		} else {
 			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
 			if err != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("failed to read queries file %s: %v", *item.Path, err))
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to read reports file %s: %v", *item.Path, err))
 				continue
 			}
 			// Replace $var and ${var} with env values.
@@ -1240,7 +1275,7 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 			} else {
 				var pathQueries []*Query
 				if err := YamlUnmarshal(fileBytes, &pathQueries); err != nil {
-					multiError = multierror.Append(multiError, MaybeParseTypeError(*item.Path, []string{"queries"}, err))
+					multiError = multierror.Append(multiError, MaybeParseTypeError(*item.Path, []string{"reports"}, err))
 					continue
 				}
 				for _, pq := range pathQueries {

@@ -25,6 +25,8 @@ type Options struct {
 	// TracingEnabled enables OpenTelemetry trace correlation.
 	// When enabled, trace_id and span_id are automatically injected into logs.
 	TracingEnabled bool
+	// AddSource adds source file and line number to log entries.
+	AddSource bool
 	// OtelLogsEnabled enables exporting logs to an OpenTelemetry collector.
 	// When enabled, logs are sent to both the primary handler (stderr) and OTEL.
 	OtelLogsEnabled bool
@@ -52,6 +54,7 @@ func NewSlogLogger(opts Options) *slog.Logger {
 	}
 
 	handlerOpts := &slog.HandlerOptions{
+		AddSource:   opts.AddSource,
 		Level:       level,
 		ReplaceAttr: replaceAttr,
 	}
@@ -73,6 +76,10 @@ func NewSlogLogger(opts Options) *slog.Logger {
 		otelHandler := otelslog.NewHandler("fleet", otelslog.WithLoggerProvider(opts.LoggerProvider))
 		handler = NewMultiHandler(handler, otelHandler)
 	}
+
+	// Wrap with topic filter as outermost handler so topic-disabled
+	// messages are dropped before any other handler processes them.
+	handler = NewTopicFilterHandler(handler)
 
 	return slog.New(handler)
 }
@@ -149,21 +156,10 @@ func (h *OtelTracingHandler) WithGroup(name string) slog.Handler {
 // Ensure OtelTracingHandler implements slog.Handler at compile time.
 var _ slog.Handler = (*OtelTracingHandler)(nil)
 
-// DiscardHandler is a slog.Handler that discards all log records.
-type DiscardHandler struct{}
-
-func (DiscardHandler) Enabled(context.Context, slog.Level) bool  { return false }
-func (DiscardHandler) Handle(context.Context, slog.Record) error { return nil }
-func (d DiscardHandler) WithAttrs([]slog.Attr) slog.Handler      { return d }
-func (d DiscardHandler) WithGroup(string) slog.Handler           { return d }
-
-// Ensure DiscardHandler implements slog.Handler at compile time.
-var _ slog.Handler = DiscardHandler{}
-
 // NewNopLogger returns a no-op *Logger that discards all log output.
 // Use this in tests instead of kitlog.NewNopLogger() to maintain type safety.
 func NewNopLogger() *Logger {
-	return NewLogger(slog.New(DiscardHandler{}))
+	return NewLogger(slog.New(slog.DiscardHandler))
 }
 
 // NewLogfmtLogger creates a *Logger that outputs text-formatted logs to the given writer.

@@ -23,8 +23,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/google/uuid"
 	dsig "github.com/russellhaering/goxmldsig"
 )
 
@@ -104,7 +104,7 @@ func RegisterIdP(
 // This function should be used whenever returning StatusInternalServerError to ensure
 // consistent error handling across the IdP service.
 // Additional key-value pairs can be passed for logging context (e.g., "host_id", hostID).
-func handleInternalServerError(ctx context.Context, w http.ResponseWriter, logger kitlog.Logger, msg string, err error, keyvals ...any) {
+func handleInternalServerError(ctx context.Context, w http.ResponseWriter, logger *logging.Logger, msg string, err error, keyvals ...any) {
 	// Build the log keyvals starting with msg and err
 	logKeyvals := []any{"msg", msg, "err", err}
 	logKeyvals = append(logKeyvals, keyvals...)
@@ -243,7 +243,7 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 type statusInterceptingWriter struct {
 	http.ResponseWriter
 	ctx           context.Context
-	logger        kitlog.Logger
+	logger        *logging.Logger
 	r             *http.Request
 	redirectURL   string
 	headerWritten bool
@@ -301,7 +301,7 @@ func extractNameID(req *saml.IdpAuthnRequest) string {
 // device health verification during SAML SSO flow.
 type deviceHealthSessionProvider struct {
 	ds     fleet.Datastore
-	logger kitlog.Logger
+	logger *logging.Logger
 	hostID uint
 }
 
@@ -382,18 +382,56 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 			"host_id", p.hostID,
 			"failing_conditional_access_policies_count", failingConditionalAccessCount,
 		)
-		authToken, err := p.ds.GetDeviceAuthToken(ctx, host.ID)
-		if err != nil {
-			// The auth token is unavailable for some reason, redirect to the non-device-specific
-			// remediation page and log the error. Could happen if fleet desktop was never able to
-			// create a token?
+		authToken, getErr := p.ds.GetDeviceAuthToken(ctx, host.ID)
+
+		var needNewToken bool
+		switch {
+		case getErr == nil:
+			// Token exists. Check if it's expired. Use the same TTL as device authentication.
+			// In practice, Orbit rotates tokens proactively (before expiration), so an expired
+			// token here means Orbit is not running (crashed, not installed, or can't reach the
+			// server). Even if Orbit rotates concurrently, the previous_token mechanism ensures
+			// the old token remains valid after rotation.
+			const deviceAuthTokenTTL = time.Hour
+			if _, loadErr := p.ds.LoadHostByDeviceAuthToken(ctx, authToken, deviceAuthTokenTTL); loadErr != nil {
+				if fleet.IsNotFound(loadErr) {
+					needNewToken = true // Case 1: token exists but is expired
+				} else {
+					level.Error(p.logger).Log("msg", "failed to validate device auth token", "err", loadErr, "host_id", p.hostID)
+					ctxerr.Handle(ctx, loadErr)
+					http.Redirect(w, r, remediateURL, http.StatusSeeOther)
+					return nil
+				}
+			}
+		case fleet.IsNotFound(getErr):
+			needNewToken = true // Case 2: no token exists (e.g. fresh install without Fleet Desktop)
+		default:
+			// Unexpected error. Log and redirect to generic remediation page.
 			level.Error(p.logger).Log(
-				"msg", "device auth token not found",
-				"err", err,
+				"msg", "failed to get device auth token",
+				"err", getErr,
 				"host_id", p.hostID,
 			)
+			ctxerr.Handle(ctx, getErr)
 			http.Redirect(w, r, remediateURL, http.StatusSeeOther)
 			return nil
+		}
+
+		if needNewToken {
+			// Create a server-side token so the redirect URL works.
+			// If Fleet Desktop is running, Orbit will overwrite this with a client-generated
+			// token on its next rotation, but this token will remain valid as
+			// previous_token for one rotation cycle.
+			authToken = uuid.NewString()
+			if setErr := p.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, authToken); setErr != nil {
+				level.Error(p.logger).Log(
+					"msg", "failed to create device auth token",
+					"err", setErr,
+					"host_id", p.hostID,
+				)
+				http.Redirect(w, r, remediateURL, http.StatusSeeOther)
+				return nil
+			}
 		}
 
 		config, err := p.ds.AppConfig(ctx)
@@ -451,7 +489,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 // Okta service provider metadata to the IdP.
 type oktaServiceProviderProvider struct {
 	ds     fleet.Datastore
-	logger kitlog.Logger
+	logger *logging.Logger
 }
 
 // GetServiceProvider returns the Okta service provider metadata.
@@ -569,8 +607,7 @@ func (s *idpService) buildIdentityProvider(ctx context.Context, serverURL string
 	}
 	ssoURL = ssoURL.JoinPath(idpSSOPath)
 
-	// Create kitlog adapter for SAML library
-	samlLogger := &kitlogAdapter{logger: s.logger.With("component", "saml-idp")}
+	samlLogger := &slogAdapter{ctx: ctx, logger: s.logger.SlogLogger().With("component", "saml-idp")}
 
 	// Build IdentityProvider
 	// Note: SessionProvider is set dynamically in serveSSO based on the authenticated device

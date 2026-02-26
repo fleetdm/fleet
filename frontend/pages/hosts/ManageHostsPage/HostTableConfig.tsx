@@ -197,9 +197,9 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     ),
   },
   {
-    title: "Team",
+    title: "Fleet",
     Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell value="Team" isSortedDesc={cellProps.column.isSortedDesc} />
+      <HeaderCell value="Fleet" isSortedDesc={cellProps.column.isSortedDesc} />
     ),
     accessor: "team_name",
     id: "team_name",
@@ -214,8 +214,8 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
         <TooltipWrapper
           tipContent={
             <>
-              Online hosts will respond to a live query. Offline hosts
-              won&apos;t respond to a live query because they may be shut down,
+              Online hosts will respond to a live report. Offline hosts
+              won&apos;t respond to a live report because they may be shut down,
               asleep, or not connected to the internet.
             </>
           }
@@ -354,8 +354,8 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     },
   },
   {
-    title: "Used by",
-    Header: "Used by",
+    title: "User email",
+    Header: "User email",
     disableSortBy: true,
     accessor: "device_mapping",
     id: "device_mapping",

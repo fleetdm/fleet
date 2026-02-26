@@ -101,7 +101,7 @@ interface ISoftwarePageProps {
     pathname: string;
     search: string;
     query: {
-      team_id?: string;
+      fleet_id?: string;
       available_for_install?: string;
       self_service?: string;
       vulnerable?: string;
@@ -274,7 +274,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     } else {
       router.push(
         getPathWithQueryParams(PATHS.SOFTWARE_ADD_FLEET_MAINTAINED, {
-          team_id: currentTeamId,
+          fleet_id: currentTeamId,
         })
       );
     }
@@ -312,7 +312,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     (i: number): void => {
       // Only query param to persist between tabs is team id
       const teamIdParam = {
-        team_id: location?.query.team_id,
+        fleet_id: location?.query.fleet_id,
         page: 0, // Fixes flakey page reset in API call when switching between tabs
       };
 
@@ -341,7 +341,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             underline={false}
             tipContent={
               <div className={`${baseClass}__header__tooltip`}>
-                Select &ldquo;All teams&rdquo; to manage automations.
+                Select &ldquo;All fleets&rdquo; to manage automations.
               </div>
             }
             disableTooltip={isAllTeamsSelected || isPrimoMode}
@@ -366,7 +366,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             tipContent={
               <div className={`${baseClass}__header__tooltip`}>
                 {isPremiumTier
-                  ? "Select a team to add software."
+                  ? "Select a fleet to add software."
                   : "This feature is included in Fleet Premium."}
               </div>
             }
@@ -384,14 +384,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   };
 
   const renderHeaderDescription = () => {
-    let suffix;
-    if (!isPrimoMode) {
-      suffix = isAllTeamsSelected ? " for all hosts" : " on this team";
-    }
     return (
       <>
         Manage software and search for installed software, OS, and
-        vulnerabilities{suffix}.
+        vulnerabilities.
       </>
     );
   };

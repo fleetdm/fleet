@@ -11,7 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/gorilla/mux"
 )
 
@@ -63,7 +63,7 @@ func StartTestSCEPServer(t *testing.T) *httptest.Server {
 		if err != nil {
 			t.Fatal(err)
 		}
-		logger := kitlog.NewNopLogger()
+		logger := logging.NewNopLogger()
 		e := scepserver.MakeServerEndpoints(svc)
 		scepHandler := scepserver.MakeHTTPHandler(e, svc, logger)
 		r := mux.NewRouter()

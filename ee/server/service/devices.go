@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/log/level"
 )
 
 func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
@@ -24,7 +23,7 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 // the server/webhooks one because it is a Fleet Premium only feature and for
 // licensing reasons this needs to live under this package.
 func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Host) error {
-	level.Debug(svc.logger).Log("msg", "trigger migration webhook", "host_id", host.ID,
+	svc.logger.DebugContext(ctx, "trigger migration webhook", "host_id", host.ID,
 		"refetch_critical_queries_until", host.RefetchCriticalQueriesUntil)
 
 	ac, err := svc.ds.AppConfig(ctx)
@@ -39,7 +38,7 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 		// the webhook has already been triggered successfully recently (within the
 		// refetch critical queries delay), so return as if it did send it successfully
 		// but do not re-send.
-		level.Debug(svc.logger).Log("msg", "waiting for critical queries refetch, skip sending webhook",
+		svc.logger.DebugContext(ctx, "waiting for critical queries refetch, skip sending webhook",
 			"host_id", host.ID)
 		return nil
 	}
@@ -81,7 +80,7 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 	p.Host.UUID = host.UUID
 	p.Host.HardwareSerial = host.HardwareSerial
 
-	if err := server.PostJSONWithTimeout(ctx, ac.MDM.MacOSMigration.WebhookURL, p); err != nil {
+	if err := server.PostJSONWithTimeout(ctx, ac.MDM.MacOSMigration.WebhookURL, p, svc.logger.SlogLogger()); err != nil {
 		return ctxerr.Wrap(ctx, err, "posting macOS migration webhook")
 	}
 
@@ -235,7 +234,7 @@ func (svc *Service) validateReadyForLinuxEscrow(ctx context.Context, host *fleet
 
 	if host.TeamID == nil {
 		if !ac.MDM.EnableDiskEncryption.Value {
-			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for hosts not assigned to a team."}
+			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for hosts not assigned to a fleet."}
 		}
 	} else {
 		tc, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
@@ -243,7 +242,7 @@ func (svc *Service) validateReadyForLinuxEscrow(ctx context.Context, host *fleet
 			return err
 		}
 		if !tc.EnableDiskEncryption {
-			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for this host's team."}
+			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for this host's fleet."}
 		}
 	}
 

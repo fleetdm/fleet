@@ -26,13 +26,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/spf13/cast"
 	"golang.org/x/exp/slices"
@@ -259,7 +259,7 @@ func (svc *Service) serialUpdateHost(host *fleet.Host) {
 	}
 }
 
-func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier string, details map[string](map[string]string)) string {
+func getHostIdentifier(logger *platformlogging.Logger, identifierOption, providedIdentifier string, details map[string](map[string]string)) string {
 	switch identifierOption {
 	case "provided":
 		// Use the host identifier already provided in the request.
@@ -1303,7 +1303,7 @@ func processCalendarPolicies(
 	appConfig *fleet.AppConfig,
 	host *fleet.Host,
 	policyResults map[uint]*bool,
-	logger log.Logger,
+	logger *platformlogging.Logger,
 ) error {
 	if len(appConfig.Integrations.GoogleCalendar) == 0 || host.TeamID == nil {
 		return nil
@@ -1373,6 +1373,7 @@ func processCalendarPolicies(
 				if err := fleet.FireCalendarWebhook(
 					team.Config.Integrations.GoogleCalendar.WebhookURL,
 					host.ID, host.HardwareSerial, host.DisplayName(), failingCalendarPolicies, "",
+					logger.SlogLogger(),
 				); err != nil {
 					var statusCoder kithttp.StatusCoder
 					if errors.As(err, &statusCoder) && statusCoder.StatusCode() == http.StatusTooManyRequests {
@@ -1509,8 +1510,10 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 
 	// Extract the Python and Debian packages from the software list for filtering
 	// pre-allocating space for 40 packages based on number of package found in
-	// a fresh ubuntu 24.04 install
-	pythonPackages := make(map[string]int, 40)
+	// a fresh ubuntu 24.04 install.
+	// A python package name may appear multiple times (e.g. from multiple user directories),
+	// so we track all indexes for each name.
+	pythonPackages := make(map[string][]int, 40)
 	debPackages := make(map[string]struct{}, 40)
 	rpmPackages := make(map[string]struct{}, 60)
 
@@ -1521,7 +1524,7 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 		switch row["source"] {
 		case pythonSource:
 			loweredName := strings.ToLower(row["name"])
-			pythonPackages[loweredName] = i
+			pythonPackages[loweredName] = append(pythonPackages[loweredName], i)
 			row["name"] = loweredName
 		case debSource:
 			// Only append python3 deb packages
@@ -1541,17 +1544,19 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 	}
 
 	// Loop through pythonPackages map to identify any that should be removed
-	for name, index := range pythonPackages {
+	for name, indexes := range pythonPackages {
 		convertedName := pythonPrefix + name
 
-		// Filter out Python packages that are also Debian packages
+		// Filter out Python packages that are also Debian or RPM packages
 		if _, found := debPackages[convertedName]; found {
-			indexesToRemove = append(indexesToRemove, index)
+			indexesToRemove = append(indexesToRemove, indexes...)
 		} else if _, found := rpmPackages[convertedName]; found {
-			indexesToRemove = append(indexesToRemove, index)
+			indexesToRemove = append(indexesToRemove, indexes...)
 		} else {
 			// Update remaining Python package names to match OVAL definitions
-			sw[index]["name"] = convertedName
+			for _, index := range indexes {
+				sw[index]["name"] = convertedName
+			}
 		}
 	}
 

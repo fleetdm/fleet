@@ -3,11 +3,16 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	fleetserver "github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/activity"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -15,6 +20,31 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// webhookTestProviders implements activity.DataProviders for webhook tests.
+type webhookTestProviders struct {
+	getWebhookConfig func() (*activity.ActivitiesWebhookSettings, error)
+}
+
+func (p *webhookTestProviders) GetActivitiesWebhookConfig(_ context.Context) (*activity.ActivitiesWebhookSettings, error) {
+	return p.getWebhookConfig()
+}
+
+func (p *webhookTestProviders) ActivateNextUpcomingActivity(_ context.Context, _ uint, _ string) error {
+	return nil
+}
+
+func (p *webhookTestProviders) MaskSecretURLParams(rawURL string) string { return rawURL }
+func (p *webhookTestProviders) MaskURLError(err error) error             { return err }
+func (p *webhookTestProviders) UsersByIDs(_ context.Context, _ []uint) ([]*activity.User, error) {
+	return nil, nil
+}
+func (p *webhookTestProviders) FindUserIDs(_ context.Context, _ string) ([]uint, error) {
+	return nil, nil
+}
+func (p *webhookTestProviders) GetHostLite(_ context.Context, _ uint) (*activity.Host, error) {
+	return nil, nil
+}
 
 type ActivityTypeTest struct {
 	Name string `json:"name"`
@@ -82,11 +112,10 @@ func Test_logRoleChangeActivities(t *testing.T) {
 		},
 	}
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
 	var activities []string
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
 		activities = append(activities, activity.ActivityName())
 		return nil
 	}
@@ -122,7 +151,8 @@ func Test_logRoleChangeActivities(t *testing.T) {
 
 func TestActivityWebhooks(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
 	var webhookBody = fleet.ActivityWebhookPayload{}
 	webhookChannel := make(chan struct{}, 1)
 	fail429 := false
@@ -172,24 +202,26 @@ func TestActivityWebhooks(t *testing.T) {
 	mockUrl := startMockServer(t)
 	testUrl := mockUrl
 
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{
-			WebhookSettings: fleet.WebhookSettings{
-				ActivitiesWebhook: fleet.ActivitiesWebhookSettings{
-					Enable:         true,
-					DestinationURL: testUrl,
-				},
-			},
-		}, nil
+	// Wire a real activity bounded context service as delegate so that webhook
+	// firing (which lives in the bounded context) is exercised. The mock still
+	// captures invocations and the user for assertions.
+	providers := &webhookTestProviders{
+		getWebhookConfig: func() (*activity.ActivitiesWebhookSettings, error) {
+			return &activity.ActivitiesWebhookSettings{
+				Enable:         true,
+				DestinationURL: testUrl,
+			}, nil
+		},
 	}
-	var activityUser *fleet.User
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	discardLogger := slog.New(slog.DiscardHandler)
+	realActivitySvc := activity_bootstrap.NewForUnitTests(providers, func(ctx context.Context, url string, payload any) error {
+		return fleetserver.PostJSONWithTimeout(ctx, url, payload, discardLogger)
+	}, discardLogger)
+	opts.ActivityMock.Delegate = realActivitySvc
+
+	var activityUser *activity_api.User
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, user *activity_api.User, _ activity_api.ActivityDetails) error {
 		activityUser = user
-		assert.NotEmpty(t, details)
-		assert.True(t, createdAt.After(time.Now().Add(-10*time.Second)))
-		assert.False(t, createdAt.After(time.Now()))
 		return nil
 	}
 
@@ -232,11 +264,11 @@ func TestActivityWebhooks(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				ds.NewActivityFuncInvoked = false
+				opts.ActivityMock.NewActivityFuncInvoked = false
 				testUrl = tt.url
 				startTime := time.Now()
-				activity := ActivityTypeTest{Name: tt.name}
-				err := svc.NewActivity(ctx, tt.user, activity)
+				act := ActivityTypeTest{Name: tt.name}
+				err := svc.NewActivity(ctx, tt.user, act)
 				require.NoError(t, err)
 				select {
 				case <-time.After(1 * time.Second):
@@ -263,15 +295,22 @@ func TestActivityWebhooks(t *testing.T) {
 							require.NotNil(t, webhookBody.ActorEmail)
 							assert.Equal(t, tt.user.Email, *webhookBody.ActorEmail)
 						}
-						assert.Equal(t, activity.ActivityName(), webhookBody.Type)
+						assert.Equal(t, act.ActivityName(), webhookBody.Type)
 						var details map[string]string
 						require.NoError(t, json.Unmarshal(*webhookBody.Details, &details))
 						assert.Len(t, details, 1)
 						assert.Equal(t, tt.name, details["name"])
 					}
 				}
-				require.True(t, ds.NewActivityFuncInvoked)
-				assert.Equal(t, tt.user, activityUser)
+				require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+				if tt.user == nil {
+					assert.Nil(t, activityUser)
+				} else {
+					require.NotNil(t, activityUser)
+					assert.Equal(t, tt.user.ID, activityUser.ID)
+					assert.Equal(t, tt.user.Name, activityUser.Name)
+					assert.Equal(t, tt.user.Email, activityUser.Email)
+				}
 			},
 		)
 	}
@@ -279,7 +318,8 @@ func TestActivityWebhooks(t *testing.T) {
 
 func TestActivityWebhooksDisabled(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
 	startMockServer := func(t *testing.T) string {
 		// create a test http server
 		srv := httptest.NewServer(
@@ -304,14 +344,9 @@ func TestActivityWebhooksDisabled(t *testing.T) {
 			},
 		}, nil
 	}
-	var activityUser *fleet.User
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	var activityUser *activity_api.User
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, user *activity_api.User, _ activity_api.ActivityDetails) error {
 		activityUser = user
-		assert.NotEmpty(t, details)
-		assert.True(t, createdAt.After(time.Now().Add(-10*time.Second)))
-		assert.False(t, createdAt.After(time.Now()))
 		return nil
 	}
 	activity := ActivityTypeTest{Name: "no webhook"}
@@ -321,8 +356,11 @@ func TestActivityWebhooksDisabled(t *testing.T) {
 		Email: "testUser@example.com",
 	}
 	require.NoError(t, svc.NewActivity(ctx, user, activity))
-	require.True(t, ds.NewActivityFuncInvoked)
-	assert.Equal(t, user, activityUser)
+	require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+	require.NotNil(t, activityUser)
+	assert.Equal(t, user.ID, activityUser.ID)
+	assert.Equal(t, user.Name, activityUser.Name)
+	assert.Equal(t, user.Email, activityUser.Email)
 }
 
 func TestCancelHostUpcomingActivityAuth(t *testing.T) {

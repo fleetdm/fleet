@@ -1,0 +1,1 @@
+* Improved host search to always match against host email addresses, not only when the query looks like an email.

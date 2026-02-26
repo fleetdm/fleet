@@ -7,14 +7,25 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"time"
 
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/log/level"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
+
+// queryAllowedOrderKeys defines the allowed order keys for ListQueries.
+// SECURITY: This prevents information disclosure via arbitrary column sorting.
+var queryAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":         "q.id",
+	"name":       "q.name",
+	"team_id":    "q.team_id",
+	"created_at": "q.created_at",
+	"updated_at": "q.updated_at",
+}
 
 const (
 	statsScheduledQueryType = iota
@@ -223,7 +234,7 @@ func (ds *Datastore) QueryByName(
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &query, stmt, args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("Query").WithName(name))
+			return nil, ctxerr.Wrap(ctx, notFound("Report").WithName(name))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting query by name")
 	}
@@ -243,6 +254,10 @@ func (ds *Datastore) NewQuery(
 	if err := query.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+	now := time.Now().UTC().Truncate(time.Second)
+	query.CreatedAt = now
+	query.UpdatedAt = now
+
 	queryStatement := `
 		INSERT INTO queries (
 			name,
@@ -258,8 +273,10 @@ func (ds *Datastore) NewQuery(
 			schedule_interval,
 			automations_enabled,
 			logging_type,
-			discard_data
-		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+			discard_data,
+			created_at,
+			updated_at
+		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 	`
 
 	result, err := ds.writer(ctx).ExecContext(
@@ -279,6 +296,8 @@ func (ds *Datastore) NewQuery(
 		query.AutomationsEnabled,
 		query.Logging,
 		query.DiscardData,
+		query.CreatedAt,
+		query.UpdatedAt,
 	)
 
 	if err != nil && IsDuplicate(err) {
@@ -451,7 +470,7 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscar
 		return ctxerr.Wrap(ctx, err, "rows affected updating query")
 	}
 	if rows == 0 {
-		return ctxerr.Wrap(ctx, notFound("Query").WithID(q.ID))
+		return ctxerr.Wrap(ctx, notFound("Report").WithID(q.ID))
 	}
 
 	if shouldDeleteStats {
@@ -556,11 +575,11 @@ func (ds *Datastore) deleteQueryStats(ctx context.Context, queryIDs []uint) {
 	stmt := "DELETE FROM scheduled_query_stats WHERE scheduled_query_id IN (?)"
 	stmt, args, err := sqlx.In(stmt, queryIDs)
 	if err != nil {
-		level.Error(ds.logger).Log("msg", "error creating delete query stats statement", "err", err)
+		ds.logger.ErrorContext(ctx, "error creating delete query stats statement", "err", err)
 	} else {
 		_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
 		if err != nil {
-			level.Error(ds.logger).Log("msg", "error deleting query stats", "err", err)
+			ds.logger.ErrorContext(ctx, "error deleting query stats", "err", err)
 		}
 	}
 
@@ -568,11 +587,11 @@ func (ds *Datastore) deleteQueryStats(ctx context.Context, queryIDs []uint) {
 	stmt = fmt.Sprintf("DELETE FROM aggregated_stats WHERE type = '%s' AND id IN (?)", fleet.AggregatedStatsTypeScheduledQuery)
 	stmt, args, err = sqlx.In(stmt, queryIDs)
 	if err != nil {
-		level.Error(ds.logger).Log("msg", "error creating delete aggregated stats statement", "err", err)
+		ds.logger.ErrorContext(ctx, "error creating delete aggregated stats statement", "err", err)
 	} else {
 		_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
 		if err != nil {
-			level.Error(ds.logger).Log("msg", "error deleting aggregated stats", "err", err)
+			ds.logger.ErrorContext(ctx, "error deleting aggregated stats", "err", err)
 		}
 	}
 }
@@ -619,7 +638,7 @@ func query(ctx context.Context, db sqlx.QueryerContext, id uint) (*fleet.Query, 
 	query := &fleet.Query{}
 	if err := sqlx.GetContext(ctx, db, query, sqlQuery, false, fleet.AggregatedStatsTypeScheduledQuery, id); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("Query").WithID(id))
+			return nil, ctxerr.Wrap(ctx, notFound("Report").WithID(id))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting query")
 	}
@@ -714,7 +733,10 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 		getQueriesCountStmt = fmt.Sprintf("SELECT COUNT(DISTINCT id) AS total, 0 AS inherited FROM (%s) AS s", getQueriesStmt)
 	}
 
-	getQueriesStmt, args = appendListOptionsWithCursorToSQL(getQueriesStmt, args, &opt.ListOptions)
+	getQueriesStmt, args, err = appendListOptionsWithCursorToSQLSecure(getQueriesStmt, args, &opt.ListOptions, queryAllowedOrderKeys)
+	if err != nil {
+		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 
 	dbReader := ds.reader(ctx)
 	queries = []*fleet.Query{}

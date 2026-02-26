@@ -15,7 +15,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
-	"github.com/go-kit/log/level"
 	"github.com/spf13/cobra"
 )
 
@@ -51,7 +50,7 @@ by an exit code of zero.`,
 				fleet.WriteExpiredLicenseBanner(os.Stderr)
 			}
 
-			ds, err := mysql.New(cfg.Mysql, clock.C, mysql.Logger(logger))
+			ds, err := mysql.New(cfg.Mysql, clock.C, mysql.Logger(logger.SlogLogger()))
 			if err != nil {
 				return err
 			}
@@ -103,13 +102,13 @@ by an exit code of zero.`,
 				return err
 			}
 			vulnConfig := cfg.Vulnerabilities
-			vulnPath := configureVulnPath(vulnConfig, appConfig, logger)
+			vulnPath := configureVulnPath(ctx, vulnConfig, appConfig, logger)
 			// this really shouldn't ever be empty string since it's defaulted, but could be due to some misconfiguration
 			// we'll throw an error here since the entire point of this command is to process vulnerabilities
 			if vulnPath == "" {
 				return errors.New("vuln path empty, check environment variables or app config yml")
 			}
-			level.Info(logger).Log("msg", "scanning vulnerabilities")
+			logger.InfoContext(ctx, "scanning vulnerabilities")
 			start := time.Now()
 			vulnFuncs := getVulnFuncs(ds, logger, &vulnConfig)
 			for _, vulnFunc := range vulnFuncs {
@@ -117,7 +116,7 @@ by an exit code of zero.`,
 					return err
 				}
 			}
-			level.Info(logger).Log("msg", "vulnerability processing finished", "took", time.Since(start))
+			logger.InfoContext(ctx, "vulnerability processing finished", "took", time.Since(start))
 
 			return
 		},
@@ -135,12 +134,11 @@ by an exit code of zero.`,
 	return vulnProcessingCmd
 }
 
-func configureVulnPath(vulnConfig config.VulnerabilitiesConfig, appConfig *fleet.AppConfig, logger *logging.Logger) (vulnPath string) {
+func configureVulnPath(ctx context.Context, vulnConfig config.VulnerabilitiesConfig, appConfig *fleet.AppConfig, logger *logging.Logger) (vulnPath string) {
 	switch {
 	case vulnConfig.DatabasesPath != "" && appConfig != nil && appConfig.VulnerabilitySettings.DatabasesPath != "":
 		vulnPath = vulnConfig.DatabasesPath
-		level.Info(logger).Log(
-			"msg", "fleet config takes precedence over app config when both are configured",
+		logger.InfoContext(ctx, "fleet config takes precedence over app config when both are configured",
 			"databases_path", vulnPath,
 		)
 	case vulnConfig.DatabasesPath != "":
@@ -148,7 +146,7 @@ func configureVulnPath(vulnConfig config.VulnerabilitiesConfig, appConfig *fleet
 	case appConfig != nil && appConfig.VulnerabilitySettings.DatabasesPath != "":
 		vulnPath = appConfig.VulnerabilitySettings.DatabasesPath
 	default:
-		level.Info(logger).Log("msg", "vulnerability scanning not configured, vulnerabilities databases path is empty")
+		logger.InfoContext(ctx, "vulnerability scanning not configured, vulnerabilities databases path is empty")
 	}
 	return vulnPath
 }
@@ -169,30 +167,40 @@ func getVulnFuncs(ds fleet.Datastore, logger *logging.Logger, config *config.Vul
 		{
 			Name: "cron_sync_host_software",
 			VulnFunc: func(ctx context.Context) error {
+				ctx, span := tracer.Start(ctx, "vuln.sync_host_software")
+				defer span.End()
 				return ds.SyncHostsSoftware(ctx, time.Now())
 			},
 		},
 		{
 			Name: "cron_cleanup_software_titles",
 			VulnFunc: func(ctx context.Context) error {
+				ctx, span := tracer.Start(ctx, "vuln.cleanup_software_titles")
+				defer span.End()
 				return ds.CleanupSoftwareTitles(ctx)
 			},
 		},
 		{
 			Name: "cron_sync_hosts_software_titles",
 			VulnFunc: func(ctx context.Context) error {
+				ctx, span := tracer.Start(ctx, "vuln.sync_host_software_titles")
+				defer span.End()
 				return ds.SyncHostsSoftwareTitles(ctx, time.Now())
 			},
 		},
 		{
 			Name: "update_host_issues_vulnerabilities_counts",
 			VulnFunc: func(ctx context.Context) error {
+				ctx, span := tracer.Start(ctx, "vuln.update_host_issues")
+				defer span.End()
 				return ds.UpdateHostIssuesVulnerabilities(ctx)
 			},
 		},
 		{
 			Name: "insert_kernel_software_mapping",
 			VulnFunc: func(ctx context.Context) error {
+				ctx, span := tracer.Start(ctx, "vuln.kernel_software_mapping")
+				defer span.End()
 				return ds.InsertKernelSoftwareMapping(ctx)
 			},
 		},

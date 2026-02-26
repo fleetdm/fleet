@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -19,7 +20,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
-	"github.com/go-kit/log"
 	"github.com/google/go-cmp/cmp"
 	"github.com/pandatix/nvdapi/v2"
 	"github.com/stretchr/testify/require"
@@ -58,7 +58,7 @@ func TestStoreCVEsLegacyFormat(t *testing.T) {
 			matched               = 0
 		)
 		for _, api20Vuln := range api20CVEs {
-			convertedLegacyVuln := convertAPI20CVEToLegacy(api20Vuln.CVE, log.NewNopLogger())
+			convertedLegacyVuln := convertAPI20CVEToLegacy(t.Context(), api20Vuln.CVE, slog.New(slog.DiscardHandler))
 			legacyVuln, ok := legacyVulns[*api20Vuln.CVE.ID]
 			if !ok {
 				vulnsNotFoundInLegacy = append(vulnsNotFoundInLegacy, *api20Vuln.CVE.ID)
@@ -216,7 +216,7 @@ func TestEnhanceNVDwithVulncheck(t *testing.T) {
 	syncer, err := NewCVE(testDataPath)
 	require.NoError(t, err)
 
-	err = syncer.processVulnCheckFile("vulncheck.zip")
+	err = syncer.processVulnCheckFile(t.Context(), "vulncheck.zip")
 	require.NoError(t, err)
 
 	// compare the enhanced data with the expected data

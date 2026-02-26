@@ -31,6 +31,10 @@ func (p cveNotFoundError) IsNotFound() bool {
 	return true
 }
 
+func (p cveNotFoundError) IsClientError() bool {
+	return true
+}
+
 type listVulnerabilitiesRequest struct {
 	fleet.VulnListOptions
 }
@@ -193,7 +197,7 @@ func (svc *Service) Vulnerability(ctx context.Context, cve string, teamID *uint,
 		if err != nil {
 			return nil, false, ctxerr.Wrap(ctx, err, "checking if team exists")
 		} else if !exists {
-			return nil, false, authz.ForbiddenWithInternal("team does not exist", nil, nil, nil)
+			return nil, false, authz.ForbiddenWithInternal("fleet does not exist", nil, nil, nil)
 		}
 	}
 

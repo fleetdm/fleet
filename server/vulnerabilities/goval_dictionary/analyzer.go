@@ -5,11 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
-	kitlog "github.com/go-kit/log"
 )
 
 const (
@@ -28,7 +28,7 @@ func Analyze(
 	ver fleet.OSVersion,
 	vulnPath string,
 	collectVulns bool,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) ([]fleet.SoftwareVulnerability, error) {
 	platform := oval.NewPlatform(ver.Platform, ver.Name)
 	source := fleet.GovalDictionarySource
@@ -74,7 +74,7 @@ func Analyze(
 				return nil, err
 			}
 
-			vulnerabilities := db.Eval(software, logger)
+			vulnerabilities := db.Eval(ctx, software, logger)
 			foundInBatch[hostID] = vulnerabilities
 		}
 
@@ -101,29 +101,20 @@ func Analyze(
 		return nil, err
 	}
 
-	var inserted []fleet.SoftwareVulnerability
-	if collectVulns {
-		inserted = make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
+	allVulns := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
+	for _, v := range toInsertSet {
+		allVulns = append(allVulns, v)
 	}
 
-	err = utils.BatchProcess(toInsertSet, func(vulns []fleet.SoftwareVulnerability) error {
-		for _, v := range vulns {
-			ok, err := ds.InsertSoftwareVulnerability(ctx, v, source)
-			if err != nil {
-				return err
-			}
-
-			if collectVulns && ok {
-				inserted = append(inserted, v)
-			}
-		}
-		return nil
-	}, vulnBatchSize)
+	newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, allVulns, source)
 	if err != nil {
 		return nil, err
 	}
+	if !collectVulns {
+		return nil, nil
+	}
 
-	return inserted, nil
+	return newVulns, nil
 }
 
 // LoadDb returns the latest goval_dictionary database for the given platform.

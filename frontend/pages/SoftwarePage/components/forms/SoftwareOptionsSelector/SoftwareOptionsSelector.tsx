@@ -2,6 +2,7 @@ import React from "react";
 import classnames from "classnames";
 
 import Checkbox from "components/forms/fields/Checkbox";
+import Slider from "components/forms/fields/Slider";
 import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
@@ -18,6 +19,7 @@ import {
 } from "pages/hosts/details/cards/Software/SelfService/helpers";
 import Button from "components/buttons/Button";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "software-options-selector";
 
@@ -70,8 +72,8 @@ interface ISoftwareOptionsSelector {
     | IPackageFormData
     | ISoftwareAndroidFormData;
   /** Only used in create mode not edit mode for FMA, VPP, and custom packages */
-  onToggleAutomaticInstall: (value: boolean) => void;
-  onToggleSelfService: (value: boolean) => void;
+  onToggleAutomaticInstall: () => void;
+  onToggleSelfService: () => void;
   onClickPreviewEndUserExperience: () => void;
   onSelectCategory: ({ name, value }: { name: string; value: boolean }) => void;
   platform?: string;
@@ -181,24 +183,45 @@ const SoftwareOptionsSelector = ({
     ) : null;
   };
 
+  const selfServiceLabel = () => {
+    return !isSelfServiceDisabled ? (
+      <TooltipWrapper
+        tipContent={getSelfServiceTooltip(
+          isPlatformIosOrIpados,
+          isPlatformAndroid
+        )}
+      >
+        <span>Self-service</span>
+      </TooltipWrapper>
+    ) : (
+      "Self-service"
+    );
+  };
+
+  const automaticInstallLabel = () => {
+    return showAutomaticInstallTooltip ? (
+      <TooltipWrapper tipContent={getAutomaticInstallTooltip()}>
+        <span>Automatic install</span>
+      </TooltipWrapper>
+    ) : (
+      "Automatic install"
+    );
+  };
+
   return (
     <div className={`form-field ${classNames}`}>
       <div className="form-field__label">Options</div>
       {renderOptionsDescription()}
       <div className={`${baseClass}__self-service`}>
-        <Checkbox
+        <Slider
           value={formData.selfService}
-          onChange={(newVal: boolean) => onToggleSelfService(newVal)}
-          className={`${baseClass}__self-service-checkbox`}
-          labelTooltipContent={
-            !isSelfServiceDisabled &&
-            getSelfServiceTooltip(isPlatformIosOrIpados, isPlatformAndroid)
-          }
-          labelTooltipClickable // Allow interaction with link in tooltip
+          onChange={onToggleSelfService}
+          inactiveText={selfServiceLabel()}
+          activeText={selfServiceLabel()}
+          className={`${baseClass}__self-service-slider`}
           disabled={isSelfServiceDisabled}
-        >
-          Self-service
-        </Checkbox>
+        />
+
         {canSelectSoftwareCategories && (
           <CategoriesSelector
             onSelectCategory={onSelectCategory}
@@ -208,23 +231,20 @@ const SoftwareOptionsSelector = ({
         )}
       </div>
       {!isEditingSoftware && (
-        <Checkbox
+        <Slider
           value={formData.automaticInstall}
-          onChange={(newVal: boolean) => onToggleAutomaticInstall(newVal)}
-          className={`${baseClass}__automatic-install-checkbox`}
-          labelTooltipContent={
-            showAutomaticInstallTooltip && getAutomaticInstallTooltip()
-          }
+          onChange={onToggleAutomaticInstall}
+          activeText={automaticInstallLabel()}
+          inactiveText={automaticInstallLabel()}
+          className={`${baseClass}__automatic-install-slider`}
           disabled={isAutomaticInstallDisabled}
-        >
-          Automatic install
-        </Checkbox>
+        />
       )}
       {formData.automaticInstall && isCustomPackage && (
         <InfoBanner color="yellow">
           Installing software over existing installations might cause issues.
           Fleet&apos;s policy may not detect these existing installations.
-          Please create a test team in Fleet to verify a smooth installation.{" "}
+          Please create a test fleet in Fleet to verify a smooth installation.{" "}
           <CustomLink
             url={`${LEARN_MORE_ABOUT_BASE_LINK}/query-templates-for-automatic-software-install`}
             text="Learn more"
