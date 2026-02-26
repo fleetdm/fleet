@@ -30,17 +30,17 @@
       <div purpose="article-title-and-author" class="d-lg-none d-block">
         <div purpose="article-title">
           <h1><%=thisPage.meta.articleTitle %></h1>
-          <h2 v-if="articleHasSubtitle && articleSubtitle !== undefined">{{articleSubtitle}}</h2>
+          <h2 v-if="articleHasSubtitle && articleSubtitle !== undefined && articleCategorySlug !== 'customers'">{{articleSubtitle}}</h2>
         </div>
         <div class="d-flex flex-sm-row flex-column justify-content-between align-items-sm-center">
           <div purpose="article-details" class="d-flex align-items-sm-center">
             <span>Last updated on <js-timestamp format="billing" :at="thisPage.meta.publishedOn"></js-timestamp></span>
             <span  purpose="divider" class="px-2">|</span>
             <% if(articleCategorySlug !== 'customers') { %>
-            <div purpose="article-author" class="d-flex flex-row align-items-center">
-              <img style="height: 28px; width: 28px; border-radius: 100%;" alt="The author's GitHub profile picture" :src="'https://github.com/'+thisPage.meta.authorGitHubUsername+'.png?size=200'">
-              <p class="pl-2 font-weight-bold"><%=thisPage.meta.authorFullName %></p>
-            </div>
+              <div purpose="article-author" class="d-flex flex-row align-items-center">
+                <img style="height: 28px; width: 28px; border-radius: 100%;" alt="The author's GitHub profile picture" :src="'https://github.com/'+thisPage.meta.authorGitHubUsername+'.png?size=200'">
+                <p class="pl-2 font-weight-bold"><%=thisPage.meta.authorFullName %></p>
+              </div>
             <% } %>
           </div>
 
@@ -110,15 +110,15 @@
         <div purpose="article-title-and-author" class="d-none d-lg-block">
           <div purpose="article-title">
             <h1><%=thisPage.meta.articleTitle %></h1>
-            <h2 v-if="articleHasSubtitle && articleSubtitle !== undefined">{{articleSubtitle}}</h2>
+            <h2 v-if="articleHasSubtitle && articleSubtitle !== undefined && articleCategorySlug !== 'customers'">{{articleSubtitle}}</h2>
           </div>
           <div class="d-flex flex-sm-row flex-column justify-content-between align-items-sm-center">
             <div purpose="article-details" class="d-flex flex-row align-items-center">
               <span>Last updated on <js-timestamp format="billing" :at="thisPage.meta.publishedOn"></js-timestamp></span>
               <% if(articleCategorySlug !== 'customers') { %>
-              <span class="px-2">|</span>
-              <img style="height: 28px; width: 28px; border-radius: 100%;" alt="The author's GitHub profile picture" :src="'https://github.com/'+thisPage.meta.authorGitHubUsername+'.png?size=200'">
-              <p class="pl-2 font-weight-bold"><%=thisPage.meta.authorFullName %></p>
+                <span class="px-2">|</span>
+                <img style="height: 28px; width: 28px; border-radius: 100%;" alt="The author's GitHub profile picture" :src="'https://github.com/'+thisPage.meta.authorGitHubUsername+'.png?size=200'">
+                <p class="pl-2 font-weight-bold"><%=thisPage.meta.authorFullName %></p>
               <% } %>
             </div>
           </div>
