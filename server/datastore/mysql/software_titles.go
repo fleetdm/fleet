@@ -820,7 +820,7 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 			FROM software_titles_host_counts sthc
 			INNER JOIN software_titles st ON st.id = sthc.software_title_id
 			WHERE sthc.team_id = 0 AND sthc.global_stats = 1
-			ORDER BY sthc.hosts_count %s, st.name ASC, st.source ASC, st.extension_for ASC
+			ORDER BY sthc.hosts_count %s, st.name ASC, st.source ASC, st.extension_for ASC, st.id ASC
 			LIMIT %d`, direction, perPage)
 		if offset > 0 {
 			innerSQL += fmt.Sprintf(` OFFSET %d`, offset)
@@ -857,7 +857,7 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 				WHERE sthc.software_title_id IS NULL)
 			) AS combined
 			INNER JOIN software_titles st ON st.id = combined.software_title_id
-			ORDER BY combined.hosts_count %[2]s, st.name ASC, st.source ASC, st.extension_for ASC
+			ORDER BY combined.hosts_count %[2]s, st.name ASC, st.source ASC, st.extension_for ASC, st.id ASC
 			LIMIT %[3]d`, teamID, direction, perPage)
 		if offset > 0 {
 			innerSQL += fmt.Sprintf(` OFFSET %d`, offset)
@@ -920,7 +920,7 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 		WHERE st.id IS NOT NULL`
 
 	outerSQL += fmt.Sprintf(`
-		ORDER BY top.hosts_count %s, st.name ASC, st.source ASC, st.extension_for ASC`,
+		ORDER BY top.hosts_count %s, st.name ASC, st.source ASC, st.extension_for ASC, st.id ASC`,
 		direction)
 
 	return outerSQL
