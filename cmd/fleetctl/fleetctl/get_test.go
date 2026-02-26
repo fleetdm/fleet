@@ -2628,7 +2628,7 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	actualYaml := RunAppForTest(t, []string{"get", "teams", "--yaml"})
 	yamlFilePath := writeTmpYml(t, actualYaml)
 
-	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", yamlFilePath}), "[+] applied 2 teams\n")
+	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", yamlFilePath}), "[+] applied 2 fleets\n")
 }
 
 func TestGetMDMCommandResults(t *testing.T) {
