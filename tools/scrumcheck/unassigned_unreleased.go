@@ -22,6 +22,7 @@ type searchIssueResponse struct {
 		HTMLURL       string `json:"html_url"`
 		State         string `json:"state"`
 		RepositoryURL string `json:"repository_url"`
+		Body          string `json:"body"`
 		Assignees     []struct {
 			Login string `json:"login"`
 		} `json:"assignees"`
@@ -155,6 +156,7 @@ func fetchUnreleasedIssuesByGroup(ctx context.Context, token, org, groupLabel st
 	HTMLURL       string `json:"html_url"`
 	State         string `json:"state"`
 	RepositoryURL string `json:"repository_url"`
+	Body          string `json:"body"`
 	Assignees     []struct {
 		Login string `json:"login"`
 	} `json:"assignees"`
@@ -175,6 +177,7 @@ func fetchUnreleasedIssuesByGroup(ctx context.Context, token, org, groupLabel st
 		HTMLURL       string `json:"html_url"`
 		State         string `json:"state"`
 		RepositoryURL string `json:"repository_url"`
+		Body          string `json:"body"`
 		Assignees     []struct {
 			Login string `json:"login"`
 		} `json:"assignees"`

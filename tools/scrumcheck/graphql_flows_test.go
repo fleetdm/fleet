@@ -73,6 +73,7 @@ func graphNodesForProjectID(id string) []map[string]any {
 	case "P71":
 		return []map[string]any{
 			issueNode(7101, "Awaiting stale", "https://github.com/fleetdm/fleet/issues/7101", "✔️Awaiting QA", "- [ ] "+checkText, []string{":product"}, time.Now().UTC().Add(-72*time.Hour), nil),
+			issueNode(7102, "Unreleased unassigned", "https://github.com/fleetdm/fleet/issues/7102", "🦃 In review", "bug body", []string{"g-orchestration", "~unreleased bug", ":release"}, time.Now().UTC(), nil),
 		}
 	case "P97":
 		return []map[string]any{
@@ -130,11 +131,11 @@ func TestGraphQLFlowHelpersAndChecks(t *testing.T) {
 	}
 
 	items := fetchItems(ctx, client, githubv4.ID("P71"), 10)
-	if len(items) != 1 {
-		t.Fatalf("items len=%d want=1", len(items))
+	if len(items) != 2 {
+		t.Fatalf("items len=%d want=2", len(items))
 	}
 
-	awaiting, stale := runAwaitingQACheck(ctx, client, "fleetdm", 20, []int{71, 97}, 24*time.Hour)
+	awaiting, stale := runAwaitingQACheck(ctx, client, "fleetdm", 20, []int{71, 97}, 24*time.Hour, nil)
 	if len(awaiting[71]) != 1 || len(stale[71]) != 1 {
 		t.Fatalf("unexpected awaiting/stale: awaiting=%d stale=%d", len(awaiting[71]), len(stale[71]))
 	}
@@ -142,13 +143,77 @@ func TestGraphQLFlowHelpersAndChecks(t *testing.T) {
 		t.Fatalf("expected done item ignored for awaiting violation")
 	}
 
-	drafting := runDraftingCheck(ctx, client, "fleetdm", 20)
+	drafting := runDraftingCheck(ctx, client, "fleetdm", 20, nil)
 	if len(drafting) != 1 {
 		t.Fatalf("drafting len=%d want=1", len(drafting))
 	}
 
-	release := runReleaseLabelChecks(ctx, client, "fleetdm", []int{67, 71, 97}, 20)
+	release := runReleaseLabelChecks(ctx, client, "fleetdm", []int{67, 71, 97}, 20, nil)
 	if len(release) != 1 || release[0].ProjectNum != 71 {
 		t.Fatalf("unexpected release results: %#v", release)
+	}
+
+	origSearch := searchUnreleasedIssuesByGroup
+	searchUnreleasedIssuesByGroup = func(ctx context.Context, token, org, groupLabel string) []struct {
+		Number        int    `json:"number"`
+		Title         string `json:"title"`
+		HTMLURL       string `json:"html_url"`
+		State         string `json:"state"`
+		RepositoryURL string `json:"repository_url"`
+		Body          string `json:"body"`
+		Assignees     []struct {
+			Login string `json:"login"`
+		} `json:"assignees"`
+		Labels []struct {
+			Name string `json:"name"`
+		} `json:"labels"`
+	} {
+		if groupLabel != "g-orchestration" {
+			return nil
+		}
+		return []struct {
+			Number        int    `json:"number"`
+			Title         string `json:"title"`
+			HTMLURL       string `json:"html_url"`
+			State         string `json:"state"`
+			RepositoryURL string `json:"repository_url"`
+			Body          string `json:"body"`
+			Assignees     []struct {
+				Login string `json:"login"`
+			} `json:"assignees"`
+			Labels []struct {
+				Name string `json:"name"`
+			} `json:"labels"`
+		}{
+			{
+				Number:        7102,
+				Title:         "Unreleased unassigned",
+				HTMLURL:       "https://github.com/fleetdm/fleet/issues/7102",
+				State:         "open",
+				RepositoryURL: "https://api.github.com/repos/fleetdm/fleet",
+				Assignees:     nil,
+				Labels: []struct {
+					Name string `json:"name"`
+				}{
+					{Name: "g-orchestration"},
+					{Name: "~unreleased bug"},
+				},
+			},
+		}
+	}
+	defer func() { searchUnreleasedIssuesByGroup = origSearch }()
+
+	unassignedUnreleased := runUnassignedUnreleasedBugChecks(
+		ctx,
+		client,
+		"fleetdm",
+		[]int{71, 97},
+		20,
+		"",
+		compileLabelFilter([]string{"g-orchestration"}),
+		orderedGroupLabels([]string{"g-orchestration"}),
+	)
+	if len(unassignedUnreleased) != 1 {
+		t.Fatalf("unexpected unassigned unreleased results: %#v", unassignedUnreleased)
 	}
 }

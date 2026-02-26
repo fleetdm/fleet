@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	phaseMissingSprint = iota
+	phaseReleaseStoryTODO = iota
+	phaseMissingSprint
 	phaseMissingMilestones
 	phaseReleaseLabel
 	phaseAwaitingQAStale
@@ -82,6 +83,7 @@ func main() {
 	src := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
 	client := githubv4.NewClient(oauth2.NewClient(ctx, src))
 	tracker := newPhaseTracker([]string{
+		"Release stories with TODO",
 		"Missing sprint check",
 		"Missing milestones check",
 		"Release label guard",
@@ -100,9 +102,17 @@ func main() {
 	labelFilter := compileLabelFilter(labels)
 	groupLabels := orderedGroupLabels(labels)
 
+	tracker.phaseStart(phaseReleaseStoryTODO)
+	start := time.Now()
+	releaseStoryTODO := runReleaseStoryTODOChecks(ctx, client, *org, projectNums, *limit, token, labelFilter)
+	tracker.phaseDone(phaseReleaseStoryTODO, phaseSummaryKV(
+		fmt.Sprintf("issues=%d", len(releaseStoryTODO)),
+		shortDuration(time.Since(start)),
+	))
+
 	tracker.phaseStart(phaseAwaitingQAGate)
 	tracker.phaseStart(phaseAwaitingQAStale)
-	start := time.Now()
+	start = time.Now()
 	staleAfter := time.Duration(*staleDays) * 24 * time.Hour
 	awaitingByProject, staleByProject := runAwaitingQACheck(ctx, client, *org, *limit, projectNums, staleAfter, labelFilter)
 	awaitingElapsed := shortDuration(time.Since(start))
@@ -216,6 +226,7 @@ func main() {
 			missingSprints,
 			missingAssignees,
 			releaseLabelIssues,
+			releaseStoryTODO,
 			unassignedUnreleasedBugs,
 			groupLabels,
 			timestampCheck,

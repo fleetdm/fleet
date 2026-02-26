@@ -114,3 +114,25 @@ type ReleaseLabelIssue struct {
 	HasRelease    bool
 	CurrentLabels []string
 }
+
+type UnassignedUnreleasedBugIssue struct {
+	Item             Item
+	ProjectNum       int
+	RepoOwner        string
+	RepoName         string
+	Status           string
+	CurrentLabels    []string
+	CurrentAssignees []string
+	Unassigned       bool
+	MatchingGroups   []string
+}
+
+type ReleaseStoryTODOIssue struct {
+	Item          Item
+	ProjectNum    int
+	RepoOwner     string
+	RepoName      string
+	Status        string
+	CurrentLabels []string
+	BodyPreview   []string
+}

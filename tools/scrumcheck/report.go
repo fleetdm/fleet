@@ -151,6 +151,11 @@ type UnassignedUnreleasedStatusReport struct {
 	GreenItems []MissingMilestoneReportItem
 }
 
+type ReleaseStoryTODOProjectReport struct {
+	ProjectNum int
+	Columns    []MissingMilestoneGroupReport
+}
+
 type MilestoneSuggestion struct {
 	Number int
 	Title  string
@@ -171,6 +176,7 @@ type HTMLReportData struct {
 	MissingAssignee           []MissingAssigneeProjectReport
 	AssignedToMe              []MissingAssigneeProjectReport
 	ReleaseLabel              []ReleaseLabelProjectReport
+	ReleaseStoryTODO          []ReleaseStoryTODOProjectReport
 	UnassignedUnreleased      []UnassignedUnreleasedProjectReport
 	TotalAwaiting             int
 	TotalStale                int
@@ -180,6 +186,7 @@ type HTMLReportData struct {
 	TotalMissingAssignee      int
 	TotalAssignedToMe         int
 	TotalRelease              int
+	TotalReleaseStoryTODO     int
 	TotalUnassignedUnreleased int
 	TotalTrackedUnreleased    int
 	TimestampCheck            TimestampCheckResult
@@ -192,6 +199,7 @@ type HTMLReportData struct {
 	MissingAssigneeClean      bool
 	AssignedToMeClean         bool
 	ReleaseClean              bool
+	ReleaseStoryTODOClean     bool
 	UnassignedUnreleasedClean bool
 }
 
@@ -206,6 +214,7 @@ func buildHTMLReportData(
 	missingSprints []MissingSprintViolation,
 	missingAssignees []MissingAssigneeIssue,
 	releaseIssues []ReleaseLabelIssue,
+	releaseStoryTODO []ReleaseStoryTODOIssue,
 	unassignedUnreleased []UnassignedUnreleasedBugIssue,
 	groupLabels []string,
 	timestampCheck TimestampCheckResult,
@@ -520,6 +529,48 @@ func buildHTMLReportData(
 		})
 	}
 
+	groupedReleaseStoryTODOByProject := make(map[int]map[string][]MissingMilestoneReportItem)
+	for _, p := range projectNums {
+		groupedReleaseStoryTODOByProject[p] = make(map[string][]MissingMilestoneReportItem)
+		for _, key := range sprintColumnOrder() {
+			groupedReleaseStoryTODOByProject[p][key] = []MissingMilestoneReportItem{}
+		}
+	}
+	for _, v := range releaseStoryTODO {
+		repo := v.RepoOwner + "/" + v.RepoName
+		group := sprintColumnGroup(v.Status)
+		groupedReleaseStoryTODOByProject[v.ProjectNum][group] = append(groupedReleaseStoryTODOByProject[v.ProjectNum][group], MissingMilestoneReportItem{
+			ProjectNum:  v.ProjectNum,
+			Number:      getNumber(v.Item),
+			Title:       getTitle(v.Item),
+			URL:         getURL(v.Item),
+			Repo:        repo,
+			Status:      v.Status,
+			Assignees:   issueAssignees(v.Item),
+			Labels:      append([]string(nil), v.CurrentLabels...),
+			BodyPreview: append([]string(nil), v.BodyPreview...),
+		})
+	}
+	releaseStoryTODOProjects := make([]ReleaseStoryTODOProjectReport, 0, len(projectNums))
+	totalReleaseStoryTODO := 0
+	for _, p := range projectNums {
+		grouped := groupedReleaseStoryTODOByProject[p]
+		columns := make([]MissingMilestoneGroupReport, 0, len(sprintColumnOrder()))
+		for _, key := range sprintColumnOrder() {
+			items := grouped[key]
+			totalReleaseStoryTODO += len(items)
+			columns = append(columns, MissingMilestoneGroupReport{
+				Key:   key,
+				Label: sprintColumnLabel(key),
+				Items: items,
+			})
+		}
+		releaseStoryTODOProjects = append(releaseStoryTODOProjects, ReleaseStoryTODOProjectReport{
+			ProjectNum: p,
+			Columns:    columns,
+		})
+	}
+
 	groupedUnassignedByLabel := make(map[string]map[string]UnassignedUnreleasedStatusReport)
 	for _, label := range groupLabels {
 		groupedUnassignedByLabel[label] = make(map[string]UnassignedUnreleasedStatusReport)
@@ -601,6 +652,7 @@ func buildHTMLReportData(
 		MissingAssignee:           missingAssigneeProjects,
 		AssignedToMe:              assignedToMeProjects,
 		ReleaseLabel:              releaseProjects,
+		ReleaseStoryTODO:          releaseStoryTODOProjects,
 		UnassignedUnreleased:      unassignedProjects,
 		TotalAwaiting:             totalAwaiting,
 		TotalStale:                totalStale,
@@ -610,6 +662,7 @@ func buildHTMLReportData(
 		TotalMissingAssignee:      totalMissingAssignee,
 		TotalAssignedToMe:         totalAssignedToMe,
 		TotalRelease:              totalRelease,
+		TotalReleaseStoryTODO:     totalReleaseStoryTODO,
 		TotalUnassignedUnreleased: totalUnassignedUnreleased,
 		TotalTrackedUnreleased:    totalTrackedUnreleased,
 		TimestampCheck:            timestampCheck,
@@ -622,6 +675,7 @@ func buildHTMLReportData(
 		MissingAssigneeClean:      totalMissingAssignee == 0,
 		AssignedToMeClean:         totalAssignedToMe == 0,
 		ReleaseClean:              totalRelease == 0,
+		ReleaseStoryTODOClean:     totalReleaseStoryTODO == 0,
 		UnassignedUnreleasedClean: totalUnassignedUnreleased == 0,
 	}
 }
@@ -996,6 +1050,7 @@ var htmlReportTemplate = `<!doctype html>
       </div>
       <p class="meta">Org: {{.Org}} | Generated: {{.GeneratedAt}}</p>
       <div class="counts">
+        <span class="pill">Release stories with TODO (selected projects): {{.TotalReleaseStoryTODO}}</span>
         <span class="pill">Awaiting QA violations: {{.TotalAwaiting}}</span>
         <span class="pill">Stale Awaiting QA items: {{.TotalStale}}</span>
         <span class="pill">Missing milestones (selected projects): {{.TotalNoMilestone}}</span>
@@ -1018,7 +1073,10 @@ var htmlReportTemplate = `<!doctype html>
     <div class="app-shell">
       <aside class="menu" role="tablist" aria-label="checks">
         <h4>Checks</h4>
-        <button class="menu-btn active" data-tab="sprint" role="tab">
+        <button class="menu-btn active" data-tab="release-story-todo" role="tab">
+          <span class="status-dot {{if .ReleaseStoryTODOClean}}ok{{end}}"></span>📝 Release stories TODO
+        </button>
+        <button class="menu-btn" data-tab="sprint" role="tab">
           <span class="status-dot {{if .SprintClean}}ok{{end}}"></span>🗓️ Missing sprint
         </button>
         <button class="menu-btn" data-tab="milestone" role="tab">
@@ -1051,6 +1109,49 @@ var htmlReportTemplate = `<!doctype html>
       </aside>
 
       <div class="panel-wrap">
+      <section id="tab-release-story-todo" class="panel active" role="tabpanel">
+        <h2>📝 Release stories TODO (selected projects)</h2>
+        <p class="subtle">Stories with <code>:release</code> label that still contain <code>TODO</code> text in the body.</p>
+        {{if .ReleaseStoryTODO}}
+          {{range .ReleaseStoryTODO}}
+            <div class="project">
+              <h3>Project {{.ProjectNum}}</h3>
+              {{range .Columns}}
+                <div class="status">
+                  <h3>{{.Label}}</h3>
+                  {{if .Items}}
+                    {{range .Items}}
+                      <article class="item red-bug">
+                        <div><strong>#{{.Number}} - {{.Title}}</strong></div>
+                        <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
+                        <ul>
+                          <li>Status: {{if .Status}}{{.Status}}{{else}}(unset){{end}}</li>
+                          <li>Repository: {{.Repo}}</li>
+                          <li>Assignees: {{if .Assignees}}{{range $i, $a := .Assignees}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}(empty){{end}}</li>
+                          <li>Labels: {{if .Labels}}{{range $i, $l := .Labels}}{{if $i}}, {{end}}{{$l}}{{end}}{{else}}(none){{end}}</li>
+                          <li>Snippet:</li>
+                          {{if .BodyPreview}}
+                            {{range .BodyPreview}}
+                              <li>{{.}}</li>
+                            {{end}}
+                          {{else}}
+                            <li>(empty)</li>
+                          {{end}}
+                        </ul>
+                      </article>
+                    {{end}}
+                  {{else}}
+                    <p class="empty">🟢 No items in this group.</p>
+                  {{end}}
+                </div>
+              {{end}}
+            </div>
+          {{end}}
+        {{else}}
+          <p class="empty">🟢 No release stories with TODO found.</p>
+        {{end}}
+      </section>
+
       <section id="tab-awaiting" class="panel" role="tabpanel">
         <h2>✅ Awaiting QA gate</h2>
         <p class="subtle">Items in <strong>` + awaitingQAColumn + `</strong> where engineer test-plan confirmation is unchecked.</p>
@@ -1244,7 +1345,7 @@ var htmlReportTemplate = `<!doctype html>
         {{end}}
       </section>
 
-      <section id="tab-sprint" class="panel active" role="tabpanel">
+      <section id="tab-sprint" class="panel" role="tabpanel">
         <h2>🗓️ Missing sprint (selected projects)</h2>
         <p class="subtle">Items in selected projects without a sprint set. Grouped by column focus.</p>
         {{if .MissingSprint}}
