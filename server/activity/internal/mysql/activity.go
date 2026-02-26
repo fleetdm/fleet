@@ -195,6 +195,38 @@ func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, op
 	return activities, metaData, nil
 }
 
+// CleanupExpiredActivities deletes up to maxCount expired activities
+// created before expiryThreshold that are not linked to any host.
+// Host-linked activities are preserved; host_activities rows are cleaned via FK CASCADE when activities are deleted.
+func (ds *Datastore) CleanupExpiredActivities(ctx context.Context, maxCount int, expiryThreshold time.Time) error {
+	ctx, span := tracer.Start(ctx, "activity.mysql.CleanupExpiredActivities")
+	defer span.End()
+
+	const selectQuery = `
+		SELECT a.id FROM activities a
+		LEFT JOIN host_activities ha ON (a.id=ha.activity_id)
+		WHERE ha.activity_id IS NULL AND a.created_at < ?
+		ORDER BY a.id ASC
+		LIMIT ?`
+
+	var activityIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.primary, &activityIDs, selectQuery, expiryThreshold, maxCount); err != nil {
+		return ctxerr.Wrap(ctx, err, "select expired activities for deletion")
+	}
+	if len(activityIDs) == 0 {
+		return nil
+	}
+
+	deleteQuery, args, err := sqlx.In(`DELETE FROM activities WHERE id IN (?)`, activityIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build expired activities IN query")
+	}
+	if _, err := ds.primary.ExecContext(ctx, deleteQuery, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete expired activities")
+	}
+	return nil
+}
+
 // fetchActivityDetails fetches details for activities in a separate query
 // to avoid MySQL sort buffer issues with large JSON entries.
 func (ds *Datastore) fetchActivityDetails(ctx context.Context, activities []*api.Activity) error {

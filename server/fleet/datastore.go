@@ -2003,11 +2003,9 @@ type Datastore interface {
 	// CleanupUnusedScriptContents will remove script contents that have no references to them from
 	// the scripts or host_script_results tables.
 	CleanupUnusedScriptContents(ctx context.Context) error
-	// CleanupActivitiesAndAssociatedData will cleanup (up to maxCount) activities and their associated data
-	// that are older than the given expiration window.
-	//
-	// The argument maxCount is used to not lock the database for long periods of time.
-	CleanupActivitiesAndAssociatedData(ctx context.Context, maxCount int, expiryWindowDays int) error
+	// CleanupExpiredLiveQueries cleans up expired unsaved queries, orphaned distributed query campaigns,
+	// and orphaned campaign targets that are older than the given expiration window (in days).
+	CleanupExpiredLiveQueries(ctx context.Context, expiryWindowDays int) error
 	// WipeHostViaScript sends a script to wipe a host and updates the
 	// states in host_mdm_actions.
 	WipeHostViaScript(ctx context.Context, request *HostScriptRequestPayload, hostFleetPlatform string) error

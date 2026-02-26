@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 	platform_endpointer "github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -140,4 +141,8 @@ func (m *mockService) StreamActivities(_ context.Context, _ api.JSONLogger) erro
 
 func (m *mockService) NewActivity(_ context.Context, _ *api.User, _ api.ActivityDetails) error {
 	panic("mockService.NewActivity should not be called in validation tests")
+}
+
+func (m *mockService) CleanupExpiredActivities(_ context.Context, _ int, _ time.Time) error {
+	panic("mockService.CleanupExpiredActivities should not be called in validation tests")
 }

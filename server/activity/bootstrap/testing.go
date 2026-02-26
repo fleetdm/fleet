@@ -46,3 +46,7 @@ func (s *noopStore) MarkActivitiesAsStreamed(_ context.Context, _ []uint) error 
 func (s *noopStore) NewActivity(_ context.Context, _ *api.User, _ api.ActivityDetails, _ []byte, _ time.Time) error {
 	return nil
 }
+
+func (s *noopStore) CleanupExpiredActivities(_ context.Context, _ int, _ time.Time) error {
+	return nil
+}

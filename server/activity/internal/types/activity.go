@@ -83,4 +83,7 @@ type Datastore interface {
 	// NewActivity stores a new activity record in the database.
 	// The webhook context key must be set in the context before calling this method.
 	NewActivity(ctx context.Context, user *api.User, activity api.ActivityDetails, details []byte, createdAt time.Time) error
+	// CleanupExpiredActivities deletes up to maxCount expired activities
+	// created before expiryThreshold that are not linked to any host.
+	CleanupExpiredActivities(ctx context.Context, maxCount int, expiryThreshold time.Time) error
 }
