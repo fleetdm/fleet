@@ -33,8 +33,24 @@ type Item struct {
 	FieldValues struct {
 		Nodes []struct {
 			SingleSelectValue struct {
-				Name githubv4.String
+				Name  githubv4.String
+				Field struct {
+					Common struct {
+						ID   githubv4.ID
+						Name githubv4.String
+					} `graphql:"... on ProjectV2FieldCommon"`
+				} `graphql:"field"`
 			} `graphql:"... on ProjectV2ItemFieldSingleSelectValue"`
+			IterationValue struct {
+				IterationID githubv4.String `graphql:"iterationId"`
+				Title       githubv4.String `graphql:"title"`
+				Field       struct {
+					Common struct {
+						ID   githubv4.ID
+						Name githubv4.String
+					} `graphql:"... on ProjectV2FieldCommon"`
+				} `graphql:"field"`
+			} `graphql:"... on ProjectV2ItemFieldIterationValue"`
 		}
 	} `graphql:"fieldValues(first: 20)"`
 }

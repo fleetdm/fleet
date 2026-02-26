@@ -1,14 +1,27 @@
 package main
 
+import (
+	"fmt"
+	"strings"
+)
+
 type bridgePolicy struct {
 	ChecklistByIssue  map[string]map[string]bool
 	MilestonesByIssue map[string]map[int]bool
+	SprintsByItemID   map[string]sprintApplyTarget
 }
 
-func buildBridgePolicy(drafting []DraftingCheckViolation, missing []MissingMilestoneIssue) bridgePolicy {
+type sprintApplyTarget struct {
+	ProjectID   string
+	FieldID     string
+	IterationID string
+}
+
+func buildBridgePolicy(drafting []DraftingCheckViolation, missing []MissingMilestoneIssue, missingSprints []MissingSprintViolation) bridgePolicy {
 	p := bridgePolicy{
 		ChecklistByIssue:  make(map[string]map[string]bool),
 		MilestonesByIssue: make(map[string]map[int]bool),
+		SprintsByItemID:   make(map[string]sprintApplyTarget),
 	}
 
 	for _, v := range drafting {
@@ -38,6 +51,21 @@ func buildBridgePolicy(drafting []DraftingCheckViolation, missing []MissingMiles
 				continue
 			}
 			p.MilestonesByIssue[key][m.Number] = true
+		}
+	}
+
+	for _, v := range missingSprints {
+		itemID := strings.TrimSpace(fmt.Sprintf("%v", v.ItemID))
+		projectID := strings.TrimSpace(fmt.Sprintf("%v", v.ProjectID))
+		fieldID := strings.TrimSpace(fmt.Sprintf("%v", v.SprintFieldID))
+		iterationID := strings.TrimSpace(v.CurrentSprintID)
+		if itemID == "" || projectID == "" || fieldID == "" || iterationID == "" {
+			continue
+		}
+		p.SprintsByItemID[itemID] = sprintApplyTarget{
+			ProjectID:   projectID,
+			FieldID:     fieldID,
+			IterationID: iterationID,
 		}
 	}
 

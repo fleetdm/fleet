@@ -27,8 +27,16 @@ func TestBuildBridgePolicy(t *testing.T) {
 			},
 		},
 	}
+	missingSprints := []MissingSprintViolation{
+		{
+			ItemID:          githubv4.ID("ITEM_1"),
+			ProjectID:       githubv4.ID("PROJ_1"),
+			SprintFieldID:   githubv4.ID("FIELD_1"),
+			CurrentSprintID: "ITER_1",
+		},
+	}
 
-	p := buildBridgePolicy(drafting, missing)
+	p := buildBridgePolicy(drafting, missing, missingSprints)
 	key := issueKey("fleetdm/fleet", 40007)
 
 	if !p.ChecklistByIssue[key]["check one"] || !p.ChecklistByIssue[key]["check two"] {
@@ -36,6 +44,13 @@ func TestBuildBridgePolicy(t *testing.T) {
 	}
 	if !p.MilestonesByIssue[key][101] || !p.MilestonesByIssue[key][102] {
 		t.Fatalf("expected milestone allowlist entries for %s", key)
+	}
+	target, ok := p.SprintsByItemID["ITEM_1"]
+	if !ok {
+		t.Fatal("expected sprint allowlist entry")
+	}
+	if target.ProjectID != "PROJ_1" || target.FieldID != "FIELD_1" || target.IterationID != "ITER_1" {
+		t.Fatalf("unexpected sprint target: %#v", target)
 	}
 }
 
@@ -48,6 +63,9 @@ func TestBridgeAllowlistChecks(t *testing.T) {
 		},
 		allowMilestones: map[string]map[int]bool{
 			issueKey("fleetdm/fleet", 123): {55: true},
+		},
+		allowSprints: map[string]sprintApplyTarget{
+			"ITEM_1": {ProjectID: "PROJ_1", FieldID: "FIELD_1", IterationID: "ITER_1"},
 		},
 	}
 
@@ -62,6 +80,12 @@ func TestBridgeAllowlistChecks(t *testing.T) {
 	}
 	if b.isAllowedMilestone("fleetdm/fleet", 123, 99) {
 		t.Fatal("unexpected milestone allow")
+	}
+	if _, ok := b.allowedSprintForItem("ITEM_1"); !ok {
+		t.Fatal("expected sprint item allow")
+	}
+	if _, ok := b.allowedSprintForItem("ITEM_2"); ok {
+		t.Fatal("unexpected sprint item allow")
 	}
 }
 

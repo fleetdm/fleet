@@ -17,6 +17,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/shurcooL/githubv4"
 )
 
 const maxBridgeBodyBytes = 16 * 1024
@@ -42,6 +44,7 @@ type uiBridge struct {
 
 	allowChecklist  map[string]map[string]bool
 	allowMilestones map[string]map[int]bool
+	allowSprints    map[string]sprintApplyTarget
 }
 
 func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string), policy bridgePolicy) (*uiBridge, error) {
@@ -73,12 +76,14 @@ func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string)
 		reason:          "bridge closed",
 		allowChecklist:  policy.ChecklistByIssue,
 		allowMilestones: policy.MilestonesByIssue,
+		allowSprints:    policy.SprintsByItemID,
 	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/report", b.handleReport)
 	mux.HandleFunc("/api/apply-milestone", b.handleApplyMilestone)
 	mux.HandleFunc("/api/apply-checklist", b.handleApplyChecklist)
+	mux.HandleFunc("/api/apply-sprint", b.handleApplySprint)
 	mux.HandleFunc("/api/close", b.handleClose)
 	mux.HandleFunc("/healthz", b.handleHealth)
 	b.srv = &http.Server{
@@ -320,6 +325,44 @@ func (b *uiBridge) handleClose(w http.ResponseWriter, r *http.Request) {
 	}()
 }
 
+func (b *uiBridge) handleApplySprint(w http.ResponseWriter, r *http.Request) {
+	if !b.prepareRequest(w, r) {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBridgeBodyBytes)
+	var req struct {
+		ItemID string `json:"item_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	itemID := strings.TrimSpace(req.ItemID)
+	if itemID == "" {
+		http.Error(w, "item_id is required", http.StatusBadRequest)
+		return
+	}
+
+	target, ok := b.allowedSprintForItem(itemID)
+	if !ok {
+		http.Error(w, "operation not allowed for this item", http.StatusForbidden)
+		return
+	}
+
+	b.signal(fmt.Sprintf("🗓️ caller=%s set current sprint on item=%s", callerAddr(r), itemID))
+	if err := setCurrentSprintForItem(
+		b.token,
+		githubv4.ID(target.ProjectID),
+		githubv4.ID(itemID),
+		githubv4.ID(target.FieldID),
+		target.IterationID,
+	); err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
 func callerAddr(r *http.Request) string {
 	hostPort := strings.TrimSpace(r.RemoteAddr)
 	if hostPort == "" {
@@ -444,6 +487,11 @@ func (b *uiBridge) isAllowedChecklist(repo string, issue int, checklistText stri
 		return false
 	}
 	return choices[strings.TrimSpace(checklistText)]
+}
+
+func (b *uiBridge) allowedSprintForItem(itemID string) (sprintApplyTarget, bool) {
+	target, ok := b.allowSprints[strings.TrimSpace(itemID)]
+	return target, ok
 }
 
 func replaceUncheckedChecklistLine(body string, checkText string) (string, bool, bool) {

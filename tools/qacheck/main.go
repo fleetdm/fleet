@@ -104,8 +104,10 @@ func main() {
 	tracker.phaseStart(phaseMilestones)
 	start = time.Now()
 	missingMilestones := runMissingMilestoneChecks(ctx, client, *org, projectNums, *limit, token)
+	missingSprints := runMissingSprintChecks(ctx, client, *org, projectNums, *limit)
 	tracker.phaseDone(phaseMilestones, phaseSummaryKV(
 		fmt.Sprintf("missing milestones=%d", len(missingMilestones)),
+		fmt.Sprintf("missing sprint=%d", len(missingSprints)),
 		shortDuration(time.Since(start)),
 	))
 
@@ -130,7 +132,7 @@ func main() {
 
 	tracker.phaseStart(phaseReport)
 	start = time.Now()
-	policy := buildBridgePolicy(badDrafting, missingMilestones)
+	policy := buildBridgePolicy(badDrafting, missingMilestones, missingSprints)
 	bridge, err := startUIBridge(token, time.Duration(*bridgeIdleMinutes)*time.Minute, tracker.bridgeSignal, policy)
 	if err != nil {
 		log.Printf("could not start UI bridge: %v", err)
@@ -149,6 +151,7 @@ func main() {
 			*staleDays,
 			byStatus,
 			missingMilestones,
+			missingSprints,
 			timestampCheck,
 			bridgeEnabled,
 			bridgeBaseURL,

@@ -53,7 +53,40 @@ type MissingMilestoneReportItem struct {
 	Title       string
 	URL         string
 	Repo        string
+	Status      string
 	Suggestions []MilestoneSuggestion
+}
+
+type MissingMilestoneGroupReport struct {
+	Key   string
+	Label string
+	Items []MissingMilestoneReportItem
+}
+
+type MissingMilestoneProjectReport struct {
+	ProjectNum int
+	Columns    []MissingMilestoneGroupReport
+}
+
+type MissingSprintReportItem struct {
+	ProjectNum    int
+	ItemID        string
+	Number        int
+	Title         string
+	URL           string
+	Status        string
+	CurrentSprint string
+}
+
+type MissingSprintGroupReport struct {
+	Key   string
+	Label string
+	Items []MissingSprintReportItem
+}
+
+type MissingSprintProjectReport struct {
+	ProjectNum int
+	Columns    []MissingSprintGroupReport
 }
 
 type MilestoneSuggestion struct {
@@ -70,17 +103,20 @@ type HTMLReportData struct {
 	StaleSections    []StaleAwaitingProjectReport
 	StaleThreshold   int
 	DraftingSections []DraftingStatusReport
-	MissingMilestone []MissingMilestoneReportItem
+	MissingMilestone []MissingMilestoneProjectReport
+	MissingSprint    []MissingSprintProjectReport
 	TotalAwaiting    int
 	TotalStale       int
 	TotalDrafting    int
 	TotalNoMilestone int
+	TotalNoSprint    int
 	TimestampCheck   TimestampCheckResult
 	AwaitingClean    bool
 	StaleClean       bool
 	DraftingClean    bool
 	TimestampClean   bool
 	MilestoneClean   bool
+	SprintClean      bool
 }
 
 func buildHTMLReportData(
@@ -91,6 +127,7 @@ func buildHTMLReportData(
 	staleDays int,
 	byStatus map[string][]DraftingCheckViolation,
 	missingMilestones []MissingMilestoneIssue,
+	missingSprints []MissingSprintViolation,
 	timestampCheck TimestampCheckResult,
 	bridgeEnabled bool,
 	bridgeBaseURL string,
@@ -192,7 +229,7 @@ func buildHTMLReportData(
 		)
 	}
 
-	noMilestone := make([]MissingMilestoneReportItem, 0, len(missingMilestones))
+	groupedMilestoneByProject := make(map[int]map[string][]MissingMilestoneReportItem)
 	for _, v := range missingMilestones {
 		repo := v.RepoOwner + "/" + v.RepoName
 		suggestions := make([]MilestoneSuggestion, 0, len(v.SuggestedMilestones))
@@ -202,13 +239,117 @@ func buildHTMLReportData(
 				Title:  m.Title,
 			})
 		}
-		noMilestone = append(noMilestone, MissingMilestoneReportItem{
+		status := itemStatus(v.Item)
+		group := sprintColumnGroup(status)
+		if groupedMilestoneByProject[v.ProjectNum] == nil {
+			groupedMilestoneByProject[v.ProjectNum] = map[string][]MissingMilestoneReportItem{
+				"ready":       {},
+				"in_progress": {},
+				"awaiting_qa": {},
+				"other":       {},
+			}
+		}
+		groupedMilestoneByProject[v.ProjectNum][group] = append(groupedMilestoneByProject[v.ProjectNum][group], MissingMilestoneReportItem{
 			ProjectNum:  v.ProjectNum,
 			Number:      getNumber(v.Item),
 			Title:       getTitle(v.Item),
 			URL:         getURL(v.Item),
 			Repo:        repo,
+			Status:      status,
 			Suggestions: suggestions,
+		})
+	}
+	milestoneProjects := make([]MissingMilestoneProjectReport, 0, len(groupedMilestoneByProject))
+	totalNoMilestone := 0
+	projectNumsForMilestones := make([]int, 0, len(groupedMilestoneByProject))
+	for p := range groupedMilestoneByProject {
+		projectNumsForMilestones = append(projectNumsForMilestones, p)
+	}
+	sort.Ints(projectNumsForMilestones)
+	for _, p := range projectNumsForMilestones {
+		grouped := groupedMilestoneByProject[p]
+		projectTotal := 0
+		for _, key := range []string{"ready", "in_progress", "awaiting_qa", "other"} {
+			items := grouped[key]
+			projectTotal += len(items)
+			totalNoMilestone += len(items)
+		}
+		if projectTotal == 0 {
+			continue
+		}
+		columns := make([]MissingMilestoneGroupReport, 0, 4)
+		for _, key := range []string{"ready", "in_progress", "awaiting_qa", "other"} {
+			items := grouped[key]
+			if len(items) == 0 {
+				continue
+			}
+			columns = append(columns, MissingMilestoneGroupReport{
+				Key:   key,
+				Label: sprintColumnLabel(key),
+				Items: items,
+			})
+		}
+		milestoneProjects = append(milestoneProjects, MissingMilestoneProjectReport{
+			ProjectNum: p,
+			Columns:    columns,
+		})
+	}
+
+	groupedSprintByProject := make(map[int]map[string][]MissingSprintReportItem)
+	for _, v := range missingSprints {
+		itemID := fmt.Sprintf("%v", v.ItemID)
+		group := sprintColumnGroup(v.Status)
+		if groupedSprintByProject[v.ProjectNum] == nil {
+			groupedSprintByProject[v.ProjectNum] = map[string][]MissingSprintReportItem{
+				"ready":       {},
+				"in_progress": {},
+				"awaiting_qa": {},
+				"other":       {},
+			}
+		}
+		groupedSprintByProject[v.ProjectNum][group] = append(groupedSprintByProject[v.ProjectNum][group], MissingSprintReportItem{
+			ProjectNum:    v.ProjectNum,
+			ItemID:        itemID,
+			Number:        getNumber(v.Item),
+			Title:         getTitle(v.Item),
+			URL:           getURL(v.Item),
+			Status:        v.Status,
+			CurrentSprint: v.CurrentSprint,
+		})
+	}
+	sprintProjects := make([]MissingSprintProjectReport, 0, len(groupedSprintByProject))
+	totalNoSprint := 0
+	projectNumsForSprint := make([]int, 0, len(groupedSprintByProject))
+	for p := range groupedSprintByProject {
+		projectNumsForSprint = append(projectNumsForSprint, p)
+	}
+	sort.Ints(projectNumsForSprint)
+	for _, p := range projectNumsForSprint {
+		grouped := groupedSprintByProject[p]
+		projectTotal := 0
+		for _, key := range []string{"ready", "in_progress", "awaiting_qa", "other"} {
+			items := grouped[key]
+			projectTotal += len(items)
+			totalNoSprint += len(items)
+		}
+		if projectTotal == 0 {
+			continue
+		}
+		columns := make([]MissingSprintGroupReport, 0, 4)
+		for _, key := range []string{"ready", "in_progress", "awaiting_qa", "other"} {
+			items := grouped[key]
+			if len(items) == 0 {
+				continue
+			}
+			columns = append(columns, MissingSprintGroupReport{
+				Key:   key,
+				Label: sprintColumnLabel(key),
+				Items: items,
+			})
+		}
+		sprintProjects = append(sprintProjects, MissingSprintProjectReport{
+			ProjectNum: p,
+			Columns:    columns,
 		})
 	}
 
@@ -221,18 +362,35 @@ func buildHTMLReportData(
 		StaleSections:    staleSections,
 		StaleThreshold:   staleDays,
 		DraftingSections: drafting,
-		MissingMilestone: noMilestone,
+		MissingMilestone: milestoneProjects,
+		MissingSprint:    sprintProjects,
 		TotalAwaiting:    totalAwaiting,
 		TotalStale:       totalStale,
 		TotalDrafting:    totalDrafting,
-		TotalNoMilestone: len(noMilestone),
+		TotalNoMilestone: totalNoMilestone,
+		TotalNoSprint:    totalNoSprint,
 		TimestampCheck:   timestampCheck,
 		AwaitingClean:    totalAwaiting == 0,
 		StaleClean:       totalStale == 0,
 		DraftingClean:    totalDrafting == 0,
 		TimestampClean:   timestampCheck.Error == "" && timestampCheck.OK,
-		MilestoneClean:   len(noMilestone) == 0,
+		MilestoneClean:   totalNoMilestone == 0,
+		SprintClean:      totalNoSprint == 0,
 	}
+}
+
+func itemStatus(it Item) string {
+	for _, v := range it.FieldValues.Nodes {
+		fieldName := strings.TrimSpace(strings.ToLower(string(v.SingleSelectValue.Field.Common.Name)))
+		if fieldName != "status" {
+			continue
+		}
+		name := strings.TrimSpace(string(v.SingleSelectValue.Name))
+		if name != "" {
+			return name
+		}
+	}
+	return ""
 }
 
 func writeHTMLReport(data HTMLReportData) (string, error) {
@@ -327,44 +485,6 @@ var htmlReportTemplate = `<!doctype html>
       background: var(--bg);
       color: var(--text);
     }
-    .topbar {
-      background: var(--header);
-      border-bottom: 1px solid var(--line);
-      padding: 12px 20px 0;
-    }
-    .topbar-inner {
-      max-width: 1360px;
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      gap: 18px;
-    }
-    .fleet-logo {
-      width: 20px;
-      height: 20px;
-      display: grid;
-      grid-template-columns: repeat(2, 6px);
-      gap: 4px;
-      margin-bottom: 10px;
-    }
-    .fleet-logo span { width: 6px; height: 6px; border-radius: 50%; }
-    .fleet-logo .d1 { background: #8a6ff0; }
-    .fleet-logo .d2 { background: #34c759; }
-    .fleet-logo .d3 { background: #4da3ff; }
-    .fleet-logo .d4 { background: #ff7d4d; }
-    .top-nav {
-      display: flex;
-      gap: 26px;
-      align-items: center;
-      font-size: 15px;
-      color: var(--muted);
-      margin-bottom: 1px;
-    }
-    .top-nav .active {
-      color: var(--text);
-      border-bottom: 2px solid var(--text);
-      padding-bottom: 13px;
-    }
     .wrap {
       max-width: 1360px;
       margin: 0 auto;
@@ -375,6 +495,24 @@ var htmlReportTemplate = `<!doctype html>
       border: 1px solid var(--line);
       border-radius: 12px;
       padding: 20px;
+    }
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .title-logo {
+      width: 28px;
+      height: 28px;
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .title-logo svg {
+      display: block;
+      width: 26px;
+      height: 26px;
     }
     h1 { margin: 0; font-size: 38px; line-height: 1.1; }
     h2 { margin: 0 0 10px; font-size: 27px; line-height: 1.2; }
@@ -486,6 +624,13 @@ var htmlReportTemplate = `<!doctype html>
       flex-wrap: wrap;
       gap: 8px;
     }
+    .column-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
     .fix-btn {
       border: 1px solid #b8bfd5;
       background: #fff;
@@ -517,36 +662,31 @@ var htmlReportTemplate = `<!doctype html>
       .menu {
         position: static;
       }
-      .top-nav {
-        overflow-x: auto;
-        white-space: nowrap;
-      }
     }
   </style>
 </head>
 <body data-bridge-url="{{.BridgeBaseURL}}">
-  <header class="topbar">
-    <div class="topbar-inner">
-      <div class="fleet-logo" aria-hidden="true">
-        <span class="d1"></span><span class="d2"></span><span class="d3"></span><span class="d4"></span>
-      </div>
-      <nav class="top-nav" aria-label="main">
-        <span class="active">Hosts</span>
-        <span>Controls</span>
-        <span>Software</span>
-        <span>Reports</span>
-        <span>Policies</span>
-      </nav>
-    </div>
-  </header>
   <div class="wrap">
     <section class="header">
-      <h1>All fleets</h1>
+      <div class="title-row">
+        <span class="title-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" role="img" aria-label="Fleet logo">
+            <circle cx="4" cy="4" r="2.2" fill="#8b6ff0"></circle>
+            <circle cx="12" cy="4" r="2.2" fill="#34c759"></circle>
+            <circle cx="20" cy="4" r="2.2" fill="#eb5757"></circle>
+            <circle cx="4" cy="12" r="2.2" fill="#4da3ff"></circle>
+            <circle cx="12" cy="12" r="2.2" fill="#ff8a3d"></circle>
+            <circle cx="4" cy="20" r="2.2" fill="#54d58f"></circle>
+          </svg>
+        </span>
+        <h1>All fleets</h1>
+      </div>
       <p class="meta">Org: {{.Org}} | Generated: {{.GeneratedAt}}</p>
       <div class="counts">
         <span class="pill">Awaiting QA violations: {{.TotalAwaiting}}</span>
         <span class="pill">Stale Awaiting QA items: {{.TotalStale}}</span>
         <span class="pill">Missing milestones (selected projects): {{.TotalNoMilestone}}</span>
+        <span class="pill">Missing sprint (selected projects): {{.TotalNoSprint}}</span>
         <span class="pill">Drafting checklist violations: {{.TotalDrafting}}</span>
       </div>
       {{if .BridgeEnabled}}
@@ -571,6 +711,9 @@ var htmlReportTemplate = `<!doctype html>
         </button>
         <button class="menu-btn" data-tab="milestone" role="tab">
           <span class="status-dot {{if .MilestoneClean}}ok{{end}}"></span>🎯 Missing milestones
+        </button>
+        <button class="menu-btn" data-tab="sprint" role="tab">
+          <span class="status-dot {{if .SprintClean}}ok{{end}}"></span>🗓️ Missing sprint
         </button>
         <button class="menu-btn" data-tab="drafting" role="tab">
           <span class="status-dot {{if .DraftingClean}}ok{{end}}"></span>🧭 Drafting estimation gate
@@ -666,26 +809,48 @@ var htmlReportTemplate = `<!doctype html>
         {{if .MissingMilestone}}
           {{range .MissingMilestone}}
             <div class="project">
-              <h3>Project {{.ProjectNum}} · #{{.Number}} - {{.Title}}</h3>
-              <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
-              <p class="subtle">Repository: <strong>{{.Repo}}</strong></p>
-              <div class="actions">
-                {{if .Suggestions}}
-                  <input class="fix-btn milestone-search" type="text" placeholder="Search milestone...">
-                  <select class="fix-btn milestone-select" data-issue="{{.Number}}" data-repo="{{.Repo}}">
-                    {{range .Suggestions}}
-                      <option value="{{.Title}}" data-number="{{.Number}}">{{.Title}}</option>
+              <h3>Project {{.ProjectNum}}</h3>
+              {{range .Columns}}
+                <div class="status">
+                  <div class="column-head">
+                    <h3>{{.Label}}</h3>
+                    {{if and $.BridgeEnabled .Items}}
+                      <button class="fix-btn apply-milestone-column-btn">Apply selected milestones in column</button>
                     {{end}}
-                  </select>
-                  {{if $.BridgeEnabled}}
-                    <button class="fix-btn apply-milestone-btn">Apply milestone</button>
+                  </div>
+                  {{if .Items}}
+                    {{range .Items}}
+                      <article class="item">
+                        <div><strong>#{{.Number}} - {{.Title}}</strong></div>
+                        <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
+                        <ul>
+                          <li>Status: {{if .Status}}{{.Status}}{{else}}(unset){{end}}</li>
+                          <li>Repository: {{.Repo}}</li>
+                        </ul>
+                        <div class="actions">
+                          {{if .Suggestions}}
+                            <input class="fix-btn milestone-search" type="text" placeholder="Search milestone...">
+                            <select class="fix-btn milestone-select" data-issue="{{.Number}}" data-repo="{{.Repo}}">
+                              {{range .Suggestions}}
+                                <option value="{{.Title}}" data-number="{{.Number}}">{{.Title}}</option>
+                              {{end}}
+                            </select>
+                            {{if $.BridgeEnabled}}
+                              <button class="fix-btn apply-milestone-btn">Apply milestone</button>
+                            {{else}}
+                              <span class="copied-note">Bridge offline: rerun qacheck to enable apply.</span>
+                            {{end}}
+                          {{else}}
+                            <span class="copied-note">No milestone suggestions found for this repo.</span>
+                          {{end}}
+                        </div>
+                      </article>
+                    {{end}}
                   {{else}}
-                    <span class="copied-note">Bridge offline: rerun qacheck to enable apply.</span>
+                    <p class="empty">🟢 No items in this group.</p>
                   {{end}}
-                {{else}}
-                  <span class="copied-note">No milestone suggestions found for this repo.</span>
-                {{end}}
-              </div>
+                </div>
+              {{end}}
             </div>
           {{end}}
         {{else}}
@@ -728,6 +893,49 @@ var htmlReportTemplate = `<!doctype html>
           {{end}}
         {{else}}
           <p class="empty">🟢 No drafting violations.</p>
+        {{end}}
+      </section>
+
+      <section id="tab-sprint" class="panel" role="tabpanel">
+        <h2>🗓️ Missing sprint (selected projects)</h2>
+        <p class="subtle">Items in selected projects without a sprint set. Grouped by column focus.</p>
+        {{if .MissingSprint}}
+          {{range .MissingSprint}}
+            <div class="project">
+              <h3>Project {{.ProjectNum}}</h3>
+              {{range .Columns}}
+                <div class="status">
+                  <div class="column-head">
+                    <h3>{{.Label}}</h3>
+                    {{if and $.BridgeEnabled .Items}}
+                      <button class="fix-btn apply-sprint-column-btn">Set current sprint for column</button>
+                    {{end}}
+                  </div>
+                  {{if .Items}}
+                    {{range .Items}}
+                      <article class="item">
+                        <div><strong>#{{.Number}} - {{.Title}}</strong></div>
+                        <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
+                        <ul>
+                          <li>Status: {{if .Status}}{{.Status}}{{else}}(unset){{end}}</li>
+                          <li>Current sprint: {{if .CurrentSprint}}{{.CurrentSprint}}{{else}}(unknown){{end}}</li>
+                        </ul>
+                        {{if $.BridgeEnabled}}
+                          <div class="actions">
+                            <button class="fix-btn apply-sprint-btn" data-item-id="{{.ItemID}}">Set current sprint</button>
+                          </div>
+                        {{end}}
+                      </article>
+                    {{end}}
+                  {{else}}
+                    <p class="empty">🟢 No items in this group.</p>
+                  {{end}}
+                </div>
+              {{end}}
+            </div>
+          {{end}}
+        {{else}}
+          <p class="empty">🟢 No missing sprint items found.</p>
         {{end}}
       </section>
       </div>
@@ -786,50 +994,77 @@ var htmlReportTemplate = `<!doctype html>
         });
       }
 
+      async function applyMilestoneButton(btn) {
+        const actions = btn.closest('.actions');
+        const select = actions && actions.querySelector('.milestone-select');
+        if (!select) return false;
+        const issue = select.dataset.issue || '';
+        const repo = select.dataset.repo || '';
+        const milestoneTitle = select.value || '';
+        const milestoneNumber = parseInt((select.selectedOptions[0] && select.selectedOptions[0].dataset.number) || '', 10);
+        if (!issue || !repo || !milestoneTitle || Number.isNaN(milestoneNumber)) return false;
+
+        const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
+        if (!bridgeURL) {
+          window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
+          return false;
+        }
+
+        const endpoint = bridgeURL + '/api/apply-milestone';
+        const payload = { repo: repo, issue: issue, milestone_number: milestoneNumber };
+        const prev = btn.textContent;
+        btn.textContent = 'Applying...';
+        btn.disabled = true;
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            const body = await res.text();
+            throw new Error('Bridge error ' + res.status + ': ' + body);
+          }
+          btn.textContent = 'Applied';
+          setTimeout(() => { btn.textContent = prev; }, 1200);
+          return true;
+        } catch (err) {
+          window.alert('Could not apply milestone. ' + err);
+          btn.textContent = prev;
+          return false;
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
       const applyButtons = document.querySelectorAll('.apply-milestone-btn');
       applyButtons.forEach((btn) => {
         btn.addEventListener('click', async () => {
-          const actions = btn.closest('.actions');
-          const select = actions && actions.querySelector('.milestone-select');
-          if (!select) return;
-          const issue = select.dataset.issue || '';
-          const repo = select.dataset.repo || '';
-          const milestoneTitle = select.value || '';
-          const milestoneNumber = parseInt((select.selectedOptions[0] && select.selectedOptions[0].dataset.number) || '', 10);
-          if (!issue || !repo || !milestoneTitle || Number.isNaN(milestoneNumber)) return;
+          await applyMilestoneButton(btn);
+        });
+      });
 
-          const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
-          if (!bridgeURL) {
-            window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
-            return;
-          }
+      const applyMilestoneColumnButtons = document.querySelectorAll('.apply-milestone-column-btn');
+      applyMilestoneColumnButtons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const statusCard = btn.closest('.status');
+          if (!statusCard) return;
+          const rowButtons = Array.from(statusCard.querySelectorAll('.apply-milestone-btn'));
+          if (rowButtons.length === 0) return;
 
-          const endpoint = bridgeURL + '/api/apply-milestone';
-          const payload = { repo: repo, issue: issue, milestone_number: milestoneNumber };
           const prev = btn.textContent;
-          btn.textContent = 'Applying...';
+          btn.textContent = 'Applying column...';
           btn.disabled = true;
-          try {
-            const res = await fetch(endpoint, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              credentials: 'same-origin',
-              body: JSON.stringify(payload),
-            });
-            if (!res.ok) {
-              const body = await res.text();
-              throw new Error('Bridge error ' + res.status + ': ' + body);
-            }
-            btn.textContent = 'Applied';
-            setTimeout(() => { btn.textContent = prev; }, 1200);
-          } catch (err) {
-            window.alert('Could not apply milestone. ' + err);
-            btn.textContent = prev;
-          } finally {
-            btn.disabled = false;
+          for (const rowBtn of rowButtons) {
+            // sequential requests keep updates readable and avoid API bursts.
+            await applyMilestoneButton(rowBtn);
           }
+          btn.textContent = 'Column applied';
+          setTimeout(() => { btn.textContent = prev; }, 1200);
+          btn.disabled = false;
         });
       });
 
@@ -887,6 +1122,71 @@ var htmlReportTemplate = `<!doctype html>
         });
       });
 
+      async function applySprintButton(btn) {
+        const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
+        if (!bridgeURL) {
+          window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
+          return false;
+        }
+        const itemID = btn.dataset.itemId || '';
+        if (!itemID) return false;
+
+        const endpoint = bridgeURL + '/api/apply-sprint';
+        const prev = btn.textContent;
+        btn.textContent = 'Setting...';
+        btn.disabled = true;
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ item_id: itemID }),
+          });
+          if (!res.ok) {
+            const body = await res.text();
+            throw new Error('Bridge error ' + res.status + ': ' + body);
+          }
+          btn.textContent = 'Sprint set';
+          setTimeout(() => { btn.textContent = prev; }, 1200);
+          return true;
+        } catch (err) {
+          window.alert('Could not set sprint. ' + err);
+          btn.textContent = prev;
+          return false;
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      const applySprintButtons = document.querySelectorAll('.apply-sprint-btn');
+      applySprintButtons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          await applySprintButton(btn);
+        });
+      });
+
+      const applySprintColumnButtons = document.querySelectorAll('.apply-sprint-column-btn');
+      applySprintColumnButtons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const statusCard = btn.closest('.status');
+          if (!statusCard) return;
+          const rowButtons = Array.from(statusCard.querySelectorAll('.apply-sprint-btn'));
+          if (rowButtons.length === 0) return;
+
+          const prev = btn.textContent;
+          btn.textContent = 'Setting column...';
+          btn.disabled = true;
+          for (const rowBtn of rowButtons) {
+            await applySprintButton(rowBtn);
+          }
+          btn.textContent = 'Column set';
+          setTimeout(() => { btn.textContent = prev; }, 1200);
+          btn.disabled = false;
+        });
+      });
+
       const closeSessionButton = document.getElementById('close-session-btn');
       if (closeSessionButton) {
         closeSessionButton.addEventListener('click', async () => {
@@ -911,7 +1211,7 @@ var htmlReportTemplate = `<!doctype html>
               const body = await res.text();
               throw new Error('Bridge error ' + res.status + ': ' + body);
             }
-            document.querySelectorAll('.apply-milestone-btn, .apply-drafting-check-btn').forEach((el) => {
+            document.querySelectorAll('.apply-milestone-btn, .apply-milestone-column-btn, .apply-drafting-check-btn, .apply-sprint-btn, .apply-sprint-column-btn').forEach((el) => {
               el.disabled = true;
             });
             closeSessionButton.textContent = 'Closed';
