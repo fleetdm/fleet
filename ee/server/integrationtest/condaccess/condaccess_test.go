@@ -270,7 +270,7 @@ func requestSCEPCertificateWithOptions(t *testing.T, s *Suite, uris []*url.URL, 
 
 	// Create SCEP client
 	scepURL := fmt.Sprintf("%s/api/fleet/conditional_access/scep", s.Server.URL)
-	scepClient, err := scepclient.New(scepURL, s.Logger)
+	scepClient, err := scepclient.New(scepURL, s.Logger.SlogLogger())
 	require.NoError(t, err)
 
 	// Get CA certificate
