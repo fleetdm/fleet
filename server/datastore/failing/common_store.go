@@ -15,18 +15,15 @@ type commonFailingStore struct {
 }
 
 func (c commonFailingStore) Get(ctx context.Context, iconID string) (io.ReadCloser, int64, error) {
-	fmt.Println("failing get")
 	return nil, 0, fmt.Errorf("%s store not properly configured", c.Entity)
 }
 
 func (c commonFailingStore) Put(ctx context.Context, iconID string, content io.ReadSeeker) error {
-	fmt.Println("failing put")
 	return fmt.Errorf("%s store not properly configured", c.Entity)
 }
 
 func (c commonFailingStore) Exists(ctx context.Context, iconID string) (bool, error) {
-	fmt.Println("failing exists")
-	return false, nil //fmt.Errorf("%s store not properly configured", c.Entity)
+	return false, fmt.Errorf("%s store not properly configured", c.Entity)
 }
 
 func (c commonFailingStore) Cleanup(ctx context.Context, usedIconIDs []string, removeCreatedBefore time.Time) (int, error) {

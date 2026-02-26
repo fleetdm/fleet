@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -14,7 +14,6 @@ import (
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
-	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -529,7 +528,7 @@ type mockInstallerStore struct {
 }
 
 func (m *mockInstallerStore) Get(ctx context.Context, iconID string) (io.ReadCloser, int64, error) {
-	return nil, 0, fmt.Errorf("mock installer store get")
+	return nil, 0, errors.New("mock installer store get")
 }
 
 func (m *mockInstallerStore) Put(ctx context.Context, iconID string, content io.ReadSeeker) error {
@@ -538,7 +537,7 @@ func (m *mockInstallerStore) Put(ctx context.Context, iconID string, content io.
 		m.onPut()
 	}
 
-	return fmt.Errorf("mock store put")
+	return errors.New("mock store put")
 }
 
 func (m *mockInstallerStore) Exists(ctx context.Context, iconID string) (bool, error) {
@@ -550,13 +549,13 @@ func (m *mockInstallerStore) Cleanup(ctx context.Context, usedIconIDs []string, 
 }
 
 func (m *mockInstallerStore) Sign(_ context.Context, _ string, _ time.Duration) (string, error) {
-	return "", fmt.Errorf("mock store sign")
+	return "", errors.New("mock store sign")
 }
 
 func TestSoftwareInstallerUploadRetries(t *testing.T) {
 	ds := new(mock.Store)
 	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
-	ctx := license.NewContext(context.Background(), lic)
+	// ctx := license.NewContext(context.Background(), lic)
 
 	kvStore := &mock.KVStore{}
 	kvStore.SetFunc = func(ctx context.Context, key string, value string, expireTime time.Duration) error {
