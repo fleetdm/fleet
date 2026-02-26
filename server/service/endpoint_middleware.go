@@ -118,7 +118,7 @@ func authenticatedDevice(svc fleet.Service, logger *slog.Logger, next endpoint.E
 		}
 
 		if debug {
-			logJSON(ctx, hlogger, request, "response")
+			logJSON(ctx, hlogger, resp, "response")
 		}
 		return resp, nil
 	}
