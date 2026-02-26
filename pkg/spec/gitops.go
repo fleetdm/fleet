@@ -1122,7 +1122,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			item.Team = ""
 		}
 		if item.CalendarEventsEnabled && result.IsNoTeam() {
-			multiError = multierror.Append(multiError, fmt.Errorf("calendar events are not supported on policies included in `%s`: %q", parentFilePath, item.Name))
+			multiError = multierror.Append(multiError, fmt.Errorf("calendar events are not supported on policies included in `%s`: %q", filepath.Base(parentFilePath), item.Name))
 		}
 	}
 	duplicates := getDuplicateNames(
