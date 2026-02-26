@@ -744,6 +744,87 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
 	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 }
 
+// handlerKey identifies a registered handler by HTTP method and unversioned path template.
+type handlerKey struct {
+	method string
+	path   string // unversioned path template, e.g. "/api/_version_/fleet/fleets"
+}
+
+// HandlerRegistry stores HTTP handlers by method+path during endpoint registration,
+// enabling lookup for deprecated path alias registration.
+type HandlerRegistry struct {
+	handlers map[handlerKey]http.Handler
+}
+
+// NewHandlerRegistry creates an empty HandlerRegistry.
+func NewHandlerRegistry() *HandlerRegistry {
+	return &HandlerRegistry{handlers: make(map[handlerKey]http.Handler)}
+}
+
+// DeprecatedPathAlias maps a primary (canonical) path to one or more deprecated
+// paths that should serve the same handler.
+type DeprecatedPathAlias struct {
+	Method          string
+	PrimaryPath     string   // canonical path (must already be registered)
+	DeprecatedPaths []string // old paths to alias
+}
+
+// deprecatedPathInfoKey is the context key for deprecated URL path info.
+type deprecatedPathInfoKey struct{}
+
+// deprecatedPathInfo holds the deprecated and canonical paths for logging.
+type deprecatedPathInfo struct {
+	deprecatedPath string
+	primaryPath    string
+}
+
+// LogDeprecatedPathAlias is a kithttp.RequestFunc (ServerBefore function)
+// that checks if the request is using a deprecated URL path alias and, if so,
+// elevates the log level to Warn and adds deprecation info to the request log.
+// It must run after the LoggingContext is created (i.e. after SetRequestsContexts).
+func LogDeprecatedPathAlias(ctx context.Context, _ *http.Request) context.Context {
+	if !platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+		return ctx
+	}
+	info, ok := ctx.Value(deprecatedPathInfoKey{}).(deprecatedPathInfo)
+	if !ok {
+		return ctx
+	}
+	logging.WithLevel(ctx, slog.LevelWarn)
+	logging.WithExtras(ctx,
+		"deprecated_path", info.deprecatedPath,
+		"deprecation_warning", fmt.Sprintf("API `%s` is deprecated, use `%s` instead", info.deprecatedPath, info.primaryPath),
+	)
+	return ctx
+}
+
+// RegisterDeprecatedPathAliases registers deprecated URL path aliases that point
+// to the same handler as the canonical path, and wraps them in a handler that
+// can log deprecation warnings.
+func RegisterDeprecatedPathAliases(r *mux.Router, versions []string, registry *HandlerRegistry, aliases []DeprecatedPathAlias) {
+	allVersions := append(append([]string{}, versions...), "latest")
+	versionRegex := strings.Join(allVersions, "|")
+	for _, alias := range aliases {
+		handler := registry.handlers[handlerKey{alias.Method, alias.PrimaryPath}]
+		if handler == nil {
+			panic(fmt.Sprintf("deprecated alias: no handler registered for %s %s", alias.Method, alias.PrimaryPath))
+		}
+		for _, path := range alias.DeprecatedPaths {
+			// Replace the version placeholder in the deprecated path with a regex that matches all versions,
+			// so that the same handler can be used for all versions of the deprecated path.
+			pathForHandler := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", versionRegex), 1)
+			info := deprecatedPathInfo{deprecatedPath: path, primaryPath: alias.PrimaryPath}
+			// Wrap the handler to inject deprecation info into the context for logging.
+			wrappedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				ctx := context.WithValue(r.Context(), deprecatedPathInfoKey{}, info)
+				handler.ServeHTTP(w, r.WithContext(ctx))
+			})
+			nameAndVerb := getNameFromPathAndVerb(alias.Method, path, "")
+			r.Handle(pathForHandler, wrappedHandler).Name(nameAndVerb).Methods(alias.Method)
+		}
+	}
+}
+
 type CommonEndpointer[H any] struct {
 	EP            Endpointer[H]
 	MakeDecoderFn func(iface any, requestBodyLimit int64) kithttp.DecodeRequestFunc
@@ -759,6 +840,12 @@ type CommonEndpointer[H any] struct {
 	CustomMiddleware []endpoint.Middleware
 	// CustomMiddlewareAfterAuth are middlewares that run after authentication.
 	CustomMiddlewareAfterAuth []endpoint.Middleware
+
+	// HandlerRegistry, if set, records handlers by method+path for deprecated
+	// path alias lookup. The pointer is shared across shallow copies (created
+	// by builder methods like WithAltPaths) so all registrations land in the
+	// same map.
+	HandlerRegistry *HandlerRegistry
 
 	startingAtVersion string
 	endingAtVersion   string
@@ -971,10 +1058,14 @@ func (e *CommonEndpointer[H]) HandlePathHandler(path string, pathHandler func(pa
 
 	versionedPath := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
 	nameAndVerb := getNameFromPathAndVerb(verb, path, e.startingAtVersion)
+	handler := pathHandler(versionedPath)
 	if e.usePathPrefix {
-		e.Router.PathPrefix(versionedPath).Handler(pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
+		e.Router.PathPrefix(versionedPath).Handler(handler).Name(nameAndVerb).Methods(verb)
 	} else {
-		e.Router.Handle(versionedPath, pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
+		e.Router.Handle(versionedPath, handler).Name(nameAndVerb).Methods(verb)
+	}
+	if e.HandlerRegistry != nil {
+		e.HandlerRegistry.handlers[handlerKey{verb, path}] = handler
 	}
 	for _, alias := range e.alternativePaths {
 		nameAndVerb := getNameFromPathAndVerb(verb, alias, e.startingAtVersion)

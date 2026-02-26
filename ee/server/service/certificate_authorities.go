@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/variables"
-	"github.com/go-kit/log/level"
 )
 
 func (svc *Service) GetCertificateAuthority(ctx context.Context, id uint) (*fleet.CertificateAuthority, error) {
@@ -231,7 +230,7 @@ func (svc *Service) validateDigicert(ctx context.Context, digicertCA *fleet.Digi
 	}
 
 	if err := svc.digiCertService.VerifyProfileID(ctx, *digicertCA); err != nil {
-		level.Error(svc.logger).Log("msg", "Failed to validate DigiCert profile GUID", "err", err)
+		svc.logger.ErrorContext(ctx, "Failed to validate DigiCert profile GUID", "err", err)
 		return &fleet.BadRequestError{Message: fmt.Sprintf("%sCould not verify DigiCert profile ID: %s. Please correct and try again.", errPrefix, err.Error())}
 	}
 	return nil
@@ -375,11 +374,11 @@ func (svc *Service) validateNDESSCEPProxy(ctx context.Context, ndesSCEP *fleet.N
 		return err
 	}
 	if err := svc.scepConfigService.ValidateSCEPURL(ctx, ndesSCEP.URL); err != nil {
-		level.Error(svc.logger).Log("msg", "Failed to validate NDES SCEP URL", "err", err)
+		svc.logger.ErrorContext(ctx, "Failed to validate NDES SCEP URL", "err", err)
 		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
 	}
 	if err := svc.scepConfigService.ValidateNDESSCEPAdminURL(ctx, *ndesSCEP); err != nil {
-		level.Error(svc.logger).Log("msg", "Failed to validate NDES SCEP admin URL", "err", err)
+		svc.logger.ErrorContext(ctx, "Failed to validate NDES SCEP admin URL", "err", err)
 		switch {
 		case errors.As(err, &NDESPasswordCacheFullError{}):
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sThe NDES password cache is full. Please increase the number of cached passwords in NDES and try again.", errPrefix)}
@@ -403,7 +402,7 @@ func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fle
 		return fleet.NewInvalidArgumentError("challenge", fmt.Sprintf("%sCustom SCEP Proxy challenge cannot be empty", errPrefix))
 	}
 	if err := svc.scepConfigService.ValidateSCEPURL(ctx, customSCEP.URL); err != nil {
-		level.Error(svc.logger).Log("msg", "Failed to validate custom SCEP URL", "err", err)
+		svc.logger.ErrorContext(ctx, "Failed to validate custom SCEP URL", "err", err)
 		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
 	}
 	return nil
@@ -423,11 +422,11 @@ func (svc *Service) validateSmallstepSCEPProxy(ctx context.Context, smallstepSCE
 		return fleet.NewInvalidArgumentError("password", fmt.Sprintf("%sSmallstep password cannot be empty", errPrefix))
 	}
 	if err := svc.scepConfigService.ValidateSCEPURL(ctx, smallstepSCEP.URL); err != nil {
-		level.Error(svc.logger).Log("msg", "Failed to validate Smallstep SCEP URL", "err", err)
+		svc.logger.ErrorContext(ctx, "Failed to validate Smallstep SCEP URL", "err", err)
 		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
 	}
 	if err := svc.scepConfigService.ValidateSmallstepChallengeURL(ctx, *smallstepSCEP); err != nil {
-		level.Error(svc.logger).Log("msg", "Failed to validate Smallstep SCEP admin URL", "err", err)
+		svc.logger.ErrorContext(ctx, "Failed to validate Smallstep SCEP admin URL", "err", err)
 		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid challenge URL or credentials. Please correct and try again.", errPrefix)}
 	}
 	return nil
@@ -499,12 +498,12 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 	}
 
 	if ops == nil {
-		level.Debug(svc.logger).Log("msg", "batch apply certificate authorities: no certificate authority changes to apply")
+		svc.logger.DebugContext(ctx, "batch apply certificate authorities: no certificate authority changes to apply")
 		return nil
 	}
 
 	if dryRun {
-		level.Debug(svc.logger).Log("msg", "batch apply certificate authorities: no certificate authority changes to apply")
+		svc.logger.DebugContext(ctx, "batch apply certificate authorities: no certificate authority changes to apply")
 		return nil
 	}
 
@@ -629,19 +628,19 @@ func (svc *Service) processNDESSCEP(ctx context.Context, batchOps *fleet.Certifi
 
 	if existing == nil && incoming == nil {
 		// do nothing
-		level.Debug(svc.logger).Log("msg", "no existing or incoming NDES SCEP CA, skipping")
+		svc.logger.DebugContext(ctx, "no existing or incoming NDES SCEP CA, skipping")
 		return nil
 	}
 
 	if existing != nil && incoming != nil && incoming.URL == existing.URL && incoming.AdminURL == existing.AdminURL && incoming.Username == existing.Username && incoming.Password == existing.Password {
 		// all fields are identical so we can skip further validation and processing
-		level.Debug(svc.logger).Log("msg", "existing and incoming NDES SCEP CA are identical, skipping")
+		svc.logger.DebugContext(ctx, "existing and incoming NDES SCEP CA are identical, skipping")
 		return nil
 	}
 
 	if existing != nil && (incoming == nil || (incoming.URL == "" && incoming.AdminURL == "" && incoming.Username == "" && incoming.Password == "")) {
 		// delete current
-		level.Debug(svc.logger).Log("msg", "deleting existing NDES SCEP CA as incoming is empty")
+		svc.logger.DebugContext(ctx, "deleting existing NDES SCEP CA as incoming is empty")
 		batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
 			Type:     string(fleet.CATypeNDESSCEPProxy),
 			Name:     &ndesName,
@@ -662,7 +661,7 @@ func (svc *Service) processNDESSCEP(ctx context.Context, batchOps *fleet.Certifi
 
 	// add if there is no existing
 	if existing == nil || (existing.URL == "" && existing.AdminURL == "" && existing.Username == "" && existing.Password == "") {
-		level.Debug(svc.logger).Log("msg", "adding new NDES SCEP CA as none exists")
+		svc.logger.DebugContext(ctx, "adding new NDES SCEP CA as none exists")
 		batchOps.Add = append(batchOps.Add, &fleet.CertificateAuthority{
 			Type:     string(fleet.CATypeNDESSCEPProxy),
 			Name:     &ndesName,
@@ -675,7 +674,7 @@ func (svc *Service) processNDESSCEP(ctx context.Context, batchOps *fleet.Certifi
 	}
 
 	// otherwise update with existing id
-	level.Debug(svc.logger).Log("msg", "updating existing NDES SCEP CA")
+	svc.logger.DebugContext(ctx, "updating existing NDES SCEP CA")
 	incoming.ID = existing.ID
 	batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
 		Type:     string(fleet.CATypeNDESSCEPProxy),
@@ -1277,7 +1276,7 @@ func (svc *Service) validateDigicertUpdate(ctx context.Context, digicert *fleet.
 			digicertCA.APIToken = *oldCA.APIToken
 		}
 		if err := svc.digiCertService.VerifyProfileID(ctx, digicertCA); err != nil {
-			level.Error(svc.logger).Log("msg", "Failed to validate DigiCert URL", "err", err)
+			svc.logger.ErrorContext(ctx, "Failed to validate DigiCert URL", "err", err)
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sCould not verify DigiCert URL: %s. Please correct and try again.", errPrefix, err.Error())}
 		}
 	}
@@ -1309,7 +1308,7 @@ func (svc *Service) validateDigicertUpdate(ctx context.Context, digicert *fleet.
 			digicertCA.APIToken = *oldCA.APIToken
 		}
 		if err := svc.digiCertService.VerifyProfileID(ctx, digicertCA); err != nil {
-			level.Error(svc.logger).Log("msg", "Failed to validate DigiCert profile GUID", "err", err)
+			svc.logger.ErrorContext(ctx, "Failed to validate DigiCert profile GUID", "err", err)
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sCould not verify DigiCert profile ID: %s. Please correct and try again.", errPrefix, err.Error())}
 		}
 	}
@@ -1403,7 +1402,7 @@ func (svc *Service) validateNDESSCEPProxyUpdate(ctx context.Context, ndesSCEP *f
 			return err
 		}
 		if err := svc.scepConfigService.ValidateSCEPURL(ctx, *ndesSCEP.URL); err != nil {
-			level.Error(svc.logger).Log("msg", "Failed to validate NDES SCEP URL", "err", err)
+			svc.logger.ErrorContext(ctx, "Failed to validate NDES SCEP URL", "err", err)
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
 		}
 	}
@@ -1436,7 +1435,7 @@ func (svc *Service) validateNDESSCEPProxyUpdate(ctx context.Context, ndesSCEP *f
 		}
 
 		if err := svc.scepConfigService.ValidateNDESSCEPAdminURL(ctx, NDESProxy); err != nil {
-			level.Error(svc.logger).Log("msg", "Failed to validate NDES SCEP admin URL", "err", err)
+			svc.logger.ErrorContext(ctx, "Failed to validate NDES SCEP admin URL", "err", err)
 			switch {
 			case errors.As(err, &NDESPasswordCacheFullError{}):
 				return &fleet.BadRequestError{Message: fmt.Sprintf("%sThe NDES password cache is full. Please increase the number of cached passwords in NDES and try again.", errPrefix)}
@@ -1461,7 +1460,7 @@ func (svc *Service) validateCustomSCEPProxyUpdate(ctx context.Context, customSCE
 			return err
 		}
 		if err := svc.scepConfigService.ValidateSCEPURL(ctx, *customSCEP.URL); err != nil {
-			level.Error(svc.logger).Log("msg", "Failed to validate custom SCEP URL", "err", err)
+			svc.logger.ErrorContext(ctx, "Failed to validate custom SCEP URL", "err", err)
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
 		}
 	}
@@ -1485,7 +1484,7 @@ func (svc *Service) validateSmallstepSCEPProxyUpdate(ctx context.Context, smalls
 			return err
 		}
 		if err := svc.scepConfigService.ValidateSCEPURL(ctx, *smallstep.URL); err != nil {
-			level.Error(svc.logger).Log("msg", "Failed to validate Smallstep SCEP URL", "err", err)
+			svc.logger.ErrorContext(ctx, "Failed to validate Smallstep SCEP URL", "err", err)
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
 		}
 	}
@@ -1531,7 +1530,7 @@ func (svc *Service) validateSmallstepSCEPProxyUpdate(ctx context.Context, smalls
 		}
 
 		if err := svc.scepConfigService.ValidateSmallstepChallengeURL(ctx, smallstepSCEPProxy); err != nil {
-			level.Error(svc.logger).Log("msg", "Failed to validate Smallstep challenge URL", "err", err)
+			svc.logger.ErrorContext(ctx, "Failed to validate Smallstep challenge URL", "err", err)
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid challenge URL or credentials. Please correct and try again.", errPrefix)}
 		}
 	}
