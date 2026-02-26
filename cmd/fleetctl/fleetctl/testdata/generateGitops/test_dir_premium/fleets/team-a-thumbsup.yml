@@ -24,6 +24,7 @@ controls:
       name: my_certypoo
       subject_name: CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
   enable_disk_encryption: true
+  enable_recovery_lock_password: false
   ios_updates:
     deadline: "2021-12-31"
     minimum_version: "98.1"

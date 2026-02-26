@@ -39,6 +39,7 @@ enable_turn_on_windows_mdm_manually: false
 windows_require_bitlocker_pin: false
 android_enabled_and_configured: true
 enable_disk_encryption: true
+enable_recovery_lock_password: false
 macos_migration: # Available in Fleet Premium
   enable: true
   mode: voluntary

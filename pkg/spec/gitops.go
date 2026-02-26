@@ -160,9 +160,10 @@ type GitOpsControls struct {
 	AndroidEnabledAndConfigured any `json:"android_enabled_and_configured"`
 	AndroidSettings             any `json:"android_settings"`
 
-	EnableDiskEncryption any        `json:"enable_disk_encryption"`
-	RequireBitLockerPIN  any        `json:"windows_require_bitlocker_pin,omitempty"`
-	Scripts              []BaseItem `json:"scripts"`
+	EnableDiskEncryption       any        `json:"enable_disk_encryption"`
+	EnableRecoveryLockPassword any        `json:"enable_recovery_lock_password"`
+	RequireBitLockerPIN        any        `json:"windows_require_bitlocker_pin,omitempty"`
+	Scripts                    []BaseItem `json:"scripts"`
 
 	Defined bool
 }
@@ -172,8 +173,8 @@ func (c GitOpsControls) Set() bool {
 		c.IPadOSUpdates != nil || c.MacOSSettings != nil ||
 		c.MacOSSetup != nil || c.MacOSMigration != nil ||
 		c.WindowsUpdates != nil || c.WindowsSettings != nil || c.WindowsEnabledAndConfigured != nil ||
-		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || len(c.Scripts) > 0 ||
-		c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil
+		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || c.EnableRecoveryLockPassword != nil ||
+		len(c.Scripts) > 0 || c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil
 }
 
 type Policy struct {

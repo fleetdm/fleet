@@ -1300,14 +1300,15 @@ func (svc *Service) createTeamFromSpec(
 			AgentOptions: agentOptions,
 			Features:     features,
 			MDM: fleet.TeamMDM{
-				EnableDiskEncryption: enableDiskEncryption,
-				RequireBitLockerPIN:  spec.MDM.RequireBitLockerPIN.Value,
-				MacOSUpdates:         spec.MDM.MacOSUpdates,
-				WindowsUpdates:       spec.MDM.WindowsUpdates,
-				MacOSSettings:        macOSSettings,
-				MacOSSetup:           macOSSetup,
-				WindowsSettings:      spec.MDM.WindowsSettings,
-				AndroidSettings:      spec.MDM.AndroidSettings,
+				EnableDiskEncryption:       enableDiskEncryption,
+				EnableRecoveryLockPassword: spec.MDM.EnableRecoveryLockPassword.Value,
+				RequireBitLockerPIN:        spec.MDM.RequireBitLockerPIN.Value,
+				MacOSUpdates:               spec.MDM.MacOSUpdates,
+				WindowsUpdates:             spec.MDM.WindowsUpdates,
+				MacOSSettings:              macOSSettings,
+				MacOSSetup:                 macOSSetup,
+				WindowsSettings:            spec.MDM.WindowsSettings,
+				AndroidSettings:            spec.MDM.AndroidSettings,
 			},
 			HostExpirySettings: hostExpirySettings,
 			WebhookSettings: fleet.TeamWebhookSettings{
@@ -1442,6 +1443,15 @@ func (svc *Service) editTeamFromSpec(
 
 	if spec.MDM.RequireBitLockerPIN.Valid {
 		team.Config.MDM.RequireBitLockerPIN = spec.MDM.RequireBitLockerPIN.Value
+	}
+
+	if spec.MDM.EnableRecoveryLockPassword.Valid {
+		recoveryLockPasswordUpdated := team.Config.MDM.EnableRecoveryLockPassword != spec.MDM.EnableRecoveryLockPassword.Value
+		if recoveryLockPasswordUpdated && !appCfg.MDM.EnabledAndConfigured {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm.enable_recovery_lock_password",
+				`Couldn't update enable_recovery_lock_password because MDM features aren't turned on in Fleet.`))
+		}
+		team.Config.MDM.EnableRecoveryLockPassword = spec.MDM.EnableRecoveryLockPassword.Value
 	}
 
 	if !team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
