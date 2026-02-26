@@ -5886,7 +5886,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	t := s.T()
 
 	lastSubmittedProfile := &godep.Profile{}
-	mdmDevice, wantSettings := s.setUpEndUserAuthentication(t, lastSubmittedProfile)
+	mdmDevice, wantSettings := s.setUpEndUserAuthentication(t, lastSubmittedProfile, true)
 	di, err := mdmtest.EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
 		Serial: mdmDevice.SerialNumber,
 		UDID:   mdmDevice.UUID,
@@ -6350,7 +6350,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	s.setSkipWorkerJobs(t)
 
 	lastSubmittedProfile := &godep.Profile{}
-	mdmDevice, _ := s.setUpEndUserAuthentication(t, lastSubmittedProfile)
+	mdmDevice, _ := s.setUpEndUserAuthentication(t, lastSubmittedProfile, true)
 	di, err := mdmtest.EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
 		Serial: mdmDevice.SerialNumber,
 		UDID:   mdmDevice.UUID,
@@ -6742,7 +6742,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 // things in your test to fail. Either change the SSO Server URL back after doing SSO or make changes
 // in your test to account for the hardcoded, wrong server URL of https://localhost:8080 being used
 // in places like enrollment profiles
-func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T) appConfigResponse {
+func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T, lockEndUserInfo bool) appConfigResponse {
 	// MDM SSO fields are empty by default
 	acResp := appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
@@ -6761,7 +6761,8 @@ func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T) appConfigResponse {
 					"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
 				},
 				"macos_setup": {
-					"enable_end_user_authentication": true
+					"enable_end_user_authentication": true,
+					"lock_end_user_info": `+fmt.Sprintf("%t", lockEndUserInfo)+`
 				}
 			}
 		}`), http.StatusOK, &acResp)
@@ -6784,7 +6785,8 @@ func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T) appConfigResponse {
 						"metadata_url": ""
 					},
 					"macos_setup": {
-						"enable_end_user_authentication": false
+						"enable_end_user_authentication": false,
+						"lock_end_user_info": false
 					}
 				}
 			}`), http.StatusOK, &acResp)
@@ -6798,7 +6800,7 @@ func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T) appConfigResponse {
 }
 
 // If you call this function see note on setUpMDMSSO() about server URL changes
-func (s *integrationMDMTestSuite) setUpEndUserAuthentication(t *testing.T, lastSubmittedProfile *godep.Profile) (*mdmtest.TestAppleMDMClient,
+func (s *integrationMDMTestSuite) setUpEndUserAuthentication(t *testing.T, lastSubmittedProfile *godep.Profile, lockEndUserInfo bool) (*mdmtest.TestAppleMDMClient,
 	fleet.SSOProviderSettings,
 ) {
 	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
@@ -6853,7 +6855,7 @@ func (s *integrationMDMTestSuite) setUpEndUserAuthentication(t *testing.T, lastS
 	// sync the list of ABM devices
 	s.runDEPSchedule()
 
-	acResp := s.setUpMDMSSO(t)
+	acResp := s.setUpMDMSSO(t, lockEndUserInfo)
 
 	// trigger the worker to process the job and wait for result before continuing.
 	s.runWorker()
@@ -15345,7 +15347,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	// to the proper value and then fetch the enrollment profiles and do the enrollments.
 	// TODO: Is there a better way to do this?
 	originalServerUrl := s.server.URL
-	s.setUpMDMSSO(t)
+	s.setUpMDMSSO(t, true)
 
 	getSSOAccessToken := func(username, password string) string {
 		ssoResult := s.LoginAccountDrivenEnrollUser(username, password)
@@ -15509,7 +15511,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMActionsOnPersonalHost() {
 	// to the proper value and then fetch the enrollment profiles and do the enrollments.
 	// TODO: Is there a better way to do this?
 	originalServerUrl := s.server.URL
-	s.setUpMDMSSO(t)
+	s.setUpMDMSSO(t, true)
 
 	getSSOAccessToken := func(username, password string) string {
 		ssoResult := s.LoginAccountDrivenEnrollUser(username, password)
@@ -19595,7 +19597,7 @@ func (s *integrationMDMTestSuite) TestBYODEnrollmentWithIdPEnabled() {
 	ctx := t.Context()
 	s.setSkipWorkerJobs(t)
 
-	s.setUpMDMSSO(t)
+	s.setUpMDMSSO(t, true)
 
 	// create a couple teams, one with IdP enabled and one without
 	teamNoIdP, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team without idp"})
