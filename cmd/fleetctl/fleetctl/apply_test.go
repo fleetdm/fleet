@@ -1816,7 +1816,7 @@ spec:
 		return nil
 	}
 	name = writeTmpYml(t, queriesSpec)
-	assert.Equal(t, "[+] applied 1 query\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 1 report\n", RunAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyQueriesFuncInvoked)
 	require.Len(t, appliedQueries, 1)
 	assert.Equal(t, "app_schemes", appliedQueries[0].Name)
@@ -2000,7 +2000,7 @@ func TestApplyQueries(t *testing.T) {
 	}
 	name := writeTmpYml(t, queriesSpec)
 
-	assert.Equal(t, "[+] applied 1 query\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 1 report\n", RunAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyQueriesFuncInvoked)
 	require.Len(t, appliedQueries, 1)
 	assert.Equal(t, "app_schemes", appliedQueries[0].Name)
