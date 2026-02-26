@@ -35,6 +35,7 @@
   - WARNING: If we do this, it gives LLMs (and humans) reading git repos less context, making it less accurate when automatically scoping policies with natural language.  Yet at the moment, that isn't a thing that's being commonly done.  We should dogfood that first before adding complexity to the first time experience (it's simpler for users to exclude labels from what they see in their repo).
   - TODO: Think long and hard about if there are other things we want to exclude from gitops by default.
 - TODO: (sgress454) improve validation of --dry-run to [choke on any extraneous keys](https://fleetdm.slack.com/archives/C03T2NPHQ5B/p1771872969968999?thread_ts=1771862851.802789&cid=C03T2NPHQ5B)
+  - TODO: improve validation so that it happens first, and if there are multiple errors, they are batched up.  (Reasoning: If you are new to this way of doing things and you have a bunch of errors, you have to go through like 30 runs to see and fix them all)
 - TODO: (sgress454) support auto-include directive for scripts specifically.
 - TODO: (noahtalerman+(sgress454) The highest priority other todos in the default.yml template, particular keys that need renaming.  Namely these:
   - TODO: Come up with a better solution for `macos_settings` that doesn't feel weird on a mobile-only fleet.  Make it make sense with `windows_settings`.
