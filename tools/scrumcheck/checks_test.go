@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/shurcooL/githubv4"
 )
 
 func TestHasUncheckedChecklistLine(t *testing.T) {
@@ -152,5 +154,39 @@ func TestAwaitingAndDoneAndMatchedStatusAndStale(t *testing.T) {
 	stale.UpdatedAt.Time = time.Now().UTC().Add(-48 * time.Hour)
 	if !isStaleAwaitingQA(stale, time.Now().UTC(), 24*time.Hour) {
 		t.Fatal("expected stale item")
+	}
+}
+
+func TestCompileAndMatchLabelFilter(t *testing.T) {
+	t.Parallel()
+
+	filter := compileLabelFilter([]string{"#g-orchestration", " g-security-compliance ", "", "#G-Orchestration"})
+	if len(filter) != 2 {
+		t.Fatalf("expected 2 unique normalized labels, got %d", len(filter))
+	}
+
+	it := testIssueWithStatus(10, "Labeled", "https://github.com/fleetdm/fleet/issues/10", "In review")
+	it.Content.Issue.Labels.Nodes = []struct {
+		Name githubv4.String
+	}{
+		{Name: githubv4.String("g-security-compliance")},
+	}
+
+	if !matchesLabelFilter(it, filter) {
+		t.Fatal("expected issue to match label filter")
+	}
+
+	other := testIssueWithStatus(11, "Other", "https://github.com/fleetdm/fleet/issues/11", "In review")
+	other.Content.Issue.Labels.Nodes = []struct {
+		Name githubv4.String
+	}{
+		{Name: githubv4.String("bug")},
+	}
+	if matchesLabelFilter(other, filter) {
+		t.Fatal("did not expect issue to match label filter")
+	}
+
+	if !matchesLabelFilter(other, nil) {
+		t.Fatal("expected nil filter to match all issues")
 	}
 }

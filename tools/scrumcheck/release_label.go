@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	productLabel = ":product"
-	releaseLabel = ":release"
+	productLabel       = ":product"
+	releaseLabel       = ":release"
+	unreleasedBugLabel = "unreleased bug"
 )
 
 func runReleaseLabelChecks(
@@ -19,6 +20,7 @@ func runReleaseLabelChecks(
 	org string,
 	projectNums []int,
 	limit int,
+	labelFilter map[string]struct{},
 ) []ReleaseLabelIssue {
 	out := make([]ReleaseLabelIssue, 0)
 	for _, projectNum := range projectNums {
@@ -29,6 +31,9 @@ func runReleaseLabelChecks(
 		items := fetchItems(ctx, client, projectID, limit)
 		for _, it := range items {
 			if it.Content.Issue.Number == 0 {
+				continue
+			}
+			if !matchesLabelFilter(it, labelFilter) {
 				continue
 			}
 			if inDoneColumn(it) {
@@ -87,8 +92,9 @@ func issueLabels(it Item) []string {
 }
 
 func labelsContain(labels []string, wanted string) bool {
+	wantedNorm := normalizeLabelName(wanted)
 	for _, l := range labels {
-		if strings.EqualFold(strings.TrimSpace(l), wanted) {
+		if normalizeLabelName(l) == wantedNorm {
 			return true
 		}
 	}

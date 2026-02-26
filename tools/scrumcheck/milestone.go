@@ -25,6 +25,7 @@ func runMissingMilestoneChecks(
 	projectNums []int,
 	limit int,
 	token string,
+	labelFilter map[string]struct{},
 ) []MissingMilestoneIssue {
 	cache := make(map[string][]MilestoneOption)
 	out := make([]MissingMilestoneIssue, 0)
@@ -34,6 +35,9 @@ func runMissingMilestoneChecks(
 
 		for _, it := range items {
 			if it.Content.Issue.Number == 0 {
+				continue
+			}
+			if !matchesLabelFilter(it, labelFilter) {
 				continue
 			}
 			if inDoneColumn(it) {

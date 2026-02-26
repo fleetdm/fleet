@@ -138,6 +138,73 @@ func uniqueInts(nums []int) []int {
 	return out
 }
 
+func normalizeLabelName(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.TrimPrefix(s, "#")
+	s = strings.TrimPrefix(s, "~")
+	return strings.ToLower(strings.TrimSpace(s))
+}
+
+func compileLabelFilter(labels []string) map[string]struct{} {
+	if len(labels) == 0 {
+		return nil
+	}
+	out := make(map[string]struct{}, len(labels))
+	for _, label := range labels {
+		norm := normalizeLabelName(label)
+		if norm == "" {
+			continue
+		}
+		out[norm] = struct{}{}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func orderedGroupLabels(labels []string) []string {
+	if len(labels) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(labels))
+	seen := make(map[string]struct{}, len(labels))
+	for _, label := range labels {
+		if strings.HasPrefix(strings.TrimSpace(label), "-") {
+			continue
+		}
+		norm := normalizeLabelName(label)
+		if norm == "" {
+			continue
+		}
+		if _, ok := seen[norm]; ok {
+			continue
+		}
+		seen[norm] = struct{}{}
+		out = append(out, norm)
+	}
+	return out
+}
+
+func matchesLabelFilter(it Item, filter map[string]struct{}) bool {
+	if len(filter) == 0 {
+		return true
+	}
+	if it.Content.Issue.Number == 0 {
+		return false
+	}
+	for _, n := range it.Content.Issue.Labels.Nodes {
+		norm := normalizeLabelName(string(n.Name))
+		if norm == "" {
+			continue
+		}
+		if _, ok := filter[norm]; ok {
+			return true
+		}
+	}
+	return false
+}
+
 func isStaleAwaitingQA(it Item, now time.Time, staleAfter time.Duration) bool {
 	if it.UpdatedAt.IsZero() {
 		return false

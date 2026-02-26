@@ -23,6 +23,7 @@ func runMissingAssigneeChecks(
 	projectNums []int,
 	limit int,
 	token string,
+	labelFilter map[string]struct{},
 ) []MissingAssigneeIssue {
 	viewer := strings.ToLower(strings.TrimSpace(fetchViewerLogin(ctx, token)))
 	if viewer == "" {
@@ -37,6 +38,9 @@ func runMissingAssigneeChecks(
 
 		for _, it := range items {
 			if it.Content.Issue.Number == 0 {
+				continue
+			}
+			if !matchesLabelFilter(it, labelFilter) {
 				continue
 			}
 			if inDoneColumn(it) {

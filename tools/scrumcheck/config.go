@@ -59,3 +59,23 @@ func (f *intListFlag) Set(value string) error {
 	}
 	return nil
 }
+
+type stringListFlag []string
+
+func (f *stringListFlag) String() string {
+	if f == nil || len(*f) == 0 {
+		return ""
+	}
+	return strings.Join(*f, ",")
+}
+
+func (f *stringListFlag) Set(value string) error {
+	for _, part := range strings.Split(value, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		*f = append(*f, part)
+	}
+	return nil
+}
