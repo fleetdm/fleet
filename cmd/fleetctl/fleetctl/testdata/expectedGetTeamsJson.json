@@ -200,7 +200,7 @@
           "custom_settings": null
         },
         "enable_disk_encryption": false,
-        "enable_recovery_lock_password": false,
+        "enable_recovery_lock_password": true,
         "ios_updates": {
           "deadline": "2022-11-15",
           "minimum_version": "17.5",
@@ -291,7 +291,7 @@
           "custom_settings": null
         },
         "enable_disk_encryption": false,
-        "enable_recovery_lock_password": false,
+        "enable_recovery_lock_password": true,
         "ios_updates": {
           "deadline": "2022-11-15",
           "minimum_version": "17.5",

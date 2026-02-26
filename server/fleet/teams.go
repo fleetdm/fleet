@@ -706,6 +706,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	delete(mdmSpec.MacOSSettings, "enable_disk_encryption")
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
+	mdmSpec.EnableRecoveryLockPassword = optjson.SetBool(t.Config.MDM.EnableRecoveryLockPassword)
 	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
 	mdmSpec.AndroidSettings = t.Config.MDM.AndroidSettings
 

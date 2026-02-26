@@ -129,7 +129,7 @@ spec:
       conditional_access_enabled: null
     mdm:
       enable_disk_encryption: false
-      enable_recovery_lock_password: null
+      enable_recovery_lock_password: true
       windows_require_bitlocker_pin: null
       ios_updates:
         minimum_version: "17.5"
@@ -181,7 +181,7 @@ spec:
       conditional_access_enabled: null
     mdm:
       enable_disk_encryption: false
-      enable_recovery_lock_password: null
+      enable_recovery_lock_password: true
       windows_require_bitlocker_pin: null
       ios_updates:
         minimum_version: "17.5"
