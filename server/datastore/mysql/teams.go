@@ -148,7 +148,11 @@ var teamLabelsRefs = []string{
 	"software_installer_labels",
 	"vpp_app_team_labels",
 	// `mdm_configuration_profile_labels` and `mdm_declaration_labels` are defined with `ON DELETE SET NULL`, so not necessary.
-	// `policy_labels` and `query_labels` are defined with `ON DELETE CASCADE`, so not necessary.
+	// `policy_labels.label_id` is ON DELETE RESTRICT, but `policy_labels.policy_id` is ON DELETE CASCADE, so
+	// team policy labels are already cleaned up by the `DELETE FROM policies WHERE team_id = ?` above.
+	// `query_labels.label_id` is ON DELETE RESTRICT and queries are deleted after labels, so we must
+	// explicitly clean up query_labels before deleting team labels.
+	"query_labels",
 }
 
 func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
