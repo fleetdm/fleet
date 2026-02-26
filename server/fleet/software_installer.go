@@ -1117,3 +1117,8 @@ func (o HostSoftwareInstallOptions) Priority() int {
 	}
 	return 0
 }
+
+const (
+	BatchDownloadMaxRetries = 3
+	BatchUploadMaxRetries   = 3
+)

@@ -533,7 +533,7 @@ func (m *mockInstallerStore) Get(ctx context.Context, iconID string) (io.ReadClo
 
 func (m *mockInstallerStore) Put(ctx context.Context, iconID string, content io.ReadSeeker) error {
 	m.putCount.Add(1)
-	if m.putCount.Load() == 3 {
+	if m.putCount.Load() == fleet.BatchUploadMaxRetries {
 		m.onPut()
 	}
 
@@ -555,7 +555,6 @@ func (m *mockInstallerStore) Sign(_ context.Context, _ string, _ time.Duration) 
 func TestSoftwareInstallerUploadRetries(t *testing.T) {
 	ds := new(mock.Store)
 	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
-	// ctx := license.NewContext(context.Background(), lic)
 
 	kvStore := &mock.KVStore{}
 	kvStore.SetFunc = func(ctx context.Context, key string, value string, expireTime time.Duration) error {
@@ -638,16 +637,19 @@ func TestSoftwareInstallerUploadRetries(t *testing.T) {
 	}}, false)
 	require.NoError(t, err)
 
-	timeout := time.After(1 * time.Minute)
+	timeout := time.After(30 * time.Second)
 	for {
 		status, _, packages, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "foo", "requestuuid", false)
 		require.NoError(t, err)
+		// The status will be failed IFF
+		// the mock installer store's Put method was called fleet.BatchUploadMaxRetries times.
 		if status == fleet.BatchSetSoftwareInstallersStatusFailed {
 			require.Empty(t, packages)
 			break
 		}
 		select {
 		case <-timeout:
+			// If the max number of retries isn't hit, then the test will timeout.
 			t.Fatalf("get batch set software installers result timeout")
 		case <-time.After(500 * time.Millisecond):
 			// OK, continue
