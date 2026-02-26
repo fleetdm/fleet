@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func newTestBridge() *uiBridge {
@@ -165,5 +167,219 @@ func TestHandleCloseAndHealth(t *testing.T) {
 	b.handleClose(rr, postReq("/api/close", `{"reason":"done"}`))
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusOK)
+	}
+}
+
+func TestHandleTimestampCheck(t *testing.T) {
+	t.Parallel()
+	b := newTestBridge()
+	b.setTimestampCheckResult(TimestampCheckResult{
+		URL:          updatesTimestampURL,
+		ExpiresAt:    time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC),
+		DurationLeft: 48 * time.Hour,
+		DaysLeft:     2.0,
+		MinDays:      5,
+		OK:           false,
+	})
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/check/timestamp", nil)
+	b.handleTimestampCheck(rr, req)
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusMethodNotAllowed)
+	}
+
+	rr = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/check/timestamp", nil)
+	b.handleTimestampCheck(rr, req)
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusUnauthorized)
+	}
+
+	rr = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/check/timestamp", nil)
+	req.Header.Set("X-Qacheck-Session", "sess")
+	b.handleTimestampCheck(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d want=%d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), updatesTimestampURL) {
+		t.Fatalf("expected response to include timestamp URL, got %s", rr.Body.String())
+	}
+
+	b.setTimestampRefresher(func(context.Context) (TimestampCheckResult, error) {
+		return TimestampCheckResult{
+			URL:     "https://updates.fleetdm.com/timestamp.json",
+			MinDays: 5,
+			OK:      true,
+		}, nil
+	})
+	rr = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/check/timestamp?refresh=1", nil)
+	req.Header.Set("X-Qacheck-Session", "sess")
+	b.handleTimestampCheck(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d want=%d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), `"ok":true`) {
+		t.Fatalf("expected refreshed payload to set ok=true, got %s", rr.Body.String())
+	}
+}
+
+func TestHandleUnassignedUnreleasedCheck(t *testing.T) {
+	t.Parallel()
+	b := newTestBridge()
+	b.setUnassignedUnreleasedResults([]UnassignedUnreleasedProjectReport{
+		{
+			GroupLabel: "g-orchestration",
+			Columns: []UnassignedUnreleasedStatusReport{
+				{
+					Key:   "awaiting-qa",
+					Label: "Awaiting QA",
+					RedItems: []MissingMilestoneReportItem{
+						{
+							Number:    40408,
+							Title:     "Newly created policy does not appear until refresh",
+							URL:       "https://github.com/fleetdm/fleet/issues/40408",
+							Repo:      "fleetdm/fleet",
+							Status:    "Awaiting QA",
+							Assignees: nil,
+							Labels:    []string{"g-orchestration", "~unreleased bug"},
+						},
+					},
+				},
+			},
+		},
+	})
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/check/unassigned-unreleased", nil)
+	b.handleUnassignedUnreleasedCheck(rr, req)
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusMethodNotAllowed)
+	}
+
+	rr = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/check/unassigned-unreleased", nil)
+	b.handleUnassignedUnreleasedCheck(rr, req)
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusUnauthorized)
+	}
+
+	rr = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/check/unassigned-unreleased", nil)
+	req.Header.Set("X-Qacheck-Session", "sess")
+	b.handleUnassignedUnreleasedCheck(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d want=%d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), "g-orchestration") || !strings.Contains(rr.Body.String(), "40408") {
+		t.Fatalf("expected response payload with group/issue, got %s", rr.Body.String())
+	}
+}
+
+func TestHandleReleaseStoryTODOCheck(t *testing.T) {
+	t.Parallel()
+	b := newTestBridge()
+	b.setReleaseStoryTODOResults([]ReleaseStoryTODOProjectReport{
+		{
+			ProjectNum: 97,
+			Columns: []MissingMilestoneGroupReport{
+				{
+					Key:   "in_review",
+					Label: "In review",
+					Items: []MissingMilestoneReportItem{
+						{
+							Number:      37498,
+							Title:       "Team maintainers can not add Certificate templates",
+							URL:         "https://github.com/fleetdm/fleet/issues/37498",
+							Repo:        "fleetdm/fleet",
+							Status:      "In review",
+							Assignees:   []string{"sharon-fdm"},
+							Labels:      []string{":release", "story"},
+							BodyPreview: []string{"- TODO: finalize copy"},
+						},
+					},
+				},
+			},
+		},
+	})
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/check/release-story-todo", nil)
+	b.handleReleaseStoryTODOCheck(rr, req)
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusMethodNotAllowed)
+	}
+
+	rr = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/check/release-story-todo", nil)
+	b.handleReleaseStoryTODOCheck(rr, req)
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusUnauthorized)
+	}
+
+	rr = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/check/release-story-todo", nil)
+	req.Header.Set("X-Qacheck-Session", "sess")
+	b.handleReleaseStoryTODOCheck(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d want=%d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), "37498") || !strings.Contains(rr.Body.String(), "ProjectNum") {
+		t.Fatalf("expected response payload with project/issue, got %s", rr.Body.String())
+	}
+}
+
+func TestHandleMissingSprintCheck(t *testing.T) {
+	t.Parallel()
+	b := newTestBridge()
+	b.setMissingSprintResults([]MissingSprintProjectReport{
+		{
+			ProjectNum: 71,
+			Columns: []MissingSprintGroupReport{
+				{
+					Key:   "in_review",
+					Label: "In review",
+					Items: []MissingSprintReportItem{
+						{
+							ProjectNum:    71,
+							ItemID:        "ITEM_40408",
+							Number:        40408,
+							Title:         "Newly created policy does not appear until refresh",
+							URL:           "https://github.com/fleetdm/fleet/issues/40408",
+							Status:        "In review",
+							CurrentSprint: "",
+							Milestone:     "4.82.0",
+						},
+					},
+				},
+			},
+		},
+	})
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/check/missing-sprint", nil)
+	b.handleMissingSprintCheck(rr, req)
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusMethodNotAllowed)
+	}
+
+	rr = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/check/missing-sprint", nil)
+	b.handleMissingSprintCheck(rr, req)
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusUnauthorized)
+	}
+
+	rr = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/check/missing-sprint", nil)
+	req.Header.Set("X-Qacheck-Session", "sess")
+	b.handleMissingSprintCheck(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d want=%d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), "ITEM_40408") || !strings.Contains(rr.Body.String(), "40408") {
+		t.Fatalf("expected response payload with item and issue, got %s", rr.Body.String())
 	}
 }

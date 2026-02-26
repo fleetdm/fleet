@@ -1110,46 +1110,14 @@ var htmlReportTemplate = `<!doctype html>
 
       <div class="panel-wrap">
       <section id="tab-release-story-todo" class="panel active" role="tabpanel">
-        <h2>📝 Release stories TODO (selected projects)</h2>
+        <div class="column-head">
+          <h2>📝 Release stories TODO (selected projects)</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="release-story-todo">Refresh</button>
+        </div>
         <p class="subtle">Stories with <code>:release</code> label that still contain <code>TODO</code> text in the body.</p>
-        {{if .ReleaseStoryTODO}}
-          {{range .ReleaseStoryTODO}}
-            <div class="project">
-              <h3>Project {{.ProjectNum}}</h3>
-              {{range .Columns}}
-                <div class="status">
-                  <h3>{{.Label}}</h3>
-                  {{if .Items}}
-                    {{range .Items}}
-                      <article class="item red-bug">
-                        <div><strong>#{{.Number}} - {{.Title}}</strong></div>
-                        <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
-                        <ul>
-                          <li>Status: {{if .Status}}{{.Status}}{{else}}(unset){{end}}</li>
-                          <li>Repository: {{.Repo}}</li>
-                          <li>Assignees: {{if .Assignees}}{{range $i, $a := .Assignees}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}(empty){{end}}</li>
-                          <li>Labels: {{if .Labels}}{{range $i, $l := .Labels}}{{if $i}}, {{end}}{{$l}}{{end}}{{else}}(none){{end}}</li>
-                          <li>Snippet:</li>
-                          {{if .BodyPreview}}
-                            {{range .BodyPreview}}
-                              <li>{{.}}</li>
-                            {{end}}
-                          {{else}}
-                            <li>(empty)</li>
-                          {{end}}
-                        </ul>
-                      </article>
-                    {{end}}
-                  {{else}}
-                    <p class="empty">🟢 No items in this group.</p>
-                  {{end}}
-                </div>
-              {{end}}
-            </div>
-          {{end}}
-        {{else}}
-          <p class="empty">🟢 No release stories with TODO found.</p>
-        {{end}}
+        <div id="release-story-todo-content">
+          <p class="empty">🛰️ Loading release stories TODO from bridge…</p>
+        </div>
       </section>
 
       <section id="tab-awaiting" class="panel" role="tabpanel">
@@ -1212,31 +1180,14 @@ var htmlReportTemplate = `<!doctype html>
       </section>
 
       <section id="tab-timestamp" class="panel" role="tabpanel">
-        <h2>🕒 Updates timestamp.json expiry</h2>
-        <p class="subtle">Checks that <a href="{{.TimestampCheck.URL}}" target="_blank" rel="noopener noreferrer">{{.TimestampCheck.URL}}</a> expires at least {{.TimestampCheck.MinDays}} days from now.</p>
-        {{if .TimestampCheck.Error}}
-          <p class="empty">🔴 Could not validate timestamp expiry: {{.TimestampCheck.Error}}</p>
-        {{else if .TimestampCheck.OK}}
-          <div class="project">
-            <p><strong>🟢 OK</strong></p>
-            <ul>
-              <li>Expires: {{.TimestampCheck.ExpiresAt.Format "2006-01-02T15:04:05Z07:00"}}</li>
-              <li>Days remaining: {{printf "%.1f" .TimestampCheck.DaysLeft}}</li>
-              <li>Hours remaining: {{printf "%.1f" .TimestampCheck.DurationLeft.Hours}}</li>
-              <li>Minimum required days: {{.TimestampCheck.MinDays}}</li>
-            </ul>
-          </div>
-        {{else}}
-          <div class="project">
-            <p><strong>🔴 Failing threshold</strong></p>
-            <ul>
-              <li>Expires: {{.TimestampCheck.ExpiresAt.Format "2006-01-02T15:04:05Z07:00"}}</li>
-              <li>Days remaining: {{printf "%.1f" .TimestampCheck.DaysLeft}}</li>
-              <li>Hours remaining: {{printf "%.1f" .TimestampCheck.DurationLeft.Hours}}</li>
-              <li>Minimum required days: {{.TimestampCheck.MinDays}}</li>
-            </ul>
-          </div>
-        {{end}}
+        <div class="column-head">
+          <h2>🕒 Updates timestamp.json expiry</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="timestamp">Refresh</button>
+        </div>
+        <p id="timestamp-subtle" class="subtle">Loading timestamp check from bridge…</p>
+        <div id="timestamp-content" class="project">
+          <p class="empty">🛰️ Fetching latest timestamp status…</p>
+        </div>
       </section>
 
       <section id="tab-milestone" class="panel" role="tabpanel">
@@ -1346,57 +1297,14 @@ var htmlReportTemplate = `<!doctype html>
       </section>
 
       <section id="tab-sprint" class="panel" role="tabpanel">
-        <h2>🗓️ Missing sprint (selected projects)</h2>
+        <div class="column-head">
+          <h2>🗓️ Missing sprint (selected projects)</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="missing-sprint">Refresh</button>
+        </div>
         <p class="subtle">Items in selected projects without a sprint set. Grouped by column focus.</p>
-        {{if .MissingSprint}}
-          {{range .MissingSprint}}
-            <div class="project">
-              <h3>Project {{.ProjectNum}}</h3>
-              {{range .Columns}}
-                <div class="status">
-                  <div class="column-head">
-                    <h3>{{.Label}}</h3>
-                    {{if and $.BridgeEnabled .Items}}
-                      <button class="fix-btn apply-sprint-column-btn">Set current sprint for column</button>
-                    {{end}}
-                  </div>
-                  {{if .Items}}
-                    {{range .Items}}
-                      <article class="item">
-                        <div><strong>#{{.Number}} - {{.Title}}</strong></div>
-                        <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
-                        <ul>
-                          <li>Status: {{if .Status}}{{.Status}}{{else}}(unset){{end}}</li>
-                          <li>Current sprint: {{if .CurrentSprint}}{{.CurrentSprint}}{{else}}(unknown){{end}}</li>
-                          <li>Milestone: {{.Milestone}}</li>
-                          <li>Assignees: {{if .Assignees}}{{range $i, $a := .Assignees}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}(empty){{end}}</li>
-                          <li>Labels: {{if .Labels}}{{range $i, $l := .Labels}}{{if $i}}, {{end}}{{$l}}{{end}}{{else}}(empty){{end}}</li>
-                          <li>Snippet:</li>
-                          {{if .BodyPreview}}
-                            {{range .BodyPreview}}
-                              <li>{{.}}</li>
-                            {{end}}
-                          {{else}}
-                            <li>(empty)</li>
-                          {{end}}
-                        </ul>
-                        {{if $.BridgeEnabled}}
-                          <div class="actions">
-                            <button class="fix-btn apply-sprint-btn" data-item-id="{{.ItemID}}">Set current sprint</button>
-                          </div>
-                        {{end}}
-                      </article>
-                    {{end}}
-                  {{else}}
-                    <p class="empty">🟢 No items in this group.</p>
-                  {{end}}
-                </div>
-              {{end}}
-            </div>
-          {{end}}
-        {{else}}
-          <p class="empty">🟢 No missing sprint items found.</p>
-        {{end}}
+        <div id="missing-sprint-content">
+          <p class="empty">🛰️ Loading missing sprint data from bridge…</p>
+        </div>
       </section>
 
       <section id="tab-missing-assignee" class="panel" role="tabpanel">
@@ -1546,55 +1454,14 @@ var htmlReportTemplate = `<!doctype html>
       </section>
 
       <section id="tab-unassigned-unreleased" class="panel" role="tabpanel">
-        <h2>🐞 Unassigned unreleased bugs (selected projects)</h2>
+        <div class="column-head">
+          <h2>🐞 Unassigned unreleased bugs (selected projects)</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="unassigned-unreleased">Refresh</button>
+        </div>
         <p class="subtle">Grouped by provided <code>-l</code> labels and by status. Red cards are unassigned (failing). Green cards are assigned (informational).</p>
-        {{if .UnassignedUnreleased}}
-          {{range .UnassignedUnreleased}}
-            <div class="project">
-              <h3>Group: {{.GroupLabel}}</h3>
-              {{range .Columns}}
-                <div class="status">
-                  <h3>{{.Label}}</h3>
-                  {{if .RedItems}}
-                    {{range .RedItems}}
-                      <article class="item red-bug">
-                        <div><strong>#{{.Number}} - {{.Title}}</strong></div>
-                        <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
-                        <ul>
-                          <li>Status: {{if .Status}}{{.Status}}{{else}}(unset){{end}}</li>
-                          <li>Project: {{if gt .ProjectNum 0}}{{.ProjectNum}}{{else}}(not on selected project){{end}}</li>
-                          <li>Repository: {{.Repo}}</li>
-                          <li>Assignees: {{if .Assignees}}{{range $i, $a := .Assignees}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}(none){{end}}</li>
-                          <li>Labels: {{if .Labels}}{{range $i, $l := .Labels}}{{if $i}}, {{end}}{{$l}}{{end}}{{else}}(none){{end}}</li>
-                        </ul>
-                      </article>
-                    {{end}}
-                  {{end}}
-                  {{if .GreenItems}}
-                    {{range .GreenItems}}
-                      <article class="item green-bug">
-                        <div><strong>#{{.Number}} - {{.Title}}</strong></div>
-                        <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
-                        <ul>
-                          <li>Status: {{if .Status}}{{.Status}}{{else}}(unset){{end}}</li>
-                          <li>Project: {{if gt .ProjectNum 0}}{{.ProjectNum}}{{else}}(not on selected project){{end}}</li>
-                          <li>Repository: {{.Repo}}</li>
-                          <li>Assignees: {{if .Assignees}}{{range $i, $a := .Assignees}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}(none){{end}}</li>
-                          <li>Labels: {{if .Labels}}{{range $i, $l := .Labels}}{{if $i}}, {{end}}{{$l}}{{end}}{{else}}(none){{end}}</li>
-                        </ul>
-                      </article>
-                    {{end}}
-                  {{end}}
-                  {{if and (eq (len .RedItems) 0) (eq (len .GreenItems) 0)}}
-                    <p class="empty">🟢 No items in this group.</p>
-                  {{end}}
-                </div>
-              {{end}}
-            </div>
-          {{end}}
-        {{else}}
-          <p class="empty">🟢 No unassigned unreleased bugs found.</p>
-        {{end}}
+        <div id="unreleased-content">
+          <p class="empty">🛰️ Loading unreleased bug groups from bridge…</p>
+        </div>
       </section>
       </div>
     </div>
@@ -1640,6 +1507,350 @@ var htmlReportTemplate = `<!doctype html>
         btn.classList.remove('done', 'failed');
         btn.textContent = text;
         btn.disabled = true;
+      }
+
+      function setTabClean(tabName, isClean) {
+        const btn = document.querySelector('.menu-btn[data-tab="' + tabName + '"]');
+        if (!btn) return;
+        const dot = btn.querySelector('.status-dot');
+        if (!dot) return;
+        dot.classList.toggle('ok', Boolean(isClean));
+      }
+
+      async function refreshTimestampPanel(forceRefresh) {
+        const subtle = document.getElementById('timestamp-subtle');
+        const content = document.getElementById('timestamp-content');
+        if (!subtle || !content) return;
+
+        const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
+        if (!bridgeURL || !bridgeSession) {
+          subtle.innerHTML = 'Bridge unavailable.';
+          content.innerHTML = '<p class="empty">🔴 Could not load timestamp check (missing bridge session).</p>';
+          setTabClean('timestamp', false);
+          return;
+        }
+
+        try {
+          const query = forceRefresh ? '?refresh=1' : '';
+          const res = await fetch(bridgeURL + '/api/check/timestamp' + query, {
+            method: 'GET',
+            headers: { 'X-Qacheck-Session': bridgeSession },
+          });
+          if (!res.ok) {
+            throw new Error('Bridge error ' + res.status);
+          }
+          const payload = await res.json();
+          const safeURL = payload.url || '';
+          const minDays = Number(payload.min_days || 0);
+          subtle.innerHTML = 'Checks that <a href="' + safeURL + '" target="_blank" rel="noopener noreferrer">' + safeURL + '</a> expires at least ' + minDays + ' days from now.';
+
+          if (payload.error) {
+            content.innerHTML = '<p class="empty">🔴 Could not validate timestamp expiry: ' + payload.error + '</p>';
+            setTabClean('timestamp', false);
+            return;
+          }
+
+          const stateText = payload.ok ? '🟢 OK' : '🔴 Failing threshold';
+          const expires = payload.expires_at || '(unknown)';
+          const daysLeft = Number(payload.days_left || 0).toFixed(1);
+          const hoursLeft = Number(payload.duration_hours || 0).toFixed(1);
+
+          content.innerHTML =
+            '<p><strong>' + stateText + '</strong></p>' +
+            '<ul>' +
+            '<li>Expires: ' + expires + '</li>' +
+            '<li>Days remaining: ' + daysLeft + '</li>' +
+            '<li>Hours remaining: ' + hoursLeft + '</li>' +
+            '<li>Minimum required days: ' + minDays + '</li>' +
+            '</ul>';
+          setTabClean('timestamp', Boolean(payload.ok));
+        } catch (err) {
+          subtle.textContent = 'Checks timestamp expiry from the bridge.';
+          content.innerHTML = '<p class="empty">🔴 Could not load timestamp check: ' + err + '</p>';
+          setTabClean('timestamp', false);
+        }
+      }
+
+      function escHTML(value) {
+        const text = String(value == null ? '' : value);
+        return text
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#39;');
+      }
+
+      function renderUnreleasedItem(item, cssClass) {
+        const status = item.Status ? item.Status : '(unset)';
+        const projectText = Number(item.ProjectNum || 0) > 0 ? String(item.ProjectNum) : '(not on selected project)';
+        const assignees = Array.isArray(item.Assignees) && item.Assignees.length > 0 ? item.Assignees.join(', ') : '(none)';
+        const labels = Array.isArray(item.Labels) && item.Labels.length > 0 ? item.Labels.join(', ') : '(none)';
+
+        return '' +
+          '<article class="item ' + cssClass + '">' +
+            '<div><strong>#' + escHTML(item.Number) + ' - ' + escHTML(item.Title) + '</strong></div>' +
+            '<div><a href="' + escHTML(item.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(item.URL) + '</a></div>' +
+            '<ul>' +
+              '<li>Status: ' + escHTML(status) + '</li>' +
+              '<li>Project: ' + escHTML(projectText) + '</li>' +
+              '<li>Repository: ' + escHTML(item.Repo) + '</li>' +
+              '<li>Assignees: ' + escHTML(assignees) + '</li>' +
+              '<li>Labels: ' + escHTML(labels) + '</li>' +
+            '</ul>' +
+          '</article>';
+      }
+
+      function renderReleaseStoryTODOItem(item) {
+        const status = item.Status ? item.Status : '(unset)';
+        const assignees = Array.isArray(item.Assignees) && item.Assignees.length > 0 ? item.Assignees.join(', ') : '(empty)';
+        const labels = Array.isArray(item.Labels) && item.Labels.length > 0 ? item.Labels.join(', ') : '(none)';
+        const preview = Array.isArray(item.BodyPreview) && item.BodyPreview.length > 0 ? item.BodyPreview : ['(empty)'];
+        const previewLines = preview.map((line) => '<li>' + escHTML(line) + '</li>').join('');
+
+        return '' +
+          '<article class="item red-bug">' +
+            '<div><strong>#' + escHTML(item.Number) + ' - ' + escHTML(item.Title) + '</strong></div>' +
+            '<div><a href="' + escHTML(item.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(item.URL) + '</a></div>' +
+            '<ul>' +
+              '<li>Status: ' + escHTML(status) + '</li>' +
+              '<li>Repository: ' + escHTML(item.Repo) + '</li>' +
+              '<li>Assignees: ' + escHTML(assignees) + '</li>' +
+              '<li>Labels: ' + escHTML(labels) + '</li>' +
+              '<li>Snippet:</li>' +
+              previewLines +
+            '</ul>' +
+          '</article>';
+      }
+
+      async function refreshReleaseStoryTODOPanel(forceRefresh) {
+        const root = document.getElementById('release-story-todo-content');
+        if (!root) return;
+
+        const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
+        if (!bridgeURL || !bridgeSession) {
+          root.innerHTML = '<p class="empty">🔴 Could not load release stories TODO (missing bridge session).</p>';
+          setTabClean('release-story-todo', false);
+          return;
+        }
+
+        try {
+          const query = forceRefresh ? '?refresh=1' : '';
+          const res = await fetch(bridgeURL + '/api/check/release-story-todo' + query, {
+            method: 'GET',
+            headers: { 'X-Qacheck-Session': bridgeSession },
+          });
+          if (!res.ok) {
+            throw new Error('Bridge error ' + res.status);
+          }
+          const payload = await res.json();
+          const projects = Array.isArray(payload.projects) ? payload.projects : [];
+          let totalItems = 0;
+          projects.forEach((proj) => {
+            const columns = Array.isArray(proj.Columns) ? proj.Columns : [];
+            columns.forEach((col) => {
+              const items = Array.isArray(col.Items) ? col.Items : [];
+              totalItems += items.length;
+            });
+          });
+          setTabClean('release-story-todo', totalItems === 0);
+          if (projects.length === 0) {
+            root.innerHTML = '<p class="empty">🟢 No release stories with TODO found.</p>';
+            return;
+          }
+
+          root.innerHTML = projects.map((proj) => {
+            const columns = Array.isArray(proj.Columns) ? proj.Columns : [];
+            const renderedCols = columns.map((col) => {
+              const items = Array.isArray(col.Items) ? col.Items : [];
+              let html = '<div class="status"><h3>' + escHTML(col.Label) + '</h3>';
+              if (items.length === 0) {
+                html += '<p class="empty">🟢 No items in this group.</p>';
+              } else {
+                items.forEach((it) => {
+                  html += renderReleaseStoryTODOItem(it);
+                });
+              }
+              html += '</div>';
+              return html;
+            }).join('');
+
+            return '' +
+              '<div class="project">' +
+                '<h3>Project ' + escHTML(proj.ProjectNum) + '</h3>' +
+                renderedCols +
+              '</div>';
+          }).join('');
+        } catch (err) {
+          root.innerHTML = '<p class="empty">🔴 Could not load release stories TODO: ' + escHTML(err) + '</p>';
+          setTabClean('release-story-todo', false);
+        }
+      }
+
+      function renderMissingSprintItem(item, showActions) {
+        const status = item.Status ? item.Status : '(unset)';
+        const currentSprint = item.CurrentSprint ? item.CurrentSprint : '(unknown)';
+        const milestone = item.Milestone ? item.Milestone : '(empty)';
+        const assignees = Array.isArray(item.Assignees) && item.Assignees.length > 0 ? item.Assignees.join(', ') : '(empty)';
+        const labels = Array.isArray(item.Labels) && item.Labels.length > 0 ? item.Labels.join(', ') : '(empty)';
+        const preview = Array.isArray(item.BodyPreview) && item.BodyPreview.length > 0 ? item.BodyPreview : ['(empty)'];
+        const previewLines = preview.map((line) => '<li>' + escHTML(line) + '</li>').join('');
+        const actionHTML = showActions ? (
+          '<div class="actions">' +
+            '<button class="fix-btn apply-sprint-btn" data-item-id="' + escHTML(item.ItemID) + '">Set current sprint</button>' +
+          '</div>'
+        ) : '';
+
+        return '' +
+          '<article class="item">' +
+            '<div><strong>#' + escHTML(item.Number) + ' - ' + escHTML(item.Title) + '</strong></div>' +
+            '<div><a href="' + escHTML(item.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(item.URL) + '</a></div>' +
+            '<ul>' +
+              '<li>Status: ' + escHTML(status) + '</li>' +
+              '<li>Current sprint: ' + escHTML(currentSprint) + '</li>' +
+              '<li>Milestone: ' + escHTML(milestone) + '</li>' +
+              '<li>Assignees: ' + escHTML(assignees) + '</li>' +
+              '<li>Labels: ' + escHTML(labels) + '</li>' +
+              '<li>Snippet:</li>' +
+              previewLines +
+            '</ul>' +
+            actionHTML +
+          '</article>';
+      }
+
+      async function refreshMissingSprintPanel(forceRefresh) {
+        const root = document.getElementById('missing-sprint-content');
+        if (!root) return;
+
+        const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
+        if (!bridgeURL || !bridgeSession) {
+          root.innerHTML = '<p class="empty">🔴 Could not load missing sprint data (missing bridge session).</p>';
+          setTabClean('sprint', false);
+          return;
+        }
+
+        try {
+          const query = forceRefresh ? '?refresh=1' : '';
+          const res = await fetch(bridgeURL + '/api/check/missing-sprint' + query, {
+            method: 'GET',
+            headers: { 'X-Qacheck-Session': bridgeSession },
+          });
+          if (!res.ok) {
+            throw new Error('Bridge error ' + res.status);
+          }
+          const payload = await res.json();
+          const projects = Array.isArray(payload.projects) ? payload.projects : [];
+          let totalItems = 0;
+          projects.forEach((proj) => {
+            const columns = Array.isArray(proj.Columns) ? proj.Columns : [];
+            columns.forEach((col) => {
+              const items = Array.isArray(col.Items) ? col.Items : [];
+              totalItems += items.length;
+            });
+          });
+          setTabClean('sprint', totalItems === 0);
+          if (projects.length === 0) {
+            root.innerHTML = '<p class="empty">🟢 No missing sprint items found.</p>';
+            return;
+          }
+
+          const showActions = Boolean(bridgeSession);
+          root.innerHTML = projects.map((proj) => {
+            const columns = Array.isArray(proj.Columns) ? proj.Columns : [];
+            const renderedCols = columns.map((col) => {
+              const items = Array.isArray(col.Items) ? col.Items : [];
+              const colAction = showActions && items.length > 0
+                ? '<button class="fix-btn apply-sprint-column-btn">Set current sprint for column</button>'
+                : '';
+              let html = '<div class="status"><div class="column-head"><h3>' + escHTML(col.Label) + '</h3>' + colAction + '</div>';
+              if (items.length === 0) {
+                html += '<p class="empty">🟢 No items in this group.</p>';
+              } else {
+                items.forEach((it) => {
+                  html += renderMissingSprintItem(it, showActions);
+                });
+              }
+              html += '</div>';
+              return html;
+            }).join('');
+
+            return '' +
+              '<div class="project">' +
+                '<h3>Project ' + escHTML(proj.ProjectNum) + '</h3>' +
+                renderedCols +
+              '</div>';
+          }).join('');
+        } catch (err) {
+          root.innerHTML = '<p class="empty">🔴 Could not load missing sprint data: ' + escHTML(err) + '</p>';
+          setTabClean('sprint', false);
+        }
+      }
+
+      async function refreshUnreleasedPanel(forceRefresh) {
+        const root = document.getElementById('unreleased-content');
+        if (!root) return;
+
+        const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
+        if (!bridgeURL || !bridgeSession) {
+          root.innerHTML = '<p class="empty">🔴 Could not load unreleased bugs (missing bridge session).</p>';
+          setTabClean('unassigned-unreleased', false);
+          return;
+        }
+
+        try {
+          const query = forceRefresh ? '?refresh=1' : '';
+          const res = await fetch(bridgeURL + '/api/check/unassigned-unreleased' + query, {
+            method: 'GET',
+            headers: { 'X-Qacheck-Session': bridgeSession },
+          });
+          if (!res.ok) {
+            throw new Error('Bridge error ' + res.status);
+          }
+          const payload = await res.json();
+          const groups = Array.isArray(payload.groups) ? payload.groups : [];
+          let totalRed = 0;
+          groups.forEach((group) => {
+            const columns = Array.isArray(group.Columns) ? group.Columns : [];
+            columns.forEach((col) => {
+              const redItems = Array.isArray(col.RedItems) ? col.RedItems : [];
+              totalRed += redItems.length;
+            });
+          });
+          setTabClean('unassigned-unreleased', totalRed === 0);
+          if (groups.length === 0) {
+            root.innerHTML = '<p class="empty">🟢 No unassigned unreleased bugs found.</p>';
+            return;
+          }
+
+          root.innerHTML = groups.map((group) => {
+            const columns = Array.isArray(group.Columns) ? group.Columns : [];
+            const renderedCols = columns.map((col) => {
+              const redItems = Array.isArray(col.RedItems) ? col.RedItems : [];
+              const greenItems = Array.isArray(col.GreenItems) ? col.GreenItems : [];
+              let html = '<div class="status"><h3>' + escHTML(col.Label) + '</h3>';
+              redItems.forEach((it) => {
+                html += renderUnreleasedItem(it, 'red-bug');
+              });
+              greenItems.forEach((it) => {
+                html += renderUnreleasedItem(it, 'green-bug');
+              });
+              if (redItems.length === 0 && greenItems.length === 0) {
+                html += '<p class="empty">🟢 No items in this group.</p>';
+              }
+              html += '</div>';
+              return html;
+            }).join('');
+
+            return '' +
+              '<div class="project">' +
+                '<h3>Group: ' + escHTML(group.GroupLabel) + '</h3>' +
+                renderedCols +
+              '</div>';
+          }).join('');
+        } catch (err) {
+          root.innerHTML = '<p class="empty">🔴 Could not load unreleased bugs: ' + escHTML(err) + '</p>';
+          setTabClean('unassigned-unreleased', false);
+        }
       }
 
       function installMilestoneFiltering() {
@@ -1859,34 +2070,31 @@ var htmlReportTemplate = `<!doctype html>
           return false;
         }
       }
+      document.addEventListener('click', async (event) => {
+        const rowBtn = event.target.closest('.apply-sprint-btn');
+        if (rowBtn) {
+          await applySprintButton(rowBtn);
+          return;
+        }
 
-      const applySprintButtons = document.querySelectorAll('.apply-sprint-btn');
-      applySprintButtons.forEach((btn) => {
-        btn.addEventListener('click', async () => {
-          await applySprintButton(btn);
-        });
-      });
+        const colBtn = event.target.closest('.apply-sprint-column-btn');
+        if (!colBtn) return;
+        const statusCard = colBtn.closest('.status');
+        if (!statusCard) return;
+        const rowButtons = Array.from(statusCard.querySelectorAll('.apply-sprint-btn'));
+        if (rowButtons.length === 0) return;
 
-      const applySprintColumnButtons = document.querySelectorAll('.apply-sprint-column-btn');
-      applySprintColumnButtons.forEach((btn) => {
-        btn.addEventListener('click', async () => {
-          const statusCard = btn.closest('.status');
-          if (!statusCard) return;
-          const rowButtons = Array.from(statusCard.querySelectorAll('.apply-sprint-btn'));
-          if (rowButtons.length === 0) return;
-
-          setButtonWorking(btn, 'Setting column...');
-          let ok = true;
-          for (const rowBtn of rowButtons) {
-            const rowOK = await applySprintButton(rowBtn);
-            ok = ok && rowOK;
-          }
-          if (ok) {
-            setButtonDone(btn, 'Done');
-          } else {
-            setButtonFailed(btn);
-          }
-        });
+        setButtonWorking(colBtn, 'Setting column...');
+        let ok = true;
+        for (const rowBtnEl of rowButtons) {
+          const rowOK = await applySprintButton(rowBtnEl);
+          ok = ok && rowOK;
+        }
+        if (ok) {
+          setButtonDone(colBtn, 'Done');
+        } else {
+          setButtonFailed(colBtn);
+        }
       });
 
       async function applyAssigneeButton(btn) {
@@ -2034,8 +2242,36 @@ var htmlReportTemplate = `<!doctype html>
         });
       }
 
+      const refreshButtons = document.querySelectorAll('.refresh-check-btn');
+      refreshButtons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const key = btn.dataset.refreshCheck || '';
+          setButtonWorking(btn, 'Refreshing...');
+          try {
+            if (key === 'release-story-todo') {
+              await refreshReleaseStoryTODOPanel(true);
+            } else if (key === 'missing-sprint') {
+              await refreshMissingSprintPanel(true);
+            } else if (key === 'unassigned-unreleased') {
+              await refreshUnreleasedPanel(true);
+            } else if (key === 'timestamp') {
+              await refreshTimestampPanel(true);
+            }
+            btn.classList.remove('done', 'failed');
+            btn.textContent = 'Refresh';
+            btn.disabled = false;
+          } catch (_) {
+            setButtonFailed(btn);
+          }
+        });
+      });
+
       installMilestoneFiltering();
       installAssigneeFiltering();
+      refreshReleaseStoryTODOPanel(false);
+      refreshMissingSprintPanel(false);
+      refreshTimestampPanel(false);
+      refreshUnreleasedPanel(false);
     })();
   </script>
 </body>

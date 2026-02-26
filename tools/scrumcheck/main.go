@@ -213,28 +213,113 @@ func main() {
 		bridgeEnabled = true
 		bridgeBaseURL = bridge.baseURL
 		bridgeSessionToken = bridge.sessionToken()
+		bridge.setTimestampCheckResult(timestampCheck)
 	}
-	reportPath, err := writeHTMLReport(
-		buildHTMLReportData(
-			*org,
-			projectNums,
-			awaitingByProject,
-			staleByProject,
-			*staleDays,
-			byStatus,
-			missingMilestones,
-			missingSprints,
-			missingAssignees,
-			releaseLabelIssues,
-			releaseStoryTODO,
-			unassignedUnreleasedBugs,
-			groupLabels,
-			timestampCheck,
-			bridgeEnabled,
-			bridgeBaseURL,
-			bridgeSessionToken,
-		),
+	reportData := buildHTMLReportData(
+		*org,
+		projectNums,
+		awaitingByProject,
+		staleByProject,
+		*staleDays,
+		byStatus,
+		missingMilestones,
+		missingSprints,
+		missingAssignees,
+		releaseLabelIssues,
+		releaseStoryTODO,
+		unassignedUnreleasedBugs,
+		groupLabels,
+		timestampCheck,
+		bridgeEnabled,
+		bridgeBaseURL,
+		bridgeSessionToken,
 	)
+	if bridge != nil {
+		bridge.setUnassignedUnreleasedResults(reportData.UnassignedUnreleased)
+		bridge.setReleaseStoryTODOResults(reportData.ReleaseStoryTODO)
+		bridge.setMissingSprintResults(reportData.MissingSprint)
+		bridge.setTimestampRefresher(func(ctx context.Context) (TimestampCheckResult, error) {
+			refreshCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+			defer cancel()
+			return checkUpdatesTimestamp(refreshCtx, time.Now().UTC()), nil
+		})
+		bridge.setUnreleasedRefresher(func(ctx context.Context) ([]UnassignedUnreleasedProjectReport, error) {
+			refreshCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
+			defer cancel()
+			fresh := runUnassignedUnreleasedBugChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter, groupLabels)
+			return buildHTMLReportData(
+				*org,
+				projectNums,
+				awaitingByProject,
+				staleByProject,
+				*staleDays,
+				byStatus,
+				missingMilestones,
+				missingSprints,
+				missingAssignees,
+				releaseLabelIssues,
+				releaseStoryTODO,
+				fresh,
+				groupLabels,
+				timestampCheck,
+				bridgeEnabled,
+				bridgeBaseURL,
+				bridgeSessionToken,
+			).UnassignedUnreleased, nil
+		})
+		bridge.setReleaseStoryTODORefresher(func(ctx context.Context) ([]ReleaseStoryTODOProjectReport, error) {
+			refreshCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
+			defer cancel()
+			fresh := runReleaseStoryTODOChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter)
+			return buildHTMLReportData(
+				*org,
+				projectNums,
+				awaitingByProject,
+				staleByProject,
+				*staleDays,
+				byStatus,
+				missingMilestones,
+				missingSprints,
+				missingAssignees,
+				releaseLabelIssues,
+				fresh,
+				unassignedUnreleasedBugs,
+				groupLabels,
+				timestampCheck,
+				bridgeEnabled,
+				bridgeBaseURL,
+				bridgeSessionToken,
+			).ReleaseStoryTODO, nil
+		})
+		bridge.setMissingSprintRefresher(func(ctx context.Context) ([]MissingSprintProjectReport, map[string]sprintApplyTarget, error) {
+			refreshCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
+			defer cancel()
+			fresh := runMissingSprintChecks(refreshCtx, client, *org, projectNums, *limit, labelFilter)
+			report := buildHTMLReportData(
+				*org,
+				projectNums,
+				awaitingByProject,
+				staleByProject,
+				*staleDays,
+				byStatus,
+				missingMilestones,
+				fresh,
+				missingAssignees,
+				releaseLabelIssues,
+				releaseStoryTODO,
+				unassignedUnreleasedBugs,
+				groupLabels,
+				timestampCheck,
+				bridgeEnabled,
+				bridgeBaseURL,
+				bridgeSessionToken,
+			).MissingSprint
+			refreshedPolicy := buildBridgePolicy(nil, nil, fresh, nil, nil)
+			return report, refreshedPolicy.SprintsByItemID, nil
+		})
+	}
+
+	reportPath, err := writeHTMLReport(reportData)
 	if err != nil {
 		log.Printf("could not write HTML report: %v", err)
 		return

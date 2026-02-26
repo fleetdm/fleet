@@ -43,11 +43,19 @@ type uiBridge struct {
 	done   chan struct{}
 	reason string
 
-	allowChecklist  map[string]map[string]bool
-	allowMilestones map[string]map[int]bool
-	allowAssignees  map[string]map[string]bool
-	allowSprints    map[string]sprintApplyTarget
-	allowRelease    map[string]releaseLabelTarget
+	allowChecklist       map[string]map[string]bool
+	allowMilestones      map[string]map[int]bool
+	allowAssignees       map[string]map[string]bool
+	allowSprints         map[string]sprintApplyTarget
+	allowRelease         map[string]releaseLabelTarget
+	timestampCheck       TimestampCheckResult
+	unreleasedBugs       []UnassignedUnreleasedProjectReport
+	releaseStoryTODO     []ReleaseStoryTODOProjectReport
+	missingSprint        []MissingSprintProjectReport
+	refreshTimestamp     func(context.Context) (TimestampCheckResult, error)
+	refreshUnreleased    func(context.Context) ([]UnassignedUnreleasedProjectReport, error)
+	refreshReleaseTODO   func(context.Context) ([]ReleaseStoryTODOProjectReport, error)
+	refreshMissingSprint func(context.Context) ([]MissingSprintProjectReport, map[string]sprintApplyTarget, error)
 }
 
 func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string), policy bridgePolicy) (*uiBridge, error) {
@@ -86,6 +94,10 @@ func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/report", b.handleReport)
+	mux.HandleFunc("/api/check/timestamp", b.handleTimestampCheck)
+	mux.HandleFunc("/api/check/unassigned-unreleased", b.handleUnassignedUnreleasedCheck)
+	mux.HandleFunc("/api/check/release-story-todo", b.handleReleaseStoryTODOCheck)
+	mux.HandleFunc("/api/check/missing-sprint", b.handleMissingSprintCheck)
 	mux.HandleFunc("/api/apply-milestone", b.handleApplyMilestone)
 	mux.HandleFunc("/api/apply-checklist", b.handleApplyChecklist)
 	mux.HandleFunc("/api/apply-sprint", b.handleApplySprint)
@@ -127,6 +139,54 @@ func (b *uiBridge) reportURL() string {
 
 func (b *uiBridge) sessionToken() string {
 	return b.session
+}
+
+func (b *uiBridge) setTimestampCheckResult(result TimestampCheckResult) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.timestampCheck = result
+}
+
+func (b *uiBridge) setUnassignedUnreleasedResults(results []UnassignedUnreleasedProjectReport) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.unreleasedBugs = results
+}
+
+func (b *uiBridge) setReleaseStoryTODOResults(results []ReleaseStoryTODOProjectReport) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.releaseStoryTODO = results
+}
+
+func (b *uiBridge) setMissingSprintResults(results []MissingSprintProjectReport) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.missingSprint = results
+}
+
+func (b *uiBridge) setTimestampRefresher(fn func(context.Context) (TimestampCheckResult, error)) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.refreshTimestamp = fn
+}
+
+func (b *uiBridge) setUnreleasedRefresher(fn func(context.Context) ([]UnassignedUnreleasedProjectReport, error)) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.refreshUnreleased = fn
+}
+
+func (b *uiBridge) setReleaseStoryTODORefresher(fn func(context.Context) ([]ReleaseStoryTODOProjectReport, error)) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.refreshReleaseTODO = fn
+}
+
+func (b *uiBridge) setMissingSprintRefresher(fn func(context.Context) ([]MissingSprintProjectReport, map[string]sprintApplyTarget, error)) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.refreshMissingSprint = fn
 }
 
 func (b *uiBridge) stop(reason string) error {
@@ -202,6 +262,160 @@ func (b *uiBridge) handleReport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.ServeFile(w, r, reportPath)
+}
+
+func (b *uiBridge) handleTimestampCheck(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	sessionHeader := strings.TrimSpace(r.Header.Get("X-Qacheck-Session"))
+	if sessionHeader == "" || sessionHeader != b.session {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	b.touch()
+
+	if r.URL.Query().Get("refresh") == "1" {
+		b.mu.Lock()
+		refreshFn := b.refreshTimestamp
+		b.mu.Unlock()
+		if refreshFn != nil {
+			updated, err := refreshFn(r.Context())
+			if err != nil {
+				http.Error(w, "refresh failed: "+err.Error(), http.StatusBadGateway)
+				return
+			}
+			b.setTimestampCheckResult(updated)
+		}
+	}
+
+	b.mu.Lock()
+	result := b.timestampCheck
+	b.mu.Unlock()
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"url":            result.URL,
+		"expires_at":     result.ExpiresAt.Format(time.RFC3339),
+		"duration_hours": result.DurationLeft.Hours(),
+		"days_left":      result.DaysLeft,
+		"min_days":       result.MinDays,
+		"ok":             result.OK,
+		"error":          result.Error,
+	})
+}
+
+func (b *uiBridge) handleUnassignedUnreleasedCheck(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	sessionHeader := strings.TrimSpace(r.Header.Get("X-Qacheck-Session"))
+	if sessionHeader == "" || sessionHeader != b.session {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	b.touch()
+
+	if r.URL.Query().Get("refresh") == "1" {
+		b.mu.Lock()
+		refreshFn := b.refreshUnreleased
+		b.mu.Unlock()
+		if refreshFn != nil {
+			updated, err := refreshFn(r.Context())
+			if err != nil {
+				http.Error(w, "refresh failed: "+err.Error(), http.StatusBadGateway)
+				return
+			}
+			b.setUnassignedUnreleasedResults(updated)
+		}
+	}
+
+	b.mu.Lock()
+	payload := make([]UnassignedUnreleasedProjectReport, len(b.unreleasedBugs))
+	copy(payload, b.unreleasedBugs)
+	b.mu.Unlock()
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"groups": payload,
+	})
+}
+
+func (b *uiBridge) handleReleaseStoryTODOCheck(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	sessionHeader := strings.TrimSpace(r.Header.Get("X-Qacheck-Session"))
+	if sessionHeader == "" || sessionHeader != b.session {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	b.touch()
+
+	if r.URL.Query().Get("refresh") == "1" {
+		b.mu.Lock()
+		refreshFn := b.refreshReleaseTODO
+		b.mu.Unlock()
+		if refreshFn != nil {
+			updated, err := refreshFn(r.Context())
+			if err != nil {
+				http.Error(w, "refresh failed: "+err.Error(), http.StatusBadGateway)
+				return
+			}
+			b.setReleaseStoryTODOResults(updated)
+		}
+	}
+
+	b.mu.Lock()
+	payload := make([]ReleaseStoryTODOProjectReport, len(b.releaseStoryTODO))
+	copy(payload, b.releaseStoryTODO)
+	b.mu.Unlock()
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"projects": payload,
+	})
+}
+
+func (b *uiBridge) handleMissingSprintCheck(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	sessionHeader := strings.TrimSpace(r.Header.Get("X-Qacheck-Session"))
+	if sessionHeader == "" || sessionHeader != b.session {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	b.touch()
+
+	if r.URL.Query().Get("refresh") == "1" {
+		b.mu.Lock()
+		refreshFn := b.refreshMissingSprint
+		b.mu.Unlock()
+		if refreshFn != nil {
+			updated, refreshedAllowSprints, err := refreshFn(r.Context())
+			if err != nil {
+				http.Error(w, "refresh failed: "+err.Error(), http.StatusBadGateway)
+				return
+			}
+			b.setMissingSprintResults(updated)
+			if refreshedAllowSprints != nil {
+				b.mu.Lock()
+				b.allowSprints = refreshedAllowSprints
+				b.mu.Unlock()
+			}
+		}
+	}
+
+	b.mu.Lock()
+	payload := make([]MissingSprintProjectReport, len(b.missingSprint))
+	copy(payload, b.missingSprint)
+	b.mu.Unlock()
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"projects": payload,
+	})
 }
 
 func (b *uiBridge) handleApplyMilestone(w http.ResponseWriter, r *http.Request) {
