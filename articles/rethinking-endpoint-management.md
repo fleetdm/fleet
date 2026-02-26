@@ -6,7 +6,7 @@ Traditional MDM and EDR tools demand blind trust. It’s time to adopt an engine
 
 - Part 1: [The confidence gap: why IT leaders are abandoning legacy endpoint management](https://fleetdm.com/articles/the-confidence-gap)
 - Part 2: Rethinking endpoint management: Fleet, osquery and Infrastructure as Code
-- Part 3: Supercharging endpoint management: AI assistants and event-driven automation
+- Part 3: [Supercharging endpoint management: AI assistants and event-driven automation](https://fleetdm.com/articles/supercharging-endpoint-management)
   
 ## The black box
 
@@ -83,7 +83,7 @@ The combination of the ground truth from `osquery`, Fleet’s scalable orchestra
 
 But, there is a catch: moving to code-based management requires new skills. How do you enable a standard IT admin to write `SQL` queries and `YAML` configurations without needing the expertise of a seasoned DevOps engineer?
 
-In part 3 of this series, we will explore how emerging AI coding assistants and event-driven automation bridge that gap, making this powerful stack accessible to teams of any size.
+In the [next article]((https://fleetdm.com/articles/supercharging-endpoint-management), part 3 of this series, we will explore how emerging AI coding assistants and event-driven automation bridge that gap, making this powerful stack accessible to teams of any size.
 
 <meta name="articleTitle" value="Rethinking endpoint management: Fleet, osquery and Infrastructure as Code">  
 <meta name="authorFullName" value="Ashish Kuthiala, CMO, Fleet Device Management">  
