@@ -72,10 +72,10 @@ By adopting Fleet for server observability, they've successfully addressed scala
 
 <call-to-action></call-to-action>
 
-<meta name="category" value="announcements">
+<meta name="category" value="case study">
 <meta name="authorGitHubUsername" value="Drew-P-drawers">
 <meta name="authorFullName" value="Andrew Baker">
 <meta name="publishedOn" value="2024-12-11">
 <meta name="articleTitle" value="Large gaming company enhances server observability with Fleet">
 <meta name="description" value="Large gaming company enhances server observability with Fleet">
-<meta name="showOnTestimonialsPageWithEmoji" value="🔌">
+<meta name="useBasicArticleTemplate" value="true">
