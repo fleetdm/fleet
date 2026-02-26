@@ -758,7 +758,7 @@ func getLabelsCommand() *cli.Command {
 
 				return nil
 			} else if c.Uint(fleetFlagName) != 0 {
-				return errors.New("cannot provide both a team ID and a label name")
+				return errors.New("cannot provide both a fleet ID and a label name")
 			}
 
 			// Label name was specified
