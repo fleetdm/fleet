@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -37,7 +38,8 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 	providers := newMockDataProviders()
 
 	// Create service
-	svc := service.NewService(authorizer, ds, providers, tdb.Logger)
+	noopWebhookSend := func(_ context.Context, _ string, _ any) error { return nil }
+	svc := service.NewService(authorizer, ds, providers, noopWebhookSend, tdb.Logger)
 
 	// Create router with routes
 	router := mux.NewRouter()

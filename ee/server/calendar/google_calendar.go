@@ -16,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
-	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
@@ -269,7 +268,7 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) withRetry(fn func() (any, error)) 
 			result, err = fn()
 			if err != nil {
 				if isRateLimited(err) {
-					level.Debug(lowLevelAPI.logger).Log("msg", "rate limited by Google calendar API", "err", err)
+					lowLevelAPI.logger.DebugContext(context.TODO(), "rate limited by Google calendar API", "err", err)
 					return err
 				}
 				return backoff.Permanent(err)
@@ -393,7 +392,7 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 			// We won't handle all-day events at this time, and treat the event as deleted.
 			err = c.DeleteEvent(event)
 			if err != nil {
-				level.Warn(c.config.Logger).Log("msg", "deleting Google calendar event which was changed to all-day event", "err", err)
+				c.config.Logger.WarnContext(c.config.Context, "deleting Google calendar event which was changed to all-day event", "err", err)
 			}
 			deleted = true
 		}
@@ -409,7 +408,7 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 				// Delete this event to prevent confusion. This operation should be rare.
 				err = c.DeleteEvent(event)
 				if err != nil {
-					level.Warn(c.config.Logger).Log("msg", "deleting Google calendar event which is in the past", "err", err)
+					c.config.Logger.WarnContext(c.config.Context, "deleting Google calendar event which is in the past", "err", err)
 				}
 				deleted = true
 			}
@@ -424,7 +423,7 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 				// We won't handle all-day events at this time, and treat the event as deleted.
 				err = c.DeleteEvent(event)
 				if err != nil {
-					level.Warn(c.config.Logger).Log("msg", "deleting Google calendar event which was changed to all-day event", "err", err)
+					c.config.Logger.WarnContext(c.config.Context, "deleting Google calendar event which was changed to all-day event", "err", err)
 				}
 				deleted = true
 			}
@@ -693,8 +692,8 @@ func (c *GoogleCalendar) createEvent(
 	if err != nil {
 		return nil, err
 	}
-	level.Debug(c.config.Logger).Log(
-		"msg", "created Google calendar event", "user", c.adjustedUserEmail, "startTime", eventStart, "timezone", c.location.String(),
+	c.config.Logger.DebugContext(c.config.Context,
+		"created Google calendar event", "user", c.adjustedUserEmail, "startTime", eventStart, "timezone", c.location.String(),
 	)
 
 	return fleetEvent, nil
@@ -733,7 +732,7 @@ func getLocation(tz string, config *GoogleCalendarConfig) *time.Location {
 	loc, err := time.LoadLocation(tz)
 	if err != nil {
 		// Could not load location, use EST
-		level.Warn(config.Logger).Log("msg", "parsing Google calendar timezone", "timezone", tz, "err", err)
+		config.Logger.WarnContext(config.Context, "parsing Google calendar timezone", "timezone", tz, "err", err)
 		loc, _ = time.LoadLocation("America/New_York")
 	}
 	return loc
@@ -776,7 +775,7 @@ func (c *GoogleCalendar) DeleteEvent(event *fleet.CalendarEvent) error {
 	case isAlreadyDeleted(err):
 		return nil
 	case isInvalidGrant(err):
-		level.Warn(c.config.Logger).Log("msg", "could not delete calendar event due to invalid_grant", "user", c.adjustedUserEmail, "err", err)
+		c.config.Logger.WarnContext(c.config.Context, "could not delete calendar event due to invalid_grant", "user", c.adjustedUserEmail, "err", err)
 		return nil
 	case err != nil:
 		return ctxerr.Wrap(c.config.Context, err, "deleting Google calendar event")
@@ -792,7 +791,7 @@ func (c *GoogleCalendar) StopEventChannel(event *fleet.CalendarEvent) error {
 	if details.ChannelID != "" && details.ResourceID != "" {
 		stopErr := c.config.API.Stop(details.ChannelID, details.ResourceID)
 		if stopErr != nil {
-			level.Info(c.config.Logger).Log("msg", "stopping Google calendar event watch", "err", stopErr)
+			c.config.Logger.InfoContext(c.config.Context, "stopping Google calendar event watch", "err", stopErr)
 		}
 	}
 	return nil

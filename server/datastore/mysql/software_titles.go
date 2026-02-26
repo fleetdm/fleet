@@ -15,7 +15,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/sync/errgroup"
 )
@@ -443,10 +442,9 @@ func (ds *Datastore) processSoftwareTitleResults(
 						softwareList[i].SoftwarePackage.AutomaticInstallPolicies, p,
 					)
 				default:
-					level.Warn(ds.logger).Log(
+					ds.logger.WarnContext(ctx, "policy should have an associated VPP application or software package",
 						"team_id", opt.TeamID,
 						"policy_id", p.ID,
-						"msg", "policy should have an associated VPP application or software package",
 					)
 				}
 			}

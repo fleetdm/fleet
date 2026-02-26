@@ -11,14 +11,14 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttpsig"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 	"github.com/remitly-oss/httpsig-go"
 )
 
 type HTTPSig struct {
 	ds     fleet.Datastore
-	logger log.Logger
+	logger *logging.Logger
 }
 
 type KeySpecer struct {
@@ -33,7 +33,7 @@ func (k KeySpecer) KeySpec() (httpsig.KeySpec, error) {
 // _ ensures that KeySpecer implements the httpsig.KeySpecer interface.
 var _ httpsig.KeySpecer = KeySpecer{}
 
-func NewHTTPSig(ds fleet.Datastore, logger log.Logger) *HTTPSig {
+func NewHTTPSig(ds fleet.Datastore, logger *logging.Logger) *HTTPSig {
 	return &HTTPSig{
 		ds:     ds,
 		logger: logger,

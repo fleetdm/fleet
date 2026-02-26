@@ -179,7 +179,7 @@ func validateJSONAgentOptionsExtensions(ctx context.Context, ds Datastore, optsE
 				// OK
 			case IsNotFound(err):
 				// Label does not exist, fail the request.
-				return fmt.Errorf("Label %q does not exist, or cannot be used on this team", labelName)
+				return fmt.Errorf("Label %q does not exist, or cannot be used on this fleet", labelName)
 			default:
 				return fmt.Errorf("get label by name: %w", err)
 			}

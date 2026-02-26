@@ -13,14 +13,14 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 // defaultTimeout is the timeout for requests.
 const defaultTimeout = 20 * time.Second
 
 type Service struct {
-	logger  kitlog.Logger
+	logger  *logging.Logger
 	timeout time.Duration
 	client  *http.Client
 }
@@ -46,7 +46,7 @@ func WithTimeout(t time.Duration) Opt {
 }
 
 // WithLogger sets the logger to use for the service.
-func WithLogger(logger kitlog.Logger) Opt {
+func WithLogger(logger *logging.Logger) Opt {
 	return func(s *Service) {
 		s.logger = logger
 	}
@@ -60,7 +60,7 @@ func (s *Service) populateOpts(opts []Opt) {
 		s.timeout = defaultTimeout
 	}
 	if s.logger == nil {
-		s.logger = kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout))
+		s.logger = logging.NewLogfmtLogger(os.Stdout)
 	}
 }
 

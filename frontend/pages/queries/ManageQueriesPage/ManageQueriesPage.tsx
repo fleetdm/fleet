@@ -413,9 +413,21 @@ const ManageQueriesPage = ({
                   ) : (
                     <TooltipWrapper
                       tipContent={
-                        isAnyTeamSelected && (queriesResponse?.count ?? 0) > 0
-                          ? 'To manage automations add a report to this fleet. For inherited reports select "All fleets".'
-                          : "To manage automations add a report."
+                        <div
+                          className={`${baseClass}__manage-automations-tooltip`}
+                        >
+                          {isAnyTeamSelected &&
+                          (queriesResponse?.count ?? 0) > 0 ? (
+                            <>
+                              To manage automations add a report to this fleet.
+                              <br />
+                              For inherited reports select &ldquo;All
+                              fleets&rdquo;.
+                            </>
+                          ) : (
+                            "To manage automations add a report."
+                          )}
+                        </div>
                       }
                       underline={false}
                       position="top"

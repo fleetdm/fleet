@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "15.74.6",
+      "version": "15.75.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'TeamViewer' AND publisher = 'TeamViewer';"
       },

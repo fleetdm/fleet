@@ -373,6 +373,13 @@
       "description": "Claude is Anthropic's official Claude AI desktop app."
     },
     {
+      "name": "Claude",
+      "slug": "claude/windows",
+      "platform": "windows",
+      "unique_identifier": "Claude",
+      "description": "Claude is Anthropic's official Claude AI desktop app."
+    },
+    {
       "name": "CleanMyMac",
       "slug": "cleanmymac/darwin",
       "platform": "darwin",
