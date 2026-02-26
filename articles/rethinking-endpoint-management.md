@@ -6,8 +6,8 @@ Traditional MDM and EDR tools demand blind trust. It’s time to adopt an engine
 
 - Part 1: [The confidence gap: why IT leaders are abandoning legacy endpoint management](https://fleetdm.com/articles/the-confidence-gap)
 - Part 2: Rethinking endpoint management: Fleet, osquery and Infrastructure as Code
-- Part 3: [Supercharging endpoint management: AI assistants and event-driven automation](https://fleetdm.com/articles/supercharging-endpoint-management)
-
+- Part 3: Supercharging endpoint management: AI assistants and event-driven automation
+  
 ## The black box
 
 For decades, IT and security leaders have entered into an uncomfortable bargain with endpoint management vendors. You buy a proprietary "black box" (a Mobile Device Management (MDM) solution or an Endpoint Detection and Response (EDR) agent), install it on your thousands of devices, and hope it does what the sales brochure promised.
