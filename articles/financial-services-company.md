@@ -1,4 +1,4 @@
-# American financial services company migrates to Fleet for MDM and next-gen change management
+# Financial services company migrates to Fleet for MDM and next-gen change management
 
 <div purpose="attribution-quote">
 
@@ -25,7 +25,7 @@ Introduced new infrastructure as code workflows.
 
 Fewer resources are spent configuring device management.
 
-Smooth and seamless migration.
+Smooth and seamlefinancial-services-companyss migration.
 </div>
 
 
@@ -64,10 +64,11 @@ The migration to [Fleet Device Management](https://fleetdm.com/device-management
 
 <call-to-action></call-to-action>
 
-<meta name="category" value="announcements">
+<meta name="category" value="case study">
 <meta name="authorGitHubUsername" value="Drew-P-drawers">
 <meta name="authorFullName" value="Andrew Baker">
 <meta name="publishedOn" value="2024-12-19">
 <meta name="articleTitle" value="American financial services company migrates to Fleet for MDM and next-gen change management">
 <meta name="description" value="American financial services company migrates to Fleet for MDM and next-gen change management">
 <meta name="showOnTestimonialsPageWithEmoji" value="🪟">
+<meta name="useBasicArticleTemplate" value="true">

@@ -1,4 +1,4 @@
-# Vehicle manufacturer transitions to Fleet for vulnerability automation
+# Vehicle manufacturer transitions to Fleet for endpoint security
 
 <div purpose="attribution-quote">
 
@@ -76,10 +76,11 @@ The decision to purchase Fleet was driven by the need for a more reliable, compr
 
 <call-to-action></call-to-action>
 
-<meta name="category" value="announcements">
+<meta name="category" value="case study">
 <meta name="authorGitHubUsername" value="Drew-P-drawers">
 <meta name="authorFullName" value="Andrew Baker">
 <meta name="publishedOn" value="2024-12-12">
 <meta name="articleTitle" value="Vehicle manufacturer transitions to Fleet for endpoint security">
 <meta name="description" value="Vehicle manufacturer transitions to Fleet for endpoint security">
 <meta name="showOnTestimonialsPageWithEmoji" value="🚪">
+<meta name="useBasicArticleTemplate" value="true">
