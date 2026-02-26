@@ -574,7 +574,7 @@ func TestSoftwareInstallerUploadRetries(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: lic, SoftwareInstallStore: installerStore, KeyValueStore: kvStore})
 
 	authCtx := authz_ctx.AuthorizationContext{}
-	ctx = authz_ctx.NewContext(context.Background(), &authCtx)
+	ctx = authz_ctx.NewContext(ctx, &authCtx)
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: test.UserAdmin})
 
 	actx, _ := authz_ctx.FromContext(ctx)
