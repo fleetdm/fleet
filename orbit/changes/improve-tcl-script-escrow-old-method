@@ -1,0 +1,1 @@
+* Fixed old escrow method on macOS to use environment variables on the TCL script.
