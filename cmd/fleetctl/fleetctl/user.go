@@ -16,18 +16,6 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 )
 
-const (
-	globalRoleFlagName = "global-role"
-	fleetFlagName      = "fleet"
-	passwordFlagName   = "password"
-	emailFlagName      = "email"
-	nameFlagName       = "name"
-	ssoFlagName        = "sso"
-	mfaFlagName        = "mfa"
-	apiOnlyFlagName    = "api-only"
-	csvFlagName        = "csv"
-)
-
 func userCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "user",

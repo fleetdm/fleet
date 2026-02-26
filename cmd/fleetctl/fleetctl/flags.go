@@ -11,12 +11,21 @@ import (
 )
 
 const (
-	outfileFlagName          = "outfile"
+	apiOnlyFlagName          = "api-only"
+	csvFlagName              = "csv"
 	debugFlagName            = "debug"
-	fleetCertificateFlagName = "fleet-certificate"
-	stdoutFlagName           = "stdout"
-	enableLogTopicsFlagName  = "enable-log-topics"
 	disableLogTopicsFlagName = "disable-log-topics"
+	emailFlagName            = "email"
+	enableLogTopicsFlagName  = "enable-log-topics"
+	fleetCertificateFlagName = "fleet-certificate"
+	fleetFlagName            = "fleet"
+	globalRoleFlagName       = "global-role"
+	mfaFlagName              = "mfa"
+	nameFlagName             = "name"
+	outfileFlagName          = "outfile"
+	passwordFlagName         = "password"
+	ssoFlagName              = "sso"
+	stdoutFlagName           = "stdout"
 )
 
 func outfileFlag() cli.Flag {
