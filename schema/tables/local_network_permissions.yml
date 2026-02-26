@@ -1,0 +1,25 @@
+name: local_network_permissions
+platforms:
+  - darwin
+description: Information about local network permissions granted to applications on macOS.
+columns:
+  - name: bundle_id
+    type: text
+    description: The application bundle identifier (e.g., com.example.app).
+  - name: executable_path
+    type: text
+    description: The full path to the application executable.
+  - name: display_name
+    type: text
+    description: The user-friendly display name of the application.
+  - name: type
+    type: text
+    description: The type of permission entry (typically "applications").
+  - name: state
+    type: integer
+    description: The permission state (0 = denied, 1 = allowed).
+  - name: provider_added
+    type: text
+    description: Indicates if the permission was added by a provider (may be empty).
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+evented: false

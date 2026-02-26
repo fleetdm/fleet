@@ -1,0 +1,37 @@
+name: wifi_network
+platforms:
+  - darwin
+description: Information about the currently connected Wi-Fi network.
+columns:
+  - name: ssid
+    type: text
+    description: The SSID (network name) of the current Wi-Fi network.
+  - name: interface
+    type: text
+    description: The network interface name (e.g., en0).
+  - name: rssi
+    type: text
+    description: Received Signal Strength Indicator (signal strength, e.g., -50).
+  - name: noise
+    type: text
+    description: Noise level in dBm.
+  - name: channel
+    type: text
+    description: Wi-Fi channel number.
+  - name: channel_width
+    type: text
+    description: Channel width (e.g., 20, 40, 80 MHz).
+  - name: channel_band
+    type: text
+    description: Channel band (e.g., 2.4 GHz, 5 GHz, 6 GHz).
+  - name: transmit_rate
+    type: text
+    description: Transmit rate (e.g., 300 Mbps).
+  - name: security_type
+    type: text
+    description: Security type (e.g., WPA2 Personal, WPA3 Personal).
+  - name: mode
+    type: text
+    description: Wi-Fi mode (e.g., Station).
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+evented: false
