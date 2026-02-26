@@ -334,7 +334,8 @@ func verifyQueryPlatforms(platforms string) error {
 }
 
 const (
-	QueryKind = "query"
+	QueryKind  = "query"
+	ReportKind = "report"
 )
 
 type QueryObject struct {
@@ -407,7 +408,7 @@ func WriteQueriesToYaml(queries []*Query) (string, error) {
 		qYaml := QueryObject{
 			ObjectMetadata: ObjectMetadata{
 				ApiVersion: ApiVersion,
-				Kind:       QueryKind,
+				Kind:       ReportKind,
 			},
 			Spec: QuerySpec{
 				Name:        q.Name,

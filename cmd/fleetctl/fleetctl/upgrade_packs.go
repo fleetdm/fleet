@@ -131,7 +131,7 @@ func writeQuerySpecsToFile(filename string, specs []*fleet.QuerySpec) error {
 		qYaml := fleet.QueryObject{
 			ObjectMetadata: fleet.ObjectMetadata{
 				ApiVersion: fleet.ApiVersion,
-				Kind:       fleet.QueryKind,
+				Kind:       fleet.ReportKind,
 			},
 			Spec: *spec,
 		}

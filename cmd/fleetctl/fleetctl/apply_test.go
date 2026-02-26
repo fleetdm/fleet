@@ -309,13 +309,13 @@ func TestApplyTeamSpecs(t *testing.T) {
 	filename := writeTmpYml(t, `
 ---
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team2
 ---
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     agent_options:
@@ -360,7 +360,7 @@ spec:
 	filename = writeTmpYml(t, `
 ---
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -389,7 +389,7 @@ spec:
 	mobileCfgPath := writeTmpMobileconfig(t, "N1")
 	filename = writeTmpYml(t, fmt.Sprintf(`
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -428,7 +428,7 @@ spec:
 
 	filename = writeTmpYml(t, `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     agent_options:
@@ -483,7 +483,7 @@ spec:
 
 	filename = writeTmpYml(t, `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     agent_options:
@@ -504,7 +504,7 @@ spec:
 
 	filename = writeTmpYml(t, `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -519,7 +519,7 @@ spec:
 
 	filename = writeTmpYml(t, `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -577,7 +577,7 @@ spec:
 	filename = writeTmpYml(
 		t, `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -608,7 +608,7 @@ spec:
 	filename = writeTmpYml(
 		t, `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -631,7 +631,7 @@ spec:
 	filename = writeTmpYml(
 		t, `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -654,7 +654,7 @@ spec:
 	filename = writeTmpYml(
 		t, `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -1273,7 +1273,7 @@ spec:
 `
 	queriesSpec = `---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   description: Retrieves the list of application scheme/protocol-based IPC handlers.
   name: app_schemes
@@ -1650,7 +1650,7 @@ spec:
 	// Apply team config.
 	name = writeTmpYml(t, fmt.Sprintf(`
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     agent_options:
@@ -1703,7 +1703,7 @@ spec:
 	// add macos setup assistant to team
 	name = writeTmpYml(t, fmt.Sprintf(`
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: Team1
@@ -1743,7 +1743,7 @@ spec:
 	// add bootstrap package to team
 	name = writeTmpYml(t, fmt.Sprintf(`
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: Team1
@@ -2370,7 +2370,7 @@ spec:
 `
 		team1Spec = `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: tm1
@@ -2385,7 +2385,7 @@ spec:
 `
 		team1NoKeySpec = `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: tm1
@@ -2394,7 +2394,7 @@ spec:
 `
 		team1And2Spec = `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: tm1
@@ -2404,7 +2404,7 @@ spec:
         macos_setup_assistant: %s
 ---
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: tm2
@@ -2415,7 +2415,7 @@ spec:
 `
 		team1SpecEnableEndUserAuth = `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: tm1
@@ -3074,7 +3074,7 @@ func TestApplySpecs(t *testing.T) {
 			desc: "empty team spec",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
 `,
 			wantOutput: "[+] applied 1 team",
@@ -3083,7 +3083,7 @@ spec:
 			desc: "empty team name",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: ""
@@ -3094,7 +3094,7 @@ spec:
 			desc: "invalid agent options for existing team",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -3108,7 +3108,7 @@ spec:
 			desc: "invalid top-level key for team",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -3120,7 +3120,7 @@ spec:
 			desc: "invalid known key's value type for team cannot be forced",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: 123
@@ -3132,7 +3132,7 @@ spec:
 			desc: "unknown key for team can be forced",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -3145,7 +3145,7 @@ spec:
 			desc: "invalid agent options for new team",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: teamNEW
@@ -3159,7 +3159,7 @@ spec:
 			desc: "invalid agent options dry-run",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: teamNEW
@@ -3174,7 +3174,7 @@ spec:
 			desc: "invalid agent options force",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: teamNEW
@@ -3189,7 +3189,7 @@ spec:
 			desc: "invalid agent options field type",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: teamNEW
@@ -3205,7 +3205,7 @@ spec:
 			desc: "invalid team agent options command-line flag",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: teamNEW
@@ -3219,7 +3219,7 @@ spec:
 			desc: "valid team agent options command-line flag",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: teamNEW
@@ -3233,7 +3233,7 @@ spec:
 			desc: "invalid agent options field type in overrides",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: teamNEW
@@ -3395,7 +3395,7 @@ spec:
 			desc: "dry-run set with various specs, appconfig warning for legacy",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: teamNEW
@@ -3420,7 +3420,7 @@ spec:
 			desc: "dry-run set with various specs, no errors",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: teamNEW
@@ -3446,7 +3446,7 @@ spec:
 			desc: "macos_updates deadline set but minimum_version empty",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -3460,7 +3460,7 @@ spec:
 			desc: "macos_updates minimum_version set but deadline empty",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -3474,7 +3474,7 @@ spec:
 			desc: "macos_updates.minimum_version with build version",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -3489,7 +3489,7 @@ spec:
 			desc: "macos_updates.deadline with timestamp",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -3504,7 +3504,7 @@ spec:
 			desc: "macos_updates.deadline with invalid date",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -3519,7 +3519,7 @@ spec:
 			desc: "macos_updates.deadline with incomplete date",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -3534,7 +3534,7 @@ spec:
 			desc: "windows_updates.deadline_days but grace period empty",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -3548,7 +3548,7 @@ spec:
 			desc: "windows_updates.grace_period_days but deadline empty",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -3562,7 +3562,7 @@ spec:
 			desc: "windows_updates.deadline_days out of range",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -3577,7 +3577,7 @@ spec:
 			desc: "windows_updates.grace_period_days out of range",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -3592,7 +3592,7 @@ spec:
 			desc: "windows_updates.deadline_days not a number",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -3607,7 +3607,7 @@ spec:
 			desc: "windows_updates.grace_period_days not a number",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -3622,7 +3622,7 @@ spec:
 			desc: "windows_updates valid",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -3637,7 +3637,7 @@ spec:
 			desc: "windows_updates unset valid",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -4007,7 +4007,7 @@ spec:
 			desc: "team config macos_settings.enable_disk_encryption without a value",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -4021,7 +4021,7 @@ spec:
 			desc: "team config macos_settings.enable_disk_encryption with invalid value type",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -4035,7 +4035,7 @@ spec:
 			desc: "team config macos_settings.enable_disk_encryption true",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -4049,7 +4049,7 @@ spec:
 			desc: "team config macos_settings.enable_disk_encryption false",
 			spec: `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -4063,7 +4063,7 @@ spec:
 			desc: "team config mac setup assistant",
 			spec: fmt.Sprintf(`
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: team1
@@ -4329,7 +4329,7 @@ func TestApplyWindowsUpdates(t *testing.T) {
 
 		filename := writeTmpYml(t, `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: Team1
@@ -4358,7 +4358,7 @@ spec:
 
 		filename := writeTmpYml(t, `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: Team1
@@ -4386,7 +4386,7 @@ spec:
 
 		filename := writeTmpYml(t, `
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   team:
     name: Team1
