@@ -13,7 +13,7 @@
 
   &__section {
     display: flex;
-    gap: $pad-xsmall;
+    gap: $pad-small;
     flex-direction: column;
     padding-top: $gap-modal-component;
     border-top: 1px solid $ui-fleet-black-10;
@@ -24,7 +24,7 @@
     }
 
     dl {
-      gap: $pad-small;
+      gap: $pad-xsmall;
     }
   }
 }
