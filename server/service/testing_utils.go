@@ -90,9 +90,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		depStorage                      nanodep_storage.AllDEPStorage = &nanodep_mock.Storage{}
 		mailer                          fleet.MailService             = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 		c                               clock.Clock                   = clock.C
-		scepConfigService                                             = eeservice.NewSCEPConfigService(logger, nil)
-		digiCertService                                               = digicert.NewService(digicert.WithLogger(logger))
-		estCAService                                                  = est.NewService(est.WithLogger(logger))
+		scepConfigService                                             = eeservice.NewSCEPConfigService(logger.SlogLogger(), nil)
+		digiCertService                                               = digicert.NewService(digicert.WithLogger(logger.SlogLogger()))
+		estCAService                                                  = est.NewService(est.WithLogger(logger.SlogLogger()))
 		conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 
 		mdmStorage             fleet.MDMAppleStore
@@ -218,7 +218,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		ds,
 		task,
 		rs,
-		logger,
+		logger.SlogLogger(),
 		osqlogger,
 		fleetConfig,
 		mailer,
@@ -262,7 +262,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		svc, err = eeservice.NewService(
 			svc,
 			ds,
-			logger,
+			logger.SlogLogger(),
 			fleetConfig,
 			mailer,
 			c,
@@ -527,19 +527,19 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher)
 		if mdmStorage != nil && scepStorage != nil {
 			vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
-			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool), svc.NewActivity)
-			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay, svc.NewActivity))
-			checkInAndCommand.RegisterResultsHandler(fleet.DeviceLocationCmdName, NewDeviceLocationResultsHandler(ds, commander, logger))
+			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger.SlogLogger(), redis_key_value.New(redisPool), svc.NewActivity)
+			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger.SlogLogger(), cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay, svc.NewActivity))
+			checkInAndCommand.RegisterResultsHandler(fleet.DeviceLocationCmdName, NewDeviceLocationResultsHandler(ds, commander, logger.SlogLogger()))
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
 				cfg.MDM,
 				mdmStorage,
 				scepStorage,
-				logger,
+				logger.SlogLogger(),
 				checkInAndCommand,
 				&MDMAppleDDMService{
 					ds:     ds,
-					logger: logger,
+					logger: logger.SlogLogger(),
 				},
 				commander,
 				"https://test-url.com",
@@ -559,7 +559,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			err := RegisterSCEPProxy(
 				rootMux,
 				ds,
-				logger,
+				logger.SlogLogger(),
 				timeout,
 				&cfg,
 			)
@@ -568,7 +568,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 
 	if len(opts) > 0 && opts[0].WithDEPWebview {
-		frontendHandler := WithMDMEnrollmentMiddleware(svc, logger, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		frontendHandler := WithMDMEnrollmentMiddleware(svc, logger.SlogLogger(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// do nothing and return 200
 			w.WriteHeader(http.StatusOK)
 		}))
@@ -583,20 +583,20 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	extra = append(extra, WithLoginRateLimit(throttled.PerMin(1000)))
 
 	if len(opts) > 0 && opts[0].HostIdentity != nil {
-		require.NoError(t, hostidentity.RegisterSCEP(rootMux, opts[0].HostIdentity.SCEPStorage, ds, logger, &cfg))
+		require.NoError(t, hostidentity.RegisterSCEP(rootMux, opts[0].HostIdentity.SCEPStorage, ds, logger.SlogLogger(), &cfg))
 		var httpSigVerifier func(http.Handler) http.Handler
 		httpSigVerifier, err := httpsig.Middleware(ds, opts[0].HostIdentity.RequireHTTPMessageSignature,
-			logger.With("component", "http-sig-verifier"))
+			logger.With("component", "http-sig-verifier").SlogLogger())
 		require.NoError(t, err)
 		extra = append(extra, WithHTTPSigVerifier(httpSigVerifier))
 	}
 
 	if len(opts) > 0 && opts[0].ConditionalAccess != nil {
-		require.NoError(t, condaccess.RegisterSCEP(ctx, rootMux, opts[0].ConditionalAccess.SCEPStorage, ds, logger, &cfg))
-		require.NoError(t, condaccess.RegisterIdP(rootMux, ds, logger, &cfg))
+		require.NoError(t, condaccess.RegisterSCEP(ctx, rootMux, opts[0].ConditionalAccess.SCEPStorage, ds, logger.SlogLogger(), &cfg))
+		require.NoError(t, condaccess.RegisterIdP(rootMux, ds, logger.SlogLogger(), &cfg))
 	}
 	var carveStore fleet.CarveStore = ds // In tests, we use MySQL as storage for carves.
-	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
+	apiHandler := MakeHandler(svc, cfg, logger.SlogLogger(), limitStore, redisPool, carveStore, featureRoutes, extra...)
 	rootMux.Handle("/api/", apiHandler)
 	var errHandler *errorstore.Handler
 	ctxErrHandler := ctxerr.FromContext(ctx)
@@ -605,7 +605,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 	debugHandler := MakeDebugHandler(svc, cfg, logger.SlogLogger(), errHandler, ds)
 	rootMux.Handle("/debug/", debugHandler)
-	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, logger))
+	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, logger.SlogLogger()))
 
 	if len(opts) > 0 && opts[0].EnableSCIM {
 		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger.SlogLogger(), &cfg))

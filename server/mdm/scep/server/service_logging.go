@@ -2,25 +2,23 @@ package scepserver
 
 import (
 	"context"
+	"log/slog"
 	"time"
-
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 type loggingService struct {
-	logger *logging.Logger
+	logger *slog.Logger
 	Service
 }
 
 // NewLoggingService creates adds logging to the SCEP service
-func NewLoggingService(logger *logging.Logger, s Service) Service {
+func NewLoggingService(logger *slog.Logger, s Service) Service {
 	return &loggingService{logger, s}
 }
 
 func (mw *loggingService) GetCACaps(ctx context.Context) (caps []byte, err error) {
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
-			"method", "GetCACaps",
+		mw.logger.InfoContext(ctx, "GetCACaps",
 			"err", err,
 			"took", time.Since(begin),
 		)
@@ -31,8 +29,7 @@ func (mw *loggingService) GetCACaps(ctx context.Context) (caps []byte, err error
 
 func (mw *loggingService) GetCACert(ctx context.Context, message string) (cert []byte, certNum int, err error) {
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
-			"method", "GetCACert",
+		mw.logger.InfoContext(ctx, "GetCACert",
 			"message", message,
 			"err", err,
 			"took", time.Since(begin),
@@ -44,8 +41,7 @@ func (mw *loggingService) GetCACert(ctx context.Context, message string) (cert [
 
 func (mw *loggingService) PKIOperation(ctx context.Context, data []byte) (certRep []byte, err error) {
 	defer func(begin time.Time) {
-		_ = mw.logger.Log(
-			"method", "PKIOperation",
+		mw.logger.InfoContext(ctx, "PKIOperation",
 			"err", err,
 			"took", time.Since(begin),
 		)
