@@ -37,7 +37,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-git/go-git/v5"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -111,7 +110,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 		SCEPStorage:            scepStorage,
 		Pool:                   redisPool,
 		APNSTopic:              "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
-		SCEPConfigService:      eeservice.NewSCEPConfigService(kitlog.NewLogfmtLogger(os.Stdout), nil),
+		SCEPConfigService:      eeservice.NewSCEPConfigService(logging.NewLogfmtLogger(os.Stdout), nil),
 		DigiCertService:        digicert.NewService(),
 		SoftwareTitleIconStore: softwareTitleIconStore,
 	}
@@ -522,10 +521,6 @@ settings:
 // At the same time, GitOps uploads Apple profiles that use the newly configured CAs.
 func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
 	t := s.T()
-
-	dev_mode.IsEnabled = true
-	t.Cleanup(func() { dev_mode.IsEnabled = false })
-
 	user := s.createGitOpsUser(t)
 	fleetctlConfig := s.createFleetctlConfig(t, user)
 
@@ -3393,7 +3388,7 @@ controls:
 queries:
 `
 
-	testAll := `
+	testVPP := `
 controls:
   macos_setup:
     manual_agent_install: true
@@ -3417,7 +3412,7 @@ team_settings:
 `
 
 	//nolint:gosec // test code
-	testPackagesFail := `
+	testPackages := `
 controls:
   macos_setup:
     manual_agent_install: true
@@ -3446,7 +3441,7 @@ team_settings:
 			testName:     "All VPP with setup experience",
 			VPPTeam:      "All teams",
 			teamName:     teamName,
-			teamTemplate: testAll,
+			teamTemplate: testVPP,
 			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
 			errContains:  ptr.String("Couldn't edit software."),
 		},
@@ -3454,15 +3449,22 @@ team_settings:
 			testName:     "Packages fail",
 			VPPTeam:      "All teams",
 			teamName:     teamName,
-			teamTemplate: testPackagesFail,
+			teamTemplate: testPackages,
 			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
 			errContains:  ptr.String("Couldn't edit software."),
 		},
 		{
-			testName:     "No team",
+			testName:     "No team VPP",
 			VPPTeam:      "No team",
 			teamName:     "No team",
-			teamTemplate: testAll,
+			teamTemplate: testVPP,
+			errContains:  ptr.String("Couldn't edit software."),
+		},
+		{
+			testName:     "No team Installers",
+			VPPTeam:      "No team",
+			teamName:     "No team",
+			teamTemplate: testPackages,
 			errContains:  ptr.String("Couldn't edit software."),
 		},
 		// left out more possible combinations of setup experience being set for different platforms
@@ -3497,7 +3499,6 @@ team_settings:
 			testing_utils.StartAndServeVPPServer(t)
 
 			// Don't attempt dry runs because they would not actually create the team, so the config would not be found
-
 			_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFileName})
 
 			if tc.errContains != nil {
@@ -3505,6 +3506,7 @@ team_settings:
 			} else {
 				require.NoError(t, err)
 			}
+
 		})
 	}
 }

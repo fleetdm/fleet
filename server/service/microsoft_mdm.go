@@ -1743,7 +1743,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 
 	// Iterate over the operations and process them
 	for _, protoCMD := range reqMsg.GetOrderedCmds() {
-		if protoCMD.Cmd.Data != nil && *protoCMD.Cmd.Data == "418" {
+		if protoCMD.Cmd.Data != nil && *protoCMD.Cmd.Data == "418" && protoCMD.Cmd.CmdRef != nil {
 			// 418 = Already exists, and indicate that an <Add> failed due to the item already existing on the device
 			// We need to re-issue a <Replace> command for this item
 			alreadyExistsCmdIDs = append(alreadyExistsCmdIDs, *protoCMD.Cmd.CmdRef)
@@ -1782,7 +1782,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 }
 
 func handleResendingAlreadyExistsCommands(ctx context.Context, svc *Service, alreadyExistsCmdIDs []string, deviceID string) ([]string, error) {
-	commands, err := svc.ds.GetWindowsMDMCommandsForResending(ctx, alreadyExistsCmdIDs)
+	commands, err := svc.ds.GetWindowsMDMCommandsForResending(ctx, deviceID, alreadyExistsCmdIDs)
 	if err != nil {
 		return nil, fmt.Errorf("get commands for resending: %w", err)
 	}
@@ -2123,7 +2123,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 	displayName := reqDeviceName
 	var serial string
 	if hostUUID != "" {
-		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, newActivity)
+		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, svc.NewActivity)
 		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 			Action:   mdmlifecycle.HostActionTurnOn,
 			Platform: "windows",

@@ -271,12 +271,6 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil
 	}
 
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
-
 	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		require.Len(t, names, 1)
 		switch names[0] {
@@ -698,12 +692,6 @@ func TestApplyAppConfig(t *testing.T) {
 		return nil
 	}
 
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
-
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		if email == "admin1@example.com" {
 			return userRoleSpecList[0], nil
@@ -918,12 +906,6 @@ func TestApplyAppConfigDryRunIssue(t *testing.T) {
 			return userRoleSpecList[0], nil
 		}
 		return userRoleSpecList[1], nil
-	}
-
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
 	}
 
 	currentAppConfig := &fleet.AppConfig{
@@ -1295,12 +1277,6 @@ func TestApplyPolicies(t *testing.T) {
 		}
 		return nil, errors.New("unexpected team name!")
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
-
 	name := writeTmpYml(t, policySpec)
 
 	assert.Equal(t, "[+] applied 3 policies\n", RunAppForTest(t, []string{"apply", "-f", name}))
@@ -1389,12 +1365,6 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return gitOps, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
-
 	currentAppConfig := &fleet.AppConfig{
 		OrgInfo: fleet.OrgInfo{
 			OrgName: "Fleet",
@@ -1982,12 +1952,6 @@ func TestApplyPacks(t *testing.T) {
 	ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
 		return nil, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
-
 	var appliedPacks []*fleet.PackSpec
 	ds.ApplyPackSpecsFunc = func(ctx context.Context, specs []*fleet.PackSpec) error {
 		appliedPacks = specs
@@ -2034,12 +1998,6 @@ func TestApplyQueries(t *testing.T) {
 		appliedQueries = queries
 		return nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
-
 	name := writeTmpYml(t, queriesSpec)
 
 	assert.Equal(t, "[+] applied 1 query\n", RunAppForTest(t, []string{"apply", "-f", name}))
@@ -2165,11 +2123,6 @@ func TestApplyMacosSetup(t *testing.T) {
 		}
 		teamsByID := map[uint]*fleet.Team{
 			tm1.ID: tm1,
-		}
-		ds.NewActivityFunc = func(
-			ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-		) error {
-			return nil
 		}
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 			return job, nil
@@ -3015,13 +2968,6 @@ func TestApplySpecs(t *testing.T) {
 			return true, nil
 		}
 		ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
-			return nil
-		}
-
-		// activities
-		ds.NewActivityFunc = func(
-			ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-		) error {
 			return nil
 		}
 
@@ -4318,10 +4264,6 @@ func TestApplyWindowsUpdates(t *testing.T) {
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (fleet.MDMProfilesUpdates, error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
-	}
-
 	t.Run("with values", func(t *testing.T) {
 		// Reset call trackers
 		setOrUpdateCalls = nil

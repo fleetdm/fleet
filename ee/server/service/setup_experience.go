@@ -152,7 +152,7 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 		if errors.As(err, &existsErr) {
 			err = fleet.NewInvalidArgumentError("script", err.Error()).WithStatus(http.StatusConflict) // TODO: confirm error message with product/frontend
 		} else if errors.As(err, &fkErr) {
-			err = fleet.NewInvalidArgumentError("team_id", "The team does not exist.").WithStatus(http.StatusNotFound)
+			err = fleet.NewInvalidArgumentError("team_id/fleet_id", "The fleet does not exist.").WithStatus(http.StatusNotFound)
 		}
 		return ctxerr.Wrap(ctx, err, "create setup experience script")
 	}

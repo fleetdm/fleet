@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
@@ -66,11 +67,11 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 	// TODO: for some reason we never log datastore messages when running integration tests, why?
 	//
 	// Changes below assume that we want to follows the same pattern as the rest of the codebase.
-	var dslogger *logging.Logger
+	var dslogger *slog.Logger
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		dslogger = logging.NewNopLogger()
+		dslogger = slog.New(slog.DiscardHandler)
 	} else {
-		dslogger = logging.NewLogfmtLogger(os.Stdout)
+		dslogger = logging.NewSlogLogger(logging.Options{Output: os.Stdout, Debug: true})
 	}
 
 	// Use TestSQLMode which combines ANSI mode components with MySQL 8 strict modes
@@ -86,7 +87,7 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 		replicaOpts := &common_mysql.DBOptions{
 			MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
 			MaxAttempts:         1,
-			Logger:              logging.NewNopLogger(),
+			Logger:              slog.New(slog.DiscardHandler),
 			SqlMode:             common_mysql.TestSQLMode,
 		}
 		setupRealReplica(t, testName, ds, replicaOpts)
@@ -429,14 +430,7 @@ func CreateNamedMySQLDSWithConns(t *testing.T, name string) (*Datastore, *common
 	ds := initializeDatabase(t, name, new(testing_utils.DatastoreTestOptions))
 	t.Cleanup(func() { ds.Close() })
 
-	replica, ok := ds.replica.(*sqlx.DB)
-	require.True(t, ok, "ds.replica should be *sqlx.DB in tests")
-	dbConns := &common_mysql.DBConnections{
-		Primary: ds.primary,
-		Replica: replica,
-	}
-
-	return ds, dbConns
+	return ds, TestDBConnections(t, ds)
 }
 
 func ExecAdhocSQL(tb testing.TB, ds *Datastore, fn func(q sqlx.ExtContext) error) {
@@ -469,7 +463,7 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 		"osquery_options":                  true,
 		"software_categories":              true,
 	}
-	testing_utils.TruncateTables(t, ds.writer(context.Background()), ds.logger.SlogLogger(), nonEmptyTables, tables...)
+	testing_utils.TruncateTables(t, ds.writer(context.Background()), ds.logger, nonEmptyTables, tables...)
 }
 
 // this is meant to be used for debugging/testing that statement uses an efficient
@@ -986,7 +980,7 @@ func (t *testingAuthorizer) Authorize(_ context.Context, _ platform_authz.AuthzT
 	return nil
 }
 
-// testingLookupService adapts mysql.Datastore to fleet.LookupService interface.
+// testingLookupService adapts mysql.Datastore to fleet.ActivityLookupService interface.
 // This allows tests to use the real activityacl.FleetServiceAdapter instead of
 // duplicating the conversion logic.
 type testingLookupService struct {
@@ -1006,22 +1000,42 @@ func (t *testingLookupService) GetHostLite(ctx context.Context, id uint) (*fleet
 	return t.ds.HostLite(ctx, id)
 }
 
+func (t *testingLookupService) GetActivitiesWebhookSettings(ctx context.Context) (fleet.ActivitiesWebhookSettings, error) {
+	appConfig, err := t.ds.AppConfig(ctx)
+	if err != nil {
+		return fleet.ActivitiesWebhookSettings{}, err
+	}
+	return appConfig.WebhookSettings.ActivitiesWebhook, nil
+}
+
+func (t *testingLookupService) ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error {
+	return t.ds.ActivateNextUpcomingActivityForHost(ctx, hostID, fromCompletedExecID)
+}
+
+// TestDBConnections extracts the underlying DB connections from a test Datastore.
+func TestDBConnections(t testing.TB, ds *Datastore) *common_mysql.DBConnections {
+	t.Helper()
+	replica, ok := ds.replica.(*sqlx.DB)
+	require.True(t, ok, "ds.replica should be *sqlx.DB in tests")
+	return &common_mysql.DBConnections{Primary: ds.primary, Replica: replica}
+}
+
 // NewTestActivityService creates an activity service. This allows tests to call the activity bounded context API.
 // User data is fetched from the same database to support tests that verify user info in activities.
 func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
 	t.Helper()
 
-	// Extract DB connections
-	replica, ok := ds.replica.(*sqlx.DB)
-	require.True(t, ok, "ds.replica should be *sqlx.DB in tests")
-	dbConns := &common_mysql.DBConnections{Primary: ds.primary, Replica: replica}
+	dbConns := TestDBConnections(t, ds)
 
 	// Use the real ACL adapter with a testing lookup service
 	lookupSvc := &testingLookupService{ds: ds}
-	providers := activityacl.NewFleetServiceAdapter(lookupSvc)
+	aclAdapter := activityacl.NewFleetServiceAdapter(lookupSvc)
 
 	// Create service via bootstrap (the public API for creating the bounded context)
-	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, providers, slog.New(slog.DiscardHandler))
+	discardLogger := slog.New(slog.DiscardHandler)
+	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, aclAdapter, func(ctx context.Context, url string, payload any) error {
+		return server.PostJSONWithTimeout(ctx, url, payload, discardLogger)
+	}, discardLogger)
 	return svc
 }
 

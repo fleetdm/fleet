@@ -21,6 +21,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -1423,6 +1424,15 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 	err = json.Unmarshal(*gotHosts[2].DeviceMapping, &dm)
 	require.NoError(t, err)
 	require.Nil(t, dm)
+
+	// non-email queries should also match against host_emails
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "dbca"}}, 1)
+	require.Equal(t, 1, len(gotHosts))
+	assert.Equal(t, hosts[2].ID, gotHosts[0].ID) // matches email dbca@b.cba
+
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "b.cb"}}, 1)
+	require.Equal(t, 1, len(gotHosts))
+	assert.Equal(t, hosts[2].ID, gotHosts[0].ID) // matches email dbca@b.cba
 }
 
 func testHostsUnenrollFromMDM(t *testing.T, ds *Datastore) {
@@ -8689,16 +8699,13 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		HostID:          host.ID,
 		HostDisplayName: host.DisplayName(),
 	}
-	detailsBytes, err := json.Marshal(activity)
-	require.NoError(t, err)
 
-	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
-	err = ds.NewActivity( // automatically creates the host_activities entry
+	activitySvc := NewTestActivityService(t, ds)
+	apiUser := &activity_api.User{ID: user1.ID, Name: user1.Name, Email: user1.Email}
+	err = activitySvc.NewActivity( // automatically creates the host_activities entry
 		ctx,
-		user1,
+		apiUser,
 		activity,
-		detailsBytes,
-		time.Now(),
 	)
 	require.NoError(t, err)
 

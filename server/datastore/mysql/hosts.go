@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"sort"
 	"strings"
@@ -22,8 +23,6 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -1487,19 +1486,19 @@ func (ds *Datastore) applyHostFilters(
 		}
 		return "", nil, err
 	} else if opt.OSSettingsFilter.IsValid() {
-		sqlStmt, whereParams, err = ds.filterHostsByOSSettingsStatus(sqlStmt, opt, whereParams, diskEncryptionConfig)
+		sqlStmt, whereParams, err = ds.filterHostsByOSSettingsStatus(ctx, sqlStmt, opt, whereParams, diskEncryptionConfig)
 		if err != nil {
 			return "", nil, err
 		}
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
-		sqlStmt, whereParams = ds.filterHostsByOSSettingsDiskEncryptionStatus(sqlStmt, opt, whereParams, diskEncryptionConfig)
+		sqlStmt, whereParams = ds.filterHostsByOSSettingsDiskEncryptionStatus(ctx, sqlStmt, opt, whereParams, diskEncryptionConfig)
 	}
 
 	sqlStmt, whereParams = filterHostsByMDMBootstrapPackageStatus(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByOS(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByVulnerability(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByProfileStatus(sqlStmt, opt, whereParams)
-	sqlStmt, whereParams, _ = hostSearchLike(sqlStmt, whereParams, opt.MatchQuery, append(hostSearchColumns, "display_name")...)
+	sqlStmt, whereParams = hostSearchLike(sqlStmt, whereParams, opt.MatchQuery, append(hostSearchColumns, "display_name")...)
 
 	sqlStmt, whereParams, err = appendListOptionsWithCursorToSQLSecure(sqlStmt, whereParams, &opt.ListOptions, hostAllowedOrderKeys)
 	if err != nil {
@@ -1686,7 +1685,7 @@ func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOption
 	return sql + fmt.Sprintf(` AND EXISTS (%s) AND ne.id IS NOT NULL AND hmdm.enrolled = 1`, subquery), append(params, subqueryParams...)
 }
 
-func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostListOptions, params []interface{}, diskEncryptionConfig fleet.DiskEncryptionConfig) (string, []interface{}, error) {
+func (ds *Datastore) filterHostsByOSSettingsStatus(ctx context.Context, sql string, opt fleet.HostListOptions, params []any, diskEncryptionConfig fleet.DiskEncryptionConfig) (string, []any, error) {
 	if !opt.OSSettingsFilter.IsValid() {
 		return sql, params, nil
 	}
@@ -1798,11 +1797,11 @@ AND (
             ELSE
                 ''
             END`,
-			ds.whereBitLockerStatus(fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired),
-			ds.whereBitLockerStatus(fleet.DiskEncryptionVerified, diskEncryptionConfig.BitLockerPINRequired),
-			ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying, diskEncryptionConfig.BitLockerPINRequired),
-			ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing, diskEncryptionConfig.BitLockerPINRequired),
-			ds.whereBitLockerStatus(fleet.DiskEncryptionFailed, diskEncryptionConfig.BitLockerPINRequired),
+			ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired),
+			ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionVerified, diskEncryptionConfig.BitLockerPINRequired),
+			ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionVerifying, diskEncryptionConfig.BitLockerPINRequired),
+			ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionEnforcing, diskEncryptionConfig.BitLockerPINRequired),
+			ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionFailed, diskEncryptionConfig.BitLockerPINRequired),
 		)
 	}
 
@@ -1854,7 +1853,7 @@ AND (
 	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS, whereAndroid, whereLinux), params, nil
 }
 
-func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt fleet.HostListOptions, params []interface{}, diskEncryptionConfig fleet.DiskEncryptionConfig) (string, []interface{}) {
+func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Context, sql string, opt fleet.HostListOptions, params []any, diskEncryptionConfig fleet.DiskEncryptionConfig) (string, []any) {
 	if !opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		return sql, params
 	}
@@ -1880,31 +1879,31 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt
 	switch opt.OSSettingsDiskEncryptionFilter {
 	case fleet.DiskEncryptionVerified:
 		if diskEncryptionConfig.Enabled {
-			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionVerified, diskEncryptionConfig.BitLockerPINRequired)
+			whereWindows = ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionVerified, diskEncryptionConfig.BitLockerPINRequired)
 		}
 		subqueryMacOS, subqueryParams = subqueryFileVaultVerified()
 
 	case fleet.DiskEncryptionVerifying:
 		if diskEncryptionConfig.Enabled {
-			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying, diskEncryptionConfig.BitLockerPINRequired)
+			whereWindows = ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionVerifying, diskEncryptionConfig.BitLockerPINRequired)
 		}
 		subqueryMacOS, subqueryParams = subqueryFileVaultVerifying()
 
 	case fleet.DiskEncryptionActionRequired:
 		if diskEncryptionConfig.Enabled {
-			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired)
+			whereWindows = ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired)
 		}
 		subqueryMacOS, subqueryParams = subqueryFileVaultActionRequired()
 
 	case fleet.DiskEncryptionEnforcing:
 		if diskEncryptionConfig.Enabled {
-			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing, diskEncryptionConfig.BitLockerPINRequired)
+			whereWindows = ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionEnforcing, diskEncryptionConfig.BitLockerPINRequired)
 		}
 		subqueryMacOS, subqueryParams = subqueryFileVaultEnforcing()
 
 	case fleet.DiskEncryptionFailed:
 		if diskEncryptionConfig.Enabled {
-			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionFailed, diskEncryptionConfig.BitLockerPINRequired)
+			whereWindows = ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionFailed, diskEncryptionConfig.BitLockerPINRequired)
 		}
 		subqueryMacOS, subqueryParams = subqueryFileVaultFailed()
 
@@ -2364,8 +2363,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 				// This means a orbit host already enrolled at this hosts entry.
 				// This can happen if two devices have duplicate hardware identifiers or
 				// if orbit's node key file was deleted from the device (e.g. uninstall+install).
-				level.Warn(ds.logger).Log(
-					"msg", "orbit host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",
+				ds.logger.WarnContext(ctx, "orbit host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",
 					"identifier", hostInfo.HardwareUUID,
 					"host_id", enrolledHostInfo.ID,
 				)
@@ -2405,7 +2403,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 				args = append(args, teamID)
 				sqlUpdate = fmt.Sprintf(sqlUpdate, ", team_id = ?")
 			} else {
-				level.Info(ds.logger).Log("msg", "skipping team update on orbit enroll", "host_uuid", hostInfo.HardwareUUID)
+				ds.logger.InfoContext(ctx, "skipping team update on orbit enroll", "host_uuid", hostInfo.HardwareUUID)
 				sqlUpdate = fmt.Sprintf(sqlUpdate, "")
 			}
 
@@ -2570,7 +2568,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 			`
 			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, osqueryHostID, nodeKey, teamID, hardwareUUID, hardwareSerial)
 			if err != nil {
-				level.Info(ds.logger).Log("hostIDError", err.Error())
+				ds.logger.InfoContext(ctx, "host insert error", "err", err)
 				return ctxerr.Wrap(ctx, err, "insert host")
 			}
 			lastInsertID, _ := result.LastInsertId()
@@ -2596,8 +2594,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 				// This means a osquery host already enrolled at this hosts entry.
 				// This can happen if two devices have duplicate hardware identifiers or
 				// if osquery.db was deleted from the device (e.g. uninstall+install).
-				level.Warn(ds.logger).Log(
-					"msg", "osquery host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",
+				ds.logger.WarnContext(ctx, "osquery host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",
 					"identifier", hardwareUUID,
 					"host_id", enrolledHostInfo.ID,
 				)
@@ -2644,7 +2641,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 				args = append(args, teamID)
 				sqlUpdate = fmt.Sprintf(sqlUpdate, ", team_id = ?")
 			} else {
-				level.Info(ds.logger).Log("msg", "skipping team update on osquery enroll", "host_uuid", hardwareUUID)
+				ds.logger.InfoContext(ctx, "skipping team update on osquery enroll", "host_uuid", hardwareUUID)
 				sqlUpdate = fmt.Sprintf(sqlUpdate, "")
 			}
 
@@ -2765,7 +2762,7 @@ func (ds *Datastore) getContextTryStmt(ctx context.Context, dest interface{}, qu
 		//
 		// - see https://github.com/go-sql-driver/mysql/issues/1555 for
 		// a related open bug in the driver
-		ds.deleteCachedStmt(query)
+		ds.deleteCachedStmt(ctx, query)
 	}
 
 	return sqlx.GetContext(ctx, ds.reader(ctx), dest, query, args...)
@@ -3156,9 +3153,8 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 		matchingHosts := "SELECT h.id FROM hosts h WHERE TRUE"
 		var args []interface{}
 		// TODO: should search columns include display_name (requires join to host_display_names)?
-		searchHostsQuery, args, matchesEmail := hostSearchLike(matchingHosts, args, matchQuery, hostSearchColumns...)
-		// if matchQuery is "email like" then don't bother with the additional wildcard searching
-		if !matchesEmail && len(matchQuery) > 2 && hasNonASCIIRegex(matchQuery) {
+		searchHostsQuery, args := hostSearchLike(matchingHosts, args, matchQuery, hostSearchColumns...)
+		if len(matchQuery) > 2 && hasNonASCIIRegex(matchQuery) {
 			union, wildCardArgs := hostSearchLikeAny(matchingHosts, args, matchQuery, wildCardableHostSearchColumns...)
 			searchHostsQuery += " UNION " + union
 			args = wildCardArgs
@@ -3592,7 +3588,7 @@ func (ds *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 func (ds *Datastore) FailingPoliciesCount(ctx context.Context, host *fleet.Host) (uint, error) {
 	if host.FleetPlatform() == "" {
 		// We log to help troubleshooting in case this happens.
-		level.Error(ds.logger).Log("err", "unrecognized platform", "hostID", host.ID, "platform", host.Platform) //nolint:errcheck
+		ds.logger.ErrorContext(ctx, "unrecognized platform", "hostID", host.ID, "platform", host.Platform)
 	}
 
 	query := `
@@ -3615,7 +3611,7 @@ func (ds *Datastore) FailingPoliciesCount(ctx context.Context, host *fleet.Host)
 func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 	if host.FleetPlatform() == "" {
 		// We log to help troubleshooting in case this happens.
-		level.Error(ds.logger).Log("err", "unrecognized platform", "hostID", host.ID, "platform", host.Platform) //nolint:errcheck
+		ds.logger.ErrorContext(ctx, "unrecognized platform", "hostID", host.ID, "platform", host.Platform)
 	}
 	query := `SELECT p.id, p.team_id, p.resolution, p.name, p.query, p.description, p.author_id, p.platforms, p.critical, p.created_at, p.updated_at, p.conditional_access_enabled, p.conditional_access_bypass_enabled,
 		COALESCE(u.name, '<deleted>') AS author_name,
@@ -4480,7 +4476,7 @@ func (ds *Datastore) UpdateMDMInstalledFromDEP(
 func maybeAssociateScimUserWithHostMDMIdP(
 	ctx context.Context,
 	tx sqlx.ExtContext,
-	logger log.Logger,
+	logger *slog.Logger,
 	user *fleet.ScimUser,
 ) error {
 	if user == nil {
@@ -4538,10 +4534,10 @@ WHERE %s`
 	var hid uint
 	switch {
 	case len(hostIDs) == 0:
-		level.Info(logger).Log("msg", "maybeAssociateScimUserWithHostMDMIdPAccount: no host ids found for scim user", "scim_user_id", user.ID)
+		logger.InfoContext(ctx, "maybeAssociateScimUserWithHostMDMIdPAccount: no host ids found for scim user", "scim_user_id", user.ID)
 		return nil
 	case len(hostIDs) > 1:
-		level.Info(logger).Log("msg", "maybeAssociateScimUserWithHostMDMIdPAccount: multiple host ids found for scim user", "scim_user_id", user.ID, "host_ids", fmt.Sprintf("%+v", hostIDs))
+		logger.InfoContext(ctx, "maybeAssociateScimUserWithHostMDMIdPAccount: multiple host ids found for scim user", "scim_user_id", user.ID, "host_ids", fmt.Sprintf("%+v", hostIDs))
 		// TODO: confirm desired behavior here, for now we'll just use the first one
 	}
 	hid = hostIDs[0]
@@ -4560,7 +4556,7 @@ func (ds *Datastore) MaybeAssociateHostWithScimUser(ctx context.Context, hostID 
 	checkExistingSQL := `SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &existingSCIMUserID, checkExistingSQL, hostID)
 	if err == nil {
-		level.Debug(ds.logger).Log("msg", "MaybeAssociateHostWithScimUser: existing SCIM user association found for host", "host_id", hostID, "scim_user_id", existingSCIMUserID)
+		ds.logger.DebugContext(ctx, "MaybeAssociateHostWithScimUser: existing SCIM user association found for host", "host_id", hostID, "scim_user_id", existingSCIMUserID)
 		// Existing SCIM user association found, nothing to do.
 		// Bail early so that we don't trigger side-effects downstream like resending profiles.
 		return nil
@@ -4590,7 +4586,7 @@ WHERE
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// No MDM IdP account for this host, nothing to do.
-			level.Debug(ds.logger).Log("msg", "MaybeAssociateHostWithScimUser: no MDM IdP account found for host", "host_id", hostID)
+			ds.logger.DebugContext(ctx, "MaybeAssociateHostWithScimUser: no MDM IdP account found for host", "host_id", hostID)
 			return nil
 		}
 		return ctxerr.Wrap(ctx, err, "MaybeAssociateHostWithScimUser: get MDM IdP account for host")
@@ -4602,10 +4598,10 @@ WHERE
 }
 
 // Given a host and a known MDM IdP account, attempt to find an existing SCIM user to associate it with.
-func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, hostID uint, idp *fleet.MDMIdPAccount) error {
+func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContext, logger *slog.Logger, hostID uint, idp *fleet.MDMIdPAccount) error {
 	if idp == nil {
 		// TODO: confirm desired behavior here
-		level.Debug(logger).Log("msg", "maybeAssociateHostMDMIdPWithScimUser: MDM IdP account is nil, skipping association", "host_id", hostID)
+		logger.DebugContext(ctx, "maybeAssociateHostMDMIdPWithScimUser: MDM IdP account is nil, skipping association", "host_id", hostID)
 		return nil
 	}
 
@@ -4615,7 +4611,7 @@ func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContex
 		return ctxerr.Wrap(ctx, err, "get scim user")
 	case fleet.IsNotFound(err) || scimUser == nil:
 		// There is no SCIM association possible at this time
-		level.Debug(logger).Log("msg", "maybeAssociateHostMDMIdPWithScimUser: no SCIM user found for MDM IdP account", "host_id", hostID, "mdm_idp_username", idp.Username, "mdm_idp_email", idp.Email)
+		logger.DebugContext(ctx, "maybeAssociateHostMDMIdPWithScimUser: no SCIM user found for MDM IdP account", "host_id", hostID, "mdm_idp_username", idp.Username, "mdm_idp_email", idp.Email)
 		return nil
 	}
 
@@ -4623,7 +4619,7 @@ func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContex
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "associate host with scim user")
 	}
-	level.Debug(logger).Log("msg", "maybeAssociateHostMDMIdPWithScimUser: associated host with SCIM user", "host_id", hostID, "scim_user_id", scimUser.ID)
+	logger.DebugContext(ctx, "maybeAssociateHostMDMIdPWithScimUser: associated host with SCIM user", "host_id", hostID, "scim_user_id", scimUser.ID)
 	return nil
 }
 
@@ -5393,11 +5389,11 @@ func updateHostRefetchRequestedDB(ctx context.Context, tx sqlx.ExtContext, id ui
 
 // UpdateHostRefetchCriticalQueriesUntil updates a host's refetch critical queries until field.
 func (ds *Datastore) UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, id uint, until *time.Time) error {
-	debugLogs := []interface{}{"msg", "update refetch_critical_queries_until", "host_id", id}
+	debugLogs := []any{"host_id", id}
 	if until != nil {
 		debugLogs = append(debugLogs, "until", until.Format(time.RFC3339))
 	}
-	level.Debug(ds.logger).Log(debugLogs...)
+	ds.logger.DebugContext(ctx, "update refetch_critical_queries_until", debugLogs...)
 
 	sqlStatement := `UPDATE hosts SET refetch_critical_queries_until = ? WHERE id = ?`
 	_, err := ds.writer(ctx).ExecContext(ctx, sqlStatement, until, id)
@@ -5413,7 +5409,7 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" {
 		// iOS/iPadOS hosts currently do not use/set orbit_node_key.
 		if host.Platform != "ios" && host.Platform != "ipados" {
-			level.Debug(ds.logger).Log("msg", "missing orbit_node_key to update host",
+			ds.logger.DebugContext(ctx, "missing orbit_node_key to update host",
 				"host_id", host.ID, "node_key", host.NodeKey, "orbit_node_key", host.OrbitNodeKey)
 		}
 	}
@@ -5931,7 +5927,7 @@ func (ds *Datastore) ListUpcomingHostMaintenanceWindows(ctx context.Context, hid
 //   - host.DistributedInterval is usually 10s.
 //   - svc.config.Osquery.DetailUpdateInterval is usually 1h.
 //   - Count only includes hosts seen during the last 7 days.
-func countHostsNotRespondingDB(ctx context.Context, db sqlx.QueryerContext, logger log.Logger, config config.FleetConfig) (int, error,
+func countHostsNotRespondingDB(ctx context.Context, db sqlx.QueryerContext, logger *slog.Logger, config config.FleetConfig) (int, error,
 ) {
 	interval := config.Osquery.DetailUpdateInterval.Seconds()
 
@@ -5955,7 +5951,7 @@ WHERE
 	}
 	if len(ids) > 0 {
 		// We log to help troubleshooting in case this happens.
-		level.Info(logger).Log("err", fmt.Sprintf("hosts detected that are not responding distributed queries %v", ids))
+		logger.InfoContext(ctx, fmt.Sprintf("hosts detected that are not responding distributed queries %v", ids))
 	}
 	return len(ids), nil
 }
@@ -6069,7 +6065,7 @@ WHERE
 		return nil, err
 	}
 
-	level.Info(ds.logger).Log("msg", "get hosts with previously deleted dep assignments", "serials", strings.Join(matchingSerials, ","))
+	ds.logger.InfoContext(ctx, "get hosts with previously deleted dep assignments", "serials", strings.Join(matchingSerials, ","))
 
 	for _, serial := range matchingSerials {
 		result[serial] = struct{}{}

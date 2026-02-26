@@ -785,12 +785,14 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
 
-	NewActivity(ctx context.Context, user *User, activity ActivityDetails, details []byte, createdAt time.Time) error
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*UpcomingActivity, *PaginationMetadata, error)
 	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) (ActivityDetails, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 	GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*UpcomingActivityMeta, error)
 	UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error)
+	// ActivateNextUpcomingActivityForHost activates the next upcoming activity for the given host.
+	// fromCompletedExecID is the execution ID of the activity that just completed (if any).
+	ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
@@ -2068,6 +2070,20 @@ type Datastore interface {
 	// (if set) post-install scripts, otherwise those fields are left empty.
 	GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*SoftwareInstaller, error)
 
+	// GetFleetMaintainedVersionsByTitleID returns all cached versions of a
+	// fleet-maintained app for the given title and team.
+	GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]FleetMaintainedVersion, error)
+
+	// HasFMAInstallerVersion returns true if the given FMA version is already
+	// cached as a software installer for the given team.
+	HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error)
+
+	// GetCachedFMAInstallerMetadata returns the cached metadata for a specific
+	// FMA installer version, including install/uninstall scripts, URL, SHA256,
+	// etc. Returns a NotFoundError if no cached installer exists for the given
+	// version.
+	GetCachedFMAInstallerMetadata(ctx context.Context, teamID *uint, fmaID uint, version string) (*MaintainedApp, error)
+
 	InsertHostInHouseAppInstall(ctx context.Context, hostID uint, inHouseAppID, softwareTitleID uint, commandUUID string, opts HostSoftwareInstallOptions) error
 
 	// GetSoftwareInstallersPendingUninstallScriptPopulation returns a map of software installers to storage IDs that:
@@ -2682,7 +2698,7 @@ type Datastore interface {
 	// and need to be resent based on their command IDs.
 	//
 	// Returns a slice of MDMWindowsCommand pointers containing the commands to be resent.
-	GetWindowsMDMCommandsForResending(ctx context.Context, failedCommandIds []string) ([]*MDMWindowsCommand, error)
+	GetWindowsMDMCommandsForResending(ctx context.Context, deviceID string, failedCommandIds []string) ([]*MDMWindowsCommand, error)
 
 	// ResendWindowsMDMCommand marks the specified Windows MDM command for resend
 	// by inserting a new command entry, command queue, but also updates the host profile reference.

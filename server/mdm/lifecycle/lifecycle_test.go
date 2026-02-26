@@ -7,11 +7,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
-func nopNewActivity(ctx context.Context, user *fleet.User, details fleet.ActivityDetails, ds fleet.Datastore, logger kitlog.Logger) error {
+func nopNewActivity(ctx context.Context, user *fleet.User, details fleet.ActivityDetails) error {
 	return nil
 }
 

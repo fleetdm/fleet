@@ -585,7 +585,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 			return err
 		}
 
-		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, newActivity)
+		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, svc.NewActivity)
 		lifecycleErrs := []error{}
 		serialsWithErrs := []string{}
 		for _, host := range hosts {
@@ -1104,7 +1104,7 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	}
 
 	if fleet.MDMSupported(host.Platform) {
-		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, newActivity)
+		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, svc.NewActivity)
 		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 			Action:   mdmlifecycle.HostActionDelete,
 			Platform: host.Platform,
@@ -1169,12 +1169,41 @@ func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.
 	return addHostsToTeamResponse{}, err
 }
 
+// authorizeHostSourceTeams checks that the caller has write access to the
+// source teams of the hosts being transferred.
+func (svc *Service) authorizeHostSourceTeams(ctx context.Context, hosts []*fleet.Host) error {
+	seenTeamIDs := make(map[uint]struct{})
+	var checkedNoTeam bool
+	for _, h := range hosts {
+		if h.TeamID == nil { // "No Team" team / "Unassigned" fleet
+			if !checkedNoTeam {
+				checkedNoTeam = true
+				if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: nil}, fleet.ActionWrite); err != nil {
+					return err
+				}
+			}
+		} else if _, ok := seenTeamIDs[*h.TeamID]; !ok {
+			seenTeamIDs[*h.TeamID] = struct{}{}
+			if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: h.TeamID}, fleet.ActionWrite); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
-	// This is currently treated as a "team write". If we ever give users
-	// besides global admins permissions to modify team hosts, we will need to
-	// check that the user has permissions for both the source and destination
-	// teams.
+	// Authorize write access to the destination team.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	// Authorize write access to the source teams of the hosts being transferred.
+	hosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDs)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "list hosts by IDs for source team authorization (team_id: %v, host_count: %d)", teamID, len(hostIDs))
+	}
+	if err := svc.authorizeHostSourceTeams(ctx, hosts); err != nil {
 		return err
 	}
 
@@ -1306,10 +1335,7 @@ func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, sv
 }
 
 func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filters *map[string]interface{}) error {
-	// This is currently treated as a "team write". If we ever give users
-	// besides global admins permissions to modify team hosts, we will need to
-	// check that the user has permissions for both the source and destination
-	// teams.
+	// Authorize write access to the destination team.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -1323,12 +1349,17 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 		return &fleet.BadRequestError{Message: "filters must be specified"}
 	}
 
-	hostIDs, hostNames, _, err := svc.hostIDsAndNamesFromFilters(ctx, *opt, lid)
+	hostIDs, hostNames, hosts, err := svc.hostIDsAndNamesFromFilters(ctx, *opt, lid)
 	if err != nil {
 		return err
 	}
 	if len(hostIDs) == 0 {
 		return nil
+	}
+
+	// Authorize write access to the source teams of the hosts being transferred.
+	if err := svc.authorizeHostSourceTeams(ctx, hosts); err != nil {
+		return err
 	}
 
 	// Apply the team to the selected hosts.
@@ -2653,7 +2684,7 @@ func (svc *Service) OSVersions(
 			if err != nil {
 				return nil, count, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 			} else if !exists {
-				return nil, count, nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+				return nil, count, nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 					WithStatus(http.StatusNotFound)
 			}
 		}
@@ -2810,7 +2841,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 		} else if !exists {
-			return nil, nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+			return nil, nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 				WithStatus(http.StatusNotFound)
 		}
 	}

@@ -10,7 +10,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
 
@@ -60,7 +59,7 @@ type HostLifecycle struct {
 // NewActivityFunc is the signature type of the service-layer function that can
 // create activities and handle the webhook notification and all other
 // mechanisms required when creating an activity.
-type NewActivityFunc func(ctx context.Context, user *fleet.User, details fleet.ActivityDetails, ds fleet.Datastore, logger kitlog.Logger) error
+type NewActivityFunc func(ctx context.Context, user *fleet.User, details fleet.ActivityDetails) error
 
 // New creates a new HostLifecycle struct
 func New(ds fleet.Datastore, logger *logging.Logger, newActivityFn NewActivityFunc) *HostLifecycle {
@@ -228,7 +227,7 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 		} else {
 			mdmEnrolledActivity.HostSerial = ptr.String(info.HardwareSerial)
 		}
-		err = t.newActivityFunc(ctx, nil, mdmEnrolledActivity, t.ds, t.logger)
+		err = t.newActivityFunc(ctx, nil, mdmEnrolledActivity)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "create mdm enrolled activity")
 		}
@@ -386,7 +385,7 @@ func (t *HostLifecycle) createActivities(ctx context.Context, users []*fleet.Use
 
 	for i, act := range acts {
 		user := users[i]
-		if err := t.newActivityFunc(ctx, user, act, t.ds, t.logger); err != nil {
+		if err := t.newActivityFunc(ctx, user, act); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity")
 		}
 	}

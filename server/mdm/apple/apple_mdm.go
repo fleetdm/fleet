@@ -1393,8 +1393,8 @@ func (pb *ProfileBimap) add(wantedProfile, currentProfile *fleet.MDMAppleProfile
 	pb.currentState[currentProfile] = wantedProfile
 }
 
-// NewActivityFunc is the function signature for creating a new activity.
-type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
+// NewActivityFunc is an alias for fleet.NewActivityFunc.
+type NewActivityFunc = fleet.NewActivityFunc
 
 func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger *slog.Logger,
 	newActivityFn NewActivityFunc) error {

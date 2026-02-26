@@ -199,6 +199,8 @@ The following steps show how to connect end users to Wi-Fi or VPN with [Smallste
 
 ### Step 1: Configure Smallstep with Fleet information
 
+Currently, using the Smallstep-Jamf connector is the best practice. Fleet is testing the new Smallstep-Fleet connector.
+
 1. In Smallstep, go to **Settings > Device Management**.
 
 2. Under **Available Providers**, find **Fleet** and click **Connect**.
@@ -711,6 +713,8 @@ You can deploy a user-scoped certificate on macOS and Windows hosts using a user
 1. Follow the instructions above to connect Fleet to your certificate authority (CA).
 2. Create a certificate [configuration profile](#example-configuration-profiles). For Windows, replace `./Device` with `./User` in all `<LocURI>` elements. For macOS, set `PayloadScope` to `User`.
 3. In Fleet, navigate to **Controls > OS settings > Custom settings** and upload the configuration profile you created.
+
+For macOS hosts, user-scoped certificates only work if the `login` keychain is unlocked. If it's locked, MDM commands to install the certificate configuration profile will always return `NotNow`. To check whether the `login` keychain is unlocked, open Keychain Access on the Mac. An unlocked icon should appear to the left of the `login` keychain under **Default keychains**. If it's locked, right-click on the `login` keychain to unlock it.
 
 ### Editing ceritificate configuration profiles on Apple (macOS, iOS, iPadOS) hosts
 

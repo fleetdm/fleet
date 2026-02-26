@@ -19,7 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttpsig"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/remitly-oss/httpsig-go"
 	"github.com/smallstep/scep"
 )
@@ -107,7 +107,7 @@ func (c *Client) RequestCertificate() error {
 	// Create SCEP client with no-op logger and 30-second timeout
 	scepURL := fmt.Sprintf("%s/api/fleet/orbit/host_identity/scep", c.config.ServerAddress)
 	timeout := 30 * time.Second
-	scepClient, err := scepclient.New(scepURL, kitlog.NewNopLogger(),
+	scepClient, err := scepclient.New(scepURL, logging.NewNopLogger(),
 		scepclient.WithTimeout(&timeout),
 		scepclient.Insecure(),
 	)
