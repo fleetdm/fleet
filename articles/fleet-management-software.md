@@ -105,11 +105,11 @@ Many organizations manage more than one operating system. Separate tools for eac
 
 ### What is device management software for IT teams?
 
-Device management solutions (i.e., device management software) centralizes reporting, inventory collection, configuration, security, and compliance for devices that are owned and managed by organizations. IT teams use device management solutions to manage laptops, desktops, and mobile devices.
+Device management solutions (i.e., device management software) centralizes reporting, inventory collection, configuration, security, and compliance for devices that are owned and managed by organizations. IT teams use device management solutions to manage laptops, desktops, servers and mobile devices.
 
 ### Can one device management solution handle Mac, Windows, and Linux devices?
 
-Fleet and Intune manage macOS, Windows, Linux, iOS, iPadOS, ChromeOS, and Android from the same console. Jamf Pro is Apple-first with Android support through Jamf's broader portfolio, but Windows and Linux require additional tools. Intune supports multiple platforms but with uneven feature depth across operating systems.
+Fleet and Intune manage macOS, Windows, Linux, iOS, iPadOS, ChromeOS, and Android from the same console. Jamf Pro is Apple-first with Android support, but Windows and Linux require additional tools. Intune supports multiple platforms but with uneven feature depth across operating systems.
 
 ### What factors matter most when comparing fleet management software?
 
