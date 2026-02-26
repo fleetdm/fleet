@@ -46,7 +46,7 @@ func applyCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:    "policies-fleet",
 				Aliases: []string{"policies-team"},
-				Usage:   "A fleet's name, this flag is only used on policies specs (overrides 'team' key in the policies file). This allows to easily import a group of policies to a fleet.",
+				Usage:   "A fleet's name, this flag is only used on policies specs (overrides 'fleet' key in the policies file). This allows to easily import a group of policies to a fleet.",
 			},
 			configFlag(),
 			contextFlag(),
