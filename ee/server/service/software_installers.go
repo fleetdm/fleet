@@ -2406,7 +2406,7 @@ func (svc *Service) softwareBatchUpload(
 					}
 
 					return nil
-				}, retry.WithMaxAttempts(fleet.BatchDownloadMaxRetries))
+				}, retry.WithMaxAttempts(fleet.BatchDownloadMaxRetries), retry.WithInterval(fleet.BatchSoftwareInstallerRetryInterval()))
 				if err != nil {
 					return err
 				}
@@ -2613,7 +2613,7 @@ func (svc *Service) softwareBatchUpload(
 				}
 
 				return nil
-			}, retry.WithMaxAttempts(fleet.BatchUploadMaxRetries), retry.WithInterval(2*time.Second))
+			}, retry.WithMaxAttempts(fleet.BatchUploadMaxRetries), retry.WithInterval(fleet.BatchSoftwareInstallerRetryInterval()))
 		}
 		if payload.Extension == "ipa" {
 			inHouseInstallers = append(inHouseInstallers, payload)

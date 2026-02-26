@@ -147,12 +147,16 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	s.token = s.getTestAdminToken()
 	s.cachedTokens = make(map[string]string)
 	s.calendarSchedule = calendarSchedule
+
+	dev_mode.SetOverride("FLEET_DEV_BATCH_RETRY_INTERVAL", "1s")
 }
 
 func (s *integrationEnterpriseTestSuite) TearDownTest() {
 	// reset the mock
 	s.lq.Mock = mock.Mock{}
 	s.withServer.commonTearDownTest(s.T())
+
+	dev_mode.ClearOverride("FLEET_DEV_BATCH_RETRY_INTERVAL")
 }
 
 // clearOktaConditionalAccess clears all Okta conditional access configuration fields.

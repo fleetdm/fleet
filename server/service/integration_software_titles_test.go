@@ -12,7 +12,6 @@ import (
 	"os"
 	"reflect"
 	"strings"
-	"sync"
 	"time"
 
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
@@ -1021,29 +1020,20 @@ func (s *integrationMDMTestSuite) TestGitopsInstallableSoftwareRetries() {
 	zoomState := &fmaTestState{version: "1.0", installerBytes: []byte("xyz")}
 	zoomState.sha256 = computeSHA(zoomState.installerBytes)
 
-	// downloadedSlugs tracks which FMA slugs were hit on the installer server
-	// so individual tests can assert whether a download occurred.
-	downloadedSlugs := map[string]bool{}
-	var downloadMu sync.Mutex
 	var hitCount int
 
 	// Mock installer server — routes by path to serve per-FMA bytes.
 	shouldError := false
 	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		downloadMu.Lock()
-		defer downloadMu.Unlock()
 		hitCount++
 		switch r.URL.Path {
 		case "/cloudflare-warp.msi":
-
-			downloadedSlugs["cloudflare-warp/windows"] = true
 			_, _ = w.Write(warpState.installerBytes)
 		case "/zoom.msi":
 			if shouldError {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			downloadedSlugs["zoom/windows"] = true
 			_, _ = w.Write(zoomState.installerBytes)
 		default:
 			http.NotFound(w, r)
