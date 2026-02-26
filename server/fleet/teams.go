@@ -180,6 +180,7 @@ func (t *Team) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
+	// TODO EJM need lockenduserinfo handling here?
 	if !x.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		x.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}

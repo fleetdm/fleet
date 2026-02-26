@@ -1476,6 +1476,10 @@ func (svc *Service) editTeamFromSpec(
 	}
 	team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = spec.MDM.MacOSSetup.EnableEndUserAuthentication
 
+	if spec.MDM.MacOSSetup.LockEndUserInfo.Valid {
+		team.Config.MDM.MacOSSetup.LockEndUserInfo = spec.MDM.MacOSSetup.LockEndUserInfo
+	}
+
 	didUpdateMacOSRequireAllSoftware := spec.MDM.MacOSSetup.RequireAllSoftware != oldMacOSSetup.RequireAllSoftware
 	if didUpdateMacOSRequireAllSoftware && spec.MDM.MacOSSetup.RequireAllSoftware {
 		if !appCfg.MDM.EnabledAndConfigured {

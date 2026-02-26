@@ -212,6 +212,13 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
+	if payload.LockEndUserInfo != nil {
+		if ac.MDM.MacOSSetup.LockEndUserInfo.Value != *payload.LockEndUserInfo {
+			ac.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(*payload.LockEndUserInfo)
+			didUpdate = true
+		}
+	}
+
 	if payload.RequireAllSoftware != nil && ac.MDM.MacOSSetup.RequireAllSoftware != *payload.RequireAllSoftware {
 		ac.MDM.MacOSSetup.RequireAllSoftware = *payload.RequireAllSoftware
 		didUpdate = true
@@ -310,6 +317,26 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 
 		if hasCustomConfigurationWebURL {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication", fleet.EndUserAuthDEPWebURLConfiguredErrMsg))
+		}
+	}
+
+	if payload.LockEndUserInfo != nil && *payload.LockEndUserInfo {
+		// End user auth must be enabled either now or after the update
+		endUserAuthEnabledOrWillBe := false
+		if ac.MDM.MacOSSetup.EnableEndUserAuthentication {
+			endUserAuthEnabledOrWillBe = true
+		}
+		if payload.EnableEndUserAuthentication != nil {
+			if *payload.EnableEndUserAuthentication {
+				endUserAuthEnabledOrWillBe = true
+			} else {
+				// override the value from ac since we're turning it off
+				endUserAuthEnabledOrWillBe = false
+			}
+		}
+		if !endUserAuthEnabledOrWillBe {
+			return fleet.NewInvalidArgumentError("macos_setup.lock_end_user_info",
+				`Couldn't enable macos_setup.lock_end_user_info because macos_setup.enable_end_user_authentication is not enabled.`)
 		}
 	}
 
@@ -1129,6 +1156,7 @@ func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []strin
 					// BootstrapPackage:            ac.MDM.MacOSSetup.BootstrapPackage,
 					EnableEndUserAuthentication: ac.MDM.MacOSSetup.EnableEndUserAuthentication,
 					EnableReleaseDeviceManually: ac.MDM.MacOSSetup.EnableReleaseDeviceManually,
+					LockEndUserInfo:             optjson.SetBool(ac.MDM.MacOSSetup.LockEndUserInfo.Value),
 				},
 			},
 		}
