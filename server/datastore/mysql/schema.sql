@@ -2197,7 +2197,7 @@ CREATE TABLE `policy_labels` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_policy_labels_policy_label` (`policy_id`,`label_id`),
   KEY `policy_labels_label_id` (`label_id`),
-  CONSTRAINT `policy_labels_label_id` FOREIGN KEY (`label_id`) REFERENCES `labels` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `policy_labels_label_id` FOREIGN KEY (`label_id`) REFERENCES `labels` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `policy_labels_policy_id` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -2274,7 +2274,7 @@ CREATE TABLE `query_labels` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_query_labels_query_label` (`query_id`,`label_id`),
   KEY `query_labels_label_id` (`label_id`),
-  CONSTRAINT `query_labels_label_id` FOREIGN KEY (`label_id`) REFERENCES `labels` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `query_labels_label_id` FOREIGN KEY (`label_id`) REFERENCES `labels` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `query_labels_query_id` FOREIGN KEY (`query_id`) REFERENCES `queries` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;

@@ -1348,6 +1348,43 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 	// Admin with team filter can delete
 	err = db.DeleteLabel(ctx, team2Label.Name, fleet.TeamFilter{User: adminUser, TeamID: &team2.ID})
 	require.NoError(t, err)
+
+	// Deleting a label referenced by a policy (LabelsIncludeAny) should be blocked.
+	lPolicy, err := db.NewLabel(ctx, &fleet.Label{
+		Name:  t.Name() + "PolicyLabel",
+		Query: "select 1",
+	})
+	require.NoError(t, err)
+	_, err = db.NewGlobalPolicy(ctx, &u.ID, fleet.PolicyPayload{
+		Name:             t.Name() + "PolicyWithLabel",
+		Query:            "select 1",
+		LabelsIncludeAny: []string{lPolicy.Name},
+	})
+	require.NoError(t, err)
+	err = db.DeleteLabel(ctx, lPolicy.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	require.Error(t, err)
+	require.True(t, fleet.IsForeignKey(err))
+
+	// Deleting a label referenced by a query (LabelsIncludeAny) should be blocked.
+	lQuery, err := db.NewLabel(ctx, &fleet.Label{
+		Name:  t.Name() + "QueryLabel",
+		Query: "select 1",
+	})
+	require.NoError(t, err)
+	_, err = db.NewQuery(ctx, &fleet.Query{
+		Name:     t.Name() + "QueryWithLabel",
+		Query:    "SELECT 1",
+		AuthorID: &u.ID,
+		Logging:  fleet.LoggingSnapshot,
+		Saved:    true,
+		LabelsIncludeAny: []fleet.LabelIdent{
+			{LabelName: lQuery.Name},
+		},
+	})
+	require.NoError(t, err)
+	err = db.DeleteLabel(ctx, lQuery.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	require.Error(t, err)
+	require.True(t, fleet.IsForeignKey(err))
 }
 
 func testLabelsSummaryAndListTeamFiltering(t *testing.T, db *Datastore) {
