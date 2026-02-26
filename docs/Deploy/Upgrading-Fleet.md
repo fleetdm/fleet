@@ -78,7 +78,7 @@ Run `terraform apply` to apply the changes.
 
 ## Compatibility
 
-Upgrading to a new minor or patch version does not break compatiblity, except in these rare cases:
+Fleet follows [Semantic Versioning (SemVer)](https://semver.org/). This means that breaking changes are never introduced in a new minor or patch version, except in these rare cases:
 
 + **Experimental features:** [Experimental features](https://fleetdm.com/handbook/company/product-groups#experimental-features) are tagged as such in the API documentation. These features are being rapidly iterated on and are not for use in automated workflows.
 + **Security:** Fleet reserves the right to make breaking changes for security. When no alternative solution is available, security fixes may introduce backward-incompatible changes.
