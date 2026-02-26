@@ -8,7 +8,8 @@ import (
 	"github.com/shurcooL/githubv4"
 )
 
-// TestIssueAssigneesAndContainsLogin provides scrumcheck behavior for this unit.
+// TestIssueAssigneesAndContainsLogin verifies assignee extraction is
+// de-duplicated and login matching is case-insensitive.
 func TestIssueAssigneesAndContainsLogin(t *testing.T) {
 	t.Parallel()
 
@@ -31,7 +32,8 @@ func TestIssueAssigneesAndContainsLogin(t *testing.T) {
 	}
 }
 
-// TestItemStatusAndFileURLFromPath provides scrumcheck behavior for this unit.
+// TestItemStatusAndFileURLFromPath validates status extraction from item fields
+// and confirms file-path to file-URL conversion format.
 func TestItemStatusAndFileURLFromPath(t *testing.T) {
 	t.Parallel()
 
@@ -45,7 +47,8 @@ func TestItemStatusAndFileURLFromPath(t *testing.T) {
 	}
 }
 
-// TestGetHelpersForIssueAndPR provides scrumcheck behavior for this unit.
+// TestGetHelpersForIssueAndPR verifies get* helpers select issue or PR fields
+// correctly from mixed item content.
 func TestGetHelpersForIssueAndPR(t *testing.T) {
 	t.Parallel()
 

@@ -16,10 +16,11 @@ import (
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
-// RoundTrip provides scrumcheck behavior for this unit.
+// RoundTrip allows using an inline function as an HTTP transport in tests.
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
-// newGraphQLStubClient provides scrumcheck behavior for this unit.
+// newGraphQLStubClient creates a githubv4 client whose responses are fully
+// stubbed from in-memory fixture logic, with no external network calls.
 func newGraphQLStubClient(t *testing.T) *githubv4.Client {
 	t.Helper()
 	hc := &http.Client{
@@ -66,7 +67,7 @@ func newGraphQLStubClient(t *testing.T) *githubv4.Client {
 	return githubv4.NewClient(hc)
 }
 
-// graphNodesForProjectID provides scrumcheck behavior for this unit.
+// graphNodesForProjectID returns synthetic project items for each test project.
 func graphNodesForProjectID(id string) []map[string]any {
 	switch id {
 	case "P67":
@@ -87,7 +88,7 @@ func graphNodesForProjectID(id string) []map[string]any {
 	}
 }
 
-// issueNode provides scrumcheck behavior for this unit.
+// issueNode builds one GraphQL-compatible issue item payload for test fixtures.
 func issueNode(number int, title, u, status, body string, labels []string, updated time.Time, assignees []string) map[string]any {
 	labelNodes := make([]map[string]any, 0, len(labels))
 	for _, l := range labels {
@@ -123,7 +124,8 @@ func issueNode(number int, title, u, status, body string, labels []string, updat
 	}
 }
 
-// TestGraphQLFlowHelpersAndChecks provides scrumcheck behavior for this unit.
+// TestGraphQLFlowHelpersAndChecks exercises end-to-end helper flows against the
+// stub client to verify query helpers and key check aggregations.
 func TestGraphQLFlowHelpersAndChecks(t *testing.T) {
 	t.Parallel()
 

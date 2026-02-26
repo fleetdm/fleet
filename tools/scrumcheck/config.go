@@ -34,7 +34,7 @@ var draftingChecklistIgnorePrefixes = []string{
 
 type intListFlag []int
 
-// String provides scrumcheck behavior for this unit.
+// String renders project numbers as a comma-separated flag value.
 func (f *intListFlag) String() string {
 	if f == nil || len(*f) == 0 {
 		return ""
@@ -46,7 +46,7 @@ func (f *intListFlag) String() string {
 	return strings.Join(out, ",")
 }
 
-// Set provides scrumcheck behavior for this unit.
+// Set parses comma-separated project numbers and appends valid values.
 func (f *intListFlag) Set(value string) error {
 	for _, part := range strings.Split(value, ",") {
 		part = strings.TrimSpace(part)
@@ -64,7 +64,7 @@ func (f *intListFlag) Set(value string) error {
 
 type stringListFlag []string
 
-// String provides scrumcheck behavior for this unit.
+// String renders labels as a comma-separated flag value.
 func (f *stringListFlag) String() string {
 	if f == nil || len(*f) == 0 {
 		return ""
@@ -72,7 +72,7 @@ func (f *stringListFlag) String() string {
 	return strings.Join(*f, ",")
 }
 
-// Set provides scrumcheck behavior for this unit.
+// Set parses comma-separated labels and appends non-empty values.
 func (f *stringListFlag) Set(value string) error {
 	for _, part := range strings.Split(value, ",") {
 		part = strings.TrimSpace(part)

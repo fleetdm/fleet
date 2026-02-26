@@ -18,7 +18,8 @@ type milestoneResponse struct {
 	Title  string `json:"title"`
 }
 
-// runMissingMilestoneChecks provides scrumcheck behavior for this unit.
+// runMissingMilestoneChecks finds issue items in selected projects that are
+// missing a milestone and attaches per-repo milestone suggestions.
 func runMissingMilestoneChecks(
 	ctx context.Context,
 	client *githubv4.Client,
@@ -70,7 +71,7 @@ func runMissingMilestoneChecks(
 	return out
 }
 
-// parseRepoFromIssueURL provides scrumcheck behavior for this unit.
+// parseRepoFromIssueURL extracts owner/repo from a GitHub issue or PR URL.
 func parseRepoFromIssueURL(issueURL string) (string, string) {
 	u, err := url.Parse(issueURL)
 	if err != nil {
@@ -86,7 +87,8 @@ func parseRepoFromIssueURL(issueURL string) (string, string) {
 	return parts[0], parts[1]
 }
 
-// fetchAllMilestones provides scrumcheck behavior for this unit.
+// fetchAllMilestones loads repo milestones from GitHub and returns unique title
+// suggestions used by the milestone-fix UI controls.
 func fetchAllMilestones(ctx context.Context, token, owner, repo string) []MilestoneOption {
 	endpoint := fmt.Sprintf(
 		"https://api.github.com/repos/%s/%s/milestones?state=all&sort=due_on&direction=desc&per_page=100",

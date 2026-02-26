@@ -32,7 +32,8 @@ const (
 	phaseBrowserBridge
 )
 
-// main provides scrumcheck behavior for this unit.
+// main is the CLI entrypoint: it parses flags, runs all checks, prepares report
+// data, starts the local bridge server, and opens the browser report view.
 func main() {
 	org := flag.String("org", "fleetdm", "GitHub org")
 	limit := flag.Int("limit", 100, "Max project items to scan (no pagination; expected usage is small)")
@@ -422,7 +423,8 @@ func main() {
 	tracker.bridgeStopped(reason)
 }
 
-// runAwaitingQACheck provides scrumcheck behavior for this unit.
+// runAwaitingQACheck evaluates selected projects for two outcomes:
+// checklist violations in Awaiting QA, and stale Awaiting QA items.
 func runAwaitingQACheck(
 	ctx context.Context,
 	client *githubv4.Client,
@@ -467,7 +469,8 @@ func runAwaitingQACheck(
 	return awaitingByProject, staleByProject
 }
 
-// splitAssigneeCounts provides scrumcheck behavior for this unit.
+// splitAssigneeCounts separates one combined assignee result list into
+// missing-assignee and assigned-to-me totals.
 func splitAssigneeCounts(items []MissingAssigneeIssue) (missingAssignee int, assignedToMe int) {
 	for _, it := range items {
 		if it.AssignedToMe {
@@ -479,7 +482,8 @@ func splitAssigneeCounts(items []MissingAssigneeIssue) (missingAssignee int, ass
 	return missingAssignee, assignedToMe
 }
 
-// runDraftingCheck provides scrumcheck behavior for this unit.
+// runDraftingCheck scans the drafting project for estimation statuses that
+// still contain unchecked checklist entries.
 func runDraftingCheck(
 	ctx context.Context,
 	client *githubv4.Client,
@@ -512,7 +516,7 @@ func runDraftingCheck(
 	return badDrafting
 }
 
-// printDraftingSummary provides scrumcheck behavior for this unit.
+// printDraftingSummary prints drafting violations grouped by status.
 func printDraftingSummary(byStatus map[string][]DraftingCheckViolation, total int) {
 	fmt.Printf("\n🧭 Drafting checklist audit (project %d)\n", draftingProjectNum)
 	fmt.Printf("Found %d items in estimation columns with unchecked checklist items.\n\n", total)

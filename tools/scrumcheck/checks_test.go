@@ -8,7 +8,8 @@ import (
 	"github.com/shurcooL/githubv4"
 )
 
-// TestHasUncheckedChecklistLine provides scrumcheck behavior for this unit.
+// TestHasUncheckedChecklistLine verifies unchecked checklist detection only
+// passes for unchecked variants and not checked/missing lines.
 func TestHasUncheckedChecklistLine(t *testing.T) {
 	t.Parallel()
 
@@ -58,7 +59,8 @@ func TestHasUncheckedChecklistLine(t *testing.T) {
 	}
 }
 
-// TestUncheckedChecklistItems provides scrumcheck behavior for this unit.
+// TestUncheckedChecklistItems verifies extraction of unchecked items and
+// confirms ignore-prefix checklist entries are excluded.
 func TestUncheckedChecklistItems(t *testing.T) {
 	t.Parallel()
 
@@ -83,7 +85,8 @@ func TestUncheckedChecklistItems(t *testing.T) {
 	}
 }
 
-// TestNormalizeStatusName provides scrumcheck behavior for this unit.
+// TestNormalizeStatusName verifies status normalization removes emoji/symbol
+// prefixes and normalizes casing/whitespace.
 func TestNormalizeStatusName(t *testing.T) {
 	t.Parallel()
 
@@ -121,7 +124,8 @@ func TestNormalizeStatusName(t *testing.T) {
 	}
 }
 
-// TestUniqueInts provides scrumcheck behavior for this unit.
+// TestUniqueInts verifies duplicate project numbers are removed while keeping
+// first occurrence order.
 func TestUniqueInts(t *testing.T) {
 	t.Parallel()
 
@@ -133,7 +137,8 @@ func TestUniqueInts(t *testing.T) {
 	}
 }
 
-// TestAwaitingAndDoneAndMatchedStatusAndStale provides scrumcheck behavior for this unit.
+// TestAwaitingAndDoneAndMatchedStatusAndStale validates helper behavior for
+// Awaiting QA detection, Done detection, status matching, and stale logic.
 func TestAwaitingAndDoneAndMatchedStatusAndStale(t *testing.T) {
 	t.Parallel()
 
@@ -162,7 +167,8 @@ func TestAwaitingAndDoneAndMatchedStatusAndStale(t *testing.T) {
 	}
 }
 
-// TestCompileAndMatchLabelFilter provides scrumcheck behavior for this unit.
+// TestCompileAndMatchLabelFilter verifies label filter normalization and item
+// matching behavior, including nil-filter "match all" semantics.
 func TestCompileAndMatchLabelFilter(t *testing.T) {
 	t.Parallel()
 

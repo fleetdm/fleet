@@ -9,7 +9,7 @@ import (
 	"github.com/shurcooL/githubv4"
 )
 
-// fetchProjectID provides scrumcheck behavior for this unit.
+// fetchProjectID looks up a GitHub ProjectV2 node ID from org + project number.
 func fetchProjectID(ctx context.Context, client *githubv4.Client, org string, num int) githubv4.ID {
 	var q struct {
 		Organization struct {
@@ -30,7 +30,7 @@ func fetchProjectID(ctx context.Context, client *githubv4.Client, org string, nu
 	return q.Organization.ProjectV2.ID
 }
 
-// fetchItems provides scrumcheck behavior for this unit.
+// fetchItems loads up to limit items from one ProjectV2 by ID.
 func fetchItems(
 	ctx context.Context,
 	client *githubv4.Client,
@@ -58,7 +58,8 @@ func fetchItems(
 	return q.Node.ProjectV2.Items.Nodes
 }
 
-// mustGithubInt provides scrumcheck behavior for this unit.
+// mustGithubInt converts int to githubv4.Int with explicit int32 bounds
+// validation and terminates if the value is out of range.
 func mustGithubInt(v int) githubv4.Int {
 	if v < math.MinInt32 || v > math.MaxInt32 {
 		log.Fatalf("integer %d out of range for githubv4.Int", v)
@@ -66,7 +67,8 @@ func mustGithubInt(v int) githubv4.Int {
 	return githubv4.Int(v)
 }
 
-// toGithubInt provides scrumcheck behavior for this unit.
+// toGithubInt converts int to githubv4.Int with bounds checks and returns an
+// error instead of terminating on invalid values.
 func toGithubInt(v int) (githubv4.Int, error) {
 	if v < math.MinInt32 || v > math.MaxInt32 {
 		return 0, fmt.Errorf("integer %d out of range for githubv4.Int", v)
@@ -74,7 +76,8 @@ func toGithubInt(v int) (githubv4.Int, error) {
 	return githubv4.Int(v), nil
 }
 
-// fetchAllItems provides scrumcheck behavior for this unit.
+// fetchAllItems paginates through all items in a project and returns the full
+// list. This is used where partial "first N" fetch is not enough.
 func fetchAllItems(
 	ctx context.Context,
 	client *githubv4.Client,
@@ -116,7 +119,7 @@ func fetchAllItems(
 	return out
 }
 
-// getBody provides scrumcheck behavior for this unit.
+// getBody returns the issue/pr body string from a project item.
 func getBody(it Item) string {
 	if it.Content.Issue.Number != 0 {
 		return string(it.Content.Issue.Body)
@@ -124,7 +127,7 @@ func getBody(it Item) string {
 	return string(it.Content.PullRequest.Body)
 }
 
-// getTitle provides scrumcheck behavior for this unit.
+// getTitle returns the issue/pr title from a project item.
 func getTitle(it Item) string {
 	if it.Content.Issue.Number != 0 {
 		return string(it.Content.Issue.Title)
@@ -132,7 +135,7 @@ func getTitle(it Item) string {
 	return string(it.Content.PullRequest.Title)
 }
 
-// getNumber provides scrumcheck behavior for this unit.
+// getNumber returns the issue/pr number from a project item.
 func getNumber(it Item) int {
 	if it.Content.Issue.Number != 0 {
 		return int(it.Content.Issue.Number)
@@ -140,7 +143,7 @@ func getNumber(it Item) int {
 	return int(it.Content.PullRequest.Number)
 }
 
-// getURL provides scrumcheck behavior for this unit.
+// getURL returns the issue/pr URL string from a project item.
 func getURL(it Item) string {
 	if it.Content.Issue.Number != 0 {
 		return it.Content.Issue.URL.String()
