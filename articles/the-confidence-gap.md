@@ -6,7 +6,7 @@ Managing thousands of endpoints shouldn’t rely on blind trust or manual UI cli
 
 - Part 1: The confidence gap: why IT leaders are abandoning legacy endpoint management
 - Part 2: [Rethinking endpoint management: Fleet, osquery and Infrastructure as Code](https://fleetdm.com/articles/rethinking-endpoint-management)
-- Part 3: Supercharging endpoint management: AI assistants and event-driven automation
+- Part 3: [Supercharging endpoint management: AI assistants and event-driven automation](https://fleetdm.com/articles/supercharging-endpoint-management)
 
 ## Assessing the damage
 
