@@ -104,7 +104,7 @@ func printLabel(c *cli.Context, label *fleet.LabelSpec) error {
 
 func printQuerySpec(c *cli.Context, query *fleet.QuerySpec) error {
 	spec := specGeneric{
-		Kind:    fleet.QueryKind,
+		Kind:    fleet.ReportKind,
 		Version: fleet.ApiVersion,
 		Spec:    query,
 	}
@@ -259,7 +259,7 @@ func printTeams(c *cli.Context, teams []fleet.Team) error {
 			teamItem = teamSpec
 		}
 		spec := specGeneric{
-			Kind:    fleet.TeamKind,
+			Kind:    fleet.FleetKind,
 			Version: fleet.ApiVersion,
 			Spec: map[string]interface{}{
 				"team": teamItem,

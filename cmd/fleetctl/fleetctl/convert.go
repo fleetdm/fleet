@@ -219,7 +219,7 @@ func convertCommand() *cli.Command {
 				}
 
 				meta := spec.Metadata{
-					Kind:    fleet.QueryKind,
+					Kind:    fleet.ReportKind,
 					Version: fleet.ApiVersion,
 					Spec:    specBytes,
 				}
