@@ -2295,9 +2295,9 @@ ON DUPLICATE KEY UPDATE
 `
 
 	const updateInstaller = `
-UPDATE 
+UPDATE
 	software_installers
-SET 
+SET
 	install_during_setup = ?,
 	self_service = ?,
 	install_script_content_id = ?,

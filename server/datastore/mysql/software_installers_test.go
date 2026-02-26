@@ -57,6 +57,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"SoftwareInstallerReplicaLag", testSoftwareInstallerReplicaLag},
 		{"SoftwareTitleDisplayName", testSoftwareTitleDisplayName},
 		{"AddSoftwareTitleToMatchingSoftware", testAddSoftwareTitleToMatchingSoftware},
+		{"FleetMaintainedAppInstallerUpdates", testFleetMaintainedAppInstallerUpdates},
 	}
 
 	for _, c := range cases {
@@ -4274,4 +4275,95 @@ func testAddSoftwareTitleToMatchingSoftware(t *testing.T, ds *Datastore) {
 		return nil
 	})
 
+}
+
+func testFleetMaintainedAppInstallerUpdates(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("file contents"), t.TempDir)
+	require.NoError(t, err)
+
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Maintained1",
+		Slug:             "maintained1",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.maintained1",
+	})
+	require.NoError(t, err)
+
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:                "testpkg",
+		Source:               "apps",
+		Platform:             "darwin",
+		PreInstallQuery:      "SELECT 1",
+		InstallScript:        "echo install",
+		PostInstallScript:    "echo post install",
+		UninstallScript:      "echo uninstall",
+		InstallerFile:        tfr,
+		StorageID:            "storageid1",
+		Filename:             "test.pkg",
+		Version:              "1.0",
+		UserID:               user.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: ptr.Uint(maintainedApp.ID),
+		InstallDuringSetup:   ptr.Bool(false),
+		SelfService:          false,
+	})
+	require.NoError(t, err)
+
+	tmFilter := fleet.TeamFilter{User: test.UserAdmin}
+	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: ptr.Uint(0), Platform: "darwin", AvailableForInstall: true}, tmFilter)
+	require.Len(t, titles, 1)
+	require.False(t, *titles[0].SoftwarePackage.InstallDuringSetup)
+	require.False(t, *titles[0].SoftwarePackage.SelfService)
+
+	installer, err := ds.GetSoftwareInstallerMetadataByID(ctx, installerID)
+	require.NoError(t, err)
+	require.NotNil(t, installer)
+
+	installScript := installer.InstallScriptContentID
+	postInstallScript := installer.PostInstallScriptContentID
+	uninstallScript := installer.UninstallScriptContentID
+
+	require.NotZero(t, installScript)
+	require.NotZero(t, postInstallScript)
+	require.NotZero(t, uninstallScript)
+	require.Equal(t, "SELECT 1", installer.PreInstallQuery)
+
+	// batch add the installer with different scripts, setup experience, self service
+	err = ds.BatchSetSoftwareInstallers(ctx, nil, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			Title:                "testpkg",
+			Source:               "apps",
+			PreInstallQuery:      "SELECT 1 DIFFERENT",
+			InstallScript:        "echo install 2",
+			PostInstallScript:    "echo post install 2",
+			UninstallScript:      "echo uninstall 2",
+			InstallerFile:        tfr,
+			StorageID:            "storageid1",
+			Filename:             "test.pkg",
+			Version:              "1.0",
+			UserID:               user.ID,
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			FleetMaintainedAppID: ptr.Uint(maintainedApp.ID),
+			InstallDuringSetup:   ptr.Bool(true),
+			SelfService:          true,
+		},
+	})
+	require.NoError(t, err)
+
+	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: ptr.Uint(0), Platform: "darwin", AvailableForInstall: true}, tmFilter)
+	require.Len(t, titles, 1)
+	require.True(t, *titles[0].SoftwarePackage.InstallDuringSetup)
+	require.True(t, *titles[0].SoftwarePackage.SelfService)
+
+	installer, err = ds.GetSoftwareInstallerMetadataByID(ctx, installerID)
+	require.NoError(t, err)
+	require.NotNil(t, installer)
+
+	// all fields that should have changed did change
+	require.NotEqual(t, installScript, installer.InstallScriptContentID)
+	require.NotEqual(t, postInstallScript, installer.PostInstallScriptContentID)
+	require.NotEqual(t, uninstallScript, installer.UninstallScriptContentID)
+	require.Equal(t, "SELECT 1 DIFFERENT", installer.PreInstallQuery)
 }
