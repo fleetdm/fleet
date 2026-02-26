@@ -760,6 +760,17 @@ var htmlReportTemplate = `<!doctype html>
       cursor: pointer;
     }
     .fix-btn:hover { background: #f2f5fb; }
+    .fix-btn.done {
+      border-color: #83d2a5;
+      background: #e9f8ef;
+      color: #1d6e3e;
+      cursor: default;
+    }
+    .fix-btn.failed {
+      border-color: #e3a0a0;
+      background: #fff1f1;
+      color: #8e1b1b;
+    }
     #close-session-btn {
       border-color: #e9a5a5;
       background: #fff2f2;
@@ -808,7 +819,7 @@ var htmlReportTemplate = `<!doctype html>
             <circle cx="4" cy="20" r="2.2" fill="#54d58f"></circle>
           </svg>
         </span>
-        <h1>All fleets</h1>
+        <h1>Scrum check</h1>
       </div>
       <p class="meta">Org: {{.Org}} | Generated: {{.GeneratedAt}}</p>
       <div class="counts">
@@ -1183,6 +1194,26 @@ var htmlReportTemplate = `<!doctype html>
         btn.addEventListener('click', () => activate(btn.dataset.tab));
       });
 
+      function setButtonDone(btn, text) {
+        btn.classList.remove('failed');
+        btn.classList.add('done');
+        btn.textContent = text;
+        btn.disabled = true;
+      }
+
+      function setButtonFailed(btn) {
+        btn.classList.remove('done');
+        btn.classList.add('failed');
+        btn.textContent = 'Failed (retry)';
+        btn.disabled = false;
+      }
+
+      function setButtonWorking(btn, text) {
+        btn.classList.remove('done', 'failed');
+        btn.textContent = text;
+        btn.disabled = true;
+      }
+
       function installMilestoneFiltering() {
         const actionBlocks = document.querySelectorAll('.actions');
         actionBlocks.forEach((actions) => {
@@ -1272,9 +1303,7 @@ var htmlReportTemplate = `<!doctype html>
 
         const endpoint = bridgeURL + '/api/apply-milestone';
         const payload = { repo: repo, issue: issue, milestone_number: milestoneNumber };
-        const prev = btn.textContent;
-        btn.textContent = 'Applying...';
-        btn.disabled = true;
+        setButtonWorking(btn, 'Applying...');
         try {
           const res = await fetch(endpoint, {
             method: 'POST',
@@ -1288,15 +1317,12 @@ var htmlReportTemplate = `<!doctype html>
             const body = await res.text();
             throw new Error('Bridge error ' + res.status + ': ' + body);
           }
-          btn.textContent = 'Applied';
-          setTimeout(() => { btn.textContent = prev; }, 1200);
+          setButtonDone(btn, 'Done');
           return true;
         } catch (err) {
           window.alert('Could not apply milestone. ' + err);
-          btn.textContent = prev;
+          setButtonFailed(btn);
           return false;
-        } finally {
-          btn.disabled = false;
         }
       }
 
@@ -1315,16 +1341,18 @@ var htmlReportTemplate = `<!doctype html>
           const rowButtons = Array.from(statusCard.querySelectorAll('.apply-milestone-btn'));
           if (rowButtons.length === 0) return;
 
-          const prev = btn.textContent;
-          btn.textContent = 'Applying column...';
-          btn.disabled = true;
+          setButtonWorking(btn, 'Applying column...');
+          let ok = true;
           for (const rowBtn of rowButtons) {
             // sequential requests keep updates readable and avoid API bursts.
-            await applyMilestoneButton(rowBtn);
+            const rowOK = await applyMilestoneButton(rowBtn);
+            ok = ok && rowOK;
           }
-          btn.textContent = 'Column applied';
-          setTimeout(() => { btn.textContent = prev; }, 1200);
-          btn.disabled = false;
+          if (ok) {
+            setButtonDone(btn, 'Done');
+          } else {
+            setButtonFailed(btn);
+          }
         });
       });
 
@@ -1343,9 +1371,7 @@ var htmlReportTemplate = `<!doctype html>
           if (!repo || !issue || !checkText) return;
 
           const endpoint = bridgeURL + '/api/apply-checklist';
-          const prev = btn.textContent;
-          btn.textContent = 'Checking...';
-          btn.disabled = true;
+          setButtonWorking(btn, 'Checking...');
           try {
             const res = await fetch(endpoint, {
               method: 'POST',
@@ -1361,23 +1387,23 @@ var htmlReportTemplate = `<!doctype html>
             }
             const payload = await res.json();
             if (!payload.updated) {
-              btn.textContent = payload.already_checked ? 'Already checked' : 'Not found';
-              setTimeout(() => { btn.textContent = prev; }, 1400);
+              if (payload.already_checked) {
+                setButtonDone(btn, 'Done');
+              } else {
+                setButtonFailed(btn);
+              }
               return;
             }
 
-            btn.textContent = 'Checked';
+            setButtonDone(btn, 'Done');
             const row = btn.closest('.checklist-row');
             const textEl = row && row.querySelector('.checklist-text');
             if (textEl) {
               textEl.textContent = '• [x] ' + checkText;
             }
-            setTimeout(() => { btn.textContent = prev; }, 1200);
           } catch (err) {
             window.alert('Could not apply checklist update. ' + err);
-            btn.textContent = prev;
-          } finally {
-            btn.disabled = false;
+            setButtonFailed(btn);
           }
         });
       });
@@ -1392,9 +1418,7 @@ var htmlReportTemplate = `<!doctype html>
         if (!itemID) return false;
 
         const endpoint = bridgeURL + '/api/apply-sprint';
-        const prev = btn.textContent;
-        btn.textContent = 'Setting...';
-        btn.disabled = true;
+        setButtonWorking(btn, 'Setting...');
         try {
           const res = await fetch(endpoint, {
             method: 'POST',
@@ -1408,15 +1432,12 @@ var htmlReportTemplate = `<!doctype html>
             const body = await res.text();
             throw new Error('Bridge error ' + res.status + ': ' + body);
           }
-          btn.textContent = 'Sprint set';
-          setTimeout(() => { btn.textContent = prev; }, 1200);
+          setButtonDone(btn, 'Done');
           return true;
         } catch (err) {
           window.alert('Could not set sprint. ' + err);
-          btn.textContent = prev;
+          setButtonFailed(btn);
           return false;
-        } finally {
-          btn.disabled = false;
         }
       }
 
@@ -1435,15 +1456,17 @@ var htmlReportTemplate = `<!doctype html>
           const rowButtons = Array.from(statusCard.querySelectorAll('.apply-sprint-btn'));
           if (rowButtons.length === 0) return;
 
-          const prev = btn.textContent;
-          btn.textContent = 'Setting column...';
-          btn.disabled = true;
+          setButtonWorking(btn, 'Setting column...');
+          let ok = true;
           for (const rowBtn of rowButtons) {
-            await applySprintButton(rowBtn);
+            const rowOK = await applySprintButton(rowBtn);
+            ok = ok && rowOK;
           }
-          btn.textContent = 'Column set';
-          setTimeout(() => { btn.textContent = prev; }, 1200);
-          btn.disabled = false;
+          if (ok) {
+            setButtonDone(btn, 'Done');
+          } else {
+            setButtonFailed(btn);
+          }
         });
       });
 
@@ -1463,9 +1486,7 @@ var htmlReportTemplate = `<!doctype html>
         }
         const endpoint = bridgeURL + '/api/add-assignee';
         const payload = { repo: repo, issue: issue, assignee: assignee };
-        const prev = btn.textContent;
-        btn.textContent = 'Assigning...';
-        btn.disabled = true;
+        setButtonWorking(btn, 'Assigning...');
         try {
           const res = await fetch(endpoint, {
             method: 'POST',
@@ -1479,15 +1500,12 @@ var htmlReportTemplate = `<!doctype html>
             const body = await res.text();
             throw new Error('Bridge error ' + res.status + ': ' + body);
           }
-          btn.textContent = 'Assigned';
-          setTimeout(() => { btn.textContent = prev; }, 1200);
+          setButtonDone(btn, 'Done');
           return true;
         } catch (err) {
           window.alert('Could not assign user. ' + err);
-          btn.textContent = prev;
+          setButtonFailed(btn);
           return false;
-        } finally {
-          btn.disabled = false;
         }
       }
 
@@ -1506,15 +1524,17 @@ var htmlReportTemplate = `<!doctype html>
           const rowButtons = Array.from(statusCard.querySelectorAll('.apply-assignee-btn'));
           if (rowButtons.length === 0) return;
 
-          const prev = btn.textContent;
-          btn.textContent = 'Assigning column...';
-          btn.disabled = true;
+          setButtonWorking(btn, 'Assigning column...');
+          let ok = true;
           for (const rowBtn of rowButtons) {
-            await applyAssigneeButton(rowBtn);
+            const rowOK = await applyAssigneeButton(rowBtn);
+            ok = ok && rowOK;
           }
-          btn.textContent = 'Column assigned';
-          setTimeout(() => { btn.textContent = prev; }, 1200);
-          btn.disabled = false;
+          if (ok) {
+            setButtonDone(btn, 'Done');
+          } else {
+            setButtonFailed(btn);
+          }
         });
       });
 
@@ -1552,20 +1572,21 @@ var htmlReportTemplate = `<!doctype html>
           const items = Array.from(project.querySelectorAll('.release-item'));
           if (items.length === 0) return;
 
-          const prev = btn.textContent;
-          btn.textContent = 'Applying...';
-          btn.disabled = true;
+          setButtonWorking(btn, 'Applying...');
           try {
+            let ok = true;
             for (const item of items) {
-              await applyReleaseItem(item);
+              const itemOK = await applyReleaseItem(item);
+              ok = ok && itemOK;
             }
-            btn.textContent = 'Applied';
-            setTimeout(() => { btn.textContent = prev; }, 1300);
+            if (ok) {
+              setButtonDone(btn, 'Done');
+            } else {
+              setButtonFailed(btn);
+            }
           } catch (err) {
             window.alert('Could not apply release label. ' + err);
-            btn.textContent = prev;
-          } finally {
-            btn.disabled = false;
+            setButtonFailed(btn);
           }
         });
       });
@@ -1578,9 +1599,7 @@ var htmlReportTemplate = `<!doctype html>
             window.alert('Bridge unavailable.');
             return;
           }
-          const prev = closeSessionButton.textContent;
-          closeSessionButton.textContent = 'Closing...';
-          closeSessionButton.disabled = true;
+          setButtonWorking(closeSessionButton, 'Closing...');
           try {
             const res = await fetch(bridgeURL + '/api/close', {
               method: 'POST',
@@ -1597,11 +1616,10 @@ var htmlReportTemplate = `<!doctype html>
             document.querySelectorAll('.apply-milestone-btn, .apply-milestone-column-btn, .apply-drafting-check-btn, .apply-sprint-btn, .apply-sprint-column-btn, .apply-assignee-btn, .apply-assignee-column-btn, .apply-release-project-btn').forEach((el) => {
               el.disabled = true;
             });
-            closeSessionButton.textContent = 'Closed';
+            setButtonDone(closeSessionButton, 'Done');
           } catch (err) {
             window.alert('Could not close session. ' + err);
-            closeSessionButton.textContent = prev;
-            closeSessionButton.disabled = false;
+            setButtonFailed(closeSessionButton);
           }
         });
       }
