@@ -70,5 +70,4 @@ The migration to [Fleet Device Management](https://fleetdm.com/device-management
 <meta name="publishedOn" value="2024-12-19">
 <meta name="articleTitle" value="American financial services company migrates to Fleet for MDM and next-gen change management">
 <meta name="description" value="American financial services company migrates to Fleet for MDM and next-gen change management">
-<meta name="showOnTestimonialsPageWithEmoji" value="🪟">
 <meta name="useBasicArticleTemplate" value="true">
