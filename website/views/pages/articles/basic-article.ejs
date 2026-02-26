@@ -30,7 +30,7 @@
       <div purpose="article-title-and-author" class="d-lg-none d-block">
         <div purpose="article-title">
           <h1><%=thisPage.meta.articleTitle %></h1>
-          <h2 v-if="articleHasSubtitle && articleSubtitle !== undefined && articleCategorySlug !== 'customers'">{{articleSubtitle}}</h2>
+          <h2 v-if="articleHasSubtitle && articleSubtitle !== undefined">{{articleSubtitle}}</h2>
         </div>
         <div class="d-flex flex-sm-row flex-column justify-content-between align-items-sm-center">
           <div purpose="article-details" class="d-flex align-items-sm-center">
@@ -110,7 +110,7 @@
         <div purpose="article-title-and-author" class="d-none d-lg-block">
           <div purpose="article-title">
             <h1><%=thisPage.meta.articleTitle %></h1>
-            <h2 v-if="articleHasSubtitle && articleSubtitle !== undefined && articleCategorySlug !== 'customers'">{{articleSubtitle}}</h2>
+            <h2 v-if="articleHasSubtitle && articleSubtitle !== undefined">{{articleSubtitle}}</h2>
           </div>
           <div class="d-flex flex-sm-row flex-column justify-content-between align-items-sm-center">
             <div purpose="article-details" class="d-flex flex-row align-items-center">
