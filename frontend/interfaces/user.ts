@@ -46,7 +46,7 @@ export interface IUser {
   id: number;
   name: string;
   email: string;
-  role: UserRole;
+  role?: UserRole;
   force_password_reset: boolean;
   gravatar_url?: string;
   gravatar_url_dark?: string;
@@ -55,6 +55,7 @@ export interface IUser {
   global_role: UserRole | null;
   api_only: boolean;
   teams: ITeam[];
+  fleets: ITeam[]; // This will eventually replace `teams`, but for now we need both to avoid breaking changes.
 }
 
 /**
