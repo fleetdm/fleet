@@ -479,6 +479,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	} else if appConfig.MDM.EnableDiskEncryption.Set && !appConfig.MDM.EnableDiskEncryption.Valid {
 		appConfig.MDM.EnableDiskEncryption = oldAppConfig.MDM.EnableDiskEncryption
 	}
+
 	// this is to handle the case where `enable_release_device_manually: null` is
 	// passed in the request payload, which should be treated as "not present/not
 	// changed" by the PATCH. We should really try to find a more general way to
@@ -493,6 +494,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.MacOSSetup.EnableReleaseDeviceManually = oldAppConfig.MDM.MacOSSetup.EnableReleaseDeviceManually
 	}
 
+	// Apply a default value of false for LockEndUserInfo if not set
 	if !oldAppConfig.MDM.MacOSSetup.LockEndUserInfo.Valid {
 		oldAppConfig.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
 	}
@@ -500,6 +502,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.MacOSSetup.LockEndUserInfo = newAppConfig.MDM.MacOSSetup.LockEndUserInfo
 	} else {
 		appConfig.MDM.MacOSSetup.LockEndUserInfo = oldAppConfig.MDM.MacOSSetup.LockEndUserInfo
+	}
+
+	// If disabling EUA and LockEndUserInfo is not explicitly passed, also disable it to avoid errors if user attempts to patch EUA off.
+	// Will error during validation if user attempts to patch with EUA off and LockEndUserInfo on.
+	if oldAppConfig.MDM.MacOSSetup.EnableEndUserAuthentication != appConfig.MDM.MacOSSetup.EnableEndUserAuthentication &&
+		!appConfig.MDM.MacOSSetup.EnableEndUserAuthentication && !newAppConfig.MDM.MacOSSetup.LockEndUserInfo.Valid {
+		appConfig.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
 	}
 
 	if appConfig.MDM.MacOSSetup.ManualAgentInstall.Valid && appConfig.MDM.MacOSSetup.ManualAgentInstall.Value {
