@@ -7,8 +7,11 @@ import (
 )
 
 var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error){
-	"microsoft-word/darwin":         {MicrosoftVersionFromReleaseNotes},
-	"microsoft-excel/darwin":        {MicrosoftVersionFromReleaseNotes},
+	"microsoft-word/darwin":        {MicrosoftVersionFromReleaseNotes},
+	"microsoft-excel/darwin":       {MicrosoftVersionFromReleaseNotes},
+	"microsoft-outlook/darwin":     {MicrosoftVersionFromReleaseNotes},
+	"microsoft-powerpoint/darwin":  {MicrosoftVersionFromReleaseNotes},
+	"microsoft-onenote/darwin":     {MicrosoftVersionFromReleaseNotes},
 	"brave-browser/darwin":          {BraveVersionTransformer},
 	"whatsapp/darwin":               {WhatsAppVersionShortener, WhatsAppInstallerURL},
 	"google-chrome/darwin":          {ChromePKGInstaller},
