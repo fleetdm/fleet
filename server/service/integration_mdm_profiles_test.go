@@ -13,7 +13,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -937,7 +936,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		}
 	}
 
-	verifyCommands := func(wantProfileInstalls int, status string, failedLocURIs ...string) {
+	verifyCommands := func(wantProfileInstalls int, status string) {
 		s.awaitTriggerProfileSchedule(t)
 		cmds, err := mdmDevice.StartManagementSession()
 		require.NoError(t, err)
@@ -949,10 +948,6 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		for _, c := range cmds {
 			if c.Verb == "Atomic" {
 				atomicCmds++
-			}
-
-			if slices.Contains(failedLocURIs, c.Cmd.GetTargetURI()) {
-				status = syncml.CmdStatusBadRequest
 			}
 
 			mdmDevice.AppendResponse(fleet.SyncMLCmd{
