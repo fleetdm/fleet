@@ -37,7 +37,7 @@ func postReq(path, body string) *http.Request {
 	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
 	req.Header.Set("Origin", "http://127.0.0.1:9999")
 	req.Header.Set("Referer", "http://127.0.0.1:9999/report")
-	req.AddCookie(&http.Cookie{Name: "qacheck_session", Value: "sess"})
+	req.Header.Set("X-Qacheck-Session", "sess")
 	return req
 }
 

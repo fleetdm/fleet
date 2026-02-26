@@ -35,7 +35,7 @@ func TestPrepareRequestRejectsForeignOrigin(t *testing.T) {
 	}
 	req := httptest.NewRequest(http.MethodPost, "/api/apply-milestone", strings.NewReader(`{}`))
 	req.Header.Set("Origin", "http://evil.example")
-	req.AddCookie(&http.Cookie{Name: "qacheck_session", Value: "abc123"})
+	req.Header.Set("X-Qacheck-Session", "abc123")
 	rr := httptest.NewRecorder()
 
 	ok := b.prepareRequest(rr, req)
@@ -58,7 +58,7 @@ func TestPrepareRequestRejectsForeignReferer(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/apply-checklist", strings.NewReader(`{}`))
 	req.Header.Set("Origin", "http://127.0.0.1:9999")
 	req.Header.Set("Referer", "http://evil.example/report")
-	req.AddCookie(&http.Cookie{Name: "qacheck_session", Value: "abc123"})
+	req.Header.Set("X-Qacheck-Session", "abc123")
 	rr := httptest.NewRecorder()
 
 	ok := b.prepareRequest(rr, req)
@@ -70,7 +70,7 @@ func TestPrepareRequestRejectsForeignReferer(t *testing.T) {
 	}
 }
 
-func TestPrepareRequestRejectsMissingCookie(t *testing.T) {
+func TestPrepareRequestRejectsMissingSessionHeader(t *testing.T) {
 	t.Parallel()
 
 	b := &uiBridge{
@@ -103,7 +103,7 @@ func TestPrepareRequestAcceptsValidLocalRequest(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/apply-checklist", strings.NewReader(`{}`))
 	req.Header.Set("Origin", "http://127.0.0.1:9999")
 	req.Header.Set("Referer", "http://127.0.0.1:9999/report")
-	req.AddCookie(&http.Cookie{Name: "qacheck_session", Value: "abc123"})
+	req.Header.Set("X-Qacheck-Session", "abc123")
 	rr := httptest.NewRecorder()
 
 	ok := b.prepareRequest(rr, req)

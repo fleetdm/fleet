@@ -74,6 +74,18 @@ func TestBuildHTMLReportDataIncludesAllSelectedProjects(t *testing.T) {
 			HasRelease:    false,
 			CurrentLabels: []string{":product"},
 		}},
+		[]UnassignedUnreleasedBugIssue{{
+			Item:          inReviewItem,
+			ProjectNum:    71,
+			RepoOwner:     "fleetdm",
+			RepoName:      "fleet",
+			CurrentLabels: []string{"g-orchestration", "~unreleased bug"},
+			Unassigned:    true,
+			MatchingGroups: []string{
+				"g-orchestration",
+			},
+		}},
+		[]string{"g-orchestration"},
 		TimestampCheckResult{
 			URL:          updatesTimestampURL,
 			ExpiresAt:    time.Now().UTC().Add(7 * 24 * time.Hour),
@@ -83,6 +95,7 @@ func TestBuildHTMLReportDataIncludesAllSelectedProjects(t *testing.T) {
 		},
 		true,
 		"http://127.0.0.1:9999",
+		"session-token",
 	)
 
 	if len(data.MissingMilestone) != 2 {
@@ -94,14 +107,15 @@ func TestBuildHTMLReportDataIncludesAllSelectedProjects(t *testing.T) {
 	if len(data.MissingAssignee) != 2 {
 		t.Fatalf("expected 2 assignee project sections, got %d", len(data.MissingAssignee))
 	}
-	if data.TotalNoMilestone != 1 || data.TotalNoSprint != 1 || data.TotalMissingAssignee != 1 || data.TotalAssignedToMe != 0 || data.TotalRelease != 1 {
+	if data.TotalNoMilestone != 1 || data.TotalNoSprint != 1 || data.TotalMissingAssignee != 1 || data.TotalAssignedToMe != 0 || data.TotalRelease != 1 || data.TotalUnassignedUnreleased != 1 {
 		t.Fatalf(
-			"unexpected totals: milestone=%d sprint=%d missing-assignee=%d assigned-to-me=%d release=%d",
+			"unexpected totals: milestone=%d sprint=%d missing-assignee=%d assigned-to-me=%d release=%d unassigned-unreleased=%d",
 			data.TotalNoMilestone,
 			data.TotalNoSprint,
 			data.TotalMissingAssignee,
 			data.TotalAssignedToMe,
 			data.TotalRelease,
+			data.TotalUnassignedUnreleased,
 		)
 	}
 
@@ -138,8 +152,11 @@ func TestBuildHTMLReportDataAssignedToMeIsSeparateAndFails(t *testing.T) {
 			SuggestedAssignees: []AssigneeOption{{Login: "alice"}},
 		}},
 		nil,
+		nil,
+		[]string{"g-orchestration"},
 		TimestampCheckResult{},
 		false,
+		"",
 		"",
 	)
 
@@ -193,8 +210,11 @@ func TestBuildHTMLReportDataMissingSprintExcludesReadyForRelease(t *testing.T) {
 		}},
 		nil,
 		nil,
+		nil,
+		nil,
 		TimestampCheckResult{},
 		false,
+		"",
 		"",
 	)
 

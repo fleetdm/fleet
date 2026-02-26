@@ -139,43 +139,60 @@ type ReleaseLabelProjectReport struct {
 	Items      []ReleaseLabelReportItem
 }
 
+type UnassignedUnreleasedProjectReport struct {
+	GroupLabel string
+	Columns    []UnassignedUnreleasedStatusReport
+}
+
+type UnassignedUnreleasedStatusReport struct {
+	Key        string
+	Label      string
+	RedItems   []MissingMilestoneReportItem
+	GreenItems []MissingMilestoneReportItem
+}
+
 type MilestoneSuggestion struct {
 	Number int
 	Title  string
 }
 
 type HTMLReportData struct {
-	GeneratedAt          string
-	Org                  string
-	BridgeEnabled        bool
-	BridgeBaseURL        string
-	AwaitingSections     []AwaitingProjectReport
-	StaleSections        []StaleAwaitingProjectReport
-	StaleThreshold       int
-	DraftingSections     []DraftingStatusReport
-	MissingMilestone     []MissingMilestoneProjectReport
-	MissingSprint        []MissingSprintProjectReport
-	MissingAssignee      []MissingAssigneeProjectReport
-	AssignedToMe         []MissingAssigneeProjectReport
-	ReleaseLabel         []ReleaseLabelProjectReport
-	TotalAwaiting        int
-	TotalStale           int
-	TotalDrafting        int
-	TotalNoMilestone     int
-	TotalNoSprint        int
-	TotalMissingAssignee int
-	TotalAssignedToMe    int
-	TotalRelease         int
-	TimestampCheck       TimestampCheckResult
-	AwaitingClean        bool
-	StaleClean           bool
-	DraftingClean        bool
-	TimestampClean       bool
-	MilestoneClean       bool
-	SprintClean          bool
-	MissingAssigneeClean bool
-	AssignedToMeClean    bool
-	ReleaseClean         bool
+	GeneratedAt               string
+	Org                       string
+	BridgeEnabled             bool
+	BridgeBaseURL             string
+	BridgeSessionToken        string
+	AwaitingSections          []AwaitingProjectReport
+	StaleSections             []StaleAwaitingProjectReport
+	StaleThreshold            int
+	DraftingSections          []DraftingStatusReport
+	MissingMilestone          []MissingMilestoneProjectReport
+	MissingSprint             []MissingSprintProjectReport
+	MissingAssignee           []MissingAssigneeProjectReport
+	AssignedToMe              []MissingAssigneeProjectReport
+	ReleaseLabel              []ReleaseLabelProjectReport
+	UnassignedUnreleased      []UnassignedUnreleasedProjectReport
+	TotalAwaiting             int
+	TotalStale                int
+	TotalDrafting             int
+	TotalNoMilestone          int
+	TotalNoSprint             int
+	TotalMissingAssignee      int
+	TotalAssignedToMe         int
+	TotalRelease              int
+	TotalUnassignedUnreleased int
+	TotalTrackedUnreleased    int
+	TimestampCheck            TimestampCheckResult
+	AwaitingClean             bool
+	StaleClean                bool
+	DraftingClean             bool
+	TimestampClean            bool
+	MilestoneClean            bool
+	SprintClean               bool
+	MissingAssigneeClean      bool
+	AssignedToMeClean         bool
+	ReleaseClean              bool
+	UnassignedUnreleasedClean bool
 }
 
 func buildHTMLReportData(
@@ -189,9 +206,12 @@ func buildHTMLReportData(
 	missingSprints []MissingSprintViolation,
 	missingAssignees []MissingAssigneeIssue,
 	releaseIssues []ReleaseLabelIssue,
+	unassignedUnreleased []UnassignedUnreleasedBugIssue,
+	groupLabels []string,
 	timestampCheck TimestampCheckResult,
 	bridgeEnabled bool,
 	bridgeBaseURL string,
+	bridgeSessionToken string,
 ) HTMLReportData {
 	sections := make([]AwaitingProjectReport, 0, len(projectNums))
 	totalAwaiting := 0
@@ -500,38 +520,109 @@ func buildHTMLReportData(
 		})
 	}
 
+	groupedUnassignedByLabel := make(map[string]map[string]UnassignedUnreleasedStatusReport)
+	for _, label := range groupLabels {
+		groupedUnassignedByLabel[label] = make(map[string]UnassignedUnreleasedStatusReport)
+		for _, key := range sprintColumnOrder() {
+			groupedUnassignedByLabel[label][key] = UnassignedUnreleasedStatusReport{
+				Key:        key,
+				Label:      sprintColumnLabel(key),
+				RedItems:   []MissingMilestoneReportItem{},
+				GreenItems: []MissingMilestoneReportItem{},
+			}
+		}
+	}
+	for _, v := range unassignedUnreleased {
+		repo := v.RepoOwner + "/" + v.RepoName
+		status := strings.TrimSpace(v.Status)
+		if status == "" {
+			status = itemStatus(v.Item)
+		}
+		statusKey := sprintColumnGroup(status)
+		item := MissingMilestoneReportItem{
+			ProjectNum:  v.ProjectNum,
+			Number:      getNumber(v.Item),
+			Title:       getTitle(v.Item),
+			URL:         getURL(v.Item),
+			Repo:        repo,
+			Status:      status,
+			Assignees:   append([]string(nil), v.CurrentAssignees...),
+			Labels:      append([]string(nil), v.CurrentLabels...),
+			BodyPreview: previewBodyLines(getBody(v.Item), 3),
+		}
+		for _, groupLabel := range v.MatchingGroups {
+			columnsByStatus, ok := groupedUnassignedByLabel[groupLabel]
+			if !ok {
+				continue
+			}
+			statusGroup := columnsByStatus[statusKey]
+			if v.Unassigned {
+				statusGroup.RedItems = append(statusGroup.RedItems, item)
+			} else {
+				statusGroup.GreenItems = append(statusGroup.GreenItems, item)
+			}
+			columnsByStatus[statusKey] = statusGroup
+			groupedUnassignedByLabel[groupLabel] = columnsByStatus
+		}
+	}
+	unassignedProjects := make([]UnassignedUnreleasedProjectReport, 0, len(groupedUnassignedByLabel))
+	totalUnassignedUnreleased := 0
+	totalTrackedUnreleased := 0
+	for _, label := range groupLabels {
+		columnsByStatus, ok := groupedUnassignedByLabel[label]
+		if !ok {
+			continue
+		}
+		columns := make([]UnassignedUnreleasedStatusReport, 0, len(sprintColumnOrder()))
+		for _, key := range sprintColumnOrder() {
+			group := columnsByStatus[key]
+			totalUnassignedUnreleased += len(group.RedItems)
+			totalTrackedUnreleased += len(group.GreenItems)
+			columns = append(columns, group)
+		}
+		unassignedProjects = append(unassignedProjects, UnassignedUnreleasedProjectReport{
+			GroupLabel: label,
+			Columns:    columns,
+		})
+	}
+
 	return HTMLReportData{
-		GeneratedAt:          time.Now().Format(time.RFC1123),
-		Org:                  org,
-		BridgeEnabled:        bridgeEnabled,
-		BridgeBaseURL:        bridgeBaseURL,
-		AwaitingSections:     sections,
-		StaleSections:        staleSections,
-		StaleThreshold:       staleDays,
-		DraftingSections:     drafting,
-		MissingMilestone:     milestoneProjects,
-		MissingSprint:        sprintProjects,
-		MissingAssignee:      missingAssigneeProjects,
-		AssignedToMe:         assignedToMeProjects,
-		ReleaseLabel:         releaseProjects,
-		TotalAwaiting:        totalAwaiting,
-		TotalStale:           totalStale,
-		TotalDrafting:        totalDrafting,
-		TotalNoMilestone:     totalNoMilestone,
-		TotalNoSprint:        totalNoSprint,
-		TotalMissingAssignee: totalMissingAssignee,
-		TotalAssignedToMe:    totalAssignedToMe,
-		TotalRelease:         totalRelease,
-		TimestampCheck:       timestampCheck,
-		AwaitingClean:        totalAwaiting == 0,
-		StaleClean:           totalStale == 0,
-		DraftingClean:        totalDrafting == 0,
-		TimestampClean:       timestampCheck.Error == "" && timestampCheck.OK,
-		MilestoneClean:       totalNoMilestone == 0,
-		SprintClean:          totalNoSprint == 0,
-		MissingAssigneeClean: totalMissingAssignee == 0,
-		AssignedToMeClean:    totalAssignedToMe == 0,
-		ReleaseClean:         totalRelease == 0,
+		GeneratedAt:               time.Now().Format(time.RFC1123),
+		Org:                       org,
+		BridgeEnabled:             bridgeEnabled,
+		BridgeBaseURL:             bridgeBaseURL,
+		BridgeSessionToken:        bridgeSessionToken,
+		AwaitingSections:          sections,
+		StaleSections:             staleSections,
+		StaleThreshold:            staleDays,
+		DraftingSections:          drafting,
+		MissingMilestone:          milestoneProjects,
+		MissingSprint:             sprintProjects,
+		MissingAssignee:           missingAssigneeProjects,
+		AssignedToMe:              assignedToMeProjects,
+		ReleaseLabel:              releaseProjects,
+		UnassignedUnreleased:      unassignedProjects,
+		TotalAwaiting:             totalAwaiting,
+		TotalStale:                totalStale,
+		TotalDrafting:             totalDrafting,
+		TotalNoMilestone:          totalNoMilestone,
+		TotalNoSprint:             totalNoSprint,
+		TotalMissingAssignee:      totalMissingAssignee,
+		TotalAssignedToMe:         totalAssignedToMe,
+		TotalRelease:              totalRelease,
+		TotalUnassignedUnreleased: totalUnassignedUnreleased,
+		TotalTrackedUnreleased:    totalTrackedUnreleased,
+		TimestampCheck:            timestampCheck,
+		AwaitingClean:             totalAwaiting == 0,
+		StaleClean:                totalStale == 0,
+		DraftingClean:             totalDrafting == 0,
+		TimestampClean:            timestampCheck.Error == "" && timestampCheck.OK,
+		MilestoneClean:            totalNoMilestone == 0,
+		SprintClean:               totalNoSprint == 0,
+		MissingAssigneeClean:      totalMissingAssignee == 0,
+		AssignedToMeClean:         totalAssignedToMe == 0,
+		ReleaseClean:              totalRelease == 0,
+		UnassignedUnreleasedClean: totalUnassignedUnreleased == 0,
 	}
 }
 
@@ -786,6 +877,16 @@ var htmlReportTemplate = `<!doctype html>
       box-shadow: inset 0 0 0 1px rgba(39, 174, 96, 0.2);
       background: #f4fbf6;
     }
+    .item.red-bug {
+      border-left-color: #eb5757;
+      box-shadow: inset 0 0 0 1px rgba(235, 87, 87, 0.25);
+      background: #fff3f3;
+    }
+    .item.green-bug {
+      border-left-color: #27ae60;
+      box-shadow: inset 0 0 0 1px rgba(39, 174, 96, 0.2);
+      background: #f4fbf6;
+    }
     .mine-badge {
       display: inline-block;
       margin-top: 8px;
@@ -877,7 +978,7 @@ var htmlReportTemplate = `<!doctype html>
     }
   </style>
 </head>
-<body data-bridge-url="{{.BridgeBaseURL}}">
+<body data-bridge-url="{{.BridgeBaseURL}}" data-bridge-session="{{.BridgeSessionToken}}">
   <div class="wrap">
     <section class="header">
       <div class="title-row">
@@ -901,6 +1002,8 @@ var htmlReportTemplate = `<!doctype html>
         <span class="pill">Missing sprint (selected projects): {{.TotalNoSprint}}</span>
         <span class="pill">Missing assignee (selected projects): {{.TotalMissingAssignee}}</span>
         <span class="pill">Assigned to me (selected projects): {{.TotalAssignedToMe}}</span>
+        <span class="pill">Unassigned unreleased bugs (selected projects): {{.TotalUnassignedUnreleased}}</span>
+        <span class="pill">Tracked unreleased bugs (assigned): {{.TotalTrackedUnreleased}}</span>
         <span class="pill">Release label issues (selected projects): {{.TotalRelease}}</span>
         <span class="pill">Drafting checklist violations: {{.TotalDrafting}}</span>
       </div>
@@ -938,6 +1041,9 @@ var htmlReportTemplate = `<!doctype html>
         </button>
         <button class="menu-btn" data-tab="assigned-to-me" role="tab">
           <span class="status-dot {{if .AssignedToMeClean}}ok{{end}}"></span>🧍 Assigned to me
+        </button>
+        <button class="menu-btn" data-tab="unassigned-unreleased" role="tab">
+          <span class="status-dot {{if .UnassignedUnreleasedClean}}ok{{end}}"></span>🐞 Unassigned unreleased bugs
         </button>
         <button class="menu-btn" data-tab="timestamp" role="tab">
           <span class="status-dot {{if .TimestampClean}}ok{{end}}"></span>🕒 Updates timestamp expiry
@@ -1337,11 +1443,70 @@ var htmlReportTemplate = `<!doctype html>
           <p class="empty">🟢 No release-label issues found.</p>
         {{end}}
       </section>
+
+      <section id="tab-unassigned-unreleased" class="panel" role="tabpanel">
+        <h2>🐞 Unassigned unreleased bugs (selected projects)</h2>
+        <p class="subtle">Grouped by provided <code>-l</code> labels and by status. Red cards are unassigned (failing). Green cards are assigned (informational).</p>
+        {{if .UnassignedUnreleased}}
+          {{range .UnassignedUnreleased}}
+            <div class="project">
+              <h3>Group: {{.GroupLabel}}</h3>
+              {{range .Columns}}
+                <div class="status">
+                  <h3>{{.Label}}</h3>
+                  {{if .RedItems}}
+                    {{range .RedItems}}
+                      <article class="item red-bug">
+                        <div><strong>#{{.Number}} - {{.Title}}</strong></div>
+                        <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
+                        <ul>
+                          <li>Status: {{if .Status}}{{.Status}}{{else}}(unset){{end}}</li>
+                          <li>Project: {{if gt .ProjectNum 0}}{{.ProjectNum}}{{else}}(not on selected project){{end}}</li>
+                          <li>Repository: {{.Repo}}</li>
+                          <li>Assignees: {{if .Assignees}}{{range $i, $a := .Assignees}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}(none){{end}}</li>
+                          <li>Labels: {{if .Labels}}{{range $i, $l := .Labels}}{{if $i}}, {{end}}{{$l}}{{end}}{{else}}(none){{end}}</li>
+                        </ul>
+                      </article>
+                    {{end}}
+                  {{end}}
+                  {{if .GreenItems}}
+                    {{range .GreenItems}}
+                      <article class="item green-bug">
+                        <div><strong>#{{.Number}} - {{.Title}}</strong></div>
+                        <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
+                        <ul>
+                          <li>Status: {{if .Status}}{{.Status}}{{else}}(unset){{end}}</li>
+                          <li>Project: {{if gt .ProjectNum 0}}{{.ProjectNum}}{{else}}(not on selected project){{end}}</li>
+                          <li>Repository: {{.Repo}}</li>
+                          <li>Assignees: {{if .Assignees}}{{range $i, $a := .Assignees}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}(none){{end}}</li>
+                          <li>Labels: {{if .Labels}}{{range $i, $l := .Labels}}{{if $i}}, {{end}}{{$l}}{{end}}{{else}}(none){{end}}</li>
+                        </ul>
+                      </article>
+                    {{end}}
+                  {{end}}
+                  {{if and (eq (len .RedItems) 0) (eq (len .GreenItems) 0)}}
+                    <p class="empty">🟢 No items in this group.</p>
+                  {{end}}
+                </div>
+              {{end}}
+            </div>
+          {{end}}
+        {{else}}
+          <p class="empty">🟢 No unassigned unreleased bugs found.</p>
+        {{end}}
+      </section>
       </div>
     </div>
   </div>
   <script>
     (function () {
+      const bridgeSession = document.body.dataset.bridgeSession || '';
+      function bridgeJSONHeaders() {
+        return {
+          'Content-Type': 'application/json',
+          'X-Qacheck-Session': bridgeSession,
+        };
+      }
       const buttons = document.querySelectorAll('.menu-btn');
       const panels = document.querySelectorAll('.panel');
       function activate(tabName) {
@@ -1458,7 +1623,7 @@ var htmlReportTemplate = `<!doctype html>
         if (!issue || !repo || !milestoneTitle || Number.isNaN(milestoneNumber)) return false;
 
         const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
-        if (!bridgeURL) {
+        if (!bridgeURL || !bridgeSession) {
           window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
           return false;
         }
@@ -1469,10 +1634,7 @@ var htmlReportTemplate = `<!doctype html>
         try {
           const res = await fetch(endpoint, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            credentials: 'same-origin',
+            headers: bridgeJSONHeaders(),
             body: JSON.stringify(payload),
           });
           if (!res.ok) {
@@ -1522,7 +1684,7 @@ var htmlReportTemplate = `<!doctype html>
       applyDraftingCheckButtons.forEach((btn) => {
         btn.addEventListener('click', async () => {
           const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
-          if (!bridgeURL) {
+          if (!bridgeURL || !bridgeSession) {
             window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
             return;
           }
@@ -1537,10 +1699,7 @@ var htmlReportTemplate = `<!doctype html>
           try {
             const res = await fetch(endpoint, {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              credentials: 'same-origin',
+              headers: bridgeJSONHeaders(),
               body: JSON.stringify({ repo: repo, issue: issue, check_text: checkText }),
             });
             if (!res.ok) {
@@ -1572,7 +1731,7 @@ var htmlReportTemplate = `<!doctype html>
 
       async function applySprintButton(btn) {
         const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
-        if (!bridgeURL) {
+        if (!bridgeURL || !bridgeSession) {
           window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
           return false;
         }
@@ -1584,10 +1743,7 @@ var htmlReportTemplate = `<!doctype html>
         try {
           const res = await fetch(endpoint, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            credentials: 'same-origin',
+            headers: bridgeJSONHeaders(),
             body: JSON.stringify({ item_id: itemID }),
           });
           if (!res.ok) {
@@ -1642,7 +1798,7 @@ var htmlReportTemplate = `<!doctype html>
         if (!issue || !repo || !assignee) return false;
 
         const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
-        if (!bridgeURL) {
+        if (!bridgeURL || !bridgeSession) {
           window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
           return false;
         }
@@ -1652,10 +1808,7 @@ var htmlReportTemplate = `<!doctype html>
         try {
           const res = await fetch(endpoint, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            credentials: 'same-origin',
+            headers: bridgeJSONHeaders(),
             body: JSON.stringify(payload),
           });
           if (!res.ok) {
@@ -1706,17 +1859,14 @@ var htmlReportTemplate = `<!doctype html>
         if (!repo || !issue) return false;
 
         const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
-        if (!bridgeURL) {
+        if (!bridgeURL || !bridgeSession) {
           window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
           return false;
         }
         const endpoint = bridgeURL + '/api/apply-release-label';
         const res = await fetch(endpoint, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'same-origin',
+          headers: bridgeJSONHeaders(),
           body: JSON.stringify({ repo: repo, issue: issue }),
         });
         if (!res.ok) {
@@ -1757,7 +1907,7 @@ var htmlReportTemplate = `<!doctype html>
       if (closeSessionButton) {
         closeSessionButton.addEventListener('click', async () => {
           const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
-          if (!bridgeURL) {
+          if (!bridgeURL || !bridgeSession) {
             window.alert('Bridge unavailable.');
             return;
           }
@@ -1765,10 +1915,7 @@ var htmlReportTemplate = `<!doctype html>
           try {
             const res = await fetch(bridgeURL + '/api/close', {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              credentials: 'same-origin',
+              headers: bridgeJSONHeaders(),
               body: JSON.stringify({ reason: 'closed from UI' }),
             });
             if (!res.ok) {

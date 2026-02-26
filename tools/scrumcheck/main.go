@@ -198,9 +198,11 @@ func main() {
 		log.Printf("could not start UI bridge: %v", err)
 	}
 	bridgeEnabled, bridgeBaseURL := false, ""
+	bridgeSessionToken := ""
 	if bridge != nil {
 		bridgeEnabled = true
 		bridgeBaseURL = bridge.baseURL
+		bridgeSessionToken = bridge.sessionToken()
 	}
 	reportPath, err := writeHTMLReport(
 		buildHTMLReportData(
@@ -219,6 +221,7 @@ func main() {
 			timestampCheck,
 			bridgeEnabled,
 			bridgeBaseURL,
+			bridgeSessionToken,
 		),
 	)
 	if err != nil {

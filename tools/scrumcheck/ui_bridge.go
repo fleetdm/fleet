@@ -125,6 +125,10 @@ func (b *uiBridge) reportURL() string {
 	return b.baseURL + "/report"
 }
 
+func (b *uiBridge) sessionToken() string {
+	return b.session
+}
+
 func (b *uiBridge) stop(reason string) error {
 	b.mu.Lock()
 	if b.reason != "bridge closed" {
@@ -197,13 +201,6 @@ func (b *uiBridge) handleReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     "qacheck_session",
-		Value:    b.session,
-		Path:     "/",
-		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
-	})
 	http.ServeFile(w, r, reportPath)
 }
 
@@ -533,8 +530,8 @@ func (b *uiBridge) prepareRequest(w http.ResponseWriter, r *http.Request) bool {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return false
 	}
-	cookie, err := r.Cookie("qacheck_session")
-	if err != nil || cookie.Value != b.session {
+	sessionHeader := strings.TrimSpace(r.Header.Get("X-Qacheck-Session"))
+	if sessionHeader == "" || sessionHeader != b.session {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return false
 	}

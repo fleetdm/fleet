@@ -89,7 +89,11 @@ func runUnassignedUnreleasedBugChecks(
 			}
 
 			item := Item{}
-			item.Content.Issue.Number = githubv4.Int(issue.Number)
+			num, err := toGithubInt(issue.Number)
+			if err != nil {
+				continue
+			}
+			item.Content.Issue.Number = num
 			item.Content.Issue.Title = githubv4.String(issue.Title)
 			if parsed, err := parseIssueURL(issue.HTMLURL); err == nil {
 				item.Content.Issue.URL = githubv4.URI{URL: parsed}

@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"math"
 
 	"github.com/shurcooL/githubv4"
 )
@@ -18,7 +20,7 @@ func fetchProjectID(ctx context.Context, client *githubv4.Client, org string, nu
 
 	err := client.Query(ctx, &q, map[string]interface{}{
 		"org": githubv4.String(org),
-		"num": githubv4.Int(num),
+		"num": mustGithubInt(num),
 	})
 	if err != nil {
 		log.Fatalf("project query failed: %v", err)
@@ -45,13 +47,68 @@ func fetchItems(
 
 	err := client.Query(ctx, &q, map[string]interface{}{
 		"id":    projectID,
-		"first": githubv4.Int(limit),
+		"first": mustGithubInt(limit),
 	})
 	if err != nil {
 		log.Fatalf("items query failed: %v", err)
 	}
 
 	return q.Node.ProjectV2.Items.Nodes
+}
+
+func mustGithubInt(v int) githubv4.Int {
+	if v < math.MinInt32 || v > math.MaxInt32 {
+		log.Fatalf("integer %d out of range for githubv4.Int", v)
+	}
+	return githubv4.Int(v)
+}
+
+func toGithubInt(v int) (githubv4.Int, error) {
+	if v < math.MinInt32 || v > math.MaxInt32 {
+		return 0, fmt.Errorf("integer %d out of range for githubv4.Int", v)
+	}
+	return githubv4.Int(v), nil
+}
+
+func fetchAllItems(
+	ctx context.Context,
+	client *githubv4.Client,
+	projectID githubv4.ID,
+) []Item {
+	type fieldNode struct {
+		ProjectV2 struct {
+			Items struct {
+				Nodes    []Item
+				PageInfo struct {
+					HasNextPage githubv4.Boolean `graphql:"hasNextPage"`
+					EndCursor   githubv4.String  `graphql:"endCursor"`
+				} `graphql:"pageInfo"`
+			} `graphql:"items(first: 100, after: $after)"`
+		} `graphql:"... on ProjectV2"`
+	}
+	var q struct {
+		Node fieldNode `graphql:"node(id: $id)"`
+	}
+
+	out := make([]Item, 0, 256)
+	var after *githubv4.String
+	for {
+		vars := map[string]interface{}{
+			"id":    projectID,
+			"after": after,
+		}
+		if err := client.Query(ctx, &q, vars); err != nil {
+			log.Fatalf("items paged query failed: %v", err)
+		}
+		nodes := q.Node.ProjectV2.Items.Nodes
+		out = append(out, nodes...)
+		if !bool(q.Node.ProjectV2.Items.PageInfo.HasNextPage) {
+			break
+		}
+		cursor := q.Node.ProjectV2.Items.PageInfo.EndCursor
+		after = &cursor
+	}
+	return out
 }
 
 func getBody(it Item) string {

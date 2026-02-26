@@ -49,6 +49,7 @@ func runMissingSprintChecks(
 	org string,
 	projectNums []int,
 	limit int,
+	labelFilter map[string]struct{},
 ) []MissingSprintViolation {
 	out := make([]MissingSprintViolation, 0)
 	now := time.Now().UTC()
@@ -61,6 +62,9 @@ func runMissingSprintChecks(
 		items := fetchItems(ctx, client, cfg.ProjectID, limit)
 		for _, it := range items {
 			if getNumber(it) == 0 {
+				continue
+			}
+			if !matchesLabelFilter(it, labelFilter) {
 				continue
 			}
 			if inDoneColumn(it) {
@@ -138,7 +142,7 @@ func fetchSprintProjectConfig(
 	}
 	vars := map[string]any{
 		"login":  githubv4.String(org),
-		"number": githubv4.Int(projectNum),
+		"number": mustGithubInt(projectNum),
 	}
 	if err := client.Query(ctx, &q, vars); err != nil {
 		return sprintProjectConfig{}, false
