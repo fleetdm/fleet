@@ -72,7 +72,7 @@ func main() {
 	tracker := newPhaseTracker([]string{
 		"QA checklist gate scan",
 		"Drafting estimation gate scan",
-		"Missing milestone/sprint/assignee audit",
+		"Missing milestone/sprint/assignee/release audit",
 		"Updates timestamp expiry check",
 		"Rendering report deck",
 		"Opening browser bridge",
@@ -106,10 +106,12 @@ func main() {
 	missingMilestones := runMissingMilestoneChecks(ctx, client, *org, projectNums, *limit, token)
 	missingSprints := runMissingSprintChecks(ctx, client, *org, projectNums, *limit)
 	missingAssignees := runMissingAssigneeChecks(ctx, client, *org, projectNums, *limit, token)
+	releaseLabelIssues := runReleaseLabelChecks(ctx, client, *org, projectNums, *limit)
 	tracker.phaseDone(phaseMilestones, phaseSummaryKV(
 		fmt.Sprintf("missing milestones=%d", len(missingMilestones)),
 		fmt.Sprintf("missing sprint=%d", len(missingSprints)),
 		fmt.Sprintf("assignee issues=%d", len(missingAssignees)),
+		fmt.Sprintf("release label issues=%d", len(releaseLabelIssues)),
 		shortDuration(time.Since(start)),
 	))
 
@@ -134,7 +136,7 @@ func main() {
 
 	tracker.phaseStart(phaseReport)
 	start = time.Now()
-	policy := buildBridgePolicy(badDrafting, missingMilestones, missingSprints, missingAssignees)
+	policy := buildBridgePolicy(badDrafting, missingMilestones, missingSprints, missingAssignees, releaseLabelIssues)
 	bridge, err := startUIBridge(token, time.Duration(*bridgeIdleMinutes)*time.Minute, tracker.bridgeSignal, policy)
 	if err != nil {
 		log.Printf("could not start UI bridge: %v", err)
@@ -155,6 +157,7 @@ func main() {
 			missingMilestones,
 			missingSprints,
 			missingAssignees,
+			releaseLabelIssues,
 			timestampCheck,
 			bridgeEnabled,
 			bridgeBaseURL,

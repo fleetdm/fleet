@@ -115,6 +115,21 @@ type MissingAssigneeProjectReport struct {
 	Columns    []MissingAssigneeGroupReport
 }
 
+type ReleaseLabelReportItem struct {
+	ProjectNum    int
+	Number        int
+	Title         string
+	URL           string
+	Repo          string
+	Status        string
+	CurrentLabels []string
+}
+
+type ReleaseLabelProjectReport struct {
+	ProjectNum int
+	Items      []ReleaseLabelReportItem
+}
+
 type MilestoneSuggestion struct {
 	Number int
 	Title  string
@@ -132,12 +147,14 @@ type HTMLReportData struct {
 	MissingMilestone []MissingMilestoneProjectReport
 	MissingSprint    []MissingSprintProjectReport
 	MissingAssignee  []MissingAssigneeProjectReport
+	ReleaseLabel     []ReleaseLabelProjectReport
 	TotalAwaiting    int
 	TotalStale       int
 	TotalDrafting    int
 	TotalNoMilestone int
 	TotalNoSprint    int
 	TotalAssignee    int
+	TotalRelease     int
 	TimestampCheck   TimestampCheckResult
 	AwaitingClean    bool
 	StaleClean       bool
@@ -146,6 +163,7 @@ type HTMLReportData struct {
 	MilestoneClean   bool
 	SprintClean      bool
 	AssigneeClean    bool
+	ReleaseClean     bool
 }
 
 func buildHTMLReportData(
@@ -158,6 +176,7 @@ func buildHTMLReportData(
 	missingMilestones []MissingMilestoneIssue,
 	missingSprints []MissingSprintViolation,
 	missingAssignees []MissingAssigneeIssue,
+	releaseIssues []ReleaseLabelIssue,
 	timestampCheck TimestampCheckResult,
 	bridgeEnabled bool,
 	bridgeBaseURL string,
@@ -260,6 +279,12 @@ func buildHTMLReportData(
 	}
 
 	groupedMilestoneByProject := make(map[int]map[string][]MissingMilestoneReportItem)
+	for _, p := range projectNums {
+		groupedMilestoneByProject[p] = make(map[string][]MissingMilestoneReportItem)
+		for _, key := range sprintColumnOrder() {
+			groupedMilestoneByProject[p][key] = []MissingMilestoneReportItem{}
+		}
+	}
 	for _, v := range missingMilestones {
 		repo := v.RepoOwner + "/" + v.RepoName
 		suggestions := make([]MilestoneSuggestion, 0, len(v.SuggestedMilestones))
@@ -271,14 +296,6 @@ func buildHTMLReportData(
 		}
 		status := itemStatus(v.Item)
 		group := sprintColumnGroup(status)
-		if groupedMilestoneByProject[v.ProjectNum] == nil {
-			groupedMilestoneByProject[v.ProjectNum] = map[string][]MissingMilestoneReportItem{
-				"ready":       {},
-				"in_progress": {},
-				"awaiting_qa": {},
-				"other":       {},
-			}
-		}
 		groupedMilestoneByProject[v.ProjectNum][group] = append(groupedMilestoneByProject[v.ProjectNum][group], MissingMilestoneReportItem{
 			ProjectNum:  v.ProjectNum,
 			Number:      getNumber(v.Item),
@@ -291,28 +308,18 @@ func buildHTMLReportData(
 	}
 	milestoneProjects := make([]MissingMilestoneProjectReport, 0, len(groupedMilestoneByProject))
 	totalNoMilestone := 0
-	projectNumsForMilestones := make([]int, 0, len(groupedMilestoneByProject))
-	for p := range groupedMilestoneByProject {
-		projectNumsForMilestones = append(projectNumsForMilestones, p)
-	}
-	sort.Ints(projectNumsForMilestones)
+	projectNumsForMilestones := append([]int(nil), projectNums...)
 	for _, p := range projectNumsForMilestones {
 		grouped := groupedMilestoneByProject[p]
 		projectTotal := 0
-		for _, key := range []string{"ready", "in_progress", "awaiting_qa", "other"} {
+		for _, key := range sprintColumnOrder() {
 			items := grouped[key]
 			projectTotal += len(items)
 			totalNoMilestone += len(items)
 		}
-		if projectTotal == 0 {
-			continue
-		}
-		columns := make([]MissingMilestoneGroupReport, 0, 4)
-		for _, key := range []string{"ready", "in_progress", "awaiting_qa", "other"} {
+		columns := make([]MissingMilestoneGroupReport, 0, len(sprintColumnOrder()))
+		for _, key := range sprintColumnOrder() {
 			items := grouped[key]
-			if len(items) == 0 {
-				continue
-			}
 			columns = append(columns, MissingMilestoneGroupReport{
 				Key:   key,
 				Label: sprintColumnLabel(key),
@@ -326,17 +333,15 @@ func buildHTMLReportData(
 	}
 
 	groupedSprintByProject := make(map[int]map[string][]MissingSprintReportItem)
+	for _, p := range projectNums {
+		groupedSprintByProject[p] = make(map[string][]MissingSprintReportItem)
+		for _, key := range sprintColumnOrder() {
+			groupedSprintByProject[p][key] = []MissingSprintReportItem{}
+		}
+	}
 	for _, v := range missingSprints {
 		itemID := fmt.Sprintf("%v", v.ItemID)
 		group := sprintColumnGroup(v.Status)
-		if groupedSprintByProject[v.ProjectNum] == nil {
-			groupedSprintByProject[v.ProjectNum] = map[string][]MissingSprintReportItem{
-				"ready":       {},
-				"in_progress": {},
-				"awaiting_qa": {},
-				"other":       {},
-			}
-		}
 		groupedSprintByProject[v.ProjectNum][group] = append(groupedSprintByProject[v.ProjectNum][group], MissingSprintReportItem{
 			ProjectNum:    v.ProjectNum,
 			ItemID:        itemID,
@@ -349,28 +354,18 @@ func buildHTMLReportData(
 	}
 	sprintProjects := make([]MissingSprintProjectReport, 0, len(groupedSprintByProject))
 	totalNoSprint := 0
-	projectNumsForSprint := make([]int, 0, len(groupedSprintByProject))
-	for p := range groupedSprintByProject {
-		projectNumsForSprint = append(projectNumsForSprint, p)
-	}
-	sort.Ints(projectNumsForSprint)
+	projectNumsForSprint := append([]int(nil), projectNums...)
 	for _, p := range projectNumsForSprint {
 		grouped := groupedSprintByProject[p]
 		projectTotal := 0
-		for _, key := range []string{"ready", "in_progress", "awaiting_qa", "other"} {
+		for _, key := range sprintColumnOrder() {
 			items := grouped[key]
 			projectTotal += len(items)
 			totalNoSprint += len(items)
 		}
-		if projectTotal == 0 {
-			continue
-		}
-		columns := make([]MissingSprintGroupReport, 0, 4)
-		for _, key := range []string{"ready", "in_progress", "awaiting_qa", "other"} {
+		columns := make([]MissingSprintGroupReport, 0, len(sprintColumnOrder()))
+		for _, key := range sprintColumnOrder() {
 			items := grouped[key]
-			if len(items) == 0 {
-				continue
-			}
 			columns = append(columns, MissingSprintGroupReport{
 				Key:   key,
 				Label: sprintColumnLabel(key),
@@ -384,18 +379,16 @@ func buildHTMLReportData(
 	}
 
 	groupedAssigneeByProject := make(map[int]map[string][]MissingAssigneeReportItem)
+	for _, p := range projectNums {
+		groupedAssigneeByProject[p] = make(map[string][]MissingAssigneeReportItem)
+		for _, key := range sprintColumnOrder() {
+			groupedAssigneeByProject[p][key] = []MissingAssigneeReportItem{}
+		}
+	}
 	for _, v := range missingAssignees {
 		repo := v.RepoOwner + "/" + v.RepoName
 		status := itemStatus(v.Item)
 		group := sprintColumnGroup(status)
-		if groupedAssigneeByProject[v.ProjectNum] == nil {
-			groupedAssigneeByProject[v.ProjectNum] = map[string][]MissingAssigneeReportItem{
-				"ready":       {},
-				"in_progress": {},
-				"awaiting_qa": {},
-				"other":       {},
-			}
-		}
 		suggestions := make([]AssigneeSuggestion, 0, len(v.SuggestedAssignees))
 		for _, a := range v.SuggestedAssignees {
 			login := strings.TrimSpace(a.Login)
@@ -417,28 +410,18 @@ func buildHTMLReportData(
 	}
 	assigneeProjects := make([]MissingAssigneeProjectReport, 0, len(groupedAssigneeByProject))
 	totalAssignee := 0
-	projectNumsForAssignees := make([]int, 0, len(groupedAssigneeByProject))
-	for p := range groupedAssigneeByProject {
-		projectNumsForAssignees = append(projectNumsForAssignees, p)
-	}
-	sort.Ints(projectNumsForAssignees)
+	projectNumsForAssignees := append([]int(nil), projectNums...)
 	for _, p := range projectNumsForAssignees {
 		grouped := groupedAssigneeByProject[p]
 		projectTotal := 0
-		for _, key := range []string{"ready", "in_progress", "awaiting_qa", "other"} {
+		for _, key := range sprintColumnOrder() {
 			items := grouped[key]
 			projectTotal += len(items)
 			totalAssignee += len(items)
 		}
-		if projectTotal == 0 {
-			continue
-		}
-		columns := make([]MissingAssigneeGroupReport, 0, 4)
-		for _, key := range []string{"ready", "in_progress", "awaiting_qa", "other"} {
+		columns := make([]MissingAssigneeGroupReport, 0, len(sprintColumnOrder()))
+		for _, key := range sprintColumnOrder() {
 			items := grouped[key]
-			if len(items) == 0 {
-				continue
-			}
 			columns = append(columns, MissingAssigneeGroupReport{
 				Key:   key,
 				Label: sprintColumnLabel(key),
@@ -448,6 +431,38 @@ func buildHTMLReportData(
 		assigneeProjects = append(assigneeProjects, MissingAssigneeProjectReport{
 			ProjectNum: p,
 			Columns:    columns,
+		})
+	}
+
+	groupedReleaseByProject := make(map[int][]ReleaseLabelReportItem)
+	for _, v := range releaseIssues {
+		repo := v.RepoOwner + "/" + v.RepoName
+		groupedReleaseByProject[v.ProjectNum] = append(groupedReleaseByProject[v.ProjectNum], ReleaseLabelReportItem{
+			ProjectNum:    v.ProjectNum,
+			Number:        getNumber(v.Item),
+			Title:         getTitle(v.Item),
+			URL:           getURL(v.Item),
+			Repo:          repo,
+			Status:        itemStatus(v.Item),
+			CurrentLabels: append([]string(nil), v.CurrentLabels...),
+		})
+	}
+	releaseProjects := make([]ReleaseLabelProjectReport, 0, len(groupedReleaseByProject))
+	totalRelease := 0
+	projectNumsForRelease := make([]int, 0, len(groupedReleaseByProject))
+	for p := range groupedReleaseByProject {
+		projectNumsForRelease = append(projectNumsForRelease, p)
+	}
+	sort.Ints(projectNumsForRelease)
+	for _, p := range projectNumsForRelease {
+		items := groupedReleaseByProject[p]
+		if len(items) == 0 {
+			continue
+		}
+		totalRelease += len(items)
+		releaseProjects = append(releaseProjects, ReleaseLabelProjectReport{
+			ProjectNum: p,
+			Items:      items,
 		})
 	}
 
@@ -463,12 +478,14 @@ func buildHTMLReportData(
 		MissingMilestone: milestoneProjects,
 		MissingSprint:    sprintProjects,
 		MissingAssignee:  assigneeProjects,
+		ReleaseLabel:     releaseProjects,
 		TotalAwaiting:    totalAwaiting,
 		TotalStale:       totalStale,
 		TotalDrafting:    totalDrafting,
 		TotalNoMilestone: totalNoMilestone,
 		TotalNoSprint:    totalNoSprint,
 		TotalAssignee:    totalAssignee,
+		TotalRelease:     totalRelease,
 		TimestampCheck:   timestampCheck,
 		AwaitingClean:    totalAwaiting == 0,
 		StaleClean:       totalStale == 0,
@@ -477,6 +494,7 @@ func buildHTMLReportData(
 		MilestoneClean:   totalNoMilestone == 0,
 		SprintClean:      totalNoSprint == 0,
 		AssigneeClean:    totalAssignee == 0,
+		ReleaseClean:     totalRelease == 0,
 	}
 }
 
@@ -742,6 +760,14 @@ var htmlReportTemplate = `<!doctype html>
       cursor: pointer;
     }
     .fix-btn:hover { background: #f2f5fb; }
+    #close-session-btn {
+      border-color: #e9a5a5;
+      background: #fff2f2;
+      color: #8b1e1e;
+    }
+    #close-session-btn:hover {
+      background: #ffe8e8;
+    }
     .copied-note { margin-left: 6px; font-size: 12px; color: var(--muted); }
     .milestone-search { min-width: 240px; }
     .milestone-select { min-width: 260px; }
@@ -791,6 +817,7 @@ var htmlReportTemplate = `<!doctype html>
         <span class="pill">Missing milestones (selected projects): {{.TotalNoMilestone}}</span>
         <span class="pill">Missing sprint (selected projects): {{.TotalNoSprint}}</span>
         <span class="pill">Assignee issues (selected projects): {{.TotalAssignee}}</span>
+        <span class="pill">Release label issues (selected projects): {{.TotalRelease}}</span>
         <span class="pill">Drafting checklist violations: {{.TotalDrafting}}</span>
       </div>
       {{if .BridgeEnabled}}
@@ -804,31 +831,34 @@ var htmlReportTemplate = `<!doctype html>
     <div class="app-shell">
       <aside class="menu" role="tablist" aria-label="checks">
         <h4>Checks</h4>
-        <button class="menu-btn active" data-tab="awaiting" role="tab">
-          <span class="status-dot {{if .AwaitingClean}}ok{{end}}"></span>✔ Awaiting QA gate
-        </button>
-        <button class="menu-btn" data-tab="stale" role="tab">
-          <span class="status-dot {{if .StaleClean}}ok{{end}}"></span>⏳ Awaiting QA stale watchdog
-        </button>
-        <button class="menu-btn" data-tab="timestamp" role="tab">
-          <span class="status-dot {{if .TimestampClean}}ok{{end}}"></span>🕒 Updates timestamp expiry
+        <button class="menu-btn active" data-tab="sprint" role="tab">
+          <span class="status-dot {{if .SprintClean}}ok{{end}}"></span>🗓️ Missing sprint
         </button>
         <button class="menu-btn" data-tab="milestone" role="tab">
           <span class="status-dot {{if .MilestoneClean}}ok{{end}}"></span>🎯 Missing milestones
         </button>
-        <button class="menu-btn" data-tab="sprint" role="tab">
-          <span class="status-dot {{if .SprintClean}}ok{{end}}"></span>🗓️ Missing sprint
+        <button class="menu-btn" data-tab="release" role="tab">
+          <span class="status-dot {{if .ReleaseClean}}ok{{end}}"></span>🏷️ Release label guard
         </button>
-        <button class="menu-btn" data-tab="assignee" role="tab">
-          <span class="status-dot {{if .AssigneeClean}}ok{{end}}"></span>👤 Missing assignee coverage
+        <button class="menu-btn" data-tab="stale" role="tab">
+          <span class="status-dot {{if .StaleClean}}ok{{end}}"></span>⏳ Awaiting QA stale watchdog
+        </button>
+        <button class="menu-btn" data-tab="awaiting" role="tab">
+          <span class="status-dot {{if .AwaitingClean}}ok{{end}}"></span>✔ Awaiting QA gate
         </button>
         <button class="menu-btn" data-tab="drafting" role="tab">
           <span class="status-dot {{if .DraftingClean}}ok{{end}}"></span>🧭 Drafting estimation gate
         </button>
+        <button class="menu-btn" data-tab="assignee" role="tab">
+          <span class="status-dot {{if .AssigneeClean}}ok{{end}}"></span>👤 Missing assignee coverage
+        </button>
+        <button class="menu-btn" data-tab="timestamp" role="tab">
+          <span class="status-dot {{if .TimestampClean}}ok{{end}}"></span>🕒 Updates timestamp expiry
+        </button>
       </aside>
 
       <div class="panel-wrap">
-      <section id="tab-awaiting" class="panel active" role="tabpanel">
+      <section id="tab-awaiting" class="panel" role="tabpanel">
         <h2>✅ Awaiting QA gate</h2>
         <p class="subtle">Items in <strong>` + awaitingQAColumn + `</strong> where engineer test-plan confirmation is unchecked.</p>
         {{if .AwaitingSections}}
@@ -1003,7 +1033,7 @@ var htmlReportTemplate = `<!doctype html>
         {{end}}
       </section>
 
-      <section id="tab-sprint" class="panel" role="tabpanel">
+      <section id="tab-sprint" class="panel active" role="tabpanel">
         <h2>🗓️ Missing sprint (selected projects)</h2>
         <p class="subtle">Items in selected projects without a sprint set. Grouped by column focus.</p>
         {{if .MissingSprint}}
@@ -1099,6 +1129,39 @@ var htmlReportTemplate = `<!doctype html>
           {{end}}
         {{else}}
           <p class="empty">🟢 No assignee coverage issues found.</p>
+        {{end}}
+      </section>
+
+      <section id="tab-release" class="panel" role="tabpanel">
+        <h2>🏷️ Release label guard (selected projects)</h2>
+        <p class="subtle">For selected projects (excluding project ` + fmt.Sprintf("%d", draftingProjectNum) + `): if ticket has <code>` + productLabel + `</code> or is missing <code>` + releaseLabel + `</code>, apply release labeling policy.</p>
+        {{if .ReleaseLabel}}
+          {{range .ReleaseLabel}}
+            <div class="project">
+              <div class="column-head">
+                <h3>Project {{.ProjectNum}}</h3>
+                {{if and $.BridgeEnabled .Items}}
+                  <button class="fix-btn apply-release-project-btn">Apply release label</button>
+                {{end}}
+              </div>
+              {{if .Items}}
+                {{range .Items}}
+                  <article class="item release-item" data-repo="{{.Repo}}" data-issue="{{.Number}}">
+                    <div><strong>#{{.Number}} - {{.Title}}</strong></div>
+                    <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
+                    <ul>
+                      <li>Status: {{if .Status}}{{.Status}}{{else}}(unset){{end}}</li>
+                      <li>Labels: {{if .CurrentLabels}}{{range $i, $l := .CurrentLabels}}{{if $i}}, {{end}}{{$l}}{{end}}{{else}}(none){{end}}</li>
+                    </ul>
+                  </article>
+                {{end}}
+              {{else}}
+                <p class="empty">🟢 No release-label issues in this project.</p>
+              {{end}}
+            </div>
+          {{end}}
+        {{else}}
+          <p class="empty">🟢 No release-label issues found.</p>
         {{end}}
       </section>
       </div>
@@ -1455,6 +1518,58 @@ var htmlReportTemplate = `<!doctype html>
         });
       });
 
+      async function applyReleaseItem(itemEl) {
+        const repo = itemEl.dataset.repo || '';
+        const issue = itemEl.dataset.issue || '';
+        if (!repo || !issue) return false;
+
+        const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
+        if (!bridgeURL) {
+          window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
+          return false;
+        }
+        const endpoint = bridgeURL + '/api/apply-release-label';
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({ repo: repo, issue: issue }),
+        });
+        if (!res.ok) {
+          const body = await res.text();
+          throw new Error('Bridge error ' + res.status + ': ' + body);
+        }
+        return true;
+      }
+
+      const releaseProjectButtons = document.querySelectorAll('.apply-release-project-btn');
+      releaseProjectButtons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const project = btn.closest('.project');
+          if (!project) return;
+          const items = Array.from(project.querySelectorAll('.release-item'));
+          if (items.length === 0) return;
+
+          const prev = btn.textContent;
+          btn.textContent = 'Applying...';
+          btn.disabled = true;
+          try {
+            for (const item of items) {
+              await applyReleaseItem(item);
+            }
+            btn.textContent = 'Applied';
+            setTimeout(() => { btn.textContent = prev; }, 1300);
+          } catch (err) {
+            window.alert('Could not apply release label. ' + err);
+            btn.textContent = prev;
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      });
+
       const closeSessionButton = document.getElementById('close-session-btn');
       if (closeSessionButton) {
         closeSessionButton.addEventListener('click', async () => {
@@ -1479,7 +1594,7 @@ var htmlReportTemplate = `<!doctype html>
               const body = await res.text();
               throw new Error('Bridge error ' + res.status + ': ' + body);
             }
-            document.querySelectorAll('.apply-milestone-btn, .apply-milestone-column-btn, .apply-drafting-check-btn, .apply-sprint-btn, .apply-sprint-column-btn, .apply-assignee-btn, .apply-assignee-column-btn').forEach((el) => {
+            document.querySelectorAll('.apply-milestone-btn, .apply-milestone-column-btn, .apply-drafting-check-btn, .apply-sprint-btn, .apply-sprint-column-btn, .apply-assignee-btn, .apply-assignee-column-btn, .apply-release-project-btn').forEach((el) => {
               el.disabled = true;
             });
             closeSessionButton.textContent = 'Closed';

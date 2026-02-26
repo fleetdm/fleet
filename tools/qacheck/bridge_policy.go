@@ -10,6 +10,7 @@ type bridgePolicy struct {
 	MilestonesByIssue map[string]map[int]bool
 	AssigneesByIssue  map[string]map[string]bool
 	SprintsByItemID   map[string]sprintApplyTarget
+	ReleaseByIssue    map[string]releaseLabelTarget
 }
 
 type sprintApplyTarget struct {
@@ -18,17 +19,24 @@ type sprintApplyTarget struct {
 	IterationID string
 }
 
+type releaseLabelTarget struct {
+	NeedsProductRemoval bool
+	NeedsReleaseAdd     bool
+}
+
 func buildBridgePolicy(
 	drafting []DraftingCheckViolation,
 	missing []MissingMilestoneIssue,
 	missingSprints []MissingSprintViolation,
 	missingAssignees []MissingAssigneeIssue,
+	releaseIssues []ReleaseLabelIssue,
 ) bridgePolicy {
 	p := bridgePolicy{
 		ChecklistByIssue:  make(map[string]map[string]bool),
 		MilestonesByIssue: make(map[string]map[int]bool),
 		AssigneesByIssue:  make(map[string]map[string]bool),
 		SprintsByItemID:   make(map[string]sprintApplyTarget),
+		ReleaseByIssue:    make(map[string]releaseLabelTarget),
 	}
 
 	for _, v := range drafting {
@@ -87,6 +95,14 @@ func buildBridgePolicy(
 				continue
 			}
 			p.AssigneesByIssue[key][login] = true
+		}
+	}
+
+	for _, v := range releaseIssues {
+		key := issueKey(v.RepoOwner+"/"+v.RepoName, getNumber(v.Item))
+		p.ReleaseByIssue[key] = releaseLabelTarget{
+			NeedsProductRemoval: v.HasProduct,
+			NeedsReleaseAdd:     !v.HasRelease,
 		}
 	}
 

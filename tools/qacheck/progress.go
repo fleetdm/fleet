@@ -43,6 +43,12 @@ type phaseTracker struct {
 	logRow     int
 	statusText string
 	logLines   []string
+
+	bridgeOpsStarted int
+	bridgeOpsDone    int
+	bridgeOpsOK      int
+	bridgeOpsErr     int
+	bridgeOpsTotal   time.Duration
 }
 
 func newPhaseTracker(names []string) *phaseTracker {
@@ -105,10 +111,11 @@ func (p *phaseTracker) renderGlobalLine() string {
 }
 
 func (p *phaseTracker) renderFooterLine() string {
+	opsLine := p.renderBridgeOpsLine()
 	if p.statusText == "" {
-		return fmt.Sprintf("%sStanding by...%s", clrDim, clrReset)
+		return fmt.Sprintf("%sStanding by...%s  %s", clrDim, clrReset, opsLine)
 	}
-	return p.statusText
+	return p.statusText + "  " + opsLine
 }
 
 func (p *phaseTracker) redrawPhase(i int) {
@@ -188,8 +195,28 @@ func (p *phaseTracker) bridgeListening(baseURL string, idleTimeout time.Duration
 func (p *phaseTracker) bridgeSignal(msg string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.statusText = fmt.Sprintf("%s%s%s", clrCyan, msg, clrReset)
-	p.appendBridgeLogLocked(msg)
+	if evt, ok := parseBridgeOpSignal(msg); ok {
+		if evt.Stage == "start" {
+			p.bridgeOpsStarted++
+		}
+		if evt.Stage == "done" {
+			p.bridgeOpsDone++
+			if evt.Status == "ok" {
+				p.bridgeOpsOK++
+			}
+			if evt.Status == "error" {
+				p.bridgeOpsErr++
+			}
+			if evt.Elapsed > 0 {
+				p.bridgeOpsTotal += evt.Elapsed
+			}
+		}
+		p.statusText = fmt.Sprintf("%s🔧 %s%s", clrCyan, evt.summary(), clrReset)
+		p.appendBridgeLogLocked("🔧 " + evt.summary())
+	} else {
+		p.statusText = fmt.Sprintf("%s%s%s", clrCyan, msg, clrReset)
+		p.appendBridgeLogLocked(msg)
+	}
 	p.redrawFooter()
 }
 
@@ -209,6 +236,106 @@ func (p *phaseTracker) appendBridgeLogLocked(msg string) {
 	row := p.logRow + len(p.logLines)
 	fmt.Printf("\033[%d;1H\033[2K%s%s%s", row, clrDim, line, clrReset)
 	fmt.Printf("\033[%d;1H", p.footerRow)
+}
+
+func (p *phaseTracker) renderBridgeOpsLine() string {
+	if p.bridgeOpsStarted == 0 {
+		return fmt.Sprintf("%sbridge ops idle%s", clrDim, clrReset)
+	}
+	ratio := float64(p.bridgeOpsDone) / float64(max(p.bridgeOpsStarted, 1))
+	bar := coloredBar(20, p.bridgeOpsDone, p.bridgeOpsStarted, stageColor(ratio))
+	avg := "-"
+	if p.bridgeOpsDone > 0 && p.bridgeOpsTotal > 0 {
+		avg = shortDuration(time.Duration(int64(p.bridgeOpsTotal) / int64(p.bridgeOpsDone)))
+	}
+	return fmt.Sprintf(
+		"%sbridge ops%s %s %s%d/%d%s %sok=%d err=%d avg=%s%s",
+		clrBlue,
+		clrReset,
+		bar,
+		clrDim, p.bridgeOpsDone, p.bridgeOpsStarted, clrReset,
+		clrDim, p.bridgeOpsOK, p.bridgeOpsErr, avg, clrReset,
+	)
+}
+
+type bridgeOpEvent struct {
+	Caller  string
+	Op      string
+	Stage   string
+	Status  string
+	Repo    string
+	Issue   string
+	Elapsed time.Duration
+}
+
+func (e bridgeOpEvent) summary() string {
+	target := e.Repo
+	if strings.TrimSpace(e.Issue) != "" && e.Issue != "0" {
+		target += "#" + e.Issue
+	}
+	elapsed := "-"
+	if e.Elapsed > 0 {
+		elapsed = shortDuration(e.Elapsed)
+	}
+	return fmt.Sprintf(
+		"%s %s %s (%s, caller=%s, %s)",
+		e.Op,
+		e.Stage,
+		target,
+		e.Status,
+		e.Caller,
+		elapsed,
+	)
+}
+
+func parseBridgeOpSignal(msg string) (bridgeOpEvent, bool) {
+	raw := strings.TrimSpace(msg)
+	if !strings.HasPrefix(raw, "BRIDGE_OP ") {
+		return bridgeOpEvent{}, false
+	}
+	evt := bridgeOpEvent{}
+	fields := strings.Fields(strings.TrimPrefix(raw, "BRIDGE_OP "))
+	for _, f := range fields {
+		parts := strings.SplitN(f, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := parts[0]
+		val := parts[1]
+		switch key {
+		case "caller":
+			evt.Caller = val
+		case "op":
+			evt.Op = val
+		case "stage":
+			evt.Stage = val
+		case "status":
+			evt.Status = val
+		case "repo":
+			evt.Repo = val
+		case "issue":
+			evt.Issue = val
+		case "item":
+			evt.Issue = val
+		case "elapsed":
+			if d, err := time.ParseDuration(val); err == nil {
+				evt.Elapsed = d
+			}
+		}
+	}
+	if evt.Op == "" || evt.Stage == "" {
+		return bridgeOpEvent{}, false
+	}
+	if evt.Status == "" {
+		evt.Status = "working"
+	}
+	if evt.Repo == "" {
+		evt.Repo = "item"
+	}
+	if evt.Caller == "" {
+		evt.Caller = "unknown"
+	}
+	return evt, true
 }
 
 func (p *phaseTracker) phaseVisual(status phaseStatus) (icon, color, bar string) {

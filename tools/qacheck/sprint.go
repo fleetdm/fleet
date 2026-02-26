@@ -231,14 +231,35 @@ func pickCurrentIteration(now time.Time, iters []projectIteration) (projectItera
 func sprintColumnGroup(status string) string {
 	n := normalizeStatusName(status)
 	switch {
-	case strings.Contains(n, "ready"):
-		return "ready"
-	case strings.Contains(n, "in progress"):
-		return "in_progress"
+	case strings.Contains(n, "ready for release"):
+		return "ready_for_release"
 	case strings.Contains(n, "awaiting qa"):
 		return "awaiting_qa"
+	case strings.Contains(n, "in review"),
+		strings.Contains(n, "review"):
+		return "in_review"
+	case strings.Contains(n, "in progress"):
+		return "in_progress"
+	case strings.Contains(n, "waiting"):
+		return "waiting"
+	case n == "ready",
+		strings.Contains(n, "ready to estimate"),
+		strings.Contains(n, "ready for estimate"):
+		return "ready"
 	default:
 		return "other"
+	}
+}
+
+func sprintColumnOrder() []string {
+	return []string{
+		"ready",
+		"waiting",
+		"in_progress",
+		"in_review",
+		"awaiting_qa",
+		"ready_for_release",
+		"other",
 	}
 }
 
@@ -246,10 +267,16 @@ func sprintColumnLabel(group string) string {
 	switch group {
 	case "ready":
 		return "Ready"
+	case "waiting":
+		return "Waiting"
 	case "in_progress":
 		return "In progress"
+	case "in_review":
+		return "In review"
 	case "awaiting_qa":
 		return "Awaiting QA"
+	case "ready_for_release":
+		return "Ready for release"
 	case "other":
 		return "Other"
 	default:

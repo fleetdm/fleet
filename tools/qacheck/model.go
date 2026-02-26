@@ -22,6 +22,11 @@ type Item struct {
 					Login githubv4.String
 				}
 			} `graphql:"assignees(first: 30)"`
+			Labels struct {
+				Nodes []struct {
+					Name githubv4.String
+				}
+			} `graphql:"labels(first: 100)"`
 			Milestone struct {
 				Title githubv4.String
 			} `graphql:"milestone"`
@@ -97,4 +102,14 @@ type MissingAssigneeIssue struct {
 
 type AssigneeOption struct {
 	Login string
+}
+
+type ReleaseLabelIssue struct {
+	Item          Item
+	ProjectNum    int
+	RepoOwner     string
+	RepoName      string
+	HasProduct    bool
+	HasRelease    bool
+	CurrentLabels []string
 }

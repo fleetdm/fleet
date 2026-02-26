@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	neturl "net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -46,6 +47,7 @@ type uiBridge struct {
 	allowMilestones map[string]map[int]bool
 	allowAssignees  map[string]map[string]bool
 	allowSprints    map[string]sprintApplyTarget
+	allowRelease    map[string]releaseLabelTarget
 }
 
 func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string), policy bridgePolicy) (*uiBridge, error) {
@@ -79,6 +81,7 @@ func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string)
 		allowMilestones: policy.MilestonesByIssue,
 		allowAssignees:  policy.AssigneesByIssue,
 		allowSprints:    policy.SprintsByItemID,
+		allowRelease:    policy.ReleaseByIssue,
 	}
 
 	mux := http.NewServeMux()
@@ -87,6 +90,7 @@ func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string)
 	mux.HandleFunc("/api/apply-checklist", b.handleApplyChecklist)
 	mux.HandleFunc("/api/apply-sprint", b.handleApplySprint)
 	mux.HandleFunc("/api/add-assignee", b.handleAddAssignee)
+	mux.HandleFunc("/api/apply-release-label", b.handleApplyReleaseLabel)
 	mux.HandleFunc("/api/close", b.handleClose)
 	mux.HandleFunc("/healthz", b.handleHealth)
 	b.srv = &http.Server{
@@ -236,13 +240,17 @@ func (b *uiBridge) handleApplyMilestone(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	b.signal(fmt.Sprintf("📡 caller=%s apply milestone #%d to %s#%d", callerAddr(r), req.MilestoneNumber, req.Repo, issueNum))
+	start := time.Now()
+	caller := callerAddr(r)
+	b.signalBridgeOp(caller, "apply-milestone", "start", "working", req.Repo, issueNum, "")
 	endpoint := fmt.Sprintf("https://api.github.com/repos/%s/issues/%d", req.Repo, issueNum)
 	payload := map[string]any{"milestone": req.MilestoneNumber}
 	if err := b.githubJSON(r.Context(), http.MethodPatch, endpoint, payload, nil); err != nil {
+		b.signalBridgeOp(caller, "apply-milestone", "done", "error", req.Repo, issueNum, shortDuration(time.Since(start)))
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
+	b.signalBridgeOp(caller, "apply-milestone", "done", "ok", req.Repo, issueNum, shortDuration(time.Since(start)))
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -278,12 +286,15 @@ func (b *uiBridge) handleApplyChecklist(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	b.signal(fmt.Sprintf("🛰️ caller=%s apply checklist check on %s#%d", callerAddr(r), req.Repo, issueNum))
+	start := time.Now()
+	caller := callerAddr(r)
+	b.signalBridgeOp(caller, "apply-checklist", "start", "working", req.Repo, issueNum, "")
 	endpoint := fmt.Sprintf("https://api.github.com/repos/%s/issues/%d", req.Repo, issueNum)
 	var issueResp struct {
 		Body string `json:"body"`
 	}
 	if err := b.githubJSON(r.Context(), http.MethodGet, endpoint, nil, &issueResp); err != nil {
+		b.signalBridgeOp(caller, "apply-checklist", "done", "error", req.Repo, issueNum, shortDuration(time.Since(start)))
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
@@ -294,13 +305,16 @@ func (b *uiBridge) handleApplyChecklist(w http.ResponseWriter, r *http.Request) 
 			"updated":         false,
 			"already_checked": alreadyChecked,
 		})
+		b.signalBridgeOp(caller, "apply-checklist", "done", "ok", req.Repo, issueNum, shortDuration(time.Since(start)))
 		return
 	}
 
 	if err := b.githubJSON(r.Context(), http.MethodPatch, endpoint, map[string]any{"body": updatedBody}, nil); err != nil {
+		b.signalBridgeOp(caller, "apply-checklist", "done", "error", req.Repo, issueNum, shortDuration(time.Since(start)))
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
+	b.signalBridgeOp(caller, "apply-checklist", "done", "ok", req.Repo, issueNum, shortDuration(time.Since(start)))
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok":              true,
 		"updated":         true,
@@ -352,7 +366,9 @@ func (b *uiBridge) handleApplySprint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	b.signal(fmt.Sprintf("🗓️ caller=%s set current sprint on item=%s", callerAddr(r), itemID))
+	start := time.Now()
+	caller := callerAddr(r)
+	b.signal(fmt.Sprintf("BRIDGE_OP caller=%s op=set-sprint stage=start status=working repo=project item=%s elapsed=-", strings.ReplaceAll(caller, " ", "_"), itemID))
 	if err := setCurrentSprintForItem(
 		b.token,
 		githubv4.ID(target.ProjectID),
@@ -360,9 +376,11 @@ func (b *uiBridge) handleApplySprint(w http.ResponseWriter, r *http.Request) {
 		githubv4.ID(target.FieldID),
 		target.IterationID,
 	); err != nil {
+		b.signal(fmt.Sprintf("BRIDGE_OP caller=%s op=set-sprint stage=done status=error repo=project item=%s elapsed=%s", strings.ReplaceAll(caller, " ", "_"), itemID, shortDuration(time.Since(start))))
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
+	b.signal(fmt.Sprintf("BRIDGE_OP caller=%s op=set-sprint stage=done status=ok repo=project item=%s elapsed=%s", strings.ReplaceAll(caller, " ", "_"), itemID, shortDuration(time.Since(start))))
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -399,15 +417,80 @@ func (b *uiBridge) handleAddAssignee(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	b.signal(fmt.Sprintf("👤 caller=%s add assignee %s to %s#%d", callerAddr(r), assignee, req.Repo, issueNum))
+	start := time.Now()
+	caller := callerAddr(r)
+	b.signalBridgeOp(caller, "add-assignee", "start", "working", req.Repo, issueNum, "")
 	endpoint := fmt.Sprintf("https://api.github.com/repos/%s/issues/%d/assignees", req.Repo, issueNum)
 	payload := map[string]any{
 		"assignees": []string{assignee},
 	}
 	if err := b.githubJSON(r.Context(), http.MethodPost, endpoint, payload, nil); err != nil {
+		b.signalBridgeOp(caller, "add-assignee", "done", "error", req.Repo, issueNum, shortDuration(time.Since(start)))
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
+	b.signalBridgeOp(caller, "add-assignee", "done", "ok", req.Repo, issueNum, shortDuration(time.Since(start)))
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (b *uiBridge) handleApplyReleaseLabel(w http.ResponseWriter, r *http.Request) {
+	if !b.prepareRequest(w, r) {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBridgeBodyBytes)
+	var req struct {
+		Repo  string `json:"repo"`
+		Issue string `json:"issue"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	if req.Repo == "" || req.Issue == "" {
+		http.Error(w, "repo and issue are required", http.StatusBadRequest)
+		return
+	}
+	if !isValidRepoSlug(req.Repo) {
+		http.Error(w, "invalid repo slug", http.StatusBadRequest)
+		return
+	}
+	issueNum, err := strconv.Atoi(req.Issue)
+	if err != nil || issueNum <= 0 {
+		http.Error(w, "invalid issue number", http.StatusBadRequest)
+		return
+	}
+	target, ok := b.allowedReleaseForIssue(req.Repo, issueNum)
+	if !ok {
+		http.Error(w, "operation not allowed for this issue", http.StatusForbidden)
+		return
+	}
+
+	start := time.Now()
+	caller := callerAddr(r)
+	b.signalBridgeOp(caller, "apply-release-label", "start", "working", req.Repo, issueNum, "")
+	if target.NeedsReleaseAdd {
+		addEndpoint := fmt.Sprintf("https://api.github.com/repos/%s/issues/%d/labels", req.Repo, issueNum)
+		if err := b.githubJSON(r.Context(), http.MethodPost, addEndpoint, map[string]any{"labels": []string{releaseLabel}}, nil); err != nil {
+			b.signalBridgeOp(caller, "apply-release-label", "done", "error", req.Repo, issueNum, shortDuration(time.Since(start)))
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+	}
+	if target.NeedsProductRemoval {
+		delEndpoint := fmt.Sprintf(
+			"https://api.github.com/repos/%s/issues/%d/labels/%s",
+			req.Repo,
+			issueNum,
+			neturl.PathEscape(productLabel),
+		)
+		err := b.githubJSON(r.Context(), http.MethodDelete, delEndpoint, nil, nil)
+		if err != nil && !strings.Contains(err.Error(), "GitHub API error 404") {
+			b.signalBridgeOp(caller, "apply-release-label", "done", "error", req.Repo, issueNum, shortDuration(time.Since(start)))
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+	}
+	b.signalBridgeOp(caller, "apply-release-label", "done", "ok", req.Repo, issueNum, shortDuration(time.Since(start)))
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -544,6 +627,28 @@ func (b *uiBridge) isAllowedAssignee(repo string, issue int, assignee string) bo
 		return false
 	}
 	return choices[strings.ToLower(strings.TrimSpace(assignee))]
+}
+
+func (b *uiBridge) allowedReleaseForIssue(repo string, issue int) (releaseLabelTarget, bool) {
+	target, ok := b.allowRelease[issueKey(repo, issue)]
+	return target, ok
+}
+
+func (b *uiBridge) signalBridgeOp(caller, op, stage, status, repo string, issue int, elapsed string) {
+	if elapsed == "" {
+		elapsed = "-"
+	}
+	caller = strings.ReplaceAll(caller, " ", "_")
+	b.signal(fmt.Sprintf(
+		"BRIDGE_OP caller=%s op=%s stage=%s status=%s repo=%s issue=%d elapsed=%s",
+		caller,
+		op,
+		stage,
+		status,
+		repo,
+		issue,
+		elapsed,
+	))
 }
 
 func (b *uiBridge) allowedSprintForItem(itemID string) (sprintApplyTarget, bool) {

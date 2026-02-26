@@ -71,7 +71,10 @@ func TestSprintColumnGrouping(t *testing.T) {
 		label  string
 	}{
 		{status: "🧩 Ready to estimate", group: "ready", label: "Ready"},
+		{status: "✅ Ready for release", group: "ready_for_release", label: "Ready for release"},
+		{status: "⏳ Waiting", group: "waiting", label: "Waiting"},
 		{status: "In progress", group: "in_progress", label: "In progress"},
+		{status: "🦃 In review", group: "in_review", label: "In review"},
 		{status: "✔️Awaiting QA", group: "awaiting_qa", label: "Awaiting QA"},
 		{status: "Backlog", group: "other", label: "Other"},
 	}

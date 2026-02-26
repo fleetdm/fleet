@@ -46,8 +46,17 @@ func TestBuildBridgePolicy(t *testing.T) {
 			},
 		},
 	}
+	releaseIssues := []ReleaseLabelIssue{
+		{
+			Item:       testIssueItem(40007, "https://github.com/fleetdm/fleet/issues/40007"),
+			RepoOwner:  "fleetdm",
+			RepoName:   "fleet",
+			HasProduct: true,
+			HasRelease: false,
+		},
+	}
 
-	p := buildBridgePolicy(drafting, missing, missingSprints, missingAssignees)
+	p := buildBridgePolicy(drafting, missing, missingSprints, missingAssignees, releaseIssues)
 	key := issueKey("fleetdm/fleet", 40007)
 
 	if !p.ChecklistByIssue[key]["check one"] || !p.ChecklistByIssue[key]["check two"] {
@@ -66,6 +75,13 @@ func TestBuildBridgePolicy(t *testing.T) {
 	if target.ProjectID != "PROJ_1" || target.FieldID != "FIELD_1" || target.IterationID != "ITER_1" {
 		t.Fatalf("unexpected sprint target: %#v", target)
 	}
+	releaseTarget, ok := p.ReleaseByIssue[key]
+	if !ok {
+		t.Fatal("expected release label allowlist entry")
+	}
+	if !releaseTarget.NeedsProductRemoval || !releaseTarget.NeedsReleaseAdd {
+		t.Fatalf("unexpected release target flags: %#v", releaseTarget)
+	}
 }
 
 func TestBridgeAllowlistChecks(t *testing.T) {
@@ -83,6 +99,9 @@ func TestBridgeAllowlistChecks(t *testing.T) {
 		},
 		allowSprints: map[string]sprintApplyTarget{
 			"ITEM_1": {ProjectID: "PROJ_1", FieldID: "FIELD_1", IterationID: "ITER_1"},
+		},
+		allowRelease: map[string]releaseLabelTarget{
+			issueKey("fleetdm/fleet", 123): {NeedsProductRemoval: true, NeedsReleaseAdd: true},
 		},
 	}
 
@@ -109,6 +128,12 @@ func TestBridgeAllowlistChecks(t *testing.T) {
 	}
 	if _, ok := b.allowedSprintForItem("ITEM_2"); ok {
 		t.Fatal("unexpected sprint item allow")
+	}
+	if _, ok := b.allowedReleaseForIssue("fleetdm/fleet", 123); !ok {
+		t.Fatal("expected release issue allow")
+	}
+	if _, ok := b.allowedReleaseForIssue("fleetdm/fleet", 124); ok {
+		t.Fatal("unexpected release issue allow")
 	}
 }
 
