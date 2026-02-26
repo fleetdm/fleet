@@ -1265,7 +1265,7 @@ func getFleetsCommand() *cli.Command {
 					fmt.Sprintf("%d", team.UserCount),
 				})
 			}
-			columns := []string{"Team name", "Team ID", "Host count", "User count"}
+			columns := []string{"Fleet name", "Fleet ID", "Host count", "User count"}
 			printTable(c, columns, data)
 
 			return nil

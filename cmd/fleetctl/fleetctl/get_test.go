@@ -325,11 +325,11 @@ func TestGetTeamsByName(t *testing.T) {
 		}, nil
 	}
 
-	expectedText := `+-----------+---------+------------+------------+
-| TEAM NAME | TEAM ID | HOST COUNT | USER COUNT |
-+-----------+---------+------------+------------+
-| team1     |      42 |         43 |         99 |
-+-----------+---------+------------+------------+
+	expectedText := `+------------+----------+------------+------------+
+| FLEET NAME | FLEET ID | HOST COUNT | USER COUNT |
++------------+----------+------------+------------+
+| team1      |       42 |         43 |         99 |
++------------+----------+------------+------------+
 `
 	assert.Equal(t, expectedText, RunAppForTest(t, []string{"get", "fleets", "--name", "test1"}))
 }
