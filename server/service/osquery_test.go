@@ -4653,6 +4653,47 @@ func BenchmarkPreprocessUbuntuPythonPackageFilter(b *testing.B) {
 	}
 }
 
+// TestPythonPackageFilterDuplicateUserDirs verifies that when osquery
+// reports the same python package multiple times (once per user via CROSS JOIN users),
+// all duplicates are handled correctly. The old code used map[string]int which only
+// tracked the last index, leaving earlier duplicates unfiltered or unrenamed.
+func TestPythonPackageFilterDuplicateUserDirs(t *testing.T) {
+	const swLinux = hostDetailQueryPrefix + "software_linux"
+
+	t.Run("matched duplicates are all removed", func(t *testing.T) {
+		results := fleet.OsqueryDistributedQueryResults{
+			swLinux: []map[string]string{
+				{"name": "python3-cryptography", "version": "41.0.7-4ubuntu0.1", "source": "deb_packages"},
+				{"name": "cryptography", "version": "41.0.7", "source": "python_packages"},
+				{"name": "cryptography", "version": "41.0.7", "source": "python_packages"},
+			},
+		}
+		statuses := map[string]fleet.OsqueryStatus{swLinux: fleet.StatusOK}
+
+		pythonPackageFilter("ubuntu", results, statuses)
+
+		require.Len(t, results[swLinux], 1, "both duplicate python_packages entries should be removed")
+		require.Equal(t, "python3-cryptography", results[swLinux][0]["name"])
+	})
+
+	t.Run("unmatched duplicates are all renamed", func(t *testing.T) {
+		results := fleet.OsqueryDistributedQueryResults{
+			swLinux: []map[string]string{
+				{"name": "flask", "version": "3.0.0", "source": "python_packages"},
+				{"name": "flask", "version": "3.0.0", "source": "python_packages"},
+			},
+		}
+		statuses := map[string]fleet.OsqueryStatus{swLinux: fleet.StatusOK}
+
+		pythonPackageFilter("ubuntu", results, statuses)
+
+		require.Len(t, results[swLinux], 2)
+		for _, row := range results[swLinux] {
+			require.Equal(t, "python3-flask", row["name"], "all duplicates should be renamed")
+		}
+	})
+}
+
 func TestUpdateFleetdVersion(t *testing.T) {
 	const (
 		orbitInfoQuery     = hostDetailQueryPrefix + "orbit_info"

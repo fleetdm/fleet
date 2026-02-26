@@ -9,7 +9,7 @@ import campaignHelpers from "utilities/campaign_helpers";
 import queryAPI from "services/entities/queries";
 import debounce from "utilities/debounce";
 import { BASE_URL, DEFAULT_CAMPAIGN_STATE } from "utilities/constants";
-import { authToken } from "utilities/local";
+import authToken from "utilities/auth_token";
 
 import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IPolicy } from "interfaces/policy";
@@ -102,7 +102,7 @@ const RunQuery = ({
       websocket?.send(
         JSON.stringify({
           type: "auth",
-          data: { token: authToken() },
+          data: { token: authToken.get() },
         })
       );
       websocket?.send(

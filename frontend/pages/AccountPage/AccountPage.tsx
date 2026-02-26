@@ -5,7 +5,7 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { IUser } from "interfaces/user";
 import usersAPI from "services/entities/users";
-import { authToken } from "utilities/local";
+import authToken from "utilities/auth_token";
 import deepDifference from "utilities/deep_difference";
 import formatErrorResponse from "utilities/format_error_response";
 
@@ -192,7 +192,7 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
             </p>
           </InfoBanner>
           <InputFieldHiddenContent
-            value={authToken() || ""}
+            value={authToken.get() || ""}
             helpText={
               <>
                 This token is intended for SSO users to authenticate in the
