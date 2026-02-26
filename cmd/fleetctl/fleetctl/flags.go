@@ -1,6 +1,10 @@
 package fleetctl
 
 import (
+	"fmt"
+	"os"
+	"strings"
+
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/urfave/cli/v2"
@@ -96,6 +100,42 @@ func applyLogTopicFlags(c *cli.Context) {
 	}
 	for _, topic := range str.SplitAndTrim(getDisabledLogTopics(c), ",", true) {
 		logging.DisableTopic(topic)
+	}
+}
+
+// logDeprecatedCommandName checks if a deprecated command name was used in the
+// invocation and prints a warning to stderr. Flag arguments (starting with "-")
+// are skipped so that command names appearing after flags are still detected.
+func logDeprecatedCommandName(c *cli.Context, deprecatedNames []string, newName string) {
+	if !logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+		return
+	}
+	for _, arg := range os.Args[1:] {
+		if strings.HasPrefix(arg, "-") {
+			continue
+		}
+		for _, dep := range deprecatedNames {
+			if arg == dep {
+				fmt.Fprintf(c.App.ErrWriter, "[!] 'fleetctl %s' is deprecated; use '%s' instead\n", dep, newName)
+				return
+			}
+		}
+	}
+}
+
+// logDeprecatedFlagName checks if a deprecated flag name was used in the
+// invocation and prints a warning to stderr. It matches both "--name" and
+// "--name=value" forms.
+func logDeprecatedFlagName(c *cli.Context, deprecatedName, newName string) {
+	if !logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+		return
+	}
+	prefix := "--" + deprecatedName
+	for _, arg := range os.Args[1:] {
+		if arg == prefix || strings.HasPrefix(arg, prefix+"=") {
+			fmt.Fprintf(c.App.ErrWriter, "[!] '--%s' is deprecated; use '--%s' instead\n", deprecatedName, newName)
+			return
+		}
 	}
 }
 
