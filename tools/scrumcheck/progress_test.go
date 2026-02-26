@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// TestParseBridgeOpSignal provides scrumcheck behavior for this unit.
+// TestParseBridgeOpSignal verifies structured bridge operation messages parse.
 func TestParseBridgeOpSignal(t *testing.T) {
 	t.Parallel()
 
@@ -27,7 +27,7 @@ func TestParseBridgeOpSignal(t *testing.T) {
 	}
 }
 
-// TestBridgeOpSummary provides scrumcheck behavior for this unit.
+// TestBridgeOpSummary verifies summary text includes key operation fields.
 func TestBridgeOpSummary(t *testing.T) {
 	t.Parallel()
 
@@ -48,7 +48,7 @@ func TestBridgeOpSummary(t *testing.T) {
 	}
 }
 
-// TestRenderBridgeOpsLine provides scrumcheck behavior for this unit.
+// TestRenderBridgeOpsLine verifies active and idle bridge summary rendering.
 func TestRenderBridgeOpsLine(t *testing.T) {
 	t.Parallel()
 
@@ -73,7 +73,7 @@ func TestRenderBridgeOpsLine(t *testing.T) {
 	}
 }
 
-// TestBarsAndStageColor provides scrumcheck behavior for this unit.
+// TestBarsAndStageColor checks stage color thresholds and bar formatting basics.
 func TestBarsAndStageColor(t *testing.T) {
 	t.Parallel()
 

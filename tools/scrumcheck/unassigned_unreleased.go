@@ -36,7 +36,8 @@ type searchIssueItem struct {
 
 var searchUnreleasedIssuesByGroup = fetchUnreleasedIssuesByGroup
 
-// runUnassignedUnreleasedBugChecks provides scrumcheck behavior for this unit.
+// runUnassignedUnreleasedBugChecks finds unreleased bugs by group label and
+// marks whether each item is assigned or unassigned.
 func runUnassignedUnreleasedBugChecks(
 	ctx context.Context,
 	client *githubv4.Client,
@@ -132,7 +133,7 @@ func runUnassignedUnreleasedBugChecks(
 	return out
 }
 
-// issueMatchingGroups provides scrumcheck behavior for this unit.
+// issueMatchingGroups returns which configured group labels exist on an issue.
 func issueMatchingGroups(labels []string, groupLabels []string) []string {
 	if len(labels) == 0 || len(groupLabels) == 0 {
 		return nil
@@ -154,7 +155,7 @@ func issueMatchingGroups(labels []string, groupLabels []string) []string {
 	return out
 }
 
-// fetchUnreleasedIssuesByGroup provides scrumcheck behavior for this unit.
+// fetchUnreleasedIssuesByGroup runs the unreleased-bug search for one group.
 func fetchUnreleasedIssuesByGroup(ctx context.Context, token, org, groupLabel string) []struct {
 	Number        int    `json:"number"`
 	Title         string `json:"title"`
@@ -218,7 +219,7 @@ func fetchUnreleasedIssuesByGroup(ctx context.Context, token, org, groupLabel st
 	return out
 }
 
-// executeIssueSearchRequest provides scrumcheck behavior for this unit.
+// executeIssueSearchRequest executes GitHub issue search with retry on 403.
 func executeIssueSearchRequest(ctx context.Context, endpoint, token string) (searchIssueResponse, bool) {
 	respBody, ok := executeIssueSearchRequestOnce(ctx, endpoint, token)
 	if ok {
@@ -231,7 +232,7 @@ func executeIssueSearchRequest(ctx context.Context, endpoint, token string) (sea
 	return executeIssueSearchRequestOnce(ctx, endpoint, "")
 }
 
-// executeIssueSearchRequestOnce provides scrumcheck behavior for this unit.
+// executeIssueSearchRequestOnce executes a single GitHub issue search request.
 func executeIssueSearchRequestOnce(ctx context.Context, endpoint, token string) (searchIssueResponse, bool) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
@@ -260,7 +261,7 @@ func executeIssueSearchRequestOnce(ctx context.Context, endpoint, token string) 
 	return decoded, true
 }
 
-// parseRepoFromRepositoryAPIURL provides scrumcheck behavior for this unit.
+// parseRepoFromRepositoryAPIURL parses owner/repo from repository API URLs.
 func parseRepoFromRepositoryAPIURL(repositoryURL string) (string, string) {
 	parts := strings.Split(strings.TrimSpace(repositoryURL), "/")
 	if len(parts) < 2 {
@@ -269,15 +270,15 @@ func parseRepoFromRepositoryAPIURL(repositoryURL string) (string, string) {
 	return parts[len(parts)-2], parts[len(parts)-1]
 }
 
-// parseIssueURL provides scrumcheck behavior for this unit.
+// parseIssueURL parses and validates a GitHub issue URL.
 func parseIssueURL(raw string) (*url.URL, error) {
 	return url.Parse(raw)
 }
 
-// urlQueryEscape provides scrumcheck behavior for this unit.
+// urlQueryEscape URL-escapes the search query string.
 func urlQueryEscape(s string) string { return url.QueryEscape(s) }
 
-// hasLabel provides scrumcheck behavior for this unit.
+// hasLabel reports whether the label list contains the target label.
 func hasLabel(labels []string, wanted string) bool {
 	for _, label := range labels {
 		if normalizeLabelName(label) == normalizeLabelName(wanted) {
@@ -287,7 +288,7 @@ func hasLabel(labels []string, wanted string) bool {
 	return false
 }
 
-// containsNormalized provides scrumcheck behavior for this unit.
+// containsNormalized compares labels using normalized name matching.
 func containsNormalized(values []string, wanted string) bool {
 	w := normalizeLabelName(wanted)
 	for _, v := range values {

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// TestWriteHTMLReport provides scrumcheck behavior for this unit.
+// TestWriteHTMLReport verifies report rendering writes a non-empty HTML file.
 func TestWriteHTMLReport(t *testing.T) {
 	t.Parallel()
 
@@ -40,7 +40,7 @@ func TestWriteHTMLReport(t *testing.T) {
 	}
 }
 
-// TestUIBridgeReportPathAndURL provides scrumcheck behavior for this unit.
+// TestUIBridgeReportPathAndURL verifies bridge report URL/path helpers.
 func TestUIBridgeReportPathAndURL(t *testing.T) {
 	t.Parallel()
 

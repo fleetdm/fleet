@@ -8,7 +8,8 @@ import (
 	"github.com/shurcooL/githubv4"
 )
 
-// TestBuildHTMLReportDataIncludesAllSelectedProjects provides scrumcheck behavior for this unit.
+// TestBuildHTMLReportDataIncludesAllSelectedProjects verifies selected projects
+// are always present in grouped report sections.
 func TestBuildHTMLReportDataIncludesAllSelectedProjects(t *testing.T) {
 	t.Parallel()
 
@@ -131,7 +132,8 @@ func TestBuildHTMLReportDataIncludesAllSelectedProjects(t *testing.T) {
 	}
 }
 
-// TestBuildHTMLReportDataAssignedToMeIsSeparateAndFails provides scrumcheck behavior for this unit.
+// TestBuildHTMLReportDataAssignedToMeIsSeparateAndFails verifies assigned-to-me
+// items are rendered separately and affect that check's failing state.
 func TestBuildHTMLReportDataAssignedToMeIsSeparateAndFails(t *testing.T) {
 	t.Parallel()
 
@@ -194,7 +196,8 @@ func TestBuildHTMLReportDataAssignedToMeIsSeparateAndFails(t *testing.T) {
 	}
 }
 
-// TestBuildHTMLReportDataMissingSprintExcludesReadyForRelease provides scrumcheck behavior for this unit.
+// TestBuildHTMLReportDataMissingSprintExcludesReadyForRelease verifies missing
+// sprint output excludes the ready-for-release column.
 func TestBuildHTMLReportDataMissingSprintExcludesReadyForRelease(t *testing.T) {
 	t.Parallel()
 
@@ -243,7 +246,7 @@ func TestBuildHTMLReportDataMissingSprintExcludesReadyForRelease(t *testing.T) {
 	}
 }
 
-// testIssueWithStatus provides scrumcheck behavior for this unit.
+// testIssueWithStatus creates a minimal issue-shaped item with a status field.
 func testIssueWithStatus(number int, title, rawURL, status string) Item {
 	var it Item
 	u, _ := url.Parse(rawURL)

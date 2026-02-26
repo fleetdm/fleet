@@ -5,7 +5,8 @@ import (
 	"time"
 )
 
-// TestPhaseTrackerStateTransitions provides scrumcheck behavior for this unit.
+// TestPhaseTrackerStateTransitions validates tracker state updates across phase
+// transitions and bridge status events.
 func TestPhaseTrackerStateTransitions(t *testing.T) {
 	t.Parallel()
 
@@ -59,7 +60,7 @@ func TestPhaseTrackerStateTransitions(t *testing.T) {
 	p.bridgeStopped("done")
 }
 
-// TestSmallProgressHelpers provides scrumcheck behavior for this unit.
+// TestSmallProgressHelpers verifies small helper functions used by the tracker.
 func TestSmallProgressHelpers(t *testing.T) {
 	t.Parallel()
 
@@ -87,7 +88,7 @@ func TestSmallProgressHelpers(t *testing.T) {
 	}
 }
 
-// TestNewPhaseTrackerSmoke provides scrumcheck behavior for this unit.
+// TestNewPhaseTrackerSmoke does a minimal constructor/render smoke test.
 func TestNewPhaseTrackerSmoke(t *testing.T) {
 	p := newPhaseTracker([]string{"phase-a"})
 	if p == nil {

@@ -43,7 +43,7 @@ type MissingSprintViolation struct {
 	SprintFieldName string
 }
 
-// runMissingSprintChecks provides scrumcheck behavior for this unit.
+// runMissingSprintChecks finds non-done project items missing a sprint value.
 func runMissingSprintChecks(
 	ctx context.Context,
 	client *githubv4.Client,
@@ -108,7 +108,7 @@ func runMissingSprintChecks(
 	return out
 }
 
-// fetchSprintProjectConfig provides scrumcheck behavior for this unit.
+// fetchSprintProjectConfig loads sprint/status field IDs and current iteration.
 func fetchSprintProjectConfig(
 	ctx context.Context,
 	client *githubv4.Client,
@@ -198,7 +198,7 @@ func fetchSprintProjectConfig(
 	}, true
 }
 
-// pickCurrentIteration provides scrumcheck behavior for this unit.
+// pickCurrentIteration selects the active iteration, or nearest fallback.
 func pickCurrentIteration(now time.Time, iters []projectIteration) (projectIteration, bool) {
 	type span struct {
 		it    projectIteration
@@ -235,7 +235,7 @@ func pickCurrentIteration(now time.Time, iters []projectIteration) (projectItera
 	return spans[0].it, true
 }
 
-// sprintColumnGroup provides scrumcheck behavior for this unit.
+// sprintColumnGroup maps status text into report column keys.
 func sprintColumnGroup(status string) string {
 	n := normalizeStatusName(status)
 	switch {
@@ -259,7 +259,7 @@ func sprintColumnGroup(status string) string {
 	}
 }
 
-// sprintColumnOrder provides scrumcheck behavior for this unit.
+// sprintColumnOrder returns the canonical display order for sprint columns.
 func sprintColumnOrder() []string {
 	return []string{
 		"ready",
@@ -272,7 +272,7 @@ func sprintColumnOrder() []string {
 	}
 }
 
-// sprintColumnsWithoutReadyForRelease provides scrumcheck behavior for this unit.
+// sprintColumnsWithoutReadyForRelease omits the ready-for-release column.
 func sprintColumnsWithoutReadyForRelease() []string {
 	return []string{
 		"ready",
@@ -284,7 +284,7 @@ func sprintColumnsWithoutReadyForRelease() []string {
 	}
 }
 
-// sprintColumnLabel provides scrumcheck behavior for this unit.
+// sprintColumnLabel converts a column key into UI-facing text.
 func sprintColumnLabel(group string) string {
 	switch group {
 	case "ready":
@@ -306,7 +306,7 @@ func sprintColumnLabel(group string) string {
 	}
 }
 
-// setCurrentSprintForItem provides scrumcheck behavior for this unit.
+// setCurrentSprintForItem applies an iteration value to a project item.
 func setCurrentSprintForItem(
 	token string,
 	projectID githubv4.ID,
@@ -325,7 +325,7 @@ func setCurrentSprintForItem(
 	return githubGraphQLMutation(token, query)
 }
 
-// githubGraphQLMutation provides scrumcheck behavior for this unit.
+// githubGraphQLMutation sends a raw GraphQL mutation and surfaces API errors.
 func githubGraphQLMutation(token string, query string) error {
 	payload := map[string]any{"query": query}
 	body, err := json.Marshal(payload)

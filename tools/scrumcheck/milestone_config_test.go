@@ -5,7 +5,8 @@ import (
 	"testing"
 )
 
-// TestParseRepoFromIssueURL provides scrumcheck behavior for this unit.
+// TestParseRepoFromIssueURL verifies repository owner/name extraction from
+// supported GitHub issue/PR URLs and invalid inputs.
 func TestParseRepoFromIssueURL(t *testing.T) {
 	t.Parallel()
 
@@ -53,7 +54,8 @@ func TestParseRepoFromIssueURL(t *testing.T) {
 	}
 }
 
-// TestIntListFlagSet provides scrumcheck behavior for this unit.
+// TestIntListFlagSet verifies the custom int list flag parses comma-separated
+// values and supports multiple Set calls.
 func TestIntListFlagSet(t *testing.T) {
 	t.Parallel()
 
@@ -71,7 +73,7 @@ func TestIntListFlagSet(t *testing.T) {
 	}
 }
 
-// TestIntListFlagSetInvalid provides scrumcheck behavior for this unit.
+// TestIntListFlagSetInvalid verifies invalid numeric values are rejected.
 func TestIntListFlagSetInvalid(t *testing.T) {
 	t.Parallel()
 
@@ -81,7 +83,7 @@ func TestIntListFlagSetInvalid(t *testing.T) {
 	}
 }
 
-// TestTitleCaseWords provides scrumcheck behavior for this unit.
+// TestTitleCaseWords verifies the helper normalizes spacing/casing to title case.
 func TestTitleCaseWords(t *testing.T) {
 	t.Parallel()
 

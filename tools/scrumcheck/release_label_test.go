@@ -6,7 +6,7 @@ import (
 	"github.com/shurcooL/githubv4"
 )
 
-// TestLabelsContain provides scrumcheck behavior for this unit.
+// TestLabelsContain verifies normalized/case-insensitive label matching.
 func TestLabelsContain(t *testing.T) {
 	t.Parallel()
 
@@ -19,7 +19,7 @@ func TestLabelsContain(t *testing.T) {
 	}
 }
 
-// TestIssueLabels provides scrumcheck behavior for this unit.
+// TestIssueLabels verifies dedupe and normalization behavior for issue labels.
 func TestIssueLabels(t *testing.T) {
 	t.Parallel()
 

@@ -51,7 +51,7 @@ type phaseTracker struct {
 	bridgeOpsTotal   time.Duration
 }
 
-// newPhaseTracker provides scrumcheck behavior for this unit.
+// newPhaseTracker initializes progress state and paints the initial console UI.
 func newPhaseTracker(names []string) *phaseTracker {
 	phases := make([]phaseEntry, 0, len(names))
 	for _, name := range names {
@@ -70,12 +70,12 @@ func newPhaseTracker(names []string) *phaseTracker {
 	return p
 }
 
-// clearScreen provides scrumcheck behavior for this unit.
+// clearScreen resets the terminal before drawing the tracker UI.
 func (p *phaseTracker) clearScreen() {
 	fmt.Print("\033[2J\033[H")
 }
 
-// renderAll provides scrumcheck behavior for this unit.
+// renderAll prints the full tracker layout (header, phases, footer, and log).
 func (p *phaseTracker) renderAll() {
 	fmt.Printf("%s🚀 scrumcheck flight console%s\n", clrCyan, clrReset)
 	fmt.Printf("%sMission control online. Tracking scan phases in real time.%s\n\n", clrDim, clrReset)
@@ -90,7 +90,7 @@ func (p *phaseTracker) renderAll() {
 	fmt.Printf("\033[%d;1H", p.footerRow)
 }
 
-// renderPhaseLine provides scrumcheck behavior for this unit.
+// renderPhaseLine renders a single phase row with icon, bar, and summary.
 func (p *phaseTracker) renderPhaseLine(i int) string {
 	entry := p.phases[i]
 	icon, color, bar := p.phaseVisual(entry.status)
@@ -101,7 +101,7 @@ func (p *phaseTracker) renderPhaseLine(i int) string {
 	return fmt.Sprintf("%s[%d/%d]%s %s%s%s %s", clrBlue, i+1, len(p.phases), clrReset, color, icon, clrReset, bar+" "+text)
 }
 
-// renderGlobalLine provides scrumcheck behavior for this unit.
+// renderGlobalLine renders the global progress bar and completed phase count.
 func (p *phaseTracker) renderGlobalLine() string {
 	completed := p.completedCount()
 	total := len(p.phases)
@@ -115,7 +115,7 @@ func (p *phaseTracker) renderGlobalLine() string {
 	)
 }
 
-// renderFooterLine provides scrumcheck behavior for this unit.
+// renderFooterLine renders status text plus bridge operation summary.
 func (p *phaseTracker) renderFooterLine() string {
 	opsLine := p.renderBridgeOpsLine()
 	if p.statusText == "" {
@@ -124,7 +124,7 @@ func (p *phaseTracker) renderFooterLine() string {
 	return p.statusText + "  " + opsLine
 }
 
-// redrawPhase provides scrumcheck behavior for this unit.
+// redrawPhase refreshes one phase row and dependent aggregate/footer rows.
 func (p *phaseTracker) redrawPhase(i int) {
 	row := p.phaseRow + i
 	fmt.Printf("\033[%d;1H\033[2K%s", row, p.renderPhaseLine(i))
@@ -132,18 +132,18 @@ func (p *phaseTracker) redrawPhase(i int) {
 	p.redrawFooter()
 }
 
-// redrawGlobal provides scrumcheck behavior for this unit.
+// redrawGlobal refreshes only the global progress row in-place.
 func (p *phaseTracker) redrawGlobal() {
 	fmt.Printf("\033[%d;1H\033[2K%s", p.globalRow, p.renderGlobalLine())
 }
 
-// redrawFooter provides scrumcheck behavior for this unit.
+// redrawFooter refreshes only the footer/status row in-place.
 func (p *phaseTracker) redrawFooter() {
 	fmt.Printf("\033[%d;1H\033[2K%s", p.footerRow, p.renderFooterLine())
 	fmt.Printf("\033[%d;1H", p.footerRow)
 }
 
-// phaseStart provides scrumcheck behavior for this unit.
+// phaseStart marks a phase as running and updates the UI.
 func (p *phaseTracker) phaseStart(i int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -152,7 +152,7 @@ func (p *phaseTracker) phaseStart(i int) {
 	p.redrawPhase(i)
 }
 
-// phaseDone provides scrumcheck behavior for this unit.
+// phaseDone marks a phase successful and sets its summary text.
 func (p *phaseTracker) phaseDone(i int, summary string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -161,7 +161,7 @@ func (p *phaseTracker) phaseDone(i int, summary string) {
 	p.redrawPhase(i)
 }
 
-// phaseWarn provides scrumcheck behavior for this unit.
+// phaseWarn marks a phase as warning and sets its summary text.
 func (p *phaseTracker) phaseWarn(i int, summary string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -170,7 +170,7 @@ func (p *phaseTracker) phaseWarn(i int, summary string) {
 	p.redrawPhase(i)
 }
 
-// phaseFail provides scrumcheck behavior for this unit.
+// phaseFail marks a phase as failed and sets its summary text.
 func (p *phaseTracker) phaseFail(i int, summary string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -179,7 +179,7 @@ func (p *phaseTracker) phaseFail(i int, summary string) {
 	p.redrawPhase(i)
 }
 
-// waitingForBrowser provides scrumcheck behavior for this unit.
+// waitingForBrowser updates footer status while waiting for browser bridge use.
 func (p *phaseTracker) waitingForBrowser(reportPath string) {
 	_ = reportPath
 	p.mu.Lock()
@@ -191,12 +191,12 @@ func (p *phaseTracker) waitingForBrowser(reportPath string) {
 	p.redrawFooter()
 }
 
-// showReportLink provides scrumcheck behavior for this unit.
+// showReportLink is intentionally a no-op for the current tracker UI.
 func (p *phaseTracker) showReportLink(reportURL string) {
 	_ = reportURL
 }
 
-// bridgeListening provides scrumcheck behavior for this unit.
+// bridgeListening updates UI when the bridge server starts listening.
 func (p *phaseTracker) bridgeListening(baseURL string, idleTimeout time.Duration) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -208,7 +208,7 @@ func (p *phaseTracker) bridgeListening(baseURL string, idleTimeout time.Duration
 	p.redrawFooter()
 }
 
-// bridgeSignal provides scrumcheck behavior for this unit.
+// bridgeSignal records bridge operation events and updates counters/log/footer.
 func (p *phaseTracker) bridgeSignal(msg string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -237,7 +237,7 @@ func (p *phaseTracker) bridgeSignal(msg string) {
 	p.redrawFooter()
 }
 
-// bridgeStopped provides scrumcheck behavior for this unit.
+// bridgeStopped marks bridge shutdown state and appends a shutdown log entry.
 func (p *phaseTracker) bridgeStopped(reason string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -247,7 +247,7 @@ func (p *phaseTracker) bridgeStopped(reason string) {
 	fmt.Println()
 }
 
-// appendBridgeLogLocked provides scrumcheck behavior for this unit.
+// appendBridgeLogLocked appends a timestamped bridge log line to the UI.
 func (p *phaseTracker) appendBridgeLogLocked(msg string) {
 	ts := time.Now().Format("15:04:05")
 	line := fmt.Sprintf("[%s] %s", ts, msg)
@@ -257,7 +257,7 @@ func (p *phaseTracker) appendBridgeLogLocked(msg string) {
 	fmt.Printf("\033[%d;1H", p.footerRow)
 }
 
-// renderBridgeOpsLine provides scrumcheck behavior for this unit.
+// renderBridgeOpsLine summarizes bridge operation throughput and latency.
 func (p *phaseTracker) renderBridgeOpsLine() string {
 	if p.bridgeOpsStarted == 0 {
 		return fmt.Sprintf("%sbridge ops idle%s", clrDim, clrReset)
@@ -288,7 +288,7 @@ type bridgeOpEvent struct {
 	Elapsed time.Duration
 }
 
-// summary provides scrumcheck behavior for this unit.
+// summary formats a human-readable bridge operation event summary.
 func (e bridgeOpEvent) summary() string {
 	target := e.Repo
 	if strings.TrimSpace(e.Issue) != "" && e.Issue != "0" {
@@ -309,7 +309,7 @@ func (e bridgeOpEvent) summary() string {
 	)
 }
 
-// parseBridgeOpSignal provides scrumcheck behavior for this unit.
+// parseBridgeOpSignal parses structured BRIDGE_OP messages from bridge handlers.
 func parseBridgeOpSignal(msg string) (bridgeOpEvent, bool) {
 	raw := strings.TrimSpace(msg)
 	if !strings.HasPrefix(raw, "BRIDGE_OP ") {
@@ -360,7 +360,7 @@ func parseBridgeOpSignal(msg string) (bridgeOpEvent, bool) {
 	return evt, true
 }
 
-// phaseVisual provides scrumcheck behavior for this unit.
+// phaseVisual maps phase state to icon/color/progress-bar styling.
 func (p *phaseTracker) phaseVisual(status phaseStatus) (icon, color, bar string) {
 	ratio := float64(p.completedCount()) / float64(max(len(p.phases), 1))
 	runColor := stageColor(ratio)
@@ -378,7 +378,7 @@ func (p *phaseTracker) phaseVisual(status phaseStatus) (icon, color, bar string)
 	}
 }
 
-// completedCount provides scrumcheck behavior for this unit.
+// completedCount returns the number of phases in terminal (non-running) states.
 func (p *phaseTracker) completedCount() int {
 	count := 0
 	for _, ph := range p.phases {
@@ -389,7 +389,7 @@ func (p *phaseTracker) completedCount() int {
 	return count
 }
 
-// shortDuration provides scrumcheck behavior for this unit.
+// shortDuration rounds durations for compact status and log output.
 func shortDuration(d time.Duration) string {
 	if d < time.Second {
 		return d.Round(10 * time.Millisecond).String()
@@ -397,7 +397,7 @@ func shortDuration(d time.Duration) string {
 	return d.Round(100 * time.Millisecond).String()
 }
 
-// countAwaitingViolations provides scrumcheck behavior for this unit.
+// countAwaitingViolations totals Awaiting QA violations across projects.
 func countAwaitingViolations(m map[int][]Item) int {
 	total := 0
 	for _, items := range m {
@@ -406,7 +406,7 @@ func countAwaitingViolations(m map[int][]Item) int {
 	return total
 }
 
-// countStaleViolations provides scrumcheck behavior for this unit.
+// countStaleViolations totals stale Awaiting QA violations across projects.
 func countStaleViolations(m map[int][]StaleAwaitingViolation) int {
 	total := 0
 	for _, items := range m {
@@ -415,28 +415,28 @@ func countStaleViolations(m map[int][]StaleAwaitingViolation) int {
 	return total
 }
 
-// phaseSummaryKV provides scrumcheck behavior for this unit.
+// phaseSummaryKV joins key/value summary segments with a shared delimiter.
 func phaseSummaryKV(pairs ...string) string {
 	return strings.Join(pairs, " | ")
 }
 
-// pendingPhaseBar provides scrumcheck behavior for this unit.
+// pendingPhaseBar renders an empty phase progress bar.
 func pendingPhaseBar(width int) string {
 	return "[" + clrGray + strings.Repeat("░", width) + clrReset + "]"
 }
 
-// donePhaseBar provides scrumcheck behavior for this unit.
+// donePhaseBar renders a fully completed phase progress bar.
 func donePhaseBar(width int) string {
 	return "[" + clrGreen + strings.Repeat("█", width) + clrReset + "]"
 }
 
-// runningPhaseBar provides scrumcheck behavior for this unit.
+// runningPhaseBar renders a partial progress bar for active phases.
 func runningPhaseBar(width int, fillColor string) string {
 	fill := max(1, width/3)
 	return "[" + fillColor + strings.Repeat("█", fill) + clrGray + strings.Repeat("░", width-fill) + clrReset + "]"
 }
 
-// coloredBar provides scrumcheck behavior for this unit.
+// coloredBar renders a proportional progress bar from done/total counts.
 func coloredBar(width, done, total int, fillColor string) string {
 	if total <= 0 {
 		return pendingPhaseBar(width)
@@ -451,7 +451,7 @@ func coloredBar(width, done, total int, fillColor string) string {
 	return "[" + fillColor + strings.Repeat("█", fill) + clrGray + strings.Repeat("░", width-fill) + clrReset + "]"
 }
 
-// stageColor provides scrumcheck behavior for this unit.
+// stageColor chooses red/yellow/green based on completion ratio.
 func stageColor(ratio float64) string {
 	switch {
 	case ratio < 0.34:
@@ -463,7 +463,7 @@ func stageColor(ratio float64) string {
 	}
 }
 
-// max provides scrumcheck behavior for this unit.
+// max returns the larger of two ints.
 func max(a, b int) int {
 	if a > b {
 		return a

@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// groupViolationsByStatus provides scrumcheck behavior for this unit.
+// groupViolationsByStatus buckets drafting violations by normalized status name.
 func groupViolationsByStatus(items []DraftingCheckViolation) map[string][]DraftingCheckViolation {
 	out := make(map[string][]DraftingCheckViolation)
 	for _, item := range items {
@@ -17,7 +17,7 @@ func groupViolationsByStatus(items []DraftingCheckViolation) map[string][]Drafti
 	return out
 }
 
-// printDraftingStatusSection provides scrumcheck behavior for this unit.
+// printDraftingStatusSection renders one drafting-status block in terminal output.
 func printDraftingStatusSection(status string, items []DraftingCheckViolation) {
 	if len(items) == 0 {
 		return
@@ -45,7 +45,7 @@ func printDraftingStatusSection(status string, items []DraftingCheckViolation) {
 	}
 }
 
-// printStaleAwaitingSummary provides scrumcheck behavior for this unit.
+// printStaleAwaitingSummary renders stale Awaiting QA items grouped by project.
 func printStaleAwaitingSummary(staleByProject map[int][]StaleAwaitingViolation, staleDays int) {
 	total := 0
 	for _, items := range staleByProject {
@@ -81,7 +81,7 @@ func printStaleAwaitingSummary(staleByProject map[int][]StaleAwaitingViolation, 
 	}
 }
 
-// printTimestampCheckSummary provides scrumcheck behavior for this unit.
+// printTimestampCheckSummary prints the updates timestamp validation result.
 func printTimestampCheckSummary(result TimestampCheckResult) {
 	fmt.Printf("\n🕒 Updates timestamp check (%s)\n", result.URL)
 	if result.Error != "" {
@@ -109,7 +109,7 @@ func printTimestampCheckSummary(result TimestampCheckResult) {
 	)
 }
 
-// printMissingMilestoneSummary provides scrumcheck behavior for this unit.
+// printMissingMilestoneSummary prints missing-milestone findings and suggestions.
 func printMissingMilestoneSummary(items []MissingMilestoneIssue) {
 	byProject := make(map[int][]MissingMilestoneIssue)
 	for _, it := range items {

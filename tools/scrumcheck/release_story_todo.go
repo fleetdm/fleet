@@ -10,7 +10,8 @@ import (
 
 const storyLabel = "story"
 
-// runReleaseStoryTODOChecks provides scrumcheck behavior for this unit.
+// runReleaseStoryTODOChecks fetches story/:release issues containing TODO in the
+// body for each selected project and normalizes them into report items.
 func runReleaseStoryTODOChecks(
 	ctx context.Context,
 	client *githubv4.Client,
@@ -81,7 +82,7 @@ func runReleaseStoryTODOChecks(
 	return out
 }
 
-// fetchReleaseStoryTODOByProject provides scrumcheck behavior for this unit.
+// fetchReleaseStoryTODOByProject runs the GitHub search query for one project.
 func fetchReleaseStoryTODOByProject(ctx context.Context, token, org string, projectNum int) []searchIssueItem {
 	query := fmt.Sprintf(`is:open is:issue label:%s todo in:body label:%s project:%s/%d repo:%s/fleet`, storyLabel, releaseLabel, org, projectNum, org)
 	endpoint := fmt.Sprintf("https://api.github.com/search/issues?q=%s&per_page=100", urlQueryEscape(query))

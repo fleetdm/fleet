@@ -222,7 +222,8 @@ type HTMLReportData struct {
 	UnassignedUnreleasedClean bool
 }
 
-// buildHTMLReportData provides scrumcheck behavior for this unit.
+// buildHTMLReportData transforms raw check outputs into the fully grouped
+// view-model consumed by the HTML template.
 func buildHTMLReportData(
 	org string,
 	projectNums []int,
@@ -727,7 +728,7 @@ func buildHTMLReportData(
 	}
 }
 
-// itemStatus provides scrumcheck behavior for this unit.
+// itemStatus extracts the project "Status" single-select value from an item.
 func itemStatus(it Item) string {
 	for _, v := range it.FieldValues.Nodes {
 		fieldName := strings.TrimSpace(strings.ToLower(string(v.SingleSelectValue.Field.Common.Name)))
@@ -742,7 +743,7 @@ func itemStatus(it Item) string {
 	return ""
 }
 
-// previewBodyLines provides scrumcheck behavior for this unit.
+// previewBodyLines returns the first non-empty trimmed body lines for previews.
 func previewBodyLines(body string, maxLines int) []string {
 	if maxLines <= 0 {
 		return nil
@@ -762,7 +763,7 @@ func previewBodyLines(body string, maxLines int) []string {
 	return out
 }
 
-// writeHTMLReport provides scrumcheck behavior for this unit.
+// writeHTMLReport recreates the report directory and renders the HTML file.
 func writeHTMLReport(data HTMLReportData) (string, error) {
 	if err := os.RemoveAll(reportDirName); err != nil {
 		return "", fmt.Errorf("remove old report directory: %w", err)
@@ -793,7 +794,7 @@ func writeHTMLReport(data HTMLReportData) (string, error) {
 	return absPath, nil
 }
 
-// fileURLFromPath provides scrumcheck behavior for this unit.
+// fileURLFromPath converts a local file path into a file:// URL.
 func fileURLFromPath(path string) string {
 	u := url.URL{
 		Scheme: "file",
@@ -802,7 +803,7 @@ func fileURLFromPath(path string) string {
 	return u.String()
 }
 
-// openInBrowser provides scrumcheck behavior for this unit.
+// openInBrowser opens the report path using the platform-specific launcher.
 func openInBrowser(path string) error {
 	switch runtime.GOOS {
 	case "darwin":
@@ -816,7 +817,7 @@ func openInBrowser(path string) error {
 	}
 }
 
-// titleCaseWords provides scrumcheck behavior for this unit.
+// titleCaseWords normalizes an arbitrary phrase into basic title case.
 func titleCaseWords(s string) string {
 	parts := strings.Fields(strings.ToLower(strings.TrimSpace(s)))
 	for i, p := range parts {

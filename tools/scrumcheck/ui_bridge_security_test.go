@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// TestStartUIBridgeBindsToLoopback provides scrumcheck behavior for this unit.
+// TestStartUIBridgeBindsToLoopback verifies the bridge only binds localhost.
 func TestStartUIBridgeBindsToLoopback(t *testing.T) {
 	t.Parallel()
 
@@ -26,7 +26,7 @@ func TestStartUIBridgeBindsToLoopback(t *testing.T) {
 	}
 }
 
-// TestPrepareRequestRejectsForeignOrigin provides scrumcheck behavior for this unit.
+// TestPrepareRequestRejectsForeignOrigin verifies CSRF-style origin rejection.
 func TestPrepareRequestRejectsForeignOrigin(t *testing.T) {
 	t.Parallel()
 
@@ -49,7 +49,7 @@ func TestPrepareRequestRejectsForeignOrigin(t *testing.T) {
 	}
 }
 
-// TestPrepareRequestRejectsForeignReferer provides scrumcheck behavior for this unit.
+// TestPrepareRequestRejectsForeignReferer verifies foreign referer rejection.
 func TestPrepareRequestRejectsForeignReferer(t *testing.T) {
 	t.Parallel()
 
@@ -73,7 +73,7 @@ func TestPrepareRequestRejectsForeignReferer(t *testing.T) {
 	}
 }
 
-// TestPrepareRequestRejectsMissingSessionHeader provides scrumcheck behavior for this unit.
+// TestPrepareRequestRejectsMissingSessionHeader verifies session header is required.
 func TestPrepareRequestRejectsMissingSessionHeader(t *testing.T) {
 	t.Parallel()
 
@@ -96,7 +96,7 @@ func TestPrepareRequestRejectsMissingSessionHeader(t *testing.T) {
 	}
 }
 
-// TestPrepareRequestAcceptsValidLocalRequest provides scrumcheck behavior for this unit.
+// TestPrepareRequestAcceptsValidLocalRequest verifies local authenticated requests pass.
 func TestPrepareRequestAcceptsValidLocalRequest(t *testing.T) {
 	t.Parallel()
 

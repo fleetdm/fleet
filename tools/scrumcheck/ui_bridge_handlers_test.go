@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// newTestBridge provides scrumcheck behavior for this unit.
+// newTestBridge creates a bridge instance configured for handler testing.
 func newTestBridge() *uiBridge {
 	return &uiBridge{
 		baseURL: "http://127.0.0.1:9999",
@@ -36,7 +36,7 @@ func newTestBridge() *uiBridge {
 	}
 }
 
-// postReq provides scrumcheck behavior for this unit.
+// postReq builds a JSON POST request with local/session headers.
 func postReq(path, body string) *http.Request {
 	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
 	req.Header.Set("Origin", "http://127.0.0.1:9999")
@@ -45,7 +45,7 @@ func postReq(path, body string) *http.Request {
 	return req
 }
 
-// TestHandleReportValidation provides scrumcheck behavior for this unit.
+// TestHandleReportValidation verifies /report request validation rules.
 func TestHandleReportValidation(t *testing.T) {
 	t.Parallel()
 	b := newTestBridge()
@@ -65,7 +65,7 @@ func TestHandleReportValidation(t *testing.T) {
 	}
 }
 
-// TestHandleApplyMilestoneValidation provides scrumcheck behavior for this unit.
+// TestHandleApplyMilestoneValidation verifies milestone mutation guardrails.
 func TestHandleApplyMilestoneValidation(t *testing.T) {
 	t.Parallel()
 	b := newTestBridge()
@@ -89,7 +89,7 @@ func TestHandleApplyMilestoneValidation(t *testing.T) {
 	}
 }
 
-// TestHandleChecklistValidation provides scrumcheck behavior for this unit.
+// TestHandleChecklistValidation verifies checklist mutation guardrails.
 func TestHandleChecklistValidation(t *testing.T) {
 	t.Parallel()
 	b := newTestBridge()
@@ -107,7 +107,7 @@ func TestHandleChecklistValidation(t *testing.T) {
 	}
 }
 
-// TestHandleSprintValidation provides scrumcheck behavior for this unit.
+// TestHandleSprintValidation verifies sprint mutation guardrails.
 func TestHandleSprintValidation(t *testing.T) {
 	t.Parallel()
 	b := newTestBridge()
@@ -125,7 +125,7 @@ func TestHandleSprintValidation(t *testing.T) {
 	}
 }
 
-// TestHandleAssigneeValidation provides scrumcheck behavior for this unit.
+// TestHandleAssigneeValidation verifies assignee mutation guardrails.
 func TestHandleAssigneeValidation(t *testing.T) {
 	t.Parallel()
 	b := newTestBridge()
@@ -143,7 +143,7 @@ func TestHandleAssigneeValidation(t *testing.T) {
 	}
 }
 
-// TestHandleReleaseValidation provides scrumcheck behavior for this unit.
+// TestHandleReleaseValidation verifies release-label mutation guardrails.
 func TestHandleReleaseValidation(t *testing.T) {
 	t.Parallel()
 	b := newTestBridge()
@@ -161,7 +161,7 @@ func TestHandleReleaseValidation(t *testing.T) {
 	}
 }
 
-// TestHandleCloseAndHealth provides scrumcheck behavior for this unit.
+// TestHandleCloseAndHealth verifies close and health endpoints.
 func TestHandleCloseAndHealth(t *testing.T) {
 	t.Parallel()
 	b := newTestBridge()
@@ -179,7 +179,7 @@ func TestHandleCloseAndHealth(t *testing.T) {
 	}
 }
 
-// TestHandleTimestampCheck provides scrumcheck behavior for this unit.
+// TestHandleTimestampCheck verifies timestamp check endpoint responses.
 func TestHandleTimestampCheck(t *testing.T) {
 	t.Parallel()
 	b := newTestBridge()
@@ -238,7 +238,7 @@ func TestHandleTimestampCheck(t *testing.T) {
 	}
 }
 
-// TestHandleUnassignedUnreleasedCheck provides scrumcheck behavior for this unit.
+// TestHandleUnassignedUnreleasedCheck verifies unreleased-bug refresh endpoint.
 func TestHandleUnassignedUnreleasedCheck(t *testing.T) {
 	t.Parallel()
 	b := newTestBridge()
@@ -291,7 +291,7 @@ func TestHandleUnassignedUnreleasedCheck(t *testing.T) {
 	}
 }
 
-// TestHandleReleaseStoryTODOCheck provides scrumcheck behavior for this unit.
+// TestHandleReleaseStoryTODOCheck verifies release-story TODO refresh endpoint.
 func TestHandleReleaseStoryTODOCheck(t *testing.T) {
 	t.Parallel()
 	b := newTestBridge()
@@ -345,7 +345,7 @@ func TestHandleReleaseStoryTODOCheck(t *testing.T) {
 	}
 }
 
-// TestHandleMissingSprintCheck provides scrumcheck behavior for this unit.
+// TestHandleMissingSprintCheck verifies missing-sprint refresh endpoint.
 func TestHandleMissingSprintCheck(t *testing.T) {
 	t.Parallel()
 	b := newTestBridge()
@@ -399,7 +399,7 @@ func TestHandleMissingSprintCheck(t *testing.T) {
 	}
 }
 
-// TestHandleStateCheck provides scrumcheck behavior for this unit.
+// TestHandleStateCheck verifies refresh-all state endpoint reporting.
 func TestHandleStateCheck(t *testing.T) {
 	t.Parallel()
 	b := newTestBridge()

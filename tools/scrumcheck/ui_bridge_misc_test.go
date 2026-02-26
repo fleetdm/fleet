@@ -6,7 +6,8 @@ import (
 	"testing"
 )
 
-// TestGithubJSONAndSignalBridgeOp provides scrumcheck behavior for this unit.
+// TestGithubJSONAndSignalBridgeOp verifies GitHub request execution and bridge
+// signal accounting behavior.
 func TestGithubJSONAndSignalBridgeOp(t *testing.T) {
 	t.Parallel()
 
@@ -29,7 +30,7 @@ func TestGithubJSONAndSignalBridgeOp(t *testing.T) {
 	}
 }
 
-// TestIntListFlagString provides scrumcheck behavior for this unit.
+// TestIntListFlagString verifies int list flags render as comma-joined strings.
 func TestIntListFlagString(t *testing.T) {
 	t.Parallel()
 
