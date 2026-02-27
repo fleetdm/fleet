@@ -114,7 +114,7 @@ By leveraging GitOps principles through Fleet, Santa management becomes:
 - **Automatically Deployed:** CI/CD pipelines handle rule distribution without manual intervention
 - **Easily Rollbacked:** Git reverts enable instant rollback of problematic rule changes
 
-About the author: [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) is a Solutions Consultant / individual contributor and head of IT at Fleet Device Management.
+About the author: [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) Head of IT & Solutions Consulting at Fleet Device Management.
 
 <meta name="articleTitle" value="How we deployed Santa at Fleet">
 <meta name="authorFullName" value="Allen Houchins">
