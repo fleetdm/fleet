@@ -325,8 +325,8 @@ type PolicyData struct {
 	// Only applies to team policies.
 	ConditionalAccessBypassEnabled *bool `json:"conditional_access_bypass_enabled" db:"conditional_access_bypass_enabled"`
 
-	Type                 string `json:"type"` // TODO(JK): db?
-	PatchSoftwareTitleID *uint  `json:"-"`
+	Type                 string `json:"type" db:"type"`
+	PatchSoftwareTitleID *uint  `json:"-" db:"patch_software_title_id"`
 
 	UpdateCreateTimestamps
 }
@@ -357,7 +357,7 @@ type Policy struct {
 	RunScript *PolicyScript `json:"run_script,omitempty"`
 
 	// TODO(JK): comment
-	PatchSoftware *PolicySoftwareTitle `json:patch_software,omitempty"`
+	PatchSoftware *PolicySoftwareTitle `json:"patch_software,omitempty"`
 }
 
 type PolicyCalendarData struct {

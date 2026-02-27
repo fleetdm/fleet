@@ -37,7 +37,8 @@ const policyCols = `
 	p.id, p.team_id, p.resolution, p.name, p.query, p.description,
 	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical,
 	p.calendar_events_enabled, p.software_installer_id, p.script_id,
-	p.vpp_apps_teams_id, p.conditional_access_enabled, p.conditional_access_bypass_enabled
+	p.vpp_apps_teams_id, p.conditional_access_enabled, p.conditional_access_bypass_enabled,
+	p.type, p.patch_software_title_id
 `
 
 const (

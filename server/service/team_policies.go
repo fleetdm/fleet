@@ -96,7 +96,6 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})
 	}
-
 	// TODO(JK): automatically set platform. should verify?
 
 	if err := verifyLabelsToAssociate(ctx, svc.ds, &teamID, append(tp.LabelsIncludeAny, tp.LabelsExcludeAny...), vc.User); err != nil {
@@ -208,7 +207,7 @@ func (svc *Service) populatePolicyPatchSoftware(ctx context.Context, p *fleet.Po
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get software installer metadata by title id")
 		}
-		p.InstallSoftware = &fleet.PolicySoftwareTitle{
+		p.PatchSoftware = &fleet.PolicySoftwareTitle{
 			SoftwareTitleID: *installerMetadata.TitleID,
 			Name:            installerMetadata.SoftwareTitle,
 			DisplayName:     installerMetadata.DisplayName,
