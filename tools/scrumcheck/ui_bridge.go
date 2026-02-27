@@ -498,6 +498,7 @@ func (b *uiBridge) setSessionCookie(w http.ResponseWriter) {
 		Path:     "/",
 		MaxAge:   maxAge,
 		HttpOnly: true,
+		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
 	})
 }

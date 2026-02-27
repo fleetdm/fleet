@@ -120,3 +120,41 @@ func TestPrepareRequestAcceptsValidLocalRequest(t *testing.T) {
 		t.Fatalf("expected request to pass, got status %d", rr.Code)
 	}
 }
+
+// TestSetSessionCookieSecurityFlags verifies strict cookie security attributes.
+func TestSetSessionCookieSecurityFlags(t *testing.T) {
+	t.Parallel()
+
+	b := &uiBridge{
+		session:     "abc123",
+		idleTimeout: 10 * time.Minute,
+	}
+	rr := httptest.NewRecorder()
+	b.setSessionCookie(rr)
+
+	resp := rr.Result()
+	cookies := resp.Cookies()
+	if len(cookies) == 0 {
+		t.Fatal("expected at least one Set-Cookie header")
+	}
+
+	var found *http.Cookie
+	for _, c := range cookies {
+		if c.Name == bridgeSessionCookieName {
+			found = c
+			break
+		}
+	}
+	if found == nil {
+		t.Fatalf("expected cookie %q in response", bridgeSessionCookieName)
+	}
+	if !found.HttpOnly {
+		t.Fatal("expected HttpOnly=true")
+	}
+	if !found.Secure {
+		t.Fatal("expected Secure=true")
+	}
+	if found.SameSite != http.SameSiteStrictMode {
+		t.Fatalf("expected SameSite=Strict, got %v", found.SameSite)
+	}
+}
