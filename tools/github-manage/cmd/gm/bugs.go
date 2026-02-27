@@ -114,6 +114,11 @@ Usage:
 			})
 		}
 
+		if len(bugDetails) == 0 {
+			fmt.Println("No open bugs remain after filtering.")
+			return nil
+		}
+
 		averageDays := totalDays / float64(len(bugDetails))
 		roundedAverage := int(math.Round(averageDays))
 
@@ -126,7 +131,7 @@ Usage:
 				AverageNumberOfDaysBugsAreOpenFor int     `json:"averageNumberOfDaysBugsAreOpenFor"`
 				AverageDaysExact                  float64 `json:"averageDaysExact"`
 			}{
-				TotalBugs:                         len(bugs),
+				TotalBugs:                         len(bugDetails),
 				AverageNumberOfDaysBugsAreOpenFor: roundedAverage,
 				AverageDaysExact:                  averageDays,
 			}
@@ -138,9 +143,11 @@ Usage:
 
 		case "tsv":
 			fmt.Println("Metric\tValue")
-			fmt.Printf("Total Open Bugs\t%d\n", len(bugs))
 			if len(withoutMilestones) > 0 {
-				fmt.Printf("Filtered Open Bugs\t%d\n", len(bugDetails))
+				fmt.Printf("Total Open Bugs (before filtering)\t%d\n", len(bugs))
+				fmt.Printf("Open Bugs (after filtering)\t%d\n", len(bugDetails))
+			} else {
+				fmt.Printf("Total Open Bugs\t%d\n", len(bugDetails))
 			}
 			fmt.Printf("Average Days Open (rounded)\t%d\n", roundedAverage)
 			fmt.Printf("Average Days Open (exact)\t%.2f\n", averageDays)
@@ -149,9 +156,11 @@ Usage:
 			fmt.Println(strings.Repeat("=", 50))
 			fmt.Println("Bug Report: Average Open Time")
 			fmt.Println(strings.Repeat("=", 50))
-			fmt.Printf("Total open bugs: %d\n", len(bugs))
 			if len(withoutMilestones) > 0 {
-				fmt.Printf("Filtered open bugs: %d\n", len(bugDetails))
+				fmt.Printf("Total open bugs (before filtering): %d\n", len(bugs))
+				fmt.Printf("Open bugs (after filtering): %d\n", len(bugDetails))
+			} else {
+				fmt.Printf("Total open bugs: %d\n", len(bugDetails))
 			}
 			fmt.Printf("Average number of days bugs are open for: %d\n", roundedAverage)
 			fmt.Printf("Average days (exact): %.2f\n", averageDays)
