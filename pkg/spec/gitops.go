@@ -1053,6 +1053,11 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	if err := json.Unmarshal(policiesRaw, &policies); err != nil {
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"policies"}, err))
 	}
+	// make an index of all FMAs by slug
+	fmasBySlug := make(map[string]struct{}, len(result.Software.FleetMaintainedApps))
+	for _, s := range result.Software.FleetMaintainedApps {
+		fmasBySlug[s.Slug] = struct{}{}
+	}
 	for _, item := range policies {
 		if item.Path == nil {
 			if err := parsePolicyInstallSoftware(baseDir, result.TeamName, &item, result.Software.Packages, result.Software.AppStoreApps); err != nil {
@@ -1113,8 +1118,25 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		} else {
 			item.Name = norm.NFC.String(item.Name)
 		}
-		if item.Query == "" {
+		if item.Type == "" {
+			item.Type = fleet.PolicyTypeDynamic
+		}
+		// TODO: cross-reference with software and ensure that the slug exists if it's a patch policy
+		fmt.Printf("item.FleetMaintainedAppSlug: %v\n", item.FleetMaintainedAppSlug)
+		if item.Query == "" && item.Type != fleet.PolicyTypePatch {
 			multiError = multierror.Append(multiError, errors.New("policy query is required for each policy"))
+		}
+		if item.Type == fleet.PolicyTypePatch {
+			if _, ok := fmasBySlug[item.FleetMaintainedAppSlug]; !ok {
+				multiError = multierror.Append(
+					multiError,
+					fmt.Errorf(
+						`Couldn't apply "%s": "%s" is specified in the patch policy, but it isn't specified under "software.fleet_maintained_apps."`,
+						filepath.Base(parentFilePath),
+						item.FleetMaintainedAppSlug,
+					),
+				)
+			}
 		}
 		if result.TeamName != nil {
 			item.Team = *result.TeamName

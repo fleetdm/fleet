@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"runtime"
 	"slices"
 	"sort"
 	"strings"
@@ -37,7 +38,8 @@ const policyCols = `
 	p.id, p.team_id, p.resolution, p.name, p.query, p.description,
 	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical,
 	p.calendar_events_enabled, p.software_installer_id, p.script_id,
-	p.vpp_apps_teams_id, p.conditional_access_enabled, p.conditional_access_bypass_enabled
+	p.vpp_apps_teams_id, p.conditional_access_enabled, p.conditional_access_bypass_enabled,
+	p.type, p.patch_software_title_id
 `
 
 const (
@@ -298,7 +300,27 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 	}
 
 	if err := loadLabelsForPolicies(ctx, q, []*fleet.Policy{&policy}); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "laoding policy labels")
+		return nil, ctxerr.Wrap(ctx, err, "loading policy labels")
+	}
+
+	globalOrTeamID := ptr.ValOrZero(teamID)
+	fmt.Printf("ptr.ValOrZero(policy.PatchSoftwareTitleID): %v\n", ptr.ValOrZero(policy.PatchSoftwareTitleID))
+	if policy.PatchSoftwareTitleID != nil {
+		var slug string
+		stmt := `
+			SELECT
+				fma.slug
+			FROM software_installers si
+			JOIN fleet_maintained_apps fma ON si.fleet_maintained_app_id = fma.id
+			WHERE si.title_id = ?
+			AND si.global_or_team_id = ?
+		`
+		if err := sqlx.GetContext(ctx, q, &slug, stmt, *policy.PatchSoftwareTitleID, globalOrTeamID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "loading fma slug")
+		}
+		fmt.Printf("slug: %v\n", slug)
+
+		policy.FleetMaintainedAppSlug = slug
 	}
 
 	return &policy, nil
@@ -803,6 +825,30 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 	if err := loadLabelsForPolicies(ctx, q, policies); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loading policy labels")
 	}
+
+	for _, policy := range policies {
+		globalOrTeamID := ptr.ValOrZero(teamID)
+		fmt.Printf("ptr.ValOrZero(policy.PatchSoftwareTitleID): %v\n", ptr.ValOrZero(policy.PatchSoftwareTitleID))
+		if policy.PatchSoftwareTitleID != nil {
+			var slug string
+			stmt := `
+			SELECT
+				fma.slug
+			FROM software_installers si
+			JOIN fleet_maintained_apps fma ON si.fleet_maintained_app_id = fma.id
+			WHERE si.title_id = ?
+			AND si.global_or_team_id = ?
+		`
+			if err := sqlx.GetContext(ctx, q, &slug, stmt, *policy.PatchSoftwareTitleID, globalOrTeamID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "loading fma slug")
+			}
+			fmt.Printf("slug: %v\n", slug)
+
+			policy.FleetMaintainedAppSlug = slug
+		}
+	}
+
+	fmt.Printf("[DEBUG %s] %s list\n", time.Now().Format(time.RFC3339Nano), func() string { _, f, l, _ := runtime.Caller(0); return fmt.Sprintf("%s:%d", f, l) }())
 
 	return policies, nil
 }

@@ -1431,7 +1431,10 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			jsonFieldName(t, "CalendarEventsEnabled"):          policy.CalendarEventsEnabled,
 			jsonFieldName(t, "ConditionalAccessEnabled"):       policy.ConditionalAccessEnabled,
 			jsonFieldName(t, "ConditionalAccessBypassEnabled"): policy.ConditionalAccessBypassEnabled,
+			jsonFieldName(t, "Type"):                           policy.Type,
+			jsonFieldName(t, "FleetMaintainedAppSlug"):         policy.FleetMaintainedAppSlug,
 		}
+		fmt.Printf("policy.FleetMaintainedAppSlug: %v\n", policy.FleetMaintainedAppSlug)
 		// Handle software automation.
 		if policy.InstallSoftware != nil {
 			if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {
