@@ -551,4 +551,9 @@ $base-class: "button";
     right: -$pad-small;
     margin-left: -$pad-small;
   }
+
+  // Used in registration/auth pages
+  &__wide {
+    width: 200px;
+  }
 }
