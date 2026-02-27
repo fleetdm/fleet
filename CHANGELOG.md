@@ -1,3 +1,29 @@
+## Fleet 4.81.1 (Feb 27, 2026)
+
+### Bug fixes
+
+- Fixed an issue where some UI users saw a blank gutter on the right side of parts of the UI
+- update UI to enable adding/removing multiple Microsoft Entra tenant ids
+- Fixed a hover style issue in the label filter close button
+- Fixed false positive CVE for Nextcloud Desktop.
+- Fixed rare CPE error when software name sanitizes to empty (e.g. only special characters)
+Fixed false negative CVE-2026-20841 on Windows Notepad.
+- Fixed issue with hosts incorrectly reporting policy failures after policy label targets changed.
+- update storage of the auth token used in the UI; move if from local storage to a cookie.
+- Improved spacing on the Controls > OS Settings page
+- Added the ability to specify allowed Entra tenant IDs for enrollments
+- Fleet UI: Show CTA to turn on Android MDM for Android software setup experience if MDM is not configured
+- Addded CVE alias for python visual studio code extension
+- Improved validation for host transfers.
+- Fixed query results cleanup cron failing with "too many placeholders" error by filtering to only saved queries and batching the SQL IN clause.
+- Moved the copy button for text areas out of the text area itself and in line with its label
+- Fixed some styling issues for the UI when no enroll secret is present on a fleet.
+- Left-aligned "Critical" checkbox in Save policy form.
+- Fixed query results cleanup cron failing with "too many placeholders" error by filtering to only saved queries and batching the SQL IN clause.
+- Fixed matching logic on App component for pages titles.
+- fixed issue where the status name was wrapping at smaller viewport witdths on the mdm card on the Dashboard page
+- Fleet UI: Do not allow editing Fleet-maintained app in the UI while GitOps mode is enabled
+
 ## Fleet 4.81.0 (Feb 20, 2026)
 
 ### IT Admins
