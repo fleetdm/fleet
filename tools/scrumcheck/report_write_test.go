@@ -9,8 +9,6 @@ import (
 
 // TestWriteHTMLReport verifies report rendering writes a non-empty HTML file.
 func TestWriteHTMLReport(t *testing.T) {
-	t.Parallel()
-
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("getwd: %v", err)
@@ -42,8 +40,6 @@ func TestWriteHTMLReport(t *testing.T) {
 
 // TestUIBridgeReportPathAndURL verifies bridge report URL/path helpers.
 func TestUIBridgeReportPathAndURL(t *testing.T) {
-	t.Parallel()
-
 	b := &uiBridge{
 		baseURL: "http://127.0.0.1:9999",
 	}
