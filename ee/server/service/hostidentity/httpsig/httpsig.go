@@ -5,20 +5,19 @@ import (
 	"crypto/elliptic"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttpsig"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
-	"github.com/go-kit/log/level"
 	"github.com/remitly-oss/httpsig-go"
 )
 
 type HTTPSig struct {
 	ds     fleet.Datastore
-	logger *logging.Logger
+	logger *slog.Logger
 }
 
 type KeySpecer struct {
@@ -33,7 +32,7 @@ func (k KeySpecer) KeySpec() (httpsig.KeySpec, error) {
 // _ ensures that KeySpecer implements the httpsig.KeySpecer interface.
 var _ httpsig.KeySpecer = KeySpecer{}
 
-func NewHTTPSig(ds fleet.Datastore, logger *logging.Logger) *HTTPSig {
+func NewHTTPSig(ds fleet.Datastore, logger *slog.Logger) *HTTPSig {
 	return &HTTPSig{
 		ds:     ds,
 		logger: logger,
@@ -51,7 +50,7 @@ func (h *HTTPSig) FetchByKeyID(ctx context.Context, _ http.Header, keyID string)
 	keyIDInt, err := strconv.ParseUint(keyID, 16, 64)
 	if err != nil {
 		err = fmt.Errorf("invalid hex key ID: %w", err)
-		h.logger.Log("level", "info", "msg", "FetchByKeyID error", "err", err)
+		h.logger.InfoContext(ctx, "FetchByKeyID error", "err", err)
 		return nil, err
 	}
 	identityCert, err := h.ds.GetHostIdentityCertBySerialNumber(ctx, keyIDInt)
@@ -60,13 +59,13 @@ func (h *HTTPSig) FetchByKeyID(ctx context.Context, _ http.Header, keyID string)
 		return nil, fmt.Errorf("certificate not found with keyID: %d", keyIDInt)
 	case err != nil:
 		err = fmt.Errorf("loading certificate: %w", err)
-		level.Error(h.logger).Log("msg", "FetchByKeyID error", "err", err)
+		h.logger.ErrorContext(ctx, "FetchByKeyID error", "err", err)
 		return nil, err
 	}
 	publicKey, err := identityCert.UnmarshalPublicKey()
 	if err != nil {
 		err = fmt.Errorf("unmarshaling public key: %w", err)
-		level.Error(h.logger).Log("msg", "FetchByKeyID error", "err", err)
+		h.logger.ErrorContext(ctx, "FetchByKeyID error", "err", err)
 		return nil, err
 	}
 
@@ -78,7 +77,7 @@ func (h *HTTPSig) FetchByKeyID(ctx context.Context, _ http.Header, keyID string)
 		algo = httpsig.Algo_ECDSA_P384_SHA384
 	default:
 		err = fmt.Errorf("unsupported elliptic curve: %s", publicKey.Curve.Params().Name)
-		h.logger.Log("level", "info", "msg", "FetchByKeyID error", "err", err)
+		h.logger.InfoContext(ctx, "FetchByKeyID error", "err", err)
 		return nil, err
 	}
 

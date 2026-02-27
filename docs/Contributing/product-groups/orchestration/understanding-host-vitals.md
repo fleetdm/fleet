@@ -264,20 +264,6 @@ SELECT 1 WHERE EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND re
 <dynamically generated>
 ```
 
-## mdm_config_profiles_windows
-
-- Platforms: windows
-
-- Discovery query:
-```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'mdm_bridge'
-```
-
-- Query:
-```
-<dynamically generated>
-```
-
 ## mdm_device_id_windows
 
 - Platforms: windows

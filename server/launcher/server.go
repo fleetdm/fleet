@@ -2,6 +2,7 @@
 package launcher
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -23,10 +24,11 @@ type Handler struct {
 // New creates a gRPC server to handle remote requests from launcher.
 func New(
 	tls fleet.OsqueryService,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	grpcServer *grpc.Server,
 	healthCheckers map[string]health.Checker,
 ) *Handler {
+	kitLogger := logging.NewLogger(logger)
 	var svc launcher.KolideService
 	{
 		svc = &launcherWrapper{
@@ -34,10 +36,10 @@ func New(
 			logger:         logger,
 			healthCheckers: healthCheckers,
 		}
-		svc = launcher.LoggingMiddleware(logger)(svc)
+		svc = launcher.LoggingMiddleware(kitLogger)(svc)
 	}
 	endpoints := launcher.MakeServerEndpoints(svc)
-	server := launcher.NewGRPCServer(endpoints, logger)
+	server := launcher.NewGRPCServer(endpoints, kitLogger)
 	launcher.RegisterGRPCServer(grpcServer, server)
 	return &Handler{grpcServer}
 }
