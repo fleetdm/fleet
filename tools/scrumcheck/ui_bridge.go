@@ -59,6 +59,7 @@ type uiBridge struct {
 	refreshReleaseTODO   func(context.Context) ([]ReleaseStoryTODOProjectReport, error)
 	refreshMissingSprint func(context.Context) ([]MissingSprintProjectReport, map[string]sprintApplyTarget, error)
 	refreshAllState      func(context.Context) (HTMLReportData, bridgePolicy, error)
+	sseSubscribers       map[chan string]struct{}
 }
 
 // startUIBridge starts the local bridge server and wires all HTTP handlers.
@@ -94,10 +95,14 @@ func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string)
 		allowAssignees:  policy.AssigneesByIssue,
 		allowSprints:    policy.SprintsByItemID,
 		allowRelease:    policy.ReleaseByIssue,
+		sseSubscribers:  make(map[chan string]struct{}),
 	}
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("/", b.handleAppShell)
 	mux.HandleFunc("/report", b.handleReport)
+	mux.HandleFunc("/assets/", b.handleAsset)
+	mux.HandleFunc("/api/events", b.handleEvents)
 	mux.HandleFunc("/api/check/timestamp", b.handleTimestampCheck)
 	mux.HandleFunc("/api/check/unassigned-unreleased", b.handleUnassignedUnreleasedCheck)
 	mux.HandleFunc("/api/check/release-story-todo", b.handleReleaseStoryTODOCheck)
@@ -141,7 +146,7 @@ func (b *uiBridge) setReportPath(path string) {
 
 // reportURL returns the bridge-served report URL for browser navigation.
 func (b *uiBridge) reportURL() string {
-	return b.baseURL + "/report"
+	return b.baseURL + "/"
 }
 
 // sessionToken returns the per-process session token for bridge API calls.
@@ -248,11 +253,6 @@ func (b *uiBridge) refreshAllIfRequested(ctx context.Context, refresh bool) erro
 	b.allowRelease = policy.ReleaseByIssue
 	b.mu.Unlock()
 
-	if path, err := writeHTMLReport(data); err == nil {
-		b.mu.Lock()
-		b.reportPath = path
-		b.mu.Unlock()
-	}
 	return nil
 }
 
@@ -325,6 +325,141 @@ func (b *uiBridge) signal(msg string) {
 	if b.onEvent != nil {
 		b.onEvent(msg)
 	}
+	b.broadcastSSE(msg)
+}
+
+// broadcastSSE forwards bridge events to all connected SSE clients.
+func (b *uiBridge) broadcastSSE(msg string) {
+	b.mu.Lock()
+	subs := make([]chan string, 0, len(b.sseSubscribers))
+	for ch := range b.sseSubscribers {
+		subs = append(subs, ch)
+	}
+	b.mu.Unlock()
+	for _, ch := range subs {
+		select {
+		case ch <- msg:
+		default:
+		}
+	}
+}
+
+// addSSESubscriber registers an SSE listener channel.
+func (b *uiBridge) addSSESubscriber(ch chan string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.sseSubscribers[ch] = struct{}{}
+}
+
+// removeSSESubscriber unregisters and closes an SSE listener channel.
+func (b *uiBridge) removeSSESubscriber(ch chan string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if _, ok := b.sseSubscribers[ch]; ok {
+		delete(b.sseSubscribers, ch)
+		close(ch)
+	}
+}
+
+// handleAppShell serves the frontend app shell from the embedded template.
+func (b *uiBridge) handleAppShell(w http.ResponseWriter, r *http.Request) {
+	if !b.hostAllowed(r) {
+		http.Error(w, "forbidden host", http.StatusForbidden)
+		return
+	}
+	if r.URL.Path != "/" && r.URL.Path != "/report" {
+		http.NotFound(w, r)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	b.touch()
+
+	b.mu.Lock()
+	data := b.reportData
+	b.mu.Unlock()
+	data.BridgeEnabled = true
+	data.BridgeBaseURL = b.baseURL
+	data.BridgeSessionToken = b.session
+
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	b.setSessionCookie(w)
+	if err := renderHTMLReport(w, data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// handleAsset serves embedded static UI assets from /assets/*.
+func (b *uiBridge) handleAsset(w http.ResponseWriter, r *http.Request) {
+	if !b.hostAllowed(r) {
+		http.Error(w, "forbidden host", http.StatusForbidden)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	b.touch()
+	fileServer := http.StripPrefix("/assets/", http.FileServer(http.FS(embeddedUIAssets())))
+	fileServer.ServeHTTP(w, r)
+}
+
+// handleEvents streams live bridge activity to the frontend via SSE.
+func (b *uiBridge) handleEvents(w http.ResponseWriter, r *http.Request) {
+	if !b.hostAllowed(r) {
+		http.Error(w, "forbidden host", http.StatusForbidden)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !b.hasValidSession(r) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "stream unsupported", http.StatusInternalServerError)
+		return
+	}
+
+	b.touch()
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.WriteHeader(http.StatusOK)
+	flusher.Flush()
+
+	ch := make(chan string, 16)
+	b.addSSESubscriber(ch)
+	defer b.removeSSESubscriber(ch)
+
+	fmt.Fprint(w, "event: ready\ndata: connected\n\n")
+	flusher.Flush()
+	ticker := time.NewTicker(20 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-b.done:
+			return
+		case <-ticker.C:
+			fmt.Fprint(w, ": ping\n\n")
+			flusher.Flush()
+		case msg := <-ch:
+			msg = strings.ReplaceAll(msg, "\n", " ")
+			fmt.Fprintf(w, "event: log\ndata: %s\n\n", msg)
+			flusher.Flush()
+		}
+	}
 }
 
 // expectedHost returns the configured host:port for this bridge instance.
@@ -396,29 +531,7 @@ func (b *uiBridge) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 // handleReport serves the generated report file through the bridge.
 func (b *uiBridge) handleReport(w http.ResponseWriter, r *http.Request) {
-	if !b.hostAllowed(r) {
-		http.Error(w, "forbidden host", http.StatusForbidden)
-		return
-	}
-	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	b.touch()
-	b.mu.Lock()
-	reportPath := b.reportPath
-	b.mu.Unlock()
-	if strings.TrimSpace(reportPath) == "" {
-		http.Error(w, "report not ready", http.StatusServiceUnavailable)
-		return
-	}
-
-	// Prevent browser caching so UI reflects latest template/render changes.
-	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
-	w.Header().Set("Pragma", "no-cache")
-	w.Header().Set("Expires", "0")
-	b.setSessionCookie(w)
-	http.ServeFile(w, r, reportPath)
+	b.handleAppShell(w, r)
 }
 
 // handleTimestampCheck runs timestamp refresh and returns JSON results.
@@ -900,7 +1013,7 @@ func (b *uiBridge) prepareRequest(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	referer := strings.TrimSpace(r.Header.Get("Referer"))
-	if referer != "" && !strings.HasPrefix(referer, b.baseURL+"/report") {
+	if referer != "" && !strings.HasPrefix(referer, b.baseURL+"/") {
 		http.Error(w, "forbidden referer", http.StatusForbidden)
 		return false
 	}

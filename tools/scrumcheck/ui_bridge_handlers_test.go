@@ -30,9 +30,10 @@ func newTestBridge() *uiBridge {
 		allowRelease: map[string]releaseLabelTarget{
 			issueKey("fleetdm/fleet", 1): {NeedsProductRemoval: true, NeedsReleaseAdd: true},
 		},
-		reason: "bridge closed",
-		done:   make(chan struct{}),
-		srv:    &http.Server{},
+		sseSubscribers: make(map[chan string]struct{}),
+		reason:         "bridge closed",
+		done:           make(chan struct{}),
+		srv:            &http.Server{},
 	}
 }
 
@@ -69,8 +70,57 @@ func TestHandleReportValidation(t *testing.T) {
 	rr = httptest.NewRecorder()
 	req = getReq("/report")
 	b.handleReport(rr, req)
-	if rr.Code != http.StatusServiceUnavailable {
-		t.Fatalf("status=%d want=%d", rr.Code, http.StatusServiceUnavailable)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusOK)
+	}
+}
+
+// TestHandleAssets verifies static frontend assets are served from /assets/*.
+func TestHandleAssets(t *testing.T) {
+	t.Parallel()
+	b := newTestBridge()
+
+	rr := httptest.NewRecorder()
+	req := getReq("/assets/app.js")
+	b.handleAsset(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d want=%d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), "renderDraftingFromState") {
+		t.Fatalf("expected app.js payload, got %q", rr.Body.String())
+	}
+}
+
+// TestHandleEvents verifies SSE endpoint authorization and initial frame.
+func TestHandleEvents(t *testing.T) {
+	t.Parallel()
+	b := newTestBridge()
+
+	rr := httptest.NewRecorder()
+	req := getReq("/api/events")
+	b.handleEvents(rr, req)
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusUnauthorized)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	rr = httptest.NewRecorder()
+	req = getReq("/api/events").WithContext(ctx)
+	req.Header.Set("X-Qacheck-Session", "sess")
+	done := make(chan struct{})
+	go func() {
+		b.handleEvents(rr, req)
+		close(done)
+	}()
+	time.Sleep(20 * time.Millisecond)
+	cancel()
+	<-done
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusOK)
+	}
+	if !strings.Contains(rr.Body.String(), "event: ready") {
+		t.Fatalf("expected initial SSE frame, got %q", rr.Body.String())
 	}
 }
 

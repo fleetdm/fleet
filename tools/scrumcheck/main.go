@@ -34,7 +34,6 @@ const (
 
 var (
 	startUIBridgeFn   = startUIBridge
-	writeHTMLReportFn = writeHTMLReport
 	openInBrowserFn   = openInBrowser
 )
 
@@ -51,6 +50,7 @@ func run() int {
 	staleDays := flag.Int("stale-days", defaultStaleDays, "Flag Awaiting QA items unchanged for this many days")
 	bridgeIdleMinutes := flag.Int("bridge-idle-minutes", defaultBridgeIdleMinutes, "Minutes to keep UI bridge alive without activity")
 	openReport := flag.Bool("open-report", true, "Open HTML report in browser when finished")
+	uiDevDir := flag.String("ui-dev-dir", "", "Serve frontend files from a local dev directory (expects index.html and assets/)")
 	var projectNums intListFlag
 	var labels stringListFlag
 	flag.Var(&projectNums, "project", "Project number(s)")
@@ -84,6 +84,11 @@ func run() int {
 	}
 	if *bridgeIdleMinutes < 1 {
 		fmt.Fprintln(os.Stderr, "-bridge-idle-minutes must be >= 1")
+		flag.Usage()
+		return 2
+	}
+	if err := setUIRuntimeDir(*uiDevDir); err != nil {
+		fmt.Fprintf(os.Stderr, "invalid -ui-dev-dir: %v\n", err)
 		flag.Usage()
 		return 2
 	}
@@ -399,21 +404,16 @@ func run() int {
 		})
 	}
 
-	reportPath, err := writeHTMLReportFn(reportData)
-	if err != nil {
-		log.Printf("could not write HTML report: %v", err)
-		return 0
-	}
 	tracker.phaseDone(phaseUIAssembly, phaseSummaryKV("report + bridge ready", shortDuration(time.Since(start))))
 
 	tracker.phaseStart(phaseBrowserBridge)
-	tracker.waitingForBrowser(reportPath)
+	if bridge == nil {
+		log.Printf("could not start UI bridge: bridge is required in non-hybrid mode")
+		return 1
+	}
+	openTarget := bridge.reportURL()
+	tracker.waitingForBrowser(openTarget)
 	if *openReport {
-		openTarget := reportPath
-		if bridge != nil {
-			bridge.setReportPath(reportPath)
-			openTarget = bridge.reportURL()
-		}
 		if err := openInBrowserFn(openTarget); err != nil {
 			log.Printf("could not auto-open report: %v", err)
 			tracker.phaseWarn(phaseBrowserBridge, "browser auto-open failed")

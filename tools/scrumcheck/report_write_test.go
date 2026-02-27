@@ -43,8 +43,7 @@ func TestUIBridgeReportPathAndURL(t *testing.T) {
 	b := &uiBridge{
 		baseURL: "http://127.0.0.1:9999",
 	}
-	b.setReportPath("/tmp/x/index.html")
-	if b.reportURL() != "http://127.0.0.1:9999/report" {
+	if b.reportURL() != "http://127.0.0.1:9999/" {
 		t.Fatalf("unexpected reportURL: %q", b.reportURL())
 	}
 }
