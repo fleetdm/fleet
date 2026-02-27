@@ -3,6 +3,7 @@ package httpsig
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
@@ -10,8 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 type key int
@@ -49,7 +48,7 @@ func FromContext(ctx context.Context) (types.HostIdentityCertificate, bool) {
 // to it, and then calls the handler passed as parameter to the MiddlewareFunc.
 type MiddlewareFunc func(http.Handler) http.Handler
 
-func Middleware(ds fleet.Datastore, requireSignature bool, logger kitlog.Logger) (MiddlewareFunc, error) {
+func Middleware(ds fleet.Datastore, requireSignature bool, logger *slog.Logger) (MiddlewareFunc, error) {
 	// Initialize HTTP signature verifier
 	httpSig := NewHTTPSig(ds, logger)
 	verifier, err := httpSig.Verifier()
@@ -107,7 +106,7 @@ func Middleware(ds fleet.Datastore, requireSignature bool, logger kitlog.Logger)
 				return
 			}
 
-			level.Debug(logger).Log("msg", "httpsig verified", "host_id", keySpecer.hostIdentityCert.HostID)
+			logger.DebugContext(req.Context(), "httpsig verified", "host_id", keySpecer.hostIdentityCert.HostID)
 
 			// Signature is valid, we set the identity data in the context and proceed with processing the request.
 			req = req.WithContext(NewContext(req.Context(), keySpecer.hostIdentityCert))

@@ -291,11 +291,11 @@ All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1. W
 
 ### Communicate feedback on prioritized customer requests
 
-When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Product Designer (PD) files a user story that's brought through [drafting](https://fleetdm.com/handbook/product-design#drafting).
+When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Product Designer (PD) brings one or more user stories through [drafting](https://fleetdm.com/handbook/product-design#drafting).
 
-After the user story is released, the PD will ask the appropriate Customer Success Manager (CSM) to bring the released improvements to the customer for feedback. When this happens, PD assigns the CSM and adds the `:help-customers` label.
+After the user stories are released and the relevant Customer Solutions Architect (CSA) confirms that the request is fulfilled during [confirm and celebrate](https://fleetdm.com/handbook/product-design#confirm-and-celebrate), it's up to the Customer Success Manager (CSM) to inform the customer and close the issue.
 
-If the improvements meet the customer's needs, the request issue is closed with a comment that @ mentions the PD. If the improvements are missing something in order to meet the customer's needs, the CSM adds feedback as comment (Gong snippet, Slack thread, or meetings notes), @ mention the PD, and unsassign themselves from the request issue.
+If we learn the improvements are missing something in order to meet the customer's needs, the CSM re-opens the issue, adds feedback in a comment (Gong snippet, Slack thread, or meetings notes), and @ mentions the HPD.
 
 ### Manage DNS records
 
@@ -333,7 +333,7 @@ When a user requests that we delete all data we have stored about them, their da
 
 ### Create a task for a CSA
 
-If assistance is needed for research or solutioning by a CSA, create an issue using the [CSA task template](github.com/fleetdm/fleet/issues/new?template=csa-task.md) for tracking.
+If assistance is needed for research or solutioning by a CSA, create an issue using the [CSA task template](https://github.com/fleetdm/fleet/issues/new?template=csa-task.md) for tracking.
 
 **Ensure all private data is scrubbed and customer code names are used.**
 

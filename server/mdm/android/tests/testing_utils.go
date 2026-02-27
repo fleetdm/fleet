@@ -8,7 +8,6 @@ import (
 	"os"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -23,7 +22,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
-	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
@@ -90,6 +88,13 @@ func (ds *AndroidDSWithMock) SetAndroidHostUnenrolled(ctx context.Context, hostI
 	return ds.Datastore.SetAndroidHostUnenrolled(ctx, hostID)
 }
 
+// noopActivityModule implements activities.ActivityModule with a no-op for tests.
+type noopActivityModule struct{}
+
+func (n *noopActivityModule) NewActivity(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+	return nil
+}
+
 type WithServer struct {
 	suite.Suite
 	Svc      android.Service
@@ -114,9 +119,8 @@ func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	kitLogger := logging.NewLogger(logger)
-	activityModule := activities.NewActivityModule(&ts.DS.DataStore, kitLogger)
-	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, "test-private-key", ts.DS.Datastore, activityModule,
-		config.AndroidAgentConfig{})
+	activityModule := &noopActivityModule{} // This test does not verify activity creation.
+	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, "test-private-key", ts.DS.Datastore, activityModule, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 	ts.Svc = svc
 
@@ -156,9 +160,6 @@ func (ts *WithServer) CreateCommonDSMocks() {
 		return nil
 	}
 	ts.DS.BulkSetAndroidHostsUnenrolledFunc = func(ctx context.Context) error {
-		return nil
-	}
-	ts.DS.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
 		return nil
 	}
 }

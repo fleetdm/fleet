@@ -59,7 +59,7 @@ func (s *liveQueriesTestSuite) SetupSuite() {
 	lq := live_query_mock.New(s.T())
 	s.lq = lq
 
-	opts := &TestServerOpts{Lq: lq, Rs: rs}
+	opts := &TestServerOpts{Lq: lq, Rs: rs, DBConns: s.dbConns}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		opts.Logger = logging.NewNopLogger()
 	}
@@ -772,7 +772,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsToCreateCampaign() {
 	require.Len(t, liveQueryResp.Results, 1)
 	assert.Equal(t, 0, liveQueryResp.Summary.RespondedHostCount)
 	require.NotNil(t, liveQueryResp.Results[0].Error)
-	assert.Contains(t, *liveQueryResp.Results[0].Error, "Query 999 was not found in the datastore")
+	assert.Contains(t, *liveQueryResp.Results[0].Error, "Report 999 was not found in the datastore")
 
 	oneLiveQueryRequest := runOneLiveQueryRequest{
 		HostIDs: []uint{888},

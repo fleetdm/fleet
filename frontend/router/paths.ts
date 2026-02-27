@@ -142,7 +142,7 @@ export default {
     return `${URL_PREFIX}/hosts/manage/labels/${labelId}`;
   },
   HOST_DETAILS: (id: number, teamId?: number): string => {
-    if (teamId) {
+    if (typeof teamId === "number") {
       return `${URL_PREFIX}/hosts/${id}/details?fleet_id=${teamId}`;
     }
     return `${URL_PREFIX}/hosts/${id}/details`;

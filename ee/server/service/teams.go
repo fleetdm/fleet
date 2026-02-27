@@ -9,7 +9,6 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
@@ -22,7 +21,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-kit/log/level"
 )
 
 func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
@@ -84,12 +82,8 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	if *p.Name == "" {
 		return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
 	}
-	l := strings.ToLower(*p.Name)
-	if l == strings.ToLower(fleet.ReservedNameAllTeams) {
-		return nil, fleet.NewInvalidArgumentError("name", `"All teams" is a reserved team name`)
-	}
-	if l == strings.ToLower(fleet.ReservedNameNoTeam) {
-		return nil, fleet.NewInvalidArgumentError("name", `"No team" is a reserved team name`)
+	if fleet.IsReservedTeamName(*p.Name) {
+		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", *p.Name))
 	}
 	team.Name = *p.Name
 
@@ -152,12 +146,8 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if *payload.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
 		}
-		l := strings.ToLower(*payload.Name)
-		if l == strings.ToLower(fleet.ReservedNameAllTeams) {
-			return nil, fleet.NewInvalidArgumentError("name", `"All teams" is a reserved team name`)
-		}
-		if l == strings.ToLower(fleet.ReservedNameNoTeam) {
-			return nil, fleet.NewInvalidArgumentError("name", `"No team" is a reserved team name`)
+		if fleet.IsReservedTeamName(*payload.Name) {
+			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", *payload.Name))
 		}
 		team.Name = *payload.Name
 	}
@@ -506,7 +496,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 			err = fleet.SuggestAgentOptionsCorrection(err)
 			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOptions.Force && !applyOptions.DryRun {
-				level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
+				svc.logger.InfoContext(ctx, "force-apply team agent options with validation errors", "err", err)
 			}
 			if !applyOptions.Force {
 				return nil, ctxerr.Wrap(ctx, err, "validate agent options")
@@ -553,7 +543,7 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 	idMap := make(map[uint]fleet.TeamUser)
 	for _, user := range users {
 		if !fleet.ValidTeamRole(user.Role) {
-			return nil, fleet.NewInvalidArgumentError("users", fmt.Sprintf("%s is not a valid role for a team user", user.Role))
+			return nil, fleet.NewInvalidArgumentError("users", fmt.Sprintf("%s is not a valid user role", user.Role))
 		}
 		idMap[user.ID] = user
 		fullUser, err := svc.ds.UserByID(ctx, user.ID)
@@ -912,11 +902,7 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 		activity := fleet.ActivityTypeEditedEnrollSecrets{}
 		team, err := svc.ds.TeamLite(ctx, teamID)
 		if err != nil {
-			level.Error(svc.logger).Log(
-				"err", err,
-				"teamID", teamID,
-				"msg", "error while fetching team for edited enroll secret activity",
-			)
+			svc.logger.ErrorContext(ctx, "error while fetching team for edited enroll secret activity", "err", err, "teamID", teamID)
 		}
 		if team != nil {
 			activity = fleet.ActivityTypeEditedEnrollSecrets{
@@ -924,10 +910,7 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 				TeamName: &team.Name,
 			}
 		} else {
-			level.Error(svc.logger).Log(
-				"teamID", teamID,
-				"msg", "team not found for edited enroll secret activity",
-			)
+			svc.logger.ErrorContext(ctx, "team not found for edited enroll secret activity", "teamID", teamID)
 		}
 
 		if err := svc.NewActivity(
@@ -1051,12 +1034,8 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			}
 		}
 
-		l := strings.ToLower(spec.Name)
-		if l == strings.ToLower(fleet.ReservedNameAllTeams) {
-			return nil, fleet.NewInvalidArgumentError("name", `"All teams" is a reserved team name`)
-		}
-		if l == strings.ToLower(fleet.ReservedNameNoTeam) {
-			return nil, fleet.NewInvalidArgumentError("name", `"No team" is a reserved team name`)
+		if fleet.IsReservedTeamName(spec.Name) {
+			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", spec.Name))
 		}
 
 		var team *fleet.Team
@@ -1109,7 +1088,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 				err = fleet.SuggestAgentOptionsCorrection(err)
 				err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 				if applyOpts.Force && !applyOpts.DryRun {
-					level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
+					svc.logger.InfoContext(ctx, "force-apply team agent options with validation errors", "err", err)
 				}
 				if !applyOpts.Force {
 					return nil, ctxerr.Wrap(ctx, err, "validate agent options")

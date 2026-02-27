@@ -84,7 +84,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
-	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
+	activitiesmod "github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -210,7 +210,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		mdmStorage,
 		mdmStorage,
 		pushFactory,
-		NewNanoMDMLogger(pushLog),
+		NewNanoMDMLogger(pushLog.SlogLogger()),
 	)
 	mdmCommander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 	s.redisPool = redistest.SetupRedis(s.T(), "zz", false, false, false)
@@ -221,7 +221,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		wlog = logging.NewNopLogger()
 	}
 
-	activityModule := activities.NewActivityModule(s.ds, wlog)
+	activityModule := activitiesmod.NewActivityModule()
 	androidMockClient := &android_mock.Client{}
 	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error {
 		return nil
@@ -238,26 +238,26 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	macosJob := &worker.MacosSetupAssistant{
 		Datastore:  s.ds,
-		Log:        wlog,
+		Log:        wlog.SlogLogger(),
 		DEPService: apple_mdm.NewDEPService(s.ds, depStorage, wlog.SlogLogger()),
 		DEPClient:  apple_mdm.NewDEPClient(depStorage, s.ds, wlog.SlogLogger()),
 	}
 	appleMDMJob := &worker.AppleMDM{
 		Datastore: s.ds,
-		Log:       wlog,
+		Log:       wlog.SlogLogger(),
 		Commander: mdmCommander,
 	}
 	vppVerifyJob := &worker.AppleSoftware{
 		Datastore: s.ds,
-		Log:       wlog,
+		Log:       wlog.SlogLogger(),
 		Commander: mdmCommander,
 	}
 	softwareWorker := &worker.SoftwareWorker{
 		Datastore:     s.ds,
-		Log:           wlog,
+		Log:           wlog.SlogLogger(),
 		AndroidModule: androidSvc,
 	}
-	workr := worker.NewWorker(s.ds, wlog)
+	workr := worker.NewWorker(s.ds, wlog.SlogLogger())
 	workr.TestIgnoreUnknownJobs = true
 	workr.Register(macosJob, appleMDMJob, vppVerifyJob, softwareWorker)
 
@@ -293,7 +293,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		bootstrapPackageStore = s3.SetupTestBootstrapPackageStore(s.T(), "integration-tests", "")
 	}
 	scepTimeout := ptr.Duration(10 * time.Second)
-	s.scepConfig = eeservice.NewSCEPConfigService(serverLogger, scepTimeout).(*eeservice.SCEPConfigService)
+	s.scepConfig = eeservice.NewSCEPConfigService(serverLogger.SlogLogger(), scepTimeout).(*eeservice.SCEPConfigService)
 
 	// Create a software title icon store
 	iconDir := s.T().TempDir()
@@ -319,6 +319,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		BootstrapPackageStore:  bootstrapPackageStore,
 		androidMockClient:      androidMockClient,
 		androidModule:          androidSvc,
+		ActivityModule:         activityModule,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
@@ -336,7 +337,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 									s.onProfileJobDone()
 								}()
 							}
-							err = ReconcileAppleProfiles(ctx, ds, mdmCommander, logger)
+							err = ReconcileAppleProfiles(ctx, ds, mdmCommander, logger.SlogLogger())
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -349,7 +350,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 									s.onProfileJobDone()
 								}()
 							}
-							err = ReconcileAppleDeclarations(ctx, ds, mdmCommander, logger)
+							err = ReconcileAppleDeclarations(ctx, ds, mdmCommander, logger.SlogLogger())
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -391,7 +392,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 								defer s.onIntegrationsScheduleDone()
 							}
 
-							return worker.ProcessDEPCooldowns(ctx, ds, logger)
+							return worker.ProcessDEPCooldowns(ctx, ds, logger.SlogLogger())
 						}),
 					)
 					return integrationsSchedule, nil
@@ -452,9 +453,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger.SlogLogger(), func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
-								return newActivity(ctx, user, act, ds, logger)
-							})
+							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger.SlogLogger(), s.fleetSvc.NewActivity)
 						}),
 					)
 					return refetcherSchedule, nil
@@ -484,6 +483,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	s.server = server
 	s.users = users
+	s.fleetSvc = svc
 	s.token = s.getTestAdminToken()
 	s.cachedAdminToken = s.token
 	s.fleetCfg = fleetCfg
@@ -11664,7 +11664,7 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	fleetCfg := config.TestConfig()
 	config.SetTestMDMConfig(s.T(), &fleetCfg, cert, key, "")
 	logger := logging.NewJSONLogger(os.Stdout)
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	err = RenewSCEPCertificates(ctx, logger.SlogLogger(), s.ds, &fleetCfg, s.mdmCommander)
 	require.NoError(t, err)
 
 	// no new commands were enqueued
@@ -11724,13 +11724,13 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	}
 
 	// trigger the reconciliation schedule
-	err := ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger)
+	err := ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
 
 	// triggering the schedule again doesn't send any more pushes
-	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 0)
 	recordedPushes = nil
@@ -11738,7 +11738,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	// the cron to trigger pushes sends a new push request each time it
 	// runs if there are pending commands
 	for i := 0; i < 3; i++ {
-		err := SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger)
+		err := SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 		require.NoError(t, err)
 		require.Len(t, recordedPushes, 1)
 		recordedPushes = nil
@@ -11754,7 +11754,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	}
 
 	// no more pushes are enqueued
-	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger)
+	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 0)
 }
@@ -11785,7 +11785,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	}
 
 	// trigger the reconciliation schedule
-	err := ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger)
+	err := ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
@@ -11806,13 +11806,13 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	}}, http.StatusNoContent)
 
 	// trigger the reconciliation schedule
-	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
 
 	// The cron to trigger pushes sends a new push request each time it runs.
-	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger)
+	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
@@ -11826,7 +11826,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	assert.Nil(t, cmd)
 
 	// A 'NotNow' command will not trigger a new push. Device is expected to check in again when conditions change.
-	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 0)
 	recordedPushes = nil
@@ -11840,7 +11840,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	assert.Nil(t, cmd)
 
 	// no more pushes are enqueued
-	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger)
+	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	assert.Zero(t, recordedPushes)
 }
@@ -13696,8 +13696,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(errTitleID))
 	require.Equal(t, 1, countResp.Count)
 
-	// Simulate failed installation on the host
-	errorOnInstallApplicationCommand(1234)
+	// Simulate failed installation on the host, exhaust retries (MaxSoftwareInstallAttempts = 3)
+	// First error triggers retry 1, second triggers retry 2, third triggers retry 3,
+	// fourth exhausts retries and marks as failed.
+	for range fleet.MaxSoftwareInstallAttempts + 1 {
+		errorOnInstallApplicationCommand(1234)
+	}
 
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
@@ -19055,6 +19059,17 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 			"orbit_node_key": %q, "install_uuid": %q, "pre_install_condition_output": "ok", "install_script_exit_code": 1, "install_script_output": "fail"
 		}`, *mdmHost.OrbitNodeKey, hostActivitiesResp.Activities[1].UUID)), http.StatusNoContent)
 
+	// Exhaust automatic retries for the failed software install.
+	// Server-side retries queue up to MaxSoftwareInstallAttempts attempts.
+	for attempt := 2; attempt <= fleet.MaxSoftwareInstallAttempts; attempt++ {
+		hostActivitiesResp = listHostUpcomingActivitiesResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost.ID), nil, http.StatusOK, &hostActivitiesResp)
+		require.Len(t, hostActivitiesResp.Activities, 1, "should have pending retry (attempt %d)", attempt)
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
+				"orbit_node_key": %q, "install_uuid": %q, "pre_install_condition_output": "ok", "install_script_exit_code": 1, "install_script_output": "fail"
+			}`, *mdmHost.OrbitNodeKey, hostActivitiesResp.Activities[0].UUID)), http.StatusNoContent)
+	}
+
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost.ID), nil, http.StatusOK, &hostActivitiesResp)
 	require.Len(t, hostActivitiesResp.Activities, 0)
 
@@ -19729,9 +19744,7 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 		return nil, errors.New("unknown device")
 	}
 
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
-		return newActivity(ctx, user, act, s.ds, s.logger)
-	})
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), s.fleetSvc.NewActivity)
 	require.NoError(s.T(), err) // Verify it not longer throws an error
 
 	// Verify successful is still enrolled
@@ -20745,9 +20758,7 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	checkExpectedCommands(mdmClientDEP, false, 1)
 
 	// run the cron-based refetch, will not do anything as the devices were just refetched
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
-		return newActivity(ctx, user, act, s.ds, s.logger)
-	})
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), s.fleetSvc.NewActivity)
 	require.NoError(t, err)
 
 	checkExpectedCommands(mdmClientBYOD, true, 0)
@@ -20760,9 +20771,7 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	require.NoError(t, s.ds.UpdateHost(ctx, hostDEP))
 
 	// run the cron-based refetch again, will enqueue the commands with the correct managed only flag
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
-		return newActivity(ctx, user, act, s.ds, s.logger)
-	})
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), s.fleetSvc.NewActivity)
 	require.NoError(t, err)
 
 	checkExpectedCommands(mdmClientBYOD, true, 1)

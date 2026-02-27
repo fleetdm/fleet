@@ -27,7 +27,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-kit/log/level"
 )
 
 type setOrbitNodeKeyer interface {
@@ -230,9 +229,9 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 				mp, ok := capabilities.FromContext(ctx)
 				//nolint:gocritic // ignore ifElseChain
 				if !ok {
-					level.Error(svc.logger).Log("msg", "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but fleet could not determine whether orbit supports end-user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
+					svc.logger.ErrorContext(ctx, "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but fleet could not determine whether orbit supports end-user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
 				} else if !mp.Has(fleet.CapabilityEndUserAuth) {
-					level.Warn(svc.logger).Log("msg", "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but connected with an orbit version that does not support end user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
+					svc.logger.WarnContext(ctx, "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but connected with an orbit version that does not support end user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
 				} else {
 					// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
 					return "", fleet.NewOrbitIDPAuthRequiredError()
@@ -250,7 +249,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		if err != nil {
 			// Log error but continue enrollment (fail-open approach). If Redis is unavailable,
 			// enrollment proceeds without sticky behavior rather than blocking.
-			level.Error(svc.logger).Log("msg", "failed to get sticky enrollment", "err", err, "host_uuid", hostInfo.HardwareUUID)
+			svc.logger.ErrorContext(ctx, "failed to get sticky enrollment", "err", err, "host_uuid", hostInfo.HardwareUUID)
 		}
 	}
 
@@ -271,9 +270,9 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	// are associated during MDM enrollment.
 	platform := host.FleetPlatform()
 	if platform == "linux" || platform == "windows" {
-		level.Debug(svc.logger).Log("msg", "attempting to associate enrolled host with SCIM user", "host_id", host.ID, "platform", platform)
+		svc.logger.DebugContext(ctx, "attempting to associate enrolled host with SCIM user", "host_id", host.ID, "platform", platform)
 		if err := svc.ds.MaybeAssociateHostWithScimUser(ctx, host.ID); err != nil {
-			level.Error(svc.logger).Log("msg", "failed to associate enrolled host with SCIM user", "err", err, "host_id", host.ID)
+			svc.logger.ErrorContext(ctx, "failed to associate enrolled host with SCIM user", "err", err, "host_id", host.ID)
 		}
 	}
 
@@ -286,7 +285,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			HostDisplayName: host.DisplayName(),
 		},
 	); err != nil {
-		level.Error(svc.logger).Log("msg", "record fleet enroll activity", "err", err)
+		svc.logger.ErrorContext(ctx, "record fleet enroll activity", "err", err)
 	}
 
 	return orbitNodeKey, nil
@@ -364,7 +363,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 				// the device.
 				mp, ok := capabilities.FromContext(ctx)
 				if !ok || !mp.Has(fleet.CapabilitySetupExperience) {
-					level.Debug(svc.logger).Log("msg", "host doesn't support setup experience, falling back to worker-based device release", "host_uuid", host.UUID)
+					svc.logger.DebugContext(ctx, "host doesn't support setup experience, falling back to worker-based device release", "host_uuid", host.UUID)
 					if err := svc.processReleaseDeviceForOldFleetd(ctx, host); err != nil {
 						return fleet.OrbitConfig{}, err
 					}
@@ -686,12 +685,12 @@ func (svc *Service) setDiskEncryptionNotifications(
 	case "darwin":
 		mp, ok := capabilities.FromContext(ctx)
 		if !ok {
-			level.Debug(svc.logger).Log("msg", "no capabilities in context, skipping disk encryption notification")
+			svc.logger.DebugContext(ctx, "no capabilities in context, skipping disk encryption notification")
 			return nil
 		}
 
 		if !mp.Has(fleet.CapabilityEscrowBuddy) {
-			level.Debug(svc.logger).Log("msg", "host doesn't support Escrow Buddy, skipping disk encryption notification", "host_uuid", host.UUID)
+			svc.logger.DebugContext(ctx, "host doesn't support Escrow Buddy, skipping disk encryption notification", "host_uuid", host.UUID)
 			return nil
 		}
 
@@ -966,7 +965,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 		}, true); err != nil {
 			return ctxerr.Wrap(ctx, err, "update setup experience status")
 		} else if updated {
-			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.ExecutionID)
+			svc.logger.DebugContext(ctx, "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.ExecutionID)
 			fromSetupExperience = true
 			_, err := svc.EnterpriseOverrides.SetupExperienceNextStep(ctx, host)
 			if err != nil {
@@ -1079,16 +1078,16 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 		if scriptFailed {
 			shouldRetry, err := svc.shouldRetryPolicyAutomationScript(ctx, host, hsr)
 			if err != nil {
-				level.Error(svc.logger).Log(
-					"msg", "failed to check if policy automation script should retry",
+				svc.logger.ErrorContext(ctx,
+					"failed to check if policy automation script should retry",
 					"host_id", host.ID,
 					"policy_id", *hsr.PolicyID,
 					"err", err,
 				)
 			} else if shouldRetry {
 				if err := svc.retryPolicyAutomationScript(ctx, host, hsr); err != nil {
-					level.Error(svc.logger).Log(
-						"msg", "failed to queue policy automation script retry",
+					svc.logger.ErrorContext(ctx,
+						"failed to queue policy automation script retry",
 						"host_id", host.ID,
 						"policy_id", *hsr.PolicyID,
 						"err", err,
@@ -1193,9 +1192,9 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 	}
 
 	// Only archive the key if disk encryption is enabled for this host (team/globally)
-	if !osquery_utils.IsDiskEncryptionEnabledForHost(ctx, svc.logger.SlogLogger(), svc.ds, host) {
-		level.Debug(svc.logger).Log(
-			"msg", "skipping key archival, disk encryption not enabled for host team/globally",
+	if !osquery_utils.IsDiskEncryptionEnabledForHost(ctx, svc.logger, svc.ds, host) {
+		svc.logger.DebugContext(ctx,
+			"skipping key archival, disk encryption not enabled for host team/globally",
 			"host_id", host.ID,
 		)
 		return nil
@@ -1240,8 +1239,8 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 		},
 	); err != nil {
 		// OK: this is not critical to the operation of the endpoint
-		level.Error(svc.logger).Log(
-			"msg", "record fleet disk encryption key escrowed activity",
+		svc.logger.ErrorContext(ctx,
+			"record fleet disk encryption key escrowed activity",
 			"err", err,
 		)
 		ctxerr.Handle(ctx, err)
@@ -1301,9 +1300,9 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 	}
 
 	// Only archive the key if disk encryption is enabled for this host (team/globally)
-	if !osquery_utils.IsDiskEncryptionEnabledForHost(ctx, svc.logger.SlogLogger(), svc.ds, host) {
-		level.Debug(svc.logger).Log(
-			"msg", "skipping LUKS key archival, disk encryption not enabled for host team/globally",
+	if !osquery_utils.IsDiskEncryptionEnabledForHost(ctx, svc.logger, svc.ds, host) {
+		svc.logger.DebugContext(ctx,
+			"skipping LUKS key archival, disk encryption not enabled for host team/globally",
 			"host_id", host.ID,
 		)
 		return nil
@@ -1333,8 +1332,8 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 		},
 	); err != nil {
 		// OK: this is not critical to the operation of the endpoint
-		level.Error(svc.logger).Log(
-			"msg", "record fleet disk encryption key escrowed activity",
+		svc.logger.ErrorContext(ctx,
+			"record fleet disk encryption key escrowed activity",
 			"err", err,
 		)
 		ctxerr.Handle(ctx, err)
@@ -1531,14 +1530,24 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return nil
 	}
 
-	// Calculate attempt_number for policy automation retries by counting existing attempts
-	attemptNumber, err := svc.getPolicyAutomationSoftwareInstallerAttemptNumber(ctx, host, result.InstallUUID)
+	// Calculate attempt_number for retries by counting existing attempts
+	attemptNumber, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, result.InstallUUID)
 	if err != nil {
 		return err
 	}
 
+	// Check if a non-policy install failure will be retried so we can skip
+	// updating setup experience status during intermediate retries.
+	willRetryNonPolicyOnFailure := false
+	if attemptNumber != nil && *attemptNumber < fleet.MaxSoftwareInstallAttempts && result.Status() == fleet.SoftwareInstallFailed {
+		currentInstall, checkErr := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID)
+		if checkErr == nil && currentInstall != nil && currentInstall.PolicyID == nil {
+			willRetryNonPolicyOnFailure = true
+		}
+	}
+
 	var fromSetupExperience bool
-	if fleet.IsSetupExperienceSupported(host.Platform) {
+	if fleet.IsSetupExperienceSupported(host.Platform) && !willRetryNonPolicyOnFailure {
 		// This might be a setup experience software install result, so we attempt to update the
 		// "Setup experience" status for that item.
 		hostUUID, err := fleet.HostUUIDForSetupExperience(host)
@@ -1552,8 +1561,8 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		}, true); err != nil {
 			return ctxerr.Wrap(ctx, err, "update setup experience status")
 		} else if updated {
-			level.Debug(svc.logger).Log(
-				"msg", "setup experience software install result updated",
+			svc.logger.DebugContext(ctx,
+				"setup experience software install result updated",
 				"host_uuid", hostUUID,
 				"execution_id", result.InstallUUID,
 			)
@@ -1598,16 +1607,16 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			if status == fleet.SoftwareInstallFailed {
 				shouldRetry, err := svc.shouldRetryPolicyAutomationSoftwareInstall(ctx, host, hsi)
 				if err != nil {
-					level.Error(svc.logger).Log(
-						"msg", "failed to check if policy automation software install should retry",
+					svc.logger.ErrorContext(ctx,
+						"failed to check if policy automation software install should retry",
 						"host_id", host.ID,
 						"policy_id", *hsi.PolicyID,
 						"err", err,
 					)
 				} else if shouldRetry {
 					if err := svc.retryPolicyAutomationSoftwareInstall(ctx, host, hsi); err != nil {
-						level.Error(svc.logger).Log(
-							"msg", "failed to queue policy automation software install retry",
+						svc.logger.ErrorContext(ctx,
+							"failed to queue policy automation software install retry",
 							"host_id", host.ID,
 							"policy_id", *hsi.PolicyID,
 							"err", err,
@@ -1620,6 +1629,33 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 					if *hsi.AttemptNumber < fleet.MaxPolicyAutomationRetries {
 						shouldCreateActivity = false
 					}
+				}
+			}
+		}
+
+		// Non-policy install retry (host details, self-service, setup experience).
+		// Errors here are logged but do not abort the handler. The primary
+		// action, recording the install result from the device, must succeed
+		// regardless of whether a retry can be scheduled. If retry scheduling
+		// fails, the install is marked as failed (no retry) and the admin can
+		// manually re-trigger.
+		if hsi.PolicyID == nil && status == fleet.SoftwareInstallFailed {
+			shouldRetry, retryErr := svc.shouldRetrySoftwareInstall(ctx, hsi)
+			if retryErr != nil {
+				svc.logger.ErrorContext(ctx,
+					"failed to check if software install should retry",
+					"host_id", host.ID,
+					"install_uuid", result.InstallUUID,
+					"err", retryErr,
+				)
+			} else if shouldRetry {
+				if retryErr := svc.retrySoftwareInstall(ctx, host, hsi, fromSetupExperience); retryErr != nil {
+					svc.logger.ErrorContext(ctx,
+						"failed to queue software install retry",
+						"host_id", host.ID,
+						"install_uuid", result.InstallUUID,
+						"err", retryErr,
+					)
 				}
 			}
 		}
@@ -1681,8 +1717,8 @@ func (svc *Service) shouldRetryPolicyAutomationSoftwareInstall(ctx context.Conte
 
 // retryPolicyAutomationSoftwareInstall queues a retry for a policy automation software install.
 func (svc *Service) retryPolicyAutomationSoftwareInstall(ctx context.Context, host *fleet.Host, hsi *fleet.HostSoftwareInstallerResult) error {
-	level.Info(svc.logger).Log(
-		"msg", "queuing policy automation software install retry",
+	svc.logger.InfoContext(ctx,
+		"queuing policy automation software install retry",
 		"host_id", host.ID,
 		"policy_id", *hsi.PolicyID,
 		"software_installer_id", *hsi.SoftwareInstallerID,
@@ -1690,6 +1726,32 @@ func (svc *Service) retryPolicyAutomationSoftwareInstall(ctx context.Context, ho
 	)
 	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *hsi.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
 		PolicyID: hsi.PolicyID,
+	})
+	return err
+}
+
+// shouldRetrySoftwareInstall checks if a failed non-policy software install should be retried.
+func (svc *Service) shouldRetrySoftwareInstall(ctx context.Context, hsi *fleet.HostSoftwareInstallerResult) (bool, error) {
+	if hsi.AttemptNumber == nil {
+		return false, nil
+	}
+	return *hsi.AttemptNumber < fleet.MaxSoftwareInstallAttempts, nil
+}
+
+// retrySoftwareInstall queues a retry for a non-policy software install.
+func (svc *Service) retrySoftwareInstall(ctx context.Context, host *fleet.Host, hsi *fleet.HostSoftwareInstallerResult, fromSetupExperience bool) error {
+	svc.logger.InfoContext(ctx,
+		"queuing software install retry",
+		"host_id", host.ID,
+		"software_installer_id", *hsi.SoftwareInstallerID,
+		"self_service", hsi.SelfService,
+		"current_attempt", *hsi.AttemptNumber,
+	)
+	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *hsi.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
+		SelfService:        hsi.SelfService,
+		UserID:             hsi.UserID,
+		ForSetupExperience: fromSetupExperience,
+		WithRetries:        true,
 	})
 	return err
 }
@@ -1719,8 +1781,8 @@ func (svc *Service) shouldRetryPolicyAutomationScript(ctx context.Context, host 
 
 // retryPolicyAutomationScript queues a retry for a policy automation script.
 func (svc *Service) retryPolicyAutomationScript(ctx context.Context, host *fleet.Host, hsr *fleet.HostScriptResult) error {
-	level.Info(svc.logger).Log(
-		"msg", "queuing policy automation script retry",
+	svc.logger.InfoContext(ctx,
+		"queuing policy automation script retry",
 		"host_id", host.ID,
 		"policy_id", *hsr.PolicyID,
 		"script_id", *hsr.ScriptID,
@@ -1757,24 +1819,32 @@ func (svc *Service) getPolicyAutomationScriptAttemptNumber(ctx context.Context, 
 	return nil, nil // nil for manual runs
 }
 
-// getPolicyAutomationSoftwareInstallerAttemptNumber calculates the attempt number for a policy automation software install.
-// Returns nil for manual/self-service installs (not triggered by policy automation).
-func (svc *Service) getPolicyAutomationSoftwareInstallerAttemptNumber(ctx context.Context, host *fleet.Host, installUUID string) (*int, error) {
+// getSoftwareInstallerAttemptNumber calculates the attempt number for a software install.
+// Returns nil for installs that don't have a software_installer_id.
+func (svc *Service) getSoftwareInstallerAttemptNumber(ctx context.Context, host *fleet.Host, installUUID string) (*int, error) {
 	currentInstall, err := svc.ds.GetSoftwareInstallResults(ctx, installUUID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "get current install info for attempt number calculation")
 	}
 
-	// Only calculate attempt_number for policy automation installs
-	if currentInstall != nil && currentInstall.PolicyID != nil && currentInstall.SoftwareInstallerID != nil {
+	if currentInstall == nil || currentInstall.SoftwareInstallerID == nil {
+		return nil, nil
+	}
+
+	// Policy automation installs
+	if currentInstall.PolicyID != nil {
 		count, err := svc.ds.CountHostSoftwareInstallAttempts(ctx, host.ID, *currentInstall.SoftwareInstallerID, *currentInstall.PolicyID)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "count previous install attempts")
+			return nil, ctxerr.Wrap(ctx, err, "count previous policy install attempts")
 		}
 		return &count, nil
 	}
 
-	return nil, nil // nil for manual/self-service installs
+	// Non-policy installs (host details, self-service, setup experience):
+	// attempt_number is set at activation time for retry-eligible installs
+	// (those created with WithRetries=true). If nil, this install was not
+	// created with retry support.
+	return currentInstall.AttemptNumber, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////

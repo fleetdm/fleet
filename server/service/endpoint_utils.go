@@ -16,10 +16,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/go-kit/log"
 	"github.com/gorilla/mux"
 )
 
@@ -200,7 +200,7 @@ func badRequestf(format string, a ...any) error {
 	}
 }
 
-func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
+func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger *slog.Logger, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	// Extract certificate serial from X-Client-Cert-Serial header for certificate-based auth
@@ -225,7 +225,7 @@ func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts
 	}
 }
 
-func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
+func newHostAuthenticatedEndpointer(svc fleet.Service, logger *slog.Logger, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	return &eu.CommonEndpointer[handlerFunc]{
@@ -245,7 +245,7 @@ func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts [
 
 func androidAuthenticatedEndpointer(
 	svc fleet.Service,
-	logger log.Logger,
+	logger *slog.Logger,
 	opts []kithttp.ServerOption,
 	r *mux.Router,
 	versions ...string,
@@ -270,7 +270,7 @@ func androidAuthenticatedEndpointer(
 	}
 }
 
-func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
+func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger *slog.Logger, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	// Inject the fleet.Capabilities header to the response for Orbit hosts
@@ -320,11 +320,13 @@ func parseMultipartForm(ctx context.Context, r *http.Request, maxMemory int64) e
 	teamIDs, teamIDPresent := r.Form["team_id"]
 	if teamIDPresent && len(teamIDs) > 0 {
 		teamID := teamIDs[0]
-		logging.WithExtras(ctx,
-			"deprecated_param", "team_id",
-			"deprecation_warning", "'team_id' is deprecated, use 'fleet_id' instead",
-		)
-		logging.WithLevel(ctx, slog.LevelWarn)
+		if platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+			logging.WithExtras(ctx,
+				"deprecated_param", "team_id",
+				"deprecation_warning", "'team_id' is deprecated, use 'fleet_id' instead",
+			)
+			logging.WithLevel(ctx, slog.LevelWarn)
+		}
 		r.Form.Set("fleet_id", teamID)
 		r.Form.Del("team_id")
 		r.MultipartForm.Value["fleet_id"] = []string{teamID}

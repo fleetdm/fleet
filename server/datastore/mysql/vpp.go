@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -74,7 +73,7 @@ WHERE
 
 	if len(inclAny) > 0 && len(exclAny) > 0 {
 		// there's a bug somewhere
-		level.Warn(ds.logger).Log("msg", "vpp app has both include and exclude labels", "vpp_apps_teams_id", app.VPPAppsTeamsID, "include", fmt.Sprintf("%v", inclAny), "exclude", fmt.Sprintf("%v", exclAny))
+		ds.logger.WarnContext(ctx, "vpp app has both include and exclude labels", "vpp_apps_teams_id", app.VPPAppsTeamsID, "include", fmt.Sprintf("%v", inclAny), "exclude", fmt.Sprintf("%v", exclAny))
 	}
 	app.LabelsExcludeAny = exclAny
 	app.LabelsIncludeAny = inclAny
@@ -1991,7 +1990,8 @@ SELECT
 	ncr.updated_at AS ack_at,
 	ncr.status AS install_command_status,
 	va.bundle_identifier AS bundle_identifier,
-	va.latest_version AS expected_version
+	va.latest_version AS expected_version,
+	hvsi.retry_count AS retry_count
 FROM nano_command_results ncr
 JOIN host_vpp_software_installs hvsi ON hvsi.command_uuid = ncr.command_uuid
 JOIN vpp_apps va ON va.adam_id = hvsi.adam_id AND va.platform = hvsi.platform
@@ -2688,7 +2688,7 @@ ORDER BY
 	// have a cron job that will retry for hosts with pending MDM commands.
 	if ds.pusher != nil {
 		if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
-			level.Error(ds.logger).Log("msg", "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID) //nolint:errcheck
+			ds.logger.ErrorContext(ctx, "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID)
 		}
 	}
 	return nil

@@ -922,7 +922,7 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 	// For more details, check https://github.com/fleetdm/fleet/issues/10744#issuecomment-1540605146
 	username, _, found := strings.Cut(auth.UserID(), "@")
 	if !found {
-		svc.logger.Log("mdm-sso-callback", "IdP UserID doesn't look like an email, using raw value")
+		svc.logger.InfoContext(ctx, "IdP UserID doesn't look like an email, using raw value", "component", "mdm-sso-callback")
 		username = auth.UserID()
 	}
 
@@ -1405,7 +1405,7 @@ func (svc *Service) UploadABMToken(ctx context.Context, token io.Reader) (*fleet
 		EncryptedToken: encryptedToken,
 	}
 
-	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, tok, decryptedToken, svc.depStorage, svc.ds, svc.logger.SlogLogger(), false); err != nil {
+	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, tok, decryptedToken, svc.depStorage, svc.ds, svc.logger, false); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "setting ABM token metadata")
 	}
 
@@ -1566,7 +1566,7 @@ func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID 
 		return nil, ctxerr.Wrap(ctx, err, "decrypting ABM token for renewal")
 	}
 
-	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, oldTok, decryptedToken, svc.depStorage, svc.ds, svc.logger.SlogLogger(), true); err != nil {
+	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, oldTok, decryptedToken, svc.depStorage, svc.ds, svc.logger, true); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "setting ABM token metadata")
 	}
 

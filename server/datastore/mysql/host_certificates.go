@@ -11,10 +11,17 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
+
+// hostCertificateAllowedOrderKeys defines the allowed order keys for ListHostCertificates.
+// SECURITY: This prevents information disclosure via arbitrary column sorting.
+var hostCertificateAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"not_valid_after": "hc.not_valid_after",
+	"common_name":     "hc.common_name",
+}
 
 func (ds *Datastore) ListHostCertificates(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error) {
 	return listHostCertsDB(ctx, ds.reader(ctx), hostID, opts)
@@ -31,7 +38,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	for _, cert := range certs {
 		if cert.HostID != hostID {
 			// caller should ensure this does not happen
-			level.Debug(ds.logger).Log("msg", fmt.Sprintf("host certificates: host ID does not match provided certificate: %d %d", hostID, cert.HostID))
+			ds.logger.DebugContext(ctx, fmt.Sprintf("host certificates: host ID does not match provided certificate: %d %d", hostID, cert.HostID))
 		}
 
 		// Validate and truncate certificate fields
@@ -100,7 +107,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		if existing, ok := existingBySHA1[sha1]; ok && existing.NotValidBefore.Equal(incoming.NotValidBefore) && existing.NotValidAfter.Equal(incoming.NotValidAfter) {
 			// TODO: should we always update existing records? skipping updates reduces db load but
 			// osquery is using sha1 so we consider subtleties
-			level.Debug(ds.logger).Log("msg", fmt.Sprintf("host certificates: already exists: %s", sha1), "host_id", hostID) // TODO: silence this log after initial rollout period
+			ds.logger.DebugContext(ctx, fmt.Sprintf("host certificates: already exists: %s", sha1), "host_id", hostID) // TODO: silence this log after initial rollout period
 		} else {
 			toInsert = append(toInsert, incoming)
 		}
@@ -203,9 +210,8 @@ func (ds *Datastore) validateAndTruncateCertificateFields(ctx context.Context, h
 			truncated := value[:maxLen]
 			err := errors.New("certificate field too long")
 			ctxerr.Handle(ctx, err)
-			level.Error(ds.logger).Log(
+			ds.logger.ErrorContext(ctx, "truncating certificate field",
 				"err", err,
-				"msg", "truncating certificate field",
 				"field", field,
 				"host_id", hostID,
 				"original_length", len(value),
@@ -314,7 +320,10 @@ SELECT
     	`, fromWhereClause)
 
 	baseArgs := []interface{}{hostID}
-	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, baseArgs, &opts)
+	stmtPaged, args, err := appendListOptionsWithCursorToSQLSecure(stmt, baseArgs, &opts, hostCertificateAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 
 	var certs []*fleet.HostCertificateRecord
 	if err := sqlx.SelectContext(ctx, tx, &certs, stmtPaged, args...); err != nil {

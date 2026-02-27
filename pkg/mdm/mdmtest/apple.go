@@ -31,9 +31,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	httptransport "github.com/go-kit/kit/transport/http"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
@@ -682,11 +681,11 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string, body []byte) (e
 func (c *TestAppleMDMClient) doSCEP(url, challenge string) (*x509.Certificate, *rsa.PrivateKey, error) {
 	ctx := context.Background()
 
-	var logger log.Logger
+	var logger *logging.Logger
 	if c.debug {
-		logger = kitlog.NewJSONLogger(os.Stdout)
+		logger = logging.NewJSONLogger(os.Stdout)
 	} else {
-		logger = kitlog.NewNopLogger()
+		logger = logging.NewNopLogger()
 	}
 	client, err := newSCEPClient(url, logger)
 	if err != nil {
@@ -1297,14 +1296,14 @@ type scepClient interface {
 
 func newSCEPClient(
 	serverURL string,
-	logger log.Logger,
+	logger *logging.Logger,
 ) (scepClient, error) {
 	endpoints, err := makeClientSCEPEndpoints(serverURL)
 	if err != nil {
 		return nil, err
 	}
-	endpoints.GetEndpoint = scepserver.EndpointLoggingMiddleware(logger)(endpoints.GetEndpoint)
-	endpoints.PostEndpoint = scepserver.EndpointLoggingMiddleware(logger)(endpoints.PostEndpoint)
+	endpoints.GetEndpoint = scepserver.EndpointLoggingMiddleware(logger.SlogLogger())(endpoints.GetEndpoint)
+	endpoints.PostEndpoint = scepserver.EndpointLoggingMiddleware(logger.SlogLogger())(endpoints.PostEndpoint)
 	return endpoints, nil
 }
 

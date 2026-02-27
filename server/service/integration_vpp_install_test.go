@@ -239,13 +239,35 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	processVPPInstallOnClient := func(mdmClient *mdmtest.TestAppleMDMClient, opts vppInstallOpts) string {
 		var installCmdUUID string
 
+		app, ok := expectedAppsByBundleID[opts.bundleID]
+		require.Truef(t, ok, "unexpected bundle ID: %s", opts.bundleID)
+
+		ackInstalledAppList := func(cmd *mdm.Command) (*mdm.Command, error) {
+			return mdmClient.AcknowledgeInstalledApplicationList(
+				mdmClient.UUID,
+				cmd.CommandUUID,
+				[]fleet.Software{
+					{
+						Name:             "RandomApp",
+						BundleIdentifier: "com.example.randomapp",
+						Version:          "9.9.9",
+						Installed:        false,
+					},
+					{
+						Name:             app.Name,
+						BundleIdentifier: app.BundleIdentifier,
+						Version:          app.LatestVersion,
+						Installed:        opts.appInstallVerified,
+					},
+				},
+			)
+		}
+
 		// Process the InstallApplication command
 		s.runWorker()
 		cmd, err := mdmClient.Idle()
 		require.NoError(t, err)
 
-		app, ok := expectedAppsByBundleID[opts.bundleID]
-		require.Truef(t, ok, "unexpected bundle ID: %s", opts.bundleID)
 		for cmd != nil {
 			var fullCmd micromdm.CommandPayload
 			switch cmd.Command.RequestType {
@@ -253,7 +275,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 				installCmdUUID = cmd.CommandUUID
 				if opts.failOnInstall {
-					t.Logf("Failed command UUID: %s", installCmdUUID)
 					cmd, err = mdmClient.Err(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: 1234}})
 					require.NoError(t, err)
 					continue
@@ -265,24 +286,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 				// If we are polling to verify the install, we should get an
 				// InstalledApplicationList command instead of an InstallApplication command.
 				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-				_, err = mdmClient.AcknowledgeInstalledApplicationList(
-					mdmClient.UUID,
-					cmd.CommandUUID,
-					[]fleet.Software{
-						{
-							Name:             "RandomApp",
-							BundleIdentifier: "com.example.randomapp",
-							Version:          "9.9.9",
-							Installed:        false,
-						},
-						{
-							Name:             app.Name,
-							BundleIdentifier: app.BundleIdentifier,
-							Version:          app.LatestVersion,
-							Installed:        opts.appInstallVerified,
-						},
-					},
-				)
+				_, err = ackInstalledAppList(cmd)
 				require.NoError(t, err)
 				return ""
 			default:
@@ -301,38 +305,57 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 			})
 		}
 
-		// Process the verification command (InstalledApplicationList)
-		s.runWorker()
-		// Check that there is now a verify command in flight
-		checkCommandsInFlight(1)
-		cmd, err = mdmClient.Idle()
-		require.NoError(t, err)
-		for cmd != nil {
-			var fullCmd micromdm.CommandPayload
-			switch cmd.Command.RequestType {
-			case "InstalledApplicationList":
-				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-				cmd, err = mdmClient.AcknowledgeInstalledApplicationList(
-					mdmClient.UUID,
-					cmd.CommandUUID,
-					[]fleet.Software{
-						{
-							Name:             "RandomApp",
-							BundleIdentifier: "com.example.randomapp",
-							Version:          "9.9.9",
-							Installed:        false,
-						},
-						{
-							Name:             app.Name,
-							BundleIdentifier: app.BundleIdentifier,
-							Version:          app.LatestVersion,
-							Installed:        opts.appInstallVerified,
-						},
-					},
-				)
+		// Process the verification command (InstalledApplicationList).
+		// When verification times out and retries are available, the handler
+		// re-enqueues InstallApplication. We loop through the full retry cycle
+		// until retries are exhausted or install succeeds.
+		for attempt := range fleet.MaxSoftwareInstallAttempts + 1 {
+			s.runWorker()
+			if attempt == 0 {
+				checkCommandsInFlight(1)
+			}
+			cmd, err = mdmClient.Idle()
+			require.NoError(t, err)
+			for cmd != nil {
+				var fullCmd micromdm.CommandPayload
+				switch cmd.Command.RequestType {
+				case "InstalledApplicationList":
+					require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+					cmd, err = ackInstalledAppList(cmd)
+					require.NoError(t, err)
+				default:
+					require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
+				}
+			}
+
+			if !opts.appInstallTimeout {
+				break
+			}
+
+			// After acking the InstalledApplicationList, the handler runs and
+			// may retry (enqueue a new InstallApplication). Check for it.
+			cmd, err = mdmClient.Idle()
+			require.NoError(t, err)
+			if cmd == nil {
+				// No retry — retries exhausted or install verified
+				break
+			}
+
+			require.Equal(t, "InstallApplication", cmd.Command.RequestType)
+			installCmdUUID = cmd.CommandUUID
+			cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+			// Backdate the ack for the next verify timeout
+			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(context.Background(), "UPDATE nano_command_results SET updated_at = ? WHERE command_uuid = ?", time.Now().Add(-11*time.Minute), installCmdUUID)
+				return err
+			})
+			// The Acknowledge response may include the InstalledApplicationList
+			// command (sent by the server after acking InstallApplication).
+			// Drain it — the outer loop's Idle() will re-fetch it.
+			for cmd != nil {
+				cmd, err = mdmClient.NotNow(cmd.CommandUUID)
 				require.NoError(t, err)
-			default:
-				require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
 			}
 		}
 
@@ -375,14 +398,17 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(errTitleID))
 	require.Equal(t, 1, countResp.Count)
 
-	// Simulate failed installation on the host
+	// Simulate failed installation on the host — exhaust retries (MaxSoftwareInstallAttempts = 3)
 	opts := vppInstallOpts{
 		failOnInstall:      true,
 		appInstallVerified: false,
 		appInstallTimeout:  false,
 		bundleID:           addedApp.BundleIdentifier,
 	}
-	failedCmdUUID := processVPPInstallOnClient(mdmDevice, opts)
+	var failedCmdUUID string
+	for range fleet.MaxSoftwareInstallAttempts + 1 {
+		failedCmdUUID = processVPPInstallOnClient(mdmDevice, opts)
+	}
 
 	// We should have cleared out upcoming_activies since the install failed
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -2839,14 +2865,14 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerificationXcodeSpecialCase(
 	// check that both are properly verified as installed
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id", fmt.Sprint(team.ID),
-		"software_title_id", fmt.Sprint(app2TitleID), "order_key", "h.id")
+		"software_title_id", fmt.Sprint(app2TitleID), "order_key", "id")
 	require.Len(t, listResp.Hosts, 2)
 	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
 	require.Equal(t, listResp.Hosts[1].ID, mdmHost2.ID)
 
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id", fmt.Sprint(team.ID),
-		"software_title_id", fmt.Sprint(appXcodeTitleID), "order_key", "h.id")
+		"software_title_id", fmt.Sprint(appXcodeTitleID), "order_key", "id")
 	require.Len(t, listResp.Hosts, 2)
 	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
 	require.Equal(t, listResp.Hosts[1].ID, mdmHost2.ID)
