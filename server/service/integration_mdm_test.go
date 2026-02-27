@@ -4667,18 +4667,24 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 	require.NoError(t, err)
 
 	endUserAuthCases := []struct {
-		raw      string
-		expected bool
+		raw            string
+		expectedEUA    bool // expected end user authentication value
+		expectedLEUI   bool // expected lock end user info value
+		expectedStatus int  // expected HTTP status code from the API response
 	}{
 		{
-			raw:      `"mdm": {}`,
-			expected: false,
+			raw:            `"mdm": {}`,
+			expectedEUA:    false,
+			expectedLEUI:   false,
+			expectedStatus: http.StatusOK,
 		},
 		{
 			raw: `"mdm": {
 				"macos_setup": {}
 			}`,
-			expected: false,
+			expectedEUA:    false,
+			expectedLEUI:   false,
+			expectedStatus: http.StatusOK,
 		},
 		{
 			raw: `"mdm": {
@@ -4686,7 +4692,19 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 					"enable_end_user_authentication": true
 				}
 			}`,
-			expected: true,
+			expectedEUA:    true,
+			expectedLEUI:   false,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			raw: `"mdm": {
+				"macos_setup": {
+					"enable_end_user_authentication": true, "lock_end_user_info": true
+				}
+			}`,
+			expectedEUA:    true,
+			expectedLEUI:   true,
+			expectedStatus: http.StatusOK,
 		},
 		{
 			raw: `"mdm": {
@@ -4694,7 +4712,19 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 					"enable_end_user_authentication": false
 				}
 			}`,
-			expected: false,
+			expectedEUA:    false,
+			expectedLEUI:   false, // EUA->false clears LEUI as well
+			expectedStatus: http.StatusOK,
+		},
+		{
+			raw: `"mdm": {
+				"macos_setup": {
+					"enable_end_user_authentication": false, "lock_end_user_info": true
+				}
+			}`,
+			expectedEUA:    false,
+			expectedLEUI:   false, // Returns an error because LEUI cannot be true if EUA is false
+			expectedStatus: http.StatusUnprocessableEntity,
 		},
 	}
 
@@ -4783,12 +4813,16 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		for i, c := range endUserAuthCases {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
 				acResp = appConfigResponse{}
-				s.DoJSON("PATCH", path, fmtJSON(c.raw), http.StatusOK, &acResp)
-				require.Equal(t, c.expected, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+				s.DoJSON("PATCH", path, fmtJSON(c.raw), c.expectedStatus, &acResp)
+				if c.expectedStatus == http.StatusOK {
+					require.Equal(t, c.expectedEUA, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+					require.Equal(t, c.expectedLEUI, acResp.MDM.MacOSSetup.LockEndUserInfo.Value)
+				}
 
 				acResp = appConfigResponse{}
 				s.DoJSON("GET", path, nil, http.StatusOK, &acResp)
-				require.Equal(t, c.expected, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+				require.Equal(t, c.expectedEUA, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+				require.Equal(t, c.expectedLEUI, acResp.MDM.MacOSSetup.LockEndUserInfo.Value)
 			})
 		}
 
@@ -4847,12 +4881,16 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		for i, c := range endUserAuthCases {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
 				teamResp = teamResponse{}
-				s.DoJSON("PATCH", path, json.RawMessage(fmt.Sprintf(fmtJSON, tm.Name, c.raw)), http.StatusOK, &teamResp)
-				require.Equal(t, c.expected, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+				s.DoJSON("PATCH", path, json.RawMessage(fmt.Sprintf(fmtJSON, tm.Name, c.raw)), c.expectedStatus, &teamResp)
+				if c.expectedStatus == http.StatusOK {
+					require.Equal(t, c.expectedEUA, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+					require.Equal(t, c.expectedLEUI, teamResp.Team.Config.MDM.MacOSSetup.LockEndUserInfo.Value)
+				}
 
 				teamResp = teamResponse{}
 				s.DoJSON("GET", path, nil, http.StatusOK, &teamResp)
-				require.Equal(t, c.expected, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+				require.Equal(t, c.expectedEUA, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+				require.Equal(t, c.expectedLEUI, teamResp.Team.Config.MDM.MacOSSetup.LockEndUserInfo.Value)
 			})
 		}
 
@@ -4925,12 +4963,23 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 				``, lastActivityID) // no new activity
 
 			s.Do("PATCH", "/api/latest/fleet/setup_experience",
+				fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), LockEndUserInfo: ptr.Bool(true)}, http.StatusNoContent)
+			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+			require.True(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+			require.True(t, acResp.MDM.MacOSSetup.LockEndUserInfo.Value)
+
+			s.Do("PATCH", "/api/latest/fleet/setup_experience",
 				fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), EnableEndUserAuthentication: ptr.Bool(false)}, http.StatusNoContent)
 			acResp = appConfigResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 			require.False(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+			require.False(t, acResp.MDM.MacOSSetup.LockEndUserInfo.Value)
 			require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledMacosSetupEndUserAuth{}.ActivityName(),
 				`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0), lastActivityID)
+
+			// Can't enable Lock End User Info when EUA is disabled
+			s.Do("PATCH", "/api/latest/fleet/setup_experience",
+				fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), LockEndUserInfo: ptr.Bool(true)}, http.StatusUnprocessableEntity)
 		})
 
 		t.Run("TestTeam", func(t *testing.T) {
@@ -4954,12 +5003,23 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 				``, lastActivityID) // no new activity
 
 			s.Do("PATCH", "/api/latest/fleet/setup_experience",
+				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, LockEndUserInfo: ptr.Bool(true)}, http.StatusNoContent)
+			s.DoJSON("GET", tmConfigPath, nil, http.StatusOK, &tmResp)
+			require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+			require.True(t, tmResp.Team.Config.MDM.MacOSSetup.LockEndUserInfo.Value)
+
+			s.Do("PATCH", "/api/latest/fleet/setup_experience",
 				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableEndUserAuthentication: ptr.Bool(false)}, http.StatusNoContent)
 			tmResp = teamResponse{}
 			s.DoJSON("GET", tmConfigPath, nil, http.StatusOK, &tmResp)
 			require.False(t, tmResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+			require.False(t, tmResp.Team.Config.MDM.MacOSSetup.LockEndUserInfo.Value)
 			require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledMacosSetupEndUserAuth{}.ActivityName(),
 				expectedActivityDetail, 0), lastActivityID)
+
+			// Can't enable Lock End User Info when EUA is disabled
+			s.Do("PATCH", "/api/latest/fleet/setup_experience",
+				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, LockEndUserInfo: ptr.Bool(true)}, http.StatusUnprocessableEntity)
 		})
 	})
 

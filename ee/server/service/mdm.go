@@ -219,6 +219,15 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
+	// If the user turned off end user auth and didn't specify lock_end_user_info, turn it off so it does not conflict
+	if didUpdateMacOSEndUserAuth && !ac.MDM.MacOSSetup.EnableEndUserAuthentication && payload.LockEndUserInfo == nil {
+		ac.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+	}
+
+	if !ac.MDM.MacOSSetup.EnableEndUserAuthentication && ac.MDM.MacOSSetup.LockEndUserInfo.Value {
+		return fleet.NewUserMessageError(errors.New("Couldn’t enable lock_end_user_info when enable_end_user_authentication is disabled."), http.StatusUnprocessableEntity)
+	}
+
 	if payload.RequireAllSoftware != nil && ac.MDM.MacOSSetup.RequireAllSoftware != *payload.RequireAllSoftware {
 		ac.MDM.MacOSSetup.RequireAllSoftware = *payload.RequireAllSoftware
 		didUpdate = true
@@ -317,26 +326,6 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 
 		if hasCustomConfigurationWebURL {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication", fleet.EndUserAuthDEPWebURLConfiguredErrMsg))
-		}
-	}
-
-	if payload.LockEndUserInfo != nil && *payload.LockEndUserInfo {
-		// End user auth must be enabled either now or after the update
-		endUserAuthEnabledOrWillBe := false
-		if ac.MDM.MacOSSetup.EnableEndUserAuthentication {
-			endUserAuthEnabledOrWillBe = true
-		}
-		if payload.EnableEndUserAuthentication != nil {
-			if *payload.EnableEndUserAuthentication {
-				endUserAuthEnabledOrWillBe = true
-			} else {
-				// override the value from ac since we're turning it off
-				endUserAuthEnabledOrWillBe = false
-			}
-		}
-		if !endUserAuthEnabledOrWillBe {
-			return fleet.NewInvalidArgumentError("macos_setup.lock_end_user_info",
-				`Couldn't enable macos_setup.lock_end_user_info because macos_setup.enable_end_user_authentication is not enabled.`)
 		}
 	}
 
