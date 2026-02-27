@@ -62,8 +62,13 @@ type PolicyPayload struct {
 	// Only applies to team policies.
 	ConditionalAccessBypassEnabled *bool
 
-	// TODO(JK): what other structs need these fields updated?
-	Type                 string
+	// TODO(JK): what other structs need these fields added?
+	// Type is either dynamic (classic, editable) or patch (tied to Fleet maintained app).
+	Type string
+	// PatchSoftwareTitleID is the title id of the Fleet maintained app
+	// that will be updated in a patch policy.
+	//
+	// Only applies to team policies with the patch type.
 	PatchSoftwareTitleID *uint
 }
 
