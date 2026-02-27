@@ -6,13 +6,12 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/health"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	kithttp "github.com/go-kit/kit/transport/http"
 	launcher "github.com/kolide/launcher/pkg/service"
 	grpc "google.golang.org/grpc"
-
-	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/health"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 // Handler extends the grpc.Server, providing Handler that allows us to serve
@@ -28,7 +27,7 @@ func New(
 	grpcServer *grpc.Server,
 	healthCheckers map[string]health.Checker,
 ) *Handler {
-	kitLogger := logging.NewLogger(logger)
+	kitLogger := kitlogadapter.NewLogger(logger)
 	var svc launcher.KolideService
 	{
 		svc = &launcherWrapper{

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -51,7 +52,6 @@ import (
 	fleet_mock "github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
-	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -77,8 +77,8 @@ func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore,
 
 func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) (fleet.Service, context.Context) {
 	lic := &fleet.LicenseInfo{Tier: fleet.TierFree}
-	logger := platformlogging.NewNopLogger()
-	writer, err := logging.NewFilesystemLogWriter(t.Context(), fleetConfig.Filesystem.StatusLogFile, logger.SlogLogger(), fleetConfig.Filesystem.EnableLogRotation,
+	logger := slog.New(slog.DiscardHandler)
+	writer, err := logging.NewFilesystemLogWriter(t.Context(), fleetConfig.Filesystem.StatusLogFile, logger, fleetConfig.Filesystem.EnableLogRotation,
 		fleetConfig.Filesystem.EnableLogCompression, 500, 28, 3)
 	require.NoError(t, err)
 
@@ -90,9 +90,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		depStorage                      nanodep_storage.AllDEPStorage = &nanodep_mock.Storage{}
 		mailer                          fleet.MailService             = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 		c                               clock.Clock                   = clock.C
-		scepConfigService                                             = eeservice.NewSCEPConfigService(logger.SlogLogger(), nil)
-		digiCertService                                               = digicert.NewService(digicert.WithLogger(logger.SlogLogger()))
-		estCAService                                                  = est.NewService(est.WithLogger(logger.SlogLogger()))
+		scepConfigService                                             = eeservice.NewSCEPConfigService(logger, nil)
+		digiCertService                                               = digicert.NewService(digicert.WithLogger(logger))
+		estCAService                                                  = est.NewService(est.WithLogger(logger))
 		conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 
 		mdmStorage             fleet.MDMAppleStore
@@ -177,7 +177,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	var eh *errorstore.Handler
 	if len(opts) > 0 {
 		if opts[0].Pool != nil {
-			eh = errorstore.NewHandler(ctx, opts[0].Pool, logger.SlogLogger(), time.Minute*10)
+			eh = errorstore.NewHandler(ctx, opts[0].Pool, logger, time.Minute*10)
 			ctx = ctxerr.NewContext(ctx, eh)
 		}
 		if opts[0].StartCronSchedules != nil {
@@ -218,7 +218,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		ds,
 		task,
 		rs,
-		logger.SlogLogger(),
+		logger,
 		osqlogger,
 		fleetConfig,
 		mailer,
@@ -262,7 +262,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		svc, err = eeservice.NewService(
 			svc,
 			ds,
-			logger.SlogLogger(),
+			logger,
 			fleetConfig,
 			mailer,
 			c,
@@ -399,7 +399,7 @@ type ConditionalAccess struct {
 }
 
 type TestServerOpts struct {
-	Logger                          *platformlogging.Logger
+	Logger                          *slog.Logger
 	License                         *fleet.LicenseInfo
 	SkipCreateTestUsers             bool
 	Rs                              fleet.QueryResultStore
@@ -470,7 +470,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if len(opts) == 0 || (len(opts) > 0 && !opts[0].SkipCreateTestUsers) {
 		users = createTestUsers(t, ds)
 	}
-	logger := platformlogging.NewLogfmtLogger(os.Stdout)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	if len(opts) > 0 && opts[0].Logger != nil {
 		logger = opts[0].Logger
 	}
@@ -485,12 +485,11 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		require.NoError(t, err)
 		activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
 		activityACLAdapter := activityacl.NewFleetServiceAdapter(svc)
-		slogLogger := logger.SlogLogger()
 		activitySvc, activityRoutesFn := activity_bootstrap.New(
 			opts[0].DBConns,
 			activityAuthorizer,
 			activityACLAdapter,
-			slogLogger,
+			logger,
 		)
 		svc.SetActivityService(activitySvc)
 		if opts[0].ActivityModule != nil {
@@ -527,19 +526,19 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher)
 		if mdmStorage != nil && scepStorage != nil {
 			vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
-			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger.SlogLogger(), redis_key_value.New(redisPool), svc.NewActivity)
-			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger.SlogLogger(), cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay, svc.NewActivity))
-			checkInAndCommand.RegisterResultsHandler(fleet.DeviceLocationCmdName, NewDeviceLocationResultsHandler(ds, commander, logger.SlogLogger()))
+			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool), svc.NewActivity)
+			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay, svc.NewActivity))
+			checkInAndCommand.RegisterResultsHandler(fleet.DeviceLocationCmdName, NewDeviceLocationResultsHandler(ds, commander, logger))
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
 				cfg.MDM,
 				mdmStorage,
 				scepStorage,
-				logger.SlogLogger(),
+				logger,
 				checkInAndCommand,
 				&MDMAppleDDMService{
 					ds:     ds,
-					logger: logger.SlogLogger(),
+					logger: logger,
 				},
 				commander,
 				"https://test-url.com",
@@ -559,7 +558,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			err := RegisterSCEPProxy(
 				rootMux,
 				ds,
-				logger.SlogLogger(),
+				logger,
 				timeout,
 				&cfg,
 			)
@@ -568,7 +567,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 
 	if len(opts) > 0 && opts[0].WithDEPWebview {
-		frontendHandler := WithMDMEnrollmentMiddleware(svc, logger.SlogLogger(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		frontendHandler := WithMDMEnrollmentMiddleware(svc, logger, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// do nothing and return 200
 			w.WriteHeader(http.StatusOK)
 		}))
@@ -583,32 +582,32 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	extra = append(extra, WithLoginRateLimit(throttled.PerMin(1000)))
 
 	if len(opts) > 0 && opts[0].HostIdentity != nil {
-		require.NoError(t, hostidentity.RegisterSCEP(rootMux, opts[0].HostIdentity.SCEPStorage, ds, logger.SlogLogger(), &cfg))
+		require.NoError(t, hostidentity.RegisterSCEP(rootMux, opts[0].HostIdentity.SCEPStorage, ds, logger, &cfg))
 		var httpSigVerifier func(http.Handler) http.Handler
 		httpSigVerifier, err := httpsig.Middleware(ds, opts[0].HostIdentity.RequireHTTPMessageSignature,
-			logger.With("component", "http-sig-verifier").SlogLogger())
+			logger.With("component", "http-sig-verifier"))
 		require.NoError(t, err)
 		extra = append(extra, WithHTTPSigVerifier(httpSigVerifier))
 	}
 
 	if len(opts) > 0 && opts[0].ConditionalAccess != nil {
-		require.NoError(t, condaccess.RegisterSCEP(ctx, rootMux, opts[0].ConditionalAccess.SCEPStorage, ds, logger.SlogLogger(), &cfg))
-		require.NoError(t, condaccess.RegisterIdP(rootMux, ds, logger.SlogLogger(), &cfg))
+		require.NoError(t, condaccess.RegisterSCEP(ctx, rootMux, opts[0].ConditionalAccess.SCEPStorage, ds, logger, &cfg))
+		require.NoError(t, condaccess.RegisterIdP(rootMux, ds, logger, &cfg))
 	}
 	var carveStore fleet.CarveStore = ds // In tests, we use MySQL as storage for carves.
-	apiHandler := MakeHandler(svc, cfg, logger.SlogLogger(), limitStore, redisPool, carveStore, featureRoutes, extra...)
+	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
 	rootMux.Handle("/api/", apiHandler)
 	var errHandler *errorstore.Handler
 	ctxErrHandler := ctxerr.FromContext(ctx)
 	if ctxErrHandler != nil {
 		errHandler = ctxErrHandler.(*errorstore.Handler)
 	}
-	debugHandler := MakeDebugHandler(svc, cfg, logger.SlogLogger(), errHandler, ds)
+	debugHandler := MakeDebugHandler(svc, cfg, logger, errHandler, ds)
 	rootMux.Handle("/debug/", debugHandler)
-	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, logger.SlogLogger()))
+	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, logger))
 
 	if len(opts) > 0 && opts[0].EnableSCIM {
-		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger.SlogLogger(), &cfg))
+		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger, &cfg))
 		rootMux.Handle("/api/v1/fleet/scim/details", apiHandler)
 		rootMux.Handle("/api/latest/fleet/scim/details", apiHandler)
 	}

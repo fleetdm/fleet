@@ -51,7 +51,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
@@ -114,7 +113,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		Pool:           s.redisPool,
 		Rs:             pubsub.NewInmemQueryResults(),
 		Lq:             s.lq,
-		Logger:         logging.NewLogfmtLogger(os.Stdout),
+		Logger:         slog.New(slog.NewTextHandler(os.Stdout, nil)),
 		EnableCachedDS: true,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
@@ -139,7 +138,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		DBConns:                         s.dbConns,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		config.Logger = logging.NewNopLogger()
+		config.Logger = slog.New(slog.DiscardHandler)
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
 	s.server = server

@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	mrand "math/rand"
 	"net/http"
@@ -29,9 +30,9 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/google/uuid"
 	"github.com/micromdm/plist"
@@ -681,11 +682,11 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string, body []byte) (e
 func (c *TestAppleMDMClient) doSCEP(url, challenge string) (*x509.Certificate, *rsa.PrivateKey, error) {
 	ctx := context.Background()
 
-	var logger *logging.Logger
+	var logger *slog.Logger
 	if c.debug {
-		logger = logging.NewJSONLogger(os.Stdout)
+		logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	} else {
-		logger = logging.NewNopLogger()
+		logger = slog.New(slog.DiscardHandler)
 	}
 	client, err := newSCEPClient(url, logger)
 	if err != nil {
@@ -781,7 +782,7 @@ func (c *TestAppleMDMClient) doSCEP(url, challenge string) (*x509.Certificate, *
 			ChallengePassword: c.EnrollInfo.SCEPChallenge,
 		},
 	}
-	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(logger))
+	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(kitlogadapter.NewLogger(logger)))
 	if err != nil {
 		return nil, nil, fmt.Errorf("create CSR request: %w", err)
 	}
@@ -789,7 +790,7 @@ func (c *TestAppleMDMClient) doSCEP(url, challenge string) (*x509.Certificate, *
 	if err != nil {
 		return nil, nil, fmt.Errorf("do CSR request: %w", err)
 	}
-	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(logger), scep.WithCACerts(msg.Recipients))
+	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(kitlogadapter.NewLogger(logger)), scep.WithCACerts(msg.Recipients))
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse PKIMessage response: %w", err)
 	}
@@ -1296,14 +1297,14 @@ type scepClient interface {
 
 func newSCEPClient(
 	serverURL string,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) (scepClient, error) {
 	endpoints, err := makeClientSCEPEndpoints(serverURL)
 	if err != nil {
 		return nil, err
 	}
-	endpoints.GetEndpoint = scepserver.EndpointLoggingMiddleware(logger.SlogLogger())(endpoints.GetEndpoint)
-	endpoints.PostEndpoint = scepserver.EndpointLoggingMiddleware(logger.SlogLogger())(endpoints.PostEndpoint)
+	endpoints.GetEndpoint = scepserver.EndpointLoggingMiddleware(logger)(endpoints.GetEndpoint)
+	endpoints.PostEndpoint = scepserver.EndpointLoggingMiddleware(logger)(endpoints.PostEndpoint)
 	return endpoints, nil
 }
 

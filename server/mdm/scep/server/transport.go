@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	"github.com/go-kit/kit/transport"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
@@ -19,7 +19,7 @@ import (
 )
 
 func MakeHTTPHandler(e *Endpoints, svc Service, logger *slog.Logger) http.Handler {
-	kitLogger := logging.NewLogger(logger)
+	kitLogger := kitlogadapter.NewLogger(logger)
 	opts := []kithttp.ServerOption{
 		kithttp.ServerErrorLogger(kitLogger),
 		kithttp.ServerFinalizer(logutil.NewHTTPLogger(kitLogger).LoggingFinalizer),
@@ -43,7 +43,7 @@ func MakeHTTPHandler(e *Endpoints, svc Service, logger *slog.Logger) http.Handle
 }
 
 func MakeHTTPHandlerWithIdentifier(e *Endpoints, rootPath string, logger *slog.Logger) http.Handler {
-	kitLogger := logging.NewLogger(logger)
+	kitLogger := kitlogadapter.NewLogger(logger)
 	opts := []kithttp.ServerOption{
 		kithttp.ServerErrorHandler(transport.NewLogErrorHandler(kitLogger)),
 		kithttp.ServerFinalizer(logutil.NewHTTPLogger(kitLogger).LoggingFinalizer),

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -19,7 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	software_mock "github.com/fleetdm/fleet/v4/server/mock/software"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -53,13 +53,13 @@ func (s *integrationInstallTestSuite) SetupSuite() {
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
-		Logger:               logging.NewLogfmtLogger(os.Stdout),
+		Logger:               slog.New(slog.NewTextHandler(os.Stdout, nil)),
 		EnableCachedDS:       true,
 		SoftwareInstallStore: softwareInstallStore,
 		FleetConfig:          &fleetConfig,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		installConfig.Logger = logging.NewNopLogger()
+		installConfig.Logger = slog.New(slog.DiscardHandler)
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &installConfig)
 	s.server = server

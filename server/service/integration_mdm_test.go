@@ -79,7 +79,6 @@ import (
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
@@ -128,7 +127,7 @@ type integrationMDMTestSuite struct {
 	// Flag to skip jobs processing by worker
 	skipWorkerJobs            atomic.Bool
 	mdmCommander              *apple_mdm.MDMAppleCommander
-	logger                    *logging.Logger
+	logger                    *slog.Logger
 	scepChallenge             string
 	appleVPPConfigSrv         *httptest.Server
 	appleVPPConfigSrvConfig   *appleVPPConfigSrvConf
@@ -202,24 +201,24 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	scepStorage, err := s.ds.NewSCEPDepot()
 	require.NoError(s.T(), err)
 
-	pushLog := logging.NewJSONLogger(os.Stdout)
+	pushLog := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		pushLog = logging.NewNopLogger()
+		pushLog = slog.New(slog.DiscardHandler)
 	}
 	pushFactory, pushProvider := newMockAPNSPushProviderFactory()
 	mdmPushService := nanomdm_pushsvc.New(
 		mdmStorage,
 		mdmStorage,
 		pushFactory,
-		NewNanoMDMLogger(pushLog.SlogLogger()),
+		NewNanoMDMLogger(pushLog),
 	)
 	mdmCommander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 	s.redisPool = redistest.SetupRedis(s.T(), "zz", false, false, false)
 	s.withServer.lq = live_query_mock.New(s.T())
 
-	wlog := logging.NewJSONLogger(os.Stdout)
+	wlog := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		wlog = logging.NewNopLogger()
+		wlog = slog.New(slog.DiscardHandler)
 	}
 
 	activityModule := activitiesmod.NewActivityModule()
@@ -227,7 +226,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error {
 		return nil
 	}
-	androidSvc, err := android_service.NewServiceWithClient(wlog.SlogLogger(), s.ds, androidMockClient, "test-private-key", s.ds, activityModule, config.AndroidAgentConfig{
+	androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, "test-private-key", s.ds, activityModule, config.AndroidAgentConfig{
 		Package:       "com.fleetdm.agent",
 		SigningSHA256: "abc123def456",
 	})
@@ -239,26 +238,26 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	macosJob := &worker.MacosSetupAssistant{
 		Datastore:  s.ds,
-		Log:        wlog.SlogLogger(),
-		DEPService: apple_mdm.NewDEPService(s.ds, depStorage, wlog.SlogLogger()),
-		DEPClient:  apple_mdm.NewDEPClient(depStorage, s.ds, wlog.SlogLogger()),
+		Log:        wlog,
+		DEPService: apple_mdm.NewDEPService(s.ds, depStorage, wlog),
+		DEPClient:  apple_mdm.NewDEPClient(depStorage, s.ds, wlog),
 	}
 	appleMDMJob := &worker.AppleMDM{
 		Datastore: s.ds,
-		Log:       wlog.SlogLogger(),
+		Log:       wlog,
 		Commander: mdmCommander,
 	}
 	vppVerifyJob := &worker.AppleSoftware{
 		Datastore: s.ds,
-		Log:       wlog.SlogLogger(),
+		Log:       wlog,
 		Commander: mdmCommander,
 	}
 	softwareWorker := &worker.SoftwareWorker{
 		Datastore:     s.ds,
-		Log:           wlog.SlogLogger(),
+		Log:           wlog,
 		AndroidModule: androidSvc,
 	}
-	workr := worker.NewWorker(s.ds, wlog.SlogLogger())
+	workr := worker.NewWorker(s.ds, wlog)
 	workr.TestIgnoreUnknownJobs = true
 	workr.Register(macosJob, appleMDMJob, vppVerifyJob, softwareWorker)
 
@@ -278,9 +277,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		cronLog = slog.New(slog.DiscardHandler)
 	}
-	serverLogger := logging.NewJSONLogger(os.Stdout)
+	serverLogger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		serverLogger = logging.NewNopLogger()
+		serverLogger = slog.New(slog.DiscardHandler)
 	}
 
 	var softwareInstallerStore fleet.SoftwareInstallerStore
@@ -295,7 +294,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	}
 	s.softwareInstallerStore = softwareInstallerStore
 	scepTimeout := ptr.Duration(10 * time.Second)
-	s.scepConfig = eeservice.NewSCEPConfigService(serverLogger.SlogLogger(), scepTimeout).(*eeservice.SCEPConfigService)
+	s.scepConfig = eeservice.NewSCEPConfigService(serverLogger, scepTimeout).(*eeservice.SCEPConfigService)
 
 	// Create a software title icon store
 	iconDir := s.T().TempDir()
@@ -942,7 +941,7 @@ func (s *integrationMDMTestSuite) mockDEPResponse(orgName string, handler http.H
 	t := s.T()
 	srv := httptest.NewServer(handler)
 	err := s.depStorage.StoreConfig(context.Background(), orgName, &nanodep_client.Config{BaseURL: srv.URL})
-	depSvc := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger.SlogLogger())
+	depSvc := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
 	require.NoError(t, depSvc.CreateDefaultAutomaticProfile(context.Background()))
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -1324,7 +1323,7 @@ func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 	require.False(t, config.MDM.AppleBMTermsExpired)
 
 	ctx := context.Background()
-	fleetSyncer := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger.SlogLogger())
+	fleetSyncer := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
 
 	// not signed error flips the AppleBMTermsExpired flag
 	returnType = "not_signed"
@@ -10346,7 +10345,7 @@ func (s *integrationMDMTestSuite) runWorkerUntilDoneWithChecks(failIfFailedJobs 
 
 func (s *integrationMDMTestSuite) runDEPSchedule() {
 	ctx := context.Background()
-	fleetSyncer := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger.SlogLogger())
+	fleetSyncer := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
 	err := fleetSyncer.RunAssigner(ctx)
 	require.NoError(s.T(), err)
 }
@@ -11423,7 +11422,7 @@ func (s *integrationMDMTestSuite) enableABM(orgName string) *fleet.ABMToken {
 			_, _ = w.Write([]byte(`{}`))
 		}
 	}))
-	depClient := apple_mdm.NewDEPClient(s.depStorage, s.ds, s.logger.SlogLogger())
+	depClient := apple_mdm.NewDEPClient(s.depStorage, s.ds, s.logger)
 	_, err = depClient.AccountDetail(ctx, orgName)
 	require.NoError(t, err)
 	return tok
@@ -11722,13 +11721,13 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	}
 
 	// trigger the reconciliation schedule
-	err := ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
+	err := ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
 
 	// triggering the schedule again doesn't send any more pushes
-	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
+	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 0)
 	recordedPushes = nil
@@ -11736,7 +11735,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	// the cron to trigger pushes sends a new push request each time it
 	// runs if there are pending commands
 	for i := 0; i < 3; i++ {
-		err := SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
+		err := SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger)
 		require.NoError(t, err)
 		require.Len(t, recordedPushes, 1)
 		recordedPushes = nil
@@ -11752,7 +11751,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	}
 
 	// no more pushes are enqueued
-	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
+	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 0)
 }
@@ -11783,7 +11782,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	}
 
 	// trigger the reconciliation schedule
-	err := ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
+	err := ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
@@ -11804,13 +11803,13 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	}}, http.StatusNoContent)
 
 	// trigger the reconciliation schedule
-	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
+	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
 
 	// The cron to trigger pushes sends a new push request each time it runs.
-	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
+	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
@@ -11824,7 +11823,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	assert.Nil(t, cmd)
 
 	// A 'NotNow' command will not trigger a new push. Device is expected to check in again when conditions change.
-	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
+	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 0)
 	recordedPushes = nil
@@ -11838,7 +11837,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	assert.Nil(t, cmd)
 
 	// no more pushes are enqueued
-	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
+	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	assert.Zero(t, recordedPushes)
 }
@@ -18768,7 +18767,7 @@ func (s *integrationMDMTestSuite) TestRecreateDeletedIPhoneBYOD() {
 		pushMutex.Unlock()
 		return mockSuccessfulPush(ctx, pushes)
 	}
-	err := apple_mdm.IOSiPadOSRevive(context.Background(), s.ds, s.mdmCommander, s.logger.SlogLogger())
+	err := apple_mdm.IOSiPadOSRevive(context.Background(), s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	pushMutex.Lock()
 	require.Len(t, recordedPushes, 1)
@@ -19742,7 +19741,7 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 		return nil, errors.New("unknown device")
 	}
 
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), s.fleetSvc.NewActivity)
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, s.fleetSvc.NewActivity)
 	require.NoError(s.T(), err) // Verify it not longer throws an error
 
 	// Verify successful is still enrolled
@@ -20756,7 +20755,7 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	checkExpectedCommands(mdmClientDEP, false, 1)
 
 	// run the cron-based refetch, will not do anything as the devices were just refetched
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), s.fleetSvc.NewActivity)
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, s.fleetSvc.NewActivity)
 	require.NoError(t, err)
 
 	checkExpectedCommands(mdmClientBYOD, true, 0)
@@ -20769,7 +20768,7 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	require.NoError(t, s.ds.UpdateHost(ctx, hostDEP))
 
 	// run the cron-based refetch again, will enqueue the commands with the correct managed only flag
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), s.fleetSvc.NewActivity)
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, s.fleetSvc.NewActivity)
 	require.NoError(t, err)
 
 	checkExpectedCommands(mdmClientBYOD, true, 1)

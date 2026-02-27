@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest"
 	"github.com/stretchr/testify/require"
@@ -60,11 +59,10 @@ func SetUpSuiteWithConfig(t *testing.T, uniqueTestName string, requireSignature 
 	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	hostIdentitySCEPDepot, err := ds.NewHostIdentitySCEPDepot(slogLogger.With("component", "host-id-scep-depot"), &fleetCfg)
 	require.NoError(t, err)
-	logger := logging.NewLogger(slogLogger)
 	users, server := service.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
 		License:     license,
 		FleetConfig: &fleetCfg,
-		Logger:      logger,
+		Logger:      slogLogger,
 		HostIdentity: &service.HostIdentity{
 			SCEPStorage:                 hostIdentitySCEPDepot,
 			RequireHTTPMessageSignature: requireSignature,
@@ -73,7 +71,7 @@ func SetUpSuiteWithConfig(t *testing.T, uniqueTestName string, requireSignature 
 
 	s := &Suite{
 		BaseSuite: integrationtest.BaseSuite{
-			Logger:   logger,
+			Logger:   slogLogger,
 			DS:       ds,
 			FleetCfg: fleetCfg,
 			Users:    users,
