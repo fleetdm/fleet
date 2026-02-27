@@ -28,7 +28,10 @@
           return;
         }
         try {
-          const stream = new EventSource(bridgeURL + '/api/events');
+          const streamURL = bridgeSession
+            ? bridgeURL + '/api/events?session=' + encodeURIComponent(bridgeSession)
+            : bridgeURL + '/api/events';
+          const stream = new EventSource(streamURL);
           stream.addEventListener('log', async () => {
             try {
               await fetchStateAndRender(false);
@@ -97,7 +100,7 @@
           subtle.innerHTML = 'Checks that <a href="' + safeURL + '" target="_blank" rel="noopener noreferrer">' + safeURL + '</a> expires at least ' + minDays + ' days from now.';
 
           if (payload.error) {
-            content.innerHTML = '<p class="empty">🔴 Could not validate timestamp expiry: ' + payload.error + '</p>';
+            content.innerHTML = '<p class="empty">🔴 Could not validate timestamp expiry: ' + escHTML(payload.error) + '</p>';
             setTabClean('timestamp', false);
             return;
           }
@@ -118,7 +121,7 @@
           setTabClean('timestamp', Boolean(payload.ok));
         } catch (err) {
           subtle.textContent = 'Checks timestamp expiry from the bridge.';
-          content.innerHTML = '<p class="empty">🔴 Could not load timestamp check: ' + err + '</p>';
+          content.innerHTML = '<p class="empty">🔴 Could not load timestamp check: ' + escHTML(err) + '</p>';
           setTabClean('timestamp', false);
         }
       }

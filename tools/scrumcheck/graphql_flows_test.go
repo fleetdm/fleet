@@ -30,7 +30,9 @@ func newGraphQLStubClient(t *testing.T) *githubv4.Client {
 				Query     string                 `json:"query"`
 				Variables map[string]interface{} `json:"variables"`
 			}
-			_ = json.Unmarshal(raw, &req)
+			if err := json.Unmarshal(raw, &req); err != nil {
+				return nil, fmt.Errorf("decode graphql request payload: %w", err)
+			}
 
 			resp := map[string]any{"data": map[string]any{}}
 			// Switch routes by GraphQL query shape in test fixtures:

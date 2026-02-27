@@ -8,6 +8,8 @@ import (
 
 // TestRenderHTMLReport verifies the app shell renders expected HTML output.
 func TestRenderHTMLReport(t *testing.T) {
+	t.Parallel()
+
 	var out bytes.Buffer
 	err := renderHTMLReport(&out, HTMLReportData{
 		GeneratedAt: "now",
@@ -23,6 +25,8 @@ func TestRenderHTMLReport(t *testing.T) {
 
 // TestUIBridgeReportPathAndURL verifies bridge report URL/path helpers.
 func TestUIBridgeReportPathAndURL(t *testing.T) {
+	t.Parallel()
+
 	b := &uiBridge{
 		baseURL: "http://127.0.0.1:9999",
 	}

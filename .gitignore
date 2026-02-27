@@ -125,7 +125,7 @@ Fleet\ Desktop.app
 # custom golangci-lint executable
 custom-gcl
 
-# qacheck local artifacts
+# scrumcheck local artifacts
 tools/scrumcheck/scrumcheck
 tools/scrumcheck/scrumcheck-report/
 tools/scrumcheck.zip

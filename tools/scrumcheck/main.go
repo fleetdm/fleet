@@ -114,7 +114,9 @@ func run() int {
 	ctx := context.Background()
 	// OAuth2 static token source feeds GraphQL and REST calls consistently.
 	src := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
-	client := githubv4.NewClient(oauth2.NewClient(ctx, src))
+	ghHTTP := oauth2.NewClient(ctx, src)
+	ghHTTP.Timeout = 30 * time.Second
+	client := githubv4.NewClient(ghHTTP)
 	// Phase tracker drives the terminal "flight console" progress UI.
 	tracker := newPhaseTracker([]string{
 		"Release stories with TODO",
@@ -466,9 +468,9 @@ func run() int {
 		if err := openInBrowserFn(openTarget); err != nil {
 			log.Printf("could not auto-open report: %v", err)
 			tracker.phaseWarn(phaseBrowserBridge, "browser auto-open failed")
-			return 0
+		} else {
+			tracker.phaseDone(phaseBrowserBridge, "browser open signal sent")
 		}
-		tracker.phaseDone(phaseBrowserBridge, "browser open signal sent")
 	} else {
 		// Keep bridge live even when auto-open is disabled so callers can open
 		// the URL manually and still use interactive actions.

@@ -337,36 +337,47 @@ func setCurrentSprintForItem(
 	fieldID githubv4.ID,
 	iterationID string,
 ) error {
-	query := fmt.Sprintf(`mutation {
+	const mutation = `mutation($projectId:ID!, $itemId:ID!, $fieldId:ID!, $iterationId:String!) {
   updateProjectV2ItemFieldValue(input:{
-    projectId:"%s",
-    itemId:"%s",
-    fieldId:"%s",
-    value:{iterationId:"%s"}
+    projectId:$projectId,
+    itemId:$itemId,
+    fieldId:$fieldId,
+    value:{iterationId:$iterationId}
   }) { projectV2Item { id } }
-}`, fmt.Sprintf("%v", projectID), fmt.Sprintf("%v", itemID), fmt.Sprintf("%v", fieldID), iterationID)
-	return githubGraphQLMutation(token, query)
+}`
+	variables := map[string]any{
+		"projectId":   fmt.Sprintf("%v", projectID),
+		"itemId":      fmt.Sprintf("%v", itemID),
+		"fieldId":     fmt.Sprintf("%v", fieldID),
+		"iterationId": iterationID,
+	}
+	return githubGraphQLMutation(token, mutation, variables)
 }
 
 // githubGraphQLMutation sends a raw GraphQL mutation and surfaces API errors.
-func githubGraphQLMutation(token string, query string) error {
-	payload := map[string]any{"query": query}
+func githubGraphQLMutation(token string, query string, variables map[string]any) error {
+	payload := map[string]any{"query": query, "variables": variables}
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequest(http.MethodPost, "https://api.github.com/graphql", bytes.NewReader(body))
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.github.com/graphql", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Authorization", "bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := (&http.Client{Timeout: 20 * time.Second}).Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("GitHub GraphQL HTTP %s", resp.Status)
+	}
 
 	var out struct {
 		Errors []struct {
@@ -382,9 +393,6 @@ func githubGraphQLMutation(token string, query string) error {
 			msgs = append(msgs, e.Message)
 		}
 		return errors.New(strings.Join(msgs, "; "))
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("GitHub GraphQL HTTP %s", resp.Status)
 	}
 	return nil
 }

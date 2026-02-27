@@ -355,13 +355,12 @@ func (b *uiBridge) addSSESubscriber(ch chan string) {
 	b.sseSubscribers[ch] = struct{}{}
 }
 
-// removeSSESubscriber unregisters and closes an SSE listener channel.
+// removeSSESubscriber unregisters an SSE listener channel.
 func (b *uiBridge) removeSSESubscriber(ch chan string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if _, ok := b.sseSubscribers[ch]; ok {
 		delete(b.sseSubscribers, ch)
-		close(ch)
 	}
 }
 
@@ -463,7 +462,10 @@ func (b *uiBridge) handleEvents(w http.ResponseWriter, r *http.Request) {
 		case <-ticker.C:
 			fmt.Fprint(w, ": ping\n\n")
 			flusher.Flush()
-		case msg := <-ch:
+		case msg, ok := <-ch:
+			if !ok {
+				return
+			}
 			msg = strings.ReplaceAll(msg, "\n", " ")
 			fmt.Fprintf(w, "event: log\ndata: %s\n\n", msg)
 			flusher.Flush()
@@ -526,6 +528,11 @@ func (b *uiBridge) hasValidSession(r *http.Request) bool {
 	// Header path keeps API tooling/tests simple; browser requests usually rely
 	// on the session cookie set by app shell responses.
 	if sessionHeader != "" && sessionHeader == b.session {
+		return true
+	}
+	// EventSource cannot send custom headers, so allow an explicit query token
+	// as a local fallback for bridge-authenticated streaming.
+	if qs := strings.TrimSpace(r.URL.Query().Get("session")); qs != "" && qs == b.session {
 		return true
 	}
 	c, err := r.Cookie(bridgeSessionCookieName)
@@ -1117,6 +1124,8 @@ func issueKey(repo string, issue int) string {
 // isAllowedMilestone verifies milestone writes are allowed for the issue.
 func (b *uiBridge) isAllowedMilestone(repo string, issue int, milestone int) bool {
 	key := issueKey(repo, issue)
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	choices, ok := b.allowMilestones[key]
 	if !ok {
 		return false
@@ -1127,6 +1136,8 @@ func (b *uiBridge) isAllowedMilestone(repo string, issue int, milestone int) boo
 // isAllowedChecklist verifies checklist writes are allowed for the issue.
 func (b *uiBridge) isAllowedChecklist(repo string, issue int, checklistText string) bool {
 	key := issueKey(repo, issue)
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	choices, ok := b.allowChecklist[key]
 	if !ok {
 		return false
@@ -1137,6 +1148,8 @@ func (b *uiBridge) isAllowedChecklist(repo string, issue int, checklistText stri
 // isAllowedAssignee verifies assignee writes are allowed for the issue.
 func (b *uiBridge) isAllowedAssignee(repo string, issue int, assignee string) bool {
 	key := issueKey(repo, issue)
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	choices, ok := b.allowAssignees[key]
 	if !ok {
 		return false
@@ -1146,6 +1159,8 @@ func (b *uiBridge) isAllowedAssignee(repo string, issue int, assignee string) bo
 
 // allowedReleaseForIssue verifies release-label writes are allowed for the issue.
 func (b *uiBridge) allowedReleaseForIssue(repo string, issue int) (releaseLabelTarget, bool) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	target, ok := b.allowRelease[issueKey(repo, issue)]
 	return target, ok
 }
@@ -1170,6 +1185,8 @@ func (b *uiBridge) signalBridgeOp(caller, op, stage, status, repo string, issue 
 
 // allowedSprintForItem verifies sprint writes are allowed for the project item.
 func (b *uiBridge) allowedSprintForItem(itemID string) (sprintApplyTarget, bool) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	target, ok := b.allowSprints[strings.TrimSpace(itemID)]
 	return target, ok
 }

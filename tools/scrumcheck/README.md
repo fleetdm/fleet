@@ -4,7 +4,7 @@
 
 It helps teams quickly spot issues that block smooth delivery: stale QA items, missing sprint/milestone/assignee metadata, release-label policy gaps, checklist misses, and release-story TODO leftovers.
 
-Yes, we are making scrumchecks great again.
+This tool helps us keep the scrum process healthy and actionable.
 
 ## What It Checks
 

@@ -236,7 +236,7 @@ func TestSprintMutationHelpers(t *testing.T) {
 			"errors": []map[string]any{{"message": "boom"}},
 		}), nil
 	}))
-	if err := githubGraphQLMutation("tok", "mutation { x }"); err == nil {
+	if err := githubGraphQLMutation("tok", "mutation { x }", nil); err == nil {
 		t.Fatalf("expected graphql error")
 	}
 }

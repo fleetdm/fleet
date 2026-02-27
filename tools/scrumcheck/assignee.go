@@ -31,9 +31,6 @@ func runMissingAssigneeChecks(
 	token string,
 ) []MissingAssigneeIssue {
 	viewer := strings.ToLower(strings.TrimSpace(fetchViewerLogin(ctx, token)))
-	if viewer == "" {
-		return nil
-	}
 
 	cache := make(map[string][]AssigneeOption)
 	assignedSearchByProject := make(map[int]map[int]searchIssueItem, len(projectNums))
@@ -41,7 +38,10 @@ func runMissingAssigneeChecks(
 		// This side query intentionally mirrors `assignee:@me` behavior so items
 		// assigned to the viewer are still surfaced even if local project-item
 		// fetch windows miss them.
-		found := searchAssignedIssuesByProject(ctx, token, org, projectNum)
+		found := []searchIssueItem(nil)
+		if viewer != "" {
+			found = searchAssignedIssuesByProject(ctx, token, org, projectNum)
+		}
 		byNumber := make(map[int]searchIssueItem, len(found))
 		for _, it := range found {
 			byNumber[it.Number] = it

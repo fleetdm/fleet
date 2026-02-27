@@ -152,7 +152,7 @@ func fetchGenericQueryIssues(ctx context.Context, token, query string) []Generic
 				}
 				assignees = append(assignees, login)
 			}
-			status := strings.Title(strings.ToLower(strings.TrimSpace(it.State)))
+			status := titleCaseWords(it.State)
 			// The report model is intentionally minimal and contains only fields
 			// needed for cards, grouping, and links.
 			out = append(out, GenericQueryIssue{

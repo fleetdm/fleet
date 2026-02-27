@@ -84,7 +84,7 @@ func runUnassignedUnreleasedBugChecks(
 				currentAssignees = append(currentAssignees, login)
 			}
 
-			status := strings.Title(strings.ToLower(strings.TrimSpace(issue.State)))
+			status := titleCaseWords(issue.State)
 			k := fmt.Sprintf("%s/%s#%d", owner, repo, issue.Number)
 			if existing, ok := keyed[k]; ok {
 				// Same issue can match multiple groups; merge group membership.
@@ -227,23 +227,24 @@ func fetchUnreleasedIssuesByGroup(ctx context.Context, token, org, groupLabel st
 
 // executeIssueSearchRequest executes GitHub issue search with retry on 403.
 func executeIssueSearchRequest(ctx context.Context, endpoint, token string) (searchIssueResponse, bool) {
-	respBody, ok := executeIssueSearchRequestOnce(ctx, endpoint, token)
+	respBody, ok, status := executeIssueSearchRequestOnce(ctx, endpoint, token)
 	if ok {
 		return respBody, true
 	}
-	if token == "" {
+	if token == "" || status != http.StatusForbidden {
 		return searchIssueResponse{}, false
 	}
 	// Some fine-grained tokens can fail for search while public unauthenticated search still works.
 	// Retry once without Authorization so public repo searches can still succeed.
-	return executeIssueSearchRequestOnce(ctx, endpoint, "")
+	respBody, ok, _ = executeIssueSearchRequestOnce(ctx, endpoint, "")
+	return respBody, ok
 }
 
 // executeIssueSearchRequestOnce executes a single GitHub issue search request.
-func executeIssueSearchRequestOnce(ctx context.Context, endpoint, token string) (searchIssueResponse, bool) {
+func executeIssueSearchRequestOnce(ctx context.Context, endpoint, token string) (searchIssueResponse, bool, int) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return searchIssueResponse{}, false
+		return searchIssueResponse{}, false, 0
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
 	if token != "" {
@@ -252,20 +253,20 @@ func executeIssueSearchRequestOnce(ctx context.Context, endpoint, token string) 
 	resp, err := (&http.Client{Timeout: 20 * time.Second}).Do(req)
 	if err != nil {
 		log.Printf("unreleased search request failed: %v", err)
-		return searchIssueResponse{}, false
+		return searchIssueResponse{}, false, 0
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		log.Printf("unreleased search returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
-		return searchIssueResponse{}, false
+		return searchIssueResponse{}, false, resp.StatusCode
 	}
 	var decoded searchIssueResponse
 	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
 		log.Printf("unreleased search decode failed: %v", err)
-		return searchIssueResponse{}, false
+		return searchIssueResponse{}, false, resp.StatusCode
 	}
-	return decoded, true
+	return decoded, true, resp.StatusCode
 }
 
 // parseRepoFromRepositoryAPIURL parses owner/repo from repository API URLs.

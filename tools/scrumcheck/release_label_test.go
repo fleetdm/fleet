@@ -35,4 +35,7 @@ func TestIssueLabels(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("expected 2 unique labels, got %d (%v)", len(got), got)
 	}
+	if got[0] != ":release" || got[1] != "bug" {
+		t.Fatalf("unexpected normalized labels: %v", got)
+	}
 }

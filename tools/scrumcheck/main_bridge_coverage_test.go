@@ -35,6 +35,25 @@ func TestMainHelperProcess(t *testing.T) {
 		_ = os.Unsetenv("GITHUB_TOKEN")
 		main()
 	case "happy-open-fails":
+		origStart := startUIBridgeFn
+		origOpen := openInBrowserFn
+		defer func() {
+			startUIBridgeFn = origStart
+			openInBrowserFn = origOpen
+		}()
+		startUIBridgeFn = func(token string, idleTimeout time.Duration, onEvent func(string), policy bridgePolicy) (*uiBridge, error) {
+			done := make(chan struct{})
+			close(done)
+			return &uiBridge{
+				baseURL: "http://127.0.0.1:1",
+				session: "session-token",
+				done:    done,
+				reason:  "done",
+			}, nil
+		}
+		openInBrowserFn = func(path string) error {
+			return exec.ErrNotFound
+		}
 		os.Args = []string{
 			"qacheck",
 			"-p", "71",
@@ -108,11 +127,11 @@ func TestMainHappyPathWhenBrowserOpenFails(t *testing.T) {
 		"GITHUB_TOKEN=test-token",
 		"PATH=/path/that/does/not/exist",
 	)
-	if code != 1 {
-		t.Fatalf("expected bridge-required exit code 1, got %d (%s)\noutput:\n%s", code, errText, out)
+	if code != 0 {
+		t.Fatalf("expected success exit code 0, got %d (%s)\noutput:\n%s", code, errText, out)
 	}
-	if !strings.Contains(out, "bridge unavailable") {
-		t.Fatalf("expected bridge-unavailable message in output, got:\n%s", out)
+	if !strings.Contains(out, "browser auto-open failed") {
+		t.Fatalf("expected browser auto-open warning in output, got:\n%s", out)
 	}
 }
 

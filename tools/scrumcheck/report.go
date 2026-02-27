@@ -837,9 +837,6 @@ func openInBrowser(path string) error {
 func titleCaseWords(s string) string {
 	parts := strings.Fields(strings.ToLower(strings.TrimSpace(s)))
 	for i, p := range parts {
-		if p == "" {
-			continue
-		}
 		runes := []rune(p)
 		runes[0] = unicode.ToUpper(runes[0])
 		parts[i] = string(runes)
