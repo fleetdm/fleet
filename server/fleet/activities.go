@@ -3355,22 +3355,3 @@ func (a ActivityTypeDeletedMicrosoftEntraTenant) Documentation() (activity strin
 	"tenant_id": "ada00076-06f6-459b-8c45-88a843a2271f"
 }`
 }
-
-type ActivityTypeEditedEnrollSecrets struct {
-	TeamID   *uint   `json:"team_id"`
-	TeamName *string `json:"team_name"`
-}
-
-func (a ActivityTypeEditedEnrollSecrets) ActivityName() string {
-	return "edited_enroll_secrets"
-}
-
-func (a ActivityTypeEditedEnrollSecrets) Documentation() (activity, details, detailsExample string) {
-	return `Generated when global or team enroll secrets are edited.`,
-		`This activity contains the following fields:
-- "team_id": The ID of the team that the enroll secret applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the enroll secret applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
-  "team_id": 1,
-  "team_name": "Workstations",
-}`
-}
