@@ -141,6 +141,7 @@ type integrationMDMTestSuite struct {
 	androidSvc                android.Service
 	proxyCallbackURL          string
 	jwtSigningKey             *rsa.PrivateKey
+	softwareInstallerStore    fleet.SoftwareInstallerStore
 }
 
 // appleVPPConfigSrvConf is used to configure the mock server that mocks Apple's VPP endpoints.
@@ -273,9 +274,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	var profileSchedule *schedule.Schedule
 	var cleanupsSchedule *schedule.Schedule
 	var androidProfileSchedule *schedule.Schedule
-	cronLog := logging.NewJSONLogger(os.Stdout)
+	cronLog := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		cronLog = logging.NewNopLogger()
+		cronLog = slog.New(slog.DiscardHandler)
 	}
 	serverLogger := logging.NewJSONLogger(os.Stdout)
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
@@ -292,6 +293,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		softwareInstallerStore = s3.SetupTestSoftwareInstallerStore(s.T(), "integration-tests", "")
 		bootstrapPackageStore = s3.SetupTestBootstrapPackageStore(s.T(), "integration-tests", "")
 	}
+	s.softwareInstallerStore = softwareInstallerStore
 	scepTimeout := ptr.Duration(10 * time.Second)
 	s.scepConfig = eeservice.NewSCEPConfigService(serverLogger.SlogLogger(), scepTimeout).(*eeservice.SCEPConfigService)
 
@@ -314,7 +316,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		Pool:                   s.redisPool,
 		Rs:                     pubsub.NewInmemQueryResults(),
 		Lq:                     s.lq,
-		SoftwareInstallStore:   softwareInstallerStore,
+		SoftwareInstallStore:   s.softwareInstallerStore,
 		SoftwareTitleIconStore: softwareTitleIconStore,
 		BootstrapPackageStore:  bootstrapPackageStore,
 		androidMockClient:      androidMockClient,
@@ -329,41 +331,41 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
-							logger.Log("msg", "Starting manage_apple_profiles job", "test", s.T().Name(), "time", time.Now().Format(time.RFC3339))
+							logger.InfoContext(ctx, "Starting manage_apple_profiles job", "test", s.T().Name(), "time", time.Now().Format(time.RFC3339))
 							if s.onProfileJobDone != nil {
 								defer func() {
-									logger.Log("msg", "Completing manage_apple_profiles job", "test", s.T().Name(), "time",
+									logger.InfoContext(ctx, "Completing manage_apple_profiles job", "test", s.T().Name(), "time",
 										time.Now().Format(time.RFC3339))
 									s.onProfileJobDone()
 								}()
 							}
-							err = ReconcileAppleProfiles(ctx, ds, mdmCommander, logger.SlogLogger())
+							err = ReconcileAppleProfiles(ctx, ds, mdmCommander, logger)
 							require.NoError(s.T(), err)
 							return err
 						}),
 						schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
-							logger.Log("msg", "Starting manage_apple_declarations job", "test", s.T().Name(), "time", time.Now().Format(time.RFC3339))
+							logger.InfoContext(ctx, "Starting manage_apple_declarations job", "test", s.T().Name(), "time", time.Now().Format(time.RFC3339))
 							if s.onProfileJobDone != nil {
 								defer func() {
-									logger.Log("msg", "Completing manage_apple_declarations job", "test", s.T().Name(), "time",
+									logger.InfoContext(ctx, "Completing manage_apple_declarations job", "test", s.T().Name(), "time",
 										time.Now().Format(time.RFC3339))
 									s.onProfileJobDone()
 								}()
 							}
-							err = ReconcileAppleDeclarations(ctx, ds, mdmCommander, logger.SlogLogger())
+							err = ReconcileAppleDeclarations(ctx, ds, mdmCommander, logger)
 							require.NoError(s.T(), err)
 							return err
 						}),
 						schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
-							logger.Log("msg", "Starting manage_windows_profiles job", "test", s.T().Name(), "time", time.Now().Format(time.RFC3339))
+							logger.InfoContext(ctx, "Starting manage_windows_profiles job", "test", s.T().Name(), "time", time.Now().Format(time.RFC3339))
 							if s.onProfileJobDone != nil {
 								defer func() {
-									logger.Log("msg", "Completing manage_windows_profiles job", "test", s.T().Name(), "time",
+									logger.InfoContext(ctx, "Completing manage_windows_profiles job", "test", s.T().Name(), "time",
 										time.Now().Format(time.RFC3339))
 									s.onProfileJobDone()
 								}()
 							}
-							err := ReconcileWindowsProfiles(ctx, ds, logger.SlogLogger())
+							err := ReconcileWindowsProfiles(ctx, ds, logger)
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -392,7 +394,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 								defer s.onIntegrationsScheduleDone()
 							}
 
-							return worker.ProcessDEPCooldowns(ctx, ds, logger.SlogLogger())
+							return worker.ProcessDEPCooldowns(ctx, ds, logger)
 						}),
 					)
 					return integrationsSchedule, nil
@@ -412,7 +414,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 							if s.onCleanupScheduleDone != nil {
 								defer s.onCleanupScheduleDone()
 							}
-							return android_service.RenewCertificateTemplates(ctx, ds, logger.SlogLogger())
+							return android_service.RenewCertificateTemplates(ctx, ds, logger)
 						}),
 					)
 					return cleanupsSchedule, nil
@@ -426,15 +428,15 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
-							logger.Log("msg", "Starting manage_android_profiles job", "test", s.T().Name(), "time", time.Now().Format(time.RFC3339))
+							logger.InfoContext(ctx, "Starting manage_android_profiles job", "test", s.T().Name(), "time", time.Now().Format(time.RFC3339))
 							if s.onAndroidProfileJobDone != nil {
 								defer func() {
-									logger.Log("msg", "Completing manage_android_profiles job", "test", s.T().Name(), "time",
+									logger.InfoContext(ctx, "Completing manage_android_profiles job", "test", s.T().Name(), "time",
 										time.Now().Format(time.RFC3339))
 									s.onAndroidProfileJobDone()
 								}()
 							}
-							err := android_service.ReconcileProfilesWithClient(ctx, ds, logger.SlogLogger(), "", androidMockClient, config.AndroidAgentConfig{
+							err := android_service.ReconcileProfilesWithClient(ctx, ds, logger, "", androidMockClient, config.AndroidAgentConfig{
 								Package:       "com.fleetdm.agent",
 								SigningSHA256: "abc123def456",
 							})
@@ -453,7 +455,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger.SlogLogger(), s.fleetSvc.NewActivity)
+							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger, s.fleetSvc.NewActivity)
 						}),
 					)
 					return refetcherSchedule, nil
@@ -784,6 +786,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.T().Cleanup(jwksServer.Close)
 	s.jwtSigningKey = testKey
 	s.T().Setenv("FLEET_DEV_AZURE_JWT_JWKS_URI", jwksServer.URL+"/jwks.json")
+
+	dev_mode.SetOverride("FLEET_DEV_BATCH_RETRY_INTERVAL", "1s")
+
 }
 
 func (s *integrationMDMTestSuite) TearDownSuite() {
@@ -792,6 +797,8 @@ func (s *integrationMDMTestSuite) TearDownSuite() {
 	appConf.MDM.EnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
+
+	dev_mode.ClearOverride("FLEET_DEV_BATCH_RETRY_INTERVAL")
 }
 
 func (s *integrationMDMTestSuite) FailNextCSRRequestWith(status int) {
@@ -10649,19 +10656,10 @@ func (s *integrationMDMTestSuite) TestWindowsFreshEnrollEmptyQuery() {
 	req := getDistributedQueriesRequest{NodeKey: *host.NodeKey}
 	var dqResp getDistributedQueriesResponse
 	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+	// We no longer read profiles via osquery
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_mdm_config_profiles_windows")
-
-	// add two profiles
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
-		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
-		{Name: "N2", Contents: syncMLForTest("./Foo/Bar")},
-	}}, http.StatusNoContent)
-
-	req = getDistributedQueriesRequest{NodeKey: *host.NodeKey}
-	dqResp = getDistributedQueriesResponse{}
-	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
-	require.Contains(t, dqResp.Queries, "fleet_detail_query_mdm_config_profiles_windows")
-	require.NotEmpty(t, dqResp.Queries, "fleet_detail_query_mdm_config_profiles_windows")
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_mdm_device_id_windows")
+	require.NotEmpty(t, dqResp.Queries, "fleet_detail_query_mdm_device_id_windows")
 }
 
 func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
@@ -11663,8 +11661,8 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	require.NoError(t, err)
 	fleetCfg := config.TestConfig()
 	config.SetTestMDMConfig(s.T(), &fleetCfg, cert, key, "")
-	logger := logging.NewJSONLogger(os.Stdout)
-	err = RenewSCEPCertificates(ctx, logger.SlogLogger(), s.ds, &fleetCfg, s.mdmCommander)
+	scepLogger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	err = RenewSCEPCertificates(ctx, scepLogger, s.ds, &fleetCfg, s.mdmCommander)
 	require.NoError(t, err)
 
 	// no new commands were enqueued

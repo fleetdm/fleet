@@ -47,6 +47,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	digicert_mock "github.com/fleetdm/fleet/v4/server/mock/digicert"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
@@ -872,6 +873,180 @@ func TestNewMDMAppleDeclaration(t *testing.T) {
 	d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "name", fleet.LabelsIncludeAll)
 	require.NoError(t, err)
 	assert.NotNil(t, d)
+}
+
+func setupAppleMDMServiceWithSkipValidation(t *testing.T, license *fleet.LicenseInfo, skipValidation bool) (fleet.Service, context.Context, *mock.Store) {
+	ds := new(mock.Store)
+	cfg := config.TestConfig()
+	cfg.MDM.AllowAllDeclarations = skipValidation
+	testCertPEM, testKeyPEM, err := generateCertWithAPNsTopic()
+	require.NoError(t, err)
+	config.SetTestMDMConfig(t, &cfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
+
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	depStorage := &nanodep_mock.Storage{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		NewNanoMDMLogger(slog.New(slog.NewJSONHandler(os.Stdout, nil))),
+	)
+
+	opts := &TestServerOpts{
+		FleetConfig:    &cfg,
+		MDMStorage:     mdmStorage,
+		DEPStorage:     depStorage,
+		MDMPusher:      pusher,
+		License:        license,
+		ProfileMatcher: nopProfileMatcher{},
+	}
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			OrgInfo: fleet.OrgInfo{
+				OrgName: "Foo Inc.",
+			},
+			ServerSettings: fleet.ServerSettings{
+				ServerURL: "https://foo.example.com",
+			},
+			MDM: fleet.MDM{
+				EnabledAndConfigured: true,
+			},
+		}, nil
+	}
+
+	return svc, ctx, ds
+}
+
+func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
+	t.Run("forbidden declaration type fails validation by default", func(t *testing.T) {
+		svc, ctx, ds := setupAppleMDMServiceWithSkipValidation(t, &fleet.LicenseInfo{Tier: fleet.TierPremium}, false)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, s string) (string, *time.Time, error) {
+			return s, nil, nil
+		}
+
+		// Status subscription declarations are forbidden
+		b := []byte(`{
+			"Type": "com.apple.configuration.management.status-subscriptions",
+			"Identifier": "test-status-sub"
+		}`)
+		_, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-status-sub", fleet.LabelsIncludeAll)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "status subscription type")
+	})
+
+	t.Run("forbidden declaration type allowed with skip validation", func(t *testing.T) {
+		svc, ctx, ds := setupAppleMDMServiceWithSkipValidation(t, &fleet.LicenseInfo{Tier: fleet.TierPremium}, true)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, s string) (string, *time.Time, error) {
+			return s, nil, nil
+		}
+		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+			return d, nil
+		}
+		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
+		) (updates fleet.MDMProfilesUpdates, err error) {
+			return fleet.MDMProfilesUpdates{}, nil
+		}
+
+		// Status subscription declarations are forbidden but should be allowed when skip is enabled
+		b := []byte(`{
+			"Type": "com.apple.configuration.management.status-subscriptions",
+			"Identifier": "test-status-sub"
+		}`)
+		d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-status-sub", fleet.LabelsIncludeAll)
+		require.NoError(t, err)
+		assert.NotNil(t, d)
+	})
+
+	t.Run("invalid declaration type fails by default", func(t *testing.T) {
+		svc, ctx, ds := setupAppleMDMServiceWithSkipValidation(t, &fleet.LicenseInfo{Tier: fleet.TierPremium}, false)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, s string) (string, *time.Time, error) {
+			return s, nil, nil
+		}
+
+		// Non com.apple.configuration.* types are invalid
+		b := []byte(`{
+			"Type": "com.example.invalid",
+			"Identifier": "test-invalid"
+		}`)
+		_, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-invalid", fleet.LabelsIncludeAll)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "Only configuration declarations")
+	})
+
+	t.Run("invalid declaration type allowed with skip validation", func(t *testing.T) {
+		svc, ctx, ds := setupAppleMDMServiceWithSkipValidation(t, &fleet.LicenseInfo{Tier: fleet.TierPremium}, true)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, s string) (string, *time.Time, error) {
+			return s, nil, nil
+		}
+		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+			return d, nil
+		}
+		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
+		) (updates fleet.MDMProfilesUpdates, err error) {
+			return fleet.MDMProfilesUpdates{}, nil
+		}
+
+		// Invalid type should be allowed when skip is enabled
+		b := []byte(`{
+			"Type": "com.example.invalid",
+			"Identifier": "test-invalid"
+		}`)
+		d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-invalid", fleet.LabelsIncludeAll)
+		require.NoError(t, err)
+		assert.NotNil(t, d)
+	})
+
+	t.Run("OS update declaration blocked without custom OS updates flag", func(t *testing.T) {
+		svc, ctx, ds := setupAppleMDMServiceWithSkipValidation(t, &fleet.LicenseInfo{Tier: fleet.TierPremium}, false)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, s string) (string, *time.Time, error) {
+			return s, nil, nil
+		}
+
+		b := []byte(`{
+			"Type": "com.apple.configuration.softwareupdate.enforcement.specific",
+			"Identifier": "test-os-update"
+		}`)
+		_, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-os-update", fleet.LabelsIncludeAll)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "OS updates settings")
+	})
+
+	t.Run("OS update declaration allowed with skip validation even without custom OS updates flag", func(t *testing.T) {
+		svc, ctx, ds := setupAppleMDMServiceWithSkipValidation(t, &fleet.LicenseInfo{Tier: fleet.TierPremium}, true)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, s string) (string, *time.Time, error) {
+			return s, nil, nil
+		}
+		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+			return d, nil
+		}
+		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
+		) (updates fleet.MDMProfilesUpdates, err error) {
+			return fleet.MDMProfilesUpdates{}, nil
+		}
+
+		b := []byte(`{
+			"Type": "com.apple.configuration.softwareupdate.enforcement.specific",
+			"Identifier": "test-os-update"
+		}`)
+		d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-os-update", fleet.LabelsIncludeAll)
+		require.NoError(t, err)
+		assert.NotNil(t, d)
+	})
 }
 
 // Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
@@ -3857,6 +4032,141 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 }
 
+// TestPreprocessProfileContentsDigiCertUPNMultiHost is a regression test for
+// https://github.com/fleetdm/fleet/issues/39324. When the same DigiCert CA is
+// used for multiple hosts in a single batch, the CertificateUserPrincipalNames
+// slice was shared via a shallow copy. In-place variable substitution for Host 1
+// corrupted the cached CA entry, so Host 2 and later hosts received Host 1's
+// substituted UPN instead of their own.
+func TestPreprocessProfileContentsDigiCertUPNIsUniqueForMultipleHosts(t *testing.T) {
+	ctx := context.Background()
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	logger := slog.New(slog.DiscardHandler)
+	appCfg := &fleet.AppConfig{}
+	appCfg.ServerSettings.ServerURL = "https://test.example.com"
+	appCfg.MDM.EnabledAndConfigured = true
+	ds := new(mock.Store)
+
+	svc := eeservice.NewSCEPConfigService(logger, nil)
+
+	const caName = "myCA"
+	const host1UUID = "host-uuid-1"
+	const host2UUID = "host-uuid-2"
+	const host1Serial = "SERIAL-AAA"
+	const host2Serial = "SERIAL-BBB"
+	const cmdUUID = "cmd-uuid-1"
+
+	// Track which UPNs were sent to GetCertificate per host.
+	upnByHostUUID := make(map[string]string)
+
+	mockDigiCert := &digicert_mock.Service{}
+	mockDigiCert.GetCertificateFunc = func(ctx context.Context, config fleet.DigiCertCA) (*fleet.DigiCertCertificate, error) {
+		// The UPN in config should have been substituted with each host's own
+		// hardware serial. Record it so we can assert correctness later.
+		require.Len(t, config.CertificateUserPrincipalNames, 1)
+		upn := config.CertificateUserPrincipalNames[0]
+		// Determine which host this call is for by checking which serial is in the UPN.
+		switch {
+		case strings.Contains(upn, host1Serial):
+			upnByHostUUID[host1UUID] = upn
+		case strings.Contains(upn, host2Serial):
+			upnByHostUUID[host2UUID] = upn
+		default:
+			t.Errorf("GetCertificate called with unexpected UPN %q", upn)
+		}
+		now := time.Now()
+		return &fleet.DigiCertCertificate{
+			PfxData:        []byte("fake-pfx"),
+			Password:       "fake-password",
+			NotValidBefore: now,
+			NotValidAfter:  now.Add(365 * 24 * time.Hour),
+			SerialNumber:   upn, // reuse upn as serial for easy tracing
+		}, nil
+	}
+
+	// Both hosts share the same profile UUID but are separate enrollment IDs.
+	targets := map[string]*cmdTarget{
+		"p1": {
+			cmdUUID:       cmdUUID,
+			profIdent:     "com.apple.security.pkcs12",
+			enrollmentIDs: []string{host1UUID, host2UUID},
+		},
+	}
+
+	pending := fleet.MDMDeliveryPending
+	hostProfilesToInstallMap := map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{HostUUID: host1UUID, ProfileUUID: "p1"}: {
+			ProfileUUID:       "p1",
+			ProfileIdentifier: "com.apple.security.pkcs12",
+			HostUUID:          host1UUID,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &pending,
+			CommandUUID:       cmdUUID,
+			Scope:             fleet.PayloadScopeSystem,
+		},
+		{HostUUID: host2UUID, ProfileUUID: "p1"}: {
+			ProfileUUID:       "p1",
+			ProfileIdentifier: "com.apple.security.pkcs12",
+			HostUUID:          host2UUID,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &pending,
+			CommandUUID:       cmdUUID,
+			Scope:             fleet.PayloadScopeSystem,
+		},
+	}
+
+	// Profile contains both DigiCert fleet variables.
+	profileContents := map[string]mobileconfig.Mobileconfig{
+		"p1": []byte("$FLEET_VAR_" + string(fleet.FleetVarDigiCertPasswordPrefix) + caName + " $FLEET_VAR_" + string(fleet.FleetVarDigiCertDataPrefix) + caName),
+	}
+
+	// DigiCert CA whose UPN contains the hardware serial variable.
+	groupedCAs := &fleet.GroupedCertificateAuthorities{
+		DigiCert: []fleet.DigiCertCA{
+			{
+				Name:                          caName,
+				URL:                           "https://digicert.example.com",
+				APIToken:                      "api_token",
+				ProfileID:                     "profile_id",
+				CertificateCommonName:         "common_name",
+				CertificateUserPrincipalNames: []string{"$FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "@example.com"},
+				CertificateSeatID:             "seat_id",
+			},
+		},
+	}
+
+	// Mock datastore: return each host's own hardware serial when queried.
+	hostsByUUID := map[string]*fleet.Host{
+		host1UUID: {ID: 1, UUID: host1UUID, HardwareSerial: host1Serial, Platform: "darwin"},
+		host2UUID: {ID: 2, UUID: host2UUID, HardwareSerial: host2Serial, Platform: "darwin"},
+	}
+	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+		var hosts []*fleet.Host
+		for _, uuid := range uuids {
+			if h, ok := hostsByUUID[uuid]; ok {
+				hosts = append(hosts, h)
+			}
+		}
+		return hosts, nil
+	}
+	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+		return nil
+	}
+	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
+		return nil
+	}
+
+	err := preprocessProfileContents(ctx, appCfg, ds, svc, mockDigiCert, logger, targets, profileContents, hostProfilesToInstallMap, make(map[string]string), groupedCAs)
+	require.NoError(t, err)
+
+	// Both hosts must have received GetCertificate calls with their own serial.
+	require.True(t, mockDigiCert.GetCertificateFuncInvoked, "GetCertificate was never called")
+	require.Contains(t, upnByHostUUID, host1UUID, "GetCertificate was not called for host 1")
+	require.Contains(t, upnByHostUUID, host2UUID, "GetCertificate was not called for host 2")
+	assert.Equal(t, host1Serial+"@example.com", upnByHostUUID[host1UUID], "host 1 UPN should contain its own serial")
+	assert.Equal(t, host2Serial+"@example.com", upnByHostUUID[host2UUID], "host 2 UPN should contain its own serial")
+}
+
 func TestAppleMDMFileVaultEscrowFunctions(t *testing.T) {
 	svc := Service{}
 
@@ -4350,7 +4660,8 @@ func generateCertWithAPNsTopic() ([]byte, []byte, error) {
 }
 
 func setupTest(t *testing.T) (context.Context, *slog.Logger, *mock.Store, *config.FleetConfig, *mdmmock.MDMAppleStore,
-	*apple_mdm.MDMAppleCommander) {
+	*apple_mdm.MDMAppleCommander,
+) {
 	ctx := context.Background()
 	logger := slog.New(slog.DiscardHandler)
 	cfg := config.TestConfig()

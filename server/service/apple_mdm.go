@@ -908,8 +908,10 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 	}
 	// After validation, we should no longer need to keep the expanded secrets.
 
-	if err := rawDecl.ValidateUserProvided(svc.config.MDM.EnableCustomOSUpdatesAndFileVault); err != nil {
-		return nil, err
+	if !svc.config.MDM.AllowAllDeclarations {
+		if err := rawDecl.ValidateUserProvided(svc.config.MDM.EnableCustomOSUpdatesAndFileVault); err != nil {
+			return nil, err
+		}
 	}
 
 	d := fleet.NewMDMAppleDeclaration(data, tmID, name, rawDecl.Type, rawDecl.Identifier)
@@ -1281,8 +1283,12 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 		if err := json.Unmarshal(decl.RawJSON, &d); err != nil {
 			return ctxerr.Wrap(ctx, err, "unmarshalling declaration")
 		}
-		if err := d.ValidateUserProvided(svc.config.MDM.EnableCustomOSUpdatesAndFileVault); err != nil {
-			return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+
+		// skip declaration validation if the allow all declarations flag is set.
+		if !svc.config.MDM.AllowAllDeclarations {
+			if err := d.ValidateUserProvided(svc.config.MDM.EnableCustomOSUpdatesAndFileVault); err != nil {
+				return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+			}
 		}
 	}
 
@@ -5755,6 +5761,10 @@ func preprocessProfileContents(
 						continue
 					}
 					caCopy := *ca
+					// Deep copy the UPN slice to prevent cross-host contamination: a
+					// shallow copy shares the backing array, so in-place substitutions for
+					// one host would corrupt the cached CA used by subsequent hosts.
+					caCopy.CertificateUserPrincipalNames = slices.Clone(ca.CertificateUserPrincipalNames)
 
 					// Populate Fleet vars in the CA fields
 					caVarsCache := make(map[string]string)
