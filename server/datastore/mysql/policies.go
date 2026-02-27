@@ -2350,8 +2350,8 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 				he.email,
 				CASE 
 					WHEN he.source IN (?, ?) THEN 1  -- IdP sources (mdm_idp_accounts, idp) have priority 1
-					WHEN he.source = ? THEN 2         -- Google Chrome profiles have priority 2
-					ELSE 3                             -- Other sources have lower priority
+					WHEN he.source = ? THEN 2        -- Google Chrome profiles have priority 2
+					ELSE 3                           -- Other sources have lower priority
 				END AS priority,
 				MIN(
 					CASE 
