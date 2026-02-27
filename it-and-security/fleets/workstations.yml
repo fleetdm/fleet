@@ -1,5 +1,5 @@
-name: $DOGFOOD_APPLE_BM_DEFAULT_TEAM
-team_settings:
+name: "💻 Workstations"
+settings:
   webhook_settings:
     failing_policies_webhook:
       destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
@@ -56,8 +56,6 @@ controls:
       - path: ../lib/macos/configuration-profiles/disable-internet-sharing.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-media-sharing.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-safari-safefiles.mobileconfig
-      # - path: ../lib/macos/configuration-profiles/enable-doh.mobileconfig
-      # Commenting out until I understand why we have this and if there's a better multi-platform solution
       - path: ../lib/macos/configuration-profiles/enable-firewall-logging.mobileconfig
       - path: ../lib/macos/configuration-profiles/enable-gatekeeper.mobileconfig
       - path: ../lib/macos/configuration-profiles/enforce-library-validation.mobileconfig
@@ -151,10 +149,10 @@ policies:
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
-queries:
-  - path: ../lib/macos/queries/detect-apple-intelligence.yml
-  - path: ../lib/macos/queries/collect-santa-denied-logs.yml
-  - path: ../lib/all/queries/dex-queries.yml
+reports:
+  - path: ../lib/macos/reports/detect-apple-intelligence.yml
+  - path: ../lib/macos/reports/collect-santa-denied-logs.yml
+  - path: ../lib/all/reports/dex-queries.yml
 software:
   packages:
     # macOS apps
