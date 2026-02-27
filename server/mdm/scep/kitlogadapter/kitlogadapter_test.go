@@ -42,4 +42,17 @@ func TestLog(t *testing.T) {
 		attrs := testutils.RecordAttrs(record)
 		assert.Equal(t, "test-component", attrs["component"])
 	})
+
+	t.Run("level mapping", func(t *testing.T) {
+		handler := testutils.NewTestHandler()
+		adapter := NewLogger(slog.New(handler))
+
+		err := adapter.Log("level", "error", "msg", "something broke")
+		require.NoError(t, err)
+
+		record := handler.LastRecord()
+		require.NotNil(t, record)
+		assert.Equal(t, slog.LevelError, record.Level)
+		assert.Equal(t, "something broke", record.Message)
+	})
 }
