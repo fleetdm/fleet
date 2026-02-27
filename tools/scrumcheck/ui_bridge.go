@@ -413,6 +413,10 @@ func (b *uiBridge) handleReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Prevent browser caching so UI reflects latest template/render changes.
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	b.setSessionCookie(w)
 	http.ServeFile(w, r, reportPath)
 }

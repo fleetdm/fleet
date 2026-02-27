@@ -20,6 +20,7 @@ type ReportItem struct {
 	Title     string
 	URL       string
 	Assignees []string
+	Labels    []string
 	Unchecked []string
 }
 
@@ -300,6 +301,7 @@ func buildHTMLReportData(
 				Title:     getTitle(v.Item),
 				URL:       getURL(v.Item),
 				Assignees: issueAssignees(v.Item),
+				Labels:    issueLabels(v.Item),
 				Unchecked: v.Unchecked,
 			})
 		}
@@ -841,7 +843,7 @@ var htmlReportTemplate = `<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>qacheck report</title>
+  <title>scrumcheck report</title>
   <style>
     :root {
       --bg: #f5f7fb;
@@ -1114,7 +1116,7 @@ var htmlReportTemplate = `<!doctype html>
       {{if .BridgeEnabled}}
         <div class="bridge-controls">
           <button id="close-session-btn" class="fix-btn">Close bridge session</button>
-          <span class="copied-note">This will stop GitHub actions from the report until next qacheck run.</span>
+          <span class="copied-note">This will stop GitHub actions from the report until next scrumcheck run.</span>
         </div>
       {{end}}
     </section>
@@ -1816,7 +1818,7 @@ var htmlReportTemplate = `<!doctype html>
           const itemsHTML = items.length === 0 ? '<p class="empty">🟢 No violations in this status.</p>' : items.map((it) => {
             const unchecked = Array.isArray(it.Unchecked) ? it.Unchecked : [];
             const checksHTML = unchecked.map((c) => '<div class="checklist-row"><span class="checklist-text">• [ ] ' + escHTML(c) + '</span><button class="fix-btn apply-drafting-check-btn" data-repo="' + escHTML(it.Repo) + '" data-issue="' + escHTML(it.Number) + '" data-check="' + escHTML(c) + '">Check on GitHub</button></div>').join('');
-            return '<article class="item"><div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div><div><a href="' + escHTML(it.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(it.URL) + '</a></div><ul><li>Assignees: ' + escHTML(listOrEmpty(it.Assignees, '(empty)')) + '</li></ul><div>' + checksHTML + '</div></article>';
+            return '<article class="item"><div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div><div><a href="' + escHTML(it.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(it.URL) + '</a></div><ul><li>Assignees: ' + escHTML(listOrEmpty(it.Assignees, '(empty)')) + '</li><li>Labels: ' + escHTML(listOrEmpty(it.Labels, '(empty)')) + '</li></ul><div>' + checksHTML + '</div></article>';
           }).join('');
           return '<div class="status"><h3>' + escHTML(sec.Emoji) + ' ' + escHTML(sec.Status) + '</h3><p class="subtle">' + escHTML(sec.Intro) + '</p>' + itemsHTML + '</div>';
         }).join('');
@@ -2016,7 +2018,7 @@ var htmlReportTemplate = `<!doctype html>
 
         const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
         if (!bridgeURL || !bridgeSession) {
-          window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
+          window.alert('Bridge unavailable. Re-run scrumcheck and keep terminal open.');
           return false;
         }
 
@@ -2045,7 +2047,7 @@ var htmlReportTemplate = `<!doctype html>
       async function applyDraftingCheckButton(btn) {
         const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
         if (!bridgeURL || !bridgeSession) {
-          window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
+          window.alert('Bridge unavailable. Re-run scrumcheck and keep terminal open.');
           return false;
         }
         const repo = btn.dataset.repo || '';
@@ -2091,7 +2093,7 @@ var htmlReportTemplate = `<!doctype html>
       async function applySprintButton(btn) {
         const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
         if (!bridgeURL || !bridgeSession) {
-          window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
+          window.alert('Bridge unavailable. Re-run scrumcheck and keep terminal open.');
           return false;
         }
         const itemID = btn.dataset.itemId || '';
@@ -2223,7 +2225,7 @@ var htmlReportTemplate = `<!doctype html>
 
         const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
         if (!bridgeURL || !bridgeSession) {
-          window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
+          window.alert('Bridge unavailable. Re-run scrumcheck and keep terminal open.');
           return false;
         }
         const endpoint = bridgeURL + '/api/add-assignee';
@@ -2256,7 +2258,7 @@ var htmlReportTemplate = `<!doctype html>
 
         const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
         if (!bridgeURL || !bridgeSession) {
-          window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
+          window.alert('Bridge unavailable. Re-run scrumcheck and keep terminal open.');
           return false;
         }
         const endpoint = bridgeURL + '/api/apply-release-label';
