@@ -18,7 +18,7 @@ module.exports = {
 
   exits: {
     success: { viewTemplatePath: 'pages/articles/case-study' },
-    useBasicArticleTemplate: { viewTemplatePath: 'pages/articles/basic-article' },
+    useBasicArticleTemplate: { viewTemplatePath: 'pages/articles/basic-article' },// Note: Normally we use one view action per EJS template, we're doing this here to display case studies using the articles/basic-article EJS template.
     badConfig: { responseType: 'badConfig' },
     notFound: { responseType: 'notFound' },
     redirect: { responseType: 'redirect' },
@@ -55,7 +55,7 @@ module.exports = {
     // Set the currentSection variable for the website header to "customers"
     let currentSection = 'customers';
 
-    // If this case study has a useBasicArticleTemplate meta tag, well return a `useBasicArticleTemplate response to display this article with the basic-article template.
+    // If this case study has a useBasicArticleTemplate meta tag, well return a `useBasicArticleTemplate response to display this article with the basic-article EJS template.
     if(thisPage.meta.useBasicArticleTemplate) {
       throw {'useBasicArticleTemplate': {
         path: require('path'),
@@ -65,8 +65,8 @@ module.exports = {
         pageTitleForMeta,
         pageDescriptionForMeta,
         currentSection,
-        articleCategorySlug: 'customers',
-        categoryFriendlyName: 'Case studies',
+        articleCategorySlug: 'customers',// Note: This value is required in the basic-article template
+        categoryFriendlyName: 'Case studies',// Note: This value is required in the basic-article template
       }};
     }
     // Respond with view.
