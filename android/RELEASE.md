@@ -10,11 +10,11 @@ git checkout -b rc-minor-fleetd-android-v1.X.X
 
 ## 2. Update version numbers
 
-In `app/build.gradle.kts`, update:
+In `app/build.gradle.kts`, update versionCode and versionName:
 
 ```kotlin
 defaultConfig {
-    applicationId = "com.fleetdm.agent.stage"
+    applicationId = "com.fleetdm.agent"
     versionCode = 2          // Increment by 1 each release
     versionName = "1.1.0"    // Semantic version for display
 }
@@ -31,7 +31,7 @@ Add an entry for the new version with changes since the last release.
 
 ```bash
 git add app/build.gradle.kts CHANGELOG.md
-git commit -m "Prepare release v1.1.0"
+git commit -m "Prepare release v1.X.X"
 git push origin rc-minor-fleetd-android-v1.X.X
 ```
 
@@ -45,6 +45,14 @@ Prerequisites:
 - Get the staging signing key from a previous releaser
 
 ### Build signed release
+
+In `app/build.gradle.kts`, update the application ID:
+
+```kotlin
+defaultConfig {
+    applicationId = "com.fleetdm.agent.stage"
+}
+```
 
 Ensure `keystore.properties` is configured with the staging signing key:
 
@@ -69,7 +77,7 @@ Output: `app/build/outputs/bundle/release/app-release.aab`
 4. Select "Create new release"
 5. Upload the signed .aab file.
 6. Add release details at the bottom of the page.
-7. Select Next, then Save, then select **Go to overview** in the modal that pops up.
+7. After the .aab file has been processed, select Next, then Save, then select **Go to overview** in the modal that pops up.
 8. You'll be redirected to **Publishing overview** page, where you need to select **Send 1 change for review**.
 9. After Google approves the app, they will send an email to the Google Play console account.
 
