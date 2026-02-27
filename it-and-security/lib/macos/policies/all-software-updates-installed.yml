@@ -5,5 +5,5 @@
   resolution: |
     Please take some time and run all available updates from Software Update ( > System Settings > Software Update) and all available app store updates ( > App Store > Updates). 
     
-    If you see a popup saying updates aren't available for your account, you will need to delete any software requiring an update.
+    If you see a "This feature isn't available…" popup while trying to update, you will need to delete the software instead of updating it.
   platform: darwin
