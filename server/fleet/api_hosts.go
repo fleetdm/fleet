@@ -449,9 +449,7 @@ func (r HostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 	var buf bytes.Buffer
 	if err := gocsv.Marshal(r.Hosts, &buf); err != nil {
 		logging.WithErr(ctx, err)
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = fmt.Fprint(w, `{"error":"failed to generate CSV file"}`)
+		endpointer.EncodeError(ctx, fmt.Errorf("failed to generate CSV file"), w, nil)
 		return
 	}
 
@@ -463,9 +461,7 @@ func (r HostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 		recs, err := csv.NewReader(&buf).ReadAll()
 		if err != nil {
 			logging.WithErr(ctx, err)
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = fmt.Fprint(w, `{"error":"failed to generate CSV file"}`)
+			endpointer.EncodeError(ctx, fmt.Errorf("failed to generate CSV file"), w, nil)
 			return
 		}
 
@@ -486,9 +482,7 @@ func (r HostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 						// duplicating the list of columns from the Host's struct tags to a
 						// map and keep this in sync, for what is essentially a programmer
 						// mistake that should be caught and corrected early.
-						w.Header().Set("Content-Type", "application/json; charset=utf-8")
-						w.WriteHeader(http.StatusBadRequest)
-						_, _ = fmt.Fprintf(w, `{"error":"invalid column name: %q"}`, col)
+						endpointer.EncodeError(ctx, &BadRequestError{Message: fmt.Sprintf("invalid column name: %q", col)}, w, nil)
 						return
 					}
 					outRows[i] = append(outRows[i], rec[colIx])

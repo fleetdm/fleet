@@ -7521,13 +7521,13 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 		"mdm": { "macos_setup": { "enable_release_device_manually": true } }
 	}`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "missing or invalid license")
+	require.Contains(t, errMsg, "Requires Fleet Premium license")
 
 	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
 		"mdm": { "windows_migration_enabled": true }
 	}`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "missing or invalid license")
+	require.Contains(t, errMsg, "Requires Fleet Premium license")
 }
 
 func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
@@ -7954,14 +7954,14 @@ func (s *integrationTestSuite) TestAppConfig() {
 		"mdm": { "enable_disk_encryption": true }
   }`), http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, "missing or invalid license")
+	assert.Contains(t, errMsg, "Requires Fleet Premium license")
 
 	// legacy config
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "macos_settings": { "enable_disk_encryption": true } }
   }`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, "missing or invalid license")
+	assert.Contains(t, errMsg, "Requires Fleet Premium license")
 
 	// try to set the apple bm default team, which is premium only
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -7978,14 +7978,14 @@ func (s *integrationTestSuite) TestAppConfig() {
 		}
   }`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, "missing or invalid license")
+	assert.Contains(t, errMsg, "Requires Fleet Premium license")
 
 	// try to set the windows updates, which is premium only
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "windows_updates": {"deadline_days": 1, "grace_period_days": 0} }
   }`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, "missing or invalid license")
+	assert.Contains(t, errMsg, "Requires Fleet Premium license")
 
 	// try to enable Windows MDM, impossible without the WSTEP certs
 	// (only set in mdm integrations tests)
@@ -8030,7 +8030,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 			"gitops": { "gitops_mode_enabled": true, "repository_url": "" }
 	  }`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, "missing or invalid license")
+	assert.Contains(t, errMsg, "Requires Fleet Premium license")
 }
 
 func (s *integrationTestSuite) TestQuerySpecs() {
