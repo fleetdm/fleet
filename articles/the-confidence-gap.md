@@ -1,12 +1,12 @@
 # The confidence gap: why IT leaders are abandoning legacy endpoint management
 
-Managing thousands of endpoints shouldn’t rely on blind trust or manual UI clicks. Here is why engineering-driven organizations are demanding a new standard for device management.
+Managing thousands of endpoints shouldn’t rely on blind trust or manual UI clicks. Here is why engineering-driven organizations are demanding a new standard.
 
 ### Links to article series:
 
 - Part 1: The confidence gap: why IT leaders are abandoning legacy endpoint management
 - Part 2: [Rethinking endpoint management: Fleet, osquery and Infrastructure as Code](https://fleetdm.com/articles/rethinking-endpoint-management)
-- Part 3: Supercharging endpoint management: AI assistants and event-driven automation
+- Part 3: [Supercharging endpoint management: AI assistants and event-driven automation](https://fleetdm.com/articles/supercharging-endpoint-management)
 
 ## Assessing the damage
 
@@ -62,7 +62,7 @@ The confidence gap exists because legacy tools ask IT leaders to trust a black b
 
 To solve the challenges of limited visibility, error-prone manual actions, and tool sprawl, IT must treat endpoint management as an engineering discipline.
 
-The [next article](https://fleetdm.com/articles/rethinking-endpoint-management) in this series will highlight the components that make up this modern endpoint management stack: `osquery`, [Fleet](https://fleetdm.com/), and [Infrastructure as Code (Iac)](https://about.gitlab.com/topics/gitops/infrastructure-as-code/). The final article in the series will cover supercharging your IT team and launching endpoint management into the future by using AI coding assistants and event-driven automation.
+The [next article](https://fleetdm.com/articles/rethinking-endpoint-management) in this series will highlight the components that make up this modern endpoint management stack: [`osquery`](https://www.osquery.io/), [Fleet](https://fleetdm.com/), and [Infrastructure as Code (Iac)](https://about.gitlab.com/topics/gitops/infrastructure-as-code/). The final article in the series will cover supercharging your IT team and launching endpoint management into the future by using AI coding assistants and event-driven automation.
 
 <meta name="articleTitle" value="The confidence gap: why IT leaders are abandoning legacy endpoint management">  
 <meta name="authorFullName" value="Ashish Kuthiala, CMO, Fleet Device Management">  
