@@ -1664,3 +1664,224 @@ policies: []
 		assert.NotNil(t, gitops.TeamSettings["webhook_settings"])
 	})
 }
+
+func TestContainsGlobMeta(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"./scripts/foo.sh", false},
+		{"./scripts/*.sh", true},
+		{"./scripts/**/*.sh", true},
+		{"./scripts/[abc].sh", true},
+		{"./scripts/{a,b}.sh", true},
+		{"./scripts/foo?.sh", true},
+		{"", false},
+	}
+	for _, tt := range tests {
+		assert.Equal(t, tt.want, containsGlobMeta(tt.input), "containsGlobMeta(%q)", tt.input)
+	}
+}
+
+func TestResolveScriptPathsGlob(t *testing.T) {
+	t.Parallel()
+
+	strPtr := func(s string) *string { return &s }
+
+	t.Run("basic_glob", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "c.ps1"), []byte("# powershell"), 0o644))
+
+		items := []BaseItem{{Paths: strPtr("*.sh")}}
+		result, err := resolveScriptPaths(items, dir, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result, 2)
+		assert.Equal(t, filepath.Join(dir, "a.sh"), *result[0].Path)
+		assert.Equal(t, filepath.Join(dir, "b.sh"), *result[1].Path)
+		// Paths field should not be set on expanded items
+		assert.Nil(t, result[0].Paths)
+		assert.Nil(t, result[1].Paths)
+	})
+
+	t.Run("recursive_glob", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		subdir := filepath.Join(dir, "sub")
+		require.NoError(t, os.MkdirAll(subdir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "top.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(subdir, "nested.sh"), []byte("#!/bin/bash"), 0o644))
+
+		items := []BaseItem{{Paths: strPtr("**/*.sh")}}
+		result, err := resolveScriptPaths(items, dir, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result, 2)
+		// Results are sorted
+		assert.Equal(t, filepath.Join(subdir, "nested.sh"), *result[0].Path)
+		assert.Equal(t, filepath.Join(dir, "top.sh"), *result[1].Path)
+	})
+
+	t.Run("mixed_path_and_paths", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "single.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "glob1.ps1"), []byte("# ps1"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "glob2.ps1"), []byte("# ps1"), 0o644))
+
+		items := []BaseItem{
+			{Path: strPtr("single.sh")},
+			{Paths: strPtr("*.ps1")},
+		}
+		result, err := resolveScriptPaths(items, dir, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result, 3)
+		assert.Equal(t, filepath.Join(dir, "single.sh"), *result[0].Path)
+		assert.Equal(t, filepath.Join(dir, "glob1.ps1"), *result[1].Path)
+		assert.Equal(t, filepath.Join(dir, "glob2.ps1"), *result[2].Path)
+	})
+
+	t.Run("paths_without_glob_error", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{Paths: strPtr("scripts/foo.sh")}}
+		_, err := resolveScriptPaths(items, "/tmp", nopLogf)
+		assert.ErrorContains(t, err, `does not contain glob characters`)
+	})
+
+	t.Run("path_with_glob_error", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{Path: strPtr("scripts/*.sh")}}
+		_, err := resolveScriptPaths(items, "/tmp", nopLogf)
+		assert.ErrorContains(t, err, `contains glob characters`)
+	})
+
+	t.Run("both_path_and_paths_error", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{Path: strPtr("foo.sh"), Paths: strPtr("*.sh")}}
+		_, err := resolveScriptPaths(items, "/tmp", nopLogf)
+		assert.ErrorContains(t, err, `cannot have both "path" and "paths"`)
+	})
+
+	t.Run("neither_path_nor_paths_error", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{}}
+		_, err := resolveScriptPaths(items, "/tmp", nopLogf)
+		assert.ErrorContains(t, err, `without a "path" or "paths" field`)
+	})
+
+	t.Run("no_matches_warning", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		var warnings []string
+		logFn := func(format string, args ...interface{}) {
+			warnings = append(warnings, fmt.Sprintf(format, args...))
+		}
+		items := []BaseItem{{Paths: strPtr("*.sh")}}
+		result, err := resolveScriptPaths(items, dir, logFn)
+		require.NoError(t, err)
+		assert.Empty(t, result)
+		require.Len(t, warnings, 1)
+		assert.Contains(t, warnings[0], "matched no script files")
+	})
+
+	t.Run("duplicate_basenames_error", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		sub1 := filepath.Join(dir, "sub1")
+		sub2 := filepath.Join(dir, "sub2")
+		require.NoError(t, os.MkdirAll(sub1, 0o755))
+		require.NoError(t, os.MkdirAll(sub2, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(sub1, "dup.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(sub2, "dup.sh"), []byte("#!/bin/bash"), 0o644))
+
+		items := []BaseItem{{Paths: strPtr("**/*.sh")}}
+		_, err := resolveScriptPaths(items, dir, nopLogf)
+		assert.ErrorContains(t, err, "duplicate script basename")
+	})
+
+	t.Run("duplicate_basenames_across_items_error", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		sub := filepath.Join(dir, "sub")
+		require.NoError(t, os.MkdirAll(sub, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "script.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(sub, "script.sh"), []byte("#!/bin/bash"), 0o644))
+
+		items := []BaseItem{
+			{Path: strPtr("script.sh")},
+			{Paths: strPtr("sub/*.sh")},
+		}
+		_, err := resolveScriptPaths(items, dir, nopLogf)
+		assert.ErrorContains(t, err, "duplicate script basename")
+	})
+
+	t.Run("non_script_files_skipped_with_warning", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "good.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "bad.txt"), []byte("text"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "bad.py"), []byte("python"), 0o644))
+
+		var warnings []string
+		logFn := func(format string, args ...interface{}) {
+			warnings = append(warnings, fmt.Sprintf(format, args...))
+		}
+
+		items := []BaseItem{{Paths: strPtr("*")}}
+		result, err := resolveScriptPaths(items, dir, logFn)
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, filepath.Join(dir, "good.sh"), *result[0].Path)
+		assert.Len(t, warnings, 2)
+	})
+
+	t.Run("results_sorted", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "z.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "m.sh"), []byte("#!/bin/bash"), 0o644))
+
+		items := []BaseItem{{Paths: strPtr("*.sh")}}
+		result, err := resolveScriptPaths(items, dir, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result, 3)
+		assert.Equal(t, filepath.Join(dir, "a.sh"), *result[0].Path)
+		assert.Equal(t, filepath.Join(dir, "m.sh"), *result[1].Path)
+		assert.Equal(t, filepath.Join(dir, "z.sh"), *result[2].Path)
+	})
+}
+
+func TestGitOpsGlobScripts(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	scriptsDir := filepath.Join(dir, "scripts")
+	require.NoError(t, os.MkdirAll(scriptsDir, 0o755))
+
+	// Create script files
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "alpha.sh"), []byte("#!/bin/bash\necho alpha"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "beta.sh"), []byte("#!/bin/bash\necho beta"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "gamma.ps1"), []byte("Write-Host gamma"), 0o644))
+
+	// Write a gitops YAML file that uses paths: glob
+	config := getGlobalConfig([]string{"controls"})
+	config += `controls:
+  scripts:
+    - paths: scripts/*.sh
+    - path: scripts/gamma.ps1
+`
+	yamlPath := filepath.Join(dir, "gitops.yml")
+	require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+	result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+	require.NoError(t, err)
+	require.Len(t, result.Controls.Scripts, 3)
+
+	// Glob results come first (sorted), then the explicit path
+	assert.Equal(t, filepath.Join(scriptsDir, "alpha.sh"), *result.Controls.Scripts[0].Path)
+	assert.Equal(t, filepath.Join(scriptsDir, "beta.sh"), *result.Controls.Scripts[1].Path)
+	assert.Equal(t, filepath.Join(scriptsDir, "gamma.ps1"), *result.Controls.Scripts[2].Path)
+}

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/bmatcuk/doublestar/v4"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
@@ -138,7 +139,8 @@ func YamlUnmarshal(yamlBytes []byte, out any) error {
 }
 
 type BaseItem struct {
-	Path *string `json:"path"`
+	Path  *string `json:"path"`
+	Paths *string `json:"paths"`
 }
 
 type GitOpsControls struct {
@@ -373,7 +375,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		multiError = parseLabels(top, result, baseDir, filePath, multiError)
 	}
 	// Get other top-level entities.
-	multiError = parseControls(top, result, multiError, filePath)
+	multiError = parseControls(top, result, multiError, filePath, logFn)
 	multiError = parseAgentOptions(top, result, baseDir, logFn, filePath, multiError)
 	multiError = parseQueries(top, result, baseDir, logFn, filePath, multiError)
 
@@ -738,7 +740,7 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 	return multiError
 }
 
-func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *multierror.Error, yamlFilename string) *multierror.Error {
+func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *multierror.Error, yamlFilename string, logFn Logf) *multierror.Error {
 	controlsRaw, ok := top["controls"]
 	if !ok {
 		// Nothing to do, return.
@@ -757,7 +759,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 	}
 
 	controlsDir := filepath.Dir(controlsFilePath)
-	result.Controls.Scripts, err = resolveScriptPaths(result.Controls.Scripts, controlsDir)
+	result.Controls.Scripts, err = resolveScriptPaths(result.Controls.Scripts, controlsDir, logFn)
 	if err != nil {
 		return multierror.Append(multiError, fmt.Errorf("failed to parse scripts list in %s: %v", controlsFilePath, err))
 	}
@@ -934,16 +936,93 @@ func resolveAndUpdateProfilePathToAbsolute(controlsDir string, profile *fleet.MD
 	return nil
 }
 
-func resolveScriptPaths(input []BaseItem, baseDir string) ([]BaseItem, error) {
-	var resolved []BaseItem
-	for _, item := range input {
-		if item.Path == nil {
-			return nil, errors.New(`script entry was specified without a path; check for a stray "-" in your scripts list`)
-		}
+// allowedScriptExtensions is the set of file extensions allowed for scripts.
+var allowedScriptExtensions = map[string]bool{
+	".sh":  true,
+	".ps1": true,
+}
 
-		resolvedPath := resolveApplyRelativePath(baseDir, *item.Path)
-		item.Path = &resolvedPath
-		resolved = append(resolved, item)
+// containsGlobMeta returns true if the string contains glob metacharacters.
+func containsGlobMeta(s string) bool {
+	return strings.ContainsAny(s, "*?[{")
+}
+
+// expandGlobPattern expands a glob pattern relative to baseDir, returning only
+// files (not directories) with extensions in allowedExts. Non-matching extensions
+// are logged as warnings via logFn. Results are sorted for determinism.
+func expandGlobPattern(pattern string, baseDir string, logFn Logf) ([]string, error) {
+	absPattern := resolveApplyRelativePath(baseDir, pattern)
+	matches, err := doublestar.FilepathGlob(absPattern)
+	if err != nil {
+		return nil, fmt.Errorf("invalid glob pattern %q: %w", pattern, err)
+	}
+
+	var result []string
+	for _, match := range matches {
+		info, err := os.Stat(match)
+		if err != nil {
+			return nil, fmt.Errorf("failed to stat %s: %w", match, err)
+		}
+		if info.IsDir() {
+			continue
+		}
+		ext := strings.ToLower(filepath.Ext(match))
+		if !allowedScriptExtensions[ext] {
+			logFn("[!] glob pattern %q matched non-script file %q (expected .sh or .ps1 extension), skipping\n", pattern, match)
+			continue
+		}
+		result = append(result, match)
+	}
+
+	slices.Sort(result)
+	return result, nil
+}
+
+func resolveScriptPaths(input []BaseItem, baseDir string, logFn Logf) ([]BaseItem, error) {
+	var resolved []BaseItem
+	seenBasenames := make(map[string]string) // basename -> source (path or pattern)
+	for _, item := range input {
+		hasPath := item.Path != nil
+		hasPaths := item.Paths != nil
+
+		switch {
+		case hasPath && hasPaths:
+			return nil, errors.New(`script entry cannot have both "path" and "paths" fields`)
+		case !hasPath && !hasPaths:
+			return nil, errors.New(`script entry was specified without a "path" or "paths" field; check for a stray "-" in your scripts list`)
+		case hasPath:
+			if containsGlobMeta(*item.Path) {
+				return nil, fmt.Errorf(`script "path" %q contains glob characters; use "paths" for glob patterns`, *item.Path)
+			}
+			resolvedPath := resolveApplyRelativePath(baseDir, *item.Path)
+			base := filepath.Base(resolvedPath)
+			if existing, ok := seenBasenames[base]; ok {
+				return nil, fmt.Errorf("duplicate script basename %q (from %q and %q)", base, existing, *item.Path)
+			}
+			seenBasenames[base] = *item.Path
+			resolved = append(resolved, BaseItem{Path: &resolvedPath})
+		case hasPaths:
+			if !containsGlobMeta(*item.Paths) {
+				return nil, fmt.Errorf(`script "paths" %q does not contain glob characters; use "path" for a specific file`, *item.Paths)
+			}
+			expanded, err := expandGlobPattern(*item.Paths, baseDir, logFn)
+			if err != nil {
+				return nil, err
+			}
+			if len(expanded) == 0 {
+				logFn("[!] glob pattern %q matched no script files (expected .sh or .ps1 files)\n", *item.Paths)
+				continue
+			}
+			for _, p := range expanded {
+				p := p
+				base := filepath.Base(p)
+				if existing, ok := seenBasenames[base]; ok {
+					return nil, fmt.Errorf("duplicate script basename %q (from %q and %q)", base, existing, *item.Paths)
+				}
+				seenBasenames[base] = *item.Paths
+				resolved = append(resolved, BaseItem{Path: &p})
+			}
+		}
 	}
 
 	return resolved, nil
