@@ -150,7 +150,8 @@ func NewClient(opts ...Option) (*Client, error) {
 func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 	// We assume the required fields have already been validated by the NewClient factory.
 
-	scepLogger := logging.NewLogger(slog.New(&zerologSlogHandler{logger: c.logger}))
+	slogLogger := slog.New(&zerologSlogHandler{logger: c.logger})
+	scepLogger := logging.NewLogger(slogLogger)
 	opts := []scepclient.Option{
 		scepclient.WithTimeout(c.timeout),
 		scepclient.WithRootCA(c.rootCA),
@@ -159,7 +160,7 @@ func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 		opts = append(opts, scepclient.Insecure())
 	}
 
-	scepClient, err := scepclient.New(c.scepURL, scepLogger, opts...)
+	scepClient, err := scepclient.New(c.scepURL, slogLogger, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("create SCEP client: %w", err)
 	}

@@ -210,7 +210,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		mdmStorage,
 		mdmStorage,
 		pushFactory,
-		NewNanoMDMLogger(pushLog),
+		NewNanoMDMLogger(pushLog.SlogLogger()),
 	)
 	mdmCommander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 	s.redisPool = redistest.SetupRedis(s.T(), "zz", false, false, false)
@@ -293,7 +293,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		bootstrapPackageStore = s3.SetupTestBootstrapPackageStore(s.T(), "integration-tests", "")
 	}
 	scepTimeout := ptr.Duration(10 * time.Second)
-	s.scepConfig = eeservice.NewSCEPConfigService(serverLogger, scepTimeout).(*eeservice.SCEPConfigService)
+	s.scepConfig = eeservice.NewSCEPConfigService(serverLogger.SlogLogger(), scepTimeout).(*eeservice.SCEPConfigService)
 
 	// Create a software title icon store
 	iconDir := s.T().TempDir()
@@ -337,7 +337,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 									s.onProfileJobDone()
 								}()
 							}
-							err = ReconcileAppleProfiles(ctx, ds, mdmCommander, logger)
+							err = ReconcileAppleProfiles(ctx, ds, mdmCommander, logger.SlogLogger())
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -350,7 +350,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 									s.onProfileJobDone()
 								}()
 							}
-							err = ReconcileAppleDeclarations(ctx, ds, mdmCommander, logger)
+							err = ReconcileAppleDeclarations(ctx, ds, mdmCommander, logger.SlogLogger())
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -11664,7 +11664,7 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	fleetCfg := config.TestConfig()
 	config.SetTestMDMConfig(s.T(), &fleetCfg, cert, key, "")
 	logger := logging.NewJSONLogger(os.Stdout)
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	err = RenewSCEPCertificates(ctx, logger.SlogLogger(), s.ds, &fleetCfg, s.mdmCommander)
 	require.NoError(t, err)
 
 	// no new commands were enqueued
@@ -11724,13 +11724,13 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	}
 
 	// trigger the reconciliation schedule
-	err := ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger)
+	err := ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
 
 	// triggering the schedule again doesn't send any more pushes
-	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 0)
 	recordedPushes = nil
@@ -11738,7 +11738,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	// the cron to trigger pushes sends a new push request each time it
 	// runs if there are pending commands
 	for i := 0; i < 3; i++ {
-		err := SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger)
+		err := SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 		require.NoError(t, err)
 		require.Len(t, recordedPushes, 1)
 		recordedPushes = nil
@@ -11754,7 +11754,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	}
 
 	// no more pushes are enqueued
-	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger)
+	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 0)
 }
@@ -11785,7 +11785,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	}
 
 	// trigger the reconciliation schedule
-	err := ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger)
+	err := ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
@@ -11806,13 +11806,13 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	}}, http.StatusNoContent)
 
 	// trigger the reconciliation schedule
-	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
 
 	// The cron to trigger pushes sends a new push request each time it runs.
-	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger)
+	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
@@ -11826,7 +11826,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	assert.Nil(t, cmd)
 
 	// A 'NotNow' command will not trigger a new push. Device is expected to check in again when conditions change.
-	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 0)
 	recordedPushes = nil
@@ -11840,7 +11840,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	assert.Nil(t, cmd)
 
 	// no more pushes are enqueued
-	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger)
+	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	assert.Zero(t, recordedPushes)
 }

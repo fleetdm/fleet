@@ -47,10 +47,11 @@ func gitopsCommand() *cli.Command {
 				Usage:       "The file(s) with the GitOps configuration.",
 			},
 			&cli.BoolFlag{
-				Name:        "delete-other-teams",
-				EnvVars:     []string{"DELETE_OTHER_TEAMS"},
+				Name:        "delete-other-fleets",
+				Aliases:     []string{"delete-other-teams"},
+				EnvVars:     []string{"DELETE_OTHER_FLEETS", "DELETE_OTHER_TEAMS"},
 				Destination: &flDeleteOtherTeams,
-				Usage:       "Delete other teams not present in the GitOps configuration",
+				Usage:       "Delete other fleets not present in the GitOps configuration",
 			},
 			&cli.BoolFlag{
 				Name:        "dry-run",
@@ -85,12 +86,15 @@ func gitopsCommand() *cli.Command {
 			// TODO - remove this in future release to unleash warnings.
 			logging.DisableTopic(logging.DeprecatedFieldTopic)
 
+			// Apply log topic overrides from CLI flags.
+			applyLogTopicFlags(c)
+
+			logDeprecatedFlagName(c, "delete-other-teams", "delete-other-fleets")
+			logDeprecatedEnvVar(c, "DELETE_OTHER_TEAMS", "DELETE_OTHER_FLEETS")
+
 			logf := func(format string, a ...interface{}) {
 				_, _ = fmt.Fprintf(c.App.Writer, format, a...)
 			}
-
-			// Apply log topic overrides from CLI flags.
-			applyLogTopicFlags(c)
 
 			if len(c.Args().Slice()) != 0 {
 				return errors.New("No positional arguments are allowed. To load multiple config files, use one -f flag per file.")

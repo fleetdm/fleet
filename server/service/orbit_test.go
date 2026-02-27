@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -13,7 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	logging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/require"
@@ -695,7 +695,7 @@ func TestGetSoftwareInstallDetails(t *testing.T) {
 
 func TestShouldRetrySoftwareInstall(t *testing.T) {
 	svc := &Service{
-		logger: logging.NewNopLogger(),
+		logger: slog.New(slog.DiscardHandler),
 	}
 	ctx := context.Background()
 
@@ -742,7 +742,7 @@ func TestRetrySoftwareInstall(t *testing.T) {
 	ds := new(mock.Store)
 	svc := &Service{
 		ds:     ds,
-		logger: logging.NewNopLogger(),
+		logger: slog.New(slog.DiscardHandler),
 	}
 	ctx := context.Background()
 
@@ -788,7 +788,7 @@ func TestGetSoftwareInstallerAttemptNumber(t *testing.T) {
 	ds := new(mock.Store)
 	svc := &Service{
 		ds:     ds,
-		logger: logging.NewNopLogger(),
+		logger: slog.New(slog.DiscardHandler),
 	}
 	ctx := context.Background()
 	host := &fleet.Host{ID: 1}

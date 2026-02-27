@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rsa"
 	"errors"
+	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -23,7 +24,7 @@ type service struct {
 	signer scepserver.CSRSignerContext
 
 	/// info logging is implemented in the service middleware layer.
-	debugLogger *logging.Logger
+	debugLogger *slog.Logger
 
 	ds fleet.MDMAssetRetriever
 }
@@ -45,7 +46,7 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	if len(data) == 0 {
 		return nil, &fleet.BadRequestError{Message: "missing data for PKIOperation"}
 	}
-	msg, err := scep.ParsePKIMessage(data, scep.WithLogger(svc.debugLogger))
+	msg, err := scep.ParsePKIMessage(data, scep.WithLogger(logging.NewLogger(svc.debugLogger)))
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +70,7 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 		err = errors.New("no signed certificate")
 	}
 	if err != nil {
-		svc.debugLogger.Log("msg", "failed to sign CSR", "err", err)
+		svc.debugLogger.ErrorContext(ctx, "failed to sign CSR", "err", err)
 		certRep, err := msg.Fail(cert.Leaf, pk, scep.BadRequest)
 		return certRep.Raw, err
 	}
@@ -83,10 +84,10 @@ func (svc *service) GetNextCACert(ctx context.Context) ([]byte, error) {
 }
 
 // NewService creates a new scep service
-func NewSCEPService(ds fleet.MDMAssetRetriever, signer scepserver.CSRSignerContext, logger *logging.Logger) scepserver.Service {
+func NewSCEPService(ds fleet.MDMAssetRetriever, signer scepserver.CSRSignerContext, logger *slog.Logger) scepserver.Service {
 	return &service{
 		signer:      signer,
-		debugLogger: logging.NewNopLogger(),
+		debugLogger: slog.New(slog.DiscardHandler),
 		ds:          ds,
 	}
 }

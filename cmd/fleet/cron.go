@@ -1045,7 +1045,7 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"renew_scep_certificates",
 			func(ctx context.Context) error {
-				return service.RenewSCEPCertificates(ctx, logger, ds, config, commander)
+				return service.RenewSCEPCertificates(ctx, logger.SlogLogger(), ds, config, commander)
 			},
 		),
 		schedule.WithJob("renew_host_mdm_managed_certificates", func(ctx context.Context) error {
@@ -1431,10 +1431,10 @@ func newAppleMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
-			return service.ReconcileAppleProfiles(ctx, ds, commander, logger)
+			return service.ReconcileAppleProfiles(ctx, ds, commander, logger.SlogLogger())
 		}),
 		schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
-			return service.ReconcileAppleDeclarations(ctx, ds, commander, logger)
+			return service.ReconcileAppleDeclarations(ctx, ds, commander, logger.SlogLogger())
 		}),
 	)
 
@@ -1507,7 +1507,7 @@ func newMDMAppleServiceDiscoverySchedule(
 		ctx, name, instanceID, interval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("mdm_apple_account_driven_enrollment_profile", func(ctx context.Context) error {
-			return service.EnsureMDMAppleServiceDiscovery(ctx, ds, depStorage, logger, urlPrefix)
+			return service.EnsureMDMAppleServiceDiscovery(ctx, ds, depStorage, logger.SlogLogger(), urlPrefix)
 		}),
 	)
 	return s, nil
@@ -1546,7 +1546,7 @@ func newMDMAPNsPusher(
 				return nil
 			}
 
-			return service.SendPushesToPendingDevices(ctx, ds, commander, logger)
+			return service.SendPushesToPendingDevices(ctx, ds, commander, logger.SlogLogger())
 		}),
 	)
 
@@ -1734,7 +1734,7 @@ func cronUninstallSoftwareMigration(
 		schedule.WithLogger(logger),
 		schedule.WithRunOnce(true),
 		schedule.WithJob(name, func(ctx context.Context) error {
-			return eeservice.UninstallSoftwareMigration(ctx, ds, softwareInstallStore, logger)
+			return eeservice.UninstallSoftwareMigration(ctx, ds, softwareInstallStore, logger.SlogLogger())
 		}),
 	)
 	return s, nil
@@ -1762,7 +1762,7 @@ func cronUpgradeCodeSoftwareMigration(
 		// ensures it runs a few seconds after Fleet is started
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob(name, func(ctx context.Context) error {
-			return eeservice.UpgradeCodeMigration(ctx, ds, softwareInstallStore, logger)
+			return eeservice.UpgradeCodeMigration(ctx, ds, softwareInstallStore, logger.SlogLogger())
 		}),
 	)
 	return s, nil

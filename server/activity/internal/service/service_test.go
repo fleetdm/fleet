@@ -134,8 +134,7 @@ func setupTest(opts ...func(*testSetup)) *testSetup {
 	for _, opt := range opts {
 		opt(ts)
 	}
-	noopWebhookSend := func(_ context.Context, _ string, _ any) error { return nil }
-	ts.svc = NewService(ts.authz, ts.ds, ts.providers, noopWebhookSend, slog.New(slog.DiscardHandler))
+	ts.svc = NewService(ts.authz, ts.ds, ts.providers, slog.New(slog.DiscardHandler))
 	return ts
 }
 
@@ -540,9 +539,8 @@ func newTestActivity(id uint, actorName string, actorID uint, actType, details s
 func TestStreamActivities(t *testing.T) {
 	t.Parallel()
 
-	noopWebhookSend := func(_ context.Context, _ string, _ any) error { return nil }
 	newStreamingService := func(ds *mockStreamingDatastore) *Service {
-		return NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, noopWebhookSend, slog.New(slog.DiscardHandler))
+		return NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, slog.New(slog.DiscardHandler))
 	}
 
 	t.Run("basic streaming", func(t *testing.T) {

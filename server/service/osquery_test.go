@@ -1249,7 +1249,7 @@ func TestHostDetailQueries(t *testing.T) {
 
 	svc := &Service{
 		clock:    mockClock,
-		logger:   platformlogging.NewNopLogger(),
+		logger:   slog.New(slog.DiscardHandler),
 		config:   config.TestConfig(),
 		ds:       ds,
 		jitterMu: new(sync.Mutex),
@@ -2292,7 +2292,7 @@ func TestMDMQueries(t *testing.T) {
 	ds := new(mock.Store)
 	svc := &Service{
 		clock:    clock.NewMockClock(),
-		logger:   platformlogging.NewNopLogger(),
+		logger:   slog.New(slog.DiscardHandler),
 		config:   config.TestConfig(),
 		ds:       ds,
 		jitterMu: new(sync.Mutex),
@@ -2580,7 +2580,7 @@ func TestIngestDistributedQueryParseIdError(t *testing.T) {
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
-		logger:         platformlogging.NewNopLogger(),
+		logger:         slog.New(slog.DiscardHandler),
 		clock:          mockClock,
 	}
 
@@ -2599,7 +2599,7 @@ func TestIngestDistributedQueryOrphanedCampaignLoadError(t *testing.T) {
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
-		logger:         platformlogging.NewNopLogger(),
+		logger:         slog.New(slog.DiscardHandler),
 		clock:          mockClock,
 	}
 
@@ -2625,7 +2625,7 @@ func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
-		logger:         platformlogging.NewNopLogger(),
+		logger:         slog.New(slog.DiscardHandler),
 		clock:          mockClock,
 	}
 
@@ -2658,7 +2658,7 @@ func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
-		logger:         platformlogging.NewNopLogger(),
+		logger:         slog.New(slog.DiscardHandler),
 		clock:          mockClock,
 	}
 
@@ -2694,7 +2694,7 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
-		logger:         platformlogging.NewNopLogger(),
+		logger:         slog.New(slog.DiscardHandler),
 		clock:          mockClock,
 	}
 
@@ -2731,7 +2731,7 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
-		logger:         platformlogging.NewNopLogger(),
+		logger:         slog.New(slog.DiscardHandler),
 		clock:          mockClock,
 	}
 
@@ -2769,7 +2769,7 @@ func TestIngestDistributedQueryRecordCompletionError(t *testing.T) {
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
-		logger:         platformlogging.NewNopLogger(),
+		logger:         slog.New(slog.DiscardHandler),
 		clock:          mockClock,
 	}
 
@@ -2800,7 +2800,7 @@ func TestIngestDistributedQuery(t *testing.T) {
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
-		logger:         platformlogging.NewNopLogger(),
+		logger:         slog.New(slog.DiscardHandler),
 		clock:          mockClock,
 	}
 
@@ -3076,14 +3076,14 @@ func TestGetHostIdentifier(t *testing.T) {
 		{identifierOption: "hostname", providedIdentifier: "foobar", details: details, expected: "foohost"},
 		{identifierOption: "provided", providedIdentifier: "foobar", details: details, expected: "foobar"},
 	}
-	logger := platformlogging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	for _, tt := range testCases {
 		t.Run("", func(t *testing.T) {
 			if tt.shouldPanic {
 				assert.Panics(
 					t,
-					func() { getHostIdentifier(logger, tt.identifierOption, tt.providedIdentifier, tt.details) },
+					func() { getHostIdentifier(t.Context(), logger, tt.identifierOption, tt.providedIdentifier, tt.details) },
 				)
 				return
 			}
@@ -3091,7 +3091,7 @@ func TestGetHostIdentifier(t *testing.T) {
 			assert.Equal(
 				t,
 				tt.expected,
-				getHostIdentifier(logger, tt.identifierOption, tt.providedIdentifier, tt.details),
+				getHostIdentifier(t.Context(), logger, tt.identifierOption, tt.providedIdentifier, tt.details),
 			)
 		})
 	}
