@@ -319,6 +319,13 @@ Many companies encourage salespeople to ["spray and pray"](https://www.linkedin.
 - **Step up.** We look at the [🟠 big picture](https://fleetdm.com/handbook/company#ownership).  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or another solution altogether.  We think about our customer's needs like they are our own.
 
 
+## Why work with customer X?
+
+At Fleet, we inspire ourselves to be helpers to everyone, even if some might disagree with their personal beliefs or particular OKRs of their organization.  Fleet is open source so everyone can use it and contribute.  And the company is built by different contributors from many walks of life and with unique perspectives.
+
+That said, for example, if a Fleetie struggled with a gambling issue in their past, it might be hard for them to provide customer support to the IT team of a large chain of casinos. So when business allows, Fleet accommodates by pairing team members with the customers where they can provide the most value.
+
+
 ## Why does Fleet support query packs?
 
 As originally envisioned by Zach Wasserman and the team when creating osquery, packs are a way to import and export queries into (and out of!) any platform that speaks osquery, whether that's Fleet, [Security Onion](https://securityonionsolutions.com/), an EDR, or even Rapid7. Queries [should be portable](https://github.com/fleetdm/fleet/blob/f711e60de47c69ab8be5bc13cf73fedf88adc338/README.md#lighter-than-air) to minimize lock-in to particular tools.

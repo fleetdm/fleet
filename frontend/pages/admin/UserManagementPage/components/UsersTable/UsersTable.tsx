@@ -7,7 +7,7 @@ import { IApiError } from "interfaces/errors";
 import { IInvite, IEditInviteFormData } from "interfaces/invite";
 import { IUser, IUserFormErrors } from "interfaces/user";
 import { ITeam } from "interfaces/team";
-import { clearToken } from "utilities/local";
+import authToken from "utilities/auth_token";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -415,7 +415,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
       .deleteSessions(userEditing.id)
       .then(() => {
         if (isResettingCurrentUser) {
-          clearToken();
+          authToken.remove();
           setTimeout(() => {
             window.location.href = "/";
           }, 500);
