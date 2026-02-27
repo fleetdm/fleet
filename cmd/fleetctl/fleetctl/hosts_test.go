@@ -144,7 +144,7 @@ func TestHostsTransferByLabel(t *testing.T) {
 	}
 
 	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--fleet", "team1", "--label", "label1"}))
-	require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+	require.True(t, ds.NewActivityFuncInvoked)
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 
 	// Now, transfer out of the team.
@@ -216,7 +216,7 @@ func TestHostsTransferByStatus(t *testing.T) {
 
 	assert.Equal(t, "", RunAppForTest(t,
 		[]string{"hosts", "transfer", "--fleet", "team1", "--status", "online"}))
-	require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+	require.True(t, ds.NewActivityFuncInvoked)
 }
 
 func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
@@ -276,5 +276,5 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 
 	assert.Equal(t, "", RunAppForTest(t,
 		[]string{"hosts", "transfer", "--fleet", "team1", "--status", "online", "--search_query", "somequery"}))
-	require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+	require.True(t, ds.NewActivityFuncInvoked)
 }
