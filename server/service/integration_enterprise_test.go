@@ -121,9 +121,9 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 				return func() (fleet.CronSchedule, error) {
 					// We set 24-hour interval so that it only runs when triggered.
 					var err error
-					cronLog := logging.NewJSONLogger(os.Stdout)
+					cronLog := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 					if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-						cronLog = logging.NewNopLogger()
+						cronLog = slog.New(slog.DiscardHandler)
 					}
 					calendarSchedule, err = cron.NewCalendarSchedule(
 						ctx, s.T().Name(), s.ds, redis_lock.NewLock(s.redisPool), config.CalendarConfig{Periodicity: 24 * time.Hour},
