@@ -48,7 +48,7 @@ if [[ ! -f "$FLEETCTL_BINARY" ]]; then
 fi
 
 echo "Found signed binary at: $FLEETCTL_BINARY"
-./fleetctl --version || "$FLEETCTL_BINARY" --version
+"$FLEETCTL_BINARY" --version
 
 cleanup() {
     echo "Cleaning up..."
@@ -117,35 +117,34 @@ while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
     
     # Extract submission ID and status from output
     SUBMISSION_ID=$(echo "$NOTARIZE_OUTPUT" | grep -i "id:" | head -1 | awk '{print $NF}' || echo "")
-    STATUS=$(echo "$NOTARIZE_OUTPUT" | grep -i "status:" | awk '{print $NF}' || echo "")
+    STATUS=$(echo "$NOTARIZE_OUTPUT" | grep -i "status:" | tail -1 | awk '{print $NF}' || echo "")
     
     echo "Notarization output:"
     echo "$NOTARIZE_OUTPUT"
     
-    if [ -n "$SUBMISSION_ID" ] && [ "$STATUS" != "Accepted" ] && [ "$STATUS" != "" ]; then
+    if [ "$STATUS" = "Accepted" ]; then
+        echo "✓ Notarization completed successfully"
+        break
+    elif [ -n "$SUBMISSION_ID" ] && [ -n "$STATUS" ]; then
         echo "⚠️  Notarization status: $STATUS"
         echo "Retrieving notarization log for details..."
         xcrun notarytool log "$SUBMISSION_ID" \
             --apple-id "$APPLE_USERNAME" \
             --password "$APPLE_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" || true
-        
-        if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
-            echo "Retrying in 10 seconds..."
-            sleep 10
-            ATTEMPT=$((ATTEMPT + 1))
-            continue
-        else
-            echo "❌ Notarization failed after $MAX_ATTEMPTS attempts. Exiting."
-            exit 1
-        fi
-    elif [ "$STATUS" = "Accepted" ] || [ -z "$STATUS" ]; then
-        # Notarization succeeded
-        echo "✓ Notarization completed successfully"
-        break
+    else
+        echo "⚠️  Could not determine notarization status (got: '$STATUS')"
     fi
-    
-    ATTEMPT=$((ATTEMPT + 1))
+
+    if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+        echo "Retrying in 10 seconds..."
+        sleep 10
+        ATTEMPT=$((ATTEMPT + 1))
+        continue
+    else
+        echo "❌ Notarization failed after $MAX_ATTEMPTS attempts. Exiting."
+        exit 1
+    fi
 done
 
 # Staple the notarization ticket
@@ -189,10 +188,10 @@ if [[ -n "$GITHUB_TOKEN" ]] && [[ -n "$GITHUB_REPOSITORY" ]] && command -v gh &>
     fi
     
     echo "Uploading dist/$PACKAGE_NAME to release $TAG_NAME"
-    gh release upload "$TAG_NAME" "dist/$PACKAGE_NAME" --repo "$GITHUB_REPOSITORY" || {
+    gh release upload "$TAG_NAME" "dist/$PACKAGE_NAME" --repo "$GITHUB_REPOSITORY" --clobber || {
         echo "Upload failed, retrying once..."
         sleep 5
-        gh release upload "$TAG_NAME" "dist/$PACKAGE_NAME" --repo "$GITHUB_REPOSITORY" || {
+        gh release upload "$TAG_NAME" "dist/$PACKAGE_NAME" --repo "$GITHUB_REPOSITORY" --clobber || {
             echo "❌ Failed to upload package after retry"
             exit 1
         }
