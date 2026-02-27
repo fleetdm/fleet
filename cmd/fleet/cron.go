@@ -906,6 +906,7 @@ func newCleanupsAndAggregationSchedule(
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
 	androidSvc android.Service,
+	activitySvc activity_api.Service,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -1080,10 +1081,20 @@ func newCleanupsAndAggregationSchedule(
 			if !appConfig.ActivityExpirySettings.ActivityExpiryEnabled {
 				return nil
 			}
-			// A maxCount of 5,000 means that the cron job will keep the activities (and associated tables)
-			// sizes in control for deployments that generate (5k x 24 hours) ~120,000 activities per day.
+			// A maxCount of 5,000 means that the cron job will keep the activities table
+			// size in control for deployments that generate (5k x 24 hours) ~120,000 activities per day.
 			const maxCount = 5000
-			return ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, appConfig.ActivityExpirySettings.ActivityExpiryWindow)
+			return activitySvc.CleanupExpiredActivities(ctx, maxCount, appConfig.ActivityExpirySettings.ActivityExpiryWindow)
+		}),
+		schedule.WithJob("cleanup_live_queries", func(ctx context.Context) error {
+			appConfig, err := ds.AppConfig(ctx)
+			if err != nil {
+				return err
+			}
+			if !appConfig.ActivityExpirySettings.ActivityExpiryEnabled {
+				return nil
+			}
+			return ds.CleanupExpiredLiveQueries(ctx, appConfig.ActivityExpirySettings.ActivityExpiryWindow)
 		}),
 		schedule.WithJob("cleanup_unused_software_installers", func(ctx context.Context) error {
 			// remove only those unused created more than a minute ago to avoid a
