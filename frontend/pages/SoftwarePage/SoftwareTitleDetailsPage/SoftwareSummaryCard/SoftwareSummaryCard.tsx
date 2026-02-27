@@ -112,12 +112,15 @@ const SoftwareSummaryCard = ({
     isIosOrIpadosApp,
     isFleetMaintainedApp,
     isAndroidPlayStoreApp,
+    isAndroidPlayStoreWebApp,
     canManageSoftware,
   } = meta;
 
   const canEditAppearance = canManageSoftware;
-  const canEditSoftware = canManageSoftware;
-  const canEditConfiguration = canManageSoftware && isAndroidPlayStoreApp;
+  const canEditSoftware = canManageSoftware && !isAndroidPlayStoreApp;
+  /** Permission to manage software + Google Playstore app that's not a web app */
+  const canEditConfiguration =
+    canManageSoftware && isAndroidPlayStoreApp && !isAndroidPlayStoreWebApp;
   /** Installer modals require a specific team; hidden from "All Teams" */
   const hasValidTeamId = typeof teamId === "number" && teamId >= 0;
   const softwareInstallerOnTeam = hasValidTeamId && softwareInstaller;
