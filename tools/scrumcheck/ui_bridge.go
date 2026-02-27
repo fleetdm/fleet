@@ -27,6 +27,8 @@ const bridgeSessionCookieName = "qacheck_session"
 
 var repoSlugPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 
+var bridgeListenFn = net.Listen
+
 type uiBridge struct {
 	baseURL     string
 	session     string
@@ -74,7 +76,7 @@ func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string)
 	if err != nil {
 		return nil, fmt.Errorf("generate bridge session: %w", err)
 	}
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := bridgeListenFn("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, fmt.Errorf("listen bridge: %w", err)
 	}

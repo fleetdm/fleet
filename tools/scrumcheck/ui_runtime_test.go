@@ -9,8 +9,6 @@ import (
 
 // TestSetUIRuntimeDirValidation verifies dev UI path validation rules.
 func TestSetUIRuntimeDirValidation(t *testing.T) {
-	t.Parallel()
-
 	if err := setUIRuntimeDir(""); err != nil {
 		t.Fatalf("set empty ui dir: %v", err)
 	}
@@ -36,7 +34,6 @@ func TestSetUIRuntimeDirValidation(t *testing.T) {
 
 // TestActiveUIAssetsDevOverride verifies activeUIAssets switches to dev files.
 func TestActiveUIAssetsDevOverride(t *testing.T) {
-	t.Parallel()
 	_ = setUIRuntimeDir("")
 	t.Cleanup(func() { _ = setUIRuntimeDir("") })
 

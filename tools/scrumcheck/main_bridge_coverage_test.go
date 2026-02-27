@@ -108,11 +108,11 @@ func TestMainHappyPathWhenBrowserOpenFails(t *testing.T) {
 		"GITHUB_TOKEN=test-token",
 		"PATH=/path/that/does/not/exist",
 	)
-	if code != 0 {
-		t.Fatalf("expected success exit code, got %d (%s)\noutput:\n%s", code, errText, out)
+	if code != 1 {
+		t.Fatalf("expected bridge-required exit code 1, got %d (%s)\noutput:\n%s", code, errText, out)
 	}
-	if !strings.Contains(out, "could not auto-open report") {
-		t.Fatalf("expected auto-open failure warning in output, got:\n%s", out)
+	if !strings.Contains(out, "bridge unavailable") {
+		t.Fatalf("expected bridge-unavailable message in output, got:\n%s", out)
 	}
 }
 
