@@ -3867,7 +3867,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 func TestPreprocessProfileContentsDigiCertUPNIsUniqueForMultipleHosts(t *testing.T) {
 	ctx := context.Background()
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	appCfg := &fleet.AppConfig{}
 	appCfg.ServerSettings.ServerURL = "https://test.example.com"
 	appCfg.MDM.EnabledAndConfigured = true
@@ -4486,7 +4486,8 @@ func generateCertWithAPNsTopic() ([]byte, []byte, error) {
 }
 
 func setupTest(t *testing.T) (context.Context, *slog.Logger, *mock.Store, *config.FleetConfig, *mdmmock.MDMAppleStore,
-	*apple_mdm.MDMAppleCommander) {
+	*apple_mdm.MDMAppleCommander,
+) {
 	ctx := context.Background()
 	logger := slog.New(slog.DiscardHandler)
 	cfg := config.TestConfig()
