@@ -1,4 +1,10 @@
-import React, { useCallback, useContext, useState, useMemo } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  useMemo,
+} from "react";
 import { isEqual } from "lodash";
 import { InjectedRouter } from "react-router";
 
@@ -131,10 +137,13 @@ const InstallSoftwareForm = ({
     [selectedSoftwareIds, initialSelectedSoftware]
   );
 
-  const isRequireAllSoftwareDirty = useMemo(
-    () => requireAllSoftwareMacOS !== initialRequireAllSoftwareMacOS,
-    [requireAllSoftwareMacOS, initialRequireAllSoftwareMacOS]
-  );
+  // Keep the local checkbox state in sync with the latest saved value
+  useEffect(() => {
+    setRequireAllSoftwareMacOS(savedRequireAllSoftwareMacOS ?? false);
+  }, [savedRequireAllSoftwareMacOS]);
+
+  const isRequireAllSoftwareDirty =
+    requireAllSoftwareMacOS !== (savedRequireAllSoftwareMacOS ?? false);
 
   const shouldUpdateSoftware = isSoftwareSelectionDirty;
   const shouldUpdateRequireAll =
