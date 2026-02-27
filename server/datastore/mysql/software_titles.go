@@ -807,9 +807,10 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 		perPage++
 	}
 
-	// Build the inner query: find paginated title IDs sorted by
-	// (hosts_count, name, source, extension_for). Uses the covering index for
-	// filtering by team, then joins software_titles for the secondary sort columns.
+	// Build the inner query: find paginated title IDs sorted by (hosts_count, software_title_id).
+	// The secondary sort uses software_title_id (not name) for performance so that the entire ORDER BY is satisfied
+	// by the covering index (team_id, global_stats, hosts_count, software_title_id) without a filesort.
+	// Both columns use the same direction so MySQL can do a forward (ASC) or backward (DESC) index scan.
 	var innerSQL string
 	if !hasTeamID {
 		// All teams: only titles with host counts, no installer-only titles.
@@ -818,17 +819,15 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 		innerSQL = fmt.Sprintf(`
 			SELECT sthc.software_title_id, sthc.hosts_count
 			FROM software_titles_host_counts sthc
-			INNER JOIN software_titles st ON st.id = sthc.software_title_id
 			WHERE sthc.team_id = 0 AND sthc.global_stats = 1
-			ORDER BY sthc.hosts_count %s, st.name ASC, st.source ASC, st.extension_for ASC, st.id ASC
-			LIMIT %d`, direction, perPage)
+			ORDER BY sthc.hosts_count %[1]s, sthc.software_title_id %[1]s
+			LIMIT %[2]d`, direction, perPage)
 		if offset > 0 {
 			innerSQL += fmt.Sprintf(` OFFSET %d`, offset)
 		}
 	} else {
 		// Specific team: titles with host counts UNION installer-only titles.
-		// The UNION gathers all candidate IDs, then we join software_titles
-		// for the name-based secondary sort and paginate.
+		// The UNION gathers all candidate IDs, then we sort by (hosts_count, software_title_id) and paginate.
 		// Sprintf is safe here: all values are server-controlled (teamID is a validated uint, direction is a
 		// hardcoded ASC/DESC keyword, perPage and offset are derived from validated pagination options).
 		innerSQL = fmt.Sprintf(`
@@ -856,8 +855,7 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 					ON sthc.software_title_id = t.title_id AND sthc.team_id = %[1]d AND sthc.global_stats = 0
 				WHERE sthc.software_title_id IS NULL)
 			) AS combined
-			INNER JOIN software_titles st ON st.id = combined.software_title_id
-			ORDER BY combined.hosts_count %[2]s, st.name ASC, st.source ASC, st.extension_for ASC, st.id ASC
+			ORDER BY combined.hosts_count %[2]s, combined.software_title_id %[2]s
 			LIMIT %[3]d`, teamID, direction, perPage)
 		if offset > 0 {
 			innerSQL += fmt.Sprintf(` OFFSET %d`, offset)
@@ -919,8 +917,9 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 	outerSQL += `
 		WHERE st.id IS NOT NULL`
 
+	// Re-apply the same sort as inner query to keep results consistent.
 	outerSQL += fmt.Sprintf(`
-		ORDER BY top.hosts_count %s, st.name ASC, st.source ASC, st.extension_for ASC, st.id ASC`,
+		ORDER BY top.hosts_count %[1]s, top.software_title_id %[1]s`,
 		direction)
 
 	return outerSQL
