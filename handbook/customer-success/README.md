@@ -213,7 +213,7 @@ Note: For non-CSA engaged customer requests, CSE's are responsible for escalatio
 
 ### Report an incident
 
-Review the [criteria](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) to determine the priority level of the issue.
+Review the [criteria](https://fleetdm.com/handbook/product-groups#high-priority-user-stories-and-bugs) to determine the priority level of the issue.
 
 If it qualifies as a P0, follow the response instructions to initiate our incident response process by creating an [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md). Creating the issue triggers incident.io to notify the incident on-call engineer 24/7/365.
 

@@ -117,7 +117,7 @@ If a community PR hasn't had any updates or response from the author after one w
 
 Engineering Managers are asked to be aware of the [on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#on-call-engineer) and reduce estimated capacity for each sprint accordingly. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
 
-On-call engineers are available during the business hours of 9am - 6pm Pacific. The [on-call support SLA](https://fleetdm.com/handbook/company/product-groups#on-call-responsibilities) requires a 1-hour response time during business hours to any `@oncall` mention.
+On-call engineers are available during the business hours of 9am - 5pm Central. The [on-call support SLA](https://fleetdm.com/handbook/company/product-groups#on-call-responsibilities) requires a 1-hour response time during business hours to any `@oncall` mention.
 
 
 #### Assume on-call engineer alias
@@ -138,7 +138,7 @@ Engineering Managers are asked to be aware of the [incident on-call engineer rot
 
 Incident on-call engineers are available 24/7 during their one-week shift. They respond only to P0 issues that have an [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md) filed. Notifications are sent via incident.io, triggered by creating an incident response issue.
 
-> If an incident occurs, the engineer's manager removes some or all of the week's planned capacity to provide time for incident response and recovery.
+> If an incident occurs after hours, the engineer's manager should arrange coverage during business hours to allow adequate time for recovery.
 
 
 #### Assume incident on-call engineer alias
@@ -155,18 +155,26 @@ The incident on-call engineer is responsible for:
 
 ### Incident response process
 
-Fleet responds to all P0 incidents by initiating our incident response process:
+All emergency issues designated `P0` require a new [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md). As soon as the issue is created, it will initiate our on-call incident notification process via incident.io.
 
-1. Create a new [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md) in our confidential repo. Creating this issue triggers the incident notification process via incident.io.
-2. Edit the issue template to reflect the details of the incident.
-3. The incident lead self-assigns the incident.io incident upon acknowledgement. If remediation requires infrastructure changes the lead will be @infrastructure-oncall. If remediation requires code changes, the lead will be @incident-oncall.
-4. Complete the steps listed based on the type of incident.
+Populate the title, then create the issue to immediately initiate the incident notification process. Edit the issue to add any additional context while awaiting response.
+
+#### Incident notification path
+
+```mermaid
+flowchart TD
+    A[Incident response issue created] --> B[Infrastructure on-call]
+    B --> C[Incident on-call]
+    C --> D[Engineering Managers]
+    D --> E[CTO]
+```
+
+Incident notifications are sent 24/7/365 via incident.io, triggered by creating an incident response issue. If a notification is unacknowledged after five minutes, it will automatically escalate in the notification path. The process will repeat up to ten times until the incident is acknowledged.
 
 Mitigating the outage may require writing and merging code. The current infrastructure on-call engineer is first line for all reviews and QA required to deploy a hot-fix. If additional code review or engineering support is needed, the responding engineer should escalate to their manager.
 
-> If outside of business hours, the incident on-call engineer is responsible for stabilizing the issue well enough to pick it back up in the morning, and should file P1 issues for any immediate follow-up items. 
+> If outside of business hours, the incident on-call engineer is responsible for stabilizing the issue well enough to pick it back up in the morning, and should file P1 issues for any immediate follow-up items. During business hours, the incident on-call engineer triages the incident and coordinates a response across engineering, QA, CS, and infrastructure until the incident has been resolved. 
 
-> During business hours, the incident on-call engineer triages the incident and coordinates a response across engineering, QA, CS, and infrastructure until the incident has been resolved. Coordination duties will likely preclude making a code fix; when in doubt, delegate the fix and run interference for the folks working on that fix.
 
 ### Participate in QA Day
 
