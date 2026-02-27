@@ -23,18 +23,18 @@ func (ds *Datastore) ResetSetupExperienceItemsAfterFailure(ctx context.Context, 
 }
 
 func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint, resetFailedSetupSteps bool) (bool, error) {
-	// Find the host with the given UUID and platform. If it's already been enrolled for > the cutoff,
-	// don't enqueue any items. This handles the edge case where an enrolled host upgrades from an
-	// Orbit version that didn't support setup experience to one that does.
-	// See https://github.com/fleetdm/fleet/issues/35717
 	if hostPlatformLike != "darwin" && hostPlatformLike != "ios" && hostPlatformLike != "ipados" {
+		// Find the host with the given UUID and platform. If it's already been enrolled for > the cutoff,
+		// don't enqueue any items. This handles the edge case where an enrolled host upgrades from an
+		// Orbit version that didn't support setup experience to one that does.
+		// See https://github.com/fleetdm/fleet/issues/35717
 		stmtHost := `
-	SELECT
-		last_enrolled_at
-	FROM
-		hosts
-	WHERE uuid = ? AND platform = ?
-	`
+		SELECT
+			last_enrolled_at
+		FROM
+			hosts
+		WHERE uuid = ? AND platform = ?
+		`
 		var lastEnrolledAt sql.NullTime
 		if err := sqlx.GetContext(ctx, ds.reader(ctx), &lastEnrolledAt, stmtHost, hostUUID, hostPlatformLike); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
