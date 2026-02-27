@@ -11,6 +11,8 @@ import (
 // configured Awaiting QA column name.
 func inAwaitingQA(it Item) bool {
 	for _, v := range it.FieldValues.Nodes {
+		// We match against the configured display name because project status is
+		// represented as a single-select field value.
 		if string(v.SingleSelectValue.Name) == awaitingQAColumn {
 			return true
 		}
@@ -21,6 +23,8 @@ func inAwaitingQA(it Item) bool {
 // inDoneColumn returns true when an item's normalized status is "done".
 func inDoneColumn(it Item) bool {
 	for _, v := range it.FieldValues.Nodes {
+		// Status names are normalized first so decorated values (emoji/case
+		// variants) still map cleanly to "done".
 		name := normalizeStatusName(string(v.SingleSelectValue.Name))
 		if name == "done" {
 			return true
@@ -35,6 +39,7 @@ func matchedStatus(it Item, needles []string) (string, bool) {
 	for _, v := range it.FieldValues.Nodes {
 		rawName := strings.TrimSpace(string(v.SingleSelectValue.Name))
 		name := normalizeStatusName(rawName)
+		// Return on first needle match to preserve the caller's needle priority.
 		for _, n := range needles {
 			needle := strings.ToLower(strings.TrimSpace(n))
 			if needle == "" {
@@ -82,6 +87,8 @@ func hasUncheckedChecklistLine(body string, text string) bool {
 		"[X] " + text,
 	}
 
+	// Checked variant takes precedence: if the same text appears as checked, we
+	// treat it as resolved even if unchecked text is also present.
 	for _, c := range checked {
 		if strings.Contains(body, c) {
 			return false
@@ -147,6 +154,7 @@ func uniqueInts(nums []int) []int {
 	seen := make(map[int]bool, len(nums))
 	out := make([]int, 0, len(nums))
 	for _, n := range nums {
+		// Preserve first-seen order so CLI-provided ordering remains stable.
 		if seen[n] {
 			continue
 		}

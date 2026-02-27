@@ -59,6 +59,8 @@ func runUnassignedUnreleasedBugChecks(
 
 	keyed := make(map[string]UnassignedUnreleasedBugIssue)
 	for _, group := range groupLabels {
+		// Query once per configured group so the report can preserve group-based
+		// categorization while still deduplicating shared issues.
 		issues := searchUnreleasedIssuesByGroup(ctx, token, org, group)
 		for _, issue := range issues {
 			owner, repo := parseRepoFromRepositoryAPIURL(issue.RepositoryURL)
@@ -85,6 +87,7 @@ func runUnassignedUnreleasedBugChecks(
 			status := strings.Title(strings.ToLower(strings.TrimSpace(issue.State)))
 			k := fmt.Sprintf("%s/%s#%d", owner, repo, issue.Number)
 			if existing, ok := keyed[k]; ok {
+				// Same issue can match multiple groups; merge group membership.
 				if !containsNormalized(existing.MatchingGroups, group) {
 					existing.MatchingGroups = append(existing.MatchingGroups, normalizeLabelName(group))
 					sort.Strings(existing.MatchingGroups)
@@ -98,6 +101,8 @@ func runUnassignedUnreleasedBugChecks(
 			if err != nil {
 				continue
 			}
+			// Build a compact Item envelope for compatibility with shared helpers
+			// (title/url/number extraction in report rendering).
 			item.Content.Issue.Number = num
 			item.Content.Issue.Title = githubv4.String(issue.Title)
 			if parsed, err := parseIssueURL(issue.HTMLURL); err == nil {
@@ -205,6 +210,7 @@ func fetchUnreleasedIssuesByGroup(ctx context.Context, token, org, groupLabel st
 			break
 		}
 		for _, it := range body.Items {
+			// Defensive dedupe across pages.
 			key := fmt.Sprintf("%s#%d", it.RepositoryURL, it.Number)
 			if _, ok := seen[key]; ok {
 				continue
@@ -229,6 +235,7 @@ func executeIssueSearchRequest(ctx context.Context, endpoint, token string) (sea
 		return searchIssueResponse{}, false
 	}
 	// Some fine-grained tokens can fail for search while public unauthenticated search still works.
+	// Retry once without Authorization so public repo searches can still succeed.
 	return executeIssueSearchRequestOnce(ctx, endpoint, "")
 }
 

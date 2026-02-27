@@ -36,7 +36,10 @@ func embeddedUIAssets() fs.FS {
 // (`-ui-dev-dir`), assets are loaded from `<ui-dev-dir>/assets`.
 func activeUIAssets() fs.FS {
 	if dir := uiRuntimeDirValue(); dir != "" {
+		// Dev mode: serve files directly from disk so frontend edits are picked up
+		// without rebuilding the Go binary.
 		return os.DirFS(filepath.Join(dir, "assets"))
 	}
+	// Default mode: serve versioned embedded assets bundled at build time.
 	return embeddedUIAssets()
 }

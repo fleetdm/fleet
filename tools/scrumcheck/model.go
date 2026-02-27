@@ -12,6 +12,8 @@ type Item struct {
 	UpdatedAt githubv4.DateTime
 
 	Content struct {
+		// GraphQL union projection for project item content; in practice most
+		// checks operate on Issue and skip PullRequest records.
 		Issue struct {
 			Number    githubv4.Int
 			Title     githubv4.String
@@ -41,6 +43,8 @@ type Item struct {
 	} `graphql:"content"`
 
 	FieldValues struct {
+		// FieldValues includes both single-select status and iteration (sprint)
+		// values used by status/sprint checks.
 		Nodes []struct {
 			SingleSelectValue struct {
 				Name  githubv4.String

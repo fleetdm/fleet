@@ -47,6 +47,7 @@ func (f *intListFlag) String() string {
 // Set parses comma-separated project numbers and appends valid values.
 func (f *intListFlag) Set(value string) error {
 	for _, part := range strings.Split(value, ",") {
+		// Accept both repeated flags and comma-separated values in one flag.
 		part = strings.TrimSpace(part)
 		if part == "" {
 			continue
@@ -73,6 +74,7 @@ func (f *stringListFlag) String() string {
 // Set parses comma-separated labels and appends non-empty values.
 func (f *stringListFlag) Set(value string) error {
 	for _, part := range strings.Split(value, ",") {
+		// Keep original label formatting; normalization happens later in filters.
 		part = strings.TrimSpace(part)
 		if part == "" {
 			continue

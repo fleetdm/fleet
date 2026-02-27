@@ -45,6 +45,7 @@ func setUIRuntimeDir(dir string) error {
 		return fmt.Errorf("missing %q", filepath.Join(abs, "assets"))
 	}
 
+	// Store normalized absolute path so all readers use one canonical value.
 	uiRuntimeMu.Lock()
 	uiRuntimeDir = abs
 	uiRuntimeMu.Unlock()

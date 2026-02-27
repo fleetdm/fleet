@@ -58,6 +58,7 @@ func runMissingSprintChecks(
 	for _, projectNum := range projectNums {
 		cfg, ok := fetchSprintProjectConfig(ctx, client, org, projectNum, now)
 		if !ok {
+			// Skip projects that do not expose required sprint/status fields.
 			continue
 		}
 		items := fetchItems(ctx, client, cfg.ProjectID, limit)
@@ -74,6 +75,8 @@ func runMissingSprintChecks(
 			hasSprint := false
 			status := ""
 			for _, fv := range it.FieldValues.Nodes {
+				// We evaluate both iteration field presence and status from the
+				// same field-values pass for efficiency.
 				if fv.IterationValue.Field.Common.ID == cfg.SprintFieldID && strings.TrimSpace(string(fv.IterationValue.IterationID)) != "" {
 					hasSprint = true
 				}
@@ -212,6 +215,8 @@ func pickCurrentIteration(now time.Time, iters []projectIteration) (projectItera
 	}
 	spans := make([]span, 0, len(iters))
 	for _, it := range iters {
+		// Invalid iteration entries are ignored; only well-formed date ranges are
+		// used for active/current sprint selection.
 		if it.StartDate == "" || it.Duration <= 0 {
 			continue
 		}
@@ -226,16 +231,19 @@ func pickCurrentIteration(now time.Time, iters []projectIteration) (projectItera
 	}
 
 	for _, s := range spans {
+		// Preferred case: choose the iteration whose [start,end) contains "now".
 		if !now.Before(s.start) && now.Before(s.end) {
 			return s.it, true
 		}
 	}
+	// Fallback 1: most recent started iteration.
 	sort.Slice(spans, func(i, j int) bool { return spans[i].start.After(spans[j].start) })
 	for _, s := range spans {
 		if !now.Before(s.start) {
 			return s.it, true
 		}
 	}
+	// Fallback 2: earliest future iteration.
 	sort.Slice(spans, func(i, j int) bool { return spans[i].start.Before(spans[j].start) })
 	return spans[0].it, true
 }

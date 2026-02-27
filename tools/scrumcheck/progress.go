@@ -213,6 +213,8 @@ func (p *phaseTracker) bridgeSignal(msg string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if evt, ok := parseBridgeOpSignal(msg); ok {
+		// Counter updates are stage-aware so summary stats reflect operation
+		// lifecycle (started vs done, success vs error).
 		if evt.Stage == "start" {
 			p.bridgeOpsStarted++
 		}
@@ -252,6 +254,8 @@ func (p *phaseTracker) appendBridgeLogLocked(msg string) {
 	ts := time.Now().Format("15:04:05")
 	line := fmt.Sprintf("[%s] %s", ts, msg)
 	p.logLines = append(p.logLines, line)
+	// Logs are rendered as append-only rows below the footer to avoid rewriting
+	// previous lines during frequent progress updates.
 	row := p.logRow + len(p.logLines)
 	fmt.Printf("\033[%d;1H\033[2K%s%s%s", row, clrDim, line, clrReset)
 	fmt.Printf("\033[%d;1H", p.footerRow)
@@ -453,6 +457,7 @@ func coloredBar(width, done, total int, fillColor string) string {
 		return pendingPhaseBar(width)
 	}
 	fill := int(float64(done) / float64(total) * float64(width))
+	// Ensure non-zero progress is visible even when ratio rounds down.
 	if done > 0 && fill == 0 {
 		fill = 1
 	}

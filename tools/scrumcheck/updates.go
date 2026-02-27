@@ -55,6 +55,7 @@ func checkUpdatesTimestamp(ctx context.Context, now time.Time) TimestampCheckRes
 		return result
 	}
 
+	// Expiration is encoded as RFC3339 in `signed.expires`.
 	expiresAt, err := time.Parse(time.RFC3339, payload.Signed.Expires)
 	if err != nil {
 		result.Error = fmt.Sprintf("parse expires value %q: %v", payload.Signed.Expires, err)
@@ -64,6 +65,7 @@ func checkUpdatesTimestamp(ctx context.Context, now time.Time) TimestampCheckRes
 	result.ExpiresAt = expiresAt.UTC()
 	result.DurationLeft = result.ExpiresAt.Sub(now.UTC())
 	result.DaysLeft = result.DurationLeft.Hours() / 24
+	// Pass condition: at least minTimestampDays of validity remain.
 	result.OK = result.DurationLeft >= (time.Duration(minTimestampDays) * 24 * time.Hour)
 	return result
 }

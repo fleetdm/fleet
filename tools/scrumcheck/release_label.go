@@ -25,6 +25,8 @@ func runReleaseLabelChecks(
 ) []ReleaseLabelIssue {
 	out := make([]ReleaseLabelIssue, 0)
 	for _, projectNum := range projectNums {
+		// Drafting board has its own checklist semantics and is intentionally
+		// excluded from release-label guard evaluation.
 		if projectNum == draftingProjectNum {
 			continue
 		}
@@ -37,9 +39,12 @@ func runReleaseLabelChecks(
 			labels := issueLabels(it)
 			hasProduct := labelsContain(labels, productLabel)
 			hasRelease := labelsContain(labels, releaseLabel)
+			// Keep Done items only when :product still exists (needs cleanup);
+			// otherwise Done items are out of scope for this check.
 			if inDoneColumn(it) && !hasProduct {
 				continue
 			}
+			// Item is compliant when it has no :product and already has :release.
 			if !hasProduct && hasRelease {
 				continue
 			}
