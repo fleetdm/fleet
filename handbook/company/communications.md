@@ -353,7 +353,7 @@ _**Note:**_ There are only a few "special" labels that are exceptions to this ru
 - `story` A user story.
 - `timebox` A timeboxed issue (a task or bug limited to a fixed duration, after which work stops regardless of completion).
 -  `prospect-` A customer prospect.
-- `P-` A [priority level](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs).
+- `P-` A [priority level](https://fleetdm.com/handbook/product-groups#high-priority-user-stories-and-bugs).
 
 
 > If you're adding multiple labels to an issue template, GitHub won't add both labels unless you put them in an array e.g. `labels: ['~air-guitar', ':product']`.  To verify the syntax is correct, you can preview the template and make sure each label name is in a separate box.  
@@ -363,7 +363,6 @@ _**Note:**_ There are only a few "special" labels that are exceptions to this ru
 >
 > If you need to track content from a Slack channel (e.g. #help-customers), you can automatically generate a GitHub issue by adding the emoji `create-github-issue` as a reaction to any message. This will automatically: 
 > - Create an issue tagged with the departmental GitHub label that corresponds with the Slack channel. If there isn't a corresponding departmental label for the channel, the issue defaults to the [:help-it](https://github.com/orgs/fleetdm/projects/101) kanban board.
-
 
 
 ### Process new requests
@@ -377,57 +376,12 @@ To process intake team members will:
 - If the task is to be backlogged (i.e. "Not yet"), place the issue in the "Not yet" column and at-mention the requestor in an issue comment. Explain why the task is unable to be prioritized and provide a tentative ETA on when the task will be completed.
 
 
-
 ### Propose an event
 
 Fleet's Marketing team is responsible for deciding/signing off on the events Fleet will participate in. This includes any event that Fleet pays to attend or sponsor, and even events where Fleet's only involvement is that a Fleetie will give a talk or otherwise represent the brand.
 
 To propose an event, complete the steps in the [Propose event issue](https://github.com/fleetdm/confidential/issues/new?template=prepare-event.md). Once the request has been submitted with all necessary information, the marketing team will process your request within 72 business hours.
 
-
-
-### Estimation points
-
-Estimation points represent the effort required to complete a task. After accessing wireframes, we typically play planning poker, a gamified estimation technique, to determine the necessary story point value. We use the following story points to estimate tasks:
-
-| Story point | Time |
-|:---|:--------------|
-| 1  | 1 to 2 hours  |
-| 2  | 2 to 4 hours  |
-| 3  | 1 day         |
-| 5  | 2 to 3 days   |
-| 8  | Up to a week  |
-| 13 | 1 to 2 weeks  |
-
-> Larger projects are estimated in a way that can sometimes look disproportionate to account for edge cases that weren't caught during planning. This helps us develop [iteratively](https://fleetdm.com/handbook/company#results) and deliver bite-sized functionality on more predictable time scales.
-
-
-## High-priority user stories and bugs
-
-All issues are treated as standard priority by default. Some issues are assigned a priority label to indicate the level of urgency.
-
-- Emergency: `P0`
-  - Examples: Customer outage, inability to modify Fleet configuration, confirmed critical security vulnerability ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a new feature is needed to address an immediate Fleet emergency.
-  - Response: Immediately stop other work to swarm the issue. Work 24/7 in shifts until resolved.
-  - Impact: Significant impact. May void current sprint.
-
-- Critical: `P1`
-  - Examples: A supported workflow is broken ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a potential security vulnerability, a new feature is required to address an immediate critical Fleet need.
-  - Response: Issue brought to next standup for estimation and immediately brought into the sprint. Necessary team members are assigned as their top priority.
-  - Impact: High impact. Does not void sprint, but reduces overall velocity and requires deprioritizing other work.
-
-- Urgent: `P2`
-  - Examples: A supported workflow is not functioning as intended, a newly drafted feature has an associated urgent Fleet need.
-  - Response: Issue is prioritized at the top of the next sprint. If opportunity cost of waiting for the next sprint is too high, it may be considered for current sprint.
-  - Impact: Low to medium impact. If prioritized into current sprint, may reduce overall velocity and require deprioritizing other work.
-
-Any fleetie can follow the process below to add a priority label to an issue.
-
-1. Add as much context as possible to the issue description and assign labels to help the team
-   understand the problem and what is driving the urgency. 
-2. Add the `P0`, `P1`, or `P2` label based on the urgency of the issue. 
-3. Comment on the GitHub issue explaining why the issue is a priority, and assign the issue to the [Engineering Manager for the associated product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups). For immediate action, follow up with the EM via Slack DM or by phone.
-4. The EM will review the issue to determine if it meets the criteria for the assigned priority label. If so, they will triage as needed based on priority level. If not, they will remove the priority label and add a comment on the issue explaining why.
 
 ## Contributing to the handbook and docs
 

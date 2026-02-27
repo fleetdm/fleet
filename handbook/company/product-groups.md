@@ -40,7 +40,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | [Orchestration](#orchestration-group)                 | Increase and exceed maturity in the [orchestration](https://fleetdm.com/orchestration) product category.               | 49       |
 | [Security & Compliance](#security-compliance-group)   | Increase and exceed maturity in the security and compliance product category.                                          | 104      |
 
-\* The number of [estimated story points](https://fleetdm.com/handbook/company/communications#estimation-points) this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
+\* The number of [estimated story points](https://fleetdm.com/handbook/product-groups#estimation-points) this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
 
 
 ### MDM group
@@ -385,7 +385,7 @@ Anyone in the product group can initiate an air guitar session.
 
 T-shirt sizes represent a rough estimate on the effort required to complete a task for a given team. T-shirt sizes are used to understand the level-of-effort before the task has gone through drafting. That way, we can [plan releases](https://github.com/orgs/fleetdm/projects/87) weeks in advance.
 
-[Estimation points](https://fleetdm.com/handbook/company/communications#estimation-points) are used if a task has already gone through drafting.
+[Estimation points](https://fleetdm.com/handbook/product-groups#estimation-points) are used if a task has already gone through drafting.
 
 | T-shirt size | Time | Story points |
 |:---|:-----------------------------|:-|
@@ -441,13 +441,48 @@ Sub-tasks:
 - will NOT be looked at or QA'd by quality assurance
 
 
-## Outages
+### Estimation points
 
-At Fleet, we consider an outage to be a situation where new features or previously stable features are broken or unusable.
+Estimation points represent the effort required to complete a task. After accessing wireframes, we typically play planning poker, a gamified estimation technique, to determine the necessary story point value. We use the following story points to estimate tasks:
 
-- Occurrences of outages are tracked in the [Outages](https://docs.google.com/spreadsheets/d/1a8rUk0pGlCPpPHAV60kCEUBLvavHHXbk_L3BI0ybME4/edit#gid=0) spreadsheet.
-- Fleet encourages embracing the inevitability of mistakes and discourages blame games.
-- Fleet stresses the critical importance of avoiding outages because they make customers' lives worse instead of better.
+| Story point | Time |
+|:---|:--------------|
+| 1  | 1 to 2 hours  |
+| 2  | 2 to 4 hours  |
+| 3  | 1 day         |
+| 5  | 2 to 3 days   |
+| 8  | Up to a week  |
+| 13 | 1 to 2 weeks  |
+
+> Larger projects are estimated in a way that can sometimes look disproportionate to account for edge cases that weren't caught during planning. This helps us develop [iteratively](https://fleetdm.com/handbook/company#results) and deliver bite-sized functionality on more predictable time scales.
+
+
+### High-priority user stories and bugs
+
+All issues are treated as standard priority by default. Some issues are assigned a priority label to indicate the level of urgency.
+
+- Emergency: `P0`
+  - Examples: Customer outage, inability to modify Fleet configuration, confirmed critical security vulnerability ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a new feature is needed to address an immediate Fleet emergency.
+  - Response: Create [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md). Immediately stop other work to swarm the issue. Work 24/7 in shifts until resolved.
+  - Impact: Significant impact. May void current sprint.
+
+- Critical: `P1`
+  - Examples: A supported workflow is broken ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a potential security vulnerability, a new feature is required to address an immediate critical Fleet need.
+  - Response: Issue brought to next standup for estimation and immediately brought into the sprint. Necessary team members are assigned as their top priority.
+  - Impact: High impact. Does not void sprint, but reduces overall velocity and requires deprioritizing other work.
+
+- Urgent: `P2`
+  - Examples: A supported workflow is not functioning as intended, a newly drafted feature has an associated urgent Fleet need.
+  - Response: Issue is prioritized at the top of the next sprint. If opportunity cost of waiting for the next sprint is too high, it may be considered for current sprint.
+  - Impact: Low to medium impact. If prioritized into current sprint, may reduce overall velocity and require deprioritizing other work.
+
+Any fleetie can follow the process below to add a priority label to an issue.
+
+1. Add as much context as possible to the issue description and assign labels to help the team
+   understand the problem and what is driving the urgency. 
+2. Add the `P0`, `P1`, or `P2` label based on the urgency of the issue. 
+3. Comment on the GitHub issue explaining why the issue is a priority, and assign the issue to the [Engineering Manager for the associated product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups). For immediate action, follow up with the EM via Slack DM or by phone.
+4. The EM will review the issue to determine if it meets the criteria for the assigned priority label. If so, they will triage as needed based on priority level. If not, they will remove the priority label and add a comment on the issue explaining why.
 
 
 ## Scaling Fleet
@@ -498,7 +533,7 @@ If the bug finder is not a Fleetie (e.g., a member of the community), then whoev
 
 Once raised, product design confirms whether or not it's critical and defines expected behavior. When outside of working hours for the product design team or if no one from product design responds within 1 hour, then fall back to the #help-p1 channel.
 
-Once the critical bug is confirmed, a [priority label](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) is applied and the priority response process begins. Customer Success notifies impacted customers and the community if community features are impacted. If Customer Success is not available, the on-call engineer or infrastructure on-call engineer is responsible for this. If a quick fix workaround exists, that should be communicated as well for those who are already upgraded.
+Once the critical bug is confirmed, a [priority label](https://fleetdm.com/handbook/product-groups#high-priority-user-stories-and-bugs) is applied and the priority response process begins. Customer Success notifies impacted customers and the community if community features are impacted. If Customer Success is not available, the on-call engineer or infrastructure on-call engineer is responsible for this. If a quick fix workaround exists, that should be communicated as well for those who are already upgraded.
 
 The relevant release page on GitHub is updated to indicate that the release contains a critical bug, as shown on the [fleet-v4.45.0 release page](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.45.0).
 
@@ -534,7 +569,7 @@ To prioritize a new feature, it must meet one of these criteria:
 4. Core: a feature that accentuates and directly assists in the core purpose of the company: to guide people out of the thicket through the gift of openness. It's what differentiates us. [How Fleet defined "core"](https://docs.google.com/document/d/1Vr0F218Acr69eAgaD38zsyUUQ3Ik9HDEAlitT911BzU/edit?tab=t.0#heading=h.axp63q5pht7).
 5. Context: a feature that customers consider mission critical for their particular buying situation. Can either be an existing customer request or a prospect request in an order form.
 
-Features that are core to Fleet are prioritized over context (mission critical) features. Mission critical features can be prioritized over core features only if they're a customer promise (`~customer promise` label) or a [high-priority](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) customer request (`P0`, `P1`, or `P2` label).
+Features that are core to Fleet are prioritized over context (mission critical) features. Mission critical features can be prioritized over core features only if they're a customer promise (`~customer promise` label) or a [high-priority](https://fleetdm.com/handbook/product-groups#high-priority-user-stories-and-bugs) customer request (`P0`, `P1`, or `P2` label).
 
 If an issue has the `~feature fest` label, then it's a new feature request that will be weighed at the next 🎁🗣 Feature Fest meeting.
 
@@ -662,21 +697,21 @@ Bugs will be verified as fixed by QA when they are placed in the "Awaiting QA" c
 
 ## Engineering on-call
 
-Fleet maintains two engineering on-call rotations: one for business-hours escalation support, and one for after-hours response to critical production incidents.
+Fleet maintains two engineering on-call rotations: one for business-hours support escalations, and one for 24/7 incident response.
 
-### Business hours on-call engineer
+### On-call engineer
 
-Customer Success members are instructed to `@oncall` in `#help-engineering` to contact the on-call engineer for support escalations or product incidents occurring during business hours.
+Customer Success members are instructed to `@oncall` in `#help-engineering` to contact the on-call engineer for support escalations during business hours. The on-call engineer handles issues up to and including P1 priority.
 
 In some cases, the Customer Success team member will continue to communicate with the requestor. In others, the on-call engineer will communicate directly. Team members should use their judgment and discuss on a case-by-case basis how to best communicate with community members and customers.
 
-The current business-hours on-call rotation is reflected in the [📈 KPIs spreadsheet (confidential Google sheet)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=1831267053#gid=1831267053).
+The current on-call rotation is reflected in the [📈 KPIs spreadsheet (confidential Google sheet)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=1831267053#gid=1831267053).
 
 New engineers are added to the on-call rotation by their manager after they have completed onboarding and at least one full release cycle. We aim to alternate the rotation between product groups when possible.
 
 > The on-call rotation may be adjusted with approval from the EMs of any product groups affected. Any changes should be made before the start of the sprint so that capacity can be planned accordingly.
 
-#### Business hours on-call responsibilities
+#### On-call responsibilities
 
 **First-line response**
 - Community pull requests
@@ -710,7 +745,7 @@ The on-call engineer is asked to read, understand, test, correct, and improve at
 
 Our goal is to ensure accuracy and verify that deployment guides and tutorials are up to date, while improving readability and clarity — with empathy toward first-time users.
 
-See [Writing](https://fleetdm.com/handbook/company/communications#writing) for writing guidelines. For writing support, reach out to 🌐 [IT & Enablement](https://fleetdm.slack.com/archives/C01GQUZ91TN).  
+See [Writing](https://fleetdm.com/handbook/company/communications#writing) for writing guidelines. For writing support, reach out to 🌐 [IT & Enablement](https://fleetdm.slack.com/archives/C01GQUZ91TN).
 Outstanding documentation issues use the [`:improve documentation`](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%22%3Aimprove+documentation%22) label.
 
 **Engineering alerts**
@@ -730,45 +765,48 @@ To achieve quick first-response times, you are encouraged to say things like:
 
 How to escalate:
 
-1. Spend up to 10-15 minutes investigating the relevant code ([osquery](https://github.com/osquery/osquery), [Fleet](https://github.com/fleetdm/fleet)) and documentation ([osquery](https://osquery.readthedocs.io/en/latest/), [Fleet](https://fleetdm.com/docs)).  
+1. Spend up to 10-15 minutes investigating the relevant code ([osquery](https://github.com/osquery/osquery), [Fleet](https://github.com/fleetdm/fleet)) and documentation ([osquery](https://osquery.readthedocs.io/en/latest/), [Fleet](https://fleetdm.com/docs)).
 2. Create a new thread in `#help-engineering`, tagging the relevant product group and including any findings or links from your investigation.
 
 #### Changing of the guard
 
-The business-hours on-call engineer changes each week on Monday. A Slack reminder notifies the `@oncall` alias of the handoff. Please do the following:
+The on-call engineer changes each week on Monday. A Slack reminder notifies the `@oncall` alias of the handoff. Please do the following:
 
 1. The new on-call engineer should update the `@oncall` Slack user group to point to themselves.
-2. Hand off active conversations (Slack threads, issues, PRs, etc.).  
-   - Share relevant threads with the new on-call engineer  
-   - Subscribe them to notifications  
-   - Unsubscribe the former on-call engineer as appropriate  
+2. Hand off active conversations (Slack threads, issues, PRs, etc.).
+   - Share relevant threads with the new on-call engineer
+   - Subscribe them to notifications
+   - Unsubscribe the former on-call engineer as appropriate
 
 Anything not clearly handed off remains the responsibility of the former on-call engineer.
 
 In the Slack reminder thread, the outgoing on-call engineer should include a brief retrospective:
 
-1. Most common support requests that week  
-2. Documentation page reviewed and changes made  
-3. How the rest of the on-call time was spent  
+1. Most common support requests that week
+2. Documentation page reviewed and changes made
+3. How the rest of the on-call time was spent
 
-### After-hours incident on-call engineer
+### Incident on-call engineer
 
-Customer Success members are instructed to `@incident-oncall` in `#help-engineering` to report [P0 incidents](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) occurring after business hours.
+The incident on-call engineer is responsible for responding to [P0 incidents](https://fleetdm.com/handbook/product-groups#high-priority-user-stories-and-bugs) 24/7 during their one-week shift. Incident on-call only responds to P0 issues that have an [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md) filed, which is the trigger to send incident notifications via incident.io.
 
-Incidents that occur during business hours should be handled by the business-hours on-call engineer and should not use `@incident-oncall`.
+The Customer Success team member who reports the incident will continue communicating with the impacted customer or customers and is responsible for maintaining open lines of communication during the incident. If needed, the incident on-call engineer may be asked to communicate directly with impacted customers to facilitate faster resolution. Team members should use their judgment and coordinate on a case-by-case basis.
 
-The Customer Success team member who reports the incident will continue communicating with the impacted customer or customers and is responsible for maintaining open lines of communication during the incident. If needed, the on-call engineer may be asked to communicate directly with impacted customers to facilitate faster resolution. Team members should use their judgment and coordinate on a case-by-case basis.
+Each product group maintains two engineers assigned to incident on-call. Engineers in this rotation should be comfortable leading mitigation efforts during a production incident.
 
-Each product group maintains two engineers assigned to after-hours incident on-call. Engineers in this rotation should be comfortable leading mitigation efforts during an after-hours production incident.
+> The incident on-call rotation and handoff are handled automatically by incident.io. The on-call rotation may be adjusted in incident.io with approval from the EMs of any product groups affected. Any changes should be made before the start of the sprint so that capacity can be planned accordingly.
 
-> The after-hours incident on-call rotation and handoff are handled automatically by incident.io. The on-call rotation may be adjusted in incident.io with approval from the EMs of any product groups affected. Any changes should be made before the start of the sprint so that capacity can be planned accordingly.
+#### Incident on-call responsibilities
 
-#### After-hours incident on-call responsibilities
+**Outside of business hours**
 
-The after-hours incident on-call engineer is responsible for responding within one hour to [P0 incidents](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) occurring outside of business hours and triaging into our [incident response process](https://fleetdm.com/handbook/engineering#incident-response-process).
+The incident on-call engineer is responsible for stabilizing the issue well enough to pick it back up in the morning. They should file P1 issues for any immediate follow-up items that need to be addressed during the next business day.
 
-Any mentions that do not meet [P0 criteria](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) or are during business hours should be acknowledged and redirected to business hours on-call.
+**During business hours**
 
+The incident on-call engineer is responsible for responding to, triaging, and leading incident response. During business hours, the most expedient resolution may be to request assistance from the most relevant product group while the incident on-call engineer handles coordination and communication.
+
+Any incident response issues that do not meet [P0 criteria](https://fleetdm.com/handbook/product-groups#high-priority-user-stories-and-bugs) should be acknowledged and closed, and the reporter redirected to contact @oncall in #help-engineering for a response during business hours.
 
 ## Wireframes
 
@@ -1072,8 +1110,6 @@ Please see [handbook/company/product-groups/orchestration](https://fleetdm.com/h
 ##### Air guitar
 Please see [handbook/company/initiate-an-air-guitar-session](https://fleetdm.com/handbook/company/product-groups#initiate-an-air-guitar-session)
 
-##### High priority user stories and bugs
-Please see [handbook/company/communications/high-priority-user-stories-and-bugs](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs)
 
 <meta name="maintainedBy" value="lukeheath">
 <meta name="title" value="🛩️ Product groups">
