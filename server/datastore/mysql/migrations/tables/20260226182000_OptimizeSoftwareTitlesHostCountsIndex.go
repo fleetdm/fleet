@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260225000000, Down_20260225000000)
+	MigrationClient.AddMigration(Up_20260226182000, Down_20260226182000)
 }
 
-func Up_20260225000000(tx *sql.Tx) error {
+func Up_20260226182000(tx *sql.Tx) error {
 	// Drop the old index that doesn't include global_stats or DESC on hosts_count
 	_, err := tx.Exec(`
 		DROP INDEX idx_software_titles_host_counts_team_counts_title
@@ -34,6 +34,6 @@ func Up_20260225000000(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260225000000(_ *sql.Tx) error {
+func Down_20260226182000(_ *sql.Tx) error {
 	return nil
 }
