@@ -15,11 +15,11 @@ func TestHostTransferFlagChecks(t *testing.T) {
 	testing_utils.RunServerWithMockedDS(t)
 
 	RunAppCheckErr(t,
-		[]string{"hosts", "transfer", "--team", "team1", "--hosts", "host1", "--label", "AAA"},
+		[]string{"hosts", "transfer", "--fleet", "team1", "--hosts", "host1", "--label", "AAA"},
 		"--hosts cannot be used along side any other flag",
 	)
 	RunAppCheckErr(t,
-		[]string{"hosts", "transfer", "--team", "team1"},
+		[]string{"hosts", "transfer", "--fleet", "team1"},
 		"You need to define either --hosts, or one or more of --label, --status, --search_query",
 	)
 }
@@ -71,7 +71,7 @@ func TestHostsTransferByHosts(t *testing.T) {
 		return map[string]uint{}, nil
 	}
 
-	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--team", "team1", "--hosts", "host1"}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--fleet", "team1", "--hosts", "host1"}))
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 	assert.True(t, ds.NewActivityFuncInvoked)
 
@@ -83,7 +83,7 @@ func TestHostsTransferByHosts(t *testing.T) {
 	}
 	ds.NewActivityFuncInvoked = false
 	ds.AddHostsToTeamFuncInvoked = false
-	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--team", "", "--hosts", "host1"}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--fleet", "", "--hosts", "host1"}))
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 	assert.True(t, ds.NewActivityFuncInvoked)
 }
@@ -143,8 +143,8 @@ func TestHostsTransferByLabel(t *testing.T) {
 		return nil, nil
 	}
 
-	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--team", "team1", "--label", "label1"}))
-	require.True(t, ds.NewActivityFuncInvoked)
+	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--fleet", "team1", "--label", "label1"}))
+	require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 
 	// Now, transfer out of the team.
@@ -155,7 +155,7 @@ func TestHostsTransferByLabel(t *testing.T) {
 	}
 	ds.NewActivityFuncInvoked = false
 	ds.AddHostsToTeamFuncInvoked = false
-	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--team", "", "--label", "label1"}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--fleet", "", "--label", "label1"}))
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 	assert.True(t, ds.NewActivityFuncInvoked)
 }
@@ -215,8 +215,8 @@ func TestHostsTransferByStatus(t *testing.T) {
 	}
 
 	assert.Equal(t, "", RunAppForTest(t,
-		[]string{"hosts", "transfer", "--team", "team1", "--status", "online"}))
-	require.True(t, ds.NewActivityFuncInvoked)
+		[]string{"hosts", "transfer", "--fleet", "team1", "--status", "online"}))
+	require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 }
 
 func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
@@ -275,6 +275,6 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 	}
 
 	assert.Equal(t, "", RunAppForTest(t,
-		[]string{"hosts", "transfer", "--team", "team1", "--status", "online", "--search_query", "somequery"}))
-	require.True(t, ds.NewActivityFuncInvoked)
+		[]string{"hosts", "transfer", "--fleet", "team1", "--status", "online", "--search_query", "somequery"}))
+	require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 }
