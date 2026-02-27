@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 
@@ -17,10 +18,11 @@ import (
 	"github.com/groob/finalizer/logutil"
 )
 
-func MakeHTTPHandler(e *Endpoints, svc Service, logger *logging.Logger) http.Handler {
+func MakeHTTPHandler(e *Endpoints, svc Service, logger *slog.Logger) http.Handler {
+	kitLogger := logging.NewLogger(logger)
 	opts := []kithttp.ServerOption{
-		kithttp.ServerErrorLogger(logger),
-		kithttp.ServerFinalizer(logutil.NewHTTPLogger(logger).LoggingFinalizer),
+		kithttp.ServerErrorLogger(kitLogger),
+		kithttp.ServerFinalizer(logutil.NewHTTPLogger(kitLogger).LoggingFinalizer),
 	}
 
 	r := mux.NewRouter()
@@ -40,10 +42,11 @@ func MakeHTTPHandler(e *Endpoints, svc Service, logger *logging.Logger) http.Han
 	return r
 }
 
-func MakeHTTPHandlerWithIdentifier(e *Endpoints, rootPath string, logger *logging.Logger) http.Handler {
+func MakeHTTPHandlerWithIdentifier(e *Endpoints, rootPath string, logger *slog.Logger) http.Handler {
+	kitLogger := logging.NewLogger(logger)
 	opts := []kithttp.ServerOption{
-		kithttp.ServerErrorHandler(transport.NewLogErrorHandler(logger)),
-		kithttp.ServerFinalizer(logutil.NewHTTPLogger(logger).LoggingFinalizer),
+		kithttp.ServerErrorHandler(transport.NewLogErrorHandler(kitLogger)),
+		kithttp.ServerFinalizer(logutil.NewHTTPLogger(kitLogger).LoggingFinalizer),
 	}
 
 	r := mux.NewRouter()

@@ -1302,8 +1302,8 @@ func newSCEPClient(
 	if err != nil {
 		return nil, err
 	}
-	endpoints.GetEndpoint = scepserver.EndpointLoggingMiddleware(logger)(endpoints.GetEndpoint)
-	endpoints.PostEndpoint = scepserver.EndpointLoggingMiddleware(logger)(endpoints.PostEndpoint)
+	endpoints.GetEndpoint = scepserver.EndpointLoggingMiddleware(logger.SlogLogger())(endpoints.GetEndpoint)
+	endpoints.PostEndpoint = scepserver.EndpointLoggingMiddleware(logger.SlogLogger())(endpoints.PostEndpoint)
 	return endpoints, nil
 }
 

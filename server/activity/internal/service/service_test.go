@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/activity"
 	"github.com/fleetdm/fleet/v4/server/activity/api"
@@ -23,7 +24,8 @@ var (
 	janeUser = &activity.User{ID: 200, Name: "Jane Smith", Email: "jane@example.com", Gravatar: "gravatar2", APIOnly: true}
 )
 
-// Mock implementations
+// Bare-bones mocks for testing service logic in isolation.
+// For richer mocks used in integration tests, see tests/mocks_test.go.
 
 type mockAuthorizer struct {
 	authErr error
@@ -58,6 +60,10 @@ func (m *mockDatastore) MarkActivitiesAsStreamed(ctx context.Context, activityID
 	return nil
 }
 
+func (m *mockDatastore) NewActivity(ctx context.Context, user *api.User, activity api.ActivityDetails, details []byte, createdAt time.Time) error {
+	return nil
+}
+
 type mockUserProvider struct {
 	users         []*activity.User
 	listUsersErr  error
@@ -86,10 +92,20 @@ func (m *mockHostProvider) GetHostLite(ctx context.Context, hostID uint) (*activ
 	return m.host, m.err
 }
 
-// mockDataProviders combines user and host providers for testing.
+// mockDataProviders combines all provider interfaces for testing.
 type mockDataProviders struct {
 	*mockUserProvider
 	*mockHostProvider
+	webhookConfig *activity.ActivitiesWebhookSettings
+	webhookErr    error
+}
+
+func (m *mockDataProviders) GetActivitiesWebhookConfig(ctx context.Context) (*activity.ActivitiesWebhookSettings, error) {
+	return m.webhookConfig, m.webhookErr
+}
+
+func (m *mockDataProviders) ActivateNextUpcomingActivity(ctx context.Context, hostID uint, fromCompletedExecID string) error {
+	return nil
 }
 
 // testSetup holds test dependencies with pre-configured mocks
@@ -217,6 +233,36 @@ func TestListActivitiesWithUserEnrichment(t *testing.T) {
 	assert.Nil(t, activities[2].ActorGravatar)
 	assert.Nil(t, activities[2].ActorFullName)
 	assert.Nil(t, activities[2].ActorAPIOnly)
+}
+
+func TestListActivitiesDeletedUserFallsBackToStoredName(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	storedName := "original_name"
+	storedEmail := "original@example.com"
+	deletedUserID := uint(999)
+
+	ts := setupTest(
+		withActivities([]*api.Activity{
+			{ID: 1, Type: "test_activity", ActorID: ptr.Uint(deletedUserID), ActorFullName: &storedName, ActorEmail: &storedEmail},
+		}),
+		// UsersByIDs returns nothing for the deleted user
+		withUsers(nil),
+	)
+
+	activities, _, err := ts.svc.ListActivities(ctx, api.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, activities, 1)
+
+	// Enrichment found no user, so the stored values from the DB are preserved
+	require.NotNil(t, activities[0].ActorFullName)
+	assert.Equal(t, "original_name", *activities[0].ActorFullName)
+	require.NotNil(t, activities[0].ActorEmail)
+	assert.Equal(t, "original@example.com", *activities[0].ActorEmail)
+	// Gravatar and API-only are not stored in the activity table, so they remain nil
+	assert.Nil(t, activities[0].ActorGravatar)
+	assert.Nil(t, activities[0].ActorAPIOnly)
 }
 
 // TestListActivitiesWithMatchQuery verifies that user search queries are properly
@@ -465,6 +511,10 @@ func (m *mockStreamingDatastore) MarkActivitiesAsStreamed(ctx context.Context, a
 	}
 	m.streamedIDs = append(m.streamedIDs, activityIDs...)
 	return nil
+}
+
+func (m *mockStreamingDatastore) NewActivity(ctx context.Context, user *api.User, activity api.ActivityDetails, details []byte, createdAt time.Time) error {
+	panic("not implemented")
 }
 
 func newTestActivity(id uint, actorName string, actorID uint, actType, details string) *api.Activity {

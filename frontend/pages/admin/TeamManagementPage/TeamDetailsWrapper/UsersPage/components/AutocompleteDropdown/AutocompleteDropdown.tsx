@@ -7,7 +7,7 @@ import React, { useCallback } from "react";
 import { Async, OnChangeHandler, Option } from "react-select";
 import classnames from "classnames";
 
-import { authToken } from "utilities/local";
+import authToken from "utilities/auth_token";
 import debounce from "utilities/debounce";
 import permissionUtils from "utilities/permissions";
 import { IDropdownOption } from "interfaces/dropdownOption";
@@ -97,7 +97,7 @@ const AutocompleteDropdown = ({
 
     fetch(createUrl(resourceUrl, input), {
       headers: {
-        authorization: `Bearer ${authToken()}`,
+        authorization: `Bearer ${authToken.get()}`,
       },
     })
       .then((res) => {

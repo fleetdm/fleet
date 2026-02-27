@@ -1616,7 +1616,7 @@ func TestGetQueries(t *testing.T) {
 
 	expectedYAMLGlobal := `---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: some desc
@@ -1632,7 +1632,7 @@ spec:
   team: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: some desc 2
@@ -1651,7 +1651,7 @@ spec:
   team: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: true
   description: some desc 4
@@ -1666,9 +1666,9 @@ spec:
   query: select 4;
   team: ""
 `
-	expectedJSONGlobal := `{"kind":"query","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query1","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
-{"kind":"query","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 2","discard_data":true,"fleet":"","interval":0,"labels_include_any":["label1","label2"],"logging":"","min_osquery_version":"","name":"query2","observer_can_run":false,"platform":"","query":"select 2;","team":""}}
-{"kind":"query","apiVersion":"v1","spec":{"automations_enabled":true,"description":"some desc 4","discard_data":false,"fleet":"","interval":60,"logging":"differential_ignore_removals","min_osquery_version":"5.3.0","name":"query4","observer_can_run":true,"platform":"darwin,windows","query":"select 4;","team":""}}
+	expectedJSONGlobal := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query1","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
+{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 2","discard_data":true,"fleet":"","interval":0,"labels_include_any":["label1","label2"],"logging":"","min_osquery_version":"","name":"query2","observer_can_run":false,"platform":"","query":"select 2;","team":""}}
+{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":true,"description":"some desc 4","discard_data":false,"fleet":"","interval":60,"logging":"differential_ignore_removals","min_osquery_version":"5.3.0","name":"query4","observer_can_run":true,"platform":"darwin,windows","query":"select 4;","team":""}}
 `
 
 	expectedTeam := `+--------+-------------+-----------+--------+----------------------------+
@@ -1690,7 +1690,7 @@ spec:
 
 	expectedYAMLTeam := `---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: some desc 3
@@ -1705,7 +1705,7 @@ spec:
   query: select 3;
   team: Foobar
 `
-	expectedJSONTeam := `{"kind":"query","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 3","discard_data":false,"fleet":"Foobar","interval":3600,"logging":"snapshot","min_osquery_version":"5.4.0","name":"query3","observer_can_run":true,"platform":"darwin","query":"select 3;","team":"Foobar"}}
+	expectedJSONTeam := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 3","discard_data":false,"fleet":"Foobar","interval":3600,"logging":"snapshot","min_osquery_version":"5.4.0","name":"query3","observer_can_run":true,"platform":"darwin","query":"select 3;","team":"Foobar"}}
 `
 
 	assert.Equal(t, expectedGlobal, RunAppForTest(t, []string{"get", "queries"}))
@@ -1786,7 +1786,7 @@ func TestGetQuery(t *testing.T) {
 
 	expectedYaml := `---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: some desc
@@ -1801,7 +1801,7 @@ spec:
   query: select 1;
   team: ""
 `
-	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"globalQuery1","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
+	expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"globalQuery1","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
 `
 
 	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "query", "globalQuery1"}))
@@ -1810,7 +1810,7 @@ spec:
 
 	expectedYaml = `---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: true
   description: some team desc
@@ -1825,7 +1825,7 @@ spec:
   query: select 2;
   team: Foobar
 `
-	expectedJson = `{"kind":"query","apiVersion":"v1","spec":{"automations_enabled":true,"description":"some team desc","discard_data":false,"fleet":"Foobar","interval":3600,"logging":"differential","min_osquery_version":"5.2.0","name":"teamQuery1","observer_can_run":true,"platform":"linux","query":"select 2;","team":"Foobar"}}
+	expectedJson = `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":true,"description":"some team desc","discard_data":false,"fleet":"Foobar","interval":3600,"logging":"differential","min_osquery_version":"5.2.0","name":"teamQuery1","observer_can_run":true,"platform":"linux","query":"select 2;","team":"Foobar"}}
 `
 
 	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "query", "--team", "1", "teamQuery1"}))
@@ -1931,7 +1931,7 @@ func TestGetQueriesAsObserver(t *testing.T) {
 `
 			expectedYaml := `---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: some desc 2
@@ -1946,7 +1946,7 @@ spec:
   query: select 2;
   team: ""
 `
-			expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 2","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query2","observer_can_run":true,"platform":"","query":"select 2;","team":""}}
+			expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 2","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query2","observer_can_run":true,"platform":"","query":"select 2;","team":""}}
 `
 
 			assert.Equal(t, expected, RunAppForTest(t, []string{"get", "queries"}))
@@ -2016,7 +2016,7 @@ spec:
 `
 	expectedYaml := `---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: some desc
@@ -2032,7 +2032,7 @@ spec:
   team: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: some desc 2
@@ -2048,7 +2048,7 @@ spec:
   team: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: some desc 3
@@ -2063,9 +2063,9 @@ spec:
   query: select 3;
   team: ""
 `
-	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query1","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
-{"kind":"query","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 2","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query2","observer_can_run":true,"platform":"","query":"select 2;","team":""}}
-{"kind":"query","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 3","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query3","observer_can_run":false,"platform":"","query":"select 3;","team":""}}
+	expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query1","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
+{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 2","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query2","observer_can_run":true,"platform":"","query":"select 2;","team":""}}
+{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 3","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query3","observer_can_run":false,"platform":"","query":"select 3;","team":""}}
 `
 
 	assert.Equal(t, expected, RunAppForTest(t, []string{"get", "queries"}))
@@ -2576,11 +2576,6 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		return nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == "team1" {
 			return team1, nil
@@ -2628,7 +2623,7 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	actualYaml := RunAppForTest(t, []string{"get", "teams", "--yaml"})
 	yamlFilePath := writeTmpYml(t, actualYaml)
 
-	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", yamlFilePath}), "[+] applied 2 teams\n")
+	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", yamlFilePath}), "[+] applied 2 fleets\n")
 }
 
 func TestGetMDMCommandResults(t *testing.T) {

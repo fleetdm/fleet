@@ -3,7 +3,6 @@ package fleetctl
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -57,12 +56,6 @@ func TestDeletePack(t *testing.T) {
 			Disabled:    false,
 		}, true, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
-
 	name := writeTmpYml(t, `---
 apiVersion: v1
 kind: pack
@@ -102,12 +95,6 @@ func TestDeleteQuery(t *testing.T) {
 			ObserverCanRun: false,
 		}, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
-
 	name := writeTmpYml(t, `---
 apiVersion: v1
 kind: query

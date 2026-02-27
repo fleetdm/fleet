@@ -101,9 +101,9 @@ describe("formatSoftwareType", () => {
       },
       {
         source: "firefox_addons" as const,
-        extension_for: undefined,
+        extension_for: "firefox" as const,
         expected: "Browser plugin (Firefox)",
-        description: "Firefox add-ons without extension_for",
+        description: "Firefox add-ons",
       },
       {
         source: "safari_extensions" as const,

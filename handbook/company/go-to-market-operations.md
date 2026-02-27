@@ -49,7 +49,7 @@ The goal of the 🌐 Buy online group is to provide the best possible customer e
 
 ## Go-To-Market tools
 
-Go-To-Market tools at Fleet will be vetted by the Head of GTM Architecture, onboarded by the IT, and made available to all necessary stakeholders.
+Go-To-Market tools at Fleet will be vetted by the Head of GTM Architecture, onboarded by IT, and made available to all necessary stakeholders.
 
 Any GTM tool, automation, or functionality that someone wants to explore using in Sales, Marketing, or Customer Success, including any tool we want to integrate with Salesforce or use its data in Salesforce, must first be evaluated and approved by the Head of GTM Architecture before being used by anyone at the company.
 

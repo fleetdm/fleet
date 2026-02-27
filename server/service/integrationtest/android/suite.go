@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
@@ -12,7 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest"
-	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
+	activitiesmod "github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,7 +27,7 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 	logger := logging.NewLogfmtLogger(os.Stdout)
 	proxy := android_mock.Client{}
 	proxy.InitCommonMocks()
-	activityModule := activities.NewActivityModule(ds, logger)
+	activityModule := activitiesmod.NewActivityModule()
 	androidSvc, err := android_service.NewServiceWithClient(
 		logger.SlogLogger(),
 		ds,
@@ -41,14 +42,17 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 	)
 	require.NoError(t, err)
 	androidSvc.(*android_service.Service).AllowLocalhostServerURL = true
+	dbConns := mysql.TestDBConnections(t, ds)
 	users, server := service.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierFree,
 		},
-		FleetConfig:   &fleetCfg,
-		Pool:          redisPool,
-		Logger:        logger,
-		FeatureRoutes: []endpointer.HandlerRoutesFunc{android_service.GetRoutes(fleetSvc, androidSvc)},
+		FleetConfig:    &fleetCfg,
+		Pool:           redisPool,
+		Logger:         logger,
+		FeatureRoutes:  []endpointer.HandlerRoutesFunc{android_service.GetRoutes(fleetSvc, androidSvc)},
+		DBConns:        dbConns,
+		ActivityModule: activityModule,
 	})
 
 	s := &Suite{
