@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"iter"
@@ -449,7 +450,7 @@ func (r HostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 	var buf bytes.Buffer
 	if err := gocsv.Marshal(r.Hosts, &buf); err != nil {
 		logging.WithErr(ctx, err)
-		endpointer.EncodeError(ctx, fmt.Errorf("failed to generate CSV file"), w, nil)
+		endpointer.EncodeError(ctx, errors.New("failed to generate CSV file"), w, nil)
 		return
 	}
 
@@ -461,7 +462,7 @@ func (r HostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 		recs, err := csv.NewReader(&buf).ReadAll()
 		if err != nil {
 			logging.WithErr(ctx, err)
-			endpointer.EncodeError(ctx, fmt.Errorf("failed to generate CSV file"), w, nil)
+			endpointer.EncodeError(ctx, errors.New("failed to generate CSV file"), w, nil)
 			return
 		}
 
