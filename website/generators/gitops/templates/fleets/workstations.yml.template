@@ -45,10 +45,10 @@ controls:
     custom_settings: #FUTURE: stat disk and auto-include all via glob
       # - paths: ../platforms/windows/configuration-profiles/*.xml
   
-  scripts: #FUTURE: stat disk and auto-include all via glob
-    # - paths: ../platforms/macos/scripts/*.sh
-    # - paths: ../platforms/windows/scripts/*.ps1
-    # - paths: ../platforms/linux/scripts/*.sh
+  scripts:
+    - paths: ../platforms/macos/scripts/*.sh
+    - paths: ../platforms/windows/scripts/*.ps1
+    - paths: ../platforms/linux/scripts/*.sh
 reports: #FUTURE: stat disk and auto-include all via glob
   # - paths: ../platforms/macos/reports/*.yml
   # - paths: ../platforms/windows/reports/*.yml
