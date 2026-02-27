@@ -1,4 +1,6 @@
 org_settings:
+agent_options:
+  path: ./lib/all/agent-options/agent-options.yml
   features:
     enable_host_users: true
     enable_software_inventory: true
