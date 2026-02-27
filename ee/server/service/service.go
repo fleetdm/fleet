@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -10,7 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/sso"
 )
 
@@ -19,7 +19,7 @@ type Service struct {
 	fleet.Service
 
 	ds                     fleet.Datastore
-	logger                 *logging.Logger
+	logger                 *slog.Logger
 	config                 config.FleetConfig
 	clock                  clock.Clock
 	authz                  *authz.Authorizer
@@ -42,7 +42,7 @@ type Service struct {
 func NewService(
 	svc fleet.Service,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	config config.FleetConfig,
 	mailService fleet.MailService,
 	c clock.Clock,
@@ -75,7 +75,7 @@ func NewService(
 		depStorage:             depStorage,
 		mdmAppleCommander:      mdmAppleCommander,
 		ssoSessionStore:        sso,
-		depService:             apple_mdm.NewDEPService(ds, depStorage, logger.SlogLogger()),
+		depService:             apple_mdm.NewDEPService(ds, depStorage, logger),
 		profileMatcher:         profileMatcher,
 		softwareInstallStore:   softwareInstallStore,
 		bootstrapPackageStore:  bootstrapPackageStore,

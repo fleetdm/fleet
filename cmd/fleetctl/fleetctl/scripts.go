@@ -48,8 +48,9 @@ func runScriptCommand() *cli.Command {
 				Required: false,
 			},
 			&cli.UintFlag{
-				Name:     "team",
-				Usage:    `Available in Fleet Premium. ID of the team that the saved script belongs to. 0 targets hosts assigned to “No team” (default: 0).`,
+				Name:     fleetFlagName,
+				Aliases:  []string{"team"},
+				Usage:    `Available in Fleet Premium. ID of the fleet that the saved script belongs to. 0 targets unassigned hosts (default: 0).`,
 				Required: false,
 			},
 			&cli.BoolFlag{
@@ -150,10 +151,10 @@ func runScriptCommand() *cli.Command {
 			}
 
 			if async {
-				res, err := client.RunHostScriptAsync(h.ID, b, name, c.Uint("team"))
+				res, err := client.RunHostScriptAsync(h.ID, b, name, c.Uint(fleetFlagName))
 				if err != nil {
 					if strings.Contains(err.Error(), `Only one of 'script_contents' or 'team_id' is allowed`) {
-						return errors.New("Only one of '--script-path' or '--team' is allowed.")
+						return errors.New("Only one of '--script-path' or '--fleet' is allowed.")
 					}
 					return err
 				}
@@ -168,11 +169,11 @@ func runScriptCommand() *cli.Command {
 				s.Start()
 			}
 
-			res, err := client.RunHostScriptSync(h.ID, b, name, c.Uint("team"))
+			res, err := client.RunHostScriptSync(h.ID, b, name, c.Uint(fleetFlagName))
 			s.Stop()
 			if err != nil {
 				if strings.Contains(err.Error(), `Only one of 'script_contents' or 'team_id' is allowed`) {
-					return errors.New("Only one of '--script-path' or '--team' is allowed.")
+					return errors.New("Only one of '--script-path' or '--fleet' is allowed.")
 				}
 				return err
 			}

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/micromdm/plist"
 )
@@ -63,7 +63,7 @@ func NewInstalledApplicationListResult(ctx context.Context, rawResult []byte, uu
 func NewInstalledApplicationListResultsHandler(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	verifyTimeout, verifyRequestDelay time.Duration,
 	newActivityFn mdmlifecycle.NewActivityFunc,
 ) fleet.MDMCommandResultsHandler {
@@ -250,7 +250,7 @@ func NewInstalledApplicationListResultsHandler(
 			// Queue a job to verify the VPP install.
 			return ctxerr.Wrap(
 				ctx,
-				worker.QueueVPPInstallVerificationJob(ctx, ds, logger.SlogLogger(), verifyRequestDelay,
+				worker.QueueVPPInstallVerificationJob(ctx, ds, logger, verifyRequestDelay,
 					installedAppResult.HostUUID(), installedAppResult.UUID(), requireXcodeSpecialCase),
 				"InstalledApplicationList handler: queueing vpp install verification job",
 			)
@@ -332,7 +332,7 @@ func NewDeviceLocationResult(result *mdm.CommandResults, hostID uint) (DeviceLoc
 func NewDeviceLocationResultsHandler(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) fleet.MDMCommandResultsHandler {
 	return func(ctx context.Context, commandResults fleet.MDMCommandResults) error {
 		deviceLocResult, ok := commandResults.(DeviceLocationResult)

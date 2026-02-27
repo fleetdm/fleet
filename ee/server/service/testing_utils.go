@@ -61,7 +61,7 @@ func NewTestSCEPServer(t *testing.T) *httptest.Server {
 	}
 	logger := logging.NewNopLogger()
 	e := scepserver.MakeServerEndpoints(svc)
-	scepHandler := scepserver.MakeHTTPHandler(e, svc, logger)
+	scepHandler := scepserver.MakeHTTPHandler(e, svc, logger.SlogLogger())
 	r := mux.NewRouter()
 	r.Handle("/scep", scepHandler)
 	server := httptest.NewServer(r)

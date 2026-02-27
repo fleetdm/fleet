@@ -28,7 +28,6 @@ import (
 	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	depsync "github.com/fleetdm/fleet/v4/server/mdm/nanodep/sync"
-	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 const (
@@ -443,7 +442,7 @@ func (d *DEPService) EnsureCustomSetupAssistantIfExists(ctx context.Context, tea
 }
 
 func (d *DEPService) RunAssigner(ctx context.Context) error {
-	syncerLogger := logging.NewNanoDEPLogger(platformlogging.NewLogger(d.logger.With("component", "nanodep-syncer")))
+	syncerLogger := logging.NewNanoDEPLogger(ctx, d.logger.With("component", "nanodep-syncer"))
 	teams, err := d.ds.ListTeams(
 		ctx, fleet.TeamFilter{
 			User: &fleet.User{

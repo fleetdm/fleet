@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -137,7 +138,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 	}
 
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig)
+	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, slog.Default())
 	require.NoError(t, err)
 	assert.True(t, recorded)
 	require.True(t, cleanedup)
@@ -175,7 +176,7 @@ func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 	}
 
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig)
+	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, slog.Default())
 	require.NoError(t, err)
 	assert.False(t, recorded)
 	assert.False(t, cleanedup)
@@ -199,7 +200,7 @@ func TestMaybeSendStatisticsSkipsIfNotConfigured(t *testing.T) {
 	}
 
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree})
-	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig)
+	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, slog.Default())
 	require.NoError(t, err)
 	assert.False(t, called)
 }
@@ -229,7 +230,7 @@ func TestMaybeSendStatisticsSendsIfNotConfiguredForPremium(t *testing.T) {
 	ds.RecordStatisticsSentFunc = func(ctx context.Context) error { return nil }
 
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig)
+	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, slog.Default())
 	require.NoError(t, err)
 	assert.True(t, called)
 }
