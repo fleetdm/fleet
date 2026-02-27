@@ -14,6 +14,7 @@ import (
 
 func main() {
 	app := fleetctl.CreateApp(os.Stdin, os.Stdout, os.Stderr, exitErrHandler)
+	fleetctl.StashRawArgs(app, os.Args)
 	if err := app.Run(os.Args); err != nil {
 		fmt.Fprintf(os.Stdout, "Error: %+v\n", err)
 		os.Exit(1)

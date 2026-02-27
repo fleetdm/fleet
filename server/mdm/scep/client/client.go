@@ -1,10 +1,10 @@
 package scepclient
 
 import (
+	"log/slog"
 	"time"
 
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 // Client is a SCEP Client
@@ -47,7 +47,7 @@ func WithTimeout(timeout *time.Duration) Option {
 // New creates a SCEP Client.
 func New(
 	serverURL string,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	opts ...Option,
 ) (Client, error) {
 	var co clientOpts
