@@ -159,6 +159,10 @@ func fetchSprintProjectConfig(
 	iterations := make([]projectIteration, 0)
 	for _, n := range q.Organization.ProjectV2.Fields.Nodes {
 		name := strings.TrimSpace(strings.ToLower(string(n.Common.Name)))
+		// Switch over GraphQL typename to extract only fields relevant to sprint checks:
+		// - ProjectV2SingleSelectField: capture the "Status" field ID.
+		// - ProjectV2IterationField: capture the "Sprint" field ID/name and iterations.
+		// Any other field type is ignored.
 		switch n.Typename {
 		case "ProjectV2SingleSelectField":
 			if name == "status" {
@@ -238,6 +242,14 @@ func pickCurrentIteration(now time.Time, iters []projectIteration) (projectItera
 // sprintColumnGroup maps status text into report column keys.
 func sprintColumnGroup(status string) string {
 	n := normalizeStatusName(status)
+	// Switch-like matcher that normalizes many status spellings into report columns:
+	// - "ready for release" variants -> ready_for_release
+	// - awaiting QA variants -> awaiting_qa
+	// - review variants -> in_review
+	// - in progress variants -> in_progress
+	// - waiting variants -> waiting
+	// - ready/estimate-ready variants -> ready
+	// - everything else -> other
 	switch {
 	case strings.Contains(n, "ready for release"):
 		return "ready_for_release"
@@ -286,6 +298,8 @@ func sprintColumnsWithoutReadyForRelease() []string {
 
 // sprintColumnLabel converts a column key into UI-facing text.
 func sprintColumnLabel(group string) string {
+	// Switch maps stable internal column keys to UI labels shown in the report.
+	// Unknown keys fall back to "All" so rendering remains resilient.
 	switch group {
 	case "ready":
 		return "Ready"

@@ -277,6 +277,14 @@ func (b *uiBridge) stop(reason string) error {
 
 // waitUntilDone blocks until the bridge done channel is closed.
 func (b *uiBridge) waitUntilDone(ctx context.Context) string {
+	// Select waits for whichever happens first:
+	// - ctx.Done(): caller requested shutdown (for example Ctrl+C); we emit a
+	//   signal and trigger bridge stop.
+	// - b.done: bridge already finished (server exited or stop was called).
+	// After this first wait, we read b.done once more to guarantee the channel is
+	// closed before returning the final reason. That second receive is safe even
+	// when already closed (it returns immediately), and avoids a race where stop
+	// was initiated but the done-close hasn't been observed yet.
 	select {
 	case <-ctx.Done():
 		b.signal("🧯 Shutdown signal received (Ctrl+C)")
@@ -291,6 +299,10 @@ func (b *uiBridge) waitUntilDone(ctx context.Context) string {
 
 // closeDone idempotently closes the done channel.
 func (b *uiBridge) closeDone() {
+	// Select implements idempotent close:
+	// - if b.done is already closed, receiving from it succeeds immediately and
+	//   we do nothing.
+	// - otherwise default branch runs and closes b.done exactly once.
 	select {
 	case <-b.done:
 	default:

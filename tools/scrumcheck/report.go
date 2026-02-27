@@ -805,6 +805,11 @@ func fileURLFromPath(path string) string {
 
 // openInBrowser opens the report path using the platform-specific launcher.
 func openInBrowser(path string) error {
+	// Switch picks the OS-specific launcher command:
+	// - darwin: `open`
+	// - linux: `xdg-open`
+	// - windows: `rundll32 ... FileProtocolHandler`
+	// - default: return explicit unsupported-OS error (caller must open manually).
 	switch runtime.GOOS {
 	case "darwin":
 		return exec.Command("open", path).Start()

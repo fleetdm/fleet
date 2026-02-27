@@ -256,6 +256,12 @@ func TestAssigneeMilestoneAndReleaseStoryFlows(t *testing.T) {
 	t.Cleanup(func() { searchAssignedIssuesByProject = origSearchAssigned })
 
 	withMockDefaultTransport(t, roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		// Switch dispatches mocked REST endpoints used by this integration-style test:
+		// - /user: viewer login
+		// - /assignees: assignable users
+		// - /milestones: milestone suggestions
+		// - /search/issues: release-story TODO search results
+		// - default: 404 to surface unexpected endpoint usage.
 		switch {
 		case r.URL.String() == "https://api.github.com/user":
 			return jsonResponse(t, http.StatusOK, map[string]any{"login": "sharon-fdm"}), nil
@@ -590,6 +596,9 @@ func TestFetchUnreleasedIssuesByGroupAndFetchAllItemsPaging(t *testing.T) {
 
 func TestBridgeMutationSuccessPaths(t *testing.T) {
 	withMockDefaultTransport(t, roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		// Switch provides happy-path mocked API responses for each bridge mutation:
+		// issue read/update, assignee add, release-label add/remove, and sprint GraphQL.
+		// Default branch returns OK so non-critical extra requests do not fail the test.
 		switch {
 		case strings.Contains(r.URL.Path, "/issues/1") && r.Method == http.MethodGet:
 			return jsonResponse(t, http.StatusOK, map[string]any{
@@ -660,6 +669,8 @@ func TestBridgeMutationSuccessPaths(t *testing.T) {
 
 func TestBridgeMutationErrorBranches(t *testing.T) {
 	withMockDefaultTransport(t, roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		// Switch forces specific API failures per endpoint so each handler's
+		// bad-gateway error path is exercised.
 		switch {
 		case strings.Contains(r.URL.Path, "/issues/1") && r.Method == http.MethodPatch:
 			return &http.Response{

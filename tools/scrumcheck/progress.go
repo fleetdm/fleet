@@ -324,6 +324,11 @@ func parseBridgeOpSignal(msg string) (bridgeOpEvent, bool) {
 		}
 		key := parts[0]
 		val := parts[1]
+		// Switch decodes known BRIDGE_OP key/value fields:
+		// - caller/op/stage/status/repo: direct string metadata fields.
+		// - issue/item: alternate names for the same issue identifier slot.
+		// - elapsed: parsed as duration when valid; invalid values are ignored.
+		// Unknown keys are ignored so forward-compatible events won't fail parsing.
 		switch key {
 		case "caller":
 			evt.Caller = val
@@ -364,6 +369,12 @@ func parseBridgeOpSignal(msg string) (bridgeOpEvent, bool) {
 func (p *phaseTracker) phaseVisual(status phaseStatus) (icon, color, bar string) {
 	ratio := float64(p.completedCount()) / float64(max(len(p.phases), 1))
 	runColor := stageColor(ratio)
+	// Switch maps each phase lifecycle state to a visual treatment:
+	// - running: yellow icon with partial animated-style bar.
+	// - done: green icon with fully filled bar.
+	// - warn: yellow icon, but still treated as completed/fill-full.
+	// - fail: red icon, also treated as completed/fill-full.
+	// - default (pending): dim icon with empty bar.
 	switch status {
 	case phaseRunning:
 		return "🟠", clrYellow, runningPhaseBar(30, runColor)
@@ -453,6 +464,10 @@ func coloredBar(width, done, total int, fillColor string) string {
 
 // stageColor chooses red/yellow/green based on completion ratio.
 func stageColor(ratio float64) string {
+	// Threshold switch for progress hue:
+	// - < 34% complete: red
+	// - 34% to <67%: yellow
+	// - >= 67%: green
 	switch {
 	case ratio < 0.34:
 		return clrRed
