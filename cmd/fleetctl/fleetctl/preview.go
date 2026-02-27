@@ -375,7 +375,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			logger := slog.New(slog.DiscardHandler)
 			if c.Bool(debugFlagName) {
-				logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
+				logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 			}
 
 			if err := service.ApplyStarterLibrary(

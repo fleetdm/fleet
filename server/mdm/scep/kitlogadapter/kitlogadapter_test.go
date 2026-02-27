@@ -13,8 +13,6 @@ func TestLog(t *testing.T) {
 	t.Parallel()
 
 	t.Run("basic key-value logging", func(t *testing.T) {
-		t.Parallel()
-
 		handler := testutils.NewTestHandler()
 		adapter := NewLogger(slog.New(handler))
 
@@ -30,8 +28,6 @@ func TestLog(t *testing.T) {
 	})
 
 	t.Run("with context via With", func(t *testing.T) {
-		t.Parallel()
-
 		handler := testutils.NewTestHandler()
 		adapter := NewLogger(slog.New(handler))
 

@@ -3937,7 +3937,7 @@ func TestLiveQueriesFailing(t *testing.T) {
 
 	logs, err := io.ReadAll(buf)
 	require.NoError(t, err)
-	require.Contains(t, string(logs), "level=error")
+	require.Contains(t, string(logs), "level=ERROR")
 	require.Contains(t, string(logs), "failed to get queries for host")
 }
 

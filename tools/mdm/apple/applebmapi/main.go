@@ -58,7 +58,7 @@ func main() {
 		MaxIdleConns:    50,
 		ConnMaxLifetime: 0,
 	}
-	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	opts := []mysql.DBOption{
 		mysql.Logger(logger),
 		mysql.WithFleetConfig(&config.FleetConfig{
