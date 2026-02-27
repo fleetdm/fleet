@@ -1,5 +1,5 @@
 name: $DOGFOOD_APPLE_BM_DEFAULT_TEAM
-team_settings:
+settings:
   webhook_settings:
     failing_policies_webhook:
       destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
@@ -151,10 +151,10 @@ policies:
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
-queries:
-  - path: ../lib/macos/queries/detect-apple-intelligence.yml
-  - path: ../lib/macos/queries/collect-santa-denied-logs.yml
-  - path: ../lib/all/queries/dex-queries.yml
+reports:
+  - path: ../lib/macos/reports/detect-apple-intelligence.yml
+  - path: ../lib/macos/reports/collect-santa-denied-logs.yml
+  - path: ../lib/all/reports/dex-queries.yml
 software:
   packages:
     # macOS apps

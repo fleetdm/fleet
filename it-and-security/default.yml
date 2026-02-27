@@ -44,9 +44,6 @@ org_settings:
   secrets:
     - secret: $DOGFOOD_GLOBAL_ENROLL_SECRET
   server_settings:
-    debug_host_ids:
-      - 1
-      - 3
     deferred_save_host: false
     enable_analytics: true
     live_query_disabled: false
@@ -83,12 +80,12 @@ org_settings:
       destination_url: $DOGFOOD_ACTIVITIES_WEBHOOK_URL
       enable_activities_webhook: true
 policies:
-queries:
-  - path: ./lib/all/queries/collect-fleetd-information.yml
-  - path: ./lib/all/queries/collect-operating-system-information.yml
-  - path: ./lib/all/queries/collect-known-vulnerable-chrome-extensions.yml
-  - path: ./lib/macos/queries/detect-apns-certificate.yml
-  - path: ./lib/macos/queries/collect-macos-compatibility-data.yml
+reports:
+  - path: ./lib/all/reports/collect-fleetd-information.yml
+  - path: ./lib/all/reports/collect-operating-system-information.yml
+  - path: ./lib/all/reports/collect-known-vulnerable-chrome-extensions.yml
+  - path: ./lib/macos/reports/detect-apns-certificate.yml
+  - path: ./lib/macos/reports/collect-macos-compatibility-data.yml
 controls:
   enable_disk_encryption: true
   macos_migration:
