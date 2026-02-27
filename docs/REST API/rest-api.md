@@ -3309,6 +3309,7 @@ Returns the count of all hosts organized by status. `online_count` includes all 
   "new_count": 0,
   "all_linux_count": 1204,
   "low_disk_space_count": 12,
+  "dep_assign_error_count": 7,
   "builtin_labels": [
     {
       "id": 6,
