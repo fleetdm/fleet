@@ -27,6 +27,7 @@ You can customize these flows with a webhook (e.g. Tines) to run scripts, use th
   * First priority: **IdP Username** email address (from MDM IdP accounts or manually set IdP email)
   * Second priority: Google Chrome profile email address
   * If multiple Google Chrome profile emails exist, Fleet selects the first one alphabetically
+  * Third priority: other email sources
 * Users can reschedule the event on their calendar—Fleet will run remediation at the new time.
 * If a user moves the event to before the current time, Fleet shifts it to the next day.
 * If a user deletes the event, Fleet automatically reschedules it for the next day.
