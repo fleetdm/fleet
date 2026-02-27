@@ -99,6 +99,8 @@ func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string)
 		sseSubscribers:  make(map[chan string]struct{}),
 	}
 
+	// Router contains the app shell, state/read APIs, mutation APIs, and
+	// lifecycle endpoints used by the browser UI.
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", b.handleAppShell)
 	mux.HandleFunc("/report", b.handleReport)
@@ -121,11 +123,13 @@ func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string)
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
+	// Idle timer enforces automatic bridge shutdown when the UI is not active.
 	b.timer = time.AfterFunc(idleTimeout, func() {
 		b.signal("⌛ UI uplink idle timeout reached")
 		_ = b.stop("idle timeout")
 	})
 
+	// Serve in background so CLI startup can continue to browser-open flow.
 	go func() {
 		err := b.srv.Serve(ln)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -375,6 +379,8 @@ func (b *uiBridge) handleAppShell(w http.ResponseWriter, r *http.Request) {
 	b.mu.Lock()
 	data := b.reportData
 	b.mu.Unlock()
+	// Force bridge fields at response time to ensure frontend always uses the
+	// active runtime endpoint/session values.
 	data.BridgeEnabled = true
 	data.BridgeBaseURL = b.baseURL
 	data.BridgeSessionToken = b.session
@@ -441,6 +447,9 @@ func (b *uiBridge) handleEvents(w http.ResponseWriter, r *http.Request) {
 	defer ticker.Stop()
 
 	for {
+		// Stream loop ends if client disconnects, bridge shuts down, or context
+		// is canceled. Otherwise it periodically sends keepalive pings and
+		// forwards live log events.
 		select {
 		case <-r.Context().Done():
 			return
@@ -476,6 +485,7 @@ func (b *uiBridge) hostAllowed(r *http.Request) bool {
 	if host == expected {
 		return true
 	}
+	// Allow localhost alias when bridge bound to 127.0.0.1 on the same port.
 	expHost, expPort, err := net.SplitHostPort(expected)
 	if err != nil {
 		return false

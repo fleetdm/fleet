@@ -60,6 +60,8 @@ func run() int {
 	flag.Parse()
 
 	for _, arg := range flag.Args() {
+		// Support bare positional values as convenience input:
+		// numeric values are treated as project numbers, everything else as labels.
 		arg = strings.TrimSpace(arg)
 		if strings.HasPrefix(arg, "-") {
 			continue
@@ -271,6 +273,8 @@ func run() int {
 	bridge.setUnassignedUnreleasedResults(reportData.UnassignedUnreleased)
 	bridge.setReleaseStoryTODOResults(reportData.ReleaseStoryTODO)
 	bridge.setMissingSprintResults(reportData.MissingSprint)
+	// These refresh callbacks let individual UI sections re-query data on demand
+	// without restarting the process or rebuilding the bridge.
 	bridge.setTimestampRefresher(func(ctx context.Context) (TimestampCheckResult, error) {
 		refreshCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 		defer cancel()
@@ -357,6 +361,8 @@ func run() int {
 		refreshCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
 		defer cancel()
 
+		// Recompute every check from current GitHub state so the UI can get a
+		// complete synchronized snapshot when a full refresh is requested.
 		staleAfter := time.Duration(*staleDays) * 24 * time.Hour
 		refAwaitingByProject, refStaleByProject := runAwaitingQACheck(
 			refreshCtx,
@@ -415,6 +421,8 @@ func run() int {
 		}
 		tracker.phaseDone(phaseBrowserBridge, "browser open signal sent")
 	} else {
+		// Keep bridge live even when auto-open is disabled so callers can open
+		// the URL manually and still use interactive actions.
 		tracker.phaseWarn(phaseBrowserBridge, "auto-open disabled (-open-report=false)")
 	}
 
@@ -451,6 +459,8 @@ func runAwaitingQACheck(
 		var badAwaitingQA []Item
 		var staleAwaiting []StaleAwaitingViolation
 		for _, it := range items {
+			// Filtering and status guards are applied first so later checks only run
+			// on in-scope Awaiting QA items.
 			if !matchesLabelFilter(it, labelFilter) {
 				continue
 			}

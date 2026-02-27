@@ -40,8 +40,12 @@ func runGenericQueryChecks(
 	// Preserve declaration order so UI review order matches this config order.
 	results := make([]GenericQueryResult, 0)
 	for _, def := range genericQueryDefinitions {
+		// A single template can fan out into many concrete queries when it uses
+		// <<group>> and/or <<project>> placeholders.
 		queries := expandGenericQueryTemplate(def.Query, projectNums, groupLabels)
 		for _, expanded := range queries {
+			// Keep one result block per concrete query so operators can trace
+			// findings back to the exact search string.
 			items := fetchGenericQueryIssues(ctx, token, expanded)
 			results = append(results, GenericQueryResult{
 				Title: def.Title,
@@ -65,6 +69,8 @@ func expandGenericQueryTemplate(template string, projectNums []int, groupLabels 
 
 	if strings.Contains(template, "<<group>>") {
 		if len(groupLabels) == 0 {
+			// Required placeholder with no runtime values means the query is not
+			// meaningful and should be omitted entirely.
 			return nil
 		}
 		next := make([]string, 0, len(queries)*len(groupLabels))
@@ -78,6 +84,8 @@ func expandGenericQueryTemplate(template string, projectNums []int, groupLabels 
 
 	if strings.Contains(template, "<<project>>") {
 		if len(projectNums) == 0 {
+			// Same rule for project placeholders: skip when caller provided no
+			// selected projects.
 			return nil
 		}
 		next := make([]string, 0, len(queries)*len(projectNums))
@@ -107,6 +115,7 @@ func fetchGenericQueryIssues(ctx context.Context, token, query string) []Generic
 	seen := make(map[string]struct{})
 	out := make([]GenericQueryIssue, 0, 32)
 	for page := 1; page <= 10; page++ {
+		// We cap to 10 pages (1000 issues) to keep runtime bounded.
 		endpoint := fmt.Sprintf("https://api.github.com/search/issues?q=%s&per_page=100&page=%d", urlQueryEscape(query), page)
 		body, ok := executeIssueSearchRequest(ctx, endpoint, token)
 		if !ok {
@@ -116,6 +125,8 @@ func fetchGenericQueryIssues(ctx context.Context, token, query string) []Generic
 			break
 		}
 		for _, it := range body.Items {
+			// Deduplicate by repo API URL + issue number in case GitHub returns
+			// overlapping data across pages.
 			key := fmt.Sprintf("%s#%d", it.RepositoryURL, it.Number)
 			if _, ok := seen[key]; ok {
 				continue
@@ -142,6 +153,8 @@ func fetchGenericQueryIssues(ctx context.Context, token, query string) []Generic
 				assignees = append(assignees, login)
 			}
 			status := strings.Title(strings.ToLower(strings.TrimSpace(it.State)))
+			// The report model is intentionally minimal and contains only fields
+			// needed for cards, grouping, and links.
 			out = append(out, GenericQueryIssue{
 				Number:           it.Number,
 				Title:            it.Title,

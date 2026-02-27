@@ -36,6 +36,8 @@ func runMissingMilestoneChecks(
 		items := fetchItems(ctx, client, projectID, limit)
 
 		for _, it := range items {
+			// Keep only actionable issue cards: in-scope labels, not done, and no
+			// milestone currently set.
 			if it.Content.Issue.Number == 0 {
 				continue
 			}
@@ -55,6 +57,8 @@ func runMissingMilestoneChecks(
 			}
 			cacheKey := owner + "/" + repo
 			if _, ok := cache[cacheKey]; !ok {
+				// Milestone list is per-repo, so cache it once and reuse across
+				// all items from that repository.
 				cache[cacheKey] = fetchAllMilestones(ctx, token, owner, repo)
 			}
 			suggestions := append([]MilestoneOption(nil), cache[cacheKey]...)
@@ -122,6 +126,7 @@ func fetchAllMilestones(ctx context.Context, token, owner, repo string) []Milest
 	out := make([]MilestoneOption, 0, len(milestones))
 	seen := make(map[string]bool)
 	for _, m := range milestones {
+		// De-duplicate by title to avoid repeated choices in the UI dropdown.
 		title := strings.TrimSpace(m.Title)
 		if title == "" || seen[title] {
 			continue

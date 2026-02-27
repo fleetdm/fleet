@@ -252,6 +252,8 @@ func buildHTMLReportData(
 	staleSections := make([]StaleAwaitingProjectReport, 0, len(projectNums))
 	totalStale := 0
 	for _, p := range projectNums {
+		// Build the Awaiting QA section and stale subsection from per-project maps
+		// so the output order matches the CLI-selected project order.
 		items := make([]ReportItem, 0, len(awaitingByProject[p]))
 		for _, it := range awaitingByProject[p] {
 			owner, repo := parseRepoFromIssueURL(getURL(it))
@@ -290,6 +292,8 @@ func buildHTMLReportData(
 	drafting := make([]DraftingStatusReport, 0, len(byStatus))
 	totalDrafting := 0
 	appendStatus := func(key, status, emoji, intro string) {
+		// This helper normalizes one drafting status bucket into report cards.
+		// Missing/empty buckets are intentionally omitted from the output.
 		violations, ok := byStatus[key]
 		if !ok || len(violations) == 0 {
 			return
@@ -330,6 +334,7 @@ func buildHTMLReportData(
 	)
 
 	otherKeys := make([]string, 0, len(byStatus))
+	// Preserve deterministic rendering for "other" statuses by sorting keys.
 	for key := range byStatus {
 		if key == "ready to estimate" || key == "estimated" {
 			continue
@@ -349,6 +354,7 @@ func buildHTMLReportData(
 
 	groupedMilestoneByProject := make(map[int]map[string][]MissingMilestoneReportItem)
 	for _, p := range projectNums {
+		// Pre-seed all known column groups so empty columns still render.
 		groupedMilestoneByProject[p] = make(map[string][]MissingMilestoneReportItem)
 		for _, key := range sprintColumnOrder() {
 			groupedMilestoneByProject[p][key] = []MissingMilestoneReportItem{}
@@ -415,6 +421,8 @@ func buildHTMLReportData(
 	for _, v := range missingSprints {
 		itemID := fmt.Sprintf("%v", v.ItemID)
 		group := sprintColumnGroup(v.Status)
+		// Ready for release is intentionally out of scope for missing-sprint
+		// violations and is skipped in both data and totals.
 		if group == "ready_for_release" {
 			continue
 		}
@@ -496,6 +504,8 @@ func buildHTMLReportData(
 		groupedMissingAssigneeByProject[v.ProjectNum][group] = append(groupedMissingAssigneeByProject[v.ProjectNum][group], item)
 	}
 	buildAssigneeProjects := func(groupedByProject map[int]map[string][]MissingAssigneeReportItem) ([]MissingAssigneeProjectReport, int) {
+		// Shared renderer for both assignee-focused views:
+		// missing-assignee and assigned-to-me.
 		projects := make([]MissingAssigneeProjectReport, 0, len(groupedByProject))
 		total := 0
 		projectNumsForAssignees := append([]int(nil), projectNums...)
@@ -542,6 +552,8 @@ func buildHTMLReportData(
 	for p := range groupedReleaseByProject {
 		projectNumsForRelease = append(projectNumsForRelease, p)
 	}
+	// Release sections are sorted numerically because the grouped map has no
+	// stable iteration order.
 	sort.Ints(projectNumsForRelease)
 	for _, p := range projectNumsForRelease {
 		items := groupedReleaseByProject[p]
@@ -600,6 +612,8 @@ func buildHTMLReportData(
 	genericQueryReports := make([]GenericQueryReport, 0, len(genericQueries))
 	totalGenericQueries := 0
 	for _, query := range genericQueries {
+		// Each expanded query gets its own titled block so operators can see the
+		// exact query text that produced each result set.
 		items := make([]GenericQueryReportItem, 0, len(query.Items))
 		for _, item := range query.Items {
 			items = append(items, GenericQueryReportItem{
