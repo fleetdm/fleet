@@ -195,9 +195,8 @@ func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, op
 	return activities, metaData, nil
 }
 
-// CleanupExpiredActivities deletes up to maxCount expired activities
-// created before expiryThreshold that are not linked to any host.
-// Host-linked activities are preserved; host_activities rows are cleaned via FK CASCADE when activities are deleted.
+// CleanupExpiredActivities deletes up to maxCount activities created before expiryThreshold
+// that are not linked to any host. Host-linked activities are preserved.
 func (ds *Datastore) CleanupExpiredActivities(ctx context.Context, maxCount int, expiryThreshold time.Time) error {
 	ctx, span := tracer.Start(ctx, "activity.mysql.CleanupExpiredActivities")
 	defer span.End()
