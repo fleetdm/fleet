@@ -269,7 +269,10 @@ const InstallSoftwareForm = ({
         {platform === "macos" && (
           <div className={`${baseClass}__macos_options`}>
             <Checkbox
-              disabled={config?.gitops.gitops_mode_enabled}
+              disabled={
+                config?.gitops.gitops_mode_enabled ||
+                manualAgentInstallBlockingSoftware
+              }
               value={requireAllSoftwareMacOS}
               onChange={setRequireAllSoftwareMacOS}
             >
