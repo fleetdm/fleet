@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,14 +14,13 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 // defaultTimeout is the timeout for requests.
 const defaultTimeout = 20 * time.Second
 
 type Service struct {
-	logger  *logging.Logger
+	logger  *slog.Logger
 	timeout time.Duration
 	client  *http.Client
 }
@@ -46,7 +46,7 @@ func WithTimeout(t time.Duration) Opt {
 }
 
 // WithLogger sets the logger to use for the service.
-func WithLogger(logger *logging.Logger) Opt {
+func WithLogger(logger *slog.Logger) Opt {
 	return func(s *Service) {
 		s.logger = logger
 	}
@@ -60,7 +60,7 @@ func (s *Service) populateOpts(opts []Opt) {
 		s.timeout = defaultTimeout
 	}
 	if s.logger == nil {
-		s.logger = logging.NewLogfmtLogger(os.Stdout)
+		s.logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
 	}
 }
 
@@ -125,7 +125,7 @@ func (s *Service) GetCertificate(ctx context.Context, estCA fleet.ESTProxyCA, cs
 		if len(bytes) > 1000 {
 			bytesToLog = bytes[:1000]
 		}
-		s.logger.Log("msg", "unexpected EST CA status code", "status_code", resp.StatusCode, "response_body", string(bytesToLog))
+		s.logger.ErrorContext(ctx, "unexpected EST CA status code", "status_code", resp.StatusCode, "response_body", string(bytesToLog))
 		return nil, ctxerr.Errorf(ctx, "unexpected EST CA status code: %d", resp.StatusCode)
 	}
 

@@ -382,7 +382,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				c.Context,
 				address,
 				token,
-				logger,
+				logger.SlogLogger(),
 				fleethttp.NewClient,
 				service.NewClient,
 				nil, // No mock ApplyGroup for production code

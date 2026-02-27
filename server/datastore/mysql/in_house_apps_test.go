@@ -1736,7 +1736,7 @@ func testSoftwareTitleDisplayNameInHouse(t *testing.T, ds *Datastore) {
 }
 
 func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
+	ctx := t.Context()
 	test.CreateInsertGlobalVPPToken(t, ds)
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 

@@ -52,8 +52,8 @@ export interface IButtonProps {
     | "dialog";
   ariaExpanded?: boolean;
   ariaLabel?: string;
-  /** Small: 1/2 the padding */
-  size?: "small" | "default";
+  /** Small: 1/2 the padding, Wide: 200px */
+  size?: "small" | "wide" | "default";
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -136,6 +136,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       className,
       {
         [`${baseClass}--${variant}__small`]: size === "small",
+        [`${baseClass}__wide`]: size === "wide",
         [`${baseClass}--disabled`]: disabled,
         [`${baseClass}--icon-stroke`]: iconStroke,
       }
