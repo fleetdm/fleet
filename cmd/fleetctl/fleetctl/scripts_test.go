@@ -208,7 +208,7 @@ hello world
 			name:         "script-path and team disallowed",
 			scriptPath:   generateValidPath,
 			teamID:       ptr.Uint(1),
-			expectErrMsg: `Only one of '--script-path' or '--team' is allowed.`,
+			expectErrMsg: `Only one of '--script-path' or '--fleet' is allowed.`,
 		},
 		{
 			name:         "script empty",
@@ -420,7 +420,7 @@ Fleet records the last 10,000 characters to prevent downtime.
 			}
 
 			if c.teamID != nil {
-				args = append(args, "--team", fmt.Sprintf("%d", *c.teamID))
+				args = append(args, "--fleet", fmt.Sprintf("%d", *c.teamID))
 			}
 
 			b, err := RunAppNoChecks(args)
