@@ -26365,3 +26365,41 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 			"self_service should be true after the edit")
 	})
 }
+
+func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
+	t := s.T()
+	ctx := context.Background()
+
+	// team tests and no team tests
+	_, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Team 1"})
+	require.NoError(t, err)
+
+	// Add a policy with type "badtype"
+	// Add a patch policy with no title id
+	// Add a patch policy with a title id that doesn't match an FMA
+	// Add a patch policy with a good title id
+	// Add that same policy again with a different name
+
+	t.Run("no_team_patch_policy", func(t *testing.T) {
+		// Create a "No team" policy.
+		tpParams := teamPolicyRequest{
+			Name:  "noTeamPolicy1",
+			Query: "SELECT 1;",
+		}
+		r := teamPolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", tpParams, http.StatusOK, &r)
+		require.NotNil(t, r.Policy.TeamID)
+
+		params := map[string]interface{}{
+			"name":                    "test2",
+			"query":                   "SELECT 1 FROM;",
+			"description":             "um",
+			"type":                    "patch",
+			"patch_software_title_id": 4484,
+		}
+		res := s.Do("POST", "/api/latest/fleet/teams/9/policies", params, http.StatusBadRequest)
+		errMsg := extractServerErrorText(res.Body)
+		fmt.Println(errMsg)
+		defer res.Body.Close()
+	})
+}
