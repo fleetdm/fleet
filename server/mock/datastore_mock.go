@@ -1107,6 +1107,8 @@ type DeleteCAConfigAssetsFunc func(ctx context.Context, names []string) error
 
 type GetABMTokenByOrgNameFunc func(ctx context.Context, orgName string) (*fleet.ABMToken, error)
 
+type GetABMTokenByDepNameFunc func(ctx context.Context, depName string) (*fleet.ABMToken, error)
+
 type SaveABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) error
 
 type InsertVPPTokenFunc func(ctx context.Context, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error)
@@ -3409,6 +3411,9 @@ type DataStore struct {
 
 	GetABMTokenByOrgNameFunc        GetABMTokenByOrgNameFunc
 	GetABMTokenByOrgNameFuncInvoked bool
+
+	GetABMTokenByDepNameFunc        GetABMTokenByDepNameFunc
+	GetABMTokenByDepNameFuncInvoked bool
 
 	SaveABMTokenFunc        SaveABMTokenFunc
 	SaveABMTokenFuncInvoked bool
@@ -8219,6 +8224,13 @@ func (s *DataStore) GetABMTokenByOrgName(ctx context.Context, orgName string) (*
 	s.GetABMTokenByOrgNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetABMTokenByOrgNameFunc(ctx, orgName)
+}
+
+func (s *DataStore) GetABMTokenByDepName(ctx context.Context, depName string) (*fleet.ABMToken, error) {
+	s.mu.Lock()
+	s.GetABMTokenByDepNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetABMTokenByDepNameFunc(ctx, depName)
 }
 
 func (s *DataStore) SaveABMToken(ctx context.Context, tok *fleet.ABMToken) error {

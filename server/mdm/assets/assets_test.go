@@ -202,21 +202,22 @@ func TestABMToken(t *testing.T) {
 		}, assetNames)
 		return assets, nil
 	}
-	const testOrgName = "test-org"
+	const testDepName = "test_consumer"
 
-	ds.GetABMTokenByOrgNameFunc = func(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
-		require.Equal(t, testOrgName, orgName)
+	ds.GetABMTokenByDepNameFunc = func(ctx context.Context, depName string) (*fleet.ABMToken, error) {
+		require.Equal(t, testDepName, depName)
 		return &fleet.ABMToken{
 			ID:               1,
-			OrganizationName: testOrgName,
+			OrganizationName: "test-org",
+			DepName:          testDepName,
 			EncryptedToken:   []byte(tokenBytes),
 		}, nil
 	}
 
-	tokens, err := ABMToken(ctx, ds, testOrgName)
+	tokens, err := ABMToken(ctx, ds, testDepName)
 	require.NoError(t, err)
 	require.NotNil(t, tokens)
 	require.Equal(t, "test_access_secret", tokens.AccessSecret)
 	require.True(t, ds.GetAllMDMConfigAssetsByNameFuncInvoked)
-	require.True(t, ds.GetABMTokenByOrgNameFuncInvoked)
+	require.True(t, ds.GetABMTokenByDepNameFuncInvoked)
 }

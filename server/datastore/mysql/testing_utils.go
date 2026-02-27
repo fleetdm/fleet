@@ -697,7 +697,10 @@ func CreateAndSetABMToken(t testing.TB, ds *Datastore, orgName string) *fleet.AB
 	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{
 		EncryptedToken:   []byte(tokenBytes),
 		OrganizationName: orgName,
-		RenewAt:          time.Now().Add(30 * 24 * time.Hour), // 30 days from now
+		// DepName is set to orgName to match the backfill done by migration
+		// 20260227011550_AddDepNameToABMTokens for existing tokens.
+		DepName: orgName,
+		RenewAt: time.Now().Add(30 * 24 * time.Hour), // 30 days from now
 	})
 	require.NoError(t, err)
 	return tok
@@ -724,7 +727,10 @@ func SetTestABMAssets(t testing.TB, ds *Datastore, orgName string) *fleet.ABMTok
 	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{
 		EncryptedToken:   tokenBytes,
 		OrganizationName: orgName,
-		RenewAt:          time.Now().Add(30 * 24 * time.Hour), // 30 days from now
+		// DepName is set to orgName to match the backfill done by migration
+		// 20260227011550_AddDepNameToABMTokens for existing tokens.
+		DepName: orgName,
+		RenewAt: time.Now().Add(30 * 24 * time.Hour), // 30 days from now
 	})
 	require.NoError(t, err)
 

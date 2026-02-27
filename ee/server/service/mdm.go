@@ -1403,6 +1403,10 @@ func (svc *Service) UploadABMToken(ctx context.Context, token io.Reader) (*fleet
 
 	tok := &fleet.ABMToken{
 		EncryptedToken: encryptedToken,
+		// Set dep_name to the ConsumerKey from the decrypted token. ConsumerKey is
+		// unique per ABM server token, so this serves as the unique identifier in
+		// nano_dep_names and prevents uploading the same token twice.
+		DepName: decryptedToken.ConsumerKey,
 	}
 
 	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, tok, decryptedToken, svc.depStorage, svc.ds, svc.logger, false); err != nil {
@@ -1565,6 +1569,11 @@ func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID 
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "decrypting ABM token for renewal")
 	}
+
+	// Update dep_name to the new ConsumerKey. When a token is renewed in ABM,
+	// Apple may issue a new ConsumerKey, so we update dep_name accordingly to
+	// keep nano_dep_names in sync.
+	oldTok.DepName = decryptedToken.ConsumerKey
 
 	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, oldTok, decryptedToken, svc.depStorage, svc.ds, svc.logger, true); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "setting ABM token metadata")

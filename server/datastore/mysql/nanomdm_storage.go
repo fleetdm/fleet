@@ -283,8 +283,8 @@ func (s *NanoMDMStorage) GetAllMDMConfigAssetsByName(ctx context.Context, assetN
 	return s.ds.GetAllMDMConfigAssetsByName(ctx, assetNames, queryerContext)
 }
 
-func (s *NanoMDMStorage) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
-	return s.ds.GetABMTokenByOrgName(ctx, orgName)
+func (s *NanoMDMStorage) GetABMTokenByDepName(ctx context.Context, depName string) (*fleet.ABMToken, error) {
+	return s.ds.GetABMTokenByDepName(ctx, depName)
 }
 
 // ExpandEmbeddedSecrets in NanoMDMStorage overrides the implementation in nanomdm_mysql.MySQLStorage.

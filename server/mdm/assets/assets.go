@@ -72,7 +72,7 @@ func APNSTopic(ctx context.Context, ds fleet.MDMAssetRetriever) (string, error) 
 	return mdmPushCertTopic, nil
 }
 
-func ABMToken(ctx context.Context, ds fleet.MDMAssetRetriever, abmOrgName string) (*nanodep_client.OAuth1Tokens, error) {
+func ABMToken(ctx context.Context, ds fleet.MDMAssetRetriever, depName string) (*nanodep_client.OAuth1Tokens, error) {
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMKey,
 		fleet.MDMAssetABMCert,
@@ -81,9 +81,9 @@ func ABMToken(ctx context.Context, ds fleet.MDMAssetRetriever, abmOrgName string
 		return nil, fmt.Errorf("loading ABM assets from the database: %w", err)
 	}
 
-	abmTok, err := ds.GetABMTokenByOrgName(ctx, abmOrgName)
+	abmTok, err := ds.GetABMTokenByDepName(ctx, depName)
 	if err != nil {
-		return nil, fmt.Errorf("get ABM token by name: %w", err)
+		return nil, fmt.Errorf("get ABM token by dep name: %w", err)
 	}
 
 	cert, err := tls.X509KeyPair(assets[fleet.MDMAssetABMCert].Value, assets[fleet.MDMAssetABMKey].Value)

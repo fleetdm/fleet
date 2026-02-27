@@ -484,7 +484,7 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 		for _, team := range teams {
 			// ensure the default (fallback) setup assistant profile exists, registered
 			// with Apple DEP.
-			_, defModTime, err := d.EnsureDefaultSetupAssistant(ctx, team, token.OrganizationName)
+			_, defModTime, err := d.EnsureDefaultSetupAssistant(ctx, team, token.DepName)
 			if err != nil {
 				result = multierror.Append(result, err)
 				continue
@@ -492,7 +492,7 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 
 			// if the team/no-team has a custom setup assistant, ensure it is registered
 			// with Apple DEP.
-			customUUID, customModTime, err := d.EnsureCustomSetupAssistantIfExists(ctx, team, token.OrganizationName)
+			customUUID, customModTime, err := d.EnsureCustomSetupAssistantIfExists(ctx, team, token.DepName)
 			if err != nil {
 				result = multierror.Append(result, err)
 				continue
@@ -504,15 +504,15 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 				effectiveProfModTime = customModTime
 			}
 
-			cursor, cursorModTime, err := d.depStorage.RetrieveCursor(ctx, token.OrganizationName)
+			cursor, cursorModTime, err := d.depStorage.RetrieveCursor(ctx, token.DepName)
 			if err != nil {
 				result = multierror.Append(result, err)
 				continue
 			}
 
 			if cursor != "" && effectiveProfModTime.After(cursorModTime) {
-				d.logger.InfoContext(ctx, "clearing device syncer cursor", "org_name", token.OrganizationName)
-				if err := d.depStorage.StoreCursor(ctx, token.OrganizationName, ""); err != nil {
+				d.logger.InfoContext(ctx, "clearing device syncer cursor", "org_name", token.OrganizationName, "dep_name", token.DepName)
+				if err := d.depStorage.StoreCursor(ctx, token.DepName, ""); err != nil {
 					result = multierror.Append(result, err)
 					continue
 				}
@@ -522,7 +522,7 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 
 		syncer := depsync.NewSyncer(
 			d.depClient,
-			token.OrganizationName,
+			token.DepName,
 			d.depStorage,
 			depsync.WithLogger(syncerLogger),
 			depsync.WithCallback(func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
