@@ -27,28 +27,30 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 	// don't enqueue any items. This handles the edge case where an enrolled host upgrades from an
 	// Orbit version that didn't support setup experience to one that does.
 	// See https://github.com/fleetdm/fleet/issues/35717
-	stmtHost := `
+	if hostPlatformLike != "darwin" && hostPlatformLike != "ios" && hostPlatformLike != "ipados" {
+		stmtHost := `
 	SELECT
 		last_enrolled_at
 	FROM
 		hosts
 	WHERE uuid = ? AND platform = ?
 	`
-	var lastEnrolledAt sql.NullTime
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &lastEnrolledAt, stmtHost, hostUUID, hostPlatformLike); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// This shouldn't happen but we don't check for it elsewhere,
-			// so we'll log a warning and continue.
-			ds.logger.WarnContext(ctx, "Host not found while enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike)
-		} else {
-			return false, ctxerr.Wrap(ctx, err, "finding host for enqueueing setup experience items")
+		var lastEnrolledAt sql.NullTime
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &lastEnrolledAt, stmtHost, hostUUID, hostPlatformLike); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				// This shouldn't happen but we don't check for it elsewhere,
+				// so we'll log a warning and continue.
+				ds.logger.WarnContext(ctx, "Host not found while enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike)
+			} else {
+				return false, ctxerr.Wrap(ctx, err, "finding host for enqueueing setup experience items")
+			}
 		}
-	}
-	// If the host was enrolled more than 24 hours ago, don't enqueue any items.
-	// Note: if the last enroll date is our "zero date" (1/1/2000), treat it as if it's never enrolled.
-	if lastEnrolledAt.Valid && lastEnrolledAt.Time.Before(time.Now().Add(-24*time.Hour)) && lastEnrolledAt.Time.After(time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)) {
-		ds.logger.DebugContext(ctx, "Host enrolled more than 24 hours ago, skipping enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "last_enrolled_at", lastEnrolledAt.Time)
-		return false, nil
+		// If the host was enrolled more than 24 hours ago, don't enqueue any items.
+		// Note: if the last enroll date is our "zero date" (1/1/2000), treat it as if it's never enrolled.
+		if lastEnrolledAt.Valid && lastEnrolledAt.Time.Before(time.Now().Add(-24*time.Hour)) && lastEnrolledAt.Time.After(time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)) {
+			ds.logger.DebugContext(ctx, "Host enrolled more than 24 hours ago, skipping enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "last_enrolled_at", lastEnrolledAt.Time)
+			return false, nil
+		}
 	}
 
 	// NOTE: currently, the Android platform does not use the "enqueue setup experience items" flow as it
