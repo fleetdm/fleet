@@ -36,7 +36,7 @@ type runScriptRequest struct {
 	ScriptID       *uint  `json:"script_id"`
 	ScriptContents string `json:"script_contents"`
 	ScriptName     string `json:"script_name"`
-	TeamID         uint   `json:"team_id"`
+	TeamID         uint   `json:"team_id" renameto:"fleet_id"`
 }
 
 type runScriptResponse struct {
@@ -74,7 +74,7 @@ type runScriptSyncRequest struct {
 	ScriptID       *uint  `json:"script_id"`
 	ScriptContents string `json:"script_contents"`
 	ScriptName     string `json:"script_name"`
-	TeamID         uint   `json:"team_id"`
+	TeamID         uint   `json:"team_id" renameto:"fleet_id"`
 }
 
 type runScriptSyncResponse struct {
@@ -251,7 +251,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 			hostTmID = *host.TeamID
 		}
 		if scriptTmID != hostTmID {
-			return nil, fleet.NewInvalidArgumentError("script_id", `The script does not belong to the same team (or no team) as the host.`)
+			return nil, fleet.NewInvalidArgumentError("script_id", `The script does not belong to the same fleet (or "Unassigned") as the host.`)
 		}
 
 		isQueued, err := svc.ds.IsExecutionPendingForHost(ctx, request.HostID, *request.ScriptID)
@@ -460,7 +460,7 @@ type createScriptRequest struct {
 func (createScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var decoded createScriptRequest
 
-	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
+	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -468,13 +468,13 @@ func (createScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (
 		}
 	}
 
-	val := r.MultipartForm.Value["team_id"]
+	val := r.MultipartForm.Value["fleet_id"]
 	if len(val) > 0 {
-		teamID, err := strconv.ParseUint(val[0], 10, 64)
+		fleetID, err := strconv.ParseUint(val[0], 10, 64)
 		if err != nil {
-			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode fleet_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = ptr.Uint(uint(teamID))
+		decoded.TeamID = ptr.Uint(uint(fleetID)) // nolint:gosec // ignore G115
 	}
 
 	fhs, ok := r.MultipartForm.File["script"]
@@ -542,7 +542,7 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 		if errors.As(err, &existsErr) {
 			err = fleet.NewInvalidArgumentError("script", "A script with this name already exists.").WithStatus(http.StatusConflict)
 		} else if errors.As(err, &fkErr) {
-			err = fleet.NewInvalidArgumentError("team_id", "The team does not exist.").WithStatus(http.StatusNotFound)
+			err = fleet.NewInvalidArgumentError("team_id/fleet_id", "The fleet does not exist.").WithStatus(http.StatusNotFound)
 		}
 		return nil, ctxerr.Wrap(ctx, err, "create script")
 	}
@@ -634,7 +634,7 @@ func (svc *Service) DeleteScript(ctx context.Context, scriptID uint) error {
 ////////////////////////////////////////////////////////////////////////////////
 
 type listScriptsRequest struct {
-	TeamID      *uint             `query:"team_id,optional"`
+	TeamID      *uint             `query:"team_id,optional" renameto:"fleet_id"`
 	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
@@ -941,8 +941,8 @@ func (svc *Service) GetHostScriptDetails(ctx context.Context, hostID uint, opt f
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetScriptsRequest struct {
-	TeamID   *uint                 `json:"-" query:"team_id,optional"`
-	TeamName *string               `json:"-" query:"team_name,optional"`
+	TeamID   *uint                 `json:"-" query:"team_id,optional" renameto:"fleet_id"`
+	TeamName *string               `json:"-" query:"team_name,optional" renameto:"fleet_name"`
 	DryRun   bool                  `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	Scripts  []fleet.ScriptPayload `json:"scripts"`
 }
@@ -959,7 +959,7 @@ type batchScriptExecutionStatusRequest struct {
 }
 
 type batchScriptExecutionListRequest struct {
-	TeamID  uint    `query:"team_id,required"`
+	TeamID  uint    `query:"team_id,required" renameto:"fleet_id"`
 	Status  *string `query:"status,optional"`
 	Page    *uint   `query:"page,optional"`
 	PerPage *uint   `query:"per_page,optional"`
@@ -976,7 +976,7 @@ type (
 	batchScriptExecutionSummaryResponse struct {
 		ScriptID    uint      `json:"script_id" db:"script_id"`
 		ScriptName  string    `json:"script_name" db:"script_name"`
-		TeamID      *uint     `json:"team_id" db:"team_id"`
+		TeamID      *uint     `json:"team_id" db:"team_id" renameto:"fleet_id"`
 		CreatedAt   time.Time `json:"created_at" db:"created_at"`
 		NumTargeted *uint     `json:"targeted" db:"num_targeted"`
 		NumPending  *uint     `json:"pending" db:"num_pending"`
@@ -1505,7 +1505,7 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 			continue
 		}
 		if host.TeamID == nil || script.TeamID == nil || *host.TeamID != *script.TeamID {
-			return "", fleet.NewInvalidArgumentError("host_ids", "all hosts must be on the same team as the script")
+			return "", fleet.NewInvalidArgumentError("host_ids", "all hosts must be on the same fleet as the script")
 		}
 	}
 

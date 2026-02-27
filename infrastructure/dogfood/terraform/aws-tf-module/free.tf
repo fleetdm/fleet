@@ -8,14 +8,16 @@ locals {
     FLEET_MYSQL_MAX_OPEN_CONNS                 = "25"
     FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
     FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
-    ELASTIC_APM_SERVER_URL                     = var.elastic_url
-    ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
-    ELASTIC_APM_SERVICE_NAME                   = "dogfood-free"
+    # ELASTIC_APM_SERVER_URL                     = var.elastic_url
+    # ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
+    # ELASTIC_APM_SERVICE_NAME                   = "dogfood-free"
+    FLEET_SERVER_GZIP_RESPONSES                = "true"
 
 
     # Load TLS Certificate for RDS Authentication
-    FLEET_MYSQL_TLS_CA              = local.cert_path
-    FLEET_MYSQL_READ_REPLICA_TLS_CA = local.cert_path
+    FLEET_MYSQL_TLS_CA                  = local.cert_path
+    FLEET_MYSQL_READ_REPLICA_TLS_CA     = local.cert_path
+    FLEET_MYSQL_READ_REPLICA_TLS_CONFIG = "custom"
   }
 
   /* 
@@ -74,6 +76,9 @@ module "free" {
     db_parameters = {
       # 8mb up from 262144 (256k) default
       sort_buffer_size = 8388608
+    }
+    db_cluster_parameters = {
+      require_secure_transport = "ON"
     }
     # VPN
     allowed_cidr_blocks     = ["10.255.1.0/24", "10.255.2.0/24", "10.255.3.0/24"]

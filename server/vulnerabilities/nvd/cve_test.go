@@ -3,6 +3,7 @@ package nvd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,8 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -130,6 +129,12 @@ func (d *threadSafeDSMock) InsertSoftwareVulnerability(ctx context.Context, vuln
 	return d.Store.InsertSoftwareVulnerability(ctx, vuln, src)
 }
 
+func (d *threadSafeDSMock) InsertSoftwareVulnerabilities(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.Store.InsertSoftwareVulnerabilities(ctx, vulns, src)
+}
+
 func TestTranslateCPEToCVE(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -140,7 +145,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		// download the CVEs once for all sub-tests, and then disable syncing
 		tempDir = t.TempDir()
 		err := nettest.RunWithNetRetry(t, func() error {
-			return DownloadCVEFeed(tempDir, "", false, log.NewNopLogger())
+			return DownloadCVEFeed(tempDir, "", false, slog.New(slog.DiscardHandler))
 		})
 		require.NoError(t, err)
 	} else {
@@ -174,8 +179,9 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				{ID: "CVE-2021-3572", resolvedInVersion: "21.1"},
 				{ID: "CVE-2025-8869", resolvedInVersion: "25.3"},
 				{ID: "CVE-2023-5752", resolvedInVersion: "23.3"},
+				{ID: "CVE-2026-1703", resolvedInVersion: "26.0"},
 			},
-			continuesToUpdate: false,
+			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:mozilla:firefox:93.0:*:*:*:*:windows:*:*": {
 			includedCVEs:      firefox93WindowsVulnerabilities,
@@ -285,13 +291,14 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: false,
 		},
-		/*"cpe:2.3:a:microsoft:python_extension:2020.9.1:*:*:*:*:visual_studio_code:*:*": {
+		"cpe:2.3:a:microsoft:python_extension:2020.9.1:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2020-17163", resolvedInVersion: "2020.9.2"},
 				{ID: "CVE-2024-49050", resolvedInVersion: "2024.18.2"},
+				{ID: "CVE-2025-49714", resolvedInVersion: "2025.8.1"},
 			},
 			continuesToUpdate: false,
-		},*/
+		},
 		"cpe:2.3:a:microsoft:jupyter:2023.10.10:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2023-36018", resolvedInVersion: "2023.10.1100000000"},
@@ -308,15 +315,16 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: false,
 		},
-		/*"cpe:2.3:a:microsoft:python_extension:2020.4.0:*:*:*:*:visual_studio_code:*:*": {
+		"cpe:2.3:a:microsoft:python_extension:2020.4.0:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2020-1171", resolvedInVersion: "2020.5.0"},
 				{ID: "CVE-2020-1192", resolvedInVersion: "2020.5.0"},
 				{ID: "CVE-2020-17163", resolvedInVersion: "2020.9.2"},
 				{ID: "CVE-2024-49050", resolvedInVersion: "2024.18.2"},
+				{ID: "CVE-2025-49714", resolvedInVersion: "2025.8.1"},
 			},
 			continuesToUpdate: false,
-		},*/
+		},
 		// #34323
 		"cpe:2.3:a:valvesoftware:dota_2:1.0:*:*:*:*:macos:*:*": {
 			excludedCVEs: []string{
@@ -838,31 +846,33 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 		cveLock := &sync.Mutex{}
 		cvesFound := make(map[string][]cve)
-		ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
+		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
 			cveLock.Lock()
 			defer cveLock.Unlock()
 
-			cpe, ok := softwareIDToCPEs[vuln.SoftwareID]
-			if !ok {
-				return false, fmt.Errorf("software id -> cpe not found: %d", vuln.SoftwareID)
+			for _, vuln := range vulns {
+				cpe, ok := softwareIDToCPEs[vuln.SoftwareID]
+				if !ok {
+					return nil, fmt.Errorf("software id -> cpe not found: %d", vuln.SoftwareID)
+				}
+				c := cve{ID: vuln.CVE}
+				if vuln.ResolvedInVersion != nil {
+					c.resolvedInVersion = *vuln.ResolvedInVersion
+				}
+				cvesFound[cpe] = append(cvesFound[cpe], c)
 			}
-			cve := cve{
-				ID:                vuln.CVE,
-				resolvedInVersion: *vuln.ResolvedInVersion,
-			}
-			cvesFound[cpe] = append(cvesFound[cpe], cve)
-			return false, nil
+			return nil, nil
 		}
 
-		osCVELock := &sync.Mutex{}
 		osCVEsFound := make(map[uint][]string)
-		ds.InsertOSVulnerabilityFunc = func(ctx context.Context, vuln fleet.OSVulnerability, src fleet.VulnerabilitySource) (bool, error) {
-			osCVELock.Lock()
-			defer osCVELock.Unlock()
+		ds.InsertOSVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.OSVulnerability, src fleet.VulnerabilitySource) (int64, error) {
+			cveLock.Lock()
+			defer cveLock.Unlock()
 
-			osCVEsFound[vuln.OSID] = append(osCVEsFound[vuln.OSID], vuln.CVE)
-
-			return false, nil
+			for _, vuln := range vulns {
+				osCVEsFound[vuln.OSID] = append(osCVEsFound[vuln.OSID], vuln.CVE)
+			}
+			return int64(len(vulns)), nil
 		}
 
 		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
@@ -872,7 +882,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			return nil
 		}
 
-		_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewNopLogger(), false, time.Now().UTC().Add(-time.Hour))
+		_, err := TranslateCPEToCVE(ctx, ds, tempDir, slog.New(slog.DiscardHandler), false, time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
 
 		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
@@ -925,8 +935,9 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		ds.ListSoftwareCPEsFunc = func(ctx context.Context) ([]fleet.SoftwareCPE, error) {
 			return softwareCPEs, nil
 		}
-		ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
-			return true, nil
+		// First call: all vulns are new, return whatever was inserted.
+		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+			return vulns, nil
 		}
 		ds.ListOperatingSystemsForPlatformFunc = func(ctx context.Context, p string) ([]fleet.OperatingSystem, error) {
 			return nil, nil
@@ -934,8 +945,11 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
 			return nil
 		}
+		ds.InsertOSVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.OSVulnerability, src fleet.VulnerabilitySource) (int64, error) {
+			return 0, nil
+		}
 
-		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, time.Now().Add(-time.Hour))
+		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, slog.New(slog.DiscardHandler), true, time.Now().Add(-time.Hour))
 		require.NoError(t, err)
 
 		byCPE := make(map[uint]int)
@@ -950,12 +964,11 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		assert.Greater(t, byCPE[softwareCPEs[1].SoftwareID], 280, "mozilla firefox CVEs")
 		assert.Greater(t, byCPE[softwareCPEs[2].SoftwareID], 10, "curl CVEs")
 
-		// call it again but now return false from this call, simulating CVE-CPE pairs
-		// that already existed in the DB.
-		ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
-			return false, nil
+		// Call it again but now return no new vulns (all already existed in the DB).
+		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+			return nil, nil
 		}
-		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, time.Now().UTC().Add(-time.Hour))
+		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, slog.New(slog.DiscardHandler), true, time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
 
 		// no recent vulnerability should be reported
@@ -977,7 +990,7 @@ func TestSyncsCVEFromURL(t *testing.T) {
 
 	tempDir := t.TempDir()
 	cveFeedPrefixURL := ts.URL + "/feeds/json/cve/1.1/"
-	err := DownloadCVEFeed(tempDir, cveFeedPrefixURL, false, log.NewNopLogger())
+	err := DownloadCVEFeed(tempDir, cveFeedPrefixURL, false, slog.New(slog.DiscardHandler))
 	require.Error(t, err)
 	require.Contains(t,
 		err.Error(),
@@ -1193,6 +1206,8 @@ func TestExpandCPEAliases(t *testing.T) {
 	pythonCodeExtensionAlias2 := *pythonCodeExtension
 	pythonCodeExtensionAlias2.Product = "visual_studio_code"
 	pythonCodeExtensionAlias2.TargetSW = "python"
+	pythonCodeExtensionAlias3 := *pythonCodeExtension
+	pythonCodeExtensionAlias3.Product = "python"
 
 	python3140Alpha2 := &wfn.Attributes{
 		Vendor:   "python",
@@ -1280,7 +1295,7 @@ func TestExpandCPEAliases(t *testing.T) {
 		{
 			name:            "python visual studio code extension",
 			cpeItem:         pythonCodeExtension,
-			expectedAliases: []*wfn.Attributes{pythonCodeExtension, &pythonCodeExtensionAlias1, &pythonCodeExtensionAlias2},
+			expectedAliases: []*wfn.Attributes{pythonCodeExtension, &pythonCodeExtensionAlias1, &pythonCodeExtensionAlias2, &pythonCodeExtensionAlias3},
 		},
 		{
 			name:            "pre-release python: 3.14.0 alpha2",

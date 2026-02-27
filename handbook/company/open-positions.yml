@@ -43,7 +43,7 @@
   responsibilities: |
     - ⏫ Own post-sales relationships with a portfolio of our customers and be responsible for advocating for their desired outcomes.
     - 📣 Manage multiple Enterprise customer deployments and escalations simultaneously.
-    - 🌡️ Work as a projcct manager alongside the customer and internal teams to establish an onboarding plan and define success criteria for new customers.
+    - 🌡️ Work as a project manager alongside the customer and internal teams to establish an onboarding plan and define success criteria for new customers.
     - 🪴 Promote product adoption, referencability, and customer advocacy with key customer stakeholders.
     - 🕴️ Utilize systems and tools to analyze pipeline and opportunity data for renewals and expansions, and keep all information up to date for leadership reporting.
     - 🚀 Work collaboratively with product and engineering teams to facilitate feature development based on customer asks.
@@ -89,13 +89,13 @@
     - 🛠️ Technical: You understand the software development processes. You understand that software quality matters.
     - 🟣 Openness: You are flexible and open to new ideas and ways of working.
     - ➕ Bonus: Cybersecurity or IT background.
-
-- jobTitle: 🐋 Account Executive
+    
+- jobTitle: 🐋 Account Executive (EMEA) 
   department: Sales
   hiringManagerName: Chaz MacLaughlin
   hiringManagerLinkedInUrl: https://www.linkedin.com/in/chazmaclaughlin/
   hiringManagerGithubUsername: chazmac6
-  onTargetEarnings: "$200,000 - $350,000"
+  onTargetEarnings: '$200,000 - $350,000'
   responsibilities: |
     - 🖥️ Present and demonstrate the value of Fleet's products, services, and upgrades to help current and future customers find win-win commercial agreements.
     - 🎯 Direct and participate in prospecting target companies, identifying key decision makers and influencers, leading when assigned/necessary/appropriate to help anticipate market trends and identify new opportunities for growth.
@@ -108,7 +108,7 @@
     - 🕴️ Utilize systems and tools such as Salesforce to analyze pipeline and opportunity data and keep all information up to date for leadership reporting.
     - 🦢 Work with the Product Design, Customer Success, and Engineering teams to facilitate feature development based on customer asks.
     - 🤝 Collaborate with the marketing team to help execute and track marketing campaigns, in order to achieve quarterly pipeline and revenue targets.
-    - 🧑‍🔬 Perform processes as described in the [Sales](https://fleetdm.com/handbook/sales), [Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions), and other handbook pages.
+    - 🧑‍🔬 Perform processes as described in the [Sales](https://fleetdm.com/handbook/sales), [Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#go-to-market-groups), and other handbook pages.
   experience: |
     - 🦉 5+ years of experience selling to enterprise customers.
     - 📣 Have excellent communication and interpersonal skills.
@@ -122,35 +122,8 @@
     - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
     - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
 
-- jobTitle: 🐋 SMB Account Executive
-  department: Sales
-  hiringManagerName: Chaz MacLaughlin
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/chazmaclaughlin/
-  hiringManagerGithubUsername: chazmac6
-  responsibilities: |
-    - ⚡️ Respond quickly and professionally to inbound SMB leads.
-    - 🫀 Ensure no qualified, motivated buyer is dismissed due to size alone and clearly articulate buying options, expansion paths, and long-term value.
-    - ⏫ Guide SMB prospects through early discovery and validation, and then own the commercial process through close.
-    - 💡 Ensure that SMB prospects receive the attention, guidance, and buying path they deserve while maintaining operational efficiency for the broader sales organization.
-    - 📖 Act as the primary technical resource for SMB prospects from first touch through initial validation.
-    - 🕵 Conduct discovery focused on endpoint environment (OS mix, scale, tooling), IT maturity and staffing model, security, compliance, and operational drivers.
-    - 🧑‍🏫 Deliver product demonstrations and light technical walkthroughs tailored to smaller teams with limited resources.
-    - 🧙 Manage opportunities from qualification through close, including pricing and packaging alignment, procurement support, deal execution, and forecasting.
-    - 🔎 Identify natural expansion opportunities as customers scale endpoints or maturity.
-    - 🎁 Partner with Customer Success to ensure clean handoffs.
-  experience: |
-    - 💻 IT background or Cybersecurity, experience with device management solutions like Fleet, Intune, Jamf Pro, Workspace One, etc. in addition to EDR platforms like Crowdstrike, SentinelOne, CarbonBlack, etc.
-    - 🦉 Experience in a technical sales role (Solutions Consultant, Sales Engineer, Solutions Architect, Technical Account Manager, etc) in the device management or cybersecurity space.
-    - 💭 Commercially pragmatic—knows how to move deals forward without over-engineering.
-    - 📬 Comfortable operating autonomously in an inbound-heavy motion.
-    - 🧑‍🔬 Experience working with SMB customers to help resolve complex technical issues.
-    - 💖 An understanding of macOS, Windows, Linux and core services like Autopilot, ABM/ASM, MDM, ADE, APNs, syslog, etc.
-    - 🎯 Acute attention to detail and can act as an encyclopedia of knowledge about how Fleet works - our potential customers represent a wide range of needs across many different use cases. Be adaptable to learning new things quickly and then share this knowledge with others.
-    - 💡 Strong communicator who can simplify complexity and work closely with sales, engineering, and product teams.
-    - 👥 A bias toward action and a customer-centric mindset focusing on delivering value and a positive user experience.
-    - 🤝 Collaboration: You work best in a participatory, team-based environment.
-    - 🟣 Openness: You are flexible and open to new ideas and ways of working.
-    - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines/Torq, and open source tools. Experience working alongside IT, SRE, CPE, or SecOps teams.
+
+
 
 #- jobTitle: 🌐 Solutions Consultant
 # department: IT & Enablement

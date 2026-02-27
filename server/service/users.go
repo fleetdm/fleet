@@ -10,8 +10,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-kit/log/level"
-
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -82,7 +80,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 			_, ok := teamIDs[userTeam.Team.ID]
 			if !ok {
 				return nil, nil, ctxerr.Wrap(
-					ctx, fleet.NewInvalidArgumentError("teams.id", fmt.Sprintf("team with id %d does not exist", userTeam.Team.ID)),
+					ctx, fleet.NewInvalidArgumentError("teams.id", fmt.Sprintf("fleet with id %d does not exist", userTeam.Team.ID)),
 				)
 			}
 		}
@@ -114,6 +112,17 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		}
 	}
 
+	// Do not allow creating a user with a Premium-only role on Fleet Free.
+	if !license.IsPremium(ctx) {
+		var teamRoles []fleet.UserTeam
+		if p.Teams != nil {
+			teamRoles = *p.Teams
+		}
+		if fleet.PremiumRolesPresent(p.GlobalRole, teamRoles) {
+			return nil, nil, fleet.ErrMissingLicense
+		}
+	}
+
 	user, err := svc.NewUser(ctx, p)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "create user")
@@ -124,7 +133,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 	if user.APIOnly && !user.SSOEnabled {
 		if p.Password == nil {
 			// Should not happen but let's log just in case.
-			level.Error(svc.logger).Log("err", err, "msg", "password not set during admin user creation")
+			svc.logger.ErrorContext(ctx, "password not set during admin user creation", "err", err)
 		} else {
 			// Create a session for the API-only user by logging in.
 			_, session, err := svc.Login(ctx, user.Email, *p.Password, false)
@@ -300,7 +309,7 @@ type getUserRequest struct {
 
 type getUserResponse struct {
 	User           *fleet.User          `json:"user,omitempty"`
-	AvailableTeams []*fleet.TeamSummary `json:"available_teams"`
+	AvailableTeams []*fleet.TeamSummary `json:"available_teams" renameto:"available_fleets"`
 	Settings       *fleet.UserSettings  `json:"settings,omitempty"`
 	Err            error                `json:"error,omitempty"`
 }
@@ -400,6 +409,17 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 
 	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
 		return nil, err
+	}
+
+	// Do not allow setting a Premium-only role on Fleet Free.
+	if !license.IsPremium(ctx) {
+		var teamRoles []fleet.UserTeam
+		if p.Teams != nil {
+			teamRoles = *p.Teams
+		}
+		if fleet.PremiumRolesPresent(p.GlobalRole, teamRoles) {
+			return nil, fleet.ErrMissingLicense
+		}
 	}
 
 	vc, ok := viewer.FromContext(ctx)
@@ -1260,7 +1280,7 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 
 	err = svc.mailService.SendEmail(ctx, resetEmail)
 	if err != nil {
-		level.Error(svc.logger).Log("err", err, "msg", "failed to send password reset request email")
+		svc.logger.ErrorContext(ctx, "failed to send password reset request email", "err", err)
 	}
 	return err
 }

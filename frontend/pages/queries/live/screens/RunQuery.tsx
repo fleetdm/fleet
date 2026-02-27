@@ -10,7 +10,7 @@ import campaignHelpers from "utilities/campaign_helpers";
 import debounce from "utilities/debounce";
 import { BASE_URL, DEFAULT_CAMPAIGN_STATE } from "utilities/constants";
 
-import { authToken } from "utilities/local";
+import authToken from "utilities/auth_token";
 
 import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IQuery } from "interfaces/query";
@@ -113,7 +113,7 @@ const RunQuery = ({
       websocket?.send(
         JSON.stringify({
           type: "auth",
-          data: { token: authToken() },
+          data: { token: authToken.get() },
         })
       );
       websocket?.send(
@@ -161,7 +161,7 @@ const RunQuery = ({
     if (!lastEditedQueryBody) {
       renderFlash(
         "error",
-        "Something went wrong running your query. Please try again."
+        "Something went wrong running your report. Please try again."
       );
       return false;
     }
@@ -194,7 +194,7 @@ const RunQuery = ({
       } else if (err.includes("forbidden") || err.includes("unauthorized")) {
         renderFlash(
           "error",
-          "It seems you do not have the rights to run this query. If you believe this is in error, please contact your administrator."
+          "It seems you do not have the rights to run this report. If you believe this is in error, please contact your administrator."
         );
       } else {
         renderFlash("error", "Something has gone wrong. Please try again.");

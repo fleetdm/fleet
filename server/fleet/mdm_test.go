@@ -17,7 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
-	"github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,7 +67,7 @@ func TestDEPClient(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	logger := log.NewNopLogger()
+	logger := logging.NewNopLogger()
 	ds := new(mock.Store)
 
 	appCfg := fleet.AppConfig{}
@@ -241,7 +241,7 @@ func TestDEPClient(t *testing.T) {
 			return &nanodep_client.Config{BaseURL: srv.URL}, nil
 		}
 
-		dep := apple_mdm.NewDEPClient(store, ds, logger)
+		dep := apple_mdm.NewDEPClient(store, ds, logger.SlogLogger())
 		orgName := c.orgName
 		if orgName == "" {
 			// simulate using a new token, not yet saved in the DB, so we pass the

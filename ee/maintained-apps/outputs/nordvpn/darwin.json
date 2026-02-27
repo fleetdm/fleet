@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "9.12.0",
+      "version": "9.14.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.nordvpn.macos';"
       },
-      "installer_url": "https://downloads.nordcdn.com/apps/macos/generic/NordVPN-OpenVPN/9.12.0/NordVPN.pkg",
+      "installer_url": "https://downloads.nordcdn.com/apps/macos/generic/NordVPN-OpenVPN/9.14.0/NordVPN.pkg",
       "install_script_ref": "5df1c147",
       "uninstall_script_ref": "3107ae53",
-      "sha256": "9cc719b0a0a60773b8ff08221b6a757314b19e12624bcf4510e65fc0e2cdb53d",
+      "sha256": "18247a786bd074b2e7f5b70db4e1033cb8eb6c0e34b320737976b4e732c81135",
       "default_categories": [
         "Productivity"
       ]

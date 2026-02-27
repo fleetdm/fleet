@@ -94,6 +94,11 @@ export interface ISoftwareAppStoreAppStatus {
   failed: number;
 }
 
+interface IFleetMaintainedVersion {
+  id: number;
+  version: string;
+}
+
 export interface ISoftwarePackage {
   name: string;
   /** Not included in SoftwareTitle software.software_package response, hoisted up one level
@@ -118,6 +123,7 @@ export interface ISoftwarePackage {
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[] | null;
   fleet_maintained_app_id?: number | null;
+  fleet_maintained_versions?: IFleetMaintainedVersion[] | null;
   hash_sha256?: string | null;
 }
 
@@ -249,7 +255,7 @@ export const SOURCE_TYPE_CONVERSION = {
   ipados_apps: "Application (iPadOS)",
   android_apps: "Application (Android)",
   chrome_extensions: "Browser plugin", // chrome_extensions can include any chrome-based browser (e.g., edge), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
-  firefox_addons: "Browser plugin (Firefox)",
+  firefox_addons: "Browser plugin", // we rely on `extension_for` when computing which browser to show in firefox_addons display names.
   safari_extensions: "Browser plugin (Safari)",
   homebrew_packages: "Package (Homebrew)",
   programs: "Program (Windows)",
@@ -257,8 +263,8 @@ export const SOURCE_TYPE_CONVERSION = {
   chocolatey_packages: "Package (Chocolatey)",
   pkg_packages: "Package (pkg)",
   vscode_extensions: "IDE extension", // vscode_extensions can include any vscode-based editor (e.g., Cursor, Trae, Windsurf), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
-  sh_packages: "Payload-free (Linux)",
-  ps1_packages: "Payload-free (Windows)",
+  sh_packages: "Script-only package (macOS & Linux)",
+  ps1_packages: "Script-only package (Windows)",
   jetbrains_plugins: "IDE extension", // jetbrains_plugins can include any JetBrains IDE (e.g., IntelliJ, PyCharm, WebStorm), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
 } as const;
 
@@ -296,6 +302,13 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
 
 export const SCRIPT_PACKAGE_SOURCES = ["sh_packages", "ps1_packages"];
 
+/** Sources that don't map cleanly to versions or hosts in software inventory.
+ * UI behavior for these sources:
+ * - Never shows “Update available” (no version to compare against the package version).
+ * - Skips showing recently updated and waiting for inventory  UI status/tooltip after successful install/uninstall (no inventory entry to await)
+ * - Skips showing a host count (hosts cannot be mapped to the package).
+ * - Skips showing a versions table (versions cannot be mapped to the package).
+ * - Skips linking to “View all hosts” (hosts cannot be mapped to the package). */
 export const NO_VERSION_OR_HOST_DATA_SOURCES = [
   "tgz_packages",
   ...SCRIPT_PACKAGE_SOURCES,
@@ -312,6 +325,7 @@ const EXTENSION_FOR_TYPE_CONVERSION = {
   brave: "Brave",
   edge: "Edge",
   edge_beta: "Edge Beta",
+  firefox: "Firefox",
 
   // vscode versions
   vscode: "VSCode",
@@ -375,7 +389,7 @@ export const SOFTWARE_INSTALL_STATUSES = [
   "failed_install",
 ] as const;
 
-// Payload-free (script) software statuses
+// Script-only software statuses
 export const SOFTWARE_SCRIPT_STATUSES = [
   "ran_script",
   "pending_script",
@@ -387,7 +401,7 @@ export type SoftwareInstallStatus = typeof SOFTWARE_INSTALL_STATUSES[number];
 export const SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
   ...SOFTWARE_INSTALL_STATUSES,
   ...SOFTWARE_UNINSTALL_STATUSES,
-  // Payload-free (script) software statuses use API's SOFTWARE_INSTALL_STATUSES
+  // Script-only software statuses use API's SOFTWARE_INSTALL_STATUSES
 ] as const;
 
 /*
@@ -395,15 +409,15 @@ export const SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
  */
 export type SoftwareInstallUninstallStatus = typeof SOFTWARE_INSTALL_UNINSTALL_STATUSES[number];
 
-/** Include payload-free statuses */
+/** Include script-only software statuses */
 export const ENAHNCED_SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
   ...SOFTWARE_INSTALL_STATUSES,
   ...SOFTWARE_UNINSTALL_STATUSES,
-  ...SOFTWARE_SCRIPT_STATUSES, // Payload-free (script) software
+  ...SOFTWARE_SCRIPT_STATUSES, // Script-only software
 ] as const;
 
 /*
- * EnhancedSoftwareInstallUninstallStatus represents the possible states of software install operations including payload-free used in the UI.
+ * EnhancedSoftwareInstallUninstallStatus represents the possible states of software install operations including script-only software used in the UI.
  */
 export type EnhancedSoftwareInstallUninstallStatus = typeof ENAHNCED_SOFTWARE_INSTALL_UNINSTALL_STATUSES[number];
 
@@ -623,6 +637,7 @@ export const isSoftwareInProgressStatus = (
 export const HOST_SOFTWARE_UI_SUCCESS_STATUSES = [
   "installed", // Present in inventory; no newer fleet installer version (tarballs: successful install only)
   "uninstalled", // Not present in inventory (tarballs: successful uninstall or never installed)
+  // NOTE: Recently statuses cannot apply to tarballs as we cannot detect inventory
   "recently_updated", // Update applied (installer newer than inventory), but inventory not yet refreshed
   "recently_installed", // Install applied (installer NOT newer than inventory), but inventory not yet refreshed
   "recently_uninstalled", // Uninstall applied, but inventory not yet refreshed
@@ -695,9 +710,9 @@ const INSTALL_STATUS_PREDICATES: Record<
   failed_install: "failed to install",
   pending_uninstall: "told Fleet to uninstall",
   failed_uninstall: "failed to uninstall",
-  ran_script: "ran", // Payload-free (script) software
-  failed_script: "failed to run", // Payload-free (script) software
-  pending_script: "told Fleet to run", // Payload-free (script) software
+  ran_script: "ran", // Script-only software
+  failed_script: "failed to run", // Script-only software
+  pending_script: "told Fleet to run", // Script-only software
 } as const;
 
 export const getInstallUninstallStatusPredicate = (
@@ -750,9 +765,9 @@ export const INSTALL_STATUS_ICONS: Record<
   failed_install: "error-outline",
   pending_uninstall: "pending-outline",
   failed_uninstall: "error-outline",
-  ran_script: "success-outline", // Payload-free (script) software
-  failed_script: "error-outline", // Payload-free (script) software
-  pending_script: "pending-outline", // Payload-free (script) software
+  ran_script: "success-outline", // Script-only software
+  failed_script: "error-outline", // Script-only software
+  pending_script: "pending-outline", // Script-only software
 } as const;
 
 type IHostSoftwarePackageWithLastInstall = IHostSoftwarePackage & {

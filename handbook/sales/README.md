@@ -49,6 +49,19 @@ To run a demo for a prospect, follow the relevant steps in ["Why Fleet?"](https:
 To get the CEO's attention and introduce him to an account, @-mention his Executive Assistant (`@SFriendLee`) in the [#help-ea Slack channel](https://fleetdm.slack.com/archives/C08HKQ84UCD) with the LinkedIn URL(s) of the people you would like the CEO to connect with. The EA will send all connect requests within the same business day. 
 
 
+### Request executive involvement in an opportunity
+
+When executive involvement (e.g., from the CEO, Customer Success leader, or another Fleet executive) would meaningfully increase the likelihood of closing a deal, the AE can request that a specific executive join a prospect call for an already-qualified opportunity. Executive involvement is meant to accelerate deals, not create qualification. The AE will submit a request in the [#help-sales](https://fleetdm.slack.com/archives/C030A767HQV) Slack channel at least 48 hours before the requested call. Use the following template to submit your request:
+
+```
+- Who are you requesting: @REQUESTED_EXECUTIVE
+- Clear objective: Be explicit about what decision, commitment, or alignment we’re seeking.
+- A brief opportunity overview: company name, incumbent solution, objective, what the AE needs the executive to say, and what the executive should **not** say.
+- Confirmed attendees: We match executive-level (jerseys) on both sides, no title mismatch.
+- Opportunity URL:
+```
+
+
 ### Track an objection
 
 To track an objection you heard from a prospect, follow the relevant steps in ["Why Fleet?"](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.vfxwnwufxzzi)
@@ -145,12 +158,10 @@ To complete a security questionnaire, the AE assigned to the account will:
 The “Attributed to” field in the Salesforce opportunity page will be used to track where each new business opportunity created can be attributed to. This is a temporary solution put in place until we have built out the process that would automate how we track attribution and measure ROI associated with our program spend.  
 
 The “Attributed to” field is associated with a Salesforce user. The opportunity owner will have to determine the correct user to add to the field when the opportunity is created. The rule to determine which user to add to the field:
-
-- Inbound: For all opportunities created based on inbound leads (e.g., digital ads, brand, events, GitOps workshops, organic web traffic, etc), update the field with the CMO’s name
 - Outbound-AE: If the opportunity was created as a result of the AE’s outbound efforts, update the field with the AE's name.
-- Outbound-SDR: If the opportunity was created as a result of the AE’s outbound efforts, update the field with the SDR’s name
+- Outbound-Specialist: If the opportunity was created as a result of the Solutions Specialist’s outbound efforts, update the field with the Specialist’s name.
 - Channel: If a deal was referred to us from a Channel Partner (deal-reg approved by Channel Manager), update the field with the Channel Manager’s name.
-- All other sources: For opportunities that do not fall under any of the above categories, update the field with the CMO's name
+- All other sources: For opportunities that do not fall under any of the above categories, e.g., opportunities created based on inbound leads, digital ads, brand, events, GitOps workshops, organic web traffic, etc, update the field with the Integrations Admin user.
 
 
 ## Rituals

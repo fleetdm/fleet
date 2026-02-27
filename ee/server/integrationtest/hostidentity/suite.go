@@ -11,10 +11,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest"
-	"github.com/go-kit/kit/log"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -57,8 +56,8 @@ func SetUpSuiteWithConfig(t *testing.T, uniqueTestName string, requireSignature 
 		configModifier(&fleetCfg)
 	}
 
-	logger := log.NewLogfmtLogger(os.Stdout)
-	hostIdentitySCEPDepot, err := ds.NewHostIdentitySCEPDepot(kitlog.With(logger, "component", "host-id-scep-depot"), &fleetCfg)
+	logger := logging.NewLogfmtLogger(os.Stdout)
+	hostIdentitySCEPDepot, err := ds.NewHostIdentitySCEPDepot(logger.SlogLogger().With("component", "host-id-scep-depot"), &fleetCfg)
 	require.NoError(t, err)
 	users, server := service.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
 		License:     license,

@@ -1,5 +1,6 @@
 import React, { useCallback, useRef } from "react";
 import { useQuery } from "react-query";
+import { SingleValue } from "react-select-5";
 import { omit } from "lodash";
 
 import paths from "router/paths";
@@ -13,8 +14,9 @@ import scriptsAPI, {
 
 import { IScript } from "interfaces/script";
 
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import DropdownWrapper, {
+  CustomOptionType,
+} from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
@@ -113,11 +115,6 @@ const PolicyRunScriptModal = ({
     };
   };
 
-  const availableScriptOptions = availableScripts?.map((script) => ({
-    label: script.name,
-    value: script.id,
-  }));
-
   const renderContent = () => {
     if (isAvailableScriptsError) {
       return <DataError />;
@@ -133,11 +130,11 @@ const PolicyRunScriptModal = ({
             Go to{" "}
             <CustomLink
               url={getPathWithQueryParams(paths.CONTROLS_SCRIPTS, {
-                team_id: teamId,
+                fleet_id: teamId,
               })}
               text="Controls &gt; Scripts"
             />{" "}
-            to add scripts to this team.
+            to add scripts to this fleet.
           </div>
         </div>
       );
@@ -175,29 +172,49 @@ const PolicyRunScriptModal = ({
               renderItemRow={(item, onChange) => {
                 const formPolicy = {
                   ...item,
-                  runScriptEnabled: !!item.scriptIdToRun,
+                  runScriptEnabled: !!item.runScriptEnabled,
                 };
-                return item.runScriptEnabled ? (
+
+                const availableScriptOptions =
+                  availableScripts?.map((script) => ({
+                    label: script.name,
+                    value: String(script.id), // DropdownWrapper expects string value
+                  })) ?? [];
+
+                const handleScriptChange = (
+                  newValue: SingleValue<CustomOptionType>
+                ) => {
+                  const numericId = newValue?.value
+                    ? Number(newValue.value)
+                    : null;
+
+                  onChange(
+                    onSelectPolicyScript(item, {
+                      name: formPolicy.name,
+                      value: numericId ?? 0,
+                    })
+                  );
+                };
+
+                return formPolicy.runScriptEnabled ? (
                   <span
                     onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                       e.stopPropagation();
                     }}
+                    className={`${baseClass}__dropdown-wrapper`}
                   >
-                    <Dropdown
-                      options={availableScriptOptions} // Options filtered for policy's platform(s)
-                      value={formPolicy.scriptIdToRun}
-                      onChange={({ value }: IScriptDropdownField) =>
-                        onChange(
-                          onSelectPolicyScript(item, {
-                            name: formPolicy.name,
-                            value,
-                          })
-                        )
+                    <DropdownWrapper
+                      options={availableScriptOptions}
+                      value={
+                        formPolicy.scriptIdToRun != null
+                          ? String(formPolicy.scriptIdToRun)
+                          : ""
                       }
+                      onChange={handleScriptChange}
                       placeholder="Select script"
                       className={`${baseClass}__script-dropdown`}
                       name={formPolicy.name}
-                      parseTarget
+                      isSearchable
                     />
                   </span>
                 ) : null;

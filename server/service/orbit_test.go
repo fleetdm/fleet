@@ -5,10 +5,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -174,7 +175,8 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 	t.Run("when private key is set", func(t *testing.T) {
 		ds := new(mock.Store)
 		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
-		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+		opts := &TestServerOpts{License: license, SkipCreateTestUsers: true}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
 		host := &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
 			ID:            1,
@@ -189,15 +191,8 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			}, nil
 		}
 
-		ds.NewActivityFunc = func(
-			ctx context.Context,
-			user *fleet.User,
-			activity fleet.ActivityDetails,
-			details []byte,
-			createdAt time.Time,
-		) error {
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
 			require.Equal(t, activity.ActivityName(), fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName())
-			require.NotEmpty(t, details)
 			return nil
 		}
 
@@ -261,6 +256,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, ds.ReportEscrowErrorFuncInvoked)
 		require.True(t, ds.SaveLUKSDataFuncInvoked)
+		require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 	})
 
 	t.Run("fail when no/invalid private key is set", func(t *testing.T) {
@@ -694,5 +690,180 @@ func TestGetSoftwareInstallDetails(t *testing.T) {
 		d2, err := svc.GetSoftwareInstallDetails(badCtx, "")
 		require.Error(t, err)
 		require.Nil(t, d2)
+	})
+}
+
+func TestShouldRetrySoftwareInstall(t *testing.T) {
+	svc := &Service{
+		logger: slog.New(slog.DiscardHandler),
+	}
+	ctx := context.Background()
+
+	t.Run("nil attempt number returns false", func(t *testing.T) {
+		hsi := &fleet.HostSoftwareInstallerResult{
+			AttemptNumber: nil,
+		}
+		shouldRetry, err := svc.shouldRetrySoftwareInstall(ctx, hsi)
+		require.NoError(t, err)
+		require.False(t, shouldRetry)
+	})
+
+	t.Run("attempt below max returns true", func(t *testing.T) {
+		for _, attempt := range []int{1, 2} {
+			hsi := &fleet.HostSoftwareInstallerResult{
+				AttemptNumber: ptr.Int(attempt),
+			}
+			shouldRetry, err := svc.shouldRetrySoftwareInstall(ctx, hsi)
+			require.NoError(t, err)
+			require.True(t, shouldRetry, "attempt %d should retry", attempt)
+		}
+	})
+
+	t.Run("attempt at max returns false", func(t *testing.T) {
+		hsi := &fleet.HostSoftwareInstallerResult{
+			AttemptNumber: ptr.Int(fleet.MaxSoftwareInstallAttempts),
+		}
+		shouldRetry, err := svc.shouldRetrySoftwareInstall(ctx, hsi)
+		require.NoError(t, err)
+		require.False(t, shouldRetry)
+	})
+
+	t.Run("attempt above max returns false", func(t *testing.T) {
+		hsi := &fleet.HostSoftwareInstallerResult{
+			AttemptNumber: ptr.Int(fleet.MaxSoftwareInstallAttempts + 1),
+		}
+		shouldRetry, err := svc.shouldRetrySoftwareInstall(ctx, hsi)
+		require.NoError(t, err)
+		require.False(t, shouldRetry)
+	})
+}
+
+func TestRetrySoftwareInstall(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{
+		ds:     ds,
+		logger: slog.New(slog.DiscardHandler),
+	}
+	ctx := context.Background()
+
+	installerID := uint(42)
+	userID := uint(7)
+	host := &fleet.Host{ID: 1}
+	hsi := &fleet.HostSoftwareInstallerResult{
+		SoftwareInstallerID: &installerID,
+		SelfService:         true,
+		UserID:              &userID,
+		AttemptNumber:       ptr.Int(1),
+	}
+
+	var capturedOpts fleet.HostSoftwareInstallOptions
+	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		require.Equal(t, host.ID, hostID)
+		require.Equal(t, installerID, softwareInstallerID)
+		capturedOpts = opts
+		return "new-uuid", nil
+	}
+
+	t.Run("preserves self-service and user ID", func(t *testing.T) {
+		err := svc.retrySoftwareInstall(ctx, host, hsi, false)
+		require.NoError(t, err)
+		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
+		require.True(t, capturedOpts.SelfService)
+		require.NotNil(t, capturedOpts.UserID)
+		require.Equal(t, userID, *capturedOpts.UserID)
+		require.False(t, capturedOpts.ForSetupExperience)
+		require.True(t, capturedOpts.WithRetries)
+	})
+
+	t.Run("passes setup experience flag", func(t *testing.T) {
+		ds.InsertSoftwareInstallRequestFuncInvoked = false
+		err := svc.retrySoftwareInstall(ctx, host, hsi, true)
+		require.NoError(t, err)
+		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
+		require.True(t, capturedOpts.ForSetupExperience)
+	})
+}
+
+func TestGetSoftwareInstallerAttemptNumber(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{
+		ds:     ds,
+		logger: slog.New(slog.DiscardHandler),
+	}
+	ctx := context.Background()
+	host := &fleet.Host{ID: 1}
+
+	t.Run("returns nil when install not found", func(t *testing.T) {
+		ds.GetSoftwareInstallResultsFunc = func(ctx context.Context, installUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+			return nil, newNotFoundError()
+		}
+		result, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, "uuid-1")
+		require.NoError(t, err)
+		require.Nil(t, result)
+	})
+
+	t.Run("returns nil when software installer ID is nil", func(t *testing.T) {
+		ds.GetSoftwareInstallResultsFunc = func(ctx context.Context, installUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+			return &fleet.HostSoftwareInstallerResult{SoftwareInstallerID: nil}, nil
+		}
+		result, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, "uuid-1")
+		require.NoError(t, err)
+		require.Nil(t, result)
+	})
+
+	t.Run("counts policy install attempts", func(t *testing.T) {
+		policyID := uint(10)
+		installerID := uint(20)
+		ds.GetSoftwareInstallResultsFunc = func(ctx context.Context, installUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+			return &fleet.HostSoftwareInstallerResult{
+				SoftwareInstallerID: &installerID,
+				PolicyID:            &policyID,
+			}, nil
+		}
+		ds.CountHostSoftwareInstallAttemptsFunc = func(ctx context.Context, hostID, siID, polID uint) (int, error) {
+			require.Equal(t, host.ID, hostID)
+			require.Equal(t, installerID, siID)
+			require.Equal(t, policyID, polID)
+			return 2, nil
+		}
+		result, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, "uuid-1")
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Equal(t, 2, *result)
+		require.True(t, ds.CountHostSoftwareInstallAttemptsFuncInvoked)
+	})
+
+	t.Run("returns attempt number from install for non-policy retry-eligible install", func(t *testing.T) {
+		installerID := uint(20)
+		attemptNum := 2
+		ds.GetSoftwareInstallResultsFunc = func(ctx context.Context, installUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+			return &fleet.HostSoftwareInstallerResult{
+				SoftwareInstallerID: &installerID,
+				PolicyID:            nil, // non-policy install
+				AttemptNumber:       &attemptNum,
+			}, nil
+		}
+		ds.CountHostSoftwareInstallAttemptsFuncInvoked = false
+		result, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, "uuid-1")
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Equal(t, 2, *result)
+		require.False(t, ds.CountHostSoftwareInstallAttemptsFuncInvoked)
+	})
+
+	t.Run("returns nil for non-policy install without retry support", func(t *testing.T) {
+		installerID := uint(20)
+		ds.GetSoftwareInstallResultsFunc = func(ctx context.Context, installUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+			return &fleet.HostSoftwareInstallerResult{
+				SoftwareInstallerID: &installerID,
+				PolicyID:            nil, // non-policy install
+				AttemptNumber:       nil, // not created with WithRetries
+			}, nil
+		}
+		ds.CountHostSoftwareInstallAttemptsFuncInvoked = false
+		result, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, "uuid-1")
+		require.NoError(t, err)
+		require.Nil(t, result)
+		require.False(t, ds.CountHostSoftwareInstallAttemptsFuncInvoked)
 	})
 }

@@ -9,6 +9,7 @@ import { useQuery } from "react-query";
 import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import { buildQueryStringFromParams } from "utilities/url";
 
@@ -103,6 +104,9 @@ const ScriptBatchDetailsPage = ({
     setHostScriptExecutionIdForModal,
   ] = useState<string | null>(null);
   const [isCanceling, setIsCanceling] = useState(false);
+  const [actualRecordCount, setActualRecordCount] = useState<number | null>(
+    null
+  );
 
   const { renderFlash } = useContext(NotificationContext);
 
@@ -125,7 +129,7 @@ const ScriptBatchDetailsPage = ({
   const pathToProgress = useMemo(() => {
     const params = buildQueryStringFromParams({
       status: batchDetails?.status,
-      team_id: batchDetails?.team_id,
+      fleet_id: batchDetails?.team_id,
     });
 
     return paths.CONTROLS_SCRIPTS_BATCH_PROGRESS + (params ? `?${params}` : "");
@@ -179,17 +183,31 @@ const ScriptBatchDetailsPage = ({
     if (hostStatusCount === 0) {
       return getEmptyState(hostStatus);
     }
+
+    const showTooltip =
+      actualRecordCount !== null && actualRecordCount !== hostStatusCount;
+
+    const hostCountText = (
+      <b>
+        {hostStatusCount} host{hostStatusCount > 1 && "s"}
+      </b>
+    );
+
     return (
       <div className={`${baseClass}__tab-content`}>
         <span className={`${baseClass}__tab-content__header`}>
-          <b>
-            {hostStatusCount} host{hostStatusCount > 1 && "s"}
-          </b>
+          {showTooltip ? (
+            <TooltipWrapper tipContent="Some hosts may have been removed.">
+              {hostCountText}
+            </TooltipWrapper>
+          ) : (
+            hostCountText
+          )}
           <ViewAllHostsLink
             queryParams={{
               script_batch_execution_status: selectedHostStatus, // refers to script batch host status, may update pending conv w Rachael
               script_batch_execution_id: batchExecutionId,
-              team_id: batchDetails?.team_id,
+              fleet_id: batchDetails?.team_id,
             }}
           />
         </span>
@@ -201,6 +219,7 @@ const ScriptBatchDetailsPage = ({
           orderKey={orderKeyParam}
           setHostScriptExecutionIdForModal={setHostScriptExecutionIdForModal}
           router={router}
+          onDataLoaded={setActualRecordCount}
         />
       </div>
     );

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"time"
 
@@ -15,8 +16,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/firehose/types"
 	"github.com/fleetdm/fleet/v4/server/aws_common"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 const (
@@ -38,10 +37,10 @@ type FirehoseAPI interface {
 type firehoseLogWriter struct {
 	client FirehoseAPI
 	stream string
-	logger log.Logger
+	logger *slog.Logger
 }
 
-func NewFirehoseLogWriter(region, endpointURL, id, secret, stsAssumeRoleArn, stsExternalID, stream string, logger log.Logger) (*firehoseLogWriter, error) {
+func NewFirehoseLogWriter(region, endpointURL, id, secret, stsAssumeRoleArn, stsExternalID, stream string, logger *slog.Logger) (*firehoseLogWriter, error) {
 	var opts []func(*aws_config.LoadOptions) error
 
 	// The service endpoint is deprecated, but we still set it
@@ -121,8 +120,7 @@ func (f *firehoseLogWriter) Write(ctx context.Context, logs []json.RawMessage) e
 		// the beginning bytes of the log should help the Fleet admin
 		// diagnose the query generating huge results.
 		if len(log) > firehoseMaxSizeOfRecord {
-			level.Info(f.logger).Log(
-				"msg", "dropping log over 1MB Firehose limit",
+			f.logger.InfoContext(ctx, "dropping log over 1MB Firehose limit",
 				"size", len(log),
 				"log", string(log[:100])+"...",
 			)

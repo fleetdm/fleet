@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	"mime/multipart"
 	"net/http"
@@ -50,6 +51,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
@@ -59,8 +61,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -114,16 +114,16 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		Pool:           s.redisPool,
 		Rs:             pubsub.NewInmemQueryResults(),
 		Lq:             s.lq,
-		Logger:         log.NewLogfmtLogger(os.Stdout),
+		Logger:         logging.NewLogfmtLogger(os.Stdout),
 		EnableCachedDS: true,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
 					// We set 24-hour interval so that it only runs when triggered.
 					var err error
-					cronLog := log.NewJSONLogger(os.Stdout)
+					cronLog := logging.NewJSONLogger(os.Stdout)
 					if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-						cronLog = kitlog.NewNopLogger()
+						cronLog = logging.NewNopLogger()
 					}
 					calendarSchedule, err = cron.NewCalendarSchedule(
 						ctx, s.T().Name(), s.ds, redis_lock.NewLock(s.redisPool), config.CalendarConfig{Periodicity: 24 * time.Hour},
@@ -139,7 +139,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		DBConns:                         s.dbConns,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		config.Logger = kitlog.NewNopLogger()
+		config.Logger = logging.NewNopLogger()
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
 	s.server = server
@@ -297,7 +297,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	}, team.Config.MDM)
 
 	// an activity was created for team spec applied
-	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}], "fleets": [{"id": %d, "name": %q}]}`, team.ID, team.Name, team.ID, team.Name), 0)
 
 	// Create team policy
 	teamPolicy, err := s.ds.NewTeamPolicy(
@@ -764,7 +764,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.Equal(t, appConfig.Features, team.Config.Features)
 
 	// an activity was created for the newly created team via the applied spec
-	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}], "fleets": [{"id": %d, "name": %q}]}`, team.ID, team.Name, team.ID, team.Name), 0)
 
 	// updates
 	teamSpecs = map[string]any{
@@ -1532,7 +1532,7 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
 
 	seenActivitiesIDs := map[uint]struct{}{}
 	activityName := fleet.ActivityTypeEditedEnrollSecrets{}.ActivityName()
-	activityDetails := fmt.Sprintf(`{"team_id": %d, "team_name": "%s"}`, team.ID, team.Name)
+	activityDetails := fmt.Sprintf(`{"team_id": %d, "team_name": "%s", "fleet_id": %d, "fleet_name": "%s"}`, team.ID, team.Name, team.ID, team.Name)
 
 	// Check that an activity was created for the new secrets
 	seenActivitiesIDs[s.lastActivityMatches(activityName, activityDetails, 0)] = struct{}{}
@@ -1671,11 +1671,11 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	}
 
 	r := s.Do("POST", "/api/latest/fleet/teams", teamReserved, http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(r.Body), `"No team" is a reserved team name`)
+	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
 
 	teamReserved.Name = "AlL TeaMS"
 	r = s.Do("POST", "/api/latest/fleet/teams", teamReserved, http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(r.Body), `"All teams" is a reserved team name`)
+	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
 
 	// create a team with too many secrets
 	team3 := &fleet.Team{
@@ -1778,10 +1778,10 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	// try to rename to reserved names
 	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), fleet.TeamPayload{Name: ptr.String("no TEAM")}, http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(r.Body), `"No team" is a reserved team name`)
+	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
 
 	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), fleet.TeamPayload{Name: ptr.String("ALL teAMs")}, http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(r.Body), `"All teams" is a reserved team name`)
+	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
 
 	// Modify team's calendar config
 	modifyCalendar := fleet.TeamPayload{
@@ -1943,7 +1943,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	require.Contains(t, string(*tmResp.Team.Config.AgentOptions), `"aws_debug": true`) // left unchanged
 
 	// list activities, it should have created one for edited_agent_options
-	s.lastActivityMatches(fleet.ActivityTypeEditedAgentOptions{}.ActivityName(), fmt.Sprintf(`{"global": false, "team_id": %d, "team_name": %q}`, tm1ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityTypeEditedAgentOptions{}.ActivityName(), fmt.Sprintf(`{"global": false, "team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm1ID, team.Name, tm1ID, team.Name), 0)
 
 	// modify team agent options - unknown team
 	tmResp.Team = nil
@@ -2920,7 +2920,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 	}
 
 	// Trigger the webhook automation with a custom sendFunc that captures the call
-	err = policies.TriggerFailingPoliciesAutomation(ctx, s.ds, kitlog.NewNopLogger(), failingPolicySet,
+	err = policies.TriggerFailingPoliciesAutomation(ctx, s.ds, slog.New(slog.DiscardHandler), failingPolicySet,
 		func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 			webhookCalled = true
 			capturedPolicy = pol
@@ -2977,7 +2977,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 	}, http.StatusOK, &tmResp)
 	require.Equal(t, 5, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Value)
 	require.Equal(t, 2, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Value)
-	s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "deadline_days": 5, "grace_period_days": 2}`, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "deadline_days": 5, "grace_period_days": 2}`, team.ID, team.Name, team.ID, team.Name), 0)
 
 	checkWindowsOSUpdatesProfile(t, s.ds, &team.ID, &fleet.WindowsUpdates{
 		DeadlineDays:    optjson.SetInt(5),
@@ -3036,7 +3036,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 	}, http.StatusOK, &tmResp)
 	require.Equal(t, 6, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Value)
 	require.Equal(t, 2, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Value)
-	lastActivity := s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "deadline_days": 6, "grace_period_days": 2}`, team.ID, team.Name), 0)
+	lastActivity := s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "deadline_days": 6, "grace_period_days": 2}`, team.ID, team.Name, team.ID, team.Name), 0)
 
 	checkWindowsOSUpdatesProfile(t, s.ds, &team.ID, &fleet.WindowsUpdates{
 		DeadlineDays:    optjson.SetInt(6),
@@ -3098,7 +3098,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 	}, http.StatusOK, &tmResp)
 	require.False(t, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Valid)
 	require.False(t, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Valid)
-	s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "deadline_days": null, "grace_period_days": null}`, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "deadline_days": null, "grace_period_days": null}`, team.ID, team.Name, team.ID, team.Name), 0)
 
 	checkWindowsOSUpdatesProfile(t, s.ds, &team.ID, nil)
 
@@ -3251,11 +3251,13 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "10.15.0", "deadline": "2021-01-01"}`, team.ID, team.Name), 0)
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "minimum_version": "10.15.0", "deadline": "2021-01-01"}`, team.ID, team.Name, team.ID, team.Name), 0)
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeEnabledMacosUpdateNewHosts{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`,
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`,
+			team.ID,
+			team.Name,
 			team.ID,
 			team.Name,
 		), 0)
@@ -3296,9 +3298,9 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 	// UpdateNewHosts values are ignored for iPadOS
 	require.Equal(t, optjson.Bool{Set: true}, tmResp.Team.Config.MDM.IPadOSUpdates.UpdateNewHosts)
 
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "10.15.0", "deadline": "2021-01-01"}`, team.ID, team.Name), 0)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "11.11.11", "deadline": "2022-02-02"}`, team.ID, team.Name), 0)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "12.12.12", "deadline": "2023-03-03"}`, team.ID, team.Name), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "minimum_version": "10.15.0", "deadline": "2021-01-01"}`, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "minimum_version": "11.11.11", "deadline": "2022-02-02"}`, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "minimum_version": "12.12.12", "deadline": "2023-03-03"}`, team.ID, team.Name, team.ID, team.Name), 0)
 
 	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetMacOSUpdatesProfileName, macOSUpdates)
 	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIOSUpdatesProfileName, iOSUpdates)
@@ -3337,9 +3339,9 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 	require.Equal(t, "2024-03-03", tmResp.Team.Config.MDM.IPadOSUpdates.Deadline.Value)
 	require.Equal(t, optjson.Bool{Set: true}, tmResp.Team.Config.MDM.IPadOSUpdates.UpdateNewHosts)
 
-	macOSLastActivity := s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "10.15.0", "deadline": "2025-10-01"}`, team.ID, team.Name), 0)
-	iOSLastActivity := s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "11.11.11", "deadline": "2024-02-02"}`, team.ID, team.Name), 0)
-	iPadOSLastActivity := s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "12.12.12", "deadline": "2024-03-03"}`, team.ID, team.Name), 0)
+	macOSLastActivity := s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "minimum_version": "10.15.0", "deadline": "2025-10-01"}`, team.ID, team.Name, team.ID, team.Name), 0)
+	iOSLastActivity := s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "minimum_version": "11.11.11", "deadline": "2024-02-02"}`, team.ID, team.Name, team.ID, team.Name), 0)
+	iPadOSLastActivity := s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "minimum_version": "12.12.12", "deadline": "2024-03-03"}`, team.ID, team.Name, team.ID, team.Name), 0)
 
 	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetMacOSUpdatesProfileName, macOSUpdates)
 	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIOSUpdatesProfileName, iOSUpdates)
@@ -3369,7 +3371,9 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 	require.Equal(t, false, tmResp.Team.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDisabledMacosUpdateNewHosts{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`,
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`,
+			team.ID,
+			team.Name,
 			team.ID,
 			team.Name,
 		), 0)
@@ -3464,9 +3468,9 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 	require.Empty(t, tmResp.Team.Config.MDM.IOSUpdates.Deadline.Value)
 	require.Empty(t, tmResp.Team.Config.MDM.IPadOSUpdates.MinimumVersion.Value)
 	require.Empty(t, tmResp.Team.Config.MDM.IPadOSUpdates.Deadline.Value)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "", "deadline": ""}`, team.ID, team.Name), 0)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "", "deadline": ""}`, team.ID, team.Name), 0)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "", "deadline": ""}`, team.ID, team.Name), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "minimum_version": "", "deadline": ""}`, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "minimum_version": "", "deadline": ""}`, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "minimum_version": "", "deadline": ""}`, team.ID, team.Name, team.ID, team.Name), 0)
 
 	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetMacOSUpdatesProfileName, nil)
 	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIOSUpdatesProfileName, nil)
@@ -4251,7 +4255,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
 	})
 
 	// edited windows updates activity got created
-	s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), `{"deadline_days":5, "grace_period_days":1, "team_id": null, "team_name": null}`, 0)
+	s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), `{"deadline_days":5, "grace_period_days":1, "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
 
 	// get the appconfig
 	acResp = appConfigResponse{}
@@ -4278,7 +4282,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
 	})
 
 	// another edited windows updates activity got created
-	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), `{"deadline_days":6, "grace_period_days":1, "team_id": null, "team_name": null}`, 0)
+	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), `{"deadline_days":6, "grace_period_days":1, "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
 
 	// update something unrelated - the transparency url
 	acResp = appConfigResponse{}
@@ -4308,7 +4312,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
 	require.False(t, acResp.MDM.WindowsUpdates.GracePeriodDays.Valid)
 
 	// edited windows updates activity got created with empty requirement
-	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), `{"deadline_days":null, "grace_period_days":null, "team_id": null, "team_name": null}`, 0)
+	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), `{"deadline_days":null, "grace_period_days":null, "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
 
 	checkWindowsOSUpdatesProfile(t, s.ds, nil, nil)
 
@@ -4487,9 +4491,9 @@ func (s *integrationEnterpriseTestSuite) TestMDMAppleOSUpdates() {
 	require.Equal(t, optjson.Bool{Set: true}, acResp.MDM.IPadOSUpdates.UpdateNewHosts) // posted value is ignored for iOS
 
 	// edited macos min version activity got created
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2022-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null}`, 0)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), `{"deadline":"2023-03-03", "minimum_version":"13.13.13", "team_id": null, "team_name": null}`, 0)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), `{"deadline":"2024-04-04", "minimum_version":"14.14.14", "team_id": null, "team_name": null}`, 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2022-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), `{"deadline":"2023-03-03", "minimum_version":"13.13.13", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), `{"deadline":"2024-04-04", "minimum_version":"14.14.14", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
 
 	// Activity for 'Update New Hosts checked' got created
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosUpdateNewHosts{}.ActivityName(), "", 0)
@@ -4552,9 +4556,9 @@ func (s *integrationEnterpriseTestSuite) TestMDMAppleOSUpdates() {
 
 	// another edited macos min version activity got created
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledMacosUpdateNewHosts{}.ActivityName(), "", 0)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2024-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null}`, 0)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), `{"deadline":"2025-05-05", "minimum_version":"13.13.13", "team_id": null, "team_name": null}`, 0)
-	lastActivity = s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), `{"deadline":"2026-06-06", "minimum_version":"14.14.14", "team_id": null, "team_name": null}`, 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2024-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), `{"deadline":"2025-05-05", "minimum_version":"13.13.13", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+	lastActivity = s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), `{"deadline":"2026-06-06", "minimum_version":"14.14.14", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
 	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetMacOSUpdatesProfileName, &fleet.AppleOSUpdateSettings{
 		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2024-01-01"),
 	})
@@ -4609,9 +4613,9 @@ func (s *integrationEnterpriseTestSuite) TestMDMAppleOSUpdates() {
 	require.Empty(t, acResp.MDM.IPadOSUpdates.Deadline.Value)
 
 	// edited macos min version activity got created with empty requirement
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"", "minimum_version":"", "team_id": null, "team_name": null}`, 0)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), `{"deadline":"", "minimum_version":"", "team_id": null, "team_name": null}`, 0)
-	lastActivity = s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), `{"deadline":"", "minimum_version":"", "team_id": null, "team_name": null}`, 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"", "minimum_version":"", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), `{"deadline":"", "minimum_version":"", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+	lastActivity = s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), `{"deadline":"", "minimum_version":"", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
 
 	// check DDM profiles were removed
 	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetMacOSUpdatesProfileName, nil)
@@ -5738,6 +5742,8 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 	}
 	s.DoJSON("POST", "/api/latest/fleet/policies", createPol1Req, http.StatusOK, &createPol1)
 	allEqual(t, createPol1Req, createPol1.Policy, fields...)
+	require.NotNil(t, createPol1.Policy.ConditionalAccessBypassEnabled)
+	assert.True(t, *createPol1.Policy.ConditionalAccessBypassEnabled)
 
 	createPol2 := &globalPolicyResponse{}
 	createPol2Req := &globalPolicyRequest{
@@ -5750,6 +5756,8 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 	}
 	s.DoJSON("POST", "/api/latest/fleet/policies", createPol2Req, http.StatusOK, &createPol2)
 	allEqual(t, createPol2Req, createPol2.Policy, fields...)
+	require.NotNil(t, createPol2.Policy.ConditionalAccessBypassEnabled)
+	assert.True(t, *createPol2.Policy.ConditionalAccessBypassEnabled)
 
 	listPol := &listGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, listPol)
@@ -5810,7 +5818,7 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
-	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical", "CalendarEventsEnabled"}
+	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical", "CalendarEventsEnabled", "ConditionalAccessBypassEnabled"}
 
 	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          42,
@@ -5821,26 +5829,28 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	createPol1 := &teamPolicyResponse{}
 	createPol1Req := &teamPolicyRequest{
-		Query:                 "query",
-		Name:                  "name1",
-		Description:           "description",
-		Resolution:            "resolution",
-		Platform:              "linux",
-		Critical:              true,
-		CalendarEventsEnabled: true,
+		Query:                          "query",
+		Name:                           "name1",
+		Description:                    "description",
+		Resolution:                     "resolution",
+		Platform:                       "linux",
+		Critical:                       true,
+		CalendarEventsEnabled:          true,
+		ConditionalAccessBypassEnabled: ptr.Bool(false),
 	}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol1Req, http.StatusOK, &createPol1)
 	allEqual(s.T(), createPol1Req, createPol1.Policy, fields...)
 
 	createPol2 := &teamPolicyResponse{}
 	createPol2Req := &teamPolicyRequest{
-		Query:                 "query",
-		Name:                  "name2",
-		Description:           "description",
-		Resolution:            "resolution",
-		Platform:              "linux",
-		Critical:              false,
-		CalendarEventsEnabled: false,
+		Query:                          "query",
+		Name:                           "name2",
+		Description:                    "description",
+		Resolution:                     "resolution",
+		Platform:                       "linux",
+		Critical:                       false,
+		CalendarEventsEnabled:          false,
+		ConditionalAccessBypassEnabled: ptr.Bool(true),
 	}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol2Req, http.StatusOK, &createPol2)
 	allEqual(s.T(), createPol2Req, createPol2.Policy, fields...)
@@ -5856,13 +5866,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	patchPol1Req := &modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:                  ptr.String("newName1"),
-			Query:                 ptr.String("newQuery"),
-			Description:           ptr.String("newDescription"),
-			Resolution:            ptr.String("newResolution"),
-			Platform:              ptr.String("windows"),
-			Critical:              ptr.Bool(false),
-			CalendarEventsEnabled: ptr.Bool(false),
+			Name:                           ptr.String("newName1"),
+			Query:                          ptr.String("newQuery"),
+			Description:                    ptr.String("newDescription"),
+			Resolution:                     ptr.String("newResolution"),
+			Platform:                       ptr.String("windows"),
+			Critical:                       ptr.Bool(false),
+			CalendarEventsEnabled:          ptr.Bool(false),
+			ConditionalAccessBypassEnabled: ptr.Bool(true),
 		},
 	}
 	patchPol1 := &modifyTeamPolicyResponse{}
@@ -5871,13 +5882,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	patchPol2Req := &modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:                  ptr.String("newName2"),
-			Query:                 ptr.String("newQuery"),
-			Description:           ptr.String("newDescription"),
-			Resolution:            ptr.String("newResolution"),
-			Platform:              ptr.String("windows"),
-			Critical:              ptr.Bool(true),
-			CalendarEventsEnabled: ptr.Bool(true),
+			Name:                           ptr.String("newName2"),
+			Query:                          ptr.String("newQuery"),
+			Description:                    ptr.String("newDescription"),
+			Resolution:                     ptr.String("newResolution"),
+			Platform:                       ptr.String("windows"),
+			Critical:                       ptr.Bool(true),
+			CalendarEventsEnabled:          ptr.Bool(true),
+			ConditionalAccessBypassEnabled: ptr.Bool(false),
 		},
 	}
 	patchPol2 := &modifyTeamPolicyResponse{}
@@ -5897,6 +5909,192 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 	getPol2 := &getPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol2.Policy.ID), nil, http.StatusOK, getPol2)
 	require.Equal(s.T(), listPol.Policies[1], getPol2.Policy)
+
+	// Verify that patching without ConditionalAccessBypassEnabled preserves existing value.
+	// patchPol1 previously set bypass to true.
+	patchPreserveReq := &modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			Name: ptr.String("preservedBypassName"),
+			// ConditionalAccessBypassEnabled intentionally omitted
+		},
+	}
+	patchPreserve := &modifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol1.Policy.ID), patchPreserveReq, http.StatusOK, patchPreserve)
+	require.NotNil(s.T(), patchPreserve.Policy.ConditionalAccessBypassEnabled)
+	assert.True(s.T(), *patchPreserve.Policy.ConditionalAccessBypassEnabled, "bypass value should be preserved when not provided in PATCH")
+}
+
+func (s *integrationEnterpriseTestSuite) TestPolicySpecConditionalAccessBypassEnabled() {
+	t := s.T()
+
+	type reapply struct {
+		bypass   *bool
+		expected bool
+	}
+
+	cases := []struct {
+		name           string
+		team           string // empty = global policy
+		createBypass   *bool
+		expectedCreate bool
+		reapply        *reapply
+	}{
+		{
+			name:           "team default nil",
+			team:           "team",
+			createBypass:   nil,
+			expectedCreate: true,
+		},
+		{
+			name:           "team explicit false",
+			team:           "team",
+			createBypass:   ptr.Bool(false),
+			expectedCreate: false,
+		},
+		{
+			name:           "team explicit true",
+			team:           "team",
+			createBypass:   ptr.Bool(true),
+			expectedCreate: true,
+		},
+		{
+			name:           "reapply false to true",
+			team:           "team",
+			createBypass:   ptr.Bool(false),
+			expectedCreate: false,
+			reapply:        &reapply{bypass: ptr.Bool(true), expected: true},
+		},
+		{
+			name:           "reapply true to false",
+			team:           "team",
+			createBypass:   nil,
+			expectedCreate: true,
+			reapply:        &reapply{bypass: ptr.Bool(false), expected: false},
+		},
+		{
+			name:           "global default",
+			team:           "",
+			createBypass:   nil,
+			expectedCreate: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			teamName := tc.team
+			if teamName != "" {
+				teamName = t.Name() // use unique team name per subtest
+				_, err := s.ds.NewTeam(t.Context(), &fleet.Team{
+					Name: teamName,
+				})
+				require.NoError(t, err)
+			}
+
+			policyName := t.Name() + " policy"
+			spec := &fleet.PolicySpec{
+				Name:                           policyName,
+				Query:                          "SELECT 1",
+				Team:                           teamName,
+				ConditionalAccessBypassEnabled: tc.createBypass,
+			}
+
+			applyResp := applyPolicySpecsResponse{}
+			s.DoJSON("POST", "/api/latest/fleet/spec/policies",
+				applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
+				http.StatusOK, &applyResp,
+			)
+
+			// Read back and find the policy by name.
+			var bypassValue *bool
+			if teamName != "" {
+				listResp := listTeamPoliciesResponse{}
+				// Look up the team to get its ID.
+				teams, err := s.ds.TeamsSummary(t.Context())
+				require.NoError(t, err)
+				var teamID uint
+				for _, tm := range teams {
+					if tm.Name == teamName {
+						teamID = tm.ID
+						break
+					}
+				}
+				require.NotZero(t, teamID, "team %s not found", teamName)
+
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID),
+					nil, http.StatusOK, &listResp,
+				)
+				var found *fleet.Policy
+				for _, p := range listResp.Policies {
+					if p.Name == policyName {
+						found = p
+						break
+					}
+				}
+				require.NotNil(t, found, "policy %s not found", policyName)
+				bypassValue = found.ConditionalAccessBypassEnabled
+			} else {
+				listResp := listGlobalPoliciesResponse{}
+				s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listResp)
+				var found *fleet.Policy
+				for _, p := range listResp.Policies {
+					if p.Name == policyName {
+						found = p
+						break
+					}
+				}
+				require.NotNil(t, found, "policy %s not found", policyName)
+				bypassValue = found.ConditionalAccessBypassEnabled
+			}
+			require.Equal(t, tc.expectedCreate, *bypassValue, "after initial apply")
+
+			// Reapply with updated bypass value if specified.
+			if tc.reapply != nil {
+				spec.ConditionalAccessBypassEnabled = tc.reapply.bypass
+				reapplyResp := applyPolicySpecsResponse{}
+				s.DoJSON("POST", "/api/latest/fleet/spec/policies",
+					applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
+					http.StatusOK, &reapplyResp,
+				)
+
+				if teamName != "" {
+					listResp := listTeamPoliciesResponse{}
+					teams, err := s.ds.TeamsSummary(t.Context())
+					require.NoError(t, err)
+					var teamID uint
+					for _, tm := range teams {
+						if tm.Name == teamName {
+							teamID = tm.ID
+							break
+						}
+					}
+					s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID),
+						nil, http.StatusOK, &listResp,
+					)
+					var found *fleet.Policy
+					for _, p := range listResp.Policies {
+						if p.Name == policyName {
+							found = p
+							break
+						}
+					}
+					require.NotNil(t, found, "policy %s not found after reapply", policyName)
+					require.Equal(t, tc.reapply.expected, *found.ConditionalAccessBypassEnabled, "after reapply")
+				} else {
+					listResp := listGlobalPoliciesResponse{}
+					s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listResp)
+					var found *fleet.Policy
+					for _, p := range listResp.Policies {
+						if p.Name == policyName {
+							found = p
+							break
+						}
+					}
+					require.NotNil(t, found, "policy %s not found after reapply", policyName)
+					require.Equal(t, tc.reapply.expected, *found.ConditionalAccessBypassEnabled, "after reapply")
+				}
+			}
+		})
+	}
 }
 
 func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
@@ -6301,7 +6499,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.NotEmpty(t, respVersions.CountsUpdatedAt)
 }
 
-// TestGitOpsUserActions tests the MDM permissions listed in ../../docs/Using\ Fleet/manage-access.md
+// TestGitOpsUserActions tests the (non-MDM) permissions listed in ../../docs/Using\ Fleet/manage-access.md
 func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	t := s.T()
 	ctx := context.Background()
@@ -7550,7 +7748,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeRanScriptBatch{}.ActivityName(),
-		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null}`, batchRes.BatchExecutionID, script.Name),
+		fmt.Sprintf(`{"batch_execution_id":"%s", "fleet_id":null, "host_count":2, "script_name":"%s", "team_id":null}`, batchRes.BatchExecutionID, script.Name),
 		0,
 	)
 
@@ -7622,7 +7820,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	// individual script executions don't get added to the global feed, only the batch job
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeRanScriptBatch{}.ActivityName(),
-		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null}`, batchResUpcoming.BatchExecutionID, script.Name),
+		fmt.Sprintf(`{"batch_execution_id":"%s", "fleet_id":null, "host_count":2, "script_name":"%s", "team_id":null}`, batchResUpcoming.BatchExecutionID, script.Name),
 		0,
 	)
 
@@ -7658,7 +7856,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeBatchScriptScheduled{}.ActivityName(),
-		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null, "not_before": "%s"}`, batchRes.BatchExecutionID, script.Name, scheduledTime.UTC().Format(time.RFC3339Nano)),
+		fmt.Sprintf(`{"batch_execution_id":"%s", "fleet_id":null, "host_count":2, "script_name":"%s", "not_before": "%s", "team_id":null}`, batchRes.BatchExecutionID, script.Name, scheduledTime.UTC().Format(time.RFC3339Nano)),
 		0,
 	)
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
@@ -7680,7 +7878,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeBatchScriptScheduled{}.ActivityName(),
-		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null, "not_before": "%s"}`, batchRes.BatchExecutionID, script.Name, scheduledTime.UTC().Format(time.RFC3339Nano)),
+		fmt.Sprintf(`{"batch_execution_id":"%s", "fleet_id":null, "host_count":2, "script_name":"%s", "not_before": "%s", "team_id":null}`, batchRes.BatchExecutionID, script.Name, scheduledTime.UTC().Format(time.RFC3339Nano)),
 		0,
 	)
 }
@@ -7804,7 +8002,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	// attempt to run a team script on a non-team host
 	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &savedTmScript.ID}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `The script does not belong to the same team`)
+	require.Contains(t, errMsg, `The script does not belong to the same fleet`)
 
 	// make sure the host is still seen as "online"
 	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
@@ -7998,7 +8196,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	// attempt to run sync with an existing team script that belongs to a team different from the host's team
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f1337.sh", TeamID: tm2.ID}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `The script does not belong to the same team`)
+	require.Contains(t, errMsg, `The script does not belong to the same fleet`)
 
 	// create a valid sync script execution request by script name, fails because the
 	// request will time-out waiting for a result.
@@ -8041,7 +8239,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	// attempt to run async with an existing team script that belongs to a team different from the host's team
 	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f1337.sh", TeamID: tm2.ID}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `The script does not belong to the same team`)
+	require.Contains(t, errMsg, `The script does not belong to the same fleet`)
 
 	var runSyncResp3 runScriptSyncResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f13372.sh"}, http.StatusAccepted, &runSyncResp3)
@@ -8279,7 +8477,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	require.NoError(t, err)
 	require.NotZero(t, newScriptResp.ScriptID)
 	noTeamScriptID := newScriptResp.ScriptID
-	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "team_name": null, "team_id": null}`, "script1.sh"), 0)
+	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "team_name": null, "team_id": null, "fleet_name": null, "fleet_id": null}`, "script1.sh"), 0)
 
 	// get the script
 	var getScriptResp getScriptResponse
@@ -8358,7 +8556,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {"123"}})
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusNotFound, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "The team does not exist.")
+	require.Contains(t, errMsg, "The fleet does not exist.")
 
 	// create a team
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
@@ -8373,7 +8571,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	require.NotZero(t, newScriptResp.ScriptID)
 	require.NotEqual(t, noTeamScriptID, newScriptResp.ScriptID)
 	tmScriptID := newScriptResp.ScriptID
-	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d}`, "script1.sh", tm.Name, tm.ID), 0)
+	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d, "fleet_name": %q, "fleet_id": %d}`, "script1.sh", tm.Name, tm.ID, tm.Name, tm.ID), 0)
 
 	// create a windows script
 	body, headers = generateNewScriptMultipartRequest(t,
@@ -8384,7 +8582,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	require.NoError(t, err)
 	require.NotZero(t, newScriptResp.ScriptID)
 	require.NotEqual(t, noTeamScriptID, newScriptResp.ScriptID)
-	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d}`, "script2.ps1", tm.Name, tm.ID), 0)
+	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d, "fleet_name": %q, "fleet_id": %d}`, "script2.ps1", tm.Name, tm.ID, tm.Name, tm.ID), 0)
 
 	// get team's script
 	getScriptResp = getScriptResponse{}
@@ -8423,7 +8621,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	require.NotZero(t, newScriptResp.ScriptID)
 	require.NotEqual(t, noTeamScriptID, newScriptResp.ScriptID)
 	require.NotEqual(t, tmScriptID, newScriptResp.ScriptID)
-	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d}`, "script2.sh", tm.Name, tm.ID), 0)
+	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d, "fleet_name": %q, "fleet_id": %d}`, "script2.sh", tm.Name, tm.ID, tm.Name, tm.ID), 0)
 
 	// Update a script
 	updateScriptRep := updateScriptResponse{}
@@ -8434,7 +8632,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	require.NoError(t, err)
 	require.NotZero(t, newScriptResp.ScriptID)
 	require.Equal(t, tmScriptID, updateScriptRep.ScriptID)
-	s.lastActivityMatches("updated_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d}`, "script1.sh", tm.Name, tm.ID), 0)
+	s.lastActivityMatches("updated_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d, "fleet_name": %q, "fleet_id": %d}`, "script1.sh", tm.Name, tm.ID, tm.Name, tm.ID), 0)
 
 	// Download the updated script
 	res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", tmScriptID), nil, http.StatusOK, "alt", "media")
@@ -8454,11 +8652,11 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// delete the no-team script
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScriptID), nil, http.StatusNoContent)
-	s.lastActivityMatches("deleted_script", fmt.Sprintf(`{"script_name": %q, "team_name": null, "team_id": null}`, "script1.sh"), 0)
+	s.lastActivityMatches("deleted_script", fmt.Sprintf(`{"script_name": %q, "team_name": null, "team_id": null, "fleet_name": null, "fleet_id": null}`, "script1.sh"), 0)
 
 	// delete the initial team script
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", tmScriptID), nil, http.StatusNoContent)
-	s.lastActivityMatches("deleted_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d}`, "script1.sh", tm.Name, tm.ID), 0)
+	s.lastActivityMatches("deleted_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d, "fleet_name": %q, "fleet_id": %d}`, "script1.sh", tm.Name, tm.ID, tm.Name, tm.ID), 0)
 
 	// delete a non-existing script
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScriptID), nil, http.StatusNotFound)
@@ -9200,11 +9398,11 @@ func (s *integrationEnterpriseTestSuite) TestBatchApplyScriptsEndpoints() {
 	saveAndCheckScripts := func(team *fleet.Team, scripts []fleet.ScriptPayload) {
 		var teamID *uint
 		teamIDStr := ""
-		teamActivity := `{"team_id": null, "team_name": null}`
+		teamActivity := `{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`
 		if team != nil {
 			teamID = &team.ID
 			teamIDStr = fmt.Sprint(team.ID)
-			teamActivity = fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, team.Name)
+			teamActivity = fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, team.Name, team.ID, team.Name)
 		}
 
 		// create, check activities, and check scripts response
@@ -12115,7 +12313,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// check activity
 		activityData := fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
-		"team_id": null, "self_service": false, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}]}`,
+		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": false, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}]}`,
 			titleID, labelResp.Label.ID, t.Name())
 		s.lastActivityMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
 
@@ -12133,7 +12331,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			TeamID:            nil,
 		}, http.StatusOK, "")
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
-		"team_id": null, "self_service": true, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}], "software_display_name": ""}`,
+		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}], "software_display_name": ""}`,
 			titleID, labelResp.Label.ID, t.Name())
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 		// patch the software installer to change the labels
@@ -12193,7 +12391,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
-		"team_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}], "software_title_id": %d, "software_display_name": ""}`,
+		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}], "software_title_id": %d, "software_display_name": ""}`,
 			labelResp.Label.ID, labelResp.Label.Name, titleID)
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
@@ -12212,7 +12410,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		// delete from team 0 succeeds
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
-		"team_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}]}`,
+		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}]}`,
 			labelResp.Label.ID, labelResp.Label.Name)
 		s.lastActivityMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), activityData, 0)
 	})
@@ -12245,7 +12443,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// check activity
 		activityData := fmt.Sprintf(
-			`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": "%s", "team_id": %d, "self_service": true, "software_title_id": %d}`,
+			`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": "%s", "team_id": %d, "fleet_name": "%s", "fleet_id": %d, "self_service": true, "software_title_id": %d}`,
+			createTeamResp.Team.Name,
+			createTeamResp.Team.ID,
 			createTeamResp.Team.Name,
 			createTeamResp.Team.ID,
 			titleID,
@@ -12335,7 +12535,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprintf("%d", *payload.TeamID))
 
 		// check activity
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": "%s", "team_id": %d, "self_service": true}`, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": "%s", "team_id": %d, "fleet_name": "%s", "fleet_id": %d, "self_service": true}`, createTeamResp.Team.Name, createTeamResp.Team.ID, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
 
 		// download the installer, not found anymore
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", *payload.TeamID))
@@ -12363,7 +12563,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// check activity
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(),
-			fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": 0, "self_service": true, "software_title_id": %d}`, titleID), 0)
+			fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": 0, "fleet_name": null, "fleet_id": 0, "self_service": true, "software_title_id": %d}`, titleID), 0)
 
 		// upload again fails
 		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already exists")
@@ -12439,7 +12639,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// check activity
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(),
-			fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?team_id=0", "team_name": null, "team_id": null, "self_service": true}`, titleID), 0)
+			fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?team_id=0", "team_name": null, "team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true}`, titleID), 0)
 
 		// download the installer, not found anymore
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", 0))
@@ -12466,10 +12666,10 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		}
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
-		logger := kitlog.NewLogfmtLogger(os.Stderr)
+		logger := logging.NewLogfmtLogger(os.Stderr)
 
 		// Run the migration when nothing is to be done
-		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
+		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger.SlogLogger())
 		require.NoError(t, err)
 
 		// check the software installer
@@ -12507,7 +12707,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		assert.Equal(t, "exit 1", respTitle.SoftwareTitle.SoftwarePackage.UninstallScript)
 
 		// Run the migration
-		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
+		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger.SlogLogger())
 		require.NoError(t, err)
 
 		// Check package ID and extension
@@ -12531,7 +12731,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// Check uninstall script
 		uninstallScript := file.GetUninstallScript("deb")
-		uninstallScript = strings.ReplaceAll(uninstallScript, "$PACKAGE_ID", "\"ruby\"")
+		uninstallScript = strings.ReplaceAll(uninstallScript, "$PACKAGE_ID", "'ruby'")
 		respTitle = getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &respTitle, "team_id",
 			fmt.Sprintf("%d", createTeamResp.Team.ID))
@@ -12540,7 +12740,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		assert.Equal(t, uninstallScript, respTitle.SoftwareTitle.SoftwarePackage.UninstallScript)
 
 		// Running the migration again causes no issues.
-		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
+		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger.SlogLogger())
 		require.NoError(t, err)
 
 		// Update DB by clearing package ids and swapping extension to one we skip
@@ -12553,7 +12753,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		})
 
 		// Running the migration again causes no issues.
-		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
+		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger.SlogLogger())
 		require.NoError(t, err)
 
 		// Package ID and extension should not have been modified
@@ -14107,9 +14307,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerNewInstallRequestP
 
 			_, err = q.ExecContext(ctx, `
 			INSERT INTO software_installers
-				(title_id, filename, extension, version, platform, install_script_content_id, uninstall_script_content_id, storage_id, team_id, global_or_team_id, pre_install_query, package_ids)
+				(title_id, filename, extension, version, platform, install_script_content_id, uninstall_script_content_id, storage_id, team_id, global_or_team_id, pre_install_query, package_ids, is_active)
 			VALUES
-				(?, ?, ?, ?, ?, ?, ?, unhex(?), ?, ?, ?, ?)`,
+				(?, ?, ?, ?, ?, ?, ?, unhex(?), ?, ?, ?, ?, TRUE)`,
 				titleID, fmt.Sprintf("installer.%s", kind), kind, "v1.0.0", platform, scriptContentID, uninstallScriptContentID,
 				hex.EncodeToString([]byte("test")), tm.ID, tm.ID, "foo", "")
 			return err
@@ -14222,7 +14422,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		fmt.Sprintf("%d", *teamID))
 	require.NotNil(t, respTitle.SoftwareTitle.SoftwarePackage)
 	assert.Equal(t, "another install script", respTitle.SoftwareTitle.SoftwarePackage.InstallScript)
-	assert.Equal(t, `another uninstall script with "ruby"`, respTitle.SoftwareTitle.SoftwarePackage.UninstallScript)
+	assert.Equal(t, `another uninstall script with 'ruby'`, respTitle.SoftwareTitle.SoftwarePackage.UninstallScript)
 
 	// Upload another package for another platform
 	payloadDummy := &fleet.UploadSoftwareInstallerPayload{
@@ -14322,6 +14522,26 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h3.ID), nil, http.StatusOK, &hostRespFailed)
 	require.False(t, hostRespFailed.Host.RefetchRequested, "RefetchRequested should be false after failed software install")
 
+	// Exhaust automatic retries for h3 so it reaches terminal "failed" state.
+	// Server-side retries queue up to MaxSoftwareInstallAttempts attempts.
+	for attempt := 2; attempt <= fleet.MaxSoftwareInstallAttempts; attempt++ {
+		getHostSoftwareResp = getHostSoftwareResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h3.ID), nil, http.StatusOK, &getHostSoftwareResp)
+		require.Len(t, getHostSoftwareResp.Software, 1)
+		require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage)
+		require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
+		retryUUID := getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall.InstallUUID
+		require.NotEqual(t, installUUID3, retryUUID, "retry should have a new install UUID (attempt %d)", attempt)
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
+				"orbit_node_key": %q,
+				"install_uuid": %q,
+				"pre_install_condition_output": "ok",
+				"install_script_exit_code": 1,
+				"install_script_output": "retry %d failed"
+			}`, *h3.OrbitNodeKey, retryUUID, attempt)), http.StatusNoContent)
+		installUUID3 = retryUUID
+	}
+
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h4.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h4.ID), nil, http.StatusOK, &getHostSoftwareResp)
 	require.Len(t, getHostSoftwareResp.Software, 1)
@@ -14336,6 +14556,23 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	var hostRespPreInstallFailed getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h4.ID), nil, http.StatusOK, &hostRespPreInstallFailed)
 	require.False(t, hostRespPreInstallFailed.Host.RefetchRequested, "RefetchRequested should be false after failed pre-install condition")
+
+	// Exhaust automatic retries for h4 so it reaches terminal "failed" state.
+	for attempt := 2; attempt <= fleet.MaxSoftwareInstallAttempts; attempt++ {
+		getHostSoftwareResp = getHostSoftwareResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h4.ID), nil, http.StatusOK, &getHostSoftwareResp)
+		require.Len(t, getHostSoftwareResp.Software, 1)
+		require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage)
+		require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
+		retryUUID := getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall.InstallUUID
+		require.NotEqual(t, installUUID4a, retryUUID, "retry should have a new install UUID (attempt %d)", attempt)
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
+				"orbit_node_key": %q,
+				"install_uuid": %q,
+				"pre_install_condition_output": ""
+			}`, *h4.OrbitNodeKey, retryUUID)), http.StatusNoContent)
+		installUUID4a = retryUUID
+	}
 
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h4.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h4.ID), nil, http.StatusOK, &getHostSoftwareResp)
@@ -15189,7 +15426,7 @@ func triggerAndWait(ctx context.Context, t *testing.T, ds fleet.Datastore, s *sc
 
 	var didTrigger bool
 	for range 10 {
-		_, didTrigger, err = s.Trigger()
+		_, didTrigger, err = s.Trigger(ctx)
 		require.NoError(t, err)
 		if didTrigger {
 			break
@@ -15682,7 +15919,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 
 // 1. host reports software
 // 2. reconciler runs, creates title
-// 3. installer is uploaded, matches existing software title
+// 3. installer is uploaded, creates a new software title
 func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 	t := s.T()
 	ctx := context.Background()
@@ -15710,8 +15947,9 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
 		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
 		{Name: "bar", Version: "0.0.4", Source: "apps"},
-		// note: the source is not "apps"
-		{Name: "DummyApp", Version: "1.0.0", Source: "homebrew", BundleIdentifier: "com.example.dummy"},
+		// note: the source is not "apps". Homebrew packages do not report bundle_identifier
+		// so it is possible to add a pkg installer with the same name
+		{Name: "DummyApp", Version: "1.0.0", Source: "homebrew"},
 	}
 	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -15744,6 +15982,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 		Filename:      "dummy_installer.pkg",
 		TeamID:        &team.ID,
 	}
+
 	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 	resp = listSoftwareTitlesResponse{}
@@ -15753,21 +15992,22 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 		http.StatusOK, &resp,
 		"team_id", fmt.Sprintf("%d", team.ID),
 	)
-	require.Len(t, resp.SoftwareTitles, 3)
+	require.Len(t, resp.SoftwareTitles, 4)
 	require.ElementsMatch(
 		t,
-		[]string{"foo", "bar", "DummyApp"},
-		[]string{
-			resp.SoftwareTitles[0].Name,
-			resp.SoftwareTitles[1].Name,
-			resp.SoftwareTitles[2].Name,
+		[]any{[]string{"foo", "homebrew"}, []string{"bar", "apps"}, []string{"DummyApp", "homebrew"}, []string{"DummyApp", "apps"}},
+		[]any{
+			[]string{resp.SoftwareTitles[0].Name, resp.SoftwareTitles[0].Source},
+			[]string{resp.SoftwareTitles[1].Name, resp.SoftwareTitles[1].Source},
+			[]string{resp.SoftwareTitles[2].Name, resp.SoftwareTitles[2].Source},
+			[]string{resp.SoftwareTitles[3].Name, resp.SoftwareTitles[3].Source},
 		},
 	)
 }
 
 // 1. host reports software
-// 2. installer is uploaded, matches existing software
-// 2. reconciler runs, matches existing software title
+// 2. installer is uploaded, creates new software title
+// 3. reconciler runs, no changes
 func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 	t := s.T()
 	ctx := context.Background()
@@ -15795,8 +16035,9 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
 		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
 		{Name: "bar", Version: "0.0.4", Source: "apps"},
-		// note: the source is not "apps"
-		{Name: "DummyApp", Version: "1.0.0", Source: "homebrew", BundleIdentifier: "com.example.dummy"},
+		// note: the source is not "apps". Homebrew packages do not report bundle_identifier
+		// so it is possible to add a pkg installer with the same name
+		{Name: "DummyApp", Version: "1.0.0", Source: "homebrew"},
 	}
 	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -15824,7 +16065,6 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 		[]string{"DummyApp"},
 		[]string{resp.SoftwareTitles[0].Name},
 	)
-
 	hostsCountTs := time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
@@ -15835,14 +16075,15 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 		http.StatusOK, &resp,
 		"team_id", fmt.Sprintf("%d", team.ID),
 	)
-	require.Len(t, resp.SoftwareTitles, 3)
+	require.Len(t, resp.SoftwareTitles, 4)
 	require.ElementsMatch(
 		t,
-		[]string{"foo", "bar", "DummyApp"},
+		[]string{"foo", "bar", "DummyApp", "DummyApp"},
 		[]string{
 			resp.SoftwareTitles[0].Name,
 			resp.SoftwareTitles[1].Name,
 			resp.SoftwareTitles[2].Name,
+			resp.SoftwareTitles[3].Name,
 		},
 	)
 }
@@ -17719,6 +17960,247 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	require.Equal(t, 1, attemptCounts.NullCount, "should have exactly 1 row with attempt_number IS NULL (pending)")
 }
 
+func (s *integrationEnterpriseTestSuite) TestNonPolicySoftwareInstallRetries() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", t.Name()),
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	pkgPayload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install script",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, pkgPayload, http.StatusOK, "")
+
+	var resp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{},
+		http.StatusOK, &resp, "query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID))
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	softwareTitleID := resp.SoftwareTitles[0].ID
+
+	var installerID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerID,
+			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`,
+			team.ID, "dummy_installer.pkg")
+	})
+	require.NotZero(t, installerID)
+
+	getPendingInstall := func() *fleet.HostSoftwareInstallerResult {
+		var results []*fleet.HostSoftwareInstallerResult
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &results, `
+				SELECT
+					id,
+					execution_id,
+					host_id,
+					software_installer_id,
+					self_service,
+					install_script_exit_code,
+					attempt_number
+				FROM host_software_installs
+				WHERE host_id = ? AND install_script_exit_code IS NULL AND policy_id IS NULL
+				ORDER BY id ASC
+			`, host.ID)
+		})
+		if len(results) == 0 {
+			return nil
+		}
+		return results[0]
+	}
+	submitInstallResult := func(installUUID string, exitCode int) {
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+			fmt.Sprintf(`{
+				"orbit_node_key": %q,
+				"install_uuid": %q,
+				"install_script_exit_code": %d,
+				"install_script_output": "install output"
+			}`, *host.OrbitNodeKey, installUUID, exitCode),
+		), http.StatusNoContent)
+	}
+	getInstallResults := func() []*fleet.HostSoftwareInstallerResult {
+		var results []*fleet.HostSoftwareInstallerResult
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &results, `
+				SELECT id, execution_id, host_id, software_installer_id, self_service,
+					install_script_exit_code, attempt_number
+				FROM host_software_installs
+				WHERE host_id = ? AND software_installer_id = ? AND policy_id IS NULL
+				ORDER BY id ASC
+			`, host.ID, installerID)
+		})
+		return results
+	}
+	countActivities := func() int {
+		var count int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, `
+				SELECT COUNT(*)
+				FROM activities
+				WHERE activity_type = 'installed_software'
+					AND JSON_EXTRACT(details, '$.host_id') = ?
+					AND JSON_EXTRACT(details, '$.status') = 'failed_install'
+			`, host.ID)
+		})
+		return count
+	}
+
+	// Trigger install from host details (admin-initiated, non-policy)
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, softwareTitleID),
+		nil, http.StatusAccepted)
+
+	// Wait for install to be queued
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingInstall := getPendingInstall()
+		assert.NotNil(t, pendingInstall, "install should be queued")
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Fail the first attempt
+	pendingInstall := getPendingInstall()
+	require.NotNil(t, pendingInstall)
+	installUUID1 := pendingInstall.InstallUUID
+	submitInstallResult(installUUID1, 1)
+
+	// Verify attempt 1 and retry queued
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		results := getInstallResults()
+		assert.GreaterOrEqual(t, len(results), 2, "should have completed attempt and pending retry")
+		if len(results) >= 2 {
+			assert.NotNil(t, results[0].AttemptNumber)
+			assert.Equal(t, 1, *results[0].AttemptNumber)
+			assert.NotNil(t, results[0].InstallScriptExitCode)
+			assert.Nil(t, results[1].InstallScriptExitCode)
+		}
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Activity created for each failure
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 1, countActivities(), "activity should be created for attempt 1")
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Wait for pending retry
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingInstall := getPendingInstall()
+		assert.NotNil(t, pendingInstall)
+		if pendingInstall != nil {
+			assert.NotEqual(t, installUUID1, pendingInstall.InstallUUID)
+		}
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Fail attempt 2
+	pendingInstall = getPendingInstall()
+	require.NotNil(t, pendingInstall)
+	installUUID2 := pendingInstall.InstallUUID
+	submitInstallResult(installUUID2, 1)
+
+	// Verify attempt 2 and retry queued
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		results := getInstallResults()
+		assert.GreaterOrEqual(t, len(results), 3)
+		if len(results) >= 3 {
+			assert.NotNil(t, results[1].AttemptNumber)
+			assert.Equal(t, 2, *results[1].AttemptNumber)
+			assert.Nil(t, results[2].InstallScriptExitCode)
+		}
+	}, 5*time.Second, 100*time.Millisecond)
+	require.Equal(t, 2, countActivities())
+
+	// Wait for second retry
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingInstall := getPendingInstall()
+		assert.NotNil(t, pendingInstall)
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Fail attempt 3 (final)
+	pendingInstall = getPendingInstall()
+	require.NotNil(t, pendingInstall)
+	installUUID3 := pendingInstall.InstallUUID
+	submitInstallResult(installUUID3, 1)
+
+	// Verify attempt 3 is final — no more retries
+	results := getInstallResults()
+	require.Len(t, results, 3, "should have exactly 3 completed attempts")
+	require.NotNil(t, results[2].AttemptNumber)
+	require.Equal(t, 3, *results[2].AttemptNumber)
+	require.NotNil(t, results[2].InstallScriptExitCode)
+
+	// All 3 attempts create activities
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 3, countActivities(), "activity should be created for each attempt")
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// No more retries
+	time.Sleep(2 * time.Second)
+	pendingInstall = getPendingInstall()
+	require.Nil(t, pendingInstall)
+
+	// Verify exactly 3 attempts
+	results = getInstallResults()
+	require.Len(t, results, 3)
+	require.Equal(t, 1, *results[0].AttemptNumber)
+	require.Equal(t, 2, *results[1].AttemptNumber)
+	require.Equal(t, 3, *results[2].AttemptNumber)
+
+	// Manual re-install resets retry count
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, softwareTitleID),
+		nil, http.StatusAccepted)
+
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingInstall := getPendingInstall()
+		assert.NotNil(t, pendingInstall)
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Fail the new first attempt
+	pendingInstall = getPendingInstall()
+	require.NotNil(t, pendingInstall)
+	submitInstallResult(pendingInstall.InstallUUID, 1)
+
+	// Verify retry is queued (fresh sequence starts at attempt 1)
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		results := getInstallResults()
+		// Find the last completed result
+		for i := len(results) - 1; i >= 0; i-- {
+			if results[i].InstallScriptExitCode != nil {
+				assert.NotNil(t, results[i].AttemptNumber)
+				assert.Equal(t, 1, *results[i].AttemptNumber, "fresh sequence should start at attempt 1")
+				break
+			}
+		}
+		// Should have a pending retry
+		pendingInstall := getPendingInstall()
+		assert.NotNil(t, pendingInstall, "retry should be queued for fresh sequence")
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Succeed the retry
+	pendingInstall = getPendingInstall()
+	require.NotNil(t, pendingInstall)
+	submitInstallResult(pendingInstall.InstallUUID, 0) // exit code 0 = success
+
+	// No more retries after success
+	time.Sleep(2 * time.Second)
+	pendingInstall = getPendingInstall()
+	require.Nil(t, pendingInstall)
+}
+
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallersLabelScoping() {
 	t := s.T()
 	ctx := context.Background()
@@ -19068,7 +19550,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	// TODO this will change when actual install scripts are created.
 	dbAppRecord, err := s.ds.GetMaintainedAppByID(ctx, listMAResp.FleetMaintainedApps[0].ID, nil)
 	require.NoError(t, err)
-	_, err = maintained_apps.Hydrate(ctx, dbAppRecord)
+	_, err = maintained_apps.Hydrate(ctx, dbAppRecord, "", nil, nil)
 	require.NoError(t, err)
 	dbAppResponse := fleet.MaintainedApp{
 		ID:              dbAppRecord.ID,
@@ -19146,6 +19628,31 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusOK, &addMAResp)
 	require.Nil(t, addMAResp.Err)
 
+	// Verify the installer has is_active = 1 for this FMA
+	var activeInstallerCount, onlyInstallerID uint
+	var isActive bool
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		err := sqlx.GetContext(ctx, q, &activeInstallerCount,
+			`SELECT COUNT(*) FROM software_installers WHERE fleet_maintained_app_id = ? AND global_or_team_id = ? AND is_active = 1`,
+			req.AppID, team.ID)
+		if err != nil {
+			return err
+		}
+
+		err = sqlx.GetContext(ctx, q, &onlyInstallerID,
+			`SELECT id FROM software_installers WHERE fleet_maintained_app_id = ? AND global_or_team_id = ?`,
+			req.AppID, team.ID)
+		if err != nil {
+			return err
+		}
+
+		return sqlx.GetContext(ctx, q, &isActive,
+			`SELECT is_active FROM software_installers WHERE id = ?`,
+			onlyInstallerID)
+	})
+	require.True(t, isActive, "installer must have is_active = 1")
+	require.Equal(t, uint(1), activeInstallerCount, "single-add API must set is_active = 1 for the installer")
+
 	s.DoJSON(http.MethodGet, "/api/latest/fleet/software/fleet_maintained_apps", listFleetMaintainedAppsRequest{}, http.StatusOK,
 		&listMAResp, "team_id", fmt.Sprint(team.ID))
 	require.Nil(t, listMAResp.Err)
@@ -19155,7 +19662,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	// Validate software installer fields
 	mapp, err := s.ds.GetMaintainedAppByID(ctx, 1, &team.ID)
 	require.NoError(t, err)
-	_, err = maintained_apps.Hydrate(ctx, mapp)
+	_, err = maintained_apps.Hydrate(ctx, mapp, "", nil, nil)
 	require.NoError(t, err)
 	i, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(1))
 	require.NoError(t, err)
@@ -19197,7 +19704,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	// Check activity
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeAddedSoftware{}.ActivityName(),
-		fmt.Sprintf(`{"software_title": "%[1]s", "software_package": "installer.zip", "team_name": "%s", "team_id": %d, "self_service": true, "software_title_id": %d}`, mapp.Name, team.Name, team.ID, title.ID),
+		fmt.Sprintf(`{"software_title": "%[1]s", "software_package": "installer.zip", "team_name": "%s", "team_id": %d, "fleet_name": "%s", "fleet_id": %d, "self_service": true, "software_title_id": %d}`, mapp.Name, team.Name, team.ID, team.Name, team.ID, title.ID),
 		0,
 	)
 
@@ -19246,7 +19753,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 
 	mapp, err = s.ds.GetMaintainedAppByID(ctx, 4, ptr.Uint(0))
 	require.NoError(t, err)
-	_, err = maintained_apps.Hydrate(ctx, mapp)
+	_, err = maintained_apps.Hydrate(ctx, mapp, "", nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, 1, resp.Count)
 	title = resp.SoftwareTitles[0]
@@ -19359,7 +19866,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		TeamID:   &noTeamID,
 		TeamName: nil,
 	}
-	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
+	s.lastActivityMatches(wantAct.ActivityName(), fmt.Sprintf(`{"fleet_id":0, "policy_id":%d, "policy_name":"[Install software]", "team_id":0}`, gotPolicy.ID), 0)
 
 	// First FMA added doesn't have automatic install policies
 	st = resp.SoftwareTitles[1] // sorted by ID above
@@ -19642,7 +20149,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
-		kitlog.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: host.ID},
 		s.ds,
 		rows,
@@ -20498,7 +21005,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 
 # Fleet extracts and saves package IDs.
 pkg_ids=(
-  "com.example.dummy"
+  'com.example.dummy'
 )
 
 # For each package id, get all .app folders associated with the package and remove them.
@@ -21563,7 +22070,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 	require.NoError(t, swInstallResp.Err)
 
 	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
-		fmt.Sprintf(`{"platform": "linux", "team_id": %d, "team_name": "%s"}`, team.ID, team.Name), 0)
+		fmt.Sprintf(`{"platform": "linux", "team_id": %d, "team_name": "%s", "fleet_id": %d, "fleet_name": "%s"}`, team.ID, team.Name, team.ID, team.Name), 0)
 
 	// Get "Setup experience" items.
 	respGetSetupExperience = getSetupExperienceSoftwareResponse{}
@@ -22108,7 +22615,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 	require.NoError(t, swInstallResp.Err)
 
 	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
-		`{"platform": "linux", "team_id": 0, "team_name": ""}`, 0)
+		`{"platform": "linux", "team_id": 0, "team_name": "", "fleet_id": 0, "fleet_name": ""}`, 0)
 
 	// Get "Setup experience" items for "No team".
 	respGetSetupExperience = getSetupExperienceSoftwareResponse{}
@@ -22404,7 +22911,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 	require.NoError(t, swInstallResp.Err)
 
 	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
-		fmt.Sprintf(`{"platform": "windows", "team_id": %d, "team_name": "%s"}`, team.ID, team.Name), 0)
+		fmt.Sprintf(`{"platform": "windows", "team_id": %d, "team_name": "%s", "fleet_id": %d, "fleet_name": "%s"}`, team.ID, team.Name, team.ID, team.Name), 0)
 
 	// Add a deb package to the Linux setup experience to test
 	// that only msi and exe are queued on Windows hosts.
@@ -22654,7 +23161,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 	require.NoError(t, swInstallResp.Err)
 
 	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
-		`{"platform": "windows", "team_id": 0, "team_name": ""}`, 0)
+		`{"platform": "windows", "team_id": 0, "team_name": "", "fleet_id": 0, "fleet_name": ""}`, 0)
 
 	// Add a deb package to the Linux setup experience to test
 	// that only msi and exe are queued on Windows hosts.
@@ -23972,6 +24479,39 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 		require.NoError(t, getDeviceHostResp.Err)
 		require.False(t, getDeviceHostResp.Host.ConditionalAccessBypassed)
 	})
+
+	t.Run("bypass fails when host has failing non-bypassable policy", func(t *testing.T) {
+		token := fmt.Sprintf("bypass-nonbypassable-%s", uuid.New().String())
+		host := createHostAndDeviceToken(t, s.ds, token)
+
+		// Create a global policy
+		adminUser := s.users["admin1@example.com"]
+		policy, err := s.ds.NewGlobalPolicy(ctx, &adminUser.ID, fleet.PolicyPayload{
+			Name:  fmt.Sprintf("non-bypassable-%s", uuid.New().String()),
+			Query: "select 1;",
+		})
+		require.NoError(t, err)
+
+		// Make the policy non-bypassable
+		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			_, innerErr := db.ExecContext(ctx, `UPDATE policies SET conditional_access_bypass_enabled = 0 WHERE id = ?`, policy.ID)
+			return innerErr
+		})
+
+		// Record a failing result for this policy on the host
+		err = s.ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: ptr.Bool(false)}, time.Now(), false)
+		require.NoError(t, err)
+
+		// Bypass should fail with 400 Bad Request
+		var bypassResp bypassConditionalAccessResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusBadRequest, &bypassResp)
+
+		// Verify no bypass row was created
+		bypassedAt, err := s.ds.ConditionalAccessBypassedAt(ctx, host.ID)
+		require.NoError(t, err)
+		require.Nil(t, bypassedAt)
+	})
 }
 
 // generateTestCertForDeviceAuth generates a test certificate for device authentication.
@@ -24313,7 +24853,9 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 
 		// check activity
 		activityData := fmt.Sprintf(
-			`{"software_title": "ipa_test", "software_package": "ipa_test2.ipa", "team_name": "%s", "team_id": %d, "self_service": true, "software_title_id": %d}`,
+			`{"software_title": "ipa_test", "software_package": "ipa_test2.ipa", "team_name": "%s", "team_id": %d, "fleet_name": "%s", "fleet_id": %d, "self_service": true, "software_title_id": %d}`,
+			createTeamResp.Team.Name,
+			createTeamResp.Team.ID,
 			createTeamResp.Team.Name,
 			createTeamResp.Team.ID,
 			titleID+1, // iOS title is created first and returned, so the latest title is the iPadOS one
@@ -24376,8 +24918,8 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 
 		// check activity
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(),
-			fmt.Sprintf(`{"labels_exclude_any":  [{"id": %d, "name": "%s"}], "software_title": "ipa_test", "software_package": "ipa_test2.ipa", "software_icon_url": null, "team_name": "%s", "team_id": %d, "self_service": false}`,
-				labelResp.Label.ID, labelResp.Label.Name, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
+			fmt.Sprintf(`{"labels_exclude_any":  [{"id": %d, "name": "%s"}], "software_title": "ipa_test", "software_package": "ipa_test2.ipa", "software_icon_url": null, "team_name": "%s", "team_id": %d, "fleet_name": "%s", "fleet_id": %d, "self_service": false}`,
+				labelResp.Label.ID, labelResp.Label.Name, createTeamResp.Team.Name, createTeamResp.Team.ID, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
 
 		// download the installer, not found anymore
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", *payload.TeamID))
@@ -24875,7 +25417,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		AutoUpdateEndTime:   ptr.String("04:00"),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
 
 	// Get the software title again.
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppApp.TitleID), nil, http.StatusOK, &titlesResp, "team_id", fmt.Sprintf("%d", teamID))
@@ -24892,7 +25434,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		DisplayName: ptr.String("New Display Name"),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1",  "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1",  "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
 
 	// Disable the auto-update config
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
@@ -24900,7 +25442,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		AutoUpdateEnabled: ptr.Bool(false),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
 
 	// Do an update without auto-update fields to check that it still includes the auto-update values.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
@@ -24908,5 +25450,918 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		DisplayName: ptr.String("Updated Display Name"),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
+}
+
+func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
+	t := s.T()
+	ctx := context.Background()
+
+	// --- Shared per-FMA state for mock servers ---
+	// Each FMA (warp, zoom) has independently mutable version/bytes/sha so the
+	// manifest and installer servers can serve different content per slug.
+	type fmaTestState struct {
+		version        string
+		installerBytes []byte
+		sha256         string
+	}
+
+	computeSHA := func(b []byte) string {
+		h := sha256.New()
+		h.Write(b)
+		return hex.EncodeToString(h.Sum(nil))
+	}
+
+	warpState := &fmaTestState{version: "1.0", installerBytes: []byte("abc")}
+	warpState.sha256 = computeSHA(warpState.installerBytes)
+
+	zoomState := &fmaTestState{version: "1.0", installerBytes: []byte("xyz")}
+	zoomState.sha256 = computeSHA(zoomState.installerBytes)
+
+	// downloadedSlugs tracks which FMA slugs were hit on the installer server
+	// so individual tests can assert whether a download occurred.
+	downloadedSlugs := map[string]bool{}
+	var downloadMu sync.Mutex
+
+	// Mock installer server — routes by path to serve per-FMA bytes.
+	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		downloadMu.Lock()
+		defer downloadMu.Unlock()
+		switch r.URL.Path {
+		case "/cloudflare-warp.msi":
+			downloadedSlugs["cloudflare-warp/windows"] = true
+			_, _ = w.Write(warpState.installerBytes)
+		case "/zoom.msi":
+			downloadedSlugs["zoom/windows"] = true
+			_, _ = w.Write(zoomState.installerBytes)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer installerServer.Close()
+
+	// Non-existent maintained app
+	s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
+
+	// Insert the list of maintained apps
+	maintained_apps.SyncApps(t, s.ds)
+
+	// Mock manifest server — routes by slug path and returns current per-FMA state.
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var state *fmaTestState
+		var installerPath string
+		switch r.URL.Path {
+		case "/cloudflare-warp/windows.json":
+			state = warpState
+			installerPath = "/cloudflare-warp.msi"
+		case "/zoom/windows.json":
+			state = zoomState
+			installerPath = "/zoom.msi"
+		default:
+			http.NotFound(w, r)
+			return
+		}
+
+		versions := []*ma.FMAManifestApp{
+			{
+				Version:            state.version,
+				Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+				InstallerURL:       installerServer.URL + installerPath,
+				InstallScriptRef:   "foobaz",
+				UninstallScriptRef: "foobaz",
+				SHA256:             state.sha256,
+				DefaultCategories:  []string{"Productivity"},
+			},
+		}
+		manifest := ma.FMAManifestFile{
+			Versions: versions,
+			Refs:     map[string]string{"foobaz": "Hello World!"},
+		}
+		require.NoError(t, json.NewEncoder(w).Encode(manifest))
+	}))
+	t.Cleanup(manifestServer.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
+	defer dev_mode.ClearOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
+
+	// -------------------------------------------------------------------------
+	// Sub-test helper: fetch the active software title for a team by FMA name.
+	// -------------------------------------------------------------------------
+	getActiveTitleForTeam := func(teamID uint) fleet.SoftwareTitleListResult {
+		var resp listSoftwareTitlesResponse
+		s.DoJSON(
+			"GET", "/api/latest/fleet/software/titles",
+			listSoftwareTitlesRequest{},
+			http.StatusOK, &resp,
+			"per_page", "1",
+			"order_key", "name",
+			"order_direction", "desc",
+			"available_for_install", "true",
+			"team_id", fmt.Sprintf("%d", teamID),
+		)
+		require.Equal(t, 1, resp.Count)
+		return resp.SoftwareTitles[0]
+	}
+
+	// -------------------------------------------------------------------------
+	// Shared helpers used across sub-tests.
+	// -------------------------------------------------------------------------
+
+	// newTeam creates a new team with the given name and returns it.
+	newTeam := func(name string) fleet.Team {
+		var resp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+			TeamPayload: fleet.TeamPayload{Name: ptr.String(name)},
+		}, http.StatusOK, &resp)
+		return *resp.Team
+	}
+
+	// resetFMAState resets an fmaTestState to the given version and installer bytes.
+	resetFMAState := func(state *fmaTestState, version string, installerBytes []byte) {
+		state.version = version
+		state.installerBytes = installerBytes
+		state.sha256 = computeSHA(installerBytes)
+	}
+
+	// batchSet issues a batch-set request for the given team and software slice,
+	// waits for completion, and returns the resulting packages.
+	batchSet := func(team fleet.Team, software []*fleet.SoftwareInstallerPayload) []fleet.SoftwarePackageResponse {
+		var resp batchSetSoftwareInstallersResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: software, TeamName: team.Name},
+			http.StatusAccepted, &resp,
+			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+		)
+		return waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+	}
+
+	// newHostInTeam creates an orbit-enrolled host and assigns it to the given team.
+	newHostInTeam := func(platform, name string, team fleet.Team) *fleet.Host {
+		host := createOrbitEnrolledHost(t, platform, name, s.ds)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		return host
+	}
+
+	// fmaAppID returns the fleet_maintained_apps.id for the given slug.
+	fmaAppID := func(slug string) uint {
+		var id uint
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, "SELECT id FROM fleet_maintained_apps WHERE slug = ?", slug)
+		})
+		require.NotZero(t, id)
+		return id
+	}
+
+	// =========================================================================
+	// Section 1 (existing): Batch-set / GitOps flow for cloudflare-warp/windows
+	// =========================================================================
+
+	team := newTeam("team_" + t.Name())
+
+	// Add an ingested app to the team
+	softwareToInstall := []*fleet.SoftwareInstallerPayload{
+		{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
+	}
+
+	packages := batchSet(team, softwareToInstall)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+
+	title := getActiveTitleForTeam(team.ID)
+	require.Equal(t, "1.0", title.SoftwarePackage.Version)
+	require.Equal(t, "cloudflare-warp.msi", title.SoftwarePackage.Name)
+
+	// With only one version, fleet_maintained_versions should list it
+	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 1)
+	require.Equal(t, "1.0", title.SoftwarePackage.FleetMaintainedVersions[0].Version)
+
+	// Now add a second version
+	resetFMAState(warpState, "2.0", []byte("def"))
+
+	packages = batchSet(team, softwareToInstall)
+	require.Len(t, packages, 2)
+
+	title = getActiveTitleForTeam(team.ID)
+	require.Equal(t, "2.0", title.SoftwarePackage.Version)
+	require.Equal(t, "cloudflare-warp.msi", title.SoftwarePackage.Name)
+
+	// fleet_maintained_versions should list both versions (newest first)
+	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
+	require.Equal(t, "2.0", title.SoftwarePackage.FleetMaintainedVersions[0].Version)
+	require.Equal(t, "1.0", title.SoftwarePackage.FleetMaintainedVersions[1].Version)
+
+	// We should have the previous version cached in the DB
+	installers, err := s.ds.GetSoftwareInstallers(ctx, team.ID)
+	s.Require().NoError(err)
+	s.Assert().Len(installers, 2)
+
+	// Now add a third version — should evict v1.0, keeping only v3.0 and v2.0
+	resetFMAState(warpState, "3.0", []byte("ghi"))
+
+	packages = batchSet(team, softwareToInstall)
+	require.Len(t, packages, 2)
+
+	title = getActiveTitleForTeam(team.ID)
+	require.Equal(t, "3.0", title.SoftwarePackage.Version)
+
+	// Only 2 versions should remain after eviction (max 2 cached)
+	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
+	require.Equal(t, "3.0", title.SoftwarePackage.FleetMaintainedVersions[0].Version)
+	require.Equal(t, "2.0", title.SoftwarePackage.FleetMaintainedVersions[1].Version)
+
+	// DB should also only have 2 installers
+	installers, err = s.ds.GetSoftwareInstallers(ctx, team.ID)
+	s.Require().NoError(err)
+	s.Assert().Len(installers, 2)
+
+	// ---- Test version rollback via fleet_maintained_app_version ----
+	// Pin to version "2.0" in the batch request (simulating GitOps yaml with version specified).
+	// The active installer should switch to the cached v2.0 installer.
+	packages = batchSet(team, []*fleet.SoftwareInstallerPayload{
+		{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "2.0"},
+	})
+	require.Len(t, packages, 2)
+
+	// The active version shown in the title should now be "2.0"
+	title = getActiveTitleForTeam(team.ID)
+	require.Equal(t, "2.0", title.SoftwarePackage.Version)
+
+	// Both versions should still be listed
+	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
+
+	// Create a host in the team, trigger an install, and verify the downloaded bytes match v2.0
+	hostInTeam := newHostInTeam("windows", "orbit-host-rollback", team)
+
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostInTeam.ID, title.ID), installSoftwareRequest{}, http.StatusAccepted)
+
+	// Get the queued installer ID from the pending install record
+	var installerID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerID, `
+			SELECT software_installer_id FROM host_software_installs
+			WHERE host_id = ? AND software_installer_id IS NOT NULL AND install_script_exit_code IS NULL
+			ORDER BY created_at DESC LIMIT 1
+		`, hostInTeam.ID)
+	})
+
+	// Download the installer via orbit — should get the v2.0 bytes ("def")
+	r := s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+		InstallerID:  installerID,
+		OrbitNodeKey: *hostInTeam.OrbitNodeKey,
+	}, http.StatusOK)
+	body, err := io.ReadAll(r.Body)
+	require.NoError(t, err)
+	r.Body.Close()
+	// v2.0 installer bytes were []byte("def")
+	require.Equal(t, []byte("def"), body, "downloaded installer should match v2.0 bytes")
+
+	downloadMu.Lock()
+	delete(downloadedSlugs, "cloudflare-warp/windows")
+	downloadMu.Unlock()
+
+	// ---- Test switching active version back to 3.0 ----
+	// Pin to version "3.0" — the active installer should switch to the cached v3.0 installer.
+	packages = batchSet(team, []*fleet.SoftwareInstallerPayload{
+		{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "3.0"},
+	})
+	require.Len(t, packages, 2)
+
+	// The active version shown in the title should now be "3.0"
+	title = getActiveTitleForTeam(team.ID)
+	require.Equal(t, "3.0", title.SoftwarePackage.Version)
+
+	// Both versions should still be listed
+	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
+
+	// Trigger an install and verify the downloaded bytes match v3.0
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostInTeam.ID, title.ID), installSoftwareRequest{}, http.StatusAccepted)
+
+	// Get the queued installer ID from the pending install record
+	var installerIDv3 uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerIDv3, `
+			SELECT software_installer_id FROM host_software_installs
+			WHERE host_id = ? AND software_installer_id IS NOT NULL AND install_script_exit_code IS NULL
+			ORDER BY created_at DESC LIMIT 1
+		`, hostInTeam.ID)
+	})
+
+	// Download the installer via orbit — should get the v3.0 bytes ("ghi")
+	r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+		InstallerID:  installerIDv3,
+		OrbitNodeKey: *hostInTeam.OrbitNodeKey,
+	}, http.StatusOK)
+	body, err = io.ReadAll(r.Body)
+	require.NoError(t, err)
+	r.Body.Close()
+	// v3.0 installer bytes were []byte("ghi")
+	require.Equal(t, []byte("ghi"), body, "downloaded installer should match v3.0 bytes")
+
+	// We have version 3.0 cached, so we should not have downloaded the bytes
+	downloadMu.Lock()
+	warpDownloaded := downloadedSlugs["cloudflare-warp/windows"]
+	downloadMu.Unlock()
+	s.Assert().False(warpDownloaded)
+
+	// ---- Test rollback to an evicted version (v1.0) ----
+	// v1.0 was evicted when v3.0 was added (max 2 cached: v3.0 + v2.0).
+	// Per spec, pinning to an evicted version should fail with an error —
+	// Fleet should NOT re-download it.
+	downloadMu.Lock()
+	delete(downloadedSlugs, "cloudflare-warp/windows")
+	downloadMu.Unlock()
+
+	rawResp := s.Do("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{
+			Software: []*fleet.SoftwareInstallerPayload{
+				{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
+			},
+			TeamName: team.Name,
+		},
+		http.StatusBadRequest, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+	require.Contains(t, extractServerErrorText(rawResp.Body), "specified version is not available")
+
+	// Should NOT have hit the installer server — no re-download attempt
+	downloadMu.Lock()
+	warpDownloaded = downloadedSlugs["cloudflare-warp/windows"]
+	downloadMu.Unlock()
+	require.False(t, warpDownloaded, "should not attempt to re-download an evicted version")
+
+	// The active version should still be "3.0" (unchanged)
+	title = getActiveTitleForTeam(team.ID)
+	require.Equal(t, "3.0", title.SoftwarePackage.Version, "active version should remain 3.0 after failed rollback to evicted version")
+
+	// Attempt to add a custom package that will map to the same software title. Should fail
+	// (this tests the "custom installer vs existing FMA" direction).
+	installerContent := "installerbytes"
+	installerFile, err := fleet.NewTempFileReader(strings.NewReader(installerContent), t.TempDir)
+	require.NoError(t, err)
+	defer installerFile.Close()
+
+	user, err := s.ds.UserByEmail(context.Background(), "admin1@example.com")
+	require.NoError(t, err)
+
+	customPayload := &fleet.UploadSoftwareInstallerPayload{
+		TeamID:          &team.ID,
+		Filename:        "cloudflare-warp-installer.msi",
+		InstallerFile:   installerFile,
+		Version:         "99.0.0",
+		StorageID:       computeSHA([]byte(installerContent)),
+		SelfService:     true,
+		Title:           "cloudflare warp", // windows installer, so Fleet does software title matching on this field
+		InstallScript:   "install",
+		UninstallScript: "uninstall",
+		Source:          "programs",
+		Platform:        "windows",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		UserID:          user.ID,
+	}
+
+	// We call the datastore method directly here because
+	// the service layer would attempt to extract metadata from the
+	// "installer", but that's just a fake file in this case so it'd fail.
+	// That logic isn't what we're trying to test here.
+	_, _, err = s.ds.MatchOrCreateSoftwareInstaller(ctx, customPayload)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, customPayload.Title, team.Name))
+
+	// =========================================================================
+	// Section 2: UI single-add flow
+	//
+	// The single-add endpoint (POST /fleet_maintained_apps) is used when a
+	// Fleet admin clicks "Add" in the UI, as opposed to the GitOps batch-set
+	// flow.  This verifies that:
+	//   a) The endpoint correctly installs v1.0 from scratch.
+	//   b) A subsequent batch-set upgrade to v2.0 caches both versions.
+	//   c) Rolling back to the UI-added v1.0 via batch-set works correctly.
+	// =========================================================================
+	t.Run("ui_single_add_flow", func(t *testing.T) {
+		// Reset warp state to v1.0 for this sub-test.
+		resetFMAState(warpState, "1.0", []byte("abc"))
+
+		// Create a fresh team so this sub-test is isolated from Section 1.
+		uiTeam := newTeam("team_ui_" + t.Name())
+
+		// Look up the cloudflare-warp/windows FMA ID that was inserted by SyncApps.
+		warpAppID := fmaAppID("cloudflare-warp/windows")
+
+		// Add the FMA via the single-add (UI) endpoint.
+		var addMAResp addFleetMaintainedAppResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{
+			AppID:       warpAppID,
+			TeamID:      &uiTeam.ID,
+			SelfService: true,
+		}, http.StatusOK, &addMAResp)
+		require.Nil(t, addMAResp.Err)
+
+		// Verify v1.0 was installed and is the only (active) version.
+		uiTitle := getActiveTitleForTeam(uiTeam.ID)
+		require.Equal(t, "1.0", uiTitle.SoftwarePackage.Version)
+		require.Len(t, uiTitle.SoftwarePackage.FleetMaintainedVersions, 1)
+		require.Equal(t, "1.0", uiTitle.SoftwarePackage.FleetMaintainedVersions[0].Version)
+
+		uiInstallers, err := s.ds.GetSoftwareInstallers(ctx, uiTeam.ID)
+		require.NoError(t, err)
+		require.Len(t, uiInstallers, 1)
+
+		// Now bump to v2.0 via the batch-set (GitOps) flow — this is how an
+		// upgrade would arrive after the initial UI-add.
+		resetFMAState(warpState, "2.0", []byte("def"))
+
+		pkgs := batchSet(uiTeam, []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
+		})
+		require.Len(t, pkgs, 2, "both v1.0 (UI-added) and v2.0 should be cached")
+
+		uiTitle = getActiveTitleForTeam(uiTeam.ID)
+		require.Equal(t, "2.0", uiTitle.SoftwarePackage.Version)
+		require.Len(t, uiTitle.SoftwarePackage.FleetMaintainedVersions, 2)
+
+		uiInstallers, err = s.ds.GetSoftwareInstallers(ctx, uiTeam.ID)
+		require.NoError(t, err)
+		require.Len(t, uiInstallers, 2)
+
+		// Roll back to the original UI-added v1.0 via batch-set.
+		pkgs = batchSet(uiTeam, []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
+		})
+		require.Len(t, pkgs, 2, "both versions should still be cached after rollback")
+
+		// Active version should now be v1.0 (the one originally added via the UI).
+		uiTitle = getActiveTitleForTeam(uiTeam.ID)
+		require.Equal(t, "1.0", uiTitle.SoftwarePackage.Version,
+			"active version should roll back to v1.0 (the version added via UI)")
+		require.Len(t, uiTitle.SoftwarePackage.FleetMaintainedVersions, 2,
+			"both versions should remain cached after rolling back")
+	})
+
+	// =========================================================================
+	// Section 3: FMA fails when a custom installer already exists for the same
+	// software title on the team (reverse of the conflict test in Section 1).
+	// =========================================================================
+	t.Run("fma_conflicts_with_existing_custom_installer", func(t *testing.T) {
+		// Reset warp state back to v1.0.
+		resetFMAState(warpState, "1.0", []byte("abc"))
+
+		conflictTeam := newTeam("team_conflict_" + t.Name())
+
+		user, err := s.ds.UserByEmail(ctx, "admin1@example.com")
+		require.NoError(t, err)
+
+		// Add a custom (non-FMA) installer for "Zoom Workplace (X64)" — the same
+		// unique_identifier that the zoom/windows FMA would use.
+		customInstallerFile, err := fleet.NewTempFileReader(strings.NewReader("fake-zoom-installer"), t.TempDir)
+		require.NoError(t, err)
+		defer customInstallerFile.Close()
+
+		// We call the datastore directly because the service layer tries to parse
+		// the installer binary (which is fake here).
+		_, _, err = s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			TeamID:          &conflictTeam.ID,
+			Filename:        "zoom-custom.msi",
+			InstallerFile:   customInstallerFile,
+			Version:         "1.0.0",
+			StorageID:       computeSHA([]byte("fake-zoom-installer")),
+			SelfService:     false,
+			Title:           "Zoom Workplace (X64)", // matches zoom/windows FMA unique_identifier
+			InstallScript:   "install",
+			UninstallScript: "uninstall",
+			Source:          "programs",
+			Platform:        "windows",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			UserID:          user.ID,
+		})
+		require.NoError(t, err, "custom installer should be created without error")
+
+		// Now try to add the zoom/windows FMA via the single-add (UI) endpoint.
+		// It should fail because a custom installer already occupies the same
+		// software title on this team.
+		zoomAppID := fmaAppID("zoom/windows")
+
+		conflictResp := s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps",
+			&addFleetMaintainedAppRequest{
+				AppID:  zoomAppID,
+				TeamID: &conflictTeam.ID,
+			},
+			http.StatusConflict,
+		)
+		errMsg := extractServerErrorText(conflictResp.Body)
+		require.Contains(t, errMsg, "already has an installer available",
+			"error should mention the conflict with the existing custom installer")
+
+		// Confirm the FMA was NOT added — only the original custom installer exists.
+		conflictInstallers, err := s.ds.GetSoftwareInstallers(ctx, conflictTeam.ID)
+		require.NoError(t, err)
+		require.Len(t, conflictInstallers, 1, "FMA should not have been added when a custom installer already exists")
+	})
+
+	// =========================================================================
+	// Section 4: More than one FMA with cached versions on the same team.
+	//
+	// Both cloudflare-warp/windows and zoom/windows are added to the same team.
+	// Each goes through v1.0 → v2.0 → v3.0 (evicting v1.0 for each), then both
+	// are independently rolled back to v2.0.  Verifies that eviction and rollback
+	// logic is per-FMA, not cross-FMA.
+	// =========================================================================
+	t.Run("multiple_fmas_cached_versions", func(t *testing.T) {
+		// Reset both FMA states to v1.0.
+		resetFMAState(warpState, "1.0", []byte("warp-v1"))
+		resetFMAState(zoomState, "1.0", []byte("zoom-v1"))
+
+		multiTeam := newTeam("team_multi_" + t.Name())
+
+		bothFMAs := []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
+			{Slug: ptr.String("zoom/windows"), SelfService: true},
+		}
+
+		// ---- v1.0 for both FMAs ----
+		pkgs := batchSet(multiTeam, bothFMAs)
+		require.Len(t, pkgs, 2, "both FMAs at v1.0")
+
+		multiInstallers, err := s.ds.GetSoftwareInstallers(ctx, multiTeam.ID)
+		require.NoError(t, err)
+		require.Len(t, multiInstallers, 2)
+
+		// ---- v2.0 for both FMAs ----
+		resetFMAState(warpState, "2.0", []byte("warp-v2"))
+		resetFMAState(zoomState, "2.0", []byte("zoom-v2"))
+
+		pkgs = batchSet(multiTeam, bothFMAs)
+		require.Len(t, pkgs, 4, "two cached versions for each of the two FMAs")
+
+		multiInstallers, err = s.ds.GetSoftwareInstallers(ctx, multiTeam.ID)
+		require.NoError(t, err)
+		require.Len(t, multiInstallers, 4, "4 total installers: 2 per FMA")
+
+		// ---- v3.0 for both FMAs — should evict v1.0 for each ----
+		resetFMAState(warpState, "3.0", []byte("warp-v3"))
+		resetFMAState(zoomState, "3.0", []byte("zoom-v3"))
+
+		pkgs = batchSet(multiTeam, bothFMAs)
+		// After eviction each FMA keeps 2 versions (v3.0 + v2.0), so 4 total.
+		require.Len(t, pkgs, 4, "after eviction: 2 cached versions per FMA")
+
+		multiInstallers, err = s.ds.GetSoftwareInstallers(ctx, multiTeam.ID)
+		require.NoError(t, err)
+		require.Len(t, multiInstallers, 4, "4 total installers after eviction of v1.0 for each FMA")
+
+		// ---- Roll back cloudflare-warp to v2.0, leave zoom at v3.0 ----
+		pkgs = batchSet(multiTeam, []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "2.0"},
+			{Slug: ptr.String("zoom/windows"), SelfService: true}, // no rollback — stays at latest
+		})
+		require.Len(t, pkgs, 4)
+
+		// Collect active versions by title name for easy assertion.
+		var multiTitlesResp listSoftwareTitlesResponse
+		s.DoJSON(
+			"GET", "/api/latest/fleet/software/titles",
+			listSoftwareTitlesRequest{},
+			http.StatusOK, &multiTitlesResp,
+			"available_for_install", "true",
+			"team_id", fmt.Sprintf("%d", multiTeam.ID),
+		)
+		require.Equal(t, 2, multiTitlesResp.Count)
+
+		activeVersions := map[string]string{}
+		for _, tl := range multiTitlesResp.SoftwareTitles {
+			activeVersions[tl.Name] = tl.SoftwarePackage.Version
+		}
+		require.Equal(t, "2.0", activeVersions["Cloudflare WARP"],
+			"warp should be rolled back to v2.0")
+		require.Equal(t, "3.0", activeVersions["Zoom Workplace (X64)"],
+			"zoom should remain at v3.0 (not rolled back)")
+
+		// Zoom rollback to v2.0 should also succeed independently.
+		pkgs = batchSet(multiTeam, []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "2.0"},
+			{Slug: ptr.String("zoom/windows"), SelfService: true, RollbackVersion: "2.0"},
+		})
+		require.Len(t, pkgs, 4)
+
+		multiTitlesResp = listSoftwareTitlesResponse{}
+		s.DoJSON(
+			"GET", "/api/latest/fleet/software/titles",
+			listSoftwareTitlesRequest{},
+			http.StatusOK, &multiTitlesResp,
+			"available_for_install", "true",
+			"team_id", fmt.Sprintf("%d", multiTeam.ID),
+		)
+		require.Equal(t, 2, multiTitlesResp.Count)
+
+		activeVersions = map[string]string{}
+		for _, tl := range multiTitlesResp.SoftwareTitles {
+			activeVersions[tl.Name] = tl.SoftwarePackage.Version
+		}
+		require.Equal(t, "2.0", activeVersions["Cloudflare WARP"], "warp should still be at v2.0")
+		require.Equal(t, "2.0", activeVersions["Zoom Workplace (X64)"], "zoom should now be rolled back to v2.0")
+	})
+
+	// =========================================================================
+	// Section 5: Team isolation — cached versions on one team must not affect
+	// another team that holds the same FMA.
+	//
+	// Team A advances cloudflare-warp through v1.0 → v2.0 → v3.0 (evicts v1.0).
+	// Team B advances only to v2.0 and should still have v1.0 cached afterward.
+	// Rolling back Team A to v2.0 must not disturb Team B.
+	// =========================================================================
+	t.Run("team_isolation", func(t *testing.T) {
+		// Reset warp state to v1.0.
+		resetFMAState(warpState, "1.0", []byte("iso-warp-v1"))
+
+		teamA := newTeam("team_iso_a_" + t.Name())
+		teamB := newTeam("team_iso_b_" + t.Name())
+
+		warpPayload := []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
+		}
+
+		// ---- Add v1.0 to both teams ----
+		batchSet(teamA, warpPayload)
+		batchSet(teamB, warpPayload)
+
+		// Both teams should have exactly 1 installer (v1.0).
+		instA, err := s.ds.GetSoftwareInstallers(ctx, teamA.ID)
+		require.NoError(t, err)
+		require.Len(t, instA, 1)
+
+		instB, err := s.ds.GetSoftwareInstallers(ctx, teamB.ID)
+		require.NoError(t, err)
+		require.Len(t, instB, 1)
+
+		// ---- Advance both teams to v2.0 ----
+		resetFMAState(warpState, "2.0", []byte("iso-warp-v2"))
+
+		batchSet(teamA, warpPayload)
+		batchSet(teamB, warpPayload)
+
+		// Both teams should have 2 cached installers (v1.0 + v2.0).
+		instA, err = s.ds.GetSoftwareInstallers(ctx, teamA.ID)
+		require.NoError(t, err)
+		require.Len(t, instA, 2)
+
+		instB, err = s.ds.GetSoftwareInstallers(ctx, teamB.ID)
+		require.NoError(t, err)
+		require.Len(t, instB, 2)
+
+		// ---- Advance Team A to v3.0 (evicts v1.0 on Team A only) ----
+		resetFMAState(warpState, "3.0", []byte("iso-warp-v3"))
+
+		batchSet(teamA, warpPayload)
+
+		// Team A: v1.0 evicted → only v2.0 + v3.0 remain.
+		instA, err = s.ds.GetSoftwareInstallers(ctx, teamA.ID)
+		require.NoError(t, err)
+		require.Len(t, instA, 2, "Team A should still have 2 installers after v1.0 eviction")
+
+		titleA := getActiveTitleForTeam(teamA.ID)
+		require.Equal(t, "3.0", titleA.SoftwarePackage.Version, "Team A active version should be v3.0")
+		require.Len(t, titleA.SoftwarePackage.FleetMaintainedVersions, 2)
+		require.Equal(t, "3.0", titleA.SoftwarePackage.FleetMaintainedVersions[0].Version)
+		require.Equal(t, "2.0", titleA.SoftwarePackage.FleetMaintainedVersions[1].Version)
+
+		// Team B: must be completely unaffected — still has v1.0 + v2.0.
+		instB, err = s.ds.GetSoftwareInstallers(ctx, teamB.ID)
+		require.NoError(t, err)
+		require.Len(t, instB, 2, "Team B should still have 2 installers; Team A's eviction must not affect Team B")
+
+		titleB := getActiveTitleForTeam(teamB.ID)
+		require.Equal(t, "2.0", titleB.SoftwarePackage.Version, "Team B active version should remain v2.0")
+		require.Len(t, titleB.SoftwarePackage.FleetMaintainedVersions, 2)
+		require.Equal(t, "2.0", titleB.SoftwarePackage.FleetMaintainedVersions[0].Version)
+		require.Equal(t, "1.0", titleB.SoftwarePackage.FleetMaintainedVersions[1].Version,
+			"Team B should still have v1.0 cached even though Team A evicted it")
+
+		// ---- Roll back Team A to v2.0 — Team B must not be affected ----
+		batchSet(teamA, []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "2.0"},
+		})
+
+		titleA = getActiveTitleForTeam(teamA.ID)
+		require.Equal(t, "2.0", titleA.SoftwarePackage.Version, "Team A should be rolled back to v2.0")
+
+		// Team B still unaffected.
+		titleB = getActiveTitleForTeam(teamB.ID)
+		require.Equal(t, "2.0", titleB.SoftwarePackage.Version,
+			"Team B active version should remain v2.0 after Team A rollback")
+		require.Len(t, titleB.SoftwarePackage.FleetMaintainedVersions, 2,
+			"Team B cached versions should be unchanged")
+
+		// Verify Team B can still roll back to v1.0 (its eviction pool is independent).
+		batchSet(teamB, []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
+		})
+
+		titleB = getActiveTitleForTeam(teamB.ID)
+		require.Equal(t, "1.0", titleB.SoftwarePackage.Version,
+			"Team B should successfully roll back to v1.0, which is still in its cache")
+	})
+
+	// =========================================================================
+	// Section 6: Deleting an FMA software title removes all cached versions,
+	// not just the active one.
+	//
+	// An FMA is advanced through v1.0 → v2.0 → v3.0 so that two versions are
+	// cached (v3.0 active, v2.0 inactive, v1.0 evicted).  After deleting the
+	// software title the DB should contain zero software_installers rows for
+	// that title+team.
+	// =========================================================================
+	t.Run("delete_fma_cleans_all_cached_versions", func(t *testing.T) {
+		resetFMAState(warpState, "1.0", []byte("del-warp-v1"))
+
+		delTeam := newTeam("team_del_" + t.Name())
+
+		warpPayload := []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
+		}
+
+		batchSet(delTeam, warpPayload)
+
+		// ---- v2.0 ----
+		resetFMAState(warpState, "2.0", []byte("del-warp-v2"))
+
+		batchSet(delTeam, warpPayload)
+
+		// Confirm we have exactly 2 cached installers (v1.0 + v2.0).
+		delInstallers, err := s.ds.GetSoftwareInstallers(ctx, delTeam.ID)
+		require.NoError(t, err)
+		require.Len(t, delInstallers, 2, "should have 2 cached FMA versions before delete")
+
+		// Retrieve the title ID so we can call the delete endpoint.
+		delTitle := getActiveTitleForTeam(delTeam.ID)
+		require.Equal(t, "2.0", delTitle.SoftwarePackage.Version)
+
+		// Delete via the API endpoint — this is the path exercised by the UI.
+		s.Do("DELETE",
+			fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", delTitle.ID),
+			nil, http.StatusNoContent,
+			"team_id", fmt.Sprint(delTeam.ID),
+		)
+
+		// After deletion, zero software_installer rows should remain for this
+		// title+team — both the active (v2.0) and the inactive cached (v1.0)
+		// version must be gone.
+		delInstallers, err = s.ds.GetSoftwareInstallers(ctx, delTeam.ID)
+		require.NoError(t, err)
+		require.Empty(t, delInstallers,
+			"all cached FMA versions (active + inactive) should be deleted, not just the active one")
+
+		// The software title should no longer appear in the available-for-install
+		// list for the team.
+		var titlesResp listSoftwareTitlesResponse
+		s.DoJSON(
+			"GET", "/api/latest/fleet/software/titles",
+			listSoftwareTitlesRequest{},
+			http.StatusOK, &titlesResp,
+			"available_for_install", "true",
+			"team_id", fmt.Sprintf("%d", delTeam.ID),
+		)
+		require.Zero(t, titlesResp.Count,
+			"software title should no longer be available for install after deletion")
+	})
+
+	// =========================================================================
+	// Section 7: Status summary resets to all-zeros when the active version
+	// changes.
+	//
+	//   1. Add warp at v1.0, then advance to v2.0 (v2.0 active, v1.0 cached).
+	//   2. Install v2.0 on a host and record a success → summary shows Installed: 1.
+	//   3. Roll back to v1.0 via batch-set (v1.0 becomes the active installer).
+	//   4. Assert the active installer's (v1.0) status summary is all zeros —
+	//      the install history from v2.0 must not bleed over.
+	// =========================================================================
+	t.Run("status_summary_resets_on_version_switch", func(t *testing.T) {
+		// Reset warp state to v1.0 for this sub-test.
+		resetFMAState(warpState, "1.0", []byte("status-warp-v1"))
+
+		statusTeam := newTeam("team_status_" + t.Name())
+
+		warpPayload := []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
+		}
+
+		// ---- Step 1a: Add v1.0 ----
+		batchSet(statusTeam, warpPayload)
+
+		// ---- Step 1b: Advance to v2.0 ----
+		resetFMAState(warpState, "2.0", []byte("status-warp-v2"))
+
+		batchSet(statusTeam, warpPayload)
+
+		statusTitle := getActiveTitleForTeam(statusTeam.ID)
+		require.Equal(t, "2.0", statusTitle.SoftwarePackage.Version)
+		titleID := statusTitle.ID
+
+		// ---- Step 2: Install v2.0 on a host and record success ----
+		statusHost := newHostInTeam("windows", "orbit-host-status-"+t.Name(), statusTeam)
+
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", statusHost.ID, titleID),
+			installSoftwareRequest{}, http.StatusAccepted)
+
+		// Retrieve the execution UUID for the pending install.
+		installUUID := getLatestSoftwareInstallExecID(t, s.ds, statusHost.ID)
+
+		// Report a successful install via orbit.
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"pre_install_condition_output": "1",
+			"install_script_exit_code": 0,
+			"install_script_output": "ok"
+		}`, *statusHost.OrbitNodeKey, installUUID)), http.StatusNoContent)
+
+		// Verify: v2.0 installer summary shows Installed: 1.
+		var titleRespV2 getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil,
+			http.StatusOK, &titleRespV2, "team_id", fmt.Sprint(statusTeam.ID))
+		require.NotNil(t, titleRespV2.SoftwareTitle.SoftwarePackage.Status)
+		require.Equal(t, uint(1), titleRespV2.SoftwareTitle.SoftwarePackage.Status.Installed,
+			"v2.0 installer should show Installed: 1 after a successful install")
+
+		// ---- Step 3: Roll back to v1.0 ----
+		batchSet(statusTeam, []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
+		})
+
+		statusTitle = getActiveTitleForTeam(statusTeam.ID)
+		require.Equal(t, "1.0", statusTitle.SoftwarePackage.Version,
+			"active version should be v1.0 after rollback")
+
+		// ---- Step 4: Assert the active (v1.0) installer summary is all zeros ----
+		// v1.0's software_installers row was never the target of any install
+		// request, so its summary must be completely empty. The title ID is
+		// stable across version switches, so we can query it directly.
+		var titleRespV1 getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil,
+			http.StatusOK, &titleRespV1, "team_id", fmt.Sprint(statusTeam.ID))
+		require.NotNil(t, titleRespV1.SoftwareTitle.SoftwarePackage.Status)
+		require.Equal(t, fleet.SoftwareInstallerStatusSummary{}, *titleRespV1.SoftwareTitle.SoftwarePackage.Status,
+			"v1.0 installer status summary must be all zeros after switching from v2.0 — "+
+				"install history from v2.0 must not carry over to the rolled-back version")
+	})
+
+	// =========================================================================
+	// Section 8: Editing an FMA that has multiple cached versions must succeed.
+	//
+	// Regression test for the bug where SoftwareTitleByID counted ALL
+	// software_installers rows for a title+team (active + inactive cached
+	// versions) instead of only the active one.  That made
+	// SoftwareInstallersCount > 1, which tripped the `!= 1` guard in
+	// UpdateSoftwareInstaller and returned a false "no installers defined"
+	// 400 error whenever an admin tried to edit an FMA that had any cached
+	// inactive version.
+	//
+	// The fix is `AND si.is_active = TRUE` in the LEFT JOIN inside
+	// SoftwareTitleByID so the count stays at exactly 1.
+	// =========================================================================
+	t.Run("edit_fma_with_cached_versions", func(t *testing.T) {
+		resetFMAState(warpState, "1.0", []byte("edit-warp-v1"))
+
+		editTeam := newTeam("team_edit_" + t.Name())
+
+		warpPayload := []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: false},
+		}
+
+		// ---- Add v1.0 ----
+		batchSet(editTeam, warpPayload)
+
+		// ---- Advance to v2.0 so there are now 2 cached rows (v1.0 inactive, v2.0 active) ----
+		resetFMAState(warpState, "2.0", []byte("edit-warp-v2"))
+
+		batchSet(editTeam, warpPayload)
+
+		editTitle := getActiveTitleForTeam(editTeam.ID)
+		require.Equal(t, "2.0", editTitle.SoftwarePackage.Version)
+
+		// Confirm self_service starts as false before the edit.
+		var titleRespBefore getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", editTitle.ID), nil,
+			http.StatusOK, &titleRespBefore, "team_id", fmt.Sprint(editTeam.ID))
+		require.False(t, titleRespBefore.SoftwareTitle.SoftwarePackage.SelfService,
+			"self_service should be false before the edit")
+
+		// Sanity-check: both cached versions are present in the DB.
+		editInstallers, err := s.ds.GetSoftwareInstallers(ctx, editTeam.ID)
+		require.NoError(t, err)
+		require.Len(t, editInstallers, 2, "should have 2 cached FMA versions before attempting edit")
+
+		// ---- Attempt a metadata-only edit (toggle self_service) ----
+		// Without the fix, SoftwareTitleByID counts both installer rows and returns
+		// SoftwareInstallersCount = 2, which makes UpdateSoftwareInstaller return a
+		// 400 "no installers defined" error.  With the fix the count is 1 and the
+		// edit succeeds.
+		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+			TitleID:     editTitle.ID,
+			TeamID:      &editTeam.ID,
+			SelfService: ptr.Bool(true),
+		}, http.StatusOK, "")
+
+		// Confirm the edit actually took effect.
+		var titleResp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", editTitle.ID), nil,
+			http.StatusOK, &titleResp, "team_id", fmt.Sprint(editTeam.ID))
+		require.True(t, titleResp.SoftwareTitle.SoftwarePackage.SelfService,
+			"self_service should be true after the edit")
+	})
 }

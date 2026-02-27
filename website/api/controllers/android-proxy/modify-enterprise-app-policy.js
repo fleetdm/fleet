@@ -16,6 +16,18 @@ module.exports = {
       type: 'string',
       required: true,
     },
+    googleAction: {
+      type: 'string',
+      defaultsTo: 'modifyPolicyApplications',
+    },
+    // packageNames is the body for the removePolicyApplications googleAction.
+    packageNames: {
+      type: ['string'],
+    },
+    // changes is the body for the modifyPolicyApplications googleAction.
+    changes: {
+      type: [{}],
+    },
   },
 
 
@@ -24,10 +36,11 @@ module.exports = {
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
+    policyNotFound: { description: 'Specified policy not found', responseType: 'notFound' },
   },
 
 
-  fn: async function ({ androidEnterpriseId, policyId}) {
+  fn: async function ({ androidEnterpriseId, policyId, googleAction, packageNames, changes }) {
 
     // Extract fleetServerSecret from the Authorization header
     let authHeader = this.req.get('authorization');
@@ -76,13 +89,27 @@ module.exports = {
       let authClient = await googleAuth.getClient();
       google.options({ auth: authClient });
 
-      let patchPoliciesResponse = await androidmanagement.enterprises.policies.modifyPolicyApplications({
-        name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
-        requestBody: this.req.body,
-      });
-      return patchPoliciesResponse.data;
+      switch (googleAction) {
+        case 'removePolicyApplications': {
+          let response = await androidmanagement.enterprises.policies.removePolicyApplications({
+            name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
+            requestBody: { packageNames },
+          });
+          return response.data;
+        }
+
+        default: {
+          let response = await androidmanagement.enterprises.policies.modifyPolicyApplications({
+            name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
+            requestBody: { changes },
+          });
+          return response.data;
+        }
+      }
+    }).intercept({ status: 404 }, (err) => {
+      return {'policyNotFound': `Specified policy not found on this Android enterprise (${androidEnterpriseId}): ${err}`};
     }).intercept((err) => {
-      return new Error(`When attempting to update applications for a policy of Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+      return new Error(`When attempting to update applications for a policy of Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
     });
 
 

@@ -208,9 +208,18 @@ func convertCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
+				var raw any
+				if err := json.Unmarshal(specBytes, &raw); err != nil {
+					return err
+				}
+				replaceAliasKeys(raw, aliasRules, true)
+				specBytes, err = json.Marshal(raw)
+				if err != nil {
+					return err
+				}
 
 				meta := spec.Metadata{
-					Kind:    fleet.QueryKind,
+					Kind:    fleet.ReportKind,
 					Version: fleet.ApiVersion,
 					Spec:    specBytes,
 				}

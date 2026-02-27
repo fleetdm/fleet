@@ -10,8 +10,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 	"github.com/tj/assert"
@@ -56,8 +56,8 @@ func TestWorker(t *testing.T) {
 		return job, nil
 	}
 
-	logger := kitlog.NewNopLogger()
-	w := NewWorker(ds, logger)
+	logger := logging.NewNopLogger()
+	w := NewWorker(ds, logger.SlogLogger())
 
 	// register a test job
 	jobCalled := false
@@ -112,8 +112,8 @@ func TestWorkerRetries(t *testing.T) {
 		return job, nil
 	}
 
-	logger := kitlog.NewNopLogger()
-	w := NewWorker(ds, logger)
+	logger := logging.NewNopLogger()
+	w := NewWorker(ds, logger.SlogLogger())
 
 	// register a test job
 	jobCalled := 0
@@ -188,8 +188,8 @@ func TestWorkerMiddleJobFails(t *testing.T) {
 		return job, nil
 	}
 
-	logger := kitlog.NewNopLogger()
-	w := NewWorker(ds, logger)
+	logger := logging.NewNopLogger()
+	w := NewWorker(ds, logger.SlogLogger())
 
 	// register a test job
 	var jobCallCount int
@@ -245,16 +245,13 @@ func TestWorkerWithRealDatastore(t *testing.T) {
 	// call TruncateTables immediately, because a DB migration may create jobs
 	mysql.TruncateTables(t, ds)
 
-	oldDelayPerRetry := delayPerRetry
-	delayPerRetry = []time.Duration{
+	logger := logging.NewNopLogger()
+	w := NewWorker(ds, logger.SlogLogger())
+	w.delayPerRetry = []time.Duration{
 		1: 0,
 		2: 0,
 		3: time.Hour,
 	} // retry twice on the next cron, then not before an hour
-	t.Cleanup(func() { delayPerRetry = oldDelayPerRetry })
-
-	logger := kitlog.NewNopLogger()
-	w := NewWorker(ds, logger)
 
 	// register a test job
 	var jobCallCount int

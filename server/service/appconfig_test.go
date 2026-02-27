@@ -14,7 +14,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -227,9 +226,6 @@ func TestEnrollSecretAuth(t *testing.T) {
 		return nil, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
-	}
 
 	testCases := []struct {
 		name            string
@@ -342,9 +338,6 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 		return nil, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
-	}
 
 	ds.IsEnrollSecretAvailableFunc = nil
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
@@ -1480,11 +1473,6 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 		*dsAppConfig = *conf
 		return nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
 	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
 		return nil
 	}
@@ -1506,8 +1494,8 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	require.True(t, dsAppConfig.SMTPSettings.SMTPEnabled)
 	require.True(t, updatedAppConfig.SSOSettings.EnableSSO)
 	require.True(t, dsAppConfig.SSOSettings.EnableSSO)
-	require.Equal(t, agentOptions, *updatedAppConfig.AgentOptions)
-	require.Equal(t, agentOptions, *dsAppConfig.AgentOptions)
+	require.JSONEq(t, string(agentOptions), string(*updatedAppConfig.AgentOptions))
+	require.JSONEq(t, string(agentOptions), string(*dsAppConfig.AgentOptions))
 
 	// Not sending sso_settings or agent settings will not change them, and
 	// sending SMTP settings will change them.
@@ -1519,8 +1507,8 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	require.False(t, dsAppConfig.SMTPSettings.SMTPEnabled)
 	require.True(t, updatedAppConfig.SSOSettings.EnableSSO)
 	require.True(t, dsAppConfig.SSOSettings.EnableSSO)
-	require.Equal(t, agentOptions, *updatedAppConfig.AgentOptions)
-	require.Equal(t, agentOptions, *dsAppConfig.AgentOptions)
+	require.JSONEq(t, string(agentOptions), string(*updatedAppConfig.AgentOptions))
+	require.JSONEq(t, string(agentOptions), string(*dsAppConfig.AgentOptions))
 
 	// Not sending smtp_settings or agent settings will not change them, and
 	// sending SSO settings will change them.
@@ -1532,8 +1520,8 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	require.False(t, dsAppConfig.SMTPSettings.SMTPEnabled)
 	require.False(t, updatedAppConfig.SSOSettings.EnableSSO)
 	require.False(t, dsAppConfig.SSOSettings.EnableSSO)
-	require.Equal(t, agentOptions, *updatedAppConfig.AgentOptions)
-	require.Equal(t, agentOptions, *dsAppConfig.AgentOptions)
+	require.JSONEq(t, string(agentOptions), string(*updatedAppConfig.AgentOptions))
+	require.JSONEq(t, string(agentOptions), string(*dsAppConfig.AgentOptions))
 
 	// Not sending smtp_settings or sso_settings will not change them, and
 	// sending agent options will change them.
@@ -1561,8 +1549,7 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	require.False(t, dsAppConfig.SMTPSettings.SMTPEnabled)
 	require.False(t, updatedAppConfig.SSOSettings.EnableSSO)
 	require.False(t, dsAppConfig.SSOSettings.EnableSSO)
-	require.Equal(t, newAgentOptions, *dsAppConfig.AgentOptions)
-	require.Equal(t, newAgentOptions, *dsAppConfig.AgentOptions)
+	require.JSONEq(t, string(newAgentOptions), string(*dsAppConfig.AgentOptions))
 }
 
 // TestModifyEnableAnalytics tests that a premium customer cannot set ServerSettings.EnableAnalytics to be false.

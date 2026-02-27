@@ -123,7 +123,6 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	}
 
 	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
-
 		amapiConfig.EnterprisesPoliciesPatchValidator(policyName, policy, opts)
 
 		return &androidmanagement.Policy{}, nil
@@ -311,8 +310,8 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	}))
 
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "platform": "%s", "self_service": true}`,
-			team.Name, androidAppNewTeam2.Name, addAppResp.TitleID, androidAppNewTeam2.AdamID, fmt.Sprint(team.ID), androidAppNewTeam2.Platform), 0)
+		fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "fleet_id": %s, "platform": "%s", "self_service": true}`,
+			team.Name, team.Name, androidAppNewTeam2.Name, addAppResp.TitleID, androidAppNewTeam2.AdamID, fmt.Sprint(team.ID), fmt.Sprint(team.ID), androidAppNewTeam2.Platform), 0)
 
 	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
 	s.runWorkerUntilDone()
@@ -390,8 +389,8 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 
 	// Verify that activity includes configuration
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "platform": "%s", "self_service": true,"configuration": %s}`,
-			fleet.TeamNameNoTeam, androidAppWithConfig.Name, appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", androidAppWithConfig.Platform, androidAppWithConfig.Configuration), 0)
+		fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "fleet_id": %s, "platform": "%s", "self_service": true,"configuration": %s}`,
+			fleet.TeamNameNoTeam, fleet.TeamNameNoTeam, androidAppWithConfig.Name, appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", "null", androidAppWithConfig.Platform, androidAppWithConfig.Configuration), 0)
 
 	// Should see it in host software library
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
@@ -431,8 +430,8 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 
 	// Verify that configuration changed and last activity is correct
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_icon_url":"https://example.com/1.jpg", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "software_display_name":"", "platform": "%s", "self_service": true,"configuration": %s}`,
-			"", androidAppWithConfig.Name, appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", androidAppWithConfig.Platform, newConfig), 0)
+		fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_icon_url":"https://example.com/1.jpg", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "fleet_id": %s, "software_display_name":"", "platform": "%s", "self_service": true,"configuration": %s}`,
+			"", "", androidAppWithConfig.Name, appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", "null", androidAppWithConfig.Platform, newConfig), 0)
 }
 
 func (s *integrationMDMTestSuite) TestAndroidSetupExperienceSoftware() {
@@ -500,7 +499,7 @@ func (s *integrationMDMTestSuite) TestAndroidSetupExperienceSoftware() {
 
 	// verify that the expected activity got created
 	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
-		`{"platform": "android", "team_id": 0, "team_name": ""}`, 0)
+		`{"platform": "android", "team_id": 0, "team_name": "", "fleet_id": 0, "fleet_name": ""}`, 0)
 
 	// list the available setup experience software and verify that only app 1 is installed at setup
 	var getResp getSetupExperienceSoftwareResponse
@@ -603,6 +602,10 @@ func (s *integrationMDMTestSuite) enableAndroidMDM(t *testing.T) string {
 		return &androidmanagement.Policy{}, nil
 	}
 
+	s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFunc = func(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error) {
+		return &androidmanagement.Policy{}, nil
+	}
+
 	s.androidAPIClient.EnterprisesDevicesPatchFunc = func(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
 		return &androidmanagement.Device{}, nil
 	}
@@ -685,8 +688,8 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 
 		// Verify that activity includes configuration
 		s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-			fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": true,"configuration": %s}`,
-				teamName, "Test App", appWithConfigResp.TitleID, androidAppFoo.AdamID, ptr.ValOrZero(teamID), androidAppFoo.Platform, androidAppFoo.Configuration), 0)
+			fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": true,"configuration": %s}`,
+				teamName, teamName, "Test App", appWithConfigResp.TitleID, androidAppFoo.AdamID, ptr.ValOrZero(teamID), ptr.ValOrZero(teamID), androidAppFoo.Platform, androidAppFoo.Configuration), 0)
 
 		var listSWTitles listSoftwareTitlesResponse
 		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(*teamID))
@@ -802,6 +805,14 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 		)
 	})
 	t.Run("android app setup experience", func(t *testing.T) {
+		// Get initial count of edited setup experience activities
+		var initialCount int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			err := sqlx.GetContext(ctx, q, &initialCount, `SELECT COUNT(id) FROM activities WHERE activity_type = 'edited_setup_experience_software'`)
+			require.NoError(t, err)
+			return nil
+		})
+
 		var batchResp batchAssociateAppStoreAppsResponse
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
 			batchAssociateAppStoreAppsRequest{
@@ -864,6 +875,222 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 			require.NoError(t, err)
 			return nil
 		})
-		require.Equal(t, 3, count)
+		require.Equal(t, initialCount+3, count)
 	})
+}
+
+func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
+	ctx := context.Background()
+	t := s.T()
+
+	s.setSkipWorkerJobs(t)
+	s.setVPPTokenForTeam(0)
+	appConf, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConf.MDM.AndroidEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(ctx, appConf)
+	require.NoError(t, err)
+
+	// create a team for the test host that will not be affected
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: "test"}, http.StatusOK, &createTeamResp)
+	teamID := createTeamResp.Team.ID
+
+	s.enableAndroidMDM(t)
+
+	amapiConfig := struct {
+		AppIDsToNames                     map[string]string
+		EnterprisesPoliciesPatchValidator func(policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts)
+	}{
+		AppIDsToNames:                     map[string]string{},
+		EnterprisesPoliciesPatchValidator: func(policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) {},
+	}
+
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		title := amapiConfig.AppIDsToNames[packageName]
+		return &androidmanagement.Application{IconUrl: "https://example.com/1.jpg", Title: title}, nil
+	}
+
+	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		amapiConfig.EnterprisesPoliciesPatchValidator(policyName, policy, opts)
+		return &androidmanagement.Policy{}, nil
+	}
+
+	// add some Android apps
+	androidApps := make([]*fleet.VPPApp, 5)
+	titleIDs := make([]uint, len(androidApps))
+	for i := range androidApps {
+		androidApps[i] = &fleet.VPPApp{
+			VPPAppTeam: fleet.VPPAppTeam{
+				VPPAppID: fleet.VPPAppID{AdamID: "com.app" + fmt.Sprint(i), Platform: fleet.AndroidPlatform},
+			},
+			Name:             "App" + fmt.Sprint(i),
+			BundleIdentifier: "com.app" + fmt.Sprint(i),
+			IconURL:          "https://example.com/images/" + fmt.Sprint(i),
+		}
+		amapiConfig.AppIDsToNames[androidApps[i].AdamID] = androidApps[i].Name
+
+		var addAppResp addAppStoreAppResponse
+
+		// last app goes on the team, will not affect the test
+		var teamIDPtr *uint
+		if i == len(androidApps)-1 {
+			teamIDPtr = &teamID
+		}
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			AppStoreID: androidApps[i].AdamID,
+			Platform:   fleet.AndroidPlatform,
+			TeamID:     teamIDPtr,
+		}, http.StatusOK, &addAppResp)
+		titleIDs[i] = addAppResp.TitleID
+	}
+
+	// delete app [0], does not affect any host so no removeApplicationsPolicy call
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleIDs[0]), nil, http.StatusNoContent, "team_id", "0")
+	s.runWorkerUntilDone()
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+
+	// enroll a few Android devices
+	secrets, err := s.ds.GetEnrollSecrets(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken}, nil)
+	require.NoError(t, err)
+	pubsubToken := assets[fleet.MDMAssetAndroidPubSubToken]
+	require.NotEmpty(t, pubsubToken.Value)
+
+	deviceID1 := createAndroidDeviceID("test-android")
+	deviceID2 := createAndroidDeviceID("test-android-2")
+	deviceID3 := createAndroidDeviceID("test-android-3")
+
+	enterpriseSpecificID1 := strings.ToUpper(uuid.New().String())
+	enterpriseSpecificID2 := strings.ToUpper(uuid.New().String())
+	enterpriseSpecificID3 := strings.ToUpper(uuid.New().String())
+	var req android_service.PubSubPushRequest
+	for _, d := range []struct {
+		id  string
+		esi string
+	}{{deviceID1, enterpriseSpecificID1}, {deviceID2, enterpriseSpecificID2}, {deviceID3, enterpriseSpecificID3}} {
+		enrollmentMessage := enrollmentMessageWithEnterpriseSpecificID(t, androidmanagement.Device{
+			Name:                d.id,
+			EnrollmentTokenData: fmt.Sprintf(`{"EnrollSecret": "%s"}`, secrets[0].Secret),
+		}, d.esi)
+		req = android_service.PubSubPushRequest{PubSubMessage: *enrollmentMessage}
+		s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
+	}
+
+	var hosts listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts)
+	require.Len(t, hosts.Hosts, 3)
+	host1 := hosts.Hosts[0]
+	host2 := hosts.Hosts[1]
+	host3 := hosts.Hosts[2] // isolated host, not affected by test
+
+	// transfer host3 to the team
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  &teamID,
+		HostIDs: []uint{host3.ID},
+	}, http.StatusOK, &addHostsToTeamResponse{})
+
+	// run the worker, the hosts get the 3 remaining android apps as self-service-available
+	s.runWorkerUntilDone()
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
+	require.True(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked = false
+	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false // from now on (after device enrollment), this gets called only when we expect it to
+
+	for _, host := range []fleet.HostResponse{host1, host2} {
+		var getHostSw getHostSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw,
+			"available_for_install", "true", "order_key", "name")
+		require.Len(t, getHostSw.Software, 3)
+		require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+		require.Equal(t, androidApps[1].AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+		require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+		require.Equal(t, androidApps[2].AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+		require.NotNil(t, getHostSw.Software[2].AppStoreApp)
+		require.Equal(t, androidApps[3].AdamID, getHostSw.Software[2].AppStoreApp.AppStoreID)
+	}
+
+	// delete app [1], should trigger remove from both hosts
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleIDs[1]), nil, http.StatusNoContent, "team_id", "0")
+	s.runWorkerUntilDone()
+	require.True(t, s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
+	s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked = false
+
+	for _, host := range []fleet.HostResponse{host1, host2} {
+		var getHostSw getHostSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw,
+			"available_for_install", "true", "order_key", "name")
+		require.Len(t, getHostSw.Software, 2)
+		require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+		require.Equal(t, androidApps[2].AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+		require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+		require.Equal(t, androidApps[3].AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+	}
+
+	// batch-set to keep only app [3] (effectively deletes app[2]), as per a gitops run
+	var batchResp batchAssociateAppStoreAppsResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{
+		Apps: []fleet.VPPBatchPayload{
+			{AppStoreID: androidApps[3].AdamID, SelfService: true, Platform: fleet.AndroidPlatform, Configuration: json.RawMessage("{}")},
+		},
+	}, http.StatusOK, &batchResp)
+
+	s.runWorkerUntilDone() // calls policies patch, which sets (replaces) the list of apps
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	require.True(t, s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
+	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
+
+	for _, host := range []fleet.HostResponse{host1, host2} {
+		var getHostSw getHostSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw,
+			"available_for_install", "true", "order_key", "name")
+		require.Len(t, getHostSw.Software, 1)
+		require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+		require.Equal(t, androidApps[3].AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+	}
+
+	// batch-set to remove all apps
+	batchResp = batchAssociateAppStoreAppsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{
+		Apps: []fleet.VPPBatchPayload{},
+	}, http.StatusOK, &batchResp)
+
+	s.runWorkerUntilDone() // calls policies patch, which sets (replaces) the list of apps
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	require.True(t, s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
+	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
+
+	for _, host := range []fleet.HostResponse{host1, host2} {
+		var getHostSw getHostSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw,
+			"available_for_install", "true", "order_key", "name")
+		require.Len(t, getHostSw.Software, 0)
+	}
+
+	// batch-set again without any app is a no-op
+	batchResp = batchAssociateAppStoreAppsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{
+		Apps: []fleet.VPPBatchPayload{},
+	}, http.StatusOK, &batchResp)
+
+	s.runWorkerUntilDone()
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
+
+	// isolated host was unaffected, still has the same team app
+	var getHostSw getHostSoftwareResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host3.ID), nil, http.StatusOK, &getHostSw,
+		"available_for_install", "true", "order_key", "name")
+	require.Len(t, getHostSw.Software, 1)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, androidApps[4].AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
 }

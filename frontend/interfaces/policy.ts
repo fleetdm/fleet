@@ -45,6 +45,7 @@ export interface IPolicy {
   critical: boolean;
   calendar_events_enabled: boolean;
   conditional_access_enabled: boolean;
+  conditional_access_bypass_enabled: boolean;
   install_software?: IPolicySoftwareToInstall;
   run_script?: Pick<IScript, "id" | "name">;
   labels_include_any?: ILabelPolicy[];
@@ -112,6 +113,7 @@ export interface IPolicyFormData {
   id?: number;
   calendar_events_enabled?: boolean;
   conditional_access_enabled?: boolean;
+  conditional_access_bypass_enabled?: boolean;
   software_title_id?: number | null;
   // null for PATCH to unset - note asymmetry with GET/LIST - see IPolicy.run_script
   script_id?: number | null;

@@ -4,6 +4,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"maps"
 	"slices"
 	"strconv"
@@ -14,9 +15,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/log"
 	"github.com/hashicorp/go-multierror"
+	"go.opentelemetry.io/otel"
 )
+
+var tracer = otel.Tracer("github.com/fleetdm/fleet/v4/server/activity/internal/service")
 
 // streamBatchSize is the number of activities to fetch per batch when streaming.
 const streamBatchSize uint = 500
@@ -32,8 +35,8 @@ func applyListOptionsDefaults(opt *api.ListOptions, defaultOrderKey string) {
 	// Default PerPage based on whether pagination was requested
 	if opt.PerPage == 0 {
 		if opt.Page == 0 {
-			// No pagination requested - return all results (legacy behavior)
-			opt.PerPage = unlimitedPerPage
+			// No pagination requested - return up to maxPerPage results
+			opt.PerPage = maxPerPage
 		} else {
 			// Page specified without per_page - use sensible default
 			opt.PerPage = defaultPerPage
@@ -46,11 +49,16 @@ type Service struct {
 	authz     platform_authz.Authorizer
 	store     types.Datastore
 	providers activity.DataProviders
-	logger    kitlog.Logger
+	logger    *slog.Logger
 }
 
 // NewService creates a new activity service.
-func NewService(authz platform_authz.Authorizer, store types.Datastore, providers activity.DataProviders, logger kitlog.Logger) *Service {
+func NewService(
+	authz platform_authz.Authorizer,
+	store types.Datastore,
+	providers activity.DataProviders,
+	logger *slog.Logger,
+) *Service {
 	return &Service{
 		authz:     authz,
 		store:     store,
@@ -226,7 +234,7 @@ func (s *Service) StreamActivities(systemCtx context.Context, auditLogger api.JS
 			afterID = act.ID
 		}
 
-		s.logger.Log("streamed-events", len(streamedIDs))
+		s.logger.InfoContext(systemCtx, "streamed events", "count", len(streamedIDs))
 
 		// (3) Mark the streamed activities as streamed.
 		if err := s.store.MarkActivitiesAsStreamed(systemCtx, streamedIDs); err != nil {

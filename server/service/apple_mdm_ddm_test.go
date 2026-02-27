@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"testing"
 	"time"
@@ -12,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -20,10 +20,9 @@ import (
 func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 	ctx := t.Context()
 	ds := mysql.CreateMySQLDS(t)
-	logger := log.NewLogfmtLogger(os.Stdout)
 	ddmService := MDMAppleDDMService{
 		ds:     ds,
-		logger: logger,
+		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
 	}
 
 	// Helper function to create a host

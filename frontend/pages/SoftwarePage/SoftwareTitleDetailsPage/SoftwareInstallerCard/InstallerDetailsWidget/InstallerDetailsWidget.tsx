@@ -66,6 +66,7 @@ interface IInstallerDetailsWidgetProps {
   version?: string | null;
   sha256?: string | null;
   isFma: boolean;
+  isLatestFmaVersion?: boolean;
   isScriptPackage: boolean;
   androidPlayStoreId?: string;
   customDetails?: string;
@@ -79,6 +80,7 @@ const InstallerDetailsWidget = ({
   sha256,
   version,
   isFma,
+  isLatestFmaVersion = false,
   isScriptPackage,
   androidPlayStoreId,
   customDetails,
@@ -122,6 +124,22 @@ const InstallerDetailsWidget = ({
 
       let versionInfo = <span>{version}</span>;
 
+      if (isFma) {
+        versionInfo = (
+          <TooltipWrapper
+            tipContent={
+              <span>
+                You can change the version in <strong>Actions &gt; Edit</strong>{" "}
+                software.
+              </span>
+            }
+          >
+            <span>
+              {version} {isLatestFmaVersion ? "(latest)" : ""}
+            </span>
+          </TooltipWrapper>
+        );
+      }
       if (installerType === "app-store") {
         versionInfo = (
           <TooltipWrapper tipContent={<span>Updated every hour.</span>}>

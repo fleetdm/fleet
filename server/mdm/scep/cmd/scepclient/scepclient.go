@@ -10,7 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	stdlog "log"
+	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -18,9 +18,8 @@ import (
 	"time"
 
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/smallstep/scep"
 )
 
@@ -55,20 +54,15 @@ type runCfg struct {
 
 func run(cfg runCfg) error {
 	ctx := context.Background()
-	var logger log.Logger
+	var logger *slog.Logger
 	{
 		if strings.ToLower(cfg.logfmt) == "json" {
-			logger = log.NewJSONLogger(os.Stderr)
+			logger = logging.NewSlogLogger(logging.Options{Output: os.Stderr, JSON: true, Debug: cfg.debug})
 		} else {
-			logger = log.NewLogfmtLogger(os.Stderr)
-		}
-		stdlog.SetOutput(log.NewStdlibAdapter(logger))
-		logger = log.With(logger, "ts", log.DefaultTimestampUTC)
-		if !cfg.debug {
-			logger = level.NewFilter(logger, level.AllowInfo())
+			logger = logging.NewSlogLogger(logging.Options{Output: os.Stderr, Debug: cfg.debug})
 		}
 	}
-	lginfo := level.Info(logger)
+	lginfo := logger
 
 	client, err := scepclient.New(cfg.serverURL, logger)
 	if err != nil {
@@ -131,7 +125,7 @@ func run(cfg runCfg) error {
 	}
 
 	if cfg.debug {
-		logCerts(level.Debug(logger), caCerts)
+		logCerts(logger, caCerts)
 	}
 
 	var signerCert *x509.Certificate
@@ -166,7 +160,7 @@ func run(cfg runCfg) error {
 		}
 	}
 
-	msg, err := scep.NewCSRRequest(csr, tmpl, scep.WithLogger(logger), scep.WithCertsSelector(cfg.caCertsSelector))
+	msg, err := scep.NewCSRRequest(csr, tmpl, scep.WithLogger(logging.NewLogger(logger)), scep.WithCertsSelector(cfg.caCertsSelector))
 	if err != nil {
 		return errors.Join(err, errors.New("creating csr pkiMessage"))
 	}
@@ -182,7 +176,7 @@ func run(cfg runCfg) error {
 			return errors.Join(err, fmt.Errorf("PKIOperation for %s", msgType))
 		}
 
-		respMsg, err = scep.ParsePKIMessage(respBytes, scep.WithLogger(logger), scep.WithCACerts(caCerts))
+		respMsg, err = scep.ParsePKIMessage(respBytes, scep.WithLogger(logging.NewLogger(logger)), scep.WithCACerts(caCerts))
 		if err != nil {
 			return errors.Join(err, fmt.Errorf("parsing pkiMessage response %s", msgType))
 		}
@@ -191,11 +185,11 @@ func run(cfg runCfg) error {
 		case scep.FAILURE:
 			return fmt.Errorf("%s request failed, failInfo: %s", msgType, respMsg.FailInfo)
 		case scep.PENDING:
-			lginfo.Log("pkiStatus", "PENDING", "msg", "sleeping for 30 seconds, then trying again.")
+			lginfo.InfoContext(ctx, "sleeping for 30 seconds, then trying again", "pkiStatus", "PENDING")
 			time.Sleep(30 * time.Second)
 			continue
 		}
-		lginfo.Log("pkiStatus", "SUCCESS", "msg", "server returned a certificate.")
+		lginfo.InfoContext(ctx, "server returned a certificate", "pkiStatus", "SUCCESS")
 		break // on scep.SUCCESS
 	}
 
@@ -219,13 +213,13 @@ func run(cfg runCfg) error {
 }
 
 // logCerts logs the count, number, RDN, and fingerprint of certs to logger
-func logCerts(logger log.Logger, certs []*x509.Certificate) {
-	logger.Log("msg", "cacertlist", "count", len(certs))
+func logCerts(logger *slog.Logger, certs []*x509.Certificate) {
+	ctx := context.TODO()
+	logger.InfoContext(ctx, "cacertlist", "count", len(certs))
 	for i, cert := range certs {
 		h := fingerprintHashType.New()
 		h.Write(cert.Raw)
-		logger.Log(
-			"msg", "cacertlist",
+		logger.InfoContext(ctx, "cacertlist",
 			"number", i,
 			"rdn", cert.Subject.ToRDNSequence().String(),
 			"hash_type", fingerprintHashType.String(),

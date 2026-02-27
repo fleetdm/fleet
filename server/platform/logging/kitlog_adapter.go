@@ -3,50 +3,43 @@ package logging
 import (
 	"context"
 	"log/slog"
-	"slices"
-
-	kitlog "github.com/go-kit/log"
 )
 
-// KitlogAdapter wraps a slog.Logger to implement the kitlog.Logger interface.
+// Logger wraps a slog.Logger to implement the kitlog.Logger interface.
 // This allows gradual migration from kitlog to slog by providing a drop-in
 // replacement that uses slog under the hood.
-type KitlogAdapter struct {
+type Logger struct {
 	logger *slog.Logger
-	// attrs holds any attributes added via With()
-	attrs []any
 }
 
-// NewKitlogAdapter creates a new adapter that implements kitlog.Logger
-// using the provided slog.Logger.
-func NewKitlogAdapter(logger *slog.Logger) kitlog.Logger {
-	return &KitlogAdapter{
+// NewLogger creates a new adapter that implements kitlog.Logger
+// using the provided slog.Logger. It returns *Logger to preserve
+// type information, allowing callers to access SlogLogger() directly.
+func NewLogger(logger *slog.Logger) *Logger {
+	return &Logger{
 		logger: logger,
 	}
 }
 
 // Log implements kitlog.Logger. It converts key-value pairs to slog attributes
 // and logs at the appropriate level based on the "level" key if present.
-func (a *KitlogAdapter) Log(keyvals ...any) error {
-	if len(keyvals) == 0 && len(a.attrs) == 0 {
+func (a *Logger) Log(keyvals ...any) error {
+	if len(keyvals) == 0 {
 		return nil
 	}
-
-	// Combine pre-set attrs with new keyvals
-	allKeyvals := slices.Concat(a.attrs, keyvals)
 
 	// Extract level and message from keyvals
 	level := slog.LevelInfo
 	msg := ""
-	attrs := make([]slog.Attr, 0, len(allKeyvals)/2)
+	attrs := make([]slog.Attr, 0, len(keyvals)/2)
 
-	for i := 0; i < len(allKeyvals)-1; i += 2 {
-		key, ok := allKeyvals[i].(string)
+	for i := 0; i < len(keyvals)-1; i += 2 {
+		key, ok := keyvals[i].(string)
 		if !ok {
 			// If key isn't a string, skip this pair
 			continue
 		}
-		val := allKeyvals[i+1]
+		val := keyvals[i+1]
 
 		switch key {
 		case "level":
@@ -68,10 +61,11 @@ func (a *KitlogAdapter) Log(keyvals ...any) error {
 }
 
 // With returns a new logger with the given key-value pairs added to every log.
-func (a *KitlogAdapter) With(keyvals ...any) kitlog.Logger {
-	return &KitlogAdapter{
-		logger: a.logger,
-		attrs:  slices.Concat(a.attrs, keyvals),
+// It returns *Logger (not kitlog.Logger) to preserve type information,
+// allowing callers to access SlogLogger() without type assertions.
+func (a *Logger) With(keyvals ...any) *Logger {
+	return &Logger{
+		logger: a.logger.With(keyvals...),
 	}
 }
 
@@ -104,5 +98,28 @@ func kitlogLevelToSlog(val any) slog.Level {
 	}
 }
 
-// Ensure KitlogAdapter implements kitlog.Logger at compile time.
-var _ kitlog.Logger = (*KitlogAdapter)(nil)
+// SlogLogger returns the underlying slog.Logger.
+// This is useful when migrating code from kitlog to slog.
+func (a *Logger) SlogLogger() *slog.Logger {
+	return a.logger
+}
+
+// Wrap slog's ErrorContext method.
+func (a *Logger) ErrorContext(ctx context.Context, msg string, keyvals ...any) {
+	a.logger.ErrorContext(ctx, msg, keyvals...)
+}
+
+// Wrap slog's WarnContext method.
+func (a *Logger) WarnContext(ctx context.Context, msg string, keyvals ...any) {
+	a.logger.WarnContext(ctx, msg, keyvals...)
+}
+
+// Wrap slog's InfoContext method.
+func (a *Logger) InfoContext(ctx context.Context, msg string, keyvals ...any) {
+	a.logger.InfoContext(ctx, msg, keyvals...)
+}
+
+// Wrap slog's DebugContext method.
+func (a *Logger) DebugContext(ctx context.Context, msg string, keyvals ...any) {
+	a.logger.DebugContext(ctx, msg, keyvals...)
+}

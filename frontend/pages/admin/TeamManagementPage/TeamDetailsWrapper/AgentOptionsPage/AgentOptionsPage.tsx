@@ -46,6 +46,7 @@ const AgentOptionsPage = ({
       maintainer: false,
       observer: false,
       observer_plus: false,
+      technician: false,
     },
   });
 
@@ -111,7 +112,7 @@ const AgentOptionsPage = ({
       .then(() => {
         renderFlash(
           "success",
-          `Successfully updated ${teamName} team agent options.`
+          `Successfully updated ${teamName} fleet agent options.`
         );
         refetchTeamOptions();
       })
@@ -125,7 +126,7 @@ const AgentOptionsPage = ({
         renderFlash(
           "error",
           <>
-            Couldn&apos;t update {teamName} team agent options:
+            Couldn&apos;t update {teamName} fleet agent options:
             {reason}
             {agentOptionsInvalid && (
               <>

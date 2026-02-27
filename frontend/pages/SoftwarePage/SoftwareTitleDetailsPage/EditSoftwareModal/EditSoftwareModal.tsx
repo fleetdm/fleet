@@ -353,6 +353,7 @@ const EditSoftwareModal = ({
           labels={labels || []}
           className={formClassNames}
           isEditingSoftware
+          isFleetMaintainedApp={isFleetMaintainedApp}
           onCancel={onExit}
           onSubmit={onClickSavePackage}
           onClickPreviewEndUserExperience={togglePreviewEndUserExperienceModal}
@@ -416,7 +417,7 @@ const EditSoftwareModal = ({
       )}
       {!!pendingPackageUpdates.software && showFileProgressModal && (
         <FileProgressModal
-          fileDetails={getFileDetails(pendingPackageUpdates.software, true)}
+          fileDetails={getFileDetails(pendingPackageUpdates.software)}
           fileProgress={uploadProgress}
         />
       )}

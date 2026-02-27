@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/docker/go-units"
+	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	"github.com/google/uuid"
 )
 
@@ -81,6 +82,12 @@ func (e BadRequestError) Internal() string {
 		return e.InternalErr.Error()
 	}
 	return ""
+}
+
+// We implement the second type of Unwrap that returns an error array, which still works for errors.Is/As, but is not supported in errors.Unwrap
+// This allows us to check the error chain, but not log the most inner error in the HTTP response.
+func (e BadRequestError) Unwrap() []error {
+	return []error{e.InternalErr}
 }
 
 // IsClientError implements ErrWithIsClientError.
@@ -168,7 +175,7 @@ func IsJSONUnknownFieldError(err error) bool {
 
 // GetJSONUnknownField returns the unknown field name from a JSON unknown field error.
 func GetJSONUnknownField(err error) *string {
-	errCause := Cause(err)
+	errCause := platform_errors.Cause(err)
 	if IsJSONUnknownFieldError(errCause) {
 		substr := rxJSONUnknownField.FindStringSubmatch(errCause.Error())
 		return &substr[1]
@@ -180,7 +187,7 @@ func GetJSONUnknownField(err error) *string {
 // root cause is one of the supported types, otherwise it returns the error
 // message.
 func (e UserMessageError) UserMessage() string {
-	cause := Cause(e.error)
+	cause := platform_errors.Cause(e.error)
 	switch cause := cause.(type) {
 	case *json.UnmarshalTypeError:
 		var sb strings.Builder
@@ -204,17 +211,6 @@ func (e UserMessageError) UserMessage() string {
 			return fmt.Sprintf("unsupported key provided: %q", matches[1])
 		}
 		return e.Error()
-	}
-}
-
-// Cause returns the root error in err's chain.
-func Cause(err error) error {
-	for {
-		uerr := errors.Unwrap(err)
-		if uerr == nil {
-			return err
-		}
-		err = uerr
 	}
 }
 
@@ -242,21 +238,6 @@ func IsForeignKey(err error) bool {
 	return false
 }
 
-// NotFoundError is an interface for errors when a resource cannot be found.
-type NotFoundError interface {
-	error
-	IsNotFound() bool
-}
-
-// IsNotFound returns true if err is a not-found error.
-func IsNotFound(err error) bool {
-	var nfe NotFoundError
-	if errors.As(err, &nfe) {
-		return nfe.IsNotFound()
-	}
-	return false
-}
-
 // AlreadyExistsError is an interface for errors when a resource already exists.
 type AlreadyExistsError interface {
 	error
@@ -274,14 +255,6 @@ type Error struct {
 // Error returns the error message.
 func (e *Error) Error() string {
 	return e.Message
-}
-
-// ErrWithIsClientError is an interface for errors that explicitly specify
-// whether they are client errors or not. By default, errors are treated as
-// server errors.
-type ErrWithIsClientError interface {
-	error
-	IsClientError() bool
 }
 
 // AuthFailedError is returned when authentication fails.

@@ -66,7 +66,7 @@ type SoftwareInstallerURL struct {
 type SoftwareInstaller struct {
 	// TeamID is the ID of the team. A value of nil means it is scoped to hosts that are assigned to
 	// no team.
-	TeamID *uint `json:"team_id" db:"team_id"`
+	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// Name is the name of the software package.
@@ -113,7 +113,8 @@ type SoftwareInstaller struct {
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
 	// FleetMaintainedAppID is the related Fleet-maintained app for this installer (if not nil).
-	FleetMaintainedAppID *uint `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
+	FleetMaintainedAppID    *uint                    `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
+	FleetMaintainedVersions []FleetMaintainedVersion `json:"fleet_maintained_versions,omitempty"`
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
@@ -137,7 +138,7 @@ type SoftwareInstaller struct {
 type SoftwarePackageResponse struct {
 	// TeamID is the ID of the team.
 	// A value of nil means it is scoped to hosts that are assigned to "No team".
-	TeamID *uint `json:"team_id" db:"team_id"`
+	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
@@ -177,7 +178,7 @@ func (p SoftwarePackageResponse) GetLocalIconPath() string { return p.LocalIconP
 type VPPAppResponse struct {
 	// TeamID is the ID of the team.
 	// A value of nil means it is scoped to hosts that are assigned to "No team".
-	TeamID *uint `json:"team_id" db:"team_id"`
+	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// AppStoreID is the ADAM ID for this app (set when uploading via batch/gitops).
@@ -482,7 +483,7 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 }
 
 type HostSoftwareInstallerResultAuthz struct {
-	HostTeamID *uint `json:"host_team_id"`
+	HostTeamID *uint `json:"host_team_id" renameto:"host_fleet_id"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -507,13 +508,19 @@ type UploadSoftwareInstallerPayload struct {
 	UserID               uint
 	URL                  string
 	FleetMaintainedAppID *uint
-	PackageIDs           []string
-	UpgradeCode          string
-	UninstallScript      string
-	Extension            string
-	InstallDuringSetup   *bool    // keep saved value if nil, otherwise set as indicated
-	LabelsIncludeAny     []string // names of "include any" labels
-	LabelsExcludeAny     []string // names of "exclude any" labels
+	// RollbackVersion is the version to pin as "active" for a fleet-maintained app.
+	// If empty, the latest version is used.
+	RollbackVersion string
+	// FMAVersionCached indicates this FMA version is already cached in the
+	// database and installer store, so storage and insert can be skipped.
+	FMAVersionCached   bool
+	PackageIDs         []string
+	UpgradeCode        string
+	UninstallScript    string
+	Extension          string
+	InstallDuringSetup *bool    // keep saved value if nil, otherwise set as indicated
+	LabelsIncludeAny   []string // names of "include any" labels
+	LabelsExcludeAny   []string // names of "exclude any" labels
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
 	// is nil if the labels have not been validated.
 	ValidatedLabels       *LabelIdentsWithScope
@@ -739,9 +746,10 @@ type SoftwarePackageOrApp struct {
 	PackageURL    *string                `json:"package_url"`
 	// InstallDuringSetup is a boolean that indicates if the package
 	// will be installed during the macos setup experience.
-	InstallDuringSetup   *bool    `json:"install_during_setup,omitempty" db:"install_during_setup"`
-	FleetMaintainedAppID *uint    `json:"fleet_maintained_app_id,omitempty" db:"fleet_maintained_app_id"`
-	Categories           []string `json:"categories,omitempty"`
+	InstallDuringSetup      *bool                    `json:"install_during_setup,omitempty" db:"install_during_setup"`
+	FleetMaintainedAppID    *uint                    `json:"fleet_maintained_app_id,omitempty" db:"fleet_maintained_app_id"`
+	FleetMaintainedVersions []FleetMaintainedVersion `json:"fleet_maintained_versions,omitempty"`
+	Categories              []string                 `json:"categories,omitempty"`
 }
 
 func (s *SoftwarePackageOrApp) GetPlatform() string {
@@ -776,7 +784,8 @@ type SoftwarePackageSpec struct {
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
 
 	// FMA
-	Slug *string `json:"slug"`
+	Slug    *string `json:"slug"`
+	Version string  `json:"version"`
 
 	// ReferencedYamlPath is the resolved path of the file used to fill the
 	// software package. Only present after parsing a GitOps file on the fleetctl
@@ -817,6 +826,7 @@ func resolveApplyRelativePath(baseDir string, path string) string {
 
 type MaintainedAppSpec struct {
 	Slug               string                `json:"slug"`
+	Version            string                `json:"version"`
 	SelfService        bool                  `json:"self_service"`
 	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"`
 	InstallScript      TeamSpecSoftwareAsset `json:"install_script"`
@@ -832,6 +842,7 @@ type MaintainedAppSpec struct {
 func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
 	return SoftwarePackageSpec{
 		Slug:               &spec.Slug,
+		Version:            spec.Version,
 		PreInstallQuery:    spec.PreInstallQuery,
 		InstallScript:      spec.InstallScript,
 		PostInstallScript:  spec.PostInstallScript,
@@ -983,7 +994,7 @@ const (
 // SoftwareInstallerTokenMetadata is the metadata stored in Redis for a software installer token.
 type SoftwareInstallerTokenMetadata struct {
 	TitleID uint `json:"title_id"`
-	TeamID  uint `json:"team_id"`
+	TeamID  uint `json:"team_id" renameto:"fleet_id"`
 }
 
 const SoftwareInstallerURLMaxLength = 4000
@@ -1070,6 +1081,9 @@ type SoftwareScopeLabel struct {
 	TitleID   uint   `db:"title_id" json:"-"`  // not rendered in JSON, used to store the associated title ID (may be the empty value in some cases)
 }
 
+// Max total attempts (including initial) for a non-policy software install.
+const MaxSoftwareInstallAttempts = 3
+
 // HostSoftwareInstallOptions contains options that apply to a software or VPP
 // app install request.
 type HostSoftwareInstallOptions struct {
@@ -1079,6 +1093,12 @@ type HostSoftwareInstallOptions struct {
 	// ForScheduledUpdates means the install request is for iOS/iPadOS
 	// scheduled updates, which means it was Fleet-initiated.
 	ForScheduledUpdates bool
+	// UserID is an explicit user ID for retries (overrides context user when set).
+	UserID *uint
+	// WithRetries indicates the install should be retried on failure (up to
+	// MaxSoftwareInstallAttempts total). Set by host details, self-service,
+	// and setup experience install paths.
+	WithRetries bool
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.

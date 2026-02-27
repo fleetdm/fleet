@@ -5,12 +5,9 @@
   var me;
   var isHomepage;
   var currentSection;
-  var showHeaderCTA;
   var hideHeaderLinks;// Hides the header navigation links.
   var hideFooterLinks;// Hides footer links, reduces the height of the footer to 60px;
   var showAdminLinks;// Shows links to admin pages to admin users.
-  var hideGetStartedButton;// Hides the 'Get started' button in the website's navigation header.
-  var hideStartCTA;
   var showConfigurationProfileLayout;
   // Applies personalization for who people come from ads, so that the website makes more sense for them:
   var primaryBuyingSituation;
@@ -67,6 +64,8 @@
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV"></script>
     <script>
       window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');
+	// Google Ads configuration (including Enhanced Conversions) 
+	  gtag('config', 'AW-10788733823', {'allow_enhanced_conversions': true});
     </script>
     <%/* LinkedIn insight tag*/%>
     <script type="text/javascript">
@@ -231,6 +230,21 @@
                           </div>
                         </div>
                       </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Deployment" href="/deployment">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-deployment-40x40@2x.png" alt="Deployment">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Deployment
+                            </p>
+                            <p purpose="nav-item-body">
+                              Run Fleet the way that fits your team.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
                       <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="integrations" href="/integrations">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
@@ -369,33 +383,20 @@
                         <a purpose="mobile-dropdown-link" href="/query-generator">Generate queries</a>
                         <a purpose="mobile-dropdown-link" href="/admin/generate-license">License generator</a>
                         <a purpose="mobile-dropdown-link" href="/admin/email-preview">HTML Email preview tool</a>
+                        <a purpose="mobile-dropdown-link" href="/admin/reset-trial">Reset local Fleet Premium trial</a>
                       </div>
                     <%}%>
                   </div>
-                  <%if(!hideGetStartedButton){%>
                   <div purpose="mobile-nav-cta" class="d-flex flex-row align-items-center">
-
                     <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
-                    <%if(_.has(me, 'id')) {%>
-                      <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/try" no-underline>
+<!--                       <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/try" no-underline>
                         Try it yourself
                         <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
                           <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
                           <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
-                      </a>
-                    </div>
-                    <% } else {%>
-                      <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" data-toggle="modal" data-target="#signupmodal" no-underline>
-                        Try it yourself
-                        <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-                          <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
-                          <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                      </a>
-                    </div>
-                    <% }%>
-                  <% }%>
+                      </a> -->
+                  </div>
                 </div>
               </div>
               <%/* Desktop Navigation bar */%>
@@ -462,6 +463,21 @@
                           </p>
                           <p purpose="nav-item-body">
                             See every change, undo any error, repeat every success.
+                          </p>
+                        </div>
+                      </div>
+                    </a>
+                    <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Deployment" href="/deployment">
+                      <div purpose="dropdown-item-link">
+                        <div purpose="dropdown-item-icon">
+                          <img src="/images/nav-icon-deployment-40x40@2x.png" alt="Deployment">
+                        </div>
+                        <div purpose="dropdown-item-text">
+                          <p purpose="nav-item-heading">
+                            Deployment
+                          </p>
+                          <p purpose="nav-item-body">
+                            Run Fleet the way that fits your team.
                           </p>
                         </div>
                       </div>
@@ -596,29 +612,17 @@
 
                   </div>
                 </div>
-
+                <!-- <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/try" no-underline>
+                  Try it yourself
+                  <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+                    <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+                    <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </a> -->
+                <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
                 <% if(_.has(me, 'id')) {%>
-                  <%if(!hideGetStartedButton){%>
-                    <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/try" no-underline>
-                      Try it yourself
-                      <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-                        <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
-                        <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </a>
-                    <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
-                  <% }%>
                   <a purpose="log-out-button" href="/logout" class="justify-content-end text-decoration-none">Log out</a>
-                <% } else if(!hideGetStartedButton) {%>
-                  <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" data-toggle="modal" data-target="#signupmodal" no-underline>
-                    Try it yourself
-                    <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-                      <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
-                      <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </a>
-                  <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
-                <% }%>
+                <% } %>
               </div>
             </div>
           <% } else {%>
@@ -642,6 +646,7 @@
                 <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/query-generator">Generate queries</a>
                 <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/generate-license">License generator</a>
                 <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/email-preview">HTML Email preview tool</a>
+                <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/reset-trial">Reset Premium trial</a>
               </div>
             </div>
           <%} %>
@@ -768,6 +773,7 @@
           </div>
       <% } %>
       <% } %>
+    </div>
     <% /*
       Client-side JavaScript
       ========================
@@ -816,8 +822,6 @@
     <script src="/js/components/parallax-city.component.js"></script>
     <script src="/js/components/rituals.component.js"></script>
     <script src="/js/components/scrollable-tweets.component.js"></script>
-    <script src="/js/components/signup-button.component.js"></script>
-    <script src="/js/components/signup-modal.component.js"></script>
     <script src="/js/components/stripe-card-element.component.js"></script>
     <script src="/js/utilities/open-stripe-checkout.js"></script>
     <script src="/js/pages/account/account-overview.page.js"></script>
@@ -827,6 +831,7 @@
     <script src="/js/pages/admin/email-templates.page.js"></script>
     <script src="/js/pages/admin/generate-license.page.js"></script>
     <script src="/js/pages/admin/query-generator.page.js"></script>
+    <script src="/js/pages/admin/reset-trial.page.js"></script>
     <script src="/js/pages/admin/sandbox-waitlist.page.js"></script>
     <script src="/js/pages/app-details.page.js"></script>
     <script src="/js/pages/app-library.page.js"></script>
@@ -856,6 +861,7 @@
     <script src="/js/pages/homepage.page.js"></script>
     <script src="/js/pages/integrations.page.js"></script>
     <script src="/js/pages/landing-pages/basic-comparison.page.js"></script>
+    <script src="/js/pages/landing-pages/deployment.page.js"></script>
     <script src="/js/pages/landing-pages/gitops-workshop.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>

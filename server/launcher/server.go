@@ -2,16 +2,17 @@
 package launcher
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/go-kit/log"
 	launcher "github.com/kolide/launcher/pkg/service"
 	grpc "google.golang.org/grpc"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 // Handler extends the grpc.Server, providing Handler that allows us to serve
@@ -23,10 +24,11 @@ type Handler struct {
 // New creates a gRPC server to handle remote requests from launcher.
 func New(
 	tls fleet.OsqueryService,
-	logger log.Logger,
+	logger *slog.Logger,
 	grpcServer *grpc.Server,
 	healthCheckers map[string]health.Checker,
 ) *Handler {
+	kitLogger := logging.NewLogger(logger)
 	var svc launcher.KolideService
 	{
 		svc = &launcherWrapper{
@@ -34,10 +36,10 @@ func New(
 			logger:         logger,
 			healthCheckers: healthCheckers,
 		}
-		svc = launcher.LoggingMiddleware(logger)(svc)
+		svc = launcher.LoggingMiddleware(kitLogger)(svc)
 	}
 	endpoints := launcher.MakeServerEndpoints(svc)
-	server := launcher.NewGRPCServer(endpoints, logger)
+	server := launcher.NewGRPCServer(endpoints, kitLogger)
 	launcher.RegisterGRPCServer(grpcServer, server)
 	return &Handler{grpcServer}
 }
