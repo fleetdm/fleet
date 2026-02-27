@@ -35,6 +35,8 @@ type teamPolicyRequest struct {
 	LabelsExcludeAny               []string `json:"labels_exclude_any"`
 	ConditionalAccessEnabled       bool     `json:"conditional_access_enabled"`
 	ConditionalAccessBypassEnabled *bool    `json:"conditional_access_bypass_enabled"`
+	Type                           *string  `json:"type"`
+	PatchSoftwareTitleID           *uint    `json:"patch_software_title_id"`
 }
 
 type teamPolicyResponse struct {
@@ -61,6 +63,8 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		LabelsExcludeAny:               req.LabelsExcludeAny,
 		ConditionalAccessEnabled:       req.ConditionalAccessEnabled,
 		ConditionalAccessBypassEnabled: req.ConditionalAccessBypassEnabled,
+		Type:                           req.Type,
+		PatchSoftwareTitleID:           req.PatchSoftwareTitleID,
 	})
 	if err != nil {
 		return teamPolicyResponse{Err: err}, nil
@@ -82,7 +86,7 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 		return nil, errors.New("user must be authenticated to create team policies")
 	}
 
-	p, err := svc.newTeamPolicyPayloadToPolicyPayload(ctx, teamID, tp)
+	p, err := svc.newTeamPolicyPayloadToPolicyPayload(ctx, teamID, tp) // TODO(JK): update
 	if err != nil {
 		return nil, err
 	}
@@ -97,6 +101,8 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
+	// TODO(JK): generate query. maybe ds method.
+
 	policy, err := svc.ds.NewTeamPolicy(ctx, teamID, ptr.Uint(vc.UserID()), p)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating policy")
@@ -108,6 +114,7 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 	if err := svc.populatePolicyRunScript(ctx, policy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
 	}
+	// TODO(JK): populate patch policy "patch_software: object (same software title struct type)
 
 	if teamID == 0 {
 		noTeamID := int64(0)
@@ -192,7 +199,12 @@ func (svc *Service) populatePolicyRunScript(ctx context.Context, p *fleet.Policy
 }
 
 func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, teamID uint, p fleet.NewTeamPolicyPayload) (fleet.PolicyPayload, error) {
-	softwareInstallerID, vppAppsTeamsID, err := svc.getInstallerOrVPPAppForTitle(ctx, &teamID, p.SoftwareTitleID)
+	titleID := p.SoftwareTitleID
+	if p.Type != nil && *p.Type == "patch" {
+		titleID = p.PatchSoftwareTitleID
+	}
+
+	softwareInstallerID, vppAppsTeamsID, err := svc.getInstallerOrVPPAppForTitle(ctx, &teamID, titleID)
 	if err != nil {
 		return fleet.PolicyPayload{}, err
 	}
@@ -213,6 +225,8 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		LabelsExcludeAny:               p.LabelsExcludeAny,
 		ConditionalAccessEnabled:       p.ConditionalAccessEnabled,
 		ConditionalAccessBypassEnabled: p.ConditionalAccessBypassEnabled,
+		Type:                           p.Type,
+		PatchSoftwareTitleID:           p.PatchSoftwareTitleID,
 	}, nil
 }
 

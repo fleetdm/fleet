@@ -111,6 +111,10 @@ type NewTeamPolicyPayload struct {
 	// ConditionalAccessBypassEnabled indicates if a conditional access policy can be one-time
 	// bypassed by the end user
 	ConditionalAccessBypassEnabled *bool
+
+	// TODO(JK): comments
+	Type                 *string
+	PatchSoftwareTitleID *uint
 }
 
 var (
@@ -119,6 +123,8 @@ var (
 	errPolicyIDAndQuerySet     = errors.New("both fields \"queryID\" and \"query\" cannot be set")
 	errPolicyInvalidPlatform   = errors.New("invalid policy platform")
 	errPolicyConflictingLabels = errors.New("policy cannot include both labels_include_any and labels_exclude_any")
+	errPolicyPatchAndQuerySet  = errors.New("The policy where the \"type\" is \"patch\" doesn't support the \"query\" field.")
+	errPolicyPatchNoTitleID    = errors.New("patch_software_title_id is required if \"type\" is \"patch\".") // TODO(JK): what message
 )
 
 // PolicyNoTeamID is the team ID of "No team" policies.
@@ -146,6 +152,11 @@ func (p PolicyPayload) Verify() error {
 	}
 	if len(p.LabelsIncludeAny) > 0 && len(p.LabelsExcludeAny) > 0 {
 		return errPolicyConflictingLabels
+	}
+	if p.Type == "patch" {
+		if err := verifyPatchPolicy(p.PatchSoftwareTitleID, p.Query); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -179,6 +190,15 @@ func verifyPolicyPlatforms(platforms string) error {
 		default:
 			return errPolicyInvalidPlatform
 		}
+	}
+	return nil
+}
+func verifyPatchPolicy(patchPolicyTitleID *uint, query string) error {
+	if query != "" {
+		return errPolicyPatchAndQuerySet
+	}
+	if patchPolicyTitleID == nil {
+		return errPolicyPatchNoTitleID
 	}
 	return nil
 }
