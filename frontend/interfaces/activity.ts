@@ -154,7 +154,6 @@ export enum ActivityType {
   EditedHostIdpData = "edited_host_idp_data",
   AddedCertificate = "added_certificate",
   DeletedCertificate = "deleted_certificate",
-  EditedEnrollSecrets = "edited_enroll_secrets",
   AddedMicrosoftEntraTenant = "added_microsoft_entra_tenant",
   DeletedMicrosoftEntraTenant = "deleted_microsoft_entra_tenant",
 }
