@@ -6,12 +6,21 @@
     &__wrapper {
       width: initial;
     }
+    tbody td.detail__cell {
+      // these styles are a little trick that allows the cell to 
+      // shrink while still follwing the auto width behavior of the table.
+      // This is needed to show the error text and button in the 
+      // error cell correctly without overflowing outside of the table.
+      max-width: 0;
+      width: 100%;
+    }
     tbody td {
       .os-settings-name-cell {
         max-width: 166px;
       }
       .os-settings-error-cell {
-        width: 237px;
+        min-width: 0;
+        width: 100%;
       }
     }
   }
