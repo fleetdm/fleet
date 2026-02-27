@@ -23,6 +23,7 @@ import (
 )
 
 const maxBridgeBodyBytes = 16 * 1024
+const bridgeSessionCookieName = "qacheck_session"
 
 var repoSlugPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 
@@ -326,13 +327,79 @@ func (b *uiBridge) signal(msg string) {
 	}
 }
 
+// expectedHost returns the configured host:port for this bridge instance.
+func (b *uiBridge) expectedHost() string {
+	u, err := neturl.Parse(b.baseURL)
+	if err != nil {
+		return ""
+	}
+	return strings.ToLower(strings.TrimSpace(u.Host))
+}
+
+// hostAllowed enforces that requests target the bridge's loopback host.
+func (b *uiBridge) hostAllowed(r *http.Request) bool {
+	host := strings.ToLower(strings.TrimSpace(r.Host))
+	expected := b.expectedHost()
+	if host == "" || expected == "" {
+		return false
+	}
+	if host == expected {
+		return true
+	}
+	expHost, expPort, err := net.SplitHostPort(expected)
+	if err != nil {
+		return false
+	}
+	if expHost == "127.0.0.1" && host == "localhost:"+expPort {
+		return true
+	}
+	return false
+}
+
+// setSessionCookie sets a strict, HttpOnly session cookie for browser calls.
+func (b *uiBridge) setSessionCookie(w http.ResponseWriter) {
+	maxAge := int(b.idleTimeout.Seconds())
+	if maxAge <= 0 {
+		maxAge = int((15 * time.Minute).Seconds())
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     bridgeSessionCookieName,
+		Value:    b.session,
+		Path:     "/",
+		MaxAge:   maxAge,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+	})
+}
+
+// hasValidSession accepts either the existing session header or strict cookie.
+func (b *uiBridge) hasValidSession(r *http.Request) bool {
+	sessionHeader := strings.TrimSpace(r.Header.Get("X-Qacheck-Session"))
+	if sessionHeader != "" && sessionHeader == b.session {
+		return true
+	}
+	c, err := r.Cookie(bridgeSessionCookieName)
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(c.Value) == b.session
+}
+
 // handleHealth serves a basic liveness endpoint.
-func (b *uiBridge) handleHealth(w http.ResponseWriter, _ *http.Request) {
+func (b *uiBridge) handleHealth(w http.ResponseWriter, r *http.Request) {
+	if !b.hostAllowed(r) {
+		http.Error(w, "forbidden host", http.StatusForbidden)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 // handleReport serves the generated report file through the bridge.
 func (b *uiBridge) handleReport(w http.ResponseWriter, r *http.Request) {
+	if !b.hostAllowed(r) {
+		http.Error(w, "forbidden host", http.StatusForbidden)
+		return
+	}
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -346,17 +413,21 @@ func (b *uiBridge) handleReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	b.setSessionCookie(w)
 	http.ServeFile(w, r, reportPath)
 }
 
 // handleTimestampCheck runs timestamp refresh and returns JSON results.
 func (b *uiBridge) handleTimestampCheck(w http.ResponseWriter, r *http.Request) {
+	if !b.hostAllowed(r) {
+		http.Error(w, "forbidden host", http.StatusForbidden)
+		return
+	}
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	sessionHeader := strings.TrimSpace(r.Header.Get("X-Qacheck-Session"))
-	if sessionHeader == "" || sessionHeader != b.session {
+	if !b.hasValidSession(r) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -383,12 +454,15 @@ func (b *uiBridge) handleTimestampCheck(w http.ResponseWriter, r *http.Request) 
 
 // handleUnassignedUnreleasedCheck refreshes unreleased-bug findings via API.
 func (b *uiBridge) handleUnassignedUnreleasedCheck(w http.ResponseWriter, r *http.Request) {
+	if !b.hostAllowed(r) {
+		http.Error(w, "forbidden host", http.StatusForbidden)
+		return
+	}
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	sessionHeader := strings.TrimSpace(r.Header.Get("X-Qacheck-Session"))
-	if sessionHeader == "" || sessionHeader != b.session {
+	if !b.hasValidSession(r) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -410,12 +484,15 @@ func (b *uiBridge) handleUnassignedUnreleasedCheck(w http.ResponseWriter, r *htt
 
 // handleReleaseStoryTODOCheck refreshes release-story TODO findings via API.
 func (b *uiBridge) handleReleaseStoryTODOCheck(w http.ResponseWriter, r *http.Request) {
+	if !b.hostAllowed(r) {
+		http.Error(w, "forbidden host", http.StatusForbidden)
+		return
+	}
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	sessionHeader := strings.TrimSpace(r.Header.Get("X-Qacheck-Session"))
-	if sessionHeader == "" || sessionHeader != b.session {
+	if !b.hasValidSession(r) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -437,12 +514,15 @@ func (b *uiBridge) handleReleaseStoryTODOCheck(w http.ResponseWriter, r *http.Re
 
 // handleMissingSprintCheck refreshes missing-sprint findings via API.
 func (b *uiBridge) handleMissingSprintCheck(w http.ResponseWriter, r *http.Request) {
+	if !b.hostAllowed(r) {
+		http.Error(w, "forbidden host", http.StatusForbidden)
+		return
+	}
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	sessionHeader := strings.TrimSpace(r.Header.Get("X-Qacheck-Session"))
-	if sessionHeader == "" || sessionHeader != b.session {
+	if !b.hasValidSession(r) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -464,12 +544,15 @@ func (b *uiBridge) handleMissingSprintCheck(w http.ResponseWriter, r *http.Reque
 
 // handleStateCheck returns refresh-all status and current check counters.
 func (b *uiBridge) handleStateCheck(w http.ResponseWriter, r *http.Request) {
+	if !b.hostAllowed(r) {
+		http.Error(w, "forbidden host", http.StatusForbidden)
+		return
+	}
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	sessionHeader := strings.TrimSpace(r.Header.Get("X-Qacheck-Session"))
-	if sessionHeader == "" || sessionHeader != b.session {
+	if !b.hasValidSession(r) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -803,6 +886,10 @@ func callerAddr(r *http.Request) string {
 
 // prepareRequest enforces local-origin/session validation for API calls.
 func (b *uiBridge) prepareRequest(w http.ResponseWriter, r *http.Request) bool {
+	if !b.hostAllowed(r) {
+		http.Error(w, "forbidden host", http.StatusForbidden)
+		return false
+	}
 	origin := strings.TrimSpace(r.Header.Get("Origin"))
 	if origin != "" && origin != b.origin {
 		http.Error(w, "forbidden origin", http.StatusForbidden)
@@ -822,8 +909,7 @@ func (b *uiBridge) prepareRequest(w http.ResponseWriter, r *http.Request) bool {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return false
 	}
-	sessionHeader := strings.TrimSpace(r.Header.Get("X-Qacheck-Session"))
-	if sessionHeader == "" || sessionHeader != b.session {
+	if !b.hasValidSession(r) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return false
 	}

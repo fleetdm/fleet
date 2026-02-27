@@ -36,6 +36,7 @@ func TestPrepareRequestRejectsForeignOrigin(t *testing.T) {
 		session: "abc123",
 	}
 	req := httptest.NewRequest(http.MethodPost, "/api/apply-milestone", strings.NewReader(`{}`))
+	req.Host = "127.0.0.1:9999"
 	req.Header.Set("Origin", "http://evil.example")
 	req.Header.Set("X-Qacheck-Session", "abc123")
 	rr := httptest.NewRecorder()
@@ -59,6 +60,7 @@ func TestPrepareRequestRejectsForeignReferer(t *testing.T) {
 		session: "abc123",
 	}
 	req := httptest.NewRequest(http.MethodPost, "/api/apply-checklist", strings.NewReader(`{}`))
+	req.Host = "127.0.0.1:9999"
 	req.Header.Set("Origin", "http://127.0.0.1:9999")
 	req.Header.Set("Referer", "http://evil.example/report")
 	req.Header.Set("X-Qacheck-Session", "abc123")
@@ -83,6 +85,7 @@ func TestPrepareRequestRejectsMissingSessionHeader(t *testing.T) {
 		session: "abc123",
 	}
 	req := httptest.NewRequest(http.MethodPost, "/api/apply-checklist", strings.NewReader(`{}`))
+	req.Host = "127.0.0.1:9999"
 	req.Header.Set("Origin", "http://127.0.0.1:9999")
 	req.Header.Set("Referer", "http://127.0.0.1:9999/report")
 	rr := httptest.NewRecorder()
@@ -106,6 +109,7 @@ func TestPrepareRequestAcceptsValidLocalRequest(t *testing.T) {
 		session: "abc123",
 	}
 	req := httptest.NewRequest(http.MethodPost, "/api/apply-checklist", strings.NewReader(`{}`))
+	req.Host = "127.0.0.1:9999"
 	req.Header.Set("Origin", "http://127.0.0.1:9999")
 	req.Header.Set("Referer", "http://127.0.0.1:9999/report")
 	req.Header.Set("X-Qacheck-Session", "abc123")

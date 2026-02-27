@@ -39,9 +39,17 @@ func newTestBridge() *uiBridge {
 // postReq builds a JSON POST request with local/session headers.
 func postReq(path, body string) *http.Request {
 	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+	req.Host = "127.0.0.1:9999"
 	req.Header.Set("Origin", "http://127.0.0.1:9999")
 	req.Header.Set("Referer", "http://127.0.0.1:9999/report")
 	req.Header.Set("X-Qacheck-Session", "sess")
+	return req
+}
+
+// getReq builds a local GET request that passes host validation.
+func getReq(path string) *http.Request {
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	req.Host = "127.0.0.1:9999"
 	return req
 }
 
@@ -52,13 +60,14 @@ func TestHandleReportValidation(t *testing.T) {
 
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/report", nil)
+	req.Host = "127.0.0.1:9999"
 	b.handleReport(rr, req)
 	if rr.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusMethodNotAllowed)
 	}
 
 	rr = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/report", nil)
+	req = getReq("/report")
 	b.handleReport(rr, req)
 	if rr.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusServiceUnavailable)
@@ -167,7 +176,7 @@ func TestHandleCloseAndHealth(t *testing.T) {
 	b := newTestBridge()
 
 	rr := httptest.NewRecorder()
-	b.handleHealth(rr, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	b.handleHealth(rr, getReq("/healthz"))
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusOK)
 	}
@@ -194,20 +203,21 @@ func TestHandleTimestampCheck(t *testing.T) {
 
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/api/check/timestamp", nil)
+	req.Host = "127.0.0.1:9999"
 	b.handleTimestampCheck(rr, req)
 	if rr.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusMethodNotAllowed)
 	}
 
 	rr = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/api/check/timestamp", nil)
+	req = getReq("/api/check/timestamp")
 	b.handleTimestampCheck(rr, req)
 	if rr.Code != http.StatusUnauthorized {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusUnauthorized)
 	}
 
 	rr = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/api/check/timestamp", nil)
+	req = getReq("/api/check/timestamp")
 	req.Header.Set("X-Qacheck-Session", "sess")
 	b.handleTimestampCheck(rr, req)
 	if rr.Code != http.StatusOK {
@@ -227,7 +237,7 @@ func TestHandleTimestampCheck(t *testing.T) {
 		}, bridgePolicy{}, nil
 	})
 	rr = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/api/check/timestamp?refresh=1", nil)
+	req = getReq("/api/check/timestamp?refresh=1")
 	req.Header.Set("X-Qacheck-Session", "sess")
 	b.handleTimestampCheck(rr, req)
 	if rr.Code != http.StatusOK {
@@ -267,20 +277,21 @@ func TestHandleUnassignedUnreleasedCheck(t *testing.T) {
 
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/api/check/unassigned-unreleased", nil)
+	req.Host = "127.0.0.1:9999"
 	b.handleUnassignedUnreleasedCheck(rr, req)
 	if rr.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusMethodNotAllowed)
 	}
 
 	rr = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/api/check/unassigned-unreleased", nil)
+	req = getReq("/api/check/unassigned-unreleased")
 	b.handleUnassignedUnreleasedCheck(rr, req)
 	if rr.Code != http.StatusUnauthorized {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusUnauthorized)
 	}
 
 	rr = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/api/check/unassigned-unreleased", nil)
+	req = getReq("/api/check/unassigned-unreleased")
 	req.Header.Set("X-Qacheck-Session", "sess")
 	b.handleUnassignedUnreleasedCheck(rr, req)
 	if rr.Code != http.StatusOK {
@@ -321,20 +332,21 @@ func TestHandleReleaseStoryTODOCheck(t *testing.T) {
 
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/api/check/release-story-todo", nil)
+	req.Host = "127.0.0.1:9999"
 	b.handleReleaseStoryTODOCheck(rr, req)
 	if rr.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusMethodNotAllowed)
 	}
 
 	rr = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/api/check/release-story-todo", nil)
+	req = getReq("/api/check/release-story-todo")
 	b.handleReleaseStoryTODOCheck(rr, req)
 	if rr.Code != http.StatusUnauthorized {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusUnauthorized)
 	}
 
 	rr = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/api/check/release-story-todo", nil)
+	req = getReq("/api/check/release-story-todo")
 	req.Header.Set("X-Qacheck-Session", "sess")
 	b.handleReleaseStoryTODOCheck(rr, req)
 	if rr.Code != http.StatusOK {
@@ -375,20 +387,21 @@ func TestHandleMissingSprintCheck(t *testing.T) {
 
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/api/check/missing-sprint", nil)
+	req.Host = "127.0.0.1:9999"
 	b.handleMissingSprintCheck(rr, req)
 	if rr.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusMethodNotAllowed)
 	}
 
 	rr = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/api/check/missing-sprint", nil)
+	req = getReq("/api/check/missing-sprint")
 	b.handleMissingSprintCheck(rr, req)
 	if rr.Code != http.StatusUnauthorized {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusUnauthorized)
 	}
 
 	rr = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/api/check/missing-sprint", nil)
+	req = getReq("/api/check/missing-sprint")
 	req.Header.Set("X-Qacheck-Session", "sess")
 	b.handleMissingSprintCheck(rr, req)
 	if rr.Code != http.StatusOK {
@@ -412,20 +425,21 @@ func TestHandleStateCheck(t *testing.T) {
 
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/api/check/state", nil)
+	req.Host = "127.0.0.1:9999"
 	b.handleStateCheck(rr, req)
 	if rr.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusMethodNotAllowed)
 	}
 
 	rr = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/api/check/state", nil)
+	req = getReq("/api/check/state")
 	b.handleStateCheck(rr, req)
 	if rr.Code != http.StatusUnauthorized {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusUnauthorized)
 	}
 
 	rr = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/api/check/state", nil)
+	req = getReq("/api/check/state")
 	req.Header.Set("X-Qacheck-Session", "sess")
 	b.handleStateCheck(rr, req)
 	if rr.Code != http.StatusOK {
