@@ -1213,7 +1213,6 @@ func (svc *Service) createTeamFromSpec(
 	}
 
 	if macOSSetup.LockEndUserInfo.Value && !macOSSetup.EnableEndUserAuthentication {
-		// TODO EJM error message
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.lock_end_user_info", "Couldn’t enable lock_end_user_info when enable_end_user_authentication is disabled."))
 	}
 

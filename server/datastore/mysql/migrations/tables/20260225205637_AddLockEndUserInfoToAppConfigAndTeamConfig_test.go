@@ -36,7 +36,7 @@ func TestUp_20260225205637(t *testing.T) {
 	_, err = db.Exec(`INSERT INTO teams (id, name, config) VALUES (1, 'team1', ?)`, teamConfig1JSON)
 	require.NoError(t, err)
 
-	// Team 2: Not Configured (missing deadline)
+	// Team 2: Not Configured
 	teamConfig2 := fleet.TeamConfig{}
 	teamConfig2.MDM.MacOSSetup.EnableEndUserAuthentication = false
 	teamConfig2JSON, err := json.Marshal(teamConfig2)
