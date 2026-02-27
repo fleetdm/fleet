@@ -61,6 +61,10 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessBypassEnabled *bool
+
+	// TODO(JK): what other structs need these fields updated?
+	Type                 string
+	PatchSoftwareTitleID *uint
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.

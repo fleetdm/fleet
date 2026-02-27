@@ -53,5 +53,4 @@ func TestUp_20260226213628(t *testing.T) {
 	var found int
 	err = db.GetContext(context.Background(), &found, `SELECT 1 FROM policies WHERE id = ?`, policy5)
 	require.ErrorContains(t, err, "sql: no rows in result set")
-
 }
