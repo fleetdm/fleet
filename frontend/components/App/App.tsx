@@ -10,7 +10,7 @@ import QueryProvider from "context/query";
 import PolicyProvider from "context/policy";
 import NotificationProvider from "context/notification";
 import { AppContext } from "context/app";
-import { authToken, clearToken } from "utilities/local";
+import authToken from "utilities/auth_token";
 import useDeepEffect from "hooks/useDeepEffect";
 import { QueryParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -206,7 +206,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       ) {
         return true;
       }
-      clearToken();
+      authToken.remove();
       // if this is not the device user page,
       // redirect to login
       if (!location?.pathname.includes("/device/")) {
@@ -217,7 +217,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   };
 
   useEffect(() => {
-    if (authToken() && !location?.pathname.includes("/device/")) {
+    if (authToken.get() && !location?.pathname.includes("/device/")) {
       fetchCurrentUser();
     }
   }, [location?.pathname]);
