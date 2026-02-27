@@ -304,16 +304,11 @@ func getCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "get",
 		Usage: "Get/list resources",
-		Flags: []cli.Flag{
-			enableLogTopicsFlag(),
-			disableLogTopicsFlag(),
-		},
 		Before: func(c *cli.Context) error {
 			logging.DisableTopic(logging.DeprecatedFieldTopic)
-			applyLogTopicFlags(c)
 			return nil
 		},
-		Subcommands: []*cli.Command{
+		Subcommands: withLogTopicFlags([]*cli.Command{
 			getReportsCommand(),
 			getPacksCommand(),
 			getLabelsCommand(),
@@ -329,7 +324,7 @@ func getCommand() *cli.Command {
 			getMDMAppleBMCommand(),
 			getMDMCommandResultsCommand(),
 			getMDMCommandsCommand(),
-		},
+		}),
 	}
 }
 
@@ -569,6 +564,10 @@ func getPacksCommand() *cli.Command {
 		Name:    "packs",
 		Aliases: []string{"pack", "p"},
 		Usage:   `Retrieve 2017 "Packs" data for migration into modern osquery packs`,
+		Before: func(c *cli.Context) error {
+			logDeprecatedFlagName(c, "with-queries", withQueriesFlagName)
+			return nil
+		},
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:    withQueriesFlagName,
@@ -583,8 +582,6 @@ func getPacksCommand() *cli.Command {
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			logDeprecatedFlagName(c, "with-queries", withQueriesFlagName)
-
 			client, err := clientFromCLI(c)
 			if err != nil {
 				return err

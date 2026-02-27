@@ -101,6 +101,24 @@ func getDisabledLogTopics(c *cli.Context) string {
 	return c.String(disableLogTopicsFlagName)
 }
 
+// withLogTopicFlags adds enable/disable log topic flags and a Before hook
+// to each subcommand. If a subcommand already has a Before hook, it is
+// wrapped so that applyLogTopicFlags runs first.
+func withLogTopicFlags(cmds []*cli.Command) []*cli.Command {
+	for _, cmd := range cmds {
+		cmd.Flags = append(cmd.Flags, enableLogTopicsFlag(), disableLogTopicsFlag())
+		origBefore := cmd.Before
+		cmd.Before = func(c *cli.Context) error {
+			applyLogTopicFlags(c)
+			if origBefore != nil {
+				return origBefore(c)
+			}
+			return nil
+		}
+	}
+	return cmds
+}
+
 // applyLogTopicFlags parses the enable/disable log topic flags and applies them.
 // Enables run first, then disables, so disable wins on conflict.
 func applyLogTopicFlags(c *cli.Context) {
