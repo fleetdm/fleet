@@ -26,7 +26,7 @@ func SetABMTokenMetadata(
 	logger *slog.Logger,
 	renewal bool,
 ) error {
-	decryptedToken, err := assets.ABMToken(ctx, ds, abmToken.OrganizationName)
+	decryptedToken, err := assets.ABMToken(ctx, ds, abmToken.DepName)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting ABM token")
 	}
@@ -34,6 +34,12 @@ func SetABMTokenMetadata(
 	return SetDecryptedABMTokenMetadata(ctx, abmToken, decryptedToken, depStorage, ds, logger, renewal)
 }
 
+// UnsavedABMTokenDepName is the sentinel dep_name used during the initial
+// upload of an ABM token before it is saved to the database. It is no longer
+// used as the lookup key once the token is saved — dep_name is set to the
+// ConsumerKey from the OAuth1 token at that point.
+//
+// Deprecated: use the ConsumerKey directly as the dep_name for new uploads.
 const UnsavedABMTokenOrgName = "new_abm_token" //nolint:gosec
 
 func SetDecryptedABMTokenMetadata(
@@ -47,23 +53,29 @@ func SetDecryptedABMTokenMetadata(
 ) error {
 	depClient := NewDEPClient(depStorage, ds, logger)
 
-	orgName := abmToken.OrganizationName
-	if orgName == "" {
-		// Then this is a newly uploaded token (or one migrated from the
-		// single-token world), which will not be found in the datastore when
-		// RetrieveAuthTokens tries to find it. Set the token in the context so
-		// that downstream we know it's not in the datastore.
-		ctx = abmctx.NewContext(ctx, decryptedToken)
-		// We don't have an org name, but the depClient expects an org name, so we set this fake one.
-		orgName = UnsavedABMTokenOrgName
+	// Use dep_name (ConsumerKey) as the nano_dep_names lookup key.
+	// For a new token being uploaded, DepName is pre-set to the ConsumerKey by
+	// the caller (UploadABMToken). For tokens migrated from the single-token
+	// world, DepName is set to the organization_name (backfilled by migration).
+	depName := abmToken.DepName
+	if depName == "" {
+		// Token with empty dep_name: a legacy migrated token that needs its
+		// dep_name set. Use the ConsumerKey as the key.
+		depName = decryptedToken.ConsumerKey
+		if depName == "" {
+			// Fallback for tests/edge cases where ConsumerKey is empty.
+			depName = UnsavedABMTokenOrgName
+		}
+		// Update the token struct so the caller can persist dep_name to the DB.
+		abmToken.DepName = depName
 	}
 
-	if renewal {
-		// If we're renewing the token, we need to ensure the new token included in the context.
-		ctx = abmctx.NewContext(ctx, decryptedToken)
-	}
+	// Always inject the decrypted token into context so RetrieveAuthTokens can
+	// find it without a DB lookup. This is required for new token uploads (token
+	// not yet saved to DB) and for renewals (new token replaces old one).
+	ctx = abmctx.NewContext(ctx, decryptedToken)
 
-	res, err := depClient.AccountDetail(ctx, orgName)
+	res, err := depClient.AccountDetail(ctx, depName)
 	if err != nil {
 		var authErr *depclient.AuthError
 		if errors.As(err, &authErr) {

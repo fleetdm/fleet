@@ -138,11 +138,15 @@ func (a AppleBM) AuthzType() string {
 // TODO: during API implementation, remove AppleBM above or reconciliate those
 // two types. We'll likely need a new authz type for the ABM token.
 type ABMToken struct {
-	ID                  uint      `db:"id" json:"id"`
-	AppleID             string    `db:"apple_id" json:"apple_id"`
-	OrganizationName    string    `db:"organization_name" json:"org_name"`
-	RenewAt             time.Time `db:"renew_at" json:"renew_date"`
-	TermsExpired        bool      `db:"terms_expired" json:"terms_expired"`
+	ID               uint   `db:"id" json:"id"`
+	AppleID          string `db:"apple_id" json:"apple_id"`
+	OrganizationName string `db:"organization_name" json:"org_name"`
+	// DepName is the unique per-token identifier used as the key in nano_dep_names.
+	// It is set to the ConsumerKey from the OAuth1 token, which is unique per ABM
+	// server token. It is not exposed in the API.
+	DepName      string    `db:"dep_name" json:"-"`
+	RenewAt      time.Time `db:"renew_at" json:"renew_date"`
+	TermsExpired bool      `db:"terms_expired" json:"terms_expired"`
 	MacOSDefaultTeamID  *uint     `db:"macos_default_team_id" json:"-"`
 	IOSDefaultTeamID    *uint     `db:"ios_default_team_id" json:"-"`
 	IPadOSDefaultTeamID *uint     `db:"ipados_default_team_id" json:"-"`

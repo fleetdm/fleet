@@ -1636,8 +1636,15 @@ type Datastore interface {
 	DeleteCAConfigAssets(ctx context.Context, names []string) error
 
 	// GetABMTokenByOrgName retrieves the Apple Business Manager token identified by
-	// its unique name (the organization name).
+	// its organization name. Note that organization_name is no longer unique after the
+	// migration supporting multiple ABM tokens per org; this method returns the first match.
+	// Prefer GetABMTokenByDepName for exact lookup.
 	GetABMTokenByOrgName(ctx context.Context, orgName string) (*ABMToken, error)
+
+	// GetABMTokenByDepName retrieves the Apple Business Manager token identified by
+	// its dep_name (the ConsumerKey from the OAuth1 token), which is the unique per-token
+	// identifier used as the key in nano_dep_names.
+	GetABMTokenByDepName(ctx context.Context, depName string) (*ABMToken, error)
 
 	// SaveABMToken updates the ABM token using the provided struct.
 	SaveABMToken(ctx context.Context, tok *ABMToken) error
@@ -2802,7 +2809,7 @@ type MDMAppleStore interface {
 type MDMAssetRetriever interface {
 	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
 		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)
-	GetABMTokenByOrgName(ctx context.Context, orgName string) (*ABMToken, error)
+	GetABMTokenByDepName(ctx context.Context, depName string) (*ABMToken, error)
 }
 
 // Cloner represents any type that can clone itself. Used for the cached_mysql

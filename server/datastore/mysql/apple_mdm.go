@@ -4388,7 +4388,7 @@ func (ds *Datastore) SetMDMAppleSetupAssistantProfileUUID(ctx context.Context, t
 			abm_tokens abt
 		WHERE
 			mas.global_or_team_id = ? AND
-			abt.organization_name = ? AND
+			abt.dep_name = ? AND
 			mas.id IS NOT NULL AND
 			abt.id IS NOT NULL
 	)
@@ -4434,7 +4434,7 @@ func (ds *Datastore) GetMDMAppleSetupAssistantProfileForABMToken(ctx context.Con
 		abm_tokens abt ON abt.id = msap.abm_token_id
 	WHERE
 		mas.global_or_team_id = ? AND
-		abt.organization_name = ?
+		abt.dep_name = ?
 `
 	var globalOrTmID uint
 	if teamID != nil {
@@ -4571,7 +4571,7 @@ func (ds *Datastore) SetMDMAppleDefaultSetupAssistantProfileUUID(ctx context.Con
 		FROM
 			abm_tokens abt
 		WHERE
-			abt.organization_name = ?
+			abt.dep_name = ?
 		ON DUPLICATE KEY UPDATE
 			profile_uuid = VALUES(profile_uuid)
 `
@@ -4608,7 +4608,7 @@ func (ds *Datastore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamI
 		abm_tokens abt ON mad.abm_token_id = abt.id
 	WHERE
 		mad.global_or_team_id = ? AND
-		abt.organization_name = ?
+		abt.dep_name = ?
 	`
 
 	var globalOrTmID uint
@@ -6340,9 +6340,18 @@ LIMIT 500
 }
 
 func (ds *Datastore) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
-	tok, err := ds.getABMToken(ctx, 0, orgName)
+	tok, err := ds.getABMToken(ctx, 0, orgName, "")
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get ABM token by org name")
+	}
+
+	return tok, nil
+}
+
+func (ds *Datastore) GetABMTokenByDepName(ctx context.Context, depName string) (*fleet.ABMToken, error) {
+	tok, err := ds.getABMToken(ctx, 0, "", depName)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get ABM token by dep name")
 	}
 
 	return tok, nil
@@ -6354,6 +6363,7 @@ UPDATE
 	abm_tokens
 SET
 	organization_name = ?,
+	dep_name = ?,
 	apple_id = ?,
 	terms_expired = ?,
 	renew_at = ?,
@@ -6373,6 +6383,7 @@ WHERE
 		ctx,
 		stmt,
 		tok.OrganizationName,
+		tok.DepName,
 		tok.AppleID,
 		tok.TermsExpired,
 		tok.RenewAt.UTC(),
@@ -6393,8 +6404,8 @@ func (ds *Datastore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) (*
 	const stmt = `
 INSERT INTO
 	abm_tokens
-	(organization_name, apple_id, terms_expired, renew_at, token, macos_default_team_id, ios_default_team_id, ipados_default_team_id)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	(organization_name, dep_name, apple_id, terms_expired, renew_at, token, macos_default_team_id, ios_default_team_id, ipados_default_team_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 	doubleEncTok, err := encrypt(tok.EncryptedToken, ds.serverPrivateKey)
 	if err != nil {
@@ -6405,6 +6416,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		ctx,
 		stmt,
 		tok.OrganizationName,
+		tok.DepName,
 		tok.AppleID,
 		tok.TermsExpired,
 		tok.RenewAt,
@@ -6441,6 +6453,7 @@ func (ds *Datastore) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, erro
 SELECT
 	abt.id,
 	abt.organization_name,
+	abt.dep_name,
 	abt.apple_id,
 	abt.terms_expired,
 	abt.renew_at,
@@ -6528,7 +6541,7 @@ WHERE ID = ?
 }
 
 func (ds *Datastore) GetABMTokenByID(ctx context.Context, tokenID uint) (*fleet.ABMToken, error) {
-	tok, err := ds.getABMToken(ctx, tokenID, "")
+	tok, err := ds.getABMToken(ctx, tokenID, "", "")
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get ABM token by id")
 	}
@@ -6536,11 +6549,12 @@ func (ds *Datastore) GetABMTokenByID(ctx context.Context, tokenID uint) (*fleet.
 	return tok, nil
 }
 
-func (ds *Datastore) getABMToken(ctx context.Context, tokenID uint, orgName string) (*fleet.ABMToken, error) {
+func (ds *Datastore) getABMToken(ctx context.Context, tokenID uint, orgName string, depName string) (*fleet.ABMToken, error) {
 	stmt := `
 SELECT
 	abt.id,
 	abt.organization_name,
+	abt.dep_name,
 	abt.apple_id,
 	abt.terms_expired,
 	abt.renew_at,
@@ -6567,11 +6581,18 @@ LEFT OUTER JOIN
 		return nil, ctxerr.Wrap(ctx, err, "build list ABM tokens query from named args")
 	}
 
-	var ident any = orgName
-	clause := "WHERE abt.organization_name = ?"
-	if tokenID != 0 {
+	var ident any
+	var clause string
+	switch {
+	case tokenID != 0:
 		clause = "WHERE abt.id = ?"
 		ident = tokenID
+	case depName != "":
+		clause = "WHERE abt.dep_name = ?"
+		ident = depName
+	default:
+		clause = "WHERE abt.organization_name = ?"
+		ident = orgName
 	}
 
 	stmt = fmt.Sprintf(stmt, clause)
@@ -6674,7 +6695,7 @@ func (ds *Datastore) CountABMTokensWithTermsExpired(ctx context.Context) (int, e
 func (ds *Datastore) GetABMTokenOrgNamesAssociatedWithTeam(ctx context.Context, teamID *uint) ([]string, error) {
 	stmt := `
 SELECT DISTINCT
-	abmt.organization_name
+	abmt.dep_name
 FROM
 	abm_tokens abmt
 	JOIN host_dep_assignments hda ON hda.abm_token_id = abmt.id
@@ -6683,7 +6704,7 @@ WHERE
 	%s
 UNION
 SELECT DISTINCT
-	abmt.organization_name
+	abmt.dep_name
 FROM
 	abm_tokens abmt
 WHERE

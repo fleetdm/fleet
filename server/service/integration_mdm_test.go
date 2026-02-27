@@ -11354,9 +11354,14 @@ func (s *integrationMDMTestSuite) enableABM(orgName string) *fleet.ABMToken {
 	// try to upload an invalid token
 	s.uploadABMToken([]byte("foo"), http.StatusBadRequest, "Invalid token. Please provide a valid token from Apple Business Manager.")
 
-	// generate a mock token and encrypt it using the public key
+	// generate a mock token and encrypt it using the public key.
+	// Use orgName as the ConsumerKey so that each enableABM call produces a
+	// token with a unique dep_name (dep_name = ConsumerKey). This mirrors
+	// production behaviour where each ABM server token has a distinct ConsumerKey,
+	// and allows tests to upload multiple tokens for different org names without
+	// violating the UNIQUE KEY on dep_name.
 	testBMToken := &nanodep_client.OAuth1Tokens{
-		ConsumerKey:    "test_consumer",
+		ConsumerKey:    orgName,
 		ConsumerSecret: "test_secret",
 		AccessToken:    "test_access_token",
 		AccessSecret:   "test_access_secret",
@@ -11379,13 +11384,18 @@ func (s *integrationMDMTestSuite) enableABM(orgName string) *fleet.ABMToken {
 	encryptedToken, err := pkcs7.Encrypt([]byte(smimeToken), []*x509.Certificate{cert})
 	require.NoError(t, err)
 
-	s.mockDEPResponse(apple_mdm.UnsavedABMTokenOrgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// The ConsumerKey (= orgName) is used as dep_name (the nano_dep_names lookup
+	// key). Mock the DEP response using orgName so AccountDetail succeeds during
+	// upload and subsequent RunAssigner calls use the same mock server.
+	s.mockDEPResponse(orgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		switch r.URL.Path {
 		case "/session":
 			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
 		case "/account":
 			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "abc", "org_name": %q}`, orgName)))
+		default:
+			_, _ = w.Write([]byte(`{}`))
 		}
 	}))
 
@@ -11411,23 +11421,9 @@ func (s *integrationMDMTestSuite) enableABM(orgName string) *fleet.ABMToken {
 	tok, err := s.ds.GetABMTokenByOrgName(ctx, orgName)
 	require.NoError(t, err)
 	require.Equal(t, orgName, tok.OrganizationName)
+	// dep_name equals the ConsumerKey which we set to orgName.
+	require.Equal(t, orgName, tok.DepName)
 
-	// do a dummy call so the nanodep client updates the org name in
-	// nano_dep_names, and leave the mock set with a dummy response
-	s.mockDEPResponse(orgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		switch r.URL.Path {
-		case "/session":
-			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
-		case "/account":
-			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "abc", "org_name": %q}`, orgName)))
-		default:
-			_, _ = w.Write([]byte(`{}`))
-		}
-	}))
-	depClient := apple_mdm.NewDEPClient(s.depStorage, s.ds, s.logger.SlogLogger())
-	_, err = depClient.AccountDetail(ctx, orgName)
-	require.NoError(t, err)
 	return tok
 }
 

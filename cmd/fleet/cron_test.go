@@ -50,13 +50,13 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 
 	depStorage, err := ds.NewMDMAppleDEPStorage()
 	require.NoError(t, err)
-	// to avoid issues with syncer, use that constant as org name for now
 	const tokenOrgName = "fleet"
+	// ConsumerKey matches GenerateTestABMAssets in testing_utils.go.
+	const tokenDepName = "test_consumer"
 
 	// insert an ABM token as if it had been migrated by the DB migration script
+	// (empty org name and empty dep_name)
 	tok := mysql.SetTestABMAssets(t, ds, "")
-	// tok, err := ds.InsertABMToken(ctx, &fleet.ABMToken{EncryptedToken: abmToken, RenewAt: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)})
-	// require.NoError(t, err)
 	require.Empty(t, tok.OrganizationName)
 
 	// start a server that will mock the Apple DEP API
@@ -83,9 +83,9 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	err = depStorage.StoreConfig(ctx, tokenOrgName, &nanodep_client.Config{BaseURL: srv.URL})
-	require.NoError(t, err)
-	err = depStorage.StoreConfig(ctx, apple_mdm.UnsavedABMTokenOrgName, &nanodep_client.Config{BaseURL: srv.URL})
+	// Store config for the ConsumerKey (dep_name), which is used as the
+	// nano_dep_names key for this token after migration completes.
+	err = depStorage.StoreConfig(ctx, tokenDepName, &nanodep_client.Config{BaseURL: srv.URL})
 	require.NoError(t, err)
 
 	logger := logging.NewNopLogger()
@@ -93,16 +93,17 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	err = syncFn(ctx)
 	require.NoError(t, err)
 
-	// token has been updated with its org name/apple id
+	// token has been updated with its org name/apple id and dep_name
 	tok, err = ds.GetABMTokenByOrgName(ctx, tokenOrgName)
 	require.NoError(t, err)
 	require.Equal(t, tokenOrgName, tok.OrganizationName)
+	require.Equal(t, tokenDepName, tok.DepName)
 	require.Equal(t, "admin123", tok.AppleID)
 	require.Nil(t, tok.MacOSDefaultTeamID)
 	require.Nil(t, tok.IOSDefaultTeamID)
 	require.Nil(t, tok.IPadOSDefaultTeamID)
 
-	// empty-name token does not exist anymore
+	// empty-name token does not exist anymore (org name has been updated to "fleet")
 	_, err = ds.GetABMTokenByOrgName(ctx, "")
 	require.Error(t, err)
 	var nfe fleet.NotFoundError

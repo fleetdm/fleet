@@ -3,6 +3,7 @@
 CREATE TABLE `abm_tokens` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `organization_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `dep_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `apple_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `terms_expired` tinyint(1) NOT NULL DEFAULT '0',
   `renew_at` timestamp NOT NULL,
@@ -13,7 +14,7 @@ CREATE TABLE `abm_tokens` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_abm_tokens_organization_name` (`organization_name`),
+  UNIQUE KEY `idx_abm_tokens_dep_name` (`dep_name`),
   KEY `fk_abm_tokens_macos_default_team_id` (`macos_default_team_id`),
   KEY `fk_abm_tokens_ios_default_team_id` (`ios_default_team_id`),
   KEY `fk_abm_tokens_ipados_default_team_id` (`ipados_default_team_id`),

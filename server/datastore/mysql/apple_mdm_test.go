@@ -4092,7 +4092,7 @@ func testMDMAppleSetupAssistant(t *testing.T, ds *Datastore) {
 	require.Equal(t, tmAsst, getAsst)
 
 	// create an ABM token and set a profile uuid for no team
-	tok1, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "o1", EncryptedToken: []byte(uuid.NewString()), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	tok1, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "o1", DepName: "o1", EncryptedToken: []byte(uuid.NewString()), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotZero(t, tok1.ID)
 	profUUID1 := uuid.NewString()
@@ -4113,7 +4113,7 @@ func testMDMAppleSetupAssistant(t *testing.T, ds *Datastore) {
 
 	// create another ABM token and set a profile uuid for the team assistant
 	// with both tokens
-	tok2, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "o2", EncryptedToken: []byte(uuid.NewString()), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	tok2, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "o2", DepName: "o2", EncryptedToken: []byte(uuid.NewString()), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotZero(t, tok2.ID)
 	profUUID2 := uuid.NewString()
@@ -4379,10 +4379,10 @@ func testMDMAppleDefaultSetupAssistant(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	// create a couple ABM tokens
-	tok1, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "o1", EncryptedToken: []byte(uuid.NewString()), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	tok1, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "o1", DepName: "o1", EncryptedToken: []byte(uuid.NewString()), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotEmpty(t, tok1.ID)
-	tok2, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "o2", EncryptedToken: []byte(uuid.NewString()), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	tok2, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "o2", DepName: "o2", EncryptedToken: []byte(uuid.NewString()), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotEmpty(t, tok2.ID)
 
@@ -7633,13 +7633,14 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.EqualValues(t, 0, tokCount)
 
-	// create a token with an empty name and no team set, and another that will be unused
+	// create a token with an empty name and no team set, and another that will be unused.
+	// dep_name must be unique; use distinct values for each token.
 	encTok := uuid.NewString()
 
-	t1, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	t1, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", DepName: "dep-unused", EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotEmpty(t, t1.ID)
-	t2, err := ds.InsertABMToken(ctx, &fleet.ABMToken{EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	t2, err := ds.InsertABMToken(ctx, &fleet.ABMToken{DepName: "dep-empty-org", EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotEmpty(t, t2.ID)
 
@@ -7762,16 +7763,16 @@ func testMDMAppleABMTokensTermsExpired(t *testing.T, ds *Datastore) {
 
 	// create a few tokens
 	encTok1 := uuid.NewString()
-	t1, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "abm1", EncryptedToken: []byte(encTok1), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	t1, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "abm1", DepName: "abm1", EncryptedToken: []byte(encTok1), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotEmpty(t, t1.ID)
 	encTok2 := uuid.NewString()
-	t2, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "abm2", EncryptedToken: []byte(encTok2), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	t2, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "abm2", DepName: "abm2", EncryptedToken: []byte(encTok2), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotEmpty(t, t2.ID)
-	// this one simulates a mirated token - empty name
+	// this one simulates a migrated token - empty org name but unique dep_name
 	encTok3 := uuid.NewString()
-	t3, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "", EncryptedToken: []byte(encTok3), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	t3, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "", DepName: "dep-migrated", EncryptedToken: []byte(encTok3), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotEmpty(t, t3.ID)
 
@@ -7844,15 +7845,15 @@ func testMDMGetABMTokenOrgNamesAssociatedWithTeam(t *testing.T, ds *Datastore) {
 
 	encTok := uuid.NewString()
 
-	tok1, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org1", EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	tok1, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org1", DepName: "org1", EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotEmpty(t, tok1.ID)
 
-	tok2, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org2", EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	tok2, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org2", DepName: "org2", EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotEmpty(t, tok1.ID)
 
-	tok3, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org3", EncryptedToken: []byte(encTok), MacOSDefaultTeamID: &tm2.ID, RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	tok3, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org3", DepName: "org3", EncryptedToken: []byte(encTok), MacOSDefaultTeamID: &tm2.ID, RenewAt: time.Now().Add(365 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotEmpty(t, tok1.ID)
 

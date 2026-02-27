@@ -63,7 +63,7 @@ type RetrieveTokenUpdateTallyFunc func(ctx context.Context, id string) (int, err
 
 type GetAllMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName, queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error)
 
-type GetABMTokenByOrgNameFunc func(ctx context.Context, orgName string) (*fleet.ABMToken, error)
+type GetABMTokenByDepNameFunc func(ctx context.Context, depName string) (*fleet.ABMToken, error)
 
 type GetPendingLockCommandFunc func(ctx context.Context, hostUUID string) (*mdm.Command, string, error)
 
@@ -146,8 +146,8 @@ type MDMAppleStore struct {
 	GetAllMDMConfigAssetsByNameFunc        GetAllMDMConfigAssetsByNameFunc
 	GetAllMDMConfigAssetsByNameFuncInvoked bool
 
-	GetABMTokenByOrgNameFunc        GetABMTokenByOrgNameFunc
-	GetABMTokenByOrgNameFuncInvoked bool
+	GetABMTokenByDepNameFunc        GetABMTokenByDepNameFunc
+	GetABMTokenByDepNameFuncInvoked bool
 
 	GetPendingLockCommandFunc        GetPendingLockCommandFunc
 	GetPendingLockCommandFuncInvoked bool
@@ -332,11 +332,11 @@ func (fs *MDMAppleStore) GetAllMDMConfigAssetsByName(ctx context.Context, assetN
 	return fs.GetAllMDMConfigAssetsByNameFunc(ctx, assetNames, queryerContext)
 }
 
-func (fs *MDMAppleStore) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
+func (fs *MDMAppleStore) GetABMTokenByDepName(ctx context.Context, depName string) (*fleet.ABMToken, error) {
 	fs.mu.Lock()
-	fs.GetABMTokenByOrgNameFuncInvoked = true
+	fs.GetABMTokenByDepNameFuncInvoked = true
 	fs.mu.Unlock()
-	return fs.GetABMTokenByOrgNameFunc(ctx, orgName)
+	return fs.GetABMTokenByDepNameFunc(ctx, depName)
 }
 
 func (fs *MDMAppleStore) GetPendingLockCommand(ctx context.Context, hostUUID string) (*mdm.Command, string, error) {
