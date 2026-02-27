@@ -1,4 +1,10 @@
-import React, { createContext, useReducer, useMemo, ReactNode } from "react";
+import React, {
+  createContext,
+  useReducer,
+  useMemo,
+  useCallback,
+  ReactNode,
+} from "react";
 
 import { IConfig, IUserSettings } from "interfaces/config";
 import { IEnrollSecret } from "interfaces/enroll_secret";
@@ -486,6 +492,89 @@ export const AppContext = createContext<InitialStateType>(initialState);
 const AppProvider = ({ children }: Props): JSX.Element => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
+  // Stable setter functions - dispatch is stable, so these won't change
+  const setAvailableTeams = useCallback(
+    (user: IUser | null, availableTeams: ITeamSummary[]) => {
+      dispatch({ type: ACTIONS.SET_AVAILABLE_TEAMS, user, availableTeams });
+    },
+    []
+  );
+
+  const setUserSettings = useCallback((userSettings: IUserSettings) => {
+    dispatch({ type: ACTIONS.SET_USER_SETTINGS, userSettings });
+  }, []);
+
+  const setCurrentUser = useCallback((currentUser: IUser) => {
+    dispatch({ type: ACTIONS.SET_CURRENT_USER, currentUser });
+  }, []);
+
+  const setCurrentTeam = useCallback(
+    (currentTeam: ITeamSummary | undefined) => {
+      dispatch({ type: ACTIONS.SET_CURRENT_TEAM, currentTeam });
+    },
+    []
+  );
+
+  const setConfig = useCallback((config: IConfig) => {
+    dispatch({ type: ACTIONS.SET_CONFIG, config });
+  }, []);
+
+  const setEnrollSecret = useCallback((enrollSecret: IEnrollSecret[]) => {
+    dispatch({ type: ACTIONS.SET_ENROLL_SECRET, enrollSecret });
+  }, []);
+
+  const setAndroidEnterpriseDeleted = useCallback((isDeleted: boolean) => {
+    dispatch({ type: ACTIONS.SET_ANDROID_ENTERPRISE_DELETED, isDeleted });
+  }, []);
+
+  const setABMExpiry = useCallback((abmExpiry: IAbmExpiry) => {
+    dispatch({ type: ACTIONS.SET_ABM_EXPIRY, abmExpiry });
+  }, []);
+
+  const setAPNsExpiry = useCallback((apnsExpiry: string) => {
+    dispatch({ type: ACTIONS.SET_APNS_EXPIRY, apnsExpiry });
+  }, []);
+
+  const setVppExpiry = useCallback((vppExpiry: string) => {
+    dispatch({ type: ACTIONS.SET_VPP_EXPIRY, vppExpiry });
+  }, []);
+
+  const setSandboxExpiry = useCallback((sandboxExpiry: string) => {
+    dispatch({ type: ACTIONS.SET_SANDBOX_EXPIRY, sandboxExpiry });
+  }, []);
+
+  const setNoSandboxHosts = useCallback((noSandboxHosts: boolean) => {
+    dispatch({ type: ACTIONS.SET_NO_SANDBOX_HOSTS, noSandboxHosts });
+  }, []);
+
+  const setFilteredHostsPath = useCallback((filteredHostsPath: string) => {
+    dispatch({ type: ACTIONS.SET_FILTERED_HOSTS_PATH, filteredHostsPath });
+  }, []);
+
+  const setFilteredSoftwarePath = useCallback(
+    (filteredSoftwarePath: string) => {
+      dispatch({
+        type: ACTIONS.SET_FILTERED_SOFTWARE_PATH,
+        filteredSoftwarePath,
+      });
+    },
+    []
+  );
+
+  const setFilteredQueriesPath = useCallback((filteredQueriesPath: string) => {
+    dispatch({ type: ACTIONS.SET_FILTERED_QUERIES_PATH, filteredQueriesPath });
+  }, []);
+
+  const setFilteredPoliciesPath = useCallback(
+    (filteredPoliciesPath: string) => {
+      dispatch({
+        type: ACTIONS.SET_FILTERED_POLICIES_PATH,
+        filteredPoliciesPath,
+      });
+    },
+    []
+  );
+
   const value = useMemo(
     () => ({
       availableTeams: state.availableTeams,
@@ -543,79 +632,22 @@ const AppProvider = ({ children }: Props): JSX.Element => {
         state.isAnyTeamMaintainer ||
         state.isObserverPlus ||
         state.isAnyTeamObserverPlus,
-      setAvailableTeams: (
-        user: IUser | null,
-        availableTeams: ITeamSummary[]
-      ) => {
-        dispatch({
-          type: ACTIONS.SET_AVAILABLE_TEAMS,
-          user,
-          availableTeams,
-        });
-      },
-      setUserSettings: (userSettings: IUserSettings) => {
-        dispatch({ type: ACTIONS.SET_USER_SETTINGS, userSettings });
-      },
-      setCurrentUser: (currentUser: IUser) => {
-        dispatch({ type: ACTIONS.SET_CURRENT_USER, currentUser });
-      },
-      setCurrentTeam: (currentTeam: ITeamSummary | undefined) => {
-        dispatch({ type: ACTIONS.SET_CURRENT_TEAM, currentTeam });
-      },
-      setConfig: (config: IConfig) => {
-        dispatch({ type: ACTIONS.SET_CONFIG, config });
-      },
-      setEnrollSecret: (enrollSecret: IEnrollSecret[]) => {
-        dispatch({ type: ACTIONS.SET_ENROLL_SECRET, enrollSecret });
-      },
-      setAndroidEnterpriseDeleted: (isDeleted: boolean) => {
-        dispatch({
-          type: ACTIONS.SET_ANDROID_ENTERPRISE_DELETED,
-          isDeleted,
-        });
-      },
-      setABMExpiry: (abmExpiry: IAbmExpiry) => {
-        dispatch({ type: ACTIONS.SET_ABM_EXPIRY, abmExpiry });
-      },
-      setAPNsExpiry: (apnsExpiry: string) => {
-        dispatch({ type: ACTIONS.SET_APNS_EXPIRY, apnsExpiry });
-      },
-      setVppExpiry: (vppExpiry: string) => {
-        dispatch({
-          type: ACTIONS.SET_VPP_EXPIRY,
-          vppExpiry,
-        });
-      },
-      setSandboxExpiry: (sandboxExpiry: string) => {
-        dispatch({ type: ACTIONS.SET_SANDBOX_EXPIRY, sandboxExpiry });
-      },
-      setNoSandboxHosts: (noSandboxHosts: boolean) => {
-        dispatch({
-          type: ACTIONS.SET_NO_SANDBOX_HOSTS,
-          noSandboxHosts,
-        });
-      },
-      setFilteredHostsPath: (filteredHostsPath: string) => {
-        dispatch({ type: ACTIONS.SET_FILTERED_HOSTS_PATH, filteredHostsPath });
-      },
-      setFilteredSoftwarePath: (filteredSoftwarePath: string) => {
-        dispatch({
-          type: ACTIONS.SET_FILTERED_SOFTWARE_PATH,
-          filteredSoftwarePath,
-        });
-      },
-      setFilteredQueriesPath: (filteredQueriesPath: string) => {
-        dispatch({
-          type: ACTIONS.SET_FILTERED_QUERIES_PATH,
-          filteredQueriesPath,
-        });
-      },
-      setFilteredPoliciesPath: (filteredPoliciesPath: string) => {
-        dispatch({
-          type: ACTIONS.SET_FILTERED_POLICIES_PATH,
-          filteredPoliciesPath,
-        });
-      },
+      setAvailableTeams,
+      setUserSettings,
+      setCurrentUser,
+      setCurrentTeam,
+      setConfig,
+      setEnrollSecret,
+      setAndroidEnterpriseDeleted,
+      setABMExpiry,
+      setAPNsExpiry,
+      setVppExpiry,
+      setSandboxExpiry,
+      setNoSandboxHosts,
+      setFilteredHostsPath,
+      setFilteredSoftwarePath,
+      setFilteredQueriesPath,
+      setFilteredPoliciesPath,
     }),
     [
       state.abmExpiry,
@@ -665,6 +697,23 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       state.willAppleBmExpire,
       state.willApplePnsExpire,
       state.willVppExpire,
+      // Stable setters (useCallback with empty deps)
+      setAvailableTeams,
+      setUserSettings,
+      setCurrentUser,
+      setCurrentTeam,
+      setConfig,
+      setEnrollSecret,
+      setAndroidEnterpriseDeleted,
+      setABMExpiry,
+      setAPNsExpiry,
+      setVppExpiry,
+      setSandboxExpiry,
+      setNoSandboxHosts,
+      setFilteredHostsPath,
+      setFilteredSoftwarePath,
+      setFilteredQueriesPath,
+      setFilteredPoliciesPath,
     ]
   );
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
