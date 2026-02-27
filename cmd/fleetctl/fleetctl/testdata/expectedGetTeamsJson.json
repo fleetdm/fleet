@@ -1,5 +1,5 @@
 {
-  "kind": "team",
+  "kind": "fleet",
   "apiVersion": "v1",
   "spec": {
     "fleet": {
@@ -155,7 +155,7 @@
   }
 }
 {
-  "kind": "team",
+  "kind": "fleet",
   "apiVersion": "v1",
   "spec": {
     "fleet": {

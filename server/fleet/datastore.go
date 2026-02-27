@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
+	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/jmoiron/sqlx"
 )
@@ -785,12 +786,14 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
 
-	NewActivity(ctx context.Context, user *User, activity ActivityDetails, details []byte, createdAt time.Time) error
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*UpcomingActivity, *PaginationMetadata, error)
 	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) (ActivityDetails, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 	GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*UpcomingActivityMeta, error)
 	UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error)
+	// ActivateNextUpcomingActivityForHost activates the next upcoming activity for the given host.
+	// fromCompletedExecID is the execution ID of the activity that just completed (if any).
+	ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
@@ -2068,6 +2071,20 @@ type Datastore interface {
 	// (if set) post-install scripts, otherwise those fields are left empty.
 	GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*SoftwareInstaller, error)
 
+	// GetFleetMaintainedVersionsByTitleID returns all cached versions of a
+	// fleet-maintained app for the given title and team.
+	GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]FleetMaintainedVersion, error)
+
+	// HasFMAInstallerVersion returns true if the given FMA version is already
+	// cached as a software installer for the given team.
+	HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error)
+
+	// GetCachedFMAInstallerMetadata returns the cached metadata for a specific
+	// FMA installer version, including install/uninstall scripts, URL, SHA256,
+	// etc. Returns a NotFoundError if no cached installer exists for the given
+	// version.
+	GetCachedFMAInstallerMetadata(ctx context.Context, teamID *uint, fmaID uint, version string) (*MaintainedApp, error)
+
 	InsertHostInHouseAppInstall(ctx context.Context, hostID uint, inHouseAppID, softwareTitleID uint, commandUUID string, opts HostSoftwareInstallOptions) error
 
 	// GetSoftwareInstallersPendingUninstallScriptPopulation returns a map of software installers to storage IDs that:
@@ -2900,11 +2917,11 @@ const (
 // same in both (the other is currently NotFound), and ideally we'd just have
 // one of those interfaces.
 
-// NotFoundError is an alias for platform_http.NotFoundError.
-type NotFoundError = platform_http.NotFoundError
+// NotFoundError is an alias for platform_errors.NotFoundError.
+type NotFoundError = platform_errors.NotFoundError
 
-// IsNotFound is an alias for platform_http.IsNotFound.
-var IsNotFound = platform_http.IsNotFound
+// IsNotFound is an alias for platform_errors.IsNotFound.
+var IsNotFound = platform_errors.IsNotFound
 
 // AlreadyExistsError is an alias for platform_http.AlreadyExistsError.
 type AlreadyExistsError = platform_http.AlreadyExistsError

@@ -3,10 +3,11 @@ package fleetctl
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -15,17 +16,18 @@ func TestHostTransferFlagChecks(t *testing.T) {
 	testing_utils.RunServerWithMockedDS(t)
 
 	RunAppCheckErr(t,
-		[]string{"hosts", "transfer", "--team", "team1", "--hosts", "host1", "--label", "AAA"},
+		[]string{"hosts", "transfer", "--fleet", "team1", "--hosts", "host1", "--label", "AAA"},
 		"--hosts cannot be used along side any other flag",
 	)
 	RunAppCheckErr(t,
-		[]string{"hosts", "transfer", "--team", "team1"},
+		[]string{"hosts", "transfer", "--fleet", "team1"},
 		"You need to define either --hosts, or one or more of --label, --status, --search_query",
 	)
 }
 
 func TestHostsTransferByHosts(t *testing.T) {
-	_, ds := testing_utils.RunServerWithMockedDS(t)
+	opts := &service.TestServerOpts{}
+	_, ds := testing_utils.RunServerWithMockedDS(t, opts)
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.Equal(t, "host1", identifier)
@@ -57,9 +59,7 @@ func TestHostsTransferByHosts(t *testing.T) {
 		return &fleet.TeamLite{ID: tid, Name: "team1"}, nil
 	}
 
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
 		require.IsType(t, fleet.ActivityTypeTransferredHostsToTeam{}, activity)
 		return nil
 	}
@@ -71,9 +71,9 @@ func TestHostsTransferByHosts(t *testing.T) {
 		return map[string]uint{}, nil
 	}
 
-	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--team", "team1", "--hosts", "host1"}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--fleet", "team1", "--hosts", "host1"}))
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
-	assert.True(t, ds.NewActivityFuncInvoked)
+	assert.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 
 	// Now, transfer out of the team.
 	ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
@@ -81,15 +81,16 @@ func TestHostsTransferByHosts(t *testing.T) {
 		assert.Equal(t, []uint{42}, params.HostIDs)
 		return nil
 	}
-	ds.NewActivityFuncInvoked = false
+	opts.ActivityMock.NewActivityFuncInvoked = false
 	ds.AddHostsToTeamFuncInvoked = false
-	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--team", "", "--hosts", "host1"}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--fleet", "", "--hosts", "host1"}))
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
-	assert.True(t, ds.NewActivityFuncInvoked)
+	assert.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 }
 
 func TestHostsTransferByLabel(t *testing.T) {
-	_, ds := testing_utils.RunServerWithMockedDS(t)
+	opts := &service.TestServerOpts{}
+	_, ds := testing_utils.RunServerWithMockedDS(t, opts)
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.Equal(t, "host1", identifier)
@@ -132,9 +133,7 @@ func TestHostsTransferByLabel(t *testing.T) {
 		return &fleet.TeamLite{ID: tid, Name: "team1"}, nil
 	}
 
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
 		require.IsType(t, fleet.ActivityTypeTransferredHostsToTeam{}, activity)
 		return nil
 	}
@@ -143,8 +142,8 @@ func TestHostsTransferByLabel(t *testing.T) {
 		return nil, nil
 	}
 
-	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--team", "team1", "--label", "label1"}))
-	require.True(t, ds.NewActivityFuncInvoked)
+	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--fleet", "team1", "--label", "label1"}))
+	require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 
 	// Now, transfer out of the team.
@@ -153,15 +152,16 @@ func TestHostsTransferByLabel(t *testing.T) {
 		require.Equal(t, []uint{32, 12}, params.HostIDs)
 		return nil
 	}
-	ds.NewActivityFuncInvoked = false
+	opts.ActivityMock.NewActivityFuncInvoked = false
 	ds.AddHostsToTeamFuncInvoked = false
-	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--team", "", "--label", "label1"}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--fleet", "", "--label", "label1"}))
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
-	assert.True(t, ds.NewActivityFuncInvoked)
+	assert.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 }
 
 func TestHostsTransferByStatus(t *testing.T) {
-	_, ds := testing_utils.RunServerWithMockedDS(t)
+	opts := &service.TestServerOpts{}
+	_, ds := testing_utils.RunServerWithMockedDS(t, opts)
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.Equal(t, "host1", identifier)
@@ -203,9 +203,7 @@ func TestHostsTransferByStatus(t *testing.T) {
 		return &fleet.TeamLite{ID: tid, Name: "team1"}, nil
 	}
 
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
 		require.IsType(t, fleet.ActivityTypeTransferredHostsToTeam{}, activity)
 		return nil
 	}
@@ -215,12 +213,13 @@ func TestHostsTransferByStatus(t *testing.T) {
 	}
 
 	assert.Equal(t, "", RunAppForTest(t,
-		[]string{"hosts", "transfer", "--team", "team1", "--status", "online"}))
-	require.True(t, ds.NewActivityFuncInvoked)
+		[]string{"hosts", "transfer", "--fleet", "team1", "--status", "online"}))
+	require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 }
 
 func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
-	_, ds := testing_utils.RunServerWithMockedDS(t)
+	opts := &service.TestServerOpts{}
+	_, ds := testing_utils.RunServerWithMockedDS(t, opts)
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.Equal(t, "host1", identifier)
@@ -263,9 +262,7 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 		return &fleet.TeamLite{ID: tid, Name: "team1"}, nil
 	}
 
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
 		require.IsType(t, fleet.ActivityTypeTransferredHostsToTeam{}, activity)
 		return nil
 	}
@@ -275,6 +272,6 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 	}
 
 	assert.Equal(t, "", RunAppForTest(t,
-		[]string{"hosts", "transfer", "--team", "team1", "--status", "online", "--search_query", "somequery"}))
-	require.True(t, ds.NewActivityFuncInvoked)
+		[]string{"hosts", "transfer", "--fleet", "team1", "--status", "online", "--search_query", "somequery"}))
+	require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 }

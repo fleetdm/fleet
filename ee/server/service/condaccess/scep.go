@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/cenkalti/backoff/v4"
@@ -17,7 +18,6 @@ import (
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
-	"github.com/go-kit/kit/log"
 	"github.com/smallstep/scep"
 )
 
@@ -45,7 +45,7 @@ func RegisterSCEP(
 	mux *http.ServeMux,
 	scepStorage scepdepot.Depot,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	fleetConfig *config.FleetConfig,
 ) error {
 	if fleetConfig == nil {
@@ -112,7 +112,7 @@ var _ scepserver.Service = (*service)(nil)
 type service struct {
 	// The (chainable) CSR signing function
 	signer scepserver.CSRSignerContext
-	logger log.Logger
+	logger *slog.Logger
 	ds     fleet.Datastore
 }
 
@@ -159,7 +159,7 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	if len(data) == 0 {
 		return nil, &fleet.BadRequestError{Message: "missing data for PKIOperation"}
 	}
-	msg, err := scep.ParsePKIMessage(data, scep.WithLogger(svc.logger))
+	msg, err := scep.ParsePKIMessage(data, scep.WithLogger(logging.NewLogger(svc.logger)))
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +183,7 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 		err = errors.New("signer returned nil certificate without error")
 	}
 	if err != nil {
-		svc.logger.Log("msg", "failed to sign CSR", "err", err)
+		svc.logger.ErrorContext(ctx, "failed to sign CSR", "err", err)
 
 		// Check if this is a rate limit error (permanent error from backoff)
 		var permanentErr *backoff.PermanentError
@@ -212,7 +212,7 @@ func (svc *service) GetNextCACert(_ context.Context) ([]byte, error) {
 }
 
 // NewSCEPService creates a new conditional access SCEP service.
-func NewSCEPService(ds fleet.Datastore, signer scepserver.CSRSignerContext, logger log.Logger) scepserver.Service {
+func NewSCEPService(ds fleet.Datastore, signer scepserver.CSRSignerContext, logger *slog.Logger) scepserver.Service {
 	return &service{
 		ds:     ds,
 		signer: signer,

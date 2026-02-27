@@ -66,7 +66,7 @@ func main() {
 	logger := logging.NewLogfmtLogger(os.Stderr)
 
 	opts := []mysql.DBOption{
-		mysql.Logger(logger),
+		mysql.Logger(logger.SlogLogger()),
 		mysql.WithFleetConfig(&config.FleetConfig{
 			Server: config.ServerConfig{PrivateKey: *serverPrivateKey},
 		}),
@@ -87,7 +87,7 @@ func main() {
 		})), nil
 	}))
 
-	nanoMDMLogger := service.NewNanoMDMLogger(logger.With("component", "apple-mdm-push"))
+	nanoMDMLogger := service.NewNanoMDMLogger(logger.With("component", "apple-mdm-push").SlogLogger())
 	pusher := nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
 	res, err := pusher.Push(context.Background(), hostUUIDs)
 	if err != nil {

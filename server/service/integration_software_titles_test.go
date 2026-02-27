@@ -2,20 +2,27 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"reflect"
 	"strings"
 	"time"
 
+	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -962,4 +969,136 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 	s.Assert().NotNil(listResp.SoftwareTitle)
 	s.Assert().Equal(titleID, listResp.SoftwareTitle.ID)
 	s.Assert().Equal("My cool display name", listResp.SoftwareTitle.DisplayName)
+}
+
+func (s *integrationMDMTestSuite) TestGitopsInstallableSoftwareRetries() {
+	t := s.T()
+
+	newTeam := func(name string) fleet.Team {
+		var resp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+			TeamPayload: fleet.TeamPayload{Name: ptr.String(name)},
+		}, http.StatusOK, &resp)
+		return *resp.Team
+	}
+
+	// batchSet issues a batch-set request for the given team and software slice,
+	// waits for completion, and returns the resulting packages.
+	batchSet := func(team fleet.Team, software []*fleet.SoftwareInstallerPayload, shouldError bool) []fleet.SoftwarePackageResponse {
+		var resp batchSetSoftwareInstallersResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: software, TeamName: team.Name},
+			http.StatusAccepted, &resp,
+			"fleet_name", team.Name, "fleet_id", fmt.Sprint(team.ID),
+		)
+		if shouldError {
+			waitBatchSetSoftwareInstallersFailed(t, &s.withServer, team.Name, resp.RequestUUID)
+			return nil
+		}
+
+		return waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+	}
+
+	// --- Shared per-FMA state for mock servers ---
+	// Each FMA (warp, zoom) has independently mutable version/bytes/sha so the
+	// manifest and installer servers can serve different content per slug.
+	type fmaTestState struct {
+		version        string
+		installerBytes []byte
+		sha256         string
+	}
+
+	computeSHA := func(b []byte) string {
+		h := sha256.New()
+		h.Write(b)
+		return hex.EncodeToString(h.Sum(nil))
+	}
+
+	warpState := &fmaTestState{version: "1.0", installerBytes: []byte("abc")}
+	warpState.sha256 = computeSHA(warpState.installerBytes)
+
+	zoomState := &fmaTestState{version: "1.0", installerBytes: []byte("xyz")}
+	zoomState.sha256 = computeSHA(zoomState.installerBytes)
+
+	var hitCount int
+
+	// Mock installer server — routes by path to serve per-FMA bytes.
+	shouldError := false
+	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hitCount++
+		switch r.URL.Path {
+		case "/cloudflare-warp.msi":
+			_, _ = w.Write(warpState.installerBytes)
+		case "/zoom.msi":
+			if shouldError {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			_, _ = w.Write(zoomState.installerBytes)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer installerServer.Close()
+
+	// Insert the list of maintained apps
+	maintained_apps.SyncApps(t, s.ds)
+
+	// Mock manifest server — routes by slug path and returns current per-FMA state.
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var state *fmaTestState
+		var installerPath string
+		switch r.URL.Path {
+		case "/cloudflare-warp/windows.json":
+			state = warpState
+			installerPath = "/cloudflare-warp.msi"
+		case "/zoom/windows.json":
+			state = zoomState
+			installerPath = "/zoom.msi"
+		default:
+			http.NotFound(w, r)
+			return
+		}
+
+		versions := []*ma.FMAManifestApp{
+			{
+				Version:            state.version,
+				Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+				InstallerURL:       installerServer.URL + installerPath,
+				InstallScriptRef:   "foobaz",
+				UninstallScriptRef: "foobaz",
+				SHA256:             state.sha256,
+				DefaultCategories:  []string{"Productivity"},
+			},
+		}
+		manifest := ma.FMAManifestFile{
+			Versions: versions,
+			Refs:     map[string]string{"foobaz": "Hello World!"},
+		}
+		require.NoError(t, json.NewEncoder(w).Encode(manifest))
+	}))
+	t.Cleanup(manifestServer.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
+	defer dev_mode.ClearOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
+
+	team := newTeam("team_" + t.Name())
+
+	// Add an ingested app to the team
+	softwareToInstall := []*fleet.SoftwareInstallerPayload{
+		{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
+	}
+
+	packages := batchSet(team, softwareToInstall, false)
+	require.Len(t, packages, 1)
+	assert.Equal(t, 1, hitCount)
+	hitCount = 0
+
+	shouldError = true
+	softwareToInstall = append(
+		softwareToInstall,
+		&fleet.SoftwareInstallerPayload{Slug: ptr.String("zoom/windows"), SelfService: true},
+	)
+	packages = batchSet(team, softwareToInstall, true)
+	require.Len(t, packages, 0)
+	assert.Equal(t, 3, hitCount)
 }

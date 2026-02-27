@@ -4,17 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 type pubSubLogWriter struct {
 	topic         *pubsub.Topic
-	logger        log.Logger
+	logger        *slog.Logger
 	addAttributes bool
 }
 
@@ -24,9 +23,7 @@ type PubSubAttributes struct {
 	Decorations map[string]string `json:"decorations"`
 }
 
-func NewPubSubLogWriter(projectId string, topicName string, addAttributes bool, logger log.Logger) (*pubSubLogWriter, error) {
-	ctx := context.Background()
-
+func NewPubSubLogWriter(ctx context.Context, projectId string, topicName string, addAttributes bool, logger *slog.Logger) (*pubSubLogWriter, error) {
 	client, err := pubsub.NewClient(ctx, projectId)
 	if err != nil {
 		return nil, fmt.Errorf("create pubsub client: %w", err)
@@ -34,8 +31,7 @@ func NewPubSubLogWriter(projectId string, topicName string, addAttributes bool, 
 
 	topic := client.Topic(topicName)
 
-	level.Info(logger).Log(
-		"msg", "GCP PubSub writer configured",
+	logger.InfoContext(ctx, "GCP PubSub writer configured",
 		"project", projectId,
 		"topic", topicName,
 		"add_attributes", addAttributes,
@@ -82,8 +78,7 @@ func (w *pubSubLogWriter) Write(ctx context.Context, logs []json.RawMessage) err
 		}
 
 		if len(data)+estimateAttributeSize(attributes) > pubsub.MaxPublishRequestBytes {
-			level.Info(w.logger).Log(
-				"msg", "dropping log over 10MB PubSub limit",
+			w.logger.InfoContext(ctx, "dropping log over 10MB PubSub limit",
 				"size", len(data),
 				"log", string(log[:100])+"...",
 			)

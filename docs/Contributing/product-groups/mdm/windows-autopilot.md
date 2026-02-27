@@ -3,7 +3,17 @@
 ## Reference links
 - [Windows MDM Setup](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot)
 - [Autopilot add devices](https://learn.microsoft.com/en-us/autopilot/add-devices)
+- [Assigning Intune licenses](https://learn.microsoft.com/en-gb/intune/intune-service/fundamentals/licenses-assign)
 - [Serve locally built Fleetd during Autopilot](https://github.com/fleetdm/fleet/blob/docs-windows-autopilot-dev/docs/Contributing/getting-started/testing-and-local-development.md#building-and-serving-your-own-fleetd-basemsi-installer-for-windows)
+
+## Assigning an Intune license to your user
+To use Autopilot, your user needs to have an Intune license assigned. If you don't already have one assigned, follow these steps:
+1. Go to [Microsoft 365 Admin Center Licenses](https://admin.cloud.microsoft/?#/licenses)
+2. Select Microsoft Intune Plan 1
+    1. Worth checking if any of the existing licenses can be unassigned (maybe from other developers)
+3. Click "Assign licenses"
+4. Select your user and click "Assign"
+    1. If it says no license is available, you are good to buy a license, which will be charged on Noah Talerman's (As of 24th February 2026) brex card.
 
 ## Configuring Windows Autopilot for development
 To set up Windows Autopilot for development, follow these steps:

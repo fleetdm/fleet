@@ -215,12 +215,14 @@ func TestValidGitOpsYaml(t *testing.T) {
 						switch fma.Slug {
 						case "slack/darwin":
 							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Communication"})
+							require.Equal(t, "4.47.65", fma.Version)
 							require.Empty(t, fma.PreInstallQuery)
 							require.Empty(t, fma.PostInstallScript)
 							require.Empty(t, fma.InstallScript)
 							require.Empty(t, fma.UninstallScript)
 						case "box-drive/windows":
 							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Developer tools"})
+							require.Empty(t, fma.Version)
 							require.NotEmpty(t, fma.PreInstallQuery)
 							require.NotEmpty(t, fma.PostInstallScript)
 							require.NotEmpty(t, fma.InstallScript)
@@ -621,35 +623,104 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config += "name: No team\nsettings:\n  features:\n    enable_host_users: false\n"
 					noTeamPath3, noTeamBasePath3 := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath3, noTeamBasePath3, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported settings option 'features' for 'No team' - only 'webhook_settings' is allowed")
+					assert.ErrorContains(t, err, "unsupported settings option 'features' in no-team.yml - only 'webhook_settings' is allowed")
 
 					// No team with multiple settings options (one valid, one invalid) should fail
 					config = getConfig([]string{"name", "settings"})
 					config += "name: No team\nsettings:\n  webhook_settings:\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n  secrets:\n    - secret: test\n"
 					noTeamPath4, noTeamBasePath4 := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath4, noTeamBasePath4, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported settings option 'secrets' for 'No team' - only 'webhook_settings' is allowed")
+					assert.ErrorContains(t, err, "unsupported settings option 'secrets' in no-team.yml - only 'webhook_settings' is allowed")
 
 					// No team with host_status_webhook in webhook_settings should fail
 					config = getConfig([]string{"name", "settings"})
 					config += "name: No team\nsettings:\n  webhook_settings:\n    host_status_webhook:\n      enable_host_status_webhook: true\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n"
 					noTeamPath5a, noTeamBasePath5a := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath5a, noTeamBasePath5a, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported webhook_settings option 'host_status_webhook' for 'No team'; only 'failing_policies_webhook' is allowed")
+					assert.ErrorContains(t, err, "unsupported webhook_settings option 'host_status_webhook' in no-team.yml - only 'failing_policies_webhook' is allowed")
 
 					// No team with vulnerabilities_webhook in webhook_settings should fail
 					config = getConfig([]string{"name", "settings"})
 					config += "name: No team\nsettings:\n  webhook_settings:\n    vulnerabilities_webhook:\n      enable_vulnerabilities_webhook: true\n"
 					noTeamPath5b, noTeamBasePath5b := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath5b, noTeamBasePath5b, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported webhook_settings option 'vulnerabilities_webhook' for 'No team'; only 'failing_policies_webhook' is allowed")
+					assert.ErrorContains(t, err, "unsupported webhook_settings option 'vulnerabilities_webhook' in no-team.yml - only 'failing_policies_webhook' is allowed")
 
 					// 'No team' file with invalid name.
 					config = getConfig([]string{"name", "settings"})
 					config += "name: No team\n"
 					noTeamPath6, noTeamBasePath6 := createNamedFileOnTempDir(t, "foobar.yml", config)
 					_, err = GitOpsFromFile(noTeamPath6, noTeamBasePath6, nil, nopLogf)
-					assert.ErrorContains(t, err, fmt.Sprintf("file %q for 'No team' must be named 'no-team.yml'", noTeamPath6))
+					assert.ErrorContains(t, err, fmt.Sprintf("file `%s` for No Team must be named `no-team.yml`", noTeamPath6))
+
+					// no-team.yml with a non-"No Team" name should fail.
+					config = getConfig([]string{"name", "settings"})
+					config += "name: SomeOtherTeam\nsettings:\n  secrets:\n"
+					noTeamPath7, noTeamBasePath7 := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath7, noTeamBasePath7, nil, nopLogf)
+					assert.ErrorContains(t, err, fmt.Sprintf("file %q must have team name 'No Team'", noTeamPath7))
+
+					// unassigned.yml with a non-"Unassigned" name should fail.
+					config = getConfig([]string{"name", "settings"})
+					config += "name: SomeOtherTeam\nsettings:\n  secrets:\n"
+					unassignedPathBadName, unassignedBasePathBadName := createNamedFileOnTempDir(t, "unassigned.yml", config)
+					_, err = GitOpsFromFile(unassignedPathBadName, unassignedBasePathBadName, nil, nopLogf)
+					assert.ErrorContains(t, err, fmt.Sprintf("file %q must have team name 'Unassigned'", unassignedPathBadName))
+
+					// no-team.yml with "Unassigned" name should fail (wrong name for this file).
+					config = getConfig([]string{"name", "settings"})
+					config += "name: Unassigned\n"
+					noTeamPath8, noTeamBasePath8 := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath8, noTeamBasePath8, nil, nopLogf)
+					assert.ErrorContains(t, err, fmt.Sprintf("file %q must have team name 'No Team'", noTeamPath8))
+
+					// unassigned.yml with "No team" name should fail (wrong name for this file).
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\n"
+					unassignedPathNoTeam, unassignedBasePathNoTeam := createNamedFileOnTempDir(t, "unassigned.yml", config)
+					_, err = GitOpsFromFile(unassignedPathNoTeam, unassignedBasePathNoTeam, nil, nopLogf)
+					assert.ErrorContains(t, err, fmt.Sprintf("file %q must have team name 'Unassigned'", unassignedPathNoTeam))
+
+					// 'Unassigned' team in unassigned.yml should work and coerce to "No team" internally.
+					config = getConfig([]string{"name", "settings"})
+					config += "name: Unassigned\n"
+					unassignedPath1, unassignedBasePath1 := createNamedFileOnTempDir(t, "unassigned.yml", config)
+					gitops, err = GitOpsFromFile(unassignedPath1, unassignedBasePath1, nil, nopLogf)
+					assert.NoError(t, err)
+					assert.NotNil(t, gitops)
+					assert.True(t, gitops.IsNoTeam(), "unassigned.yml should be treated as no-team after coercion")
+					assert.Equal(t, "No team", *gitops.TeamName)
+
+					// 'Unassigned' team with wrong filename should fail.
+					config = getConfig([]string{"name", "settings"})
+					config += "name: Unassigned\n"
+					unassignedPath2, unassignedBasePath2 := createNamedFileOnTempDir(t, "foobar.yml", config)
+					_, err = GitOpsFromFile(unassignedPath2, unassignedBasePath2, nil, nopLogf)
+					assert.ErrorContains(t, err, fmt.Sprintf("file `%s` for unassigned hosts must be named `unassigned.yml`", unassignedPath2))
+
+					// 'Unassigned' (case-insensitive) in unassigned.yml should work.
+					config = getConfig([]string{"name", "settings"})
+					config += "name: unassigned\n"
+					unassignedPath3, unassignedBasePath3 := createNamedFileOnTempDir(t, "unassigned.yml", config)
+					gitops, err = GitOpsFromFile(unassignedPath3, unassignedBasePath3, nil, nopLogf)
+					assert.NoError(t, err)
+					assert.NotNil(t, gitops)
+					assert.True(t, gitops.IsNoTeam())
+
+					// 'Unassigned' with webhook settings in unassigned.yml should work.
+					config = getConfig([]string{"name", "settings"})
+					config += "name: Unassigned\nsettings:\n  webhook_settings:\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n"
+					unassignedPath4, unassignedBasePath4 := createNamedFileOnTempDir(t, "unassigned.yml", config)
+					gitops, err = GitOpsFromFile(unassignedPath4, unassignedBasePath4, nil, nopLogf)
+					assert.NoError(t, err)
+					assert.NotNil(t, gitops)
+
+					// 'Unassigned' with invalid settings option should fail with unassigned.yml in message.
+					config = getConfig([]string{"name", "settings"})
+					config += "name: Unassigned\nsettings:\n  features:\n    enable_host_users: false\n"
+					unassignedPath5, unassignedBasePath5 := createNamedFileOnTempDir(t, "unassigned.yml", config)
+					_, err = GitOpsFromFile(unassignedPath5, unassignedBasePath5, nil, nopLogf)
+					assert.ErrorContains(t, err, "unsupported settings option 'features' in unassigned.yml")
 
 					// Missing secrets
 					config = getConfig([]string{"settings"})

@@ -1,32 +1,36 @@
 package logging
 
 import (
+	"context"
+	"log/slog"
+
 	nanodep_log "github.com/fleetdm/fleet/v4/server/mdm/nanodep/log"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
-	"github.com/go-kit/log/level"
 )
 
 // NanoDEPLogger is a logger adapter for nanodep.
 type NanoDEPLogger struct {
-	logger *logging.Logger
+	ctx    context.Context
+	logger *slog.Logger
 }
 
-func NewNanoDEPLogger(logger *logging.Logger) *NanoDEPLogger {
+func NewNanoDEPLogger(ctx context.Context, logger *slog.Logger) *NanoDEPLogger {
 	return &NanoDEPLogger{
+		ctx:    ctx,
 		logger: logger,
 	}
 }
 
-func (l *NanoDEPLogger) Info(keyvals ...interface{}) {
-	level.Info(l.logger).Log(keyvals...)
+func (l *NanoDEPLogger) Info(keyvals ...any) {
+	l.logger.InfoContext(l.ctx, "", keyvals...)
 }
 
-func (l *NanoDEPLogger) Debug(keyvals ...interface{}) {
-	level.Debug(l.logger).Log(keyvals...)
+func (l *NanoDEPLogger) Debug(keyvals ...any) {
+	l.logger.DebugContext(l.ctx, "", keyvals...)
 }
 
-func (l *NanoDEPLogger) With(keyvals ...interface{}) nanodep_log.Logger {
+func (l *NanoDEPLogger) With(keyvals ...any) nanodep_log.Logger {
 	return &NanoDEPLogger{
+		ctx:    l.ctx,
 		logger: l.logger.With(keyvals...),
 	}
 }

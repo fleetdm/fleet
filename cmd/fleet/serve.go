@@ -86,8 +86,6 @@ import (
 	"github.com/getsentry/sentry-go"
 	"github.com/go-kit/kit/endpoint"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
@@ -317,7 +315,7 @@ the way that the Fleet server works.
 			var ds fleet.Datastore
 			var carveStore fleet.CarveStore
 
-			opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
+			opts := []mysql.DBOption{mysql.Logger(logger.SlogLogger()), mysql.WithFleetConfig(&config)}
 			if config.MysqlReadReplica.Address != "" {
 				opts = append(opts, mysql.Replica(&config.MysqlReadReplica))
 			}
@@ -513,7 +511,7 @@ the way that the Fleet server works.
 			loggingConfig.KafkaREST.Topic = config.KafkaREST.StatusTopic
 			loggingConfig.Nats.Subject = config.Nats.StatusSubject
 
-			osquerydStatusLogger, err := logging.NewJSONLogger("status", loggingConfig, logger)
+			osquerydStatusLogger, err := logging.NewJSONLogger(cmd.Context(), "status", loggingConfig, logger.SlogLogger())
 			if err != nil {
 				initFatal(err, "initializing osqueryd status logging")
 			}
@@ -530,7 +528,7 @@ the way that the Fleet server works.
 			loggingConfig.KafkaREST.Topic = config.KafkaREST.ResultTopic
 			loggingConfig.Nats.Subject = config.Nats.ResultSubject
 
-			osquerydResultLogger, err := logging.NewJSONLogger("result", loggingConfig, logger)
+			osquerydResultLogger, err := logging.NewJSONLogger(cmd.Context(), "result", loggingConfig, logger.SlogLogger())
 			if err != nil {
 				initFatal(err, "initializing osqueryd result logging")
 			}
@@ -548,7 +546,7 @@ the way that the Fleet server works.
 				loggingConfig.KafkaREST.Topic = config.KafkaREST.AuditTopic
 				loggingConfig.Nats.Subject = config.Nats.AuditSubject
 
-				auditLogger, err = logging.NewJSONLogger("audit", loggingConfig, logger)
+				auditLogger, err = logging.NewJSONLogger(cmd.Context(), "audit", loggingConfig, logger.SlogLogger())
 				if err != nil {
 					initFatal(err, "initializing audit logging")
 				}
@@ -606,7 +604,7 @@ the way that the Fleet server works.
 			}
 
 			var mdmPushService push.Pusher
-			nanoMDMLogger := service.NewNanoMDMLogger(logger.With("component", "apple-mdm-push"))
+			nanoMDMLogger := service.NewNanoMDMLogger(logger.With("component", "apple-mdm-push").SlogLogger())
 			pushProviderFactory := buford.NewPushProviderFactory(buford.WithNewClient(func(cert *tls.Certificate) (*http.Client, error) {
 				return fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 					Certificates: []tls.Certificate{*cert},
@@ -873,11 +871,11 @@ the way that the Fleet server works.
 			}
 
 			eh := errorstore.NewHandler(ctx, redisPool, logger.SlogLogger(), config.Logging.ErrorRetentionPeriod)
-			scepConfigMgr := eeservice.NewSCEPConfigService(logger, nil)
-			digiCertService := digicert.NewService(digicert.WithLogger(logger))
+			scepConfigMgr := eeservice.NewSCEPConfigService(logger.SlogLogger(), nil)
+			digiCertService := digicert.NewService(digicert.WithLogger(logger.SlogLogger()))
 			ctx = ctxerr.NewContext(ctx, eh)
 
-			activitiesModule := activities.NewActivityModule(ds, logger)
+			activitiesModule := activities.NewActivityModule()
 			config.MDM.AndroidAgent.Validate(initFatal)
 			androidSvc, err := android_service.NewService(
 				ctx,
@@ -898,7 +896,7 @@ the way that the Fleet server works.
 				ds,
 				task,
 				resultStore,
-				logger,
+				logger.SlogLogger(),
 				&service.OsqueryLogger{
 					Status: osquerydStatusLogger,
 					Result: osquerydResultLogger,
@@ -932,7 +930,7 @@ the way that the Fleet server works.
 			var softwareTitleIconStore fleet.SoftwareTitleIconStore
 			var distributedLock fleet.Lock
 			if license.IsPremium() {
-				hydrantService := est.NewService(est.WithLogger(logger))
+				hydrantService := est.NewService(est.WithLogger(logger.SlogLogger()))
 				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
 				if config.S3.SoftwareInstallersBucket != "" {
 					if config.S3.BucketsAndPrefixesMatch() {
@@ -1011,7 +1009,7 @@ the way that the Fleet server works.
 				svc, err = eeservice.NewService(
 					svc,
 					ds,
-					logger,
+					logger.SlogLogger(),
 					config,
 					mailService,
 					clock.C,
@@ -1042,6 +1040,9 @@ the way that the Fleet server works.
 
 			// Bootstrap activity bounded context (needed for cron schedules and HTTP routes)
 			activitySvc, activityRoutes := createActivityBoundedContext(svc, dbConns, logger.SlogLogger())
+			// Inject the activity bounded context into the main service and activity module
+			svc.SetActivityService(activitySvc)
+			activitiesModule.SetService(activitySvc)
 
 			// Perform a cleanup of cron_stats outside of the cronSchedules because the
 			// schedule package uses cron_stats entries to decide whether a schedule will
@@ -1234,6 +1235,7 @@ the way that the Fleet server works.
 					ds,
 					logger,
 					config.License.Key,
+					svc.NewActivity,
 				)
 			}); err != nil {
 				initFatal(err, "failed to register mdm_android_device_reconciler schedule")
@@ -1331,7 +1333,7 @@ the way that the Fleet server works.
 			level.Info(logger).Log("msg", fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedules.ScheduleNames(), ", ")))
 
 			// StartCollectors starts a goroutine per collector, using ctx to cancel.
-			task.StartCollectors(ctx, logger.With("cron", "async_task"))
+			task.StartCollectors(ctx, logger.With("cron", "async_task").SlogLogger())
 
 			// Flush seen hosts every second
 			hostsAsyncCfg := config.Osquery.AsyncConfigForTask(configpkg.AsyncTaskHostLastSeen)
@@ -1373,7 +1375,7 @@ the way that the Fleet server works.
 
 			var httpSigVerifier func(http.Handler) http.Handler
 			if license.IsPremium() {
-				httpSigVerifier, err = httpsig.Middleware(ds, config.Auth.RequireHTTPMessageSignature, logger.With("component", "http-sig-verifier"))
+				httpSigVerifier, err = httpsig.Middleware(ds, config.Auth.RequireHTTPMessageSignature, logger.With("component", "http-sig-verifier").SlogLogger())
 				if err != nil {
 					initFatal(err, "initializing HTTP signature verifier")
 				}
@@ -1383,10 +1385,10 @@ the way that the Fleet server works.
 			{
 				frontendHandler = service.PrometheusMetricsHandler(
 					"get_frontend",
-					service.ServeFrontend(config.Server.URLPrefix, config.Server.SandboxEnabled, httpLogger),
+					service.ServeFrontend(config.Server.URLPrefix, config.Server.SandboxEnabled, httpLogger.SlogLogger()),
 				)
 
-				frontendHandler = service.WithMDMEnrollmentMiddleware(svc, httpLogger, frontendHandler)
+				frontendHandler = service.WithMDMEnrollmentMiddleware(svc, httpLogger.SlogLogger(), frontendHandler)
 
 				var extra []service.ExtraHandlerOption
 				if config.MDM.SSORateLimitPerMinute > 0 {
@@ -1394,7 +1396,7 @@ the way that the Fleet server works.
 				}
 				extra = append(extra, service.WithHTTPSigVerifier(httpSigVerifier))
 
-				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
+				apiHandler = service.MakeHandler(svc, config, httpLogger.SlogLogger(), limiterStore, redisPool, carveStore,
 					[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes}, extra...)
 
 				setupRequired, err := svc.SetupRequired(baseCtx)
@@ -1405,17 +1407,17 @@ the way that the Fleet server works.
 				// By performing the same check inside main, we can make server startups
 				// more efficient after the first startup.
 				if setupRequired {
-					apiHandler = service.WithSetup(svc, logger, apiHandler)
-					frontendHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler, config.Server.URLPrefix)
+					apiHandler = service.WithSetup(svc, logger.SlogLogger(), apiHandler)
+					frontendHandler = service.RedirectLoginToSetup(svc, logger.SlogLogger(), frontendHandler, config.Server.URLPrefix)
 				} else {
-					frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler, config.Server.URLPrefix)
+					frontendHandler = service.RedirectSetupToLogin(svc, logger.SlogLogger(), frontendHandler, config.Server.URLPrefix)
 				}
 
 				endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(
 					svc,
 					config.Server.URLPrefix,
 					ds,
-					logger,
+					logger.SlogLogger(),
 				)
 			}
 
@@ -1439,7 +1441,7 @@ the way that the Fleet server works.
 			}
 
 			// Instantiate a gRPC service to handle launcher requests.
-			launcher := launcher.New(svc, logger, grpc.NewServer(
+			launcher := launcher.New(svc, logger.SlogLogger(), grpc.NewServer(
 				grpc.ChainUnaryInterceptor(
 					grpc_recovery.UnaryServerInterceptor(),
 				),
@@ -1449,25 +1451,26 @@ the way that the Fleet server works.
 			), healthCheckers)
 
 			rootMux := http.NewServeMux()
-			rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", otelmw.WrapHandler(health.Handler(httpLogger, healthCheckers), "/healthz", config)))
+			rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", otelmw.WrapHandler(health.Handler(httpLogger.SlogLogger(), healthCheckers), "/healthz", config)))
 			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", otelmw.WrapHandler(version.Handler(), "/version", config)))
 			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", otelmw.WrapHandlerDynamic(service.ServeStaticAssets("/assets/"), config)))
 
 			if len(config.Server.PrivateKey) > 0 {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-				ddmService := service.NewMDMAppleDDMService(ds, logger)
+				ddmService := service.NewMDMAppleDDMService(ds, logger.SlogLogger())
 				vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
 				mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(
 					ds,
 					commander,
 					vppInstaller,
 					license.IsPremium(),
-					logger,
+					logger.SlogLogger(),
 					redis_key_value.New(redisPool),
+					svc.NewActivity,
 				)
 
-				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay))
-				mdmCheckinAndCommandService.RegisterResultsHandler(fleet.DeviceLocationCmdName, service.NewDeviceLocationResultsHandler(ds, commander, logger))
+				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger.SlogLogger(), config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay, svc.NewActivity))
+				mdmCheckinAndCommandService.RegisterResultsHandler(fleet.DeviceLocationCmdName, service.NewDeviceLocationResultsHandler(ds, commander, logger.SlogLogger()))
 
 				hasSCEPChallenge, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
 				if err != nil {
@@ -1500,7 +1503,7 @@ the way that the Fleet server works.
 					config.MDM,
 					mdmStorage,
 					scepStorage,
-					logger,
+					logger.SlogLogger(),
 					mdmCheckinAndCommandService,
 					ddmService,
 					commander,
@@ -1513,7 +1516,7 @@ the way that the Fleet server works.
 
 			if license.IsPremium() {
 				// SCEP proxy (for NDES, etc.)
-				if err = service.RegisterSCEPProxy(rootMux, ds, logger, nil, &config); err != nil {
+				if err = service.RegisterSCEPProxy(rootMux, ds, logger.SlogLogger(), nil, &config); err != nil {
 					initFatal(err, "setup SCEP proxy")
 				}
 				if err = scim.RegisterSCIM(rootMux, ds, svc, logger.SlogLogger(), &config); err != nil {
@@ -1525,21 +1528,21 @@ the way that the Fleet server works.
 					if err != nil {
 						initFatal(err, "setup host identity SCEP depot")
 					}
-					if err = hostidentity.RegisterSCEP(rootMux, hostIdentitySCEPDepot, ds, logger, &config); err != nil {
+					if err = hostidentity.RegisterSCEP(rootMux, hostIdentitySCEPDepot, ds, logger.SlogLogger(), &config); err != nil {
 						initFatal(err, "setup host identity SCEP")
 					}
 
 					// Conditional Access SCEP
-					condAccessSCEPDepot, err := mds.NewConditionalAccessSCEPDepot(logger.With("component", "conditional-access-scep-depot"), &config)
+					condAccessSCEPDepot, err := mds.NewConditionalAccessSCEPDepot(logger.SlogLogger().With("component", "conditional-access-scep-depot"), &config)
 					if err != nil {
 						initFatal(err, "setup conditional access SCEP depot")
 					}
-					if err = condaccess.RegisterSCEP(ctx, rootMux, condAccessSCEPDepot, ds, logger, &config); err != nil {
+					if err = condaccess.RegisterSCEP(ctx, rootMux, condAccessSCEPDepot, ds, logger.SlogLogger(), &config); err != nil {
 						initFatal(err, "setup conditional access SCEP")
 					}
 
 					// Conditional Access IdP (Okta)
-					if err = condaccess.RegisterIdP(rootMux, ds, logger, &config); err != nil {
+					if err = condaccess.RegisterIdP(rootMux, ds, logger.SlogLogger(), &config); err != nil {
 						initFatal(err, "setup conditional access IdP")
 					}
 				} else {
@@ -1960,7 +1963,7 @@ func getTLSConfig(profile string) *tls.Config {
 type devSQLInterceptor struct {
 	sqlmw.NullInterceptor
 
-	logger kitlog.Logger
+	logger *platform_logging.Logger
 }
 
 func (in *devSQLInterceptor) ConnQueryContext(ctx context.Context, conn driver.QueryerContext, query string, args []driver.NamedValue) (driver.Rows, error) {
@@ -2040,7 +2043,7 @@ func (n nopPusher) Push(context.Context, []string) (map[string]*push.Response, e
 	return nil, nil
 }
 
-func createTestBuckets(config *configpkg.FleetConfig, logger log.Logger) {
+func createTestBuckets(config *configpkg.FleetConfig, logger *platform_logging.Logger) {
 	softwareInstallerStore, err := s3.NewSoftwareInstallerStore(config.S3)
 	if err != nil {
 		initFatal(err, "initializing S3 software installer store")

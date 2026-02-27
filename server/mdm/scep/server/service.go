@@ -5,8 +5,9 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"errors"
+	"log/slog"
 
-	"github.com/go-kit/kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/smallstep/scep"
 )
 
@@ -88,7 +89,7 @@ type service struct {
 	signer CSRSignerContext
 
 	/// info logging is implemented in the service middleware layer.
-	debugLogger log.Logger
+	debugLogger *slog.Logger
 }
 
 const DefaultCACaps = "Renewal\nSHA-1\nSHA-256\nAES\nDES3\nSCEPStandard\nPOSTPKIOperation"
@@ -115,7 +116,7 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	if len(data) == 0 {
 		return nil, &BadRequestError{Message: "missing data for PKIOperation"}
 	}
-	msg, err := scep.ParsePKIMessage(data, scep.WithLogger(svc.debugLogger))
+	msg, err := scep.ParsePKIMessage(data, scep.WithLogger(logging.NewLogger(svc.debugLogger)))
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +129,7 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 		err = errors.New("no signed certificate")
 	}
 	if err != nil {
-		svc.debugLogger.Log("msg", "failed to sign CSR", "err", err)
+		svc.debugLogger.ErrorContext(ctx, "failed to sign CSR", "err", err)
 		certRep, err := msg.Fail(svc.crt, svc.key, scep.BadRequest)
 		return certRep.Raw, err
 	}
@@ -146,7 +147,7 @@ type ServiceOption func(*service) error
 
 // WithLogger configures a logger for the SCEP Service.
 // By default, a no-op logger is used.
-func WithLogger(logger log.Logger) ServiceOption {
+func WithLogger(logger *slog.Logger) ServiceOption {
 	return func(s *service) error {
 		s.debugLogger = logger
 		return nil
@@ -167,7 +168,7 @@ func NewService(crt *x509.Certificate, key *rsa.PrivateKey, signer CSRSignerCont
 		crt:         crt,
 		key:         key,
 		signer:      signer,
-		debugLogger: log.NewNopLogger(),
+		debugLogger: slog.New(slog.DiscardHandler),
 	}
 	for _, opt := range opts {
 		if err := opt(s); err != nil {

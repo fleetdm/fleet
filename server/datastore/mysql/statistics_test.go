@@ -26,6 +26,7 @@ func TestStatistics(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"ShouldSend", testStatisticsShouldSend},
+		{"FleetMaintainedAppsInUse", testFleetMaintainedAppsInUse},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -470,4 +471,171 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.True(t, shouldSend)
 	assert.True(t, stats.OktaConditionalAccessConfigured)
 	assert.False(t, stats.ConditionalAccessBypassDisabled)
+}
+
+func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// No fleet-maintained apps - should return empty slices (not nil)
+	macOSApps, windowsApps, err := fleetMaintainedAppsInUseDB(ctx, ds.reader(ctx))
+	require.NoError(t, err)
+	assert.NotNil(t, macOSApps)
+	assert.NotNil(t, windowsApps)
+	assert.Empty(t, macOSApps)
+	assert.Empty(t, windowsApps)
+
+	appDarwin1, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Zoom",
+		Slug:             "zoom/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "us.zoom.xos",
+	})
+	require.NoError(t, err)
+	appDarwin2, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Slack",
+		Slug:             "slack/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.tinyspeck.slackmacgap",
+	})
+	require.NoError(t, err)
+	appWindows1, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Microsoft Teams",
+		Slug:             "microsoft-teams/windows",
+		Platform:         "windows",
+		UniqueIdentifier: "msteams",
+	})
+	require.NoError(t, err)
+	appWindows2, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Zoom",
+		Slug:             "zoom/windows",
+		Platform:         "windows",
+		UniqueIdentifier: "zoom-windows",
+	})
+	require.NoError(t, err)
+	appLinux, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Linux App",
+		Slug:             "linux-app/linux",
+		Platform:         "linux",
+		UniqueIdentifier: "linux.app",
+	})
+	require.NoError(t, err)
+
+	// Apps exist but no software installers - should still return empty
+	macOSApps, windowsApps, err = fleetMaintainedAppsInUseDB(ctx, ds.reader(ctx))
+	require.NoError(t, err)
+	assert.Empty(t, macOSApps)
+	assert.Empty(t, windowsApps)
+
+	// Create script content (required for software installers)
+	var installScriptID, uninstallScriptID int64
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		result, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(?), ?)`,
+			"d41d8cd98f00b204e9800998ecf8427e", "echo 'install'")
+		if err != nil {
+			return err
+		}
+		installScriptID, _ = result.LastInsertId()
+		return nil
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		result, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(?), ?)`,
+			"e10adc3949ba59abbe56e057f20f883e", "echo 'uninstall'")
+		if err != nil {
+			return err
+		}
+		uninstallScriptID, _ = result.LastInsertId()
+		return nil
+	})
+
+	// Create software installers that reference fleet-maintained apps
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO software_installers (
+				team_id, global_or_team_id, filename, version, platform,
+				install_script_content_id, uninstall_script_content_id,
+				storage_id, package_ids, fleet_maintained_app_id
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, nil, 0, "zoom.pkg", "1.0", "darwin", installScriptID, uninstallScriptID, "storage1", "[]", appDarwin1.ID)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO software_installers (
+				team_id, global_or_team_id, filename, version, platform,
+				install_script_content_id, uninstall_script_content_id,
+				storage_id, package_ids, fleet_maintained_app_id
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, nil, 0, "slack.pkg", "1.0", "darwin", installScriptID, uninstallScriptID, "storage2", "[]", appDarwin2.ID)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO software_installers (
+				team_id, global_or_team_id, filename, version, platform,
+				install_script_content_id, uninstall_script_content_id,
+				storage_id, package_ids, fleet_maintained_app_id
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, nil, 0, "teams.exe", "1.0", "windows", installScriptID, uninstallScriptID, "storage3", "[]", appWindows1.ID)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO software_installers (
+				team_id, global_or_team_id, filename, version, platform,
+				install_script_content_id, uninstall_script_content_id,
+				storage_id, package_ids, fleet_maintained_app_id
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, nil, 0, "zoom.exe", "1.0", "windows", installScriptID, uninstallScriptID, "storage4", "[]", appWindows2.ID)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO software_installers (
+				team_id, global_or_team_id, filename, version, platform,
+				install_script_content_id, uninstall_script_content_id,
+				storage_id, package_ids, fleet_maintained_app_id
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, nil, 0, "linux.deb", "1.0", "linux", installScriptID, uninstallScriptID, "storage5", "[]", appLinux.ID)
+		return err
+	})
+
+	// Apps with installers - should return correct apps grouped by platform
+	macOSApps, windowsApps, err = fleetMaintainedAppsInUseDB(ctx, ds.reader(ctx))
+	require.NoError(t, err)
+	assert.Equal(t, []string{"slack/darwin", "zoom/darwin"}, macOSApps)
+	assert.Equal(t, []string{"microsoft-teams/windows", "zoom/windows"}, windowsApps)
+
+	// Create duplicate installers for same app
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO software_installers (
+				team_id, global_or_team_id, filename, version, platform,
+				install_script_content_id, uninstall_script_content_id,
+				storage_id, package_ids, fleet_maintained_app_id
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, nil, 0, "zoom-v2.pkg", "2.0", "darwin", installScriptID, uninstallScriptID, "storage6", "[]", appDarwin1.ID)
+		return err
+	})
+	macOSApps, windowsApps, err = fleetMaintainedAppsInUseDB(ctx, ds.reader(ctx))
+	require.NoError(t, err)
+	assert.Equal(t, []string{"slack/darwin", "zoom/darwin"}, macOSApps)
+	assert.Equal(t, []string{"microsoft-teams/windows", "zoom/windows"}, windowsApps)
+
+	// Create an installer with NULL fleet_maintained_app_id (should be ignored)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO software_installers (
+				team_id, global_or_team_id, filename, version, platform,
+				install_script_content_id, uninstall_script_content_id,
+				storage_id, package_ids, fleet_maintained_app_id
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, nil, 0, "custom.pkg", "1.0", "darwin", installScriptID, uninstallScriptID, "storage7", "[]", nil)
+		return err
+	})
+
+	// Should return the same results (NULL fleet_maintained_app_id is filtered out)
+	macOSApps, windowsApps, err = fleetMaintainedAppsInUseDB(ctx, ds.reader(ctx))
+	require.NoError(t, err)
+	assert.Equal(t, []string{"slack/darwin", "zoom/darwin"}, macOSApps)
+	assert.Equal(t, []string{"microsoft-teams/windows", "zoom/windows"}, windowsApps)
 }
