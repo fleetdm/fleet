@@ -32,9 +32,20 @@ const (
 	phaseBrowserBridge
 )
 
+var (
+	startUIBridgeFn   = startUIBridge
+	writeHTMLReportFn = writeHTMLReport
+	openInBrowserFn   = openInBrowser
+)
+
 // main is the CLI entrypoint: it parses flags, runs all checks, prepares report
 // data, starts the local bridge server, and opens the browser report view.
 func main() {
+	os.Exit(run())
+}
+
+// run executes the full scrumcheck flow and returns the process exit code.
+func run() int {
 	org := flag.String("org", "fleetdm", "GitHub org")
 	limit := flag.Int("limit", 100, "Max project items to scan (no pagination; expected usage is small)")
 	staleDays := flag.Int("stale-days", defaultStaleDays, "Flag Awaiting QA items unchanged for this many days")
@@ -64,22 +75,23 @@ func main() {
 	if len(projectNums) == 0 {
 		fmt.Fprintln(os.Stderr, "at least one project is required")
 		flag.Usage()
-		os.Exit(2)
+		return 2
 	}
 	if *staleDays < 1 {
 		fmt.Fprintln(os.Stderr, "-stale-days must be >= 1")
 		flag.Usage()
-		os.Exit(2)
+		return 2
 	}
 	if *bridgeIdleMinutes < 1 {
 		fmt.Fprintln(os.Stderr, "-bridge-idle-minutes must be >= 1")
 		flag.Usage()
-		os.Exit(2)
+		return 2
 	}
 
 	token := os.Getenv("GITHUB_TOKEN")
 	if token == "" {
-		log.Fatal("GITHUB_TOKEN env var is required")
+		log.Printf("GITHUB_TOKEN env var is required")
+		return 1
 	}
 
 	ctx := context.Background()
@@ -218,7 +230,7 @@ func main() {
 	tracker.phaseStart(phaseUIAssembly)
 	start = time.Now()
 	policy := buildBridgePolicy(badDrafting, missingMilestones, missingSprints, missingAssignees, releaseLabelIssues)
-	bridge, err := startUIBridge(token, time.Duration(*bridgeIdleMinutes)*time.Minute, tracker.bridgeSignal, policy)
+	bridge, err := startUIBridgeFn(token, time.Duration(*bridgeIdleMinutes)*time.Minute, tracker.bridgeSignal, policy)
 	if err != nil {
 		log.Printf("could not start UI bridge: %v", err)
 	}
@@ -387,10 +399,10 @@ func main() {
 		})
 	}
 
-	reportPath, err := writeHTMLReport(reportData)
+	reportPath, err := writeHTMLReportFn(reportData)
 	if err != nil {
 		log.Printf("could not write HTML report: %v", err)
-		return
+		return 0
 	}
 	tracker.phaseDone(phaseUIAssembly, phaseSummaryKV("report + bridge ready", shortDuration(time.Since(start))))
 
@@ -402,10 +414,10 @@ func main() {
 			bridge.setReportPath(reportPath)
 			openTarget = bridge.reportURL()
 		}
-		if err := openInBrowser(openTarget); err != nil {
+		if err := openInBrowserFn(openTarget); err != nil {
 			log.Printf("could not auto-open report: %v", err)
 			tracker.phaseWarn(phaseBrowserBridge, "browser auto-open failed")
-			return
+			return 0
 		}
 		tracker.phaseDone(phaseBrowserBridge, "browser open signal sent")
 	} else {
@@ -413,7 +425,7 @@ func main() {
 	}
 
 	if bridge == nil {
-		return
+		return 0
 	}
 
 	sigCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -421,6 +433,7 @@ func main() {
 	tracker.bridgeListening(bridge.baseURL, time.Duration(*bridgeIdleMinutes)*time.Minute)
 	reason := bridge.waitUntilDone(sigCtx)
 	tracker.bridgeStopped(reason)
+	return 0
 }
 
 // runAwaitingQACheck evaluates selected projects for two outcomes:

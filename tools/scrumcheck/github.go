@@ -10,6 +10,7 @@ import (
 )
 
 // fetchProjectID looks up a GitHub ProjectV2 node ID from org + project number.
+// On query failure it logs and returns an empty ID instead of terminating.
 func fetchProjectID(ctx context.Context, client *githubv4.Client, org string, num int) githubv4.ID {
 	var q struct {
 		Organization struct {
@@ -24,13 +25,15 @@ func fetchProjectID(ctx context.Context, client *githubv4.Client, org string, nu
 		"num": mustGithubInt(num),
 	})
 	if err != nil {
-		log.Fatalf("project query failed: %v", err)
+		log.Printf("project query failed: %v", err)
+		return ""
 	}
 
 	return q.Organization.ProjectV2.ID
 }
 
 // fetchItems loads up to limit items from one ProjectV2 by ID.
+// On query failure it logs and returns no items instead of terminating.
 func fetchItems(
 	ctx context.Context,
 	client *githubv4.Client,
@@ -52,19 +55,22 @@ func fetchItems(
 		"first": mustGithubInt(limit),
 	})
 	if err != nil {
-		log.Fatalf("items query failed: %v", err)
+		log.Printf("items query failed: %v", err)
+		return nil
 	}
 
 	return q.Node.ProjectV2.Items.Nodes
 }
 
 // mustGithubInt converts int to githubv4.Int with explicit int32 bounds
-// validation and terminates if the value is out of range.
+// validation and falls back to zero when out of range.
 func mustGithubInt(v int) githubv4.Int {
-	if v < math.MinInt32 || v > math.MaxInt32 {
-		log.Fatalf("integer %d out of range for githubv4.Int", v)
+	converted, err := toGithubInt(v)
+	if err != nil {
+		log.Printf("integer conversion failed: %v", err)
+		return 0
 	}
-	return githubv4.Int(v)
+	return converted
 }
 
 // toGithubInt converts int to githubv4.Int with bounds checks and returns an
@@ -78,6 +84,7 @@ func toGithubInt(v int) (githubv4.Int, error) {
 
 // fetchAllItems paginates through all items in a project and returns the full
 // list. This is used where partial "first N" fetch is not enough.
+// On a page query error it logs and returns what was gathered so far.
 func fetchAllItems(
 	ctx context.Context,
 	client *githubv4.Client,
@@ -106,7 +113,8 @@ func fetchAllItems(
 			"after": after,
 		}
 		if err := client.Query(ctx, &q, vars); err != nil {
-			log.Fatalf("items paged query failed: %v", err)
+			log.Printf("items paged query failed: %v", err)
+			break
 		}
 		nodes := q.Node.ProjectV2.Items.Nodes
 		out = append(out, nodes...)
