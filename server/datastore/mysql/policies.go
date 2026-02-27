@@ -1035,10 +1035,26 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 				return err
 			}
 			if installer.FleetMaintainedAppID == nil {
-				return ctxerr.Wrap(ctx, nil, "TODO(JK): correct error message")
+				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					// TODO(JK): improve error message
+					// Maybe we could also move this earlier in the code if we get the installer sooner
+					Message: fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for team ID %d", *args.PatchSoftwareTitleID, teamID),
+				})
 			}
 			if installer.Platform == string(fleet.MacOSPlatform) {
-				args.Query = fmt.Sprintf("TODO(JK)... version = %s", installer.Version)
+				// TODO(JK): can we use version_compare? What about older osquery versions
+				args.Query = fmt.Sprintf(
+					"SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') >= 0;",
+					installer.BundleIdentifier,
+					installer.Version,
+				)
+			} else if installer.Platform == "windows" {
+				// TODO(JK): could we use upgrade code here? maybe leave as TODO for the future
+				args.Query = fmt.Sprintf(
+					"SELECT 1 FROM programs WHERE name = '%s' AND version_compare(bundle_short_version, '%s') >= 0;",
+					installer.SoftwareTitle,
+					installer.Version,
+				)
 			}
 		}
 
