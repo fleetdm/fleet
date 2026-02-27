@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"testing"
 	"time"
@@ -16,7 +17,6 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	mock "github.com/fleetdm/fleet/v4/server/mock/mdm"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -98,10 +98,9 @@ func TestAppleMDM(t *testing.T) {
 	mdmStorage, err := ds.NewMDMAppleMDMStorage()
 	require.NoError(t, err)
 
-	// nopLog := logging.NewNopLogger()
+	// nopLog := slog.New(slog.DiscardHandler)
 	// use this to debug/verify details of calls
-	nopLog := logging.NewJSONLogger(os.Stdout)
-	slogLog := nopLog.SlogLogger()
+	slogLog := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	testOrgName := "fleet-test"
 
@@ -1426,8 +1425,8 @@ func TestGetSignedURL(t *testing.T) {
 
 	var data []byte
 	buf := bytes.NewBuffer(data)
-	logger := logging.NewLogfmtLogger(buf)
-	a := &AppleMDM{Log: logger.SlogLogger()}
+	logger := slog.New(slog.NewTextHandler(buf, nil))
+	a := &AppleMDM{Log: logger}
 
 	// S3 not configured
 	assert.Empty(t, a.getSignedURL(ctx, meta))

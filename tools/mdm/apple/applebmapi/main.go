@@ -12,6 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 
 	"github.com/WatchBeam/clock"
@@ -19,7 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 func main() {
@@ -58,9 +58,9 @@ func main() {
 		MaxIdleConns:    50,
 		ConnMaxLifetime: 0,
 	}
-	logger := logging.NewLogfmtLogger(os.Stderr)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	opts := []mysql.DBOption{
-		mysql.Logger(logger.SlogLogger()),
+		mysql.Logger(logger),
 		mysql.WithFleetConfig(&config.FleetConfig{
 			Server: config.ServerConfig{
 				PrivateKey: *serverPrivateKey,

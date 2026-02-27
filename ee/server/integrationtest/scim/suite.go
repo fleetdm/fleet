@@ -1,6 +1,7 @@
 package scim
 
 import (
+	"log/slog"
 	"os"
 	"testing"
 
@@ -22,7 +23,7 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 	ds, fleetCfg, fleetSvc, ctx := integrationtest.SetUpMySQLAndService(t, uniqueTestName, &service.TestServerOpts{
 		License: license,
 	})
-	logger := logging.NewLogfmtLogger(os.Stdout)
+	logger := logging.NewLogger(slog.New(slog.NewTextHandler(os.Stdout, nil)))
 	users, server := service.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
 		License:     license,
 		FleetConfig: &fleetCfg,

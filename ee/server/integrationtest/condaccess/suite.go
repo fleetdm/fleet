@@ -1,6 +1,7 @@
 package condaccess
 
 import (
+	"log/slog"
 	"os"
 	"testing"
 
@@ -36,10 +37,11 @@ func SetUpSuiteWithConfig(t *testing.T, uniqueTestName string, configModifier fu
 		configModifier(&fleetCfg)
 	}
 
-	logger := logging.NewLogfmtLogger(os.Stdout)
-	condAccessSCEPDepot, err := ds.NewConditionalAccessSCEPDepot(logger.SlogLogger().With("component", "conditional-access-scep-depot"), &fleetCfg)
+	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	condAccessSCEPDepot, err := ds.NewConditionalAccessSCEPDepot(slogLogger.With("component", "conditional-access-scep-depot"), &fleetCfg)
 	require.NoError(t, err)
 
+	logger := logging.NewLogger(slogLogger)
 	users, server := service.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
 		License:     license,
 		FleetConfig: &fleetCfg,

@@ -5,6 +5,7 @@
 package hostidentity
 
 import (
+	"log/slog"
 	"os"
 	"testing"
 
@@ -56,9 +57,10 @@ func SetUpSuiteWithConfig(t *testing.T, uniqueTestName string, requireSignature 
 		configModifier(&fleetCfg)
 	}
 
-	logger := logging.NewLogfmtLogger(os.Stdout)
-	hostIdentitySCEPDepot, err := ds.NewHostIdentitySCEPDepot(logger.SlogLogger().With("component", "host-id-scep-depot"), &fleetCfg)
+	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	hostIdentitySCEPDepot, err := ds.NewHostIdentitySCEPDepot(slogLogger.With("component", "host-id-scep-depot"), &fleetCfg)
 	require.NoError(t, err)
+	logger := logging.NewLogger(slogLogger)
 	users, server := service.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
 		License:     license,
 		FleetConfig: &fleetCfg,

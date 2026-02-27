@@ -3099,7 +3099,7 @@ func TestGetHostIdentifier(t *testing.T) {
 
 func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	buf := new(bytes.Buffer)
-	logger := platformlogging.NewJSONLogger(buf)
+	logger := slog.New(slog.NewJSONHandler(buf, nil))
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
@@ -3141,7 +3141,7 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	lCtx.Log(ctx, logger.SlogLogger())
+	lCtx.Log(ctx, logger)
 
 	logs := buf.String()
 	parts := strings.Split(strings.TrimSpace(logs), "\n")

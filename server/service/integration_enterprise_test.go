@@ -12672,10 +12672,10 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		}
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
-		logger := logging.NewLogfmtLogger(os.Stderr)
+		logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
 		// Run the migration when nothing is to be done
-		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger.SlogLogger())
+		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
 		require.NoError(t, err)
 
 		// check the software installer
@@ -12713,7 +12713,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		assert.Equal(t, "exit 1", respTitle.SoftwareTitle.SoftwarePackage.UninstallScript)
 
 		// Run the migration
-		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger.SlogLogger())
+		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
 		require.NoError(t, err)
 
 		// Check package ID and extension
@@ -12746,7 +12746,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		assert.Equal(t, uninstallScript, respTitle.SoftwareTitle.SoftwarePackage.UninstallScript)
 
 		// Running the migration again causes no issues.
-		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger.SlogLogger())
+		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
 		require.NoError(t, err)
 
 		// Update DB by clearing package ids and swapping extension to one we skip
@@ -12759,7 +12759,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		})
 
 		// Running the migration again causes no issues.
-		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger.SlogLogger())
+		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
 		require.NoError(t, err)
 
 		// Package ID and extension should not have been modified

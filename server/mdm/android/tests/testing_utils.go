@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	ds_mock "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
@@ -118,13 +117,12 @@ func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
 	ts.createCommonProxyMocks(t)
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	kitLogger := logging.NewLogger(logger)
 	activityModule := &noopActivityModule{} // This test does not verify activity creation.
 	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, "test-private-key", ts.DS.Datastore, activityModule, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 	ts.Svc = svc
 
-	ts.Server = runServerForTests(t, kitLogger, &ts.FleetSvc, svc)
+	ts.Server = runServerForTests(t, logger, &ts.FleetSvc, svc)
 }
 
 func (ts *WithServer) CreateCommonDSMocks() {
@@ -210,7 +208,7 @@ func (m *mockService) NewActivity(ctx context.Context, user *fleet.User, details
 	return m.Called(ctx, user, details).Error(0)
 }
 
-func runServerForTests(t *testing.T, logger *logging.Logger, fleetSvc fleet.Service, androidSvc android.Service) *httptest.Server {
+func runServerForTests(t *testing.T, logger *slog.Logger, fleetSvc fleet.Service, androidSvc android.Service) *httptest.Server {
 	// androidErrorEncoder wraps EncodeError with nil domain encoder for android tests
 	androidErrorEncoder := func(ctx context.Context, err error, w http.ResponseWriter) {
 		endpointer.EncodeError(ctx, err, w, nil)
@@ -221,11 +219,11 @@ func runServerForTests(t *testing.T, logger *logging.Logger, fleetSvc fleet.Serv
 			kithttp.PopulateRequestContext,
 			auth.SetRequestsContexts(fleetSvc),
 		),
-		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: logger.SlogLogger()}),
+		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: logger}),
 		kithttp.ServerErrorEncoder(androidErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			log.LogRequestEnd(logger.SlogLogger()),
+			log.LogRequestEnd(logger),
 		),
 	}
 
