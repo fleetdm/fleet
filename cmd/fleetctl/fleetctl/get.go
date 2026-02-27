@@ -30,7 +30,7 @@ import (
 const (
 	yamlFlagName                = "yaml"
 	jsonFlagName                = "json"
-	withQueriesFlagName         = "with-reports"
+	withReportsFlagName         = "with-reports"
 	expiredFlagName             = "expired"
 	includeServerConfigFlagName = "include-server-config"
 )
@@ -565,12 +565,12 @@ func getPacksCommand() *cli.Command {
 		Aliases: []string{"pack", "p"},
 		Usage:   `Retrieve 2017 "Packs" data for migration into modern osquery packs`,
 		Before: func(c *cli.Context) error {
-			logDeprecatedFlagName(c, "with-queries", withQueriesFlagName)
+			logDeprecatedFlagName(c, "with-queries", withReportsFlagName)
 			return nil
 		},
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
-				Name:    withQueriesFlagName,
+				Name:    withReportsFlagName,
 				Aliases: []string{"with-queries"},
 				Usage:   "Output reports included in pack(s) too, when used alongside --yaml or --json",
 			},
@@ -588,7 +588,7 @@ func getPacksCommand() *cli.Command {
 			}
 
 			name := c.Args().First()
-			shouldPrintQueries := c.Bool(withQueriesFlagName)
+			shouldPrintQueries := c.Bool(withReportsFlagName)
 			queriesToPrint := make(map[string]bool)
 
 			addQueries := func(pack *fleet.PackSpec) {
