@@ -14,7 +14,7 @@ const (
 	draftingProjectNum   = 67
 	draftingStatusNeedle = "Ready to estimate,Estimated"
 
-	defaultStaleDays         = 21
+	defaultStaleDays         = 25
 	defaultBridgeIdleMinutes = 10
 
 	updatesTimestampURL = "https://updates.fleetdm.com/timestamp.json"

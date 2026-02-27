@@ -150,6 +150,12 @@
         return '';
       }
 
+      function renderSafeExternalLink(rawURL) {
+        const display = String(rawURL || '');
+        const safeHref = safeHTTPURL(display) || '#';
+        return '<a href="' + escHTML(safeHref) + '" target="_blank" rel="noopener noreferrer">' + escHTML(display || '(invalid url)') + '</a>';
+      }
+
       function renderUnreleasedItem(item, cssClass) {
         const status = item.Status ? item.Status : '(unset)';
         const projectText = Number(item.ProjectNum || 0) > 0 ? String(item.ProjectNum) : '(not on selected project)';
@@ -159,7 +165,7 @@
         return '' +
           '<article class="item ' + cssClass + '">' +
             '<div><strong>#' + escHTML(item.Number) + ' - ' + escHTML(item.Title) + '</strong></div>' +
-            '<div><a href="' + escHTML(item.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(item.URL) + '</a></div>' +
+            '<div>' + renderSafeExternalLink(item.URL) + '</div>' +
             '<ul>' +
               '<li>Status: ' + escHTML(status) + '</li>' +
               '<li>Project: ' + escHTML(projectText) + '</li>' +
@@ -180,7 +186,7 @@
         return '' +
           '<article class="item red-bug">' +
             '<div><strong>#' + escHTML(item.Number) + ' - ' + escHTML(item.Title) + '</strong></div>' +
-            '<div><a href="' + escHTML(item.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(item.URL) + '</a></div>' +
+            '<div>' + renderSafeExternalLink(item.URL) + '</div>' +
             '<ul>' +
               '<li>Status: ' + escHTML(status) + '</li>' +
               '<li>Repository: ' + escHTML(item.Repo) + '</li>' +
@@ -273,7 +279,7 @@
         return '' +
           '<article class="item">' +
             '<div><strong>#' + escHTML(item.Number) + ' - ' + escHTML(item.Title) + '</strong></div>' +
-            '<div><a href="' + escHTML(item.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(item.URL) + '</a></div>' +
+            '<div>' + renderSafeExternalLink(item.URL) + '</div>' +
             '<ul>' +
               '<li>Status: ' + escHTML(status) + '</li>' +
               '<li>Current sprint: ' + escHTML(currentSprint) + '</li>' +
@@ -466,7 +472,7 @@
             return '' +
               '<article class="item">' +
                 '<div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div>' +
-                '<div><a href="' + escHTML(it.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(it.URL) + '</a></div>' +
+                '<div>' + renderSafeExternalLink(it.URL) + '</div>' +
                 '<ul><li>Assignees: ' + escHTML(listOrEmpty(it.Assignees, '(empty)')) + '</li></ul>' +
                 uncheckedHTML +
               '</article>';
@@ -494,7 +500,7 @@
           return '<div class="project"><h3>Project ' + escHTML(sec.ProjectNum) + '</h3>' + items.map((it) => (
             '<article class="item">' +
               '<div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div>' +
-              '<div><a href="' + escHTML(it.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(it.URL) + '</a></div>' +
+              '<div>' + renderSafeExternalLink(it.URL) + '</div>' +
               '<ul><li>Last updated: ' + escHTML(it.LastUpdated) + '</li><li>Age: ' + escHTML(it.StaleDays) + ' days</li></ul>' +
             '</article>'
           )).join('') + '</div>';
@@ -529,7 +535,7 @@
               return '' +
                 '<article class="item">' +
                   '<div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div>' +
-                  '<div><a href="' + escHTML(it.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(it.URL) + '</a></div>' +
+                  '<div>' + renderSafeExternalLink(it.URL) + '</div>' +
                   '<ul><li>Status: ' + escHTML(it.Status || '(unset)') + '</li><li>Repository: ' + escHTML(it.Repo) + '</li><li>Assignees: ' + escHTML(listOrEmpty(it.Assignees, '(empty)')) + '</li><li>Labels: ' + escHTML(listOrEmpty(it.Labels, '(empty)')) + '</li><li>Snippet:</li>' + previewHTML + '</ul>' +
                   actionHTML +
                 '</article>';
@@ -557,7 +563,7 @@
           const itemsHTML = items.length === 0 ? '<p class="empty">🟢 No violations in this status.</p>' : items.map((it) => {
             const unchecked = Array.isArray(it.Unchecked) ? it.Unchecked : [];
             const checksHTML = unchecked.map((c) => '<div class="checklist-row"><span class="checklist-text">• [ ] ' + escHTML(c) + '</span><button class="fix-btn apply-drafting-check-btn" data-repo="' + escHTML(it.Repo) + '" data-issue="' + escHTML(it.Number) + '" data-check="' + escHTML(c) + '">Check on GitHub</button></div>').join('');
-            return '<article class="item"><div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div><div><a href="' + escHTML(it.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(it.URL) + '</a></div><ul><li>Assignees: ' + escHTML(listOrEmpty(it.Assignees, '(empty)')) + '</li><li>Labels: ' + escHTML(listOrEmpty(it.Labels, '(empty)')) + '</li></ul><div>' + checksHTML + '</div></article>';
+            return '<article class="item"><div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div><div>' + renderSafeExternalLink(it.URL) + '</div><ul><li>Assignees: ' + escHTML(listOrEmpty(it.Assignees, '(empty)')) + '</li><li>Labels: ' + escHTML(listOrEmpty(it.Labels, '(empty)')) + '</li></ul><div>' + checksHTML + '</div></article>';
           }).join('');
           return '<div class="status"><h3>' + escHTML(sec.Emoji) + ' ' + escHTML(sec.Status) + '</h3><p class="subtle">' + escHTML(sec.Intro) + '</p>' + itemsHTML + '</div>';
         }).join('');
@@ -583,7 +589,7 @@
               const options = (Array.isArray(it.SuggestedAssignees) ? it.SuggestedAssignees : []).map((s) => '<option value="' + escHTML(s.Login) + '">' + escHTML(s.Login) + '</option>').join('');
               const actions = options ? '<div class="actions"><select class="fix-btn assignee-select" data-issue="' + escHTML(it.Number) + '" data-repo="' + escHTML(it.Repo) + '">' + options + '</select><button class="fix-btn apply-assignee-btn">Assign</button></div>' : '<div class="actions"><span class="copied-note">No assignee options found for this repo.</span></div>';
               const badge = showMineBadge ? '<div class="mine-badge">Assigned to me</div>' : '';
-              return '<article class="item' + (it.AssignedToMe ? ' assigned-to-me' : '') + '"><div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div><div><a href="' + escHTML(it.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(it.URL) + '</a></div><ul><li>Status: ' + escHTML(it.Status || '(unset)') + '</li><li>Repository: ' + escHTML(it.Repo) + '</li><li>Current assignees: ' + escHTML(listOrEmpty(it.CurrentAssignees, '(none)')) + '</li></ul>' + badge + actions + '</article>';
+              return '<article class="item' + (it.AssignedToMe ? ' assigned-to-me' : '') + '"><div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div><div>' + renderSafeExternalLink(it.URL) + '</div><ul><li>Status: ' + escHTML(it.Status || '(unset)') + '</li><li>Repository: ' + escHTML(it.Repo) + '</li><li>Current assignees: ' + escHTML(listOrEmpty(it.CurrentAssignees, '(none)')) + '</li></ul>' + badge + actions + '</article>';
             }).join('');
             return '<div class="status"><div class="column-head"><h3>' + escHTML(col.Label) + '</h3>' + colBtn + '</div>' + itemsHTML + '</div>';
           }).join('');
@@ -606,7 +612,7 @@
           const items = Array.isArray(proj.Items) ? proj.Items : [];
           total += items.length;
           const btn = items.length > 0 ? '<button class="fix-btn apply-release-project-btn">Apply release label</button>' : '';
-          const itemsHTML = items.length === 0 ? '<p class="empty">🟢 No release-label issues in this project.</p>' : items.map((it) => '<article class="item release-item" data-repo="' + escHTML(it.Repo) + '" data-issue="' + escHTML(it.Number) + '"><div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div><div><a href="' + escHTML(it.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(it.URL) + '</a></div><ul><li>Status: ' + escHTML(it.Status || '(unset)') + '</li><li>Labels: ' + escHTML(listOrEmpty(it.CurrentLabels, '(none)')) + '</li></ul></article>').join('');
+          const itemsHTML = items.length === 0 ? '<p class="empty">🟢 No release-label issues in this project.</p>' : items.map((it) => '<article class="item release-item" data-repo="' + escHTML(it.Repo) + '" data-issue="' + escHTML(it.Number) + '"><div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div><div>' + renderSafeExternalLink(it.URL) + '</div><ul><li>Status: ' + escHTML(it.Status || '(unset)') + '</li><li>Labels: ' + escHTML(listOrEmpty(it.CurrentLabels, '(none)')) + '</li></ul></article>').join('');
           return '<div class="project"><div class="column-head"><h3>Project ' + escHTML(proj.ProjectNum) + '</h3>' + btn + '</div>' + itemsHTML + '</div>';
         }).join('');
         setTabClean('release', total === 0);
@@ -633,7 +639,7 @@
             : items.map((it) => (
               '<article class="item">' +
                 '<div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div>' +
-                '<div><a href="' + escHTML(it.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(it.URL) + '</a></div>' +
+                '<div>' + renderSafeExternalLink(it.URL) + '</div>' +
                 '<ul><li>Status: ' + escHTML(it.Status || '(unset)') + '</li><li>Repository: ' + escHTML(it.Repo || '(unknown)') + '</li><li>Assignees: ' + escHTML(listOrEmpty(it.Assignees, '(none)')) + '</li><li>Labels: ' + escHTML(listOrEmpty(it.Labels, '(none)')) + '</li></ul>' +
               '</article>'
             )).join('');
@@ -663,9 +669,11 @@
         renderAwaitingFromState(state);
         renderStaleFromState(state);
         renderMilestoneFromState(state);
+        installMilestoneFiltering();
         renderDraftingFromState(state);
         renderAssigneeSection('missing-assignee-content', 'missing-assignee', state.MissingAssignee, false);
         renderAssigneeSection('assigned-to-me-content', 'assigned-to-me', state.AssignedToMe, true);
+        installAssigneeFiltering();
         renderReleaseFromState(state);
         renderGenericQueriesFromState(state);
         await refreshReleaseStoryTODOPanel(forceRefresh);

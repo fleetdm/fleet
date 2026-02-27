@@ -482,7 +482,7 @@ func run() int {
 	sigCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stopSignals()
 	// Announce active bridge URL and idle timeout in tracker footer.
-	tracker.bridgeListening(bridge.baseURL, time.Duration(*bridgeIdleMinutes)*time.Minute)
+	tracker.bridgeListening(bridge.baseURL, bridge.idleTimeout)
 	// Block until Ctrl+C or bridge self-shutdown.
 	reason := bridge.waitUntilDone(sigCtx)
 	// Print final bridge stop reason before exiting.
@@ -512,6 +512,9 @@ func runAwaitingQACheck(
 		var badAwaitingQA []Item
 		var staleAwaiting []StaleAwaitingViolation
 		for _, it := range items {
+			if it.Content.Issue.Number == 0 {
+				continue
+			}
 			// Filtering and status guards are applied first so later checks only run
 			// on in-scope Awaiting QA items.
 			if !matchesLabelFilter(it, labelFilter) {
@@ -571,6 +574,9 @@ func runDraftingCheck(
 	needles := strings.Split(draftingStatusNeedle, ",")
 	var badDrafting []DraftingCheckViolation
 	for _, it := range draftingItems {
+		if it.Content.Issue.Number == 0 {
+			continue
+		}
 		if !matchesLabelFilter(it, labelFilter) {
 			continue
 		}

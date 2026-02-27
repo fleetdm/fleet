@@ -271,11 +271,16 @@ func executeIssueSearchRequestOnce(ctx context.Context, endpoint, token string) 
 
 // parseRepoFromRepositoryAPIURL parses owner/repo from repository API URLs.
 func parseRepoFromRepositoryAPIURL(repositoryURL string) (string, string) {
-	parts := strings.Split(strings.TrimSpace(repositoryURL), "/")
+	clean := strings.TrimSuffix(strings.TrimSpace(repositoryURL), "/")
+	parts := strings.Split(clean, "/")
 	if len(parts) < 2 {
 		return "", ""
 	}
-	return parts[len(parts)-2], parts[len(parts)-1]
+	owner, repo := parts[len(parts)-2], parts[len(parts)-1]
+	if owner == "" || repo == "" {
+		return "", ""
+	}
+	return owner, repo
 }
 
 // parseIssueURL parses and validates a GitHub issue URL.

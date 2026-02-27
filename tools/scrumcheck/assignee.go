@@ -31,9 +31,13 @@ func runMissingAssigneeChecks(
 	token string,
 ) []MissingAssigneeIssue {
 	viewer := strings.ToLower(strings.TrimSpace(fetchViewerLogin(ctx, token)))
+	issueKey := func(owner, repo string, number int) string {
+		return strings.ToLower(strings.TrimSpace(owner)) + "/" +
+			strings.ToLower(strings.TrimSpace(repo)) + "#" + fmt.Sprintf("%d", number)
+	}
 
 	cache := make(map[string][]AssigneeOption)
-	assignedSearchByProject := make(map[int]map[int]searchIssueItem, len(projectNums))
+	assignedSearchByProject := make(map[int]map[string]searchIssueItem, len(projectNums))
 	for _, projectNum := range projectNums {
 		// This side query intentionally mirrors `assignee:@me` behavior so items
 		// assigned to the viewer are still surfaced even if local project-item
@@ -42,9 +46,13 @@ func runMissingAssigneeChecks(
 		if viewer != "" {
 			found = searchAssignedIssuesByProject(ctx, token, org, projectNum)
 		}
-		byNumber := make(map[int]searchIssueItem, len(found))
+		byNumber := make(map[string]searchIssueItem, len(found))
 		for _, it := range found {
-			byNumber[it.Number] = it
+			owner, repo := parseRepoFromRepositoryAPIURL(it.RepositoryURL)
+			if owner == "" || repo == "" {
+				continue
+			}
+			byNumber[issueKey(owner, repo, it.Number)] = it
 		}
 		assignedSearchByProject[projectNum] = byNumber
 	}
@@ -54,7 +62,7 @@ func runMissingAssigneeChecks(
 		projectID := fetchProjectID(ctx, client, org, projectNum)
 		items := fetchItems(ctx, client, projectID, limit)
 		searchAssigned := assignedSearchByProject[projectNum]
-		seenAssigned := make(map[int]struct{})
+		seenAssigned := make(map[string]struct{})
 
 		for _, it := range items {
 			// Assign-to-me classification is derived from either project card
@@ -65,10 +73,15 @@ func runMissingAssigneeChecks(
 			}
 			currentAssignees := issueAssignees(it)
 			number := getNumber(it)
-			_, searchHit := searchAssigned[number]
+			owner, repo := parseRepoFromIssueURL(getURL(it))
+			if owner == "" || repo == "" {
+				continue
+			}
+			key := issueKey(owner, repo, number)
+			_, searchHit := searchAssigned[key]
 			assignedToMe := containsLogin(currentAssignees, viewer) || searchHit
 			if assignedToMe {
-				seenAssigned[number] = struct{}{}
+				seenAssigned[key] = struct{}{}
 			}
 			if inDoneColumn(it) {
 				continue
@@ -77,10 +90,6 @@ func runMissingAssigneeChecks(
 				continue
 			}
 
-			owner, repo := parseRepoFromIssueURL(getURL(it))
-			if owner == "" || repo == "" {
-				continue
-			}
 			cacheKey := owner + "/" + repo
 			if _, ok := cache[cacheKey]; !ok {
 				// Repo assignee suggestions are reused across multiple items.
@@ -100,8 +109,8 @@ func runMissingAssigneeChecks(
 		}
 
 		// Include assigned-to-me items found by project search even if outside fetched project item window.
-		for number, issue := range searchAssigned {
-			if _, ok := seenAssigned[number]; ok {
+		for key, issue := range searchAssigned {
+			if _, ok := seenAssigned[key]; ok {
 				continue
 			}
 			owner, repo := parseRepoFromRepositoryAPIURL(issue.RepositoryURL)
