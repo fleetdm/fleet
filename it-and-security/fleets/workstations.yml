@@ -1,4 +1,4 @@
-name: $DOGFOOD_APPLE_BM_DEFAULT_TEAM
+name: "💻 Workstations"
 settings:
   webhook_settings:
     failing_policies_webhook:
@@ -56,8 +56,6 @@ controls:
       - path: ../lib/macos/configuration-profiles/disable-internet-sharing.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-media-sharing.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-safari-safefiles.mobileconfig
-      # - path: ../lib/macos/configuration-profiles/enable-doh.mobileconfig
-      # Commenting out until I understand why we have this and if there's a better multi-platform solution
       - path: ../lib/macos/configuration-profiles/enable-firewall-logging.mobileconfig
       - path: ../lib/macos/configuration-profiles/enable-gatekeeper.mobileconfig
       - path: ../lib/macos/configuration-profiles/enforce-library-validation.mobileconfig
