@@ -1123,12 +1123,13 @@ const HostDetailsPage = ({
   const isAndroidHost = isAndroid(host.platform);
   const isWindowsHost = isWindows(host.platform);
   const isChromeHost = isChrome(host.platform);
+  const isAppleDeviceHost = isAppleDevice(host.platform);
 
   const isSupportedHostQueriesPlatform =
     !isIosOrIpadosHost && !isAndroidHost && !isChromeHost;
 
   const canResendProfiles =
-    (isMacOSHost || isWindowsHost) &&
+    (isAppleDeviceHost || isWindowsHost) &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
       isGlobalTechnician ||
@@ -1142,7 +1143,7 @@ const HostDetailsPage = ({
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showCertificatesCard =
-    isAppleDevice(host.platform) && !!hostCertificates?.certificates.length;
+    isAppleDeviceHost && !!hostCertificates?.certificates.length;
 
   const renderSoftwareCard = () => {
     return (
