@@ -159,11 +159,11 @@ jobs:
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
           echo "$APPLE_APPLICATION_CERTIFICATE" | base64 --decode > app_certificate.p12
-          security create-keychain -p $KEYCHAIN_PASSWORD build.keychain || true
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain || true
           security default-keychain -s build.keychain
-          security unlock-keychain -p $KEYCHAIN_PASSWORD build.keychain
-          security import app_certificate.p12 -k build.keychain -P $APPLE_APPLICATION_CERTIFICATE_PASSWORD -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $KEYCHAIN_PASSWORD build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security import app_certificate.p12 -k build.keychain -P "$APPLE_APPLICATION_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -vv
           rm app_certificate.p12
 
@@ -189,8 +189,8 @@ jobs:
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
           echo "$APPLE_INSTALLER_CERTIFICATE" | base64 --decode > installer_certificate.p12
-          security import installer_certificate.p12 -k build.keychain -P $APPLE_INSTALLER_CERTIFICATE_PASSWORD -T /usr/bin/productsign
-          security set-key-partition-list -S apple-tool:,apple:,productsign: -s -k $KEYCHAIN_PASSWORD build.keychain
+          security import installer_certificate.p12 -k build.keychain -P "$APPLE_INSTALLER_CERTIFICATE_PASSWORD" -T /usr/bin/productsign
+          security set-key-partition-list -S apple-tool:,apple:,productsign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -vv
           rm installer_certificate.p12
 
@@ -213,8 +213,7 @@ jobs:
 
       - name: Sign package
         run: |
-          # Sign the package using the certificate identity
-          PACKAGE_SIGNING_IDENTITY_SHA1="D52080FD1F0941DE31346F06DA0F08AED6FACBBF"
+          PACKAGE_SIGNING_IDENTITY_SHA1="${PACKAGE_SIGNING_IDENTITY_SHA1:-D52080FD1F0941DE31346F06DA0F08AED6FACBBF}"
           productsign --sign "$PACKAGE_SIGNING_IDENTITY_SHA1" \
             fleetctl_unsigned.pkg \
             fleetctl_v${{ steps.extract_version.outputs.version }}_mac.pkg

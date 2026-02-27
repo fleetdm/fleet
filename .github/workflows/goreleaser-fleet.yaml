@@ -22,6 +22,8 @@ jobs:
   goreleaser:
     runs-on: ubuntu-22.04-4-cores
     environment: Docker Hub
+    outputs:
+      binary_uploaded: ${{ steps.check_binary.outputs.exists }}
     permissions:
       contents: write
       id-token: write
@@ -162,9 +164,9 @@ jobs:
         continue-on-error: true
         run: |
           if [[ -f "dist/fleetctl_darwin_all/fleetctl" ]]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "exists=true" >> "$GITHUB_OUTPUT"
           else
-            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Upload signed fleetctl binary for .pkg creation
@@ -178,6 +180,7 @@ jobs:
   build-fleetctl-pkg:
     runs-on: macos-latest
     needs: goreleaser
+    if: needs.goreleaser.outputs.binary_uploaded == 'true'
     timeout-minutes: 120
     permissions:
       contents: write
