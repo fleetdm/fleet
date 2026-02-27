@@ -5755,6 +5755,10 @@ func preprocessProfileContents(
 						continue
 					}
 					caCopy := *ca
+					// Deep copy the UPN slice to prevent cross-host contamination: a
+					// shallow copy shares the backing array, so in-place substitutions for
+					// one host would corrupt the cached CA used by subsequent hosts.
+					caCopy.CertificateUserPrincipalNames = slices.Clone(ca.CertificateUserPrincipalNames)
 
 					// Populate Fleet vars in the CA fields
 					caVarsCache := make(map[string]string)
