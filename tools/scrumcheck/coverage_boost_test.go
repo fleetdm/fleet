@@ -9,8 +9,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -102,8 +100,12 @@ func TestGenericQueryExpansionAndExecution(t *testing.T) {
 					HTMLURL:       "https://github.com/fleetdm/fleet/issues/4444",
 					State:         "open",
 					RepositoryURL: "https://api.github.com/repos/fleetdm/fleet",
-					Assignees:     []struct{ Login string `json:"login"` }{{Login: "alice"}},
-					Labels:        []struct{ Name string `json:"name"` }{{Name: "bug"}},
+					Assignees: []struct {
+						Login string `json:"login"`
+					}{{Login: "alice"}},
+					Labels: []struct {
+						Name string `json:"name"`
+					}{{Name: "bug"}},
 				},
 			},
 		}), nil
@@ -152,7 +154,9 @@ func TestExecuteIssueSearchRequestFallbackAndHelpers(t *testing.T) {
 					HTMLURL:       "https://github.com/fleetdm/fleet/issues/1",
 					State:         "open",
 					RepositoryURL: "https://api.github.com/repos/fleetdm/fleet",
-					Labels:        []struct{ Name string `json:"name"` }{{Name: "BUG"}},
+					Labels: []struct {
+						Name string `json:"name"`
+					}{{Name: "BUG"}},
 				},
 			},
 		}), nil
@@ -249,7 +253,9 @@ func TestAssigneeMilestoneAndReleaseStoryFlows(t *testing.T) {
 				Title:         "Assigned via search",
 				HTMLURL:       "https://github.com/fleetdm/fleet/issues/9999",
 				RepositoryURL: "https://api.github.com/repos/fleetdm/fleet",
-				Assignees:     []struct{ Login string `json:"login"` }{{Login: "sharon-fdm"}},
+				Assignees: []struct {
+					Login string `json:"login"`
+				}{{Login: "sharon-fdm"}},
 			},
 		}
 	}
@@ -287,7 +293,9 @@ func TestAssigneeMilestoneAndReleaseStoryFlows(t *testing.T) {
 						Body:          "TODO: fill details",
 						State:         "open",
 						RepositoryURL: "https://api.github.com/repos/fleetdm/fleet",
-						Labels: []struct{ Name string `json:"name"` }{
+						Labels: []struct {
+							Name string `json:"name"`
+						}{
 							{Name: "story"},
 							{Name: ":release"},
 						},
@@ -795,8 +803,12 @@ func TestRunUnassignedUnreleasedMergesMatchingGroups(t *testing.T) {
 				HTMLURL:       "https://github.com/fleetdm/fleet/issues/1234",
 				State:         "open",
 				RepositoryURL: "https://api.github.com/repos/fleetdm/fleet",
-				Assignees:     []struct{ Login string `json:"login"` }{{Login: "alice"}},
-				Labels:        []struct{ Name string `json:"name"` }{{Name: "bug"}},
+				Assignees: []struct {
+					Login string `json:"login"`
+				}{{Login: "alice"}},
+				Labels: []struct {
+					Name string `json:"name"`
+				}{{Name: "bug"}},
 			},
 		}
 		return base
@@ -825,12 +837,6 @@ func TestRunUnassignedUnreleasedMergesMatchingGroups(t *testing.T) {
 }
 
 func TestStartUIBridgeSmoke(t *testing.T) {
-	tmp := t.TempDir()
-	reportPath := filepath.Join(tmp, "index.html")
-	if err := os.WriteFile(reportPath, []byte("<html>ok</html>"), 0o600); err != nil {
-		t.Fatalf("write report: %v", err)
-	}
-
 	bridge, err := startUIBridge("tok", time.Minute, nil, bridgePolicy{})
 	if err != nil {
 		if strings.Contains(err.Error(), "operation not permitted") {
@@ -838,7 +844,6 @@ func TestStartUIBridgeSmoke(t *testing.T) {
 		}
 		t.Fatalf("startUIBridge: %v", err)
 	}
-	bridge.setReportPath(reportPath)
 	defer func() { _ = bridge.stop("test done") }()
 
 	resp, err := http.Get(bridge.baseURL + "/healthz")

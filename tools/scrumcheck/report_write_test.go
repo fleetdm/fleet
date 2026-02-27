@@ -1,39 +1,22 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
+	"bytes"
 	"strings"
 	"testing"
 )
 
-// TestWriteHTMLReport verifies report rendering writes a non-empty HTML file.
-func TestWriteHTMLReport(t *testing.T) {
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	tmp := t.TempDir()
-	if err := os.Chdir(tmp); err != nil {
-		t.Fatalf("chdir temp: %v", err)
-	}
-	defer func() { _ = os.Chdir(wd) }()
-
-	p, err := writeHTMLReport(HTMLReportData{
+// TestRenderHTMLReport verifies the app shell renders expected HTML output.
+func TestRenderHTMLReport(t *testing.T) {
+	var out bytes.Buffer
+	err := renderHTMLReport(&out, HTMLReportData{
 		GeneratedAt: "now",
 		Org:         "fleetdm",
 	})
 	if err != nil {
-		t.Fatalf("writeHTMLReport err: %v", err)
+		t.Fatalf("renderHTMLReport err: %v", err)
 	}
-	if !strings.HasSuffix(p, filepath.Join(reportDirName, reportFileName)) {
-		t.Fatalf("unexpected report path: %q", p)
-	}
-	raw, err := os.ReadFile(filepath.Join(tmp, reportDirName, reportFileName))
-	if err != nil {
-		t.Fatalf("read report: %v", err)
-	}
-	if !strings.Contains(string(raw), "Scrum check") {
+	if !strings.Contains(out.String(), "Scrum check") {
 		t.Fatalf("report does not contain expected title")
 	}
 }

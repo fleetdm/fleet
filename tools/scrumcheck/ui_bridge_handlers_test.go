@@ -498,4 +498,13 @@ func TestHandleStateCheck(t *testing.T) {
 	if !strings.Contains(rr.Body.String(), `"TotalNoSprint":1`) {
 		t.Fatalf("expected state payload with TotalNoSprint=1, got %s", rr.Body.String())
 	}
+
+	// /api/state is the non-hybrid canonical alias used by frontend runtime.
+	rr = httptest.NewRecorder()
+	req = getReq("/api/state")
+	req.Header.Set("X-Qacheck-Session", "sess")
+	b.handleStateCheck(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("alias status=%d want=%d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
 }

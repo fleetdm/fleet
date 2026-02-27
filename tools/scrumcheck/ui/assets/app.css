@@ -1,0 +1,246 @@
+    :root {
+      --bg: #f5f7fb;
+      --header: #ffffff;
+      --panel: #ffffff;
+      --muted-panel: #f9fafc;
+      --text: #192147;
+      --muted: #515774;
+      --line: #d9dce8;
+      --accent: #00a794;
+      --accent-dark: #0f7f73;
+      --ok: #27ae60;
+      --bad: #eb5757;
+      --active: #eaf8f6;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Avenir Next", "Segoe UI", Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .title-logo {
+      width: 28px;
+      height: 28px;
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .title-logo svg {
+      display: block;
+      width: 26px;
+      height: 26px;
+    }
+    h1 { margin: 0; font-size: 38px; line-height: 1.1; }
+    h2 { margin: 0 0 10px; font-size: 27px; line-height: 1.2; }
+    h3 { margin: 0 0 6px; font-size: 18px; line-height: 1.25; }
+    .meta { margin-top: 8px; color: var(--muted); font-size: 14px; }
+    .counts { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 10px; }
+    .pill {
+      font-size: 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 12px;
+      background: var(--muted-panel);
+    }
+    .app-shell {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .menu {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      position: sticky;
+      top: 12px;
+    }
+    .menu h4 {
+      margin: 4px 8px 10px;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .menu-btn {
+      width: 100%;
+      text-align: left;
+      border: 1px solid transparent;
+      background: transparent;
+      border-radius: 8px;
+      padding: 10px 10px;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .menu-btn:hover {
+      background: #f2f5fb;
+      border-color: var(--line);
+    }
+    .menu-btn.active {
+      background: var(--active);
+      border-color: rgba(0, 167, 148, 0.35);
+    }
+    .status-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 8px;
+      vertical-align: middle;
+      background: var(--bad);
+      box-shadow: 0 0 0 2px rgba(235, 87, 87, 0.18);
+    }
+    .status-dot.ok {
+      background: var(--ok);
+      box-shadow: 0 0 0 2px rgba(39, 174, 96, 0.16);
+    }
+    .panel-wrap { min-width: 0; }
+    .panel {
+      display: none;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 18px;
+    }
+    .panel.active { display: block; }
+    .subtle { color: var(--muted); margin: 0 0 12px; font-size: 14px; }
+    .project, .status {
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      background: var(--muted-panel);
+    }
+    .item {
+      border-left: 3px solid #f5c5c5;
+      background: #fff;
+      border-radius: 8px;
+      margin: 10px 0 0;
+      padding: 10px 12px;
+    }
+    .item.assigned-to-me {
+      border-left-color: #72c08a;
+      box-shadow: inset 0 0 0 1px rgba(39, 174, 96, 0.2);
+      background: #f4fbf6;
+    }
+    .item.red-bug {
+      border-left-color: #eb5757;
+      box-shadow: inset 0 0 0 1px rgba(235, 87, 87, 0.25);
+      background: #fff3f3;
+    }
+    .item.green-bug {
+      border-left-color: #27ae60;
+      box-shadow: inset 0 0 0 1px rgba(39, 174, 96, 0.2);
+      background: #f4fbf6;
+    }
+    .mine-badge {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid #83d2a5;
+      background: #e9f8ef;
+      color: #1d6e3e;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .item a { color: #2f45cc; text-decoration: none; }
+    .item a:hover { text-decoration: underline; }
+    ul { margin: 8px 0 0 20px; }
+    li { margin: 5px 0; }
+    .checklist-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin: 6px 0;
+    }
+    .checklist-text { flex: 1 1 320px; }
+    .actions {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .column-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .fix-btn {
+      border: 1px solid #b8bfd5;
+      background: #fff;
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .fix-btn:hover { background: #f2f5fb; }
+    .fix-btn.done {
+      border-color: #83d2a5;
+      background: #e9f8ef;
+      color: #1d6e3e;
+      cursor: default;
+    }
+    .fix-btn.failed {
+      border-color: #e3a0a0;
+      background: #fff1f1;
+      color: #8e1b1b;
+    }
+    #close-session-btn {
+      border-color: #e9a5a5;
+      background: #fff2f2;
+      color: #8b1e1e;
+    }
+    #close-session-btn:hover {
+      background: #ffe8e8;
+    }
+    .copied-note { margin-left: 6px; font-size: 12px; color: var(--muted); }
+    .milestone-search { min-width: 240px; }
+    .milestone-select { min-width: 260px; }
+    .assignee-search { min-width: 240px; }
+    .assignee-select { min-width: 260px; }
+    .bridge-controls {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .empty { margin: 0; color: var(--muted); font-style: italic; }
+    @media (max-width: 960px) {
+      h1 { font-size: 30px; }
+      h2 { font-size: 23px; }
+      h3 { font-size: 18px; }
+      .app-shell {
+        grid-template-columns: 1fr;
+      }
+      .menu {
+        position: static;
+      }
+    }

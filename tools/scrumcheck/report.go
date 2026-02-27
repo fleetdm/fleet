@@ -767,36 +767,18 @@ func previewBodyLines(body string, maxLines int) []string {
 	return out
 }
 
-// writeHTMLReport recreates the report directory and renders the HTML file.
-func writeHTMLReport(data HTMLReportData) (string, error) {
-	if err := os.RemoveAll(reportDirName); err != nil {
-		return "", fmt.Errorf("remove old report directory: %w", err)
-	}
-	if err := os.MkdirAll(reportDirName, 0o755); err != nil {
-		return "", fmt.Errorf("create report directory: %w", err)
-	}
-
-	reportPath := filepath.Join(reportDirName, reportFileName)
-	f, err := os.Create(reportPath)
-	if err != nil {
-		return "", fmt.Errorf("create report file: %w", err)
-	}
-	defer f.Close()
-
-	if err := renderHTMLReport(f, data); err != nil {
-		return "", err
-	}
-
-	absPath, err := filepath.Abs(reportPath)
-	if err != nil {
-		return "", fmt.Errorf("resolve report path: %w", err)
-	}
-	return absPath, nil
-}
-
 // renderHTMLReport parses and renders the embedded app shell template.
 func renderHTMLReport(w io.Writer, data HTMLReportData) error {
-	tmpl, err := template.New("report").Parse(htmlReportTemplate)
+	templateText := htmlReportTemplate
+	if dir := uiRuntimeDirValue(); dir != "" {
+		raw, err := os.ReadFile(filepath.Join(dir, "index.html"))
+		if err != nil {
+			return fmt.Errorf("read ui dev template: %w", err)
+		}
+		templateText = string(raw)
+	}
+
+	tmpl, err := template.New("report").Parse(templateText)
 	if err != nil {
 		return fmt.Errorf("parse report template: %w", err)
 	}

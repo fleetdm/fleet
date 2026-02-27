@@ -33,8 +33,8 @@ const (
 )
 
 var (
-	startUIBridgeFn   = startUIBridge
-	openInBrowserFn   = openInBrowser
+	startUIBridgeFn = startUIBridge
+	openInBrowserFn = openInBrowser
 )
 
 // main is the CLI entrypoint: it parses flags, runs all checks, prepares report
@@ -238,15 +238,15 @@ func run() int {
 	bridge, err := startUIBridgeFn(token, time.Duration(*bridgeIdleMinutes)*time.Minute, tracker.bridgeSignal, policy)
 	if err != nil {
 		log.Printf("could not start UI bridge: %v", err)
+		tracker.phaseFail(phaseUIAssembly, phaseSummaryKV("bridge unavailable", shortDuration(time.Since(start))))
+		return 1
 	}
 	bridgeEnabled, bridgeBaseURL := false, ""
 	bridgeSessionToken := ""
-	if bridge != nil {
-		bridgeEnabled = true
-		bridgeBaseURL = bridge.baseURL
-		bridgeSessionToken = bridge.sessionToken()
-		bridge.setTimestampCheckResult(timestampCheck)
-	}
+	bridgeEnabled = true
+	bridgeBaseURL = bridge.baseURL
+	bridgeSessionToken = bridge.sessionToken()
+	bridge.setTimestampCheckResult(timestampCheck)
 	reportData := buildHTMLReportData(
 		*org,
 		projectNums,
@@ -267,150 +267,144 @@ func run() int {
 		bridgeBaseURL,
 		bridgeSessionToken,
 	)
-	if bridge != nil {
-		bridge.setReportData(reportData)
-		bridge.setUnassignedUnreleasedResults(reportData.UnassignedUnreleased)
-		bridge.setReleaseStoryTODOResults(reportData.ReleaseStoryTODO)
-		bridge.setMissingSprintResults(reportData.MissingSprint)
-		bridge.setTimestampRefresher(func(ctx context.Context) (TimestampCheckResult, error) {
-			refreshCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
-			defer cancel()
-			return checkUpdatesTimestamp(refreshCtx, time.Now().UTC()), nil
-		})
-		bridge.setUnreleasedRefresher(func(ctx context.Context) ([]UnassignedUnreleasedProjectReport, error) {
-			refreshCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
-			defer cancel()
-			fresh := runUnassignedUnreleasedBugChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter, groupLabels)
-			return buildHTMLReportData(
-				*org,
-				projectNums,
-				awaitingByProject,
-				staleByProject,
-				*staleDays,
-				byStatus,
-				missingMilestones,
-				missingSprints,
-				missingAssignees,
-				releaseLabelIssues,
-				releaseStoryTODO,
-				genericQueries,
-				fresh,
-				groupLabels,
-				timestampCheck,
-				bridgeEnabled,
-				bridgeBaseURL,
-				bridgeSessionToken,
-			).UnassignedUnreleased, nil
-		})
-		bridge.setReleaseStoryTODORefresher(func(ctx context.Context) ([]ReleaseStoryTODOProjectReport, error) {
-			refreshCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
-			defer cancel()
-			fresh := runReleaseStoryTODOChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter)
-			return buildHTMLReportData(
-				*org,
-				projectNums,
-				awaitingByProject,
-				staleByProject,
-				*staleDays,
-				byStatus,
-				missingMilestones,
-				missingSprints,
-				missingAssignees,
-				releaseLabelIssues,
-				fresh,
-				genericQueries,
-				unassignedUnreleasedBugs,
-				groupLabels,
-				timestampCheck,
-				bridgeEnabled,
-				bridgeBaseURL,
-				bridgeSessionToken,
-			).ReleaseStoryTODO, nil
-		})
-		bridge.setMissingSprintRefresher(func(ctx context.Context) ([]MissingSprintProjectReport, map[string]sprintApplyTarget, error) {
-			refreshCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
-			defer cancel()
-			fresh := runMissingSprintChecks(refreshCtx, client, *org, projectNums, *limit, labelFilter)
-			report := buildHTMLReportData(
-				*org,
-				projectNums,
-				awaitingByProject,
-				staleByProject,
-				*staleDays,
-				byStatus,
-				missingMilestones,
-				fresh,
-				missingAssignees,
-				releaseLabelIssues,
-				releaseStoryTODO,
-				genericQueries,
-				unassignedUnreleasedBugs,
-				groupLabels,
-				timestampCheck,
-				bridgeEnabled,
-				bridgeBaseURL,
-				bridgeSessionToken,
-			).MissingSprint
-			refreshedPolicy := buildBridgePolicy(nil, nil, fresh, nil, nil)
-			return report, refreshedPolicy.SprintsByItemID, nil
-		})
-		bridge.setRefreshAllState(func(ctx context.Context) (HTMLReportData, bridgePolicy, error) {
-			refreshCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
-			defer cancel()
+	bridge.setReportData(reportData)
+	bridge.setUnassignedUnreleasedResults(reportData.UnassignedUnreleased)
+	bridge.setReleaseStoryTODOResults(reportData.ReleaseStoryTODO)
+	bridge.setMissingSprintResults(reportData.MissingSprint)
+	bridge.setTimestampRefresher(func(ctx context.Context) (TimestampCheckResult, error) {
+		refreshCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+		defer cancel()
+		return checkUpdatesTimestamp(refreshCtx, time.Now().UTC()), nil
+	})
+	bridge.setUnreleasedRefresher(func(ctx context.Context) ([]UnassignedUnreleasedProjectReport, error) {
+		refreshCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
+		defer cancel()
+		fresh := runUnassignedUnreleasedBugChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter, groupLabels)
+		return buildHTMLReportData(
+			*org,
+			projectNums,
+			awaitingByProject,
+			staleByProject,
+			*staleDays,
+			byStatus,
+			missingMilestones,
+			missingSprints,
+			missingAssignees,
+			releaseLabelIssues,
+			releaseStoryTODO,
+			genericQueries,
+			fresh,
+			groupLabels,
+			timestampCheck,
+			bridgeEnabled,
+			bridgeBaseURL,
+			bridgeSessionToken,
+		).UnassignedUnreleased, nil
+	})
+	bridge.setReleaseStoryTODORefresher(func(ctx context.Context) ([]ReleaseStoryTODOProjectReport, error) {
+		refreshCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
+		defer cancel()
+		fresh := runReleaseStoryTODOChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter)
+		return buildHTMLReportData(
+			*org,
+			projectNums,
+			awaitingByProject,
+			staleByProject,
+			*staleDays,
+			byStatus,
+			missingMilestones,
+			missingSprints,
+			missingAssignees,
+			releaseLabelIssues,
+			fresh,
+			genericQueries,
+			unassignedUnreleasedBugs,
+			groupLabels,
+			timestampCheck,
+			bridgeEnabled,
+			bridgeBaseURL,
+			bridgeSessionToken,
+		).ReleaseStoryTODO, nil
+	})
+	bridge.setMissingSprintRefresher(func(ctx context.Context) ([]MissingSprintProjectReport, map[string]sprintApplyTarget, error) {
+		refreshCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
+		defer cancel()
+		fresh := runMissingSprintChecks(refreshCtx, client, *org, projectNums, *limit, labelFilter)
+		report := buildHTMLReportData(
+			*org,
+			projectNums,
+			awaitingByProject,
+			staleByProject,
+			*staleDays,
+			byStatus,
+			missingMilestones,
+			fresh,
+			missingAssignees,
+			releaseLabelIssues,
+			releaseStoryTODO,
+			genericQueries,
+			unassignedUnreleasedBugs,
+			groupLabels,
+			timestampCheck,
+			bridgeEnabled,
+			bridgeBaseURL,
+			bridgeSessionToken,
+		).MissingSprint
+		refreshedPolicy := buildBridgePolicy(nil, nil, fresh, nil, nil)
+		return report, refreshedPolicy.SprintsByItemID, nil
+	})
+	bridge.setRefreshAllState(func(ctx context.Context) (HTMLReportData, bridgePolicy, error) {
+		refreshCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
+		defer cancel()
 
-			staleAfter := time.Duration(*staleDays) * 24 * time.Hour
-			refAwaitingByProject, refStaleByProject := runAwaitingQACheck(
-				refreshCtx,
-				client,
-				*org,
-				*limit,
-				projectNums,
-				staleAfter,
-				labelFilter,
-			)
-			refDrafting := runDraftingCheck(refreshCtx, client, *org, *limit, labelFilter)
-			refByStatus := groupViolationsByStatus(refDrafting)
-			refMissingMilestones := runMissingMilestoneChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter)
-			refMissingSprints := runMissingSprintChecks(refreshCtx, client, *org, projectNums, *limit, labelFilter)
-			refMissingAssignees := runMissingAssigneeChecks(refreshCtx, client, *org, projectNums, *limit, token)
-			refReleaseIssues := runReleaseLabelChecks(refreshCtx, client, *org, projectNums, *limit)
-			refReleaseTODO := runReleaseStoryTODOChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter)
-			refGenericQueries := runGenericQueryChecks(refreshCtx, token, projectNums, groupLabels)
-			refUnreleased := runUnassignedUnreleasedBugChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter, groupLabels)
-			refTimestamp := checkUpdatesTimestamp(refreshCtx, time.Now().UTC())
+		staleAfter := time.Duration(*staleDays) * 24 * time.Hour
+		refAwaitingByProject, refStaleByProject := runAwaitingQACheck(
+			refreshCtx,
+			client,
+			*org,
+			*limit,
+			projectNums,
+			staleAfter,
+			labelFilter,
+		)
+		refDrafting := runDraftingCheck(refreshCtx, client, *org, *limit, labelFilter)
+		refByStatus := groupViolationsByStatus(refDrafting)
+		refMissingMilestones := runMissingMilestoneChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter)
+		refMissingSprints := runMissingSprintChecks(refreshCtx, client, *org, projectNums, *limit, labelFilter)
+		refMissingAssignees := runMissingAssigneeChecks(refreshCtx, client, *org, projectNums, *limit, token)
+		refReleaseIssues := runReleaseLabelChecks(refreshCtx, client, *org, projectNums, *limit)
+		refReleaseTODO := runReleaseStoryTODOChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter)
+		refGenericQueries := runGenericQueryChecks(refreshCtx, token, projectNums, groupLabels)
+		refUnreleased := runUnassignedUnreleasedBugChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter, groupLabels)
+		refTimestamp := checkUpdatesTimestamp(refreshCtx, time.Now().UTC())
 
-			refData := buildHTMLReportData(
-				*org,
-				projectNums,
-				refAwaitingByProject,
-				refStaleByProject,
-				*staleDays,
-				refByStatus,
-				refMissingMilestones,
-				refMissingSprints,
-				refMissingAssignees,
-				refReleaseIssues,
-				refReleaseTODO,
-				refGenericQueries,
-				refUnreleased,
-				groupLabels,
-				refTimestamp,
-				bridgeEnabled,
-				bridgeBaseURL,
-				bridgeSessionToken,
-			)
-			refPolicy := buildBridgePolicy(refDrafting, refMissingMilestones, refMissingSprints, refMissingAssignees, refReleaseIssues)
-			return refData, refPolicy, nil
-		})
-	}
+		refData := buildHTMLReportData(
+			*org,
+			projectNums,
+			refAwaitingByProject,
+			refStaleByProject,
+			*staleDays,
+			refByStatus,
+			refMissingMilestones,
+			refMissingSprints,
+			refMissingAssignees,
+			refReleaseIssues,
+			refReleaseTODO,
+			refGenericQueries,
+			refUnreleased,
+			groupLabels,
+			refTimestamp,
+			bridgeEnabled,
+			bridgeBaseURL,
+			bridgeSessionToken,
+		)
+		refPolicy := buildBridgePolicy(refDrafting, refMissingMilestones, refMissingSprints, refMissingAssignees, refReleaseIssues)
+		return refData, refPolicy, nil
+	})
 
 	tracker.phaseDone(phaseUIAssembly, phaseSummaryKV("report + bridge ready", shortDuration(time.Since(start))))
 
 	tracker.phaseStart(phaseBrowserBridge)
-	if bridge == nil {
-		log.Printf("could not start UI bridge: bridge is required in non-hybrid mode")
-		return 1
-	}
 	openTarget := bridge.reportURL()
 	tracker.waitingForBrowser(openTarget)
 	if *openReport {

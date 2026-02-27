@@ -13,8 +13,6 @@ const (
 	// Drafting board (Project 67) check:
 	draftingProjectNum   = 67
 	draftingStatusNeedle = "Ready to estimate,Estimated"
-	reportDirName        = "scrumcheck-report"
-	reportFileName       = "index.html"
 
 	defaultStaleDays         = 21
 	defaultBridgeIdleMinutes = 10

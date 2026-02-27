@@ -34,10 +34,9 @@ type uiBridge struct {
 	idleTimeout time.Duration
 	onEvent     func(string)
 
-	srv        *http.Server
-	listener   net.Listener
-	reportPath string
-	origin     string
+	srv      *http.Server
+	listener net.Listener
+	origin   string
 
 	mu     sync.Mutex
 	timer  *time.Timer
@@ -108,6 +107,7 @@ func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string)
 	mux.HandleFunc("/api/check/release-story-todo", b.handleReleaseStoryTODOCheck)
 	mux.HandleFunc("/api/check/missing-sprint", b.handleMissingSprintCheck)
 	mux.HandleFunc("/api/check/state", b.handleStateCheck)
+	mux.HandleFunc("/api/state", b.handleStateCheck)
 	mux.HandleFunc("/api/apply-milestone", b.handleApplyMilestone)
 	mux.HandleFunc("/api/apply-checklist", b.handleApplyChecklist)
 	mux.HandleFunc("/api/apply-sprint", b.handleApplySprint)
@@ -135,13 +135,6 @@ func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string)
 	}()
 
 	return b, nil
-}
-
-// setReportPath stores the current report path and precomputes its URL form.
-func (b *uiBridge) setReportPath(path string) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.reportPath = path
 }
 
 // reportURL returns the bridge-served report URL for browser navigation.
@@ -405,7 +398,7 @@ func (b *uiBridge) handleAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	b.touch()
-	fileServer := http.StripPrefix("/assets/", http.FileServer(http.FS(embeddedUIAssets())))
+	fileServer := http.StripPrefix("/assets/", http.FileServer(http.FS(activeUIAssets())))
 	fileServer.ServeHTTP(w, r)
 }
 
