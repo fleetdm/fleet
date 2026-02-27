@@ -139,8 +139,6 @@ func issueNode(number int, title, u, status, body string, labels []string, updat
 // TestGraphQLFlowHelpersAndChecks exercises end-to-end helper flows against the
 // stub client to verify query helpers and key check aggregations.
 func TestGraphQLFlowHelpersAndChecks(t *testing.T) {
-	t.Parallel()
-
 	client := newGraphQLStubClient(t)
 	ctx := context.Background()
 

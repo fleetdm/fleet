@@ -95,9 +95,11 @@
             throw new Error('Bridge error ' + res.status);
           }
           const payload = await res.json();
-          const safeURL = payload.url || '';
+          const rawURL = String(payload.url || '');
+          const safeURL = safeHTTPURL(rawURL);
           const minDays = Number(payload.min_days || 0);
-          subtle.innerHTML = 'Checks that <a href="' + safeURL + '" target="_blank" rel="noopener noreferrer">' + safeURL + '</a> expires at least ' + minDays + ' days from now.';
+          const displayURL = safeURL || rawURL || '(invalid url)';
+          subtle.innerHTML = 'Checks that <a href="' + escHTML(safeURL || '#') + '" target="_blank" rel="noopener noreferrer">' + escHTML(displayURL) + '</a> expires at least ' + minDays + ' days from now.';
 
           if (payload.error) {
             content.innerHTML = '<p class="empty">🔴 Could not validate timestamp expiry: ' + escHTML(payload.error) + '</p>';
@@ -106,7 +108,7 @@
           }
 
           const stateText = payload.ok ? '🟢 OK' : '🔴 Failing threshold';
-          const expires = payload.expires_at || '(unknown)';
+          const expires = escHTML(payload.expires_at || '(unknown)');
           const daysLeft = Number(payload.days_left || 0).toFixed(1);
           const hoursLeft = Number(payload.duration_hours || 0).toFixed(1);
 
@@ -134,6 +136,18 @@
           .replaceAll('>', '&gt;')
           .replaceAll('"', '&quot;')
           .replaceAll("'", '&#39;');
+      }
+
+      function safeHTTPURL(value) {
+        const raw = String(value == null ? '' : value).trim();
+        if (!raw) return '';
+        try {
+          const parsed = new URL(raw, window.location.origin);
+          if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+            return parsed.href;
+          }
+        } catch (_) {}
+        return '';
       }
 
       function renderUnreleasedItem(item, cssClass) {
@@ -654,10 +668,10 @@
         renderAssigneeSection('assigned-to-me-content', 'assigned-to-me', state.AssignedToMe, true);
         renderReleaseFromState(state);
         renderGenericQueriesFromState(state);
-        await refreshReleaseStoryTODOPanel(false);
-        await refreshMissingSprintPanel(false);
-        await refreshTimestampPanel(false);
-        await refreshUnreleasedPanel(false);
+        await refreshReleaseStoryTODOPanel(forceRefresh);
+        await refreshMissingSprintPanel(forceRefresh);
+        await refreshTimestampPanel(forceRefresh);
+        await refreshUnreleasedPanel(forceRefresh);
       }
 
       function installMilestoneFiltering() {

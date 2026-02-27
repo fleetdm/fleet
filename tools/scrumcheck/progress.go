@@ -482,11 +482,3 @@ func stageColor(ratio float64) string {
 		return clrGreen
 	}
 }
-
-// max returns the larger of two ints.
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}

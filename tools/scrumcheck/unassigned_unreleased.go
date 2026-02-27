@@ -52,10 +52,10 @@ func runUnassignedUnreleasedBugChecks(
 	if len(labelFilter) == 0 || len(groupLabels) == 0 {
 		return nil
 	}
-
-	_ = client
-	_ = projectNums
-	_ = limit
+	// `client`, `projectNums`, and `limit` are currently retained for API
+	// symmetry with the other check runners and possible future project-scoped
+	// narrowing; this check currently uses org-wide issue search by group label.
+	_, _, _ = client, projectNums, limit
 
 	keyed := make(map[string]UnassignedUnreleasedBugIssue)
 	for _, group := range groupLabels {

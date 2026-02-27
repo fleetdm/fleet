@@ -351,7 +351,7 @@ func TestRunBridgeStartFailurePath(t *testing.T) {
 	}
 }
 
-func TestRunWriteReportFailurePath(t *testing.T) {
+func TestRunSuccessPath(t *testing.T) {
 	oldArgs := os.Args
 	oldToken := os.Getenv("GITHUB_TOKEN")
 	oldFlagSet := flag.CommandLine

@@ -266,6 +266,9 @@ func issueAssignees(it Item) []string {
 // containsLogin reports whether the requested login is present in the list,
 // using case-insensitive comparison.
 func containsLogin(logins []string, wantedLower string) bool {
+	if wantedLower == "" {
+		return false
+	}
 	for _, l := range logins {
 		if strings.EqualFold(strings.TrimSpace(l), wantedLower) {
 			return true

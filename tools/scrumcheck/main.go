@@ -477,11 +477,6 @@ func run() int {
 		tracker.phaseWarn(phaseBrowserBridge, "auto-open disabled (-open-report=false)")
 	}
 
-	if bridge == nil {
-		// Defensive guard; normal flow always has a bridge here.
-		return 0
-	}
-
 	// Keep process alive while bridge is active so UI actions can mutate state;
 	// exit cleanly when interrupted or bridge closes itself.
 	sigCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt)
