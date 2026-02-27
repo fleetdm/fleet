@@ -1,0 +1,73 @@
+# TODO: fancy comment header
+name: "📱🔐 Personal mobile devices"
+settings: # « FUTURE: Eliminate the need for this required key.
+  secrets: # « FUTURE: Eliminate the need for this required key.
+    - secret: "" # TODO: What happens if omitted?
+controls:
+
+  ##########################################
+  # Managed OS updates
+  ##########################################
+  # to enable… (for os updates)
+  # ios_updates:
+  #   deadline: "2025-06-01"
+  #   minimum_version: "18.5"
+  # ipados_updates:
+  #   deadline: "2025-06-01"
+  #   minimum_version: "18.5"
+
+  ##########################################
+  # Setup experience
+  ##########################################
+  macos_setup: # TODO: wtf this is not the right name
+  # To enable SSO, uncomment this
+  # enable_end_user_authentication: true
+
+  ##########################################
+  # Presets, restrictions, and configs
+  ##########################################
+  macos_settings: # TODO: wtf this is not the right name
+    custom_settings: # Since these mobile devices are personally owned, we cherry pick only a very limited set of restrictions and presets.
+      # … e.g.
+      # - path: ../lib/ios/declaration-profiles/Passcode settings.json
+      # - path: ../lib/ios/configuration-profiles/self-service.mobileconfig
+  
+  scripts: #TODO: Ensure this can be excluded.  Doesn't mean anything for iOS.
+reports: #TODO: Ensure this can be excluded.  Doesn't mean anything for iOS.
+policies: #TODO: Ensure this can be excluded.  Doesn't mean anything for iOS.
+
+##########################################
+# Software available for install
+#
+# (employee-owned mobile devices)
+##########################################
+software:
+  app_store_apps: # Apps to make available from the Apple App Store or Google Play
+    # iOS apps
+    # …
+    # - app_store_id: "618783545" # Slack
+    #   display_name: "Slack"
+    #   self_service: true
+    #   setup_experience: true
+    #   platform: ios
+    #   categories:
+    #     - "Communication"
+
+    # iPadOS apps
+    # …
+    # - app_store_id: "618783545" # Slack
+    #   display_name: "Slack"
+    #   self_service: true
+    #   setup_experience: true
+    #   platform: ipados
+    #   categories:
+    #     - "Productivity"
+    #     - "Communication"
+
+    # Android apps
+    # …
+    # - app_store_id: "com.Slack" # Slack
+    #   platform: android
+    #   display_name: "Slack"
+    #   self_service: true
+    #   setup_experience: true

@@ -1,0 +1,46 @@
+name: 'Apply latest configuration to Fleet'
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**'
+  pull_request:
+    paths:
+      - '**'
+  workflow_dispatch: # allows manual triggering
+  schedule:
+  - cron: '0 6 * * *' # Nightly 6AM UTC
+
+# Prevent concurrent runs of this workflow.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+# Limit permissions of GITHUB_TOKEN.
+permissions:
+  contents: read
+
+jobs:
+  fleet-gitops:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout this repository
+        uses: actions/checkout@v4
+
+      - name: Apply latest configuration to Fleet
+        uses: ./.github/fleet-gitops
+        with:
+          # Run GitOps in dry-run mode for pull requests.
+          dry-run-only: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
+        env:
+          # These environment variables can be set as repository secrets,
+          # alongside any other environment variables mentioned in your .yml files.
+          FLEET_API_TOKEN: ${{ secrets.FLEET_API_TOKEN }} # required
+          
+          

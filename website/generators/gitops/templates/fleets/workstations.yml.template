@@ -1,0 +1,111 @@
+# TODO: fancy comment header
+name: "💻 Workstations"
+settings: # « FUTURE: Eliminate the need for this required key.
+  secrets: # « FUTURE: Eliminate the need for this required key.
+    - secret: "" # TODO: What happens if omitted?
+controls:
+  ##########################################
+  # Disk encryption with escrowed keys
+  ##########################################
+  # to enable…
+  # enable_disk_encryption: true
+
+  ##########################################
+  # Managed OS updates
+  ##########################################
+  # to enable… (for os updates)
+  # macos_updates:
+  #   deadline:
+  #   minimum_version:
+  #   update_new_hosts: true
+
+  # to enable… (for os updates)
+  # windows_updates:
+  #   deadline_days: 7
+  #   grace_period_days: 2
+
+  ##########################################
+  # Setup experience
+  ##########################################
+  macos_setup:
+    # To enable SSO, uncomment this
+    # enable_end_user_authentication: true
+    # bootstrap_package: "" # remove it and make sure it works
+    # macos_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json # TODO: include this by default
+    # TODO: Discuss: What is best practice for Windows and Linux here?
+
+  ##########################################
+  # Presets, restrictions, and configs
+  ##########################################
+  macos_settings:
+    custom_settings: #FUTURE: stat disk and auto-include all via glob
+      # - paths: ../platforms/macos/declaration-profiles/*.json
+      # - paths: ../platforms/macos/configuration-profiles/*.mobileconfig
+  windows_settings:
+    custom_settings: #FUTURE: stat disk and auto-include all via glob
+      # - paths: ../platforms/windows/configuration-profiles/*.xml
+  
+  scripts:
+    - paths: ../platforms/macos/scripts/*.sh
+    - paths: ../platforms/windows/scripts/*.ps1
+    - paths: ../platforms/linux/scripts/*.sh
+reports: #FUTURE: stat disk and auto-include all via glob
+  # - paths: ../platforms/macos/reports/*.yml
+  # - paths: ../platforms/windows/reports/*.yml
+  # - paths: ../platforms/linux/reports/*.yml
+policies: #FUTURE: stat disk and auto-include all via glob
+  # - paths: ../platforms/macos/policies/*.yml # macOS policies
+  # - paths: ../platforms/windows/policies/*.yml # Windows policies
+  # - paths: ../platforms/linux/policies/*.yml # Linux policies
+
+##########################################
+# Software available for install
+##########################################
+software:
+  fleet_maintained_apps:
+    # macOS apps
+    # …
+    # - slug: slack/darwin # Slack for macOS
+    #   self_service: true
+    #   setup_experience: true
+    #   categories:
+    #     - Communication
+    #     - Productivity
+
+    # Windows apps
+    # …
+    # - slug: slack/windows # Slack for Windows
+    #   self_service: true
+    #   setup_experience: true
+    #   categories:
+    #     - Productivity
+    #     - Communication
+    #   labels_include_any:
+    #     - "x86-based Windows hosts"
+
+  packages: # Custom packages (if any)
+    # macOS custom packages
+    # …
+
+    # Windows custom packages
+    # …
+
+    # Linux custom packages
+    # …
+    # - path: ../lib/linux/software/1password-deb.yml # 1Password for Ubuntu
+    #   self_service: true
+    #   setup_experience: true
+    #   categories:
+    #     - Security
+    #   labels_include_any:
+    #     - "Debian-based Linux hosts"
+    # - path: ../lib/linux/software/1password-rpm.yml # 1Password for RedHat
+    #   self_service: true
+    #   setup_experience: true
+    #   categories:
+    #     - Security
+    #   labels_include_any:
+    #     - "RPM-based Linux hosts"
+
+  app_store_apps: # Apps to install via VPP from the macOS App Store, if any
+    # …
