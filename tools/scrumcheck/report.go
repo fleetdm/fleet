@@ -371,6 +371,7 @@ func buildHTMLReportData(
 		}
 		status := itemStatus(v.Item)
 		group := sprintColumnGroup(status)
+		// Reuse sprint-style grouping to keep milestone and sprint panels aligned.
 		groupedMilestoneByProject[v.ProjectNum][group] = append(groupedMilestoneByProject[v.ProjectNum][group], MissingMilestoneReportItem{
 			ProjectNum:  v.ProjectNum,
 			Number:      getNumber(v.Item),
@@ -498,6 +499,7 @@ func buildHTMLReportData(
 			SuggestedAssignees: suggestions,
 		}
 		if v.AssignedToMe {
+			// Assigned-to-me is informational and rendered in its own parallel view.
 			groupedAssignedToMeByProject[v.ProjectNum][group] = append(groupedAssignedToMeByProject[v.ProjectNum][group], item)
 			continue
 		}
@@ -665,6 +667,7 @@ func buildHTMLReportData(
 			BodyPreview: previewBodyLines(getBody(v.Item), 3),
 		}
 		for _, groupLabel := range v.MatchingGroups {
+			// One issue can appear under multiple requested group labels.
 			columnsByStatus, ok := groupedUnassignedByLabel[groupLabel]
 			if !ok {
 				continue

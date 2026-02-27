@@ -231,6 +231,8 @@ func (b *uiBridge) refreshAllIfRequested(ctx context.Context, refresh bool) erro
 	b.mu.Lock()
 	refreshFn := b.refreshAllState
 	b.mu.Unlock()
+	// If no full-refresh callback is configured, treat as no-op so read handlers
+	// still return cached state instead of failing.
 	if refreshFn == nil {
 		return nil
 	}
@@ -240,6 +242,8 @@ func (b *uiBridge) refreshAllIfRequested(ctx context.Context, refresh bool) erro
 	}
 
 	b.mu.Lock()
+	// Replace all cached sections atomically so clients never observe mixed
+	// old/new state across different check panels.
 	b.reportData = data
 	b.timestampCheck = data.TimestampCheck
 	b.unreleasedBugs = data.UnassignedUnreleased
@@ -258,6 +262,7 @@ func (b *uiBridge) refreshAllIfRequested(ctx context.Context, refresh bool) erro
 // stop gracefully shuts down the bridge server and marks it closed.
 func (b *uiBridge) stop(reason string) error {
 	b.mu.Lock()
+	// reason!="bridge closed" means stop already ran; keep shutdown idempotent.
 	if b.reason != "bridge closed" {
 		b.mu.Unlock()
 		return nil
@@ -502,6 +507,8 @@ func (b *uiBridge) setSessionCookie(w http.ResponseWriter) {
 	if maxAge <= 0 {
 		maxAge = int((15 * time.Minute).Seconds())
 	}
+	// Secure+HttpOnly+Strict SameSite keeps this local session cookie limited to
+	// first-party HTTPS contexts and inaccessible to JS.
 	http.SetCookie(w, &http.Cookie{
 		Name:     bridgeSessionCookieName,
 		Value:    b.session,
@@ -516,6 +523,8 @@ func (b *uiBridge) setSessionCookie(w http.ResponseWriter) {
 // hasValidSession accepts either the existing session header or strict cookie.
 func (b *uiBridge) hasValidSession(r *http.Request) bool {
 	sessionHeader := strings.TrimSpace(r.Header.Get("X-Qacheck-Session"))
+	// Header path keeps API tooling/tests simple; browser requests usually rely
+	// on the session cookie set by app shell responses.
 	if sessionHeader != "" && sessionHeader == b.session {
 		return true
 	}

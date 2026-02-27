@@ -148,6 +148,8 @@ func run() int {
 	tracker.phaseStart(phaseAwaitingQAStale)
 	start = time.Now()
 	staleAfter := time.Duration(*staleDays) * 24 * time.Hour
+	// Awaiting-QA and stale checks share one scan pass; we split metrics into
+	// separate phases for visibility in the tracker and report summary.
 	awaitingByProject, staleByProject := runAwaitingQACheck(ctx, client, *org, *limit, projectNums, staleAfter, labelFilter)
 	awaitingElapsed := shortDuration(time.Since(start))
 	tracker.phaseDone(phaseAwaitingQAGate, phaseSummaryKV(
@@ -187,6 +189,8 @@ func run() int {
 	tracker.phaseStart(phaseMissingAssignee)
 	tracker.phaseStart(phaseAssignedToMe)
 	start = time.Now()
+	// One query path produces both "missing assignee" and "assigned to me"
+	// sections; splitAssigneeCounts separates totals for phase reporting.
 	missingAssignees := runMissingAssigneeChecks(ctx, client, *org, projectNums, *limit, token)
 	missingAssigneeCount, assignedToMeCount := splitAssigneeCounts(missingAssignees)
 	assigneeElapsed := shortDuration(time.Since(start))
@@ -283,6 +287,8 @@ func run() int {
 	bridge.setUnreleasedRefresher(func(ctx context.Context) ([]UnassignedUnreleasedProjectReport, error) {
 		refreshCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
 		defer cancel()
+		// Refresh computes only the target check, then reuses the report builder
+		// to keep section formatting identical to the full run.
 		fresh := runUnassignedUnreleasedBugChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter, groupLabels)
 		return buildHTMLReportData(
 			*org,
@@ -354,6 +360,8 @@ func run() int {
 			bridgeBaseURL,
 			bridgeSessionToken,
 		).MissingSprint
+		// Sprint apply allowlist must be rebuilt from fresh findings so UI actions
+		// cannot target stale item IDs.
 		refreshedPolicy := buildBridgePolicy(nil, nil, fresh, nil, nil)
 		return report, refreshedPolicy.SprintsByItemID, nil
 	})
