@@ -307,7 +307,7 @@ func TestMDMRunCommand(t *testing.T) {
 				{"valid single win only mac mdm", []string{"--hosts", "win-enrolled", "--payload", winCmdFilePath}, appCfgMacMDM, "Windows MDM isn't turned on."},
 				{"macOS premium cmd", []string{"--hosts", "mac-enrolled", "--payload", applePremiumCmdFilePath}, appCfgAllMDM, func() string {
 					if lic == fleet.TierFree {
-						return `missing or invalid license`
+						return `Requires Fleet Premium license`
 					}
 					return ""
 				}()},

@@ -308,7 +308,7 @@ func (c *Client) CheckAppleMDMEnabled() error {
 func (c *Client) CheckPremiumMDMEnabled() error {
 	return c.runAppConfigChecks(func(ac *fleet.EnrichedAppConfig) error {
 		if ac.License == nil || !ac.License.IsPremium() {
-			return errors.New("missing or invalid license")
+			return ErrMissingLicense
 		}
 		if !ac.MDM.EnabledAndConfigured {
 			return errors.New(fleet.AppleMDMNotConfiguredMessage)
@@ -580,7 +580,7 @@ func (c *Client) ApplyGroup(
 	if specs.CertificateAuthorities != nil {
 		if err := c.ApplyCertificateAuthoritiesSpec(*specs.CertificateAuthorities, opts.ApplySpecOptions); err != nil {
 			// only do this custom message for gitops as we reference the applying filename which only makes sense in gitops
-			if err.Error() == "missing or invalid license" && viaGitOps && filename != nil {
+			if err.Error() == ErrMissingLicense.Error() && viaGitOps && filename != nil {
 				return nil, nil, nil, nil, fmt.Errorf("Couldn't edit \"%s\" at \"certificate_authorities\": Missing or invalid license. Certificate authorities are available in Fleet Premium only.", *filename)
 			}
 			return nil, nil, nil, nil, fmt.Errorf("applying certificate authorities: %w", err)

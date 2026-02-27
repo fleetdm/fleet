@@ -2343,7 +2343,7 @@ func TestGetAppleBM(t *testing.T) {
 	t.Run("free license", func(t *testing.T) {
 		testing_utils.RunServerWithMockedDS(t)
 
-		expected := `could not get Apple BM information: missing or invalid license`
+		expected := `could not get Apple BM information: Requires Fleet Premium license`
 		_, err := RunAppNoChecks([]string{"get", "mdm_apple_bm"})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), expected)

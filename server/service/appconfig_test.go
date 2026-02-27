@@ -494,7 +494,7 @@ func TestJITProvisioning(t *testing.T) {
 		validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{})
 		require.True(t, invalid.HasErrors())
 		assert.Contains(t, invalid.Error(), "enable_jit_provisioning")
-		assert.Contains(t, invalid.Error(), "missing or invalid license")
+		assert.Contains(t, invalid.Error(), "Requires Fleet Premium license")
 	})
 
 	t.Run("allows JIT provisioning to be enabled with a premium license", func(t *testing.T) {
@@ -721,8 +721,8 @@ func TestModifyAppConfigFleetDesktopSettings(t *testing.T) {
 			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHost: "something.com"},
 			expectedSettings: fleet.FleetDesktopSettings{},
 			invalid: []map[string]string{
-				{"name": "transparency_url", "reason": "missing or invalid license"},
-				{"name": "alternative_browser_host", "reason": "missing or invalid license"},
+				{"name": "transparency_url", "reason": "Requires Fleet Premium license"},
+				{"name": "alternative_browser_host", "reason": "Requires Fleet Premium license"},
 			},
 		},
 		{
@@ -905,7 +905,7 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 	raw = []byte(`{"fleet_desktop":` + string(raw) + `}`)
 	_, err = svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
 	require.Error(t, err)
-	require.ErrorContains(t, err, "missing or invalid license")
+	require.ErrorContains(t, err, "Requires Fleet Premium license")
 
 	// setting unrelated config value does not fail and resets transparency url to ""
 	raw, err = json.Marshal(fleet.OrgInfo{OrgName: "f1337"})
@@ -938,7 +938,7 @@ func TestMDMConfig(t *testing.T) {
 	}))
 	t.Cleanup(depSrv.Close)
 
-	const licenseErr = "missing or invalid license"
+	const licenseErr = "Requires Fleet Premium license"
 	const notFoundErr = "not found"
 	testCases := []struct {
 		name          string

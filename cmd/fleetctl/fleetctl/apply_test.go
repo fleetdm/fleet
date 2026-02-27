@@ -2383,7 +2383,7 @@ spec:
 
 		// appconfig macos setup assistant
 		name := writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", emptyMacosSetup))
-		RunAppCheckErr(t, []string{"apply", "-f", name}, `applying fleet config: missing or invalid license`)
+		RunAppCheckErr(t, []string{"apply", "-f", name}, `applying fleet config: Requires Fleet Premium license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2391,7 +2391,7 @@ spec:
 		assert.False(t, ds.SaveAppConfigFuncInvoked)
 
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "https://example.com", ""))
-		RunAppCheckErr(t, []string{"apply", "-f", name}, `applying fleet config: missing or invalid license`)
+		RunAppCheckErr(t, []string{"apply", "-f", name}, `applying fleet config: Requires Fleet Premium license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2400,7 +2400,7 @@ spec:
 
 		// team macos setup assistant
 		name = writeTmpYml(t, fmt.Sprintf(team1Spec, "", emptyMacosSetup))
-		RunAppCheckErr(t, []string{"apply", "-f", name}, `applying teams: missing or invalid license`)
+		RunAppCheckErr(t, []string{"apply", "-f", name}, `applying teams: Requires Fleet Premium license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2408,7 +2408,7 @@ spec:
 		assert.False(t, ds.SaveTeamFuncInvoked)
 
 		name = writeTmpYml(t, fmt.Sprintf(team1Spec, "https://example.com", ""))
-		RunAppCheckErr(t, []string{"apply", "-f", name}, `applying fleets: missing or invalid license`)
+		RunAppCheckErr(t, []string{"apply", "-f", name}, `applying fleets: Requires Fleet Premium license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2418,7 +2418,7 @@ spec:
 		// enable_end_user_authentication is premium only
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpecEnableEndUserAuth, "true"))
 		RunAppCheckErr(t, []string{"apply", "-f", name},
-			`applying fleet config: PATCH /api/latest/fleet/config received status 422 Validation Failed: missing or invalid license`)
+			`applying fleet config: PATCH /api/latest/fleet/config received status 422 Validation Failed: Requires Fleet Premium license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2426,7 +2426,7 @@ spec:
 		assert.False(t, ds.SaveTeamFuncInvoked)
 
 		name = writeTmpYml(t, fmt.Sprintf(team1SpecEnableEndUserAuth, "true"))
-		RunAppCheckErr(t, []string{"apply", "-f", name}, `applying teams: missing or invalid license`)
+		RunAppCheckErr(t, []string{"apply", "-f", name}, `applying teams: Requires Fleet Premium license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
