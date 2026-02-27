@@ -3,6 +3,7 @@ package condaccess
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,7 +15,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -75,13 +75,13 @@ b1ctZeF7HaWwFdTC8GqWI6zzRFn+YA3f/yYibhowuEypPQeSjlI=
 
 func newTestService() (*idpService, *mock.Store) {
 	ds := new(mock.Store)
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	return &idpService{ds: ds, logger: logger, certSerialFormat: config.CertSerialFormatHex}, ds
 }
 
 func newTestServiceWithCertFormat(certFormat string) (*idpService, *mock.Store) {
 	ds := new(mock.Store)
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	return &idpService{ds: ds, logger: logger, certSerialFormat: certFormat}, ds
 }
 
@@ -116,7 +116,7 @@ func mockCertAssetsFunc(includeCerts bool) func(context.Context, []fleet.MDMAsse
 
 func TestRegisterIdP(t *testing.T) {
 	ds := new(mock.Store)
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	cfg := &config.FleetConfig{}
 
 	ds.AppConfigFunc = mockAppConfigFunc("https://fleet.example.com")
@@ -525,7 +525,7 @@ func TestParseCertAndKeyBytes(t *testing.T) {
 }
 
 func TestDeviceHealthSessionProvider(t *testing.T) {
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	now := time.Now()
 
 	tests := []struct {
