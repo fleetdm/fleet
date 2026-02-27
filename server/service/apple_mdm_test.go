@@ -5113,7 +5113,7 @@ func TestUnmarshalAppList(t *testing.T) {
 	assert.ElementsMatch(t, expectedSoftware, software)
 }
 
-func TestNeedsOSUpdateForDEPEnrollment(t *testing.T) {
+func TestShouldOSUpdateForDEPEnrollment(t *testing.T) {
 	testCases := []struct {
 		name                  string
 		platform              string
@@ -5147,13 +5147,36 @@ func TestNeedsOSUpdateForDEPEnrollment(t *testing.T) {
 			expectedResult: false,
 		},
 		{
-			name:     "if platform is macOS and update_new_hosts is set",
+			name:     "if platform is macOS and both update_new_hosts and minimum_version are set and host is below the minimum version",
 			platform: string(fleet.MacOSPlatform),
 			appleMachineInfo: fleet.MDMAppleMachineInfo{
 				OSVersion: "16.0.1",
 			},
 			appleOSUpdateSettings: fleet.AppleOSUpdateSettings{
 				MinimumVersion: optjson.SetString("16.0.2"),
+				UpdateNewHosts: optjson.SetBool(true),
+			},
+			expectedResult: true,
+		},
+		{
+			name:     "if platform is macOS and both update_new_hosts and minimum_version are set and host is at the minimum version",
+			platform: string(fleet.MacOSPlatform),
+			appleMachineInfo: fleet.MDMAppleMachineInfo{
+				OSVersion: "16.0.2",
+			},
+			appleOSUpdateSettings: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString("16.0.2"),
+				UpdateNewHosts: optjson.SetBool(true),
+			},
+			expectedResult: false,
+		},
+		{
+			name:     "if platform is macOS and update_new_hosts is set but minimum_version is not set",
+			platform: string(fleet.MacOSPlatform),
+			appleMachineInfo: fleet.MDMAppleMachineInfo{
+				OSVersion: "16.0.1",
+			},
+			appleOSUpdateSettings: fleet.AppleOSUpdateSettings{
 				UpdateNewHosts: optjson.SetBool(true),
 			},
 			expectedResult: true,
@@ -5202,7 +5225,7 @@ func TestNeedsOSUpdateForDEPEnrollment(t *testing.T) {
 		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
 
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := svc.needsOSUpdateForDEPEnrollment(ctx, tt.appleMachineInfo)
+			result, err := svc.shouldOSUpdateForDEPEnrollment(ctx, tt.appleMachineInfo)
 			require.Equal(t, tt.expectedResult, result)
 			require.Equal(t, tt.expectedErr, err)
 		})
@@ -5311,6 +5334,8 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 		},
 	}
 
+	// TODO: revisit tests for non-macOS platforms, why isn't machine info playing a role in the
+	// tests (e.g., does iPod Touch even have any supported versions)
 	for _, tt := range testCases {
 		// Non-macOS platforms
 		for _, platform := range []string{"ios", "ipados"} {
@@ -5447,6 +5472,7 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 			})
 
 			t.Run("when UpdateNewHosts is set and minimum is not set", func(t *testing.T) {
+				// test with min version not present
 				ds.GetMDMAppleOSUpdatesSettingsByHostSerialFunc = func(ctx context.Context, serial string) (string, *fleet.AppleOSUpdateSettings, error) {
 					return "darwin", &fleet.AppleOSUpdateSettings{
 						UpdateNewHosts: optjson.SetBool(true),
@@ -5466,6 +5492,7 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 					require.Nil(t, sur)
 				}
 
+				// test again with min version explicitly set to empty string
 				ds.GetMDMAppleOSUpdatesSettingsByHostSerialFunc = func(ctx context.Context, serial string) (string, *fleet.AppleOSUpdateSettings, error) {
 					return "darwin", &fleet.AppleOSUpdateSettings{
 						UpdateNewHosts: optjson.SetBool(true),
@@ -5490,6 +5517,7 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 				ds.GetMDMAppleOSUpdatesSettingsByHostSerialFunc = func(ctx context.Context, serial string) (string, *fleet.AppleOSUpdateSettings, error) {
 					return "darwin", nil, &notFoundError{}
 				}
+				// never block enrollment when settings are not found
 				sur, err := svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx, tt.machineInfo)
 				require.NoError(t, err)
 				require.Nil(t, sur)
@@ -5500,6 +5528,30 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 					return "darwin", &fleet.AppleOSUpdateSettings{
 						UpdateNewHosts: optjson.SetBool(true),
 						MinimumVersion: optjson.SetString(latestMacOSVersion),
+					}, nil
+				}
+				sur, err := svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx, tt.machineInfo)
+				if tt.err != "" {
+					require.Error(t, err)
+					require.Contains(t, err.Error(), tt.err)
+				} else {
+					require.NoError(t, err)
+				}
+				if tt.updateRequired != nil {
+					require.Equal(t, &fleet.MDMAppleSoftwareUpdateRequired{
+						Code:    fleet.MDMAppleSoftwareUpdateRequiredCode,
+						Details: *tt.updateRequired,
+					}, sur)
+				} else {
+					require.Nil(t, sur)
+				}
+			})
+
+			t.Run("when UpdateNewHosts is set and required minimum is less than latest", func(t *testing.T) {
+				ds.GetMDMAppleOSUpdatesSettingsByHostSerialFunc = func(ctx context.Context, serial string) (string, *fleet.AppleOSUpdateSettings, error) {
+					return "darwin", &fleet.AppleOSUpdateSettings{
+						UpdateNewHosts: optjson.SetBool(true),
+						MinimumVersion: optjson.SetString("14.5"),
 					}, nil
 				}
 				sur, err := svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx, tt.machineInfo)
