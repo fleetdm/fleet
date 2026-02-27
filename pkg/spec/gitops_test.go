@@ -1768,7 +1768,7 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		t.Parallel()
 		items := []BaseItem{{}}
 		_, err := resolveScriptPaths(items, "/tmp", nopLogf)
-		assert.ErrorContains(t, err, `without a "path" or "paths" field`)
+		assert.ErrorContains(t, err, `no "path" or "paths" field`)
 	})
 
 	t.Run("no_matches_warning", func(t *testing.T) {
@@ -1783,7 +1783,7 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, result)
 		require.Len(t, warnings, 1)
-		assert.Contains(t, warnings[0], "matched no script files")
+		assert.Contains(t, warnings[0], "matched no script")
 	})
 
 	t.Run("duplicate_basenames_error", func(t *testing.T) {
