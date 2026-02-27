@@ -1083,11 +1083,10 @@ func newCleanupsAndAggregationSchedule(
 			if !appConfig.ActivityExpirySettings.ActivityExpiryEnabled {
 				return nil
 			}
-			expiryThreshold := time.Now().Add(-time.Duration(appConfig.ActivityExpirySettings.ActivityExpiryWindow) * 24 * time.Hour)
 			// A maxCount of 5,000 means that the cron job will keep the activities table
 			// size in control for deployments that generate (5k x 24 hours) ~120,000 activities per day.
 			const maxCount = 5000
-			return activitySvc.CleanupExpiredActivities(ctx, maxCount, expiryThreshold)
+			return activitySvc.CleanupExpiredActivities(ctx, maxCount, appConfig.ActivityExpirySettings.ActivityExpiryWindow)
 		}),
 		schedule.WithJob("cleanup_live_queries", func(ctx context.Context) error {
 			appConfig, err := ds.AppConfig(ctx)

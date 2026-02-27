@@ -36,14 +36,14 @@ func testCleanupExpiredActivitiesNoop(t *testing.T, env *testEnv) {
 	ctx := t.Context()
 
 	// No activities exist -should be a no-op.
-	err := env.ds.CleanupExpiredActivities(ctx, 500, time.Now().Add(-24*time.Hour))
+	err := env.ds.CleanupExpiredActivities(ctx, 500, 1)
 	require.NoError(t, err)
 
 	// Create a recent activity -should not be deleted.
 	userID := env.InsertUser(t, "user", "user@example.com")
 	env.InsertActivity(t, ptr.Uint(userID), "recent_activity", map[string]any{})
 
-	err = env.ds.CleanupExpiredActivities(ctx, 500, time.Now().Add(-24*time.Hour))
+	err = env.ds.CleanupExpiredActivities(ctx, 500, 1)
 	require.NoError(t, err)
 
 	activities, _, err := env.ds.ListActivities(ctx, listOpts())
@@ -68,8 +68,7 @@ func testCleanupExpiredActivitiesBasic(t *testing.T, env *testEnv) {
 	// 3. Recent, no host link → should be preserved
 	recentNoHost := env.InsertActivityWithTime(t, ptr.Uint(userID), "recent_no_host", map[string]any{}, recentTime)
 
-	expiryThreshold := time.Now().Add(-24 * time.Hour)
-	err := env.ds.CleanupExpiredActivities(ctx, 500, expiryThreshold)
+	err := env.ds.CleanupExpiredActivities(ctx, 500, 1)
 	require.NoError(t, err)
 
 	activities, _, err := env.ds.ListActivities(ctx, listOpts())
@@ -102,8 +101,7 @@ func testCleanupExpiredActivitiesBatch(t *testing.T, env *testEnv) {
 	}
 
 	// Cleanup with maxCount=3 -only 3 should be deleted per call.
-	expiryThreshold := time.Now().Add(-24 * time.Hour)
-	err := env.ds.CleanupExpiredActivities(ctx, 3, expiryThreshold)
+	err := env.ds.CleanupExpiredActivities(ctx, 3, 1)
 	require.NoError(t, err)
 
 	activities, _, err := env.ds.ListActivities(ctx, listOpts())
@@ -111,7 +109,7 @@ func testCleanupExpiredActivitiesBatch(t *testing.T, env *testEnv) {
 	assert.Len(t, activities, 7, "only 3 of 10 expired activities should be deleted")
 
 	// Run again -another 3 deleted.
-	err = env.ds.CleanupExpiredActivities(ctx, 3, expiryThreshold)
+	err = env.ds.CleanupExpiredActivities(ctx, 3, 1)
 	require.NoError(t, err)
 
 	activities, _, err = env.ds.ListActivities(ctx, listOpts())
@@ -119,7 +117,7 @@ func testCleanupExpiredActivitiesBatch(t *testing.T, env *testEnv) {
 	assert.Len(t, activities, 4)
 
 	// Run again -another 3 deleted.
-	err = env.ds.CleanupExpiredActivities(ctx, 3, expiryThreshold)
+	err = env.ds.CleanupExpiredActivities(ctx, 3, 1)
 	require.NoError(t, err)
 
 	activities, _, err = env.ds.ListActivities(ctx, listOpts())
@@ -127,7 +125,7 @@ func testCleanupExpiredActivitiesBatch(t *testing.T, env *testEnv) {
 	assert.Len(t, activities, 1)
 
 	// Run again -last one deleted.
-	err = env.ds.CleanupExpiredActivities(ctx, 3, expiryThreshold)
+	err = env.ds.CleanupExpiredActivities(ctx, 3, 1)
 	require.NoError(t, err)
 
 	activities, _, err = env.ds.ListActivities(ctx, listOpts())

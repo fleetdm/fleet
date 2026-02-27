@@ -195,21 +195,21 @@ func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, op
 	return activities, metaData, nil
 }
 
-// CleanupExpiredActivities deletes up to maxCount activities created before expiryThreshold
+// CleanupExpiredActivities deletes up to maxCount activities older than expiryWindowDays
 // that are not linked to any host. Host-linked activities are preserved.
-func (ds *Datastore) CleanupExpiredActivities(ctx context.Context, maxCount int, expiryThreshold time.Time) error {
+func (ds *Datastore) CleanupExpiredActivities(ctx context.Context, maxCount int, expiryWindowDays int) error {
 	ctx, span := tracer.Start(ctx, "activity.mysql.CleanupExpiredActivities")
 	defer span.End()
 
 	const selectQuery = `
 		SELECT a.id FROM activities a
 		LEFT JOIN host_activities ha ON (a.id=ha.activity_id)
-		WHERE ha.activity_id IS NULL AND a.created_at < ?
+		WHERE ha.activity_id IS NULL AND a.created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
 		ORDER BY a.id ASC
 		LIMIT ?`
 
 	var activityIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.primary, &activityIDs, selectQuery, expiryThreshold, maxCount); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.primary, &activityIDs, selectQuery, expiryWindowDays, maxCount); err != nil {
 		return ctxerr.Wrap(ctx, err, "select expired activities for deletion")
 	}
 	if len(activityIDs) == 0 {

@@ -64,7 +64,7 @@ func (m *mockDatastore) NewActivity(ctx context.Context, user *api.User, activit
 	return nil
 }
 
-func (m *mockDatastore) CleanupExpiredActivities(ctx context.Context, maxCount int, expiryThreshold time.Time) error {
+func (m *mockDatastore) CleanupExpiredActivities(ctx context.Context, maxCount int, expiryWindowDays int) error {
 	return nil
 }
 
@@ -521,7 +521,7 @@ func (m *mockStreamingDatastore) NewActivity(ctx context.Context, user *api.User
 	panic("not implemented")
 }
 
-func (m *mockStreamingDatastore) CleanupExpiredActivities(ctx context.Context, maxCount int, expiryThreshold time.Time) error {
+func (m *mockStreamingDatastore) CleanupExpiredActivities(ctx context.Context, maxCount int, expiryWindowDays int) error {
 	panic("not implemented")
 }
 
