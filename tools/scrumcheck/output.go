@@ -25,10 +25,11 @@ func printDraftingStatusSection(status string, items []DraftingCheckViolation) {
 
 	emoji := "📝"
 	msg := fmt.Sprintf("These items are in %q but still have checklist items not checked.", status)
-	// Switch on normalized status to choose the section style:
+	// Switch on normalized status to choose section style for terminal output:
 	// - "ready to estimate": use puzzle emoji and fixed wording for that column.
 	// - "estimated": use ruler emoji and fixed wording for that column.
-	// - default: keep generic emoji/message for any other status.
+	// - default: keep generic emoji/message for any other status (including
+	//   unknown statuses from custom boards).
 	switch strings.ToLower(strings.TrimSpace(status)) {
 	case "ready to estimate":
 		emoji = "🧩"

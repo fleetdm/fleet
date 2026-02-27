@@ -102,12 +102,13 @@ func uncheckedChecklistItems(body string) []string {
 	out := make([]string, 0)
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		// Switch handles the supported unchecked-checklist syntaxes:
+		// Switch handles the supported unchecked-checklist syntaxes line-by-line:
 		// - "- [ ] text"
 		// - "* [ ] text"
 		// - "[ ] text"
 		// Each case extracts normalized text and applies ignore-prefix filtering.
-		// Non-matching lines fall through and are skipped.
+		// Non-matching lines (including checked items like [x]) fall through and
+		// are skipped, so only still-unchecked tasks are returned.
 		switch {
 		case strings.HasPrefix(trimmed, "- [ ] "):
 			text := strings.TrimSpace(strings.TrimPrefix(trimmed, "- [ ] "))

@@ -261,7 +261,7 @@ func TestAssigneeMilestoneAndReleaseStoryFlows(t *testing.T) {
 		// - /assignees: assignable users
 		// - /milestones: milestone suggestions
 		// - /search/issues: release-story TODO search results
-		// - default: 404 to surface unexpected endpoint usage.
+		// - default: 404 to surface unexpected endpoint usage and avoid masking it.
 		switch {
 		case r.URL.String() == "https://api.github.com/user":
 			return jsonResponse(t, http.StatusOK, map[string]any{"login": "sharon-fdm"}), nil
@@ -598,7 +598,8 @@ func TestBridgeMutationSuccessPaths(t *testing.T) {
 	withMockDefaultTransport(t, roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		// Switch provides happy-path mocked API responses for each bridge mutation:
 		// issue read/update, assignee add, release-label add/remove, and sprint GraphQL.
-		// Default branch returns OK so non-critical extra requests do not fail the test.
+		// Default branch returns OK so incidental extra requests do not fail this
+		// happy-path test and can be asserted separately if needed.
 		switch {
 		case strings.Contains(r.URL.Path, "/issues/1") && r.Method == http.MethodGet:
 			return jsonResponse(t, http.StatusOK, map[string]any{
@@ -670,7 +671,7 @@ func TestBridgeMutationSuccessPaths(t *testing.T) {
 func TestBridgeMutationErrorBranches(t *testing.T) {
 	withMockDefaultTransport(t, roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		// Switch forces specific API failures per endpoint so each handler's
-		// bad-gateway error path is exercised.
+		// bad-gateway error path is exercised in a deterministic way.
 		switch {
 		case strings.Contains(r.URL.Path, "/issues/1") && r.Method == http.MethodPatch:
 			return &http.Response{

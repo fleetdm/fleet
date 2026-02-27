@@ -36,7 +36,8 @@ func newGraphQLStubClient(t *testing.T) *githubv4.Client {
 			// Switch routes by GraphQL query shape in test fixtures:
 			// - project lookup query: return project ID for the requested number.
 			// - project items query: return synthetic items for that project ID.
-			// - default: return empty data object.
+			// - default: return empty data object so unexpected queries fail softly
+			//   and keep the test focused on intended flows.
 			switch {
 			case strings.Contains(req.Query, "projectV2(number: $num)"):
 				num := int(req.Variables["num"].(float64))
@@ -77,7 +78,7 @@ func graphNodesForProjectID(id string) []map[string]any {
 	// - P67: drafting sample issue.
 	// - P71: awaiting/stale + unreleased sample issues.
 	// - P97: done-column sample issue.
-	// - default: no items.
+	// - default: no items (lets callers verify handling of empty projects).
 	switch id {
 	case "P67":
 		return []map[string]any{

@@ -162,7 +162,8 @@ func fetchSprintProjectConfig(
 		// Switch over GraphQL typename to extract only fields relevant to sprint checks:
 		// - ProjectV2SingleSelectField: capture the "Status" field ID.
 		// - ProjectV2IterationField: capture the "Sprint" field ID/name and iterations.
-		// Any other field type is ignored.
+		// Any other field type is ignored so this logic remains resilient if GitHub
+		// adds additional project field variants.
 		switch n.Typename {
 		case "ProjectV2SingleSelectField":
 			if name == "status" {
@@ -299,7 +300,7 @@ func sprintColumnsWithoutReadyForRelease() []string {
 // sprintColumnLabel converts a column key into UI-facing text.
 func sprintColumnLabel(group string) string {
 	// Switch maps stable internal column keys to UI labels shown in the report.
-	// Unknown keys fall back to "All" so rendering remains resilient.
+	// Unknown keys fall back to "All" to avoid blank headers if new keys appear.
 	switch group {
 	case "ready":
 		return "Ready"
