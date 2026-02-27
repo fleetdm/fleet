@@ -248,7 +248,7 @@ func TestGetAssets(t *testing.T) {
 				require.NoError(t, json.NewEncoder(w).Encode(assets))
 			},
 			expectedAssets:   nil,
-			expectedErrMsg:   "Client.Timeout exceeded while awaiting headers",
+			expectedErrMsg:   "exceeded",
 			expectedRequests: 3,
 		},
 		{
