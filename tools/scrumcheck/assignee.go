@@ -38,6 +38,9 @@ func runMissingAssigneeChecks(
 	cache := make(map[string][]AssigneeOption)
 	assignedSearchByProject := make(map[int]map[int]searchIssueItem, len(projectNums))
 	for _, projectNum := range projectNums {
+		// This side query intentionally mirrors `assignee:@me` behavior so items
+		// assigned to the viewer are still surfaced even if local project-item
+		// fetch windows miss them.
 		found := searchAssignedIssuesByProject(ctx, token, org, projectNum)
 		byNumber := make(map[int]searchIssueItem, len(found))
 		for _, it := range found {
@@ -54,6 +57,9 @@ func runMissingAssigneeChecks(
 		seenAssigned := make(map[int]struct{})
 
 		for _, it := range items {
+			// Assign-to-me classification is derived from either project card
+			// assignees or direct search results to make the check resilient to
+			// field projection differences.
 			if it.Content.Issue.Number == 0 {
 				continue
 			}
@@ -77,6 +83,7 @@ func runMissingAssigneeChecks(
 			}
 			cacheKey := owner + "/" + repo
 			if _, ok := cache[cacheKey]; !ok {
+				// Repo assignee suggestions are reused across multiple items.
 				cache[cacheKey] = fetchRepoAssignees(ctx, token, owner, repo)
 			}
 			suggestions := append([]AssigneeOption(nil), cache[cacheKey]...)
@@ -106,6 +113,8 @@ func runMissingAssigneeChecks(
 			if err != nil {
 				continue
 			}
+			// Build a minimal synthetic Item so the downstream report/render path
+			// can treat API-search hits and project-item hits uniformly.
 			item.Content.Issue.Number = num
 			item.Content.Issue.Title = githubv4.String(issue.Title)
 			if parsed, err := parseIssueURL(issue.HTMLURL); err == nil {
@@ -171,6 +180,7 @@ func fetchViewerLogin(ctx context.Context, token string) string {
 	if resp.StatusCode != http.StatusOK {
 		return ""
 	}
+	// Only login is needed from this endpoint for assignee:@me comparisons.
 	var body userLoginResponse
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		return ""
@@ -212,6 +222,7 @@ func fetchRepoAssignees(ctx context.Context, token, owner, repo string) []Assign
 	out := make([]AssigneeOption, 0, len(users))
 	seen := make(map[string]bool)
 	for _, u := range users {
+		// Normalize by lowercase key while preserving original casing for display.
 		login := strings.TrimSpace(u.Login)
 		if login == "" {
 			continue

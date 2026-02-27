@@ -42,6 +42,8 @@ func buildBridgePolicy(
 		ReleaseByIssue:    make(map[string]releaseLabelTarget),
 	}
 
+	// Checklist policy: each issue key maps to the specific unchecked checklist
+	// lines that may be toggled from the UI.
 	for _, v := range drafting {
 		owner, repo := parseRepoFromIssueURL(getURL(v.Item))
 		if owner == "" || repo == "" {
@@ -59,6 +61,8 @@ func buildBridgePolicy(
 		}
 	}
 
+	// Milestone policy: each issue key maps to the allowed milestone numbers
+	// discovered during missing-milestone analysis.
 	for _, v := range missing {
 		key := issueKey(v.RepoOwner+"/"+v.RepoName, getNumber(v.Item))
 		if p.MilestonesByIssue[key] == nil {
@@ -72,6 +76,8 @@ func buildBridgePolicy(
 		}
 	}
 
+	// Sprint policy: keyed by project item ID because iteration field updates are
+	// applied to project items (not repository issues directly).
 	for _, v := range missingSprints {
 		itemID := strings.TrimSpace(fmt.Sprintf("%v", v.ItemID))
 		projectID := strings.TrimSpace(fmt.Sprintf("%v", v.ProjectID))
@@ -87,6 +93,8 @@ func buildBridgePolicy(
 		}
 	}
 
+	// Assignee policy: each issue key maps to a constrained set of allowed
+	// assignee logins from repo-level assignable users.
 	for _, v := range missingAssignees {
 		key := issueKey(v.RepoOwner+"/"+v.RepoName, getNumber(v.Item))
 		if p.AssigneesByIssue[key] == nil {
@@ -101,6 +109,8 @@ func buildBridgePolicy(
 		}
 	}
 
+	// Release policy stores which release-label mutations are valid for each
+	// issue (remove :product, add :release, or both).
 	for _, v := range releaseIssues {
 		key := issueKey(v.RepoOwner+"/"+v.RepoName, getNumber(v.Item))
 		p.ReleaseByIssue[key] = releaseLabelTarget{

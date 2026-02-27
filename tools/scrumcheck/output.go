@@ -11,6 +11,8 @@ import (
 func groupViolationsByStatus(items []DraftingCheckViolation) map[string][]DraftingCheckViolation {
 	out := make(map[string][]DraftingCheckViolation)
 	for _, item := range items {
+		// Status keys are normalized so differently-cased board values collapse
+		// into one terminal/report bucket.
 		key := strings.ToLower(strings.TrimSpace(item.Status))
 		out[key] = append(out[key], item)
 	}
@@ -64,6 +66,7 @@ func printStaleAwaitingSummary(staleByProject map[int][]StaleAwaitingViolation, 
 	for projectNum := range staleByProject {
 		projects = append(projects, projectNum)
 	}
+	// Stable project ordering keeps terminal output easy to diff/read over time.
 	sort.Ints(projects)
 
 	for _, projectNum := range projects {
@@ -128,6 +131,7 @@ func printMissingMilestoneSummary(items []MissingMilestoneIssue) {
 	for p := range byProject {
 		projects = append(projects, p)
 	}
+	// Stable project ordering avoids map-iteration noise in console output.
 	sort.Ints(projects)
 
 	for _, projectNum := range projects {

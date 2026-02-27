@@ -29,6 +29,7 @@ func fetchProjectID(ctx context.Context, client *githubv4.Client, org string, nu
 		return ""
 	}
 
+	// Empty ID signals caller that lookup failed or project is inaccessible.
 	return q.Organization.ProjectV2.ID
 }
 
@@ -59,6 +60,8 @@ func fetchItems(
 		return nil
 	}
 
+	// This function intentionally returns a single page (first N) for checks that
+	// only need a bounded window of project items.
 	return q.Node.ProjectV2.Items.Nodes
 }
 
@@ -108,6 +111,8 @@ func fetchAllItems(
 	out := make([]Item, 0, 256)
 	var after *githubv4.String
 	for {
+		// Pagination loop continues until hasNextPage=false; each iteration sets
+		// `after` to the previous page's end cursor.
 		vars := map[string]interface{}{
 			"id":    projectID,
 			"after": after,

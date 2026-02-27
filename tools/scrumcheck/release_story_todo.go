@@ -28,12 +28,16 @@ func runReleaseStoryTODOChecks(
 	keyed := make(map[string]ReleaseStoryTODOIssue)
 	out := make([]ReleaseStoryTODOIssue, 0)
 	for _, projectNum := range projectNums {
+		// Query each selected project independently so results can stay grouped
+		// by project in report output.
 		issues := fetchReleaseStoryTODOByProject(ctx, token, org, projectNum)
 		for _, issue := range issues {
 			owner, repo := parseRepoFromRepositoryAPIURL(issue.RepositoryURL)
 			if owner == "" || repo == "" {
 				continue
 			}
+			// Deduplicate by project+repo+issue because search results can overlap
+			// across repeated refreshes.
 			k := fmt.Sprintf("%d:%s/%s#%d", projectNum, owner, repo, issue.Number)
 			if _, ok := keyed[k]; ok {
 				continue
@@ -51,6 +55,8 @@ func runReleaseStoryTODOChecks(
 			if err != nil {
 				continue
 			}
+			// Build a minimal Item wrapper so existing report rendering can reuse
+			// the same helper functions used by project-sourced items.
 			item.Content.Issue.Number = num
 			item.Content.Issue.Title = githubv4.String(issue.Title)
 			item.Content.Issue.Body = githubv4.String(issue.Body)
@@ -73,6 +79,7 @@ func runReleaseStoryTODOChecks(
 		out = append(out, v)
 	}
 
+	// Keep deterministic ordering: project first, then issue number.
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].ProjectNum != out[j].ProjectNum {
 			return out[i].ProjectNum < out[j].ProjectNum
