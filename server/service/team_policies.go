@@ -218,10 +218,10 @@ func (svc *Service) populatePolicyPatchSoftware(ctx context.Context, p *fleet.Po
 }
 
 func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, teamID uint, p fleet.NewTeamPolicyPayload) (fleet.PolicyPayload, error) {
-	policyType := "dynamic"
+	policyType := fleet.PolicyTypeDynamic
 
-	if p.Type != nil && *p.Type == "patch" {
-		policyType = "patch"
+	if p.Type != nil && *p.Type == fleet.PolicyTypePatch {
+		policyType = fleet.PolicyTypePatch
 	}
 
 	softwareInstallerID, vppAppsTeamsID, err := svc.getInstallerOrVPPAppForTitle(ctx, &teamID, p.SoftwareTitleID)

@@ -143,7 +143,7 @@ func (p PolicyPayload) Verify() error {
 		if err := verifyPolicyName(p.Name); err != nil {
 			return err
 		}
-		if p.Type != "patch" {
+		if p.Type != PolicyTypePatch {
 			if err := verifyPolicyQuery(p.Query); err != nil {
 				return err
 			}
@@ -155,7 +155,7 @@ func (p PolicyPayload) Verify() error {
 	if len(p.LabelsIncludeAny) > 0 && len(p.LabelsExcludeAny) > 0 {
 		return errPolicyConflictingLabels
 	}
-	if p.Type == "patch" {
+	if p.Type == PolicyTypePatch {
 		if p.QueryID != nil {
 			return errPolicyPatchAndQuerySet
 		}
@@ -531,3 +531,8 @@ type PolicyMembershipResult struct {
 	PolicyID uint
 	Passes   *bool
 }
+
+const (
+	PolicyTypeDynamic = "dynamic"
+	PolicyTypePatch   = "patch"
+)

@@ -1030,7 +1030,7 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (policy *fleet.Policy, err error) {
 	var newPolicy *fleet.Policy
 	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		if args.Type == "patch" {
+		if args.Type == fleet.PolicyTypePatch {
 			installer, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &teamID, *args.PatchSoftwareTitleID, false)
 			if err != nil {
 				return err
