@@ -24286,23 +24286,18 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 		require.False(t, getDeviceHostResp.Host.ConditionalAccessBypassed)
 	})
 
-	t.Run("bypass fails when host has failing non-bypassable policy", func(t *testing.T) {
-		token := fmt.Sprintf("bypass-nonbypassable-%s", uuid.New().String())
+	t.Run("bypass fails when host has failing critical policy", func(t *testing.T) {
+		token := fmt.Sprintf("bypass-critical-%s", uuid.New().String())
 		host := createHostAndDeviceToken(t, s.ds, token)
 
 		// Create a global policy
 		adminUser := s.users["admin1@example.com"]
 		policy, err := s.ds.NewGlobalPolicy(ctx, &adminUser.ID, fleet.PolicyPayload{
-			Name:  fmt.Sprintf("non-bypassable-%s", uuid.New().String()),
-			Query: "select 1;",
+			Name:     fmt.Sprintf("critical-%s", uuid.New().String()),
+			Query:    "select 1;",
+			Critical: true,
 		})
 		require.NoError(t, err)
-
-		// Make the policy non-bypassable
-		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-			_, innerErr := db.ExecContext(ctx, `UPDATE policies SET conditional_access_bypass_enabled = 0 WHERE id = ?`, policy.ID)
-			return innerErr
-		})
 
 		// Record a failing result for this policy on the host
 		err = s.ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: ptr.Bool(false)}, time.Now(), false)

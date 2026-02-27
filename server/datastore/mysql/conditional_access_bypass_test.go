@@ -290,24 +290,19 @@ func testConditionalAccessBypassDeviceWithBlockingPolicy(t *testing.T, ds *Datas
 	})
 	require.NoError(t, err)
 
-	// Create a global policy with conditional_access_bypass_enabled defaulting to 1 (bypassable)
+	// Create a global policy with critical defaulting to 0 (bypassable)
 	policy, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
-		Name:  "non-bypassable-policy",
-		Query: "select 1;",
+		Name:     "critical-policy",
+		Query:    "select 1;",
+		Critical: true,
 	})
 	require.NoError(t, err)
-
-	// Set conditional_access_bypass_enabled = 0 to make it non-bypassable
-	ExecAdhocSQL(t, ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(ctx, `UPDATE policies SET conditional_access_bypass_enabled = 0 WHERE id = ?`, policy.ID)
-		return err
-	})
 
 	// Record a failing result for this policy on the host
 	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: ptr.Bool(false)}, time.Now(), false)
 	require.NoError(t, err)
 
-	// Bypass should fail because the host has a failing non-bypassable policy
+	// Bypass should fail because the host has a failing critical policy
 	err = ds.ConditionalAccessBypassDevice(ctx, host.ID)
 	require.Error(t, err)
 	var badReqErr *fleet.BadRequestError

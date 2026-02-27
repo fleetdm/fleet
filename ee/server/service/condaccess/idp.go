@@ -361,7 +361,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 
 	// Check if device has failing conditional access policies
 	failingConditionalAccessCount := 0
-	failingWithoutBypass := 0
+	failingCritical := 0
 	for _, policy := range policies {
 		// Only check policies that are marked for conditional access
 		if _, isConditionalAccessPolicy := conditionalAccessPolicyIDsSet[policy.ID]; !isConditionalAccessPolicy {
@@ -370,8 +370,8 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 		// Check if policy is failing
 		if policy.Response == policyResponseFail {
 			failingConditionalAccessCount++
-			if !(policy.ConditionalAccessBypassEnabled != nil && *policy.ConditionalAccessBypassEnabled) {
-				failingWithoutBypass++
+			if policy.Critical {
+				failingCritical++
 			}
 		}
 	}
@@ -445,7 +445,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 		bypassEnabled := config.ConditionalAccess == nil || config.ConditionalAccess.BypassEnabled()
 
 		var bypassedAt *time.Time
-		if bypassEnabled && failingWithoutBypass == 0 {
+		if bypassEnabled && failingCritical == 0 {
 			bypassedAt, err = p.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
 			if err != nil {
 				ctxerr.Handle(ctx, fmt.Errorf("failed to check conditional access host bypass for host %d: %w", p.hostID, err))
