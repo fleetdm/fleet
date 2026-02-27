@@ -86,6 +86,7 @@ func TestPolicies(t *testing.T) {
 		{"ResetAttemptsOnFailingToPassingAsync", testResetAttemptsOnFailingToPassingAsync},
 		{"PolicyModificationResetsAttemptNumber", testPolicyModificationResetsAttemptNumber},
 		{"ConditionalAccessBypassEnabled", testPoliciesConditionalAccessBypassEnabled},
+		{"TeamPatchPolicy", testTeamPatchPolicy},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -7008,4 +7009,67 @@ func testPoliciesConditionalAccessBypassEnabled(t *testing.T, ds *Datastore) {
 			}
 		})
 	}
+}
+
+func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		StorageID:         "storage1",
+		Filename:          "maintained1",
+		Title:             "maintained1",
+		Version:           "1.0",
+		Source:            "apps",
+		Platform:          "darwin",
+		BundleIdentifier:  "fleet.maintained1",
+		UserID:            user1.ID,
+		TeamID:            &team1.ID,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+	}
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), payload)
+	require.NoError(t, err)
+
+	// create a patch policy for an installer with no associated FMA
+	_, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:                 "p1",
+		Query:                "SELECT 1;",
+		Type:                 fleet.PolicyTypePatch,
+		PatchSoftwareTitleID: &titleID,
+	})
+	require.ErrorContains(t, err, "Software installer for Fleet maintained app with title ID")
+
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Maintained1",
+		Slug:             "maintained1",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.maintained1",
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.DeleteSoftwareInstaller(ctx, installerID))
+
+	payload.FleetMaintainedAppID = &maintainedApp.ID
+	_, titleID, err = ds.MatchOrCreateSoftwareInstaller(context.Background(), payload)
+	require.NoError(t, err)
+
+	p1, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:                 "p1",
+		Query:                "SELECT 1;",
+		Type:                 fleet.PolicyTypePatch,
+		PatchSoftwareTitleID: &titleID,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') >= 0;", p1.Query)
+
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		DumpTable(t, tx, "software_titles")
+		DumpTable(t, tx, "software_installers")
+		DumpTable(t, tx, "policies")
+		return nil
+	})
 }
