@@ -14988,6 +14988,55 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/load_average.yml"
   },
   {
+    "name": "local_network_permissions",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information about local network permissions granted to applications on macOS.",
+    "columns": [
+      {
+        "name": "bundle_id",
+        "type": "text",
+        "required": false,
+        "description": "The application bundle identifier (e.g., com.example.app)."
+      },
+      {
+        "name": "executable_path",
+        "type": "text",
+        "required": false,
+        "description": "The full path to the application executable."
+      },
+      {
+        "name": "display_name",
+        "type": "text",
+        "required": false,
+        "description": "The user-friendly display name of the application."
+      },
+      {
+        "name": "type",
+        "type": "text",
+        "required": false,
+        "description": "The type of permission entry (typically \"applications\")."
+      },
+      {
+        "name": "state",
+        "type": "integer",
+        "required": false,
+        "description": "The permission state (0 = denied, 1 = allowed)."
+      },
+      {
+        "name": "provider_added",
+        "type": "text",
+        "required": false,
+        "description": "Indicates if the permission was added by a provider (may be empty)."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/local_network_permissions",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/local_network_permissions.yml"
+  },
+  {
     "name": "location_services",
     "description": "Reports the status of the Location Services feature of the OS.",
     "url": "https://fleetdm.com/tables/location_services",
@@ -29820,6 +29869,79 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/vscode_extensions.yml"
+  },
+  {
+    "name": "wifi_network",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information about the currently connected Wi-Fi network.",
+    "columns": [
+      {
+        "name": "ssid",
+        "type": "text",
+        "required": false,
+        "description": "The SSID (network name) of the current Wi-Fi network."
+      },
+      {
+        "name": "interface",
+        "type": "text",
+        "required": false,
+        "description": "The network interface name (e.g., en0)."
+      },
+      {
+        "name": "rssi",
+        "type": "text",
+        "required": false,
+        "description": "Received Signal Strength Indicator (signal strength, e.g., -50)."
+      },
+      {
+        "name": "noise",
+        "type": "text",
+        "required": false,
+        "description": "Noise level in dBm."
+      },
+      {
+        "name": "channel",
+        "type": "text",
+        "required": false,
+        "description": "Wi-Fi channel number."
+      },
+      {
+        "name": "channel_width",
+        "type": "text",
+        "required": false,
+        "description": "Channel width (e.g., 20, 40, 80 MHz)."
+      },
+      {
+        "name": "channel_band",
+        "type": "text",
+        "required": false,
+        "description": "Channel band (e.g., 2.4 GHz, 5 GHz, 6 GHz)."
+      },
+      {
+        "name": "transmit_rate",
+        "type": "text",
+        "required": false,
+        "description": "Transmit rate (e.g., 300 Mbps)."
+      },
+      {
+        "name": "security_type",
+        "type": "text",
+        "required": false,
+        "description": "Security type (e.g., WPA2 Personal, WPA3 Personal)."
+      },
+      {
+        "name": "mode",
+        "type": "text",
+        "required": false,
+        "description": "Wi-Fi mode (e.g., Station)."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/wifi_network",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/wifi_network.yml"
   },
   {
     "name": "wifi_networks",
