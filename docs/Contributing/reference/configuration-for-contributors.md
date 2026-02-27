@@ -242,14 +242,11 @@ Enables exporting logs to an OpenTelemetry collector in addition to stderr outpu
     otel_logs_enabled: true
   ```
 
-### mdm.skip_declaration_validation
+### mdm.allow_all_declarations
 
 > Experimental feature. Use with caution.
 
-If set to `true`, Fleet completely skips all declaration validation when adding or updating MDM
-Apple declarations (DDM profiles). This allows deploying any
-[declaration](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations)
-type without restriction.
+If set to `true`, you can add all types of Apple [declaration profiles](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations). By default, Fleet doesn't allow [these configurations](https://github.com/fleetdm/fleet/blob/9589631a7f25a342ed24571c08deffbc959661ec/server/fleet/apple_mdm.go#L704-L717).
 
 **Note: **[Asset](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations#Assets) declarations require additional infrastructure. You need to self-host the asset and include the URL in the [declaration](https://developer.apple.com/documentation/devicemanagement/assetdata#Asset-example).
 

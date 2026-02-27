@@ -801,7 +801,7 @@ type MDMConfig struct {
 
 	SSORateLimitPerMinute             int  `yaml:"sso_rate_limit_per_minute"`
 	EnableCustomOSUpdatesAndFileVault bool `yaml:"enable_custom_os_updates_and_filevault"`
-	SkipDeclarationValidation         bool `yaml:"skip_declaration_validation"`
+	AllowAllDeclarations              bool `yaml:"allow_all_declarations"`
 
 	AndroidAgent AndroidAgentConfig `yaml:"android_agent"`
 }
@@ -1912,7 +1912,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			WindowsWSTEPIdentityKeyBytes:      man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
 			SSORateLimitPerMinute:             man.getConfigInt("mdm.sso_rate_limit_per_minute"),
 			EnableCustomOSUpdatesAndFileVault: man.getConfigBool("mdm.enable_custom_os_updates_and_filevault"),
-			SkipDeclarationValidation:         man.getConfigBool("mdm.skip_declaration_validation"),
+			AllowAllDeclarations:              man.getConfigBool("mdm.allow_all_declarations"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),

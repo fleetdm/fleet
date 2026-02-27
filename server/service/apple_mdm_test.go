@@ -877,7 +877,7 @@ func TestNewMDMAppleDeclaration(t *testing.T) {
 func setupAppleMDMServiceWithSkipValidation(t *testing.T, license *fleet.LicenseInfo, skipValidation bool) (fleet.Service, context.Context, *mock.Store) {
 	ds := new(mock.Store)
 	cfg := config.TestConfig()
-	cfg.MDM.SkipDeclarationValidation = skipValidation
+	cfg.MDM.AllowAllDeclarations = skipValidation
 	testCertPEM, testKeyPEM, err := generateCertWithAPNsTopic()
 	require.NoError(t, err)
 	config.SetTestMDMConfig(t, &cfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
@@ -889,7 +889,7 @@ func setupAppleMDMServiceWithSkipValidation(t *testing.T, license *fleet.License
 		mdmStorage,
 		mdmStorage,
 		pushFactory,
-		NewNanoMDMLogger(kitlog.NewJSONLogger(os.Stdout)),
+		NewNanoMDMLogger(slog.New(slog.NewJSONHandler(os.Stdout, nil))),
 	)
 
 	opts := &TestServerOpts{
@@ -948,9 +948,6 @@ func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
 		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 			return d, nil
 		}
-		ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
-			return nil
-		}
 		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
 		) (updates fleet.MDMProfilesUpdates, err error) {
 			return fleet.MDMProfilesUpdates{}, nil
@@ -994,9 +991,6 @@ func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
 		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 			return d, nil
 		}
-		ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
-			return nil
-		}
 		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
 		) (updates fleet.MDMProfilesUpdates, err error) {
 			return fleet.MDMProfilesUpdates{}, nil
@@ -1038,9 +1032,6 @@ func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
 		}
 		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 			return d, nil
-		}
-		ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
-			return nil
 		}
 		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
 		) (updates fleet.MDMProfilesUpdates, err error) {
@@ -4533,7 +4524,8 @@ func generateCertWithAPNsTopic() ([]byte, []byte, error) {
 }
 
 func setupTest(t *testing.T) (context.Context, *slog.Logger, *mock.Store, *config.FleetConfig, *mdmmock.MDMAppleStore,
-	*apple_mdm.MDMAppleCommander) {
+	*apple_mdm.MDMAppleCommander,
+) {
 	ctx := context.Background()
 	logger := slog.New(slog.DiscardHandler)
 	cfg := config.TestConfig()

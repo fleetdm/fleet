@@ -908,7 +908,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 	}
 	// After validation, we should no longer need to keep the expanded secrets.
 
-	if !svc.config.MDM.SkipDeclarationValidation {
+	if !svc.config.MDM.AllowAllDeclarations {
 		if err := rawDecl.ValidateUserProvided(svc.config.MDM.EnableCustomOSUpdatesAndFileVault); err != nil {
 			return nil, err
 		}
@@ -1284,8 +1284,8 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 			return ctxerr.Wrap(ctx, err, "unmarshalling declaration")
 		}
 
-		// skip declaration validation if the skip declaration validation flag is set.
-		if !svc.config.MDM.SkipDeclarationValidation {
+		// skip declaration validation if the allow all declarations flag is set.
+		if !svc.config.MDM.AllowAllDeclarations {
 			if err := d.ValidateUserProvided(svc.config.MDM.EnableCustomOSUpdatesAndFileVault); err != nil {
 				return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 			}
