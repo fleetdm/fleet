@@ -1,4 +1,4 @@
-# Scaling IT-as-a-Service with GitOps-first management
+# IT service provider scales to 8,000+ devices with GitOps
 
 As an "IT-as-a-Service" provider, managing over 8,000 laptops across 120 SME customers. They needed a centralized, multi-tenant solution that prioritized automation and GitOps workflows to make IT accessible to non-technical external clients.
 
@@ -12,15 +12,15 @@ As an "IT-as-a-Service" provider, managing over 8,000 laptops across 120 SME cus
 
 - **Previous solution:** ManageEngine.
 
-## The challenge: scaling manual processes
+## The challenge
 
 Before Fleet, they used ManageEngine but found that application management was not scaling to meet their needs. Managing Linux servers and remote laptops was significantly less effective, as they lacked the granular visibility and control necessary to manage these effectively across varied customer environments.
 
-## The solution: unified GitOps and transparency
+## The solution
 
 They chose Fleet for its deep integration with automated workflows and the ability to support Mac, Windows, and Linux from a single interface. The open-source transparency allowed them to audit and adjust agent flows to ensure the stack met their specific security and operational standards.
 
-## The results: efficiency and cost avoidance
+## The results
 
 - **Cost savings:** the migration allowed them to avoid the renewal of over 3,000 ManageEngine licenses, resulting in significant cost avoidance.
 
@@ -28,10 +28,15 @@ They chose Fleet for its deep integration with automated workflows and the abili
 
 - **Operational clarity:** exposing device information in an understandable way built better trust between the IT service team and improved troubleshooting speed.
 
-<meta name="articleTitle" value="Scaling IT-as-a-Service with GitOps-first management">
+## About Fleet
+
+Fleet is the open-source endpoint management platform that gives you total control, unlike the proprietary 'black boxes' of legacy vendors. Our open device management provides full visibility into our code and roadmap, plus a true choice of deployment—on-prem or cloud—with 100% feature parity. Our API-first approach empowers technical teams to automate with GitOps, scale confidently, and get the real-time data needed to secure their entire macOS, iOS, Windows, and Linux fleets. 
+
+<meta name="articleTitle" value="IT service provider scales to 8,000+ devices with GitOps">
 <meta name="authorFullName" value="Irena Reedy">
 <meta name="authorGitHubUsername" value="irenareedy">
-<meta name="category" value="announcements">
+<meta name="category" value="case study">
 <meta name="publishedOn" value="2026-02-22">
 <meta name="description" value="As an IT-as-a-Service provider, managing over 8,000 laptops across 120 SME customers.">
 <meta name="branch" value="deebradal">
+<meta name="useBasicArticleTemplate" value="true">
