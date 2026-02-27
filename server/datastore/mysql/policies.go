@@ -2341,31 +2341,26 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 		GROUP BY host_id
 	) pm ON h.id = pm.host_id
 	LEFT JOIN (
-		SELECT 
-			host_id,
-			MIN(email) AS email
+		SELECT host_id, email
 		FROM (
-			SELECT 
+			SELECT
 				he.host_id,
 				he.email,
-				CASE 
-					WHEN he.source IN (?, ?) THEN 1  -- IdP sources (mdm_idp_accounts, idp) have priority 1
-					WHEN he.source = ? THEN 2        -- Google Chrome profiles have priority 2
-					ELSE 3                           -- Other sources have lower priority
-				END AS priority,
-				MIN(
-					CASE 
-						WHEN he.source IN (?, ?) THEN 1
-						WHEN he.source = ? THEN 2
-						ELSE 3
-					END
-				) OVER (PARTITION BY he.host_id) AS min_priority
+				ROW_NUMBER() OVER (
+					PARTITION BY he.host_id
+					ORDER BY
+						CASE
+							WHEN he.source IN (?, ?) THEN 1  -- IdP sources (mdm_idp_accounts, idp) have priority 1
+							WHEN he.source = ? THEN 2         -- Google Chrome profiles have priority 2
+							ELSE 3                             -- Other sources have lower priority
+						END,
+						he.email  -- alphabetical tiebreaker within same priority
+				) AS rn
 			FROM host_emails he
 			JOIN hosts h_email ON he.host_id = h_email.id
 			WHERE he.email LIKE CONCAT('%@', ?) AND h_email.team_id = ?
-		) prioritized_emails
-		WHERE priority = min_priority
-		GROUP BY host_id
+		) ranked_emails
+		WHERE rn = 1
 	) sh ON h.id = sh.host_id
 	LEFT JOIN host_display_names hdn ON h.id = hdn.host_id
 	LEFT JOIN host_calendar_events hce ON h.id = hce.host_id
@@ -2374,10 +2369,8 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 
 	query, args, err := sqlx.In(query,
 		policyIDs,
-		fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingIDP, // IdP sources for priority calculation
-		fleet.DeviceMappingGoogleChromeProfiles,                   // Chrome profiles for priority calculation
-		fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingIDP, // IdP sources for window function min_priority
-		fleet.DeviceMappingGoogleChromeProfiles, // Chrome profiles for window function min_priority
+		fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingIDP, // IdP sources
+		fleet.DeviceMappingGoogleChromeProfiles, // Chrome profiles
 		domain, teamID,                          // domain and team_id for WHERE clause
 		teamID) // h.team_id in main WHERE
 	if err != nil {
