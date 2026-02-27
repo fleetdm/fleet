@@ -163,8 +163,9 @@ func logDeprecatedCommandName(c *cli.Context, deprecatedNames []string, newName 
 		return
 	}
 	for _, arg := range rawArgs(c) {
+		// Assume that command names appear before any flags, so stop checking once we see a flag.
 		if strings.HasPrefix(arg, "-") {
-			continue
+			break
 		}
 		for _, dep := range deprecatedNames {
 			if arg == dep {
