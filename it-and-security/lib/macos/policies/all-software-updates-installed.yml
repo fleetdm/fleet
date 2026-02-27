@@ -2,5 +2,8 @@
   query: SELECT 1 FROM software_update WHERE software_update_required = 0;
   critical: false
   description: This Mac may have outdated system software, which could lead to security vulnerabilities, performance issues, and incompatibility with other systems.
-  resolution: Please take some time and run all available updates from Software Update ( > System Settings > Software Update) and all available app store updates ( > App Store > Updates).
+  resolution: |
+    Please take some time and run all available updates from Software Update ( > System Settings > Software Update) and all available app store updates ( > App Store > Updates). 
+    
+    If you see a popup saying updates aren't available for your account, you will need to delete any software requiring an update.
   platform: darwin
