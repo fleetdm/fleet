@@ -1029,6 +1029,19 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (policy *fleet.Policy, err error) {
 	var newPolicy *fleet.Policy
 	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if args.Type == "patch" {
+			installer, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &teamID, *args.PatchSoftwareTitleID, false)
+			if err != nil {
+				return err
+			}
+			if installer.FleetMaintainedAppID == nil {
+				return ctxerr.Wrap(ctx, nil, "TODO(JK): correct error message")
+			}
+			if installer.Platform == string(fleet.MacOSPlatform) {
+				args.Query = fmt.Sprintf("TODO(JK)... version = %s", installer.Version)
+			}
+		}
+
 		p, err := newTeamPolicy(ctx, tx, teamID, authorID, args)
 		if err != nil {
 			return err

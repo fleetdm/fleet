@@ -101,8 +101,6 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
-	// TODO(JK): generate query. maybe ds method.
-
 	policy, err := svc.ds.NewTeamPolicy(ctx, teamID, ptr.Uint(vc.UserID()), p)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating policy")
@@ -115,6 +113,9 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
 	}
 	// TODO(JK): populate patch policy "patch_software: object (same software title struct type)
+	if err := svc.populatePolicyPatchSoftware(ctx, policy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate patch_software")
+	}
 
 	if teamID == 0 {
 		noTeamID := int64(0)
@@ -198,13 +199,31 @@ func (svc *Service) populatePolicyRunScript(ctx context.Context, p *fleet.Policy
 	return nil
 }
 
+// TODO(JK): how can we deduplicate all the calls to this? maybe by modifying getInstallerOrVPPAppForTitle?
+func (svc *Service) populatePolicyPatchSoftware(ctx context.Context, p *fleet.Policy) error {
+	if p.PatchSoftwareTitleID != nil {
+		installerMetadata, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, p.TeamID, *p.PatchSoftwareTitleID, false)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get software installer metadata by title id")
+		}
+		p.InstallSoftware = &fleet.PolicySoftwareTitle{
+			SoftwareTitleID: *installerMetadata.TitleID,
+			Name:            installerMetadata.SoftwareTitle,
+			DisplayName:     installerMetadata.DisplayName,
+		}
+		return nil
+	}
+	return nil
+}
+
 func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, teamID uint, p fleet.NewTeamPolicyPayload) (fleet.PolicyPayload, error) {
-	titleID := p.SoftwareTitleID
+	policyType := "dynamic"
+
 	if p.Type != nil && *p.Type == "patch" {
-		titleID = p.PatchSoftwareTitleID
+		policyType = "patch"
 	}
 
-	softwareInstallerID, vppAppsTeamsID, err := svc.getInstallerOrVPPAppForTitle(ctx, &teamID, titleID)
+	softwareInstallerID, vppAppsTeamsID, err := svc.getInstallerOrVPPAppForTitle(ctx, &teamID, p.SoftwareTitleID)
 	if err != nil {
 		return fleet.PolicyPayload{}, err
 	}
@@ -225,7 +244,7 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		LabelsExcludeAny:               p.LabelsExcludeAny,
 		ConditionalAccessEnabled:       p.ConditionalAccessEnabled,
 		ConditionalAccessBypassEnabled: p.ConditionalAccessBypassEnabled,
-		Type:                           p.Type,
+		Type:                           policyType,
 		PatchSoftwareTitleID:           p.PatchSoftwareTitleID,
 	}, nil
 }

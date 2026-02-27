@@ -143,8 +143,10 @@ func (p PolicyPayload) Verify() error {
 		if err := verifyPolicyName(p.Name); err != nil {
 			return err
 		}
-		if err := verifyPolicyQuery(p.Query); err != nil {
-			return err
+		if p.Type != "patch" {
+			if err := verifyPolicyQuery(p.Query); err != nil {
+				return err
+			}
 		}
 	}
 	if err := verifyPolicyPlatforms(p.Platform); err != nil {
@@ -154,6 +156,9 @@ func (p PolicyPayload) Verify() error {
 		return errPolicyConflictingLabels
 	}
 	if p.Type == "patch" {
+		if p.QueryID != nil {
+			return errPolicyPatchAndQuerySet
+		}
 		if err := verifyPatchPolicy(p.PatchSoftwareTitleID, p.Query); err != nil {
 			return err
 		}
@@ -320,6 +325,9 @@ type PolicyData struct {
 	// Only applies to team policies.
 	ConditionalAccessBypassEnabled *bool `json:"conditional_access_bypass_enabled" db:"conditional_access_bypass_enabled"`
 
+	Type                 string `json:"type"` // TODO(JK): db?
+	PatchSoftwareTitleID *uint  `json:"-"`
+
 	UpdateCreateTimestamps
 }
 
@@ -347,6 +355,9 @@ type Policy struct {
 	//
 	// This field is populated from PolicyData.ScriptID
 	RunScript *PolicyScript `json:"run_script,omitempty"`
+
+	// TODO(JK): comment
+	PatchSoftware *PolicySoftwareTitle `json:patch_software,omitempty"`
 }
 
 type PolicyCalendarData struct {
