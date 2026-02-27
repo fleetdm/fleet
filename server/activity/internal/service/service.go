@@ -16,7 +16,10 @@ import (
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/hashicorp/go-multierror"
+	"go.opentelemetry.io/otel"
 )
+
+var tracer = otel.Tracer("github.com/fleetdm/fleet/v4/server/activity/internal/service")
 
 // streamBatchSize is the number of activities to fetch per batch when streaming.
 const streamBatchSize uint = 500
@@ -50,7 +53,12 @@ type Service struct {
 }
 
 // NewService creates a new activity service.
-func NewService(authz platform_authz.Authorizer, store types.Datastore, providers activity.DataProviders, logger *slog.Logger) *Service {
+func NewService(
+	authz platform_authz.Authorizer,
+	store types.Datastore,
+	providers activity.DataProviders,
+	logger *slog.Logger,
+) *Service {
 	return &Service{
 		authz:     authz,
 		store:     store,

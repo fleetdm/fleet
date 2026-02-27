@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 )
 
 func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, vc viewer.Viewer, teamName *string, software *fleet.SoftwareTitle) (*fleet.SoftwareInstaller, error) {
@@ -178,7 +177,7 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tea
 		signedURL, err := svc.softwareInstallStore.Sign(ctx, meta.StorageID, fleet.InHouseAppSignedURLExpiry)
 		if err != nil {
 			// We log the error and continue to send the Fleet server URL for the in-house app
-			level.Error(svc.logger).Log("msg", "error signing in-house app URL; check CloudFront configuration", "err", err)
+			svc.logger.ErrorContext(ctx, "error signing in-house app URL; check CloudFront configuration", "err", err)
 		} else {
 			downloadURL = signedURL
 		}

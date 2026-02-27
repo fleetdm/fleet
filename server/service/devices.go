@@ -14,7 +14,6 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 )
 
 // Ping device endpoint
@@ -524,12 +523,7 @@ func (svc *Service) LogFleetdError(ctx context.Context, fleetdError fleet.Fleetd
 	}
 
 	err := ctxerr.WrapWithData(ctx, fleetdError, "receive fleetd error", fleetdError.ToMap())
-	level.Warn(svc.logger).Log(
-		"msg",
-		"fleetd error",
-		"error",
-		err,
-	)
+	svc.logger.WarnContext(ctx, "fleetd error", "error", err)
 	// Send to Redis/telemetry (if enabled)
 	ctxerr.Handle(ctx, err)
 

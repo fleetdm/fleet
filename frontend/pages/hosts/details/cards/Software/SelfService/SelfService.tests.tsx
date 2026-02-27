@@ -53,9 +53,9 @@ describe("SelfService", () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
-          createMockDeviceSoftware({ name: "test1" }),
-          createMockDeviceSoftware({ name: "test2" }),
-          createMockDeviceSoftware({ name: "test3" }),
+          createMockDeviceSoftware({ id: 1, name: "test1" }),
+          createMockDeviceSoftware({ id: 2, name: "test2" }),
+          createMockDeviceSoftware({ id: 3, name: "test3" }),
         ],
         count: 3,
       })

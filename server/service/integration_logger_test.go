@@ -94,12 +94,14 @@ func (s *integrationLoggerTestSuite) TestLogger() {
 			assert.Equal(t, "/api/latest/fleet/config", attrs["uri"])
 			assert.Equal(t, "admin1@example.com", attrs["user"])
 		case 2:
-			assert.Equal(t, slog.LevelDebug, rec.Level)
+			assert.Equal(t, slog.LevelWarn, rec.Level) // Warn because /queries is a deprecated path
 			assert.Equal(t, "POST", attrs["method"])
 			assert.Equal(t, "/api/latest/fleet/queries", attrs["uri"])
 			assert.Equal(t, "admin1@example.com", attrs["user"])
 			assert.Equal(t, "somequery", attrs["name"])
 			assert.Equal(t, "select 1 from osquery;", attrs["sql"])
+			assert.Equal(t, "/api/_version_/fleet/queries", attrs["deprecated_path"])
+			assert.Contains(t, attrs["deprecation_warning"], "deprecated")
 		default:
 			t.Fail()
 		}

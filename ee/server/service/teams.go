@@ -543,7 +543,7 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 	idMap := make(map[uint]fleet.TeamUser)
 	for _, user := range users {
 		if !fleet.ValidTeamRole(user.Role) {
-			return nil, fleet.NewInvalidArgumentError("users", fmt.Sprintf("%s is not a valid role for a team user", user.Role))
+			return nil, fleet.NewInvalidArgumentError("users", fmt.Sprintf("%s is not a valid user role", user.Role))
 		}
 		idMap[user.ID] = user
 		fullUser, err := svc.ds.UserByID(ctx, user.ID)
@@ -730,7 +730,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 			if _, err := worker.QueueMacosSetupAssistantJob(
 				ctx,
 				svc.ds,
-				svc.logger.SlogLogger(),
+				svc.logger,
 				worker.MacosSetupAssistantTeamDeleted,
 				nil,
 				mdmHostSerials...); err != nil {

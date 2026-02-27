@@ -845,7 +845,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	require.Nil(t, hostResp.Host.MDM.Profiles)
 
 	// trigger the reconciler, no error
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 
 	// declarativeManagement command is not sent.
@@ -856,7 +856,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	addDeclaration("I2", 0, nil)
 
 	// reconcile again, this time new declarations were added
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 
 	// TODO: check command is pending
@@ -865,7 +865,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	checkDDMSync(device)
 
 	// reconcile again, commands for the uploaded declarations are already sent
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	// no new commands are sent
 	checkNoCommands(device)
@@ -873,7 +873,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	// delete a declaration
 	deleteDeclaration(d1UUID)
 	// reconcile again
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	// a DDM sync is triggered
 	checkDDMSync(device)
@@ -881,7 +881,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	// add a new host
 	_, deviceTwo := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	// reconcile again
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	// DDM sync is triggered only for the new host
 	checkNoCommands(device)
@@ -892,7 +892,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 		fleet.AddHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{mdmHost.ID}}, http.StatusOK)
 
 	// reconcile
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 
 	// DDM sync is triggered only for the transferred host
@@ -901,7 +901,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	checkNoCommands(deviceTwo)
 
 	// reconcile
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	// nobody receives commands this time
 	checkNoCommands(device)
@@ -912,7 +912,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	addDeclaration("I2", team.ID, nil)
 
 	// reconcile
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	// DDM sync is triggered for the host in the team
 	checkDDMSync(device)
@@ -924,7 +924,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 		fleet.AddHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{mdmHostThree.ID}}, http.StatusOK)
 
 	// reconcile
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	// DDM sync is triggered only for the new host
 	checkNoCommands(device)
@@ -932,7 +932,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	checkDDMSync(deviceThree)
 
 	// no new commands after another reconciliation
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	checkNoCommands(device)
 	checkNoCommands(deviceTwo)
@@ -957,7 +957,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	addDeclaration("I3", team.ID, []string{label.Name})
 
 	// reconcile
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	// DDM sync is triggered only for the host with the label
 	checkNoCommands(device)
@@ -989,7 +989,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", fleet.BatchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
 
 	// reconcile profiles
-	err := ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err := ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 
 	// declarations are ("install", "pending") after the cron run
@@ -1084,7 +1084,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", fleet.BatchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
 
 	// reconcile profiles
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
 		{Identifier: "I1", Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall},
@@ -1139,7 +1139,7 @@ func (s *integrationMDMTestSuite) TestDDMUnsupportedDevice() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", fleet.BatchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
 
 	// reconcile declarations
-	err := ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err := ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 
 	// declaration is pending
@@ -1232,7 +1232,7 @@ func (s *integrationMDMTestSuite) TestDDMTransactionRecording() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", fleet.BatchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
 
 	// reconcile declarations
-	err := ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err := ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 
 	_, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -1263,7 +1263,7 @@ func (s *integrationMDMTestSuite) TestDDMTransactionRecording() {
 
 	// a second device requests tokens
 	_, mdmDeviceTwo := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 
 	_, err = mdmDeviceTwo.DeclarativeManagement("tokens")

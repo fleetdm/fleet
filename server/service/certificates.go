@@ -11,7 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/kit/log/level"
 )
 
 // Certificate template name validation constants
@@ -574,7 +573,7 @@ func (svc *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.C
 	}
 
 	if record.OperationType != update.OperationType {
-		level.Info(svc.logger).Log("msg", "ignoring certificate status update for different operation type", "host_uuid", host.UUID, "certificate_template_id", update.CertificateTemplateID, "current_operation_type", record.OperationType, "new_operation_type", update.OperationType)
+		svc.logger.InfoContext(ctx, "ignoring certificate status update for different operation type", "host_uuid", host.UUID, "certificate_template_id", update.CertificateTemplateID, "current_operation_type", record.OperationType, "new_operation_type", update.OperationType)
 		return nil
 	}
 
@@ -586,7 +585,7 @@ func (svc *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.C
 	}
 
 	if record.Status != fleet.CertificateTemplateDelivered {
-		level.Info(svc.logger).Log("msg", "ignoring certificate status update for non-delivered certificate", "host_uuid", host.UUID, "certificate_template_id", update.CertificateTemplateID, "current_status", record.Status, "new_status", update.Status)
+		svc.logger.InfoContext(ctx, "ignoring certificate status update for non-delivered certificate", "host_uuid", host.UUID, "certificate_template_id", update.CertificateTemplateID, "current_status", record.Status, "new_status", update.Status)
 		return nil
 	}
 

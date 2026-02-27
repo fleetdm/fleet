@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
 	"strconv"
@@ -100,7 +101,7 @@ func cronVulnerabilities(
 		return nil
 	}
 
-	vulnPath := configureVulnPath(*config, appConfig, logger)
+	vulnPath := configureVulnPath(ctx, *config, appConfig, logger)
 	if vulnPath != "" {
 		logger.InfoContext(ctx, "scanning vulnerabilities")
 		if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath); err != nil {
@@ -1043,7 +1044,7 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"renew_scep_certificates",
 			func(ctx context.Context) error {
-				return service.RenewSCEPCertificates(ctx, logger, ds, config, commander)
+				return service.RenewSCEPCertificates(ctx, logger.SlogLogger(), ds, config, commander)
 			},
 		),
 		schedule.WithJob("renew_host_mdm_managed_certificates", func(ctx context.Context) error {
@@ -1285,6 +1286,7 @@ func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet
 		name            = string(fleet.CronUsageStatistics)
 		defaultInterval = 1 * time.Hour
 	)
+	slogLogger := logger.SlogLogger()
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger.With("cron", name)),
@@ -1293,7 +1295,7 @@ func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet
 			func(ctx context.Context) error {
 				// NOTE(mna): this is not a route from the fleet server (not in server/service/handler.go) so it
 				// will not automatically support the /latest/ versioning. Leaving it as /v1/ for that reason.
-				return trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", config)
+				return trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", config, slogLogger)
 			},
 		),
 	)
@@ -1301,7 +1303,7 @@ func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet
 	return s, nil
 }
 
-func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, config config.FleetConfig) error {
+func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, config config.FleetConfig, logger *slog.Logger) error {
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {
 		return err
@@ -1320,7 +1322,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return nil
 	}
 
-	if err := server.PostJSONWithTimeout(ctx, url, stats); err != nil {
+	if err := server.PostJSONWithTimeout(ctx, url, stats, logger); err != nil {
 		return err
 	}
 
@@ -1417,10 +1419,10 @@ func newAppleMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
-			return service.ReconcileAppleProfiles(ctx, ds, commander, logger)
+			return service.ReconcileAppleProfiles(ctx, ds, commander, logger.SlogLogger())
 		}),
 		schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
-			return service.ReconcileAppleDeclarations(ctx, ds, commander, logger)
+			return service.ReconcileAppleDeclarations(ctx, ds, commander, logger.SlogLogger())
 		}),
 	)
 
@@ -1493,7 +1495,7 @@ func newMDMAppleServiceDiscoverySchedule(
 		ctx, name, instanceID, interval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("mdm_apple_account_driven_enrollment_profile", func(ctx context.Context) error {
-			return service.EnsureMDMAppleServiceDiscovery(ctx, ds, depStorage, logger, urlPrefix)
+			return service.EnsureMDMAppleServiceDiscovery(ctx, ds, depStorage, logger.SlogLogger(), urlPrefix)
 		}),
 	)
 	return s, nil
@@ -1532,7 +1534,7 @@ func newMDMAPNsPusher(
 				return nil
 			}
 
-			return service.SendPushesToPendingDevices(ctx, ds, commander, logger)
+			return service.SendPushesToPendingDevices(ctx, ds, commander, logger.SlogLogger())
 		}),
 	)
 
@@ -1720,7 +1722,7 @@ func cronUninstallSoftwareMigration(
 		schedule.WithLogger(logger),
 		schedule.WithRunOnce(true),
 		schedule.WithJob(name, func(ctx context.Context) error {
-			return eeservice.UninstallSoftwareMigration(ctx, ds, softwareInstallStore, logger)
+			return eeservice.UninstallSoftwareMigration(ctx, ds, softwareInstallStore, logger.SlogLogger())
 		}),
 	)
 	return s, nil
@@ -1748,7 +1750,7 @@ func cronUpgradeCodeSoftwareMigration(
 		// ensures it runs a few seconds after Fleet is started
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob(name, func(ctx context.Context) error {
-			return eeservice.UpgradeCodeMigration(ctx, ds, softwareInstallStore, logger)
+			return eeservice.UpgradeCodeMigration(ctx, ds, softwareInstallStore, logger.SlogLogger())
 		}),
 	)
 	return s, nil
@@ -1896,6 +1898,7 @@ func newAndroidMDMDeviceReconcilerSchedule(
 	ds fleet.Datastore,
 	logger *logging.Logger,
 	licenseKey string,
+	newActivityFn fleet.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMDMAndroidDeviceReconciler)
@@ -1907,7 +1910,7 @@ func newAndroidMDMDeviceReconcilerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("reconcile_android_devices", func(ctx context.Context) error {
-			return android_svc.ReconcileAndroidDevices(ctx, ds, logger.SlogLogger(), licenseKey)
+			return android_svc.ReconcileAndroidDevices(ctx, ds, logger.SlogLogger(), licenseKey, newActivityFn)
 		}),
 	)
 

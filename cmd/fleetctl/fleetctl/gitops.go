@@ -47,10 +47,11 @@ func gitopsCommand() *cli.Command {
 				Usage:       "The file(s) with the GitOps configuration.",
 			},
 			&cli.BoolFlag{
-				Name:        "delete-other-teams",
-				EnvVars:     []string{"DELETE_OTHER_TEAMS"},
+				Name:        "delete-other-fleets",
+				Aliases:     []string{"delete-other-teams"},
+				EnvVars:     []string{"DELETE_OTHER_FLEETS", "DELETE_OTHER_TEAMS"},
 				Destination: &flDeleteOtherTeams,
-				Usage:       "Delete other teams not present in the GitOps configuration",
+				Usage:       "Delete other fleets not present in the GitOps configuration",
 			},
 			&cli.BoolFlag{
 				Name:        "dry-run",
@@ -85,12 +86,15 @@ func gitopsCommand() *cli.Command {
 			// TODO - remove this in future release to unleash warnings.
 			logging.DisableTopic(logging.DeprecatedFieldTopic)
 
+			// Apply log topic overrides from CLI flags.
+			applyLogTopicFlags(c)
+
+			logDeprecatedFlagName(c, "delete-other-teams", "delete-other-fleets")
+			logDeprecatedEnvVar(c, "DELETE_OTHER_TEAMS", "DELETE_OTHER_FLEETS")
+
 			logf := func(format string, a ...interface{}) {
 				_, _ = fmt.Fprintf(c.App.Writer, format, a...)
 			}
-
-			// Apply log topic overrides from CLI flags.
-			applyLogTopicFlags(c)
 
 			if len(c.Args().Slice()) != 0 {
 				return errors.New("No positional arguments are allowed. To load multiple config files, use one -f flag per file.")
@@ -100,12 +104,20 @@ func gitopsCommand() *cli.Command {
 			if totalFilenames == 0 {
 				return errors.New("-f must be specified")
 			}
+			// TODO - remove No Team in Fleet 5
+			noTeamFilesEncountered := 0
 			for _, flFilename := range flFilenames.Value() {
 				if strings.TrimSpace(flFilename) == "" {
 					return errors.New("file name cannot be empty")
 				}
 				if len(filepath.Base(flFilename)) > filenameMaxLength {
 					return fmt.Errorf("file name must be less than %d characters: %s", filenameMaxLength, filepath.Base(flFilename))
+				}
+				if filepath.Base(flFilename) == "no-team.yml" || filepath.Base(flFilename) == "unassigned.yml" {
+					noTeamFilesEncountered++
+					if noTeamFilesEncountered > 1 {
+						return errors.New("Only one of `no-team.yml` or `unassigned.yml` can be provided. Use `unassigned.yml`; `no-team.yml` is deprecated.")
+					}
 				}
 			}
 
@@ -123,9 +135,15 @@ func gitopsCommand() *cli.Command {
 			}
 
 			// We need the controls from no-team.yml to apply them when applying the global app config.
-			noTeamControls, noTeamPresent, err := extractControlsForNoTeam(flFilenames, appConfig)
+			noTeamControls, noTeamPresent, noTeamFilename, err := extractControlsForNoTeam(flFilenames, appConfig)
 			if err != nil {
-				return fmt.Errorf("extracting controls from no-team.yml: %w", err)
+				return fmt.Errorf("extracting controls from %s: %w", noTeamFilename, err)
+			}
+			// Log a deprecation warning if the user is still using no-team.yml
+			if noTeamPresent && noTeamFilename == "no-team.yml" {
+				if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+					logf("[!] no-team.yml is deprecated; please rename the file to 'unassigned.yml' and update the team name to 'Unassigned'.\n")
+				}
 			}
 
 			var originalABMConfig []any
@@ -257,7 +275,7 @@ func gitopsCommand() *cli.Command {
 
 			// fail if scripts are supplied on no-team and global config is missing
 			if noTeamPresent && !globalConfigLoaded {
-				return errors.New("global config must be provided alongside no-team.yml")
+				return fmt.Errorf("global config must be provided alongside %s", noTeamFilename)
 			}
 
 			labelMoves, err := computeLabelMoves(labelChanges)
@@ -272,11 +290,11 @@ func gitopsCommand() *cli.Command {
 
 				if isGlobalConfig {
 					if noTeamControls.Set() && config.Controls.Set() {
-						return errors.New("'controls' cannot be set on both global config and on no-team.yml")
+						return fmt.Errorf("'controls' cannot be set on both global config and on %s", noTeamFilename)
 					}
 					if !noTeamControls.Defined && !config.Controls.Defined {
 						if appConfig.License.IsPremium() {
-							return errors.New("'controls' must be set on global config or no-team.yml")
+							return fmt.Errorf("'controls' must be set on global config or %s", noTeamFilename)
 						}
 						return errors.New("'controls' must be set on global config")
 					}
@@ -543,7 +561,7 @@ func gitopsCommand() *cli.Command {
 				_, err := fleetClient.DoGitOps(
 					c.Context,
 					defaultNoTeamConfig,
-					"no-team.yml",
+					noTeamFilename,
 					logf,
 					flDryRun,
 					nil,
@@ -802,9 +820,10 @@ func getCustomSettings(osSettings interface{}) ([]fleet.MDMProfileSpec, bool) {
 	return nil, false
 }
 
-func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.EnrichedAppConfig) (spec.GitOpsControls, bool, error) {
+func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.EnrichedAppConfig) (spec.GitOpsControls, bool, string, error) {
 	for _, flFilename := range flFilenames.Value() {
-		if filepath.Base(flFilename) == "no-team.yml" {
+		fileName := filepath.Base(flFilename)
+		if fileName == "no-team.yml" || fileName == "unassigned.yml" {
 			if !appConfig.License.IsPremium() {
 				// Message is printed in the next flFilenames loop to avoid printing it multiple times
 				break
@@ -812,12 +831,12 @@ func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.Enri
 			baseDir := filepath.Dir(flFilename)
 			config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, func(format string, a ...interface{}) {})
 			if err != nil {
-				return spec.GitOpsControls{}, false, err
+				return spec.GitOpsControls{}, false, fileName, err
 			}
-			return config.Controls, true, nil
+			return config.Controls, true, fileName, nil
 		}
 	}
-	return spec.GitOpsControls{}, false, nil
+	return spec.GitOpsControls{}, false, "", nil
 }
 
 // checkABMTeamAssignments validates the spec, and finds if:

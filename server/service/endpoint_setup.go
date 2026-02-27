@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -16,10 +17,8 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/go-kit/log/level"
 )
 
 const (
@@ -29,8 +28,8 @@ const (
 
 type applyGroupFunc func(context.Context, *spec.Group) error
 
-func makeSetupEndpoint(svc fleet.Service, logger *logging.Logger) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
+func makeSetupEndpoint(svc fleet.Service, logger *slog.Logger) endpoint.Endpoint {
+	return func(ctx context.Context, request any) (any, error) {
 		req := request.(fleet.SetupRequest)
 		config := &fleet.AppConfig{}
 		if req.OrgInfo != nil {
@@ -72,7 +71,7 @@ func makeSetupEndpoint(svc fleet.Service, logger *logging.Logger) endpoint.Endpo
 		var token *string
 		_, session, err := svc.Login(ctx, *req.Admin.Email, *req.Admin.Password, false)
 		if err != nil {
-			level.Debug(logger).Log("endpoint", "setup", "op", "login", "err", err)
+			logger.DebugContext(ctx, "setup login", "endpoint", "setup", "op", "login", "err", err)
 		} else {
 			token = &session.Key
 
@@ -87,11 +86,11 @@ func makeSetupEndpoint(svc fleet.Service, logger *logging.Logger) endpoint.Endpo
 					fleetclient.NewClient,
 					nil, // No mock ApplyGroup for production code
 				); err != nil {
-					level.Debug(logger).Log("endpoint", "setup", "op", "applyStarterLibrary", "err", err)
+					logger.DebugContext(ctx, "setup apply starter library", "endpoint", "setup", "op", "applyStarterLibrary", "err", err)
 					// Continue even if there's an error applying the starter library
 				}
 			} else {
-				level.Debug(logger).Log("endpoint", "setup", "msg", "Skipping starter library application due to missing server URL")
+				logger.DebugContext(ctx, "Skipping starter library application due to missing server URL", "endpoint", "setup")
 			}
 		}
 
@@ -112,13 +111,13 @@ func ApplyStarterLibrary(
 	ctx context.Context,
 	serverURL string,
 	token string,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	httpClientFactory func(opts ...fleethttp.ClientOpt) *http.Client,
 	clientFactory func(serverURL string, insecureSkipVerify bool, rootCA, urlPrefix string, options ...fleetclient.ClientOption) (*fleetclient.Client, error),
 	// For testing only - if provided, this function will be used instead of client.ApplyGroup
 	mockApplyGroup func(ctx context.Context, specs *spec.Group) error,
 ) error {
-	level.Debug(logger).Log("msg", "Applying starter library")
+	logger.DebugContext(ctx, "Applying starter library")
 
 	// Create a request with context for downloading the starter library
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, starterLibraryURL, nil)
@@ -150,7 +149,7 @@ func ApplyStarterLibrary(
 	}
 	defer os.RemoveAll(tempDir) // Clean up the temporary directory when done
 
-	level.Debug(logger).Log("msg", "Created temporary directory for scripts", "path", tempDir)
+	logger.DebugContext(ctx, "Created temporary directory for scripts", "path", tempDir)
 
 	// Parse the YAML content into specs
 	specs, err := spec.GroupFromBytes(buf)
@@ -160,7 +159,7 @@ func ApplyStarterLibrary(
 
 	// Find all script references in the YAML and download them
 	scriptNames := ExtractScriptNames(specs)
-	level.Debug(logger).Log("msg", "Found script references in starter library", "count", len(scriptNames))
+	logger.DebugContext(ctx, "Found script references in starter library", "count", len(scriptNames))
 
 	// Download scripts and update references in specs
 	if len(scriptNames) > 0 {
@@ -180,11 +179,11 @@ func ApplyStarterLibrary(
 	// Always check if license is free and skip teams for free licenses
 	appConfig, err := client.GetAppConfig()
 	if err != nil {
-		level.Debug(logger).Log("msg", "Error getting app config", "err", err)
+		logger.DebugContext(ctx, "Error getting app config", "err", err)
 		// Continue even if there's an error getting the app config
 	} else if appConfig.License == nil || !appConfig.License.IsPremium() {
 		// Remove teams from specs to avoid applying them
-		level.Debug(logger).Log("msg", "Free license detected, skipping teams and team-related content in starter library")
+		logger.DebugContext(ctx, "Free license detected, skipping teams and team-related content in starter library")
 		specs.Teams = nil
 
 		// Filter out policies that reference teams
@@ -245,7 +244,7 @@ func ApplyStarterLibrary(
 		return fmt.Errorf("failed to apply starter library: %w", err)
 	}
 
-	level.Debug(logger).Log("msg", "Starter library applied successfully")
+	logger.DebugContext(ctx, "Starter library applied successfully")
 	return nil
 }
 
@@ -275,7 +274,7 @@ func ExtractScriptNames(specs *spec.Group) []string {
 }
 
 // DownloadAndUpdateScripts downloads scripts from URLs and updates the specs to reference local files
-func DownloadAndUpdateScripts(ctx context.Context, specs *spec.Group, scriptNames []string, tempDir string, logger *logging.Logger) error {
+func DownloadAndUpdateScripts(ctx context.Context, specs *spec.Group, scriptNames []string, tempDir string, logger *slog.Logger) error {
 	// Create a single HTTP client to be reused for all requests
 	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(5 * time.Second))
 
@@ -300,7 +299,7 @@ func DownloadAndUpdateScripts(ctx context.Context, specs *spec.Group, scriptName
 		}
 
 		scriptURL := fmt.Sprintf("%s/%s", scriptsBaseURL, scriptName)
-		level.Debug(logger).Log("msg", "Downloading script", "name", scriptName, "url", scriptURL, "local_path", localPath)
+		logger.DebugContext(ctx, "Downloading script", "name", scriptName, "url", scriptURL, "local_path", localPath)
 
 		// Create the request with context
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, scriptURL, nil)
@@ -399,7 +398,7 @@ func DownloadAndUpdateScripts(ctx context.Context, specs *spec.Group, scriptName
 			// Marshal back to JSON
 			updatedTeamRaw, err := json.Marshal(teamData)
 			if err != nil {
-				level.Debug(logger).Log("msg", "Failed to marshal updated team data", "err", err)
+				logger.DebugContext(ctx, "Failed to marshal updated team data", "err", err)
 				continue
 			}
 

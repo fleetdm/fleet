@@ -46,7 +46,7 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 	}
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, errors.New("user must be authenticated to create team policies")
+		return nil, errors.New("user must be authenticated to create fleet policies")
 	}
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{

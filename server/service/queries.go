@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 )
 
 // Get Query
@@ -415,7 +414,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		if err != nil {
 			// Log the error but don't fail the request; this will get cleaned up
 			// in the "query_results_cleanup" job.
-			level.Error(svc.logger).Log("msg", "failed to set query results count", "err", err, "query_id", query.ID)
+			svc.logger.ErrorContext(ctx, "failed to set query results count", "err", err, "query_id", query.ID)
 		}
 	}
 
@@ -496,7 +495,7 @@ func (svc *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) 
 		if err = svc.liveQueryStore.DeleteQueryResultsCount(query.ID); err != nil {
 			// Log the error but don't fail the request; this will get cleaned up
 			// in the "query_results_cleanup" job.
-			level.Error(svc.logger).Log("msg", "failed to delete query results count", "err", err, "query_id", query.ID)
+			svc.logger.ErrorContext(ctx, "failed to delete query results count", "err", err, "query_id", query.ID)
 		}
 	}
 
@@ -561,7 +560,7 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 		if err = svc.liveQueryStore.DeleteQueryResultsCount(query.ID); err != nil {
 			// Log the error but don't fail the request; this will get cleaned up
 			// in the "query_results_cleanup" job.
-			level.Error(svc.logger).Log("msg", "failed to delete query results count", "err", err, "query_id", query.ID)
+			svc.logger.ErrorContext(ctx, "failed to delete query results count", "err", err, "query_id", query.ID)
 		}
 	}
 
@@ -643,7 +642,7 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 			if err = svc.liveQueryStore.DeleteQueryResultsCount(id); err != nil {
 				// Log the error but don't fail the request; this will get cleaned up
 				// in the "query_results_cleanup" job.
-				level.Error(svc.logger).Log("msg", "failed to delete query results count", "err", err, "query_id", id)
+				svc.logger.ErrorContext(ctx, "failed to delete query results count", "err", err, "query_id", id)
 			}
 		}
 	}
@@ -734,7 +733,7 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 			if err = svc.liveQueryStore.SetQueryResultsCount(queryID, 0); err != nil {
 				// Log the error but don't fail the request; this will get cleaned up
 				// in the "query_results_cleanup" job.
-				level.Error(svc.logger).Log("msg", "failed to set query results count", "err", err, "query_id", queryID)
+				svc.logger.ErrorContext(ctx, "failed to set query results count", "err", err, "query_id", queryID)
 			}
 		}
 	}

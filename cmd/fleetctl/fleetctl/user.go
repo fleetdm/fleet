@@ -16,18 +16,6 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 )
 
-const (
-	globalRoleFlagName = "global-role"
-	teamFlagName       = "team"
-	passwordFlagName   = "password"
-	emailFlagName      = "email"
-	nameFlagName       = "name"
-	ssoFlagName        = "sso"
-	mfaFlagName        = "mfa"
-	apiOnlyFlagName    = "api-only"
-	csvFlagName        = "csv"
-)
-
 func userCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "user",
@@ -80,9 +68,9 @@ func createUserCommand() *cli.Command {
 				Usage: "Global role to assign to user (default \"observer\")",
 			},
 			&cli.StringSliceFlag{
-				Name:    "team",
-				Aliases: []string{"t"},
-				Usage:   "Team assignments in team_id:role pairs (multiple may be specified)",
+				Name:    fleetFlagName,
+				Aliases: []string{"team", "t"},
+				Usage:   "Fleet assignments in fleet_id:role pairs (multiple may be specified)",
 			},
 			configFlag(),
 			contextFlag(),
@@ -102,7 +90,7 @@ func createUserCommand() *cli.Command {
 			mfa := c.Bool(mfaFlagName)
 			apiOnly := c.Bool(apiOnlyFlagName)
 			globalRoleString := c.String(globalRoleFlagName)
-			teamStrings := c.StringSlice(teamFlagName)
+			teamStrings := c.StringSlice(fleetFlagName)
 
 			if mfa && sso {
 				return errors.New("email verification on login is not applicable to SSO users")

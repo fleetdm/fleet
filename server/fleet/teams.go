@@ -529,18 +529,18 @@ func ValidGlobalRole(role string) bool {
 func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
 	if globalRole == nil || *globalRole == "" {
 		if len(teamUsers) == 0 {
-			return NewError(ErrNoRoleNeeded, "either global role or team role needs to be defined")
+			return NewError(ErrNoRoleNeeded, "either global role or fleet role needs to be defined")
 		}
 		for _, t := range teamUsers {
 			if !ValidTeamRole(t.Role) {
-				return NewErrorf(ErrNoRoleNeeded, "invalid team role: %s", t.Role)
+				return NewErrorf(ErrNoRoleNeeded, "invalid fleet role: %s", t.Role)
 			}
 		}
 		return nil
 	}
 
 	if len(teamUsers) > 0 {
-		return NewError(ErrNoRoleNeeded, "Cannot specify both Global Role and Team Roles")
+		return NewError(ErrNoRoleNeeded, "Cannot specify both global and fleet-scoped roles")
 	}
 
 	if !ValidGlobalRole(*globalRole) {
@@ -631,7 +631,8 @@ func (f TeamFilter) UserCanAccessSelectedTeam() bool {
 }
 
 const (
-	TeamKind = "team"
+	TeamKind  = "team"
+	FleetKind = "fleet"
 )
 
 type TeamSpec struct {
