@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -19,7 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
@@ -195,7 +195,7 @@ func TestUpgradeCodeMigration(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, eeservice.UpgradeCodeMigration(ctx, ds, softwareInstallStore, logging.NewNopLogger()))
+	require.NoError(t, eeservice.UpgradeCodeMigration(ctx, ds, softwareInstallStore, slog.New(slog.DiscardHandler)))
 	require.True(t, ds.UpdateInstallerUpgradeCodeFuncInvoked)
 	require.Len(t, updatedInstallerIDs, 2)
 }

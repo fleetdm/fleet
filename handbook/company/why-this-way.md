@@ -323,7 +323,7 @@ Many companies encourage salespeople to ["spray and pray"](https://www.linkedin.
 
 At Fleet, we inspire ourselves to be helpers to everyone, even if some might disagree with their personal beliefs or particular OKRs of their organization.  Fleet is open source so everyone can use it and contribute.  And the company is built by different contributors from many walks of life and with unique perspectives.
 
-That said, for example, if a Fleetie struggled with a gambling issue in their past, it might be hard for them to provide customer support to the IT team of a large chain of casinos.  They might not do as good a job as someone else at Fleet could.  So when business allows, Fleet accommodates by pairing team members with the customers where they can provide the most value.
+That said, for example, if a Fleetie struggled with a gambling issue in their past, it might be hard for them to provide customer support to the IT team of a large chain of casinos. So when business allows, Fleet accommodates by pairing team members with the customers where they can provide the most value.
 
 
 ## Why does Fleet support query packs?

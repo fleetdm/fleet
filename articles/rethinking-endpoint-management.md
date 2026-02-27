@@ -1,6 +1,6 @@
 # Rethinking endpoint management: Fleet, osquery and Infrastructure as Code
 
-Traditional MDM and EDR tools demand blind trust. It’s time to adopt an engineering approach to device management that prioritizes visibility, auditability, and scale
+Traditional MDM and EDR tools demand blind trust. It’s time to adopt an engineering approach to device management that prioritizes visibility, auditability, and scale.
 
 ### Links to article series:
 
@@ -65,7 +65,7 @@ To achieve true scale and reliability, endpoint management must be treated like 
 
 Let's look at an example:
 
-A policy requiring FileVault encryption on macOS can be controlled with a checkbox in the Fleet GUI. 
+A policy requiring FileVault encryption on macOS can be controlled with a checkbox in the Fleet UI. 
 
 But, that checkbox can also be declaratively controlled with a text file containing the FileVault configuration. 
 
@@ -81,7 +81,7 @@ By adding the text file into a version-controlled  `git` repository, the "code" 
 
 The combination of the ground truth from `osquery`, Fleet’s scalable orchestration, and the rigor of Infrastructure as Code provides something traditional vendors cannot: complete control over your environment. Fleet transforms device management from manual labor in the GUI into proactive infrastructure engineering with all the benefits that GitOps entails: your teams can see every change, undo any error, and repeat every success. 
 
-But, there is a catch: moving to code-based management requires new skills. How do you enable a standard IT admin to write `SQL` queries and `YAML` configurations without needing the expertise of a seasoned DevOps engineer?
+But, there is a catch: moving to code-based management requires new skills. How do you enable an inexperiences IT admin to write `SQL` queries and `YAML` configurations without needing the expertise of a seasoned DevOps engineer?
 
 In the [next article]((https://fleetdm.com/articles/supercharging-endpoint-management), part 3 of this series, we will explore how emerging AI coding assistants and event-driven automation bridge that gap, making this powerful stack accessible to teams of any size.
 

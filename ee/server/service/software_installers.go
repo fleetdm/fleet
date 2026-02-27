@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"path"
@@ -29,11 +30,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 )
@@ -137,7 +136,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "matching or creating software installer")
 	}
-	level.Debug(svc.logger).Log("msg", "software installer uploaded", "installer_id", installerID)
+	svc.logger.DebugContext(ctx, "software installer uploaded", "installer_id", installerID)
 
 	var teamName *string
 	if payload.TeamID != nil && *payload.TeamID != 0 {
@@ -833,7 +832,7 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		if err != nil {
 			return &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
 		}
-		err = worker.QueueMakeAndroidAppUnavailableJob(ctx, svc.ds, svc.logger.SlogLogger(), meta.VPPAppID.AdamID, androidHostsUUIDToPolicyID, enterprise.Name())
+		err = worker.QueueMakeAndroidAppUnavailableJob(ctx, svc.ds, svc.logger, meta.VPPAppID.AdamID, androidHostsUUIDToPolicyID, enterprise.Name())
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "enqueuing job to make android app unavailable")
 		}
@@ -1074,7 +1073,7 @@ func (svc *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID s
 		if err != nil {
 			// We log the error but continue to return the details without the signed URL because orbit can still
 			// try to download the installer via Fleet server.
-			level.Error(svc.logger).Log("msg", "error getting software installer URL; check CloudFront configuration", "err", err)
+			svc.logger.ErrorContext(ctx, "error getting software installer URL; check CloudFront configuration", "err", err)
 		} else {
 			details.SoftwareInstallerURL = installerURL
 		}
@@ -1396,8 +1395,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 		}
 
 		if len(assets) == 0 {
-			level.Debug(svc.logger).Log(
-				"msg", "trying to assign VPP asset to host",
+			svc.logger.DebugContext(ctx, "trying to assign VPP asset to host",
 				"adam_id", vppApp.AdamID,
 				"host_serial", host.HardwareSerial,
 			)
@@ -2047,8 +2045,7 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		return "", ctxerr.Wrapf(ctx, err, "failed to set key as %s", batchSetProcessing)
 	}
 
-	svc.logger.Log(
-		"msg", "software batch start",
+	svc.logger.InfoContext(ctx, "software batch start",
 		"request_uuid", requestUUID,
 		"team_id", teamID,
 		"payloads", len(payloads),
@@ -2142,10 +2139,10 @@ func (svc *Service) softwareBatchUpload(
 			"status", status,
 			"took", time.Since(start),
 		)
-		logger.Log("msg", "software batch done")
+		logger.InfoContext(ctx, "software batch done")
 		// Give 10m for the client to read the result (it overrides the previos expiration time).
 		if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID, status, 10*time.Minute); err != nil {
-			logger.Log("msg", "failed to set result", "err", err)
+			logger.ErrorContext(ctx, "failed to set result", "err", err)
 		}
 	}(time.Now())
 
@@ -2893,7 +2890,7 @@ func UpgradeCodeMigration(
 	ctx context.Context,
 	ds fleet.Datastore,
 	softwareInstallStore fleet.SoftwareInstallerStore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) error {
 	// Find MSI installers without upgrade_code
 	idMap, err := ds.GetMSIInstallersWithoutUpgradeCode(ctx)
@@ -2915,7 +2912,7 @@ func UpgradeCodeMigration(
 				return ctxerr.Wrap(ctx, err, "checking if installer exists")
 			}
 			if !exists {
-				level.Warn(logger).Log("msg", "software installer not found in store", "software_installer_id", id, "storage_id", storageID)
+				logger.WarnContext(ctx, "software installer not found in store", "software_installer_id", id, "storage_id", storageID)
 				upgradeCodesByStorageID[storageID] = "" // set to empty string to avoid duplicating work
 				continue
 			}
@@ -2929,21 +2926,21 @@ func UpgradeCodeMigration(
 			tfr, err := fleet.NewTempFileReader(installer, nil)
 			_ = installer.Close()
 			if err != nil {
-				level.Warn(logger).Log("msg", "extracting metadata from installer", "software_installer_id", id, "storage_id", storageID, "err",
-					err)
+				logger.WarnContext(ctx, "extracting metadata from installer",
+					"software_installer_id", id, "storage_id", storageID, "err", err)
 				upgradeCodesByStorageID[storageID] = ""
 				continue
 			}
 			meta, err := file.ExtractInstallerMetadata(tfr)
 			_ = tfr.Close() // best-effort closing and deleting of temp file
 			if err != nil {
-				level.Warn(logger).Log("msg", "extracting metadata from installer", "software_installer_id", id, "storage_id", storageID, "err",
-					err)
+				logger.WarnContext(ctx, "extracting metadata from installer",
+					"software_installer_id", id, "storage_id", storageID, "err", err)
 				upgradeCodesByStorageID[storageID] = ""
 				continue
 			}
 			if meta.UpgradeCode == "" {
-				level.Debug(logger).Log("msg", "no upgrade code found in metadata", "software_installer_id", id, "storage_id", storageID)
+				logger.DebugContext(ctx, "no upgrade code found in metadata", "software_installer_id", id, "storage_id", storageID)
 			} // fall through since we're going to set the upgrade code even if it's blank
 
 			upgradeCodesByStorageID[storageID] = meta.UpgradeCode
@@ -2952,7 +2949,7 @@ func UpgradeCodeMigration(
 		if upgradeCode, hasParsedUpgradeCode := upgradeCodesByStorageID[storageID]; hasParsedUpgradeCode && upgradeCode != "" {
 			// Update the upgrade_code of the software package if we have one
 			if err := ds.UpdateInstallerUpgradeCode(ctx, id, upgradeCode); err != nil {
-				level.Warn(logger).Log("msg", "failed to update upgrade code", "software_installer_id", id, "error", err)
+				logger.WarnContext(ctx, "failed to update upgrade code", "software_installer_id", id, "error", err)
 				continue
 			}
 		}
@@ -2965,7 +2962,7 @@ func UninstallSoftwareMigration(
 	ctx context.Context,
 	ds fleet.Datastore,
 	softwareInstallStore fleet.SoftwareInstallerStore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) error {
 	// Find software installers that should have their uninstall script populated
 	idMap, err := ds.GetSoftwareInstallersPendingUninstallScriptPopulation(ctx)
@@ -2984,7 +2981,7 @@ func UninstallSoftwareMigration(
 			return ctxerr.Wrap(ctx, err, "checking if installer exists")
 		}
 		if !exists {
-			level.Warn(logger).Log("msg", "software installer not found in store", "software_installer_id", id, "storage_id", storageID)
+			logger.WarnContext(ctx, "software installer not found in store", "software_installer_id", id, "storage_id", storageID)
 			continue
 		}
 
@@ -2997,23 +2994,23 @@ func UninstallSoftwareMigration(
 		tfr, err := fleet.NewTempFileReader(installer, nil)
 		_ = installer.Close()
 		if err != nil {
-			level.Warn(logger).Log("msg", "extracting metadata from installer", "software_installer_id", id, "storage_id", storageID, "err",
-				err)
+			logger.WarnContext(ctx, "extracting metadata from installer",
+				"software_installer_id", id, "storage_id", storageID, "err", err)
 			continue
 		}
 		meta, err := file.ExtractInstallerMetadata(tfr)
 		_ = tfr.Close() // best-effort closing and deleting of temp file
 		if err != nil {
-			level.Warn(logger).Log("msg", "extracting metadata from installer", "software_installer_id", id, "storage_id", storageID, "err",
-				err)
+			logger.WarnContext(ctx, "extracting metadata from installer",
+				"software_installer_id", id, "storage_id", storageID, "err", err)
 			continue
 		}
 		if len(meta.PackageIDs) == 0 {
-			level.Warn(logger).Log("msg", "no package_id found in metadata", "software_installer_id", id, "storage_id", storageID)
+			logger.WarnContext(ctx, "no package_id found in metadata", "software_installer_id", id, "storage_id", storageID)
 			continue
 		}
 		if meta.Extension == "" {
-			level.Warn(logger).Log("msg", "no extension found in metadata", "software_installer_id", id, "storage_id", storageID)
+			logger.WarnContext(ctx, "no extension found in metadata", "software_installer_id", id, "storage_id", storageID)
 			continue
 		}
 		payload := fleet.UploadSoftwareInstallerPayload{
