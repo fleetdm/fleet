@@ -2078,16 +2078,17 @@ func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Cont
 		return nil, nil
 	}
 
-	needsUpdate, err := svc.needsOSUpdateForDEPEnrollment(ctx, *m)
+	// shouldUpdate depends on the app_config settings for minimum_version and update_new_hosts
+	shouldUpdate, err := svc.shouldOSUpdateForDEPEnrollment(ctx, *m)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "checking os updates settings", "serial", m.Serial)
-	}
-
-	if !needsUpdate {
+	} else if !shouldUpdate {
 		svc.logger.DebugContext(ctx, "device is above minimum or update new host not checked, skipping os version check", "serial", m.Serial)
 		return nil, nil
 	}
 
+	// if the device should update based on appconfig settings, we also need to check what versions
+	// are actually available for the device from Apple
 	sur, err := svc.getAppleSoftwareUpdateRequiredForDEPEnrollment(*m)
 	if err != nil {
 		// log for debugging but allow enrollment to proceed
@@ -2098,7 +2099,7 @@ func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Cont
 	return sur, nil
 }
 
-func (svc *Service) needsOSUpdateForDEPEnrollment(ctx context.Context, m fleet.MDMAppleMachineInfo) (bool, error) {
+func (svc *Service) shouldOSUpdateForDEPEnrollment(ctx context.Context, m fleet.MDMAppleMachineInfo) (bool, error) {
 	// NOTE: Under the hood, the datastore is joining host_dep_assignments to the hosts table to
 	// look up DEP hosts by serial number. It grabs the team id and platform from the
 	// hosts table. Then it uses the team id to get either the global config or team config.
@@ -2121,26 +2122,31 @@ func (svc *Service) needsOSUpdateForDEPEnrollment(ctx context.Context, m fleet.M
 	}
 
 	minVersion := settings.MinimumVersion.Value
-	hasMinVersion := settings.MinimumVersion.Set && settings.MinimumVersion.Valid && minVersion != ""
+	isSetMinVersion := settings.MinimumVersion.Set && settings.MinimumVersion.Valid && minVersion != ""
 
 	// For macOS hosts, whether to update new hosts during DEP enrollment is determined solely by UpdateNewHosts
 	if platform == "darwin" {
 		updateNewHosts := settings.UpdateNewHosts.Set && settings.UpdateNewHosts.Valid && settings.UpdateNewHosts.Value
 
-		svc.logger.InfoContext(ctx, "checking os updates settings for macos, update will be forced if UpdateNewHosts is set",
-			"update_new_hosts", updateNewHosts,
-			"serial", m.Serial,
-		)
-		return updateNewHosts, nil
-	}
+		if !isSetMinVersion {
+			svc.logger.InfoContext(ctx, "checking os updates settings for macos, MinimumVersion is not set host will be forced to update if UpdateNewHosts is set.",
+				"update_new_hosts", updateNewHosts,
+				"minimum_version", minVersion,
+				"current_version", m.OSVersion,
+				"serial", m.Serial,
+			)
+			return updateNewHosts, nil
+		}
 
-	// TODO: confirm what this check should do
-	if !hasMinVersion {
-		svc.logger.InfoContext(ctx, "checking os updates settings, minimum version not set",
-			"serial", m.Serial,
-			"current_version", m.OSVersion,
-			"minimum_version", minVersion,
-		)
+		if !updateNewHosts {
+			svc.logger.InfoContext(ctx, "checking os updates settings for macos, UpdateNewHosts is not set, host will not be forced to update.",
+				"update_new_hosts", updateNewHosts,
+				"minimum_version", minVersion,
+				"current_version", m.OSVersion,
+				"serial", m.Serial,
+			)
+			return false, nil
+		}
 	}
 
 	needsUpdate, err := apple_mdm.IsLessThanVersion(m.OSVersion, minVersion)
