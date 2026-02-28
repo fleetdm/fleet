@@ -150,8 +150,9 @@ done
 # Staple the notarization ticket
 echo "Stapling notarization ticket..."
 xcrun stapler staple "$PACKAGE_NAME" || {
-    echo "Warning: Stapling failed, but notarization may have succeeded"
+    echo "❌ Stapling failed after notarization; failing release packaging."
     exit 1
+}
 }
 
 # Clean up notarization zip
