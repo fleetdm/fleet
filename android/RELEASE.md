@@ -122,6 +122,11 @@ git checkout rc-minor-fleetd-android-v1.X.X -- android/app/build.gradle.kts andr
 git commit -m "Update version and CHANGELOG for fleetd-android-v1.X.X"
 git push origin bring-fleetd-android-v1.X.X-to-main
 ```
+## 10. Update the info page
+
+After the release is uploaded, update orbit/ANDROID_APP.md with the new release version.
+
+
 
 Then open a PR to merge `bring-fleetd-android-v1.X.X-to-main` into `main`.
 
