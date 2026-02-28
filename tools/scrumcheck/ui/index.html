@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>scrumcheck report</title>
+  <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body data-bridge-url="{{.BridgeBaseURL}}" data-bridge-session="{{.BridgeSessionToken}}">
+  <div class="wrap">
+    <section class="header">
+      <div class="title-row">
+        <span class="title-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" role="img" aria-label="Fleet logo">
+            <circle cx="4" cy="4" r="2.2" fill="#8b6ff0"></circle>
+            <circle cx="12" cy="4" r="2.2" fill="#34c759"></circle>
+            <circle cx="20" cy="4" r="2.2" fill="#eb5757"></circle>
+            <circle cx="4" cy="12" r="2.2" fill="#4da3ff"></circle>
+            <circle cx="12" cy="12" r="2.2" fill="#ff8a3d"></circle>
+            <circle cx="4" cy="20" r="2.2" fill="#54d58f"></circle>
+          </svg>
+        </span>
+        <h1>Scrum check</h1>
+      </div>
+      <p class="meta">Org: {{.Org}} | Generated: {{.GeneratedAt}}</p>
+      <div id="counts-content" class="counts">
+        <span class="pill">Loading check totals…</span>
+      </div>
+      {{if .BridgeEnabled}}
+        <div class="bridge-controls">
+          <button id="close-session-btn" class="fix-btn">Close bridge session</button>
+          <span class="copied-note">This will stop GitHub actions from the report until next scrumcheck run.</span>
+        </div>
+      {{end}}
+    </section>
+
+    <div class="app-shell">
+      <aside class="menu" role="tablist" aria-label="checks">
+        <h4>Checks</h4>
+        <button class="menu-btn active" data-tab="release-story-todo" role="tab">
+          <span class="status-dot {{if .ReleaseStoryTODOClean}}ok{{end}}"></span>📝 Release stories TODO
+        </button>
+        <button class="menu-btn" data-tab="generic-queries" role="tab">
+          <span class="status-dot {{if .GenericQueriesClean}}ok{{end}}"></span>🔎 Generic queries
+        </button>
+        <button class="menu-btn" data-tab="sprint" role="tab">
+          <span class="status-dot {{if .SprintClean}}ok{{end}}"></span>🗓️ Missing sprint
+        </button>
+        <button class="menu-btn" data-tab="milestone" role="tab">
+          <span class="status-dot {{if .MilestoneClean}}ok{{end}}"></span>🎯 Missing milestones
+        </button>
+        <button class="menu-btn" data-tab="release" role="tab">
+          <span class="status-dot {{if .ReleaseClean}}ok{{end}}"></span>🏷️ Release label guard
+        </button>
+        <button class="menu-btn" data-tab="stale" role="tab">
+          <span class="status-dot {{if .StaleClean}}ok{{end}}"></span>⏳ Awaiting QA stale watchdog
+        </button>
+        <button class="menu-btn" data-tab="awaiting" role="tab">
+          <span class="status-dot {{if .AwaitingClean}}ok{{end}}"></span>✔ Awaiting QA gate
+        </button>
+        <button class="menu-btn" data-tab="drafting" role="tab">
+          <span class="status-dot {{if .DraftingClean}}ok{{end}}"></span>🧭 Drafting estimation gate
+        </button>
+        <button class="menu-btn" data-tab="missing-assignee" role="tab">
+          <span class="status-dot {{if .MissingAssigneeClean}}ok{{end}}"></span>👤 Missing assignee
+        </button>
+        <button class="menu-btn" data-tab="assigned-to-me" role="tab">
+          <span class="status-dot {{if .AssignedToMeClean}}ok{{end}}"></span>🧍 Assigned to me
+        </button>
+        <button class="menu-btn" data-tab="unassigned-unreleased" role="tab">
+          <span class="status-dot {{if .UnassignedUnreleasedClean}}ok{{end}}"></span>🐞 Unassigned unreleased bugs
+        </button>
+        <button class="menu-btn" data-tab="timestamp" role="tab">
+          <span class="status-dot {{if .TimestampClean}}ok{{end}}"></span>🕒 Updates timestamp expiry
+        </button>
+      </aside>
+
+      <div class="panel-wrap">
+      <section id="tab-release-story-todo" class="panel active" role="tabpanel">
+        <div class="column-head">
+          <h2>📝 Release stories TODO (selected projects)</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="release-story-todo">Refresh</button>
+        </div>
+        <p class="subtle">Stories with <code>:release</code> label that still contain <code>TODO</code> text in the body.</p>
+        <div id="release-story-todo-content">
+          <p class="empty">🛰️ Loading release stories TODO from bridge…</p>
+        </div>
+      </section>
+
+      <section id="tab-generic-queries" class="panel" role="tabpanel">
+        <div class="column-head">
+          <h2>🔎 Generic queries</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="generic-queries">Refresh</button>
+        </div>
+        <p class="subtle">Runs configured issue queries in order. Placeholders: <code>&lt;&lt;group&gt;&gt;</code> and <code>&lt;&lt;project&gt;&gt;</code>.</p>
+        <div id="generic-queries-content">
+          <p class="empty">🛰️ Loading generic query results from bridge…</p>
+        </div>
+      </section>
+
+      <section id="tab-awaiting" class="panel" role="tabpanel">
+        <div class="column-head">
+          <h2>✅ Awaiting QA gate</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="awaiting">Refresh</button>
+        </div>
+        <p class="subtle">Items in <strong>✔️Awaiting QA</strong> where engineer test-plan confirmation is unchecked.</p>
+        <div id="awaiting-content">
+          <p class="empty">🛰️ Loading Awaiting QA data from bridge…</p>
+        </div>
+      </section>
+      <section id="tab-stale" class="panel" role="tabpanel">
+        <div class="column-head">
+          <h2>⏳ Awaiting QA stale watchdog</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="stale">Refresh</button>
+        </div>
+        <p class="subtle">Items in <strong>✔️Awaiting QA</strong> with no updates for at least {{.StaleThreshold}} days.</p>
+        <div id="stale-content">
+          <p class="empty">🛰️ Loading stale Awaiting QA data from bridge…</p>
+        </div>
+      </section>
+
+      <section id="tab-timestamp" class="panel" role="tabpanel">
+        <div class="column-head">
+          <h2>🕒 Updates timestamp.json expiry</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="timestamp">Refresh</button>
+        </div>
+        <p id="timestamp-subtle" class="subtle">Loading timestamp check from bridge…</p>
+        <div id="timestamp-content" class="project">
+          <p class="empty">🛰️ Fetching latest timestamp status…</p>
+        </div>
+      </section>
+
+      <section id="tab-milestone" class="panel" role="tabpanel">
+        <div class="column-head">
+          <h2>🎯 Missing milestones (selected projects)</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="milestone">Refresh</button>
+        </div>
+        <p class="subtle">Issues in selected projects without a milestone. Type to filter milestones, choose one, then apply directly.</p>
+        <div id="milestone-content">
+          <p class="empty">🛰️ Loading missing milestones from bridge…</p>
+        </div>
+      </section>
+
+      <section id="tab-drafting" class="panel" role="tabpanel">
+        <div class="column-head">
+          <h2>🧭 Drafting estimation gate (project 67)</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="drafting">Refresh</button>
+        </div>
+        <p class="subtle">Items in estimation statuses with unchecked checklist items.</p>
+        <div id="drafting-content">
+          <p class="empty">🛰️ Loading drafting data from bridge…</p>
+        </div>
+      </section>
+
+      <section id="tab-sprint" class="panel" role="tabpanel">
+        <div class="column-head">
+          <h2>🗓️ Missing sprint (selected projects)</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="missing-sprint">Refresh</button>
+        </div>
+        <p class="subtle">Items in selected projects without a sprint set. Grouped by column focus.</p>
+        <div id="missing-sprint-content">
+          <p class="empty">🛰️ Loading missing sprint data from bridge…</p>
+        </div>
+      </section>
+
+      <section id="tab-missing-assignee" class="panel" role="tabpanel">
+        <div class="column-head">
+          <h2>👤 Missing assignee (selected projects)</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="missing-assignee">Refresh</button>
+        </div>
+        <p class="subtle">Items with no assignee. If any item appears here, this check fails.</p>
+        <div id="missing-assignee-content">
+          <p class="empty">🛰️ Loading missing assignee data from bridge…</p>
+        </div>
+      </section>
+
+      <section id="tab-assigned-to-me" class="panel" role="tabpanel">
+        <div class="column-head">
+          <h2>🧍 Assigned to me (selected projects)</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="assigned-to-me">Refresh</button>
+        </div>
+        <p class="subtle">Items currently assigned to you. If any item appears here, this check fails.</p>
+        <div id="assigned-to-me-content">
+          <p class="empty">🛰️ Loading assigned-to-me data from bridge…</p>
+        </div>
+      </section>
+
+      <section id="tab-release" class="panel" role="tabpanel">
+        <div class="column-head">
+          <h2>🏷️ Release label guard (selected projects)</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="release">Refresh</button>
+        </div>
+        <p class="subtle">For selected projects (excluding project 67): if ticket has <code>:product</code> or is missing <code>:release</code>, apply release labeling policy.</p>
+        <div id="release-content">
+          <p class="empty">🛰️ Loading release label data from bridge…</p>
+        </div>
+      </section>
+
+      <section id="tab-unassigned-unreleased" class="panel" role="tabpanel">
+        <div class="column-head">
+          <h2>🐞 Unassigned unreleased bugs (selected projects)</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="unassigned-unreleased">Refresh</button>
+        </div>
+        <p class="subtle">Grouped by provided <code>-l</code> labels and by status. Red cards are unassigned (failing). Green cards are assigned (informational).</p>
+        <div id="unreleased-content">
+          <p class="empty">🛰️ Loading unreleased bug groups from bridge…</p>
+        </div>
+      </section>
+      </div>
+    </div>
+  </div>
+  <script src="/assets/app.js"></script>
+</body>
+</html>
