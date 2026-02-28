@@ -5,6 +5,7 @@ import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import Icon from "components/Icon";
 import NotSupported from "components/NotSupported";
 import { IHost } from "interfaces/host";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "host-mdm-status-cell";
 
@@ -18,7 +19,17 @@ const HostMdmStatusCell = ({
   cell: { value: string };
 }): JSX.Element => {
   if (platform === "chrome") {
-    return NotSupported;
+    return (
+      <TooltipWrapper
+        tipContent="Only supported for macOS, Windows, Linux, iOS/iPadOS, and Android hosts."
+        underline={false}
+        showArrow
+        position="top"
+        tipOffset={10}
+      >
+        {NotSupported}
+      </TooltipWrapper>
+    );
   }
 
   if (!value) {
