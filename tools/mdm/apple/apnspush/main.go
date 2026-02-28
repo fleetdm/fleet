@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"flag"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -27,7 +28,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/buford"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service"
 )
 
@@ -63,10 +63,10 @@ func main() {
 		MaxIdleConns:    50,
 		ConnMaxLifetime: 0,
 	}
-	logger := logging.NewLogfmtLogger(os.Stderr)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	opts := []mysql.DBOption{
-		mysql.Logger(logger.SlogLogger()),
+		mysql.Logger(logger),
 		mysql.WithFleetConfig(&config.FleetConfig{
 			Server: config.ServerConfig{PrivateKey: *serverPrivateKey},
 		}),
@@ -87,7 +87,7 @@ func main() {
 		})), nil
 	}))
 
-	nanoMDMLogger := service.NewNanoMDMLogger(logger.With("component", "apple-mdm-push").SlogLogger())
+	nanoMDMLogger := service.NewNanoMDMLogger(logger.With("component", "apple-mdm-push"))
 	pusher := nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
 	res, err := pusher.Push(context.Background(), hostUUIDs)
 	if err != nil {

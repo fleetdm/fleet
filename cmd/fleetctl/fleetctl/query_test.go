@@ -2,6 +2,7 @@ package fleetctl
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"sync"
 	"testing"
@@ -10,7 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/stretchr/testify/assert"
@@ -21,7 +21,7 @@ func TestSavedLiveQuery(t *testing.T) {
 	rs := pubsub.NewInmemQueryResults()
 	lq := live_query_mock.New(t)
 
-	logger := logging.NewJSONLogger(os.Stdout)
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		Rs:     rs,
@@ -194,7 +194,7 @@ func TestAdHocLiveQuery(t *testing.T) {
 	rs := pubsub.NewInmemQueryResults()
 	lq := live_query_mock.New(t)
 
-	logger := logging.NewJSONLogger(os.Stdout)
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	_, ds := testing_utils.RunServerWithMockedDS(
 		t, &service.TestServerOpts{

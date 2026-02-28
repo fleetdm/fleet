@@ -15,7 +15,7 @@ import (
 	"time"
 
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/rs/zerolog"
 	"github.com/smallstep/scep"
@@ -151,7 +151,7 @@ func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 	// We assume the required fields have already been validated by the NewClient factory.
 
 	slogLogger := slog.New(&zerologSlogHandler{logger: c.logger})
-	scepLogger := logging.NewLogger(slogLogger)
+	scepLogger := kitlogadapter.NewLogger(slogLogger)
 	opts := []scepclient.Option{
 		scepclient.WithTimeout(c.timeout),
 		scepclient.WithRootCA(c.rootCA),
@@ -283,7 +283,7 @@ func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 	return pkiMsgResp.CertRepMessage.Certificate, nil
 }
 
-// zerologSlogHandler adapts zerolog.Logger to slog.Handler so it can be used with *logging.Logger.
+// zerologSlogHandler adapts zerolog.Logger to slog.Handler so it can be used with *slog.Logger.
 type zerologSlogHandler struct {
 	logger zerolog.Logger
 	attrs  []slog.Attr
