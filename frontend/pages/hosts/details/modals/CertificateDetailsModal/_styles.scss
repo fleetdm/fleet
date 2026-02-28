@@ -7,6 +7,7 @@
 
   h3 {
     margin: 0;
+    margin-bottom: $pad-small;
     font-size: $small;
   }
 
@@ -20,6 +21,10 @@
     &:first-child {
       padding-top: 0;
       border-top: none;
+    }
+
+    dl {
+      gap: $pad-xsmall;
     }
   }
 }
