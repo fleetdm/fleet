@@ -1,0 +1,141 @@
+name: Build fleetctl MSI
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_mode:
+        description: 'Upload MSI as a workflow artifact (true) instead of attaching to the GitHub release (false)'
+        type: boolean
+        default: true
+      version:
+        description: 'Fleet version to build the MSI for (e.g. 4.70.0). Must match an existing fleet-v{version} release tag.'
+        type: string
+        required: true
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  build-fleetctl-msi:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - name: Set version
+        id: version
+        run: echo "VERSION=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+
+      - name: Download fleetctl Windows binary from release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          gh release download "fleet-v${VERSION}" \
+            --pattern "fleetctl_v${VERSION}_windows_amd64.zip" \
+            --repo fleetdm/fleet \
+            --dir .
+          unzip -o "fleetctl_v${VERSION}_windows_amd64.zip" fleetctl.exe
+
+      - name: Verify fleetctl binary
+        shell: cmd
+        run: .\fleetctl.exe version
+
+      - name: Setup certificate
+        run: |
+          echo "${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE }}" | base64 --decode > /d/Certificate_pkcs12.p12
+
+      - name: Set signing variables
+        run: |
+          echo "SM_HOST=${{ secrets.DIGICERT_KEYLOCKER_HOST_URL }}" >> "$GITHUB_ENV"
+          echo "SM_API_KEY=${{ secrets.DIGICERT_API_KEY }}" >> "$GITHUB_ENV"
+          echo "SM_CLIENT_CERT_FILE=D:\\Certificate_pkcs12.p12" >> "$GITHUB_ENV"
+          echo "SM_CLIENT_CERT_PASSWORD=${{ secrets.DIGICERT_KEYLOCKER_PASSWORD }}" >> "$GITHUB_ENV"
+          echo "C:\Program Files (x86)\Windows Kits\10\App Certification Kit" >> $GITHUB_PATH
+          echo "C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.8 Tools" >> $GITHUB_PATH
+          echo "C:\Program Files\DigiCert\DigiCert Keylocker Tools" >> $GITHUB_PATH
+
+      - name: Download DigiCert Keylocker tools
+        shell: cmd
+        run: |
+          curl https://one.digicert.com/signingmanager/api-ui/v1/releases/Keylockertools-windows-x64.msi/download -H "x-api-key:%SM_API_KEY%" --fail-with-body -o Keylockertools-windows-x64.msi
+
+      - name: Install DigiCert Keylocker tools
+        shell: cmd
+        run: |
+          msiexec /i Keylockertools-windows-x64.msi /quiet /qn
+          smksp_registrar.exe list
+          smctl.exe keypair ls
+          C:\Windows\System32\certutil.exe -csp "DigiCert Signing Manager KSP" -key -user
+
+      - name: Sync certificates
+        shell: cmd
+        run: smctl windows certsync
+
+      - name: Sign fleetctl.exe
+        shell: cmd
+        run: |
+          signtool.exe sign /v /debug /sha1 ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }} /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 fleetctl.exe
+
+      - name: Verify fleetctl.exe signature
+        shell: cmd
+        run: signtool.exe verify /v /pa fleetctl.exe
+
+      - name: Install WiX 3
+        shell: cmd
+        run: choco install wixtoolset --version 3.14.0 -y --no-progress
+
+      - name: Add WiX to PATH
+        run: echo "C:\Program Files (x86)\WiX Toolset v3.14\bin" >> "$GITHUB_PATH"
+
+      - name: Build MSI
+        shell: cmd
+        run: |
+          set VERSION=${{ steps.version.outputs.VERSION }}
+          candle.exe -arch x64 -dVersion=%VERSION% -ext WixUtilExtension tools\build-fleetctl-msi\fleetctl.wxs -out fleetctl.wixobj
+          light.exe -ext WixUtilExtension -b . fleetctl.wixobj -out "fleetctl_v%VERSION%_windows_amd64.msi"
+
+      - name: Sign MSI
+        shell: cmd
+        run: |
+          set VERSION=${{ steps.version.outputs.VERSION }}
+          signtool.exe sign /v /debug /sha1 ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }} /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "fleetctl_v%VERSION%_windows_amd64.msi"
+
+      - name: Verify MSI signature
+        shell: cmd
+        run: |
+          set VERSION=${{ steps.version.outputs.VERSION }}
+          signtool.exe verify /v /pa "fleetctl_v%VERSION%_windows_amd64.msi"
+
+      - name: Upload MSI to GitHub release
+        if: ${{ inputs.test_mode == false }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          gh release upload "fleet-v${VERSION}" "fleetctl_v${VERSION}_windows_amd64.msi" --repo fleetdm/fleet
+
+      - name: Upload MSI as workflow artifact
+        if: ${{ inputs.test_mode == true }}
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        with:
+          name: fleetctl-msi
+          path: fleetctl_v${{ steps.version.outputs.VERSION }}_windows_amd64.msi
+
+      - name: Attest MSI
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: fleetctl_v${{ steps.version.outputs.VERSION }}_windows_amd64.msi
