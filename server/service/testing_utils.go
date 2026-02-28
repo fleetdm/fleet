@@ -435,7 +435,6 @@ type TestServerOpts struct {
 	HostIdentity                    *HostIdentity
 	androidMockClient               *android_mock.Client
 	androidModule                   android.Service
-	NewActivity                     fleet.NewActivityFunc
 	ConditionalAccess               *ConditionalAccess
 	DBConns                         *common_mysql.DBConnections
 
