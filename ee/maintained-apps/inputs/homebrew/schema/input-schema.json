@@ -59,7 +59,7 @@
       "description": "The default categories assigned to the installer in self-service if no categories are specified when it is added to a team's library.",
       "items": {
         "type": "string",
-        "enum": ["Browsers", "Communication", "Developer tools", "Productivity"]
+        "enum": ["Browsers", "Communication", "Developer tools", "Productivity", "Security", "Utilities"]
       },
       "minItems": 1,
       "uniqueItems": true
