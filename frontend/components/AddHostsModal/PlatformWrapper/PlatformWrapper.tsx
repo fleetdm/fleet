@@ -13,7 +13,8 @@ import {
 } from "interfaces/installer";
 
 import Button from "components/buttons/Button";
-import Icon, { IconNames } from "components/Icon/Icon";
+import Icon from "components/Icon/Icon";
+import { IconNames } from "components/icons";
 import RevealButton from "components/buttons/RevealButton";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
