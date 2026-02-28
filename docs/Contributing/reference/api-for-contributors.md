@@ -574,6 +574,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Get FileVault statistics](#get-filevault-statistics)
 - [Upload VPP content token](#upload-vpp-content-token)
 - [Disable VPP](#disable-vpp)
+- [Get host's DEP assignment](#get-hosts-dep-assignment)
 - [SCEP proxy](#scep-proxy)
 - [Get Android Enterprise signup URL](#get-android-enterprise-signup-url)
 - [Connect Android Enterprise](#connect-android-enterprise)
@@ -1316,6 +1317,60 @@ Content-Type: application/octet-stream
 ##### Default response
 
 `Status: 204`
+
+### Get host's DEP assignment
+
+_Available in Fleet Premium_
+
+Returns the raw data about a DEP device's current state from the [Get Device Details](https://developer.apple.com/documentation/devicemanagement/device-details) API. Supports only Apple hosts which are, or were, assigned to Fleet in Apple Business Manager.
+
+`GET /api/v1/fleet/hosts/:id/dep_assignment`
+
+#### Parameters
+
+| Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
+| ------- | ------- | ---- | -------------------------------------------------------------------------------- |
+| id      | integer | path | **Required** The id of the host to get the details for                           |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/32/dep_assignment`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 32,
+  "dep_device": {
+    "asset_tag": "",
+    "color": "MIDNIGHT",
+    "description": "IPHONE 13 MIDNIGHT 128GB-USA",
+    "device_assigned_by": "fleetie@example.com",
+    "device_assigned_date": "2026-01-29T21:17:25Z",
+    "device_family": "iPhone",
+    "os": "iOS",
+    "profile_status": "assigned",
+    "profile_assign_time": "2026-01-29T21:17:25Z",
+    "profile_push_time": "0001-01-01T00:00:00Z",
+    "profile_uuid": "762C4D36550103CCC53AA212A8D31CDD",
+    "mdm_migration_deadline": null,
+    "serial_number": "ABC1FND0ZX",
+  },
+  "host_dep_assignment": {
+    "assign_profile_response": "SUCCESS",
+    "profile_uuid": "762C4D36550103CCC53AA212A8D31CDD",
+    "response_updated_at": "2025-12-04 01:35:27",
+    "added_at": "2025-12-04 01:35:27",
+    "deleted_at": null,
+    "abm_token_id": 1,
+    "mdm_migration_deadline": "2025-12-05 00:00:00.000000",
+    "mdm_migration_completed": "2025-12-05 00:00:00.000000"
+  }
+}
+```
+
 
 ### SCEP proxy
 
