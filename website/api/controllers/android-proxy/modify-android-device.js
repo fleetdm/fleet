@@ -8,6 +8,7 @@ module.exports = {
 
 
   inputs: {
+    // Provided via path parameters
     androidEnterpriseId: {
       type: 'string',
       required: true,
@@ -16,6 +17,153 @@ module.exports = {
       type: 'string',
       required: true,
     },
+
+    // Sent in the request body
+    // [?]: https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#Device
+    name: {
+      type: 'string'
+    },
+
+    userName: {
+      type: 'string'
+    },
+
+    managementMode: {
+      type: 'string'
+    },
+
+    appliedState: {
+      type: 'string'
+    },
+
+    policyCompliant: {
+      type: 'boolean'
+    },
+
+    nonComplianceDetails: {
+      type: [{}],
+    },
+
+    enrollmentTime: {
+      type: 'string'
+    },
+
+    lastStatusReportTime: {
+      type: 'string'
+    },
+
+    lastPolicyComplianceReportTime: {
+      type: 'string'
+    },
+
+    lastPolicySyncTime: {
+      type: 'string'
+    },
+
+    policyName: {
+      type: 'string'
+    },
+
+    appliedPolicyName: {
+      type: 'string'
+    },
+
+    appliedPolicyVersion: {
+      type: 'string'
+    },
+
+    apiLevel: {
+      type: 'number'
+    },
+
+    enrollmentTokenData: {
+      type: 'string'
+    },
+
+    enrollmentTokenName: {
+      type: 'string'
+    },
+
+    disabledReason: {
+      type: {}
+    },
+
+    softwareInfo: {
+      type: {}
+    },
+
+    hardwareInfo: {
+      type: {}
+    },
+
+    displays: {
+      type: [{}]
+    },
+
+    applicationReports: {
+      type: [{}]
+    },
+
+    previousDeviceNames: {
+      type: ['string'],
+    },
+
+    networkInfo: {
+      type: {}
+    },
+
+    memoryInfo: {
+      type: {}
+    },
+
+    memoryEvents: {
+      type: [{}],
+    },
+
+    powerManagementEvents: {
+      type: [{}],
+    },
+
+    hardwareStatusSamples: {
+      type: [{}],
+    },
+
+    deviceSettings: {
+      type: {},
+    },
+
+    user: {
+      type: {},
+    },
+
+    systemProperties: {
+      type: {},
+    },
+
+    securityPosture: {
+      type: {},
+    },
+
+    ownership: {
+      type: 'string',
+    },
+
+    commonCriteriaModeInfo: {
+      type: {},
+    },
+
+    appliedPasswordPolicies: {
+      type: [{}],
+    },
+
+    dpcMigrationInfo: {
+      type: {},
+    },
+
+    defaultApplicationInfo: {
+      type: [{}],
+    },
+
   },
 
 
@@ -29,7 +177,13 @@ module.exports = {
   },
 
 
-  fn: async function ({ androidEnterpriseId, deviceId}) {
+  fn: async function ({
+    androidEnterpriseId, deviceId, name, userName, managementMode, appliedState, policyCompliant, nonComplianceDetails, enrollmentTime,
+    lastStatusReportTime, lastPolicyComplianceReportTime, lastPolicySyncTime, policyName, appliedPolicyName, appliedPolicyVersion, apiLevel,
+    enrollmentTokenData, enrollmentTokenName, disabledReason, softwareInfo, hardwareInfo, displays, applicationReports, previousDeviceNames,
+    networkInfo, memoryInfo, memoryEvents, powerManagementEvents, hardwareStatusSamples, deviceSettings, user, systemProperties, securityPosture,
+    ownership, commonCriteriaModeInfo, appliedPasswordPolicies, dpcMigrationInfo, defaultApplicationInfo
+  }) {
 
     // Extract fleetServerSecret from the Authorization header
     let authHeader = this.req.get('authorization');
@@ -80,7 +234,44 @@ module.exports = {
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Devices.html#patch
       let patchDeviceResponse = await androidmanagement.enterprises.devices.patch({
         name: `enterprises/${androidEnterpriseId}/devices/${deviceId}`,
-        requestBody: this.req.body,
+        requestBody: {
+          name,
+          userName,
+          managementMode,
+          appliedState,
+          policyCompliant,
+          nonComplianceDetails,
+          enrollmentTime,
+          lastStatusReportTime,
+          lastPolicyComplianceReportTime,
+          lastPolicySyncTime,
+          policyName,
+          appliedPolicyName,
+          appliedPolicyVersion,
+          apiLevel,
+          enrollmentTokenData,
+          enrollmentTokenName,
+          disabledReason,
+          softwareInfo,
+          hardwareInfo,
+          displays,
+          applicationReports,
+          previousDeviceNames,
+          networkInfo,
+          memoryInfo,
+          memoryEvents,
+          powerManagementEvents,
+          hardwareStatusSamples,
+          deviceSettings,
+          user,
+          systemProperties,
+          securityPosture,
+          ownership,
+          commonCriteriaModeInfo,
+          appliedPasswordPolicies,
+          dpcMigrationInfo,
+          defaultApplicationInfo
+        },
       });
       return patchDeviceResponse.data;
     }).intercept({status: 429}, (err)=>{
