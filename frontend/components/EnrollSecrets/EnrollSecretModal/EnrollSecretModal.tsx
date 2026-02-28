@@ -58,7 +58,7 @@ const EnrollSecretModal = ({
             <div className={`${baseClass}__header`}>
               <div className={`${baseClass}__description`}>
                 Use these secret(s) to enroll hosts
-                {primoMode ? (
+                {primoMode || teamInfo?.name === "Unassigned" ? (
                   ""
                 ) : (
                   <>
@@ -100,7 +100,7 @@ const EnrollSecretModal = ({
               info={
                 <>
                   Add secret(s) to enroll hosts
-                  {primoMode ? (
+                  {primoMode || teamInfo?.name === "Unassigned" ? (
                     ""
                   ) : (
                     <>
