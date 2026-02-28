@@ -72,6 +72,11 @@ func checkNVDVulnerabilities(vulnPath string, logger *slog.Logger) {
 		vulnEntry.Schema().Configurations.Nodes[0].CPEMatch[1].VersionEndExcluding != "2403.1" {
 		panic(errors.New("enriched vulnerability spot-check failed for Citrix Workstation on CVE-2024-6286"))
 	}
+	for _, match := range vulnEntry.Schema().Configurations.Nodes[0].CPEMatch {
+		if strings.Contains(match.Cpe23Uri, ":ltsr:") && match.VersionEndExcluding != "2402" {
+			panic(fmt.Errorf("CVE-2024-6286 LTSR versionEndExcluding spot-check failed: got %q, expected \"2402\"", match.VersionEndExcluding))
+		}
+	}
 
 	// check CVSS score extraction; confirm that secondary CVSS scores are extracted when primary isn't set
 	if vulns["CVE-2024-54559"].CVSSv3BaseScore() != 5.5 { // secondary source CVSS score
