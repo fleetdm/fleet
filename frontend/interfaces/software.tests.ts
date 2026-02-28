@@ -58,6 +58,11 @@ describe("formatSoftwareType", () => {
         expected: "Package (pkg)",
         description: "macOS pkg packages",
       },
+      {
+        source: "go_packages" as const,
+        expected: "Package (Go)",
+        description: "Go packages",
+      },
     ];
 
     testCases.forEach(({ source, expected, description }) => {
@@ -260,6 +265,7 @@ describe("formatSoftwareType", () => {
       "chocolatey_packages",
       "pkg_packages",
       "vscode_extensions",
+      "go_packages",
     ] as const;
 
     allSourceTypes.forEach((source) => {

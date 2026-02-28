@@ -12175,6 +12175,58 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/geolocation.yml"
   },
   {
+    "name": "go_binaries",
+    "platforms": [
+      "darwin",
+      "linux",
+      "windows"
+    ],
+    "description": "Go binaries installed via `go install` in `$HOME/go/bin`.",
+    "evented": false,
+    "columns": [
+      {
+        "name": "name",
+        "type": "text",
+        "required": false,
+        "description": "The filename of the Go binary."
+      },
+      {
+        "name": "version",
+        "type": "text",
+        "required": false,
+        "description": "The module version of the binary (e.g. v1.2.3). Shows \"(devel)\" for binaries built with `go build`."
+      },
+      {
+        "name": "module_path",
+        "type": "text",
+        "required": false,
+        "description": "The Go module path that produced this binary (e.g. github.com/user/repo)."
+      },
+      {
+        "name": "import_path",
+        "type": "text",
+        "required": false,
+        "description": "The import path of the main package (e.g. github.com/user/repo/cmd/tool)."
+      },
+      {
+        "name": "go_version",
+        "type": "text",
+        "required": false,
+        "description": "The version of the Go toolchain used to build this binary (e.g. go1.22.3)."
+      },
+      {
+        "name": "installed_path",
+        "type": "text",
+        "required": false,
+        "description": "The absolute filesystem path to the binary."
+      }
+    ],
+    "examples": "List all Go binaries:\n\n```\nSELECT * FROM go_binaries;\n```\n\nList Go binaries with real versions (installed via `go install`):\n\n```\nSELECT * FROM go_binaries WHERE version <> '(devel)';\n```\n\nFind all Go binaries for a specific module:\n\n```\nSELECT * FROM go_binaries WHERE module_path LIKE 'github.com/hashicorp/%';\n```",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent\n([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nGo binaries compiled with Go 1.18+ embed build information that this table extracts\nusing Go's debug/buildinfo package. Binaries built with `go build` will show \"(devel)\"\nas the version, while those installed via `go install module@version` will show the\nactual version.\n\nThe table scans each user's ~/go/bin directory for Go binaries.",
+    "url": "https://fleetdm.com/tables/go_binaries",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/go_binaries.yml"
+  },
+  {
     "name": "google_chrome_profiles",
     "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "Profiles configured in Google Chrome.",
