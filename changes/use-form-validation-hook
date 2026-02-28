@@ -1,0 +1,1 @@
+* Added a `useFormValidation` hook to centralize form validation state management, reducing repeated boilerplate across form components.
