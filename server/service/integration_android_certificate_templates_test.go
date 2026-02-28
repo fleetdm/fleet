@@ -1126,15 +1126,16 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
 			shouldRenew:   false,
 			description:   "30-day cert expiring in 16 days should NOT renew (outside 15-day threshold)",
 		},
-		// Edge case: exactly at boundary (validity = 31 days, so > 30, uses 30-day threshold)
-		// SQL uses strict less-than: not_valid_after < NOW() + 30 days
-		// So expiring in exactly 30 days is NOT renewed (30 < 30 is false)
+		// Edge case: validity = 31 days (> 30), so uses 30-day threshold.
+		// Exact boundary (expiresInDays == 30) is tested in the unit test where we can pass a fixed
+		// reference time. Here we use 31 days to avoid flakiness from clock skew between test setup
+		// and the renewal job execution.
 		{
-			name:          "boundary_31d_expires_30d",
+			name:          "boundary_31d_expires_31d",
 			validityDays:  31,
-			expiresInDays: 30,
+			expiresInDays: 31,
 			shouldRenew:   false,
-			description:   "31-day cert expiring in exactly 30 days should NOT renew (at boundary, not within)",
+			description:   "31-day cert expiring in 31 days should NOT renew (outside 30-day threshold)",
 		},
 	}
 

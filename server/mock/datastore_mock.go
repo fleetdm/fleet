@@ -1761,7 +1761,7 @@ type SetHostCertificateTemplatesToPendingRemoveFunc func(ctx context.Context, ce
 
 type SetHostCertificateTemplatesToPendingRemoveForHostFunc func(ctx context.Context, hostUUID string) error
 
-type GetAndroidCertificateTemplatesForRenewalFunc func(ctx context.Context, limit int) ([]fleet.HostCertificateTemplateForRenewal, error)
+type GetAndroidCertificateTemplatesForRenewalFunc func(ctx context.Context, now time.Time, limit int) ([]fleet.HostCertificateTemplateForRenewal, error)
 
 type SetAndroidCertificateTemplatesForRenewalFunc func(ctx context.Context, templates []fleet.HostCertificateTemplateForRenewal) error
 
@@ -10510,11 +10510,11 @@ func (s *DataStore) SetHostCertificateTemplatesToPendingRemoveForHost(ctx contex
 	return s.SetHostCertificateTemplatesToPendingRemoveForHostFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) GetAndroidCertificateTemplatesForRenewal(ctx context.Context, limit int) ([]fleet.HostCertificateTemplateForRenewal, error) {
+func (s *DataStore) GetAndroidCertificateTemplatesForRenewal(ctx context.Context, now time.Time, limit int) ([]fleet.HostCertificateTemplateForRenewal, error) {
 	s.mu.Lock()
 	s.GetAndroidCertificateTemplatesForRenewalFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetAndroidCertificateTemplatesForRenewalFunc(ctx, limit)
+	return s.GetAndroidCertificateTemplatesForRenewalFunc(ctx, now, limit)
 }
 
 func (s *DataStore) SetAndroidCertificateTemplatesForRenewal(ctx context.Context, templates []fleet.HostCertificateTemplateForRenewal) error {

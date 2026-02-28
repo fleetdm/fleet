@@ -2676,7 +2676,7 @@ type Datastore interface {
 	// - If validity period > 30 days: renew within 30 days of expiration
 	// - If validity period <= 30 days: renew within half the validity period of expiration
 	// Only returns certificates with status 'delivered' or 'verified' and operation_type 'install'.
-	GetAndroidCertificateTemplatesForRenewal(ctx context.Context, limit int) ([]HostCertificateTemplateForRenewal, error)
+	GetAndroidCertificateTemplatesForRenewal(ctx context.Context, now time.Time, limit int) ([]HostCertificateTemplateForRenewal, error)
 
 	// SetAndroidCertificateTemplatesForRenewal marks the specified certificate templates for renewal
 	// by setting status to 'pending', clearing validity fields, and generating a new UUID.

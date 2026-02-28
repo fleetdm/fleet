@@ -596,8 +596,12 @@ func (ds *Datastore) SetHostCertificateTemplatesToPendingRemoveForHost(
 // Only returns certificates with status 'verified' and operation_type 'install'.
 func (ds *Datastore) GetAndroidCertificateTemplatesForRenewal(
 	ctx context.Context,
+	now time.Time,
 	limit int,
 ) ([]fleet.HostCertificateTemplateForRenewal, error) {
+	// Truncate to second precision to match MySQL's DATETIME column precision.
+	now = now.Truncate(time.Second)
+
 	stmt := fmt.Sprintf(`
 		SELECT
 			host_uuid,
@@ -610,16 +614,17 @@ func (ds *Datastore) GetAndroidCertificateTemplatesForRenewal(
 			AND not_valid_before IS NOT NULL
 			AND not_valid_after IS NOT NULL
 			AND (
-				(DATEDIFF(not_valid_after, not_valid_before) > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY))
+				(DATEDIFF(not_valid_after, not_valid_before) > 30 AND not_valid_after < DATE_ADD(?, INTERVAL 30 DAY))
 				OR
-				(DATEDIFF(not_valid_after, not_valid_before) > 2 AND DATEDIFF(not_valid_after, not_valid_before) <= 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL DATEDIFF(not_valid_after, not_valid_before)/2 DAY))
+				(DATEDIFF(not_valid_after, not_valid_before) > 2 AND DATEDIFF(not_valid_after, not_valid_before) <= 30
+					AND not_valid_after < DATE_ADD(?, INTERVAL DATEDIFF(not_valid_after, not_valid_before)/2 DAY))
 			)
 		ORDER BY not_valid_after ASC
 		LIMIT ?
 	`, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall)
 
 	var results []fleet.HostCertificateTemplateForRenewal
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, limit); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, now, now, limit); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get android certificate templates for renewal")
 	}
 

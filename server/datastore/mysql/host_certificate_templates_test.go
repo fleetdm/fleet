@@ -1755,7 +1755,7 @@ func testGetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
 	}
 
 	// Execute the renewal query
-	results, err := ds.GetAndroidCertificateTemplatesForRenewal(ctx, 100)
+	results, err := ds.GetAndroidCertificateTemplatesForRenewal(ctx, now, 100)
 	require.NoError(t, err)
 
 	// Build map of actual renewals
@@ -1780,13 +1780,13 @@ func testGetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
 
 	// Test limit functionality
 	if len(expectedRenewals) > 1 {
-		results, err = ds.GetAndroidCertificateTemplatesForRenewal(ctx, 1)
+		results, err = ds.GetAndroidCertificateTemplatesForRenewal(ctx, now, 1)
 		require.NoError(t, err)
 		require.Len(t, results, 1, "Limit should be respected")
 	}
 
 	// Verify results are ordered by not_valid_after ASC (most urgent first)
-	results, err = ds.GetAndroidCertificateTemplatesForRenewal(ctx, 100)
+	results, err = ds.GetAndroidCertificateTemplatesForRenewal(ctx, now, 100)
 	require.NoError(t, err)
 	for i := 1; i < len(results); i++ {
 		require.True(t, !results[i].NotValidAfter.Before(results[i-1].NotValidAfter),
