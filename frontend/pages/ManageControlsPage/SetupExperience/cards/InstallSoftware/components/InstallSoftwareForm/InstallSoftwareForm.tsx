@@ -92,7 +92,7 @@ const InstallSoftwareForm = ({
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
   const [requireAllSoftwareMacOS, setRequireAllSoftwareMacOS] = useState(
-    savedRequireAllSoftwareMacOS || false
+    savedRequireAllSoftwareMacOS ?? false
   );
   const [isSaving, setIsSaving] = useState(false);
 
@@ -101,10 +101,14 @@ const InstallSoftwareForm = ({
     [softwareTitles]
   );
 
-  const initialRequireAllSoftwareMacOS = useMemo(
-    () => savedRequireAllSoftwareMacOS || false,
-    [savedRequireAllSoftwareMacOS]
-  );
+  // Track if the user changed the macOS checkbox since the last save.
+  // We don't compare against props here to avoid races with parent refetch timing.
+  const [touchedRequireAll, setTouchedRequireAll] = useState(false);
+
+  const handleChangeRequireAll = (value: boolean) => {
+    setRequireAllSoftwareMacOS(value);
+    setTouchedRequireAll(true);
+  };
 
   const [selectedSoftwareIds, setSelectedSoftwareIds] = useState<number[]>(
     initialSelectedSoftware
@@ -131,14 +135,8 @@ const InstallSoftwareForm = ({
     [selectedSoftwareIds, initialSelectedSoftware]
   );
 
-  const isRequireAllSoftwareDirty = useMemo(
-    () => requireAllSoftwareMacOS !== initialRequireAllSoftwareMacOS,
-    [requireAllSoftwareMacOS, initialRequireAllSoftwareMacOS]
-  );
-
   const shouldUpdateSoftware = isSoftwareSelectionDirty;
-  const shouldUpdateRequireAll =
-    platform === "macos" && isRequireAllSoftwareDirty;
+  const shouldUpdateRequireAll = platform === "macos" && touchedRequireAll;
 
   const onClickSave = async (evt: React.FormEvent) => {
     evt.preventDefault();
@@ -180,6 +178,7 @@ const InstallSoftwareForm = ({
           requireAllSoftwareMacOS
         );
         hadSuccess = true;
+        setTouchedRequireAll(false);
       } catch (e) {
         errorNotifications.push({
           id: "update-require-all",
@@ -269,9 +268,12 @@ const InstallSoftwareForm = ({
         {platform === "macos" && (
           <div className={`${baseClass}__macos_options`}>
             <Checkbox
-              disabled={config?.gitops.gitops_mode_enabled}
+              disabled={
+                config?.gitops.gitops_mode_enabled ||
+                manualAgentInstallBlockingSoftware
+              }
               value={requireAllSoftwareMacOS}
-              onChange={setRequireAllSoftwareMacOS}
+              onChange={handleChangeRequireAll}
             >
               <TooltipWrapper tipContent="If any software fails, the end user won't be let through, and will see a prompt to contact their IT admin. Remaining software installs will be canceled.">
                 Cancel setup if software install fails

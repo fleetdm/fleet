@@ -157,27 +157,26 @@ const InstallSoftware = ({
         (platform === "macos" || platform === "ios" || platform === "ipados") &&
         !appleMdmAndAbmEnabled;
 
-      const turnOnWindowsMdm =
-        platform === "windows" &&
-        !globalConfig?.mdm.windows_enabled_and_configured;
-
       const turnOnAndroidMdm = platform === "android" && !isAndroidMdmEnabled;
 
-      const turnOnMdm = turnOnAppleMdm || turnOnWindowsMdm || turnOnAndroidMdm;
+      // Only Apple and Android setup experience require MDM
+      const turnOnMdm = turnOnAppleMdm || turnOnAndroidMdm;
 
       return (
         <SetupExperienceContentContainer>
           <PageDescription content="Install software on hosts that automatically enroll to Fleet." />
           {turnOnMdm ? (
             <GenericMsgWithNavButton
-              header={`${
+              header={
                 platform === "android"
                   ? "Turn on Android MDM"
                   : "Additional configuration required"
-              }`}
-              info={`To customize, first turn on ${
-                platform === "android" ? "Android MDM" : "automatic enrollment"
-              }.`}
+              }
+              info={
+                platform === "android"
+                  ? "Turn on MDM to install software during setup experience."
+                  : "Turn on MDM and automatic enrollment to install software during setup experience."
+              }
               buttonText="Turn on"
               path={PATHS.ADMIN_INTEGRATIONS_MDM}
               router={router}
