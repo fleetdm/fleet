@@ -2609,13 +2609,11 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 	}
 
 	managedCertificatePayloads := &[]*fleet.MDMManagedCertificate{}
-	deps := microsoft_mdm.ProfilePreprocessDependenciesForDeploy{
-		ProfilePreprocessDependenciesForVerify: microsoft_mdm.ProfilePreprocessDependenciesForVerify{
-			Context:            ctx,
-			Logger:             logger,
-			DataStore:          ds,
-			HostIDForUUIDCache: make(map[string]uint),
-		},
+	deps := microsoft_mdm.ProfilePreprocessDependencies{
+		Context:                    ctx,
+		Logger:                     logger,
+		DataStore:                  ds,
+		HostIDForUUIDCache:         make(map[string]uint),
 		AppConfig:                  appConfig,
 		CustomSCEPCAs:              groupedCAs.ToCustomSCEPProxyCAMap(),
 		ManagedCertificatePayloads: managedCertificatePayloads,

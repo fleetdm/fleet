@@ -30,7 +30,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/version"
-	"github.com/go-kit/log/level"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -343,7 +342,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// SMTPSettings used to be a non-pointer on previous iterations,
 		// so if current SMTPSettings are not present (with empty values),
 		// then this is a bug, let's log an error.
-		level.Error(svc.logger).Log("msg", "smtp_settings are not present")
+		svc.logger.ErrorContext(ctx, "smtp_settings are not present")
 	}
 
 	oldAgentOptions := ""
@@ -556,7 +555,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			err = fleet.SuggestAgentOptionsCorrection(err)
 			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOpts.Force && !applyOpts.DryRun {
-				level.Info(svc.logger).Log("err", err, "msg", "force-apply appConfig agent options with validation errors")
+				svc.logger.InfoContext(ctx, "force-apply appConfig agent options with validation errors", "err", err)
 			}
 			if !applyOpts.Force {
 				return nil, ctxerr.Wrap(ctx, err, "validate agent options")

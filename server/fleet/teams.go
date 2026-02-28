@@ -637,7 +637,8 @@ func (f TeamFilter) UserCanAccessSelectedTeam() bool {
 }
 
 const (
-	TeamKind = "team"
+	TeamKind  = "team"
+	FleetKind = "fleet"
 )
 
 type TeamSpec struct {

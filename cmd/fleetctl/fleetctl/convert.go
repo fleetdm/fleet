@@ -139,7 +139,7 @@ func convertCommand() *cli.Command {
 	)
 	return &cli.Command{
 		Name:      "convert",
-		Usage:     "Convert osquery packs into Fleet queries",
+		Usage:     "Convert osquery packs into Fleet reports",
 		UsageText: `fleetctl convert [options]`,
 		Flags: []cli.Flag{
 			configFlag(),
@@ -219,7 +219,7 @@ func convertCommand() *cli.Command {
 				}
 
 				meta := spec.Metadata{
-					Kind:    fleet.QueryKind,
+					Kind:    fleet.ReportKind,
 					Version: fleet.ApiVersion,
 					Spec:    specBytes,
 				}

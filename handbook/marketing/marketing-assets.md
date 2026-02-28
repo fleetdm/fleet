@@ -6,7 +6,7 @@ This is the single source of truth of all marketing assets created or co-created
 ##  Need a new collateral, need an updated collateral, found a mistake or a duplicate collateral?
 
 Please open an issue for the marketing team with the details of your request and it will be responded to with a timeline.
-If you find a piece of collateral that is duplicate to one listed below, please deprecate that collateral (start the title with DEPRECATE:) and link the first line to this page for everyone to find the most updated copy.
+If you find a piece of collateral that is duplicate to one listed below, please deprecate that collateral (start the title with DEPRECATE: and link the first line to this page for everyone to find the most updated copy.
 
 ### Marketing & Enablement Assets
 
@@ -25,6 +25,7 @@ If you find a piece of collateral that is duplicate to one listed below, please 
 | [Fleet for IT Product Brochure](https://docs.google.com/document/d/1d_53iYU6O-uzaXnzjlXXGwByGRmpz3VMG6kWT6hMCkU/edit) | Marketing overview for IT teams in early sales cycles. | Oct 20, 2021 |
 | [Fleet for Security Product Brochure](https://docs.google.com/document/d/18ocTpuQlwd8RwZA-KsqzEmQkAEvKvV8LngeFbkJdFj4/edit) | Marketing overview for security teams in early sales cycles. | Oct 20, 2021 |
 | [Product Roadmap](https://docs.google.com/document/d/16si8Nkh0F25opUMpZYm6XwU8LEhGd7H4eOzPKFz8jGw/edit) | Future development vision and open roadmap opportunities. | Jan 20, 2021 |
+|[Fleet in 3 Minutes VIDEO](https://www.youtube.com/watch?v=q1Tm3IBcx24)| A short 3 minute demo video of how fleet works. | May 13, 2026 |
 
 ### Case Studies & Success Stories
 

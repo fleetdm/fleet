@@ -124,7 +124,7 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) (cert *x
 
 	// Create SCEP client
 	scepURL := fmt.Sprintf("%s/api/fleet/orbit/host_identity/scep", s.Server.URL)
-	scepClient, err := scepclient.New(scepURL, s.Logger)
+	scepClient, err := scepclient.New(scepURL, s.Logger.SlogLogger())
 	require.NoError(t, err)
 
 	// Get CA certificate
@@ -595,7 +595,7 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 
 	// Create SCEP client
 	scepURL := fmt.Sprintf("%s/api/fleet/orbit/host_identity/scep", s.Server.URL)
-	scepClient, err := scepclient.New(scepURL, s.Logger)
+	scepClient, err := scepclient.New(scepURL, s.Logger.SlogLogger())
 	require.NoError(t, err)
 
 	// Get CA certificate
@@ -963,7 +963,7 @@ func testSCEPFailure(t *testing.T, s *Suite, config SCEPFailureConfig) {
 
 	// Create SCEP client
 	scepURL := fmt.Sprintf("%s/api/fleet/orbit/host_identity/scep", s.Server.URL)
-	scepClient, err := scepclient.New(scepURL, s.Logger)
+	scepClient, err := scepclient.New(scepURL, s.Logger.SlogLogger())
 	require.NoError(t, err)
 
 	// Get CA certificate

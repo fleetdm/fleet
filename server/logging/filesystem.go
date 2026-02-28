@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/signal"
 	"sync"
@@ -14,7 +15,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -28,7 +28,7 @@ type filesystemLogWriter struct {
 // enableRotation is true
 //
 // The enableCompression argument is only used when enableRotation is true.
-func NewFilesystemLogWriter(path string, appLogger *platformlogging.Logger, enableRotation, enableCompression bool, maxSize, maxAge, maxBackups int) (*filesystemLogWriter, error) {
+func NewFilesystemLogWriter(ctx context.Context, path string, appLogger *slog.Logger, enableRotation, enableCompression bool, maxSize, maxAge, maxBackups int) (*filesystemLogWriter, error) {
 	// Fail early if the process does not have the necessary
 	// permissions to open the file at path.
 	file, err := openFile(path)
@@ -57,7 +57,7 @@ func NewFilesystemLogWriter(path string, appLogger *platformlogging.Logger, enab
 		for {
 			<-sig // block on signal
 			if err := fsLogger.Rotate(); err != nil {
-				appLogger.Log("err", err)
+				appLogger.ErrorContext(ctx, "log rotation error", "err", err)
 			}
 		}
 	}()
