@@ -174,6 +174,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		iPadOSMinVersionUpdated       bool
 		windowsUpdatesUpdated         bool
 		macOSDiskEncryptionUpdated    bool
+		recoveryLockPasswordUpdated   bool
 		macOSEnableEndUserAuthUpdated bool
 		conditionalAccessUpdated      bool
 	)
@@ -228,6 +229,15 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 					`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 			}
 			team.Config.MDM.EnableDiskEncryption = payload.MDM.EnableDiskEncryption.Value
+		}
+
+		if payload.MDM.EnableRecoveryLockPassword.Valid {
+			recoveryLockPasswordUpdated = team.Config.MDM.EnableRecoveryLockPassword != payload.MDM.EnableRecoveryLockPassword.Value
+			if recoveryLockPasswordUpdated && !appCfg.MDM.EnabledAndConfigured {
+				return nil, fleet.NewInvalidArgumentError("mdm.enable_recovery_lock_password",
+					`Couldn't update enable_recovery_lock_password because MDM features aren't turned on in Fleet.`)
+			}
+			team.Config.MDM.EnableRecoveryLockPassword = payload.MDM.EnableRecoveryLockPassword.Value
 		}
 
 		if payload.MDM.RequireBitLockerPIN.Valid {
@@ -445,6 +455,17 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
+		}
+	}
+	if recoveryLockPasswordUpdated {
+		var act fleet.ActivityDetails
+		if team.Config.MDM.EnableRecoveryLockPassword {
+			act = fleet.ActivityTypeEnabledRecoveryLockPassword{TeamID: &team.ID, TeamName: &team.Name}
+		} else {
+			act = fleet.ActivityTypeDisabledRecoveryLockPassword{TeamID: &team.ID, TeamName: &team.Name}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for team recovery lock password")
 		}
 	}
 	if macOSEnableEndUserAuthUpdated {

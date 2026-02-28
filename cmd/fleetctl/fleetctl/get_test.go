@@ -218,6 +218,7 @@ func TestGetTeams(t *testing.T) {
 								HostExpiryWindow:  15,
 							},
 							MDM: fleet.TeamMDM{
+								EnableRecoveryLockPassword: true,
 								MacOSUpdates: fleet.AppleOSUpdateSettings{
 									MinimumVersion: optjson.SetString("12.3.1"),
 									Deadline:       optjson.SetString("2021-12-14"),
