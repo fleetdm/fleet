@@ -33,7 +33,7 @@ func (ds *Datastore) CountAllHosts(ctx context.Context) (int, error) {
 ```
 
 Now, this is part of the `Datastore` struct. In order to use it in an endpoint, we need this to be exposed by the `Datastore`
-interface. So we add this method [to it](https://github.com/fleetdm/fleet/blob/main/server/fleet/datastore.go#L25):
+interface. So we add this method [to it](https://github.com/fleetdm/fleet/blob/main/server/fleet/datastore.go):
 
 ```go
 type Datastore interface {
@@ -49,8 +49,8 @@ now we are ready to create a method in the service.
 ### Step 2: Service
 
 In order to use this new Datastore function we created, the layer that is in communication with it is the `Service` 
-which is both [an interface](https://github.com/fleetdm/fleet/blob/main/server/fleet/service.go#L41) and 
-[a struct](https://github.com/fleetdm/fleet/blob/main/server/service/service.go#L25) that implements that interface.
+which is both [an interface](https://github.com/fleetdm/fleet/blob/main/server/fleet/service.go) and
+[a struct](https://github.com/fleetdm/fleet/blob/main/server/service/service.go) that implements that interface.
 
 Now at this point, we are not going to be jumping around files too much. Given that this new API will count the total 
 amount of hosts, it makes sense to add it to the 
@@ -109,9 +109,9 @@ type countAllHostsResponse struct {
     Count int `json:"count"`
 }
 
-func (r countAllHostsResponse) error() error { return r.Err }
+func (r countAllHostsResponse) Error() error { return r.Err }
 
-func countAllHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func countAllHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
     req := request.(*countAllHostsRequest)
     count, err := svc.CountAllHosts(ctx)
     if err != nil {
@@ -129,8 +129,8 @@ We added four things above:
 
 1. The struct that represents details about the request that we might receive. It would be defined here if the request could have query 
 parameters, or a JSON body, etc.
-2. The struct for the response. This struct has to implement the `errorer` [interface](https://github.com/fleetdm/fleet/blob/main/server/service/transport_error.go#L21).
-3. The implementation of the only method in the `errorer` interface.
+2. The struct for the response. This struct has to implement the [`fleet.Errorer`](https://github.com/fleetdm/fleet/blob/main/server/platform/http/response.go) interface.
+3. The implementation of the only method in the `Errorer` interface.
 4. The endpoint function handler itself.
 
 Now it's time to expose this to be used.
@@ -146,7 +146,7 @@ of the function mentioned:
 
 ```go
 func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
-	logger kitlog.Logger, limitStore throttled.GCRAStore, opts []kithttp.ServerOption,
+	logger *slog.Logger, limitStore throttled.GCRAStore, redisPool fleet.RedisPool, opts []kithttp.ServerOption,
 	extra extraHandlerOpts,
 ) {
 	// ...
@@ -161,14 +161,14 @@ And that's it! (Besides tests and documentation, which are key parts of adding a
 
 Now that the endpoint is all connected in the right places, a few things happen automatically:
 
-1. The [decoding of the request](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go#L90) data 
+1. The [decoding of the request](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go) data
 (body, query params, etc.). More on this below.
-2. The [encoding of the response](https://github.com/fleetdm/fleet/blob/main/server/service/transport.go#L22), including 
-[error encoding/handling](https://github.com/fleetdm/fleet/blob/main/server/service/transport.go#L32) among other things.
-3. [User](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go#L311) or 
-[host](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go#L318) or 
-[device](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go#L295) token authentication. 
-4. [API versioning](../api-versioning.md) (mapping `_version_` to `latest` and `v1`).
+2. The [encoding of the response](https://github.com/fleetdm/fleet/blob/main/server/service/transport.go), including
+[error encoding/handling](https://github.com/fleetdm/fleet/blob/main/server/service/transport_error.go) among other things.
+3. [User](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go) or
+host or
+device token authentication.
+4. [API versioning](../api-versioning.md) (mapping `_version_` to `latest`, `v1`, and `2022-04`).
 
 One thing to note is that while we used an empty struct `countAllHostsRequest`, we could've easily skipped defining it
 and used `nil`, but it was added for the sake of this documentation.
@@ -204,14 +204,8 @@ We don't use this to mock the service layer in tests.
 The HTTP layer is where all HTTP logic lives. Where structures go from query parameters or JSON bodies to structs that 
 the service layer understands.
 
-This layer is tested in the integrations tests:
-
-- [Core](https://github.com/fleetdm/fleet/blob/main/server/service/integration_core_test.go)
-- [License](https://github.com/fleetdm/fleet/blob/main/server/service/integration_ds_only_test.go)
-- [Premium features](https://github.com/fleetdm/fleet/blob/main/server/service/integration_enterprise_test.go)
-- [Live queries](https://github.com/fleetdm/fleet/blob/main/server/service/integration_live_queries_test.go)
-- [Logger](https://github.com/fleetdm/fleet/blob/main/server/service/integration_logger_test.go)
-- [SSO](https://github.com/fleetdm/fleet/blob/main/server/service/integration_sso_test.go)
+This layer is tested in the integration tests (the `integration_*_test.go` files in
+[`server/service/`](https://github.com/fleetdm/fleet/tree/main/server/service)).
 
 ## Queries, Request bodies, and other decoding facts
 
@@ -228,12 +222,12 @@ makes sense for our use case.
 
 For instance, we found ourselves implementing extremely similar request decoding code. It varied very slightly from one 
 implementation to the next, and it differed in ways that Go wasn't capable of handling at the time. So we wrote a [generic
-decoder](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go#L90) that uses Go's `reflect` to 
+decoder](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go) that uses Go's `reflect` to 
 understand what kind of request it is and the destination and decodes it correctly.
 
 Then the problem was specifying this decoder _every time a new endpoint is created_. And making new endpoints 
-also involves creating a server, user or host authentication, etc. So we abstracted this away into a 
-[handful of types](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go#L280) that handles this 
+also involves creating a server, user or host authentication, etc. So we abstracted this away into a
+[handful of types](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go) that handles this 
 in a readable way.
 
 So with that in mind, let's look at the different tools these new things add for us:
@@ -251,15 +245,15 @@ pointer, the zero value for the type is set.
 ## How to add default listing options
 
 There are shortcuts for bundles of query parameters such as `list_options` which results in parameters such as page and 
-order to be added, among others. Here's an 
-[example of this](https://github.com/fleetdm/fleet/blob/main/server/service/labels.go#L171).
+order to be added, among others. Here's an
+[example of this](https://github.com/fleetdm/fleet/blob/main/server/service/labels.go).
 
 ## How to add URL variables
 
 To assign a part of a URL to a variable, such as an ID for an entity, define this by specifying 
 `url:"id"` in the tag in the Request struct and in-between `{}` in the URL for the handler where that variable is placed. 
-For instance: `"/api/_version_/fleet/labels/{id:[0-9]+}"` and can be found in 
-[this example](https://github.com/fleetdm/fleet/blob/main/server/service/handler.go#L341). URL variables cannot be 
+For instance: `"/api/_version_/fleet/labels/{id:[0-9]+}"` and can be found in
+[this example](https://github.com/fleetdm/fleet/blob/main/server/service/handler.go). URL variables cannot be 
 optional.
 
 ## How is the JSON body defined
