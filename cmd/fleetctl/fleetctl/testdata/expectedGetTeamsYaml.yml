@@ -41,6 +41,7 @@ spec:
         bootstrap_package:
         enable_end_user_authentication: false
         enable_release_device_manually: false
+        lock_end_user_info: false
         macos_setup_assistant:
         manual_agent_install:
         require_all_software_macos: false
@@ -91,6 +92,7 @@ spec:
         bootstrap_package:
         enable_end_user_authentication: false
         enable_release_device_manually: false
+        lock_end_user_info: false
         macos_setup_assistant:
         manual_agent_install:
         require_all_software_macos: false
@@ -148,6 +150,7 @@ spec:
         bootstrap_package:
         enable_end_user_authentication: false
         enable_release_device_manually: false
+        lock_end_user_info: false
         macos_setup_assistant:
         manual_agent_install:
         require_all_software_macos: false
@@ -199,6 +202,7 @@ spec:
         bootstrap_package:
         enable_end_user_authentication: false
         enable_release_device_manually: false
+        lock_end_user_info: false
         macos_setup_assistant:
         manual_agent_install:
         require_all_software_macos: false

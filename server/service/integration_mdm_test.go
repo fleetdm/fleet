@@ -4674,18 +4674,24 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 	require.NoError(t, err)
 
 	endUserAuthCases := []struct {
-		raw      string
-		expected bool
+		raw            string
+		expectedEUA    bool // expected end user authentication value
+		expectedLEUI   bool // expected lock end user info value
+		expectedStatus int  // expected HTTP status code from the API response
 	}{
 		{
-			raw:      `"mdm": {}`,
-			expected: false,
+			raw:            `"mdm": {}`,
+			expectedEUA:    false,
+			expectedLEUI:   false,
+			expectedStatus: http.StatusOK,
 		},
 		{
 			raw: `"mdm": {
 				"macos_setup": {}
 			}`,
-			expected: false,
+			expectedEUA:    false,
+			expectedLEUI:   false,
+			expectedStatus: http.StatusOK,
 		},
 		{
 			raw: `"mdm": {
@@ -4693,7 +4699,19 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 					"enable_end_user_authentication": true
 				}
 			}`,
-			expected: true,
+			expectedEUA:    true,
+			expectedLEUI:   false,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			raw: `"mdm": {
+				"macos_setup": {
+					"enable_end_user_authentication": true, "lock_end_user_info": true
+				}
+			}`,
+			expectedEUA:    true,
+			expectedLEUI:   true,
+			expectedStatus: http.StatusOK,
 		},
 		{
 			raw: `"mdm": {
@@ -4701,7 +4719,19 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 					"enable_end_user_authentication": false
 				}
 			}`,
-			expected: false,
+			expectedEUA:    false,
+			expectedLEUI:   false, // EUA->false clears LEUI as well
+			expectedStatus: http.StatusOK,
+		},
+		{
+			raw: `"mdm": {
+				"macos_setup": {
+					"enable_end_user_authentication": false, "lock_end_user_info": true
+				}
+			}`,
+			expectedEUA:    false,
+			expectedLEUI:   false, // Returns an error because LEUI cannot be true if EUA is false
+			expectedStatus: http.StatusUnprocessableEntity,
 		},
 	}
 
@@ -4790,12 +4820,16 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		for i, c := range endUserAuthCases {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
 				acResp = appConfigResponse{}
-				s.DoJSON("PATCH", path, fmtJSON(c.raw), http.StatusOK, &acResp)
-				require.Equal(t, c.expected, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+				s.DoJSON("PATCH", path, fmtJSON(c.raw), c.expectedStatus, &acResp)
+				if c.expectedStatus == http.StatusOK {
+					require.Equal(t, c.expectedEUA, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+					require.Equal(t, c.expectedLEUI, acResp.MDM.MacOSSetup.LockEndUserInfo.Value)
+				}
 
 				acResp = appConfigResponse{}
 				s.DoJSON("GET", path, nil, http.StatusOK, &acResp)
-				require.Equal(t, c.expected, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+				require.Equal(t, c.expectedEUA, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+				require.Equal(t, c.expectedLEUI, acResp.MDM.MacOSSetup.LockEndUserInfo.Value)
 			})
 		}
 
@@ -4854,12 +4888,16 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		for i, c := range endUserAuthCases {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
 				teamResp = teamResponse{}
-				s.DoJSON("PATCH", path, json.RawMessage(fmt.Sprintf(fmtJSON, tm.Name, c.raw)), http.StatusOK, &teamResp)
-				require.Equal(t, c.expected, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+				s.DoJSON("PATCH", path, json.RawMessage(fmt.Sprintf(fmtJSON, tm.Name, c.raw)), c.expectedStatus, &teamResp)
+				if c.expectedStatus == http.StatusOK {
+					require.Equal(t, c.expectedEUA, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+					require.Equal(t, c.expectedLEUI, teamResp.Team.Config.MDM.MacOSSetup.LockEndUserInfo.Value)
+				}
 
 				teamResp = teamResponse{}
 				s.DoJSON("GET", path, nil, http.StatusOK, &teamResp)
-				require.Equal(t, c.expected, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+				require.Equal(t, c.expectedEUA, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+				require.Equal(t, c.expectedLEUI, teamResp.Team.Config.MDM.MacOSSetup.LockEndUserInfo.Value)
 			})
 		}
 
@@ -4932,12 +4970,23 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 				``, lastActivityID) // no new activity
 
 			s.Do("PATCH", "/api/latest/fleet/setup_experience",
+				fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), LockEndUserInfo: ptr.Bool(true)}, http.StatusNoContent)
+			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+			require.True(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+			require.True(t, acResp.MDM.MacOSSetup.LockEndUserInfo.Value)
+
+			s.Do("PATCH", "/api/latest/fleet/setup_experience",
 				fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), EnableEndUserAuthentication: ptr.Bool(false)}, http.StatusNoContent)
 			acResp = appConfigResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 			require.False(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+			require.False(t, acResp.MDM.MacOSSetup.LockEndUserInfo.Value)
 			require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledMacosSetupEndUserAuth{}.ActivityName(),
 				`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0), lastActivityID)
+
+			// Can't enable Lock End User Info when EUA is disabled
+			s.Do("PATCH", "/api/latest/fleet/setup_experience",
+				fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), LockEndUserInfo: ptr.Bool(true)}, http.StatusUnprocessableEntity)
 		})
 
 		t.Run("TestTeam", func(t *testing.T) {
@@ -4961,12 +5010,23 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 				``, lastActivityID) // no new activity
 
 			s.Do("PATCH", "/api/latest/fleet/setup_experience",
+				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, LockEndUserInfo: ptr.Bool(true)}, http.StatusNoContent)
+			s.DoJSON("GET", tmConfigPath, nil, http.StatusOK, &tmResp)
+			require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+			require.True(t, tmResp.Team.Config.MDM.MacOSSetup.LockEndUserInfo.Value)
+
+			s.Do("PATCH", "/api/latest/fleet/setup_experience",
 				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableEndUserAuthentication: ptr.Bool(false)}, http.StatusNoContent)
 			tmResp = teamResponse{}
 			s.DoJSON("GET", tmConfigPath, nil, http.StatusOK, &tmResp)
 			require.False(t, tmResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+			require.False(t, tmResp.Team.Config.MDM.MacOSSetup.LockEndUserInfo.Value)
 			require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledMacosSetupEndUserAuth{}.ActivityName(),
 				expectedActivityDetail, 0), lastActivityID)
+
+			// Can't enable Lock End User Info when EUA is disabled
+			s.Do("PATCH", "/api/latest/fleet/setup_experience",
+				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, LockEndUserInfo: ptr.Bool(true)}, http.StatusUnprocessableEntity)
 		})
 	})
 
@@ -5893,7 +5953,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	t := s.T()
 
 	lastSubmittedProfile := &godep.Profile{}
-	mdmDevice, wantSettings := s.setUpEndUserAuthentication(t, lastSubmittedProfile)
+	mdmDevice, wantSettings := s.setUpEndUserAuthentication(t, lastSubmittedProfile, true)
 	di, err := mdmtest.EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
 		Serial: mdmDevice.SerialNumber,
 		UDID:   mdmDevice.UUID,
@@ -5974,7 +6034,8 @@ func (s *integrationMDMTestSuite) TestSSO() {
 				"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
 			},
 			"macos_setup": {
-				"enable_end_user_authentication": true
+				"enable_end_user_authentication": true,
+				"lock_end_user_info": true
 			}
 		}
 	}`), http.StatusOK, &acResp)
@@ -6357,7 +6418,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	s.setSkipWorkerJobs(t)
 
 	lastSubmittedProfile := &godep.Profile{}
-	mdmDevice, _ := s.setUpEndUserAuthentication(t, lastSubmittedProfile)
+	mdmDevice, _ := s.setUpEndUserAuthentication(t, lastSubmittedProfile, false)
 	di, err := mdmtest.EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
 		Serial: mdmDevice.SerialNumber,
 		UDID:   mdmDevice.UUID,
@@ -6450,7 +6511,11 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 
 	var fullAccCmd *micromdm.CommandPayload
 	require.NoError(t, plist.Unmarshal(accCmd.Raw, &fullAccCmd))
-	assert.True(t, fullAccCmd.Command.AccountConfiguration.LockPrimaryAccountInfo)
+	// We setup the test with Lock End User Account info disabled, so this should be false
+	require.NotNil(t, fullAccCmd)
+	require.NotNil(t, fullAccCmd.Command)
+	require.NotNil(t, fullAccCmd.Command.AccountConfiguration)
+	assert.False(t, fullAccCmd.Command.AccountConfiguration.LockPrimaryAccountInfo)
 	assert.Equal(t, displayName, fullAccCmd.Command.AccountConfiguration.PrimaryAccountFullName)
 	assert.Equal(t, "sso_user_no_displayname", fullAccCmd.Command.AccountConfiguration.PrimaryAccountUserName)
 
@@ -6749,7 +6814,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 // things in your test to fail. Either change the SSO Server URL back after doing SSO or make changes
 // in your test to account for the hardcoded, wrong server URL of https://localhost:8080 being used
 // in places like enrollment profiles
-func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T) appConfigResponse {
+func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T, lockEndUserInfo bool) appConfigResponse {
 	// MDM SSO fields are empty by default
 	acResp := appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
@@ -6768,7 +6833,8 @@ func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T) appConfigResponse {
 					"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
 				},
 				"macos_setup": {
-					"enable_end_user_authentication": true
+					"enable_end_user_authentication": true,
+					"lock_end_user_info": `+fmt.Sprintf("%t", lockEndUserInfo)+`
 				}
 			}
 		}`), http.StatusOK, &acResp)
@@ -6791,7 +6857,8 @@ func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T) appConfigResponse {
 						"metadata_url": ""
 					},
 					"macos_setup": {
-						"enable_end_user_authentication": false
+						"enable_end_user_authentication": false,
+						"lock_end_user_info": false
 					}
 				}
 			}`), http.StatusOK, &acResp)
@@ -6805,7 +6872,7 @@ func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T) appConfigResponse {
 }
 
 // If you call this function see note on setUpMDMSSO() about server URL changes
-func (s *integrationMDMTestSuite) setUpEndUserAuthentication(t *testing.T, lastSubmittedProfile *godep.Profile) (*mdmtest.TestAppleMDMClient,
+func (s *integrationMDMTestSuite) setUpEndUserAuthentication(t *testing.T, lastSubmittedProfile *godep.Profile, lockEndUserInfo bool) (*mdmtest.TestAppleMDMClient,
 	fleet.SSOProviderSettings,
 ) {
 	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
@@ -6860,7 +6927,7 @@ func (s *integrationMDMTestSuite) setUpEndUserAuthentication(t *testing.T, lastS
 	// sync the list of ABM devices
 	s.runDEPSchedule()
 
-	acResp := s.setUpMDMSSO(t)
+	acResp := s.setUpMDMSSO(t, lockEndUserInfo)
 
 	// trigger the worker to process the job and wait for result before continuing.
 	s.runWorker()
@@ -15343,7 +15410,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	// to the proper value and then fetch the enrollment profiles and do the enrollments.
 	// TODO: Is there a better way to do this?
 	originalServerUrl := s.server.URL
-	s.setUpMDMSSO(t)
+	s.setUpMDMSSO(t, true)
 
 	getSSOAccessToken := func(username, password string) string {
 		ssoResult := s.LoginAccountDrivenEnrollUser(username, password)
@@ -15507,7 +15574,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMActionsOnPersonalHost() {
 	// to the proper value and then fetch the enrollment profiles and do the enrollments.
 	// TODO: Is there a better way to do this?
 	originalServerUrl := s.server.URL
-	s.setUpMDMSSO(t)
+	s.setUpMDMSSO(t, true)
 
 	getSSOAccessToken := func(username, password string) string {
 		ssoResult := s.LoginAccountDrivenEnrollUser(username, password)
@@ -19593,7 +19660,7 @@ func (s *integrationMDMTestSuite) TestBYODEnrollmentWithIdPEnabled() {
 	ctx := t.Context()
 	s.setSkipWorkerJobs(t)
 
-	s.setUpMDMSSO(t)
+	s.setUpMDMSSO(t, true)
 
 	// create a couple teams, one with IdP enabled and one without
 	teamNoIdP, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team without idp"})
