@@ -54,6 +54,7 @@ interface ISelectTargetsProps {
   setTargetsTotalCount: React.Dispatch<React.SetStateAction<number>>;
   isLivePolicy?: boolean;
   isObserverCanRunQuery?: boolean;
+  queryTeamId?: number | null;
 }
 
 interface ILabelsByType {
@@ -124,6 +125,7 @@ const SelectTargets = ({
   setTargetsTotalCount,
   isLivePolicy,
   isObserverCanRunQuery,
+  queryTeamId,
 }: ISelectTargetsProps): JSX.Element => {
   const isMountedRef = useRef(false);
   const { isPremiumTier, isOnGlobalTeam, currentUser } = useContext(AppContext);
@@ -359,7 +361,8 @@ const SelectTargets = ({
 
   const renderTargetEntitySection = (
     entityType: string,
-    entityList: ISelectLabel[] | ISelectTeam[]
+    entityList: ISelectLabel[] | ISelectTeam[],
+    disabledIds?: Set<number>
   ): JSX.Element => {
     const isTeamsSection = entityType === "teams";
     const displayType = isTeamsSection ? "fleets" : entityType;
@@ -438,6 +441,7 @@ const SelectTargets = ({
                 entity={entity}
                 isSelected={targetList.some((t) => t.id === entity.id)}
                 onClick={handleButtonSelect}
+                disabled={disabledIds?.has(entity.id)}
               />
             );
           })}
@@ -531,30 +535,31 @@ const SelectTargets = ({
   const resultsTableConfig = generateTableHeaders();
   const selectedHostsTableConfig = generateTableHeaders(handleRowRemove);
 
-  // Filter out observer teams that break live query/policy API
-  const filterTeamObserverTeams = () => {
-    // API blocks live policy if a team level user is able to select the team they are an observer on
-    if (isLivePolicy) {
-      return (
-        teams?.filter(
-          (team) =>
-            !permissions.isTeamObserver(currentUser, team.id) ||
-            permissions.isTeamObserverPlus(currentUser, team.id)
-        ) || []
-      );
-    }
+  // Returns the set of team IDs that should be disabled (shown but unclickable)
+  const getDisabledTeamIds = (): Set<number> => {
+    const disabled = new Set<number>();
+    teams?.forEach((team) => {
+      const isPlainObserver =
+        permissions.isTeamObserver(currentUser, team.id) &&
+        !permissions.isTeamObserverPlus(currentUser, team.id);
+      if (!isPlainObserver) return;
 
-    // API blocks live query if a team level user is able to select the team they are an observer on
-    // AND the query does not have observer can run enabled
-    return (
-      teams?.filter(
-        (team) =>
-          !permissions.isTeamObserver(currentUser, team.id) ||
-          permissions.isTeamObserverPlus(currentUser, team.id) ||
-          isObserverCanRunQuery
-      ) || []
-    );
+      if (isLivePolicy) {
+        // All plain-observer teams are disabled for live policies
+        disabled.add(team.id);
+      } else if (
+        !isObserverCanRunQuery ||
+        (queryTeamId != null && queryTeamId !== team.id)
+      ) {
+        // Disabled if query is not observer_can_run, or if query belongs to
+        // a different team (observer can only run against the query's own team)
+        disabled.add(team.id);
+      }
+    });
+    return disabled;
   };
+
+  const disabledTeamIds = getDisabledTeamIds();
 
   if (isLoadingLabels || isLoadingTeams) {
     return <Spinner />;
@@ -574,7 +579,7 @@ const SelectTargets = ({
                 { id: 0, name: "Unassigned" },
                 ...teams,
               ])
-            : renderTargetEntitySection("teams", filterTeamObserverTeams()))}
+            : renderTargetEntitySection("teams", teams, disabledTeamIds))}
         {!!labels?.other?.length &&
           renderTargetEntitySection("labels", labels.other)}
       </div>
