@@ -30,7 +30,25 @@ This approach provides the benefits of strong boundaries (clear ownership, bette
 
 | Context | Status | ADR | Implementation |
 |---------|--------|-----|----------------|
-| **Activity** (audit) | Pilot in progress | [ADR-0007](../../adr/0007-pilot-activity-bounded-context.md) | [#36452](https://github.com/fleetdm/fleet/issues/36452) |
+| **Activity** (audit) | Complete | [ADR-0007](../../adr/0007-pilot-activity-bounded-context.md) | [#36452](https://github.com/fleetdm/fleet/issues/36452) |
+
+### Learnings from the Activity pilot
+
+The Activity bounded context pilot validated the modular monolith approach and surfaced several key learnings:
+
+- **`internal/` directory is essential**: Go's compiler-enforced `internal` directory provides a stronger
+  guarantee than convention-based rules alone. It prevents accidental imports of implementation details
+  without relying solely on code review or architecture tests.
+- **Anti-corruption layers (ACLs) bridge legacy code**: The `server/acl/activityacl/` adapter translates
+  between legacy Fleet types and bounded context domain types, keeping the context decoupled from the
+  monolith. ACLs are expected to be temporary; they can be removed once upstream code exposes clean
+  public APIs.
+- **Bootstrap pattern simplifies wiring**: A single `bootstrap.New()` function is the only public entry
+  point for instantiating the context. This keeps dependency injection centralized and makes it
+  straightforward to wire the context into both production and test code.
+- **Dedicated CI workflows reduce noise**: Giving the bounded context its own GitHub Actions workflow
+  (triggered only when its files change) avoids unnecessary test runs and isolates flaky tests from the
+  rest of the codebase.
 
 ### Candidates for future extraction
 
@@ -71,7 +89,12 @@ Each bounded context owns its **complete vertical slice**.
 
 ### Architectural enforcement
 
-We enforce boundaries using architecture tests that validate import restrictions.
+We enforce boundaries using architecture tests (`arch_test.go`) that validate import restrictions
+for every package in the bounded context. These tests use the `server/archtest` package and define
+an allowlist of Fleet dependencies per package. For example, the `internal/service` can import the context's own
+public packages and shared platform packages. The `internal` directory provides an additional layer
+of enforcement at the Go compiler level, preventing any code outside the bounded context from
+importing implementation details.
 
 These tests run as part of the regular CI test suite.
 
@@ -162,6 +185,25 @@ func New(
 **Unit tests**: Colocated with implementation files, use mocks for all dependencies.
 
 **Integration tests**: In `internal/tests/` directory, use real database and HTTP server with mock auth.
+
+### Dedicated CI workflows
+
+Each bounded context can have its own GitHub Actions workflow that only triggers when files in
+that context change. This provides two benefits:
+
+1. **Reduced CI load**: Tests for unrelated bounded contexts don't run on every pull request,
+   speeding up the overall CI pipeline.
+2. **Reduced noise from flaky tests**: A flaky test in one bounded context no longer blocks or
+   confuses contributors working in other areas.
+
+The Activity bounded context uses `.github/workflows/test-go-activity.yaml`, which triggers on
+changes to `server/activity/**/*.go` (plus shared platform packages and `go.mod`/`go.sum`). It
+runs tests against multiple MySQL versions and uploads coverage separately with a
+`backend-activity` flag. A nightly cron schedule runs an extended matrix of MySQL versions to
+catch compatibility issues.
+
+New bounded contexts should follow this pattern by creating a dedicated workflow that filters on
+their own file paths.
 
 ## Glossary
 
