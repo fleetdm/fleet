@@ -3300,6 +3300,15 @@ If you have an [Apple Developer account that is enabled as an MDM vendor](https:
   ```yaml
   mdm:
     apple_vpp_app_metadata_api_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
+  ```
+  
+### silent_migration_enrollment_profile
+
+This is an enrollment profile for migrated Apple MDM devices, used during SCEP certificate renewal. Required for seamless migration from another MDM solution.
+
+The enrollment profile must be base64-encoded. This is only supported as an environment variable.
+
+- Environment variable: `FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE`
 
 ## Conditional access
 
