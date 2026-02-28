@@ -997,14 +997,14 @@ func (ds *Datastore) GetHostScriptDetails(ctx context.Context, hostID uint, team
 		globalOrTeamID = *teamID
 	}
 
-	var extension string
+	var extensionPatterns []string
 	switch {
 	case hostPlatform == "windows":
 		// filter by .ps1 extension
-		extension = `%.ps1`
+		extensionPatterns = []string{`%.ps1`}
 	case fleet.IsUnixLike(hostPlatform):
-		// filter by .sh extension
-		extension = `%.sh`
+		// filter by .sh and .py extensions
+		extensionPatterns = []string{`%.sh`, `%.py`}
 	default:
 		// no extension filter
 	}
@@ -1101,10 +1101,18 @@ WHERE
 `
 
 	args := []any{hostID, hostID, hostID, globalOrTeamID}
-	if len(extension) > 0 {
-		args = append(args, extension)
+	if len(extensionPatterns) > 0 {
+		likeClauses := make([]string, 0, len(extensionPatterns))
+		for _, ext := range extensionPatterns {
+			likeClauses = append(likeClauses, "s.name LIKE ?")
+			args = append(args, ext)
+		}
 		sql += `
-		AND s.name LIKE ?
+		AND (
+			` + strings.Join(likeClauses, `
+			OR
+			`) + `
+		)
 		`
 	}
 	stmt, args := appendListOptionsWithCursorToSQL(sql, args, &opt)
