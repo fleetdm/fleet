@@ -572,6 +572,7 @@ func decodeCallbackRequest(ctx context.Context, r *http.Request) (
 
 type callbackSSOResponse struct {
 	content string
+	token   string
 	Err     error `json:"error,omitempty"`
 }
 
@@ -582,6 +583,14 @@ func (r callbackSSOResponse) Html() string { return r.content }
 
 func (r callbackSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
 	deleteSSOCookie(w)
+	if r.token != "" {
+		http.SetCookie(w, &http.Cookie{
+			Name:   "__Host-token",
+			Value:  r.token,
+			Path:   "/",
+			Secure: cookieSecure,
+		})
+	}
 }
 
 func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
@@ -616,7 +625,6 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 		relayStateLoadPage := ` <html>
      <script type='text/javascript'>
      var redirectURL = {{ .RedirectURL }};
-     window.localStorage.setItem('FLEET::auth_token', '{{ .Token }}');
      window.location = redirectURL;
      </script>
      <body>
@@ -634,6 +642,7 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 			return nil, err
 		}
 		resp.content = writer.String()
+		resp.token = session.Token
 		return resp, nil
 	}
 }
