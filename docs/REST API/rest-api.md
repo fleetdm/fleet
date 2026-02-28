@@ -10273,6 +10273,8 @@ Returns information about the specified software. By default, `versions` are sor
           "id": 294
         }
       ],
+      "labels_include_all": none,
+      "labels_exclude_any": none,
       "automatic_install_policies": [
         {
           "id": 343,
@@ -10352,6 +10354,9 @@ Returns information about the specified software. By default, `versions` are sor
           "name": "[Install software] Logic Pro",
         }
       ],
+      "labels_include_any": null,
+      "labels_include_all": null,
+      "labels_exclude_any": null,
       "status": {
         "installed": 3,
         "pending": 1,
@@ -10405,6 +10410,7 @@ Returns information about the specified software. By default, `versions` are sor
       "self_service": false,
       "automatic_install_policies": null,
       "labels_include_any": null,
+      "labels_include_all": null,
       "labels_exclude_any": null,
       "created_at": "2025-08-15T00:55:03.96954Z",
       "categories": null
@@ -10463,6 +10469,7 @@ Returns information about the specified software. By default, `versions` are sor
       "post_install_script": null,
       "pre_install_query": null,
       "labels_include_any": null,
+      "labels_include_all": null,
       "labels_exclude_any": null,
     },
     "app_store_app": null,
@@ -10674,11 +10681,12 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple 
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. Not supported for `.sh` and `.ps1`. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
 | automatic_install | boolean | body | Specifies whether to create a policy that triggers a software install only on hosts missing the software. Not supported for iOS, iPadOS, Android, or for `.sh` and `.ps1`. |
 
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`, `uninstall_script`, `post_install_script`, and `pre_install_query` fields as bas64-encoded rather than as-is.
 
@@ -10764,10 +10772,11 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. Not supported for `.sh` and `.ps1`. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
 | self_service | boolean | body | Whether this is optional self-service software that can be installed by the end user. |
+| labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
 
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 > Changes to the installer package will reset installation counts. Changes to any field other than `self_service` will cancel pending installs for the old package.
 
@@ -10993,11 +11002,12 @@ Add Apple App Store or Google Play store app. Apple apps must be added in Apple 
 | platform | string | body | The platform of the app (`darwin`, `ios`, `ipados`, or `android`). Default is `darwin`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, for Android in **Play Store** app in end user's work profile, and for iOS/iPadOS in [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app.  |
 | ensure | string | form | For macOS only, if set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. |
-| labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
+| labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
+| labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
 | configuration | object | form | The Android Play Store app's managed configuration in JSON format. Currently only supported for Android. |
 
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 
 #### Example
@@ -11058,11 +11068,12 @@ Modify an Apple App Store (VPP) or a Google Play app's options.
 | auto_update_enabled | boolean | body | Whether to enable automatic updates for iOS/iPadOS App Store (VPP) apps. |
 | auto_update_window_start | string | body | Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
 | auto_update_window_end | string | body | Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
+| labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
 | configuration | object | body | The Android Play Store app's managed configuration in JSON format. Currently only supported for Android. |
 
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 `configuration` only supports `managedConfiguration` and `workProfileWidgets` from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy). Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790) or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
 
@@ -11245,11 +11256,12 @@ Add Fleet-maintained app so it's available for install.
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
 | automatic_install | boolean | form | Create a policy that triggers a software install only on hosts missing the software. |
 
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`, `uninstall_script`, `post_install_script`, and `pre_install_query` fields as bas64-encoded rather than as-is.
 
