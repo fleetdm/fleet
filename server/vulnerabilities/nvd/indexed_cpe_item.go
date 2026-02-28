@@ -18,6 +18,18 @@ type IndexedCPEItem struct {
 	Weight     int    `db:"weight"`
 }
 
+// TODO in future as needed - automate updates of this set
+var citrixLTSRVersions = []string{"2507.1", "2402", "2203.1", "1912"}
+
+func isCitrixWorkspaceLTSR(version string) bool {
+	for _, ltsr := range citrixLTSRVersions {
+		if version == ltsr || strings.HasPrefix(version, ltsr+".") {
+			return true
+		}
+	}
+	return false
+}
+
 func (i *IndexedCPEItem) FmtStr(s *fleet.Software) string {
 	cpe := wfn.NewAttributesWithAny()
 	cpe.Part = "a"
@@ -35,6 +47,11 @@ func (i *IndexedCPEItem) FmtStr(s *fleet.Software) string {
 
 	if cpe.Product == "python" && cpe.Vendor == "python" && cpe.Update == wfn.Any {
 		cpe.Update = wfn.NA
+	}
+
+	if s.Source == "programs" && s.Vendor == "Citrix Systems, Inc." &&
+		strings.HasPrefix(s.Name, "Citrix Workspace") && isCitrixWorkspaceLTSR(version) {
+		cpe.SWEdition = "ltsr"
 	}
 
 	if i.Part != "" {
