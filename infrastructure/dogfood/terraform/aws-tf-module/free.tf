@@ -11,13 +11,14 @@ locals {
     # ELASTIC_APM_SERVER_URL                     = var.elastic_url
     # ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
     # ELASTIC_APM_SERVICE_NAME                   = "dogfood-free"
-    FLEET_SERVER_GZIP_RESPONSES                = "true"
+    FLEET_SERVER_GZIP_RESPONSES = "true"
 
 
     # Load TLS Certificate for RDS Authentication
     FLEET_MYSQL_TLS_CA                  = local.cert_path
     FLEET_MYSQL_READ_REPLICA_TLS_CA     = local.cert_path
     FLEET_MYSQL_READ_REPLICA_TLS_CONFIG = "custom"
+    FLEET_ENABLE_LOG_TOPICS             = "deprecated-field-names"
   }
 
   /* 
