@@ -4725,7 +4725,7 @@ On macOS hosts, `last_opened_at` is supported for software from the `apps` sourc
 
 On Windows hosts, `last_opened_at` is supported for software from the `programs` source. On Linux hosts, `last_opened_at` is supported for software from the `deb_packages` and `rpm_packages` sources. On Windows and Linux hosts, it represents the last open time of any version.
 
-Currently, `hash_sha256` is only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
+Currently, `hash_sha256` and `binary_sha256` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
 
 #### Example
 
@@ -4767,7 +4767,8 @@ Currently, `hash_sha256` is only supported for macOS software from the `apps` so
             {
               "installed_path": "/Applications/Google Chrome.app",
               "team_identifier": "EQHXZ8M8AV",
-              "hash_sha256": "a45d00ac9bf21e108fa8e452fabe4d9e05e6765b"
+              "hash_sha256": "a45d00ac9bf21e108fa8e452fabe4d9e05e6765b",
+              "binary_sha256": "7afc9d01a62f03a2de9637936d4afe68090d2de18d03f29c88cfb0b1ba63587f"
             }
           ]
         }
@@ -4820,7 +4821,8 @@ Currently, `hash_sha256` is only supported for macOS software from the `apps` so
             {
               "installed_path": "/Applications/Logic Pro.app",
               "team_identifier": "",
-              "hash_sha256": null
+              "hash_sha256": null,
+              "binary_sha256": null
             }
           ]
         }
@@ -9949,7 +9951,8 @@ Get a list of all software.
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         }
       ],
-      "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9"
+      "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9",
+      "binary_sha256": "b0b1730ecbc7ff4505142c49f1295e6eda6bcaed7e2c68c5be91b5a11001f024"
     },
     {
       "id": 22,
@@ -9983,7 +9986,8 @@ Get a list of all software.
           "vulnerabilities": ["CVE-2023-0987", "CVE-2023-5673", "CVE-2023-1334"]
         },
       ],
-      "hash_sha256": "ca30af561de15bb26186efcbcc59f3936c67d81e071e96fa8afa1e867a67a04f"
+      "hash_sha256": "ca30af561de15bb26186efcbcc59f3936c67d81e071e96fa8afa1e867a67a04f",
+      "binary_sha256": "7afc9d01a62f03a2de9637936d4afe68090d2de18d03f29c88cfb0b1ba63587f"
     },
     {
       "id": 32,
@@ -10261,6 +10265,7 @@ Returns information about the specified software. By default, `versions` are sor
       "team_id": 3,
       "uploaded_at": "2024-04-01T14:22:58Z",
       "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "binary_sha256": "7afc9d01a62f03a2de9637936d4afe68090d2de18d03f29c88cfb0b1ba63587f",
       "install_script": "sudo installer -pkg '$INSTALLER_PATH' -target /",
       "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
@@ -10447,6 +10452,7 @@ Returns information about the specified software. By default, `versions` are sor
       "categories": null,
       "uploaded_at": "2025-08-15T00:55:03.96954Z",
       "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9",
+      "binary_sha256": "7afc9d01a62f03a2de9637936d4afe68090d2de18d03f29c88cfb0b1ba63587f",
       "title_id": 12,
       "team_id": 3,
       "status": {
@@ -10719,6 +10725,7 @@ labels_exclude_any="QA"
     "team_id": 3,
     "uploaded_at": "2024-04-01T14:22:58Z",
     "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "binary_sha256": "7afc9d01a62f03a2de9637936d4afe68090d2de18d03f29c88cfb0b1ba63587f",
     "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
     "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
     "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
@@ -10806,6 +10813,7 @@ post_install_script="sudo /Applications/Falcon.app/Contents/Resources/falconctl 
     "team_id": 3,
     "uploaded_at": "2024-04-01T14:22:58Z",
     "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "binary_sha256": "7afc9d01a62f03a2de9637936d4afe68090d2de18d03f29c88cfb0b1ba63587f",
     "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
     "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
     "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
