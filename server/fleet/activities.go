@@ -4,39 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/activity/api"
 )
 
 // NewActivityFunc is the function signature for creating a new activity.
 type NewActivityFunc func(ctx context.Context, user *User, activity ActivityDetails) error
 
-type Activity struct {
-	CreateTimestamp
-
-	// ID is the activity id in the activities table, it is omitted for upcoming
-	// activities as those are "virtual activities" generated from entries in
-	// queues (e.g. pending host_script_results).
-	ID uint `json:"id,omitempty" db:"id"`
-
-	// UUID is the activity UUID for the upcoming activities, as identified in
-	// the relevant queue (e.g. pending host_script_results). It is omitted for
-	// past activities as those are "real activities" with an activity id.
-	UUID string `json:"uuid,omitempty" db:"uuid"`
-
-	ActorFullName  *string          `json:"actor_full_name,omitempty" db:"name"`
-	ActorID        *uint            `json:"actor_id,omitempty" db:"user_id"`
-	ActorGravatar  *string          `json:"actor_gravatar,omitempty" db:"gravatar_url"`
-	ActorEmail     *string          `json:"actor_email,omitempty" db:"user_email"`
-	ActorAPIOnly   *bool            `json:"actor_api_only,omitempty" db:"api_only"`
-	Type           string           `json:"type" db:"activity_type"`
-	Details        *json.RawMessage `json:"details" db:"details"`
-	Streamed       *bool            `json:"-" db:"streamed"`
-	FleetInitiated bool             `json:"fleet_initiated" db:"fleet_initiated"`
-}
-
-// AuthzType implement AuthzTyper to be able to verify access to activities
-func (*Activity) AuthzType() string {
-	return "activity"
-}
+// Activity is an alias for the canonical Activity type defined in server/activity/api.
+type Activity = api.Activity
 
 // UpcomingActivity is the augmented activity type used to return the list of
 // upcoming (pending) activities for a host.
@@ -244,10 +220,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEditedEnrollSecrets{},
 }
 
-type ActivityDetails interface {
-	// ActivityName is the name/type of the activity.
-	ActivityName() string
-}
+// ActivityDetails is an alias for the canonical ActivityDetails interface defined in server/activity/api.
+type ActivityDetails = api.ActivityDetails
 
 type ActivityTypeEnabledActivityAutomations struct {
 	WebhookUrl string `json:"webhook_url"`

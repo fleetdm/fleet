@@ -33,7 +33,6 @@ func TestAllAndroidPackageDependencies(t *testing.T) {
 			m+"/server/service/externalsvc", // dependency on Jira and Zendesk
 			m+"/server/service/middleware/auth",
 			m+"/server/service/middleware/log",
-			m+"/server/service/modules/activities",
 		).
 		Check()
 }

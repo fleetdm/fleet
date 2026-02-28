@@ -23,7 +23,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
-	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
 )
@@ -42,7 +41,7 @@ type Service struct {
 	ds               fleet.AndroidDatastore
 	fleetDS          fleet.Datastore
 	androidAPIClient androidmgmt.Client
-	activityModule   activities.ActivityModule
+	newActivity      fleet.NewActivityFunc
 	serverPrivateKey string
 
 	// Android agent configuration
@@ -61,11 +60,11 @@ func NewService(
 	licenseKey string,
 	serverPrivateKey string,
 	fleetDS fleet.Datastore,
-	activityModule activities.ActivityModule,
+	newActivity fleet.NewActivityFunc,
 	androidAgentConfig config.AndroidAgentConfig,
 ) (android.Service, error) {
 	client := newAMAPIClient(ctx, logger, licenseKey)
-	return NewServiceWithClient(logger, ds, client, serverPrivateKey, fleetDS, activityModule, androidAgentConfig)
+	return NewServiceWithClient(logger, ds, client, serverPrivateKey, fleetDS, newActivity, androidAgentConfig)
 }
 
 func NewServiceWithClient(
@@ -74,7 +73,7 @@ func NewServiceWithClient(
 	client androidmgmt.Client,
 	serverPrivateKey string,
 	fleetDS fleet.Datastore,
-	activityModule activities.ActivityModule,
+	newActivity fleet.NewActivityFunc,
 	androidAgentConfig config.AndroidAgentConfig,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
@@ -90,7 +89,7 @@ func NewServiceWithClient(
 		serverPrivateKey:   serverPrivateKey,
 		SignupSSEInterval:  DefaultSignupSSEInterval,
 		fleetDS:            fleetDS,
-		activityModule:     activityModule,
+		newActivity:        newActivity,
 		androidAgentConfig: androidAgentConfig,
 	}
 
@@ -376,7 +375,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 		return ctxerr.Wrap(ctx, err, "getting user")
 	}
 
-	if err = svc.activityModule.NewActivity(ctx, user, fleet.ActivityTypeEnabledAndroidMDM{}); err != nil {
+	if err = svc.newActivity(ctx, user, fleet.ActivityTypeEnabledAndroidMDM{}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for enabled Android MDM")
 	}
 
@@ -463,7 +462,7 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "marking pending android vpp installs as failed")
 	}
 
-	if err = svc.activityModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDisabledAndroidMDM{}); err != nil {
+	if err = svc.newActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDisabledAndroidMDM{}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for disabled Android MDM")
 	}
 
