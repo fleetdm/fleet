@@ -1,0 +1,1 @@
+* Changed the way we verify Windows profiles, to no longer rely on osquery, for faster verification

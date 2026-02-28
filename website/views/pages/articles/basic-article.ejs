@@ -36,10 +36,12 @@
           <div purpose="article-details" class="d-flex align-items-sm-center">
             <span>Last updated on <js-timestamp format="billing" :at="thisPage.meta.publishedOn"></js-timestamp></span>
             <span  purpose="divider" class="px-2">|</span>
-            <div purpose="article-author" class="d-flex flex-row align-items-center">
-              <img style="height: 28px; width: 28px; border-radius: 100%;" alt="The author's GitHub profile picture" :src="'https://github.com/'+thisPage.meta.authorGitHubUsername+'.png?size=200'">
-              <p class="pl-2 font-weight-bold"><%=thisPage.meta.authorFullName %></p>
-            </div>
+            <% if(articleCategorySlug !== 'customers') { %>
+              <div purpose="article-author" class="d-flex flex-row align-items-center">
+                <img style="height: 28px; width: 28px; border-radius: 100%;" alt="The author's GitHub profile picture" :src="'https://github.com/'+thisPage.meta.authorGitHubUsername+'.png?size=200'">
+                <p class="pl-2 font-weight-bold"><%=thisPage.meta.authorFullName %></p>
+              </div>
+            <% } %>
           </div>
 
         </div>
@@ -113,9 +115,11 @@
           <div class="d-flex flex-sm-row flex-column justify-content-between align-items-sm-center">
             <div purpose="article-details" class="d-flex flex-row align-items-center">
               <span>Last updated on <js-timestamp format="billing" :at="thisPage.meta.publishedOn"></js-timestamp></span>
-              <span class="px-2">|</span>
-              <img style="height: 28px; width: 28px; border-radius: 100%;" alt="The author's GitHub profile picture" :src="'https://github.com/'+thisPage.meta.authorGitHubUsername+'.png?size=200'">
-              <p class="pl-2 font-weight-bold"><%=thisPage.meta.authorFullName %></p>
+              <% if(articleCategorySlug !== 'customers') { %>
+                <span class="px-2">|</span>
+                <img style="height: 28px; width: 28px; border-radius: 100%;" alt="The author's GitHub profile picture" :src="'https://github.com/'+thisPage.meta.authorGitHubUsername+'.png?size=200'">
+                <p class="pl-2 font-weight-bold"><%=thisPage.meta.authorFullName %></p>
+              <% } %>
             </div>
           </div>
         </div>

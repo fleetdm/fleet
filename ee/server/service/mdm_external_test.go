@@ -78,7 +78,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		ds,
 		nil,
 		nil,
-		logger,
+		logger.SlogLogger(),
 		nil,
 		fleetConfig,
 		nil,
@@ -110,7 +110,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 	svc, err := eeservice.NewService(
 		freeSvc,
 		ds,
-		logger,
+		logger.SlogLogger(),
 		fleetConfig,
 		nil,
 		clock.C,

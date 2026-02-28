@@ -246,8 +246,9 @@ func generateGitopsCommand() *cli.Command {
 				Usage: "A key to output the config value for.",
 			},
 			&cli.StringFlag{
-				Name:  "team",
-				Usage: "(Premium only) The team to output configuration for.  Omit to export all configuration.  Use 'global' to export global settings, or 'no-team' to export settings for No Team.",
+				Name:    fleetFlagName,
+				Aliases: []string{"team"},
+				Usage:   "(Premium only) The fleet to output configuration for.  Omit to export all configuration.  Use 'global' to export global settings, or 'unassigned' to export settings for unassigned hosts.",
 			},
 			&cli.StringFlag{
 				Name:  "dir",
@@ -358,7 +359,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 	if cmd.AppConfig.License.IsPremium() {
 		noTeamData, err := cmd.Client.GetTeam(0)
 		if err != nil {
-			_, _ = fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting 'No team': %s\n", err)
+			_, _ = fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting 'Unassigned': %s\n", err)
 			return ErrGeneric
 		}
 		noTeam = teamToProcess{
@@ -368,9 +369,12 @@ func (cmd *GenerateGitopsCommand) Run() error {
 	}
 
 	switch {
-	case cmd.CLI.String("team") == "global" || !cmd.AppConfig.License.IsPremium():
+	case cmd.CLI.String(fleetFlagName) == "global" || !cmd.AppConfig.License.IsPremium():
 		teamsToProcess = []teamToProcess{globalTeam}
 	case cmd.CLI.String("team") == "no-team":
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "[!] '--team no-team' is deprecated. Use '--fleet unassigned' instead.\n")
+		teamsToProcess = []teamToProcess{noTeam}
+	case cmd.CLI.String("team") == "unassigned":
 		teamsToProcess = []teamToProcess{noTeam}
 	default:
 		// Get the list of teams.
@@ -380,8 +384,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			return ErrGeneric
 		}
 		// If a specific team is requested, find it.
-		if cmd.CLI.String("team") != "" {
-			transformedSelectedName := generateFilename(cmd.CLI.String("team"))
+		if cmd.CLI.String(fleetFlagName) != "" {
+			transformedSelectedName := generateFilename(cmd.CLI.String(fleetFlagName))
 			for _, team := range teams {
 				if transformedSelectedName == generateFilename(team.Name) {
 					teamsToProcess = []teamToProcess{{
@@ -391,7 +395,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 				}
 			}
 			if len(teamsToProcess) == 0 {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Team %s not found\n", cmd.CLI.String("team"))
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Fleet %s not found\n", cmd.CLI.String(fleetFlagName))
 				return nil
 			}
 		} else {
@@ -418,10 +422,15 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 		// If it's a real team, start the filename with the team name.
 		if team != nil {
-			teamFileName = generateFilename(team.Name)
+			displayName := team.Name
+			// For the no-team virtual team (ID 0), always output as "Unassigned".
+			if team.ID == 0 {
+				displayName = "Unassigned"
+			}
+			teamFileName = generateFilename(displayName)
 			fileName = "fleets/" + teamFileName + ".yml"
 			cmd.FilesToWrite[fileName] = map[string]interface{}{
-				"name": team.Name,
+				"name": displayName,
 			}
 		} else {
 			fileName = "default.yml"
@@ -541,15 +550,15 @@ func (cmd *GenerateGitopsCommand) Run() error {
 	if cmd.CLI.String("key") != "" {
 		var fileName string
 		// If a team is specified, get the file for that team.
-		switch cmd.CLI.String("team") {
+		switch cmd.CLI.String(fleetFlagName) {
 		case "global":
 			fileName = "default.yml"
 		case "":
 			fileName = "default.yml"
-		case "no-team":
-			fileName = "fleets/no-team.yml"
+		case "no-team", "unassigned":
+			fileName = "fleets/unassigned.yml"
 		default:
-			teamFileName := generateFilename(cmd.CLI.String("team"))
+			teamFileName := generateFilename(cmd.CLI.String(fleetFlagName))
 			fileName = "fleets/" + teamFileName + ".yml"
 		}
 
@@ -640,16 +649,16 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		fmt.Fprintf(cmd.CLI.App.Writer, "\n")
 	}
 
-	if cmd.CLI.String("team") == "global" || cmd.CLI.String("team") == "" {
+	if cmd.CLI.String(fleetFlagName) == "global" || cmd.CLI.String(fleetFlagName) == "" {
 		cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 			Filename: "default.yml",
 			Note:     "Warning: YARA rules are not supported by this tool yet. If you have existing YARA rules, add them to the new default.yml file.",
 		})
 	}
 
-	if cmd.CLI.String("team") != "global" {
+	if cmd.CLI.String(fleetFlagName) != "global" {
 		cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
-			Note: "Warning: Software categories are not supported by this tool yet. If you have added any categories to software items, add them to the appropriate team .yml file.",
+			Note: "Warning: Software categories are not supported by this tool yet. If you have added any categories to software items, add them to the appropriate fleet .yml file.",
 		})
 	}
 
@@ -1233,7 +1242,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		if teamId != nil && cmd.AppConfig.MDM.EnabledAndConfigured {
 			// See if the team has macOS bootstrap package configured.
 			bootstrapPackage, err := cmd.Client.GetBootstrapPackageMetadata(*teamId, false)
-			if err != nil && !strings.Contains(err.Error(), "bootstrap package for this team does not exist") {
+			if err != nil && !strings.Contains(err.Error(), "bootstrap package for this fleet does not exist") {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting bootstrap package metadata: %s\n", err)
 				return nil, err
 			}

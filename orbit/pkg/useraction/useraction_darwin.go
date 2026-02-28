@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"text/template"
@@ -218,18 +219,20 @@ func rotateFileVaultKey(u, p string) error {
 		return errInvalidPassword
 	}
 
-	script := fmt.Sprintf(`
-		log_user 0
-		spawn fdesetup changerecovery -personal
-		expect "Enter the user name:"
-		send {%s}   
-		send \r
-		expect "Enter a password for '/', or the recovery key:"
-		send {%s}   
-		send \r
-		log_user 1
-		expect eof`, u, p)
-	out, err := exec.Command("expect", "-c", script).Output()
+	script := `
+        log_user 0
+        spawn fdesetup changerecovery -personal
+        expect "Enter the user name:"
+        send $env(FV_USER)
+        send \r
+        expect "Enter a password for '/', or the recovery key:"
+        send $env(FV_PASS)
+        send \r
+        log_user 1
+        expect eof`
+	cmd := exec.Command("expect", "-c", script)
+	cmd.Env = append(os.Environ(), "FV_USER="+u, "FV_PASS="+p)
+	out, err := cmd.Output()
 	if err != nil {
 		return fmt.Errorf("osascript failed: %w", err)
 	}

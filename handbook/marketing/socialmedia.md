@@ -1,19 +1,23 @@
-### Fleet has a presence on the following social media platforms
+### Social Media
 
-| Platform | User ID | Link&nbsp;updated&nbsp;&nbsp;&nbsp; |
-| LinkedIn | FleetDM | [https://www.linkedin.com/company/fleetdm/](https://www.linkedin.com/company/fleetdm/) |
-| :---- | :---- | :---- |
-| YouTube | FleetDM | [https://www.youtube.com/channel/UCZyoqZ4exJvoibmTKJrQ-dQ](https://www.youtube.com/channel/UCZyoqZ4exJvoibmTKJrQ-dQ) |
-| Twitter / X | FleetCTL | [https://x.com/fleetctl](https://x.com/fleetctl) |
-| Reddit | FleetDM |  |
-| Facebook | FleetDM | [https://www.facebook.com/fleetdm/](https://www.facebook.com/fleetdm/) |
-| Instagram | FleetCTL | [https://www.instagram.com/fleetctl/](https://www.instagram.com/fleetctl/) |
-| Threads | FleetCTL | [https://www.threads.com/@fleetctl](https://www.threads.com/@fleetctl) |
-| TikTok | FleetDM |  |
-| Bluesky | FleetDM | [https://bsky.app/profile/fleetdm.bsky.social](https://bsky.app/profile/fleetdm.bsky.social) |
-| Mastodon | Fleet | [https://mastodon.social/@Fleet@discuss.systems](https://mastodon.social/@Fleet@discuss.systems) |
-| Discord | TBD | TBD |
+**Fleet accounts:** 
 
+# Fleet Social Media Directory
+
+| Social Media Platform | Fleet UserID |
+| :--- | :--- |
+| [LinkedIn](https://www.linkedin.com/company/fleetdm/) | FleetDM |
+| [YouTube](https://www.youtube.com/channel/UCZyoqZ4exJvoibmTKJrQ-dQ) | FleetDM |
+| [Twitter / X](https://x.com/fleetctl) | FleetCTL |
+| Reddit | FleetDM |
+| [Facebook](https://www.facebook.com/fleetdm/) | FleetDM |
+| [Instagram](https://www.instagram.com/fleetctl/) | FleetCTL |
+| [Threads](https://www.threads.com/@fleetctl) | FleetCTL |
+| TikTok | FleetDM |
+| [Bluesky](https://bsky.app/profile/fleetdm.bsky.social) | FleetDM |
+| [Mastodon](https://mastodon.social/@Fleet@discuss.systems) | Fleet |
+
+[Internal table](https://docs.google.com/spreadsheets/d/1WMiVzHQ-QV_llgDCBRX0P7uxuDNJaooYKPX1XKW6SSc/edit?gid=0#gid=0)
 
 <meta name="maintainedBy" value="akuthiala">
-<meta name="title" value="🫧 Social media">
+<meta name="title" value="🫧 Fleet social media">
