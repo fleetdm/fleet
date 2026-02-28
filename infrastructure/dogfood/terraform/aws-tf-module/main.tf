@@ -68,7 +68,7 @@ locals {
     OTEL_EXPORTER_OTLP_ENDPOINT   = "https://otlp.signoz.dogfood.fleetdm.com"
     # FLEET_LOGGING_TRACING_ENABLED              = "true"
     # FLEET_LOGGING_TRACING_TYPE                 = "elasticapm"
-    FLEET_LOGGING_ENABLE_TOPICS = "deprecated-field-names"
+    FLEET_LOGGING_ENABLE_TOPICS                = "deprecated-field-names"
     FLEET_MYSQL_MAX_OPEN_CONNS                 = "10"
     FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS    = "10"
     FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
@@ -80,11 +80,12 @@ locals {
     # Webhook Results & Status Logging Destination
     FLEET_SERVER_VPP_VERIFY_TIMEOUT = "20m"
     FLEET_SERVER_GZIP_RESPONSES     = "true"
-    
+
     # Load TLS Certificate for RDS Authentication
     FLEET_MYSQL_TLS_CA                  = local.cert_path
     FLEET_MYSQL_READ_REPLICA_TLS_CA     = local.cert_path
     FLEET_MYSQL_READ_REPLICA_TLS_CONFIG = "custom"
+    FLEET_ENABLE_LOG_TOPICS             = "deprecated-field-names"
   }
   entra_conditional_access_secrets = {
     # Entra Conditional Access Proxy API Key
