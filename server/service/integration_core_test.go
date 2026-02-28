@@ -4667,6 +4667,8 @@ func (s *integrationTestSuite) TestLabels() {
 		var listResp listLabelsResponse
 		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp)
 		assert.True(t, len(listResp.Labels) > 0)
+		// Break this test
+		assert.Equal(t, 999, len(listResp.Labels), "artificially breaking test to see gotestsum output")
 		var builtinLbl fleet.Label
 		for _, lbl := range listResp.Labels {
 			_, ok := builtinsMap[lbl.Name]
