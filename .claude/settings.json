@@ -5,7 +5,9 @@
   },
   "permissions": {
     "allow": [
-      "Read(~/.fleet/**)"
+      "Read(~/.fleet/claude-projects/**)",
+      "Write(~/.fleet/claude-projects/**)",
+      "Edit(~/.fleet/claude-projects/**)"
     ]
   },
   "hooks": {
