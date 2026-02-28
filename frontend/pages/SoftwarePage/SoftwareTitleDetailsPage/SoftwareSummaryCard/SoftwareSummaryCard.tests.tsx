@@ -152,5 +152,31 @@ describe("Software Summary Card", () => {
       expect(options).not.toContain("Edit software");
       expect(options).not.toContain("Schedule auto updates");
     });
+
+    it("displays Edit appearance (but not Edit configuration nor Edit software) for Android web apps", async () => {
+      const { user } = render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            source: "android_apps",
+            app_store_app: createMockAppStoreAppAndroid({
+              app_store_id: "com.google.enterprise.webapp.myapp",
+            }),
+            software_package: null,
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onToggleViewYaml={jest.fn()}
+        />
+      );
+
+      const options = await getDropdownOptions(user);
+
+      expect(options).toContain("Edit appearance");
+      expect(options).not.toContain("Edit software");
+      expect(options).not.toContain("Edit configuration");
+      expect(options).not.toContain("Schedule auto updates");
+    });
   });
 });
