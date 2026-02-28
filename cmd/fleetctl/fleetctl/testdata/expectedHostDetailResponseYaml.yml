@@ -63,7 +63,6 @@ spec:
     author_id: 1
     author_name: Alice
     calendar_events_enabled: true
-    conditional_access_bypass_enabled: true
     conditional_access_enabled: false
     created_at: "0001-01-01T00:00:00Z"
     critical: false
