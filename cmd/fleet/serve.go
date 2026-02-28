@@ -76,7 +76,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
-	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
@@ -874,7 +873,8 @@ the way that the Fleet server works.
 			digiCertService := digicert.NewService(digicert.WithLogger(logger))
 			ctx = ctxerr.NewContext(ctx, eh)
 
-			activitiesModule := activities.NewActivityModule()
+			// Declare svc early so the closure below can capture it.
+			var svc fleet.Service
 			config.MDM.AndroidAgent.Validate(initFatal)
 			androidSvc, err := android_service.NewService(
 				ctx,
@@ -883,14 +883,16 @@ the way that the Fleet server works.
 				config.License.Key,
 				config.Server.PrivateKey,
 				ds,
-				activitiesModule,
+				func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+					return svc.NewActivity(ctx, user, activity)
+				},
 				config.MDM.AndroidAgent,
 			)
 			if err != nil {
 				initFatal(err, "initializing android service")
 			}
 
-			svc, err := service.NewService(
+			svc, err = service.NewService(
 				ctx,
 				ds,
 				task,
@@ -1039,9 +1041,8 @@ the way that the Fleet server works.
 
 			// Bootstrap activity bounded context (needed for cron schedules and HTTP routes)
 			activitySvc, activityRoutes := createActivityBoundedContext(svc, dbConns, logger)
-			// Inject the activity bounded context into the main service and activity module
+			// Inject the activity bounded context into the main service
 			svc.SetActivityService(activitySvc)
-			activitiesModule.SetService(activitySvc)
 
 			// Perform a cleanup of cron_stats outside of the cronSchedules because the
 			// schedule package uses cron_stats entries to decide whether a schedule will

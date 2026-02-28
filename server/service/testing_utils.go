@@ -57,7 +57,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
-	activitiesmod "github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/sso"
@@ -436,7 +435,7 @@ type TestServerOpts struct {
 	HostIdentity                    *HostIdentity
 	androidMockClient               *android_mock.Client
 	androidModule                   android.Service
-	ActivityModule                  *activitiesmod.Module
+	NewActivity                     fleet.NewActivityFunc
 	ConditionalAccess               *ConditionalAccess
 	DBConns                         *common_mysql.DBConnections
 
@@ -493,9 +492,6 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			slogLogger,
 		)
 		svc.SetActivityService(activitySvc)
-		if opts[0].ActivityModule != nil {
-			opts[0].ActivityModule.SetService(activitySvc)
-		}
 		activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
 			return auth.AuthenticatedUser(svc, next)
 		}

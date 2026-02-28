@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest"
-	activitiesmod "github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,14 +26,13 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 	logger := logging.NewLogfmtLogger(os.Stdout)
 	proxy := android_mock.Client{}
 	proxy.InitCommonMocks()
-	activityModule := activitiesmod.NewActivityModule()
 	androidSvc, err := android_service.NewServiceWithClient(
 		logger.SlogLogger(),
 		ds,
 		&proxy,
 		"test-private-key",
 		ds,
-		activityModule,
+		fleetSvc.NewActivity,
 		config.AndroidAgentConfig{
 			Package:       "com.fleetdm.agent",
 			SigningSHA256: "abc123def456",
@@ -47,12 +45,11 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierFree,
 		},
-		FleetConfig:    &fleetCfg,
-		Pool:           redisPool,
-		Logger:         logger,
-		FeatureRoutes:  []endpointer.HandlerRoutesFunc{android_service.GetRoutes(fleetSvc, androidSvc)},
-		DBConns:        dbConns,
-		ActivityModule: activityModule,
+		FleetConfig:   &fleetCfg,
+		Pool:          redisPool,
+		Logger:        logger,
+		FeatureRoutes: []endpointer.HandlerRoutesFunc{android_service.GetRoutes(fleetSvc, androidSvc)},
+		DBConns:       dbConns,
 	})
 
 	s := &Suite{

@@ -88,10 +88,8 @@ func (ds *AndroidDSWithMock) SetAndroidHostUnenrolled(ctx context.Context, hostI
 	return ds.Datastore.SetAndroidHostUnenrolled(ctx, hostID)
 }
 
-// noopActivityModule implements activities.ActivityModule with a no-op for tests.
-type noopActivityModule struct{}
-
-func (n *noopActivityModule) NewActivity(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+// noopNewActivity is a no-op activity creation function for tests that don't verify activity creation.
+func noopNewActivity(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
 	return nil
 }
 
@@ -119,8 +117,7 @@ func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	kitLogger := logging.NewLogger(logger)
-	activityModule := &noopActivityModule{} // This test does not verify activity creation.
-	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, "test-private-key", ts.DS.Datastore, activityModule, config.AndroidAgentConfig{})
+	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, "test-private-key", ts.DS.Datastore, noopNewActivity, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 	ts.Svc = svc
 
