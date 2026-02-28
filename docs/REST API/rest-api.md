@@ -1497,6 +1497,7 @@ None.
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
+    "apple_require_hardware_attestation": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01",
@@ -1814,6 +1815,7 @@ Modifies the Fleet's configuration with the supplied information.
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
+    "apple_require_hardware_attestation": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01",
@@ -2401,6 +2403,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that belong to no team will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
+| apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ specifies whether or not to require Apple Silicon macOS hosts to complete a Hardware Attestation challenge as part of DEP enrollment. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
 | ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
@@ -2412,6 +2415,8 @@ When updating conditional access config, all `conditional_access` fields must ei
 | apple_server_url         | string  | Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)  |
 
 > Note: If `apple_server_url` changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
+
+> Note: If `apple_require_hardware_attestation` is enabled and Apple attestation servers are down, macOS Apple Silicon hosts will not be able to enroll.
 
 <br/>
 
@@ -2536,6 +2541,7 @@ _Available in Fleet Premium._
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
+    "apple_require_hardware_attestation": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01",
@@ -3451,6 +3457,7 @@ Returns the information of the specified host.
     "last_enrolled_at": "2021-08-19T02:02:22Z",
     "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
     "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
+    "mdm_enrollment_hardware_attested": false,
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
     "hostname": "Annas-MacBook-Pro.local",
@@ -3744,6 +3751,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "last_enrolled_at": "2022-02-10T02:29:13Z",
     "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
     "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
+    "mdm_enrollment_hardware_attested": false,
     "software_updated_at": "2020-11-05T05:09:44Z",
     "seen_time": "2022-10-14T17:45:41Z",
     "refetch_requested": false,
@@ -3972,6 +3980,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     "last_enrolled_at": "2021-08-19T02:02:22Z",
     "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
     "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
+    "mdm_enrollment_hardware_attested": false,
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
     "hostname": "Annas-MacBook-Pro.local",
