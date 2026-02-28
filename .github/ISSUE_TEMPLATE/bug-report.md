@@ -9,7 +9,13 @@ assignees: ''
 
 **Fleet version**: <!-- Copy this from the "My account" page in the Fleet UI, or run `fleetctl --version` -->
 
-**Web browser and operating system**: <!-- e.g. Chrome 88.0.4324 running on macOS -->
+**Fleet admin UI: operating system and browser version**: <!-- e.g. Chrome 88.0.4324 running on macOS -->
+
+**Affected hosts**:
+<!-- add information about affected hosts here, or delete if not relevant -->
+| Operating system      | `fleetd` version |
+| ----------- | ----------- |
+|    |                   |
 
 <hr/>
 
