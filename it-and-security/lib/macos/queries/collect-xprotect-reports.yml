@@ -1,0 +1,9 @@
+- name: Collect XProtect reports
+  automations_enabled: false
+  description: Collects XProtect report data from macOS hosts, including malware detection events and remediation actions performed by XProtect.
+  discard_data: false
+  interval: 300
+  logging: snapshot
+  observer_can_run: true
+  platform: "darwin"
+  query: SELECT * FROM xprotect_reports;
