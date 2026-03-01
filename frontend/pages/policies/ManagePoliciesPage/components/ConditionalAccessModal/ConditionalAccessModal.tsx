@@ -112,7 +112,22 @@ const ConditionalAccessModal = ({
             });
           }}
         >
-          <TooltipWrapper tipContent="Allows end users to bypass conditional access for a single login if they are unable to resolve the failing policy.">
+          <TooltipWrapper
+            tipContent={
+              <>
+                Allows end users to bypass conditional access for a single login
+                if they are unable to resolve the failing policy.
+                <br />
+                <br />
+                <em>
+                  This experimental setting will be removed in Fleet 4.83, and
+                  only non-critical policies will allow bypass. For a seamless
+                  upgrade, please avoid enabling bypass for policies marked
+                  critical.
+                </em>
+              </>
+            }
+          >
             End users can bypass
           </TooltipWrapper>
         </Checkbox>

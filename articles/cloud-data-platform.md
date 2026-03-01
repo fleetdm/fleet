@@ -70,10 +70,10 @@ The cloud data platform's adoption of Fleet Device Management exemplifies how mo
 
 <call-to-action></call-to-action>
 
-<meta name="category" value="announcements">
+<meta name="category" value="case study">
 <meta name="authorGitHubUsername" value="Drew-P-drawers">
 <meta name="authorFullName" value="Andrew Baker">
 <meta name="publishedOn" value="2024-12-20">
 <meta name="articleTitle" value="Cloud-based data leader chooses Fleet for orchestration">
 <meta name="description" value="Cloud-based data leader chooses Fleet for orchestration">
-<meta name="showOnTestimonialsPageWithEmoji" value="🚪">
+<meta name="useBasicArticleTemplate" value="true">
