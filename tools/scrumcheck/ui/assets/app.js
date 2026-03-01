@@ -1,5 +1,6 @@
     (function () {
       const bridgeSession = document.body.dataset.bridgeSession || '';
+      let bridgeStream = null;
       function bridgeJSONHeaders() {
         return {
           'Content-Type': 'application/json',
@@ -31,8 +32,11 @@
           const streamURL = bridgeSession
             ? bridgeURL + '/api/events?session=' + encodeURIComponent(bridgeSession)
             : bridgeURL + '/api/events';
-          const stream = new EventSource(streamURL);
-          stream.addEventListener('log', async () => {
+          if (bridgeStream) {
+            bridgeStream.close();
+          }
+          bridgeStream = new EventSource(streamURL);
+          bridgeStream.addEventListener('log', async () => {
             try {
               await fetchStateAndRender(false);
             } catch (_) {
@@ -528,7 +532,7 @@
               const suggestions = Array.isArray(it.Suggestions) ? it.Suggestions : [];
               const options = suggestions.map((s) => '<option value="' + escHTML(s.Title) + '" data-number="' + escHTML(s.Number) + '">' + escHTML(s.Title) + '</option>').join('');
               const actionHTML = suggestions.length > 0
-                ? '<div class="actions"><select class="fix-btn milestone-select" data-issue="' + escHTML(it.Number) + '" data-repo="' + escHTML(it.Repo) + '">' + options + '</select><button class="fix-btn apply-milestone-btn">Apply milestone</button></div>'
+                ? '<div class="actions"><input class="fix-btn milestone-search" type="search" placeholder="Filter milestones..." /><select class="fix-btn milestone-select" data-issue="' + escHTML(it.Number) + '" data-repo="' + escHTML(it.Repo) + '">' + options + '</select><button class="fix-btn apply-milestone-btn">Apply milestone</button></div>'
                 : '<div class="actions"><span class="copied-note">No milestone suggestions found for this repo.</span></div>';
               const preview = Array.isArray(it.BodyPreview) && it.BodyPreview.length > 0 ? it.BodyPreview : ['(empty)'];
               const previewHTML = preview.map((p) => '<li>' + escHTML(p) + '</li>').join('');
@@ -587,7 +591,7 @@
             const colBtn = items.length > 0 ? '<button class="fix-btn apply-assignee-column-btn">Assign selected in column</button>' : '';
             const itemsHTML = items.length === 0 ? '<p class="empty">🟢 No items in this group.</p>' : items.map((it) => {
               const options = (Array.isArray(it.SuggestedAssignees) ? it.SuggestedAssignees : []).map((s) => '<option value="' + escHTML(s.Login) + '">' + escHTML(s.Login) + '</option>').join('');
-              const actions = options ? '<div class="actions"><select class="fix-btn assignee-select" data-issue="' + escHTML(it.Number) + '" data-repo="' + escHTML(it.Repo) + '">' + options + '</select><button class="fix-btn apply-assignee-btn">Assign</button></div>' : '<div class="actions"><span class="copied-note">No assignee options found for this repo.</span></div>';
+              const actions = options ? '<div class="actions"><input class="fix-btn assignee-search" type="search" placeholder="Filter assignees..." /><select class="fix-btn assignee-select" data-issue="' + escHTML(it.Number) + '" data-repo="' + escHTML(it.Repo) + '">' + options + '</select><button class="fix-btn apply-assignee-btn">Assign</button></div>' : '<div class="actions"><span class="copied-note">No assignee options found for this repo.</span></div>';
               const badge = showMineBadge ? '<div class="mine-badge">Assigned to me</div>' : '';
               return '<article class="item' + (it.AssignedToMe ? ' assigned-to-me' : '') + '"><div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div><div>' + renderSafeExternalLink(it.URL) + '</div><ul><li>Status: ' + escHTML(it.Status || '(unset)') + '</li><li>Repository: ' + escHTML(it.Repo) + '</li><li>Current assignees: ' + escHTML(listOrEmpty(it.CurrentAssignees, '(none)')) + '</li></ul>' + badge + actions + '</article>';
             }).join('');
@@ -1040,6 +1044,10 @@
             if (!res.ok) {
               const body = await res.text();
               throw new Error('Bridge error ' + res.status + ': ' + body);
+            }
+            if (bridgeStream) {
+              bridgeStream.close();
+              bridgeStream = null;
             }
             document.querySelectorAll('.apply-milestone-btn, .apply-milestone-column-btn, .apply-drafting-check-btn, .apply-sprint-btn, .apply-sprint-column-btn, .apply-assignee-btn, .apply-assignee-column-btn, .apply-release-project-btn').forEach((el) => {
               el.disabled = true;

@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -113,5 +114,26 @@ func TestAssigneeFetchersErrorBranches(t *testing.T) {
 	}
 	if got := fetchAssignedIssuesByProject(context.Background(), "tok", "fleetdm", 97); len(got) != 0 {
 		t.Fatalf("expected no assigned issues on failed search, got %#v", got)
+	}
+}
+
+func TestFetchAssignedIssuesByProjectQueryScope(t *testing.T) {
+	var decodedQuery string
+	withMockDefaultTransport(t, roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if strings.Contains(r.URL.Path, "/search/issues") {
+			decoded, _ := url.QueryUnescape(r.URL.Query().Get("q"))
+			decodedQuery = decoded
+			return jsonResponse(t, http.StatusOK, searchIssueResponse{Items: []searchIssueItem{}}), nil
+		}
+		return jsonResponse(t, http.StatusNotFound, map[string]any{}), nil
+	}))
+
+	_ = fetchAssignedIssuesByProject(context.Background(), "tok", "fleetdm", 97)
+
+	if !strings.Contains(decodedQuery, `project:fleetdm/97`) {
+		t.Fatalf("expected project scope in query, got %q", decodedQuery)
+	}
+	if strings.Contains(decodedQuery, `repo:fleetdm/fleet`) {
+		t.Fatalf("expected no repo hard-scope in query, got %q", decodedQuery)
 	}
 }

@@ -160,7 +160,9 @@ func runMissingAssigneeChecks(
 // fetchAssignedIssuesByProject runs a GitHub issue search for open tickets
 // assigned to the current user in one project, excluding Done status.
 func fetchAssignedIssuesByProject(ctx context.Context, token, org string, projectNum int) []searchIssueItem {
-	query := fmt.Sprintf(`is:issue is:open project:%s/%d assignee:@me -status:"Done" repo:%s/fleet`, org, projectNum, org)
+	// Keep fallback search scoped to the selected project only. Repo scoping can
+	// hide valid @me tickets when a project includes multiple repositories.
+	query := fmt.Sprintf(`is:issue is:open project:%s/%d assignee:@me -status:"Done"`, org, projectNum)
 	endpoint := fmt.Sprintf("https://api.github.com/search/issues?q=%s&per_page=100", urlQueryEscape(query))
 	body, ok := executeIssueSearchRequest(ctx, endpoint, token)
 	if !ok {
