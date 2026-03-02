@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/binary"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,7 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 )
@@ -59,9 +59,9 @@ func NewTestSCEPServer(t *testing.T) *httptest.Server {
 	if err != nil {
 		t.Fatal(err)
 	}
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	e := scepserver.MakeServerEndpoints(svc)
-	scepHandler := scepserver.MakeHTTPHandler(e, svc, logger.SlogLogger())
+	scepHandler := scepserver.MakeHTTPHandler(e, svc, logger)
 	r := mux.NewRouter()
 	r.Handle("/scep", scepHandler)
 	server := httptest.NewServer(r)
