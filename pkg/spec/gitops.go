@@ -1121,8 +1121,6 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		if item.Type == "" {
 			item.Type = fleet.PolicyTypeDynamic
 		}
-		// TODO: cross-reference with software and ensure that the slug exists if it's a patch policy
-		fmt.Printf("item.FleetMaintainedAppSlug: %v\n", item.FleetMaintainedAppSlug)
 		if item.Query == "" && item.Type != fleet.PolicyTypePatch {
 			multiError = multierror.Append(multiError, errors.New("policy query is required for each policy"))
 		}

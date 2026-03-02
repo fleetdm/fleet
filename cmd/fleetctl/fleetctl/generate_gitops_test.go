@@ -337,6 +337,7 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 					}},
 					ConditionalAccessEnabled:       true,
 					ConditionalAccessBypassEnabled: ptr.Bool(true),
+					Type:                           fleet.PolicyTypeDynamic,
 				},
 				InstallSoftware: &fleet.PolicySoftwareTitle{
 					SoftwareTitleID: 1,
@@ -355,9 +356,25 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				Platform:                       "linux,windows",
 				ConditionalAccessEnabled:       true,
 				ConditionalAccessBypassEnabled: ptr.Bool(true),
+				Type:                           fleet.PolicyTypeDynamic,
 			},
 			RunScript: &fleet.PolicyScript{
 				ID: 1,
+			},
+		},
+
+		{
+			PolicyData: fleet.PolicyData{
+				ID:                             2,
+				Name:                           "Team patch policy",
+				Query:                          "SELECT * FROM team_policy WHERE id = 1",
+				Resolution:                     ptr.String("Do a team thing"),
+				Description:                    "This is a team patch policy",
+				Platform:                       "linux,windows",
+				ConditionalAccessEnabled:       true,
+				ConditionalAccessBypassEnabled: ptr.Bool(false),
+				FleetMaintainedAppSlug:         "foo/darwin",
+				Type:                           fleet.PolicyTypePatch,
 			},
 		},
 	}, nil
@@ -1727,43 +1744,46 @@ func TestGeneratePolicies(t *testing.T) {
 	policiesRaw, err := cmd.generatePolicies(nil, "default.yml")
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
-	var policies []map[string]interface{}
+	var generatedPolicies []map[string]any
 	b, err := yaml.Marshal(policiesRaw)
 	require.NoError(t, err)
-	fmt.Println("policies raw:\n", string(b)) // Debugging line
-	err = yaml.Unmarshal(b, &policies)
+	fmt.Println("generated global policies raw:\n", string(b)) // Debugging line
+	err = yaml.Unmarshal(b, &generatedPolicies)
 	require.NoError(t, err)
 
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedGlobalPolicies.yaml")
 	require.NoError(t, err)
-	var expectedPolicies []map[string]interface{}
+	var expectedPolicies []map[string]any
 	err = yaml.Unmarshal(b, &expectedPolicies)
 	require.NoError(t, err)
 
 	// Compare.
-	require.Equal(t, expectedPolicies, policies)
+	require.Equal(t, expectedPolicies, generatedPolicies)
 
 	// Generate policies for a team.
 	// Note that nested keys here may be strings,
 	// so we'll JSON marshal and unmarshal to a map for comparison.
+
+	var expectedTeamPolicies []map[string]any
+	var generatedTeamPolicies []map[string]any
 	policiesRaw, err = cmd.generatePolicies(ptr.Uint(1), "some_team")
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
 	b, err = yaml.Marshal(policiesRaw)
 	require.NoError(t, err)
-	fmt.Println("policies raw:\n", string(b)) // Debugging line
-	err = yaml.Unmarshal(b, &policies)
+	fmt.Println("generated team policies raw:\n", string(b)) // Debugging line
+	err = yaml.Unmarshal(b, &generatedTeamPolicies)
 	require.NoError(t, err)
 
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamPolicies.yaml")
 	require.NoError(t, err)
-	err = yaml.Unmarshal(b, &expectedPolicies)
+	err = yaml.Unmarshal(b, &expectedTeamPolicies)
 	require.NoError(t, err)
 
 	// Compare.
-	require.Equal(t, expectedPolicies, policies)
+	require.Equal(t, expectedPolicies, generatedPolicies)
 }
 
 func TestGenerateQueries(t *testing.T) {
