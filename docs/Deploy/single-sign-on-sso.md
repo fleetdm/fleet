@@ -62,7 +62,7 @@ The Fleet app is available in Okta's catalog. This is the fastest way to set up 
 7. Complete the Fleet side:
    - In Okta, go to your Fleet app's **Sign On** tab
    - Under **SAML 2.0** > **Metadata details**, copy the **Metadata URL**
-   - In Fleet, go to **Settings** > **Integrations** > **Single sign-on (SSO)**
+   - In Fleet, go to **Settings** > **Integrations** > **Single sign-on (SSO)** > **End users**
    - Check **Enable single sign-on**
    - **Identity provider name**: `Okta` (or whatever you want)
    - **Entity ID**: Must match Okta exactly (e.g., `fleet`)
