@@ -1077,7 +1077,6 @@ func flattenBaseItems(input []BaseItem, baseDir string, entityType string, opts 
 }
 
 func resolveScriptPaths(input []BaseItem, baseDir string, logFn Logf) ([]BaseItem, []error) {
-	// Scripts always require a file reference — reject bare items before flattening.
 	return flattenBaseItems(input, baseDir, "script", GlobExpandOptions{
 		AllowedExtensions: allowedScriptExtensions,
 		UniqueBasenames:   true,
