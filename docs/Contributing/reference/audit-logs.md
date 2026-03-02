@@ -2349,6 +2349,22 @@ This activity contains the following fields:
 }
 ```
 
+## canceled_setup_experience
+
+Generated when macOS setup experience is canceled due to software install failure.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+}
+```
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
