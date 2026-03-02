@@ -541,6 +541,18 @@ type MacOSSetup struct {
 	RequireAllSoftware          bool                               `json:"require_all_software_macos"`
 }
 
+func (mos *MacOSSetup) Validate() error {
+	if mos == nil {
+		return nil
+	}
+
+	if mos.ManualAgentInstall.Valid && mos.ManualAgentInstall.Value && (!mos.BootstrapPackage.Valid || mos.BootstrapPackage.Value == "") {
+		return NewInvalidArgumentError("macos_setup.manual_agent_install", `Couldn't enable manual_agent_install. To use this option, first specify a bootstrap package.`)
+	}
+
+	return nil
+}
+
 func (mos *MacOSSetup) SetDefaultsIfNeeded() {
 	if mos == nil {
 		return
