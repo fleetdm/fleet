@@ -8,7 +8,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
