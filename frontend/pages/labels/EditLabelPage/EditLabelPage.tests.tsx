@@ -99,9 +99,6 @@ describe("EditLabelPage", () => {
     expect(selectHostsLabel).toBeInTheDocument();
 
     // expect host info to be on the page
-    // Note: findByText already asserts presence in the document, so we don't need
-    // additional toBeInTheDocument() checks. Using findByText with await handles
-    // the async rendering properly.
     await screen.findByText("Test host #1");
     await screen.findByText("Test host #2");
   });
