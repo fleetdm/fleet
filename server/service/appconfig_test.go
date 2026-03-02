@@ -1307,8 +1307,8 @@ func TestMDMConfig(t *testing.T) {
 				},
 			},
 			expectedError: "macos_setup.manual_agent_install Couldn't enable manual_agent_install. To use this option, first specify a bootstrap package.",
-    },
-    {
+		},
+		{
 			name:        "try to disable End User Authentication with Lock End User Info enabled",
 			licenseTier: "premium",
 			newMDM: fleet.MDM{
