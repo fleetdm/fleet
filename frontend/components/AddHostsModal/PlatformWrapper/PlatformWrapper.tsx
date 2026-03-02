@@ -13,6 +13,7 @@ import {
 } from "interfaces/installer";
 
 import Button from "components/buttons/Button";
+import Checkbox from "components/forms/fields/Checkbox";
 import Icon from "components/Icon/Icon";
 import { IconNames } from "components/icons";
 import RevealButton from "components/buttons/RevealButton";
@@ -95,6 +96,8 @@ const PlatformWrapper = ({
     selectedDogfoodPlatform,
     setSelectedDogfoodPlatform,
   ] = useState<IInstallerPlatform | null>(null);
+  const [includeDesktop, setIncludeDesktop] = useState(false);
+  const [showDogfoodSuccess, setShowDogfoodSuccess] = useState(false);
 
   let tlsHostname = config?.server_settings.server_url || "";
 
@@ -544,12 +547,16 @@ const PlatformWrapper = ({
     );
   };
 
-  // A function that detects if the current URL begins with https://dogfood.fleetdm.com/
+  // A function that detects if the current URL begins with https://dogfood.fleetdm.com/ or https://localhost
   const isDogfood = () => {
     if (typeof window === "undefined") {
       return false;
     }
-    return window.location.href.startsWith("https://dogfood.fleetdm.com/");
+    const { href } = window.location;
+    return (
+      href.startsWith("https://dogfood.fleetdm.com/") ||
+      href.startsWith("https://localhost")
+    );
   };
 
   const dogfoodPlatforms: { label: IInstallerPlatform; icon: IconNames }[] = [
@@ -565,8 +572,34 @@ const PlatformWrapper = ({
       INSTALLER_TYPE_BY_PLATFORM[selectedDogfoodPlatform];
     const url = `${
       ENDPOINTS.DOWNLOAD_INSTALLER
-    }/${installerType}?enroll_secret=${encodeURIComponent(enrollSecret)}`;
+    }/${installerType}?desktop=${includeDesktop}&enroll_secret=${encodeURIComponent(
+      enrollSecret
+    )}`;
     window.open(url, "_blank");
+    setShowDogfoodSuccess(true);
+  };
+
+  const getPlatformNoun = () => {
+    if (!selectedDogfoodPlatform) return "host";
+    if (selectedDogfoodPlatform === "Windows") return "Windows";
+    if (selectedDogfoodPlatform === "macOS") return "macOS";
+    return "Linux";
+  };
+
+  const renderDogfoodSuccess = () => {
+    return (
+      <div className={`${baseClass}__dogfood-success`}>
+        <Icon name="success-outline" />
+        <h2>You&rsquo;re almost there</h2>
+        <p>
+          Run the installer on a {getPlatformNoun()} laptop or server to add it
+          to Fleet.
+        </p>
+        <Button variant="default" onClick={onCancel}>
+          Got it
+        </Button>
+      </div>
+    );
   };
 
   const renderDogfoodContent = () => {
@@ -592,6 +625,13 @@ const PlatformWrapper = ({
             </button>
           ))}
         </div>
+        <Checkbox
+          name="include-fleet-desktop"
+          onChange={(newValue: boolean) => setIncludeDesktop(newValue)}
+          value={includeDesktop}
+        >
+          Include Fleet Desktop
+        </Checkbox>
         <Button
           variant="default"
           disabled={!selectedDogfoodPlatform}
@@ -602,6 +642,10 @@ const PlatformWrapper = ({
       </div>
     );
   };
+
+  if (isDogfood() && showDogfoodSuccess) {
+    return <div className={baseClass}>{renderDogfoodSuccess()}</div>;
+  }
 
   return (
     <div className={baseClass}>
