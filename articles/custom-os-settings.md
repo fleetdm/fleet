@@ -113,26 +113,6 @@ macOS, iOS, or iPadOS hosts may display OS settings as "Failed" even when MDM is
 
 To resolve this issue, turn MDM back on, then select **Actions > Turn off MDM** while the host is online.
 
-### Special Windows behavior
-
-For Windows configuration profiles with the [Win32 and Desktop Bridge app ADMX policies](https://learn.microsoft.com/en-us/windows/client-management/win32-and-centennial-app-policy-configuration), Fleet only verifies that the host returned a success status code in response to the MDM command to install the configuration profile. You can query the registry keys defined by the ADMX policy. For instance, if an ADMX file defines the following policy:
-```
-      <policy name="Subteam" class="Machine" displayName="Subteam" key="Software\Policies\employee\Attributes" explainText="Subteam" presentation="String">
-         <parentCategory ref="DefaultCategory" />
-         <supportedOn ref="SUPPORTED_WIN10" />
-         <elements>
-            <text id="Subteam" valueName="Subteam" />
-         </elements>
-      </policy>
-```
-
-To verify that the OS setting is applied, run the following osquery query:
-```
-SELECT data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Policies\employee\Attributes\Subteam';
-```
-
-> If your Windows profile fails with the following error: "The MDM protocol returned a success but the result couldn’t be verified by osquery", and the profile includes `[!CDATA []]` sections, [escape the XML](https://www.freeformatter.com/xml-escape.html) instead of using CDATA. For example, `[!CDATA[<enabled/>]]>` should be changed to `&lt;enabled/&gt;`.
-
 ### Special Android behvaior
 
 On Android, if some settings from the profile fail (e.g. incompatible device), other settings from the profile will still be applied. Failed settings will be surfaced on **Host > OS settings**.
