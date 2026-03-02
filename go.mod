@@ -34,6 +34,7 @@ require (
 	github.com/beevik/etree v1.5.0
 	github.com/beevik/ntp v0.3.0
 	github.com/blakesmith/ar v0.0.0-20190502131153-809d4375e1fb
+	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/boltdb/bolt v1.3.1
 	github.com/briandowns/spinner v1.23.1
 	github.com/cavaliergopher/rpm v1.2.0
@@ -221,7 +222,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.30.8 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.12 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/c-bata/go-prompt v0.2.3 // indirect
 	github.com/cavaliergopher/cpio v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
