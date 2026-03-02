@@ -693,8 +693,24 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestMacOSSetupDeprecated() {
 
 	ctx := context.Background()
 
+	originalAppConfig, err := s.DS.AppConfig(ctx)
+	require.NoError(t, err)
+	noTeam, err := s.DS.TeamByName(ctx, "No team")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		err := s.DS.SaveAppConfig(ctx, originalAppConfig)
+		require.NoError(t, err)
+		_, err = s.DS.SaveTeam(ctx, noTeam)
+		require.NoError(t, err)
+	})
+
 	user := s.createGitOpsUser(t)
 	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	bootstrapServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "testdata/signed.pkg")
+	}))
+	defer bootstrapServer.Close()
 
 	const (
 		globalConfig = `
@@ -713,6 +729,7 @@ queries:
 agent_options:
 controls:
   macos_setup:
+    bootstrap_package: %s
     manual_agent_install: %t
 org_settings:
   server_settings:
@@ -727,6 +744,7 @@ queries:
 		noTeamConfig = `name: No team
 controls:
   macos_setup:
+    bootstrap_package: %s
     manual_agent_install: true
 policies:
 software:
@@ -735,6 +753,7 @@ software:
 		teamConfig = `
 controls:
   macos_setup:
+    bootstrap_package: %s
     manual_agent_install: %t
 software:
 queries:
@@ -755,7 +774,7 @@ team_settings:
 
 	noTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = noTeamFile.WriteString(noTeamConfig)
+	_, err = noTeamFile.WriteString(fmt.Sprintf(noTeamConfig, bootstrapServer.URL))
 	require.NoError(t, err)
 	err = noTeamFile.Close()
 	require.NoError(t, err)
@@ -766,26 +785,26 @@ team_settings:
 	teamName := uuid.NewString()
 	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = teamFile.WriteString(fmt.Sprintf(teamConfig, true, teamName))
+	_, err = teamFile.WriteString(fmt.Sprintf(teamConfig, bootstrapServer.URL, true, teamName))
 	require.NoError(t, err)
 	err = teamFile.Close()
 	require.NoError(t, err)
 	teamFileClear, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = teamFileClear.WriteString(fmt.Sprintf(teamConfig, false, teamName))
+	_, err = teamFileClear.WriteString(fmt.Sprintf(teamConfig, bootstrapServer.URL, false, teamName))
 	require.NoError(t, err)
 	err = teamFileClear.Close()
 	require.NoError(t, err)
 
 	globalFileOnlySet, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = globalFileOnlySet.WriteString(fmt.Sprintf(globalConfigOnly, true))
+	_, err = globalFileOnlySet.WriteString(fmt.Sprintf(globalConfigOnly, bootstrapServer.URL, true))
 	require.NoError(t, err)
 	err = globalFileOnlySet.Close()
 	require.NoError(t, err)
 	globalFileOnlyClear, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = globalFileOnlyClear.WriteString(fmt.Sprintf(globalConfigOnly, false))
+	_, err = globalFileOnlyClear.WriteString(fmt.Sprintf(globalConfigOnly, bootstrapServer.URL, false))
 	require.NoError(t, err)
 	err = globalFileOnlyClear.Close()
 	require.NoError(t, err)
