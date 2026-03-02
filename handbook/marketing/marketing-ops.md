@@ -273,7 +273,10 @@ All campaigns must utilize the following status values. Custom statuses outside 
 - **Registered:** Clicked a link and filled out the resulting form.  
 - **Engaged:** Replied to the email directly.
 
-
+#### Website Chat (Qualified)
+- **Interacted:** We chatted and learned about the prospect
+- **Engaged:** We chatted long enough to offer a meeting 
+- **Meeting Requested:** The prospect has booked a meeting
 
 ## 📧 Contact marketability & compliance
 

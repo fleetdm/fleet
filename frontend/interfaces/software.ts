@@ -94,6 +94,11 @@ export interface ISoftwareAppStoreAppStatus {
   failed: number;
 }
 
+interface IFleetMaintainedVersion {
+  id: number;
+  version: string;
+}
+
 export interface ISoftwarePackage {
   name: string;
   /** Not included in SoftwareTitle software.software_package response, hoisted up one level
@@ -118,6 +123,7 @@ export interface ISoftwarePackage {
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[] | null;
   fleet_maintained_app_id?: number | null;
+  fleet_maintained_versions?: IFleetMaintainedVersion[] | null;
   hash_sha256?: string | null;
 }
 
@@ -249,7 +255,7 @@ export const SOURCE_TYPE_CONVERSION = {
   ipados_apps: "Application (iPadOS)",
   android_apps: "Application (Android)",
   chrome_extensions: "Browser plugin", // chrome_extensions can include any chrome-based browser (e.g., edge), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
-  firefox_addons: "Browser plugin (Firefox)",
+  firefox_addons: "Browser plugin", // we rely on `extension_for` when computing which browser to show in firefox_addons display names.
   safari_extensions: "Browser plugin (Safari)",
   homebrew_packages: "Package (Homebrew)",
   programs: "Program (Windows)",
@@ -319,6 +325,7 @@ const EXTENSION_FOR_TYPE_CONVERSION = {
   brave: "Brave",
   edge: "Edge",
   edge_beta: "Edge Beta",
+  firefox: "Firefox",
 
   // vscode versions
   vscode: "VSCode",

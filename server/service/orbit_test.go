@@ -5,15 +5,15 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	logging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/require"
@@ -175,7 +175,8 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 	t.Run("when private key is set", func(t *testing.T) {
 		ds := new(mock.Store)
 		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
-		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+		opts := &TestServerOpts{License: license, SkipCreateTestUsers: true}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
 		host := &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
 			ID:            1,
@@ -190,15 +191,8 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			}, nil
 		}
 
-		ds.NewActivityFunc = func(
-			ctx context.Context,
-			user *fleet.User,
-			activity fleet.ActivityDetails,
-			details []byte,
-			createdAt time.Time,
-		) error {
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
 			require.Equal(t, activity.ActivityName(), fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName())
-			require.NotEmpty(t, details)
 			return nil
 		}
 
@@ -262,6 +256,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, ds.ReportEscrowErrorFuncInvoked)
 		require.True(t, ds.SaveLUKSDataFuncInvoked)
+		require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 	})
 
 	t.Run("fail when no/invalid private key is set", func(t *testing.T) {
@@ -700,7 +695,7 @@ func TestGetSoftwareInstallDetails(t *testing.T) {
 
 func TestShouldRetrySoftwareInstall(t *testing.T) {
 	svc := &Service{
-		logger: logging.NewNopLogger(),
+		logger: slog.New(slog.DiscardHandler),
 	}
 	ctx := context.Background()
 
@@ -747,7 +742,7 @@ func TestRetrySoftwareInstall(t *testing.T) {
 	ds := new(mock.Store)
 	svc := &Service{
 		ds:     ds,
-		logger: logging.NewNopLogger(),
+		logger: slog.New(slog.DiscardHandler),
 	}
 	ctx := context.Background()
 
@@ -793,7 +788,7 @@ func TestGetSoftwareInstallerAttemptNumber(t *testing.T) {
 	ds := new(mock.Store)
 	svc := &Service{
 		ds:     ds,
-		logger: logging.NewNopLogger(),
+		logger: slog.New(slog.DiscardHandler),
 	}
 	ctx := context.Background()
 	host := &fleet.Host{ID: 1}

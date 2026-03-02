@@ -178,6 +178,8 @@ module.exports = {
         em: 'Email marketing (EM)',
       };
 
+      attributionDetails.gclid = marketingAttributionCookie.gclid;
+
       attributionDetails.sourceChannelDetails = sourceFriendlyNameByCodeName[lowerCaseMediumValue] ? sourceFriendlyNameByCodeName[lowerCaseMediumValue] : undefined;
 
       attributionDetails.initialUrl = marketingAttributionCookie.initialUrl;
@@ -391,6 +393,7 @@ module.exports = {
         valuesToSet.Most_recent_channel__c = attributionDetails.sourceChannel;// eslint-disable-line camelcase
         valuesToSet.Most_recent_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
         valuesToSet.Most_recent_campaign_initial_url__c = attributionDetails.initialUrl;// eslint-disable-line camelcase
+        valuesToSet.GCLID__c = attributionDetails.gclid;// eslint-disable-line camelcase
       }
 
 

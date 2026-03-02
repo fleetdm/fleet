@@ -79,7 +79,7 @@ func SendFailingPoliciesBatchedPOSTs(
 			jsonBytes = endpointer.DuplicateJSONKeys(jsonBytes, rules, endpointer.DuplicateJSONKeysOpts{Compact: true})
 		}
 
-		if err := server.PostJSONWithTimeout(ctx, webhookURL.String(), json.RawMessage(jsonBytes)); err != nil {
+		if err := server.PostJSONWithTimeout(ctx, webhookURL.String(), json.RawMessage(jsonBytes), logger); err != nil {
 			return ctxerr.Wrapf(ctx, server.MaskURLError(err), "posting to %q", server.MaskSecretURLParams(webhookURL.String()))
 		}
 		if err := failingPoliciesSet.RemoveHosts(policy.ID, batch); err != nil {

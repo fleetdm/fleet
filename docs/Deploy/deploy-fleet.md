@@ -1,6 +1,6 @@
 # Hosting Fleet
 
-You can deploy Fleet anywhere, or we can [host it for you](/docs/get-started/faq#can-you-host-fleet-for-me).
+You can deploy Fleet anywhere, (even your [homelab](https://fleetdm.com/guides/deploy-fleet-on-docker-compose)), or we can [host it for you](/docs/get-started/faq#can-you-host-fleet-for-me).
 
 <div purpose="deploying-guide-buttons" class="d-flex flex-column">
     <div purpose="deploying-guide-button-row" class="d-flex flex-row">

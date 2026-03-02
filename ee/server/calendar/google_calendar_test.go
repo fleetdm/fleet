@@ -3,6 +3,7 @@ package calendar
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -10,7 +11,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/calendar/v3"
@@ -26,7 +26,7 @@ const (
 
 var (
 	baseCtx = context.Background()
-	logger  = logging.NewLogfmtLogger(os.Stdout)
+	logger  = slog.New(slog.NewTextHandler(os.Stdout, nil))
 )
 
 type MockGoogleCalendarLowLevelAPI struct {

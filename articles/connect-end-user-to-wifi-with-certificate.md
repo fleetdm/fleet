@@ -4,7 +4,7 @@ _Available in Fleet Premium_
 
 Fleet can help your end users connect to Wi-Fi or VPN by deploying certificates from your certificate authority (CA). Fleet currently supports [DigiCert](#digicert), [Microsoft NDES](#microsoft-ndes),[Smallstep](#smallstep), [Hydrant](#hydrant), and a custom [SCEP](#custom-scep-simple-certificate-enrollment-protocol) or [EST](#custom-est-enrollment-over-secure-transport) server.
 
-Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS) hosts before expiration. Learn more in the [Renewal section](#renewal).
+Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS), Windows, and Android hosts before expiration. Learn more in the [Renewal section](#renewal).
 
 
 ## DigiCert
@@ -198,6 +198,8 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
 The following steps show how to connect end users to Wi-Fi or VPN with [Smallstep](https://smallstep.com/) certificates.
 
 ### Step 1: Configure Smallstep with Fleet information
+
+Currently, using the Smallstep-Jamf connector is the best practice. Fleet is testing the new Smallstep-Fleet connector.
 
 1. In Smallstep, go to **Settings > Device Management**.
 

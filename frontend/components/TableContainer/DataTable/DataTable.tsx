@@ -67,7 +67,7 @@ interface IDataTableProps {
   searchQuery?: string;
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
-  /** Set to true to persist the row selections across table data filters */
+  /** Set to true to persist row selection across client-side filters and pagination */
   persistSelectedRows?: boolean;
   /** Set to `true` to not display the footer section of the table */
   hideFooter?: boolean;
@@ -180,6 +180,9 @@ const DataTable = ({
     {
       columns,
       data,
+      // Use a stable row ID when available (row.id), otherwise fall back to the index-based ID (default of react-table)
+      getRowId: (row: any, index: number) =>
+        row && row.id != null ? String(row.id) : String(index),
       initialState: {
         sortBy: initialSortBy,
         pageIndex: defaultPageIndex,
@@ -197,8 +200,8 @@ const DataTable = ({
       disableSortRemove: true,
       manualSortBy,
       autoResetPage,
-      // Resets row selection on (server-side) pagination
-      autoResetSelectedRows: true,
+      // Resets row selection on pagination
+      autoResetSelectedRows: !persistSelectedRows,
       // Expands the enumerated `filterTypes` for react-table
       // (see https://github.com/TanStack/react-table/blob/alpha/packages/react-table/src/filterTypes.ts)
       // with custom `filterTypes` defined for this `useTable` instance
@@ -695,13 +698,13 @@ const DataTable = ({
               disablePrev={!canPreviousPage}
               disableNext={!canNextPage}
               onPrevPage={() => {
-                toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
+                !persistSelectedRows && toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
                 onClientSidePaginationChange
                   ? onClientSidePaginationChange(pageIndex - 1)
                   : previousPage();
               }}
               onNextPage={() => {
-                toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
+                !persistSelectedRows && toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
                 onClientSidePaginationChange
                   ? onClientSidePaginationChange(pageIndex + 1)
                   : nextPage();

@@ -1,0 +1,1 @@
+- Fixed a bug where Fleet maintained apps for Windows won't show as available in the list when they actually are.

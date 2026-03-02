@@ -143,7 +143,7 @@ The time to establish control is now, before AI tools become entrenched. With a 
 
 In our [next article](https://fleetdm.com/guides/mitigation-assets-and-detection-patterns-for-ai-agents-like-openclaw) (part 3 of this series) Fleet's [Adam Baali](https://www.linkedin.com/in/adambaali/) will go beyond the outline given here and provide mitigations that security teams can use right now. 
 
-About the author: [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv) is Fleet's VP of Security Solutions. Talk to Fleet [https://fleetdm.com/device-management) today to find out how to solve your trickiest device management, data orchestration and security problems. Cross-post:[Threat Hunting AI Agents and Autonomous Tooling: What Your Board Needs to Know](https://www.linkedin.com/pulse/threat-hunting-ai-agents-autonomous-tooling-what-your-dhruv-majumdar-ia49c/?trackingId=jc1qB6wobL0xVUGoy5al%2Fg%3D%3D)
+About the author: [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv) is Fleet's VP of Security Solutions. Talk to [Fleet](https://fleetdm.com/device-management) today to find out how to solve your trickiest device management, data orchestration and security problems. Cross-post:[Threat Hunting AI Agents and Autonomous Tooling: What Your Board Needs to Know](https://www.linkedin.com/pulse/threat-hunting-ai-agents-autonomous-tooling-what-your-dhruv-majumdar-ia49c/?trackingId=jc1qB6wobL0xVUGoy5al%2Fg%3D%3D)
 
 <meta name="articleTitle" value="Detecting AI agents like OpenClaw with automated tooling">
 <meta name="authorFullName" value="Dhruv Majumdar">

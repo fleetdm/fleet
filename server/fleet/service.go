@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
 )
@@ -96,10 +97,20 @@ type LookupService interface {
 	HostLookupService
 }
 
+// ActivityLookupService extends LookupService with methods needed by the
+// activity bounded context's ACL adapter.
+type ActivityLookupService interface {
+	LookupService
+
+	// GetActivitiesWebhookSettings returns the webhook settings for activities.
+	GetActivitiesWebhookSettings(ctx context.Context) (ActivitiesWebhookSettings, error)
+	// ActivateNextUpcomingActivityForHost activates the next upcoming activity for the given host.
+	ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error
+}
+
 type Service interface {
 	OsqueryService
-	UserLookupService
-	HostLookupService
+	ActivityLookupService
 
 	// GetTransparencyURL gets the URL to redirect to when an end user clicks About Fleet
 	GetTransparencyURL(ctx context.Context) (string, error)
@@ -630,6 +641,10 @@ type Service interface {
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
+
+	// SetActivityService sets the activity bounded context service for creating activities.
+	// This should be called after service creation to inject the activity service dependency.
+	SetActivityService(activitySvc api.NewActivityService)
 
 	// NewActivity creates the given activity on the datastore.
 	//

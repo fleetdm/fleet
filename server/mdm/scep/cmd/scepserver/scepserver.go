@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"flag"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -21,8 +23,7 @@ import (
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/gorilla/mux"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 // version info
@@ -85,46 +86,41 @@ func main() {
 		httpAddr = ":" + *flPort
 	}
 
-	var logger log.Logger
+	var logger *slog.Logger
 	{
-
 		if *flLogJSON {
-			logger = log.NewJSONLogger(os.Stderr)
+			logger = logging.NewSlogLogger(logging.Options{Output: os.Stderr, JSON: true, Debug: *flDebug, AddSource: true})
 		} else {
-			logger = log.NewLogfmtLogger(os.Stderr)
+			logger = logging.NewSlogLogger(logging.Options{Output: os.Stderr, Debug: *flDebug, AddSource: true})
 		}
-		if !*flDebug {
-			logger = level.NewFilter(logger, level.AllowInfo())
-		}
-		logger = log.With(logger, "ts", log.DefaultTimestampUTC)
-		logger = log.With(logger, "caller", log.DefaultCaller)
 	}
-	lginfo := level.Info(logger)
+	lginfo := logger
+	ctx := context.TODO()
 
 	var err error
 	var depot scepdepot.Depot // cert storage
 	{
 		depot, err = file.NewFileDepot(*flDepotPath)
 		if err != nil {
-			lginfo.Log("err", err)
+			lginfo.ErrorContext(ctx, "failed to create depot", "err", err)
 			os.Exit(1)
 		}
 	}
 	allowRenewal, err := strconv.Atoi(*flClAllowRenewal)
 	if err != nil {
-		lginfo.Log("err", err, "msg", "No valid number for allowed renewal time")
+		lginfo.ErrorContext(ctx, "No valid number for allowed renewal time", "err", err)
 		os.Exit(1)
 	}
 	clientValidity, err := strconv.Atoi(*flClDuration)
 	if err != nil {
-		lginfo.Log("err", err, "msg", "No valid number for client cert validity")
+		lginfo.ErrorContext(ctx, "No valid number for client cert validity", "err", err)
 		os.Exit(1)
 	}
 	var csrVerifier csrverifier.CSRVerifier
 	if *flCSRVerifierExec > "" {
 		executableCSRVerifier, err := executablecsrverifier.New(*flCSRVerifierExec, lginfo)
 		if err != nil {
-			lginfo.Log("err", err, "msg", "Could not instantiate CSR verifier")
+			lginfo.ErrorContext(ctx, "Could not instantiate CSR verifier", "err", err)
 			os.Exit(1)
 		}
 		csrVerifier = executableCSRVerifier
@@ -134,11 +130,11 @@ func main() {
 	{
 		crts, key, err := depot.CA([]byte(*flCAPass))
 		if err != nil {
-			lginfo.Log("err", err)
+			lginfo.ErrorContext(ctx, "failed to load CA", "err", err)
 			os.Exit(1)
 		}
 		if len(crts) < 1 {
-			lginfo.Log("err", "missing CA certificate")
+			lginfo.ErrorContext(ctx, "missing CA certificate")
 			os.Exit(1)
 		}
 		signerOpts := []scepdepot.Option{
@@ -158,10 +154,10 @@ func main() {
 		}
 		svc, err = scepserver.NewService(crts[0], key, signer, scepserver.WithLogger(logger))
 		if err != nil {
-			lginfo.Log("err", err)
+			lginfo.ErrorContext(ctx, "failed to create SCEP service", "err", err)
 			os.Exit(1)
 		}
-		svc = scepserver.NewLoggingService(log.With(lginfo, "component", "scep_service"), svc)
+		svc = scepserver.NewLoggingService(lginfo.With("component", "scep_service"), svc)
 	}
 
 	var h http.Handler // http handler
@@ -169,7 +165,7 @@ func main() {
 		e := scepserver.MakeServerEndpoints(svc)
 		e.GetEndpoint = scepserver.EndpointLoggingMiddleware(lginfo)(e.GetEndpoint)
 		e.PostEndpoint = scepserver.EndpointLoggingMiddleware(lginfo)(e.PostEndpoint)
-		scepHandler := scepserver.MakeHTTPHandler(e, svc, log.With(lginfo, "component", "http"))
+		scepHandler := scepserver.MakeHTTPHandler(e, svc, lginfo.With("component", "http"))
 		r := mux.NewRouter()
 		r.Handle("/scep", scepHandler)
 		h = r
@@ -178,7 +174,7 @@ func main() {
 	// start http server
 	errs := make(chan error, 2)
 	go func() {
-		lginfo.Log("transport", "http", "address", httpAddr, "msg", "listening")
+		lginfo.InfoContext(ctx, "listening", "transport", "http", "address", httpAddr)
 		errs <- http.ListenAndServe(httpAddr, h) //nolint:gosec
 	}()
 	go func() {
@@ -187,7 +183,7 @@ func main() {
 		errs <- fmt.Errorf("%s", <-c)
 	}()
 
-	lginfo.Log("terminated", <-errs)
+	lginfo.InfoContext(ctx, "terminated", "err", <-errs)
 }
 
 func caMain(cmd *flag.FlagSet) int {
