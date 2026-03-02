@@ -302,9 +302,9 @@ type PolicyData struct {
 
 	UpdateCreateTimestamps
 
-	Type                   string `json:"type" db:"type"`
+	Type                   string `json:"type,omitempty" db:"type"`
 	PatchSoftwareTitleID   *uint  `json:"-" db:"patch_software_title_id"`
-	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug"`
+	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug,omitempty"`
 }
 
 // Policy is a fleet's policy query.
