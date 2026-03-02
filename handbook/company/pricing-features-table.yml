@@ -397,7 +397,7 @@
 #   ║ ╠═╣╠╦╝║ ╦║╣  ║ ║╣  ║║   ║║║╣ ╚╗╔╝║║  ║╣   ╚═╗║  ║ ║╠═╝║║║║║ ╦
 #   ╩ ╩ ╩╩╚═╚═╝╚═╝ ╩ ╚═╝═╩╝  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╚═╝╚═╝╚═╝╩  ╩╝╚╝╚═╝
 - industryName: Targeted device scoping
-  description: Organize devices with Teams and Labels.
+  description: Organize devices with fleets and labels.
   documentationUrl: https://fleetdm.com/guides/managing-labels-in-fleet
   tier: Premium
   jamfProHasFeature: yes
@@ -771,7 +771,7 @@
 - industryName: Teams
   friendlyName: Manage different endpoints differently
   documentationUrl: https://fleetdm.com/docs/using-fleet/segment-hosts
-  description: Teams are what Fleet calls baselines, similar to security groups or images. Every host in a team matches the same baseline, with minor exceptions. This makes it faster and less risky to maintain computers, leading to faster timelines and fewer tickets. #Enroll hosts into device groups ("teams") using different enrollment secrets and/or installers. Set baselines and strategies for hosts in different situations, and move hosts between them via API-driven automations or a simple, delegatable user interface with role-based access.
+  description: Teams are what Fleet calls baselines, similar to security groups or images. Every host in a fleet matches the same baseline, with minor exceptions. This makes it faster and less risky to maintain computers, leading to faster timelines and fewer tickets. #Enroll hosts into device groups ("fleets") using different enrollment secrets and/or installers. Set baselines and strategies for hosts in different situations, and move hosts between them via API-driven automations or a simple, delegatable user interface with role-based access.
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
