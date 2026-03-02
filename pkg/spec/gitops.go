@@ -965,7 +965,7 @@ func (o *GlobExpandOptions) setDefaults() {
 		o.AllowedExtensions = defaultAllowedExtensions
 	}
 	if o.LogFn == nil {
-		o.LogFn = func(_ string, _ ...interface{}) {}
+		o.LogFn = func(_ string, _ ...any) {}
 	}
 }
 
@@ -1024,7 +1024,7 @@ func flattenBaseItems(input []BaseItem, baseDir string, entityType string, opts 
 			continue
 		// Inline item (no file reference) — pass through unchanged.
 		case !hasPath && !hasPaths:
-			result = append(result, item)
+			errs = append(errs, fmt.Errorf(`%s entry has no "path" or "paths" field; check for a stray "-" in the list`, entityType))
 			continue
 		// Single path -- resolve to absolute path and add to result.
 		case hasPath:
@@ -1078,19 +1078,11 @@ func flattenBaseItems(input []BaseItem, baseDir string, entityType string, opts 
 
 func resolveScriptPaths(input []BaseItem, baseDir string, logFn Logf) ([]BaseItem, []error) {
 	// Scripts always require a file reference — reject bare items before flattening.
-	var errs []error
-	for _, item := range input {
-		if item.Path == nil && item.Paths == nil {
-			errs = append(errs, errors.New(`script entry has no "path" or "paths" field; check for a stray "-" in the list`))
-		}
-	}
-	result, errs2 := flattenBaseItems(input, baseDir, "script", GlobExpandOptions{
+	return flattenBaseItems(input, baseDir, "script", GlobExpandOptions{
 		AllowedExtensions: allowedScriptExtensions,
 		UniqueBasenames:   true,
 		LogFn:             logFn,
 	})
-	errs = append(errs, errs2...)
-	return result, errs
 }
 
 func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {

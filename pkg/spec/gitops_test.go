@@ -1794,7 +1794,7 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
 		var warnings []string
-		logFn := func(format string, args ...interface{}) {
+		logFn := func(format string, args ...any) {
 			warnings = append(warnings, fmt.Sprintf(format, args...))
 		}
 		items := []BaseItem{{Paths: strPtr("*.sh")}}
@@ -1844,7 +1844,7 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "bad.py"), []byte("python"), 0o644))
 
 		var warnings []string
-		logFn := func(format string, args ...interface{}) {
+		logFn := func(format string, args ...any) {
 			warnings = append(warnings, fmt.Sprintf(format, args...))
 		}
 
