@@ -107,6 +107,10 @@ func (e *InvalidArgumentError) Append(name, reason string) {
 	})
 }
 
+func (e *InvalidArgumentError) AppendInvalidArgument(invalidArg InvalidArgument) {
+	e.Errors = append(e.Errors, invalidArg)
+}
+
 func (e *InvalidArgumentError) Appendf(name, reasonFmt string, args ...interface{}) {
 	e.Append(name, fmt.Sprintf(reasonFmt, args...))
 }
