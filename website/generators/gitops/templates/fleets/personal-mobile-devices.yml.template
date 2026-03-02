@@ -39,14 +39,24 @@ controls:
 
   ###########################################################
   # Presets, restrictions, and configs
+  #
+  # > Since the mobile devices in this fleet are personal
+  # > devices owned by employees, it can be appropriate to
+  # > cherry-pick only a very limited set of restrictions
+  # > and presets to maximize privacy and employee freedom.
+  #
+  # For more, see:
+  #   • https://fleetdm.com/docs/configuration/yaml-files#apple-settings-and-windows-settings
+  #   • https://fleetdm.com/docs/configuration/yaml-files#android-settings
   ###########################################################
   apple_settings:
-    # Since these mobile devices are personally-owned,
-    # we cherry pick only a very limited set of restrictions and presets.
     profiles:
       # … e.g.
       # - path: ../lib/ios/declaration-profiles/Passcode settings.json
       # - path: ../lib/ios/configuration-profiles/self-service.mobileconfig
+  android_settings:
+    profiles:
+    certificates:
 
 ###########################################################
 # Software available for install

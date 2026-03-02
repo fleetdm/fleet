@@ -1,3 +1,11 @@
+# TODO: maybe delete this for the sake of simplicity, since
+# not everyone has it in their org (even some large orgs),
+# and you're just as likely to have dedicated devices (kiosks)
+# or shared devices (e.g. hospital) and we're not including
+# fleets for those use cases out of the box.  Probably clear
+# examples and a link to find them easily is better, and then
+# keeping the boilerplate small and simplistic...
+
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #
 # employee-issued-mobile-devices.yml
