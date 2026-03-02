@@ -20,11 +20,11 @@ export const newFormDataIdp = (
   };
 };
 
-// export const isEmptyFormData = (data: IFormDataIdp) => {
-//   return (
-//     !data.idp_name && !data.entity_id && !data.metadata && !data.metadata_url
-//   );
-// };
+export const isEmptyFormData = (data: IFormDataIdp) => {
+  return (
+    !data.idp_name && !data.entity_id && !data.metadata && !data.metadata_url
+  );
+};
 
 export const isMissingAnyRequiredField = (data: IFormDataIdp) => {
   return (
@@ -83,12 +83,9 @@ export const validateFormDataIdp = (
   data: IFormDataIdp
 ): IFormErrorsIdp | null => {
   let formErrors: IFormErrorsIdp | null = null;
-  // if (isEmptyFormData(data)) {
-  //   // TODO: confirm whether we want to allow user to save an empty form or if should be treated
-  //   // as a form error (what happens is they have enabled end user auth for the team (which located in another
-  //   // part of the UI) and then try to delete the idp settings here?)
-  //   return formErrors;
-  // }
+  if (isEmptyFormData(data)) {
+    return formErrors;
+  }
   Object.entries(validators).forEach(([k, v]) => {
     const err = v(data);
     if (err) {

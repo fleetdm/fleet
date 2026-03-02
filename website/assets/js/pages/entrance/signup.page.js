@@ -84,6 +84,12 @@ parasails.registerPage('signup', {
       // > "Website - Sign up" becomes "fleet_website__sign_up"  (double-underscore representing hierarchy)
       if(window.gtag !== undefined){
         window.gtag('event','fleet_website__sign_up');
+        // Additional conversion tracking
+        window.gtag('event', 'conversion', {
+          'send_to': 'AW-10788733823/YELaCL_xm_obEP-GvJgo',
+          'value': 1.0,
+          'currency': 'USD'
+        });
       }
 
       // Track a "conversion" in LinkedIn Campaign Manager.

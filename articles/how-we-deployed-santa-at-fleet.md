@@ -15,19 +15,69 @@ Either method allows the Santa app to be installed on a test device group throug
 
 **Step 2: Deploy the Santa configuration**
 
-Santa Configuration Profile: https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/configuration-profiles/santa-configuration.mobileconfig
-
-Santa rules Configuration Profile: https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/configuration-profiles/santa-rules.mobileconfig
-
 Our suggested best practice is to deploy two Configuration Profiles: one for managing the Santa app configuration and the other for managing Santa rules. Keeping the two configurations modular and separate minimizes the risk of Santa rules changes from interfering with the app config.
 
-![santa-configuration](../website/assets/images/articles/santa-configuration-630x395@2x.png)
+Here's a snippet from our [Santa configuration profile](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/configuration-profiles/santa-configuration.mobileconfig):
 
-_Santa configuration_
+```xml
+<dict>
+    <key>BannedBlockMessage</key>
+    <string>This application has been blocked by a security policy.</string>
+    <key>ClientMode</key>
+    <integer>1</integer>
+    <key>FileChangesRegex</key>
+    <string>^/(?!(?:private/tmp|Library/(?:Caches|Managed Installs/Logs|(?:Managed )?Preferences))/)</string>
+    <key>MachineIDKey</key>
+    <string>MachineUUID</string>
+    <key>MachineIDPlist</key>
+    <string>/Library/Preferences/com.company.machine-mapping.plist</string>
+    <key>MachineOwnerKey</key>
+    <string>Owner</string>
+    <key>MachineOwnerPlist</key>
+    <string>/Library/Preferences/com.company.machine-mapping.plist</string>
+    <key>ModeNotificationLockdown</key>
+    <string>Entering Lockdown mode</string>
+    <key>ModeNotificationMonitor</key>
+    <string>Entering Monitor mode&lt;br/&gt;Please be careful!</string>
+    <key>SyncBaseURL</key>
+    <string></string>
+</dict>
+```
 
-![santa-rules](../website/assets/images/articles/santa-rules-650x495@2x.png)
+Here's a snippet from our [Santa rules configuration profile](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/configuration-profiles/santa-rules.mobileconfig):
 
-_Santa rules_
+```xml
+<key>StaticRules</key>
+<array>
+    <dict>
+        <!-- Always allow files signed by North Pole Security Inc -->
+        <key>identifier</key>
+        <string>ZMCG7MLDV9</string>
+        <key>policy</key>
+        <string>ALLOWLIST</string>
+        <key>rule_type</key>
+        <string>TEAMID</string>
+    </dict>
+    <dict>
+        <!-- Always BLOCK the BundleExample.app binary in Santa's testdata files, for testing -->
+        <key>identifier</key>
+        <string>b7c1e3fd640c5f211c89b02c2c6122f78ce322aa5c56eb0bb54bc422a8f8b670</string>
+        <key>policy</key>
+        <string>BLOCKLIST</string>
+        <key>rule_type</key>
+        <string>BINARY</string>
+    </dict>
+    <dict>
+        <!-- Block WhatsApp.app -->
+        <key>identifier</key>
+        <string>54a8ec11bcea48a276b1fdce556a29108ba77de4</string>
+        <key>policy</key>
+        <string>BLOCKLIST</string>
+        <key>rule_type</key>
+        <string>CDHASH</string>
+    </dict>
+</array>
+```
 
 **Step 3. Deploy Santa Extensions**
 
@@ -53,6 +103,10 @@ _Slack message_
 
 ## The GitOps advantage
 
+![pull-request](../website/assets/images/articles/pull-request-1000x425@2x.png)
+
+_Pull Request adding an additional rule_
+
 By leveraging GitOps principles through Fleet, Santa management becomes:
 
 - **Version Controlled:** Every rule change is tracked in Git with full audit trails
@@ -60,19 +114,7 @@ By leveraging GitOps principles through Fleet, Santa management becomes:
 - **Automatically Deployed:** CI/CD pipelines handle rule distribution without manual intervention
 - **Easily Rollbacked:** Git reverts enable instant rollback of problematic rule changes
 
-![pull-request](../website/assets/images/articles/pull-request-1000x425@2x.png)
-
-_Pull Request adding an additional rule_
-
-## The bottom line
-
-Fleet believes in reducing complexity. Fleet's GitOps-native approach provides all the functionality of a custom Santa sync server while adding enterprise device management, operational simplicity, and modern change management capabilities while eliminating infrastructure maintenance. It's a more scalable and secure approach to binary authorization that aligns with modern infrastructure practices.
-
-Ready to modernize your Santa deployment? Fleet's open-source platform makes it easier than ever to implement GitOps-driven binary authorization without the operational overhead of traditional sync servers.
-
-Additional progress and discussion on a native Santa + Fleet integration can be tracked in this feature request: https://github.com/fleetdm/fleet/issues/24910
-
-Fleet is an open-source device management platform that provides GitOps-native configuration management, comprehensive device visibility, and enterprise-grade security for organizations managing thousands of endpoints. Learn more at https://fleetdm.com.
+About the author: [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) is a Solutions Consultant / individual contributor and head of IT at Fleet Device Management.
 
 <meta name="articleTitle" value="How we deployed Santa at Fleet">
 <meta name="authorFullName" value="Allen Houchins">

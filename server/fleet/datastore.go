@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
+	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/jmoiron/sqlx"
 )
@@ -785,12 +786,14 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
 
-	NewActivity(ctx context.Context, user *User, activity ActivityDetails, details []byte, createdAt time.Time) error
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*UpcomingActivity, *PaginationMetadata, error)
 	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) (ActivityDetails, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 	GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*UpcomingActivityMeta, error)
 	UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error)
+	// ActivateNextUpcomingActivityForHost activates the next upcoming activity for the given host.
+	// fromCompletedExecID is the execution ID of the activity that just completed (if any).
+	ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
@@ -2001,11 +2004,9 @@ type Datastore interface {
 	// CleanupUnusedScriptContents will remove script contents that have no references to them from
 	// the scripts or host_script_results tables.
 	CleanupUnusedScriptContents(ctx context.Context) error
-	// CleanupActivitiesAndAssociatedData will cleanup (up to maxCount) activities and their associated data
-	// that are older than the given expiration window.
-	//
-	// The argument maxCount is used to not lock the database for long periods of time.
-	CleanupActivitiesAndAssociatedData(ctx context.Context, maxCount int, expiryWindowDays int) error
+	// CleanupExpiredLiveQueries cleans up unsaved queries older than the given expiration window (in days),
+	// orphaned distributed query campaigns that reference non-existing queries, and orphaned campaign targets that reference non-existing campaigns.
+	CleanupExpiredLiveQueries(ctx context.Context, expiryWindowDays int) error
 	// WipeHostViaScript sends a script to wipe a host and updates the
 	// states in host_mdm_actions.
 	WipeHostViaScript(ctx context.Context, request *HostScriptRequestPayload, hostFleetPlatform string) error
@@ -2914,11 +2915,11 @@ const (
 // same in both (the other is currently NotFound), and ideally we'd just have
 // one of those interfaces.
 
-// NotFoundError is an alias for platform_http.NotFoundError.
-type NotFoundError = platform_http.NotFoundError
+// NotFoundError is an alias for platform_errors.NotFoundError.
+type NotFoundError = platform_errors.NotFoundError
 
-// IsNotFound is an alias for platform_http.IsNotFound.
-var IsNotFound = platform_http.IsNotFound
+// IsNotFound is an alias for platform_errors.IsNotFound.
+var IsNotFound = platform_errors.IsNotFound
 
 // AlreadyExistsError is an alias for platform_http.AlreadyExistsError.
 type AlreadyExistsError = platform_http.AlreadyExistsError

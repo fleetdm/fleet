@@ -6,24 +6,8 @@ import (
 	"time"
 )
 
-type ContextKey string
-
-type ActivityWebhookPayload struct {
-	Timestamp     time.Time        `json:"timestamp"`
-	ActorFullName *string          `json:"actor_full_name"`
-	ActorID       *uint            `json:"actor_id"`
-	ActorEmail    *string          `json:"actor_email"`
-	Type          string           `json:"type"`
-	Details       *json.RawMessage `json:"details"`
-}
-
-// ActivityWebhookContextKey is the context key to indicate that the activity webhook has been processed before saving the activity.
-const ActivityWebhookContextKey = ContextKey("ActivityWebhook")
-
-// ActivityAutomationAuthor is the name used for the actor when an activity
-// is performed by Fleet automation (cron jobs, system operations, etc.)
-// rather than by a human user.
-const ActivityAutomationAuthor = "Fleet"
+// NewActivityFunc is the function signature for creating a new activity.
+type NewActivityFunc func(ctx context.Context, user *User, activity ActivityDetails) error
 
 type Activity struct {
 	CreateTimestamp
@@ -263,38 +247,6 @@ var ActivityDetailsList = []ActivityDetails{
 type ActivityDetails interface {
 	// ActivityName is the name/type of the activity.
 	ActivityName() string
-}
-
-// ActivityHosts is the optional additional interface that can be implemented
-// by activities that are related to hosts.
-type ActivityHosts interface {
-	ActivityDetails
-	HostIDs() []uint
-}
-
-// AutomatableActivity is the optional additional interface that can be implemented
-// by activities that are sometimes the result of automation ("Fleet did X"), starting with
-// install/script run policy automations
-type AutomatableActivity interface {
-	ActivityDetails
-	WasFromAutomation() bool
-}
-
-// ActivityHostOnly is the optional additional interface that can be implemented by activities that
-// we want to exclude from the global activity feed, and only show on the Hosts details page
-type ActivityHostOnly interface {
-	ActivityDetails
-	HostOnly() bool
-}
-
-// ActivityActivator is the optional additional interface that can be implemented by activities that
-// may require activating the next upcoming activity when it gets created. Most upcoming activities get
-// activated when the result of the previous one completes (such as scripts and software installs), but
-// some can only be activated when the activity gets recorded (such as VPP and in-house apps).
-type ActivityActivator interface {
-	ActivityDetails
-	MustActivateNextUpcomingActivity() bool
-	ActivateNextUpcomingActivityArgs() (hostID uint, cmdUUID string)
 }
 
 type ActivityTypeEnabledActivityAutomations struct {

@@ -65,6 +65,7 @@ describe("EditLabelPage", () => {
     mockServer.use(
       getLabelHostsHandler([
         {
+          id: 1,
           hostname: "hosty numero uno",
           display_name: "Test host #1",
           team_id: 2,
@@ -74,6 +75,7 @@ describe("EditLabelPage", () => {
           hardware_serial: "test-serial-1",
         },
         {
+          id: 2,
           hostname: "hosty numero dos",
           display_name: "Test host #2",
           team_id: 2,

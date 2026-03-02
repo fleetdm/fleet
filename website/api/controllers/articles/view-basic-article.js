@@ -72,14 +72,6 @@ module.exports = {
       'articles': 'Blog',
     };
     let categoryFriendlyName = categoryFriendlyNamesByCategorySlug[articleCategorySlug];
-    // Set the currentSection variable for the website header to "customers" if the article is shown on the testimonials page.
-    let currentSection;
-    if(thisPage.meta.showOnTestimonialsPageWithEmoji) {
-      currentSection = 'customers';
-    } else {
-      // otherwise, highlight the "More" dropdown.
-      currentSection = 'more';
-    }
 
 
     // Respond with view.
@@ -93,7 +85,7 @@ module.exports = {
       pageImageForMeta: thisPage.meta.articleImageUrl || undefined,
       articleCategorySlug,
       categoryFriendlyName,
-      currentSection,
+      currentSection: 'more',
       algoliaPublicKey: sails.config.custom.algoliaPublicKey,
     };
 

@@ -27,7 +27,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-kit/log/level"
 	"google.golang.org/api/androidmanagement/v1"
 )
 
@@ -391,7 +390,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 		titleID, ok := appStoreIDToTitleID[app.VPPAppID.String()]
 		if !ok {
-			level.Error(svc.logger).Log("msg", "software title missing for vpp app", "vpp_app_id", app.VPPAppID.String())
+			svc.logger.ErrorContext(ctx, "software title missing for vpp app", "vpp_app_id", app.VPPAppID.String())
 			continue
 		}
 
@@ -450,7 +449,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	if len(androidHostPoliciesToUpdate) > 0 && enterprise != nil {
 		for hostUUID, policyID := range androidHostPoliciesToUpdate {
-			err := worker.QueueBulkSetAndroidAppsAvailableForHost(ctx, svc.ds, svc.logger.SlogLogger(), hostUUID, policyID, appIDs, enterprise.Name())
+			err := worker.QueueBulkSetAndroidAppsAvailableForHost(ctx, svc.ds, svc.logger, hostUUID, policyID, appIDs, enterprise.Name())
 			if err != nil {
 				return nil, ctxerr.WrapWithData(
 					ctx,
@@ -588,7 +587,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	if teamID != nil && *teamID != 0 {
 		tm, err := svc.ds.TeamLite(ctx, *teamID)
 		if fleet.IsNotFound(err) {
-			return 0, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+			return 0, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 				WithStatus(http.StatusNotFound)
 		} else if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "checking if team exists")
@@ -752,7 +751,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		return 0, ctxerr.Wrap(ctx, err, "writing VPP app to db")
 	}
 	if appID.Platform == fleet.AndroidPlatform {
-		err := worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger.SlogLogger(), appID.AdamID, addedApp.AppTeamID, androidEnterpriseName, androidConfigChanged)
+		err := worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger, appID.AdamID, addedApp.AppTeamID, androidEnterpriseName, androidConfigChanged)
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")
 		}
@@ -784,7 +783,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		}
 
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
-			level.Warn(svc.logger).Log("msg", "failed to create activity for create automatic install policy for app store app", "err", err)
+			svc.logger.WarnContext(ctx, "failed to create activity for create automatic install policy for app store app", "err", err)
 		}
 
 	}
@@ -903,7 +902,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	if teamID != nil && *teamID != 0 {
 		tm, err := svc.ds.TeamLite(ctx, *teamID)
 		if fleet.IsNotFound(err) {
-			return nil, nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+			return nil, nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 				WithStatus(http.StatusNotFound)
 		} else if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: checking if team exists")
@@ -1039,7 +1038,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		if err != nil {
 			return nil, nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
 		}
-		err = worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger.SlogLogger(), appToWrite.AdamID, insertedApp.AppTeamID, enterprise.Name(), androidConfigChanged)
+		err = worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger, appToWrite.AdamID, insertedApp.AppTeamID, enterprise.Name(), androidConfigChanged)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")
 		}
@@ -1315,7 +1314,7 @@ func (svc *Service) CreateAndroidWebApp(ctx context.Context, title, startURL str
 	if packageName == createdApp.Name || !strings.HasPrefix(packageName, fleet.AndroidWebAppPrefix) {
 		// logging this as an error, because the frontend uses the package name to hide some actions
 		// not available to WebApps, we must know if somehow android changes how those get named.
-		level.Error(svc.logger).Log("msg", "created Android webApp does not have expected package name format", "package_name", createdApp.Name)
+		svc.logger.ErrorContext(ctx, "created Android webApp does not have expected package name format", "package_name", createdApp.Name)
 	}
 	return packageName, nil
 }

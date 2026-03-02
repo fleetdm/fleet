@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -21,9 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding/unicode"
@@ -200,12 +199,12 @@ func (a *certificateTemplateForHostAdapter) GetProfileUUID() string {
 type scepProxyService struct {
 	ds fleet.Datastore
 	// info logging is implemented in the service middleware layer.
-	debugLogger *logging.Logger
+	debugLogger *slog.Logger
 	Timeout     *time.Duration
 }
 
 // NewSCEPProxyService creates a new scep proxy service
-func NewSCEPProxyService(ds fleet.Datastore, logger *logging.Logger, timeout *time.Duration) scepserver.ServiceWithIdentifier {
+func NewSCEPProxyService(ds fleet.Datastore, logger *slog.Logger, timeout *time.Duration) scepserver.ServiceWithIdentifier {
 	if timeout == nil {
 		timeout = ptr.Duration(30 * time.Second)
 	}
@@ -436,11 +435,10 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 				// FIXME: The layered logging implementation of the scepProxyService not
 				// intuitive. Can we make it so that we return fleet.ErrWithInternal to
 				// better capture/log the context errors here?
-				svc.debugLogger.Log(
-					"msg", "custom scep proxy: failed to handle fleet challenge",
+				svc.debugLogger.ErrorContext(ctx, "custom scep proxy: failed to handle fleet challenge",
 					"host_uuid", hostUUID,
 					"profile_uuid", profileUUID,
-					"err", err.Error(),
+					"err", err,
 				)
 				return "", &scepserver.BadRequestError{
 					Message: "custom scep challenge failed",
@@ -485,12 +483,12 @@ func (svc *scepProxyService) handleFleetChallenge(ctx context.Context, fleetChal
 }
 
 type SCEPConfigService struct {
-	logger *logging.Logger
+	logger *slog.Logger
 	// Timeout is the timeout for SCEP requests.
 	Timeout *time.Duration
 }
 
-func NewSCEPConfigService(logger *logging.Logger, timeout *time.Duration) fleet.SCEPConfigService {
+func NewSCEPConfigService(logger *slog.Logger, timeout *time.Duration) fleet.SCEPConfigService {
 	if timeout == nil {
 		timeout = ptr.Duration(30 * time.Second)
 	}
@@ -557,7 +555,7 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 		}
 
 		// If we can't find a specific error, we log more context in terms of the request to further diagnose
-		level.Debug(s.logger).Log("msg", "failed to parse NDES challenge from admin URL response", "ca_type", fleet.CATypeNDESSCEPProxy, "raw_response", htmlString, "request_duration", endRequestTime.Sub(startRequestTime).Seconds())
+		s.logger.DebugContext(ctx, "failed to parse NDES challenge from admin URL response", "ca_type", fleet.CATypeNDESSCEPProxy, "raw_response", htmlString, "request_duration", endRequestTime.Sub(startRequestTime).Seconds())
 		return "", ctxerr.Wrap(ctx,
 			NewNDESInvalidError("could not retrieve the enrollment challenge password; invalid admin URL or credentials; please correct and try again"))
 	}
@@ -609,6 +607,7 @@ func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fl
 		return "", ctxerr.Wrap(ctx, err, "creating request")
 	}
 	req.SetBasicAuth(ca.Username, ca.Password)
+	req.Header.Set("Content-Type", "application/json")
 	startRequestTime := time.Now()
 	resp, err := client.Do(req)
 	endRequestTime := time.Now()
@@ -618,9 +617,13 @@ func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fl
 	if resp.StatusCode != http.StatusOK {
 		reader := io.LimitReader(resp.Body, units.MiB*2)
 		if b, err := io.ReadAll(reader); err == nil {
-			level.Debug(s.logger).Log("msg", "failed to get Smallstep SCEP challenge", "status_code", resp.StatusCode, "status", resp.Status, "ca_type", fleet.CATypeSmallstep, "raw_response", string(b), "request_duration", endRequestTime.Sub(startRequestTime).Seconds())
+			s.logger.DebugContext(ctx, "failed to get Smallstep SCEP challenge",
+				"status_code", resp.StatusCode, "status", resp.Status, "ca_type", fleet.CATypeSmallstep,
+				"raw_response", string(b), "request_duration", endRequestTime.Sub(startRequestTime).Seconds())
 		} else {
-			level.Debug(s.logger).Log("msg", "failed to get Smallstep SCEP challenge and failed to read response body", "status_code", resp.StatusCode, "status", resp.Status, "ca_type", fleet.CATypeSmallstep, "read_error", err.Error(), "request_duration", endRequestTime.Sub(startRequestTime).Seconds())
+			s.logger.DebugContext(ctx, "failed to get Smallstep SCEP challenge and failed to read response body",
+				"status_code", resp.StatusCode, "status", resp.Status, "ca_type", fleet.CATypeSmallstep,
+				"read_error", err.Error(), "request_duration", endRequestTime.Sub(startRequestTime).Seconds())
 		}
 		return "", ctxerr.Wrap(ctx, fmt.Errorf("status code %d", resp.StatusCode), "getting Smallstep SCEP challenge")
 	}
