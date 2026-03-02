@@ -47,7 +47,6 @@ org_settings:
   #   entity_id: "fleet-admins" # This must exactly match the "Entity ID" field you chose when setting up this integration in your identity provider (IdP).
 
   mdm:
-    
     ###########################################################
     # Uncomment to use single-sign on (SSO) to authenticate 
     # new computers enrolling in Fleet during end user setup.
