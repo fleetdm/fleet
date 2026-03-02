@@ -2,8 +2,15 @@
 #
 # personal-issued-mobile-devices.yml
 # 
-# This fleet manifest configures controls/automations/reports/etc
-# that apply only to computing devices in this particular fleet.
+# Use this fleet manifest to configure controls, software,
+# and settings that apply only to computing devices (hosts)
+# in this particular fleet.
+# 
+# > Note: By convention, the "📱🔐 Personal mobile devices"
+# > fleet is where employee-owned iPhone and Android phones
+# > are enrolled, for example as part of a BYOD ("bring your
+# > own device") program.  This allows for clear separation
+# > and encourages employee freedom and privacy.
 #
 # To see all supported options, check out:
 #   • https://fleetdm.com/docs/configuration/yaml-files

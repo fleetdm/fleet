@@ -41,7 +41,7 @@ org_settings:
     server_url: https://fleet.example.com # TODO: Replace with the URL where Fleet is running.
 
   ###########################################################
-  # Uncomment to use single sign-on (SSO) for operators accessing Fleet.
+  # Uncomment to use single sign-on (SSO) for admins accessing Fleet.
   # 
   # Read more:
   #   • https://fleetdm.com/docs/configuration/yaml-files#sso-settings
@@ -81,7 +81,8 @@ org_settings:
     
     ###########################################################
     # Uncomment to start using Apple's volume purchase program (VPP)
-    # for managing software licenses.
+    # for making software available from the App Store and managing
+    # software licenses.
     #
     # Read more:
     #   • https://fleetdm.com/docs/configuration/yaml-files#volume-purchasing-program

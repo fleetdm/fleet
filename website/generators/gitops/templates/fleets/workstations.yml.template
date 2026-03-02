@@ -2,8 +2,13 @@
 #
 # workstations.yml
 # 
-# This fleet manifest configures controls/automations/reports/etc
-# that apply only to computing devices in this particular fleet.
+# Use this fleet manifest to configure controls, software,
+# automations, policies, and reports that apply only to
+# computing devices (hosts) in this particular fleet.
+# 
+# > Note: By convention, the "💻 Workstations" fleet is
+# > where all internal, company-owned laptops, PCs, and
+# > other productivity endpoints (i.e. computers) are enrolled.
 #
 # To see all supported options, check out:
 #   • https://fleetdm.com/docs/configuration/yaml-files
@@ -14,7 +19,6 @@ controls:
   ###########################################################
   # Disk encryption with escrowed keys
   ###########################################################
-  # to enable…
   # enable_disk_encryption: true
 
   ###########################################################
@@ -34,7 +38,7 @@ controls:
   ###########################################################
   # Setup experience
   ###########################################################
-  macos_setup:
+  apple_setup:
     # To enable SSO, uncomment this
     # enable_end_user_authentication: true
     # bootstrap_package: "" # remove it and make sure it works
@@ -47,12 +51,12 @@ controls:
   # For more, see:
   #   • https://fleetdm.com/docs/configuration/yaml-files#controls
   ###########################################################
-  macos_settings:
-    custom_settings: #FUTURE: stat disk and auto-include all via glob
+  apple_settings:
+    profiles: #FUTURE: stat disk and auto-include all via glob
       # - paths: ../platforms/macos/declaration-profiles/*.json
       # - paths: ../platforms/macos/configuration-profiles/*.mobileconfig
   windows_settings:
-    custom_settings: #FUTURE: stat disk and auto-include all via glob
+    profiles: #FUTURE: stat disk and auto-include all via glob
       # - paths: ../platforms/windows/configuration-profiles/*.xml
   
   scripts:

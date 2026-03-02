@@ -2,14 +2,21 @@
 #
 # employee-issued-mobile-devices.yml
 # 
-# This fleet manifest configures controls/automations/reports/etc
-# that apply only to computing devices in this particular fleet.
+# Use this fleet manifest to configure controls, software,
+# and settings that apply only to computing devices (hosts)
+# in this particular fleet.
+# 
+# > Note: By convention, the "📱🏢 Employee-issued mobile
+# > devices" fleet is where company-owned (/org-owned)
+# > Android, iOS, and iPadOS mobile devices are enrolled,
+# > such as engineering test devices, or dedicated smartphones
+# > purchased by your org and issued for security reasons.
 #
 # To see all supported options, check out:
 #   • https://fleetdm.com/docs/configuration/yaml-files
 #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-name: 📱🏢 Employee-issued mobile devices
+name: "📱🏢 Employee-issued mobile devices"
 controls:
 
   ###########################################################
@@ -26,17 +33,17 @@ controls:
   ###########################################################
   # Setup experience
   ###########################################################
-  macos_setup: # TODO: wtf this is not the right name
+  apple_setup:
   # To enable SSO, uncomment this
   # enable_end_user_authentication: true
 
   ###########################################################
   # Presets, restrictions, and configs
   ###########################################################
-  macos_settings: # TODO: wtf this is not the right name
-    custom_settings: #FUTURE: stat disk and auto-include all via glob
-      # - paths: ../platforms/ios/declaration-profiles/*.json
-      # - paths: ../platforms/ios/configuration-profiles/*.mobileconfig
+  apple_settings:
+    custom_profiles:
+      - paths: ../platforms/ios/declaration-profiles/*.json
+      - paths: ../platforms/ios/configuration-profiles/*.mobileconfig
       # - paths: ../platforms/ipados/declaration-profiles/*.json
       # - paths: ../platforms/ipados/configuration-profiles/*.mobileconfig
 
