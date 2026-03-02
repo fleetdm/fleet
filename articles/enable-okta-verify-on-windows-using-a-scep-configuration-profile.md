@@ -107,8 +107,8 @@ Get-WinEvent -LogName Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-
 
 1. Log in to Okta Admin Console
 2. Navigate to **Reports** > **System Log**
-3. Filter for device attestation events
-4. Confirm the device appears as managed
+3. Filter for certificate issued events (`eventType eq "pki.cert.issue"`)
+4. Confirm the certificates were issued successfully (The certificate `CN` should match the devices serial number)
 
 ## Troubleshooting
 
