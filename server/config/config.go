@@ -1301,7 +1301,7 @@ func (man Manager) addConfigs() {
 		"Batch size to pop items from redis in async collection")
 	man.addConfigInt("osquery.async_host_redis_scan_keys_count", 1000,
 		"Batch size to scan redis keys in async collection")
-	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 1*time.Hour,
+	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 2*time.Minute,
 		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
 
 	// Activities
