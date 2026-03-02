@@ -953,9 +953,9 @@ type GlobExpandOptions struct {
 	// Files with other extensions are skipped with a warning.
 	// Defaults to {".yml", ".yaml"} if nil.
 	AllowedExtensions map[string]bool
-	// UniqueBasenames, if true, returns an error when two items resolve to the
+	// RequireUniqueBasenames, if true, returns an error when two items resolve to the
 	// same filename (filepath.Base).
-	UniqueBasenames bool
+	RequireUniqueBasenames bool
 	// Optional function to log warnings (e.g. about files skipped due to extension mismatch).
 	LogFn Logf
 }
@@ -1034,7 +1034,7 @@ func flattenBaseItems(input []BaseItem, baseDir string, entityType string, opts 
 			}
 			resolved := resolveApplyRelativePath(baseDir, *item.Path)
 			// Check for duplicate filenames if requested.
-			if opts.UniqueBasenames {
+			if opts.RequireUniqueBasenames {
 				base := filepath.Base(resolved)
 				if existing, ok := seenBasenames[base]; ok {
 					errs = append(errs, fmt.Errorf("duplicate %s basename %q (from %q and %q)", entityType, base, existing, *item.Path))
@@ -1060,7 +1060,7 @@ func flattenBaseItems(input []BaseItem, baseDir string, entityType string, opts 
 			}
 			for _, p := range expanded {
 				// Check for duplicate filenames if requested.
-				if opts.UniqueBasenames {
+				if opts.RequireUniqueBasenames {
 					base := filepath.Base(p)
 					if existing, ok := seenBasenames[base]; ok {
 						errs = append(errs, fmt.Errorf("duplicate %s basename %q (from %q and %q)", entityType, base, existing, *item.Paths))
@@ -1078,9 +1078,9 @@ func flattenBaseItems(input []BaseItem, baseDir string, entityType string, opts 
 
 func resolveScriptPaths(input []BaseItem, baseDir string, logFn Logf) ([]BaseItem, []error) {
 	return flattenBaseItems(input, baseDir, "script", GlobExpandOptions{
-		AllowedExtensions: allowedScriptExtensions,
-		UniqueBasenames:   true,
-		LogFn:             logFn,
+		AllowedExtensions:      allowedScriptExtensions,
+		RequireUniqueBasenames: true,
+		LogFn:                  logFn,
 	})
 }
 
