@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"testing"
 	"time"
@@ -14,7 +15,6 @@ import (
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -41,9 +41,9 @@ func TestVPPAuth(t *testing.T) {
 	androidMockClient.EnterprisesWebAppsCreateFunc = func(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
 		return &androidmanagement.WebApp{Name: "webapp1"}, nil
 	}
-	wlog := logging.NewJSONLogger(os.Stdout)
-	activityModule := activities.NewActivityModule(ds, wlog)
-	androidSvc, err := android_service.NewServiceWithClient(wlog.SlogLogger(), ds, androidMockClient, "test-private-key", ds, activityModule, config.AndroidAgentConfig{})
+	activityModule := activities.NewActivityModule()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	androidSvc, err := android_service.NewServiceWithClient(logger, ds, androidMockClient, "test-private-key", ds, activityModule, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, androidModule: androidSvc})
