@@ -12,58 +12,102 @@
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 org_settings: 
-  secrets: # « FUTURE: Eliminate the need for this required key.
-    - secret: "" # TODO: What happens if omitted?
   org_info:
-    org_name: "My organization"
-    # org_logo_url: ""
-  #TODO: turn on gitops mode
-  # TODO: in `labels`, include example of how to turn on exception for gitops mode if labels are managed outside of git
-  # TODO: in `software`, include example of how to turn on exception for gitops mode if labels are managed outside of git
+    ###########################################################
+    # The name of your organization is displayed to end users
+    # during the setup experience for new hardware, and to admins
+    # in the Fleet UI.
+    ###########################################################
+    org_name: "My organization" # TODO: Replace with the name of your organization
+
   server_settings:
-    server_url: https://dogfood.fleetdm.com # This seems important and something everyone MUST configure, right?   Needs to be emphasized.  What happens if omitted?  Probably bad thigns.  This should warn if you don't have it set.
+    ###########################################################
+    # The server URL where Fleet is running.
+    #
+    #   • No trailing slash at the end
+    #   • `http://` or `https://` at the beginning.
+    #
+    # (You can copy this from the URL bar in your browser.)
+    ###########################################################
+    server_url: https://fleet.example.com # TODO: Replace with the URL where Fleet is running.
+
+  ###########################################################
   # To use single-sign on, todo finish  (also mention you have to go into workstations and turn this on too)
+  ###########################################################
   # sso_settings:
   #   idp_name: "Google Workspace" # This appears to admins on the login screen as a "Sign in with ________" button.
   #   metadata_url: "" # A URL provided by your IdP when you set up Fleet.
   #   enable_sso: true # FUTURE: Get rid of redundancy just have this always true by default if sso_settings is there
   #   enable_sso_idp_login: true # FUTURE: Verify this isn't already defaulted to "on".  If not, make it default to "on". (it's for sso login initiated by the IdP -- i.e. when you click a button in otka, like heeroku dashboard)
   #   entity_id: "fleet-admins" # for now, just write up what this is forFUTURE: Omit this from boilerplate once sure that it is not required.  (What is it?  A required field in your IdP during setup that has to match this string.  # TODO: Why is this separate from end user authentication?  Why aren't things like entity_id required in the other place?)
+
   mdm:
     
+    ###########################################################
     # To use single-sign on, todo finish
+    ###########################################################
     # end_user_authentication:
     #   idp_name: "Google Workspace" # This appears to admins on the login screen as a "Sign in with ________" button.
     #   metadata_url: "" # A URL provided by your IdP when you set up Fleet.
     #   entity_id: "fleet-end-users" # write up what this is for
     
+    ###########################################################
     # Uncomment to start using zero touch enrollment with Apple devices with Apple Business Manager (ABM)
+    ###########################################################
     # apple_business_manager:
     #   - organization_name: "My organization" # The name of your organization in Apple Business Manager.    (………TODO: why does the organization name need to be specified?  (It has to match something in ABM.  Why?  You can't actually set up ABM with gitops because of pubkey downloading and things.  This is telling gitops that, once you create the record in the UI, don't override it)
     #     macos_fleet: "💻 Workstations"  #TODO: This could default to "Unassigned" if unspecified, and then it could be omitted.
     #     ios_fleet: "📱🏢 Employee-issued mobile devices"
     #     ipados_fleet: "📱🏢 Employee-issued mobile devices"
     
+    ###########################################################
     # Uncomment to…
+    ###########################################################
     # volume_purchasing_program: # TODO: does this need to be specified? can we just turn them all on by default? and then this can be omitted
     #   - location: "My organization" # The name of your organization in Apple Business Manager.
     #     fleets:
     #       - "💻 Workstations"
     #       - "📱🏢 Employee-issued mobile devices"
     #       - "📱🔐 Personal mobile devices"
+
 controls:
-  # Uncomment to… # TODO finish
-  # (This is a system-wide setting that must be configured at the top level. uncomment to…
+  ###########################################################
+  # Uncomment when you are ready to migrate Macs, especially
+  # devices running macOS@v26, from a different MDM server. 
+  # 
+  # For more, see:
+  #   • https://fleetdm.com/docs/configuration/yaml-files#macos-migration
+  #   • https://fleetdm.com/guides/mdm-migration#end-user-workflow
+  ###########################################################
   # macos_migration:
   #   enable: true
-  #   mode: voluntary # Change this to "forced" closer to the deadline.
-  #   webhook_url: "https://your-custom-webhook-or-one-provided-off-the-shelf-by-fleet-for-the-mdm-you-are-coming-from.example.com" # Only relevant for devices running macOS <v26: When end users click "Migrate to Fleet", this webhook is triggered.  By convention it looks up the device and unmanages it in the old MDM, then enrolls the device in Fleet.
+  #   mode: voluntary # Start with "voluntary", then change this to "forced" closer to the deadline.
+  #   webhook_url: "https://your-custom-webhook-or-one-provided-off-the-shelf-by-fleet-for-the-mdm-you-are-coming-from.example.com/webhooks/receive-from-fleet"
+  #   # ^ When end users click "Migrate to Fleet", this webhook is triggered.
+  #   # By convention it looks up the device and unmanages it in the old MDM,
+  #   # then enrolls the device in Fleet.  Unsure?  Get help @ fleetdm.com/support.
+
+
+###########################################################
+# `labels`
+# 
+# Labels are static or dynamic groupings of computers for
+# scoping, reporting, and more.  Use labels for everything
+# from "x86 macs" to "finance department" to "needs new battery".
+#
+# For more, see:
+#   • https://fleetdm.com/docs/configuration/yaml-files#labels
+#   • https://fleetdm.com/guides/managing-labels-in-fleet
+#
+# (Optional) You can choose to manage labels in the Fleet GUI
+# instead of in your git repo by **commenting out `labels` below**.
+#
+# > Note: If you exclude `labels` from your git repo, then any
+# > AI-assisted tools you may be using like Claude/Copilot/Kilocode
+# > won't be able to see them for use in scoping, and could
+# > make it harder to do prompts like, for example:
+# > "Make sure everyone in finance has the latest version of Excel"
+###########################################################
 labels:
-  # TODO: Decide whether or not we'll include label in gitops template by default (same for software)
-  # - paths: ./labels/.yml #FUTURE: stat disk and auto-include all via glob
-  - path: ./labels/apple-silicon-macos-hosts.yml
-  - path: ./labels/arm-based-windows-hosts.yml
-  - path: ./labels/debian-based-linux-hosts.yml
-  - path: ./labels/x86-based-windows-hosts.yml
-policies: # FUTURE: This key will not be required in default.yml and will be omitted by default. (Will still be required in fleet manifests.)
-reports: # FUTURE: This key will not be required in default.yml and will be omitted by default. (Will still be required in fleet manifests.)
+  - paths: ./labels/*.yml
+
