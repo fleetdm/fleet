@@ -949,8 +949,8 @@ var allowedScriptExtensions = map[string]bool{
 
 // GlobExpandOptions configures how flattenBaseItems expands glob patterns.
 type GlobExpandOptions struct {
-	// AllowedExtensions filters glob results to only these extensions (lowercase,
-	// including dot). Files with other extensions are skipped with a warning.
+	// AllowedExtensions filters glob results to only these extensions.
+	// Files with other extensions are skipped with a warning.
 	// Defaults to {".yml", ".yaml"} if nil.
 	AllowedExtensions map[string]bool
 	// UniqueBasenames, if true, returns an error when two items resolve to the
@@ -967,11 +967,6 @@ func (o *GlobExpandOptions) setDefaults() {
 	if o.LogFn == nil {
 		o.LogFn = func(_ string, _ ...interface{}) {}
 	}
-}
-
-type FlattenBaseItemsOptions struct {
-	GlobExpandOptions
-	RequirePath bool // if true, items must have either Path or Paths; otherwise they are treated as inline items
 }
 
 // containsGlobMeta returns true if the string contains glob metacharacters.
@@ -1013,7 +1008,7 @@ func expandGlobPattern(pattern string, baseDir string, entityType string, opts G
 // patterns in "paths" entries, and returns a flat list where every item has only
 // Path set (resolved to an absolute path). Errors are collected rather than
 // returned early, so callers get all problems in one pass.
-func flattenBaseItems(input []BaseItem, baseDir string, entityType string, opts FlattenBaseItemsOptions) ([]BaseItem, []error) {
+func flattenBaseItems(input []BaseItem, baseDir string, entityType string, opts GlobExpandOptions) ([]BaseItem, []error) {
 	opts.setDefaults()
 	var result []BaseItem
 	var errs []error
@@ -1029,11 +1024,7 @@ func flattenBaseItems(input []BaseItem, baseDir string, entityType string, opts 
 			continue
 		// Inline item (no file reference) — pass through unchanged.
 		case !hasPath && !hasPaths:
-			if opts.RequirePath {
-				errs = append(errs, fmt.Errorf("%s entry must have either a 'path' or 'paths' field", entityType))
-			} else {
-				result = append(result, item)
-			}
+			result = append(result, item)
 			continue
 		// Single path -- resolve to absolute path and add to result.
 		case hasPath:
@@ -1058,7 +1049,7 @@ func flattenBaseItems(input []BaseItem, baseDir string, entityType string, opts 
 				errs = append(errs, fmt.Errorf(`%s "paths" %q does not contain glob characters; use "path" for a specific file`, entityType, *item.Paths))
 				continue
 			}
-			expanded, err := expandGlobPattern(*item.Paths, baseDir, entityType, opts.GlobExpandOptions)
+			expanded, err := expandGlobPattern(*item.Paths, baseDir, entityType, opts)
 			if err != nil {
 				errs = append(errs, err)
 				continue
@@ -1086,14 +1077,20 @@ func flattenBaseItems(input []BaseItem, baseDir string, entityType string, opts 
 }
 
 func resolveScriptPaths(input []BaseItem, baseDir string, logFn Logf) ([]BaseItem, []error) {
-	return flattenBaseItems(input, baseDir, "script", FlattenBaseItemsOptions{
-		RequirePath: true,
-		GlobExpandOptions: GlobExpandOptions{
-			AllowedExtensions: allowedScriptExtensions,
-			UniqueBasenames:   true,
-			LogFn:             logFn,
-		},
+	// Scripts always require a file reference — reject bare items before flattening.
+	var errs []error
+	for _, item := range input {
+		if item.Path == nil && item.Paths == nil {
+			errs = append(errs, errors.New(`script entry has no "path" or "paths" field; check for a stray "-" in the list`))
+		}
+	}
+	result, errs2 := flattenBaseItems(input, baseDir, "script", GlobExpandOptions{
+		AllowedExtensions: allowedScriptExtensions,
+		UniqueBasenames:   true,
+		LogFn:             logFn,
 	})
+	errs = append(errs, errs2...)
+	return result, errs
 }
 
 func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {

@@ -1787,7 +1787,7 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		t.Parallel()
 		items := []BaseItem{{}}
 		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
-		requireErrorContains(t, errs, `script entry must have either a 'path' or 'paths' field`)
+		requireErrorContains(t, errs, `no "path" or "paths" field`)
 	})
 
 	t.Run("no_matches_warning", func(t *testing.T) {
@@ -1872,12 +1872,12 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		assert.Equal(t, filepath.Join(dir, "z.sh"), *result[2].Path)
 	})
 
-	t.Run("multiple_errors", func(t *testing.T) {
+	t.Run("multiple_errors_collected", func(t *testing.T) {
 		t.Parallel()
 		items := []BaseItem{{}, {Path: strPtr("scripts/*.sh")}, {Paths: strPtr("noglob.sh")}}
 		_, errs := resolveScriptPaths(items, "", nil)
 		require.Len(t, errs, 3)
-		assert.Contains(t, errs[0].Error(), `script entry must have either a 'path' or 'paths' field`)
+		assert.Contains(t, errs[0].Error(), `no "path" or "paths"`)
 		assert.Contains(t, errs[1].Error(), `contains glob characters`)
 		assert.Contains(t, errs[2].Error(), `does not contain glob characters`)
 	})
