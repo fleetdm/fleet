@@ -96,7 +96,6 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})
 	}
-	// TODO(JK): automatically set platform. should verify?
 
 	if err := verifyLabelsToAssociate(ctx, svc.ds, &teamID, append(tp.LabelsIncludeAny, tp.LabelsExcludeAny...), vc.User); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")

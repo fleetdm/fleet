@@ -118,13 +118,14 @@ type NewTeamPolicyPayload struct {
 }
 
 var (
-	errPolicyEmptyName         = errors.New("policy name cannot be empty")
-	errPolicyEmptyQuery        = errors.New("policy query cannot be empty")
-	errPolicyIDAndQuerySet     = errors.New("both fields \"queryID\" and \"query\" cannot be set")
-	errPolicyInvalidPlatform   = errors.New("invalid policy platform")
-	errPolicyConflictingLabels = errors.New("policy cannot include both labels_include_any and labels_exclude_any")
-	errPolicyPatchAndQuerySet  = errors.New("The policy where the \"type\" is \"patch\" doesn't support the \"query\" field.")
-	errPolicyPatchNoTitleID    = errors.New("patch_software_title_id is required if \"type\" is \"patch\".") // TODO(JK): what message
+	errPolicyEmptyName           = errors.New("policy name cannot be empty")
+	errPolicyEmptyQuery          = errors.New("policy query cannot be empty")
+	errPolicyIDAndQuerySet       = errors.New("both fields \"queryID\" and \"query\" cannot be set")
+	errPolicyInvalidPlatform     = errors.New("invalid policy platform")
+	errPolicyConflictingLabels   = errors.New("policy cannot include both labels_include_any and labels_exclude_any")
+	errPolicyPatchAndQuerySet    = errors.New("If the \"type\" is \"patch\", the \"query\" field is not supported.")
+	errPolicyPatchAndPlatformSet = errors.New("If the \"type\" is \"patch\", the \"platform\" field is not supported.")
+	errPolicyPatchNoTitleID      = errors.New("If the \"type\" is \"patch\", the \"patch_software_title_id\" field is required.")
 )
 
 // PolicyNoTeamID is the team ID of "No team" policies.
@@ -161,6 +162,9 @@ func (p PolicyPayload) Verify() error {
 		}
 		if err := verifyPatchPolicy(p.PatchSoftwareTitleID, p.Query); err != nil {
 			return err
+		}
+		if p.Platform != "" {
+			return errPolicyPatchAndPlatformSet
 		}
 	}
 	return nil
