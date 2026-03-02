@@ -9,18 +9,17 @@
 #   • https://fleetdm.com/docs/configuration/yaml-files
 #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
 name: "💻 Workstations"
 controls:
-  ##########################################
+  ###########################################################
   # Disk encryption with escrowed keys
-  ##########################################
+  ###########################################################
   # to enable…
   # enable_disk_encryption: true
 
-  ##########################################
+  ###########################################################
   # Managed OS updates
-  ##########################################
+  ###########################################################
   # to enable… (for os updates)
   # macos_updates:
   #   deadline:
@@ -32,9 +31,9 @@ controls:
   #   deadline_days: 7
   #   grace_period_days: 2
 
-  ##########################################
+  ###########################################################
   # Setup experience
-  ##########################################
+  ###########################################################
   macos_setup:
     # To enable SSO, uncomment this
     # enable_end_user_authentication: true
@@ -42,9 +41,12 @@ controls:
     # macos_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json # TODO: include this by default
     # TODO: Discuss: What is best practice for Windows and Linux here?
 
-  ##########################################
+  ###########################################################
   # Presets, restrictions, and configs
-  ##########################################
+  # 
+  # For more, see:
+  #   • https://fleetdm.com/docs/configuration/yaml-files#controls
+  ###########################################################
   macos_settings:
     custom_settings: #FUTURE: stat disk and auto-include all via glob
       # - paths: ../platforms/macos/declaration-profiles/*.json
@@ -66,9 +68,9 @@ policies:
   - paths: ../platforms/windows/policies/*.yml # Windows policies
   - paths: ../platforms/linux/policies/*.yml # Linux policies
 
-##########################################
+###########################################################
 # Software available for install
-##########################################
+###########################################################
 software:
   fleet_maintained_apps:
     # macOS apps
