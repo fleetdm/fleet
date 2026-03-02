@@ -8,16 +8,20 @@
   padding: $pad-xlarge $pad-large;
   font-size: $x-small;
 
-  &:not(.file-uploader__file-preview) {
+  &__inner {
     text-align: center;
 
-    // Preview may include dropdown input that needs to be shown
     input {
       display: none;
     }
   }
 
-  .content-wrapper {
+  // Cannot hide all input as preview may include dropdown input that needs to be shown
+  .file-input-visually-hidden {
+    display: none;
+  }
+
+  &__content-wrapper {
     @include content-wrapper();
   }
 
