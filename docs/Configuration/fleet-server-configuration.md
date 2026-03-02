@@ -3303,7 +3303,6 @@ If you have an [Apple Developer account that is enabled as an MDM vendor](https:
   mdm:
     apple_vpp_app_metadata_api_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
   ```
-  ```
   
 ### fleet_allow_bootstrap_package_during_migration
 
