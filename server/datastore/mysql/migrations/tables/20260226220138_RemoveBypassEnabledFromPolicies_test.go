@@ -17,10 +17,10 @@ func TestUp_20260226220138(t *testing.T) {
 			return
 		}
 		oktaConfig := map[string]any{
-			"okta_idp_id":                          "test-idp-id",
-			"okta_assertion_consumer_service_url":  "https://example.com/acs",
-			"okta_audience_uri":                    "https://example.com/audience",
-			"okta_certificate":                     "test-certificate",
+			"okta_idp_id":                         "test-idp-id",
+			"okta_assertion_consumer_service_url": "https://example.com/acs",
+			"okta_audience_uri":                   "https://example.com/audience",
+			"okta_certificate":                    "test-certificate",
 		}
 		oktaJSON, err := json.Marshal(oktaConfig)
 		require.NoError(t, err)
