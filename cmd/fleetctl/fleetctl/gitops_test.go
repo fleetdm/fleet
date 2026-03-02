@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
@@ -19,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -263,6 +266,19 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		},
 	)
 
+	appleGDMFSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		// load the test data from the file
+		b, err := os.ReadFile("../../../server/mdm/apple/gdmf/testdata/gdmf.json")
+		require.NoError(t, err)
+		_, err = w.Write(b)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(appleGDMFSrv.Close)
+
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", appleGDMFSrv.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_CACHE_DURATION", "0", t) // disable cache to ensure we're getting the data from the test server
+
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
 		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
@@ -414,14 +430,14 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 controls:
   macos_updates:
     deadline: "2024-03-03"
-    minimum_version: "18.0"
+    minimum_version: "14.6.1"
   ios_updates:
     deadline: "2022-02-02"
     minimum_version: "17.6"
     update_new_hosts: true
   ipados_updates:
     deadline: "2023-03-03"
-    minimum_version: "18.0"
+    minimum_version: "17.6"
     update_new_hosts: false
   enable_disk_encryption: true
   windows_require_bitlocker_pin: true
@@ -765,16 +781,29 @@ func TestGitOpsBasicTeam(t *testing.T) {
 
 	t.Setenv("TEST_SECRET", "")
 
+	appleGDMFSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		// load the test data from the file
+		b, err := os.ReadFile("../../../server/mdm/apple/gdmf/testdata/gdmf.json")
+		require.NoError(t, err)
+		_, err = w.Write(b)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(appleGDMFSrv.Close)
+
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", appleGDMFSrv.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_CACHE_DURATION", "0", t) // disable cache to ensure we're getting the data from the test server
+
 	_, err = tmpFile.WriteString(
 		`
 controls:
   macos_updates:
     deadline: "2025-10-10"
-    minimum_version: "18.0"
+    minimum_version: "14.6.1"
     update_new_hosts: false
   ios_updates:
     deadline: "2024-10-10"
-    minimum_version: "18.0"
+    minimum_version: "17.6"
   ipados_updates:
     deadline: "2025-11-11"
     minimum_version: "17.6"
@@ -839,7 +868,7 @@ software:
 	assert.True(t, savedTeam.Config.Features.EnableSoftwareInventory)
 
 	assert.Equal(t, "2025-10-10", savedTeam.Config.MDM.MacOSUpdates.Deadline.Value)
-	assert.Equal(t, "18.0", savedTeam.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	assert.Equal(t, "14.6.1", savedTeam.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 
 	// Ensure the default value (if deadline and minimum_version are set) can be overriden with explicit setting
 	assert.Equal(t, optjson.SetBool(false), savedTeam.Config.MDM.MacOSUpdates.UpdateNewHosts)
@@ -2138,6 +2167,19 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 		return nil, nil
 	}
 
+	appleGDMFSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		// load the test data from the file
+		b, err := os.ReadFile("../../../server/mdm/apple/gdmf/testdata/gdmf.json")
+		require.NoError(t, err)
+		_, err = w.Write(b)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(appleGDMFSrv.Close)
+
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", appleGDMFSrv.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_CACHE_DURATION", "0", t) // disable cache to ensure we're getting the data from the test server
+
 	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
 
 	teamFileBasic := createTeamFileBasic(t, secret)
@@ -2206,7 +2248,7 @@ software:
 controls:
   ipados_updates:
     deadline: "2023-03-03"
-    minimum_version: "18.0"
+    minimum_version: "17.6.1"
 policies:
 name: No team
 software:
@@ -5209,6 +5251,19 @@ func TestGitOpsAppleOSUpdates(t *testing.T) {
 		},
 	)
 
+	appleGDMFSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		// load the test data from the file
+		b, err := os.ReadFile("../../../server/mdm/apple/gdmf/testdata/gdmf.json")
+		require.NoError(t, err)
+		_, err = w.Write(b)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(appleGDMFSrv.Close)
+
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", appleGDMFSrv.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_CACHE_DURATION", "0", t) // disable cache to ensure we're getting the data from the test server
+
 	const localTeamName = "Team1"
 	var savedTeam *fleet.Team
 	baseTeam := &fleet.Team{
@@ -5426,11 +5481,11 @@ software:
 	t.Run("macos_updates", func(t *testing.T) {
 		t.Run("same values do not trigger BulkSetPendingMDMHostProfiles", func(t *testing.T) {
 			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "14.0")
+			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "14.6.1")
 
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			_, err = teamFile.WriteString(macOSYAML("2024-03-03", "14.0"))
+			_, err = teamFile.WriteString(macOSYAML("2024-03-03", "14.6.1"))
 			require.NoError(t, err)
 
 			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
@@ -5440,11 +5495,11 @@ software:
 
 		t.Run("changed deadline triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
 			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "14.0")
+			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "14.6.1")
 
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			_, err = teamFile.WriteString(macOSYAML("2024-04-04", "14.0"))
+			_, err = teamFile.WriteString(macOSYAML("2024-04-04", "14.6.1"))
 			require.NoError(t, err)
 
 			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
@@ -5454,11 +5509,11 @@ software:
 
 		t.Run("changed minimum_version triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
 			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "14.0")
+			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "14.6.1")
 
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			_, err = teamFile.WriteString(macOSYAML("2024-03-03", "15.0"))
+			_, err = teamFile.WriteString(macOSYAML("2024-03-03", "13.6.9"))
 			require.NoError(t, err)
 
 			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
@@ -5470,11 +5525,11 @@ software:
 	t.Run("ios_updates", func(t *testing.T) {
 		t.Run("same values do not trigger BulkSetPendingMDMHostProfiles", func(t *testing.T) {
 			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.0")
+			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.6.1")
 
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			_, err = teamFile.WriteString(iOSYAML("2024-03-03", "17.0"))
+			_, err = teamFile.WriteString(iOSYAML("2024-03-03", "17.6.1"))
 			require.NoError(t, err)
 
 			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
@@ -5484,11 +5539,11 @@ software:
 
 		t.Run("changed deadline triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
 			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.0")
+			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.6.1")
 
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			_, err = teamFile.WriteString(iOSYAML("2024-04-04", "17.0"))
+			_, err = teamFile.WriteString(iOSYAML("2024-04-04", "17.6.1"))
 			require.NoError(t, err)
 
 			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
@@ -5498,11 +5553,11 @@ software:
 
 		t.Run("changed minimum_version triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
 			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.0")
+			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.6.1")
 
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			_, err = teamFile.WriteString(iOSYAML("2024-03-03", "18.0"))
+			_, err = teamFile.WriteString(iOSYAML("2024-03-03", "17.6"))
 			require.NoError(t, err)
 
 			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
@@ -5514,11 +5569,11 @@ software:
 	t.Run("ipados_updates", func(t *testing.T) {
 		t.Run("same values do not trigger BulkSetPendingMDMHostProfiles", func(t *testing.T) {
 			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.0")
+			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.6.1")
 
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			_, err = teamFile.WriteString(iPadOSYAML("2024-03-03", "17.0"))
+			_, err = teamFile.WriteString(iPadOSYAML("2024-03-03", "17.6.1"))
 			require.NoError(t, err)
 
 			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
@@ -5528,11 +5583,11 @@ software:
 
 		t.Run("changed deadline triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
 			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.0")
+			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.6.1")
 
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			_, err = teamFile.WriteString(iPadOSYAML("2024-04-04", "17.0"))
+			_, err = teamFile.WriteString(iPadOSYAML("2024-04-04", "17.6.1"))
 			require.NoError(t, err)
 
 			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
@@ -5542,11 +5597,11 @@ software:
 
 		t.Run("changed minimum_version triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
 			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.0")
+			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.6.1")
 
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			_, err = teamFile.WriteString(iPadOSYAML("2024-03-03", "18.0"))
+			_, err = teamFile.WriteString(iPadOSYAML("2024-03-03", "17.6"))
 			require.NoError(t, err)
 
 			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})

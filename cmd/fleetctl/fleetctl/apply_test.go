@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -300,6 +301,19 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil, &notFoundError{}
 	}
 
+	appleGDMFSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		// load the test data from the file
+		b, err := os.ReadFile("../../../server/mdm/apple/gdmf/testdata/gdmf.json")
+		require.NoError(t, err)
+		_, err = w.Write(b)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(appleGDMFSrv.Close)
+
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", appleGDMFSrv.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_CACHE_DURATION", "0", t) // disable cache to ensure we're getting the data from the test server
+
 	filename := writeTmpYml(t, `
 ---
 apiVersion: v1
@@ -321,7 +335,7 @@ spec:
       - secret: AAA
     mdm:
       macos_updates:
-        minimum_version: 12.3.1
+        minimum_version: 14.6.1
         deadline: 2011-03-01
         update_new_hosts: true
 `)
@@ -329,7 +343,7 @@ spec:
 	newAgentOpts := json.RawMessage(`{"config":{"views":{"foo":"bar"}}}`)
 	newMDMSettings := fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("12.3.1"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2011-03-01"),
 			UpdateNewHosts: optjson.SetBool(true),
 		},
@@ -367,7 +381,7 @@ spec:
 	require.Equal(t, "[+] applied 1 fleet\n", RunAppForTest(t, []string{"apply", "-f", filename}))
 	newMDMSettings = fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("12.3.1"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2011-03-01"),
 			UpdateNewHosts: optjson.SetBool(true),
 		},
@@ -397,7 +411,7 @@ spec:
 
 	newMDMSettings = fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("12.3.1"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2011-03-01"),
 			UpdateNewHosts: optjson.SetBool(true),
 		},
@@ -435,13 +449,13 @@ spec:
     name: team1
     mdm:
       macos_updates:
-        minimum_version: 10.10.10
+        minimum_version: 14.6.1
         deadline: 1992-03-01
       ios_updates:
-        minimum_version: 11.11.11
+        minimum_version: 17.6.1
         deadline: 1993-04-02
       ipados_updates:
-        minimum_version: 12.12.12
+        minimum_version: 17.6.1
         deadline: 1994-05-03
     secrets:
       - secret: BBB
@@ -449,15 +463,15 @@ spec:
 
 	newMDMSettings = fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("10.10.10"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("11.11.11"),
+			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("1993-04-02"),
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("12.12.12"),
+			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("1994-05-03"),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -765,6 +779,19 @@ func TestApplyAppConfig(t *testing.T) {
 		return []*fleet.ABMToken{{OrganizationName: t.Name()}}, nil
 	}
 
+	appleGDMFSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		// load the test data from the file
+		b, err := os.ReadFile("../../../server/mdm/apple/gdmf/testdata/gdmf.json")
+		require.NoError(t, err)
+		_, err = w.Write(b)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(appleGDMFSrv.Close)
+
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", appleGDMFSrv.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_CACHE_DURATION", "0", t) // disable cache to ensure we're getting the data from the test server
+
 	name := writeTmpYml(t, `---
 apiVersion: v1
 kind: config
@@ -775,7 +802,7 @@ spec:
   mdm:
     apple_bm_default_team: "team1"
     macos_updates:
-      minimum_version: 12.1.1
+      minimum_version: 14.6.1
       deadline: 2011-02-01
     windows_updates:
       deadline_days: 5
@@ -786,7 +813,7 @@ spec:
 		DeprecatedAppleBMDefaultTeam: "team1",
 		AppleBMTermsExpired:          false,
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("12.1.1"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
 		},
 		MacOSSetup: fleet.MacOSSetup{
@@ -869,7 +896,7 @@ spec:
 		DeprecatedAppleBMDefaultTeam: "team1",
 		AppleBMTermsExpired:          false,
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("12.1.1"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
 		},
 		MacOSSetup: fleet.MacOSSetup{
@@ -1493,6 +1520,19 @@ func TestApplyAsGitOps(t *testing.T) {
 		return nil, &notFoundError{}
 	}
 
+	appleGDMFSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		// load the test data from the file
+		b, err := os.ReadFile("../../../server/mdm/apple/gdmf/testdata/gdmf.json")
+		require.NoError(t, err)
+		_, err = w.Write(b)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(appleGDMFSrv.Close)
+
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", appleGDMFSrv.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_CACHE_DURATION", "0", t) // disable cache to ensure we're getting the data from the test server
+
 	// Apply global config.
 	name := writeTmpYml(t, `---
 apiVersion: v1
@@ -1540,7 +1580,7 @@ kind: config
 spec:
   mdm:
     macos_updates:
-      minimum_version: 10.10.10
+      minimum_version: 14.6.1
       deadline: 2020-02-02
     windows_updates:
       deadline_days: 1
@@ -1569,7 +1609,7 @@ spec:
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("10.10.10"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2020-02-02"),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -1613,7 +1653,7 @@ spec:
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("10.10.10"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2020-02-02"),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -1640,7 +1680,7 @@ spec:
     mdm:
       enable_disk_encryption: false
       macos_updates:
-        minimum_version: 10.10.10
+        minimum_version: 14.6.1
         deadline: 1992-03-01
       windows_updates:
         deadline_days: 0
@@ -1664,7 +1704,7 @@ spec:
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("10.10.10"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
 		MacOSSetup: fleet.MacOSSetup{
@@ -1707,7 +1747,7 @@ spec:
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("10.10.10"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -1745,7 +1785,7 @@ spec:
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("10.10.10"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
