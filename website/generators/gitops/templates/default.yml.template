@@ -98,10 +98,11 @@ org_settings:
 
 controls:
   ###########################################################
-  # Uncomment when you are ready to migrate Macs, especially
-  # devices running macOS@v26, from a different MDM server. 
+  # Uncomment when you are ready to migrate Macs to Fleet
+  # from a different MDM server, especially devices running
+  # macOS ≤v26.
   # 
-  # For more, see:
+  # For more information about what this does, see:
   #   • https://fleetdm.com/docs/configuration/yaml-files#macos-migration
   #   • https://fleetdm.com/guides/mdm-migration#end-user-workflow
   #
