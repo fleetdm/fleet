@@ -125,6 +125,7 @@
         "enable_end_user_authentication": false,
         "macos_setup_assistant": null,
         "enable_release_device_manually": false,
+        "lock_end_user_info": false,
         "script": null,
         "software": null,
         "manual_agent_install": null,

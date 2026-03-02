@@ -183,6 +183,9 @@ func (t *Team) UnmarshalJSON(b []byte) error {
 	if !x.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		x.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
+	if !x.MDM.MacOSSetup.LockEndUserInfo.Valid {
+		x.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+	}
 	*t = Team{
 		ID:          x.ID,
 		CreatedAt:   x.CreatedAt,
@@ -414,6 +417,9 @@ func (t TeamConfig) Value() (driver.Value, error) {
 	// force-save as the default `false` value if not set
 	if !t.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		t.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
+	if !t.MDM.MacOSSetup.LockEndUserInfo.Valid {
+		t.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
 	}
 	return json.Marshal(t)
 }
