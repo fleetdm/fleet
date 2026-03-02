@@ -94,6 +94,9 @@ const EndUserAuthentication = ({
           <EndUserAuthForm
             currentTeamId={currentTeamId}
             defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
+            defaultLockEndUserInfo={
+              globalConfig.mdm.macos_setup.lock_end_user_info ?? false
+            }
           />
         )}
       </SetupExperienceContentContainer>
