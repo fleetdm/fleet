@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1687,13 +1688,6 @@ func TestContainsGlobMeta(t *testing.T) {
 func TestResolveScriptPathsGlob(t *testing.T) {
 	t.Parallel()
 
-	strPtr := func(s string) *string { return &s }
-
-	// requireNoErrors is a helper that fails the test if errs is non-empty.
-	requireNoErrors := func(t *testing.T, errs []error) {
-		t.Helper()
-		require.Empty(t, errs, "unexpected errors: %v", errs)
-	}
 	// requireErrorContains is a helper that asserts at least one error contains substr.
 	requireErrorContains := func(t *testing.T, errs []error, substr string) {
 		t.Helper()
@@ -1715,9 +1709,9 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.sh"), []byte("#!/bin/bash"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "c.ps1"), []byte("# powershell"), 0o644))
 
-		items := []BaseItem{{Paths: strPtr("*.sh")}}
+		items := []BaseItem{{Paths: ptr.String("*.sh")}}
 		result, errs := resolveScriptPaths(items, dir, nopLogf)
-		requireNoErrors(t, errs)
+		require.Empty(t, errs)
 		require.Len(t, result, 2)
 		assert.Equal(t, filepath.Join(dir, "a.sh"), *result[0].Path)
 		assert.Equal(t, filepath.Join(dir, "b.sh"), *result[1].Path)
@@ -1734,9 +1728,9 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "top.sh"), []byte("#!/bin/bash"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(subdir, "nested.sh"), []byte("#!/bin/bash"), 0o644))
 
-		items := []BaseItem{{Paths: strPtr("**/*.sh")}}
+		items := []BaseItem{{Paths: ptr.String("**/*.sh")}}
 		result, errs := resolveScriptPaths(items, dir, nopLogf)
-		requireNoErrors(t, errs)
+		require.Empty(t, errs)
 		require.Len(t, result, 2)
 		// Results are sorted
 		assert.Equal(t, filepath.Join(subdir, "nested.sh"), *result[0].Path)
@@ -1751,11 +1745,11 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "glob2.ps1"), []byte("# ps1"), 0o644))
 
 		items := []BaseItem{
-			{Path: strPtr("single.sh")},
-			{Paths: strPtr("*.ps1")},
+			{Path: ptr.String("single.sh")},
+			{Paths: ptr.String("*.ps1")},
 		}
 		result, errs := resolveScriptPaths(items, dir, nopLogf)
-		requireNoErrors(t, errs)
+		require.Empty(t, errs)
 		require.Len(t, result, 3)
 		assert.Equal(t, filepath.Join(dir, "single.sh"), *result[0].Path)
 		assert.Equal(t, filepath.Join(dir, "glob1.ps1"), *result[1].Path)
@@ -1764,21 +1758,21 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 
 	t.Run("paths_without_glob_error", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{Paths: strPtr("scripts/foo.sh")}}
+		items := []BaseItem{{Paths: ptr.String("scripts/foo.sh")}}
 		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
 		requireErrorContains(t, errs, `does not contain glob characters`)
 	})
 
 	t.Run("path_with_glob_error", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{Path: strPtr("scripts/*.sh")}}
+		items := []BaseItem{{Path: ptr.String("scripts/*.sh")}}
 		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
 		requireErrorContains(t, errs, `contains glob characters`)
 	})
 
 	t.Run("both_path_and_paths_error", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{Path: strPtr("foo.sh"), Paths: strPtr("*.sh")}}
+		items := []BaseItem{{Path: ptr.String("foo.sh"), Paths: ptr.String("*.sh")}}
 		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
 		requireErrorContains(t, errs, `cannot have both "path" and "paths"`)
 	})
@@ -1797,9 +1791,9 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		logFn := func(format string, args ...any) {
 			warnings = append(warnings, fmt.Sprintf(format, args...))
 		}
-		items := []BaseItem{{Paths: strPtr("*.sh")}}
+		items := []BaseItem{{Paths: ptr.String("*.sh")}}
 		result, errs := resolveScriptPaths(items, dir, logFn)
-		requireNoErrors(t, errs)
+		require.Empty(t, errs)
 		assert.Empty(t, result)
 		require.Len(t, warnings, 1)
 		assert.Contains(t, warnings[0], "matched no script")
@@ -1815,7 +1809,7 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(sub1, "dup.sh"), []byte("#!/bin/bash"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(sub2, "dup.sh"), []byte("#!/bin/bash"), 0o644))
 
-		items := []BaseItem{{Paths: strPtr("**/*.sh")}}
+		items := []BaseItem{{Paths: ptr.String("**/*.sh")}}
 		_, errs := resolveScriptPaths(items, dir, nopLogf)
 		requireErrorContains(t, errs, "duplicate script basename")
 	})
@@ -1829,8 +1823,8 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(sub, "script.sh"), []byte("#!/bin/bash"), 0o644))
 
 		items := []BaseItem{
-			{Path: strPtr("script.sh")},
-			{Paths: strPtr("sub/*.sh")},
+			{Path: ptr.String("script.sh")},
+			{Paths: ptr.String("sub/*.sh")},
 		}
 		_, errs := resolveScriptPaths(items, dir, nopLogf)
 		requireErrorContains(t, errs, "duplicate script basename")
@@ -1848,14 +1842,16 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 			warnings = append(warnings, fmt.Sprintf(format, args...))
 		}
 
-		items := []BaseItem{{Paths: strPtr("*")}}
+		items := []BaseItem{{Paths: ptr.String("*")}}
 		result, errs := resolveScriptPaths(items, dir, logFn)
-		requireNoErrors(t, errs)
+		require.Empty(t, errs)
 		require.Len(t, result, 1)
 		assert.Equal(t, filepath.Join(dir, "good.sh"), *result[0].Path)
 		assert.Len(t, warnings, 2)
 	})
 
+	// Results are only sorted for the sake of tests,
+	// but having an explicit test protects against regression.
 	t.Run("results_sorted", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
@@ -1863,9 +1859,9 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.sh"), []byte("#!/bin/bash"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "m.sh"), []byte("#!/bin/bash"), 0o644))
 
-		items := []BaseItem{{Paths: strPtr("*.sh")}}
+		items := []BaseItem{{Paths: ptr.String("*.sh")}}
 		result, errs := resolveScriptPaths(items, dir, nopLogf)
-		requireNoErrors(t, errs)
+		require.Empty(t, errs)
 		require.Len(t, result, 3)
 		assert.Equal(t, filepath.Join(dir, "a.sh"), *result[0].Path)
 		assert.Equal(t, filepath.Join(dir, "m.sh"), *result[1].Path)
@@ -1874,7 +1870,7 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 
 	t.Run("multiple_errors_collected", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{}, {Path: strPtr("scripts/*.sh")}, {Paths: strPtr("noglob.sh")}}
+		items := []BaseItem{{}, {Path: ptr.String("scripts/*.sh")}, {Paths: ptr.String("noglob.sh")}}
 		_, errs := resolveScriptPaths(items, "", nil)
 		require.Len(t, errs, 3)
 		assert.Contains(t, errs[0].Error(), `no "path" or "paths"`)
@@ -1889,18 +1885,21 @@ func TestGitOpsGlobScripts(t *testing.T) {
 	dir := t.TempDir()
 	scriptsDir := filepath.Join(dir, "scripts")
 	require.NoError(t, os.MkdirAll(scriptsDir, 0o755))
+	scriptsSubDir := filepath.Join(scriptsDir, "sub")
+	require.NoError(t, os.MkdirAll(scriptsSubDir, 0o755))
 
 	// Create script files
 	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "alpha.sh"), []byte("#!/bin/bash\necho alpha"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "beta.sh"), []byte("#!/bin/bash\necho beta"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "gamma.ps1"), []byte("Write-Host gamma"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsSubDir, "gamma.ps1"), []byte("Write-Host gamma"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsSubDir, "delta.sh"), []byte("nada"), 0o644))
 
 	// Write a gitops YAML file that uses paths: glob
 	config := getGlobalConfig([]string{"controls"})
 	config += `controls:
   scripts:
     - paths: scripts/*.sh
-    - path: scripts/gamma.ps1
+    - path: scripts/sub/gamma.ps1
 `
 	yamlPath := filepath.Join(dir, "gitops.yml")
 	require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
@@ -1912,5 +1911,5 @@ func TestGitOpsGlobScripts(t *testing.T) {
 	// Glob results come first (sorted), then the explicit path
 	assert.Equal(t, filepath.Join(scriptsDir, "alpha.sh"), *result.Controls.Scripts[0].Path)
 	assert.Equal(t, filepath.Join(scriptsDir, "beta.sh"), *result.Controls.Scripts[1].Path)
-	assert.Equal(t, filepath.Join(scriptsDir, "gamma.ps1"), *result.Controls.Scripts[2].Path)
+	assert.Equal(t, filepath.Join(scriptsSubDir, "gamma.ps1"), *result.Controls.Scripts[2].Path)
 }
