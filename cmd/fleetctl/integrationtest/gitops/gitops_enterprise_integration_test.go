@@ -3369,6 +3369,12 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestDisallowSoftwareSetupExperien
 	test.CreateInsertGlobalVPPToken(t, s.DS)
 	teamName := uuid.NewString()
 
+	// standup fake http server, that responds with a dummy file
+	bootstrapServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "testdata/signed.pkg")
+	}))
+	defer bootstrapServer.Close()
+
 	// The global template includes VPP token assignment to the team
 	// The location "Jungle" comes from test.CreateInsertGlobalVPPToken
 	globalTemplate := `agent_options:
@@ -3392,6 +3398,7 @@ queries:
 	testVPP := `
 controls:
   macos_setup:
+    bootstrap_package: %s
     manual_agent_install: true
 software:
   app_store_apps:
@@ -3416,6 +3423,7 @@ team_settings:
 	testPackages := `
 controls:
   macos_setup:
+    bootstrap_package: %s
     manual_agent_install: true
 software:
   app_store_apps:
@@ -3481,7 +3489,7 @@ team_settings:
 			require.NoError(t, err)
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			_, err = fmt.Fprintf(teamFile, tc.teamTemplate, tc.teamName, tc.teamSettings)
+			_, err = fmt.Fprintf(teamFile, tc.teamTemplate, bootstrapServer.URL, tc.teamName, tc.teamSettings)
 			require.NoError(t, err)
 			err = teamFile.Close()
 			require.NoError(t, err)
@@ -3507,7 +3515,6 @@ team_settings:
 			} else {
 				require.NoError(t, err)
 			}
-
 		})
 	}
 }
