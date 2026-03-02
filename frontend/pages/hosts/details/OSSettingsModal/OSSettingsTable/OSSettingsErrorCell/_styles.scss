@@ -5,7 +5,9 @@
   gap: $pad-small;
 
   &__failed-message {
-    min-width: 168px; // Aligns resend button to right end
+    // allows the message to shrink and not push the
+    // resend button outside of the table cell
+    min-width: 0;
 
     .data-table__tooltip-truncated-text--cell {
       // for some reason this is need to vertically align the text and

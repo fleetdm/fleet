@@ -84,12 +84,14 @@ type CallbackSSORequest struct {
 
 type CallbackSSOResponse struct {
 	Content      string                                     `json:"-"`
-	Err          error                                      `json:"error,omitempty"`
 	SetCookiesFn func(context.Context, http.ResponseWriter) `json:"-"`
+
+	Err error `json:"error,omitempty"`
 }
 
 func (r CallbackSSOResponse) Error() error { return r.Err }
 
+// If html is present we return a web page
 func (r CallbackSSOResponse) Html() string { return r.Content }
 
 func (r CallbackSSOResponse) SetCookies(ctx context.Context, w http.ResponseWriter) {

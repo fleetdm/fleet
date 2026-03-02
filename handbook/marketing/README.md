@@ -4,14 +4,27 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Team
 
-| Role                               | Contributor(s)
-|:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Chief  Marketing Officer          | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([@akuthiala](https://github.com/akuthiala))_
-| Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
-| Head of Demand Generation                  | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/) _([@johnjeremiah](https://github.com/johnjeremiah))_
-| Product Education Manager     | [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/) _([@nonpunctual](https://github.com/nonpunctual))_
-| Analyst Relations     | [Preston Death](https://www.linkedin.com/in/preston-death/) _([@pfd76](https://github.com/pfd76))_
-| Social Media Strategy and Management    | [Thomas Basgil Jr.](https://www.linkedin.com/in/tombasgil/) _([@tombasgil](https://github.com/tombasgil))_
+
+
+
+
+| Role | Person | Github ID | Responsibilities |
+| ----- | ----- | ----- | ----- |
+| Chief marketing officer | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala)  | [*@akuthiala*](https://github.com/akuthiala) | Set, lead, and manage Fleet’s marketing strategy and execution across all aspects of marketing  Lead or own various functions of marketing as appropriate. |
+| Content specialist | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/)  | [*@irenareedy*](https://github.com/irenareedy) | Manage and scale Fleet Champions community program, increasing the size and diversity of Fleet champions Increase number of Fleet peer reviews across multiple sites   Own event execution working closely with campaign manager   Oversee social media program working closely with social media manager  Own the marketing board ensuring all tasks are assigned, being worked on, and completed  |
+| Product education manager | [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/)  | [*@nonpunctual*](https://github.com/nonpunctual) | Create core technical assets to train internal, partners, prospects, and customer teams including Fleet certification program and teaching GitOps workshops.  Be the technical expert in validating all things marketing produces, be the Fleet relationship expert with Macadmins community |
+| Head of demand generation | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/)  | [*@johnjeremiah*](https://github.com/johnjeremiah) | Build pipeline,  Marketing ops |
+| Campaign manager | Hired (to be announced) |  | Build, run and measure all marketing campaigns.   Own Fleet swag strategy and execution |
+| Content specialist (Consultant) | [Anthony Critelli](https://www.linkedin.com/in/anthonycritelli/) | [@acritelli](https://github.com/acritelli) | Build out Fleet linux management capabilities content |
+| Technical product marketing and content specialist (Consultant) | [Dan Gordon](https://www.linkedin.com/in/dangordon/) | [@dbgordon](https://github.com/dbgordon) | Create core technical marketing strategy, positioning, messaging and assets for IT technical teams Market Fleet releases  Create, drive and manage analyst relations for Fleet |
+| Product marketing (Consultant) | [Erin Miska](https://www.linkedin.com/in/erinmiska/) | [@miskaek](https://github.com/miskaek) | Positioning and messaging  Leadership marketing facing assets,  Sales and partner enablement  Content strategy |
+| Analyst relations (Consultant) | [Preston Death](https://www.linkedin.com/in/preston-death/)  | [*@pfd76*](https://github.com/pfd76) | Manage analyst relations (with analysts) and drive program internally in Fleet |
+| Social media strategy and management (Consultant) | [Thomas Basgil Jr.](https://www.linkedin.com/in/tombasgil/)  | [*@tombasgil*](https://github.com/tombasgil) | Establish, manage and grow Fleet’s social media presence across all appropriate channels |
+| Public relations (Consultant) | [Alyssa Pallotti](https://www.linkedin.com/in/alyssapallotti/)  |  | Establish Fleet PR program Identify and train key Fleet employees on PR interactions Establish, measure and improve Fleet share of voice with press, analysts, and media.   Manage Fleet submissions for industry awards |
+
+
+
+
 
 
 ## Contact us
@@ -54,7 +67,7 @@ In the Marketing department, we're using the following issue labels to organize 
 | **:mktg-enablement** | Gold | \#D97706 | All work associated with designing, developing, and delivering enablement content for sales, partners, etc. |
 | **:mktg-event** | Orange | \#F97316 | For tasks related to any event, virtual or in-person (e.g., webinars, conference logistics, booth design, talk submissions). |
 
-Note: for event execution, addtional labels are used to manage the process and track specific events.
+Note: for event execution, additional labels are used to manage the process and track specific events.
 
 
 ### Prepare "Let's get you set up!" meeting notes

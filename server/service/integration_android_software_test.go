@@ -713,9 +713,20 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 
 		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(*teamID))
 		s.Assert().Len(listSWTitles.SoftwareTitles, 4)
-		s.Assert().Equal("app_1", listSWTitles.SoftwareTitles[0].AppStoreApp.AppStoreID)
-		titleApp1 := listSWTitles.SoftwareTitles[0].ID
-		titleApp2 := listSWTitles.SoftwareTitles[1].ID
+		// Look up title IDs by app store ID (ordering within tied hosts_count is by ID, not name).
+		var titleApp1, titleApp2 uint
+		for _, st := range listSWTitles.SoftwareTitles {
+			if st.AppStoreApp != nil {
+				switch st.AppStoreApp.AppStoreID {
+				case "app_1":
+					titleApp1 = st.ID
+				case "app_2":
+					titleApp2 = st.ID
+				}
+			}
+		}
+		require.NotZero(t, titleApp1)
+		require.NotZero(t, titleApp2)
 
 		// Batch app store apps call won't create an activity
 

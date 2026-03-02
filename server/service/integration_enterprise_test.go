@@ -51,7 +51,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
@@ -114,16 +113,16 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		Pool:           s.redisPool,
 		Rs:             pubsub.NewInmemQueryResults(),
 		Lq:             s.lq,
-		Logger:         logging.NewLogfmtLogger(os.Stdout),
+		Logger:         slog.New(slog.NewTextHandler(os.Stdout, nil)),
 		EnableCachedDS: true,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
 					// We set 24-hour interval so that it only runs when triggered.
 					var err error
-					cronLog := logging.NewJSONLogger(os.Stdout)
+					cronLog := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 					if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-						cronLog = logging.NewNopLogger()
+						cronLog = slog.New(slog.DiscardHandler)
 					}
 					calendarSchedule, err = cron.NewCalendarSchedule(
 						ctx, s.T().Name(), s.ds, redis_lock.NewLock(s.redisPool), config.CalendarConfig{Periodicity: 24 * time.Hour},
@@ -139,7 +138,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		DBConns:                         s.dbConns,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		config.Logger = logging.NewNopLogger()
+		config.Logger = slog.New(slog.DiscardHandler)
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
 	s.server = server
@@ -147,6 +146,12 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	s.token = s.getTestAdminToken()
 	s.cachedTokens = make(map[string]string)
 	s.calendarSchedule = calendarSchedule
+
+	dev_mode.SetOverride("FLEET_DEV_BATCH_RETRY_INTERVAL", "1s")
+}
+
+func (s *integrationEnterpriseTestSuite) TearDownSuite() {
+	dev_mode.ClearOverride("FLEET_DEV_BATCH_RETRY_INTERVAL")
 }
 
 func (s *integrationEnterpriseTestSuite) TearDownTest() {
@@ -12666,10 +12671,10 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		}
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
-		logger := logging.NewLogfmtLogger(os.Stderr)
+		logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
 		// Run the migration when nothing is to be done
-		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger.SlogLogger())
+		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
 		require.NoError(t, err)
 
 		// check the software installer
@@ -12707,7 +12712,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		assert.Equal(t, "exit 1", respTitle.SoftwareTitle.SoftwarePackage.UninstallScript)
 
 		// Run the migration
-		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger.SlogLogger())
+		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
 		require.NoError(t, err)
 
 		// Check package ID and extension
@@ -12740,7 +12745,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		assert.Equal(t, uninstallScript, respTitle.SoftwareTitle.SoftwarePackage.UninstallScript)
 
 		// Running the migration again causes no issues.
-		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger.SlogLogger())
+		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
 		require.NoError(t, err)
 
 		// Update DB by clearing package ids and swapping extension to one we skip
@@ -12753,7 +12758,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		})
 
 		// Running the migration again causes no issues.
-		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger.SlogLogger())
+		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
 		require.NoError(t, err)
 
 		// Package ID and extension should not have been modified
@@ -13388,6 +13393,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	t := s.T()
 	ctx := context.Background()
 
+	fmt.Printf("dev_mode.Env(\"FLEET_DEV_BATCH_RETRY_INTERVAL\"): %v\n", dev_mode.Env("FLEET_DEV_BATCH_RETRY_INTERVAL"))
+
 	// non-existent team
 	s.Do("POST", "/api/latest/fleet/software/batch", fleet.BatchSetSoftwareInstallersRequest{}, http.StatusNotFound, "team_name", "foo")
 
@@ -13815,7 +13822,7 @@ func waitBatchSetSoftwareInstallersCompleted(t *testing.T, s *withServer, teamNa
 	timeout := time.After(1 * time.Minute)
 	for {
 		var batchResultResponse fleet.BatchSetSoftwareInstallersResultResponse
-		s.DoJSON("GET", "/api/latest/fleet/software/batch/"+requestUUID, nil, http.StatusOK, &batchResultResponse, "team_name", teamName)
+		s.DoJSON("GET", "/api/latest/fleet/software/batch/"+requestUUID, nil, http.StatusOK, &batchResultResponse, "fleet_name", teamName)
 		if batchResultResponse.Status == fleet.BatchSetSoftwareInstallersStatusCompleted {
 			return batchResultResponse.Packages
 		}
@@ -13832,7 +13839,7 @@ func waitBatchSetSoftwareInstallersFailed(t *testing.T, s *withServer, teamName 
 	timeout := time.After(1 * time.Minute)
 	for {
 		var batchResultResponse fleet.BatchSetSoftwareInstallersResultResponse
-		s.DoJSON("GET", "/api/latest/fleet/software/batch/"+requestUUID, nil, http.StatusOK, &batchResultResponse, "team_name", teamName)
+		s.DoJSON("GET", "/api/latest/fleet/software/batch/"+requestUUID, nil, http.StatusOK, &batchResultResponse, "fleet_name", teamName)
 		if batchResultResponse.Status == fleet.BatchSetSoftwareInstallersStatusFailed {
 			require.Empty(t, batchResultResponse.Packages)
 			return batchResultResponse.Message

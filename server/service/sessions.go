@@ -476,8 +476,6 @@ func decodeCallbackRequest(ctx context.Context, r *http.Request) (
 	return sessionID, decodedSAMLResponseValue, nil
 }
 
-// If html is present we return a web page
-
 func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 	return func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 		callbackRequest := request.(*fleet.CallbackSSORequest)
@@ -510,7 +508,6 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 		relayStateLoadPage := ` <html>
      <script type='text/javascript'>
      var redirectURL = {{ .RedirectURL }};
-     window.localStorage.setItem('FLEET::auth_token', '{{ .Token }}');
      window.location = redirectURL;
      </script>
      <body>
@@ -527,10 +524,20 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 		if err != nil {
 			return nil, err
 		}
+
 		resp.Content = writer.String()
 		resp.SetCookiesFn = func(_ context.Context, w http.ResponseWriter) {
 			deleteSSOCookie(w)
+			if session.Token != "" {
+				http.SetCookie(w, &http.Cookie{
+					Name:   "__Host-token",
+					Value:  session.Token,
+					Path:   "/",
+					Secure: cookieSecure,
+				})
+			}
 		}
+
 		return resp, nil
 	}
 }

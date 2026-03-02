@@ -37,6 +37,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/google/go-tpm/tpm2/transport/simulator"
 	"github.com/remitly-oss/httpsig-go"
@@ -123,7 +124,7 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) (cert *x
 
 	// Create SCEP client
 	scepURL := fmt.Sprintf("%s/api/fleet/orbit/host_identity/scep", s.Server.URL)
-	scepClient, err := scepclient.New(scepURL, s.Logger.SlogLogger())
+	scepClient, err := scepclient.New(scepURL, s.Logger)
 	require.NoError(t, err)
 
 	// Get CA certificate
@@ -160,7 +161,7 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) (cert *x
 		SignerCert:  deviceCert,
 	}
 
-	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(s.Logger))
+	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)))
 	require.NoError(t, err)
 
 	// Send PKI operation request
@@ -168,7 +169,7 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) (cert *x
 	require.NoError(t, err)
 
 	// Parse response
-	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(s.Logger), scep.WithCACerts(msg.Recipients))
+	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)), scep.WithCACerts(msg.Recipients))
 	require.NoError(t, err)
 
 	// Verify successful response
@@ -594,7 +595,7 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 
 	// Create SCEP client
 	scepURL := fmt.Sprintf("%s/api/fleet/orbit/host_identity/scep", s.Server.URL)
-	scepClient, err := scepclient.New(scepURL, s.Logger.SlogLogger())
+	scepClient, err := scepclient.New(scepURL, s.Logger)
 	require.NoError(t, err)
 
 	// Get CA certificate
@@ -615,7 +616,7 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 		SignerCert:  tempRSACert,
 	}
 
-	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(s.Logger))
+	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)))
 	require.NoError(t, err)
 
 	// Send PKI operation request
@@ -623,7 +624,7 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 	require.NoError(t, err)
 
 	// Parse response
-	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(s.Logger), scep.WithCACerts(msg.Recipients))
+	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)), scep.WithCACerts(msg.Recipients))
 	require.NoError(t, err)
 
 	// The renewal should succeed
@@ -768,7 +769,7 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 			SignerCert:  retryTempRSACert,
 		}
 
-		retryMsg, err := scep.NewCSRRequest(retryCSR, retryPkiMsgReq, scep.WithLogger(s.Logger))
+		retryMsg, err := scep.NewCSRRequest(retryCSR, retryPkiMsgReq, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)))
 		require.NoError(t, err)
 
 		// Send PKI operation request
@@ -776,7 +777,7 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 		require.NoError(t, err)
 
 		// Parse response
-		retryPkiMsgResp, err := scep.ParsePKIMessage(retryRespBytes, scep.WithLogger(s.Logger), scep.WithCACerts(retryMsg.Recipients))
+		retryPkiMsgResp, err := scep.ParsePKIMessage(retryRespBytes, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)), scep.WithCACerts(retryMsg.Recipients))
 		require.NoError(t, err)
 
 		// Should fail - the certificate has already been revoked
@@ -962,7 +963,7 @@ func testSCEPFailure(t *testing.T, s *Suite, config SCEPFailureConfig) {
 
 	// Create SCEP client
 	scepURL := fmt.Sprintf("%s/api/fleet/orbit/host_identity/scep", s.Server.URL)
-	scepClient, err := scepclient.New(scepURL, s.Logger.SlogLogger())
+	scepClient, err := scepclient.New(scepURL, s.Logger)
 	require.NoError(t, err)
 
 	// Get CA certificate
@@ -1015,7 +1016,7 @@ func testSCEPFailure(t *testing.T, s *Suite, config SCEPFailureConfig) {
 		SignerCert:  deviceCert,
 	}
 
-	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(s.Logger))
+	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)))
 	require.NoError(t, err)
 
 	// Send PKI operation request
@@ -1023,7 +1024,7 @@ func testSCEPFailure(t *testing.T, s *Suite, config SCEPFailureConfig) {
 	require.NoError(t, err)
 
 	// Parse response
-	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(s.Logger), scep.WithCACerts(msg.Recipients))
+	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)), scep.WithCACerts(msg.Recipients))
 	require.NoError(t, err)
 
 	// Verify failure response
