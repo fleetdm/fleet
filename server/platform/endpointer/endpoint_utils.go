@@ -744,11 +744,9 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter, serveCSP bool) {
 	// Referer.
 	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 	if serveCSP {
-		// TODO We may need to fetch appconfig here so we know all possible domains
-		// Content-Security-Policy prevents a wide range of attacks by declaring what
-		// dynamic resources are allowed to load. Here we set a very strict policy and
-		// then relax it as needed for specific endpoints.
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; img-src 'self'; style-src 'self'; font-src 'self'; script-src 'self'")
+		// TODO Is https OK for img-src? We allow customers to upload their own images and we have to reach out to gravatar for them.
+		// TODO: Fix unsafe-inline style-src
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; connect-src 'self' www.gravatar.com ws: wss:; img-src 'self' www.gravatar.com data: https:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'")
 	}
 }
 
