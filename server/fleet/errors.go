@@ -96,7 +96,7 @@ func NewInvalidArgumentError(name, reason string) *InvalidArgumentError {
 	return &invalid
 }
 
-func (e InvalidArgumentError) IsClientError() bool {
+func (e *InvalidArgumentError) IsClientError() bool {
 	return true
 }
 
@@ -117,8 +117,8 @@ func (e *InvalidArgumentError) Appendf(name, reasonFmt string, args ...interface
 
 // WithStatus returns an error that combines the InvalidArgumentError
 // with a custom status code.
-func (e InvalidArgumentError) WithStatus(code int) error {
-	return invalidArgWithStatusError{e, code}
+func (e *InvalidArgumentError) WithStatus(code int) error {
+	return &invalidArgWithStatusError{*e, code}
 }
 
 func (e *InvalidArgumentError) HasErrors() bool {
@@ -126,7 +126,7 @@ func (e *InvalidArgumentError) HasErrors() bool {
 }
 
 // Error implements the error interface.
-func (e InvalidArgumentError) Error() string {
+func (e *InvalidArgumentError) Error() string {
 	switch len(e.Errors) {
 	case 0:
 		return "validation failed"
@@ -138,7 +138,7 @@ func (e InvalidArgumentError) Error() string {
 	}
 }
 
-func (e InvalidArgumentError) Invalid() []map[string]string {
+func (e *InvalidArgumentError) Invalid() []map[string]string {
 	var invalid []map[string]string
 	for _, i := range e.Errors {
 		invalid = append(invalid, map[string]string{"name": i.name, "reason": i.reason})
