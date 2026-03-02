@@ -312,9 +312,10 @@ debug-go-tests:
 	@MYSQL_TEST=1 REDIS_TEST=1 S3_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests
 
 # Set up packages for CI testing.
-DEFAULT_PKGS_TO_TEST := ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
+DEFAULT_PKGS_TO_TEST := ./client/... ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
 # fast tests are quick and do not require out-of-process dependencies (such as MySQL, etc.)
 FAST_PKGS_TO_TEST := \
+	./client/... \
 	./ee/server/service/hostidentity/types \
 	./ee/tools/mdm \
 	./orbit/pkg/cryptoinfo \
