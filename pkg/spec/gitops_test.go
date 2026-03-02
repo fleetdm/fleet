@@ -1891,7 +1891,7 @@ func TestGitOpsGlobScripts(t *testing.T) {
 	// Create script files
 	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "alpha.sh"), []byte("#!/bin/bash\necho alpha"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "beta.sh"), []byte("#!/bin/bash\necho beta"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(scriptsSubDir, "gamma.ps1"), []byte("Write-Host gamma"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "gamma.ps1"), []byte("Write-Host gamma"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(scriptsSubDir, "delta.sh"), []byte("nada"), 0o644))
 
 	// Write a gitops YAML file that uses paths: glob
@@ -1899,7 +1899,7 @@ func TestGitOpsGlobScripts(t *testing.T) {
 	config += `controls:
   scripts:
     - paths: scripts/*.sh
-    - path: scripts/sub/gamma.ps1
+    - path: scripts/gamma.ps1
 `
 	yamlPath := filepath.Join(dir, "gitops.yml")
 	require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
@@ -1911,5 +1911,5 @@ func TestGitOpsGlobScripts(t *testing.T) {
 	// Glob results come first (sorted), then the explicit path
 	assert.Equal(t, filepath.Join(scriptsDir, "alpha.sh"), *result.Controls.Scripts[0].Path)
 	assert.Equal(t, filepath.Join(scriptsDir, "beta.sh"), *result.Controls.Scripts[1].Path)
-	assert.Equal(t, filepath.Join(scriptsSubDir, "gamma.ps1"), *result.Controls.Scripts[2].Path)
+	assert.Equal(t, filepath.Join(scriptsDir, "gamma.ps1"), *result.Controls.Scripts[2].Path)
 }
