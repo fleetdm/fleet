@@ -46,15 +46,15 @@ The following campaigns are scheduled for launch in **January 2026**. Campaign n
 
 ### **Paid Social Campaigns**
 
-The following campaigns are scheduled for launch in **January 2026**. Campaign names follow the Fleet naming convention: [YYYY-MM]-[Medium]-[Campaign-Name].
+The following campaigns are scheduled for launch in **March 2026**. Campaign names follow the Fleet naming convention: [YYYY-MM]-[Medium]-[Campaign-Name].
 
 | Campaign Name | General Description & Purpose | Target Signal/Objective |
 | :---- | :---- | :---- |
-| **2026-01-ps-Brand** | Distributing "Thought Leadership" content that answers hard technical questions to build brand affinity. | High-utility asset engagement. |
-| **2026-01-ps-MDM** | Targeting "Solution" and "Technical" keywords related to modern MDM and mac admins. | High-intent demo/contact requests. |
-| **2026-01-ps-Linux** | "Linux Beachhead" vector focusing on Linux hardening and visibility for developer workstations. | Seed account acquisition. |
-| **2026-01-ps-Competitive** | "Modernization Migration" focusing on Jamf displacement and the "GitOps future". | Impact analysis meetings. |
-| **2026-01-ps-GitOps** | Promoting GitOps-native workflows and Infrastructure-as-Code (IaC) for endpoints. | Workshop attendance/certification. |
+| **2026-01-so-Brand** | Distributing "Thought Leadership" content that answers hard technical questions to build brand affinity. | High-utility asset engagement. |
+| **2026-01-so-MDM** | Targeting "Solution" and "Technical" keywords related to modern MDM and mac admins. | High-intent demo/contact requests. |
+| **2026-01-so-Linux** | "Linux Beachhead" vector focusing on Linux hardening and visibility for developer workstations. | Seed account acquisition. |
+| **2026-01-so-Competitive** | "Modernization Migration" focusing on Jamf displacement and the "GitOps future". | Impact analysis meetings. |
+| **2026-01-so-GitOps** | Promoting GitOps-native workflows and Infrastructure-as-Code (IaC) for endpoints. | Workshop attendance/certification. |
 
 
 
