@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -558,13 +559,18 @@ func TestSoftwareInstallerUploadRetries(t *testing.T) {
 	kvStore.SetFunc = func(ctx context.Context, key string, value string, expireTime time.Duration) error {
 		return nil
 	}
+	var statusMu sync.Mutex
 	status := fleet.BatchSetSoftwareInstallersStatusProcessing
 	kvStore.GetFunc = func(ctx context.Context, key string) (*string, error) {
+		statusMu.Lock()
+		defer statusMu.Unlock()
 		return ptr.String(status), nil
 	}
 
 	installerStore := new(mockInstallerStore)
 	installerStore.onPut = func() {
+		statusMu.Lock()
+		defer statusMu.Unlock()
 		status = fleet.BatchSetSoftwareInstallersStatusFailed + ":"
 	}
 
