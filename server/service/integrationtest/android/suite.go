@@ -1,6 +1,7 @@
 package android
 
 import (
+	"log/slog"
 	"os"
 	"testing"
 
@@ -10,7 +11,6 @@ import (
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest"
 	"github.com/stretchr/testify/require"
@@ -23,11 +23,11 @@ type Suite struct {
 
 func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 	ds, redisPool, fleetCfg, fleetSvc, ctx := integrationtest.SetUpMySQLAndRedisAndService(t, uniqueTestName)
-	logger := logging.NewLogfmtLogger(os.Stdout)
+	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	proxy := android_mock.Client{}
 	proxy.InitCommonMocks()
 	androidSvc, err := android_service.NewServiceWithClient(
-		logger.SlogLogger(),
+		slogLogger,
 		ds,
 		&proxy,
 		"test-private-key",
@@ -47,14 +47,14 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 		},
 		FleetConfig:   &fleetCfg,
 		Pool:          redisPool,
-		Logger:        logger,
+		Logger:        slogLogger,
 		FeatureRoutes: []endpointer.HandlerRoutesFunc{android_service.GetRoutes(fleetSvc, androidSvc)},
 		DBConns:       dbConns,
 	})
 
 	s := &Suite{
 		BaseSuite: integrationtest.BaseSuite{
-			Logger:   logger,
+			Logger:   slogLogger,
 			DS:       ds,
 			FleetCfg: fleetCfg,
 			Users:    users,

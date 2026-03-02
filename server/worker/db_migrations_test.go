@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -23,17 +23,16 @@ func TestDBMigrationsVPPToken(t *testing.T) {
 	// call TruncateTables immediately as a DB migration may have created jobs
 	mysql.TruncateTables(t, ds)
 
-	nopLog := logging.NewNopLogger()
+	nopLog := slog.New(slog.DiscardHandler)
 	// use this to debug/verify details of calls
-	// nopLog := logging.NewJSONLogger(os.Stdout)
+	// nopLog = slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	// create and register the worker
-	slogLog := nopLog.SlogLogger()
 	processor := &DBMigration{
 		Datastore: ds,
-		Log:       slogLog,
+		Log:       nopLog,
 	}
-	w := NewWorker(ds, slogLog)
+	w := NewWorker(ds, nopLog)
 	w.Register(processor)
 
 	// create the migrated token and enqueue the job
