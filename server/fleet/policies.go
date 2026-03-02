@@ -62,7 +62,6 @@ type PolicyPayload struct {
 	// Only applies to team policies.
 	ConditionalAccessBypassEnabled *bool
 
-	// TODO(JK): what other structs need these fields added?
 	// Type is either dynamic (classic, editable) or patch (tied to Fleet maintained app).
 	Type string
 	// PatchSoftwareTitleID is the title id of the Fleet maintained app
@@ -113,6 +112,7 @@ type NewTeamPolicyPayload struct {
 	ConditionalAccessBypassEnabled *bool
 
 	// TODO(JK): comments
+	// Type is either dynamic (classic, editable) or patch (tied to Fleet maintained app).
 	Type                 *string
 	PatchSoftwareTitleID *uint
 }
@@ -136,6 +136,28 @@ const MaxPolicyAutomationRetries = 3
 
 // Verify verifies the policy payload is valid.
 func (p PolicyPayload) Verify() error {
+	if p.Type == PolicyTypePatch {
+		if p.QueryID != nil {
+			return errPolicyPatchAndQuerySet
+		}
+		if err := verifyPolicyName(p.Name); err != nil {
+			return err
+		}
+		if !emptyString(p.Query) {
+			return errPolicyPatchAndQuerySet
+		}
+		if p.PatchSoftwareTitleID == nil {
+			return errPolicyPatchNoTitleID
+		}
+		if !emptyString(p.Platform) {
+			return errPolicyPatchAndPlatformSet
+		}
+		if len(p.LabelsIncludeAny) > 0 && len(p.LabelsExcludeAny) > 0 {
+			return errPolicyConflictingLabels
+		}
+		return nil
+	}
+
 	if p.QueryID != nil {
 		if p.Query != "" {
 			return errPolicyIDAndQuerySet
@@ -144,10 +166,8 @@ func (p PolicyPayload) Verify() error {
 		if err := verifyPolicyName(p.Name); err != nil {
 			return err
 		}
-		if p.Type != PolicyTypePatch {
-			if err := verifyPolicyQuery(p.Query); err != nil {
-				return err
-			}
+		if err := verifyPolicyQuery(p.Query); err != nil {
+			return err
 		}
 	}
 	if err := verifyPolicyPlatforms(p.Platform); err != nil {
@@ -155,17 +175,6 @@ func (p PolicyPayload) Verify() error {
 	}
 	if len(p.LabelsIncludeAny) > 0 && len(p.LabelsExcludeAny) > 0 {
 		return errPolicyConflictingLabels
-	}
-	if p.Type == PolicyTypePatch {
-		if p.QueryID != nil {
-			return errPolicyPatchAndQuerySet
-		}
-		if err := verifyPatchPolicy(p.PatchSoftwareTitleID, p.Query); err != nil {
-			return err
-		}
-		if p.Platform != "" {
-			return errPolicyPatchAndPlatformSet
-		}
 	}
 	return nil
 }
@@ -199,15 +208,6 @@ func verifyPolicyPlatforms(platforms string) error {
 		default:
 			return errPolicyInvalidPlatform
 		}
-	}
-	return nil
-}
-func verifyPatchPolicy(patchPolicyTitleID *uint, query string) error {
-	if query != "" {
-		return errPolicyPatchAndQuerySet
-	}
-	if patchPolicyTitleID == nil {
-		return errPolicyPatchNoTitleID
 	}
 	return nil
 }
@@ -254,10 +254,28 @@ type ModifyPolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessBypassEnabled *bool `json:"conditional_access_bypass_enabled" premium:"true"`
+
+	// Type is either dynamic (classic, editable) or patch (tied to Fleet maintained app).
+	Type string `json:"-"`
 }
 
 // Verify verifies the policy payload is valid.
 func (p ModifyPolicyPayload) Verify() error {
+	if p.Type == PolicyTypePatch {
+		if p.Name != nil {
+			if err := verifyPolicyName(*p.Name); err != nil {
+				return err
+			}
+		}
+		if p.Query != nil && !emptyString(*p.Query) {
+			return errPolicyPatchAndQuerySet
+		}
+		if p.Platform != nil && !emptyString(*p.Platform) {
+			return errPolicyPatchAndPlatformSet
+		}
+		return nil
+	}
+
 	if p.Name != nil {
 		if err := verifyPolicyName(*p.Name); err != nil {
 			return err

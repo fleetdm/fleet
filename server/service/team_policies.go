@@ -328,6 +328,10 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 		if err := svc.populatePolicyRunScript(ctx, teamPolicies[i]); err != nil {
 			return nil, nil, ctxerr.Wrapf(ctx, err, "populate run_script for policy_id: %d", teamPolicies[i].ID)
 		}
+		// TODO(JK): mergeInherited(global) shouldnt support patch software right?
+		if err := svc.populatePolicyPatchSoftware(ctx, teamPolicies[i]); err != nil {
+			return nil, nil, ctxerr.Wrapf(ctx, err, "populate patch_software for policy_id: %d", teamPolicies[i].ID)
+		}
 	}
 
 	return teamPolicies, inheritedPolicies, nil
@@ -438,6 +442,9 @@ func (svc Service) GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, po
 	}
 	if err := svc.populatePolicyRunScript(ctx, teamPolicy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
+	}
+	if err := svc.populatePolicyPatchSoftware(ctx, teamPolicy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate patch_software")
 	}
 
 	return teamPolicy, nil
@@ -614,6 +621,9 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		})
 	}
 
+	// fill in policy type for verification
+	p.Type = policy.Type
+
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("policy payload verification: %s", err),
@@ -720,6 +730,9 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	}
 	if err := svc.populatePolicyRunScript(ctx, policy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
+	}
+	if err := svc.populatePolicyPatchSoftware(ctx, policy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate patch_software")
 	}
 
 	if teamID == nil {
