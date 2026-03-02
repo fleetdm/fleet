@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -2410,40 +2411,70 @@ func (svc *Service) softwareBatchUpload(
 
 				var filename string
 				var tfr *fleet.TempFileReader
-				var resp *http.Response
-				err = retry.Do(func() error {
-					var retryErr error
-					resp, tfr, retryErr = downloadURLFn(ctx, p.URL)
-					if retryErr != nil {
-						return retryErr
+
+				// Handle script packages from path (script:// URL scheme)
+				if strings.HasPrefix(p.URL, "script://") {
+					filename = strings.TrimPrefix(p.URL, "script://")
+					ext := strings.ToLower(filepath.Ext(filename))
+					ext = strings.TrimPrefix(ext, ".")
+
+					if !fleet.IsScriptPackage(ext) {
+						return fmt.Errorf("script:// URL must reference a .sh or .ps1 file, got: %s", filename)
 					}
 
-					return nil
-				}, retry.WithMaxAttempts(fleet.BatchDownloadMaxRetries), retry.WithInterval(fleet.BatchSoftwareInstallerRetryInterval()))
-				if err != nil {
-					return err
-				}
+					if p.InstallScript == "" {
+						return fmt.Errorf("script package %s has no install script content", filename)
+					}
 
-				installer.InstallerFile = tfr
-				toBeClosedTFRs[i] = tfr
+					scriptContent := []byte(p.InstallScript)
+					tfr, err = fleet.NewTempFileReader(bytes.NewReader(scriptContent), nil)
+					if err != nil {
+						return fmt.Errorf("creating temp file for script package %s: %w", filename, err)
+					}
 
-				filename = maintained_apps.FilenameFromResponse(resp)
-				installer.Filename = filename
+					installer.InstallerFile = tfr
+					toBeClosedTFRs[i] = tfr
+					installer.Filename = filename
 
-				// For script packages (.sh and .ps1) and in-house apps (.ipa), clear
-				// unsupported fields early. Determine extension from filename to
-				// validate before metadata extraction.
-				ext := strings.ToLower(filepath.Ext(filename))
-				ext = strings.TrimPrefix(ext, ".")
-				if fleet.IsScriptPackage(ext) {
 					installer.PostInstallScript = ""
 					installer.UninstallScript = ""
 					installer.PreInstallQuery = ""
-				} else if ext == "ipa" {
-					installer.InstallScript = ""
-					installer.PostInstallScript = ""
-					installer.UninstallScript = ""
-					installer.PreInstallQuery = ""
+				} else {
+					var resp *http.Response
+					err = retry.Do(func() error {
+						var retryErr error
+						resp, tfr, retryErr = downloadURLFn(ctx, p.URL)
+						if retryErr != nil {
+							return retryErr
+						}
+
+						return nil
+					}, retry.WithMaxAttempts(fleet.BatchDownloadMaxRetries), retry.WithInterval(fleet.BatchSoftwareInstallerRetryInterval()))
+					if err != nil {
+						return err
+					}
+
+					installer.InstallerFile = tfr
+					toBeClosedTFRs[i] = tfr
+
+					filename = maintained_apps.FilenameFromResponse(resp)
+					installer.Filename = filename
+
+					// For script packages (.sh and .ps1) and in-house apps (.ipa), clear
+					// unsupported fields early. Determine extension from filename to
+					// validate before metadata extraction.
+					ext := strings.ToLower(filepath.Ext(filename))
+					ext = strings.TrimPrefix(ext, ".")
+					if fleet.IsScriptPackage(ext) {
+						installer.PostInstallScript = ""
+						installer.UninstallScript = ""
+						installer.PreInstallQuery = ""
+					} else if ext == "ipa" {
+						installer.InstallScript = ""
+						installer.PostInstallScript = ""
+						installer.UninstallScript = ""
+						installer.PreInstallQuery = ""
+					}
 				}
 			}
 

@@ -1664,3 +1664,149 @@ policies: []
 		assert.NotNil(t, gitops.TeamSettings["webhook_settings"])
 	})
 }
+
+func TestSoftwarePackagesScriptPath(t *testing.T) {
+	t.Parallel()
+	appConfig := &fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+
+	t.Run("valid_sh_script_path", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/install-app.sh
+      categories:
+        - Utilities
+      self_service: true
+`
+		path, basePath := createTempFile(t, "", config)
+
+		err := file.Copy(
+			filepath.Join("testdata", "software", "install-app.sh"),
+			filepath.Join(basePath, "software", "install-app.sh"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		assert.True(t, strings.HasSuffix(result.Software.Packages[0].InstallScript.Path, "install-app.sh"))
+		assert.Equal(t, []string{"Utilities"}, result.Software.Packages[0].Categories)
+		assert.True(t, result.Software.Packages[0].SelfService)
+		assert.Empty(t, result.Software.Packages[0].URL)
+		assert.Empty(t, result.Software.Packages[0].SHA256)
+	})
+
+	t.Run("valid_ps1_script_path", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/install-app.ps1
+      self_service: false
+`
+		path, basePath := createTempFile(t, "", config)
+
+		// Copy the test script file
+		err := file.Copy(
+			filepath.Join("testdata", "software", "install-app.ps1"),
+			filepath.Join(basePath, "software", "install-app.ps1"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		assert.True(t, strings.HasSuffix(result.Software.Packages[0].InstallScript.Path, "install-app.ps1"))
+	})
+
+	t.Run("invalid_extension_error", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/install-app.txt
+`
+		path, basePath := createTempFile(t, "", config)
+
+		// Create a .txt file
+		err := os.MkdirAll(filepath.Join(basePath, "software"), 0o755)
+		require.NoError(t, err)
+		err = os.WriteFile(filepath.Join(basePath, "software", "install-app.txt"), []byte("test"), 0o644)
+		require.NoError(t, err)
+
+		_, err = GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		assert.ErrorContains(t, err, "unsupported extension")
+		assert.ErrorContains(t, err, "only .yml, .yaml, .sh, or .ps1 files are supported")
+	})
+
+	t.Run("script_with_team_options", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/install-app.sh
+      categories:
+        - Browsers
+        - Productivity
+      self_service: true
+      setup_experience: true
+      labels_include_any:
+        - include_label
+`
+		path, basePath := createTempFile(t, "", config)
+
+		err := file.Copy(
+			filepath.Join("testdata", "software", "install-app.sh"),
+			filepath.Join(basePath, "software", "install-app.sh"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		pkg := result.Software.Packages[0]
+		assert.Equal(t, []string{"Browsers", "Productivity"}, pkg.Categories)
+		assert.True(t, pkg.SelfService)
+		assert.True(t, pkg.InstallDuringSetup.Value)
+		assert.Equal(t, []string{"include_label"}, pkg.LabelsIncludeAny)
+	})
+
+	t.Run("mixed_yaml_and_script_paths", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/single-package.yml
+    - path: software/install-app.sh
+      self_service: true
+`
+		path, basePath := createTempFile(t, "", config)
+
+		err := file.Copy(
+			filepath.Join("testdata", "software", "single-package.yml"),
+			filepath.Join(basePath, "software", "single-package.yml"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+		err = file.Copy(
+			filepath.Join("testdata", "software", "install-app.sh"),
+			filepath.Join(basePath, "software", "install-app.sh"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 2)
+		assert.NotEmpty(t, result.Software.Packages[0].SHA256)
+		assert.True(t, strings.HasSuffix(result.Software.Packages[1].InstallScript.Path, "install-app.sh"))
+		assert.True(t, result.Software.Packages[1].SelfService)
+	})
+}
