@@ -391,7 +391,7 @@ controls:
       - name: wifi-certificate
         certificate_authority_name: EST_WIFI
         subject_name: /CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
-  macos_setup: # Available in Fleet Premium
+  setup_experience: # Available in Fleet Premium
     bootstrap_package: https://example.org/bootstrap_package.pkg
     enable_end_user_authentication: true
     enable_release_device_manually: true
@@ -481,16 +481,17 @@ If certificate authority (CA) variables (ex. `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>
 To hide variable values in the API and UI, you can use Fleet's [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles#gitops).
 
 
-### macos_setup
+### setup_experience
 
-The `macos_setup` section lets you control the out-of-the-box [setup experience](https://fleetdm.com/guides/setup-experience).
+The `setup_experience` section lets you control the out-of-the-box [setup experience](https://fleetdm.com/guides/setup-experience).
 
 > **Experimental feature.** The `manual_agent_install` feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 - `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package. Applies to macOS only (default: `""`).
 - `manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. Applies to macOS only (default: `false`)
 - `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android. 
-- `require_all_software` specifies whether to cancel setup on a macOS host if any software installs fail.
+- `require_all_software_macos` specifies whether to cancel setup on a macOS host if any software installs fail.
+- `require_all_software_windows` specifies whether to cancel setup on a Windows host if any software installs fail.
 - `enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business Manager (ABM).
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json). Applies to macOS and iOS/iPadOS hosts.
 - `script` is the path to a custom setup script to run after the host is first set up. Applies to macOS only.
@@ -500,7 +501,7 @@ The `macos_setup` section lets you control the out-of-the-box [setup experience]
 `teams/team-name.yml`, or `teams/no-team.yml`
 
 ```yaml
-macos_setup:
+setup_experience:
   bootstrap_package: "https://your-storage/package.pkg"
   manual_agent_install: false
   enable_end_user_authentication: true
@@ -1142,7 +1143,7 @@ org_settings:
 
 The `end_user_authentication` section lets you define the identity provider (IdP) settings used for [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) during Automated Device Enrollment (ADE).
 
-Once the IdP settings are configured, you can use the [`controls.macos_setup.enable_end_user_authentication`](#macos-setup) key to control the end user experience during ADE.
+Once the IdP settings are configured, you can use the [`controls.setup_experience.enable_end_user_authentication`](#setup-experience) key to control the end user experience during ADE.
 
 - `idp_name` is the human-friendly name for the identity provider that will provide single sign-on authentication (default: `""`).
 - `entity_id` is the entity ID: a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration (default: `""`).
