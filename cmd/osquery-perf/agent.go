@@ -373,8 +373,12 @@ type agent struct {
 	// Cached software indices (pointers into global softwareDB array for this agent's platform)
 	cachedSoftwareIndices []uint32
 
-	// Cached last_opened_at timestamps per software (keyed by software name)
-	cachedLastOpenedAt map[string]*time.Time
+	// Cached last_opened_at timestamps per software (keyed by software name).
+	// Note that this requires a mutex because both the runLoop and the live
+	// query goroutines may call DistributedWrite (which calls processQuery
+	// which calls genLastOpenedAt).
+	cachedLastOpenedAtMutex sync.RWMutex
+	cachedLastOpenedAt      map[string]*time.Time
 
 	// Host identity client for HTTP message signatures
 	hostIdentityClient *hostidentity.Client
@@ -2134,6 +2138,9 @@ var defaultQueryResult = []map[string]string{
 // value, occasionally updating it based on lastOpenedProb to simulate the app
 // being reopened.
 func (a *agent) genLastOpenedAt(softwareName string) *time.Time {
+	a.cachedLastOpenedAtMutex.Lock()
+	defer a.cachedLastOpenedAtMutex.Unlock()
+
 	// Check if we already have a cached value for this software
 	if cached, exists := a.cachedLastOpenedAt[softwareName]; exists {
 		if cached == nil {
