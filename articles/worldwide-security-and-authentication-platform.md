@@ -83,11 +83,11 @@ To learn more about how Fleet can support your organization, visit [fleetdm.com/
 
 <call-to-action></call-to-action>
 
-<meta name="category" value="announcements">
+<meta name="category" value="case study">
 <meta name="authorGitHubUsername" value="Drew-P-drawers">
 <meta name="authorFullName" value="Andrew Baker">
 <meta name="publishedOn" value="2024-12-10">
 <meta name="articleTitle" value="Worldwide security and authentication platform chooses Fleet for Linux management">
 <meta name="description" value="Worldwide security and authentication platform switches to Fleet for Linux device management">
-<meta name="showOnTestimonialsPageWithEmoji" value="🚪">
-<meta name="keywords" value="Linux MDM, Linux device management, open source MDM, Linux management" />
+<meta name="keywords" value="Linux MDM, Linux device management, open source MDM, Linux management" >
+<meta name="useBasicArticleTemplate" value="true">

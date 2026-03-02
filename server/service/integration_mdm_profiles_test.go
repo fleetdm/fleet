@@ -520,7 +520,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	declUUID := resp.ProfileUUID
 
 	checkDDMSync := func(d *mdmtest.TestAppleMDMClient) {
-		require.NoError(t, ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger()))
+		require.NoError(t, ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger))
 		cmd, err := d.Idle()
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
@@ -5263,7 +5263,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	if len(secrets) == 0 {
 		require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}}))
 	}
-	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger()))
+	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger))
 
 	// turn on disk encryption and os updates
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -5343,7 +5343,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	require.Equal(t, "13.3.8", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, true, tmResp.Team.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
 
-	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger()))
+	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger))
 
 	checkMacProfs(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSProfileNames()...)
 	checkWinProfs(&tmResp.Team.ID, servermdm.ListFleetReservedWindowsProfileNames()...)
