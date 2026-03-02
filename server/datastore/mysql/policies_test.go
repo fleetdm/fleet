@@ -7066,10 +7066,10 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') >= 0;", p1.Query)
 
-	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		DumpTable(t, tx, "software_titles")
-		DumpTable(t, tx, "software_installers")
-		DumpTable(t, tx, "policies")
-		return nil
+	_, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:     "p2",
+		Query:    "SELECT 1;",
+		Platform: "darwin",
 	})
+	require.NoError(t, err)
 }

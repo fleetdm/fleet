@@ -1029,6 +1029,10 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 
 func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (policy *fleet.Policy, err error) {
 	var newPolicy *fleet.Policy
+	if args.Type != fleet.PolicyTypePatch {
+		// type should already be set to dynamic when called from the service layer
+		args.Type = fleet.PolicyTypeDynamic
+	}
 	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		if args.Type == fleet.PolicyTypePatch {
 			installer, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &teamID, *args.PatchSoftwareTitleID, false)
