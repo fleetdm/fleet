@@ -114,7 +114,7 @@ func (e *InvalidArgumentError) Appendf(name, reasonFmt string, args ...interface
 // WithStatus returns an error that combines the InvalidArgumentError
 // with a custom status code.
 func (e InvalidArgumentError) WithStatus(code int) error {
-	return invalidArgWithStatusError{e, code}
+	return &invalidArgWithStatusError{e, code}
 }
 
 func (e *InvalidArgumentError) HasErrors() bool {
@@ -122,7 +122,7 @@ func (e *InvalidArgumentError) HasErrors() bool {
 }
 
 // Error implements the error interface.
-func (e InvalidArgumentError) Error() string {
+func (e *InvalidArgumentError) Error() string {
 	switch len(e.Errors) {
 	case 0:
 		return "validation failed"
