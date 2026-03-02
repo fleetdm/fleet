@@ -17,6 +17,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -2408,7 +2409,17 @@ func (svc *Service) softwareBatchUpload(
 				}
 
 				var filename string
-				resp, tfr, err := downloadURLFn(ctx, p.URL)
+				var tfr *fleet.TempFileReader
+				var resp *http.Response
+				err = retry.Do(func() error {
+					var retryErr error
+					resp, tfr, retryErr = downloadURLFn(ctx, p.URL)
+					if retryErr != nil {
+						return retryErr
+					}
+
+					return nil
+				}, retry.WithMaxAttempts(fleet.BatchDownloadMaxRetries), retry.WithInterval(fleet.BatchSoftwareInstallerRetryInterval()))
 				if err != nil {
 					return err
 				}
@@ -2609,10 +2620,13 @@ func (svc *Service) softwareBatchUpload(
 	for _, payloadWithExtras := range installers {
 		payload := payloadWithExtras.UploadSoftwareInstallerPayload
 		if !payload.FMAVersionCached {
-			if err := svc.storeSoftware(ctx, payload); err != nil {
-				batchErr = fmt.Errorf("storing software installer %q: %w", payload.Filename, err)
-				return
-			}
+			batchErr = retry.Do(func() error {
+				if retryErr := svc.storeSoftware(ctx, payload); retryErr != nil {
+					return fmt.Errorf("storing software installer %q: %w", payload.Filename, retryErr)
+				}
+
+				return nil
+			}, retry.WithMaxAttempts(fleet.BatchUploadMaxRetries), retry.WithInterval(fleet.BatchSoftwareInstallerRetryInterval()))
 		}
 		if payload.Extension == "ipa" {
 			inHouseInstallers = append(inHouseInstallers, payload)
