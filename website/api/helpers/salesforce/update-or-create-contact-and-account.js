@@ -70,6 +70,17 @@ module.exports = {
     marketingAttributionCookie: {
       type: {},
       description: 'The contents of the marketingAttribution cookie set in the requesting user\'s browser',
+    },
+
+    trialInstanceUsageDetails: {
+      type: {
+        status: 'string',
+        lastUpdatedOn: 'string',
+        trialStartedOn: 'string',
+        trialEndsOn: 'string',
+        numUsers: 'number',
+        numHostsEnrolled: 'number',
+      }
     }
 
   },
@@ -90,7 +101,7 @@ module.exports = {
 
   },
 
-  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, jobTitle, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses, intentSignal, marketingAttributionCookie}) {
+  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, jobTitle, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses, intentSignal, marketingAttributionCookie, trialInstanceUsageDetails}) {
 
     // Return undefined if we're not running in a production environment.
     if(sails.config.environment !== 'production') {
@@ -151,6 +162,16 @@ module.exports = {
     }
     if(jobTitle) {
       valuesToSet.Title = jobTitle;
+    }
+
+
+    if(trialInstanceUsageDetails) {
+      valuesToSet.Trial_status__c = trialInstanceUsageDetails.status;// eslint-disable-line camelcase
+      valuesToSet.Last_trial_sync__c = trialInstanceUsageDetails.lastUpdatedOn;// eslint-disable-line camelcase
+      valuesToSet.Trial_start_date__c = trialInstanceUsageDetails.trialStartedOn;// eslint-disable-line camelcase
+      valuesToSet.Trial_end_date__c = trialInstanceUsageDetails.trialEndsOn;// eslint-disable-line camelcase
+      valuesToSet.Trial_user_count__c = trialInstanceUsageDetails.numUsers;// eslint-disable-line camelcase
+      valuesToSet.Trial_hosts_enrolled__c = trialInstanceUsageDetails.numHostsEnrolled;// eslint-disable-line camelcase
     }
 
     //  ╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗  ╔╦╗╔═╗╦═╗╦╔═╔═╗╔╦╗╦╔╗╔╔═╗  ╔═╗╔╦╗╔╦╗╦═╗╦╔╗ ╦ ╦╔╦╗╦╔═╗╔╗╔
