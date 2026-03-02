@@ -26391,7 +26391,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.NotNil(t, r.Policy.TeamID)
 
 		// try to add a patch policy with a query, should fail
-		params := map[string]interface{}{
+		params := map[string]any{
 			"name":                    "test-2",
 			"query":                   "SELECT 1 FROM;",
 			"description":             "um",
@@ -26400,8 +26400,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		}
 		res := s.Do("POST", "/api/latest/fleet/fleets/0/policies", params, http.StatusBadRequest)
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, `The policy where the "type" is "patch" doesn't support the "query" field.`)
-		fmt.Println(errMsg)
+		require.Contains(t, errMsg, `If the "type" is "patch", the "query" field is not supported.`)
 		// defer res.Body.Close()
 
 		// Upload some software installer (not fma)
@@ -26419,7 +26418,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.NotZero(t, titleID)
 
 		// try to add a patch policy that matches to an installer, but not an FMA
-		params = map[string]interface{}{
+		params = map[string]any{
 			"name":                    "test-3",
 			"query":                   "",
 			"description":             "um",
@@ -26429,8 +26428,8 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		res = s.Do("POST", "/api/latest/fleet/fleets/0/policies", params, http.StatusBadRequest)
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for team ID 0", titleID))
-		fmt.Println(errMsg)
 
+		// add a fleet maintained app and associate the installer with it
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			res, err := q.ExecContext(ctx, `INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
 			VALUES ('DummyApp', 'dummy/darwin', 'darwin', 'com.example.dummy')`)
@@ -26444,8 +26443,61 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		})
 
 		// add the same patch policy, but this time it belongs to an FMA
-		res = s.Do("POST", "/api/latest/fleet/fleets/0/policies", params, http.StatusOK)
+		policyResp := teamPolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", teamPolicyRequest{
+			Name:                 "test-4",
+			Query:                "",
+			Description:          "um",
+			Type:                 ptr.String("patch"),
+			PatchSoftwareTitleID: &titleID,
+		}, http.StatusOK, &policyResp)
+		policyID := policyResp.Policy.ID
 
-		// TODO(JK): list policies, update policy
+		// attempt to add the same policy again
+		params = map[string]any{
+			"name":                    "test-5",
+			"query":                   "",
+			"description":             "um",
+			"type":                    "patch",
+			"patch_software_title_id": titleID,
+		}
+		res = s.Do("POST", "/api/latest/fleet/fleets/0/policies", params, http.StatusConflict)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `Couldn't add. Specified "patch_software_title_id" already has a policy with "type" set to "patch".`)
+
+		// attempt to update patch policy with query
+		params = map[string]any{
+			"query": "blablabla",
+		}
+		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", policyID), params, http.StatusBadRequest)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `If the "type" is "patch", the "query" field is not supported.`)
+
+		// attempt to update patch policy with platform
+		params = map[string]any{
+			"platform": "windows,linux",
+		}
+		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", policyID), params, http.StatusBadRequest)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `If the "type" is "patch", the "platform" field is not supported.`)
+
+		// update the patch policy successfully
+		modifyPolicyResp := modifyTeamPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", policyID), teamPolicyRequest{
+			Name: "test-6-new-name",
+		}, http.StatusOK, &modifyPolicyResp)
+
+		// list policies
+		var listPolResp listTeamPoliciesResponse
+		s.DoJSON("GET", "/api/latest/fleet/fleets/0/policies", listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		require.Len(t, listPolResp.Policies, 2)
+		require.NotNil(t, listPolResp.Policies[1].PatchSoftware)
+		require.Equal(t, titleID, listPolResp.Policies[1].PatchSoftware.SoftwareTitleID)
+
+		// get policy by id
+		getPolicyResp := getTeamPolicyByIDResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", policyID), nil, http.StatusOK, &getPolicyResp)
+		require.NotNil(t, getPolicyResp.Policy.PatchSoftware)
+		require.Equal(t, titleID, getPolicyResp.Policy.PatchSoftware.SoftwareTitleID)
 	})
 }

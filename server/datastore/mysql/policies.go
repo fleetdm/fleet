@@ -1122,6 +1122,10 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 	switch {
 	case err == nil:
 		// OK
+	case IsDuplicate(err) && args.Type == fleet.PolicyTypePatch:
+		return nil, &fleet.ConflictError{
+			Message: "Couldn't add. Specified \"patch_software_title_id\" already has a policy with \"type\" set to \"patch\".",
+		}
 	case IsDuplicate(err):
 		return nil, ctxerr.Wrap(ctx, alreadyExists("Policy", nameUnicode))
 	default:

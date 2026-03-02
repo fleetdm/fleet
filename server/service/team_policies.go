@@ -112,7 +112,6 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 	if err := svc.populatePolicyRunScript(ctx, policy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
 	}
-	// TODO(JK): populate patch policy "patch_software: object (same software title struct type)
 	if err := svc.populatePolicyPatchSoftware(ctx, policy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate patch_software")
 	}
