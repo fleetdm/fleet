@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -245,4 +246,61 @@ func TestRetries(t *testing.T) {
 	require.ErrorContains(t, err, "calling gdmf endpoint failed with status 400")
 	require.Nil(t, latest)
 	require.Equal(t, 4, retryCount)
+}
+
+func TestCache(t *testing.T) {
+	callCount := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		w.WriteHeader(http.StatusOK)
+		b, err := os.ReadFile("./testdata/gdmf.json")
+		require.NoError(t, err)
+		_, err = w.Write(b)
+		require.NoError(t, err)
+	}))
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", srv.URL)
+	t.Cleanup(func() {
+		srv.Close()
+		dev_mode.ClearOverride("FLEET_DEV_GDMF_URL")
+	})
+
+	for i := 0; i < 5; i++ {
+		resp, err := GetAssetMetadata(false) // don't skip cache
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+	}
+
+	require.Equal(t, 1, callCount, "expected only 1 call to the server due to caching")
+}
+
+func TestCacheExpiration(t *testing.T) {
+	callCount := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		w.WriteHeader(http.StatusOK)
+		b, err := os.ReadFile("./testdata/gdmf.json")
+		require.NoError(t, err)
+		_, err = w.Write(b)
+		require.NoError(t, err)
+	}))
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", srv.URL)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_CACHE_DURATION", "5ms")
+	t.Cleanup(func() {
+		srv.Close()
+		dev_mode.ClearOverride("FLEET_DEV_GDMF_URL")
+		dev_mode.ClearOverride("FLEET_DEV_GDMF_CACHE_DURATION")
+	})
+
+	resp, err := GetAssetMetadata(false) // don't skip cache
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, 1, callCount, "expected 1 call to the server")
+
+	// wait for cache to expire
+	time.Sleep(10 * time.Millisecond)
+
+	resp, err = GetAssetMetadata(false) // don't skip cache
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, 2, callCount, "expected a second call to the server after cache expiration")
 }

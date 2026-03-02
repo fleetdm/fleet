@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/gdmf"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
@@ -1603,4 +1604,38 @@ func IOSiPadOSRevive(ctx context.Context, ds fleet.Datastore, commander *MDMAppl
 		return ctxerr.Wrap(ctx, err, "sending push notifications")
 	}
 	return nil
+}
+
+func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](settings T) map[string]error {
+	var macOSUpdates, iOSUpdates, iPadOSUpdates fleet.AppleOSUpdateSettings
+	if m, ok := any(settings).(fleet.MDM); ok {
+		macOSUpdates = m.MacOSUpdates
+		iOSUpdates = m.IOSUpdates
+		iPadOSUpdates = m.IPadOSUpdates
+	} else if t, ok := any(settings).(fleet.TeamMDM); ok {
+		macOSUpdates = t.MacOSUpdates
+		iOSUpdates = t.IOSUpdates
+		iPadOSUpdates = t.IPadOSUpdates
+	} else {
+		return nil
+	}
+
+	errs := make(map[string]error, 3)
+	if macOSUpdates.MinimumVersion.Value != "" {
+		if err := gdmf.ValidateAppleSupportedOSVersion("macos", macOSUpdates.MinimumVersion.Value, macOSUpdates.UpdateNewHosts.Value); err != nil {
+			errs["mdm.macos_updates.minimum_version"] = errors.New(fleet.AppleOSVersionUnsupportedMessage)
+		}
+	}
+	if iOSUpdates.MinimumVersion.Value != "" {
+		if err := gdmf.ValidateAppleSupportedOSVersion("ios", iOSUpdates.MinimumVersion.Value, iOSUpdates.UpdateNewHosts.Value); err != nil {
+			errs["mdm.ios_updates.minimum_version"] = errors.New(fleet.AppleOSVersionUnsupportedMessage)
+		}
+	}
+	if iPadOSUpdates.MinimumVersion.Value != "" {
+		if err := gdmf.ValidateAppleSupportedOSVersion("ipados", iPadOSUpdates.MinimumVersion.Value, iPadOSUpdates.UpdateNewHosts.Value); err != nil {
+			errs["mdm.ipados_updates.minimum_version"] = errors.New(fleet.AppleOSVersionUnsupportedMessage)
+		}
+	}
+
+	return errs
 }

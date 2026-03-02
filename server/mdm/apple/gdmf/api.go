@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff"
@@ -21,6 +22,13 @@ import (
 )
 
 const baseURL = "https://gdmf.apple.com/v2/pmv"
+
+var cache = struct {
+	assetMetadata *AssetMetadata
+	lastUpdated   time.Time
+
+	mu sync.Mutex
+}{}
 
 // Asset represents the metadata for an asset in the Apple Software Lookup Service[1][2].
 // Example:
@@ -58,10 +66,10 @@ type AssetSets struct {
 	// XROS     []Asset `json:"xrOS"`    // Fleet doesn't support xrOS yet
 }
 
-// APIResponse represents the response from the Apple Software Lookup Service[1][2].
+// AssetMetadata represents the response from the Apple Software Lookup Service[1][2].
 // [1]: http://gdmf.apple.com/v2/pmv
 // [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
-type APIResponse struct {
+type AssetMetadata struct {
 	PublicAssetSets AssetSets `json:"PublicAssetSets"`
 	AssetSets       AssetSets `json:"AssetSets"`
 	// PublicRapidSecurityResponses interface{} `json:"PublicRapidSecurityResponses"` // Fleet doesn't support PublicRapidSecurityResponses yet
@@ -73,19 +81,19 @@ type APIResponse struct {
 // [1]: http://gdmf.apple.com/v2/pmv
 // [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
 func GetLatestOSVersion(device fleet.MDMAppleMachineInfo) (*Asset, error) {
-	r, err := GetAssetMetadata()
+	am, err := GetAssetMetadata(false)
 	if err != nil {
 		return nil, fmt.Errorf("retrieving asset metadata: %w", err)
 	}
 
-	assetSet := r.PublicAssetSets.MacOS // default to public asset set; note that if the device is not macOS, iPhone, iPad, or iPod we'll fail to match the supported device and return an error below
+	assetSet := am.PublicAssetSets.MacOS // default to public asset set; note that if the device is not macOS, iPhone, iPad, or iPod we'll fail to match the supported device and return an error below
 	if strings.HasPrefix(device.Product, "iPhone") ||
 		strings.HasPrefix(device.Product, "iPod") ||
 		strings.HasPrefix(device.Product, "iPad") ||
 		strings.HasPrefix(device.SoftwareUpdateDeviceID, "iPhone") ||
 		strings.HasPrefix(device.SoftwareUpdateDeviceID, "iPod") ||
 		strings.HasPrefix(device.SoftwareUpdateDeviceID, "iPad") {
-		assetSet = r.PublicAssetSets.IOS
+		assetSet = am.PublicAssetSets.IOS
 	}
 	latestIdx := -1
 	for i, s := range assetSet {
@@ -105,6 +113,36 @@ func GetLatestOSVersion(device fleet.MDMAppleMachineInfo) (*Asset, error) {
 		return nil, fmt.Errorf("no matching asset found for device %s", device.Product)
 	}
 	return &assetSet[latestIdx], nil
+}
+
+func ValidateAppleSupportedOSVersion(platform string, version string, includeDEP bool) error {
+	am, err := GetAssetMetadata(false)
+	if err != nil {
+		return fmt.Errorf("retrieving asset metadata: %w", err)
+	}
+
+	as := am.AssetSets
+	if includeDEP {
+		as = am.PublicAssetSets
+	}
+
+	var assetSet []Asset
+	switch strings.ToLower(platform) {
+	case "macos", "darwin":
+		assetSet = as.MacOS
+	case "ios", "ipados", "iphone", "ipad", "ipod":
+		assetSet = as.IOS
+	default:
+		return fmt.Errorf("unrecognized platform: %s", platform)
+	}
+
+	for _, s := range assetSet {
+		if s.ProductVersion == version {
+			return nil // version is supported
+		}
+	}
+
+	return fmt.Errorf("version %s is not supported for platform %s (including DEP: %t)", version, platform, includeDEP)
 }
 
 // client is a package-level client (similar to http.DefaultClient) so it can
@@ -129,7 +167,14 @@ func createClient() *http.Client {
 // GetAssetMetadata retrieves the asset metadata from the Apple Software Lookup Service[1][2].
 // [1]: http://gdmf.apple.com/v2/pmv
 // [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
-func GetAssetMetadata() (*APIResponse, error) {
+func GetAssetMetadata(forceResetCache bool) (*AssetMetadata, error) {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+
+	if !forceResetCache && cache.assetMetadata != nil && time.Since(cache.lastUpdated) < getCacheDuration() {
+		return cache.assetMetadata, nil
+	}
+
 	baseURL := getBaseURL()
 	reqURL, err := url.Parse(baseURL)
 	if err != nil {
@@ -151,10 +196,13 @@ func GetAssetMetadata() (*APIResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading response body from Apple endpoint: %w", err)
 	}
-	var dest APIResponse
+	var dest AssetMetadata
 	if err := json.Unmarshal(body, &dest); err != nil {
 		return nil, fmt.Errorf("decoding response data from Apple endpoint: %w", err)
 	}
+
+	cache.assetMetadata = &dest
+	cache.lastUpdated = time.Now()
 
 	return &dest, nil
 }
@@ -212,4 +260,14 @@ func getBaseURL() string {
 		return devURL
 	}
 	return baseURL
+}
+
+func getCacheDuration() time.Duration {
+	devTTL := dev_mode.Env("FLEET_DEV_GDMF_CACHE_DURATION")
+	if devTTL != "" {
+		if ttl, err := time.ParseDuration(devTTL); err == nil {
+			return ttl
+		}
+	}
+	return 6 * time.Hour // default cache duration
 }
