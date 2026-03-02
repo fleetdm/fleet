@@ -34,8 +34,8 @@ controls:
   # Setup experience
   ###########################################################
   apple_setup:
-  # To enable SSO, uncomment this
-  # enable_end_user_authentication: true
+    # To enable SSO, uncomment this
+    # enable_end_user_authentication: true
 
   ###########################################################
   # Presets, restrictions, and configs
@@ -47,17 +47,14 @@ controls:
       # - paths: ../platforms/ipados/declaration-profiles/*.json
       # - paths: ../platforms/ipados/configuration-profiles/*.mobileconfig
 
-  scripts: #TODO: Ensure this can be excluded.  Doesn't mean anything for iOS.
-reports: #TODO: Ensure this can be excluded.  Doesn't mean anything for iOS.
-policies: #TODO: Ensure this can be excluded.  Doesn't mean anything for iOS.
-
 ###########################################################
 # Software available for install
 #
 # (company-owned mobile devices)
 ###########################################################
 software:
-  app_store_apps: app_store_apps: # Apps to make available from the Apple App Store or Google Play
+  # Apps to make available from the Apple App Store or Google Play
+  app_store_apps: 
     # iOS apps
     # …
     # - app_store_id: "618783545" # Slack

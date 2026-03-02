@@ -21,7 +21,8 @@ org_settings:
     # Read more:
     #   • https://fleetdm.com/docs/configuration/yaml-files#org-info
     ###########################################################
-    org_name: "My organization" # TODO: Replace with the name of your organization
+    org_name: "My organization"
+    #         ^TODO: Replace with the name of your organization
 
   server_settings:
     ###########################################################
@@ -38,7 +39,8 @@ org_settings:
     # will have to take action to restore MDM functionality (due
     # to the way Apple's device management protocol works.)
     ###########################################################
-    server_url: https://fleet.example.com # TODO: Replace with the URL where Fleet is running.
+    server_url: "https://fleet.example.com"
+    #           ^TODO: Replace with the URL where Fleet is running.
 
   ###########################################################
   # Uncomment to use single sign-on (SSO) for admins accessing Fleet.

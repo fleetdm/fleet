@@ -60,8 +60,14 @@ controls:
     profiles: #FUTURE: stat disk and auto-include all via glob
       # - paths: ../platforms/windows/configuration-profiles/*.xml
   
-  # Register scripts so they can be run from Fleet for helpdesk
-  # use cases and in your custom automations.
+  ###########################################################
+  # You probably don't need to change the next few lines.
+  #
+  # > To make a script available for use with Fleet for helpdesk
+  # > use cases and in your custom automations, just include it
+  # > in the appropriate folder for the primary platform where it
+  # > is intended to run.  It will be registered automatically.
+  ###########################################################
   scripts:
     - paths: ../platforms/macos/scripts/*.sh
     - paths: ../platforms/windows/scripts/*.ps1
