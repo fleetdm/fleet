@@ -25,7 +25,7 @@ func TestGetLatest(t *testing.T) {
 		_, err = w.Write(b)
 		require.NoError(t, err)
 	}))
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", srv.URL, t)
 
 	// test the function
@@ -226,11 +226,9 @@ func TestRetries(t *testing.T) {
 		_, err := w.Write([]byte(`{"error": "bad request"}`))
 		require.NoError(t, err)
 	}))
-	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", srv.URL)
-	t.Cleanup(func() {
-		srv.Close()
-		dev_mode.ClearOverride("FLEET_DEV_GDMF_URL")
-	})
+	t.Cleanup(srv.Close)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", srv.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_CACHE_DURATION", "0", t) // disable cache to ensure retries happen
 
 	latest, err := GetLatestOSVersion(fleet.MDMAppleMachineInfo{
 		OSVersion:                "14.4.1",
@@ -258,14 +256,17 @@ func TestCache(t *testing.T) {
 		_, err = w.Write(b)
 		require.NoError(t, err)
 	}))
-	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", srv.URL)
-	t.Cleanup(func() {
-		srv.Close()
-		dev_mode.ClearOverride("FLEET_DEV_GDMF_URL")
-	})
+	t.Cleanup(srv.Close)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", srv.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_CACHE_DURATION", "1m", t) // set long cache duration to ensure cache is used
+
+	resp, err := GetAssetMetadata(true) // force the cache to refresh
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, 1, callCount, "expected 1 call to the server")
 
 	for i := 0; i < 5; i++ {
-		resp, err := GetAssetMetadata(false) // don't skip cache
+		resp, err := GetAssetMetadata(false) // don't refresh cache
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 	}
@@ -283,23 +284,25 @@ func TestCacheExpiration(t *testing.T) {
 		_, err = w.Write(b)
 		require.NoError(t, err)
 	}))
-	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", srv.URL)
-	dev_mode.SetOverride("FLEET_DEV_GDMF_CACHE_DURATION", "5ms")
-	t.Cleanup(func() {
-		srv.Close()
-		dev_mode.ClearOverride("FLEET_DEV_GDMF_URL")
-		dev_mode.ClearOverride("FLEET_DEV_GDMF_CACHE_DURATION")
-	})
+	t.Cleanup(srv.Close)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", srv.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_CACHE_DURATION", "5ms", t)
 
-	resp, err := GetAssetMetadata(false) // don't skip cache
+	resp, err := GetAssetMetadata(true) // force the cache to refresh
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.Equal(t, 1, callCount, "expected 1 call to the server")
 
+	// try again immediately
+	resp, err = GetAssetMetadata(false) // should use cache
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, 1, callCount, "expected still only 1 call to the server due to caching")
+
 	// wait for cache to expire
 	time.Sleep(10 * time.Millisecond)
 
-	resp, err = GetAssetMetadata(false) // don't skip cache
+	resp, err = GetAssetMetadata(false) // cache should be expired
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.Equal(t, 2, callCount, "expected a second call to the server after cache expiration")
