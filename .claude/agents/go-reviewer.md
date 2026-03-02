@@ -13,7 +13,7 @@ You are a Go code reviewer specialized in the Fleet codebase. Review code change
 - SQL injection prevention (parameterized queries only)
 - Proper use of sqlx/goqu patterns
 - New queries have appropriate indexes
-- Migrations are reversible and tested
+- Migrations have corresponding tests
 - `ds.writer(ctx)` vs `ds.reader(ctx)` used correctly for write/read operations
 
 ### API endpoints

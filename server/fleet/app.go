@@ -532,6 +532,7 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 type MacOSSetup struct {
 	BootstrapPackage            optjson.String                     `json:"bootstrap_package"`
 	EnableEndUserAuthentication bool                               `json:"enable_end_user_authentication"`
+	LockEndUserInfo             optjson.Bool                       `json:"lock_end_user_info"`
 	MacOSSetupAssistant         optjson.String                     `json:"macos_setup_assistant"`
 	EnableReleaseDeviceManually optjson.Bool                       `json:"enable_release_device_manually"`
 	Script                      optjson.String                     `json:"script"`
@@ -552,6 +553,9 @@ func (mos *MacOSSetup) SetDefaultsIfNeeded() {
 	}
 	if !mos.EnableReleaseDeviceManually.Valid {
 		mos.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
+	if !mos.LockEndUserInfo.Valid {
+		mos.LockEndUserInfo = optjson.SetBool(false)
 	}
 	if !mos.Script.Valid {
 		mos.Script = optjson.SetString("")
@@ -1101,6 +1105,9 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	}
 	if !c.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		c.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
+	if !c.MDM.MacOSSetup.LockEndUserInfo.Valid {
+		c.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
 	}
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)

@@ -99,9 +99,7 @@ describe("EditLabelPage", () => {
     expect(selectHostsLabel).toBeInTheDocument();
 
     // expect host info to be on the page
-    const host1 = await screen.findByText("Test host #1");
-    const host2 = await screen.findByText("Test host #2");
-    expect(host1).toBeInTheDocument();
-    expect(host2).toBeInTheDocument();
+    await screen.findByText("Test host #1");
+    await screen.findByText("Test host #2");
   });
 });
