@@ -83,15 +83,13 @@ Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 
 
 ### Verified
 
-> For some Windows configuration profiles, [verification doesn't work](https://github.com/fleetdm/fleet/issues/38833). Fleet will [remove verification](https://github.com/fleetdm/fleet/issues/31921) for Windows profiles in 4.83 (coming soon).
-
-Hosts that applied all OS settings. 
+Hosts that applied all OS settings.
 
 For macOS configuration profiles and device-scoped Windows profiles, Fleet verified by running an osquery query. It can take up to 1 hour ([configurable](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-detail-update-interval)) for these profiles to move from "Verifying" to "Verified".
 
 macOS declarations profiles are verified with a [DDM StatusReport](https://developer.apple.com/documentation/devicemanagement/statusreport).
 
-User-scoped Windows profiles are "Verified" after Fleet gets a [200 response](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes) from the Windows MDM protocol.
+User-scoped Windows profiles are "Verified" after Fleet gets a [200 response](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes) from the Windows MDM protocol. _Note: Windows profiles are not verified by osquery._
 
 iOS and iPadOS hosts are "Verified" after they acknowledge all MDM commands to apply OS settings. Android hosts are "Verified" after Fleet verifies that the settings is applied in the next [status report](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices).
 
