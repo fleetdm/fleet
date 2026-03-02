@@ -8,8 +8,18 @@
   padding: $pad-xlarge $pad-large;
   font-size: $x-small;
 
+  &__outer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-large;
+  }
+
   &__inner {
-    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-small;
 
     input {
       display: none;
@@ -19,10 +29,6 @@
   // Cannot hide all input as preview may include dropdown input that needs to be shown
   .file-input-visually-hidden {
     display: none;
-  }
-
-  &__content-wrapper {
-    @include content-wrapper();
   }
 
   &__error {
@@ -44,9 +50,11 @@
     justify-content: center;
     gap: $pad-medium;
   }
+
   &__message {
     margin: 0;
     color: $ui-fleet-black-75;
+    text-align: center;
   }
 
   &__additional-info {
