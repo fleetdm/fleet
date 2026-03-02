@@ -26381,25 +26381,71 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 	// Add that same policy again with a different name
 
 	t.Run("no_team_patch_policy", func(t *testing.T) {
-		// Create a "No team" policy.
+		// add a regular "No team" policy
 		tpParams := teamPolicyRequest{
 			Name:  "noTeamPolicy1",
 			Query: "SELECT 1;",
 		}
 		r := teamPolicyResponse{}
-		s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", tpParams, http.StatusOK, &r)
+		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", tpParams, http.StatusOK, &r)
 		require.NotNil(t, r.Policy.TeamID)
 
+		// try to add a patch policy with a query, should fail
 		params := map[string]interface{}{
-			"name":                    "test2",
+			"name":                    "test-2",
 			"query":                   "SELECT 1 FROM;",
 			"description":             "um",
 			"type":                    "patch",
 			"patch_software_title_id": 4484,
 		}
-		res := s.Do("POST", "/api/latest/fleet/teams/9/policies", params, http.StatusBadRequest)
+		res := s.Do("POST", "/api/latest/fleet/fleets/0/policies", params, http.StatusBadRequest)
 		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `The policy where the "type" is "patch" doesn't support the "query" field.`)
 		fmt.Println(errMsg)
-		defer res.Body.Close()
+		// defer res.Body.Close()
+
+		// Upload some software installer (not fma)
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "some install script",
+			Filename:      "dummy_installer.pkg",
+			TeamID:        nil,
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		var titleID uint
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &titleID, `SELECT title_id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, 0, payload.Filename)
+		})
+		require.NotZero(t, titleID)
+
+		// try to add a patch policy that matches to an installer, but not an FMA
+		params = map[string]interface{}{
+			"name":                    "test-3",
+			"query":                   "",
+			"description":             "um",
+			"type":                    "patch",
+			"patch_software_title_id": titleID,
+		}
+		res = s.Do("POST", "/api/latest/fleet/fleets/0/policies", params, http.StatusBadRequest)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for team ID 0", titleID))
+		fmt.Println(errMsg)
+
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			res, err := q.ExecContext(ctx, `INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
+			VALUES ('DummyApp', 'dummy/darwin', 'darwin', 'com.example.dummy')`)
+			require.NoError(t, err)
+			id, err := res.LastInsertId()
+			require.NoError(t, err)
+
+			_, err = q.ExecContext(ctx, `UPDATE software_installers SET fleet_maintained_app_id = ? WHERE title_id = ?`, id, titleID)
+			require.NoError(t, err)
+			return nil
+		})
+
+		// add the same patch policy, but this time it belongs to an FMA
+		res = s.Do("POST", "/api/latest/fleet/fleets/0/policies", params, http.StatusOK)
+
+		// TODO(JK): list policies, update policy
 	})
 }
