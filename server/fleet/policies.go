@@ -62,10 +62,9 @@ type PolicyPayload struct {
 	// Only applies to team policies.
 	ConditionalAccessBypassEnabled *bool
 
-	// Type is either dynamic (classic, editable) or patch (tied to Fleet maintained app).
+	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type string
-	// PatchSoftwareTitleID is the title id of the Fleet maintained app
-	// that will be updated in a patch policy.
+	// PatchSoftwareTitleID is the title id of the Fleet maintained app chcked by a patch policy.
 	//
 	// Only applies to team policies with the patch type.
 	PatchSoftwareTitleID *uint
@@ -111,9 +110,9 @@ type NewTeamPolicyPayload struct {
 	// bypassed by the end user
 	ConditionalAccessBypassEnabled *bool
 
-	// TODO(JK): comments
-	// Type is either dynamic (classic, editable) or patch (tied to Fleet maintained app).
-	Type                 *string
+	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
+	Type *string
+	// PatchSoftwareTitleID is the title id of the Fleet maintained app checked by a patch policy.
 	PatchSoftwareTitleID *uint
 }
 
@@ -347,8 +346,12 @@ type PolicyData struct {
 	// Only applies to team policies.
 	ConditionalAccessBypassEnabled *bool `json:"conditional_access_bypass_enabled" db:"conditional_access_bypass_enabled"`
 
-	Type                 string `json:"type" db:"type"`
-	PatchSoftwareTitleID *uint  `json:"-" db:"patch_software_title_id"`
+	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
+	Type string `json:"type" db:"type"`
+	// PatchSoftwareTitleID is the title id of the Fleet maintained app chcked by a patch policy.
+	//
+	// Only applies to team policies with the patch type.
+	PatchSoftwareTitleID *uint `json:"-" db:"patch_software_title_id"`
 
 	UpdateCreateTimestamps
 }
@@ -378,7 +381,12 @@ type Policy struct {
 	// This field is populated from PolicyData.ScriptID
 	RunScript *PolicyScript `json:"run_script,omitempty"`
 
-	// TODO(JK): comment
+	// PatchSoftware is used to check the installed version of a Fleet
+	// maintaind app.
+	//
+	// Only applies to team policies with the patch type.
+	//
+	// This field is populated from PolicyData.PatchSoftwareTitleID
 	PatchSoftware *PolicySoftwareTitle `json:"patch_software,omitempty"`
 }
 

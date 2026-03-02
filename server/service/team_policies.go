@@ -86,7 +86,7 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 		return nil, errors.New("user must be authenticated to create team policies")
 	}
 
-	p, err := svc.newTeamPolicyPayloadToPolicyPayload(ctx, teamID, tp) // TODO(JK): update
+	p, err := svc.newTeamPolicyPayloadToPolicyPayload(ctx, teamID, tp)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +198,6 @@ func (svc *Service) populatePolicyRunScript(ctx context.Context, p *fleet.Policy
 	return nil
 }
 
-// TODO(JK): how can we deduplicate all the calls to this? maybe by modifying getInstallerOrVPPAppForTitle?
 func (svc *Service) populatePolicyPatchSoftware(ctx context.Context, p *fleet.Policy) error {
 	if p.PatchSoftwareTitleID != nil {
 		installerMetadata, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, p.TeamID, *p.PatchSoftwareTitleID, false)
@@ -327,7 +326,6 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 		if err := svc.populatePolicyRunScript(ctx, teamPolicies[i]); err != nil {
 			return nil, nil, ctxerr.Wrapf(ctx, err, "populate run_script for policy_id: %d", teamPolicies[i].ID)
 		}
-		// TODO(JK): mergeInherited(global) shouldnt support patch software right?
 		if err := svc.populatePolicyPatchSoftware(ctx, teamPolicies[i]); err != nil {
 			return nil, nil, ctxerr.Wrapf(ctx, err, "populate patch_software for policy_id: %d", teamPolicies[i].ID)
 		}
@@ -716,6 +714,8 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 			policy.LabelsExcludeAny = append(policy.LabelsExcludeAny, fleet.LabelIdent{LabelName: label})
 		}
 	}
+
+	// todo(jk): alternative: check that query, platforms, have not changed
 
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
 
