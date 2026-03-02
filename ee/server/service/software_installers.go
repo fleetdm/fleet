@@ -2409,12 +2409,10 @@ func (svc *Service) softwareBatchUpload(
 					return fmt.Errorf("package not found with hash %s", p.SHA256)
 				}
 
-				var filename string
 				var tfr *fleet.TempFileReader
 
 				// Handle script packages from path (script:// URL scheme)
-				if strings.HasPrefix(p.URL, "script://") {
-					filename = strings.TrimPrefix(p.URL, "script://")
+				if filename, ok := strings.CutPrefix(p.URL, "script://"); ok {
 					ext := strings.ToLower(filepath.Ext(filename))
 					ext = strings.TrimPrefix(ext, ".")
 
@@ -2457,7 +2455,7 @@ func (svc *Service) softwareBatchUpload(
 					installer.InstallerFile = tfr
 					toBeClosedTFRs[i] = tfr
 
-					filename = maintained_apps.FilenameFromResponse(resp)
+					filename := maintained_apps.FilenameFromResponse(resp)
 					installer.Filename = filename
 
 					// For script packages (.sh and .ps1) and in-house apps (.ipa), clear
