@@ -55,6 +55,7 @@ func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		Critical:         req.Critical,
 		LabelsIncludeAny: req.LabelsIncludeAny,
 		LabelsExcludeAny: req.LabelsExcludeAny,
+		Type:             fleet.PolicyTypeDynamic,
 	})
 	if err != nil {
 		return globalPolicyResponse{Err: err}, nil
@@ -73,6 +74,12 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("policy payload verification: %s", err),
+		})
+	}
+	if p.Type == fleet.PolicyTypePatch {
+		// patch type is only allowed for team policies
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "patch policy is supported for teams only",
 		})
 	}
 

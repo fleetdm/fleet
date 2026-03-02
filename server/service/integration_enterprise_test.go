@@ -26401,7 +26401,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		res := s.Do("POST", "/api/latest/fleet/fleets/0/policies", params, http.StatusBadRequest)
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, `If the "type" is "patch", the "query" field is not supported.`)
-		// defer res.Body.Close()
+		res.Body.Close()
 
 		// Upload some software installer (not fma)
 		payload := &fleet.UploadSoftwareInstallerPayload{
@@ -26428,6 +26428,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		res = s.Do("POST", "/api/latest/fleet/fleets/0/policies", params, http.StatusBadRequest)
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for team ID 0", titleID))
+		res.Body.Close()
 
 		// add a fleet maintained app and associate the installer with it
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -26464,6 +26465,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		res = s.Do("POST", "/api/latest/fleet/fleets/0/policies", params, http.StatusConflict)
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, `Couldn't add. Specified "patch_software_title_id" already has a policy with "type" set to "patch".`)
+		res.Body.Close()
 
 		// attempt to update patch policy with query
 		params = map[string]any{
@@ -26472,6 +26474,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", policyID), params, http.StatusBadRequest)
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, `If the "type" is "patch", the "query" field is not supported.`)
+		res.Body.Close()
 
 		// attempt to update patch policy with platform
 		params = map[string]any{
@@ -26480,6 +26483,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", policyID), params, http.StatusBadRequest)
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, `If the "type" is "patch", the "platform" field is not supported.`)
+		res.Body.Close()
 
 		// update the patch policy successfully
 		modifyPolicyResp := modifyTeamPolicyResponse{}
@@ -26499,5 +26503,32 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", policyID), nil, http.StatusOK, &getPolicyResp)
 		require.NotNil(t, getPolicyResp.Policy.PatchSoftware)
 		require.Equal(t, titleID, getPolicyResp.Policy.PatchSoftware.SoftwareTitleID)
+	})
+
+	t.Run("global_patch_policy", func(t *testing.T) {
+		// attempt to add a global patch policy
+		params := map[string]any{
+			"name":                    "global-policy",
+			"query":                   "UNAFFECTED;",
+			"description":             "patch policies only work for teams",
+			"type":                    "patch",
+			"patch_software_title_id": "1", // should not matter
+		}
+		res := s.Do("POST", "/api/latest/fleet/policies", params, http.StatusOK)
+
+		resBody, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		res.Body.Close()
+
+		policyResp := globalPolicyResponse{}
+		json.Unmarshal(resBody, &policyResp)
+		policyID := policyResp.Policy.ID
+
+		getPolicyResp := getPolicyByIDResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", policyID), nil, http.StatusOK, &getPolicyResp)
+		require.NotNil(t, getPolicyResp.Policy)
+		require.Equal(t, "dynamic", getPolicyResp.Policy.Type)
+		require.Empty(t, getPolicyResp.Policy.PatchSoftware)
+		require.Empty(t, getPolicyResp.Policy.PatchSoftwareTitleID)
 	})
 }

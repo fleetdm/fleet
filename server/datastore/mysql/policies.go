@@ -1047,6 +1047,7 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 					installer.BundleIdentifier,
 					installer.Version,
 				)
+				args.Platform = string(fleet.MacOSPlatform)
 			} else if installer.Platform == "windows" {
 				// TODO: use upgrade code if possible?
 				args.Query = fmt.Sprintf(
@@ -1054,6 +1055,7 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 					installer.SoftwareTitle,
 					installer.Version,
 				)
+				args.Platform = "windows"
 			}
 		}
 
