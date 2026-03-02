@@ -695,12 +695,8 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestMacOSSetupDeprecated() {
 
 	originalAppConfig, err := s.DS.AppConfig(ctx)
 	require.NoError(t, err)
-	noTeam, err := s.DS.TeamByName(ctx, "No team")
-	require.NoError(t, err)
 	t.Cleanup(func() {
 		err := s.DS.SaveAppConfig(ctx, originalAppConfig)
-		require.NoError(t, err)
-		_, err = s.DS.SaveTeam(ctx, noTeam)
 		require.NoError(t, err)
 	})
 
