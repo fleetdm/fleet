@@ -108,7 +108,6 @@ func (d *DEPService) getDefaultProfile() *godep.Profile {
 		OrgMagic:         "1",
 		Region:           "US",
 		SkipSetupItems: []string{
-			"Accessibility",
 			"Appearance",
 			"AppleID",
 			"AppStore",
@@ -117,15 +116,20 @@ func (d *DEPService) getDefaultProfile() *godep.Profile {
 			"FileVault",
 			"iCloudDiagnostics",
 			"iCloudStorage",
+			"Intelligence",
 			"Location",
+			"OSShowcase",
 			"Payment",
 			"Privacy",
 			"Restore",
 			"ScreenTime",
 			"Siri",
+			"SoftwareUpdate",
 			"TermsOfAddress",
 			"TOS",
 			"UnlockWithWatch",
+			"UpdateCompleted",
+			"Welcome",
 		},
 	}
 }
