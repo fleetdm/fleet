@@ -260,21 +260,6 @@ type ModifyPolicyPayload struct {
 
 // Verify verifies the policy payload is valid.
 func (p ModifyPolicyPayload) Verify() error {
-	if p.Type == PolicyTypePatch {
-		if p.Name != nil {
-			if err := verifyPolicyName(*p.Name); err != nil {
-				return err
-			}
-		}
-		if p.Query != nil && !emptyString(*p.Query) {
-			return errPolicyPatchAndQuerySet
-		}
-		if p.Platform != nil && !emptyString(*p.Platform) {
-			return errPolicyPatchAndPlatformSet
-		}
-		return nil
-	}
-
 	if p.Name != nil {
 		if err := verifyPolicyName(*p.Name); err != nil {
 			return err

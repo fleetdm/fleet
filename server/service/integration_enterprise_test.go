@@ -26453,6 +26453,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			PatchSoftwareTitleID: &titleID,
 		}, http.StatusOK, &policyResp)
 		policyID := policyResp.Policy.ID
+		policyQuery := policyResp.Policy.Query
 
 		// attempt to add the same policy again
 		params = map[string]any{
@@ -26473,7 +26474,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		}
 		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", policyID), params, http.StatusBadRequest)
 		errMsg = extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, `If the "type" is "patch", the "query" field is not supported.`)
+		require.Contains(t, errMsg, `patch policy query cannot be modified`)
 		res.Body.Close()
 
 		// attempt to update patch policy with platform
@@ -26482,13 +26483,15 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		}
 		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", policyID), params, http.StatusBadRequest)
 		errMsg = extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, `If the "type" is "patch", the "platform" field is not supported.`)
+		require.Contains(t, errMsg, `patch policy platform cannot be modified`)
 		res.Body.Close()
 
 		// update the patch policy successfully
 		modifyPolicyResp := modifyTeamPolicyResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", policyID), teamPolicyRequest{
-			Name: "test-6-new-name",
+			Name:     "test-6-new-name",
+			Query:    policyQuery,
+			Platform: "darwin",
 		}, http.StatusOK, &modifyPolicyResp)
 
 		// list policies

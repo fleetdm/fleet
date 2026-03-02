@@ -643,10 +643,12 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		if policy.Query != *p.Query {
 			removeAllMemberships = true
 			removeStats = true
-			// if p.Type == fleet.PolicyTypePatch {
-			// 	// fail
-			// 	return nil, ctxerr.Wrap(ctx, err, "patch policy query cannot be modified")
-			// }
+
+			if p.Type == fleet.PolicyTypePatch {
+				return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					Message: "patch policy query cannot be modified",
+				})
+			}
 		}
 		policy.Query = *p.Query
 	}
@@ -656,10 +658,12 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if p.Platform != nil {
 		if policy.Platform != *p.Platform {
 			removeStats = true
-			// if p.Type == fleet.PolicyTypePatch {
-			// 	// fail
-			// 	return nil, ctxerr.Wrap(ctx, err, "patch policy platform cannot be modified")
-			// }
+
+			if p.Type == fleet.PolicyTypePatch {
+				return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					Message: "patch policy platform cannot be modified",
+				})
+			}
 		}
 		policy.Platform = *p.Platform
 	}
@@ -722,8 +726,6 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 			policy.LabelsExcludeAny = append(policy.LabelsExcludeAny, fleet.LabelIdent{LabelName: label})
 		}
 	}
-
-	// todo(jk): alternative: check that query, platforms, have not changed
 
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
 
