@@ -1,6 +1,12 @@
-# The confidence gap: why IT leaders are abandoning legacy device management
+# The confidence gap: why IT leaders are abandoning legacy endpoint management
 
-Managing thousands of endpoints shouldn’t rely on blind trust or manual UI clicks. Here is why engineering-driven organizations are demanding a new standard for device management.
+Managing thousands of endpoints shouldn’t rely on blind trust or manual UI clicks. Here is why engineering-driven organizations are demanding a new standard.
+
+### Links to article series:
+
+- Part 1: The confidence gap: why IT leaders are abandoning legacy endpoint management
+- Part 2: [Rethinking endpoint management: Fleet, osquery and Infrastructure as Code](https://fleetdm.com/articles/rethinking-endpoint-management)
+- Part 3: [Supercharging endpoint management: AI assistants and event-driven automation](https://fleetdm.com/articles/supercharging-endpoint-management)
 
 ## Assessing the damage
 
@@ -20,7 +26,7 @@ Traditional MDMs operate on a "fire and forget" model. You push a profile to enf
 
 You cannot confidently manage what you cannot accurately observe. IT leaders need to query their devices like a database to get real-time, irrefutable proof of state.
 
-**How Fleet Solves It:** Fleet uses osquery to provide absolute ground truth. Instead of relying on a vendor’s pre-packaged dashboard, IT teams can ask their fleet exact questions (e.g., "Show me all devices where the firewall is disabled *right now*") and get immediate, verifiable answers.
+**How Fleet Solves It:** Fleet uses `osquery` to provide absolute ground truth. Instead of relying on a vendor’s pre-packaged dashboard, IT teams can ask their fleet exact questions (e.g., "Show me all devices where the firewall is disabled *right now*") and get immediate, verifiable answers.
 
 **From the field:** When [Fastly](https://www.fastly.com/) needed to secure both their corporate endpoints and their global CDN infrastructure, they realized their previous MDM couldn't provide the certainty their leadership required. By switching to Fleet, they achieved a unified security posture.
 
@@ -46,21 +52,21 @@ Legacy MDM vendors usually specialize in one ecosystem. This forces IT leaders t
 
 **How Fleet Solves It:** Fleet provides a single, unified control plane for macOS, Windows, Linux, iOS, Android, and ChromeOS. IT teams enroll devices into Fleet to gain visibility and manage configurations in one place, drastically reducing overhead and tool sprawl.
 
-**From the field:** Foursquare’s small IT team was overwhelmed by maintaining multiple tools for their 200+ Macs and Windows devices.
+**From the field:** The small IT team at [Foursquare](https://foursquare.com/) was overwhelmed by maintaining multiple tools for their 200+ Macs and Windows devices.
 
 >"As a small team, [we] were running two separate MDM platforms... The overhead of maintaining both systems was overwhelming and added unnecessary complexity. By switching to Fleet, Foursquare cut endpoint maintenance effort by 50% and achieved 114% ROI by removing duplicate tools." **- [Fleet @ Foursquare case study](https://fleetdm.com/case-study/foursquare)**
 
 ## Closing the gap
 
-The confidence gap exists because legacy tools ask IT leaders to trust a black box. Engineering-driven organizations require more than trust; they require transparent, auditable, and scalable proof that their intended device posture is enabled.
+The confidence gap exists because legacy tools ask IT leaders to trust a black box. Engineering-driven organizations require more than trust. They require transparent, auditable, and scalable proof that their intended device posture is enabled.
 
 To solve the challenges of limited visibility, error-prone manual actions, and tool sprawl, IT must treat endpoint management as an engineering discipline.
 
-The next article in this series will be a dive deep into exactly how to build this modern stack. We will explore the technical mechanics of combining osquery, Fleet, and Infrastructure as Code then look at how you can supercharge your IT team using AI coding assistants and event-driven automation to manage it all.
+The [next article](https://fleetdm.com/articles/rethinking-endpoint-management) in this series will highlight the components that make up this modern endpoint management stack: [`osquery`](https://www.osquery.io/), [Fleet](https://fleetdm.com/), and [Infrastructure as Code (Iac)](https://about.gitlab.com/topics/gitops/infrastructure-as-code/). The final article in the series will cover supercharging your IT team and launching endpoint management into the future by using AI coding assistants and event-driven automation.
 
-<meta name="articleTitle" value="The confidence gap: why IT leaders are abandoning legacy device management">  
+<meta name="articleTitle" value="The confidence gap: why IT leaders are abandoning legacy endpoint management">  
 <meta name="authorFullName" value="Ashish Kuthiala, CMO, Fleet Device Management">  
 <meta name="authorGitHubUsername" value="akuthiala">  
 <meta name="category" value="articles">  
 <meta name="publishedOn" value="2026-02-25">  
-<meta name="description" value="Part 1 of 3 - Article series on modernizing device management.">
+<meta name="description" value="Part 1 of 3 - Article series on supercharging modern endpoint management.">

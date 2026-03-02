@@ -1,6 +1,6 @@
 ---
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   fleet:
     features:
@@ -26,6 +26,7 @@ spec:
       macos_setup:
         bootstrap_package: %s
         enable_end_user_authentication: false
+        lock_end_user_info: false
         macos_setup_assistant: %s
         manual_agent_install: null
         enable_release_device_manually: false
@@ -77,6 +78,7 @@ spec:
       macos_setup:
         bootstrap_package: %s
         enable_end_user_authentication: false
+        lock_end_user_info: false
         macos_setup_assistant: %s
         manual_agent_install: null
         enable_release_device_manually: false
@@ -106,7 +108,7 @@ spec:
     name: tm1
 ---
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
   fleet:
     features:
@@ -134,6 +136,7 @@ spec:
         macos_setup_assistant: %s
         manual_agent_install: null
         enable_release_device_manually: false
+        lock_end_user_info: false
         script: null
         software: null
       macos_updates:
@@ -180,6 +183,7 @@ spec:
         macos_setup_assistant: %s
         manual_agent_install: null
         enable_release_device_manually: false
+        lock_end_user_info: false
         script: null
         software: null
       macos_updates:
