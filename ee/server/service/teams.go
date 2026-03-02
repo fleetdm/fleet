@@ -1104,6 +1104,9 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		if err := spec.MDM.WindowsUpdates.Validate(); err != nil {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_updates", err.Error()))
 		}
+		if err := spec.MDM.MacOSSetup.Validate(); err != nil {
+			return nil, ctxerr.Wrap(ctx, err) // Error message coming from validate is already invalid argument
+		}
 
 		if create {
 

@@ -1286,6 +1286,21 @@ func TestMDMConfig(t *testing.T) {
 			},
 			expectedError: fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg,
 		},
+		{
+			name:        "manual_agent_install enabled without bootstrap package",
+			licenseTier: "premium",
+			oldMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{
+					ManualAgentInstall: optjson.SetBool(false),
+				},
+			},
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{
+					ManualAgentInstall: optjson.SetBool(true),
+				},
+			},
+			expectedError: "macos_setup.manual_agent_install Couldn't enable manual_agent_install. To use this option, first specify a bootstrap package.",
+		},
 	}
 
 	for _, tt := range testCases {

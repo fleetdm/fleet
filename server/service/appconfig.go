@@ -1453,6 +1453,16 @@ func (svc *Service) validateMDM(
 		invalid.Append("ipados_updates", err.Error())
 	}
 
+	if err := mdm.MacOSSetup.Validate(); err != nil {
+		var invalidArgErr *fleet.InvalidArgumentError
+		if errors.As(err, &invalidArgErr) {
+			firstInvalidErr := invalidArgErr.Errors[0] // We only expect one invalid argument error entry from the validate
+			invalid.AppendInvalidArgument(firstInvalidErr)
+		} else {
+			invalid.Append("macos_setup", err.Error())
+		}
+	}
+
 	// WindowsUpdates
 	updatingWindowsUpdates := !mdm.WindowsUpdates.Equal(oldMdm.WindowsUpdates)
 	if updatingWindowsUpdates {
