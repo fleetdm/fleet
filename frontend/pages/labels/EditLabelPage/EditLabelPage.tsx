@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 
@@ -39,6 +39,7 @@ type IEditLabelPageProps = RouteComponentProps<
 const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { currentUser } = useContext(AppContext);
+  const queryClient = useQueryClient();
 
   const labelId = parseInt(routeParams.label_id, 10);
 
@@ -53,6 +54,7 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (data) => data.label,
       onSuccess: (data) => {
+        console.log({ data });
         // can't edit host_vitals labels yet
         if (data.label_membership_type === "host_vitals") {
           renderFlash(
@@ -99,6 +101,7 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
     try {
       await labelsAPI.update(labelId, formData);
       renderFlash("success", "Label updated successfully.");
+      queryClient.invalidateQueries(["label", labelId, currentUser]);
     } catch (error) {
       const status = (error as { status: number }).status;
       let errorMessage = "Couldn't edit label. Please try again.";
