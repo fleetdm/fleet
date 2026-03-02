@@ -1,7 +1,7 @@
 # Bulk operations dashboard
 
 
-A dashboard to easily manage profiles and scripts across multiple teams on a Fleet instance.
+A dashboard to easily manage profiles and scripts across multiple fleets in a Fleet instance.
 
 
 ## Dependencies
@@ -20,7 +20,7 @@ This app has two required custom configuration values:
 
 ### Required configuration for software features
 
-If you are using this app to manage software across multiple teams on a Fleet instance, five additional configuration values are required:
+If you are using this app to manage software across multiple fleets in a Fleet instance, five additional configuration values are required:
 
 - `sails.config.uploads.bucket` The name of an AWS s3 bucket where unassigned software installers will be stored.
 - `sails.config.uploads.secret` The secret for the S3 bucket where unassigned software installers will be stored.

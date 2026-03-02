@@ -105,8 +105,8 @@ interface IGetHostsQueryParams {
   ...
 }
 
-// should be defined in service/entities/teams.ts
-interface ICreateTeamPostBody {
+// should be defined in service/entities/fleets.ts
+interface ICreateFleetPostBody {
   ...
 }
 
