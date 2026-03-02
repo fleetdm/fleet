@@ -2163,6 +2163,7 @@ CREATE TABLE `policies` (
   `vpp_apps_teams_id` int unsigned DEFAULT NULL,
   `conditional_access_enabled` tinyint unsigned NOT NULL DEFAULT '0',
   `conditional_access_bypass_enabled` tinyint(1) NOT NULL DEFAULT '1',
+  `needs_full_membership_cleanup` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_policies_checksum` (`checksum`),
   KEY `idx_policies_author_id` (`author_id`),
