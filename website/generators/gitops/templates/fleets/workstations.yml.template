@@ -7,8 +7,8 @@
 # computing devices (hosts) in this particular fleet.
 # 
 # > Note: By convention, the "💻 Workstations" fleet is
-# > where all internal, company-owned laptops, PCs, and
-# > other productivity endpoints (i.e. computers) are enrolled.
+# > where all company-owned laptops, PCs, and other
+# > productivity endpoints (i.e. computers) are enrolled.
 #
 # To see all supported options, check out:
 #   • https://fleetdm.com/docs/configuration/yaml-files
@@ -52,13 +52,16 @@ controls:
   #   • https://fleetdm.com/docs/configuration/yaml-files#controls
   ###########################################################
   apple_settings:
-    profiles: #FUTURE: stat disk and auto-include all via glob
-      # - paths: ../platforms/macos/declaration-profiles/*.json
-      # - paths: ../platforms/macos/configuration-profiles/*.mobileconfig
+    profiles:
+      - paths: ../platforms/macos/declaration-profiles/*.json
+      - paths: ../platforms/macos/configuration-profiles/*.mobileconfig
+      # TODO: include example of switching from `paths` to `path` for doing label-based scoping
   windows_settings:
     profiles: #FUTURE: stat disk and auto-include all via glob
       # - paths: ../platforms/windows/configuration-profiles/*.xml
   
+  # Register scripts so they can be run from Fleet for helpdesk
+  # use cases and in your custom automations.
   scripts:
     - paths: ../platforms/macos/scripts/*.sh
     - paths: ../platforms/windows/scripts/*.ps1
@@ -71,6 +74,10 @@ policies:
   - paths: ../platforms/macos/policies/*.yml # macOS policies
   - paths: ../platforms/windows/policies/*.yml # Windows policies
   - paths: ../platforms/linux/policies/*.yml # Linux policies
+  # TODO: include example policy, and have it showcase the new
+  # way of doing `failing_policies_webhook`, which works more like
+  # `run_script: … path: …`, and doesn't require knowing a policy's
+  # database ID.
 
 ###########################################################
 # Software available for install
