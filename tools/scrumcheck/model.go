@@ -110,13 +110,14 @@ type AssigneeOption struct {
 }
 
 type ReleaseLabelIssue struct {
-	Item          Item
-	ProjectNum    int
-	RepoOwner     string
-	RepoName      string
-	HasProduct    bool
-	HasRelease    bool
-	CurrentLabels []string
+	Item             Item
+	ProjectNum       int
+	RepoOwner        string
+	RepoName         string
+	HasProduct       bool
+	HasRelease       bool
+	CurrentLabels    []string
+	CurrentAssignees []string
 }
 
 type UnassignedUnreleasedBugIssue struct {

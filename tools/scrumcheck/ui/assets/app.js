@@ -618,7 +618,7 @@
           const items = Array.isArray(proj.Items) ? proj.Items : [];
           total += items.length;
           const btn = items.length > 0 ? '<button class="fix-btn apply-release-project-btn">Apply release label</button>' : '';
-          const itemsHTML = items.length === 0 ? '<p class="empty">🟢 No release-label issues in this project.</p>' : items.map((it) => '<article class="item release-item" data-repo="' + escHTML(it.Repo) + '" data-issue="' + escHTML(it.Number) + '"><div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div><div>' + renderSafeExternalLink(it.URL) + '</div><ul><li>Status: ' + escHTML(it.Status || '(unset)') + '</li><li>Labels: ' + escHTML(listOrEmpty(it.CurrentLabels, '(none)')) + '</li></ul></article>').join('');
+          const itemsHTML = items.length === 0 ? '<p class="empty">🟢 No release-label issues in this project.</p>' : items.map((it) => '<article class="item release-item" data-repo="' + escHTML(it.Repo) + '" data-issue="' + escHTML(it.Number) + '"><div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div><div>' + renderSafeExternalLink(it.URL) + '</div><ul><li>Status: ' + escHTML(it.Status || '(unset)') + '</li><li>Assignees: ' + escHTML(listOrEmpty(it.Assignees, '(none)')) + '</li><li>Labels: ' + escHTML(listOrEmpty(it.CurrentLabels, '(none)')) + '</li></ul></article>').join('');
           return '<div class="project"><div class="column-head"><h3>Project ' + escHTML(proj.ProjectNum) + '</h3>' + btn + '</div>' + itemsHTML + '</div>';
         }).join('');
         setTabClean('release', total === 0);

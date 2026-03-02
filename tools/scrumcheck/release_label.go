@@ -53,13 +53,14 @@ func runReleaseLabelChecks(
 				continue
 			}
 			out = append(out, ReleaseLabelIssue{
-				Item:          it,
-				ProjectNum:    projectNum,
-				RepoOwner:     owner,
-				RepoName:      repo,
-				HasProduct:    hasProduct,
-				HasRelease:    hasRelease,
-				CurrentLabels: labels,
+				Item:             it,
+				ProjectNum:       projectNum,
+				RepoOwner:        owner,
+				RepoName:         repo,
+				HasProduct:       hasProduct,
+				HasRelease:       hasRelease,
+				CurrentLabels:    labels,
+				CurrentAssignees: issueAssignees(it),
 			})
 		}
 	}

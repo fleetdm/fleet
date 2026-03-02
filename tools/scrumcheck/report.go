@@ -134,6 +134,7 @@ type ReleaseLabelReportItem struct {
 	URL           string
 	Repo          string
 	Status        string
+	Assignees     []string
 	CurrentLabels []string
 }
 
@@ -545,6 +546,7 @@ func buildHTMLReportData(
 			URL:           getURL(v.Item),
 			Repo:          repo,
 			Status:        itemStatus(v.Item),
+			Assignees:     append([]string(nil), v.CurrentAssignees...),
 			CurrentLabels: append([]string(nil), v.CurrentLabels...),
 		})
 	}
