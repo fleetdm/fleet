@@ -128,8 +128,9 @@ func TestUp_20260226220138(t *testing.T) {
 		policyAAlreadyCritical := insertPolicy(t, db, "team-a-already-critical", &teamIDA, true, true)
 		// Team B: bypass=true → should NOT become critical (CA disabled for this team)
 		policyBBypass := insertPolicy(t, db, "team-b-bypass", &teamIDB, true, false)
-		// No-team policy: bypass=true → should NOT become critical (NULL not IN list)
-		noTeamPolicy := insertPolicy(t, db, "no-team-bypass", nil, true, false)
+		// No-team policy (team_id = 0): bypass=true → should NOT become critical
+		noTeam := uint(0)
+		noTeamPolicy := insertPolicy(t, db, "no-team-bypass", &noTeam, true, false)
 
 		applyNext(t, db)
 

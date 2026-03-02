@@ -289,7 +289,7 @@ func testConditionalAccessBypassDeviceWithBlockingPolicy(t *testing.T, ds *Datas
 	})
 	require.NoError(t, err)
 
-	// Create a global policy with critical defaulting to 0 (bypassable)
+	// Create a global critical policy (not bypassable)
 	policy, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
 		Name:     "critical-policy",
 		Query:    "select 1;",

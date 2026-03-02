@@ -215,7 +215,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 		},
 		3: {
 			PolicyData: fleet.PolicyData{
-				ID:          2,
+				ID:          3,
 				Name:        "policy3",
 				Query:       "select 3",
 				Description: "policy3 description",
