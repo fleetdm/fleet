@@ -1,6 +1,8 @@
     (function () {
       const bridgeSession = document.body.dataset.bridgeSession || '';
       let bridgeStream = null;
+      let refreshInFlight = null;
+      let refreshPendingForce = false;
       function bridgeJSONHeaders() {
         return {
           'Content-Type': 'application/json',
@@ -38,7 +40,7 @@
           bridgeStream = new EventSource(streamURL);
           bridgeStream.addEventListener('log', async () => {
             try {
-              await fetchStateAndRender(false);
+              await requestRefresh(false);
             } catch (_) {
               // Keep stream alive even if a specific refresh attempt fails.
             }
@@ -680,10 +682,43 @@
         installAssigneeFiltering();
         renderReleaseFromState(state);
         renderGenericQueriesFromState(state);
-        await refreshReleaseStoryTODOPanel(forceRefresh);
-        await refreshMissingSprintPanel(forceRefresh);
-        await refreshTimestampPanel(forceRefresh);
-        await refreshUnreleasedPanel(forceRefresh);
+        // Isolate panel refresh failures so one failing endpoint does not block
+        // updates to the rest of the dashboard.
+        const panelRefreshes = [
+          refreshReleaseStoryTODOPanel(forceRefresh),
+          refreshMissingSprintPanel(forceRefresh),
+          refreshTimestampPanel(forceRefresh),
+          refreshUnreleasedPanel(forceRefresh),
+        ];
+        await Promise.all(panelRefreshes.map(async (panelPromise) => {
+          try {
+            await panelPromise;
+          } catch (err) {
+            console.error('panel refresh failed', err);
+          }
+        }));
+      }
+
+      // requestRefresh coalesces concurrent full-refresh requests (SSE + manual
+      // clicks) into a single in-flight operation, with one replay if more
+      // refreshes are requested mid-flight.
+      async function requestRefresh(forceRefresh) {
+        refreshPendingForce = refreshPendingForce || Boolean(forceRefresh);
+        if (refreshInFlight) {
+          return refreshInFlight;
+        }
+
+        refreshInFlight = (async () => {
+          do {
+            const runForceRefresh = refreshPendingForce;
+            refreshPendingForce = false;
+            await fetchStateAndRender(runForceRefresh);
+          } while (refreshPendingForce);
+        })().finally(() => {
+          refreshInFlight = null;
+        });
+
+        return refreshInFlight;
       }
 
       function installMilestoneFiltering() {
@@ -1065,7 +1100,7 @@
         btn.addEventListener('click', async () => {
           setButtonWorking(btn, 'Refreshing...');
           try {
-            await fetchStateAndRender(true);
+            await requestRefresh(true);
             btn.classList.remove('done', 'failed');
             btn.textContent = 'Refresh';
             btn.disabled = false;
@@ -1075,7 +1110,7 @@
         });
       });
 
-      fetchStateAndRender(false).catch((err) => {
+      requestRefresh(false).catch((err) => {
         console.error(err);
       });
       connectBridgeEvents();
