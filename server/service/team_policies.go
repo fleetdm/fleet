@@ -646,6 +646,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 
 			if p.Type == fleet.PolicyTypePatch {
 				return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					// TODO(JK): error message?
 					Message: "patch policy query cannot be modified",
 				})
 			}
@@ -661,6 +662,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 
 			if p.Type == fleet.PolicyTypePatch {
 				return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					// TODO(JK): error message?
 					Message: "patch policy platform cannot be modified",
 				})
 			}

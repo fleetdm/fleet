@@ -254,7 +254,7 @@ type ModifyPolicyPayload struct {
 	// Only applies to team policies.
 	ConditionalAccessBypassEnabled *bool `json:"conditional_access_bypass_enabled" premium:"true"`
 
-	// Type is either dynamic (classic, editable) or patch (tied to Fleet maintained app).
+	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type string `json:"-"`
 }
 

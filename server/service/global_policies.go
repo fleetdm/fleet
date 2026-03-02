@@ -76,12 +76,6 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})
 	}
-	if p.Type == fleet.PolicyTypePatch {
-		// patch type is only allowed for team policies
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message: "patch policy is supported for teams only",
-		})
-	}
 
 	if err := verifyLabelsToAssociate(ctx, svc.ds, nil, append(p.LabelsIncludeAny, p.LabelsExcludeAny...), vc.User); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
