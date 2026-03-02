@@ -28,7 +28,7 @@ Fleet enabled Linux device management and replaced legacy tools for telemetry an
 
 Employees are free to work with their preferred operating systems of choice.
 
-[Fleet’s API](https://fleetdm.com/docs/rest-api/rest-api) and live query capabilities ensured up-to-date inventory data to meet stringent security and access control requirements while integrating with existing systems.
+[Fleet’s API](https://fleetdm.com/docs/rest-api/rest-api) and live report capabilities ensured up-to-date inventory data to meet stringent security and access control requirements while integrating with existing systems.
 
 Fleet’s policy automation ensures that software and configurations can remain secure without requiring manual intervention, thereby freeing up IT resources.
 </div>

@@ -238,7 +238,7 @@ macOS does not allow applications to access all system files by default.
 
 If you are using an MDM solution or Fleet's MDM features, one of which is required to deploy these profiles, you can deploy a "Privacy Preferences Policy Control" policy to grant fleetd or osquery that level of access. 
 
-This is required to query for files located in protected paths as well as to use event
+This is required to find files located in protected paths as well as to use event
 tables that require access to the [EndpointSecurity API](https://developer.apple.com/documentation/endpointsecurity#overview), such as *es_process_events*.
 
 ##### Obtaining identifiers
@@ -279,17 +279,17 @@ your MDM as a custom profile.
 ##### Test the profile
 Link the profile to a test group that contains at least one Mac.
 Once the computer has received the profile, which you can verify by looking at *Profiles* in *System
-Preferences*, run this query from Fleet:
+Preferences*, run this report from Fleet:
 
 ```sql
 SELECT * FROM file WHERE path LIKE '/Users/%/Downloads/%%';
 ```
 
-If this query returns files, the profile was applied, as **Downloads** is a
+If this report returns files, the profile was applied, as **Downloads** is a
 protected location. You can now enjoy the benefits of osquery on all system files and start
 using the **es_process_events** table!
 
-If this query does not return data, you can look at operating system logs to confirm whether or not full disk
+If this report does not return data, you can look at operating system logs to confirm whether or not full disk
 access has been applied.
 
 See the last hour of logs related to TCC permissions with this command:
@@ -401,7 +401,7 @@ This policy passes if a host has a host identity certificate.
 
 #### Important considerations
 
-- Hosts without TPM 2.0 will fail to enroll when this option is enabled. You can run this osuery query to check if hosts have TPM 2.0:
+- Hosts without TPM 2.0 will fail to enroll when this option is enabled. You can run this report to check if hosts have TPM 2.0:
 
 ```sql
 SELECT

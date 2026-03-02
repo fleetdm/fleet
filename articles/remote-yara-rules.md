@@ -68,7 +68,7 @@ Now the provided rules may be referenced in queries utilizing the `yara` table. 
 SELECT * FROM yara WHERE path="/bin/ls" AND sigurl='https://example.fleetdm.com/api/osquery/yara/rule1.yar'
 ```
 
-This works for both live and saved queries. Each time osquery runs the query, an authenticated HTTP
+This works for both live and saved reports. Each time osquery runs the query, an authenticated HTTP
 request will be made to the Fleet server requesting the referenced rule(s).
 
 ## Targeting rules with fleets (Fleet Premium)
@@ -80,8 +80,8 @@ For example, with `rule1.yar` and `rule2.yar` configured in the `org_settings`:
 
 1. Ensure the agent options are configured for "Unassigned" and/or the desired fleets.
 
-2. Target queries to the appropriate fleet, referencing the desired rules. For example, target a
-   query referencing `rule1.yar` to the "Workstations" fleet and a query referencing `rule2.yar` to
+2. Target reports to the appropriate fleet, referencing the desired rules. For example, target a
+   report referencing `rule1.yar` to the "Workstations" fleet and a report referencing `rule2.yar` to
    the Servers fleet.
 
 <meta name="authorGitHubUsername" value="zwass">

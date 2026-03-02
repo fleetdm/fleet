@@ -702,7 +702,7 @@ Now that Fleet is running, visit your Fleet dashboard (i.e., `https://fleet.dom
 Now that you’re ready to use Fleet and have a host installed. Here's some next steps:
 
 - Take some time to get acclimatized to Fleet. [Learn how to use Fleet](https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet) and [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) are both great places to start.
-- Import Fleet's [standard query library](https://fleetdm.com/docs/using-fleet/standard-query-library) to start asking questions about your hosts.
+- Import Fleet's [library](https://fleetdm.com/docs/using-fleet/standard-query-library) to start asking questions about your hosts.
 - To run a more secure setup, consider creating a dedicated `fleet` user with Docker's support for user [namespaces](https://docs.docker.com/engine/security/userns-remap/). 
 
 

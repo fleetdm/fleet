@@ -2,7 +2,7 @@
 
 ![How to use policies for patch management in Fleet](../website/assets/images/articles/sysadmin-diaries-1600x900@2x.png)
 
-Policies in Fleet enable IT admins to query devices and get quick yes or no answers about the status of their endpoints. Powered by the flexibility of osquery, the policies engine has become an invaluable part of the IT toolkit, simplifying the management of devices at scale.
+Policies in Fleet enable IT admins to report on devices and get quick yes or no answers about the status of their endpoints. Powered by the flexibility of osquery, the policies engine has become an invaluable part of the IT toolkit, simplifying the management of devices at scale.
 
 Initially, Fleet’s policies allowed for automated responses, like firing a webhook on a policy failure or creating a ticket in your ITSM system. While effective, these actions were limited by the capabilities of your existing tools to process and act on these notifications.
 

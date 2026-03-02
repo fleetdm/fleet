@@ -43,7 +43,7 @@ A leading online platform for user-generated games faced significant challenges 
 
 - Facilitate easier data exports and integration with other systems, such as Splunk
 
-To address these challenges, they adopted Fleet for server observability, leveraging its query engine and open API to enhance its infrastructure management alongside:
+To address these challenges, they adopted Fleet for server observability, leveraging its report engine and open API to enhance its infrastructure management alongside:
 
 ### Scalable deployment 
 

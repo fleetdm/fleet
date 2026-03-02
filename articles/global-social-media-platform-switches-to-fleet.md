@@ -54,7 +54,7 @@ Fleet’s centralized platform enabled the combination of device operations acro
 
 ### Definitive data for compliance
 
-Fleet’s live query engine streams easily accessible and parsable [data](https://fleetdm.com/tables/account_policy_data), eliminating the need for manual exports and data consolidation from multiple tools. With accurate visibility and access across teams, remediations based on information directly from each device lead to fewer infrastructure failures and auditing errors.
+Fleet’s live reports stream easily accessible and parsable [data](https://fleetdm.com/tables/account_policy_data), eliminating the need for manual exports and data consolidation from multiple tools. With accurate visibility and access across teams, remediations based on information directly from each device lead to fewer infrastructure failures and auditing errors.
 
 ### Robust API and webhook support
 

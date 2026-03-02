@@ -44,9 +44,9 @@ What if your agency wants to limit the number of third-party vendors? Fleet has 
 
 Every organization wants to ensure stability. But device performance takes on greater importance for agencies that deal with public health or power plants. We’ve mentioned the shortcomings of traditional vulnerability scanners. Those performance hits hurt a lot more if your systems need to be online and fast 24/7.
 
-Fleet’s security agent, osquery, has a lightweight resource footprint. If a query is set to exceed a certain RAM threshold, then the query will be canceled before any devices are affected. We call this the osquery watchdog. Under the default configuration, the watchdog will ensure that utilization stays below 200 MB of memory and 10% CPU. If a query is canceled, you’ll receive a notification that offers suggestions to lower its impact.
+Fleet’s security agent, osquery, has a lightweight resource footprint. If a report is set to exceed a certain RAM threshold, then the report will be canceled before any devices are affected. We call this the osquery watchdog. Under the default configuration, the watchdog will ensure that utilization stays below 200 MB of memory and 10% CPU. If a report is canceled, you’ll receive a notification that offers suggestions to lower its impact.
 
-For queries that have been run before, Fleet also gives you the ability to measure an estimated performance impact directly on the Queries page. You’ll be able to see the average impact rating across all hosts where this query was scheduled.
+For queries that have been run before, Fleet also gives you the ability to measure an estimated performance impact directly on the Queries page. You’ll be able to see the average impact rating across all hosts where this report was scheduled.
 
 ## Enjoy simple implementation
 

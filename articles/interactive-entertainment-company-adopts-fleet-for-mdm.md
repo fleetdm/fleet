@@ -48,9 +48,9 @@ With Fleet, they achieved this through:
 
 Fleet is open-source, allowing engineering teams to audit, customize, and extend the platform as needed alongside [infrastructure-as-code workflows](https://github.com/fleetdm/fleet-gitops). This makes device management more agile and automated while reducing errors through peer review.
 
-### Real-time querying and definitive data
+### Real-time reporting and definitive data
 
-Fleet’s query engine, [osquery](https://osquery.io/), allowed the company to run live [queries](https://fleetdm.com/guides/queries), dynamically segment hosts, and gain real-time insights across their entire fleet. This capability enhanced incident response and ensured critical policies and configurations were consistently enforced through Fleet’s double-check [verification](https://fleetdm.com/guides/custom-os-settings#os-settings-status).
+Fleet allowed the company to run live [reports](https://fleetdm.com/guides/queries), dynamically segment hosts, and gain real-time insights across their entire fleet. This capability enhanced incident response and ensured critical policies and configurations were consistently enforced through Fleet’s double-check [verification](https://fleetdm.com/guides/custom-os-settings#os-settings-status).
 
 ### Eliminate tool overlap
 

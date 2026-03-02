@@ -17,8 +17,8 @@ The [MDM product group](mdm/README.md) focuses on Mobile Device Management, incl
 
 The [Orchestration product group](orchestration/README.md) focuses on device orchestration using osquery, including:
 
-- Live queries
-- Scheduled queries
+- Live reports
+- Scheduled reports
 - Query packs
 - Host vitals
 - Fleets and access control

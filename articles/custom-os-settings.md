@@ -85,7 +85,7 @@ In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, 
 
 Hosts that applied all OS settings. 
 
-For macOS configuration profiles and device-scoped Windows profiles, Fleet verified by running an osquery query. It can take up to 1 hour ([configurable](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-detail-update-interval)) for these profiles to move from "Verifying" to "Verified".
+For macOS configuration profiles and device-scoped Windows profiles, Fleet verified by running a report. It can take up to 1 hour ([configurable](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-detail-update-interval)) for these profiles to move from "Verifying" to "Verified".
 
 macOS declarations profiles are verified with a [DDM StatusReport](https://developer.apple.com/documentation/devicemanagement/statusreport)).
 
@@ -114,7 +114,7 @@ profile's status to update to "Pending."
 
 ### Special Windows behavior
 
-For Windows configuration profiles with the [Win32 and Desktop Bridge app ADMX policies](https://learn.microsoft.com/en-us/windows/client-management/win32-and-centennial-app-policy-configuration), Fleet only verifies that the host returned a success status code in response to the MDM command to install the configuration profile. You can query the registry keys defined by the ADMX policy. For instance, if an ADMX file defines the following policy:
+For Windows configuration profiles with the [Win32 and Desktop Bridge app ADMX policies](https://learn.microsoft.com/en-us/windows/client-management/win32-and-centennial-app-policy-configuration), Fleet only verifies that the host returned a success status code in response to the MDM command to install the configuration profile. You can report on the registry keys defined by the ADMX policy. For instance, if an ADMX file defines the following policy:
 ```
       <policy name="Subteam" class="Machine" displayName="Subteam" key="Software\Policies\employee\Attributes" explainText="Subteam" presentation="String">
          <parentCategory ref="DefaultCategory" />
@@ -125,7 +125,7 @@ For Windows configuration profiles with the [Win32 and Desktop Bridge app ADMX p
       </policy>
 ```
 
-To verify that the OS setting is applied, run the following osquery query:
+To verify that the OS setting is applied, run the following report:
 ```
 SELECT data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Policies\employee\Attributes\Subteam';
 ```

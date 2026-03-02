@@ -76,13 +76,13 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Add install automation
 - Add Calendar automation
 
-## Query
+## Report
 
-- Add query
-- Remove query
-- Edit query
-- Live query
-- Saved query results
+- Add report
+- Remove report
+- Edit report
+- Live report
+- Saved report results
 
 ## Labels
 

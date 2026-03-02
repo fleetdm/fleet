@@ -13,9 +13,9 @@ Follow these steps to downgrade your Fleet instance from Fleet Premium.
 ## Move all fleet-level queries to the global level
 
 1. Head to the **Queries** page in the Fleet UI and select a fleet from the fleets dropdown at the top of the page. 
-2. For each query that belongs to a fleet, select the query and select **Edit query** and copy the **Name**, **Description**, **Query**. Then expand the "advanced options" and take note of the values in the **Platforms**, **Minimum osquery version**, and **Logging** dropdowns.
-3. On the Queries page select **All fleets** in the top dropdown, select **Add query**, paste each item in the appropriate field, select the correct values from the advanced options dropdowns, and select **Save**.
-4. **Optional:** Delete each query that belongs to a fleet because they will no longer be accessible in the Fleet UI following the downgrade process.
+2. For each report that belongs to a fleet, select the report and select **Edit report** and copy the **Name**, **Description**, **Query**. Then expand the "advanced options" and take note of the values in the **Platforms**, **Minimum osquery version**, and **Logging** dropdowns.
+3. On the **Reports** page select **All fleets** in the top dropdown, select **Add report**, paste each item in the appropriate field, select the correct values from the advanced options dropdowns, and select **Save**.
+4. **Optional:** Delete each report that belongs to a fleet because they will no longer be accessible in the Fleet UI following the downgrade process.
 
 ## Move all fleet-level policies to the global level
 

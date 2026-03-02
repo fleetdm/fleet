@@ -24,7 +24,7 @@ They can also run queries configured with the `observer_can_run` flag set to `tr
 
 `Applies only to Fleet Premium`
 
-Observer+ is an observer with the added ability to run *any* query.
+Observer+ is an observer with the added ability to run *any* report.
 
 ### GitOps
 
@@ -58,10 +58,10 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Filter software by fleet\*                                                                                                                  | ✅       | ✅         | ✅         | ✅    |         |
 | Manage [vulnerability automations](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations)                             |          |            |            | ✅    | ✅      |
 | Run queries designated "**observer can run**" as live queries against all hosts                                                            | ✅       | ✅         | ✅         | ✅    |         |
-| Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query) against all hosts                                 |          | ✅         | ✅         | ✅    |         |
-| Create, edit, and delete queries                                                                                                           |          |            | ✅         | ✅    | ✅      |
-| View all queries and their reports                                                                                                         | ✅       | ✅         | ✅         | ✅    | ✅      |
-| Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                                 |          |            | ✅         | ✅    | ✅      |
+| Run any report as [live report](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-report) against all hosts                                 |          | ✅         | ✅         | ✅    |         |
+| Create, edit, and delete reports                                                                                                           |          |            | ✅         | ✅    | ✅      |
+| View all reports                                                                                                         | ✅       | ✅         | ✅         | ✅    | ✅      |
+| Manage [report automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-report)                                                 |          |            | ✅         | ✅    | ✅      |
 | Create, edit, view, and delete packs                                                                                                       |          |            | ✅         | ✅    | ✅      |
 | View all policies                                                                                                                          | ✅       | ✅         | ✅         | ✅    | ✅      |
 | Run all policies                                                                                                                           |          | ✅         | ✅         | ✅    |         |
@@ -152,11 +152,11 @@ Users with access to multiple fleets can be assigned different roles for each fl
 | Filter hosts by software                                                                                                         | ✅            | ✅             | ✅              | ✅         |             |
 | Filter software                                                                                                                  | ✅            | ✅             | ✅              | ✅         |             |
 | Run queries designated "**observer can run**" as live queries against hosts                                                      | ✅            | ✅             | ✅              | ✅         |             |
-| Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)                                         |               | ✅             | ✅              | ✅         |             |
+| Run any report as [live report](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-report)                                         |               | ✅             | ✅              | ✅         |             |
 | Create, edit, and delete self-authored queries                                                                          |               |                | ✅              | ✅         | ✅          |
 | View fleet's queries and their reports                                                                                              | ✅            | ✅             | ✅              | ✅         |             |
 | View global (inherited) queries and their reports\**                                                                             | ✅            | ✅             | ✅              | ✅         |             |
-| Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                       |               |                | ✅              | ✅         | ✅          |
+| Manage [report automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-report)                                       |               |                | ✅              | ✅         | ✅          |
 | View fleet's policies                                                                                                               | ✅            | ✅             | ✅              | ✅         |             |
 | Run fleet's policies as a live policy                                                                                               |               | ✅             | ✅              | ✅         |             |
 | View global (inherited) policies                                                                                                 | ✅            | ✅             | ✅              | ✅         |             |
@@ -189,7 +189,7 @@ Users with access to multiple fleets can be assigned different roles for each fl
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
-\** Fleet-level users only see global query results for hosts on fleets where they have access.
+\** Fleet-level users only see global report results for hosts on fleets where they have access.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
