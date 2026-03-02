@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
@@ -31,8 +32,10 @@ func ServeFrontend(urlPrefix string, sandbox bool, logger *slog.Logger) http.Han
 		logger.ErrorContext(ctx, err)
 		http.Error(w, err, http.StatusInternalServerError)
 	}
+	cspEV := os.Getenv("FLEET_SERVER_ENABLE_CSP")
+	serveCSP := cspEV == "1" || cspEV == "true" || cspEV == "TRUE"
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		endpointer.WriteBrowserSecurityHeaders(w)
+		endpointer.WriteBrowserSecurityHeaders(w, serveCSP)
 
 		// The following check is to prevent a misconfigured osquery from submitting
 		// data to the root endpoint (the osquery remote API uses POST for all its endpoints).
@@ -88,9 +91,10 @@ func ServeEndUserEnrollOTA(
 		logger.ErrorContext(ctx, err)
 		http.Error(w, err, http.StatusInternalServerError)
 	}
-
+	cspEV := os.Getenv("FLEET_SERVER_ENABLE_CSP")
+	serveCSP := cspEV == "1" || cspEV == "true" || cspEV == "TRUE"
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		endpointer.WriteBrowserSecurityHeaders(w)
+		endpointer.WriteBrowserSecurityHeaders(w, serveCSP)
 		ctx := r.Context()
 		setupRequired, err := svc.SetupRequired(ctx)
 		if err != nil {

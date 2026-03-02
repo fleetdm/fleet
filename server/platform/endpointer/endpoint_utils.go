@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -726,7 +727,7 @@ func MakeDecoder(
 	}
 }
 
-func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
+func WriteBrowserSecurityHeaders(w http.ResponseWriter, serveCSP bool) {
 	// Strict-Transport-Security informs browsers that the site should only be
 	// accessed using HTTPS, and that any future attempts to access it using
 	// HTTP should automatically be converted to HTTPS.
@@ -742,6 +743,13 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
 	// Referrer-Policy prevents leaking the origin of the referrer in the
 	// Referer.
 	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+	if serveCSP {
+		// TODO We may need to fetch appconfig here so we know all possible domains
+		// Content-Security-Policy prevents a wide range of attacks by declaring what
+		// dynamic resources are allowed to load. Here we set a very strict policy and
+		// then relax it as needed for specific endpoints.
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; img-src 'self'; style-src 'self'; font-src 'self'; script-src 'self'")
+	}
 }
 
 // handlerKey identifies a registered handler by HTTP method and unversioned path template.
@@ -1091,11 +1099,14 @@ func EncodeCommonResponse(
 		cs.SetCookies(ctx, w)
 	}
 
+	cspEV := os.Getenv("FLEET_SERVER_ENABLE_CSP")
+	serveCSP := cspEV == "1" || cspEV == "true" || cspEV == "TRUE"
+
 	// The has to happen first, if an error happens we'll redirect to an error
 	// page and the error will be logged
 	if page, ok := response.(htmlPage); ok {
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-		WriteBrowserSecurityHeaders(w)
+		WriteBrowserSecurityHeaders(w, serveCSP)
 		if coder, ok := page.Error().(kithttp.StatusCoder); ok {
 			w.WriteHeader(coder.StatusCode())
 		}
