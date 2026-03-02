@@ -2341,18 +2341,38 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 		GROUP BY host_id
 	) pm ON h.id = pm.host_id
 	LEFT JOIN (
-		SELECT host_id, MIN(email) AS email
-		FROM host_emails
-		JOIN hosts ON host_emails.host_id=hosts.id
-		WHERE email LIKE CONCAT('%@', ?) AND team_id = ?
-		GROUP BY host_id
+		SELECT host_id, email
+		FROM (
+			SELECT
+				he.host_id,
+				he.email,
+				ROW_NUMBER() OVER (
+					PARTITION BY he.host_id
+					ORDER BY
+						CASE
+							WHEN he.source IN (?, ?) THEN 1  -- IdP sources (mdm_idp_accounts, idp) have priority 1
+							WHEN he.source = ? THEN 2         -- Google Chrome profiles have priority 2
+							ELSE 3                             -- Other sources have lower priority
+						END,
+						he.email  -- alphabetical tiebreaker within same priority
+				) AS rn
+			FROM host_emails he
+			JOIN hosts h_email ON he.host_id = h_email.id
+			WHERE he.email LIKE CONCAT('%@', ?) AND h_email.team_id = ?
+		) ranked_emails
+		WHERE rn = 1
 	) sh ON h.id = sh.host_id
 	LEFT JOIN host_display_names hdn ON h.id = hdn.host_id
 	LEFT JOIN host_calendar_events hce ON h.id = hce.host_id
 	WHERE h.team_id = ? AND ((pm.passing IS NOT NULL AND NOT pm.passing) OR (COALESCE(pm.passing, 1) AND hce.host_id IS NOT NULL))
 `
 
-	query, args, err := sqlx.In(query, policyIDs, domain, teamID, teamID)
+	query, args, err := sqlx.In(query,
+		policyIDs,
+		fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingIDP, // IdP sources
+		fleet.DeviceMappingGoogleChromeProfiles, // Chrome profiles
+		domain, teamID,                          // domain and team_id for WHERE clause
+		teamID) // h.team_id in main WHERE
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "build select get team hosts policy memberships query")
 	}
