@@ -1388,3 +1388,11 @@ func (svc *Service) SetAppsForAndroidPolicy(ctx context.Context, enterpriseName 
 	}
 	return errors.Join(errs...)
 }
+
+func (svc *Service) CreateAndroidWebApp(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
+	app, err := svc.androidAPIClient.EnterprisesWebAppsCreate(ctx, enterpriseName, app)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating Android web app")
+	}
+	return app, nil
+}
