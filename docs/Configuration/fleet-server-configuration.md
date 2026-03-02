@@ -3306,11 +3306,12 @@ If you have an [Apple Developer account that is enabled as an MDM vendor](https:
   
 ### silent_migration_enrollment_profile
 
-This is an enrollment profile for migrated Apple MDM devices, used during SCEP certificate renewal. Required for seamless migration from another MDM solution.
+Specifies the original enrollment profile from the previous MDM, used by Fleet for migrated Apple hosts during SCEP certificate renewal. This profile ensures that migrated hosts can renew their SCEP certificates without requiring re-enrollment or user interaction, enabling seamless MDM migration. Required when migrating hosts from another MDM to Fleet to maintain uninterrupted certificate management.
 
-The enrollment profile must be base64-encoded. This is only supported as an environment variable.
+The enrollment profile must be base64-encoded. This is only supported as an environment variable. 
 
 - Environment variable: `FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE`
+- Note: If you are experiencing sytems failing SCEP renewal, please [contact us](mailto: support@fleetdm.com).
 
 ## Conditional access
 
