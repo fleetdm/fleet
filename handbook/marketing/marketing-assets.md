@@ -82,15 +82,7 @@ If you find a piece of collateral that is duplicate to one listed below, please 
 
 ### Release Notes
 
-| Asset | Use for | Date&nbsp;updated&nbsp;&nbsp;&nbsp; |
-| :--- | :--- | :--- |
-| [Fleet 4.80.0 Release](https://fleetdm.com/releases/fleet-4-80-0) | App updates and offboarding improvements. | Feb 02, 2026 |
-| [Fleet 4.79.0 Release](https://fleetdm.com/releases/fleet-4-79-0) | macOS updates and MDM history. | Jan 14, 2026 |
-| [Fleet 4.78.0 Release](https://fleetdm.com/releases/fleet-4-78-0) | iOS/Android self-service and cert deployment. | Dec 19, 2025 |
-| [Fleet 4.77.0 Release](https://fleetdm.com/releases/fleet-4-77-0) | Enterprise packages for mobile devices. | Dec 04, 2025 |
-| [Fleet 4.75.0 Release](https://fleetdm.com/releases/fleet-4-75-0) | Omarchy Linux and Android profiles. | Oct 17, 2025 |
-| [Fleet 4.65.0 Release](https://fleetdm.com/releases/fleet-4-65-0) | GitOps mode and automatic installation. | Mar 14, 2025 |
-| [Fleet 4.60.0 Release](https://fleetdm.com/releases/fleet-4-60-0) | Escrow Linux disk encryption keys. | Nov 27, 2024 |
+See: https://fleetdm.com/releases
 
 <meta name="maintainedBy" value="akuthiala">
 <meta name="title" value="🫧 Marketing Assets">

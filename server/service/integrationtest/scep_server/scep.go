@@ -3,6 +3,7 @@ package scep_server
 import (
 	"crypto/x509"
 	_ "embed"
+	"log/slog"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -11,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/gorilla/mux"
 )
 
@@ -63,9 +63,9 @@ func StartTestSCEPServer(t *testing.T) *httptest.Server {
 		if err != nil {
 			t.Fatal(err)
 		}
-		logger := logging.NewNopLogger()
+		logger := slog.New(slog.DiscardHandler)
 		e := scepserver.MakeServerEndpoints(svc)
-		scepHandler := scepserver.MakeHTTPHandler(e, svc, logger.SlogLogger())
+		scepHandler := scepserver.MakeHTTPHandler(e, svc, logger)
 		r := mux.NewRouter()
 		r.Handle("/scep", scepHandler)
 		server = httptest.NewServer(r)
