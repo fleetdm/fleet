@@ -6,7 +6,7 @@
 # top-level settings for your organization as a whole, and
 # controls/reports/etc that apply to all of your fleets. 
 #
-# To see all possible options, check out:
+# To see all supported options, check out:
 #   • https://fleetdm.com/docs/configuration/yaml-files
 #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #

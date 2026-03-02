@@ -1,8 +1,16 @@
-# TODO: fancy comment header
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#
+# workstations.yml
+# 
+# This fleet manifest configures controls/automations/reports/etc
+# that apply only to computing devices in this particular fleet.
+#
+# To see all supported options, check out:
+#   • https://fleetdm.com/docs/configuration/yaml-files
+#
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
 name: "💻 Workstations"
-settings: # « FUTURE: Eliminate the need for this required key.
-  secrets: # « FUTURE: Eliminate the need for this required key.
-    - secret: "" # TODO: What happens if omitted?
 controls:
   ##########################################
   # Disk encryption with escrowed keys
@@ -49,14 +57,14 @@ controls:
     - paths: ../platforms/macos/scripts/*.sh
     - paths: ../platforms/windows/scripts/*.ps1
     - paths: ../platforms/linux/scripts/*.sh
-reports: #FUTURE: stat disk and auto-include all via glob
-  # - paths: ../platforms/macos/reports/*.yml
-  # - paths: ../platforms/windows/reports/*.yml
-  # - paths: ../platforms/linux/reports/*.yml
-policies: #FUTURE: stat disk and auto-include all via glob
-  # - paths: ../platforms/macos/policies/*.yml # macOS policies
-  # - paths: ../platforms/windows/policies/*.yml # Windows policies
-  # - paths: ../platforms/linux/policies/*.yml # Linux policies
+reports:
+  - paths: ../platforms/macos/reports/*.yml
+  - paths: ../platforms/windows/reports/*.yml
+  - paths: ../platforms/linux/reports/*.yml
+policies:
+  - paths: ../platforms/macos/policies/*.yml # macOS policies
+  - paths: ../platforms/windows/policies/*.yml # Windows policies
+  - paths: ../platforms/linux/policies/*.yml # Linux policies
 
 ##########################################
 # Software available for install
