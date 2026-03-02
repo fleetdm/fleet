@@ -3,7 +3,7 @@ parasails.registerPage('linux-management', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    //…
+    modal: '',
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -20,6 +20,11 @@ parasails.registerPage('linux-management', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    //…
+    clickOpenVideoModal: function(modalName) {
+      this.modal = modalName;
+    },
+    closeModal: function() {
+      this.modal = undefined;
+    },
   }
 });
