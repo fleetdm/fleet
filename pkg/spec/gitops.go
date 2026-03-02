@@ -759,17 +759,14 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 	}
 
 	controlsDir := filepath.Dir(controlsFilePath)
-	result.Controls.Scripts, err = resolveScriptPaths(result.Controls.Scripts, controlsDir, logFn)
-	if err != nil {
-		return multierror.Append(multiError, fmt.Errorf("failed to parse scripts list in %s: %v", controlsFilePath, err))
+	var scriptErrs []error
+	result.Controls.Scripts, scriptErrs = resolveScriptPaths(result.Controls.Scripts, controlsDir, logFn)
+	for _, err := range scriptErrs {
+		multiError = multierror.Append(multiError, fmt.Errorf("failed to parse scripts list in %s: %v", controlsFilePath, err))
 	}
 
 	// Find Fleet secrets in scripts.
 	for _, script := range result.Controls.Scripts {
-		if script.Path == nil {
-			// This should never happen because we checked for missing paths above (with code added in https://github.com/fleetdm/fleet/pull/24639).
-			return multierror.Append(multiError, errors.New("controls.scripts.path is missing"))
-		}
 		fileBytes, err := os.ReadFile(*script.Path)
 		if err != nil {
 			return multierror.Append(multiError, fmt.Errorf("failed to read scripts file %s: %v", *script.Path, err))
@@ -972,6 +969,11 @@ func (o *GlobExpandOptions) setDefaults() {
 	}
 }
 
+type FlattenBaseItemsOptions struct {
+	GlobExpandOptions
+	RequirePath bool // if true, items must have either Path or Paths; otherwise they are treated as inline items
+}
+
 // containsGlobMeta returns true if the string contains glob metacharacters.
 func containsGlobMeta(s string) bool {
 	return strings.ContainsAny(s, "*?[{")
@@ -1009,10 +1011,12 @@ func expandGlobPattern(pattern string, baseDir string, entityType string, opts G
 
 // flattenBaseItems validates path/paths fields on each item, expands glob
 // patterns in "paths" entries, and returns a flat list where every item has only
-// Path set (resolved to an absolute path).
-func flattenBaseItems(input []BaseItem, baseDir string, entityType string, opts GlobExpandOptions) ([]BaseItem, error) {
+// Path set (resolved to an absolute path). Errors are collected rather than
+// returned early, so callers get all problems in one pass.
+func flattenBaseItems(input []BaseItem, baseDir string, entityType string, opts FlattenBaseItemsOptions) ([]BaseItem, []error) {
 	opts.setDefaults()
 	var result []BaseItem
+	var errs []error
 	seenBasenames := make(map[string]string) // basename -> source (path or pattern)
 
 	for _, item := range input {
@@ -1021,22 +1025,29 @@ func flattenBaseItems(input []BaseItem, baseDir string, entityType string, opts 
 
 		switch {
 		case hasPath && hasPaths:
-			return nil, fmt.Errorf(`%s entry cannot have both "path" and "paths" fields`, entityType)
+			errs = append(errs, fmt.Errorf(`%s entry cannot have both "path" and "paths" fields`, entityType))
+			continue
 		// Inline item (no file reference) — pass through unchanged.
 		case !hasPath && !hasPaths:
-			result = append(result, item)
+			if opts.RequirePath {
+				errs = append(errs, fmt.Errorf("%s entry must have either a 'path' or 'paths' field", entityType))
+			} else {
+				result = append(result, item)
+			}
 			continue
 		// Single path -- resolve to absolute path and add to result.
 		case hasPath:
 			if containsGlobMeta(*item.Path) {
-				return nil, fmt.Errorf(`%s "path" %q contains glob characters; use "paths" for glob patterns`, entityType, *item.Path)
+				errs = append(errs, fmt.Errorf(`%s "path" %q contains glob characters; use "paths" for glob patterns`, entityType, *item.Path))
+				continue
 			}
 			resolved := resolveApplyRelativePath(baseDir, *item.Path)
 			// Check for duplicate filenames if requested.
 			if opts.UniqueBasenames {
 				base := filepath.Base(resolved)
 				if existing, ok := seenBasenames[base]; ok {
-					return nil, fmt.Errorf("duplicate %s basename %q (from %q and %q)", entityType, base, existing, *item.Path)
+					errs = append(errs, fmt.Errorf("duplicate %s basename %q (from %q and %q)", entityType, base, existing, *item.Path))
+					continue
 				}
 				seenBasenames[base] = *item.Path
 			}
@@ -1044,11 +1055,13 @@ func flattenBaseItems(input []BaseItem, baseDir string, entityType string, opts 
 		// Glob -- expand and add files to result.
 		case hasPaths:
 			if !containsGlobMeta(*item.Paths) {
-				return nil, fmt.Errorf(`%s "paths" %q does not contain glob characters; use "path" for a specific file`, entityType, *item.Paths)
+				errs = append(errs, fmt.Errorf(`%s "paths" %q does not contain glob characters; use "path" for a specific file`, entityType, *item.Paths))
+				continue
 			}
-			expanded, err := expandGlobPattern(*item.Paths, baseDir, entityType, opts)
+			expanded, err := expandGlobPattern(*item.Paths, baseDir, entityType, opts.GlobExpandOptions)
 			if err != nil {
-				return nil, err
+				errs = append(errs, err)
+				continue
 			}
 			if len(expanded) == 0 {
 				opts.LogFn("[!] glob pattern %q matched no %s files\n", *item.Paths, entityType)
@@ -1059,7 +1072,8 @@ func flattenBaseItems(input []BaseItem, baseDir string, entityType string, opts 
 				if opts.UniqueBasenames {
 					base := filepath.Base(p)
 					if existing, ok := seenBasenames[base]; ok {
-						return nil, fmt.Errorf("duplicate %s basename %q (from %q and %q)", entityType, base, existing, *item.Paths)
+						errs = append(errs, fmt.Errorf("duplicate %s basename %q (from %q and %q)", entityType, base, existing, *item.Paths))
+						continue
 					}
 					seenBasenames[base] = *item.Paths
 				}
@@ -1068,14 +1082,17 @@ func flattenBaseItems(input []BaseItem, baseDir string, entityType string, opts 
 		}
 	}
 
-	return result, nil
+	return result, errs
 }
 
-func resolveScriptPaths(input []BaseItem, baseDir string, logFn Logf) ([]BaseItem, error) {
-	return flattenBaseItems(input, baseDir, "script", GlobExpandOptions{
-		AllowedExtensions: allowedScriptExtensions,
-		UniqueBasenames:   true,
-		LogFn:             logFn,
+func resolveScriptPaths(input []BaseItem, baseDir string, logFn Logf) ([]BaseItem, []error) {
+	return flattenBaseItems(input, baseDir, "script", FlattenBaseItemsOptions{
+		RequirePath: true,
+		GlobExpandOptions: GlobExpandOptions{
+			AllowedExtensions: allowedScriptExtensions,
+			UniqueBasenames:   true,
+			LogFn:             logFn,
+		},
 	})
 }
 

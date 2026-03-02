@@ -1689,6 +1689,25 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 
 	strPtr := func(s string) *string { return &s }
 
+	// requireNoErrors is a helper that fails the test if errs is non-empty.
+	requireNoErrors := func(t *testing.T, errs []error) {
+		t.Helper()
+		require.Empty(t, errs, "unexpected errors: %v", errs)
+	}
+	// requireErrorContains is a helper that asserts at least one error contains substr.
+	requireErrorContains := func(t *testing.T, errs []error, substr string) {
+		t.Helper()
+		require.NotEmpty(t, errs, "expected errors but got none")
+		var found bool
+		for _, err := range errs {
+			if strings.Contains(err.Error(), substr) {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "expected an error containing %q, got: %v", substr, errs)
+	}
+
 	t.Run("basic_glob", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
@@ -1697,8 +1716,8 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "c.ps1"), []byte("# powershell"), 0o644))
 
 		items := []BaseItem{{Paths: strPtr("*.sh")}}
-		result, err := resolveScriptPaths(items, dir, nopLogf)
-		require.NoError(t, err)
+		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		requireNoErrors(t, errs)
 		require.Len(t, result, 2)
 		assert.Equal(t, filepath.Join(dir, "a.sh"), *result[0].Path)
 		assert.Equal(t, filepath.Join(dir, "b.sh"), *result[1].Path)
@@ -1716,8 +1735,8 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(subdir, "nested.sh"), []byte("#!/bin/bash"), 0o644))
 
 		items := []BaseItem{{Paths: strPtr("**/*.sh")}}
-		result, err := resolveScriptPaths(items, dir, nopLogf)
-		require.NoError(t, err)
+		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		requireNoErrors(t, errs)
 		require.Len(t, result, 2)
 		// Results are sorted
 		assert.Equal(t, filepath.Join(subdir, "nested.sh"), *result[0].Path)
@@ -1735,8 +1754,8 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 			{Path: strPtr("single.sh")},
 			{Paths: strPtr("*.ps1")},
 		}
-		result, err := resolveScriptPaths(items, dir, nopLogf)
-		require.NoError(t, err)
+		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		requireNoErrors(t, errs)
 		require.Len(t, result, 3)
 		assert.Equal(t, filepath.Join(dir, "single.sh"), *result[0].Path)
 		assert.Equal(t, filepath.Join(dir, "glob1.ps1"), *result[1].Path)
@@ -1746,29 +1765,29 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 	t.Run("paths_without_glob_error", func(t *testing.T) {
 		t.Parallel()
 		items := []BaseItem{{Paths: strPtr("scripts/foo.sh")}}
-		_, err := resolveScriptPaths(items, "/tmp", nopLogf)
-		assert.ErrorContains(t, err, `does not contain glob characters`)
+		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
+		requireErrorContains(t, errs, `does not contain glob characters`)
 	})
 
 	t.Run("path_with_glob_error", func(t *testing.T) {
 		t.Parallel()
 		items := []BaseItem{{Path: strPtr("scripts/*.sh")}}
-		_, err := resolveScriptPaths(items, "/tmp", nopLogf)
-		assert.ErrorContains(t, err, `contains glob characters`)
+		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
+		requireErrorContains(t, errs, `contains glob characters`)
 	})
 
 	t.Run("both_path_and_paths_error", func(t *testing.T) {
 		t.Parallel()
 		items := []BaseItem{{Path: strPtr("foo.sh"), Paths: strPtr("*.sh")}}
-		_, err := resolveScriptPaths(items, "/tmp", nopLogf)
-		assert.ErrorContains(t, err, `cannot have both "path" and "paths"`)
+		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
+		requireErrorContains(t, errs, `cannot have both "path" and "paths"`)
 	})
 
 	t.Run("neither_path_nor_paths_error", func(t *testing.T) {
 		t.Parallel()
 		items := []BaseItem{{}}
-		_, err := resolveScriptPaths(items, "/tmp", nopLogf)
-		assert.ErrorContains(t, err, `no "path" or "paths" field`)
+		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
+		requireErrorContains(t, errs, `script entry must have either a 'path' or 'paths' field`)
 	})
 
 	t.Run("no_matches_warning", func(t *testing.T) {
@@ -1779,8 +1798,8 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 			warnings = append(warnings, fmt.Sprintf(format, args...))
 		}
 		items := []BaseItem{{Paths: strPtr("*.sh")}}
-		result, err := resolveScriptPaths(items, dir, logFn)
-		require.NoError(t, err)
+		result, errs := resolveScriptPaths(items, dir, logFn)
+		requireNoErrors(t, errs)
 		assert.Empty(t, result)
 		require.Len(t, warnings, 1)
 		assert.Contains(t, warnings[0], "matched no script")
@@ -1797,8 +1816,8 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(sub2, "dup.sh"), []byte("#!/bin/bash"), 0o644))
 
 		items := []BaseItem{{Paths: strPtr("**/*.sh")}}
-		_, err := resolveScriptPaths(items, dir, nopLogf)
-		assert.ErrorContains(t, err, "duplicate script basename")
+		_, errs := resolveScriptPaths(items, dir, nopLogf)
+		requireErrorContains(t, errs, "duplicate script basename")
 	})
 
 	t.Run("duplicate_basenames_across_items_error", func(t *testing.T) {
@@ -1813,8 +1832,8 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 			{Path: strPtr("script.sh")},
 			{Paths: strPtr("sub/*.sh")},
 		}
-		_, err := resolveScriptPaths(items, dir, nopLogf)
-		assert.ErrorContains(t, err, "duplicate script basename")
+		_, errs := resolveScriptPaths(items, dir, nopLogf)
+		requireErrorContains(t, errs, "duplicate script basename")
 	})
 
 	t.Run("non_script_files_skipped_with_warning", func(t *testing.T) {
@@ -1830,8 +1849,8 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		}
 
 		items := []BaseItem{{Paths: strPtr("*")}}
-		result, err := resolveScriptPaths(items, dir, logFn)
-		require.NoError(t, err)
+		result, errs := resolveScriptPaths(items, dir, logFn)
+		requireNoErrors(t, errs)
 		require.Len(t, result, 1)
 		assert.Equal(t, filepath.Join(dir, "good.sh"), *result[0].Path)
 		assert.Len(t, warnings, 2)
@@ -1845,12 +1864,22 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "m.sh"), []byte("#!/bin/bash"), 0o644))
 
 		items := []BaseItem{{Paths: strPtr("*.sh")}}
-		result, err := resolveScriptPaths(items, dir, nopLogf)
-		require.NoError(t, err)
+		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		requireNoErrors(t, errs)
 		require.Len(t, result, 3)
 		assert.Equal(t, filepath.Join(dir, "a.sh"), *result[0].Path)
 		assert.Equal(t, filepath.Join(dir, "m.sh"), *result[1].Path)
 		assert.Equal(t, filepath.Join(dir, "z.sh"), *result[2].Path)
+	})
+
+	t.Run("multiple_errors", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{}, {Path: strPtr("scripts/*.sh")}, {Paths: strPtr("noglob.sh")}}
+		_, errs := resolveScriptPaths(items, "", nil)
+		require.Len(t, errs, 3)
+		assert.Contains(t, errs[0].Error(), `script entry must have either a 'path' or 'paths' field`)
+		assert.Contains(t, errs[1].Error(), `contains glob characters`)
+		assert.Contains(t, errs[2].Error(), `does not contain glob characters`)
 	})
 }
 
