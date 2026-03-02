@@ -265,7 +265,7 @@ func TestCache(t *testing.T) {
 	require.NotNil(t, resp)
 	require.Equal(t, 1, callCount, "expected 1 call to the server")
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		resp, err := GetAssetMetadata(false) // don't refresh cache
 		require.NoError(t, err)
 		require.NotNil(t, resp)
