@@ -594,11 +594,22 @@ html, body {
       margin-right: 16px;
     }
     [purpose='header-dropdown'] {
-      &.solutions-dropdown {
-        left: -10px;
+      &.solutions-dropdown.show {
+        left: -90px;
+        width: 704px;
+        display: inline-grid;
+        padding: 8px;
+        row-gap: 8px;
+        column-gap: 8px;
+        grid-template-rows: repeat(4,fit-content(100%));
+        grid-template-columns: repeat(2,fit-content(100%));
+        [purpose='dropdown-item'] {
+          // width: 340px;
+          white-space: normal;
+        }
       }
       &.more-dropdown {
-        left: -358px;
+        left: -439px;
         flex-direction: row;
       }
       &.customers-dropdown {
@@ -637,12 +648,6 @@ html, body {
       [purpose='dropdown-item'] {
         padding: 8px;
         white-space: nowrap;
-      }
-      [purpose='dropdown-column'] {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        gap: 4px;
       }
       [purpose='dropdown-cta'] {
         margin-right: 8px;
