@@ -1120,19 +1120,20 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 	if args.ConditionalAccessBypassEnabled == nil {
 		args.ConditionalAccessBypassEnabled = ptr.Bool(true)
 	}
+	fmt.Printf("[DEBUG %s] %s newTeamPolicy\n", time.Now().Format(time.RFC3339Nano), func() string { _, f, l, _ := runtime.Caller(0); return fmt.Sprintf("%s:%d", f, l) }())
 
 	res, err := db.ExecContext(ctx,
 		fmt.Sprintf(
 			`INSERT INTO policies (
 				name, query, description, team_id, resolution, author_id,
 				platforms, critical, calendar_events_enabled, software_installer_id,
-				script_id, vpp_apps_teams_id, conditional_access_enabled, conditional_access_bypass_enabled, checksum
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
+				script_id, vpp_apps_teams_id, conditional_access_enabled, conditional_access_bypass_enabled, checksum, type, patch_software_title_id
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?)`,
 			policiesChecksumComputedColumn(),
 		),
 		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
 		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID,
-		args.ConditionalAccessEnabled, args.ConditionalAccessBypassEnabled,
+		args.ConditionalAccessEnabled, args.ConditionalAccessBypassEnabled, args.Type, args.PatchSoftwareTitleID,
 	)
 	switch {
 	case err == nil:
@@ -1257,6 +1258,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 	teamIDToPolicies := make(map[*uint][]*fleet.PolicySpec, 1)
 	softwareInstallerIDs := make(map[*uint]map[uint]*uint) // teamID -> titleID -> softwareInstallerID
 	vppAppsTeamsIDs := make(map[*uint]map[uint]*uint)      // teamID -> titleID -> vppAppsTeamsID
+	fmaTitleIDs := make(map[*uint]map[string]*uint)        // teamID -> FMA slug -> titleID
 	vppTitleIDs := make(map[uint]struct{})                 // set when a title is a VPP app rather than a software installer
 
 	// Get the team IDs
@@ -1288,6 +1290,25 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 	// Get software installer ids + VPP apps teams IDs from software title IDs.
 	for _, spec := range specs {
+
+		if spec.FleetMaintainedAppSlug != "" {
+			var fmaTitleID *uint
+			err := sqlx.GetContext(ctx, queryerContext, &fmaTitleID, `
+			SELECT si.title_id FROM software_installers si
+						JOIN fleet_maintained_apps fma ON si.fleet_maintained_app_id = fma.id
+						WHERE fma.slug = ?
+						AND si.global_or_team_id = ?
+			`, spec.FleetMaintainedAppSlug, teamNameToID[spec.Team])
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get fma title id")
+			}
+			if len(fmaTitleIDs[teamNameToID[spec.Team]]) == 0 {
+				fmaTitleIDs[teamNameToID[spec.Team]] = make(map[string]*uint)
+			}
+			fmaTitleIDs[teamNameToID[spec.Team]][spec.FleetMaintainedAppSlug] = fmaTitleID
+
+		}
+
 		if spec.SoftwareTitleID == nil || *spec.SoftwareTitleID == 0 {
 			continue
 		}
@@ -1366,6 +1387,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		}
 	}
 
+	fmt.Printf("[JVE %s] %s hmm\n", time.Now().Format(time.RFC3339Nano), func() string { _, f, l, _ := runtime.Caller(0); return fmt.Sprintf("%s:%d", f, l) }())
+
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		query := fmt.Sprintf(
 			`
@@ -1384,8 +1407,10 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		    script_id,
 			conditional_access_enabled,
 			conditional_access_bypass_enabled,
-			checksum
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)
+			checksum,
+			type,
+			patch_software_title_id
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
@@ -1398,7 +1423,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			vpp_apps_teams_id = VALUES(vpp_apps_teams_id),
 			script_id = VALUES(script_id),
 			conditional_access_enabled = VALUES(conditional_access_enabled),
-			conditional_access_bypass_enabled = VALUES(conditional_access_bypass_enabled)
+			conditional_access_bypass_enabled = VALUES(conditional_access_bypass_enabled),
+			type = VALUES(type),
+			patch_software_title_id = VALUES(patch_software_title_id)
 		`, policiesChecksumComputedColumn(),
 		)
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -1422,12 +1449,18 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					spec.ConditionalAccessBypassEnabled = ptr.Bool(true)
 				}
 
+				fmaTitleID := fmaTitleIDs[teamNameToID[spec.Team]][spec.FleetMaintainedAppSlug]
+
+				fmt.Printf("[JVE %s] %s fmaTitleID: %v\n", time.Now().Format(time.RFC3339Nano), func() string { _, f, l, _ := runtime.Caller(0); return fmt.Sprintf("%s:%d", f, l) }(), ptr.ValOrZero(fmaTitleID))
+				fmt.Printf("spec.Name: %v\n", spec.Name)
+				fmt.Printf("spec.FleetMaintainedAppSlug: %v\n", spec.FleetMaintainedAppSlug)
+
 				res, err := tx.ExecContext(
 					ctx,
 					query,
 					spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamID, spec.Platform, spec.Critical,
 					spec.CalendarEventsEnabled, softwareInstallerID, vppAppsTeamsID, scriptID, spec.ConditionalAccessEnabled,
-					spec.ConditionalAccessBypassEnabled,
+					spec.ConditionalAccessBypassEnabled, spec.Type, fmaTitleID,
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
