@@ -35,7 +35,6 @@ module.exports = {
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound' },
-    deviceNoLongerManaged: { description: 'The device is no longer managed by the Android enterprise.', responseType: 'notFound' },
     invalidWebApp: { description: 'Invalid post webApp request', responseType: 'badRequest' },
   },
 
@@ -107,11 +106,7 @@ module.exports = {
     }).intercept({ status: 400 }, (err) => {
       return {'invalidWebApp': `Attempted to create a webApp with an invalid value for an Android enterprise (${androidEnterpriseId}): ${err}`};
     }).intercept((err)=>{
-      let errorString = err.toString();
-      if (errorString.includes('Device is no longer being managed')) {
-        return {'deviceNoLongerManaged': 'The device is no longer managed by the Android enterprise.'};
-      }
-      return new Error(`When attempting to update a device for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+      return new Error(`When attempting to create a webapp for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
     });
 
 
