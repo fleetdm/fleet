@@ -54,8 +54,6 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 
 > ℹ️  Please read this issue carefully and understand it.  Pay [special attention](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) to UI wireframes, especially "dev notes".
 
-## QA
-
 ### Risk assessment
 
 - Requires testing in a hosted environment: TODO <!-- User story has features that require testing in a hosted environment. Otherwise, remove this item. -->
