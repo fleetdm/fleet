@@ -26524,7 +26524,8 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		res.Body.Close()
 
 		policyResp := globalPolicyResponse{}
-		json.Unmarshal(resBody, &policyResp)
+		err = json.Unmarshal(resBody, &policyResp)
+		require.NoError(t, err)
 		policyID := policyResp.Policy.ID
 
 		getPolicyResp := getPolicyByIDResponse{}

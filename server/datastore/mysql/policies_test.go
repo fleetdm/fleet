@@ -7015,6 +7015,7 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
 
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
