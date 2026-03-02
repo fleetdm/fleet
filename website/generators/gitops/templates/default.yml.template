@@ -2,12 +2,12 @@
 #
 # default.yml
 # 
-# Use default.yml to configure top-level settings for your
-# organization as a whole, and controls/reports/etc that
-# apply to all of your fleets. 
+# Use this global manifest (`default.yml`) to configure
+# top-level settings for your organization as a whole, and
+# controls/reports/etc that apply to all of your fleets. 
 #
-# For more, see:
-#   https://fleetdm.com/docs/configuration/yaml-files
+# To see all possible options, check out:
+#   • https://fleetdm.com/docs/configuration/yaml-files
 #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -17,6 +17,9 @@ org_settings:
     # The name of your organization is displayed to end users
     # during the setup experience for new hardware, and to admins
     # in the Fleet UI.
+    # 
+    # Read more:
+    #   • https://fleetdm.com/docs/configuration/yaml-files#org-info
     ###########################################################
     org_name: "My organization" # TODO: Replace with the name of your organization
 
@@ -32,10 +35,14 @@ org_settings:
     server_url: https://fleet.example.com # TODO: Replace with the URL where Fleet is running.
 
   ###########################################################
-  # To use single-sign on, todo finish  (also mention you have to go into workstations and turn this on too)
+  # Uncomment to use single sign-on (SSO) for operators accessing Fleet.
+  # 
+  # Read more:
+  #   • https://fleetdm.com/docs/configuration/yaml-files#sso-settings
+  #   • https://fleetdm.com/docs/deploy/single-sign-on-sso
   ###########################################################
   # sso_settings:
-  #   idp_name: "Google Workspace" # This appears to admins on the login screen as a "Sign in with ________" button.
+  #   idp_name: "Okta" # e.g. "Entra", "Okta", "Google Workspace", etc.  (This appears to admins on the login screen as a "Sign in with ________" button.)
   #   metadata_url: "" # A URL provided by your IdP when you set up Fleet.
   #   enable_sso: true # FUTURE: Get rid of redundancy just have this always true by default if sso_settings is there
   #   enable_sso_idp_login: true # FUTURE: Verify this isn't already defaulted to "on".  If not, make it default to "on". (it's for sso login initiated by the IdP -- i.e. when you click a button in otka, like heeroku dashboard)
@@ -44,28 +51,37 @@ org_settings:
   mdm:
     
     ###########################################################
-    # To use single-sign on, todo finish
+    # Uncomment to use single-sign on (SSO) to authenticate 
+    # new computers enrolling in Fleet during end user setup.
+    #
+    # Read more:
+    #   • https://fleetdm.com/docs/configuration/yaml-files#end-user-authentication
+    #   • https://fleetdm.com/guides/setup-experience#end-user-authentication
     ###########################################################
     # end_user_authentication:
-    #   idp_name: "Google Workspace" # This appears to admins on the login screen as a "Sign in with ________" button.
-    #   metadata_url: "" # A URL provided by your IdP when you set up Fleet.
-    #   entity_id: "fleet-end-users" # write up what this is for
+    #   idp_name: "Okta"  e.g. "Entra", "Okta", "Google Workspace", etc. (Displayed to end users.)
+    #   metadata_url: "https://okta.com/replace-this-url" # This must exactly match the "IdP metadata URL" provided by your identity provider (IdP) when setting up this integration.
+    #   entity_id: "fleet-end-users" # This must exactly match the "Entity ID" field you chose in your identity provider (IdP) configuration when setting up this integration.
     
     ###########################################################
-    # Uncomment to start using zero touch enrollment with Apple devices with Apple Business Manager (ABM)
+    # Uncomment when you are ready to start using zero-touch enrollment
+    # for Apple devices via Apple Business Manager (ABM).
+    #
+    # Read more:
+    #   • https://fleetdm.com/docs/configuration/yaml-files#apple-business-manager
+    #   • https://fleetdm.com/guides/apple-mdm-setup#apple-business-manager-abm
     ###########################################################
     # apple_business_manager:
-    #   - organization_name: "My organization" # The name of your organization in Apple Business Manager.    (………TODO: why does the organization name need to be specified?  (It has to match something in ABM.  Why?  You can't actually set up ABM with gitops because of pubkey downloading and things.  This is telling gitops that, once you create the record in the UI, don't override it)
-    #     macos_fleet: "💻 Workstations"  #TODO: This could default to "Unassigned" if unspecified, and then it could be omitted.
-    #     ios_fleet: "📱🏢 Employee-issued mobile devices"
-    #     ipados_fleet: "📱🏢 Employee-issued mobile devices"
+    #   - macos_fleet: "💻 Workstations" # Where new macOS devices from ABM will appear
+    #     ios_fleet: "📱🏢 Employee-issued mobile devices" # Where new iOS devices from ABM will appear
+    #     ipados_fleet: "📱🏢 Employee-issued mobile devices" # Where new iPadOS devices from ABM will appear
     
     ###########################################################
-    # Uncomment to…
+    # Uncomment to start using Apple's volume purchase program (VPP)
+    # for managing software licenses.
     ###########################################################
     # volume_purchasing_program: # TODO: does this need to be specified? can we just turn them all on by default? and then this can be omitted
-    #   - location: "My organization" # The name of your organization in Apple Business Manager.
-    #     fleets:
+    #   - fleets:
     #       - "💻 Workstations"
     #       - "📱🏢 Employee-issued mobile devices"
     #       - "📱🔐 Personal mobile devices"
@@ -78,6 +94,8 @@ controls:
   # For more, see:
   #   • https://fleetdm.com/docs/configuration/yaml-files#macos-migration
   #   • https://fleetdm.com/guides/mdm-migration#end-user-workflow
+  #
+  # Note: This is a global setting that cannot be applied per-fleet.
   ###########################################################
   # macos_migration:
   #   enable: true
@@ -89,8 +107,6 @@ controls:
 
 
 ###########################################################
-# `labels`
-# 
 # Labels are static or dynamic groupings of computers for
 # scoping, reporting, and more.  Use labels for everything
 # from "x86 macs" to "finance department" to "needs new battery".
@@ -100,12 +116,13 @@ controls:
 #   • https://fleetdm.com/guides/managing-labels-in-fleet
 #
 # (Optional) You can choose to manage labels in the Fleet GUI
-# instead of in your git repo by **commenting out `labels` below**.
+# instead of in your git repo by **commenting out** `labels`
+# below and removing the `labels/` folder.
 #
 # > Note: If you exclude `labels` from your git repo, then any
 # > AI-assisted tools you may be using like Claude/Copilot/Kilocode
-# > won't be able to see them for use in scoping, and could
-# > make it harder to do prompts like, for example:
+# > won't be able to see them as easily for use in scoping,
+# > and could make it harder to do prompts like, for example:
 # > "Make sure everyone in finance has the latest version of Excel"
 ###########################################################
 labels:

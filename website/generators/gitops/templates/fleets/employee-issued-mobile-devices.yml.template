@@ -1,8 +1,5 @@
 # TODO: fancy comment header
 name: 📱🏢 Employee-issued mobile devices # TODO: decide name for file and make this match
-settings: # « FUTURE: Eliminate the need for this required key.
-  secrets: # « FUTURE: Eliminate the need for this required key.
-    - secret: "" # TODO: What happens if omitted?
 controls:
 
   ##########################################

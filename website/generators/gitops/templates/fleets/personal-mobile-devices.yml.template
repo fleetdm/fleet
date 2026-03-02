@@ -1,8 +1,5 @@
 # TODO: fancy comment header
 name: "📱🔐 Personal mobile devices"
-settings: # « FUTURE: Eliminate the need for this required key.
-  secrets: # « FUTURE: Eliminate the need for this required key.
-    - secret: "" # TODO: What happens if omitted?
 controls:
 
   ##########################################
