@@ -132,7 +132,7 @@
       "slug": "alt-tab/darwin",
       "platform": "darwin",
       "unique_identifier": "com.lwouis.alt-tab-macos",
-      "description": "AltTab is a window switcher that brings the power of Windows's alt-tab to macOS."
+      "description": "AltTab is an app that enables Windows-like alt-tab."
     },
     {
       "name": "Amazon Chime",
