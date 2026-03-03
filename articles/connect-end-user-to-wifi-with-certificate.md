@@ -12,7 +12,7 @@ Currently, these are supported platforms for each certificate authority:
 - **Smallstep**: macOS, iOS, and iPadOS
 - **Hydrant**: Linux
 - **Custom SCEP server**: macOS, Windows, iOS, iPadOS, and Android
-- **Custom EST**: Linux, macOS, and Windows
+- **Custom EST**: Linux
 
 ## DigiCert
 
