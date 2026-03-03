@@ -100,7 +100,7 @@ func (d *DEPService) getDefaultProfile() *godep.Profile {
 		ProfileName:      "Fleet default enrollment profile",
 		AllowPairing:     true,
 		AutoAdvanceSetup: false,
-		IsSupervised:     false,
+		IsSupervised:     true,
 		IsMultiUser:      false,
 		IsMandatory:      false,
 		IsMDMRemovable:   false,
