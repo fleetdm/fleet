@@ -141,33 +141,33 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    A["New FMA version released (available in Fleet manifest)"] -- Yes --> B{"Is 'version'<br>specified for FMA in YAML?"}
+    A["New Fleet-maintained app version available in Fleet manifest"] -- Yes --> B["Is 'version'<br>specified for Fleet-maintained app?"]
     B -- No --> C["Download new version"]
-    C --> D["Keep previous version n-1 in S3"]
-    D --> E{"More than 2<br>versions cached?"}
-    E -- Yes --> F["Delete oldest version n-2"]
-    E -- No --> Z["End"]
+    C --> D["Keep previous version in S3"]
+    D --> E{"More than 2<br>versions stored?"}
+    E -- Yes --> F["Delete oldest version"]
+    E -- No --> Z[/"End"/]
     F --> Z
-    B -- Yes --> BC{"Does 'version' includecaret (^) constraint?" }
-    BC -- Yes --> BCC{"Is new version above<br>specified AND below<br>next major version?"}
+    B -- Yes --> BC["Does 'version' include caret (^) constraint?"]
+    BC -- Yes --> BCC{"Is new version below<br>next major version?"}
     BCC -- Yes --> H["Download new version"]
     BCC -- No --> J["No action"]
-    BC -- No --> G{"Is specified 'version'<br>same as new?" }
+    BC -- No --> G["Is specified 'version'<br>same as new?"]
     G -- Yes --> H
     H --> I["Keep previous YAML specified version"]
     I --> Z
     G -- No --> J
     J --> Z
-    K["YAML specified version changed?"] -- Removed --> L["Download current latest"]
-    L --> M["Keep previously specified YAML version"]
-    M --> N["Resume track latest mode"]
+    K["Specified 'version' changed?"] -- Removed --> L["Download latest from manifest"]
+    L --> M["Keep previously specified version"]
+    M --> N["Resume automatic download of latest version"]
     K -- Changed to new version --> H
 
-    style C fill:#319831
-    style F fill:#CC1144
-    style BCC fill:#7B52AB
-    style H fill:#0F93C9
-    style J fill:#D07D24
+    style C fill:#00C853
+    style F fill:#FF6D00
+    style BCC fill:#BBDEFB
+    style H fill:#00C853
+    style J fill:#FFD600
 ```
 
 ### Install and uninstall scripts
