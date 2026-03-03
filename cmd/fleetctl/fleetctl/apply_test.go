@@ -3466,7 +3466,7 @@ spec:
         minimum_version: "12.2"
         deadline: "1892-01-01T00:00:00Z"
 `,
-			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
+			wantErr: fmt.Sprintf(`422 Validation Failed: %s`, fleet.AppleOSVersionDeadlineInvalidMessage),
 		},
 		{
 			desc: "macos_updates.deadline with invalid date",
@@ -3481,7 +3481,7 @@ spec:
         minimum_version: "12.2"
         deadline: "18-01-01"
 `,
-			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
+			wantErr: fmt.Sprintf(`422 Validation Failed: %s`, fleet.AppleOSVersionDeadlineInvalidMessage),
 		},
 		{
 			desc: "macos_updates.deadline with incomplete date",
@@ -3496,7 +3496,7 @@ spec:
         minimum_version: "12.2"
         deadline: "2022-01"
 `,
-			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
+			wantErr: fmt.Sprintf(`422 Validation Failed: %s`, fleet.AppleOSVersionDeadlineInvalidMessage),
 		},
 		{
 			desc: "windows_updates.deadline_days but grace period empty",
@@ -3791,7 +3791,7 @@ spec:
       minimum_version: "12.2"
       deadline: "1892-01-01T00:00:00Z"
 `,
-			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
+			wantErr: fmt.Sprintf(`422 Validation Failed: %s`, fleet.AppleOSVersionDeadlineInvalidMessage),
 		},
 		{
 			desc: "app config macos_updates.deadline with invalid date",
@@ -3804,7 +3804,7 @@ spec:
       minimum_version: "12.2"
       deadline: "18-01-01"
 `,
-			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
+			wantErr: fmt.Sprintf(`422 Validation Failed: %s`, fleet.AppleOSVersionDeadlineInvalidMessage),
 		},
 		{
 			desc: "app config macos_updates.deadline with incomplete date",
@@ -3817,7 +3817,7 @@ spec:
       minimum_version: "12.2"
       deadline: "2022-01"
 `,
-			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
+			wantErr: fmt.Sprintf(`422 Validation Failed: %s`, fleet.AppleOSVersionDeadlineInvalidMessage),
 		},
 		{
 			desc: "app config windows_updates.deadline_days but grace period empty",

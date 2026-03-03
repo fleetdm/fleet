@@ -369,7 +369,7 @@ func (m AppleOSUpdateSettings) Validate() error {
 	}
 
 	if _, err := time.Parse("2006-01-02", m.Deadline.Value); err != nil {
-		return errors.New(`deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`)
+		return errors.New(AppleOSVersionDeadlineInvalidMessage)
 	}
 
 	return nil
