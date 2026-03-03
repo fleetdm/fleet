@@ -43,13 +43,29 @@ func TestMicrosoftVersionFromReleaseNotes(t *testing.T) {
 		assert.Equal(t, "16.98.3", result.Version)
 	})
 
-	t.Run("version not found", func(t *testing.T) {
+	t.Run("version not found falls back to base version", func(t *testing.T) {
+		// Build number "25999999" is not in the release notes cache above.
+		// The function should fall back to the base major.minor version ("16.50")
+		// rather than leaving the raw Homebrew build string, which would cause a
+		// perpetual "update available" loop against osquery's short version reporting.
 		app := &maintained_apps.FMAManifestApp{
 			UniqueIdentifier: "microsoft-excel/darwin",
 			Version:          "16.50.25999999",
 		}
 		result, err := MicrosoftVersionFromReleaseNotes(app)
-		assert.Error(t, err)
-		assert.Equal(t, "16.50.25999999", result.Version)
+		assert.NoError(t, err)
+		assert.Equal(t, "16.50", result.Version)
+	})
+
+	t.Run("version with fewer than 3 segments is returned unchanged", func(t *testing.T) {
+		// Versions with fewer than 3 segments have no build number to look up;
+		// the function should return the version unchanged.
+		app := &maintained_apps.FMAManifestApp{
+			UniqueIdentifier: "microsoft-onenote/darwin",
+			Version:          "16.106",
+		}
+		result, err := MicrosoftVersionFromReleaseNotes(app)
+		assert.NoError(t, err)
+		assert.Equal(t, "16.106", result.Version)
 	})
 }

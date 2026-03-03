@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "16.106.26020821",
+      "version": "16.106",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.onenote.mac';"
       },
