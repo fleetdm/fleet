@@ -1984,7 +1984,7 @@ func newRecoveryLockPasswordSchedule(
 	ds fleet.Datastore,
 	rkpDS recoverykeypassword.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronRecoveryLockPassword)

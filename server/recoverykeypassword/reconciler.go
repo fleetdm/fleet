@@ -2,10 +2,10 @@ package recoverykeypassword
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/google/uuid"
 )
 
@@ -26,7 +26,7 @@ func ReconcileRecoveryLockPasswords(
 	ctx context.Context,
 	rkpDS Datastore,
 	commander MDMCommander,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) error {
 	// Step 1: Process pending SetRecoveryLock commands (check for acknowledged/failed)
 	if err := processPendingSetCommands(ctx, rkpDS, commander, logger); err != nil {
@@ -48,7 +48,7 @@ func processPendingSetCommands(
 	ctx context.Context,
 	rkpDS Datastore,
 	commander MDMCommander,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) error {
 	pendingHosts, err := rkpDS.GetPendingRecoveryLockHosts(ctx)
 	if err != nil {
@@ -110,7 +110,7 @@ func sendVerifyRecoveryLock(
 	ctx context.Context,
 	rkpDS Datastore,
 	commander MDMCommander,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	host HostPendingRecoveryLock,
 ) error {
 	// Get the stored password
@@ -147,7 +147,7 @@ func sendSetRecoveryLockCommands(
 	ctx context.Context,
 	rkpDS Datastore,
 	commander MDMCommander,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) error {
 	hosts, err := rkpDS.GetHostsForRecoveryLockAction(ctx)
 	if err != nil {
@@ -180,7 +180,7 @@ func processHostForSet(
 	ctx context.Context,
 	rkpDS Datastore,
 	commander MDMCommander,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	host HostRecoveryLockAction,
 ) error {
 	// Generate and store password (this creates/updates the record)

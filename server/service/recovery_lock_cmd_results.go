@@ -2,13 +2,13 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/recoverykeypassword"
 	"github.com/groob/plist"
 )
@@ -39,7 +39,7 @@ type verifyRecoveryLockResponse struct {
 // NotNow status is ignored (device will retry).
 func NewVerifyRecoveryLockResultsHandler(
 	rkpDS recoverykeypassword.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 ) fleet.MDMCommandResultsHandler {
 	return func(ctx context.Context, results fleet.MDMCommandResults) error {
 		// Check if this is a verification command from our cron job (by prefix)

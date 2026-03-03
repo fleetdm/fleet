@@ -1045,7 +1045,7 @@ the way that the Fleet server works.
 			activitiesModule.SetService(activitySvc)
 
 			// Bootstrap recovery key password bounded context
-			rkpDatastore := rkp_bootstrap.New(dbConns, logger.SlogLogger())
+			rkpDatastore := rkp_bootstrap.New(dbConns, logger)
 
 			// Perform a cleanup of cron_stats outside of the cronSchedules because the
 			// schedule package uses cron_stats entries to decide whether a schedule will

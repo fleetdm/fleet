@@ -2,12 +2,12 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/recoverykeypassword"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -75,7 +75,7 @@ func (m *mockRecoveryKeyPasswordDatastore) GetStaleVerifyingRecoveryLockHosts(ct
 func TestVerifyRecoveryLockResultsHandler_NonVerifyCommand(t *testing.T) {
 	ctx := context.Background()
 	mockDS := &mockRecoveryKeyPasswordDatastore{}
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	handler := NewVerifyRecoveryLockResultsHandler(mockDS, logger)
 
@@ -100,7 +100,7 @@ func TestVerifyRecoveryLockResultsHandler_Acknowledged_PasswordVerified(t *testi
 			return nil
 		},
 	}
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	handler := NewVerifyRecoveryLockResultsHandler(mockDS, logger)
 
@@ -143,7 +143,7 @@ func TestVerifyRecoveryLockResultsHandler_Acknowledged_PasswordNotVerified(t *te
 			return nil
 		},
 	}
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	handler := NewVerifyRecoveryLockResultsHandler(mockDS, logger)
 
@@ -184,7 +184,7 @@ func TestVerifyRecoveryLockResultsHandler_NotNow(t *testing.T) {
 			return 123, nil
 		},
 	}
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	handler := NewVerifyRecoveryLockResultsHandler(mockDS, logger)
 
@@ -211,7 +211,7 @@ func TestVerifyRecoveryLockResultsHandler_Error(t *testing.T) {
 			return nil
 		},
 	}
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	handler := NewVerifyRecoveryLockResultsHandler(mockDS, logger)
 
@@ -261,7 +261,7 @@ func TestVerifyRecoveryLockResultsHandler_CommandNotFound(t *testing.T) {
 			return 0, &testNotFoundError{msg: "not found"}
 		},
 	}
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	handler := NewVerifyRecoveryLockResultsHandler(mockDS, logger)
 
