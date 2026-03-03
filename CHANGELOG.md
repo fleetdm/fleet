@@ -56,11 +56,11 @@
 - Updated Android certificate app to re-enroll if the host was deleted in Fleet.
 - Updated `fleetctl generate-gitops` to output Fleet-maintained apps in a dedicated `fleet_maintained_apps` section of the YAML files.
 - When a host is deleted, any associated VPP software installation records are also deleted.
-- Global observers and maintainers can now officially read user details, which were already visible to them via the activity feed.
+- Updated so that global observers and maintainers can now officially read user details, which were already visible to them via the activity feed.
 - Iru (Kandji's new name) added to the list of well-known MDM platforms.
 - Improved error message when viewing disk encryption key fails because MDM has been turned off and the decryption certificate is no longer valid.
 - Updated UI to show VPP version for adding software during setup.
-- User sessions and password reset tokens are now cleared whenever a user's password is changed.
+- Updated user sessions and password reset tokens to now be cleared whenever a user's password is changed.
 - Disallowed use of FLEET_DEV_* environment variables unless `--dev` is passed when serving Fleet.
 - Handled the NotNow status from the device during DEP setup experience so it does not delay the release of the device.
 - Allowed overriding individual configuration variables for MySQL and object storage when `--dev` is passed when serving Fleet.
@@ -103,6 +103,19 @@
 - Fixed unnecessary error logging when no CPE match is found for software items like VSCode extensions and JetBrains plugins.
 - Fixed created_at and updated_at timestamps on API responses for Label and Team creation.
 - Fixed issues where different variations of the same software weren't linked to the same software title.
+
+## Fleet 4.80.3 (Feb 20, 2026)
+
+### Bug fixes
+
+- Fixed validation and error handling issues.
+
+## Fleet 4.80.2 (Feb 11, 2026)
+
+### Bug fixes
+
+- Updated to Go 1.25.7.
+- Fix issue where MySQL read replicas were not using TLS.
 
 ## Fleet 4.80.1 (Feb 06, 2026)
 
