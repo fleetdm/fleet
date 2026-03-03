@@ -139,32 +139,40 @@ func decrypt(encrypted []byte, privateKey string) ([]byte, error) {
 // GetHostsForRecoveryLockAction returns hosts that need recovery lock password action.
 func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]recoverykeypassword.HostRecoveryLockAction, error) {
 	// Query hosts that:
-	// - Are in teams with enable_recovery_lock_password = true
-	// - Are macOS 11.5+ (os_version check)
+	// - Have enable_recovery_lock_password = true (from team config or appconfig for no-team hosts)
+	// - Are macOS 11.5+ (version check via operating_systems table)
 	// - Are MDM enrolled (enabled = 1 and device enrollment type)
 	// - Have no recovery lock password record yet
 	// Note: hosts with existing records (pending, verifying, verified, failed) are NOT included
-	// os_version format is "macOS X.Y" or "macOS X.Y.Z", so we extract the version after the space
 	const stmt = `
 		SELECT h.id, h.uuid, h.team_id, rkp.status
 		FROM hosts h
 		JOIN nano_enrollments ne ON ne.device_id = h.uuid
-		JOIN teams t ON t.id = h.team_id
+		JOIN host_operating_system hos ON hos.host_id = h.id
+		JOIN operating_systems os ON os.id = hos.os_id
+		LEFT JOIN teams t ON t.id = h.team_id
+		CROSS JOIN app_config_json ac
 		LEFT JOIN host_recovery_key_passwords rkp ON rkp.host_id = h.id
-		WHERE h.platform = 'darwin'
+		WHERE os.platform = 'darwin'
 		  AND ne.enabled = 1
 		  AND ne.type IN ('Device', 'User Enrollment (Device)')
-		  AND JSON_EXTRACT(t.config, '$.mdm.enable_recovery_lock_password') = true
 		  AND (
-		      -- macOS 11.5+ version check using os_version string (e.g., "macOS 15.7", "macOS 11.5.2")
-		      -- First extract the version number after "macOS " prefix
-		      CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(h.os_version, ' ', -1), '.', 1) AS UNSIGNED) > 11
+		      -- Team hosts: check team config
+		      (h.team_id IS NOT NULL AND JSON_EXTRACT(t.config, '$.mdm.enable_recovery_lock_password') = true)
+		      OR
+		      -- No-team hosts: check appconfig
+		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.enable_recovery_lock_password') = true)
+		  )
+		  AND (
+		      -- macOS 11.5+ version check (os.version is e.g., "15.7", "11.5.2")
+		      CAST(SUBSTRING_INDEX(os.version, '.', 1) AS UNSIGNED) > 11
 		      OR (
-		          CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(h.os_version, ' ', -1), '.', 1) AS UNSIGNED) = 11
-		          AND CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING_INDEX(h.os_version, ' ', -1), '.', 2), '.', -1) AS UNSIGNED) >= 5
+		          CAST(SUBSTRING_INDEX(os.version, '.', 1) AS UNSIGNED) = 11
+		          AND CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(os.version, '.', 2), '.', -1) AS UNSIGNED) >= 5
 		      )
 		  )
 		  AND rkp.host_id IS NULL
+		LIMIT 500
 	`
 
 	var results []struct {

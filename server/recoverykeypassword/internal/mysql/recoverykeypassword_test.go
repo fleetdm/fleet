@@ -25,7 +25,9 @@ type testEnv struct {
 func (env *testEnv) truncateTables(t *testing.T) {
 	t.Helper()
 	mysql_testing_utils.TruncateTables(t, env.db, env.logger, nil,
-		"host_recovery_key_passwords", "hosts", "teams", "nano_enrollments", "nano_command_results", "nano_commands")
+		"host_recovery_key_passwords", "host_operating_system", "operating_systems",
+		"hosts", "teams", "nano_enrollments", "nano_command_results", "nano_commands",
+		"app_config_json")
 }
 
 func (env *testEnv) insertHost(t *testing.T, hostname string) uint {
@@ -44,6 +46,7 @@ func (env *testEnv) insertHost(t *testing.T, hostname string) uint {
 }
 
 // insertHostFull inserts a host with all fields needed for recovery lock testing.
+// Also inserts into operating_systems and host_operating_system tables.
 func (env *testEnv) insertHostFull(t *testing.T, hostname, uuid, platform, osVersion string, teamID *uint) uint {
 	t.Helper()
 	ctx := t.Context()
@@ -54,9 +57,36 @@ func (env *testEnv) insertHostFull(t *testing.T, hostname, uuid, platform, osVer
 	`, hostname, uuid, platform, osVersion, teamID)
 	require.NoError(t, err)
 
-	id, err := result.LastInsertId()
+	hostID, err := result.LastInsertId()
 	require.NoError(t, err)
-	return uint(id)
+
+	// Parse osVersion (e.g., "macOS 15.7" -> name="macOS", version="15.7")
+	// For non-darwin platforms, use osVersion as-is
+	osName := osVersion
+	osVersionNum := ""
+	if platform == "darwin" && len(osVersion) > 6 && osVersion[:6] == "macOS " {
+		osName = "macOS"
+		osVersionNum = osVersion[6:]
+	}
+
+	// Insert into operating_systems
+	osResult, err := env.db.ExecContext(ctx, `
+		INSERT INTO operating_systems (name, version, arch, kernel_version, platform, display_version)
+		VALUES (?, ?, 'x86_64', '', ?, '')
+	`, osName, osVersionNum, platform)
+	require.NoError(t, err)
+
+	osID, err := osResult.LastInsertId()
+	require.NoError(t, err)
+
+	// Link host to operating system
+	_, err = env.db.ExecContext(ctx, `
+		INSERT INTO host_operating_system (host_id, os_id)
+		VALUES (?, ?)
+	`, hostID, osID)
+	require.NoError(t, err)
+
+	return uint(hostID)
 }
 
 // insertTeamWithRecoveryLock inserts a team with enable_recovery_lock_password setting.
@@ -113,6 +143,24 @@ func (env *testEnv) insertNanoCommandResult(t *testing.T, commandUUID, deviceID,
 		INSERT INTO nano_command_results (command_uuid, id, status, result, not_now_at, created_at, updated_at)
 		VALUES (?, ?, ?, ?, NULL, NOW(), NOW())
 	`, commandUUID, deviceID, status, result)
+	require.NoError(t, err)
+}
+
+// setAppConfigRecoveryLock sets the enable_recovery_lock_password setting in appconfig.
+func (env *testEnv) setAppConfigRecoveryLock(t *testing.T, enabled bool) {
+	t.Helper()
+	ctx := t.Context()
+
+	config := `{"mdm": {"enable_recovery_lock_password": false}}`
+	if enabled {
+		config = `{"mdm": {"enable_recovery_lock_password": true}}`
+	}
+
+	_, err := env.db.ExecContext(ctx, `
+		INSERT INTO app_config_json (json_value)
+		VALUES (?)
+		ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)
+	`, config)
 	require.NoError(t, err)
 }
 
@@ -534,6 +582,8 @@ func TestGetHostsForRecoveryLockAction(t *testing.T) {
 		{"IneligibleVerifying", testGetHostsForRecoveryLockActionVerifying},
 		{"IneligibleVerified", testGetHostsForRecoveryLockActionVerified},
 		{"IneligibleFailed", testGetHostsForRecoveryLockActionFailed},
+		{"EligibleNoTeamEnabled", testGetHostsForRecoveryLockActionNoTeamEnabled},
+		{"IneligibleNoTeamDisabled", testGetHostsForRecoveryLockActionNoTeamDisabled},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -791,6 +841,45 @@ func testGetHostsForRecoveryLockActionFailed(t *testing.T, env *testEnv) {
 	require.NoError(t, err)
 
 	// Should NOT return host (failed hosts don't auto-retry)
+	hosts, err := env.ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, hosts)
+}
+
+func testGetHostsForRecoveryLockActionNoTeamEnabled(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+
+	// Set appconfig with recovery lock enabled
+	env.setAppConfigRecoveryLock(t, true)
+
+	// Create eligible macOS host with no team
+	hostID := env.insertHostFull(t, "no-team-host", "uuid-no-team", "darwin", "macOS 15.7", nil)
+
+	// Create MDM enrollment
+	env.insertNanoEnrollment(t, "uuid-no-team", "Device", true)
+
+	// Get eligible hosts
+	hosts, err := env.ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	assert.Equal(t, hostID, hosts[0].HostID)
+	assert.Equal(t, "uuid-no-team", hosts[0].HostUUID)
+	assert.Nil(t, hosts[0].TeamID)
+}
+
+func testGetHostsForRecoveryLockActionNoTeamDisabled(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+
+	// Set appconfig with recovery lock disabled
+	env.setAppConfigRecoveryLock(t, false)
+
+	// Create eligible macOS host with no team
+	_ = env.insertHostFull(t, "no-team-disabled-host", "uuid-no-team-disabled", "darwin", "macOS 15.7", nil)
+
+	// Create MDM enrollment
+	env.insertNanoEnrollment(t, "uuid-no-team-disabled", "Device", true)
+
+	// Should not return host (appconfig has recovery lock disabled)
 	hosts, err := env.ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
 	assert.Empty(t, hosts)
