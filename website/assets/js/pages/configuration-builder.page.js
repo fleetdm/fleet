@@ -1864,7 +1864,7 @@ parasails.registerPage('configuration-builder', {
                 name: 'Maximum inactivity time before device locks with external display',
                 uniqueSlug: 'windows-device-lock-max-inactivity-before-device-locks-with-external-display',
                 category: 'Device lock',
-                tooltip: 'The number of seconds a device can remain inactive while using an external monitor before a password is required to unlock the device.',
+                tooltip: 'The number of minutes a device can remain inactive while using an external monitor before a password is required to unlock the device.',
                 supportedAccessTypes: ['add', 'replace'],
                 alsoAutoSetWhenSelected: [
                   {
