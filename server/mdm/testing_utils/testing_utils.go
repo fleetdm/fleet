@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -39,10 +41,13 @@ func NewTestMDMAppleCertTemplate() *x509.Certificate {
 // file. It also sets the necessary dev mode overrides to point to the test server and disable
 // caching. It closes the server and clears the underlying overrides when the test finishes.
 func StartNewAppleGDMFTestServer(t *testing.T) {
+	_, thisFile, _, _ := runtime.Caller(0)
+	gdmfTestDataPath := filepath.Join(filepath.Dir(thisFile), "../apple/gdmf/testdata/gdmf.json")
+
 	appleGDMFSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		// load the test data from the file
-		b, err := os.ReadFile("../mdm/apple/gdmf/testdata/gdmf.json")
+		b, err := os.ReadFile(gdmfTestDataPath)
 		require.NoError(t, err)
 		_, err = w.Write(b)
 		require.NoError(t, err)
