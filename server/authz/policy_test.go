@@ -1356,8 +1356,11 @@ func TestAuthorizeQuery(t *testing.T) {
 
 				{user: test.UserObserver, object: observerQueryOnTeam3, action: read, allow: true},
 				{user: test.UserObserver, object: observerQueryOnTeam3, action: write, allow: false},
-				{user: test.UserObserver, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: true},
-				{user: test.UserObserver, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: true},
+				{user: test.UserObserver, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: true}, // global observer can run observer_can_run query targeting query's own team
+				{user: test.UserObserver, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: false}, // global observer cannot target team 2 for a team 3 query
+
+				{user: test.UserObserver, object: observerQueryOnTeam1TargetedToTeam2, action: run, allow: false},         // global observer cannot target team 2 for a team 1 observer_can_run query
+				{user: test.UserObserver, object: observerQueryOnTeam1TargetedToTeam1AndTeam2, action: run, allow: false}, // global observer cannot target multiple teams for a team observer_can_run query
 			},
 		},
 		{

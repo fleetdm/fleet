@@ -535,24 +535,41 @@ const SelectTargets = ({
   const resultsTableConfig = generateTableHeaders();
   const selectedHostsTableConfig = generateTableHeaders(handleRowRemove);
 
-  // Returns the set of team IDs that should be disabled (shown but unclickable)
+  const shouldDisableForObserver = (teamId: number): boolean => {
+    if (isLivePolicy) return true;
+    if (!isObserverCanRunQuery) return true;
+    if (queryTeamId != null && queryTeamId !== teamId) return true;
+    return false;
+  };
+
   const getDisabledTeamIds = (): Set<number> => {
     const disabled = new Set<number>();
+
+    const isGlobalPlainObserver = currentUser?.global_role === "observer";
+
+    if (isGlobalPlainObserver) {
+      // Global plain observers have the same restrictions as team-level
+      // observers but applied to ALL teams/fleets (including "Unassigned")
+      const allTeamIds = teams?.map((t) => t.id) || [];
+      if (isOnGlobalTeam) {
+        allTeamIds.push(0); // "Unassigned"
+      }
+      allTeamIds.forEach((teamId) => {
+        if (shouldDisableForObserver(teamId)) {
+          disabled.add(teamId);
+        }
+      });
+      return disabled;
+    }
+
+    // Team/fleet-level plain observer logic
     teams?.forEach((team) => {
       const isPlainObserver =
         permissions.isTeamObserver(currentUser, team.id) &&
         !permissions.isTeamObserverPlus(currentUser, team.id);
       if (!isPlainObserver) return;
 
-      if (isLivePolicy) {
-        // All plain-observer teams are disabled for live policies
-        disabled.add(team.id);
-      } else if (
-        !isObserverCanRunQuery ||
-        (queryTeamId != null && queryTeamId !== team.id)
-      ) {
-        // Disabled if query is not observer_can_run, or if query belongs to
-        // a different team (observer can only run against the query's own team)
+      if (shouldDisableForObserver(team.id)) {
         disabled.add(team.id);
       }
     });
@@ -575,10 +592,11 @@ const SelectTargets = ({
           renderTargetEntitySection("Platforms", labels.platforms)}
         {!!teams?.length &&
           (isOnGlobalTeam
-            ? renderTargetEntitySection("teams", [
-                { id: 0, name: "Unassigned" },
-                ...teams,
-              ])
+            ? renderTargetEntitySection(
+                "teams",
+                [{ id: 0, name: "Unassigned" }, ...teams],
+                disabledTeamIds
+              )
             : renderTargetEntitySection("teams", teams, disabledTeamIds))}
         {!!labels?.other?.length &&
           renderTargetEntitySection("labels", labels.other)}
