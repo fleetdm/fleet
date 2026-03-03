@@ -1,6 +1,6 @@
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #
-# personal-issued-mobile-devices.yml
+# personal-mobile-devices.yml
 # 
 # Use this fleet manifest to configure controls, software,
 # and settings that apply only to computing devices (hosts)
@@ -18,12 +18,16 @@
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 name: "📱🔐 Personal mobile devices"
 controls:
-  ###########################################################
-  # Setup experience
-  ###########################################################
   apple_setup:
+    ###########################################################
+    # Uncomment to use single-sign on (SSO) to authenticate 
+    # end users enrolling their personal device.
+    #
+    # Read more:
+    #   • https://fleetdm.com/docs/configuration/yaml-files#end-user-authentication
+    #   • https://fleetdm.com/guides/setup-experience#end-user-authentication
+    ###########################################################
     # enable_end_user_authentication: true
-    # ^DISCUSS: What's a good way to explain what this means for BYOD devices?
 
   ###########################################################
   # Presets, restrictions, and configs
@@ -58,10 +62,10 @@ controls:
   #   • https://fleetdm.com/guides/enforce-os-updates#apple-macos-ios-and-ipados-end-user-experience
   ###########################################################
   # ios_updates:
-  #   deadline: "2025-06-01"
+  #   deadline: "2030-04-01"
   #   minimum_version: "18.5"
   # ipados_updates:
-  #   deadline: "2025-06-01"
+  #   deadline: "2030-04-01"
   #   minimum_version: "18.5"
 
 ###########################################################

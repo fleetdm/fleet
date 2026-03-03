@@ -31,8 +31,6 @@ controls:
     #   • https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web
     ###########################################################
     apple_setup_assistant: ../platforms/macos/enrollment-profiles/automatic-enrollment.dep.json
-    # DISCUSS: Double check we actually want is_mdm_removable:true set by default (I think no?)
-    # DISCUSS: Would it be better to have the separate JSON file inlined as yaml here instead?  Then the enrollment_profiles folder (and concept to learn) could be eliminated
     
     ###########################################################
     # Uncomment to use single-sign on (SSO) to authenticate 
@@ -91,12 +89,15 @@ controls:
   #   • https://fleetdm.com/guides/enforce-os-updates
   ###########################################################
   # macos_updates:
-  #   deadline:
-  #   minimum_version:
+  #   deadline: "2030-04-01"
+  #   minimum_version: "26.0"
   #   update_new_hosts: true
   # windows_updates:
   #   deadline_days: 7
   #   grace_period_days: 2
+
+  # TODO: mike: Go add documentation links for each section below
+  # (and write up the software section in here and the personal mobile devices fleet manifest)
 
   ###########################################################
   # Script library
@@ -150,6 +151,9 @@ policies:
 
 ###########################################################
 # Software available for install
+#
+# Read more here:
+#   •  https://fleetdm.com/docs/configuration/yaml-files#software
 ###########################################################
 software:
   fleet_maintained_apps:
@@ -182,20 +186,6 @@ software:
 
     # Linux custom packages
     # …
-    # - path: ../lib/linux/software/1password-deb.yml # 1Password for Ubuntu
-    #   self_service: true
-    #   setup_experience: true
-    #   categories:
-    #     - Security
-    #   labels_include_any:
-    #     - "Debian-based Linux hosts"
-    # - path: ../lib/linux/software/1password-rpm.yml # 1Password for RedHat
-    #   self_service: true
-    #   setup_experience: true
-    #   categories:
-    #     - Security
-    #   labels_include_any:
-    #     - "RPM-based Linux hosts"
 
   app_store_apps: # Apps to install via VPP from the macOS App Store, if any
     # …

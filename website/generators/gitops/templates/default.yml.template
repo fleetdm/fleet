@@ -78,8 +78,6 @@ org_settings:
     ###########################################################
     # apple_business_manager:
     #   - macos_fleet: "💻 Workstations" # Where new macOS devices from ABM will appear
-    #     ios_fleet: "📱🏢 Employee-issued mobile devices" # Where new iOS devices from ABM will appear
-    #     ipados_fleet: "📱🏢 Employee-issued mobile devices" # Where new iPadOS devices from ABM will appear
     
     ###########################################################
     # Uncomment to start using Apple's volume purchase program (VPP)
@@ -93,7 +91,6 @@ org_settings:
     # volume_purchasing_program:
     #   - fleets:
     #       - "💻 Workstations"
-    #       - "📱🏢 Employee-issued mobile devices"
     #       - "📱🔐 Personal mobile devices"
 
 controls:
