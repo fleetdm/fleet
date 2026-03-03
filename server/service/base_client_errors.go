@@ -66,21 +66,21 @@ type notFoundErr struct {
 	fleet.ErrorWithUUID
 }
 
-func (e notFoundErr) Error() string {
+func (e *notFoundErr) Error() string {
 	if e.msg != "" {
 		return e.msg
 	}
 	return "The resource was not found"
 }
 
-func (e notFoundErr) NotFound() bool {
+func (e *notFoundErr) NotFound() bool {
 	return true
 }
 
 // Implement Is so that errors.Is(err, sql.ErrNoRows) returns true for an
 // error of type *notFoundError, without having to wrap sql.ErrNoRows
 // explicitly.
-func (e notFoundErr) Is(other error) bool {
+func (e *notFoundErr) Is(other error) bool {
 	return other == sql.ErrNoRows
 }
 
