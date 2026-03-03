@@ -1,10 +1,10 @@
 module.exports = {
 
 
-  friendlyName: 'Get android enterprise applications',
+  friendlyName: 'Create android webApp',
 
 
-  description: 'Gets an android enterprise application',
+  description: 'Creates a new webApp for an android enterprise.',
 
 
   inputs: {
@@ -12,23 +12,34 @@ module.exports = {
       type: 'string',
       required: true,
     },
-    applicationId: {
+    title: {
       type: 'string',
-      required: true,
+    },
+    startUrl: {
+      type: 'string',
+    },
+    icons: {
+      type: [{}],
+    },
+    displayMode: {
+      type: 'string',
+    },
+    versionCode: {
+      type: 'string',
     },
   },
 
 
   exits: {
-    success: { description: 'The device of an Android enterprise was successfully retrieved.' },
+    success: { description: 'The webApp of an Android enterprise was successfully created.' },
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
-    notFound: { description: 'App not found', responseType: 'notFound' },
-    deviceNoLongerManaged: { description: 'The device is no longer managed by the Android enterprise.', responseType: 'notFound' },
+    notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound' },
+    invalidWebApp: { description: 'Invalid post webApp request', responseType: 'badRequest' },
   },
 
 
-  fn: async function ({ androidEnterpriseId, applicationId}) {
+  fn: async function ({ androidEnterpriseId, title, startUrl, icons, displayMode, versionCode }) {
 
     // Extract fleetServerSecret from the Authorization header
     let authHeader = this.req.get('authorization');
@@ -61,9 +72,9 @@ module.exports = {
       throw 'notFound';
     }
 
-    // Get the device for this Android enterprise.
+    // Create the webApp.
     // Note: We're using sails.helpers.flow.build here to handle any errors that occur using google's node library.
-    let getApplicationsResponse = await sails.helpers.flow.build(async () => {
+    let createWebAppResponse = await sails.helpers.flow.build(async () => {
       let { google } = require('googleapis');
       let androidmanagement = google.androidmanagement('v1');
       let googleAuth = new google.auth.GoogleAuth({
@@ -76,28 +87,31 @@ module.exports = {
       // Acquire the google auth client, and bind it to all future calls
       let authClient = await googleAuth.getClient();
       google.options({ auth: authClient });
-      // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Applications.html#get
-      let getApplicationsResult = await androidmanagement.enterprises.applications.get({
-        name: `enterprises/${androidEnterpriseId}/applications/${applicationId}`,
+      // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Webapps.html#create
+      let createWebAppResponse = await androidmanagement.enterprises.webApps.create({
+        parent: `enterprises/${androidEnterpriseId}`,
+        requestBody: {
+          title,
+          startUrl,
+          icons,
+          displayMode,
+          versionCode,
+        },
       });
-      return getApplicationsResult.data;
+      return createWebAppResponse.data;
     }).intercept({status: 429}, (err)=>{
       // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
       sails.log.warn(`p1: Android management API rate limit exceeded!`);
-      return new Error(`When attempting to get an application for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
-    }).intercept({status: 404}, () => {
-      return {'notFound': 'App not found.'};
-    }).intercept((err) => {
-      let errorString = err.toString();
-      if (errorString.includes('Device is no longer being managed')) {
-        return {'deviceNoLongerManaged': 'The device is no longer managed by the Android enterprise.'};
-      }
-      return new Error(`When attempting to get an application for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
+      return new Error(`When attempting to create a webapp for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+    }).intercept({ status: 400 }, (err) => {
+      return {'invalidWebApp': `Attempted to create a webApp with an invalid value for an Android enterprise (${androidEnterpriseId}): ${err}`};
+    }).intercept((err)=>{
+      return new Error(`When attempting to create a webapp for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
     });
 
 
-    // Return the device data back to the Fleet server.
-    return getApplicationsResponse;
+    // Return the created webApp back to the Fleet server.
+    return createWebAppResponse;
 
   }
 
