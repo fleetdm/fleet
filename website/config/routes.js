@@ -590,7 +590,17 @@ module.exports.routes = {
     action: 'landing-pages/view-deployment',
     locals: {
       pageTitleForMeta: 'Deploy Fleet anywhere',
-      pageDescriptionForMeta: ' Run Fleet on-premise, in your private cloud (AWS, Azure, GCP), or air-gapped environments. Or let us handle it with Fleet Cloud. The only MDM with zero infrastructure lock-in.',
+      pageDescriptionForMeta: 'Run Fleet on-premise, in your private cloud (AWS, Azure, GCP), or air-gapped environments. Or let us handle it with Fleet Cloud. The only MDM with zero infrastructure lock-in.',
+      currentSection: 'platform'
+    }
+  },
+
+  'GET /linux-management': {
+    action: 'landing-pages/view-linux-management',
+    locals: {
+      pageTitleForMeta: 'Linux device management',
+      pageDescriptionForMeta: 'Manage Linux devices with full visibility and control. Automate patching, monitor compliance, and unify Linux, macOS, and Windows in one place.',
+      currentSection: 'platform',
     }
   },
 
@@ -1259,6 +1269,7 @@ module.exports.routes = {
   'PATCH /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/modify-android-device', csrf: false},
   'GET /api/android/v1/enterprises/:androidEnterpriseId/applications/:applicationId': { action: 'android-proxy/get-enterprise-applications', skipAssets: false},
   'POST /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId::googleAction': { action: 'android-proxy/modify-enterprise-app-policy', csrf: false, skipAssets: false},
+  'POST /api/android/v1/enterprises/:androidEnterpriseId/webApps': { action: 'android-proxy/create-enterprise-webapp', csrf: false, skipAssets: false},
 
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗

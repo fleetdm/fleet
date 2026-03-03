@@ -115,6 +115,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEnabledMacosDiskEncryption{},
 	ActivityTypeDisabledMacosDiskEncryption{},
 
+	ActivityTypeEnabledRecoveryLockPassword{},
+	ActivityTypeDisabledRecoveryLockPassword{},
+
 	ActivityTypeEnabledGitOpsMode{},
 	ActivityTypeDisabledGitOpsMode{},
 
@@ -729,6 +732,24 @@ type ActivityTypeDisabledMacosDiskEncryption struct {
 
 func (a ActivityTypeDisabledMacosDiskEncryption) ActivityName() string {
 	return "disabled_macos_disk_encryption"
+}
+
+type ActivityTypeEnabledRecoveryLockPassword struct {
+	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeEnabledRecoveryLockPassword) ActivityName() string {
+	return "enabled_recovery_lock_password"
+}
+
+type ActivityTypeDisabledRecoveryLockPassword struct {
+	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeDisabledRecoveryLockPassword) ActivityName() string {
+	return "disabled_recovery_lock_password"
 }
 
 type ActivityTypeEnabledGitOpsMode struct{}

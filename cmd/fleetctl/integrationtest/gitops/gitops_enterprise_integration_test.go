@@ -3540,3 +3540,76 @@ team_settings:
 		})
 	}
 }
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestConfigurationProfileEscaping() {
+	t := s.T()
+	ctx := context.Background()
+	tempDir := t.TempDir()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	// Get the testdata mobileconfig profile
+	_, currentFile, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	profilePath := filepath.Join(filepath.Dir(currentFile), "testdata", "apple-profile.mobileconfig")
+	require.FileExists(t, profilePath)
+
+	const secretPasswordValue = "custom&password<tag>"
+	t.Setenv("FLEET_SECRET_PASSWORD", secretPasswordValue)
+	t.Setenv("API_KEY", "my-api-key&value")
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	gitopsConfig := fmt.Sprintf(`
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: test_secret
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s
+policies:
+reports:
+`, s.Server.URL, profilePath)
+
+	configPath := filepath.Join(tempDir, "gitops.yml")
+	require.NoError(t, os.WriteFile(configPath, []byte(gitopsConfig), 0o644)) //nolint:gosec
+
+	// Run gitops
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", configPath})
+
+	// Verify the stored profile in the DB, based on my testing these vars are okay as they are not host-specific and we can avoid enrolling a host and checking the host specific payload.
+	profiles, err := s.DS.ListMDMAppleConfigProfiles(ctx, nil)
+	require.NoError(t, err)
+
+	var storedProfile *fleet.MDMAppleConfigProfile
+	for _, p := range profiles {
+		if strings.Contains(p.Identifier, "fleet.9913C522") {
+			storedProfile = p
+			break
+		}
+	}
+	require.NotNil(t, storedProfile, "should find the uploaded profile")
+	profileBody := string(storedProfile.Mobileconfig)
+
+	// $FLEET_SECRET_PASSWORD should NOT be expanded, as it will be expanded server-side
+	assert.Contains(t, profileBody, "$FLEET_SECRET_PASSWORD",
+		"stored profile should still contain the FLEET_SECRET_ placeholder")
+	// $API_KEY should be expanded and its value should have been escaped during gitops
+	assert.Contains(t, profileBody, "my-api-key&amp;value",
+		"stored profile should have the expanded $API_KEY value")
+	assert.NotContains(t, profileBody, "$API_KEY",
+		"stored profile should not contain the $API_KEY variable reference")
+
+	// Verify the secret was saved to the server unescaped, to avoid double encoding secrets.
+	secrets, err := s.DS.GetSecretVariables(ctx, []string{"PASSWORD"})
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+	assert.Equal(t, secretPasswordValue, secrets[0].Value,
+		"secret should be stored as the raw value (not XML-escaped)")
+}
