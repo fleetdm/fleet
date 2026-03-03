@@ -592,6 +592,14 @@ func (ts *withServer) loginSSOUserIDPInitiated(
 	return res
 }
 
+type listActivitiesResponse struct {
+	Meta       *fleet.PaginationMetadata `json:"meta"`
+	Activities []*fleet.Activity         `json:"activities"`
+	Err        error                     `json:"error,omitempty"`
+}
+
+func (r listActivitiesResponse) Error() error { return r.Err }
+
 func (ts *withServer) lastActivityMatches(name, details string, id uint) uint {
 	return ts.lastActivityMatchesExtended(name, details, id, nil)
 }
