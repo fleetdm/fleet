@@ -112,4 +112,4 @@ Fleet supports MDM migration without requiring device wipes, allowing organizati
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-02-27">
-<meta name="description" value="Compare MDM providers Fleet and Workspace ONE. See how they differ in multi-platform support, deployment options, and security capabilities.">
+<meta name="description" value="Compare Fleet and Workspace ONE on multi-platform, deployment, and security capabilities.">
