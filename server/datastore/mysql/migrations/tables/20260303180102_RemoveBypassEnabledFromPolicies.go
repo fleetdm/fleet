@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260226220138, Down_20260226220138)
+	MigrationClient.AddMigration(Up_20260303180102, Down_20260303180102)
 }
 
-func Up_20260226220138(tx *sql.Tx) error {
+func Up_20260303180102(tx *sql.Tx) error {
 	// Promote bypass=true policies to critical for teams that have Okta conditional
 	// access enabled, but only when Okta is globally configured.
 	_, err := tx.Exec(`
@@ -35,9 +35,10 @@ func Up_20260226220138(tx *sql.Tx) error {
 	if _, err := tx.Exec("ALTER TABLE policies DROP COLUMN conditional_access_bypass_enabled"); err != nil {
 		return fmt.Errorf("migrate policies drop bypass enabled field: %w", err)
 	}
+
 	return nil
 }
 
-func Down_20260226220138(tx *sql.Tx) error {
+func Down_20260303180102(tx *sql.Tx) error {
 	return nil
 }
