@@ -172,11 +172,13 @@ promote_edge_to_stable () {
 release_fleetd_to_edge () {
     echo "Releasing fleetd to edge..."
     ORBIT_TAG="orbit-v$VERSION"
-    prompt "A tag will be pushed to trigger a Github Action to build desktop and orbit."
-    pushd "$GIT_REPOSITORY_DIRECTORY"
-    git tag "$ORBIT_TAG"
-    git push origin "$ORBIT_TAG"
-    popd
+    if [[ "$SKIP_PR_AND_TAG_PUSH" != "1" ]]; then
+        prompt "A tag will be pushed to trigger a Github Action to build desktop and orbit."
+        pushd "$GIT_REPOSITORY_DIRECTORY"
+        git tag "$ORBIT_TAG"
+        git push origin "$ORBIT_TAG"
+        popd
+    fi
     DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY="$ARTIFACTS_DOWNLOAD_DIRECTORY/desktop"
     mkdir -p "$DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY"
     "$GO_TOOLS_DIRECTORY/download-artifacts" desktop \

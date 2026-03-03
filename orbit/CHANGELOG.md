@@ -4,7 +4,7 @@
 
 * Fixed a COM deadlock on Windows that could cause orbit to become unresponsive during BitLocker encryption enforcement. BitLocker operations now run on a dedicated COM thread instead of sharing the global comshim singleton with other subsystems.
 
-* When querying the "app_sso_platform" table, return empty result set if Kerberos status is not available.
+* Fixed the "app_sso_platform" table to return empty result set if Kerberos status is not available.
 
 * Fixed icon size on KDE environments.
 
