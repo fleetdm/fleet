@@ -10204,8 +10204,8 @@ Returns information about the specified software. By default, `versions` are sor
           "id": 294
         }
       ],
-      "labels_include_all": none,
-      "labels_exclude_any": none,
+      "labels_include_all": null,
+      "labels_exclude_any": null,
       "automatic_install_policies": [
         {
           "id": 343,
