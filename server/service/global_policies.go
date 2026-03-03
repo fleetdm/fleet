@@ -55,6 +55,7 @@ func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		Critical:         req.Critical,
 		LabelsIncludeAny: req.LabelsIncludeAny,
 		LabelsExcludeAny: req.LabelsExcludeAny,
+		Type:             fleet.PolicyTypeDynamic,
 	})
 	if err != nil {
 		return globalPolicyResponse{Err: err}, nil

@@ -74,6 +74,7 @@ func TestRunApiCommand(t *testing.T) {
     "calendar_events_enabled": false,
     "conditional_access_enabled": false,
     "conditional_access_bypass_enabled": true,
+    "type": "dynamic",
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
     "passing_host_count": 0,
