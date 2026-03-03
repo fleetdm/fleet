@@ -1,0 +1,1 @@
+- Added retry functionality when adding software installers to Fleet via GitOps.

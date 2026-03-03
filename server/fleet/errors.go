@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/rs/zerolog"
 )
@@ -51,8 +52,8 @@ type ErrWithLogFields = platform_http.ErrWithLogFields
 // ErrWithRetryAfter is an alias for platform_http.ErrWithRetryAfter.
 type ErrWithRetryAfter = platform_http.ErrWithRetryAfter
 
-// ErrWithIsClientError is an alias for platform_http.ErrWithIsClientError.
-type ErrWithIsClientError = platform_http.ErrWithIsClientError
+// ErrWithIsClientError is an alias for platform_errors.ErrWithIsClientError.
+type ErrWithIsClientError = platform_errors.ErrWithIsClientError
 
 type invalidArgWithStatusError struct {
 	InvalidArgumentError
@@ -95,7 +96,7 @@ func NewInvalidArgumentError(name, reason string) *InvalidArgumentError {
 	return &invalid
 }
 
-func (e InvalidArgumentError) IsClientError() bool {
+func (e *InvalidArgumentError) IsClientError() bool {
 	return true
 }
 
@@ -112,8 +113,8 @@ func (e *InvalidArgumentError) Appendf(name, reasonFmt string, args ...interface
 
 // WithStatus returns an error that combines the InvalidArgumentError
 // with a custom status code.
-func (e InvalidArgumentError) WithStatus(code int) error {
-	return invalidArgWithStatusError{e, code}
+func (e *InvalidArgumentError) WithStatus(code int) error {
+	return &invalidArgWithStatusError{*e, code}
 }
 
 func (e *InvalidArgumentError) HasErrors() bool {
@@ -121,7 +122,7 @@ func (e *InvalidArgumentError) HasErrors() bool {
 }
 
 // Error implements the error interface.
-func (e InvalidArgumentError) Error() string {
+func (e *InvalidArgumentError) Error() string {
 	switch len(e.Errors) {
 	case 0:
 		return "validation failed"
@@ -133,7 +134,7 @@ func (e InvalidArgumentError) Error() string {
 	}
 }
 
-func (e InvalidArgumentError) Invalid() []map[string]string {
+func (e *InvalidArgumentError) Invalid() []map[string]string {
 	var invalid []map[string]string
 	for _, i := range e.Errors {
 		invalid = append(invalid, map[string]string{"name": i.name, "reason": i.reason})
@@ -400,7 +401,7 @@ func GetJSONUnknownField(err error) *string {
 }
 
 // Cause returns the root error in err's chain.
-var Cause = platform_http.Cause
+var Cause = platform_errors.Cause
 
 // FleetdError is an error that can be reported by any of the fleetd
 // components.

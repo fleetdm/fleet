@@ -21,6 +21,7 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import {
   IFormDataIdp,
   IFormErrorsIdp,
+  isEmptyFormData,
   isMissingAnyRequiredField,
   validateFormDataIdp,
 } from "./helpers";
@@ -50,10 +51,11 @@ const EndUserAuthSection = ({
   const { renderFlash } = useContext(NotificationContext);
   const [formErrors, setFormErrors] = useState<IFormErrorsIdp | null>(null);
 
+  const isFormCleared =
+    isEmptyFormData(formData) && !isEmptyFormData(originalFormData.current);
+
   const enableSaveButton =
-    // TODO: it seems like we should allow saving an empty form so that the user can clear their IdP info
-    // isEmptyFormData(formData) ||
-    !isMissingAnyRequiredField(formData) && !formErrors;
+    isFormCleared || (!isMissingAnyRequiredField(formData) && !formErrors);
 
   const onInputChange = useCallback(
     ({ name, value }: { name: keyof IFormDataIdp; value: string }) => {

@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -31,7 +32,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
-	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -908,8 +908,10 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 	}
 	// After validation, we should no longer need to keep the expanded secrets.
 
-	if err := rawDecl.ValidateUserProvided(svc.config.MDM.EnableCustomOSUpdatesAndFileVault); err != nil {
-		return nil, err
+	if !svc.config.MDM.AllowAllDeclarations {
+		if err := rawDecl.ValidateUserProvided(svc.config.MDM.EnableCustomOSUpdatesAndFileVault); err != nil {
+			return nil, err
+		}
 	}
 
 	d := fleet.NewMDMAppleDeclaration(data, tmID, name, rawDecl.Type, rawDecl.Identifier)
@@ -1281,8 +1283,12 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 		if err := json.Unmarshal(decl.RawJSON, &d); err != nil {
 			return ctxerr.Wrap(ctx, err, "unmarshalling declaration")
 		}
-		if err := d.ValidateUserProvided(svc.config.MDM.EnableCustomOSUpdatesAndFileVault); err != nil {
-			return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+
+		// skip declaration validation if the allow all declarations flag is set.
+		if !svc.config.MDM.AllowAllDeclarations {
+			if err := d.ValidateUserProvided(svc.config.MDM.EnableCustomOSUpdatesAndFileVault); err != nil {
+				return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+			}
 		}
 	}
 
@@ -3316,7 +3322,7 @@ func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamI
 
 type MDMAppleCheckinAndCommandService struct {
 	ds              fleet.Datastore
-	logger          *platformlogging.Logger
+	logger          *slog.Logger
 	commander       *apple_mdm.MDMAppleCommander
 	vppInstaller    fleet.AppleMDMVPPInstaller
 	mdmLifecycle    *mdmlifecycle.HostLifecycle
@@ -3331,7 +3337,7 @@ func NewMDMAppleCheckinAndCommandService(
 	commander *apple_mdm.MDMAppleCommander,
 	vppInstaller fleet.AppleMDMVPPInstaller,
 	isPremium bool,
-	logger *platformlogging.Logger,
+	logger *slog.Logger,
 	keyValueStore fleet.KeyValueStore,
 	newActivityFn mdmlifecycle.NewActivityFunc,
 ) *MDMAppleCheckinAndCommandService {
@@ -4708,7 +4714,7 @@ func mdmAppleDeliveryStatusFromCommandStatus(cmdStatus string) *fleet.MDMDeliver
 // This profile will be installed to all hosts in the team (or "no team",) but it
 // will only be used by hosts that have a fleetd installation without an enroll
 // secret and fleet URL (mainly DEP enrolled hosts).
-func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger *platformlogging.Logger, signingCertDER []byte) error {
+func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, signingCertDER []byte) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching app config")
@@ -4747,10 +4753,10 @@ func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger *platfo
 				msg += fmt.Sprintf("team_id %d doesn't have an enroll secret, ", *es.TeamID)
 			}
 			if globalSecret == "" {
-				logger.Log("err", msg+"no global enroll secret found, skipping the creation of a com.fleetdm.fleetd.config profile")
+				logger.WarnContext(ctx, msg+"no global enroll secret found, skipping the creation of a com.fleetdm.fleetd.config profile")
 				continue
 			}
-			logger.Log("err", msg+"using a global enroll secret for com.fleetdm.fleetd.config profile")
+			logger.WarnContext(ctx, msg+"using a global enroll secret for com.fleetdm.fleetd.config profile")
 			es.Secret = globalSecret
 		}
 
@@ -4790,7 +4796,7 @@ func SendPushesToPendingDevices(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger *platformlogging.Logger,
+	logger *slog.Logger,
 ) error {
 	enrollmentIDs, err := ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
 	if err != nil {
@@ -4819,7 +4825,7 @@ func ReconcileAppleDeclarations(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger *platformlogging.Logger,
+	logger *slog.Logger,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -4889,7 +4895,7 @@ func ReconcileAppleProfiles(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger *platformlogging.Logger,
+	logger *slog.Logger,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -4916,7 +4922,7 @@ func ReconcileAppleProfiles(
 	}
 
 	if err := ensureFleetProfiles(ctx, ds, logger, block.Bytes); err != nil {
-		logger.Log("err", "unable to ensure a fleetd configuration profiles are in place", "details", err)
+		logger.ErrorContext(ctx, "unable to ensure a fleetd configuration profiles are in place", "details", err)
 	}
 
 	// retrieve the profiles to install/remove.
@@ -5324,7 +5330,7 @@ func ReconcileAppleProfiles(
 
 func findProfilesWithSecrets(
 	ctx context.Context,
-	logger *platformlogging.Logger,
+	logger *slog.Logger,
 	installTargets map[string]*cmdTarget,
 	profileContents map[string]mobileconfig.Mobileconfig,
 ) (map[string]struct{}, error) {
@@ -5350,7 +5356,7 @@ func preprocessProfileContents(
 	ds fleet.Datastore,
 	scepConfig fleet.SCEPConfigService,
 	digiCertService fleet.DigiCertService,
-	logger *platformlogging.Logger,
+	logger *slog.Logger,
 	targets map[string]*cmdTarget,
 	profileContents map[string]mobileconfig.Mobileconfig,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
@@ -5615,7 +5621,7 @@ func preprocessProfileContents(
 					hostContents = profiles.ReplaceFleetVariableInXML(fleetVarSCEPRenewalIDRegexp, hostContents, fleetRenewalID)
 
 				case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)):
-					replacedContents, replacedVariable, err := profiles.ReplaceCustomSCEPChallengeVariable(ctx, logger.SlogLogger(), fleetVar, customSCEPCAs, hostContents)
+					replacedContents, replacedVariable, err := profiles.ReplaceCustomSCEPChallengeVariable(ctx, logger, fleetVar, customSCEPCAs, hostContents)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "replacing custom SCEP challenge variable")
 					}
@@ -5625,7 +5631,7 @@ func preprocessProfileContents(
 					hostContents = replacedContents
 
 				case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)):
-					replacedContents, managedCertificate, replacedVariable, err := profiles.ReplaceCustomSCEPProxyURLVariable(ctx, logger.SlogLogger(), ds, appConfig, fleetVar, customSCEPCAs, hostContents, hostUUID, profUUID)
+					replacedContents, managedCertificate, replacedVariable, err := profiles.ReplaceCustomSCEPProxyURLVariable(ctx, logger, ds, appConfig, fleetVar, customSCEPCAs, hostContents, hostUUID, profUUID)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "replacing custom SCEP proxy URL variable")
 					}
@@ -5760,6 +5766,10 @@ func preprocessProfileContents(
 						continue
 					}
 					caCopy := *ca
+					// Deep copy the UPN slice to prevent cross-host contamination: a
+					// shallow copy shares the backing array, so in-place substitutions for
+					// one host would corrupt the cached CA used by subsequent hosts.
+					caCopy.CertificateUserPrincipalNames = slices.Clone(ca.CertificateUserPrincipalNames)
 
 					// Populate Fleet vars in the CA fields
 					caVarsCache := make(map[string]string)
@@ -6097,7 +6107,7 @@ const maxCertsRenewalPerRun = 100
 
 func RenewSCEPCertificates(
 	ctx context.Context,
-	logger *platformlogging.Logger,
+	logger *slog.Logger,
 	ds fleet.Datastore,
 	config *config.FleetConfig,
 	commander *apple_mdm.MDMAppleCommander,
@@ -6283,7 +6293,7 @@ func renewSCEPWithProfile(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger *platformlogging.Logger,
+	logger *slog.Logger,
 	assocs []fleet.SCEPIdentityAssociation,
 	profile []byte,
 ) error {
@@ -6297,7 +6307,7 @@ func renewSCEPWithProfile(
 		// single duplicated UUID prevents _all_ the commands from
 		// being enqueued.
 		if _, ok := duplicateUUIDCheck[assoc.HostUUID]; ok {
-			logger.Log("inf", "duplicated host UUID while renewing associations", "host_uuid", assoc.HostUUID)
+			logger.InfoContext(ctx, "duplicated host UUID while renewing associations", "host_uuid", assoc.HostUUID)
 			continue
 		}
 
@@ -6321,10 +6331,10 @@ func renewSCEPWithProfile(
 // [1]: https://developer.apple.com/documentation/devicemanagement/declarative_management_checkin
 type MDMAppleDDMService struct {
 	ds     fleet.Datastore
-	logger *platformlogging.Logger
+	logger *slog.Logger
 }
 
-func NewMDMAppleDDMService(ds fleet.Datastore, logger *platformlogging.Logger) *MDMAppleDDMService {
+func NewMDMAppleDDMService(ds fleet.Datastore, logger *slog.Logger) *MDMAppleDDMService {
 	return &MDMAppleDDMService{
 		ds:     ds,
 		logger: logger,
@@ -7251,10 +7261,10 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 
 // EnsureMDMAppleServiceDiscovery checks if the service discovery URL is set up correctly with Apple
 // and assigns it if necessary.
-func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, depStorage storage.AllDEPStorage, logger *platformlogging.Logger,
+func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, depStorage storage.AllDEPStorage, logger *slog.Logger,
 	urlPrefix string,
 ) error {
-	depSvc := apple_mdm.NewDEPService(ds, depStorage, logger.SlogLogger())
+	depSvc := apple_mdm.NewDEPService(ds, depStorage, logger)
 
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {

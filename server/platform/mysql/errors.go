@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	"github.com/go-sql-driver/mysql"
 )
 
@@ -18,7 +18,7 @@ type NotFoundError struct {
 }
 
 // Compile-time interface check.
-var _ platform_http.NotFoundError = &NotFoundError{}
+var _ platform_errors.NotFoundError = &NotFoundError{}
 
 func NotFound(kind string) *NotFoundError {
 	return &NotFoundError{

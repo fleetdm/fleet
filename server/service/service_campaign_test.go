@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/tls"
+	"log/slog"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -19,7 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	ws "github.com/fleetdm/fleet/v4/server/websocket"
@@ -91,7 +91,7 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	_, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
 	require.NoError(t, err)
 
-	pathHandler := makeStreamDistributedQueryCampaignResultsHandler(config.TestConfig().Server, svc, logging.NewNopLogger())
+	pathHandler := makeStreamDistributedQueryCampaignResultsHandler(config.TestConfig().Server, svc, slog.New(slog.DiscardHandler))
 	s := httptest.NewServer(pathHandler("/api/latest/fleet/results/"))
 	defer s.Close()
 	// Convert http://127.0.0.1 to ws://127.0.0.1
