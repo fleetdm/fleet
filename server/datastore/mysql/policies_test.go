@@ -2886,8 +2886,8 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 
 	// new global and team policies for Linux, via apply spec
 	err = ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
-		{Name: "g2", Query: "select 2", Platform: "linux"},
-		{Name: "t2", Query: "select 2", Team: tm.Name, Platform: "linux"},
+		{Name: "g2", Query: "select 2", Platform: "linux", Type: fleet.PolicyTypeDynamic},
+		{Name: "t2", Query: "select 2", Team: tm.Name, Platform: "linux", Type: fleet.PolicyTypeDynamic},
 	})
 	require.NoError(t, err)
 
@@ -2916,8 +2916,8 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// apply specs that result in an update (without change) works fine
 	err = ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
-		{Name: polsByName["g2"].Name, Query: polsByName["g2"].Query, Platform: polsByName["g2"].Platform},
-		{Name: polsByName["t1"].Name, Query: polsByName["t1"].Query, Team: tm.Name, Platform: polsByName["t1"].Platform},
+		{Name: polsByName["g2"].Name, Query: polsByName["g2"].Query, Platform: polsByName["g2"].Platform, Type: fleet.PolicyTypeDynamic},
+		{Name: polsByName["t1"].Name, Query: polsByName["t1"].Query, Team: tm.Name, Platform: polsByName["t1"].Platform, Type: fleet.PolicyTypeDynamic},
 	})
 	require.NoError(t, err)
 
@@ -2984,8 +2984,8 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 	t2.Platform = "debian"
 	polsByName["t2"], polsByName["g2"] = t2, g2
 	err = ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
-		{Name: g2.Name, Query: g2.Query, Platform: g2.Platform},
-		{Name: t2.Name, Query: t2.Query, Team: tm.Name, Platform: t2.Platform},
+		{Name: g2.Name, Query: g2.Query, Platform: g2.Platform, Type: fleet.PolicyTypeDynamic},
+		{Name: t2.Name, Query: t2.Query, Team: tm.Name, Platform: t2.Platform, Type: fleet.PolicyTypeDynamic},
 	})
 	require.NoError(t, err)
 	// nothing should've changed for g2 (platform changed to any, so nothing to cleanup),
@@ -6312,6 +6312,7 @@ func testPolicyLabelMembershipCleanup(t *testing.T, ds *Datastore) {
 			Name:             policy.Name,
 			Query:            policy.Query,
 			LabelsIncludeAny: []string{label1.Name},
+			Type:             fleet.PolicyTypeDynamic,
 		},
 	})
 	require.NoError(t, err)

@@ -5996,6 +5996,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicySpecConditionalAccessBypassEn
 				Query:                          "SELECT 1",
 				Team:                           teamName,
 				ConditionalAccessBypassEnabled: tc.createBypass,
+				Type:                           fleet.PolicyTypeDynamic,
 			}
 
 			applyResp := applyPolicySpecsResponse{}
