@@ -429,6 +429,41 @@ const Advanced = ({
               <Checkbox
                 disabled={disableChildren}
                 onChange={onInputChange}
+                name="disableQueryReports"
+                value={disableQueryReports}
+                parseTarget
+                labelTooltipContent={
+                  !disableChildren && (
+                    <>
+                      <>
+                        Disabling stored results will decrease database usage,{" "}
+                        <br />
+                        but will prevent you from accessing report results in
+                        <br />
+                        Fleet and will delete existing results. This can also be{" "}
+                        <br />
+                        disabled on a per-report basis by enabling &quot;Discard{" "}
+                        <br />
+                        data&quot;.{" "}
+                        <em>
+                          (Default: <b>Off</b>)
+                        </em>
+                      </>
+                    </>
+                  )
+                }
+                helpText="Enabling this setting will delete all existing report results in Fleet."
+              >
+                Disable stored results
+              </Checkbox>
+            )}
+          />
+          <GitOpsModeTooltipWrapper
+            position="left"
+            renderChildren={(disableChildren) => (
+              <Checkbox
+                disabled={disableChildren}
+                onChange={onInputChange}
                 name="disableScripts"
                 value={disableScripts}
                 parseTarget
@@ -479,41 +514,6 @@ const Advanced = ({
                 helpText="If enabled, only policy queries (SQL) are sent to the LLM. Fleet doesn’t use this data to train models."
               >
                 Disable generative AI features
-              </Checkbox>
-            )}
-          />
-          <GitOpsModeTooltipWrapper
-            position="left"
-            renderChildren={(disableChildren) => (
-              <Checkbox
-                disabled={disableChildren}
-                onChange={onInputChange}
-                name="disableQueryReports"
-                value={disableQueryReports}
-                parseTarget
-                labelTooltipContent={
-                  !disableChildren && (
-                    <>
-                      <>
-                        Disabling stored results will decrease database usage,{" "}
-                        <br />
-                        but will prevent you from accessing report results in
-                        <br />
-                        Fleet and will delete existing results. This can also be{" "}
-                        <br />
-                        disabled on a per-report basis by enabling &quot;Discard{" "}
-                        <br />
-                        data&quot;.{" "}
-                        <em>
-                          (Default: <b>Off</b>)
-                        </em>
-                      </>
-                    </>
-                  )
-                }
-                helpText="Enabling this setting will delete all existing report results in Fleet."
-              >
-                Disable stored results
               </Checkbox>
             )}
           />
