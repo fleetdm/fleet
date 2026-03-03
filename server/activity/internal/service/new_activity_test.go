@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -78,8 +80,7 @@ func (a activatorActivity) ActivateNextUpcomingActivityArgs() (uint, string) {
 }
 
 func newTestService(ds types.Datastore, providers activity.DataProviders) *Service {
-	noopWebhookSend := func(_ context.Context, _ string, _ any) error { return nil }
-	return NewService(&mockAuthorizer{}, ds, providers, noopWebhookSend, slog.New(slog.DiscardHandler))
+	return NewService(&mockAuthorizer{}, ds, providers, slog.New(slog.DiscardHandler))
 }
 
 func TestNewActivityStoresWithWebhookContextKey(t *testing.T) {
@@ -212,4 +213,184 @@ func TestNewActivityNilUser(t *testing.T) {
 
 	require.True(t, ds.newActivityCalled)
 	assert.Nil(t, ds.lastUser)
+}
+
+// newTestServiceWithWebhook creates a service configured for webhook delivery tests.
+func newTestServiceWithWebhook(ds types.Datastore, providers activity.DataProviders) *Service {
+	return NewService(&mockAuthorizer{}, ds, providers, slog.New(slog.DiscardHandler))
+}
+
+func TestNewActivityWebhook(t *testing.T) {
+	t.Parallel()
+
+	webhookChannel := make(chan struct{}, 1)
+	var webhookBody webhookPayload
+	fail429 := false
+
+	startMockServer := func(t *testing.T) string {
+		srv := httptest.NewServer(
+			http.HandlerFunc(
+				func(w http.ResponseWriter, r *http.Request) {
+					webhookBody = webhookPayload{}
+					if r.Method != "POST" {
+						w.WriteHeader(http.StatusMethodNotAllowed)
+						return
+					}
+					switch r.URL.Path {
+					case "/ok":
+						err := json.NewDecoder(r.Body).Decode(&webhookBody)
+						if err != nil {
+							t.Log(err)
+							w.WriteHeader(http.StatusBadRequest)
+						}
+					case "/error":
+						webhookBody.Type = "error"
+						w.WriteHeader(http.StatusTeapot)
+					case "/429":
+						fail429 = !fail429
+						if fail429 {
+							w.WriteHeader(http.StatusTooManyRequests)
+							return
+						}
+						err := json.NewDecoder(r.Body).Decode(&webhookBody)
+						if err != nil {
+							t.Log(err)
+							w.WriteHeader(http.StatusBadRequest)
+						}
+					default:
+						w.WriteHeader(http.StatusNotFound)
+						return
+					}
+					webhookChannel <- struct{}{}
+				},
+			),
+		)
+		t.Cleanup(srv.Close)
+		return srv.URL
+	}
+
+	mockURL := startMockServer(t)
+	testURL := mockURL
+
+	ds := &newActivityMockDatastore{}
+	providers := &newActivityMockProviders{
+		mockDataProviders: mockDataProviders{
+			mockUserProvider: &mockUserProvider{},
+			mockHostProvider: &mockHostProvider{},
+			webhookConfig: &activity.ActivitiesWebhookSettings{
+				Enable:         true,
+				DestinationURL: testURL,
+			},
+		},
+	}
+
+	svc := newTestServiceWithWebhook(ds, providers)
+
+	tests := []struct {
+		name    string
+		user    *api.User
+		url     string
+		doError bool
+	}{
+		{
+			name: "nil user",
+			url:  mockURL + "/ok",
+			user: nil,
+		},
+		{
+			name: "real user",
+			url:  mockURL + "/ok",
+			user: &api.User{
+				ID:    1,
+				Name:  "testUser",
+				Email: "testUser@example.com",
+			},
+		},
+		{
+			name:    "error",
+			url:     mockURL + "/error",
+			doError: true,
+		},
+		{
+			name: "429",
+			url:  mockURL + "/429",
+			user: &api.User{
+				ID:    2,
+				Name:  "testUserRetry",
+				Email: "testUserRetry@example.com",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds.newActivityCalled = false
+			providers.webhookConfig.DestinationURL = tt.url
+			startTime := time.Now()
+			act := simpleActivity{Name: tt.name}
+			err := svc.NewActivity(t.Context(), tt.user, act)
+			require.NoError(t, err)
+			select {
+			case <-time.After(3 * time.Second):
+				t.Error("timeout waiting for webhook")
+			case <-webhookChannel:
+				if tt.doError {
+					assert.Equal(t, "error", webhookBody.Type)
+				} else {
+					endTime := time.Now()
+					assert.False(
+						t, webhookBody.Timestamp.Before(startTime), "timestamp %s is before start time %s",
+						webhookBody.Timestamp.String(), startTime.String(),
+					)
+					assert.False(t, webhookBody.Timestamp.After(endTime))
+					if tt.user == nil {
+						assert.Nil(t, webhookBody.ActorFullName)
+						assert.Nil(t, webhookBody.ActorID)
+						assert.Nil(t, webhookBody.ActorEmail)
+					} else {
+						require.NotNil(t, webhookBody.ActorFullName)
+						assert.Equal(t, tt.user.Name, *webhookBody.ActorFullName)
+						require.NotNil(t, webhookBody.ActorID)
+						assert.Equal(t, tt.user.ID, *webhookBody.ActorID)
+						require.NotNil(t, webhookBody.ActorEmail)
+						assert.Equal(t, tt.user.Email, *webhookBody.ActorEmail)
+					}
+					assert.Equal(t, act.ActivityName(), webhookBody.Type)
+					var details map[string]string
+					require.NoError(t, json.Unmarshal(*webhookBody.Details, &details))
+					assert.Len(t, details, 1)
+					assert.Equal(t, tt.name, details["name"])
+				}
+			}
+			require.True(t, ds.newActivityCalled)
+		})
+	}
+}
+
+func TestNewActivityWebhookDisabled(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Error("webhook server should not be called when webhook is disabled")
+		}),
+	)
+	t.Cleanup(srv.Close)
+
+	ds := &newActivityMockDatastore{}
+	providers := &newActivityMockProviders{
+		mockDataProviders: mockDataProviders{
+			mockUserProvider: &mockUserProvider{},
+			mockHostProvider: &mockHostProvider{},
+			webhookConfig: &activity.ActivitiesWebhookSettings{
+				Enable:         false,
+				DestinationURL: srv.URL,
+			},
+		},
+	}
+
+	svc := newTestServiceWithWebhook(ds, providers)
+	err := svc.NewActivity(t.Context(), &api.User{ID: 1}, simpleActivity{Name: "no webhook"})
+	require.NoError(t, err)
+	require.True(t, ds.newActivityCalled)
 }

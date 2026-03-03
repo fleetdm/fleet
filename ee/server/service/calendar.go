@@ -95,7 +95,7 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 		GoogleCalendarIntegration: *googleCalendarIntegrationConfig,
 		ServerURL:                 appConfig.ServerSettings.ServerURL,
 	}
-	userCalendar := calendar.CreateUserCalendarFromConfig(ctx, localConfig, svc.logger.SlogLogger())
+	userCalendar := calendar.CreateUserCalendarFromConfig(ctx, localConfig, svc.logger)
 
 	// Authenticate request. We will use the channel ID for authentication.
 	svc.authz.SkipAuthorization(ctx)
@@ -231,7 +231,7 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 			return "", false, err
 		}
 
-		body, generatedTag = calendar.GenerateCalendarEventBody(ctx, svc.ds, team.Name, host, &sync.Map{}, conflict, svc.logger.SlogLogger())
+		body, generatedTag = calendar.GenerateCalendarEventBody(ctx, svc.ds, team.Name, host, &sync.Map{}, conflict, svc.logger)
 		return body, true, nil
 	}
 
@@ -443,7 +443,7 @@ func (svc *Service) processCalendarEventAsync(ctx context.Context, eventUUID str
 		GoogleCalendarIntegration: *googleCalendarIntegrationConfig,
 		ServerURL:                 appConfig.ServerSettings.ServerURL,
 	}
-	userCalendar := calendar.CreateUserCalendarFromConfig(ctx, localConfig, svc.logger.SlogLogger())
+	userCalendar := calendar.CreateUserCalendarFromConfig(ctx, localConfig, svc.logger)
 
 	err = svc.processCalendarEvent(ctx, eventDetails, googleCalendarIntegrationConfig, userCalendar)
 	if err != nil {

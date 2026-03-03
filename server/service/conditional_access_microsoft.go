@@ -201,7 +201,7 @@ func (svc *Service) ConditionalAccessMicrosoftDelete(ctx context.Context) error 
 		if fleet.IsNotFound(err) {
 			// In case there's an issue on the Proxy database we want to make sure to
 			// allow deleting the integration in Fleet, so we continue.
-			svc.logger.Log("msg", "delete returned not found, continuing...")
+			svc.logger.WarnContext(ctx, "delete returned not found, continuing...")
 		} else {
 			return ctxerr.Wrap(ctx, err, "failed to delete the integration on the proxy")
 		}

@@ -1585,7 +1585,7 @@ func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
 //   - If atomic: the status of the atomic command
 //   - If not atomic: then any failed commands will result in a failed profile delivery
 //   - If any command is pending, then the profile delivery is pending
-//   - Otherwise the profile delivery is verifying
+//   - Otherwise the profile delivery is verified
 //   - The detail of the resulting command should be an aggregate of all the
 //     status responses for that given command
 func BuildMDMWindowsProfilePayloadFromMDMResponse(
@@ -1627,7 +1627,7 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 		}
 		if commandStatus == "" {
 			// Only if command status was not set by failed or pending do we mark it as verifying
-			commandStatus = MDMDeliveryVerifying
+			commandStatus = MDMDeliveryVerified
 		}
 	}
 
@@ -1656,20 +1656,6 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 		}
 	}
 
-	if commandStatus == MDMDeliveryVerifying {
-		// Check a single LocURI for SCEP path, and move straight to verified.
-		if strings.Contains(string(cmdWithSecret.RawCommand), WINDOWS_SCEP_LOC_URI_PART) {
-			commandStatus = MDMDeliveryVerified
-		}
-
-		// Check if the command contains ./User, and no ./Device paths
-		if strings.Contains(string(cmdWithSecret.RawCommand), "./User/") &&
-			!strings.Contains(string(cmdWithSecret.RawCommand), "./Device/") &&
-			!strings.Contains(string(cmdWithSecret.RawCommand), "./Vendor/") {
-			commandStatus = MDMDeliveryVerified
-		}
-	}
-
 	detail := strings.Join(details, ", ")
 	return &MDMWindowsProfilePayload{
 		HostUUID:      hostUUID,
@@ -1691,7 +1677,7 @@ func WindowsResponseToDeliveryStatus(resp string) MDMDeliveryStatus {
 	}
 
 	if strings.HasPrefix(resp, "2") {
-		return MDMDeliveryVerifying
+		return MDMDeliveryVerified
 	}
 
 	return MDMDeliveryFailed

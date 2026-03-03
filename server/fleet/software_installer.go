@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -1116,4 +1117,24 @@ func (o HostSoftwareInstallOptions) Priority() int {
 		return 100
 	}
 	return 0
+}
+
+const (
+	BatchDownloadMaxRetries = 3
+	BatchUploadMaxRetries   = 3
+)
+
+func BatchSoftwareInstallerRetryInterval() time.Duration {
+	defaultInterval := 30 * time.Second
+	d := dev_mode.Env("FLEET_DEV_BATCH_RETRY_INTERVAL")
+	if d != "" {
+		t, err := time.ParseDuration(d)
+		if err != nil {
+			return defaultInterval
+		}
+
+		return t
+	}
+
+	return defaultInterval
 }
