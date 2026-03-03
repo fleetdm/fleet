@@ -11,12 +11,97 @@
             <p>Support developers’ choice of Linux without losing visibility or control.<br>Manage Linux, macOS, and Windows in one place.</p>
           </div>
           <div purpose="button-row" class="d-flex justify-content-center align-items-center">
-            <a purpose="cta-button" href="/contact" no-underline>Get a demo</a>
+            <a purpose="cta-button" href="/contact" no-underline>Talk to us</a>
             <a purpose="video-button"  @click="clickOpenVideoModal('fleet-in-three-minutes')"><img alt="Play" class="d-inline" src="/images/icon-play-video-32x32@2x.png">See Fleet in action <span>3 mins</span></a>
           </div>
         </div>
       </div><%/* landing-page-hero */%>
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h3>Linux devices create blind spots for IT</h3>
+          <p>Linux is popular with developers and engineers. Most device management tools weren’t built for it. That gap creates risk.</p>
+        </div>
+        <div purpose="four-column-feature-row">
+          <div purpose="feature-item">
+            <h5>Distribution sprawl</h5>
+            <p>Different package managers and update paths across distributions.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Inconsistent patching</h5>
+            <p>Without automation, updates vary by device and by team.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Limited visibility</h5>
+            <p>IT can’t easily see what’s installed or how devices are configured.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Fragmented workflows</h5>
+            <p>Linus often sits outside your macOS and Windows management process.</p>
+          </div>
+        </div>
+      </div>
 
+      <div purpose="landing-page-section">
+        <div purpose="feature-with-image" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
+          <div purpose="feature-image">
+            <img alt="Orchestrate anything" src="/images/feature-image-orchestrate-anything-528x377@2x.png">
+          </div>
+          <div purpose="feature-text" class="d-flex flex-column">
+            <h3>Manage Linux with the same visibility and control as other devices</h3>
+            <p>Use Fleet to manage Linux devices at scale. Apply the same workflows you use for macOS and Windows.</p>
+            <div purpose="checklist" class="flex-column d-flex">
+              <p>Run scripts remotely to automate installs, updates, and configuration</p>
+              <p>Manage software across Debian-based and RPM-based distributions</p>
+              <p>Monitor hardware, software, and compliance in real time</p>
+              <p>Enforce security policies and track vulnerabilities across your fleet</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div purpose="landing-page-section">
+        <div purpose="section-quote">
+          <p purpose="quote-text">“We chose Fleet because they take Linux desktop management seriously. It was smooth as butter to set up and start deploying. Fleet gives me the peace of mind knowing that our Linux Fleet is properly managed, monitored, and secure.”</p>
+          <div purpose="quote-author-info">
+            <div purpose="quote-author-image">
+              <img alt="Roger Cantrell" src="/images/testimonial-author-roger-cantrell-100x100@2x.png">
+            </div>
+            <p purpose="author-name">Roger Cantrell</p>
+            <p purpose="author-title">IT Operations Engineer, Nutanix</p>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h2>Built for Linux-first teams</h2>
+        </div>
+        <div purpose="feature-row">
+          <div purpose="feature-item">
+            <h5>Open source foundation</h5>
+            <p>Fleet is open source. Review how devices are managed and adapt them to your needs.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>GitOps workflows</h5>
+            <p>Version-control configuration. Propose changes with pull requests.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Unified device view</h5>
+            <p>See Linux, macOS, and Windows devices in one interface.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Software inventory</h5>
+            <p>Know exactly what’s installed across all distributions.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Policy enforcement</h5>
+            <p>Define queries and policies to monitor compliance.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Works across environments</h5>
+            <p>Manage cloud, on-prem, and mixed fleets with the same tools.</p>
+          </div>
+        </div>
+      </div>
 
 
 
@@ -26,8 +111,14 @@
 
     </div>
   </div>
+  <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
+    <div purpose="section-heading" class="mx-auto text-center">
+      <h2 class="mb-3">What people are saying</h2>
+    </div>
+  </div>
   <scrollable-tweets :testimonials="testimonialsForScrollableTweets"></scrollable-tweets>
   <div purpose="bottom-gradient">
+
     <div purpose="page-container" class="container">
       <div purpose="bottom-cta" class="text-center">
         <h4>Linux Device Management</h4>

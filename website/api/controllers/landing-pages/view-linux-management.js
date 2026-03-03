@@ -25,28 +25,22 @@ module.exports = {
 
     // Specify an order for the testimonials on this page using the last names of quote authors
     let testimonialOrderForThisPage = [
-      'Bart Reardon',
-      'Scott MacVicar',
-      'Mike Meyer',
-      'Luis Madrigal',
-      'Tom Larkin',
-      'Kenny Botelho',
       'Erik Gomez',
-      'Chandra Majumdar',
-      'Eric Tan',
-      'matt carr',
-      'Nico Waisman',
+      'Nick Fohs',
       'Dan Grzelak',
-      'Philip Chotipradit',
-      'Roger Cantrell',
-      'Chayce O\'Neal',
+      'matt carr',
+      'Justin LaBo',
+      'Bart Reardon',
+      'Dan Jackson',
       'David Bodmer',
       'Fiona Skelton',
+      'Roger Cantrell',
+      'u/Heteronymous',
     ];
 
     // Filter the testimonials by product category
     testimonialsForScrollableTweets = _.filter(testimonialsForScrollableTweets, (testimonial)=>{
-      return _.contains(testimonial.productCategories, 'Device management') && _.contains(testimonialOrderForThisPage, testimonial.quoteAuthorName);
+      return _.contains(testimonial.productCategories, 'Device management');
     });
 
     testimonialsForScrollableTweets.sort((a, b)=>{
