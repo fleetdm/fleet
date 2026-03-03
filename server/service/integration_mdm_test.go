@@ -787,7 +787,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.T().Setenv("FLEET_DEV_AZURE_JWT_JWKS_URI", jwksServer.URL+"/jwks.json")
 
 	dev_mode.SetOverride("FLEET_DEV_BATCH_RETRY_INTERVAL", "1s")
-
 }
 
 func (s *integrationMDMTestSuite) TearDownSuite() {
