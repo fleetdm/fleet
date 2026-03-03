@@ -222,8 +222,8 @@ func TestSuggestKey(t *testing.T) {
 
 	t.Run("no suggestion when too distant", func(t *testing.T) {
 		data := map[string]interface{}{
-			"name":       "q",
-			"xylophone":  "SELECT 1",
+			"name":      "q",
+			"xylophone": "SELECT 1",
 		}
 		errs := validateUnknownKeys(data, reflect.TypeOf(fleet.QuerySpec{}), []string{"reports"}, "test.yml")
 		require.Len(t, errs, 1)
@@ -232,6 +232,22 @@ func TestSuggestKey(t *testing.T) {
 		var unknownErr *ParseUnknownKeyError
 		require.ErrorAs(t, errs[0], &unknownErr)
 		assert.Empty(t, unknownErr.Suggestion)
+	})
+
+	t.Run("nested path recorded on error", func(t *testing.T) {
+		data := map[string]interface{}{
+			"macos_updates": map[string]interface{}{
+				"deadlinee": "2024-01-01",
+			},
+		}
+		errs := validateUnknownKeys(data, reflect.TypeOf(GitOpsControls{}), []string{"controls"}, "team.yml")
+		require.Len(t, errs, 1)
+
+		var unknownErr *ParseUnknownKeyError
+		require.ErrorAs(t, errs[0], &unknownErr)
+		assert.Equal(t, "controls.macos_updates", unknownErr.Path)
+		assert.Equal(t, "deadlinee", unknownErr.Field)
+		assert.Equal(t, "team.yml", unknownErr.Filename)
 	})
 }
 

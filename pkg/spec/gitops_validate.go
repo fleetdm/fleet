@@ -202,7 +202,7 @@ func validateMapKeys(data map[string]interface{}, targetType reflect.Type, path 
 		if !ok {
 			errs = append(errs, &ParseUnknownKeyError{
 				Filename:   filePath,
-				Keys:       append([]string(nil), path...),
+				Path:       strings.Join(path, "."),
 				Field:      key,
 				Suggestion: suggestKey(key, known),
 			})
@@ -268,4 +268,3 @@ func validateRawKeys(raw json.RawMessage, targetType reflect.Type, filePath stri
 	}
 	return validateUnknownKeys(data, targetType, keysPath, filePath)
 }
-
