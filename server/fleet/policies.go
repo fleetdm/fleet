@@ -147,11 +147,11 @@ func (p PolicyPayload) Verify() error {
 		if !emptyString(p.Query) {
 			return errPolicyPatchAndQuerySet
 		}
-		if p.PatchSoftwareTitleID == nil {
-			return errPolicyPatchNoTitleID
-		}
 		if !emptyString(p.Platform) {
 			return errPolicyPatchAndPlatformSet
+		}
+		if p.PatchSoftwareTitleID == nil {
+			return errPolicyPatchNoTitleID
 		}
 		if len(p.LabelsIncludeAny) > 0 && len(p.LabelsExcludeAny) > 0 {
 			return errPolicyConflictingLabels

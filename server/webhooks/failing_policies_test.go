@@ -45,6 +45,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 					Platform:                       "darwin",
 					Critical:                       true,
 					ConditionalAccessBypassEnabled: ptr.Bool(true),
+					Type:                           "dynamic",
 				},
 			}, nil
 		}
@@ -129,7 +130,8 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 		"critical": true,
 		"calendar_events_enabled": false,
 		"conditional_access_enabled": false,
-		"conditional_access_bypass_enabled": true
+		"conditional_access_bypass_enabled": true,
+		"type": "dynamic"
     },
     "hosts": [
         {
@@ -200,7 +202,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 				Platform:                       "darwin",
 				CalendarEventsEnabled:          true,
 				ConditionalAccessBypassEnabled: ptr.Bool(true),
-				Type:                           ptr.String("dynamic"),
+				Type:                           "dynamic",
 			},
 		},
 		2: {
@@ -216,7 +218,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 				Resolution:                     ptr.String("policy2 resolution"),
 				Platform:                       "darwin",
 				ConditionalAccessBypassEnabled: ptr.Bool(true),
-				Type:                           ptr.String("dynamic"),
+				Type:                           "dynamic",
 			},
 		},
 		3: {
@@ -232,7 +234,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 				Resolution:                     ptr.String("policy3 resolution"),
 				Platform:                       "darwin",
 				ConditionalAccessBypassEnabled: ptr.Bool(true),
-				Type:                           ptr.String("dynamic"),
+				Type:                           "dynamic",
 			},
 		},
 	}
