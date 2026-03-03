@@ -8778,17 +8778,32 @@ func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 	}
 
 	// checkDDMSync verifies that a DDM (DeclarativeManagement) sync command
-	// is pending for the Apple device and acknowledges it.
+	// is pending for the Apple device and acknowledges it. Any other commands
+	// in the queue (e.g. InstallEnterpriseApplication for fleetd) are also
+	// acknowledged to drain the queue.
 	checkDDMSync := func(device *mdmtest.TestAppleMDMClient) {
 		t.Helper()
 
 		cmd, err := device.Idle()
 		require.NoError(t, err)
+
+		// Acknowledge any commands queued before the DDM sync (e.g. fleetd
+		// install queued by the integrations schedule).
+		for cmd != nil && cmd.Command.RequestType != "DeclarativeManagement" {
+			cmd, err = device.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+
 		require.NotNil(t, cmd, "expected a DDM sync command to be pending (DeclarativeManagement)")
 		require.Equal(t, "DeclarativeManagement", cmd.Command.RequestType, "%s", cmd.Raw)
 		cmd, err = device.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
-		require.Nil(t, cmd)
+
+		// Drain any remaining commands queued after the DDM sync.
+		for cmd != nil {
+			cmd, err = device.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
 	}
 
 	s.awaitTriggerProfileSchedule(t)
