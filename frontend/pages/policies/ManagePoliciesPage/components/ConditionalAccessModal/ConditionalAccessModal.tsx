@@ -1,17 +1,13 @@
 import React, { useContext, useRef, useState } from "react";
+import { Tooltip as ReactTooltip5 } from "react-tooltip";
 
-import {
-  FLEET_WEBSITE_URL,
-  LEARN_MORE_ABOUT_BASE_LINK,
-} from "utilities/constants";
-
-import { isOktaConditionalAccessConfigured } from "interfaces/config";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import CustomLink from "components/CustomLink";
+import Icon from "components/Icon";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Slider from "components/forms/fields/Slider";
-import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
 import { IPaginatedListHandle } from "components/PaginatedList";
@@ -82,56 +78,35 @@ const ConditionalAccessModal = ({
     />
   );
 
-  const renderItemRow = (
-    item: IFormPolicy,
-    onChange: (item: IFormPolicy) => void
-  ) => {
-    const shouldShowCheckbox =
-      item.conditional_access_enabled &&
-      // currently redundant as only darwin-targeting policies are enabled in this list
-      item.platform.includes("darwin") &&
-      isOktaConditionalAccessConfigured(config) &&
-      !config?.conditional_access?.bypass_disabled;
-
-    if (!shouldShowCheckbox) {
+  const renderItemLabel = (item: IFormPolicy) => {
+    if (!item.critical) {
       return null;
     }
-
     return (
-      <span
-        onClick={(e) => {
-          e.stopPropagation();
-        }}
-      >
-        <Checkbox
-          value={item.conditional_access_bypass_enabled}
-          onChange={() => {
-            onChange({
-              ...item,
-              conditional_access_bypass_enabled: !item.conditional_access_bypass_enabled,
-            });
-          }}
+      <div className="critical-badge">
+        <span
+          className="critical-badge-icon"
+          data-tooltip-id={`critical-tooltip-${item.id}`}
         >
-          <TooltipWrapper
-            tipContent={
-              <>
-                Allows end users to bypass conditional access for a single login
-                if they are unable to resolve the failing policy.
-                <br />
-                <br />
-                <em>
-                  This experimental setting will be removed in Fleet 4.83, and
-                  only non-critical policies will allow bypass. For a seamless
-                  upgrade, please avoid enabling bypass for policies marked
-                  critical.
-                </em>
-              </>
-            }
-          >
-            End users can bypass
-          </TooltipWrapper>
-        </Checkbox>
-      </span>
+          <Icon
+            className="critical-policy-icon"
+            name="policy"
+            size="small"
+            color="ui-fleet-black-75"
+          />
+        </span>
+        <ReactTooltip5
+          className="critical-tooltip"
+          disableStyleInjection
+          place="top"
+          opacity={1}
+          id={`critical-tooltip-${item.id}`}
+          offset={8}
+          positionStrategy="fixed"
+        >
+          This policy has been marked as critical.
+        </ReactTooltip5>
+      </div>
     );
   };
 
@@ -147,19 +122,13 @@ const ConditionalAccessModal = ({
               activeText="Enabled"
               disabled={gitOpsModeEnabled || !isAdmin}
             />
-            <CustomLink
-              text="Preview end user experience"
-              newTab
-              multiline={false}
-              url={`${FLEET_WEBSITE_URL}/microsoft-compliance-partner/remediate`}
-            />
           </span>
           <PoliciesPaginatedList
             ref={paginatedListRef}
             isSelected="conditional_access_enabled"
             getPolicyDisabled={getPolicyDisabled}
             getPolicyTooltipContent={getPolicyTooltipContent}
-            renderItemRow={renderItemRow}
+            renderItemLabel={renderItemLabel}
             onToggleItem={(item: IFormPolicy) => {
               item.conditional_access_enabled = !item.conditional_access_enabled;
               return item;

@@ -315,6 +315,10 @@ const SaveNewPolicyModal = ({
                     <p>
                       If automations are turned on, this
                       <br /> information is included.
+                      <br />
+                      <br />
+                      If Okta conditional access is configured,
+                      <br /> end users can never bypass critical policies.
                     </p>
                   }
                 >
