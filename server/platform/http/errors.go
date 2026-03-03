@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/docker/go-units"
 	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
@@ -40,6 +41,7 @@ type ErrorUUIDer interface {
 
 // ErrorWithUUID can be embedded in error types to implement ErrorUUIDer.
 type ErrorWithUUID struct {
+	mu   sync.Mutex
 	uuid string
 }
 
@@ -47,6 +49,8 @@ var _ ErrorUUIDer = (*ErrorWithUUID)(nil)
 
 // UUID implements the ErrorUUIDer interface.
 func (e *ErrorWithUUID) UUID() string {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	if e.uuid == "" {
 		u, err := uuid.NewRandom()
 		if err != nil {
