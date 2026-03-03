@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	carvestorectx "github.com/fleetdm/fleet/v4/server/contexts/carvestore"
@@ -284,26 +283,6 @@ func (r carveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request)
 		return ctxerr.Wrap(ctx, fleet.NewAuthFailedError(err.Error()), "authentication error")
 	}
 
-	readUntil := func(maxToRead int, endChar byte) (string, error) {
-		var s strings.Builder
-		endCharFound := false
-		for i := 0; i <= maxToRead; i++ {
-			character := make([]byte, 1)
-			if _, err := req.Body.Read(character); err != nil {
-				return "", fmt.Errorf("failed to read character: %w", err)
-			}
-			if character[0] == endChar {
-				endCharFound = true
-				break
-			}
-			s.Write(character)
-		}
-		if !endCharFound {
-			return "", fmt.Errorf(`end character not found: %q`, s.String())
-		}
-		return s.String(), nil
-	}
-
 	// 1. Must start with {
 	delimiter := make([]byte, 1)
 	if _, err := req.Body.Read(delimiter); err != nil {
@@ -322,7 +301,7 @@ func (r carveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request)
 	}
 	// 3. Must continue with a number.
 	const maxNumberOfDigits = 19
-	blockIDStr, err := readUntil(maxNumberOfDigits, ',')
+	blockIDStr, err := readUntil(req.Body, maxNumberOfDigits, ',')
 	if err != nil {
 		return nil, newAuthRequiredError(fmt.Errorf(`invalid "block_id" field: %w`, err))
 	}
@@ -340,7 +319,7 @@ func (r carveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request)
 	}
 	// 5. Must continue with a string (up to 255 chars).
 	const maxSizeSessionID = 255 // defined in DB
-	sessionID, err := readUntil(maxSizeSessionID, '"')
+	sessionID, err := readUntil(req.Body, maxSizeSessionID, '"')
 	if err != nil {
 		return nil, newAuthRequiredError(fmt.Errorf(`invalid "session_id" field: %w`, err))
 	}
@@ -357,7 +336,7 @@ func (r carveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request)
 	}
 	// 7. Must continue with a string (up to 64 chars).
 	const maxSizeRequestID = 64 // defined in DB.
-	requestID, err := readUntil(maxSizeRequestID, '"')
+	requestID, err := readUntil(req.Body, maxSizeRequestID, '"')
 	if err != nil {
 		return nil, newAuthRequiredError(fmt.Errorf(`invalid "request_id" field: %w`, err))
 	}

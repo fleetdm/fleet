@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -633,4 +634,32 @@ func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) 
 
 type getGenericSpecRequest struct {
 	Name string `url:"name"`
+}
+
+// readUntil reads up to maxToRead bytes of content from r one byte at a time,
+// consuming the endChar terminator when found within that range.
+// It returns the content bytes (not including endChar).
+// The loop runs at most maxToRead+1 times: up to maxToRead content bytes, then one
+// terminator byte. An error is returned if endChar is not found within maxToRead content bytes.
+// It is used by DecodeRequest implementations that parse the request body field-by-field
+// to authenticate before reading a potentially large payload (see carveBlockRequest and
+// submitLogsRequest).
+func readUntil(r io.Reader, maxToRead int, endChar byte) (string, error) {
+	var s strings.Builder
+	endCharFound := false
+	var b [1]byte
+	for i := 0; i <= maxToRead; i++ {
+		if _, err := r.Read(b[:]); err != nil {
+			return "", fmt.Errorf("failed to read character: %w", err)
+		}
+		if b[0] == endChar {
+			endCharFound = true
+			break
+		}
+		s.Write(b[:])
+	}
+	if !endCharFound {
+		return "", fmt.Errorf(`end character not found: %q`, s.String())
+	}
+	return s.String(), nil
 }

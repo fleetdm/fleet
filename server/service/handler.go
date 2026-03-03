@@ -15,6 +15,7 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
 	carvestorectx "github.com/fleetdm/fleet/v4/server/contexts/carvestore"
+	nodeauthctx "github.com/fleetdm/fleet/v4/server/contexts/nodeauth"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -98,6 +99,12 @@ func setCarveStoreInRequestContext(carveStore fleet.CarveStore) kithttp.RequestF
 	}
 }
 
+func setHostAuthenticatorInRequestContext(svc fleet.Service) kithttp.RequestFunc {
+	return func(ctx context.Context, r *http.Request) context.Context {
+		return nodeauthctx.NewContext(ctx, svc)
+	}
+}
+
 // MakeHandler creates an HTTP handler for the Fleet server endpoints.
 func MakeHandler(
 	svc fleet.Service,
@@ -126,6 +133,7 @@ func MakeHandler(
 			auth.SetRequestsContexts(svc),
 			endpointer.LogDeprecatedPathAlias, // log deprecation warning for deprecated URL path aliases
 			setCarveStoreInRequestContext(carveStore),
+			setHostAuthenticatorInRequestContext(svc),
 		),
 		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: logger}),
 		kithttp.ServerErrorEncoder(fleetErrorEncoder),
@@ -924,8 +932,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		POST("/api/osquery/distributed/write", submitDistributedQueryResultsEndpoint, submitDistributedQueryResultsRequestShim{})
 	he.WithAltPaths("/api/v1/osquery/carve/begin").
 		POST("/api/osquery/carve/begin", carveBeginEndpoint, carveBeginRequest{})
-	he.WithAltPaths("/api/v1/osquery/log").
-		POST("/api/osquery/log", submitLogsEndpoint, submitLogsRequest{})
 	he.WithAltPaths("/api/v1/osquery/yara/{name}").
 		POST("/api/osquery/yara/{name}", getYaraEndpoint, getYaraRequest{})
 
@@ -968,6 +974,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne := newNoAuthEndpointer(svc, opts, r, apiVersions...)
 	ne.WithAltPaths("/api/v1/osquery/enroll").
 		POST("/api/osquery/enroll", enrollAgentEndpoint, contract.EnrollOsqueryAgentRequest{})
+
+	// The log endpoint authenticates the host inside DecodeRequest
+	ne.SkipRequestBodySizeLimit().WithAltPaths("/api/v1/osquery/log").
+		POST("/api/osquery/log", submitLogsEndpoint, submitLogsRequest{})
 
 	// These endpoint are token authenticated.
 	// NOTE: remember to update

@@ -43,6 +43,14 @@ type EnterpriseOverrides struct {
 	InstallVPPAppPostValidation       func(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
 }
 
+// HostAuthenticator is a subset of OsqueryService used to authenticate an
+// osquery host by its node key. It is stored in the request context so that
+// DecodeRequest implementations can authenticate before reading a potentially
+// large request body (see submitLogsRequest.DecodeRequest).
+type HostAuthenticator interface {
+	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
+}
+
 type OsqueryService interface {
 	EnrollOsquery(
 		ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string),

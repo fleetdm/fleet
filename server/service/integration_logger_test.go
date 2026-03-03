@@ -285,22 +285,46 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 	assert.Contains(t, errRes["error"], "unknown log type")
 	s.handler.Clear()
 
-	// submit gzip-encoded request
+	// submit gzip-encoded request (compact JSON required by the streaming parser)
 	var body bytes.Buffer
 	gw := gzip.NewWriter(&body)
-	_, err = fmt.Fprintf(gw, `{
-		"node_key": %q,
-		"log_type": "status",
-		"data":     null
-	}`, *h.NodeKey)
-	require.NoError(t, err)
+	enc := json.NewEncoder(gw)
+	enc.SetEscapeHTML(false)
+	require.NoError(t, enc.Encode(submitLogsRequest{NodeKey: *h.NodeKey, LogType: "status"}))
 	require.NoError(t, gw.Close())
 
 	s.DoRawWithHeaders("POST", "/api/osquery/log", body.Bytes(), http.StatusOK, map[string]string{"Content-Encoding": "gzip"})
 	assertIPAddrLogged(s.handler.Records())
 
-	// submit same payload without specifying gzip encoding fails
+	// submit same gzip payload without specifying gzip encoding fails (gzip bytes are not valid JSON)
 	s.DoRawWithHeaders("POST", "/api/osquery/log", body.Bytes(), http.StatusBadRequest, nil)
+
+	// submit large gzip-compressed log payload whose compressed size is under the old 1 MiB
+	// limit but whose decompressed size is several MiB; verifies the log endpoint has no
+	// body size limit and that gzip decoding works correctly in DecodeRequest.
+	s.handler.Clear()
+	entry := `{"name":"test","action":"added","hostIdentifier":"host1","calendarTime":"Mon Dec  2 23:26:48 2019 UTC","unixTime":1575330408,"columns":{"name":"test"}}`
+	manyEntries := make([]string, 0, 5000)
+	for range 5000 {
+		manyEntries = append(manyEntries, entry)
+	}
+	var largeBuf bytes.Buffer
+	lgw := gzip.NewWriter(&largeBuf)
+	lenc := json.NewEncoder(lgw)
+	require.NoError(t, lenc.Encode(submitLogsRequest{
+		NodeKey: *h.NodeKey,
+		LogType: "status",
+		Data: func() []json.RawMessage {
+			msgs := make([]json.RawMessage, len(manyEntries))
+			for i, e := range manyEntries {
+				msgs[i] = json.RawMessage(e)
+			}
+			return msgs
+		}(),
+	}))
+	require.NoError(t, lgw.Close())
+	s.DoRawWithHeaders("POST", "/api/osquery/log", largeBuf.Bytes(), http.StatusOK, map[string]string{"Content-Encoding": "gzip"})
+	assertIPAddrLogged(s.handler.Records())
 }
 
 func (s *integrationLoggerTestSuite) TestEnrollOsqueryLogsErrors() {

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"compress/gzip"
 	"context"
 	"crypto/x509"
 	"encoding/json"
@@ -8,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -21,10 +23,12 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	nodeauthctx "github.com/fleetdm/fleet/v4/server/contexts/nodeauth"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
@@ -2691,10 +2695,117 @@ type submitLogsRequest struct {
 	NodeKey string            `json:"node_key"`
 	LogType string            `json:"log_type"`
 	Data    []json.RawMessage `json:"data"`
+
+	// host and debug are populated by DecodeRequest after authenticating the node key.
+	// They are not part of the JSON body.
+	host  *fleet.Host
+	debug bool
 }
 
-func (r *submitLogsRequest) hostNodeKey() string {
-	return r.NodeKey
+// DecodeRequest implements the endpointer.RequestDecoder interface.
+// The log endpoint can receive very large payloads.
+// To prevent DoS, we authenticate the host by reading only the "node_key" portion of the payload
+// and "log_type" fields before reading the (potentially large) "data" field.
+func (r submitLogsRequest) DecodeRequest(ctx context.Context, req *http.Request) (any, error) {
+	body := io.Reader(req.Body)
+	if req.Header.Get("content-encoding") == "gzip" {
+		gzr, err := gzip.NewReader(req.Body)
+		if err != nil {
+			return nil, newOsqueryError("gzip decoder error: " + err.Error())
+		}
+		defer gzr.Close()
+		body = gzr
+	}
+
+	newInvalidRequestError := func(err error) error {
+		osqErr := newOsqueryError("invalid log request: " + err.Error())
+		osqErr.StatusCode = http.StatusBadRequest
+		return osqErr
+	}
+
+	// 1. Must start with {
+	delimiter := make([]byte, 1)
+	if _, err := body.Read(delimiter); err != nil {
+		return nil, newInvalidRequestError(fmt.Errorf("failed to read object start: %w", err))
+	}
+	if string(delimiter) != "{" {
+		return nil, newInvalidRequestError(fmt.Errorf("expected '{', got %q", string(delimiter)))
+	}
+	// 2. Must continue with "node_key":".
+	nodeKeyLabel := make([]byte, 12)
+	if _, err := body.Read(nodeKeyLabel); err != nil {
+		return nil, newInvalidRequestError(fmt.Errorf(`failed to read "node_key" key: %w`, err))
+	}
+	if string(nodeKeyLabel) != `"node_key":"` {
+		return nil, newInvalidRequestError(fmt.Errorf(`expected "node_key":", got %q`, string(nodeKeyLabel)))
+	}
+	// 3. Must continue with a string (node key value).
+	const maxNodeKeySize = 255
+	nodeKey, err := readUntil(body, maxNodeKeySize, '"')
+	if err != nil {
+		return nil, newInvalidRequestError(fmt.Errorf(`invalid "node_key" field: %w`, err))
+	}
+	// 4. Must continue with ,"log_type":".
+	logTypeLabel := make([]byte, 13)
+	if _, err := body.Read(logTypeLabel); err != nil {
+		return nil, newInvalidRequestError(fmt.Errorf(`failed to read "log_type" key: %w`, err))
+	}
+	if string(logTypeLabel) != `,"log_type":"` {
+		return nil, newInvalidRequestError(fmt.Errorf(`expected ,"log_type":", got %q`, string(logTypeLabel)))
+	}
+	// 5. Must continue with a string (log type value).
+	const maxLogTypeSize = 64
+	logType, err := readUntil(body, maxLogTypeSize, '"')
+	if err != nil {
+		return nil, newInvalidRequestError(fmt.Errorf(`invalid "log_type" field: %w`, err))
+	}
+
+	//
+	// 6. Authenticate the host before reading the (potentially large) "data" field.
+	//
+
+	authenticator := nodeauthctx.FromContext(ctx)
+	if authenticator == nil {
+		return nil, newOsqueryError("internal: missing host authenticator in context")
+	}
+	host, debug, err := authenticator.AuthenticateHost(ctx, nodeKey)
+	if err != nil {
+		logging.WithErr(ctx, err)
+		return nil, err
+	}
+
+	//
+	// 7. Authentication successful. Now read the "data" field.
+	//
+
+	// Must continue with ,"data":
+	dataLabel := make([]byte, 8)
+	if _, err := body.Read(dataLabel); err != nil {
+		return nil, newInvalidRequestError(fmt.Errorf(`failed to read "data" key: %w`, err))
+	}
+	if string(dataLabel) != `,"data":` {
+		return nil, newInvalidRequestError(fmt.Errorf(`expected ,"data":, got %q`, string(dataLabel)))
+	}
+
+	// Decode the data array (or null).
+	var data []json.RawMessage
+	if err := json.NewDecoder(body).Decode(&data); err != nil {
+		var netErr net.Error
+		if errors.Is(err, os.ErrDeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout()) {
+			osqErr := NewOsqueryError("request body read error: "+err.Error(), false)
+			osqErr.StatusCode = http.StatusRequestTimeout
+			return nil, osqErr
+		}
+		return nil, err
+	}
+
+	return &submitLogsRequest{
+		NodeKey: nodeKey,
+		LogType: logType,
+		Data:    data,
+		host:    host,
+		debug:   debug,
+	}, nil
 }
 
 type submitLogsResponse struct {
@@ -2705,6 +2816,31 @@ func (r submitLogsResponse) Error() error { return r.Err }
 
 func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*submitLogsRequest)
+
+	// DecodeRequest must have authenticated the host before returning. A nil host
+	// here means a programming error (DecodeRequest returned without error and without
+	// a host), not a normal runtime condition.
+	if req.host == nil {
+		return submitLogsResponse{Err: newOsqueryError("internal: missing host after authentication")}, nil
+	}
+
+	// Replicate the side-effects that authenticatedHost middleware normally applies
+	// for endpoints on the he (host-authenticated) endpointer.
+	ctx = hostctx.NewContext(ctx, req.host)
+	hostProvider := &hostctx.HostAttributeProvider{Host: req.host}
+	ctx = ctxerr.AddErrorContextProvider(ctx, hostProvider)
+	instrumentHostLogger(ctx, req.host.ID)
+	if ac, ok := authz_ctx.FromContext(ctx); ok {
+		ac.SetAuthnMethod(authz_ctx.AuthnHostToken)
+	}
+
+	var hlogger *slog.Logger
+	if req.debug {
+		if s, ok := svc.(*Service); ok {
+			hlogger = s.logger.With("host_id", req.host.ID)
+			logJSON(ctx, hlogger, req, "request")
+		}
+	}
 
 	var err error
 	switch req.LogType {
@@ -2727,7 +2863,11 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		err = newOsqueryError("unknown log type: " + req.LogType)
 	}
 
-	return submitLogsResponse{Err: err}, nil
+	resp := submitLogsResponse{Err: err}
+	if hlogger != nil {
+		logJSON(ctx, hlogger, resp, "response")
+	}
+	return resp, nil
 }
 
 // preProcessOsqueryResults will attempt to unmarshal `osqueryResults` and will return:
