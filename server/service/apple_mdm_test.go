@@ -5419,8 +5419,10 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 	}))
 	defer gdmf.Close()
 	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", gdmf.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_CACHE_DURATION", "0", t) // disable caching to ensure we hit the test server for each request
 
 	latestMacOSVersion := "14.6.1"
+	latestIOSVersion := "17.6.1"
 	latestMacOSBuild := "23G93"
 
 	testCases := []struct {
@@ -5753,7 +5755,7 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 		for _, tt := range testCases {
 			t.Run(tt.name, func(t *testing.T) {
 				ds.GetMDMAppleOSUpdatesSettingsByHostSerialFunc = func(ctx context.Context, serial string) (string, *fleet.AppleOSUpdateSettings, error) {
-					return "ios", &fleet.AppleOSUpdateSettings{MinimumVersion: optjson.SetString(latestMacOSVersion)}, nil
+					return "ios", &fleet.AppleOSUpdateSettings{MinimumVersion: optjson.SetString(latestIOSVersion)}, nil
 				}
 
 				sur, err := svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx, tt.machineInfo)

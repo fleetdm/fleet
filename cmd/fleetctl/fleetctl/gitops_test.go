@@ -509,7 +509,7 @@ software:
 	// Check MDM settings
 	require.True(t, savedAppConfig.MDM.EnableDiskEncryption.Value)
 	require.True(t, savedAppConfig.MDM.RequireBitLockerPIN.Value)
-	require.Equal(t, "18.0", savedAppConfig.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "14.6.1", savedAppConfig.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2024-03-03", savedAppConfig.MDM.MacOSUpdates.Deadline.Value)
 	// To keep things backwards compatible if MinimumVersion & Deadline are set, then UpdateNewHosts should be set to true
 	require.Equal(t, optjson.SetBool(true), savedAppConfig.MDM.MacOSUpdates.UpdateNewHosts)
@@ -517,7 +517,7 @@ software:
 	require.Equal(t, "17.6", savedAppConfig.MDM.IOSUpdates.MinimumVersion.Value)
 	require.Equal(t, optjson.Bool{}, savedAppConfig.MDM.IOSUpdates.UpdateNewHosts)
 	require.Equal(t, "2023-03-03", savedAppConfig.MDM.IPadOSUpdates.Deadline.Value)
-	require.Equal(t, "18.0", savedAppConfig.MDM.IPadOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "17.6", savedAppConfig.MDM.IPadOSUpdates.MinimumVersion.Value)
 	require.Equal(t, optjson.Bool{}, savedAppConfig.MDM.IPadOSUpdates.UpdateNewHosts)
 
 	// Check certificate authorities

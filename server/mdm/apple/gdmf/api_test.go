@@ -27,6 +27,7 @@ func TestGetLatest(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", srv.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_CACHE_DURATION", "0", t) // disable cache to ensure we're testing the function and not cached data
 
 	// test the function
 	d := fleet.MDMAppleMachineInfo{
