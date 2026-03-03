@@ -641,14 +641,13 @@ func parseSecrets(result *GitOps, multiError *multierror.Error) *multierror.Erro
 	var ok bool
 	if result.TeamName == nil {
 		rawSecrets, ok = result.OrgSettings["secrets"]
-		if !ok {
-			return multierror.Append(multiError, errors.New("'org_settings.secrets' is required"))
-		}
 	} else {
 		rawSecrets, ok = result.TeamSettings["secrets"]
-		if !ok {
-			return multierror.Append(multiError, errors.New("'settings.secrets' is required"))
-		}
+	}
+	if !ok {
+		// If the secrets key is not present, we leave it unset so that any
+		// existing secrets on the server are preserved (no-op).
+		return multiError
 	}
 	// When secrets slice is empty, all secrets are removed.
 	enrollSecrets := make([]*fleet.EnrollSecret, 0)
