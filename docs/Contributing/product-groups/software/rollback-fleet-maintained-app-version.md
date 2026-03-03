@@ -154,7 +154,7 @@ flowchart TB
     BCC -- No --> J["No action"]
     BC -- No --> G["Is specified 'version'<br>same as new?"]
     G -- Yes --> H
-    H --> I["Keep previous YAML specified version"]
+    H --> I["Keep previously specified version"]
     I --> Z
     G -- No --> J
     J --> Z
