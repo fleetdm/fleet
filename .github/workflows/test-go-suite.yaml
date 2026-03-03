@@ -14,6 +14,16 @@ on:
         required: false
         type: string
         default: ''
+      cover_pkg:
+        description: 'Go coverage package pattern (e.g., "github.com/fleetdm/fleet/v4/server/activity/..."). Defaults to all fleet packages.'
+        required: false
+        type: string
+        default: ''
+      generate_go:
+        description: 'Whether to run make generate-go before tests. Disable for suites that do not need generated static files.'
+        required: false
+        type: boolean
+        default: true
       is_cron:
         description: 'Whether this is a scheduled (cron) run. Enables race detector and longer timeouts.'
         required: false
@@ -122,6 +132,7 @@ jobs:
       run: sudo apt update && sudo apt install -y zsh
 
     - name: Generate static files
+      if: ${{ inputs.generate_go }}
       run: |
         export PATH=$PATH:~/go/bin
         make generate-go
@@ -233,6 +244,7 @@ jobs:
           AWS_REGION=us-east-1 \
           NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
           CI_TEST_PKG="${{ env.CI_TEST_PKG }}" \
+          COVER_PKG="${{ inputs.cover_pkg || 'github.com/fleetdm/fleet/v4/...' }}" \
           make test-go 2>&1 | tee /tmp/gotest.log
 
     - name: Save coverage

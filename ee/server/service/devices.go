@@ -80,7 +80,7 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 	p.Host.UUID = host.UUID
 	p.Host.HardwareSerial = host.HardwareSerial
 
-	if err := server.PostJSONWithTimeout(ctx, ac.MDM.MacOSMigration.WebhookURL, p, svc.logger.SlogLogger()); err != nil {
+	if err := server.PostJSONWithTimeout(ctx, ac.MDM.MacOSMigration.WebhookURL, p, svc.logger); err != nil {
 		return ctxerr.Wrap(ctx, err, "posting macOS migration webhook")
 	}
 

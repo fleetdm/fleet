@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"html/template"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -20,7 +21,6 @@ import (
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_storage "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/sso"
@@ -35,7 +35,7 @@ type Service struct {
 	carveStore     fleet.CarveStore
 	resultStore    fleet.QueryResultStore
 	liveQueryStore fleet.LiveQueryStore
-	logger         *logging.Logger
+	logger         *slog.Logger
 	config         config.FleetConfig
 	clock          clock.Clock
 
@@ -129,7 +129,7 @@ func NewService(
 	ds fleet.Datastore,
 	task *async.Task,
 	resultStore fleet.QueryResultStore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	osqueryLogger *OsqueryLogger,
 	config config.FleetConfig,
 	mailService fleet.MailService,

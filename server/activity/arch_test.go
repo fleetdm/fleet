@@ -28,6 +28,7 @@ var (
 		m + "/server/contexts/logging",
 		m + "/server/contexts/authz",
 		m + "/server/contexts/publicip",
+		m + "/pkg/fleethttp",
 	}
 )
 
@@ -67,7 +68,7 @@ func TestActivityPackageDependencies(t *testing.T) {
 				m + "/server/activity/api",
 				m + "/server/activity/internal/types",
 				m + "/server/activity/internal/testutils",
-				m + "/server/platform/http",
+				m + "/server/platform/errors",
 				m + "/server/platform/logging",
 				m + "/server/platform/mysql",
 				m + "/server/platform/mysql/testing_utils",

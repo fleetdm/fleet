@@ -12,7 +12,7 @@ import {
   MdmProfileStatus,
 } from "interfaces/mdm";
 import { isDDMProfile } from "services/entities/mdm";
-import { isIPadOrIPhone } from "interfaces/platform";
+import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
 
 import OSSettingsNameCell from "./OSSettingsNameCell";
 import OSSettingStatusCell from "./OSSettingStatusCell";
@@ -90,15 +90,15 @@ const generateTableConfig = (
       Cell: (cellProps: ITableStringCellProps) => {
         const { platform } = cellProps.row.original;
 
-        const isMacOSMobileConfigProfile =
-          platform === "darwin" && !isDDMProfile(cellProps.row.original);
+        const isAppleMobileConfigProfile =
+          isAppleDevice(platform) && !isDDMProfile(cellProps.row.original);
         const isWindowsProfile = platform === "windows";
 
         return (
           <OSSettingsErrorCell
             canResendProfiles={
               canResendProfiles &&
-              (isWindowsProfile || isMacOSMobileConfigProfile)
+              (isWindowsProfile || isAppleMobileConfigProfile)
             }
             profile={cellProps.row.original}
             resendRequest={resendRequest}

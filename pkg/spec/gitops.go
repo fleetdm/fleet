@@ -12,6 +12,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/bmatcuk/doublestar/v4"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
@@ -138,7 +139,8 @@ func YamlUnmarshal(yamlBytes []byte, out any) error {
 }
 
 type BaseItem struct {
-	Path *string `json:"path"`
+	Path  *string `json:"path"`
+	Paths *string `json:"paths"`
 }
 
 type GitOpsControls struct {
@@ -373,7 +375,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		multiError = parseLabels(top, result, baseDir, filePath, multiError)
 	}
 	// Get other top-level entities.
-	multiError = parseControls(top, result, multiError, filePath)
+	multiError = parseControls(top, result, multiError, filePath, logFn)
 	multiError = parseAgentOptions(top, result, baseDir, logFn, filePath, multiError)
 	multiError = parseQueries(top, result, baseDir, logFn, filePath, multiError)
 
@@ -738,7 +740,7 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 	return multiError
 }
 
-func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *multierror.Error, yamlFilename string) *multierror.Error {
+func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *multierror.Error, yamlFilename string, logFn Logf) *multierror.Error {
 	controlsRaw, ok := top["controls"]
 	if !ok {
 		// Nothing to do, return.
@@ -757,17 +759,14 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 	}
 
 	controlsDir := filepath.Dir(controlsFilePath)
-	result.Controls.Scripts, err = resolveScriptPaths(result.Controls.Scripts, controlsDir)
-	if err != nil {
-		return multierror.Append(multiError, fmt.Errorf("failed to parse scripts list in %s: %v", controlsFilePath, err))
+	var scriptErrs []error
+	result.Controls.Scripts, scriptErrs = resolveScriptPaths(result.Controls.Scripts, controlsDir, logFn)
+	for _, err := range scriptErrs {
+		multiError = multierror.Append(multiError, fmt.Errorf("failed to parse scripts list in %s: %v", controlsFilePath, err))
 	}
 
 	// Find Fleet secrets in scripts.
 	for _, script := range result.Controls.Scripts {
-		if script.Path == nil {
-			// This should never happen because we checked for missing paths above (with code added in https://github.com/fleetdm/fleet/pull/24639).
-			return multierror.Append(multiError, errors.New("controls.scripts.path is missing"))
-		}
 		fileBytes, err := os.ReadFile(*script.Path)
 		if err != nil {
 			return multierror.Append(multiError, fmt.Errorf("failed to read scripts file %s: %v", *script.Path, err))
@@ -934,19 +933,155 @@ func resolveAndUpdateProfilePathToAbsolute(controlsDir string, profile *fleet.MD
 	return nil
 }
 
-func resolveScriptPaths(input []BaseItem, baseDir string) ([]BaseItem, error) {
-	var resolved []BaseItem
-	for _, item := range input {
-		if item.Path == nil {
-			return nil, errors.New(`script entry was specified without a path; check for a stray "-" in your scripts list`)
-		}
+// defaultAllowedExtensions is the default set of file extensions allowed for
+// glob expansion (YAML files). Entity types that need different extensions
+// (e.g. scripts) should override this in their GlobExpandOptions.
+var defaultAllowedExtensions = map[string]bool{
+	".yml":  true,
+	".yaml": true,
+}
 
-		resolvedPath := resolveApplyRelativePath(baseDir, *item.Path)
-		item.Path = &resolvedPath
-		resolved = append(resolved, item)
+// allowedScriptExtensions is the set of file extensions allowed for scripts.
+var allowedScriptExtensions = map[string]bool{
+	".sh":  true,
+	".ps1": true,
+}
+
+// GlobExpandOptions configures how flattenBaseItems expands glob patterns.
+type GlobExpandOptions struct {
+	// AllowedExtensions filters glob results to only these extensions.
+	// Files with other extensions are skipped with a warning.
+	// Defaults to {".yml", ".yaml"} if nil.
+	AllowedExtensions map[string]bool
+	// RequireUniqueBasenames, if true, returns an error when two items resolve to the
+	// same filename (filepath.Base).
+	RequireUniqueBasenames bool
+	// Optional function to log warnings (e.g. about files skipped due to extension mismatch).
+	LogFn Logf
+}
+
+func (o *GlobExpandOptions) setDefaults() {
+	if o.AllowedExtensions == nil {
+		o.AllowedExtensions = defaultAllowedExtensions
+	}
+	if o.LogFn == nil {
+		o.LogFn = func(_ string, _ ...any) {}
+	}
+}
+
+// containsGlobMeta returns true if the string contains glob metacharacters.
+func containsGlobMeta(s string) bool {
+	return strings.ContainsAny(s, "*?[{")
+}
+
+// expandGlobPattern expands a glob pattern relative to baseDir and returns
+// all of the matching files with allowed extensions.
+func expandGlobPattern(pattern string, baseDir string, entityType string, opts GlobExpandOptions) ([]string, error) {
+	absPattern := resolveApplyRelativePath(baseDir, pattern)
+	matches, err := doublestar.FilepathGlob(absPattern)
+	if err != nil {
+		return nil, fmt.Errorf("invalid glob pattern %q: %w", pattern, err)
 	}
 
-	return resolved, nil
+	var result []string
+	for _, match := range matches {
+		info, err := os.Stat(match)
+		if err != nil {
+			return nil, fmt.Errorf("failed to stat %s: %w", match, err)
+		}
+		if info.IsDir() {
+			continue
+		}
+		ext := strings.ToLower(filepath.Ext(match))
+		if !opts.AllowedExtensions[ext] {
+			opts.LogFn("[!] glob pattern %q matched non-%s file %q, skipping\n", pattern, entityType, match)
+			continue
+		}
+		result = append(result, match)
+	}
+
+	slices.Sort(result)
+	return result, nil
+}
+
+// flattenBaseItems validates path/paths fields on each item, expands glob
+// patterns in "paths" entries, and returns a flat list where every item has only
+// Path set (resolved to an absolute path). Errors are collected rather than
+// returned early, so callers get all problems in one pass.
+func flattenBaseItems(input []BaseItem, baseDir string, entityType string, opts GlobExpandOptions) ([]BaseItem, []error) {
+	opts.setDefaults()
+	var result []BaseItem
+	var errs []error
+	seenBasenames := make(map[string]string) // basename -> source (path or pattern)
+
+	for _, item := range input {
+		hasPath := item.Path != nil
+		hasPaths := item.Paths != nil
+
+		switch {
+		case hasPath && hasPaths:
+			errs = append(errs, fmt.Errorf(`%s entry cannot have both "path" and "paths" fields`, entityType))
+			continue
+		// Inline item (no file reference) — pass through unchanged.
+		case !hasPath && !hasPaths:
+			errs = append(errs, fmt.Errorf(`%s entry has no "path" or "paths" field; check for a stray "-" in the list`, entityType))
+			continue
+		// Single path -- resolve to absolute path and add to result.
+		case hasPath:
+			if containsGlobMeta(*item.Path) {
+				errs = append(errs, fmt.Errorf(`%s "path" %q contains glob characters; use "paths" for glob patterns`, entityType, *item.Path))
+				continue
+			}
+			resolved := resolveApplyRelativePath(baseDir, *item.Path)
+			// Check for duplicate filenames if requested.
+			if opts.RequireUniqueBasenames {
+				base := filepath.Base(resolved)
+				if existing, ok := seenBasenames[base]; ok {
+					errs = append(errs, fmt.Errorf("duplicate %s basename %q (from %q and %q)", entityType, base, existing, *item.Path))
+					continue
+				}
+				seenBasenames[base] = *item.Path
+			}
+			result = append(result, BaseItem{Path: &resolved})
+		// Glob -- expand and add files to result.
+		case hasPaths:
+			if !containsGlobMeta(*item.Paths) {
+				errs = append(errs, fmt.Errorf(`%s "paths" %q does not contain glob characters; use "path" for a specific file`, entityType, *item.Paths))
+				continue
+			}
+			expanded, err := expandGlobPattern(*item.Paths, baseDir, entityType, opts)
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			if len(expanded) == 0 {
+				opts.LogFn("[!] glob pattern %q matched no %s files\n", *item.Paths, entityType)
+				continue
+			}
+			for _, p := range expanded {
+				// Check for duplicate filenames if requested.
+				if opts.RequireUniqueBasenames {
+					base := filepath.Base(p)
+					if existing, ok := seenBasenames[base]; ok {
+						errs = append(errs, fmt.Errorf("duplicate %s basename %q (from %q and %q)", entityType, base, existing, *item.Paths))
+						continue
+					}
+					seenBasenames[base] = *item.Paths
+				}
+				result = append(result, BaseItem{Path: &p})
+			}
+		}
+	}
+
+	return result, errs
+}
+
+func resolveScriptPaths(input []BaseItem, baseDir string, logFn Logf) ([]BaseItem, []error) {
+	return flattenBaseItems(input, baseDir, "script", GlobExpandOptions{
+		AllowedExtensions:      allowedScriptExtensions,
+		RequireUniqueBasenames: true,
+		LogFn:                  logFn,
+	})
 }
 
 func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {

@@ -51,7 +51,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
@@ -114,16 +113,16 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		Pool:           s.redisPool,
 		Rs:             pubsub.NewInmemQueryResults(),
 		Lq:             s.lq,
-		Logger:         logging.NewLogfmtLogger(os.Stdout),
+		Logger:         slog.New(slog.NewTextHandler(os.Stdout, nil)),
 		EnableCachedDS: true,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
 					// We set 24-hour interval so that it only runs when triggered.
 					var err error
-					cronLog := logging.NewJSONLogger(os.Stdout)
+					cronLog := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 					if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-						cronLog = logging.NewNopLogger()
+						cronLog = slog.New(slog.DiscardHandler)
 					}
 					calendarSchedule, err = cron.NewCalendarSchedule(
 						ctx, s.T().Name(), s.ds, redis_lock.NewLock(s.redisPool), config.CalendarConfig{Periodicity: 24 * time.Hour},
@@ -139,7 +138,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		DBConns:                         s.dbConns,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		config.Logger = logging.NewNopLogger()
+		config.Logger = slog.New(slog.DiscardHandler)
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
 	s.server = server
@@ -147,6 +146,12 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	s.token = s.getTestAdminToken()
 	s.cachedTokens = make(map[string]string)
 	s.calendarSchedule = calendarSchedule
+
+	dev_mode.SetOverride("FLEET_DEV_BATCH_RETRY_INTERVAL", "1s")
+}
+
+func (s *integrationEnterpriseTestSuite) TearDownSuite() {
+	dev_mode.ClearOverride("FLEET_DEV_BATCH_RETRY_INTERVAL")
 }
 
 func (s *integrationEnterpriseTestSuite) TearDownTest() {
@@ -283,6 +288,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			Script:                      optjson.String{Set: true},
 			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:          optjson.Bool{Set: true},
+			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		// because the WindowsSettings was marshalled to JSON to be saved in the DB,
 		// it did get marshalled, and then when unmarshalled it was set (but
@@ -395,6 +401,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			Script:                      optjson.String{Set: true},
 			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:          optjson.Bool{Set: true},
+			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -435,6 +442,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			Script:                      optjson.String{Set: true},
 			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:          optjson.Bool{Set: true},
+			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -477,6 +485,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			Script:                      optjson.String{Set: true},
 			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:          optjson.Bool{Set: true},
+			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -3015,6 +3024,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			Script:                      optjson.String{Set: true},
 			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:          optjson.Bool{Set: true},
+			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -5675,28 +5685,47 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 	h.OrbitNodeKey = &orbitKey
 
 	windowsOnly := windowsMDMConfigurationRequiredEndpoints()
+	androidOnly := androidMDMConfigurationRequiredEndpoints()
 
 	for _, route := range mdmConfigurationRequiredEndpoints() {
 		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
 		path := route.path
 		if slices.Contains(windowsOnly, path) {
 			expectedErr = fleet.ErrWindowsMDMNotConfigured
+		} else if slices.Contains(androidOnly, path) {
+			expectedErr = fleet.ErrAndroidMDMNotConfigured
 		}
 		if route.deviceAuthenticated {
 			path = fmt.Sprintf(path, tkn)
 		}
 
+		// build the body of the request
 		var params any
-		if route.method == "POST" && route.path == "/api/fleet/orbit/setup_experience/status" {
+		var multipartBody *bytes.Buffer
+		var headers map[string]string
+		switch {
+		case route.method == "POST" && route.path == "/api/fleet/orbit/setup_experience/status":
 			params = getOrbitSetupExperienceStatusRequest{
 				OrbitNodeKey: *h.OrbitNodeKey,
 			}
-		}
-		// These routes don't require MDM if you're only changing end-user auth, so we'll set something else to check.
-		if route.method == "PATCH" && (route.path == "/api/latest/fleet/setup_experience" || route.path == "/api/latest/fleet/mdm/apple/setup") {
+
+		case route.method == "POST" && route.path == "/api/latest/fleet/software/web_apps":
+			multipartBody, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+				"title": {"Test App"},
+				"url":   {"https://example.com"},
+			})
+
+		case route.method == "PATCH" && (route.path == "/api/latest/fleet/setup_experience" || route.path == "/api/latest/fleet/mdm/apple/setup"):
+			// These routes don't require MDM if you're only changing end-user auth, so we'll set something else to check.
 			params = fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: ptr.Bool(true)}
 		}
-		res := s.Do(route.method, path, params, expectedErr.StatusCode())
+
+		var res *http.Response
+		if multipartBody != nil {
+			res = s.DoRawWithHeaders(route.method, path, multipartBody.Bytes(), expectedErr.StatusCode(), headers)
+		} else {
+			res = s.Do(route.method, path, params, expectedErr.StatusCode())
+		}
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, expectedErr.Error(), fmt.Sprintf("%s %s", route.method, path))
 	}
@@ -12666,7 +12695,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		}
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
-		logger := logging.NewLogfmtLogger(os.Stderr)
+		logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
 		// Run the migration when nothing is to be done
 		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
@@ -12731,7 +12760,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// Check uninstall script
 		uninstallScript := file.GetUninstallScript("deb")
-		uninstallScript = strings.ReplaceAll(uninstallScript, "$PACKAGE_ID", "\"ruby\"")
+		uninstallScript = strings.ReplaceAll(uninstallScript, "$PACKAGE_ID", "'ruby'")
 		respTitle = getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &respTitle, "team_id",
 			fmt.Sprintf("%d", createTeamResp.Team.ID))
@@ -13388,6 +13417,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	t := s.T()
 	ctx := context.Background()
 
+	fmt.Printf("dev_mode.Env(\"FLEET_DEV_BATCH_RETRY_INTERVAL\"): %v\n", dev_mode.Env("FLEET_DEV_BATCH_RETRY_INTERVAL"))
+
 	// non-existent team
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{}, http.StatusNotFound, "team_name", "foo")
 
@@ -13815,7 +13846,7 @@ func waitBatchSetSoftwareInstallersCompleted(t *testing.T, s *withServer, teamNa
 	timeout := time.After(1 * time.Minute)
 	for {
 		var batchResultResponse batchSetSoftwareInstallersResultResponse
-		s.DoJSON("GET", "/api/latest/fleet/software/batch/"+requestUUID, nil, http.StatusOK, &batchResultResponse, "team_name", teamName)
+		s.DoJSON("GET", "/api/latest/fleet/software/batch/"+requestUUID, nil, http.StatusOK, &batchResultResponse, "fleet_name", teamName)
 		if batchResultResponse.Status == fleet.BatchSetSoftwareInstallersStatusCompleted {
 			return batchResultResponse.Packages
 		}
@@ -13832,7 +13863,7 @@ func waitBatchSetSoftwareInstallersFailed(t *testing.T, s *withServer, teamName 
 	timeout := time.After(1 * time.Minute)
 	for {
 		var batchResultResponse batchSetSoftwareInstallersResultResponse
-		s.DoJSON("GET", "/api/latest/fleet/software/batch/"+requestUUID, nil, http.StatusOK, &batchResultResponse, "team_name", teamName)
+		s.DoJSON("GET", "/api/latest/fleet/software/batch/"+requestUUID, nil, http.StatusOK, &batchResultResponse, "fleet_name", teamName)
 		if batchResultResponse.Status == fleet.BatchSetSoftwareInstallersStatusFailed {
 			require.Empty(t, batchResultResponse.Packages)
 			return batchResultResponse.Message
@@ -14422,7 +14453,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		fmt.Sprintf("%d", *teamID))
 	require.NotNil(t, respTitle.SoftwareTitle.SoftwarePackage)
 	assert.Equal(t, "another install script", respTitle.SoftwareTitle.SoftwarePackage.InstallScript)
-	assert.Equal(t, `another uninstall script with "ruby"`, respTitle.SoftwareTitle.SoftwarePackage.UninstallScript)
+	assert.Equal(t, `another uninstall script with 'ruby'`, respTitle.SoftwareTitle.SoftwarePackage.UninstallScript)
 
 	// Upload another package for another platform
 	payloadDummy := &fleet.UploadSoftwareInstallerPayload{
@@ -21005,7 +21036,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 
 # Fleet extracts and saves package IDs.
 pkg_ids=(
-  "com.example.dummy"
+  'com.example.dummy'
 )
 
 # For each package id, get all .app folders associated with the package and remove them.
