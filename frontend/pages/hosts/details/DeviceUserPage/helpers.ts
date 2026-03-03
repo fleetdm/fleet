@@ -39,7 +39,7 @@ export const getFailedSoftwareInstall = (
   return firstWithError ?? failedSoftware[0];
 };
 
-/** Checks if the software is a payload-free script package (sh or ps1)
+/** Checks if the software is a script-only package (sh or ps1)
  * by examining the source field from the API */
 export const isSoftwareScriptSetup = (s: ISetupStep) => {
   if (!s.source) return false;

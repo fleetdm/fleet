@@ -168,10 +168,10 @@ const QueryEditor = ({
       setIsUpdatingPolicy(false);
       router.push(
         getPathWithQueryParams(PATHS.EDIT_POLICY(policy.id), {
-          team_id: policy.team_id,
+          fleet_id: policy.team_id,
         })
       );
-      renderFlash("success", "Policy created!");
+      renderFlash("success", "Policy created.");
     } catch (createError: any) {
       console.error(createError);
       if (createError.data.errors[0].reason.includes("already exists")) {
@@ -219,7 +219,7 @@ const QueryEditor = ({
 
     try {
       await updateAPIRequest();
-      renderFlash("success", "Policy updated!");
+      renderFlash("success", "Policy updated.");
     } catch (updateError: any) {
       console.error(updateError);
       if (updateError.data.errors[0].reason.includes("Duplicate")) {
@@ -243,7 +243,7 @@ const QueryEditor = ({
 
   // Function instead of constant eliminates race condition with filteredPoliciesPath
   const backToPoliciesPath = () => {
-    const queryParams = { team_id: teamIdForApi };
+    const queryParams = { fleet_id: teamIdForApi };
 
     return (
       filteredPoliciesPath ||

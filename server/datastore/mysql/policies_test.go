@@ -67,6 +67,7 @@ func TestPolicies(t *testing.T) {
 		{"TestPoliciesNameSort", testPoliciesNameSort},
 		{"TestGetCalendarPolicies", testGetCalendarPolicies},
 		{"GetTeamHostsPolicyMemberships", testGetTeamHostsPolicyMemberships},
+		{"GetTeamHostsPolicyMembershipsEmailPriority", testGetTeamHostsPolicyMembershipsEmailPriority},
 		{"TestPoliciesNewGlobalPolicyWithInstaller", testNewGlobalPolicyWithInstaller},
 		{"TestPoliciesTeamPoliciesWithInstaller", testTeamPoliciesWithInstaller},
 		{"TestPoliciesTeamPoliciesWithVPP", testTeamPoliciesWithVPP},
@@ -77,6 +78,7 @@ func TestPolicies(t *testing.T) {
 		{"TestPoliciesBySoftwareTitleID", testPoliciesBySoftwareTitleID},
 		{"TestClearAutoInstallPolicyStatusForHost", testClearAutoInstallPolicyStatusForHost},
 		{"PolicyLabels", testPolicyLabels},
+		{"PolicyLabelMembershipCleanup", testPolicyLabelMembershipCleanup},
 		{"DeletePolicyWithSoftwareActivatesNextActivity", testDeletePolicyWithSoftwareActivatesNextActivity},
 		{"DeletePolicyWithScriptActivatesNextActivity", testDeletePolicyWithScriptActivatesNextActivity},
 		{"SimultaneousSavePolicy", testSimultaneousSavePolicy},
@@ -84,6 +86,7 @@ func TestPolicies(t *testing.T) {
 		{"ResetAttemptsOnFailingToPassingSync", testResetAttemptsOnFailingToPassingSync},
 		{"ResetAttemptsOnFailingToPassingAsync", testResetAttemptsOnFailingToPassingAsync},
 		{"PolicyModificationResetsAttemptNumber", testPolicyModificationResetsAttemptNumber},
+		{"ConditionalAccessBypassEnabled", testPoliciesConditionalAccessBypassEnabled},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1738,14 +1741,15 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			LabelsIncludeAny: []string{fooLabel.Name},
 		},
 		{
-			Name:                  "query2",
-			Query:                 "select 2;",
-			Description:           "query2 desc",
-			Resolution:            "some other resolution",
-			Team:                  "team1",
-			Platform:              "darwin",
-			CalendarEventsEnabled: true,
-			LabelsExcludeAny:      []string{barLabel.Name},
+			Name:                           "query2",
+			Query:                          "select 2;",
+			Description:                    "query2 desc",
+			Resolution:                     "some other resolution",
+			Team:                           "team1",
+			Platform:                       "darwin",
+			CalendarEventsEnabled:          true,
+			LabelsExcludeAny:               []string{barLabel.Name},
+			ConditionalAccessBypassEnabled: ptr.Bool(false),
 		},
 		{
 			Name:        "query3",
@@ -1776,6 +1780,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	require.NotNil(t, policies[0].Resolution)
 	assert.Equal(t, "some resolution", *policies[0].Resolution)
 	assert.Equal(t, "", policies[0].Platform)
+	assert.True(t, *policies[0].ConditionalAccessBypassEnabled)
 	assert.Equal(t, []fleet.LabelIdent{{
 		LabelName: fooLabel.Name,
 		LabelID:   fooLabel.ID,
@@ -1793,6 +1798,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "some other resolution", *teamPolicies[0].Resolution)
 	assert.Equal(t, "darwin", teamPolicies[0].Platform)
 	assert.True(t, teamPolicies[0].CalendarEventsEnabled)
+	assert.False(t, *teamPolicies[0].ConditionalAccessBypassEnabled)
 	assert.Equal(t, []fleet.LabelIdent{{
 		LabelName: barLabel.Name,
 		LabelID:   barLabel.ID,
@@ -1807,6 +1813,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "some other good resolution", *teamPolicies[1].Resolution)
 	assert.Equal(t, "windows,linux", teamPolicies[1].Platform)
 	assert.False(t, teamPolicies[1].CalendarEventsEnabled)
+	assert.True(t, *teamPolicies[1].ConditionalAccessBypassEnabled)
 
 	noTeamPolicies, _, err := ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -1820,6 +1827,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "some other good resolution 2", *noTeamPolicies[0].Resolution)
 	assert.Equal(t, "", noTeamPolicies[0].Platform)
 	assert.False(t, noTeamPolicies[0].CalendarEventsEnabled)
+	assert.True(t, *noTeamPolicies[0].ConditionalAccessBypassEnabled)
 	assert.NotNil(t, noTeamPolicies[0].TeamID)
 	assert.Zero(t, *noTeamPolicies[0].TeamID)
 
@@ -1835,14 +1843,15 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			LabelsIncludeAny: []string{fooLabel.Name},
 		},
 		{
-			Name:                  "query2",
-			Query:                 "select 2;",
-			Description:           "query2 desc",
-			Resolution:            "some other resolution",
-			Team:                  "team1",
-			Platform:              "darwin",
-			CalendarEventsEnabled: true,
-			LabelsExcludeAny:      []string{barLabel.Name},
+			Name:                           "query2",
+			Query:                          "select 2;",
+			Description:                    "query2 desc",
+			Resolution:                     "some other resolution",
+			Team:                           "team1",
+			Platform:                       "darwin",
+			CalendarEventsEnabled:          true,
+			LabelsExcludeAny:               []string{barLabel.Name},
+			ConditionalAccessBypassEnabled: ptr.Bool(false),
 		},
 		{
 			Name:        "query3",
@@ -2335,6 +2344,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.Equal(t, gp.Description, payload.Description)
 	require.Equal(t, *gp.Resolution, payload.Resolution)
 	require.Equal(t, gp.Critical, payload.Critical)
+	assert.True(t, *gp.ConditionalAccessBypassEnabled)
 	requireLabels(t, []string{label1.Name, label2.Name}, gp.LabelsIncludeAny)
 
 	computeChecksum := func(policy fleet.Policy) string {
@@ -2372,6 +2382,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.Equal(t, *tp1.Resolution, payload.Resolution)
 	require.Equal(t, tp1.Critical, payload.Critical)
 	assert.Equal(t, tp1.CalendarEventsEnabled, payload.CalendarEventsEnabled)
+	assert.True(t, *tp1.ConditionalAccessBypassEnabled)
 	requireLabels(t, []string{label1.Name, label2.Name}, tp1.LabelsExcludeAny)
 	var teamChecksum []uint8
 	err = ds.writer(context.Background()).Get(&teamChecksum, `SELECT checksum FROM policies WHERE id = ?`, tp1.ID)
@@ -2413,6 +2424,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	tp2.Resolution = ptr.String("team1 query resolution updated")
 	tp2.Critical = false
 	tp2.CalendarEventsEnabled = false
+	tp2.ConditionalAccessBypassEnabled = ptr.Bool(false)
 	// Swap labels include and exclude
 	tp2.LabelsIncludeAny = tp2.LabelsExcludeAny
 	tp2.LabelsExcludeAny = nil
@@ -2421,6 +2433,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	tp1, err = ds.Policy(ctx, tp1.ID)
 	require.Empty(t, tp1.LabelsExcludeAny)
 	requireLabels(t, []string{label1.Name, label2.Name}, tp1.LabelsIncludeAny)
+	assert.False(t, *tp1.ConditionalAccessBypassEnabled)
 	tp2.UpdateCreateTimestamps = tp1.UpdateCreateTimestamps
 	require.NoError(t, err)
 	require.Equal(t, tp1, &tp2)
@@ -4334,6 +4347,132 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	require.Equal(t, "display_name2", hostsTeam2[0].HostDisplayName)
 }
 
+func testGetTeamHostsPolicyMembershipsEmailPriority(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test-team"})
+	require.NoError(t, err)
+
+	calendarPolicy, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:                  "Calendar Policy",
+		Query:                 "SELECT 1;",
+		CalendarEventsEnabled: true,
+	})
+	require.NoError(t, err)
+
+	newHost := func(name string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:  ptr.String(name),
+			NodeKey:        ptr.String(name),
+			HardwareSerial: name + "-serial",
+			ComputerName:   name,
+			TeamID:         &team.ID,
+		})
+		require.NoError(t, err)
+		// Make the host fail the calendar policy so it always appears in results.
+		err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{calendarPolicy.ID: ptr.Bool(false)}, time.Now(), false)
+		require.NoError(t, err)
+		return h
+	}
+
+	setEmails := func(hostID uint, mappings ...*fleet.HostDeviceMapping) {
+		// Group by source so each source gets its own ReplaceHostDeviceMapping call,
+		// matching production usage (each source replaces its own slice).
+		bySource := make(map[string][]*fleet.HostDeviceMapping)
+		for _, m := range mappings {
+			bySource[m.Source] = append(bySource[m.Source], m)
+		}
+		for src, ms := range bySource {
+			err := ds.ReplaceHostDeviceMapping(ctx, hostID, ms, src)
+			require.NoError(t, err)
+		}
+	}
+
+	getResults := func(domain string) []fleet.HostPolicyMembershipData {
+		results, err := ds.GetTeamHostsPolicyMemberships(ctx, domain, team.ID, []uint{calendarPolicy.ID}, nil)
+		require.NoError(t, err)
+		sort.Slice(results, func(i, j int) bool { return results[i].HostID < results[j].HostID })
+		return results
+	}
+
+	emailFor := func(results []fleet.HostPolicyMembershipData, h *fleet.Host) string {
+		for _, r := range results {
+			if r.HostID == h.ID {
+				return r.Email
+			}
+		}
+		t.Fatalf("host %d not found in results", h.ID)
+		return ""
+	}
+
+	testCases := []struct {
+		name     string
+		mappings []*fleet.HostDeviceMapping
+		expected string
+	}{
+		{
+			name: "idp-vs-chrome",
+			mappings: []*fleet.HostDeviceMapping{
+				{Email: "chrome@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+				{Email: "idp@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+			},
+			expected: "idp@example.com",
+		},
+		{
+			name: "idpsrc-vs-chrome",
+			mappings: []*fleet.HostDeviceMapping{
+				{Email: "chrome@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+				{Email: "idpsrc@example.com", Source: fleet.DeviceMappingIDP},
+			},
+			expected: "idpsrc@example.com",
+		},
+		{
+			name: "custom-vs-chrome",
+			mappings: []*fleet.HostDeviceMapping{
+				{Email: "chrome@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+				{Email: "custom@example.com", Source: "custom"},
+			},
+			expected: "chrome@example.com",
+		},
+		{
+			name: "multi-idp",
+			mappings: []*fleet.HostDeviceMapping{
+				{Email: "zebra@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+				{Email: "apple@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+			},
+			expected: "apple@example.com",
+		},
+		{
+			name: "multi-chrome",
+			mappings: []*fleet.HostDeviceMapping{
+				{Email: "zebra@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+				{Email: "apple@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+			},
+			expected: "apple@example.com",
+		},
+		{
+			name: "idp-wrong-domain",
+			mappings: []*fleet.HostDeviceMapping{
+				{Email: "idp@other.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+				{Email: "chrome@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+			},
+			expected: "chrome@example.com",
+		},
+	}
+
+	for _, tC := range testCases {
+		host := newHost(tC.name)
+
+		for _, m := range tC.mappings {
+			m.HostID = host.ID
+		}
+		setEmails(host.ID, tC.mappings...)
+
+		results := getResults("example.com")
+		require.Equal(t, tC.expected, emailFor(results, host), tC.name)
+	}
+}
+
 func testNewGlobalPolicyWithInstaller(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	_, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
@@ -6164,6 +6303,135 @@ func testPolicyLabels(t *testing.T, ds *Datastore) {
 	}
 }
 
+func testPolicyLabelMembershipCleanup(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// Create labels
+	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "cleanup-label1"})
+	require.NoError(t, err)
+	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "cleanup-label2"})
+	require.NoError(t, err)
+
+	// Create hosts with different label combinations
+	hostNoLabels := test.NewHost(t, ds, "cleanup-host-no-labels", "10.0.0.1", "key1", "uuid1", time.Now())
+	hostLabel1 := test.NewHost(t, ds, "cleanup-host-label1", "10.0.0.2", "key2", "uuid2", time.Now())
+	hostLabel2 := test.NewHost(t, ds, "cleanup-host-label2", "10.0.0.3", "key3", "uuid3", time.Now())
+	hostLabelBoth := test.NewHost(t, ds, "cleanup-host-label-both", "10.0.0.4", "key4", "uuid4", time.Now())
+
+	// Apply labels to hosts
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostLabel1.ID, []uint{label1.ID}))
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostLabel2.ID, []uint{label2.ID}))
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostLabelBoth.ID, []uint{label1.ID, label2.ID}))
+
+	// Create a policy with no label targets (applies to all hosts)
+	policy := newTestPolicy(t, ds, user1, "cleanup test policy", "", nil)
+
+	// Record policy results for all hosts
+	for _, h := range []*fleet.Host{hostNoLabels, hostLabel1, hostLabel2, hostLabelBoth} {
+		err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	// Verify all hosts have membership
+	polsByName := map[string]*fleet.Policy{policy.Name: policy}
+	wantHostsByPol := map[string][]uint{
+		policy.Name: {hostNoLabels.ID, hostLabel1.ID, hostLabel2.ID, hostLabelBoth.ID},
+	}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Update policy to include only label1
+	policy.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: label1.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policy, false, false))
+
+	// Verify only hosts with label1 still have membership
+	wantHostsByPol[policy.Name] = []uint{hostLabel1.ID, hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Update policy to include both labels (include any means host must have at least one)
+	policy.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: label1.Name}, {LabelName: label2.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policy, false, false))
+
+	// Since no new memberships were added, only hosts that had membership AND match the criteria remain
+	// hostLabel2 was removed in the previous step, so it won't come back
+	wantHostsByPol[policy.Name] = []uint{hostLabel1.ID, hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Re-record membership for all hosts to test exclude labels
+	for _, h := range []*fleet.Host{hostNoLabels, hostLabel1, hostLabel2, hostLabelBoth} {
+		err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+	wantHostsByPol[policy.Name] = []uint{hostNoLabels.ID, hostLabel1.ID, hostLabel2.ID, hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Update policy to exclude label2
+	policy.LabelsIncludeAny = nil
+	policy.LabelsExcludeAny = []fleet.LabelIdent{{LabelName: label2.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policy, false, false))
+
+	// Verify hosts with label2 are removed (hostLabel2 and hostLabelBoth)
+	wantHostsByPol[policy.Name] = []uint{hostNoLabels.ID, hostLabel1.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Test ApplyPolicySpecs with label changes
+	// First, re-record membership for all hosts
+	for _, h := range []*fleet.Host{hostNoLabels, hostLabel1, hostLabel2, hostLabelBoth} {
+		err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+	wantHostsByPol[policy.Name] = []uint{hostNoLabels.ID, hostLabel1.ID, hostLabel2.ID, hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Apply spec with include label1 only
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:             policy.Name,
+			Query:            policy.Query,
+			LabelsIncludeAny: []string{label1.Name},
+		},
+	})
+	require.NoError(t, err)
+
+	// Verify only hosts with label1 remain
+	wantHostsByPol[policy.Name] = []uint{hostLabel1.ID, hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Test combined platform and label cleanup
+	// Create hosts with different platforms
+	hostWinLabel1 := test.NewHost(t, ds, "cleanup-host-win-label1", "10.0.0.5", "key5", "uuid5", time.Now())
+	hostWinLabel1.Platform = "windows"
+	require.NoError(t, ds.UpdateHost(ctx, hostWinLabel1))
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostWinLabel1.ID, []uint{label1.ID}))
+
+	hostMacLabel1 := test.NewHost(t, ds, "cleanup-host-mac-label1", "10.0.0.6", "key6", "uuid6", time.Now())
+	hostMacLabel1.Platform = "darwin"
+	require.NoError(t, ds.UpdateHost(ctx, hostMacLabel1))
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostMacLabel1.ID, []uint{label1.ID}))
+
+	// Create a new policy for platform + label test
+	policy2 := newTestPolicy(t, ds, user1, "cleanup test policy 2", "", nil)
+
+	// Record membership for all hosts with label1
+	for _, h := range []*fleet.Host{hostLabel1, hostLabelBoth, hostWinLabel1, hostMacLabel1} {
+		err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{policy2.ID: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	polsByName[policy2.Name] = policy2
+	wantHostsByPol[policy2.Name] = []uint{hostLabel1.ID, hostLabelBoth.ID, hostWinLabel1.ID, hostMacLabel1.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Update policy2 to windows platform AND include label1
+	policy2.Platform = "windows"
+	policy2.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: label1.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policy2, false, false))
+
+	// Only windows hosts with label1 should remain
+	wantHostsByPol[policy2.Name] = []uint{hostWinLabel1.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+}
+
 func testDeletePolicyWithSoftwareActivatesNextActivity(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	u := test.NewUser(t, ds, "Alice", "alice@example.com", true)
@@ -6785,4 +7053,86 @@ func testPolicyModificationResetsAttemptNumber(t *testing.T, ds *Datastore) {
 	require.Equal(t, "script-2", scriptResults[1].ExecutionID)
 	require.NotNil(t, scriptResults[1].AttemptNumber)
 	require.Equal(t, int64(0), *scriptResults[1].AttemptNumber)
+}
+
+func testPoliciesConditionalAccessBypassEnabled(t *testing.T, ds *Datastore) {
+	user := test.NewUser(t, ds, "User1", "user1@example.com", true)
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	cases := []struct {
+		name           string
+		global         bool
+		createBypass   *bool
+		expectedCreate bool
+		toggleTo       *bool
+	}{
+		{
+			name:           "team default nil",
+			createBypass:   nil,
+			expectedCreate: true,
+		},
+		{
+			name:           "team explicit false",
+			createBypass:   ptr.Bool(false),
+			expectedCreate: false,
+		},
+		{
+			name:           "team explicit true",
+			createBypass:   ptr.Bool(true),
+			expectedCreate: true,
+		},
+		{
+			name:           "toggle false to true",
+			createBypass:   ptr.Bool(false),
+			expectedCreate: false,
+			toggleTo:       ptr.Bool(true),
+		},
+		{
+			name:           "toggle true to false",
+			createBypass:   nil,
+			expectedCreate: true,
+			toggleTo:       ptr.Bool(false),
+		},
+		{
+			name:           "global default",
+			global:         true,
+			createBypass:   nil,
+			expectedCreate: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			payload := fleet.PolicyPayload{
+				Name:                           tc.name,
+				Query:                          "select 1;",
+				ConditionalAccessBypassEnabled: tc.createBypass,
+			}
+
+			var policy *fleet.Policy
+			if tc.global {
+				policy, err = ds.NewGlobalPolicy(ctx, &user.ID, payload)
+			} else {
+				policy, err = ds.NewTeamPolicy(ctx, team.ID, &user.ID, payload)
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedCreate, *policy.ConditionalAccessBypassEnabled)
+
+			got, err := ds.Policy(ctx, policy.ID)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedCreate, *got.ConditionalAccessBypassEnabled)
+
+			if tc.toggleTo != nil {
+				policy.ConditionalAccessBypassEnabled = tc.toggleTo
+				err = ds.SavePolicy(ctx, policy, false, false)
+				require.NoError(t, err)
+
+				got, err = ds.Policy(ctx, policy.ID)
+				require.NoError(t, err)
+				assert.Equal(t, *tc.toggleTo, *got.ConditionalAccessBypassEnabled)
+			}
+		})
+	}
 }

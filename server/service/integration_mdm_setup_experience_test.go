@@ -170,7 +170,7 @@ func (s *integrationMDMTestSuite) createTeamDeviceForSetupExperienceWithProfileS
 	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: tm.ID, TitleIDs: []uint{titleID}}, http.StatusOK, &swInstallResp)
 
 	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
-		fmt.Sprintf(`{"platform": "darwin", "team_id": %d, "team_name": "%s"}`, tm.ID, tm.Name), 0)
+		fmt.Sprintf(`{"platform": "darwin", "fleet_id": %d, "fleet_name": "%s", "team_id": %d, "team_name": "%s"}`, tm.ID, tm.Name, tm.ID, tm.Name), 0)
 
 	// add a script to execute
 	body, headers := generateNewScriptMultipartRequest(t,
@@ -583,6 +583,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptFo
 	t := s.T()
 	ctx := context.Background()
 
+	s.setSkipWorkerJobs(t)
+
 	teamDevice, enrolledHost, _ := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
 
 	// enroll the host
@@ -738,6 +740,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptFo
 func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	t := s.T()
 	ctx := context.Background()
+
+	s.setSkipWorkerJobs(t)
 
 	teamDevice, enrolledHost, team := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
 
@@ -1189,6 +1193,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowUpdateScript() {
 func (s *integrationMDMTestSuite) TestSetupExperienceFlowCancelScript() {
 	t := s.T()
 	ctx := context.Background()
+
+	s.setSkipWorkerJobs(t)
 
 	device, host, _ := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
 
@@ -3000,6 +3006,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 	t := s.T()
 	ctx := context.Background()
 
+	s.setSkipWorkerJobs(t)
+
 	teamDevice, enrolledHost, team := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
 
 	payload := map[string]any{
@@ -3601,7 +3609,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	require.NotNil(t, getResp.SoftwareTitles[1].AppStoreApp.InstallDuringSetup)
 	require.False(t, *getResp.SoftwareTitles[1].AppStoreApp.InstallDuringSetup)
 
-	host, deviceInfo, pubSubToken := s.createAndEnrollAndroidDevice(t, "test-android", nil)
+	host, deviceInfo, pubSubToken := s.createAndEnrollAndroidDevice(t, "test-android", nil, false)
 
 	// Google AMAPI hasn't been hit yet
 	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
@@ -3693,7 +3701,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	}, http.StatusOK, &putResp)
 
 	// enroll another Android device to test 2 apps that install on enroll
-	host2, _, _ := s.createAndEnrollAndroidDevice(t, "test-android-2", nil)
+	host2, _, _ := s.createAndEnrollAndroidDevice(t, "test-android-2", nil, false)
 
 	patchAppsCallCount = 0
 	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
@@ -3817,9 +3825,9 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 	}, http.StatusOK, &putResp)
 
 	// enroll a few Android devices, will get app1 at setup
-	host1, deviceInfo1, pubSubToken := s.createAndEnrollAndroidDevice(t, "test-1", nil)
-	host2, _, _ := s.createAndEnrollAndroidDevice(t, "test-2", nil)
-	host3, _, _ := s.createAndEnrollAndroidDevice(t, "test-3", nil)
+	host1, deviceInfo1, pubSubToken := s.createAndEnrollAndroidDevice(t, "test-1", nil, true)
+	host2, _, _ := s.createAndEnrollAndroidDevice(t, "test-2", nil, false)
+	host3, _, _ := s.createAndEnrollAndroidDevice(t, "test-3", nil, false)
 
 	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 	s.runWorkerUntilDoneWithChecks(true)
@@ -4025,7 +4033,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 		TitleIDs: []uint{app1TitleID, app2TitleID},
 	}, http.StatusOK, &putResp)
 
-	s.createAndEnrollAndroidDevice(t, "test-android", nil)
+	s.createAndEnrollAndroidDevice(t, "test-android", nil, false)
 
 	s.runWorkerUntilDoneWithChecks(true)
 
@@ -4212,10 +4220,10 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "test team", Secrets: []*fleet.EnrollSecret{{Secret: uuid.NewString()}}})
 	require.NoError(t, err)
 
-	// enroll a couple android devices on no-team and one on a team
-	host1, deviceInfo1, pubSubToken := s.createAndEnrollAndroidDevice(t, "test-android1", nil)
-	host2, deviceInfo2, _ := s.createAndEnrollAndroidDevice(t, "test-android2", nil)
-	host3, _, _ := s.createAndEnrollAndroidDevice(t, "test-android3", &tm.ID)
+	// enroll a couple android devices on no-team and one on a team. Note host1 is company-owned
+	host1, deviceInfo1, pubSubToken := s.createAndEnrollAndroidDevice(t, "test-android1", nil, true)
+	host2, deviceInfo2, _ := s.createAndEnrollAndroidDevice(t, "test-android2", nil, false)
+	host3, _, _ := s.createAndEnrollAndroidDevice(t, "test-android3", &tm.ID, false)
 
 	s.runWorkerUntilDoneWithChecks(true)
 
@@ -4256,7 +4264,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 
 	// make the software installed on host1, failed on host2
 	policyName := fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host1.UUID)
-	reportMsg := statusReportMessageWithEnterpriseSpecificID(
+	reportMsg := statusReportMessageWithSerialNumber(
 		t,
 		androidmanagement.Device{
 			Name:                 deviceInfo1.Name,
@@ -4268,7 +4276,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 			},
 			LastPolicySyncTime: time.Now().Format(time.RFC3339Nano),
 		},
-		host1.UUID,
+		host1.HardwareSerial,
 	)
 	req := android_service.PubSubPushRequest{PubSubMessage: *reportMsg}
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubSubToken.Value))
@@ -4398,7 +4406,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 
 	// reporting it as installed with the previous policy version does not make it verified
 	policyName = fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host1.UUID)
-	reportMsg = statusReportMessageWithEnterpriseSpecificID(
+	reportMsg = statusReportMessageWithSerialNumber(
 		t,
 		androidmanagement.Device{
 			Name:                 deviceInfo1.Name,
@@ -4410,7 +4418,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 			},
 			LastPolicySyncTime: time.Now().Format(time.RFC3339Nano),
 		},
-		host1.UUID,
+		host1.HardwareSerial,
 	)
 	req = android_service.PubSubPushRequest{PubSubMessage: *reportMsg}
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubSubToken.Value))
@@ -4430,7 +4438,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 
 	// reporting it as installed with the latest policy version makes it verified
 	policyName = fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host1.UUID)
-	reportMsg = statusReportMessageWithEnterpriseSpecificID(
+	reportMsg = statusReportMessageWithSerialNumber(
 		t,
 		androidmanagement.Device{
 			Name:                 deviceInfo1.Name,
@@ -4442,7 +4450,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 			},
 			LastPolicySyncTime: time.Now().Format(time.RFC3339Nano),
 		},
-		host1.UUID,
+		host1.HardwareSerial,
 	)
 	req = android_service.PubSubPushRequest{PubSubMessage: *reportMsg}
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubSubToken.Value))
@@ -4482,7 +4490,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	require.Nil(t, getHostSw.Software[1].Status)
 }
 
-func (s *integrationMDMTestSuite) createAndEnrollAndroidDevice(t *testing.T, name string, teamID *uint) (host *fleet.Host, deviceInfo androidmanagement.Device, pubSubToken fleet.MDMConfigAsset) {
+func (s *integrationMDMTestSuite) createAndEnrollAndroidDevice(t *testing.T, name string, teamID *uint, companyOwned bool) (host *fleet.Host, deviceInfo androidmanagement.Device, pubSubToken fleet.MDMConfigAsset) {
 	ctx := t.Context()
 
 	// get the required secrets to enroll an Android device
@@ -4497,21 +4505,33 @@ func (s *integrationMDMTestSuite) createAndEnrollAndroidDevice(t *testing.T, nam
 
 	// enroll an Android device
 	deviceID := createAndroidDeviceID(name)
-	enterpriseSpecificID := strings.ToUpper(uuid.New().String())
+	identifier := strings.ToUpper(uuid.New().String())
 	deviceInfo = androidmanagement.Device{
 		Name:                deviceID,
 		EnrollmentTokenData: fmt.Sprintf(`{"EnrollSecret": "%s"}`, secrets[0].Secret),
 	}
-	enrollmentMessage := enrollmentMessageWithEnterpriseSpecificID(t, deviceInfo, enterpriseSpecificID)
+	var enrollmentMessage *android.PubSubMessage
+	if companyOwned {
+		enrollmentMessage = enrollmentMessageWithSerialNumber(t, deviceInfo, identifier)
+	} else {
+		enrollmentMessage = enrollmentMessageWithEnterpriseSpecificID(t, deviceInfo, identifier)
+	}
 
 	req := android_service.PubSubPushRequest{PubSubMessage: *enrollmentMessage}
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
 
 	var hosts listHostsResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts, "query", enterpriseSpecificID)
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts, "query", identifier)
 	require.Len(t, hosts.Hosts, 1)
 	hostResp := hosts.Hosts[0]
 	require.EqualValues(t, fleet.AndroidPlatform, hostResp.Host.Platform)
+
+	if teamID != nil {
+		require.NotNil(t, hostResp.Host.TeamID)
+		require.EqualValues(t, *teamID, *hostResp.Host.TeamID)
+	} else {
+		require.Nil(t, hostResp.Host.TeamID)
+	}
 
 	return hostResp.Host, deviceInfo, pubsubToken
 }

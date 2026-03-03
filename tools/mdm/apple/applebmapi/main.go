@@ -12,6 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 
 	"github.com/WatchBeam/clock"
@@ -19,7 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
-	kitlog "github.com/go-kit/log"
 )
 
 func main() {
@@ -58,7 +58,7 @@ func main() {
 		MaxIdleConns:    50,
 		ConnMaxLifetime: 0,
 	}
-	logger := kitlog.NewLogfmtLogger(os.Stderr)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	opts := []mysql.DBOption{
 		mysql.Logger(logger),
 		mysql.WithFleetConfig(&config.FleetConfig{

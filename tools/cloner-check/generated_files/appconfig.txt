@@ -143,6 +143,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	DeprecatedEnableDiskEncry
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSSetup	fleet.MacOSSetup
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	BootstrapPackage	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableEndUserAuthentication	bool
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	LockEndUserInfo	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	MacOSSetupAssistant	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableReleaseDeviceManually	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	Script	optjson.String
@@ -162,6 +163,10 @@ github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsMigrationEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EnableTurnOnWindowsMDMManually	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EndUserAuthentication	fleet.MDMEndUserAuthentication
 github.com/fleetdm/fleet/v4/server/fleet/MDMEndUserAuthentication	SSOProviderSettings	fleet.SSOProviderSettings
+github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEntraTenantIDs	optjson.Slice[string]
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Value	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEnabledAndConfigured	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EnableDiskEncryption	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	RequireBitLockerPIN	optjson.Bool
@@ -190,9 +195,6 @@ github.com/fleetdm/fleet/v4/server/fleet/AppConfig	UIGitOpsMode	fleet.UIGitOpsMo
 github.com/fleetdm/fleet/v4/server/fleet/UIGitOpsModeConfig	GitopsModeEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/UIGitOpsModeConfig	RepositoryURL	string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	Scripts	optjson.Slice[string]
-github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
-github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool
-github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Value	[]string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	YaraRules	[]fleet.YaraRule
 github.com/fleetdm/fleet/v4/server/fleet/YaraRule	Name	string
 github.com/fleetdm/fleet/v4/server/fleet/YaraRule	Contents	string

@@ -11,6 +11,22 @@ linters:
   default: none
   enable:
     - modernize
-
-exclusions:
-  generated: strict
+    - nilaway
+  settings:
+    custom:
+      nilaway:
+        type: module
+        description: Static analysis tool to detect potential nil panics in Go code.
+        settings:
+          # Settings must be a "map from string to string" to mimic command line flags: the keys are
+          # flag names and the values are the values to the particular flags.
+          include-pkgs: "github.com/fleetdm/fleet/v4"
+  exclusions:
+    generated: strict
+    rules:
+      # nilaway has a hardcoded 500 CFG block limit (_maxFuncSizeInCFGBlocks). Functions exceeding
+      # it produce an INTERNAL ERROR with a bogus $GOROOT path that crashes golangci-lint's
+      # generated_file_filter processor. These are informational skip messages, not real findings.
+      - linters:
+          - nilaway
+        text: "INTERNAL ERROR"

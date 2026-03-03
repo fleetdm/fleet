@@ -1,9 +1,11 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 
@@ -12,7 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/bindata"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
-	"github.com/go-kit/log"
 	"github.com/klauspost/compress/gzhttp"
 )
 
@@ -25,9 +26,9 @@ func newBinaryFileSystem(root string) *assetfs.AssetFS {
 	}
 }
 
-func ServeFrontend(urlPrefix string, sandbox bool, logger log.Logger) http.Handler {
-	herr := func(w http.ResponseWriter, err string) {
-		logger.Log("err", err)
+func ServeFrontend(urlPrefix string, sandbox bool, logger *slog.Logger) http.Handler {
+	herr := func(ctx context.Context, w http.ResponseWriter, err string) {
+		logger.ErrorContext(ctx, err)
 		http.Error(w, err, http.StatusInternalServerError)
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -42,19 +43,20 @@ func ServeFrontend(urlPrefix string, sandbox bool, logger log.Logger) http.Handl
 		}
 
 		fs := newBinaryFileSystem("/frontend")
+		ctx := r.Context()
 		file, err := fs.Open("templates/react.tmpl")
 		if err != nil {
-			herr(w, "load react template: "+err.Error())
+			herr(ctx, w, "load react template: "+err.Error())
 			return
 		}
 		data, err := io.ReadAll(file)
 		if err != nil {
-			herr(w, "read bindata file: "+err.Error())
+			herr(ctx, w, "read bindata file: "+err.Error())
 			return
 		}
 		t, err := template.New("react").Parse(string(data))
 		if err != nil {
-			herr(w, "create react template: "+err.Error())
+			herr(ctx, w, "create react template: "+err.Error())
 			return
 		}
 		serverType := "on-premise"
@@ -68,7 +70,7 @@ func ServeFrontend(urlPrefix string, sandbox bool, logger log.Logger) http.Handl
 			URLPrefix:  urlPrefix,
 			ServerType: serverType,
 		}); err != nil {
-			herr(w, "execute react template: "+err.Error())
+			herr(ctx, w, "execute react template: "+err.Error())
 			return
 		}
 	})
@@ -80,35 +82,36 @@ func ServeEndUserEnrollOTA(
 	svc fleet.Service,
 	urlPrefix string,
 	ds fleet.Datastore,
-	logger log.Logger,
+	logger *slog.Logger,
 ) http.Handler {
-	herr := func(w http.ResponseWriter, err string) {
-		logger.Log("err", err)
+	herr := func(ctx context.Context, w http.ResponseWriter, err string) {
+		logger.ErrorContext(ctx, err)
 		http.Error(w, err, http.StatusInternalServerError)
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		endpointer.WriteBrowserSecurityHeaders(w)
-		setupRequired, err := svc.SetupRequired(r.Context())
+		ctx := r.Context()
+		setupRequired, err := svc.SetupRequired(ctx)
 		if err != nil {
-			herr(w, "setup required err: "+err.Error())
+			herr(ctx, w, "setup required err: "+err.Error())
 			return
 		}
 		if setupRequired {
-			herr(w, "fleet instance not setup")
+			herr(ctx, w, "fleet instance not setup")
 			return
 		}
 
 		appCfg, err := ds.AppConfig(r.Context())
 		if err != nil {
-			herr(w, "load appconfig err: "+err.Error())
+			herr(ctx, w, "load appconfig err: "+err.Error())
 			return
 		}
 
 		errorMsg := r.URL.Query().Get("error")
 		if errorMsg != "" {
 			if err := renderEnrollPage(w, appCfg, urlPrefix, "", errorMsg); err != nil {
-				herr(w, err.Error())
+				herr(ctx, w, err.Error())
 			}
 			return
 		}
@@ -116,7 +119,7 @@ func ServeEndUserEnrollOTA(
 		enrollSecret := r.URL.Query().Get("enroll_secret")
 		if enrollSecret == "" {
 			if err := renderEnrollPage(w, appCfg, urlPrefix, "", "This URL is invalid. : Enroll secret is invalid. Please contact your IT admin."); err != nil {
-				herr(w, err.Error())
+				herr(ctx, w, err.Error())
 			}
 			return
 		}
@@ -124,7 +127,7 @@ func ServeEndUserEnrollOTA(
 		authRequired, err := shared_mdm.RequiresEnrollOTAAuthentication(r.Context(), ds,
 			enrollSecret, appCfg.MDM.MacOSSetup.EnableEndUserAuthentication)
 		if err != nil {
-			herr(w, "check if authentication is required err: "+err.Error())
+			herr(ctx, w, "check if authentication is required err: "+err.Error())
 			return
 		}
 
@@ -148,7 +151,7 @@ func ServeEndUserEnrollOTA(
 				// IdP authentication has not been completed yet, initiate it by
 				// redirecting to the configured IdP provider.
 				if err := initiateOTAEnrollSSO(svc, w, r, enrollSecret); err != nil {
-					herr(w, "initiate IdP SSO authentication err: "+err.Error())
+					herr(ctx, w, "initiate IdP SSO authentication err: "+err.Error())
 					return
 				}
 				return
@@ -159,7 +162,7 @@ func ServeEndUserEnrollOTA(
 		// been successfully completed (we have a cookie with the IdP account
 		// reference).
 		if err := renderEnrollPage(w, appCfg, urlPrefix, enrollSecret, ""); err != nil {
-			herr(w, err.Error())
+			herr(ctx, w, err.Error())
 			return
 		}
 	})

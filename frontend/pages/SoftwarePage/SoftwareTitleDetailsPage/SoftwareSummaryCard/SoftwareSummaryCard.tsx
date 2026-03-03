@@ -81,7 +81,7 @@ const SoftwareSummaryCard = ({
             versions={softwareTitle.versions?.length ?? 0}
             hostCount={softwareTitle.hosts_count}
             countsUpdatedAt={softwareTitle.counts_updated_at}
-            queryParams={{ software_title_id: softwareId, team_id: teamId }}
+            queryParams={{ software_title_id: softwareId, fleet_id: teamId }}
             name={softwareTitle.name}
             source={softwareTitle.source}
             iconUrl={softwareTitle.icon_url}
@@ -110,6 +110,7 @@ const SoftwareSummaryCard = ({
     softwareInstaller,
     installerType,
     isIosOrIpadosApp,
+    isFleetMaintainedApp,
     isAndroidPlayStoreApp,
     canManageSoftware,
   } = meta;
@@ -141,7 +142,7 @@ const SoftwareSummaryCard = ({
           countsUpdatedAt={softwareTitle.counts_updated_at}
           queryParams={{
             software_title_id: softwareId,
-            team_id: teamId,
+            fleet_id: teamId,
           }}
           name={softwareTitle.name}
           source={softwareTitle.source}
@@ -205,6 +206,7 @@ const SoftwareSummaryCard = ({
           refetchSoftwareTitle={refetchSoftwareTitle}
           installerType={installerType}
           openViewYamlModal={onToggleViewYaml}
+          isFleetMaintainedApp={isFleetMaintainedApp}
           isIosOrIpadosApp={isIosOrIpadosApp}
           name={softwareTitle.name}
           displayName={softwareDisplayName}

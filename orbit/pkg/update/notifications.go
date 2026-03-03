@@ -446,26 +446,27 @@ type windowsMDMBitlockerConfigReceiver struct {
 	// ensures only one script execution runs at a time
 	mu sync.Mutex
 
-	// for tests, to be able to mock API commands. If nil, will use
-	// bitlocker.EncryptVolume
+	// execEncryptVolumeFn handles volume encryption. Set by the middleware from the COMWorker, or overridden in tests.
 	execEncryptVolumeFn execEncryptVolumeFunc
 
-	// for tests, to be able to mock API commands. If nil, will use
-	// bitlocker.GetEncryptionStatus
+	// execGetEncryptionStatusFn retrieves encryption status. Set by the middleware from the COMWorker, or overridden in tests.
 	execGetEncryptionStatusFn execGetEncryptionStatusFunc
 
-	// for tests, to be able to mock the decryption process. If nil, will use
-	// bitlocker.DecryptVolume
+	// execDecryptVolumeFn handles volume decryption. Set by the middleware from the COMWorker, or overridden in tests.
 	execDecryptVolumeFn execDecryptVolumeFunc
 }
 
 func ApplyWindowsMDMBitlockerFetcherMiddleware(
 	frequency time.Duration,
 	encryptionResult DiskEncryptionKeySetter,
+	comWorker *bitlocker.COMWorker,
 ) fleet.OrbitConfigReceiver {
 	return &windowsMDMBitlockerConfigReceiver{
-		Frequency:        frequency,
-		EncryptionResult: encryptionResult,
+		Frequency:                 frequency,
+		EncryptionResult:          encryptionResult,
+		execEncryptVolumeFn:       comWorker.EncryptVolume,
+		execGetEncryptionStatusFn: comWorker.GetEncryptionStatus,
+		execDecryptVolumeFn:       comWorker.DecryptVolume,
 	}
 }
 
@@ -559,11 +560,7 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption(notifs fl
 
 // getEncryptionStatusForVolume retrieves the encryption status for a specific volume.
 func (w *windowsMDMBitlockerConfigReceiver) getEncryptionStatusForVolume(volume string) (*bitlocker.EncryptionStatus, error) {
-	fn := w.execGetEncryptionStatusFn
-	if fn == nil {
-		fn = bitlocker.GetEncryptionStatus
-	}
-	status, err := fn()
+	status, err := w.execGetEncryptionStatusFn()
 	if err != nil {
 		return nil, err
 	}
@@ -593,12 +590,7 @@ func (w *windowsMDMBitlockerConfigReceiver) bitLockerActionInProgress(status *bi
 
 // performEncryption executes the encryption process.
 func (w *windowsMDMBitlockerConfigReceiver) performEncryption(volume string) (string, error) {
-	fn := w.execEncryptVolumeFn
-	if fn == nil {
-		fn = bitlocker.EncryptVolume
-	}
-
-	recoveryKey, err := fn(volume)
+	recoveryKey, err := w.execEncryptVolumeFn(volume)
 	if err != nil {
 		return "", err
 	}
@@ -607,12 +599,7 @@ func (w *windowsMDMBitlockerConfigReceiver) performEncryption(volume string) (st
 }
 
 func (w *windowsMDMBitlockerConfigReceiver) decryptVolume(targetVolume string) error {
-	fn := w.execDecryptVolumeFn
-	if fn == nil {
-		fn = bitlocker.DecryptVolume
-	}
-
-	return fn(targetVolume)
+	return w.execDecryptVolumeFn(targetVolume)
 }
 
 // isMisreportedDecryptionError checks whether the given error is a potentially

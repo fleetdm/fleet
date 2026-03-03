@@ -121,3 +121,6 @@ third_party/vuln-check/go.sum
 
 # Required to not make `fleet-desktop` macOS executable built with a `dirty` flag (see #35006).
 Fleet\ Desktop.app
+
+# custom golangci-lint executable
+custom-gcl

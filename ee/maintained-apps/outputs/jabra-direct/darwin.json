@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "6.26.32801",
+      "version": "6.27.03702",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jabra.directonline';"
       },

@@ -7,6 +7,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/user"
+	"github.com/rs/zerolog/log"
 )
 
 const zenityProcessName = "zenity"
@@ -88,6 +90,18 @@ func execCmdWithOutput(args ...string) ([]byte, int, error) {
 		opts = append(opts, execuser.WithArg(arg, "")) // Using empty value for positional args
 	}
 
+	// Retrieve and set active GUI user.
+	loggedInUser, err := user.UserLoggedInViaGui()
+	if err != nil {
+		return nil, 0, fmt.Errorf("user logged in via GUI: %w", err)
+	}
+	if loggedInUser == nil || *loggedInUser == "" {
+		return nil, 0, errors.New("no GUI user found")
+	}
+	log.Debug().Msgf("found GUI user: %s, attempting zenity", *loggedInUser)
+	opts = append(opts, execuser.WithUser(*loggedInUser))
+
+	// Execute zenity.
 	output, exitCode, err := execuser.RunWithOutput(zenityProcessName, opts...)
 
 	// Trim the newline from zenity output

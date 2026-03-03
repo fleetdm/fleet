@@ -1,0 +1,1 @@
+* Increased the maximum script execution timeout from 1 hour (3600 seconds) to 5 hours (18000 seconds).

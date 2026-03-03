@@ -25,7 +25,7 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type globalPolicyRequest struct {
-	QueryID          *uint    `json:"query_id"`
+	QueryID          *uint    `json:"query_id" renameto:"report_id"`
 	Query            string   `json:"query"`
 	Name             string   `json:"name"`
 	Description      string   `json:"description"`
@@ -68,7 +68,7 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 	}
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, errors.New("user must be authenticated to create team policies")
+		return nil, errors.New("user must be authenticated to create fleet policies")
 	}
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
@@ -350,7 +350,7 @@ func (svc *Service) ModifyGlobalPolicy(ctx context.Context, id uint, p fleet.Mod
 /////////////////////////////////////////////////////////////////////////////////
 
 type resetAutomationRequest struct {
-	TeamIDs   []uint `json:"team_ids" premium:"true"`
+	TeamIDs   []uint `json:"team_ids" premium:"true" renameto:"fleet_ids"`
 	PolicyIDs []uint `json:"policy_ids"`
 }
 
@@ -519,7 +519,7 @@ func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc flee
 // policies defined in the spec, and returns a map from team names to team IDs if successful
 func (svc *Service) checkPolicySpecAuthorization(ctx context.Context, policies []*fleet.PolicySpec) (map[string]uint, error) {
 	checkGlobalPolicyAuth := false
-	var teamIDsByName = make(map[string]uint)
+	teamIDsByName := make(map[string]uint)
 	for _, policy := range policies {
 		if policy.Team != "" && policy.Team != "No team" {
 			team, err := svc.ds.TeamByName(ctx, policy.Team)

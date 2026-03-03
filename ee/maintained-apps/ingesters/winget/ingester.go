@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 	"path/filepath"
@@ -17,14 +18,12 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/google/go-github/v37/github"
 	"gopkg.in/yaml.v2"
 )
 
-func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string, slugFilter string) ([]*maintained_apps.FMAManifestApp, error) {
-	level.Info(logger).Log("msg", "starting winget app data ingestion")
+func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slugFilter string) ([]*maintained_apps.FMAManifestApp, error) {
+	logger.InfoContext(ctx, "starting winget app data ingestion")
 	// Read from our list of apps we should be ingesting
 	files, err := os.ReadDir(inputsPath)
 	if err != nil {
@@ -85,7 +84,7 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string, sl
 			continue
 		}
 
-		level.Info(logger).Log("msg", "ingesting winget app", "name", input.Name)
+		logger.InfoContext(ctx, "ingesting winget app", "name", input.Name)
 
 		outApp, err := i.ingestOne(ctx, input)
 		if err != nil {
@@ -101,7 +100,7 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string, sl
 type wingetIngester struct {
 	githubClient *github.Client
 	ghClientOpts *github.RepositoryContentGetOptions
-	logger       kitlog.Logger
+	logger       *slog.Logger
 }
 
 func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
@@ -204,7 +203,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	for _, installer := range m.Installers {
-		level.Debug(i.logger).Log("msg", "checking installer", "arch", installer.Architecture, "type", installer.InstallerType, "locale", installer.InstallerLocale, "scope", installer.Scope)
+		i.logger.DebugContext(ctx, "checking installer", "arch", installer.Architecture, "type", installer.InstallerType, "locale", installer.InstallerLocale, "scope", installer.Scope)
 		installerType := m.InstallerType
 		if installerType == "" || isVendorType(installerType) {
 			installerType = installer.InstallerType
@@ -218,6 +217,11 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		// Normalize wix (WiX Toolset) to msi since wix installers are MSI files
 		if installerType == installerTypeWix {
 			installerType = installerTypeMSI
+		}
+
+		// Normalize burn (WiX Burn bootstrapper) to exe since burn produces EXE bundles
+		if installerType == installerTypeBurn {
+			installerType = installerTypeExe
 		}
 
 		scope := m.Scope
@@ -294,7 +298,11 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			}
 		}
 		if uninstallScript == "" && upgradeCode != "" {
-			uninstallScript = buildUpgradeCodeBasedUninstallScript(upgradeCode)
+			var err error
+			uninstallScript, err = buildUpgradeCodeBasedUninstallScript(upgradeCode)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "building upgrade code based uninstall script")
+			}
 		}
 
 		if uninstallScript == "" {
@@ -347,7 +355,11 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		Exists: fmt.Sprintf(existsTemplate, name, publisher),
 	}
 	out.InstallScript = installScript
-	out.UninstallScript = preProcessUninstallScript(uninstallScript, productCode)
+	processedUninstallScript, err := preProcessUninstallScript(uninstallScript, productCode)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "pre-processing uninstall script")
+	}
+	out.UninstallScript = processedUninstallScript
 	out.InstallScriptRef = maintained_apps.GetScriptRef(out.InstallScript)
 	out.UninstallScriptRef = maintained_apps.GetScriptRef(out.UninstallScript)
 	out.Frozen = input.Frozen
@@ -357,13 +369,19 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	return &out, nil
 }
 
-func buildUpgradeCodeBasedUninstallScript(upgradeCode string) string {
-	return file.UpgradeCodeRegex.ReplaceAllString(file.UninstallMsiWithUpgradeCodeScript, fmt.Sprintf("\"%s\"${suffix}", upgradeCode))
+func buildUpgradeCodeBasedUninstallScript(upgradeCode string) (string, error) {
+	if err := file.ValidatePackageIdentifiers(nil, upgradeCode); err != nil {
+		return "", err
+	}
+	return file.UpgradeCodeRegex.ReplaceAllString(file.UninstallMsiWithUpgradeCodeScript, fmt.Sprintf("'%s'${suffix}", upgradeCode)), nil
 }
 
-func preProcessUninstallScript(uninstallScript, productCode string) string {
-	code := fmt.Sprintf("\"%s\"", productCode)
-	return file.PackageIDRegex.ReplaceAllString(uninstallScript, fmt.Sprintf("%s${suffix}", code))
+func preProcessUninstallScript(uninstallScript, productCode string) (string, error) {
+	if err := file.ValidatePackageIdentifiers([]string{productCode}, ""); err != nil {
+		return "", err
+	}
+	code := fmt.Sprintf("'%s'", productCode)
+	return file.PackageIDRegex.ReplaceAllString(uninstallScript, fmt.Sprintf("%s${suffix}", code)), nil
 }
 
 // these are installer types that correspond to software vendors, not the actual installer type
@@ -480,6 +498,7 @@ const (
 	installerTypeWix      = "wix"
 	installerTypeNullSoft = "nullsoft"
 	installerTypeInno     = "inno"
+	installerTypeBurn     = "burn"
 	arch64Bit             = "x64"
 	arch32Bit             = "x86"
 )

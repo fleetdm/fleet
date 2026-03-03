@@ -6,10 +6,12 @@ import (
 	"context"
 	"fmt"
 	"html/template"
+	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/WatchBeam/clock"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -22,7 +24,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/sso"
-	kitlog "github.com/go-kit/log"
 )
 
 var _ fleet.Service = (*Service)(nil)
@@ -34,7 +35,7 @@ type Service struct {
 	carveStore     fleet.CarveStore
 	resultStore    fleet.QueryResultStore
 	liveQueryStore fleet.LiveQueryStore
-	logger         kitlog.Logger
+	logger         *slog.Logger
 	config         config.FleetConfig
 	clock          clock.Clock
 
@@ -71,6 +72,10 @@ type Service struct {
 	keyValueStore fleet.KeyValueStore
 
 	androidSvc android.Service
+
+	// activitySvc is the activity bounded context service for creating activities.
+	// When set, NewActivity delegates to this service instead of the legacy implementation.
+	activitySvc activity_api.NewActivityService
 }
 
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
@@ -124,7 +129,7 @@ func NewService(
 	ds fleet.Datastore,
 	task *async.Task,
 	resultStore fleet.QueryResultStore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	osqueryLogger *OsqueryLogger,
 	config config.FleetConfig,
 	mailService fleet.MailService,
@@ -190,6 +195,12 @@ func NewService(
 
 func (svc *Service) SendEmail(ctx context.Context, mail fleet.Email) error {
 	return svc.mailService.SendEmail(ctx, mail)
+}
+
+// SetActivityService sets the activity bounded context service for creating activities.
+// This should be called after NewService to inject the activity service dependency.
+func (svc *Service) SetActivityService(activitySvc activity_api.NewActivityService) {
+	svc.activitySvc = activitySvc
 }
 
 type validationMiddleware struct {

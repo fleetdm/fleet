@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
@@ -38,6 +39,12 @@ type YaraRuleByNameFunc func(ctx context.Context, name string) (*fleet.YaraRule,
 type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) (users []*fleet.User, err error)
 
 type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error)
+
+type GetHostLiteFunc func(ctx context.Context, id uint) (host *fleet.Host, err error)
+
+type GetActivitiesWebhookSettingsFunc func(ctx context.Context) (fleet.ActivitiesWebhookSettings, error)
+
+type ActivateNextUpcomingActivityForHostFunc func(ctx context.Context, hostID uint, fromCompletedExecID string) error
 
 type GetTransparencyURLFunc func(ctx context.Context) (string, error)
 
@@ -173,7 +180,7 @@ type GetQuerySpecsFunc func(ctx context.Context, teamID *uint) ([]*fleet.QuerySp
 
 type GetQuerySpecFunc func(ctx context.Context, teamID *uint, name string) (*fleet.QuerySpec, error)
 
-type ListQueriesFunc func(ctx context.Context, opt fleet.ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, platform *string) ([]*fleet.Query, int, *fleet.PaginationMetadata, error)
+type ListQueriesFunc func(ctx context.Context, opt fleet.ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, platform *string) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error)
 
 type GetQueryFunc func(ctx context.Context, id uint) (*fleet.Query, error)
 
@@ -218,8 +225,6 @@ type StreamHostsFunc func(ctx context.Context, opt fleet.HostListOptions) (hostI
 type ListHostsFunc func(ctx context.Context, opt fleet.HostListOptions) (hosts []*fleet.Host, err error)
 
 type GetHostFunc func(ctx context.Context, id uint, opts fleet.HostDetailOptions) (host *fleet.HostDetail, err error)
-
-type GetHostLiteFunc func(ctx context.Context, id uint) (host *fleet.Host, err error)
 
 type GetHostHealthFunc func(ctx context.Context, id uint) (hostHealth *fleet.HostHealth, err error)
 
@@ -385,11 +390,11 @@ type ModifyTeamEnrollSecretsFunc func(ctx context.Context, teamID uint, secrets 
 
 type ApplyTeamSpecsFunc func(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplyTeamSpecOptions) (map[string]uint, error)
 
+type SetActivityServiceFunc func(activitySvc api.NewActivityService)
+
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 
 type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error)
-
-type ListHostPastActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
 type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, executionID string) error
 
@@ -511,7 +516,7 @@ type ModifyTeamPolicyFunc func(ctx context.Context, teamID uint, id uint, p flee
 
 type GetTeamPolicyByIDQueriesFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
 
-type CountTeamPoliciesFunc func(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool) (int, error)
+type CountTeamPoliciesFunc func(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool) (int, int, error)
 
 type LookupGeoIPFunc func(ctx context.Context, ip string) *fleet.GeoLocation
 
@@ -540,6 +545,8 @@ type UpdateVPPTokenTeamsFunc func(ctx context.Context, tokenID uint, teamIDs []u
 type GetVPPTokensFunc func(ctx context.Context) ([]*fleet.VPPTokenDB, error)
 
 type DeleteVPPTokenFunc func(ctx context.Context, tokenID uint) error
+
+type CreateAndroidWebAppFunc func(ctx context.Context, title string, startURL string, icon io.Reader) (string, error)
 
 type BatchAssociateVPPAppsFunc func(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, error)
 
@@ -634,6 +641,8 @@ type UpdateMDMDiskEncryptionFunc func(ctx context.Context, teamID *uint, enableD
 type VerifyMDMAppleConfiguredFunc func(ctx context.Context) error
 
 type VerifyMDMWindowsConfiguredFunc func(ctx context.Context) error
+
+type VerifyMDMAndroidConfiguredFunc func(ctx context.Context) error
 
 type VerifyAnyMDMConfiguredFunc func(ctx context.Context) error
 
@@ -910,6 +919,15 @@ type Service struct {
 	UsersByIDsFunc        UsersByIDsFunc
 	UsersByIDsFuncInvoked bool
 
+	GetHostLiteFunc        GetHostLiteFunc
+	GetHostLiteFuncInvoked bool
+
+	GetActivitiesWebhookSettingsFunc        GetActivitiesWebhookSettingsFunc
+	GetActivitiesWebhookSettingsFuncInvoked bool
+
+	ActivateNextUpcomingActivityForHostFunc        ActivateNextUpcomingActivityForHostFunc
+	ActivateNextUpcomingActivityForHostFuncInvoked bool
+
 	GetTransparencyURLFunc        GetTransparencyURLFunc
 	GetTransparencyURLFuncInvoked bool
 
@@ -1180,9 +1198,6 @@ type Service struct {
 	GetHostFunc        GetHostFunc
 	GetHostFuncInvoked bool
 
-	GetHostLiteFunc        GetHostLiteFunc
-	GetHostLiteFuncInvoked bool
-
 	GetHostHealthFunc        GetHostHealthFunc
 	GetHostHealthFuncInvoked bool
 
@@ -1429,14 +1444,14 @@ type Service struct {
 	ApplyTeamSpecsFunc        ApplyTeamSpecsFunc
 	ApplyTeamSpecsFuncInvoked bool
 
+	SetActivityServiceFunc        SetActivityServiceFunc
+	SetActivityServiceFuncInvoked bool
+
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
 
 	ListHostUpcomingActivitiesFunc        ListHostUpcomingActivitiesFunc
 	ListHostUpcomingActivitiesFuncInvoked bool
-
-	ListHostPastActivitiesFunc        ListHostPastActivitiesFunc
-	ListHostPastActivitiesFuncInvoked bool
 
 	CancelHostUpcomingActivityFunc        CancelHostUpcomingActivityFunc
 	CancelHostUpcomingActivityFuncInvoked bool
@@ -1663,6 +1678,9 @@ type Service struct {
 	DeleteVPPTokenFunc        DeleteVPPTokenFunc
 	DeleteVPPTokenFuncInvoked bool
 
+	CreateAndroidWebAppFunc        CreateAndroidWebAppFunc
+	CreateAndroidWebAppFuncInvoked bool
+
 	BatchAssociateVPPAppsFunc        BatchAssociateVPPAppsFunc
 	BatchAssociateVPPAppsFuncInvoked bool
 
@@ -1803,6 +1821,9 @@ type Service struct {
 
 	VerifyMDMWindowsConfiguredFunc        VerifyMDMWindowsConfiguredFunc
 	VerifyMDMWindowsConfiguredFuncInvoked bool
+
+	VerifyMDMAndroidConfiguredFunc        VerifyMDMAndroidConfiguredFunc
+	VerifyMDMAndroidConfiguredFuncInvoked bool
 
 	VerifyAnyMDMConfiguredFunc        VerifyAnyMDMConfiguredFunc
 	VerifyAnyMDMConfiguredFuncInvoked bool
@@ -2241,6 +2262,27 @@ func (s *Service) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSumm
 	s.UsersByIDsFuncInvoked = true
 	s.mu.Unlock()
 	return s.UsersByIDsFunc(ctx, ids)
+}
+
+func (s *Service) GetHostLite(ctx context.Context, id uint) (host *fleet.Host, err error) {
+	s.mu.Lock()
+	s.GetHostLiteFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostLiteFunc(ctx, id)
+}
+
+func (s *Service) GetActivitiesWebhookSettings(ctx context.Context) (fleet.ActivitiesWebhookSettings, error) {
+	s.mu.Lock()
+	s.GetActivitiesWebhookSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetActivitiesWebhookSettingsFunc(ctx)
+}
+
+func (s *Service) ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error {
+	s.mu.Lock()
+	s.ActivateNextUpcomingActivityForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.ActivateNextUpcomingActivityForHostFunc(ctx, hostID, fromCompletedExecID)
 }
 
 func (s *Service) GetTransparencyURL(ctx context.Context) (string, error) {
@@ -2712,7 +2754,7 @@ func (s *Service) GetQuerySpec(ctx context.Context, teamID *uint, name string) (
 	return s.GetQuerySpecFunc(ctx, teamID, name)
 }
 
-func (s *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, platform *string) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+func (s *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, platform *string) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListQueriesFuncInvoked = true
 	s.mu.Unlock()
@@ -2871,13 +2913,6 @@ func (s *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailOpt
 	s.GetHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostFunc(ctx, id, opts)
-}
-
-func (s *Service) GetHostLite(ctx context.Context, id uint) (host *fleet.Host, err error) {
-	s.mu.Lock()
-	s.GetHostLiteFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetHostLiteFunc(ctx, id)
 }
 
 func (s *Service) GetHostHealth(ctx context.Context, id uint) (hostHealth *fleet.HostHealth, err error) {
@@ -3454,6 +3489,13 @@ func (s *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, a
 	return s.ApplyTeamSpecsFunc(ctx, specs, applyOpts)
 }
 
+func (s *Service) SetActivityService(activitySvc api.NewActivityService) {
+	s.mu.Lock()
+	s.SetActivityServiceFuncInvoked = true
+	s.mu.Unlock()
+	s.SetActivityServiceFunc(activitySvc)
+}
+
 func (s *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 	s.mu.Lock()
 	s.NewActivityFuncInvoked = true
@@ -3466,13 +3508,6 @@ func (s *Service) ListHostUpcomingActivities(ctx context.Context, hostID uint, o
 	s.ListHostUpcomingActivitiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostUpcomingActivitiesFunc(ctx, hostID, opt)
-}
-
-func (s *Service) ListHostPastActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-	s.mu.Lock()
-	s.ListHostPastActivitiesFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListHostPastActivitiesFunc(ctx, hostID, opt)
 }
 
 func (s *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error {
@@ -3895,7 +3930,7 @@ func (s *Service) GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, pol
 	return s.GetTeamPolicyByIDQueriesFunc(ctx, teamID, policyID)
 }
 
-func (s *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool) (int, error) {
+func (s *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool) (int, int, error) {
 	s.mu.Lock()
 	s.CountTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
@@ -3998,6 +4033,13 @@ func (s *Service) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 	s.DeleteVPPTokenFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteVPPTokenFunc(ctx, tokenID)
+}
+
+func (s *Service) CreateAndroidWebApp(ctx context.Context, title string, startURL string, icon io.Reader) (string, error) {
+	s.mu.Lock()
+	s.CreateAndroidWebAppFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateAndroidWebAppFunc(ctx, title, startURL, icon)
 }
 
 func (s *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, error) {
@@ -4327,6 +4369,13 @@ func (s *Service) VerifyMDMWindowsConfigured(ctx context.Context) error {
 	s.VerifyMDMWindowsConfiguredFuncInvoked = true
 	s.mu.Unlock()
 	return s.VerifyMDMWindowsConfiguredFunc(ctx)
+}
+
+func (s *Service) VerifyMDMAndroidConfigured(ctx context.Context) error {
+	s.mu.Lock()
+	s.VerifyMDMAndroidConfiguredFuncInvoked = true
+	s.mu.Unlock()
+	return s.VerifyMDMAndroidConfiguredFunc(ctx)
 }
 
 func (s *Service) VerifyAnyMDMConfigured(ctx context.Context) error {

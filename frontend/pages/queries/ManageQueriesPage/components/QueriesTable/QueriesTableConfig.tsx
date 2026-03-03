@@ -154,7 +154,7 @@ const generateColumnConfigs = ({
               <>
                 {!isCurrentTeamObserverOrGlobalObserver && observer_can_run && (
                   <TooltipWrapper
-                    tipContent="Observers can run this query."
+                    tipContent="Observers can run this report."
                     underline={false}
                     showArrow
                     position="top"
@@ -171,12 +171,12 @@ const generateColumnConfigs = ({
                 {viewingTeamScope &&
                   // inherited
                   team_id !== currentTeamId && (
-                    <InheritedBadge tooltipContent="This query runs on all hosts." />
+                    <InheritedBadge tooltipContent="This report runs on all hosts." />
                   )}
               </>
             }
             path={getPathWithQueryParams(PATHS.QUERY_DETAILS(id), {
-              team_id: team_id ?? currentTeamId,
+              fleet_id: team_id ?? currentTeamId,
             })}
           />
         );

@@ -181,8 +181,8 @@ const SoftwareVppForm = ({
     }
   };
 
-  const onToggleSelfServiceCheckbox = (value: boolean) => {
-    const newData = { ...formData, selfService: value };
+  const onToggleSelfService = () => {
+    const newData = { ...formData, selfService: !formData.selfService };
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
   };
@@ -215,8 +215,11 @@ const SoftwareVppForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
-  const onToggleAutomaticInstall = (value: boolean) => {
-    const newData = { ...formData, automaticInstall: value };
+  const onToggleAutomaticInstall = () => {
+    const newData = {
+      ...formData,
+      automaticInstall: !formData.automaticInstall,
+    };
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
   };
@@ -259,40 +262,36 @@ const SoftwareVppForm = ({
             canEdit={false}
           />
           <div className={`${baseClass}__form-frame`}>
-            <Card paddingSize="medium" borderRadiusSize="medium">
-              <SoftwareOptionsSelector
-                platform={softwareVppForEdit.platform}
-                formData={formData}
-                onToggleAutomaticInstall={onToggleAutomaticInstall}
-                onToggleSelfService={onToggleSelfServiceCheckbox}
-                onSelectCategory={onSelectCategory}
-                isEditingSoftware
-                onClickPreviewEndUserExperience={() =>
-                  onClickPreviewEndUserExperience(isAppleMobile)
-                }
-              />
-            </Card>
-            <Card paddingSize="medium" borderRadiusSize="medium">
-              <TargetLabelSelector
-                selectedTargetType={formData.targetType}
-                selectedCustomTarget={formData.customTarget}
-                selectedLabels={formData.labelTargets}
-                customTargetOptions={CUSTOM_TARGET_OPTIONS}
-                className={`${baseClass}__target`}
-                onSelectTargetType={onSelectTargetType}
-                onSelectCustomTarget={onSelectCustomTargetOption}
-                onSelectLabel={onSelectLabel}
-                labels={labels || []}
-                dropdownHelpText={
-                  generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
-                }
-                subTitle={
-                  isAppleMobile
-                    ? "Changing this will also apply to targets for auto-updates."
-                    : ""
-                }
-              />
-            </Card>
+            <SoftwareOptionsSelector
+              platform={softwareVppForEdit.platform}
+              formData={formData}
+              onToggleAutomaticInstall={onToggleAutomaticInstall}
+              onToggleSelfService={onToggleSelfService}
+              onSelectCategory={onSelectCategory}
+              isEditingSoftware
+              onClickPreviewEndUserExperience={() =>
+                onClickPreviewEndUserExperience(isAppleMobile)
+              }
+            />
+            <TargetLabelSelector
+              selectedTargetType={formData.targetType}
+              selectedCustomTarget={formData.customTarget}
+              selectedLabels={formData.labelTargets}
+              customTargetOptions={CUSTOM_TARGET_OPTIONS}
+              className={`${baseClass}__target`}
+              onSelectTargetType={onSelectTargetType}
+              onSelectCustomTarget={onSelectCustomTargetOption}
+              onSelectLabel={onSelectLabel}
+              labels={labels || []}
+              dropdownHelpText={
+                generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
+              }
+              subTitle={
+                isAppleMobile
+                  ? "Changing this will also apply to targets for auto-updates."
+                  : ""
+              }
+            />
           </div>
         </div>
       );
@@ -323,7 +322,7 @@ const SoftwareVppForm = ({
                 }
                 formData={formData}
                 onToggleAutomaticInstall={onToggleAutomaticInstall}
-                onToggleSelfService={onToggleSelfServiceCheckbox}
+                onToggleSelfService={onToggleSelfService}
                 onSelectCategory={onSelectCategory}
                 onClickPreviewEndUserExperience={() =>
                   onClickPreviewEndUserExperience(

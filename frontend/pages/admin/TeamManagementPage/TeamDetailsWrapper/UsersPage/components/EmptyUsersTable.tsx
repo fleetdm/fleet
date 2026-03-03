@@ -19,7 +19,7 @@ interface IEmptyUsersTableProps {
 const infoLink = (
   <>
     <CustomLink url={PATHS.ADMIN_USERS} text="Global users" /> can still access
-    this team.
+    this fleet.
   </>
 );
 
@@ -78,7 +78,7 @@ const EmptyMembersTable = ({
   return (
     <EmptyTable
       graphicName="empty-users"
-      header="No users on this team"
+      header="No users on this fleet"
       info={infoLink}
       primaryButton={
         <GitOpsModeTooltipWrapper

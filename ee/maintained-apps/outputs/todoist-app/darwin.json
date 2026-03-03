@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "9.26.2",
+      "version": "9.26.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.todoist.mac.Todoist';"
       },
-      "installer_url": "https://electron-dl.todoist.com/mac/Todoist-darwin-9.26.2-arm64-latest.dmg",
+      "installer_url": "https://electron-dl.todoist.com/mac/Todoist-darwin-9.26.4-arm64-latest.dmg",
       "install_script_ref": "7d23c93c",
       "uninstall_script_ref": "e14ff309",
-      "sha256": "7b9c7d10081395fac139ff545293223965a207074d0b1e0411e2e7caf43648b5",
+      "sha256": "4a846712cd043b6ed62d6612c0b5cca58ad84b6f13f9a43cac359c28107557af",
       "default_categories": [
         "Productivity"
       ]

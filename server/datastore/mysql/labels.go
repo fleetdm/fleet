@@ -32,6 +32,7 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 			if team.ID == teamID &&
 				(team.Role == fleet.RoleAdmin ||
 					team.Role == fleet.RoleMaintainer ||
+					team.Role == fleet.RoleTechnician ||
 					team.Role == fleet.RoleGitOps) {
 				return true
 			}
@@ -46,6 +47,7 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 		}
 		return *user.GlobalRole == fleet.RoleAdmin ||
 			*user.GlobalRole == fleet.RoleMaintainer ||
+			*user.GlobalRole == fleet.RoleTechnician ||
 			*user.GlobalRole == fleet.RoleGitOps
 	}
 
@@ -82,6 +84,7 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 		for _, team := range user.Teams {
 			if team.Role == fleet.RoleAdmin ||
 				team.Role == fleet.RoleMaintainer ||
+				team.Role == fleet.RoleTechnician ||
 				team.Role == fleet.RoleGitOps {
 				return true
 			}
@@ -1225,15 +1228,15 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	if diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
 		return "", nil, err
 	} else if opt.OSSettingsFilter.IsValid() {
-		query, whereParams, err = ds.filterHostsByOSSettingsStatus(query, opt, whereParams, diskEncryptionConfig)
+		query, whereParams, err = ds.filterHostsByOSSettingsStatus(ctx, query, opt, whereParams, diskEncryptionConfig)
 		if err != nil {
 			return "", nil, err
 		}
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
-		query, whereParams = ds.filterHostsByOSSettingsDiskEncryptionStatus(query, opt, whereParams, diskEncryptionConfig)
+		query, whereParams = ds.filterHostsByOSSettingsDiskEncryptionStatus(ctx, query, opt, whereParams, diskEncryptionConfig)
 	}
 	// TODO: should search columns include display_name (requires join to host_display_names)?
-	query, whereParams, _ = hostSearchLike(query, whereParams, opt.MatchQuery, hostSearchColumns...)
+	query, whereParams = hostSearchLike(query, whereParams, opt.MatchQuery, hostSearchColumns...)
 
 	if opt.ListOptions.OrderKey == "issues" {
 		opt.ListOptions.OrderKey = "host_issues.total_issues_count"

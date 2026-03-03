@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -24,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -47,6 +49,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	fleet_mock "github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
@@ -59,7 +62,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-kit/kit/endpoint"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -74,11 +76,12 @@ func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore,
 
 func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) (fleet.Service, context.Context) {
 	lic := &fleet.LicenseInfo{Tier: fleet.TierFree}
-	writer, err := logging.NewFilesystemLogWriter(fleetConfig.Filesystem.StatusLogFile, kitlog.NewNopLogger(), fleetConfig.Filesystem.EnableLogRotation, fleetConfig.Filesystem.EnableLogCompression, 500, 28, 3)
+	logger := slog.New(slog.DiscardHandler)
+	writer, err := logging.NewFilesystemLogWriter(t.Context(), fleetConfig.Filesystem.StatusLogFile, logger, fleetConfig.Filesystem.EnableLogRotation,
+		fleetConfig.Filesystem.EnableLogCompression, 500, 28, 3)
 	require.NoError(t, err)
 
 	osqlogger := &OsqueryLogger{Status: writer, Result: writer}
-	logger := kitlog.NewNopLogger()
 
 	var (
 		failingPolicySet                fleet.FailingPolicySet        = NewMemFailingPolicySet()
@@ -281,6 +284,19 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		}
 
 	}
+
+	// Set up mock activity service for unit tests. When DBConns is provided,
+	// RunServerForTestsWithServiceWithDS will overwrite this with the real bounded context.
+	activityMock := &fleet_mock.MockNewActivityService{
+		NewActivityFunc: func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		},
+	}
+	svc.SetActivityService(activityMock)
+	if len(opts) > 0 {
+		opts[0].ActivityMock = activityMock
+	}
+
 	return svc, ctx
 }
 
@@ -382,7 +398,7 @@ type ConditionalAccess struct {
 }
 
 type TestServerOpts struct {
-	Logger                          kitlog.Logger
+	Logger                          *slog.Logger
 	License                         *fleet.LicenseInfo
 	SkipCreateTestUsers             bool
 	Rs                              fleet.QueryResultStore
@@ -421,6 +437,10 @@ type TestServerOpts struct {
 	androidModule                   android.Service
 	ConditionalAccess               *ConditionalAccess
 	DBConns                         *common_mysql.DBConnections
+
+	// ActivityMock is populated automatically by newTestServiceWithConfig.
+	// After setup, tests can use it to intercept or assert on activity creation.
+	ActivityMock *fleet_mock.MockNewActivityService
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -448,7 +468,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if len(opts) == 0 || (len(opts) > 0 && !opts[0].SkipCreateTestUsers) {
 		users = createTestUsers(t, ds)
 	}
-	logger := kitlog.NewLogfmtLogger(os.Stdout)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	if len(opts) > 0 && opts[0].Logger != nil {
 		logger = opts[0].Logger
 	}
@@ -462,13 +482,14 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		legacyAuthorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
 		activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
-		activityUserProvider := activityacl.NewFleetServiceAdapter(svc)
-		_, activityRoutesFn := activity_bootstrap.New(
+		activityACLAdapter := activityacl.NewFleetServiceAdapter(svc)
+		activitySvc, activityRoutesFn := activity_bootstrap.New(
 			opts[0].DBConns,
 			activityAuthorizer,
-			activityUserProvider,
+			activityACLAdapter,
 			logger,
 		)
+		svc.SetActivityService(activitySvc)
 		activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
 			return auth.AuthenticatedUser(svc, next)
 		}
@@ -500,8 +521,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher)
 		if mdmStorage != nil && scepStorage != nil {
 			vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
-			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool))
-			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay))
+			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool), svc.NewActivity)
+			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay, svc.NewActivity))
 			checkInAndCommand.RegisterResultsHandler(fleet.DeviceLocationCmdName, NewDeviceLocationResultsHandler(ds, commander, logger))
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
@@ -558,7 +579,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if len(opts) > 0 && opts[0].HostIdentity != nil {
 		require.NoError(t, hostidentity.RegisterSCEP(rootMux, opts[0].HostIdentity.SCEPStorage, ds, logger, &cfg))
 		var httpSigVerifier func(http.Handler) http.Handler
-		httpSigVerifier, err := httpsig.Middleware(ds, opts[0].HostIdentity.RequireHTTPMessageSignature, kitlog.With(logger, "component", "http-sig-verifier"))
+		httpSigVerifier, err := httpsig.Middleware(ds, opts[0].HostIdentity.RequireHTTPMessageSignature,
+			logger.With("component", "http-sig-verifier"))
 		require.NoError(t, err)
 		extra = append(extra, WithHTTPSigVerifier(httpSigVerifier))
 	}
@@ -922,12 +944,19 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"PATCH", "/api/latest/fleet/mdm/apple/setup", false, true},
 		{"PATCH", "/api/latest/fleet/setup_experience", false, true},
 		{"POST", "/api/fleet/orbit/setup_experience/status", false, true},
+		{"POST", "/api/latest/fleet/software/web_apps", false, true},
 	}
 }
 
 func windowsMDMConfigurationRequiredEndpoints() []string {
 	return []string{
 		"/api/fleet/orbit/disk_encryption_key",
+	}
+}
+
+func androidMDMConfigurationRequiredEndpoints() []string {
+	return []string{
+		"/api/latest/fleet/software/web_apps",
 	}
 }
 
@@ -1313,20 +1342,38 @@ func createAndroidDeviceID(name string) string {
 }
 
 func statusReportMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
-	return messageWithEnterpriseSpecificID(t, android.PubSubStatusReport, deviceInfo, enterpriseSpecificID)
+	return messageWithAndroidIdentifiers(t, android.PubSubStatusReport, deviceInfo, enterpriseSpecificID, "")
 }
 
 func enrollmentMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
-	return messageWithEnterpriseSpecificID(t, android.PubSubEnrollment, deviceInfo, enterpriseSpecificID)
+	return messageWithAndroidIdentifiers(t, android.PubSubEnrollment, deviceInfo, enterpriseSpecificID, "")
 }
 
-func messageWithEnterpriseSpecificID(t *testing.T, notificationType android.NotificationType, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
+func statusReportMessageWithSerialNumber(t *testing.T, deviceInfo androidmanagement.Device, serialNumber string) *android.PubSubMessage {
+	return messageWithAndroidIdentifiers(t, android.PubSubStatusReport, deviceInfo, "", serialNumber)
+}
+
+func enrollmentMessageWithSerialNumber(t *testing.T, deviceInfo androidmanagement.Device, serialNumber string) *android.PubSubMessage {
+	return messageWithAndroidIdentifiers(t, android.PubSubEnrollment, deviceInfo, "", serialNumber)
+}
+
+func messageWithAndroidIdentifiers(t *testing.T, notificationType android.NotificationType, deviceInfo androidmanagement.Device, enterpriseSpecificID, serialNumber string) *android.PubSubMessage {
+	if serialNumber == "" && enterpriseSpecificID == "" || serialNumber != "" && enterpriseSpecificID != "" {
+		t.Fatalf("exactly one of serialNumber or enterpriseSpecificID must be provided")
+	}
 	deviceInfo.HardwareInfo = &androidmanagement.HardwareInfo{
-		EnterpriseSpecificId: enterpriseSpecificID,
-		Brand:                "TestBrand",
-		Model:                "TestModel",
-		SerialNumber:         "test-serial",
-		Hardware:             "test-hardware",
+		Brand:    "TestBrand",
+		Model:    "TestModel",
+		Hardware: "test-hardware",
+	}
+	if enterpriseSpecificID != "" {
+		deviceInfo.Ownership = android_service.DeviceOwnershipPersonallyOwned
+		deviceInfo.HardwareInfo.EnterpriseSpecificId = enterpriseSpecificID
+		deviceInfo.HardwareInfo.SerialNumber = enterpriseSpecificID
+	}
+	if serialNumber != "" {
+		deviceInfo.Ownership = android_service.DeviceOwnershipCompanyOwned
+		deviceInfo.HardwareInfo.SerialNumber = serialNumber
 	}
 	deviceInfo.SoftwareInfo = &androidmanagement.SoftwareInfo{
 		AndroidBuildNumber: "test-build",

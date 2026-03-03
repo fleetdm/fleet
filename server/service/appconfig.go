@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"net/http"
 	"net/url"
@@ -26,8 +27,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/version"
-	"github.com/go-kit/log/level"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -340,7 +342,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// SMTPSettings used to be a non-pointer on previous iterations,
 		// so if current SMTPSettings are not present (with empty values),
 		// then this is a bug, let's log an error.
-		level.Error(svc.logger).Log("msg", "smtp_settings are not present")
+		svc.logger.ErrorContext(ctx, "smtp_settings are not present")
 	}
 
 	oldAgentOptions := ""
@@ -358,6 +360,31 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	storedZendeskByGroupID, err := fleet.IndexZendeskIntegrations(appConfig.Integrations.Zendesk)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
+	}
+
+	// Rewrite deprecated JSON field names (e.g. team_id → fleet_id) before
+	// unmarshaling into AppConfig, since the request body was captured as
+	// json.RawMessage and wasn't processed by the request decoder's rewriter.
+	if rules := endpointer.ExtractAliasRules(fleet.AppConfig{}); len(rules) > 0 {
+		var err error
+		var deprecatedKeysMap map[string]string
+		if p, deprecatedKeysMap, err = endpointer.RewriteDeprecatedKeys(p, rules); err != nil {
+			msg := "failed to decode app config"
+			// If it's an alias conflict error, return a user-friendly message about deprecated fields.
+			var aliasConflictErr *endpointer.AliasConflictError
+			if errors.As(err, &aliasConflictErr) {
+				msg = err.Error()
+			}
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message:     msg,
+				InternalErr: err,
+			})
+		}
+		if len(deprecatedKeysMap) > 0 {
+			for oldKey, newKey := range deprecatedKeysMap {
+				svc.logger.WarnContext(ctx, fmt.Sprintf("App config: `%s` is deprecated, please use `%s` instead", oldKey, newKey), "log_topic", logging.DeprecatedFieldTopic)
+			}
+		}
 	}
 
 	invalid := &fleet.InvalidArgumentError{}
@@ -426,6 +453,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.WindowsMigrationEnabled = false
 	}
 
+	if oldAppConfig.MDM.WindowsEnabledAndConfigured != appConfig.MDM.WindowsEnabledAndConfigured &&
+		!appConfig.MDM.WindowsEnabledAndConfigured && len(newAppConfig.MDM.WindowsEntraTenantIDs.Value) == 0 {
+		appConfig.MDM.WindowsEntraTenantIDs.Value = []string{}
+	}
+
 	// EnableDiskEncryption is an optjson.Bool field in order to support the
 	// legacy field under "mdm.macos_settings". If the field provided to the
 	// PATCH endpoint is set but invalid (that is, "enable_disk_encryption":
@@ -446,6 +478,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	} else if appConfig.MDM.EnableDiskEncryption.Set && !appConfig.MDM.EnableDiskEncryption.Valid {
 		appConfig.MDM.EnableDiskEncryption = oldAppConfig.MDM.EnableDiskEncryption
 	}
+
 	// this is to handle the case where `enable_release_device_manually: null` is
 	// passed in the request payload, which should be treated as "not present/not
 	// changed" by the PATCH. We should really try to find a more general way to
@@ -459,6 +492,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	} else {
 		appConfig.MDM.MacOSSetup.EnableReleaseDeviceManually = oldAppConfig.MDM.MacOSSetup.EnableReleaseDeviceManually
 	}
+
+	// Apply a default value of false for LockEndUserInfo if not set
+	if !oldAppConfig.MDM.MacOSSetup.LockEndUserInfo.Valid {
+		oldAppConfig.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+	}
+	if newAppConfig.MDM.MacOSSetup.LockEndUserInfo.Valid {
+		appConfig.MDM.MacOSSetup.LockEndUserInfo = newAppConfig.MDM.MacOSSetup.LockEndUserInfo
+	} else {
+		appConfig.MDM.MacOSSetup.LockEndUserInfo = oldAppConfig.MDM.MacOSSetup.LockEndUserInfo
+	}
+
+	// If disabling EUA and LockEndUserInfo is not explicitly passed, also disable it to avoid errors if user attempts to patch EUA off.
+	// Will error during validation if user attempts to patch with EUA off and LockEndUserInfo on.
+	if oldAppConfig.MDM.MacOSSetup.EnableEndUserAuthentication != appConfig.MDM.MacOSSetup.EnableEndUserAuthentication &&
+		!appConfig.MDM.MacOSSetup.EnableEndUserAuthentication && !newAppConfig.MDM.MacOSSetup.LockEndUserInfo.Valid {
+		appConfig.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+	}
+
 	if appConfig.MDM.MacOSSetup.ManualAgentInstall.Valid && appConfig.MDM.MacOSSetup.ManualAgentInstall.Value {
 		if !lic.IsPremium() {
 			invalid.Append("macos_setup.manual_agent_install", ErrMissingLicense.Error())
@@ -504,7 +555,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			err = fleet.SuggestAgentOptionsCorrection(err)
 			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOpts.Force && !applyOpts.DryRun {
-				level.Info(svc.logger).Log("err", err, "msg", "force-apply appConfig agent options with validation errors")
+				svc.logger.InfoContext(ctx, "force-apply appConfig agent options with validation errors", "err", err)
 			}
 			if !applyOpts.Force {
 				return nil, ctxerr.Wrap(ctx, err, "validate agent options")
@@ -797,6 +848,38 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
+	}
+
+	addedEntraTenantIDs := make([]string, 0)
+	removedEntraTenantIDs := make([]string, 0)
+	oldTenantIDSet := make(map[string]struct{})
+	newTenantIDSet := make(map[string]struct{})
+
+	for _, tenantID := range oldAppConfig.MDM.WindowsEntraTenantIDs.Value {
+		oldTenantIDSet[tenantID] = struct{}{}
+	}
+	for _, tenantID := range appConfig.MDM.WindowsEntraTenantIDs.Value {
+		newTenantIDSet[tenantID] = struct{}{}
+		if _, found := oldTenantIDSet[tenantID]; !found {
+			addedEntraTenantIDs = append(addedEntraTenantIDs, tenantID)
+		}
+	}
+	for _, tenantID := range oldAppConfig.MDM.WindowsEntraTenantIDs.Value {
+		if _, found := newTenantIDSet[tenantID]; !found {
+			removedEntraTenantIDs = append(removedEntraTenantIDs, tenantID)
+		}
+	}
+	for _, tenantID := range addedEntraTenantIDs {
+		act := fleet.ActivityTypeAddedMicrosoftEntraTenant{TenantID: tenantID}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for added Microsoft Entra tenant")
+		}
+	}
+	for _, tenantID := range removedEntraTenantIDs {
+		act := fleet.ActivityTypeDeletedMicrosoftEntraTenant{TenantID: tenantID}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for deleted Microsoft Entra tenant")
+		}
 	}
 
 	// only create activities when config change has been persisted
@@ -1276,6 +1359,9 @@ func (svc *Service) validateMDM(
 	if mdm.EnableTurnOnWindowsMDMManually && !lic.IsPremium() {
 		invalid.Append("enable_turn_on_windows_mdm_manually", ErrMissingLicense.Error())
 	}
+	if len(mdm.WindowsEntraTenantIDs.Value) > 0 && !lic.IsPremium() {
+		invalid.Append("windows_entra_tenant_ids", ErrMissingLicense.Error())
+	}
 
 	// we want to use `oldMdm` here as this boolean is set by the fleet
 	// server at startup and can't be modified by the user
@@ -1386,6 +1472,16 @@ func (svc *Service) validateMDM(
 		invalid.Append("ipados_updates", err.Error())
 	}
 
+	if err := mdm.MacOSSetup.Validate(); err != nil {
+		var invalidArgErr *fleet.InvalidArgumentError
+		if errors.As(err, &invalidArgErr) {
+			firstInvalidErr := invalidArgErr.Errors[0] // We only expect one invalid argument error entry from the validate
+			invalid.AppendInvalidArgument(firstInvalidErr)
+		} else {
+			invalid.Append("macos_setup", err.Error())
+		}
+	}
+
 	// WindowsUpdates
 	updatingWindowsUpdates := !mdm.WindowsUpdates.Equal(oldMdm.WindowsUpdates)
 	if updatingWindowsUpdates {
@@ -1418,6 +1514,11 @@ func (svc *Service) validateMDM(
 			invalid.Append("macos_setup.enable_end_user_authentication",
 				`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`)
 		}
+	}
+
+	if mdm.MacOSSetup.LockEndUserInfo.Value && !mdm.MacOSSetup.EnableEndUserAuthentication {
+		invalid.Append("macos_setup.lock_end_user_info",
+			`Couldn't enable macos_setup.lock_end_user_info because macos_setup.enable_end_user_authentication is not enabled.`)
 	}
 
 	if mdm.MacOSSetup.EnableEndUserAuthentication != oldMdm.MacOSSetup.EnableEndUserAuthentication {
@@ -1468,6 +1569,20 @@ func (svc *Service) validateMDM(
 
 	if !mdm.WindowsEnabledAndConfigured && mdm.EnableTurnOnWindowsMDMManually {
 		invalid.Append("mdm.enable_turn_on_windows_mdm_manually", "Couldn't enable Turn on Windows MDM Manually, Windows MDM is not enabled.")
+	}
+
+	if !mdm.WindowsEnabledAndConfigured && len(mdm.WindowsEntraTenantIDs.Value) > 0 {
+		invalid.Append("mdm.windows_entra_tenant_ids", "Couldn't set Windows Entra tenant IDs, Windows MDM is not enabled.")
+	}
+
+	// validate Windows Entra tenant IDs are in the correct format (GUIDs). We can't use the standard UUID parser here
+	// as Azure tenants should be in the 8-4-4-4-12 format but the usual UUID parser will allow certain non-standard
+	// forms
+	guidRegex := regexp.MustCompile("^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$")
+	for _, tenantID := range mdm.WindowsEntraTenantIDs.Value {
+		if !guidRegex.MatchString(tenantID) {
+			invalid.Append("mdm.windows_entra_tenant_ids", fmt.Sprintf("Invalid Entra tenant ID: %s", tenantID))
+		}
 	}
 
 	if mdm.WindowsMigrationEnabled && mdm.EnableTurnOnWindowsMDMManually {
@@ -1767,7 +1882,33 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.Enrol
 		return nil
 	}
 
-	return svc.ds.ApplyEnrollSecrets(ctx, nil, spec.Secrets)
+	oldSecrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	if err := svc.ds.ApplyEnrollSecrets(ctx, nil, spec.Secrets); err != nil {
+		return err
+	}
+
+	// Check whether there were any mutations around the provided secrets ... if true, then register
+	// an activity.
+	oldSecretValues := make(map[string]struct{}, len(oldSecrets))
+	for _, s := range oldSecrets {
+		oldSecretValues[s.Secret] = struct{}{}
+	}
+	newSecretsValues := make(map[string]struct{}, len(spec.Secrets))
+	for _, s := range spec.Secrets {
+		newSecretsValues[s.Secret] = struct{}{}
+	}
+	if !maps.Equal(oldSecretValues, newSecretsValues) {
+		activity := fleet.ActivityTypeEditedEnrollSecrets{}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
+			return ctxerr.Wrap(ctx, err, "creating activity for edited enroll secret")
+		}
+	}
+
+	return nil
 }
 
 // //////////////////////////////////////////////////////////////////////////////

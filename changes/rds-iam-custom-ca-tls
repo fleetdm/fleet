@@ -1,0 +1,1 @@
+Fixed issue where MySQL IAM authentication could fail when a custom TLS CA/TLS config was set (for example, GovCloud), by ensuring Fleet includes the configured TLS mode in IAM DSNs.

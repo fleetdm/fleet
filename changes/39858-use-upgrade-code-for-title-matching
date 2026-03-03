@@ -1,0 +1,1 @@
+- Fixed adding Windows Fleet maintained apps failing when a software title with the same upgrade code already exists.

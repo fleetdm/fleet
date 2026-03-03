@@ -112,14 +112,14 @@ const HostQueryReport = ({
   const HQRHeader = useCallback(() => {
     const fullReportPath = getPathWithQueryParams(
       PATHS.QUERY_DETAILS(queryId),
-      { team_id: currentTeam?.id }
+      { fleet_id: currentTeam?.id }
     );
     return (
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__header__row1`}>
           <BackButton
             text="Back to host details"
-            path={PATHS.HOST_DETAILS_PAGE(hostId)}
+            path={PATHS.HOST_DETAILS(hostId)}
           />
         </div>
         <div className={`${baseClass}__header__row2`}>

@@ -43,6 +43,7 @@ module.exports = {
         'Website - Contact forms - Demo - ICP',
         'Website - Sign up',
         'Website - Newsletter',
+        'Website - GitOps',
         'LinkedIn - Comment',
         'LinkedIn - Reaction',
         'LinkedIn - Share',
@@ -176,6 +177,8 @@ module.exports = {
         cs: 'Content syndication (CS)',
         em: 'Email marketing (EM)',
       };
+
+      attributionDetails.gclid = marketingAttributionCookie.gclid;
 
       attributionDetails.sourceChannelDetails = sourceFriendlyNameByCodeName[lowerCaseMediumValue] ? sourceFriendlyNameByCodeName[lowerCaseMediumValue] : undefined;
 
@@ -390,6 +393,7 @@ module.exports = {
         valuesToSet.Most_recent_channel__c = attributionDetails.sourceChannel;// eslint-disable-line camelcase
         valuesToSet.Most_recent_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
         valuesToSet.Most_recent_campaign_initial_url__c = attributionDetails.initialUrl;// eslint-disable-line camelcase
+        valuesToSet.GCLID__c = attributionDetails.gclid;// eslint-disable-line camelcase
       }
 
 
@@ -407,7 +411,7 @@ module.exports = {
       })// If Salesforce returns a duplicates_detected error message, use the first duplicate record returned in the error.
       .tolerate({errorCode: 'DUPLICATES_DETECTED'}, (err)=>{
         // Get the first matched duplicate record returned in the error returned by Salesforce.
-        let firstContactRecordMatchedByDuplicateRule = _.get(err, 'duplicateResult.matchResults[0].matchRecords[0].record.Id');
+        let firstContactRecordMatchedByDuplicateRule = _.get(err.data, 'duplicateResult.matchResults[0].matchRecords[0].record.Id');
         if(firstContactRecordMatchedByDuplicateRule) {
           duplicateContactWasFound = true;
           return {id: firstContactRecordMatchedByDuplicateRule};

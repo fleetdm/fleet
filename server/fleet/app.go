@@ -167,16 +167,16 @@ type VulnerabilitySettings struct {
 // hosts when they're ingested during the ABM sync.
 type MDMAppleABMAssignmentInfo struct {
 	OrganizationName string `json:"organization_name"`
-	MacOSTeam        string `json:"macos_team"`
-	IOSTeam          string `json:"ios_team"`
-	IpadOSTeam       string `json:"ipados_team"`
+	MacOSTeam        string `json:"macos_team" renameto:"macos_fleet"`
+	IOSTeam          string `json:"ios_team" renameto:"ios_fleet"`
+	IpadOSTeam       string `json:"ipados_team" renameto:"ipados_fleet"`
 }
 
 // MDMAppleVolumePurchasingProgramInfo represents an user definition of the association
 // between a VPP token (via location) and the team associations.
 type MDMAppleVolumePurchasingProgramInfo struct {
 	Location string   `json:"location"`
-	Teams    []string `json:"teams"`
+	Teams    []string `json:"teams" renameto:"fleets"`
 }
 
 // MDM is part of AppConfig and defines the mdm settings.
@@ -237,6 +237,8 @@ type MDM struct {
 	WindowsMigrationEnabled        bool                     `json:"windows_migration_enabled"`
 	EnableTurnOnWindowsMDMManually bool                     `json:"enable_turn_on_windows_mdm_manually"`
 	EndUserAuthentication          MDMEndUserAuthentication `json:"end_user_authentication"`
+
+	WindowsEntraTenantIDs optjson.Slice[string] `json:"windows_entra_tenant_ids"`
 
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
@@ -530,12 +532,25 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 type MacOSSetup struct {
 	BootstrapPackage            optjson.String                     `json:"bootstrap_package"`
 	EnableEndUserAuthentication bool                               `json:"enable_end_user_authentication"`
+	LockEndUserInfo             optjson.Bool                       `json:"lock_end_user_info"`
 	MacOSSetupAssistant         optjson.String                     `json:"macos_setup_assistant"`
 	EnableReleaseDeviceManually optjson.Bool                       `json:"enable_release_device_manually"`
 	Script                      optjson.String                     `json:"script"`
 	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
 	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install"`
 	RequireAllSoftware          bool                               `json:"require_all_software_macos"`
+}
+
+func (mos *MacOSSetup) Validate() error {
+	if mos == nil {
+		return nil
+	}
+
+	if mos.ManualAgentInstall.Valid && mos.ManualAgentInstall.Value && (!mos.BootstrapPackage.Valid || mos.BootstrapPackage.Value == "") {
+		return NewInvalidArgumentError("macos_setup.manual_agent_install", `Couldn't enable manual_agent_install. To use this option, first specify a bootstrap package.`)
+	}
+
+	return nil
 }
 
 func (mos *MacOSSetup) SetDefaultsIfNeeded() {
@@ -550,6 +565,9 @@ func (mos *MacOSSetup) SetDefaultsIfNeeded() {
 	}
 	if !mos.EnableReleaseDeviceManually.Valid {
 		mos.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
+	if !mos.LockEndUserInfo.Valid {
+		mos.LockEndUserInfo = optjson.SetBool(false)
 	}
 	if !mos.Script.Valid {
 		mos.Script = optjson.SetString("")
@@ -871,6 +889,11 @@ func (c *AppConfig) Copy() *AppConfig {
 		clone.ConditionalAccess = &conditionalAccess
 	}
 
+	if c.MDM.WindowsEntraTenantIDs.Set {
+		clone.MDM.WindowsEntraTenantIDs = optjson.SetSlice(make([]string, len(c.MDM.WindowsEntraTenantIDs.Value)))
+		copy(clone.MDM.WindowsEntraTenantIDs.Value, c.MDM.WindowsEntraTenantIDs.Value)
+	}
+
 	return &clone
 }
 
@@ -1095,6 +1118,9 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	if !c.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		c.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
+	if !c.MDM.MacOSSetup.LockEndUserInfo.Valid {
+		c.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+	}
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)
 	return json.Marshal(aa)
@@ -1145,14 +1171,14 @@ const DefaultOrgInfoContactURL = "https://fleetdm.com/company/contact"
 // ServerSettings contains general settings about the Fleet application.
 type ServerSettings struct {
 	ServerURL            string `json:"server_url"`
-	LiveQueryDisabled    bool   `json:"live_query_disabled"`
+	LiveQueryDisabled    bool   `json:"live_query_disabled" renameto:"live_reporting_disabled"`
 	EnableAnalytics      bool   `json:"enable_analytics"`
 	DebugHostIDs         []uint `json:"debug_host_ids,omitempty"`
 	DeferredSaveHost     bool   `json:"deferred_save_host"`
-	QueryReportsDisabled bool   `json:"query_reports_disabled"`
+	QueryReportsDisabled bool   `json:"query_reports_disabled" renameto:"discard_reports_data"`
 	ScriptsDisabled      bool   `json:"scripts_disabled"`
 	AIFeaturesDisabled   bool   `json:"ai_features_disabled"`
-	QueryReportCap       int    `json:"query_report_cap"`
+	QueryReportCap       int    `json:"query_report_cap" renameto:"report_cap"`
 }
 
 const DefaultMaxQueryReportRows int = 1000
@@ -1304,6 +1330,7 @@ const DefaultPerPage = 1000000
 // Interface methods for common_mysql.ListOptions
 
 func (l ListOptions) GetPage() uint { return l.Page }
+
 func (l ListOptions) GetPerPage() uint {
 	if l.PerPage == 0 {
 		return DefaultPerPage
@@ -1402,7 +1429,7 @@ type EnrollSecret struct {
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	// TeamID is the ID for the associated team. If no ID is set, then this is a
 	// global enroll secret.
-	TeamID *uint `json:"team_id,omitempty" db:"team_id"`
+	TeamID *uint `json:"team_id,omitempty" renameto:"fleet_id" db:"team_id"`
 }
 
 func (e *EnrollSecret) GetTeamID() *uint {

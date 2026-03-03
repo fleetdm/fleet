@@ -4,13 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
@@ -23,7 +22,7 @@ type SoftwareWorkerTask string
 type SoftwareWorker struct {
 	Datastore     fleet.Datastore
 	AndroidModule android.Service
-	Log           kitlog.Logger
+	Log           *slog.Logger
 }
 
 func (v *SoftwareWorker) Name() string {
@@ -31,8 +30,9 @@ func (v *SoftwareWorker) Name() string {
 }
 
 const (
-	makeAndroidAppsAvailableForHostTask     SoftwareWorkerTask = "make_android_apps_available_for_host"
+	makeAndroidAppsAvailableForHostTask     SoftwareWorkerTask = "make_android_apps_available_for_host" // deprecated
 	makeAndroidAppAvailableTask             SoftwareWorkerTask = "make_android_app_available"
+	makeAndroidAppUnavailableTask           SoftwareWorkerTask = "make_android_app_unavailable"
 	runAndroidSetupExperienceTask           SoftwareWorkerTask = "run_android_setup_experience"
 	bulkSetAndroidAppsAvailableForHostTask  SoftwareWorkerTask = "bulk_set_android_apps_available_for_host"
 	bulkSetAndroidAppsAvailableForHostsTask SoftwareWorkerTask = "bulk_set_android_apps_available_for_hosts"
@@ -62,6 +62,10 @@ type softwareWorkerArgs struct {
 	// of the action that triggered this task.
 	AppConfigChanged bool            `json:"app_config_changed,omitempty"`
 	UUIDsToIDs       map[string]uint `json:"uuids_to_ids,omitempty"`
+
+	// HostUUIDToPolicyID is a map of host UUID as key to policy ID as value
+	// for which the app to make unavailable applies.
+	HostUUIDToPolicyID map[string]string `json:"host_uuid_to_policy_id,omitempty"`
 }
 
 func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) error {
@@ -87,6 +91,14 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 			v.makeAndroidAppAvailable(ctx, args.ApplicationID, args.AppTeamID, args.EnterpriseName, args.AppConfigChanged),
 			"running %s task",
 			makeAndroidAppAvailableTask,
+		)
+
+	case makeAndroidAppUnavailableTask:
+		return ctxerr.Wrapf(
+			ctx,
+			v.makeAndroidAppUnavailable(ctx, args.ApplicationID, args.HostUUIDToPolicyID, args.EnterpriseName),
+			"running %s task",
+			makeAndroidAppUnavailableTask,
 		)
 
 	case runAndroidSetupExperienceTask:
@@ -164,6 +176,16 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 		}
 	}
 
+	return nil
+}
+
+// this is called when an app is removed from Fleet.
+func (v *SoftwareWorker) makeAndroidAppUnavailable(ctx context.Context, applicationID string, hostUUIDToPolicyID map[string]string, enterpriseName string) error {
+	// Update Android MDM policy to remove the app from the hosts
+	_, err := v.AndroidModule.RemoveAppsFromAndroidPolicy(ctx, enterpriseName, []string{applicationID}, hostUUIDToPolicyID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
+	}
 	return nil
 }
 
@@ -363,7 +385,7 @@ func (v *SoftwareWorker) bulkMakeAndroidAppsAvailableForHost(ctx context.Context
 	// Include the Fleet Agent in the app list so it's not removed when we replace the apps.
 	fleetAgentPolicy, err := v.AndroidModule.BuildFleetAgentApplicationPolicy(ctx, hostUUID)
 	if err != nil {
-		level.Error(v.Log).Log("msg", "failed to build Fleet Agent policy, Fleet Agent may be removed", "host_uuid", hostUUID, "err", err)
+		v.Log.ErrorContext(ctx, "failed to build Fleet Agent policy, Fleet Agent may be removed", "host_uuid", hostUUID, "err", err)
 	} else if fleetAgentPolicy != nil {
 		appPolicies = append(appPolicies, fleetAgentPolicy)
 	}
@@ -407,7 +429,7 @@ func buildApplicationPolicyWithConfig(ctx context.Context, appIDs []string,
 	return appPolicies, nil
 }
 
-func QueueRunAndroidSetupExperience(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
+func QueueRunAndroidSetupExperience(ctx context.Context, ds fleet.Datastore, logger *slog.Logger,
 	hostUUID string, hostEnrollTeamID *uint, enterpriseName string) error {
 
 	var enrollTeamID uint
@@ -426,11 +448,11 @@ func QueueRunAndroidSetupExperience(ctx context.Context, ds fleet.Datastore, log
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 
-	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	logger.DebugContext(ctx, "queued android setup experience job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
 	return nil
 }
 
-func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, applicationID string, appTeamID uint, enterpriseName string, appConfigChanged bool) error {
+func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, applicationID string, appTeamID uint, enterpriseName string, appConfigChanged bool) error {
 	args := &softwareWorkerArgs{
 		Task:             makeAndroidAppAvailableTask,
 		ApplicationID:    applicationID,
@@ -444,14 +466,31 @@ func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, lo
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 
-	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	return nil
+}
+
+func QueueMakeAndroidAppUnavailableJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, applicationID string, hostsUUIDToPolicyID map[string]string, enterpriseName string) error {
+	args := &softwareWorkerArgs{
+		Task:               makeAndroidAppUnavailableTask,
+		ApplicationID:      applicationID,
+		HostUUIDToPolicyID: hostsUUIDToPolicyID,
+		EnterpriseName:     enterpriseName,
+	}
+
+	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "queueing job")
+	}
+
+	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
 	return nil
 }
 
 func QueueBulkSetAndroidAppsAvailableForHost(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	hostUUID string,
 	policyID string,
 	applicationIDs []string,
@@ -471,7 +510,7 @@ func QueueBulkSetAndroidAppsAvailableForHost(
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 
-	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
 	return nil
 }
 
@@ -515,7 +554,7 @@ func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context
 		// Include the Fleet Agent in the app list so it's not removed when we replace the apps.
 		fleetAgentPolicy, err := v.AndroidModule.BuildFleetAgentApplicationPolicy(ctx, uuid)
 		if err != nil {
-			level.Error(v.Log).Log("msg", "failed to build Fleet Agent policy, Fleet Agent may be removed", "host_uuid", uuid, "err", err)
+			v.Log.ErrorContext(ctx, "failed to build Fleet Agent policy, Fleet Agent may be removed", "host_uuid", uuid, "err", err)
 		} else if fleetAgentPolicy != nil {
 			appPolicies = append(appPolicies, fleetAgentPolicy)
 		}
@@ -535,7 +574,7 @@ func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context
 func QueueBulkSetAndroidAppsAvailableForHosts(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	uuidsToIDs map[string]uint,
 	enterpriseName string) error {
 
@@ -550,6 +589,6 @@ func QueueBulkSetAndroidAppsAvailableForHosts(
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 
-	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
 	return nil
 }

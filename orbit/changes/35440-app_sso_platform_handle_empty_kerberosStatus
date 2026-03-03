@@ -1,0 +1,1 @@
+* When querying the "app_sso_platform" table, return empty result set if Kerberos status is not available.

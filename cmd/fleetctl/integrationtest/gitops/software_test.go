@@ -72,8 +72,8 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_setup_software_defined_in_conflicting_places.yml", " Setup experience may only be specified directly on software or within macos_setup, but not both."},
 		{"testdata/gitops/team_setup_software_defined_in_conflicting_places_vpp.yml", " Setup experience may only be specified directly on software or within macos_setup, but not both."},
 		{"testdata/gitops/team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
-		{"testdata/gitops/team_setup_software_invalid_software_package.yml", "no_such_software.yml\" does not exist for that team"},
-		{"testdata/gitops/team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that team"},
+		{"testdata/gitops/team_setup_software_invalid_software_package.yml", "no_such_software.yml\" does not exist for that fleet"},
+		{"testdata/gitops/team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that fleet"},
 		{"testdata/gitops/team_software_installer_valid_ipa.yml", ""},
 		{"testdata/gitops/team_software_installer_subdir_ipa.yml", ""},
 	}
@@ -312,6 +312,9 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 			ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
 				return nil
 			}
+			ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+				return &fleet.TeamLite{}, nil
+			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
 			globalFile := "../../fleetctl/testdata/gitops/global_config_no_paths.yml"
@@ -368,8 +371,8 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		// No team tests for setup experience software/script
 		{"testdata/gitops/no_team_setup_software_valid.yml", ""},
 		{"testdata/gitops/no_team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
-		{"testdata/gitops/no_team_setup_software_invalid_software_package.yml", "no_such_software.yml\" does not exist for that team"},
-		{"testdata/gitops/no_team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that team"},
+		{"testdata/gitops/no_team_setup_software_invalid_software_package.yml", "no_such_software.yml\" does not exist for that fleet"},
+		{"testdata/gitops/no_team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that fleet"},
 		{"testdata/gitops/no_team_software_installer_valid_ipa.yml", ""},
 		{"testdata/gitops/no_team_software_installer_subdir_ipa.yml", ""},
 	}
@@ -446,6 +449,9 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 			}
 			ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
 				return nil
+			}
+			ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+				return &fleet.TeamLite{}, nil
 			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
@@ -677,6 +683,9 @@ func TestGitOpsTeamVPPAndApp(t *testing.T) {
 	}
 	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
 		return nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{}, nil
 	}
 
 	buf, err := fleetctl.RunAppNoChecks([]string{
@@ -993,6 +1002,9 @@ software:
 
 			ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
 				return nil, nil
+			}
+			ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+				return &fleet.TeamLite{}, nil
 			}
 
 			args := []string{"gitops"}

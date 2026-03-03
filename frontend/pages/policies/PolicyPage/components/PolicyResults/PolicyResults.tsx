@@ -169,7 +169,7 @@ const PolicyResults = ({
     if (finishedWithNoResults) {
       return (
         <p className="no-results-message">
-          Your live query returned no results.
+          Your live report returned no results.
           <span>
             Expecting to see results? Check to see if the host
             {`${targetsTotalCount > 1 ? "s" : ""}`} you targeted reported

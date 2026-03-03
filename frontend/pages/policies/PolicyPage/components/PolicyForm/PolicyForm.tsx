@@ -3,7 +3,7 @@
 import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
 import { useQuery } from "react-query";
 
-import { IAceEditor } from "react-ace/lib/types";
+import { Ace } from "ace-builds";
 import ReactTooltip from "react-tooltip";
 import { useDebouncedCallback } from "use-debounce";
 import { size } from "lodash";
@@ -162,6 +162,8 @@ const PolicyForm = ({
     isGlobalMaintainer,
     isTeamMaintainerOrTeamAdmin,
     isObserverPlus,
+    isTeamTechnician,
+    isGlobalTechnician,
     isOnGlobalTeam,
     isPremiumTier,
     config,
@@ -226,7 +228,7 @@ const PolicyForm = ({
 
   policyIdForEdit = policyIdForEdit || 0;
 
-  const isEditMode = !!policyIdForEdit && !isTeamObserver && !isGlobalObserver;
+  const isExistingPolicy = !!policyIdForEdit;
 
   const isNewTemplatePolicy =
     !policyIdForEdit &&
@@ -274,16 +276,13 @@ const PolicyForm = ({
   }, [lastEditedQueryBody, lastEditedQueryId]);
 
   const hasSavePermissions =
-    !isEditMode || // save a new policy
-    isGlobalAdmin ||
-    isGlobalMaintainer ||
-    isTeamMaintainerOrTeamAdmin;
+    isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
 
-  const onLoad = (editor: IAceEditor) => {
+  const onLoad = (editor: Ace.Editor) => {
     editor.setOptions({
       enableLinking: true,
       enableMultiselect: false, // Disables command + click creating multiple cursors
-    });
+    } as any);
 
     // @ts-expect-error
     // the string "linkClick" is not officially in the lib but we need it
@@ -316,14 +315,14 @@ const PolicyForm = ({
   const promptSavePolicy = () => (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
-    if (isEditMode && !lastEditedQueryName) {
+    if (isExistingPolicy && !lastEditedQueryName) {
       return setErrors({
         ...errors,
         name: "Policy name must be present",
       });
     }
 
-    if (isEditMode && !isAnyPlatformSelected) {
+    if (isExistingPolicy && !isAnyPlatformSelected) {
       return setErrors({
         ...errors,
         name: "At least one platform must be selected",
@@ -331,7 +330,7 @@ const PolicyForm = ({
     }
 
     let selectedPlatforms = getSelectedPlatforms();
-    if (selectedPlatforms.length === 0 && !isEditMode && !defaultPolicy) {
+    if (selectedPlatforms.length === 0 && !isExistingPolicy && !defaultPolicy) {
       // If no platforms are selected, default to all compatible platforms
       selectedPlatforms = getCompatiblePlatforms();
       setSelectedPlatforms(selectedPlatforms);
@@ -345,7 +344,7 @@ const PolicyForm = ({
       setLastEditedQueryPlatform(newPlatformString);
     }
 
-    if (!isEditMode) {
+    if (!isExistingPolicy) {
       setIsSaveNewPolicyModalOpen(true);
     } else {
       const payload: IPolicyFormData = {
@@ -467,7 +466,7 @@ const PolicyForm = ({
   );
 
   const renderName = () => {
-    if (isEditMode) {
+    if (isExistingPolicy) {
       return (
         <GitOpsModeTooltipWrapper
           position="right"
@@ -523,7 +522,7 @@ const PolicyForm = ({
   };
 
   const renderDescription = () => {
-    if (isEditMode) {
+    if (isExistingPolicy) {
       return (
         <GitOpsModeTooltipWrapper
           position="right"
@@ -569,7 +568,7 @@ const PolicyForm = ({
   };
 
   const renderResolution = () => {
-    if (isEditMode) {
+    if (isExistingPolicy) {
       return (
         <div className={`form-field ${baseClass}__policy-resolve`}>
           <div className="form-field__label">Resolve</div>
@@ -619,7 +618,7 @@ const PolicyForm = ({
 
   const renderPlatformCompatibility = () => {
     if (
-      isEditMode &&
+      isExistingPolicy &&
       (isStoredPolicyLoading || policyIdForEdit !== lastEditedQueryId)
     ) {
       return null;
@@ -655,9 +654,10 @@ const PolicyForm = ({
   };
 
   // Non-editable form used for:
-  // Team observers and team observer+ viewing any of their team's policies and any inherited policies
-  // Team admins and team maintainers viewing any inherited policy
-  // And Global observers and global observer+ viewing any team's policies and any inherited policies
+  // - Team observers and team observer+ viewing any of their team's policies and any inherited policies
+  // - Team admins and team maintainers viewing any inherited policy
+  // - Global observers and global observer+ viewing any team's policies and any inherited policies
+  // - Global technicians and team technicians viewing any team's policies and any inherited policies
   const renderNonEditableForm = (
     <form className={`${baseClass}__wrapper`}>
       <div className={`${baseClass}__title-bar`}>
@@ -695,12 +695,15 @@ const PolicyForm = ({
         />
       )}
       {renderLiveQueryWarning()}
-      {(isObserverPlus || isTeamMaintainerOrTeamAdmin) && ( // Team admin, team maintainer and any Observer+ can run a policy
+      {(isObserverPlus ||
+        isTeamMaintainerOrTeamAdmin ||
+        isGlobalTechnician ||
+        isTeamTechnician) && ( // Team admin, team maintainer, any Observer+ and any Technician can run a policy
         <div className="button-wrap">
           <Button
             className={`${baseClass}__run`}
             onClick={goToSelectTargets}
-            disabled={isEditMode && !isAnyPlatformSelected}
+            disabled={isExistingPolicy && !isAnyPlatformSelected}
           >
             Run
           </Button>
@@ -715,7 +718,7 @@ const PolicyForm = ({
   const renderEditablePolicyForm = () => {
     // Save disabled for no platforms selected, query name blank on existing query, or sql errors
     const disableSaveFormErrors =
-      (isEditMode && !isAnyPlatformSelected) ||
+      (isExistingPolicy && !isAnyPlatformSelected) ||
       (lastEditedQueryName === "" && !!lastEditedQueryId) ||
       (selectedTargetType === "Custom" &&
         !Object.entries(selectedLabels).some(([, value]) => {
@@ -728,7 +731,7 @@ const PolicyForm = ({
         <form className={`${baseClass}__wrapper`} autoComplete="off">
           <div className={`${baseClass}__title-bar`}>
             <div className={`${baseClass}__policy-name`}>{renderName()}</div>
-            {isEditMode && renderAuthor()}
+            {isExistingPolicy && renderAuthor()}
           </div>
           {renderDescription()}
           {renderResolution()}
@@ -743,11 +746,11 @@ const PolicyForm = ({
             onChange={onChangePolicySql}
             handleSubmit={promptSavePolicy}
             wrapEnabled
-            focus={!isEditMode}
+            focus={!isExistingPolicy}
           />
           {renderPlatformCompatibility()}
-          {isEditMode && platformSelector.render()}
-          {isEditMode && isPremiumTier && (
+          {isExistingPolicy && platformSelector.render()}
+          {isExistingPolicy && isPremiumTier && (
             <TargetLabelSelector
               selectedTargetType={selectedTargetType}
               selectedCustomTarget={selectedCustomTarget}
@@ -767,7 +770,7 @@ const PolicyForm = ({
               suppressTitle
             />
           )}
-          {isEditMode && isPremiumTier && renderCriticalPolicy()}
+          {isExistingPolicy && isPremiumTier && renderCriticalPolicy()}
           {renderLiveQueryWarning()}
           <div className="button-wrap">
             {hasSavePermissions && (
@@ -779,7 +782,9 @@ const PolicyForm = ({
                       className={`${baseClass}__button-wrap--tooltip`}
                       data-tip
                       data-for="save-policy-button"
-                      data-tip-disable={!isEditMode || isAnyPlatformSelected}
+                      data-tip-disable={
+                        !isExistingPolicy || isAnyPlatformSelected
+                      }
                     >
                       <Button
                         onClick={promptSavePolicy()}
@@ -813,13 +818,15 @@ const PolicyForm = ({
               data-tip
               data-for="run-policy-button"
               data-tip-disable={
-                (!isEditMode || isAnyPlatformSelected) && !disabledLiveQuery
+                (!isExistingPolicy || isAnyPlatformSelected) &&
+                !disabledLiveQuery
               }
             >
               <Button
                 onClick={goToSelectTargets}
                 disabled={
-                  (isEditMode && !isAnyPlatformSelected) || disabledLiveQuery
+                  (isExistingPolicy && !isAnyPlatformSelected) ||
+                  disabledLiveQuery
                 }
                 variant="inverse"
               >
@@ -835,7 +842,7 @@ const PolicyForm = ({
               data-html
             >
               {disabledLiveQuery ? (
-                <>Live queries are disabled in organization settings</>
+                <>Live reports are disabled in organization settings</>
               ) : (
                 <>
                   Select the platforms this <br />
@@ -876,6 +883,8 @@ const PolicyForm = ({
   const noEditPermissions =
     isTeamObserver ||
     isGlobalObserver ||
+    isTeamTechnician ||
+    isGlobalTechnician ||
     (!isOnGlobalTeam && isInheritedPolicy); // Team user viewing inherited policy
 
   // Render non-editable form only

@@ -1,1 +1,0 @@
-- Updated `fleetctl generate-gitops` to output Fleet-maintained apps in a dedicated `fleet_maintained_apps` section of the YAML files.

@@ -271,8 +271,14 @@ type LoggingConfig struct {
 	DisableBanner        bool          `yaml:"disable_banner"`
 	ErrorRetentionPeriod time.Duration `yaml:"error_retention_period"`
 	TracingEnabled       bool          `yaml:"tracing_enabled"`
-	// TracingType can either be opentelemetry or elasticapm for whichever type of tracing wanted
+	// TracingType can be set to TracingTypeElasticAPM to send traces to Elastic APM.
+	// By default (empty or any other value), traces are sent to OpenTelemetry (OTEL).
 	TracingType string `yaml:"tracing_type"`
+	// OtelLogsEnabled enables exporting logs to an OpenTelemetry collector.
+	// When enabled, logs are sent to both stderr and the OTLP endpoint.
+	OtelLogsEnabled  bool   `yaml:"otel_logs_enabled"`
+	EnableLogTopics  string `yaml:"enable_topics"`
+	DisableLogTopics string `yaml:"disable_topics"`
 }
 
 // ActivityConfig defines configs related to activities.
@@ -669,7 +675,7 @@ type FleetConfig struct {
 }
 
 func (f FleetConfig) OTELEnabled() bool {
-	return f.Logging.TracingEnabled && f.Logging.TracingType == "opentelemetry"
+	return f.Logging.TracingEnabled && f.Logging.TracingType != "elasticapm"
 }
 
 type PartnershipsConfig struct {
@@ -795,6 +801,7 @@ type MDMConfig struct {
 
 	SSORateLimitPerMinute             int  `yaml:"sso_rate_limit_per_minute"`
 	EnableCustomOSUpdatesAndFileVault bool `yaml:"enable_custom_os_updates_and_filevault"`
+	AllowAllDeclarations              bool `yaml:"allow_all_declarations"`
 
 	AndroidAgent AndroidAgentConfig `yaml:"android_agent"`
 }
@@ -1294,7 +1301,7 @@ func (man Manager) addConfigs() {
 		"Batch size to pop items from redis in async collection")
 	man.addConfigInt("osquery.async_host_redis_scan_keys_count", 1000,
 		"Batch size to scan redis keys in async collection")
-	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 1*time.Hour,
+	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 2*time.Minute,
 		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
 
 	// Activities
@@ -1314,8 +1321,14 @@ func (man Manager) addConfigs() {
 		"Amount of time to keep errors, 0 means no expiration, < 0 means disable storage of errors")
 	man.addConfigBool("logging.tracing_enabled", false,
 		"Enable Tracing, further configured via standard env variables")
-	man.addConfigString("logging.tracing_type", "opentelemetry",
-		"Select the kind of tracing, defaults to opentelemetry, can also be elasticapm")
+	man.addConfigString("logging.tracing_type", "",
+		"Select the kind of tracing, defaults to OpenTelemetry, can also be elasticapm")
+	man.addConfigBool("logging.otel_logs_enabled", false,
+		"Enable exporting logs to an OpenTelemetry collector (requires tracing_enabled)")
+	man.addConfigString("logging.enable_topics", "",
+		"Comma-separated log topics to enable (overrides code defaults)")
+	man.addConfigString("logging.disable_topics", "",
+		"Comma-separated log topics to disable (overrides code defaults)")
 
 	// Email
 	man.addConfigString("email.backend", "", "Provide the email backend type, acceptable values are currently \"ses\" and \"default\" or empty string which will default to SMTP")
@@ -1575,6 +1588,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
 	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
 	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Experimental feature: allows usage of specific Apple MDM profiles for OS updates and FileVault")
+	man.addConfigBool("mdm.allow_all_declarations", false, "Experimental feature: Allows all MDM declaration types to be sent")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
 	man.hideConfig("mdm.android_agent.package")
@@ -1745,6 +1759,9 @@ func (man Manager) LoadConfig() FleetConfig {
 			ErrorRetentionPeriod: man.getConfigDuration("logging.error_retention_period"),
 			TracingEnabled:       man.getConfigBool("logging.tracing_enabled"),
 			TracingType:          man.getConfigString("logging.tracing_type"),
+			OtelLogsEnabled:      man.getConfigBool("logging.otel_logs_enabled"),
+			EnableLogTopics:      man.getConfigString("logging.enable_topics"),
+			DisableLogTopics:     man.getConfigString("logging.disable_topics"),
 		},
 		Firehose: FirehoseConfig{
 			Region:           man.getConfigString("firehose.region"),
@@ -1895,6 +1912,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			WindowsWSTEPIdentityKeyBytes:      man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
 			SSORateLimitPerMinute:             man.getConfigInt("mdm.sso_rate_limit_per_minute"),
 			EnableCustomOSUpdatesAndFileVault: man.getConfigBool("mdm.enable_custom_os_updates_and_filevault"),
+			AllowAllDeclarations:              man.getConfigBool("mdm.allow_all_declarations"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),

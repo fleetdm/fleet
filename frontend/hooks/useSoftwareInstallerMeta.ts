@@ -13,11 +13,13 @@ import {
   getInstallerCardInfo,
   InstallerCardInfo,
 } from "pages/SoftwarePage/SoftwareTitleDetailsPage/helpers";
+import { compareVersions } from "utilities/helpers";
 
 export interface SoftwareInstallerMeta {
   installerType: InstallerType;
   isAndroidPlayStoreApp: boolean;
   isFleetMaintainedApp: boolean;
+  isLatestFmaVersion: boolean;
   isCustomPackage: boolean;
   isIosOrIpadosApp: boolean;
   sha256?: string;
@@ -66,6 +68,24 @@ export const useSoftwareInstaller = (
       "fleet_maintained_app_id" in softwareInstaller &&
       !!softwareInstaller.fleet_maintained_app_id;
 
+    const isLatestFmaVersion =
+      isFleetMaintainedApp &&
+      "fleet_maintained_versions" in softwareInstaller &&
+      !!softwareInstaller.fleet_maintained_versions &&
+      softwareInstaller.fleet_maintained_versions.every(
+        (fma) =>
+          // Verify that the installer version is not older than any known
+          // Fleet‑maintained version by requiring compareVersions to return
+          // 0 (equal) or 1 (greater) for every entry.
+          compareVersions(softwareInstaller.version ?? "", fma.version ?? "") >=
+          0
+      );
+
+    const fmaVersions =
+      isFleetMaintainedApp && "fleet_maintained_versions" in softwareInstaller
+        ? softwareInstaller.fleet_maintained_versions
+        : [];
+
     const isCustomPackage =
       installerType === "package" && !isFleetMaintainedApp;
 
@@ -110,6 +130,8 @@ export const useSoftwareInstaller = (
         installerType,
         isAndroidPlayStoreApp,
         isFleetMaintainedApp,
+        isLatestFmaVersion,
+        fmaVersions,
         isCustomPackage,
         isIosOrIpadosApp,
         sha256,

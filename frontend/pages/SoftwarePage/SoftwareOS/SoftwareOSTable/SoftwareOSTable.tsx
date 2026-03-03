@@ -120,7 +120,7 @@ const SoftwareOSTable = ({
   const generateNewQueryParams = useCallback(
     (newTableQuery: ITableQueryData, changedParam: string) => {
       return {
-        team_id: teamId,
+        fleet_id: teamId,
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
@@ -162,7 +162,7 @@ const SoftwareOSTable = ({
   const handleRowSelect = (row: IRowProps) => {
     const path = getPathWithQueryParams(
       PATHS.SOFTWARE_OS_DETAILS(Number(row.original.os_version_id)),
-      { team_id: teamId }
+      { fleet_id: teamId }
     );
 
     router.push(path);
@@ -216,7 +216,7 @@ const SoftwareOSTable = ({
       getNextLocationPath({
         pathPrefix: PATHS.SOFTWARE_OS,
         queryParams: {
-          team_id: teamId,
+          fleet_id: teamId,
           order_direction: orderDirection,
           order_key: orderKey,
           page: 0,

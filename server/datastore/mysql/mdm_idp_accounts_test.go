@@ -146,7 +146,7 @@ func testAndroidEnrollmentFlowWithIdP(t *testing.T, ds *Datastore) {
 	androidHost.SetNodeKey(enterpriseSpecificID)
 
 	// simulates enrollment call
-	result, err := ds.NewAndroidHost(ctx, androidHost)
+	result, err := ds.NewAndroidHost(ctx, androidHost, false)
 	require.NoError(t, err)
 	require.NotZero(t, result.Host.ID)
 

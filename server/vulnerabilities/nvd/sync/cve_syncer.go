@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -27,8 +28,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/pandatix/nvdapi/common"
 	"github.com/pandatix/nvdapi/v2"
 )
@@ -42,7 +41,7 @@ import (
 type CVE struct {
 	client           *http.Client
 	dbDir            string
-	logger           log.Logger
+	logger           *slog.Logger
 	debug            bool
 	WaitTimeForRetry time.Duration
 	MaxTryAttempts   int
@@ -64,8 +63,8 @@ type CVEOption func(*CVE)
 
 // WithLogger sets the logger for a CVE syncer.
 //
-// Default value is log.NewNopLogger().
-func WithLogger(logger log.Logger) CVEOption {
+// Default value is slog.New(slog.DiscardHandler).
+func WithLogger(logger *slog.Logger) CVEOption {
 	return func(s *CVE) {
 		s.logger = logger
 	}
@@ -90,7 +89,7 @@ func NewCVE(dbDir string, opts ...CVEOption) (*CVE, error) {
 	s := CVE{
 		client:           fleethttp.NewClient(),
 		dbDir:            dbDir,
-		logger:           log.NewNopLogger(),
+		logger:           slog.New(slog.DiscardHandler),
 		MaxTryAttempts:   maxRetryAttempts,
 		WaitTimeForRetry: waitTimeForRetry,
 	}
@@ -111,17 +110,17 @@ func (s *CVE) Do(ctx context.Context) error {
 		return err
 	}
 	if !ok {
-		level.Debug(s.logger).Log("msg", "initial NVD CVE sync")
+		s.logger.DebugContext(ctx, "initial NVD CVE sync")
 		return s.initSync(ctx)
 	}
-	level.Debug(s.logger).Log("msg", "NVD CVE update")
+	s.logger.DebugContext(ctx, "NVD CVE update")
 	return s.update(ctx)
 }
 
 // initSync performs the initial synchronization (full download) of all CVEs.
 func (s *CVE) initSync(ctx context.Context) error {
 	// Remove any legacy feeds from previous versions of Fleet.
-	if err := s.removeLegacyFeeds(); err != nil {
+	if err := s.removeLegacyFeeds(ctx); err != nil {
 		return err
 	}
 
@@ -140,7 +139,7 @@ func (s *CVE) initSync(ctx context.Context) error {
 }
 
 // removeLegacyFeeds removes all the legacy feed files downloaded by previous versions of Fleet.
-func (s *CVE) removeLegacyFeeds() error {
+func (s *CVE) removeLegacyFeeds(ctx context.Context) error {
 	// Using * to remove new unfinished syncs (uncompressed)
 	jsonGzs, err := filepath.Glob(filepath.Join(s.dbDir, "nvdcve-1.1-*.json*"))
 	if err != nil {
@@ -151,7 +150,7 @@ func (s *CVE) removeLegacyFeeds() error {
 		return err
 	}
 	for _, path := range append(jsonGzs, metas...) {
-		level.Debug(s.logger).Log("msg", "removing legacy feed file", "path", path)
+		s.logger.DebugContext(ctx, "removing legacy feed file", "path", path)
 		if err := os.Remove(path); err != nil {
 			return err
 		}
@@ -202,7 +201,7 @@ func (s *CVE) update(ctx context.Context) error {
 	return nil
 }
 
-func (s *CVE) updateYearFile(year int, cves []nvdapi.CVEItem) error {
+func (s *CVE) updateYearFile(ctx context.Context, year int, cves []nvdapi.CVEItem) error {
 	// The NVD legacy feed files start at year 2002.
 	// This is assumed by the github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools package.
 	if year < 2002 {
@@ -215,7 +214,7 @@ func (s *CVE) updateYearFile(year int, cves []nvdapi.CVEItem) error {
 	if err != nil {
 		return err
 	}
-	level.Debug(s.logger).Log("msg", "read cves", "year", year, "duration", time.Since(readStart))
+	s.logger.DebugContext(ctx, "read cves", "year", year, "duration", time.Since(readStart))
 
 	// Convert new API 2.0 format to legacy feed format and create map of new CVE information.
 	newLegacyCVEs := make(map[string]*schema.NVDCVEFeedJSON10DefCVEItem)
@@ -223,7 +222,7 @@ func (s *CVE) updateYearFile(year int, cves []nvdapi.CVEItem) error {
 		if cve.CVE.VulnStatus != nil && *cve.CVE.VulnStatus == "Rejected" {
 			continue
 		}
-		legacyCVE := convertAPI20CVEToLegacy(cve.CVE, s.logger)
+		legacyCVE := convertAPI20CVEToLegacy(ctx, cve.CVE, s.logger)
 		newLegacyCVEs[legacyCVE.CVE.CVEDataMeta.ID] = legacyCVE
 	}
 
@@ -238,7 +237,7 @@ func (s *CVE) updateYearFile(year int, cves []nvdapi.CVEItem) error {
 			delete(newLegacyCVEs, storedCVE.CVE.CVEDataMeta.ID)
 		}
 	}
-	level.Debug(s.logger).Log("msg", "updated cves", "year", year, "duration", time.Since(updateStart))
+	s.logger.DebugContext(ctx, "updated cves", "year", year, "duration", time.Since(updateStart))
 
 	// Add any new CVEs (e.g. a new vulnerability has been found since last time so a new CVE number was reported).
 	//
@@ -253,14 +252,14 @@ func (s *CVE) updateYearFile(year int, cves []nvdapi.CVEItem) error {
 	if err := storeCVEsInLegacyFormat(s.dbDir, year, storedCVEFeed); err != nil {
 		return err
 	}
-	level.Debug(s.logger).Log("msg", "stored cves", "year", year, "duration", time.Since(storeStart))
+	s.logger.DebugContext(ctx, "stored cves", "year", year, "duration", time.Since(storeStart))
 
 	return nil
 }
 
 var cachedCVEFeeds = map[int]*schema.NVDCVEFeedJSON10{}
 
-func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE, modCount, addCount *int) error {
+func (s *CVE) updateVulnCheckYearFile(ctx context.Context, year int, cves []VulnCheckCVE, modCount, addCount *int) error {
 	// The NVD legacy feed files start at year 2002.
 	// This is assumed by the facebookincubator/nvdtools package.
 	if year < 2002 {
@@ -286,7 +285,7 @@ func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE, modCount, a
 		if cve.CVE.VulnStatus != nil && *cve.CVE.VulnStatus == "Rejected" {
 			continue
 		}
-		legacyCVE := convertAPI20CVEToLegacy(cve.CVE, s.logger)
+		legacyCVE := convertAPI20CVEToLegacy(ctx, cve.CVE, s.logger)
 		updateWithVulnCheckConfigurations(legacyCVE, cve.VcConfigurations)
 		newLegacyCVEs[legacyCVE.CVE.CVEDataMeta.ID] = legacyCVE
 	}
@@ -313,12 +312,12 @@ func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE, modCount, a
 		}
 	}
 	*modCount += counter
-	level.Debug(s.logger).Log("msg", "updating vulncheck cves", "year", year, "count", counter)
+	s.logger.DebugContext(ctx, "updating vulncheck cves", "year", year, "count", counter)
 
 	// Add any new CVEs (e.g. a new vulnerability has been found since last time so a new CVE number was reported).
 	//
 	// Any leftover items from the previous loop in newLegacyCVEs are new CVEs.
-	level.Debug(s.logger).Log("msg", "adding new vulncheck cves", "year", year, "count", len(newLegacyCVEs), "duration", time.Since(updateStart))
+	s.logger.DebugContext(ctx, "adding new vulncheck cves", "year", year, "count", len(newLegacyCVEs), "duration", time.Since(updateStart))
 	*addCount += len(newLegacyCVEs)
 	for _, cve := range newLegacyCVEs {
 		storedCVEFeed.CVEItems = append(storedCVEFeed.CVEItems, cve)
@@ -424,7 +423,7 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 			if retryAttempts > maxRetryAttempts {
 				return "", err
 			}
-			s.logger.Log("msg", "NVD request returned error", "err", err, "retry-in", waitTimeForRetry)
+			s.logger.WarnContext(ctx, "NVD request returned error", "err", err, "retry-in", waitTimeForRetry)
 			retryAttempts++
 			select {
 			case <-ctx.Done():
@@ -473,11 +472,11 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 				}
 			}
 			start := time.Now()
-			if err := s.updateYearFile(yearWithMostVulns, cvesByYear[yearWithMostVulns]); err != nil {
+			if err := s.updateYearFile(ctx, yearWithMostVulns, cvesByYear[yearWithMostVulns]); err != nil {
 				return "", err
 			}
 			updateDuration = time.Since(start)
-			level.Debug(s.logger).Log("msg", "updated file", "year", yearWithMostVulns, "duration", updateDuration, "vulns", maxVulnsInYear)
+			s.logger.DebugContext(ctx, "updated file", "year", yearWithMostVulns, "duration", updateDuration, "vulns", maxVulnsInYear)
 
 			vulnerabilitiesReceived -= maxVulnsInYear
 			delete(cvesByYear, yearWithMostVulns)
@@ -494,10 +493,10 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 
 	for year, cvesInYear := range cvesByYear {
 		start := time.Now()
-		if err := s.updateYearFile(year, cvesInYear); err != nil {
+		if err := s.updateYearFile(ctx, year, cvesInYear); err != nil {
 			return "", err
 		}
-		level.Debug(s.logger).Log("msg", "updated file", "year", year, "duration", time.Since(start), "vulns", len(cvesInYear))
+		s.logger.DebugContext(ctx, "updated file", "year", year, "duration", time.Since(start), "vulns", len(cvesInYear))
 	}
 
 	return newLastModStartDate, nil
@@ -557,7 +556,7 @@ func (s *CVE) DoVulnCheck(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "error downloading archive")
 	}
 
-	err = s.processVulnCheckFile(vulnCheckArchive)
+	err = s.processVulnCheckFile(ctx, vulnCheckArchive)
 	if err != nil {
 		return fmt.Errorf("error processing VulnCheck file: %w", err)
 	}
@@ -592,7 +591,7 @@ func (s *CVE) fetchVulnCheckDownloadURL(ctx context.Context, baseURL string) (st
 			if resp != nil {
 				resp.Body.Close()
 			}
-			s.logger.Log("msg", "VulnCheck API request failed", "attempt", attempt, "error", err)
+			s.logger.WarnContext(ctx, "VulnCheck API request failed", "attempt", attempt, "error", err)
 			if attempt == s.MaxTryAttempts {
 				return "", ctxerr.Wrap(ctx, err, "max retry attempts reached")
 			}
@@ -605,7 +604,7 @@ func (s *CVE) fetchVulnCheckDownloadURL(ctx context.Context, baseURL string) (st
 		}
 
 		resp.Body.Close() // Close the body if we are going to retry or fail
-		s.logger.Log("msg", "VulnCheck API request failed", "attempt", attempt, "status", resp.StatusCode, "retry-in", s.WaitTimeForRetry)
+		s.logger.WarnContext(ctx, "VulnCheck API request failed", "attempt", attempt, "status", resp.StatusCode, "retry-in", s.WaitTimeForRetry)
 		if attempt == s.MaxTryAttempts {
 			return "", ctxerr.New(ctx, "max retry attempts reached")
 		}
@@ -674,7 +673,7 @@ func (s *CVE) downloadVulnCheckArchive(ctx context.Context, downloadURL, outFile
 	return nil
 }
 
-func (s *CVE) processVulnCheckFile(fileName string) error {
+func (s *CVE) processVulnCheckFile(ctx context.Context, fileName string) error {
 	sanitizedPath, err := sanitizeArchivePath(s.dbDir, fileName)
 	if err != nil {
 		return fmt.Errorf("error sanitizing archive path: %w", err)
@@ -738,10 +737,10 @@ func (s *CVE) processVulnCheckFile(fileName string) error {
 			cvesByYear[year] = append(cvesByYear[year], cve.Item)
 		}
 
-		level.Debug(s.logger).Log("msg", "read vulncheck file", "file", file.Name)
+		s.logger.DebugContext(ctx, "read vulncheck file", "file", file.Name)
 
 		for year, cvesInYear := range cvesByYear {
-			if err := s.updateVulnCheckYearFile(year, cvesInYear, &modCount, &addCount); err != nil {
+			if err := s.updateVulnCheckYearFile(ctx, year, cvesInYear, &modCount, &addCount); err != nil {
 				return err
 			}
 		}
@@ -758,7 +757,7 @@ func (s *CVE) processVulnCheckFile(fileName string) error {
 		}
 	}
 
-	level.Debug(s.logger).Log("total updated", modCount, "total added", addCount, "store duration", time.Since(storeStart))
+	s.logger.DebugContext(ctx, "vulncheck sync complete", "total_updated", modCount, "total_added", addCount, "store_duration", time.Since(storeStart))
 
 	return nil
 }
@@ -848,8 +847,8 @@ func derefPtr[T any](p *T) T {
 }
 
 // convertAPI20CVEToLegacy performs the conversion of a CVE in API 2.0 format to the legacy feed format.
-func convertAPI20CVEToLegacy(cve nvdapi.CVE, logger log.Logger) *schema.NVDCVEFeedJSON10DefCVEItem {
-	logger = log.With(logger, "cve", cve.ID)
+func convertAPI20CVEToLegacy(ctx context.Context, cve nvdapi.CVE, logger *slog.Logger) *schema.NVDCVEFeedJSON10DefCVEItem {
+	logger = logger.With("cve", cve.ID)
 
 	descriptions := make([]*schema.CVEJSON40LangString, 0, len(cve.Descriptions))
 	for _, description := range cve.Descriptions {
@@ -865,7 +864,7 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVE, logger log.Logger) *schema.NVDCVEFe
 			continue
 		// non-English descriptions with unknown language tags are ignored and warned.
 		default:
-			level.Warn(logger).Log("msg", "Unknown CVE description language tag", "lang", description.Lang)
+			logger.WarnContext(ctx, "Unknown CVE description language tag", "lang", description.Lang)
 			continue
 		}
 		descriptions = append(descriptions, &schema.CVEJSON40LangString{
@@ -1127,11 +1126,11 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVE, logger log.Logger) *schema.NVDCVEFe
 
 	lastModified, err := convertAPI20TimeToLegacy(cve.LastModified)
 	if err != nil {
-		logger.Log("msg", "failed to parse lastModified time", "err", err)
+		logger.WarnContext(ctx, "failed to parse lastModified time", "err", err)
 	}
 	publishedDate, err := convertAPI20TimeToLegacy(cve.Published)
 	if err != nil {
-		logger.Log("msg", "failed to parse published time", "err", err)
+		logger.WarnContext(ctx, "failed to parse published time", "err", err)
 	}
 
 	return &schema.NVDCVEFeedJSON10DefCVEItem{

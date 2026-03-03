@@ -1,0 +1,1 @@
+- Implemented uninstall of Android apps on the device (and removal from self-service in the managed Google Play store) when an app is removed from Fleet.
