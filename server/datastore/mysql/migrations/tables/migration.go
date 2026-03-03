@@ -19,8 +19,10 @@ import (
 var MigrationClient = goose.New("migration_status_tables", goose.MySqlDialect{})
 
 // can override in tests
-var outputTo io.Writer = os.Stderr
-var progressInterval = time.Second * 5
+var (
+	outputTo         io.Writer = os.Stderr
+	progressInterval           = time.Second * 5
+)
 
 type migrationStep func(tx *sql.Tx) error
 
@@ -31,9 +33,18 @@ func basicMigrationStep(statement string, errorMessage string) migrationStep {
 	}
 }
 
-type getTotalCountFn func(tx *sql.Tx) (uint64, error)
-type incrementCountFn func()
-type executeWithProgressFn func(tx *sql.Tx, increment incrementCountFn) error
+func basicMigrationStepWithArgs(statement string, args []any, errorMessage string) migrationStep {
+	return func(tx *sql.Tx) error {
+		_, err := tx.Exec(statement, args...)
+		return errors.Wrap(err, errorMessage)
+	}
+}
+
+type (
+	getTotalCountFn       func(tx *sql.Tx) (uint64, error)
+	incrementCountFn      func()
+	executeWithProgressFn func(tx *sql.Tx, increment incrementCountFn) error
+)
 
 func incrementalMigrationStep(count getTotalCountFn, execute executeWithProgressFn) migrationStep {
 	return func(tx *sql.Tx) error {

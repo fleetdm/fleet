@@ -372,8 +372,8 @@ If your organisation's policy is to harden rather than remove OpenClaw, the proj
 
 Download the two YAML files and place them in your Fleet GitOps repository's `lib/` folder:
 
-- [`openclaw-detection.policies.`](https://github.com/fleetdm/fleet/tree/main/docs/solutions/macos/policies/openclaw-detection.policies.yml) contains three platform-specific detection policies (macOS, Linux, Windows)
-- [`openclaw-detection.queries.yml`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/queries/openclaw-detection.queries.yml) contains eleven investigation queries and twelve threat hunting queries with differential logging
+- [`openclaw-detection.policies.`](https://github.com/fleetdm/fleet/tree/main/docs/solutions/all/policies/openclaw-detection.policies.yml) contains three platform-specific detection policies (macOS, Linux, Windows)
+- [`openclaw-detection.queries.yml`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/all/queries/openclaw-detection.queries.yml) contains eleven investigation queries and twelve threat hunting queries with differential logging
 
 Reference them from your team YAML:
 

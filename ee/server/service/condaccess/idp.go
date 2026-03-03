@@ -8,6 +8,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,11 +21,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	dsig "github.com/russellhaering/goxmldsig"
 )
@@ -63,7 +61,7 @@ func (e *notFoundError) IsNotFound() bool {
 // idpService implements the Okta conditional access IdP functionality.
 type idpService struct {
 	ds               fleet.Datastore
-	logger           *logging.Logger
+	logger           *slog.Logger
 	certSerialFormat string
 }
 
@@ -71,7 +69,7 @@ type idpService struct {
 func RegisterIdP(
 	mux *http.ServeMux,
 	ds fleet.Datastore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	fleetConfig *config.FleetConfig,
 ) error {
 	if fleetConfig == nil {
@@ -85,7 +83,7 @@ func RegisterIdP(
 	}
 
 	// Create logging middleware
-	loggingMiddleware := log.NewLoggingMiddleware(svc.logger.SlogLogger())
+	loggingMiddleware := log.NewLoggingMiddleware(svc.logger)
 
 	// Register handlers with logging and OpenTelemetry middleware
 	// Order: OTEL wraps logging to capture full request lifecycle
@@ -105,12 +103,9 @@ func RegisterIdP(
 // This function should be used whenever returning StatusInternalServerError to ensure
 // consistent error handling across the IdP service.
 // Additional key-value pairs can be passed for logging context (e.g., "host_id", hostID).
-func handleInternalServerError(ctx context.Context, w http.ResponseWriter, logger kitlog.Logger, msg string, err error, keyvals ...any) {
-	// Build the log keyvals starting with msg and err
-	logKeyvals := []any{"msg", msg, "err", err}
-	logKeyvals = append(logKeyvals, keyvals...)
-
-	level.Error(logger).Log(logKeyvals...)
+func handleInternalServerError(ctx context.Context, w http.ResponseWriter, logger *slog.Logger, msg string, err error, keyvals ...any) {
+	logKeyvals := append([]any{"err", err}, keyvals...)
+	logger.ErrorContext(ctx, msg, logKeyvals...)
 	ctxerr.Handle(ctx, err)
 	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 }
@@ -130,7 +125,7 @@ func (s *idpService) serveMetadata(w http.ResponseWriter, r *http.Request) {
 	// Get Fleet server URL from config
 	serverURL := appConfig.ServerSettings.ServerURL
 	if serverURL == "" {
-		level.Error(s.logger).Log("msg", "server URL not configured")
+		s.logger.ErrorContext(ctx, "server URL not configured")
 		http.Error(w, "Server URL not configured", http.StatusNotFound)
 		return
 	}
@@ -139,7 +134,7 @@ func (s *idpService) serveMetadata(w http.ResponseWriter, r *http.Request) {
 	idp, err := s.buildIdentityProvider(ctx, serverURL)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			level.Error(s.logger).Log("msg", "IdP certificate or key not found", "err", err)
+			s.logger.ErrorContext(ctx, "IdP certificate or key not found", "err", err)
 			http.Error(w, "IdP not configured", http.StatusNotFound)
 			return
 		}
@@ -156,8 +151,7 @@ func (s *idpService) serveMetadata(w http.ResponseWriter, r *http.Request) {
 func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	level.Info(s.logger).Log(
-		"msg", "received SSO request",
+	s.logger.InfoContext(ctx, "received SSO request",
 		"method", r.Method,
 		"remote_addr", r.RemoteAddr,
 	)
@@ -165,7 +159,7 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 	// Extract certificate serial number from header (set by load balancer)
 	serialStr := r.Header.Get("X-Client-Cert-Serial")
 	if serialStr == "" {
-		level.Error(s.logger).Log("msg", "missing client certificate serial", "remote_addr", r.RemoteAddr)
+		s.logger.ErrorContext(ctx, "missing client certificate serial", "remote_addr", r.RemoteAddr)
 		http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
 		return
 	}
@@ -173,7 +167,9 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 	// Parse serial number (hex or decimal string to uint64, based on config)
 	serial, err := parseSerialNumber(serialStr, s.certSerialFormat)
 	if err != nil {
-		level.Error(s.logger).Log("msg", "invalid certificate serial format", "serial", serialStr, "format", s.certSerialFormat, "err", err)
+		s.logger.ErrorContext(ctx, "invalid certificate serial format",
+			"serial", serialStr, "format", s.certSerialFormat, "err", err,
+		)
 		http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
 		return
 	}
@@ -182,7 +178,7 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 	hostID, err := s.ds.GetConditionalAccessCertHostIDBySerialNumber(ctx, serial)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			level.Error(s.logger).Log("msg", "certificate not recognized", "serial", serial, "err", err)
+			s.logger.ErrorContext(ctx, "certificate not recognized", "serial", serial, "err", err)
 			http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
 			return
 		}
@@ -190,7 +186,7 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	level.Debug(s.logger).Log("msg", "found host for certificate", "host_id", hostID, "serial", serial)
+	s.logger.DebugContext(ctx, "found host for certificate", "host_id", hostID, "serial", serial)
 
 	// Load AppConfig for IdP configuration
 	appConfig, err := s.ds.AppConfig(ctx)
@@ -210,7 +206,7 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 	idp, err := s.buildIdentityProvider(ctx, serverURL)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			level.Error(s.logger).Log("msg", "IdP certificate or key not found", "err", err)
+			s.logger.ErrorContext(ctx, "IdP certificate or key not found", "err", err)
 			http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
 			return
 		}
@@ -226,7 +222,7 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ServeSSO handles SAML AuthnRequest parsing, generates assertion, and returns response
-	level.Debug(s.logger).Log("msg", "calling SAML IdP ServeSSO", "host_id", hostID)
+	s.logger.DebugContext(ctx, "calling SAML IdP ServeSSO", "host_id", hostID)
 
 	// Wrap response writer to intercept 400 errors and redirect to certificate error page
 	wrappedWriter := &statusInterceptingWriter{
@@ -244,7 +240,7 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 type statusInterceptingWriter struct {
 	http.ResponseWriter
 	ctx           context.Context
-	logger        kitlog.Logger
+	logger        *slog.Logger
 	r             *http.Request
 	redirectURL   string
 	headerWritten bool
@@ -256,7 +252,7 @@ func (w *statusInterceptingWriter) WriteHeader(statusCode int) {
 	}
 	w.headerWritten = true
 	if statusCode == http.StatusBadRequest {
-		level.Error(w.logger).Log("msg", "SAML IdP returned bad request, redirecting to error page", "status", statusCode)
+		w.logger.ErrorContext(w.ctx, "SAML IdP returned bad request, redirecting to error page", "status", statusCode)
 		http.Redirect(w.ResponseWriter, w.r, w.redirectURL, http.StatusSeeOther)
 		return
 	}
@@ -302,7 +298,7 @@ func extractNameID(req *saml.IdpAuthnRequest) string {
 // device health verification during SAML SSO flow.
 type deviceHealthSessionProvider struct {
 	ds     fleet.Datastore
-	logger kitlog.Logger
+	logger *slog.Logger
 	hostID uint
 }
 
@@ -315,13 +311,13 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 	// Okta sends this to identify which user is authenticating
 	nameID := extractNameID(req)
 
-	level.Debug(p.logger).Log("msg", "processing SAML session", "host_id", p.hostID)
+	p.logger.DebugContext(ctx, "processing SAML session", "host_id", p.hostID)
 
 	// Load host to get team ID
 	hostLite, err := p.ds.HostLite(ctx, p.hostID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			level.Error(p.logger).Log("msg", "host not found", "host_id", p.hostID, "err", err)
+			p.logger.ErrorContext(ctx, "host not found", "host_id", p.hostID, "err", err)
 			http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
 			return nil
 		}
@@ -378,8 +374,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 	}
 
 	if failingConditionalAccessCount > 0 {
-		level.Debug(p.logger).Log(
-			"msg", "device has failing conditional access policies",
+		p.logger.DebugContext(ctx, "device has failing conditional access policies",
 			"host_id", p.hostID,
 			"failing_conditional_access_policies_count", failingConditionalAccessCount,
 		)
@@ -398,7 +393,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 				if fleet.IsNotFound(loadErr) {
 					needNewToken = true // Case 1: token exists but is expired
 				} else {
-					level.Error(p.logger).Log("msg", "failed to validate device auth token", "err", loadErr, "host_id", p.hostID)
+					p.logger.ErrorContext(ctx, "failed to validate device auth token", "err", loadErr, "host_id", p.hostID)
 					ctxerr.Handle(ctx, loadErr)
 					http.Redirect(w, r, remediateURL, http.StatusSeeOther)
 					return nil
@@ -408,8 +403,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 			needNewToken = true // Case 2: no token exists (e.g. fresh install without Fleet Desktop)
 		default:
 			// Unexpected error. Log and redirect to generic remediation page.
-			level.Error(p.logger).Log(
-				"msg", "failed to get device auth token",
+			p.logger.ErrorContext(ctx, "failed to get device auth token",
 				"err", getErr,
 				"host_id", p.hostID,
 			)
@@ -425,8 +419,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 			// previous_token for one rotation cycle.
 			authToken = uuid.NewString()
 			if setErr := p.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, authToken); setErr != nil {
-				level.Error(p.logger).Log(
-					"msg", "failed to create device auth token",
+				p.logger.ErrorContext(ctx, "failed to create device auth token",
 					"err", setErr,
 					"host_id", p.hostID,
 				)
@@ -462,8 +455,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 		}
 
 		// Host has clicked "bypass" for this check, we have consumed it and will let them through
-		level.Info(p.logger).Log(
-			"msg", "device has bypassed conditional access checks",
+		p.logger.InfoContext(ctx, "device has bypassed conditional access checks",
 			"host_id", p.hostID,
 		)
 	}
@@ -473,11 +465,10 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 	// If no NameID was provided in the request, fall back to host-based identifier
 	if nameID == "" {
 		nameID = fmt.Sprintf("host-%d", p.hostID)
-		level.Debug(p.logger).Log("msg", "no NameID in request, using host-based identifier", "name_id", nameID)
+		p.logger.DebugContext(ctx, "no NameID in request, using host-based identifier", "name_id", nameID)
 	}
 
-	level.Info(p.logger).Log(
-		"msg", "device is compliant, generating SAML assertion",
+	p.logger.InfoContext(ctx, "device is compliant, generating SAML assertion",
 		"host_id", p.hostID,
 	)
 
@@ -490,7 +481,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 // Okta service provider metadata to the IdP.
 type oktaServiceProviderProvider struct {
 	ds     fleet.Datastore
-	logger kitlog.Logger
+	logger *slog.Logger
 }
 
 // GetServiceProvider returns the Okta service provider metadata.
@@ -514,9 +505,10 @@ func (p *oktaServiceProviderProvider) GetServiceProvider(r *http.Request, servic
 
 	// Check if the requested service provider ID (entityID) matches our configured Okta Audience URI
 	if serviceProviderID != appConfig.ConditionalAccess.OktaAudienceURI.Value {
-		level.Debug(p.logger).Log("msg", "service provider ID mismatch",
+		p.logger.DebugContext(ctx, "service provider ID mismatch",
 			"requested", serviceProviderID,
-			"configured", appConfig.ConditionalAccess.OktaAudienceURI.Value)
+			"configured", appConfig.ConditionalAccess.OktaAudienceURI.Value,
+		)
 		return nil, os.ErrNotExist
 	}
 
@@ -608,8 +600,7 @@ func (s *idpService) buildIdentityProvider(ctx context.Context, serverURL string
 	}
 	ssoURL = ssoURL.JoinPath(idpSSOPath)
 
-	// Create kitlog adapter for SAML library
-	samlLogger := &kitlogAdapter{logger: s.logger.With("component", "saml-idp")}
+	samlLogger := &slogAdapter{ctx: ctx, logger: s.logger.With("component", "saml-idp")}
 
 	// Build IdentityProvider
 	// Note: SessionProvider is set dynamically in serveSSO based on the authenticated device

@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -215,12 +216,14 @@ func TestValidGitOpsYaml(t *testing.T) {
 						switch fma.Slug {
 						case "slack/darwin":
 							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Communication"})
+							require.Equal(t, "4.47.65", fma.Version)
 							require.Empty(t, fma.PreInstallQuery)
 							require.Empty(t, fma.PostInstallScript)
 							require.Empty(t, fma.InstallScript)
 							require.Empty(t, fma.UninstallScript)
 						case "box-drive/windows":
 							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Developer tools"})
+							require.Empty(t, fma.Version)
 							require.NotEmpty(t, fma.PreInstallQuery)
 							require.NotEmpty(t, fma.PostInstallScript)
 							require.NotEmpty(t, fma.InstallScript)
@@ -621,35 +624,104 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config += "name: No team\nsettings:\n  features:\n    enable_host_users: false\n"
 					noTeamPath3, noTeamBasePath3 := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath3, noTeamBasePath3, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported settings option 'features' for 'No team' - only 'webhook_settings' is allowed")
+					assert.ErrorContains(t, err, "unsupported settings option 'features' in no-team.yml - only 'webhook_settings' is allowed")
 
 					// No team with multiple settings options (one valid, one invalid) should fail
 					config = getConfig([]string{"name", "settings"})
 					config += "name: No team\nsettings:\n  webhook_settings:\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n  secrets:\n    - secret: test\n"
 					noTeamPath4, noTeamBasePath4 := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath4, noTeamBasePath4, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported settings option 'secrets' for 'No team' - only 'webhook_settings' is allowed")
+					assert.ErrorContains(t, err, "unsupported settings option 'secrets' in no-team.yml - only 'webhook_settings' is allowed")
 
 					// No team with host_status_webhook in webhook_settings should fail
 					config = getConfig([]string{"name", "settings"})
 					config += "name: No team\nsettings:\n  webhook_settings:\n    host_status_webhook:\n      enable_host_status_webhook: true\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n"
 					noTeamPath5a, noTeamBasePath5a := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath5a, noTeamBasePath5a, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported webhook_settings option 'host_status_webhook' for 'No team'; only 'failing_policies_webhook' is allowed")
+					assert.ErrorContains(t, err, "unsupported webhook_settings option 'host_status_webhook' in no-team.yml - only 'failing_policies_webhook' is allowed")
 
 					// No team with vulnerabilities_webhook in webhook_settings should fail
 					config = getConfig([]string{"name", "settings"})
 					config += "name: No team\nsettings:\n  webhook_settings:\n    vulnerabilities_webhook:\n      enable_vulnerabilities_webhook: true\n"
 					noTeamPath5b, noTeamBasePath5b := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath5b, noTeamBasePath5b, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported webhook_settings option 'vulnerabilities_webhook' for 'No team'; only 'failing_policies_webhook' is allowed")
+					assert.ErrorContains(t, err, "unsupported webhook_settings option 'vulnerabilities_webhook' in no-team.yml - only 'failing_policies_webhook' is allowed")
 
 					// 'No team' file with invalid name.
 					config = getConfig([]string{"name", "settings"})
 					config += "name: No team\n"
 					noTeamPath6, noTeamBasePath6 := createNamedFileOnTempDir(t, "foobar.yml", config)
 					_, err = GitOpsFromFile(noTeamPath6, noTeamBasePath6, nil, nopLogf)
-					assert.ErrorContains(t, err, fmt.Sprintf("file %q for 'No team' must be named 'no-team.yml'", noTeamPath6))
+					assert.ErrorContains(t, err, fmt.Sprintf("file `%s` for No Team must be named `no-team.yml`", noTeamPath6))
+
+					// no-team.yml with a non-"No Team" name should fail.
+					config = getConfig([]string{"name", "settings"})
+					config += "name: SomeOtherTeam\nsettings:\n  secrets:\n"
+					noTeamPath7, noTeamBasePath7 := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath7, noTeamBasePath7, nil, nopLogf)
+					assert.ErrorContains(t, err, fmt.Sprintf("file %q must have team name 'No Team'", noTeamPath7))
+
+					// unassigned.yml with a non-"Unassigned" name should fail.
+					config = getConfig([]string{"name", "settings"})
+					config += "name: SomeOtherTeam\nsettings:\n  secrets:\n"
+					unassignedPathBadName, unassignedBasePathBadName := createNamedFileOnTempDir(t, "unassigned.yml", config)
+					_, err = GitOpsFromFile(unassignedPathBadName, unassignedBasePathBadName, nil, nopLogf)
+					assert.ErrorContains(t, err, fmt.Sprintf("file %q must have team name 'Unassigned'", unassignedPathBadName))
+
+					// no-team.yml with "Unassigned" name should fail (wrong name for this file).
+					config = getConfig([]string{"name", "settings"})
+					config += "name: Unassigned\n"
+					noTeamPath8, noTeamBasePath8 := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath8, noTeamBasePath8, nil, nopLogf)
+					assert.ErrorContains(t, err, fmt.Sprintf("file %q must have team name 'No Team'", noTeamPath8))
+
+					// unassigned.yml with "No team" name should fail (wrong name for this file).
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\n"
+					unassignedPathNoTeam, unassignedBasePathNoTeam := createNamedFileOnTempDir(t, "unassigned.yml", config)
+					_, err = GitOpsFromFile(unassignedPathNoTeam, unassignedBasePathNoTeam, nil, nopLogf)
+					assert.ErrorContains(t, err, fmt.Sprintf("file %q must have team name 'Unassigned'", unassignedPathNoTeam))
+
+					// 'Unassigned' team in unassigned.yml should work and coerce to "No team" internally.
+					config = getConfig([]string{"name", "settings"})
+					config += "name: Unassigned\n"
+					unassignedPath1, unassignedBasePath1 := createNamedFileOnTempDir(t, "unassigned.yml", config)
+					gitops, err = GitOpsFromFile(unassignedPath1, unassignedBasePath1, nil, nopLogf)
+					assert.NoError(t, err)
+					assert.NotNil(t, gitops)
+					assert.True(t, gitops.IsNoTeam(), "unassigned.yml should be treated as no-team after coercion")
+					assert.Equal(t, "No team", *gitops.TeamName)
+
+					// 'Unassigned' team with wrong filename should fail.
+					config = getConfig([]string{"name", "settings"})
+					config += "name: Unassigned\n"
+					unassignedPath2, unassignedBasePath2 := createNamedFileOnTempDir(t, "foobar.yml", config)
+					_, err = GitOpsFromFile(unassignedPath2, unassignedBasePath2, nil, nopLogf)
+					assert.ErrorContains(t, err, fmt.Sprintf("file `%s` for unassigned hosts must be named `unassigned.yml`", unassignedPath2))
+
+					// 'Unassigned' (case-insensitive) in unassigned.yml should work.
+					config = getConfig([]string{"name", "settings"})
+					config += "name: unassigned\n"
+					unassignedPath3, unassignedBasePath3 := createNamedFileOnTempDir(t, "unassigned.yml", config)
+					gitops, err = GitOpsFromFile(unassignedPath3, unassignedBasePath3, nil, nopLogf)
+					assert.NoError(t, err)
+					assert.NotNil(t, gitops)
+					assert.True(t, gitops.IsNoTeam())
+
+					// 'Unassigned' with webhook settings in unassigned.yml should work.
+					config = getConfig([]string{"name", "settings"})
+					config += "name: Unassigned\nsettings:\n  webhook_settings:\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n"
+					unassignedPath4, unassignedBasePath4 := createNamedFileOnTempDir(t, "unassigned.yml", config)
+					gitops, err = GitOpsFromFile(unassignedPath4, unassignedBasePath4, nil, nopLogf)
+					assert.NoError(t, err)
+					assert.NotNil(t, gitops)
+
+					// 'Unassigned' with invalid settings option should fail with unassigned.yml in message.
+					config = getConfig([]string{"name", "settings"})
+					config += "name: Unassigned\nsettings:\n  features:\n    enable_host_users: false\n"
+					unassignedPath5, unassignedBasePath5 := createNamedFileOnTempDir(t, "unassigned.yml", config)
+					_, err = GitOpsFromFile(unassignedPath5, unassignedBasePath5, nil, nopLogf)
+					assert.ErrorContains(t, err, "unsupported settings option 'features' in unassigned.yml")
 
 					// Missing secrets
 					config = getConfig([]string{"settings"})
@@ -1592,4 +1664,252 @@ policies: []
 		assert.NotNil(t, gitops)
 		assert.NotNil(t, gitops.TeamSettings["webhook_settings"])
 	})
+}
+
+func TestContainsGlobMeta(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"./scripts/foo.sh", false},
+		{"./scripts/*.sh", true},
+		{"./scripts/**/*.sh", true},
+		{"./scripts/[abc].sh", true},
+		{"./scripts/{a,b}.sh", true},
+		{"./scripts/foo?.sh", true},
+		{"", false},
+	}
+	for _, tt := range tests {
+		assert.Equal(t, tt.want, containsGlobMeta(tt.input), "containsGlobMeta(%q)", tt.input)
+	}
+}
+
+func TestResolveScriptPathsGlob(t *testing.T) {
+	t.Parallel()
+
+	// requireErrorContains is a helper that asserts at least one error contains substr.
+	requireErrorContains := func(t *testing.T, errs []error, substr string) {
+		t.Helper()
+		require.NotEmpty(t, errs, "expected errors but got none")
+		var found bool
+		for _, err := range errs {
+			if strings.Contains(err.Error(), substr) {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "expected an error containing %q, got: %v", substr, errs)
+	}
+
+	t.Run("basic_glob", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "c.ps1"), []byte("# powershell"), 0o644))
+
+		items := []BaseItem{{Paths: ptr.String("*.sh")}}
+		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 2)
+		assert.Equal(t, filepath.Join(dir, "a.sh"), *result[0].Path)
+		assert.Equal(t, filepath.Join(dir, "b.sh"), *result[1].Path)
+		// Paths field should not be set on expanded items
+		assert.Nil(t, result[0].Paths)
+		assert.Nil(t, result[1].Paths)
+	})
+
+	t.Run("recursive_glob", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		subdir := filepath.Join(dir, "sub")
+		require.NoError(t, os.MkdirAll(subdir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "top.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(subdir, "nested.sh"), []byte("#!/bin/bash"), 0o644))
+
+		items := []BaseItem{{Paths: ptr.String("**/*.sh")}}
+		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 2)
+		// Results are sorted
+		assert.Equal(t, filepath.Join(subdir, "nested.sh"), *result[0].Path)
+		assert.Equal(t, filepath.Join(dir, "top.sh"), *result[1].Path)
+	})
+
+	t.Run("mixed_path_and_paths", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "single.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "glob1.ps1"), []byte("# ps1"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "glob2.ps1"), []byte("# ps1"), 0o644))
+
+		items := []BaseItem{
+			{Path: ptr.String("single.sh")},
+			{Paths: ptr.String("*.ps1")},
+		}
+		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 3)
+		assert.Equal(t, filepath.Join(dir, "single.sh"), *result[0].Path)
+		assert.Equal(t, filepath.Join(dir, "glob1.ps1"), *result[1].Path)
+		assert.Equal(t, filepath.Join(dir, "glob2.ps1"), *result[2].Path)
+	})
+
+	t.Run("paths_without_glob_error", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{Paths: ptr.String("scripts/foo.sh")}}
+		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
+		requireErrorContains(t, errs, `does not contain glob characters`)
+	})
+
+	t.Run("path_with_glob_error", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{Path: ptr.String("scripts/*.sh")}}
+		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
+		requireErrorContains(t, errs, `contains glob characters`)
+	})
+
+	t.Run("both_path_and_paths_error", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{Path: ptr.String("foo.sh"), Paths: ptr.String("*.sh")}}
+		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
+		requireErrorContains(t, errs, `cannot have both "path" and "paths"`)
+	})
+
+	t.Run("neither_path_nor_paths_error", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{}}
+		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
+		requireErrorContains(t, errs, `no "path" or "paths" field`)
+	})
+
+	t.Run("no_matches_warning", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		var warnings []string
+		logFn := func(format string, args ...any) {
+			warnings = append(warnings, fmt.Sprintf(format, args...))
+		}
+		items := []BaseItem{{Paths: ptr.String("*.sh")}}
+		result, errs := resolveScriptPaths(items, dir, logFn)
+		require.Empty(t, errs)
+		assert.Empty(t, result)
+		require.Len(t, warnings, 1)
+		assert.Contains(t, warnings[0], "matched no script")
+	})
+
+	t.Run("duplicate_basenames_error", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		sub1 := filepath.Join(dir, "sub1")
+		sub2 := filepath.Join(dir, "sub2")
+		require.NoError(t, os.MkdirAll(sub1, 0o755))
+		require.NoError(t, os.MkdirAll(sub2, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(sub1, "dup.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(sub2, "dup.sh"), []byte("#!/bin/bash"), 0o644))
+
+		items := []BaseItem{{Paths: ptr.String("**/*.sh")}}
+		_, errs := resolveScriptPaths(items, dir, nopLogf)
+		requireErrorContains(t, errs, "duplicate script basename")
+	})
+
+	t.Run("duplicate_basenames_across_items_error", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		sub := filepath.Join(dir, "sub")
+		require.NoError(t, os.MkdirAll(sub, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "script.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(sub, "script.sh"), []byte("#!/bin/bash"), 0o644))
+
+		items := []BaseItem{
+			{Path: ptr.String("script.sh")},
+			{Paths: ptr.String("sub/*.sh")},
+		}
+		_, errs := resolveScriptPaths(items, dir, nopLogf)
+		requireErrorContains(t, errs, "duplicate script basename")
+	})
+
+	t.Run("non_script_files_skipped_with_warning", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "good.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "bad.txt"), []byte("text"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "bad.py"), []byte("python"), 0o644))
+
+		var warnings []string
+		logFn := func(format string, args ...any) {
+			warnings = append(warnings, fmt.Sprintf(format, args...))
+		}
+
+		items := []BaseItem{{Paths: ptr.String("*")}}
+		result, errs := resolveScriptPaths(items, dir, logFn)
+		require.Empty(t, errs)
+		require.Len(t, result, 1)
+		assert.Equal(t, filepath.Join(dir, "good.sh"), *result[0].Path)
+		assert.Len(t, warnings, 2)
+	})
+
+	// Results are only sorted for the sake of tests,
+	// but having an explicit test protects against regression.
+	t.Run("results_sorted", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "z.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "m.sh"), []byte("#!/bin/bash"), 0o644))
+
+		items := []BaseItem{{Paths: ptr.String("*.sh")}}
+		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 3)
+		assert.Equal(t, filepath.Join(dir, "a.sh"), *result[0].Path)
+		assert.Equal(t, filepath.Join(dir, "m.sh"), *result[1].Path)
+		assert.Equal(t, filepath.Join(dir, "z.sh"), *result[2].Path)
+	})
+
+	t.Run("multiple_errors_collected", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{}, {Path: ptr.String("scripts/*.sh")}, {Paths: ptr.String("noglob.sh")}}
+		_, errs := resolveScriptPaths(items, "", nil)
+		require.Len(t, errs, 3)
+		assert.Contains(t, errs[0].Error(), `no "path" or "paths"`)
+		assert.Contains(t, errs[1].Error(), `contains glob characters`)
+		assert.Contains(t, errs[2].Error(), `does not contain glob characters`)
+	})
+}
+
+func TestGitOpsGlobScripts(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	scriptsDir := filepath.Join(dir, "scripts")
+	require.NoError(t, os.MkdirAll(scriptsDir, 0o755))
+	scriptsSubDir := filepath.Join(scriptsDir, "sub")
+	require.NoError(t, os.MkdirAll(scriptsSubDir, 0o755))
+
+	// Create script files
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "alpha.sh"), []byte("#!/bin/bash\necho alpha"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "beta.sh"), []byte("#!/bin/bash\necho beta"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "gamma.ps1"), []byte("Write-Host gamma"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsSubDir, "delta.sh"), []byte("nada"), 0o644))
+
+	// Write a gitops YAML file that uses paths: glob
+	config := getGlobalConfig([]string{"controls"})
+	config += `controls:
+  scripts:
+    - paths: scripts/*.sh
+    - path: scripts/gamma.ps1
+`
+	yamlPath := filepath.Join(dir, "gitops.yml")
+	require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+	result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+	require.NoError(t, err)
+	require.Len(t, result.Controls.Scripts, 3)
+
+	// Glob results come first (sorted), then the explicit path
+	assert.Equal(t, filepath.Join(scriptsDir, "alpha.sh"), *result.Controls.Scripts[0].Path)
+	assert.Equal(t, filepath.Join(scriptsDir, "beta.sh"), *result.Controls.Scripts[1].Path)
+	assert.Equal(t, filepath.Join(scriptsDir, "gamma.ps1"), *result.Controls.Scripts[2].Path)
 }

@@ -128,12 +128,12 @@ Use the following steps to schedule an interview between a candidate and the CEO
 7. Create a reminder meeting on your calendar to join the second half of the final interview call with the CEO and candidate.
 
 
-### Schedule Journalist prep
+### Schedule analyst briefing
 
-The Executive Assistant (EA) will use the following steps when a call is booked between the CEO and a journalist:
-1. The EA will schedule a 30-minute “📰 Journalist prep” call right before the journalist meeting, with the CEO as the only attendee. 
-2. Before the journalist call, The EA will meet with the Manager of Training and Enablement to build an agenda with 3 vertebrae listed and bring it to the Manager of Training and Enablement to collect the answers along with suggestions for the other two primary talking points.
-3. The CEO will review the agenda during the “📰 Journalist prep” time.
+The Executive Assistant (EA) will use the following steps to book an analyst briefing for the CEO:
+1. The EA will work with the marketing consultant to coordinate a time for when the CEO is available for an analyst briefing.
+2. The EA will [program the CEO](https://fleetdm.com/handbook/ceo#program-the-ceo-to-do-something) to attend a 30-minute “analyst prep” call right before the analyst meeting. During the prep call, the EA will write down the 3 topics the CEO will bring to the analyst discussion. 
+3. The EA will prep the agenda with a link to the analyst's LinkedIn.
 
 
 ### Confirm CEO shadow dates
@@ -239,6 +239,14 @@ Mike and the Fleet team
 
 4. Address the email to the executive team's Gmail.
 5. Using the [🌧️🦉 Investors + advisors](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1068113636) spreadsheet, bcc the correct individuals and send the email.
+
+
+### Manually archive a Slack channel
+
+Use the following steps to manually archive a Slack channel and save any artifacts, e.g., images, attachments, or videos:
+1. Download all pictures and videos in the channel to your device you want to archive. To do this, you will go to that channel, click the "Files" tab, then "See all", and download each item.  
+2. Create a new folder inside of the [memories folder](https://drive.google.com/drive/folders/1lA38aTxsl4_qDtHCrYHcAaadES5ws0yJ?usp=drive_link) in Google Drive named ARCHIVED_DATE - CHANNEL_NAME and upload all of your artifacts.
+3. After you save your artifacts in Google Drive, navigate to and archive the Slack channel. Click the 3 dots in the top right corner, click "Edit settings", and "Archive channel for everyone".
 
 
 ### Archive a document

@@ -51,6 +51,16 @@
     labels: [ ":product" ]
     repo: "fleet"
 -
+  task: "Releast article post"
+  startedOn: "2026-02-24" 
+  frequency: "Triweekly" 
+  description: "Every Fleet release, Head of Product Design (HPD) meets with Product Education Manager to run through the current release highlights, their user stories, and design decisions. Then, the HPD files an issue on the :help-marketing board to create a deep-dive article for each of the highlights and assigns the PEM." 
+  moreInfoUrl: "https://docs.google.com/document/d/1z4tr65V8Y2izJXKKswYA9nexOIqTzvsTUigC8-serP4/edit?tab=t.0#heading=h.m7i247715hl" 
+  dri: "noahtalerman"
+  autoIssue:   
+    labels: [ ":product" ]
+    repo: "fleet"
+-
   task: "🦢🗣 Product office hours"
   startedOn: "2023-07-11" 
   frequency: "Weekly" 

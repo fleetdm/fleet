@@ -3,18 +3,21 @@ package fleethttp
 import (
 	"crypto/tls"
 	"net/http"
+	"reflect"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 func TestClient(t *testing.T) {
 	cases := []struct {
 		name         string
 		opts         []ClientOpt
-		nilTransport bool
+		defaultInner bool
 		nilRedirect  bool
 		timeout      time.Duration
 	}{
@@ -31,10 +34,14 @@ func TestClient(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			cli := NewClient(c.opts...)
-			if c.nilTransport {
-				assert.Nil(t, cli.Transport)
+			require.IsType(t, &otelhttp.Transport{}, cli.Transport, "outer transport should be otelhttp")
+			// Inspect the inner (base) transport wrapped by otelhttp via unsafe since the rt field is unexported.
+			rtField := reflect.ValueOf(cli.Transport).Elem().FieldByName("rt")
+			inner := *(*http.RoundTripper)(unsafe.Pointer(rtField.UnsafeAddr())) //nolint:gosec
+			if c.defaultInner {
+				assert.Equal(t, http.DefaultTransport, inner, "inner transport should be http.DefaultTransport")
 			} else {
-				assert.NotNil(t, cli.Transport)
+				assert.IsType(t, &http.Transport{}, inner, "inner transport should be a custom *http.Transport") //nolint:gocritic
 			}
 			if c.nilRedirect {
 				assert.Nil(t, cli.CheckRedirect)
@@ -66,6 +73,7 @@ func TestTransport(t *testing.T) {
 				assert.NotEqual(t, defaultTLSConf, tr.TLSClientConfig)
 			}
 			assert.NotNil(t, tr.Proxy)
+			assert.NotNil(t, tr.DialContext)
 		})
 	}
 }

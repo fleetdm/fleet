@@ -3,13 +3,13 @@ package webhooks
 import (
 	"context"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -52,7 +52,7 @@ func TestTriggerHostStatusWebhook(t *testing.T) {
 		return nil, nil
 	}
 
-	require.NoError(t, TriggerHostStatusWebhook(context.Background(), ds, kitlog.NewNopLogger()))
+	require.NoError(t, TriggerHostStatusWebhook(context.Background(), ds, slog.New(slog.DiscardHandler)))
 	assert.Equal(
 		t,
 		`{"data":{"days_unseen":2,"host_ids":[1,2,3,4,5,6],"total_hosts":10,"unseen_hosts":6},"text":"More than 60.00% of your hosts have not checked into Fleet for more than 2 days. You've been sent this message because the Host status webhook is enabled in your Fleet instance."}`,
@@ -66,7 +66,7 @@ func TestTriggerHostStatusWebhook(t *testing.T) {
 		return 10, []uint{1}, nil
 	}
 
-	require.NoError(t, TriggerHostStatusWebhook(context.Background(), ds, kitlog.NewNopLogger()))
+	require.NoError(t, TriggerHostStatusWebhook(context.Background(), ds, slog.New(slog.DiscardHandler)))
 	assert.Equal(t, "", requestBody)
 	assert.Equal(t, 1, count)
 }
@@ -131,7 +131,7 @@ func TestTriggerHostStatusWebhookTeam(t *testing.T) {
 		}, nil
 	}
 
-	require.NoError(t, TriggerHostStatusWebhook(context.Background(), ds, kitlog.NewNopLogger()))
+	require.NoError(t, TriggerHostStatusWebhook(context.Background(), ds, slog.New(slog.DiscardHandler)))
 	assert.Equal(
 		t,
 		`{"data":{"days_unseen":2,"fleet_id":1,"host_ids":[1,2,3,4,5,6],"team_id":1,"total_hosts":10,"unseen_hosts":6},"text":"More than 60.00% of your hosts have not checked into Fleet for more than 2 days. You've been sent this message because the Host status webhook is enabled in your Fleet instance."}`,
@@ -146,7 +146,7 @@ func TestTriggerHostStatusWebhookTeam(t *testing.T) {
 		return 10, []uint{1}, nil
 	}
 
-	require.NoError(t, TriggerHostStatusWebhook(context.Background(), ds, kitlog.NewNopLogger()))
+	require.NoError(t, TriggerHostStatusWebhook(context.Background(), ds, slog.New(slog.DiscardHandler)))
 	assert.Equal(t, "", requestBody)
 	assert.Equal(t, 1, count)
 }

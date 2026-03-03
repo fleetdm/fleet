@@ -347,6 +347,26 @@ describe("Agent data", () => {
     });
   });
 
+  it("for vanilla osquery hosts, renders Agent header with osquery_version and no tooltip", async () => {
+    const osqVersion = "5.21.0";
+    const customRender = createCustomRenderer({});
+    const mockHost = createMockHost({
+      platform: "darwin",
+      orbit_version: DEFAULT_EMPTY_CELL_VALUE,
+      osquery_version: osqVersion,
+      fleet_desktop_version: DEFAULT_EMPTY_CELL_VALUE,
+    });
+
+    const { user } = customRender(<Vitals vitalsData={mockHost} />);
+
+    expect(screen.getByText("Agent")).toBeInTheDocument();
+    expect(screen.getByText(osqVersion)).toBeInTheDocument();
+
+    await user.hover(screen.getByText(osqVersion));
+    expect(screen.queryByText(/Orbit/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Fleet Desktop/i)).not.toBeInTheDocument();
+  });
+
   it("for Chromebooks, render Agent header with osquery_version that is the fleetd chrome version and no tooltip", async () => {
     const customRender = createCustomRenderer({});
     const mockHost = createMockHost({

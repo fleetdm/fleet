@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/urfave/cli/v2"
 )
 
@@ -34,23 +35,33 @@ func applyCommand() *cli.Command {
 				Name:        "force",
 				EnvVars:     []string{"FORCE"},
 				Destination: &flForce,
-				Usage:       "Force applying the file even if it raises validation errors (only supported for 'config' and 'team' specs)",
+				Usage:       "Force applying the file even if it raises validation errors (only supported for 'config' and 'fleet' specs)",
 			},
 			&cli.BoolFlag{
 				Name:        "dry-run",
 				EnvVars:     []string{"DRY_RUN"},
 				Destination: &flDryRun,
-				Usage:       "Do not apply the file, just validate it (only supported for 'config' and 'team' specs)",
+				Usage:       "Do not apply the file, just validate it (only supported for 'config' and 'fleet' specs)",
 			},
 			&cli.StringFlag{
-				Name:  "policies-team",
-				Usage: "A team's name, this flag is only used on policies specs (overrides 'team' key in the policies file). This allows to easily import a group of policies to a team.",
+				Name:    "policies-fleet",
+				Aliases: []string{"policies-team"},
+				Usage:   "A fleet's name, this flag is only used on policies specs (overrides 'fleet' key in the policies file). This allows to easily import a group of policies to a fleet.",
 			},
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			enableLogTopicsFlag(),
+			disableLogTopicsFlag(),
 		},
 		Action: func(c *cli.Context) error {
+			// Disable field deprecation warnings for now.
+			// TODO - remove this in future release to unleash warnings.
+			logging.DisableTopic(logging.DeprecatedFieldTopic)
+
+			// Apply log topic overrides from flags/env vars.
+			applyLogTopicFlags(c)
+
 			if flFilename == "" {
 				return errors.New("-f must be specified")
 			}
@@ -72,12 +83,15 @@ func applyCommand() *cli.Command {
 				return fmt.Errorf("Invalid file extension %s: only .yml or .yaml files can be applied", ext)
 			}
 
-			specs, err := spec.GroupFromBytes(b)
-			if err != nil {
-				return err
-			}
 			logf := func(format string, a ...interface{}) {
 				fmt.Fprintf(c.App.Writer, format, a...)
+			}
+
+			specs, err := spec.GroupFromBytes(b, spec.GroupFromBytesOpts{
+				LogFn: logf,
+			})
+			if err != nil {
+				return err
 			}
 
 			opts := fleet.ApplyClientSpecOptions{
@@ -86,7 +100,7 @@ func applyCommand() *cli.Command {
 					DryRun: flDryRun,
 				},
 			}
-			if policiesTeamName := c.String("policies-team"); policiesTeamName != "" {
+			if policiesTeamName := c.String("policies-fleet"); policiesTeamName != "" {
 				opts.TeamForPolicies = policiesTeamName
 			}
 			baseDir := filepath.Dir(flFilename)

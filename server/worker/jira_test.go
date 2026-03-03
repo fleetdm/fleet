@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,7 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -203,7 +203,7 @@ func TestJiraRun(t *testing.T) {
 			jira := &Jira{
 				FleetURL:  "https://fleetdm.com",
 				Datastore: ds,
-				Log:       kitlog.NewNopLogger(),
+				Log:       slog.New(slog.DiscardHandler),
 				NewClientFunc: func(opts *externalsvc.JiraOptions) (JiraClient, error) {
 					return client, nil
 				},
@@ -221,7 +221,7 @@ func TestJiraRun(t *testing.T) {
 func TestJiraQueueVulnJobs(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	t.Run("same vulnerability on multiple software only queue one job", func(t *testing.T) {
 		var count int
@@ -284,7 +284,7 @@ func TestJiraQueueVulnJobs(t *testing.T) {
 func TestJiraQueueFailingPolicyJob(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	t.Run("success global", func(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
@@ -407,7 +407,7 @@ func TestJiraRunClientUpdate(t *testing.T) {
 	jiraJob := &Jira{
 		FleetURL:  "http://example.com",
 		Datastore: ds,
-		Log:       kitlog.NewNopLogger(),
+		Log:       slog.New(slog.DiscardHandler),
 		NewClientFunc: func(opts *externalsvc.JiraOptions) (JiraClient, error) {
 			// keep track of project keys received in calls to NewClientFunc
 			projectKeys = append(projectKeys, opts.ProjectKey)

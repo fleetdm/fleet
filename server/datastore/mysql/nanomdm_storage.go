@@ -64,7 +64,7 @@ type NanoMDMStorage struct {
 func (ds *Datastore) NewMDMAppleMDMStorage() (*NanoMDMStorage, error) {
 	s, err := nanomdm_mysql.New(
 		nanomdm_mysql.WithDB(ds.primary.DB),
-		nanomdm_mysql.WithLogger(ds.logger.SlogLogger()),
+		nanomdm_mysql.WithLogger(ds.logger),
 		nanomdm_mysql.WithReaderFunc(ds.reader),
 	)
 	if err != nil {
@@ -73,7 +73,7 @@ func (ds *Datastore) NewMDMAppleMDMStorage() (*NanoMDMStorage, error) {
 	return &NanoMDMStorage{
 		MySQLStorage: s,
 		db:           ds.primary,
-		logger:       ds.logger.SlogLogger(),
+		logger:       ds.logger,
 		ds:           ds,
 	}, nil
 }
@@ -84,7 +84,7 @@ func (ds *Datastore) NewMDMAppleMDMStorage() (*NanoMDMStorage, error) {
 func (ds *Datastore) NewTestMDMAppleMDMStorage(asyncCap int, asyncInterval time.Duration) (*NanoMDMStorage, error) {
 	s, err := nanomdm_mysql.New(
 		nanomdm_mysql.WithDB(ds.primary.DB),
-		nanomdm_mysql.WithLogger(ds.logger.SlogLogger()),
+		nanomdm_mysql.WithLogger(ds.logger),
 		nanomdm_mysql.WithReaderFunc(ds.reader),
 		nanomdm_mysql.WithAsyncLastSeen(asyncCap, asyncInterval),
 	)
@@ -94,7 +94,7 @@ func (ds *Datastore) NewTestMDMAppleMDMStorage(asyncCap int, asyncInterval time.
 	return &NanoMDMStorage{
 		MySQLStorage: s,
 		db:           ds.primary,
-		logger:       ds.logger.SlogLogger(),
+		logger:       ds.logger,
 		ds:           ds,
 	}, nil
 }
