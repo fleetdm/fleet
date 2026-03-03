@@ -645,8 +645,8 @@ func parseSecrets(result *GitOps, multiError *multierror.Error) *multierror.Erro
 		rawSecrets, ok = result.TeamSettings["secrets"]
 	}
 	if !ok {
-		// If the secrets key is not present, we leave it unset so that any
-		// existing secrets on the server are preserved (no-op).
+		// Allow omitting secrets key, resulting in a no-op for secrets.
+		// Any secrets present on the server will be retained.
 		return multiError
 	}
 	// When secrets slice is empty, all secrets are removed.
