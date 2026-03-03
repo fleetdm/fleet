@@ -34,6 +34,7 @@ require (
 	github.com/beevik/etree v1.5.0
 	github.com/beevik/ntp v0.3.0
 	github.com/blakesmith/ar v0.0.0-20190502131153-809d4375e1fb
+	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/boltdb/bolt v1.3.1
 	github.com/briandowns/spinner v1.23.1
 	github.com/cavaliergopher/rpm v1.2.0
