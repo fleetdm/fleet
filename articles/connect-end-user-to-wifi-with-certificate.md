@@ -8,7 +8,7 @@ Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS), Windo
 
 Currently, these are supported platforms for each certificate authority:
 - **DigiCert**: macOS, iOS, and iPadOS
-- **Microsoft NDES**: macOS and Windows
+- **Microsoft NDES**: macOS and Windows (coming soon)
 - **Smallstep**: macOS, iOS, and iPadOS
 - **Hydrant**: Linux, macOS, and Windows
 - **Custom SCEP server**: macOS, Windows, iOS, iPadOS, and Android
