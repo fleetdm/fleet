@@ -18,24 +18,12 @@
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 name: "📱🔐 Personal mobile devices"
 controls:
-
-  ###########################################################
-  # Managed OS updates
-  ###########################################################
-  # to enable… (for os updates)
-  # ios_updates:
-  #   deadline: "2025-06-01"
-  #   minimum_version: "18.5"
-  # ipados_updates:
-  #   deadline: "2025-06-01"
-  #   minimum_version: "18.5"
-
   ###########################################################
   # Setup experience
   ###########################################################
   apple_setup:
-    # To enable SSO, uncomment this
     # enable_end_user_authentication: true
+    # ^DISCUSS: What's a good way to explain what this means for BYOD devices?
 
   ###########################################################
   # Presets, restrictions, and configs
@@ -58,14 +46,32 @@ controls:
     profiles:
     certificates:
 
+  ###########################################################
+  # Managed OS updates
+  #
+  # To enable and enforce managed OS updates on iOS/iPadOS,
+  # uncomment `ios_updates` and `ipados_updates`.
+  #
+  # See also:
+  #   • https://fleetdm.com/docs/configuration/yaml-files#ios-updates
+  #   • https://fleetdm.com/docs/configuration/yaml-files#ipados-updates
+  #   • https://fleetdm.com/guides/enforce-os-updates#apple-macos-ios-and-ipados-end-user-experience
+  ###########################################################
+  # ios_updates:
+  #   deadline: "2025-06-01"
+  #   minimum_version: "18.5"
+  # ipados_updates:
+  #   deadline: "2025-06-01"
+  #   minimum_version: "18.5"
+
 ###########################################################
-# Software available for install
-#
-# (employee-owned mobile devices)
+# Apps to make available from the Apple App Store or Google Play
 ###########################################################
 software:
-  app_store_apps: # Apps to make available from the Apple App Store or Google Play
+  app_store_apps: 
+    ###########################################################
     # iOS apps
+    ###########################################################
     # …
     # - app_store_id: "618783545" # Slack
     #   display_name: "Slack"
@@ -75,7 +81,9 @@ software:
     #   categories:
     #     - "Communication"
 
+    ###########################################################
     # iPadOS apps
+    ###########################################################
     # …
     # - app_store_id: "618783545" # Slack
     #   display_name: "Slack"
@@ -86,7 +94,9 @@ software:
     #     - "Productivity"
     #     - "Communication"
 
+    ###########################################################
     # Android apps
+    ###########################################################
     # …
     # - app_store_id: "com.Slack" # Slack
     #   platform: android

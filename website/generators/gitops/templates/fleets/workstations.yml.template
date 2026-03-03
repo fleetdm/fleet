@@ -16,25 +16,6 @@
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 name: "💻 Workstations"
 controls:
-  ###########################################################
-  # Disk encryption with escrowed keys
-  ###########################################################
-  # enable_disk_encryption: true
-
-  ###########################################################
-  # Managed OS updates
-  ###########################################################
-  # to enable… (for os updates)
-  # macos_updates:
-  #   deadline:
-  #   minimum_version:
-  #   update_new_hosts: true
-
-  # to enable… (for os updates)
-  # windows_updates:
-  #   deadline_days: 7
-  #   grace_period_days: 2
-
   apple_setup:
     ###########################################################
     # Configure the macOS setup experience
@@ -46,9 +27,12 @@ controls:
     #
     # For more, see:
     #   • https://fleetdm.com/docs/configuration/yaml-files#macos-setup
+    #   • https://developer.apple.com/documentation/devicemanagement/profile
+    #   • https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web
     ###########################################################
     apple_setup_assistant: ../platforms/macos/enrollment-profiles/automatic-enrollment.dep.json
-    # TODO: Double check we actually want is_mdm_removable:true set by default (I think no?)
+    # DISCUSS: Double check we actually want is_mdm_removable:true set by default (I think no?)
+    # DISCUSS: Would it be better to have the separate JSON file inlined as yaml here instead?  Then the enrollment_profiles folder (and concept to learn) could be eliminated
     
     ###########################################################
     # Uncomment to use single-sign on (SSO) to authenticate 
@@ -61,27 +45,69 @@ controls:
     # enable_end_user_authentication: true
 
   ###########################################################
-  # Presets, restrictions, and configs
+  # Configuration profiles
   # 
   # For more, see:
   #   • https://fleetdm.com/docs/configuration/yaml-files#apple-settings-and-windows-settings
+  #
+  # Note: Instead of including all profiles with `paths`,
+  # you can also switch to using `path` and including each 
+  # specific configuration profile one by one, which allows
+  # for scoping using labels.  For example:
+  # ```
+  # - path: ../platforms/macos/configuration-profiles/1password-managed-settings.mobileconfig
+  #   labels_include_any:
+  #     - "Macs with 1Password installed"
+  # ```
   ###########################################################
   apple_settings:
     profiles:
       - paths: ../platforms/macos/declaration-profiles/*.json
       - paths: ../platforms/macos/configuration-profiles/*.mobileconfig
-      # TODO: include example of switching from `paths` to `path` for doing label-based scoping
   windows_settings:
     profiles:
       - paths: ../platforms/windows/configuration-profiles/*.xml
   
   ###########################################################
-  # You probably don't need to change the next few lines.
+  # Managed disk encryption
+  #
+  # To enable and enforce disk encryption with key escrow on
+  # all supported platforms, uncomment `enable_disk_encryption`.
+  #
+  # Read more here:
+  #   • https://fleetdm.com/guides/enforce-disk-encryption
+  ###########################################################
+  # enable_disk_encryption: true
+
+  ###########################################################
+  # Managed OS updates
+  #
+  # To enable and enforce managed OS updates on macOS/Windows,
+  # uncomment `macos_updates` and `windows_updates`.
+  #
+  # See also:
+  #   • https://fleetdm.com/docs/configuration/yaml-files#macos-updates
+  #   • https://fleetdm.com/docs/configuration/yaml-files#windows-updates
+  #   • https://fleetdm.com/guides/enforce-os-updates
+  ###########################################################
+  # macos_updates:
+  #   deadline:
+  #   minimum_version:
+  #   update_new_hosts: true
+  # windows_updates:
+  #   deadline_days: 7
+  #   grace_period_days: 2
+
+  ###########################################################
+  # Script library
+  # 
+  # Note: You probably don't need to change the next few lines.
   #
   # > To make a script available for use with Fleet for helpdesk
   # > use cases and in your custom automations, just include it
   # > in the appropriate folder for the primary platform where it
-  # > is intended to run.  It will be registered automatically.
+  # > is intended to run.  It will be included automatically
+  # > using `paths` below.
   ###########################################################
   scripts:
     - paths: ../platforms/macos/scripts/*.sh
@@ -89,12 +115,15 @@ controls:
     - paths: ../platforms/linux/scripts/*.sh
 
 ###########################################################
-# You probably don't need to change the next few lines.
+# Reports
+#
+# Note: You probably don't need to change the next few lines.
 #
 # > To set up a report in Fleet for collecting data, include
 # > it as a .yml file in `platforms/all/reports/` or if it
 # > is specific to a particular platform, then in the appropriate
-# > folder for that platform.  It will be registered automatically.
+# > folder for that platform.  It will be included automatically
+# > using `paths` below.
 ###########################################################
 reports:
   - paths: ../platforms/all/reports/*.yml
@@ -103,22 +132,21 @@ reports:
   - paths: ../platforms/linux/reports/*.yml
 
 ###########################################################
-# You probably don't need to change the next few lines.
+# Policies & automations
+#
+# Note: You probably don't need to change the next few lines.
 #
 # > To set up a policy in Fleet to implement automations or
 # > ensure compliance with organizational security standards
 # > or regulations, include it as a .yml file in the
 # > appropriate folder for the primary platform where it
-# > is intended to run.  It will be registered automatically.
+# > is intended to run.  It will be included automatically
+# > using `paths` below.
 ###########################################################
 policies:
-  - paths: ../platforms/macos/policies/*.yml # macOS policies
-  - paths: ../platforms/windows/policies/*.yml # Windows policies
-  - paths: ../platforms/linux/policies/*.yml # Linux policies
-  # TODO: include example policy, and have it showcase the new
-  # way of doing `failing_policies_webhook`, which works more like
-  # `run_script: … path: …`, and doesn't require knowing a policy's
-  # database ID.
+  - paths: ../platforms/macos/policies/*.yml
+  - paths: ../platforms/windows/policies/*.yml
+  - paths: ../platforms/linux/policies/*.yml
 
 ###########################################################
 # Software available for install
