@@ -640,7 +640,7 @@ The below fields are all optional.
 - `post_install_script.path` is the script that, if supplied, Fleet will run on hosts after the software installs.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
 - `⁠version` specifies the app version. Available versions are listed in the Fleet UI under Actions > Edit software. If omitted, Fleet automatically downloads the latest version found in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). The `version` must be wrapped in quotes (e.g. "147.0.1") so that it is processed as a string.
-  - To pin to the major version while allowing updates to newer minor and patch versions, use a caret (`^`) constraint. You can specify only the major version, without the minor and patch versions. For example, `⁠^147` means that Fleet will always download the latest version until the app's version updates to `148.0`.
+  - To pin to the major version while allowing updates to newer minor and patch versions, use a caret (`^`) constraint. You can specify only the major version, without the minor and patch versions. For example, `"⁠^147"` means that Fleet will always download the latest version until the app's version updates to `"148.0"`.
 
 The below fields are optional, and if omitted will default to values specified in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs).
 
