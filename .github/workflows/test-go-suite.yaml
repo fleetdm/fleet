@@ -10,7 +10,7 @@ on:
         required: true
         type: string
       mysql:
-        description: 'MySQL Docker image (e.g., "mysql:8.0.36"). Leave empty for suites that do not need MySQL.'
+        description: 'MySQL Docker image (e.g., "mysql:8.0.44"). Leave empty for suites that do not need MySQL.'
         required: false
         type: string
         default: ''
