@@ -367,7 +367,8 @@ const PackageForm = ({
     formData.software && !isScriptPackage && !isIpaPackage;
 
   // GitOps mode hides SoftwareOptionsSelector and TargetLabelSelector
-  const showOptionsTargetsSelectors = !gitOpsModeEnabled;
+  // 4.83 Removed option/targets from Add page
+  const showOptionsTargetsSelectors = !gitOpsModeEnabled && isEditingSoftware;
 
   const renderSoftwareOptionsSelector = () => (
     <SoftwareOptionsSelector
@@ -467,26 +468,8 @@ const PackageForm = ({
         >
           {showOptionsTargetsSelectors && (
             <div className={`${baseClass}__form-frame`}>
-              {isEditingSoftware ? (
-                renderSoftwareOptionsSelector()
-              ) : (
-                <Card
-                  paddingSize="medium"
-                  borderRadiusSize={isEditingSoftware ? "medium" : "large"}
-                >
-                  {renderSoftwareOptionsSelector()}
-                </Card>
-              )}
-              {isEditingSoftware ? (
-                renderTargetLabelSelector()
-              ) : (
-                <Card
-                  paddingSize="medium"
-                  borderRadiusSize={isEditingSoftware ? "medium" : "large"}
-                >
-                  {renderTargetLabelSelector()}
-                </Card>
-              )}
+              {renderSoftwareOptionsSelector()}
+              {renderTargetLabelSelector()}
             </div>
           )}
         </div>
