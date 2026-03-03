@@ -599,7 +599,7 @@ func (ds *Datastore) GetAndroidCertificateTemplatesForRenewal(
 	now time.Time,
 	limit int,
 ) ([]fleet.HostCertificateTemplateForRenewal, error) {
-	// Truncate to second precision to match MySQL's DATETIME column precision.
+	// Truncate to second precision to match `not_valid_after` column's precision.
 	now = now.Truncate(time.Second)
 
 	stmt := fmt.Sprintf(`
