@@ -428,11 +428,7 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
 
 ### Android: Add certificate
 
-On Android, certificates are deployed differently from Apple and Windows. Instead of a configuration profile, Fleet uses a certificates templates.
-
-Fleet automatically installs Android agent app on every host. It retrieves SCEP certificate from the custom SCEP CA and installs the certificate into the Android keystore.
-
-#### Using Fleet UI
+How to deploy SCEP certificates to Android hosts:
 
 1. In Fleet, head to **Controls > OS settings > Certificates** and select **Add certificate**.
 2. In **Name**, enter a name for the certificate (e.g., "wifi-certificate"). This name is used as the certificate alias to reference in configuration profiles (e.g. [WiFi configuration](https://developers.google.com/android/management/configure-networks#eap_authentication)).
@@ -441,6 +437,8 @@ Fleet automatically installs Android agent app on every host. It retrieves SCEP 
 5. Select **Save**. Fleet will deploy the certificate to your Android hosts.
 
 If something goes wrong, errors will appear on each host's **Host details > OS settings**.
+
+How does this work? Fleet installs the "Fleet" Android app on each host. Every 15 minutes, the app checks for new certificates, retrieves any from the custom SCEP CA, and installs them in the [Android Keystore](https://developer.android.com/privacy-and-security/keystore).
 
 #### Example configuration profiles
 
