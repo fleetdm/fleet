@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -14,7 +15,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -45,7 +45,7 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	}
 
 	returnStatus = http.StatusNotFound
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	svc := NewSCEPConfigService(logger, nil)
 	err := svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.ErrorContains(t, err, "unexpected status code")
@@ -185,7 +185,7 @@ func TestValidateSCEPURL(t *testing.T) {
 	proxy := fleet.NDESSCEPProxyCA{
 		URL: srv.URL + "/scep",
 	}
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	svc := NewSCEPConfigService(logger, nil)
 	err := svc.ValidateSCEPURL(context.Background(), proxy.URL)
 	assert.NoError(t, err)
@@ -199,7 +199,7 @@ func TestValidateIdentifier(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	// Helper to create a scepProxyService with a mock datastore
 	newTestService := func(ds *mock.DataStore) *scepProxyService {

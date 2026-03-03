@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -29,7 +30,7 @@ import (
 const (
 	yamlFlagName                = "yaml"
 	jsonFlagName                = "json"
-	withQueriesFlagName         = "with-queries"
+	withReportsFlagName         = "with-reports"
 	expiredFlagName             = "expired"
 	includeServerConfigFlagName = "include-server-config"
 )
@@ -104,7 +105,7 @@ func printLabel(c *cli.Context, label *fleet.LabelSpec) error {
 
 func printQuerySpec(c *cli.Context, query *fleet.QuerySpec) error {
 	spec := specGeneric{
-		Kind:    fleet.QueryKind,
+		Kind:    fleet.ReportKind,
 		Version: fleet.ApiVersion,
 		Spec:    query,
 	}
@@ -259,7 +260,7 @@ func printTeams(c *cli.Context, teams []fleet.Team) error {
 			teamItem = teamSpec
 		}
 		spec := specGeneric{
-			Kind:    fleet.TeamKind,
+			Kind:    fleet.FleetKind,
 			Version: fleet.ApiVersion,
 			Spec: map[string]interface{}{
 				"team": teamItem,
@@ -303,8 +304,12 @@ func getCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "get",
 		Usage: "Get/list resources",
-		Subcommands: []*cli.Command{
-			getQueriesCommand(),
+		Before: func(c *cli.Context) error {
+			logging.DisableTopic(logging.DeprecatedFieldTopic)
+			return nil
+		},
+		Subcommands: withLogTopicFlags([]*cli.Command{
+			getReportsCommand(),
 			getPacksCommand(),
 			getLabelsCommand(),
 			getHostsCommand(),
@@ -313,13 +318,13 @@ func getCommand() *cli.Command {
 			getCarveCommand(),
 			getCarvesCommand(),
 			getUserRolesCommand(),
-			getTeamsCommand(),
+			getFleetsCommand(),
 			getSoftwareCommand(),
 			getMDMAppleCommand(),
 			getMDMAppleBMCommand(),
 			getMDMCommandResultsCommand(),
 			getMDMCommandsCommand(),
-		},
+		}),
 	}
 }
 
@@ -365,15 +370,15 @@ func queryToTableRow(query fleet.Query, teamName string) []string {
 	}
 }
 
-func printInheritedQueriesMsg(client *service.Client, teamID *uint) error {
-	if teamID != nil {
+func printInheritedReportsMsg(client *service.Client, fleetID *uint) error {
+	if fleetID != nil {
 		globalQueries, err := client.GetQueries(nil, nil)
 		if err != nil {
-			return fmt.Errorf("could not list global queries: %w", err)
+			return fmt.Errorf("could not list global reports: %w", err)
 		}
 
 		if len(globalQueries) > 0 {
-			fmt.Printf("Not showing %d inherited queries. To see global queries, run this command without the `--team` flag.\n", len(globalQueries))
+			fmt.Printf("Not showing %d inherited reports. To see global reports, run this command without the `--fleet` flag.\n", len(globalQueries))
 		}
 		return nil
 	}
@@ -381,24 +386,29 @@ func printInheritedQueriesMsg(client *service.Client, teamID *uint) error {
 	return nil
 }
 
-func printNoQueriesFoundMsg(teamID *uint) {
-	if teamID != nil {
-		fmt.Println("No team queries found.")
+func printNoReportsFoundMsg(fleetID *uint) {
+	if fleetID != nil {
+		fmt.Println("No fleet reports found.")
 		return
 	}
-	fmt.Println("No global queries found.")
-	fmt.Println("To see team queries, run this command with the --team flag.")
+	fmt.Println("No global reports found.")
+	fmt.Println("To see fleet reports, run this command with the --fleet flag.")
 }
 
-func getQueriesCommand() *cli.Command {
+func getReportsCommand() *cli.Command {
 	return &cli.Command{
-		Name:    "queries",
-		Aliases: []string{"query", "q"},
-		Usage:   "List information about queries",
+		Name:    "reports",
+		Aliases: []string{"report", "r", "queries", "query", "q"},
+		Usage:   "List information about reports",
+		Before: func(c *cli.Context) error {
+			logDeprecatedCommandName(c, []string{"queries", "query", "q"}, "reports")
+			return nil
+		},
 		Flags: []cli.Flag{
 			&cli.UintFlag{
-				Name:  teamFlagName,
-				Usage: "filter queries by team_id (0 means global)",
+				Name:    fleetFlagName,
+				Aliases: []string{"team"},
+				Usage:   "filter reports by fleet_id (0 means global)",
 			},
 			jsonFlag(),
 			yamlFlag(),
@@ -418,7 +428,7 @@ func getQueriesCommand() *cli.Command {
 			var teamID *uint
 			var teamName string
 
-			if tid := c.Uint(teamFlagName); tid != 0 {
+			if tid := c.Uint(fleetFlagName); tid != 0 {
 				teamID = &tid
 				team, err := client.GetTeam(*teamID)
 				if err != nil {
@@ -465,8 +475,8 @@ func getQueriesCommand() *cli.Command {
 				}
 
 				if len(queries) == 0 {
-					printNoQueriesFoundMsg(teamID)
-					if err := printInheritedQueriesMsg(client, teamID); err != nil {
+					printNoReportsFoundMsg(teamID)
+					if err := printInheritedReportsMsg(client, teamID); err != nil {
 						return err
 					}
 					return nil
@@ -506,7 +516,7 @@ func getQueriesCommand() *cli.Command {
 					}
 
 					printQueryTable(c, columns, rows)
-					if err := printInheritedQueriesMsg(client, teamID); err != nil {
+					if err := printInheritedReportsMsg(client, teamID); err != nil {
 						return err
 					}
 				}
@@ -554,10 +564,15 @@ func getPacksCommand() *cli.Command {
 		Name:    "packs",
 		Aliases: []string{"pack", "p"},
 		Usage:   `Retrieve 2017 "Packs" data for migration into modern osquery packs`,
+		Before: func(c *cli.Context) error {
+			logDeprecatedFlagName(c, "with-queries", withReportsFlagName)
+			return nil
+		},
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
-				Name:  withQueriesFlagName,
-				Usage: "Output queries included in pack(s) too, when used alongside --yaml or --json",
+				Name:    withReportsFlagName,
+				Aliases: []string{"with-queries"},
+				Usage:   "Output reports included in pack(s) too, when used alongside --yaml or --json",
 			},
 			jsonFlag(),
 			yamlFlag(),
@@ -573,7 +588,7 @@ func getPacksCommand() *cli.Command {
 			}
 
 			name := c.Args().First()
-			shouldPrintQueries := c.Bool(withQueriesFlagName)
+			shouldPrintQueries := c.Bool(withReportsFlagName)
 			queriesToPrint := make(map[string]bool)
 
 			addQueries := func(pack *fleet.PackSpec) {
@@ -690,9 +705,10 @@ func getLabelsCommand() *cli.Command {
 			contextFlag(),
 			debugFlag(),
 			&cli.UintFlag{
-				Name:  teamFlagName,
-				Usage: "Return labels specific to this team ID; default global labels only when viewing multiple labels",
-				Value: 0,
+				Name:    fleetFlagName,
+				Aliases: []string{"team"},
+				Usage:   "Return labels specific to this fleet ID; default global labels only when viewing multiple labels",
+				Value:   0,
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -705,7 +721,7 @@ func getLabelsCommand() *cli.Command {
 
 			// if name wasn't provided, list all labels, either globally or on a team
 			if name == "" {
-				labels, err := client.GetLabels(c.Uint(teamFlagName))
+				labels, err := client.GetLabels(c.Uint(fleetFlagName))
 				if err != nil {
 					return fmt.Errorf("could not list labels: %w", err)
 				}
@@ -738,8 +754,8 @@ func getLabelsCommand() *cli.Command {
 				printTable(c, columns, data)
 
 				return nil
-			} else if c.Uint(teamFlagName) != 0 {
-				return errors.New("cannot provide both a team ID and a label name")
+			} else if c.Uint(fleetFlagName) != 0 {
+				return errors.New("cannot provide both a fleet ID and a label name")
 			}
 
 			// Label name was specified
@@ -836,8 +852,9 @@ func getHostsCommand() *cli.Command {
 		Usage:   "List information about hosts",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
-				Name:     "team",
-				Usage:    "filter hosts by team_id",
+				Name:     fleetFlagName,
+				Aliases:  []string{"team"},
+				Usage:    "filter hosts by fleet_id",
 				Required: false,
 			},
 			jsonFlag(),
@@ -866,7 +883,7 @@ func getHostsCommand() *cli.Command {
 			if identifier == "" {
 				query := url.Values{}
 				query.Set("additional_info_filters", "*")
-				if teamID := c.Uint("team"); teamID > 0 {
+				if teamID := c.Uint(fleetFlagName); teamID > 0 {
 					query.Set("team_id", strconv.FormatUint(uint64(teamID), 10))
 				}
 
@@ -1179,11 +1196,15 @@ func getTeamsYAMLFlag() cli.Flag {
 	}
 }
 
-func getTeamsCommand() *cli.Command {
+func getFleetsCommand() *cli.Command {
 	return &cli.Command{
-		Name:    "teams",
-		Aliases: []string{"t"},
-		Usage:   "List teams",
+		Name:    "fleets",
+		Aliases: []string{"fleet", "f", "teams", "team", "t"},
+		Usage:   "List fleets",
+		Before: func(c *cli.Context) error {
+			logDeprecatedCommandName(c, []string{"teams", "team", "t"}, "fleets")
+			return nil
+		},
 		Flags: []cli.Flag{
 			getTeamsJSONFlag(),
 			getTeamsYAMLFlag(),
@@ -1241,7 +1262,7 @@ func getTeamsCommand() *cli.Command {
 					fmt.Sprintf("%d", team.UserCount),
 				})
 			}
-			columns := []string{"Team name", "Team ID", "Host count", "User count"}
+			columns := []string{"Fleet name", "Fleet ID", "Host count", "User count"}
 			printTable(c, columns, data)
 
 			return nil
@@ -1256,8 +1277,9 @@ func getSoftwareCommand() *cli.Command {
 		Usage:   "List software titles",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
-				Name:  teamFlagName,
-				Usage: "Only list software of hosts that belong to the specified team",
+				Name:    fleetFlagName,
+				Aliases: []string{"team"},
+				Usage:   "Only list software of hosts that belong to the specified fleet",
 			},
 			&cli.BoolFlag{
 				Name:  "versions",
@@ -1282,7 +1304,7 @@ func getSoftwareCommand() *cli.Command {
 
 			query := url.Values{}
 
-			teamID := c.Uint(teamFlagName)
+			teamID := c.Uint(fleetFlagName)
 			if teamID != 0 {
 				query.Set("team_id", strconv.FormatUint(uint64(teamID), 10))
 			}
