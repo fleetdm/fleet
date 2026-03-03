@@ -1738,6 +1738,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Team:             "",
 			Platform:         "",
 			LabelsIncludeAny: []string{fooLabel.Name},
+			Type:             fleet.PolicyTypeDynamic,
 		},
 		{
 			Name:                           "query2",
@@ -1749,6 +1750,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			CalendarEventsEnabled:          true,
 			LabelsExcludeAny:               []string{barLabel.Name},
 			ConditionalAccessBypassEnabled: ptr.Bool(false),
+			Type:                           fleet.PolicyTypeDynamic,
 		},
 		{
 			Name:        "query3",
@@ -1757,6 +1759,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Resolution:  "some other good resolution",
 			Team:        "team1",
 			Platform:    "windows,linux",
+			Type:        fleet.PolicyTypeDynamic,
 		},
 		{
 			Name:        "query4",
@@ -1765,6 +1768,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Resolution:  "some other good resolution 2",
 			Team:        "No team",
 			Platform:    "",
+			Type:        fleet.PolicyTypeDynamic,
 		},
 	}))
 
@@ -1784,6 +1788,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 		LabelName: fooLabel.Name,
 		LabelID:   fooLabel.ID,
 	}}, policies[0].LabelsIncludeAny)
+	assert.Equal(t, policies[0].Type, fleet.PolicyTypeDynamic)
 
 	teamPolicies, _, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -1840,6 +1845,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Team:             "",
 			Platform:         "",
 			LabelsIncludeAny: []string{fooLabel.Name},
+			Type:             fleet.PolicyTypeDynamic,
 		},
 		{
 			Name:                           "query2",
@@ -1851,6 +1857,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			CalendarEventsEnabled:          true,
 			LabelsExcludeAny:               []string{barLabel.Name},
 			ConditionalAccessBypassEnabled: ptr.Bool(false),
+			Type:                           fleet.PolicyTypeDynamic,
 		},
 		{
 			Name:        "query3",
@@ -1859,6 +1866,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Resolution:  "some other good resolution",
 			Team:        "team1",
 			Platform:    "windows,linux",
+			Type:        fleet.PolicyTypeDynamic,
 		},
 		{
 			Name:        "query4",
@@ -1867,6 +1875,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Resolution:  "some other good resolution 2",
 			Team:        "No team",
 			Platform:    "",
+			Type:        fleet.PolicyTypeDynamic,
 		},
 	}))
 
@@ -1890,6 +1899,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Team:             "", // No error, team did not change
 			Platform:         "",
 			LabelsExcludeAny: []string{fooLabel.Name, barLabel.Name},
+			Type:             fleet.PolicyTypeDynamic,
 		},
 		{
 			Name:                  "query2",
@@ -1899,6 +1909,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Team:                  "team1", // No error, team did not change
 			Platform:              "windows",
 			CalendarEventsEnabled: false,
+			Type:                  fleet.PolicyTypeDynamic,
 		},
 	}))
 	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
@@ -1950,6 +1961,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 					Resolution:  "some resolution updated again",
 					Team:        "team1",
 					Platform:    "",
+					Type:        fleet.PolicyTypeDynamic,
 				},
 			}))
 }
@@ -2026,36 +2038,42 @@ func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
 					Query:    "select 1;",
 					Team:     "",
 					Platform: "",
+					Type:     fleet.PolicyTypeDynamic,
 				},
 				{
 					Name:     globalNames[1],
 					Query:    "select 2;",
 					Team:     "",
 					Platform: "darwin",
+					Type:     fleet.PolicyTypeDynamic,
 				},
 				{
 					Name:     globalNames[2],
 					Query:    "select 3;",
 					Team:     "",
 					Platform: "darwin,linux",
+					Type:     fleet.PolicyTypeDynamic,
 				},
 				{
 					Name:     teamNames[0],
 					Query:    "select 1;",
 					Team:     "team1" + unicode,
 					Platform: "",
+					Type:     fleet.PolicyTypeDynamic,
 				},
 				{
 					Name:     teamNames[1],
 					Query:    "select 2;",
 					Team:     "team1" + unicode,
 					Platform: "darwin",
+					Type:     fleet.PolicyTypeDynamic,
 				},
 				{
 					Name:     teamNames[2],
 					Query:    "select 3;",
 					Team:     "team1" + unicodeEq,
 					Platform: "darwin,linux",
+					Type:     fleet.PolicyTypeDynamic,
 				},
 			},
 		),
@@ -2192,30 +2210,35 @@ func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
 					Team:        "",
 					Platform:    "",
 					Description: "updated", // update description
+					Type:        fleet.PolicyTypeDynamic,
 				},
 				{
 					Name:     globalNames[1],
 					Query:    "select 2 updated;", // update query
 					Team:     "",
 					Platform: "darwin",
+					Type:     fleet.PolicyTypeDynamic,
 				},
 				{
 					Name:     globalNames[2],
 					Query:    "select 3;",
 					Team:     "",
 					Platform: "darwin", // update platform
+					Type:     fleet.PolicyTypeDynamic,
 				},
 				{
 					Name:     "new global query",
 					Query:    "select 4;",
 					Team:     "",
 					Platform: "",
+					Type:     fleet.PolicyTypeDynamic,
 				},
 				{
 					Name:     teamNames[0],
 					Query:    "select 1;",
 					Team:     "team1" + unicode,
 					Platform: "linux", // update platform
+					Type:     fleet.PolicyTypeDynamic,
 				},
 				{
 					Name:                  teamNames[1],
@@ -2223,18 +2246,21 @@ func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
 					Team:                  "team1" + unicode,
 					Platform:              "darwin",
 					CalendarEventsEnabled: true, // update calendar events
+					Type:                  fleet.PolicyTypeDynamic,
 				},
 				{
 					Name:     teamNames[2],
 					Query:    "select 3 updated;", // update query
 					Team:     "team1" + unicodeEq,
 					Platform: "darwin,linux",
+					Type:     fleet.PolicyTypeDynamic,
 				},
 				{
 					Name:     "new team query",
 					Query:    "select 4;",
 					Team:     "team1" + unicode,
 					Platform: "",
+					Type:     fleet.PolicyTypeDynamic,
 				},
 			},
 		),
@@ -4914,6 +4940,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "team1",
 			Platform:        "darwin",
 			SoftwareTitleID: installer1.TitleID,
+			Type:            fleet.PolicyTypeDynamic,
 		},
 		{
 			Name:            "Team policy 2",
@@ -4923,6 +4950,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "team2",
 			Platform:        "linux",
 			SoftwareTitleID: installer2.TitleID,
+			Type:            fleet.PolicyTypeDynamic,
 		},
 		{
 			Name:            "No team policy 3",
@@ -4932,6 +4960,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "No team",
 			Platform:        "linux",
 			SoftwareTitleID: installer3.TitleID,
+			Type:            fleet.PolicyTypeDynamic,
 		},
 		{
 			Name:            "VPP Team policy 1",
@@ -4941,6 +4970,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "team1",
 			Platform:        "darwin",
 			SoftwareTitleID: &va1.TitleID,
+			Type:            fleet.PolicyTypeDynamic,
 		},
 		{
 			Name:            "VPP Team policy 2",
@@ -4950,6 +4980,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "team2",
 			Platform:        "linux",
 			SoftwareTitleID: &va2.TitleID,
+			Type:            fleet.PolicyTypeDynamic,
 		},
 		{
 			Name:            "VPP No team policy 3",
@@ -4959,6 +4990,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "No team",
 			Platform:        "linux",
 			SoftwareTitleID: &va1NoTeam.TitleID,
+			Type:            fleet.PolicyTypeDynamic,
 		},
 	})
 	require.NoError(t, err)
@@ -5014,6 +5046,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "team1",
 			Platform:        "darwin",
 			SoftwareTitleID: nil,
+			Type:            fleet.PolicyTypeDynamic,
 		},
 		{
 			Name:            "VPP Team policy 1",
@@ -5023,6 +5056,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "team1",
 			Platform:        "darwin",
 			SoftwareTitleID: nil,
+			Type:            fleet.PolicyTypeDynamic,
 		},
 	})
 	require.NoError(t, err)
@@ -5045,6 +5079,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "team1",
 			Platform:        "darwin",
 			SoftwareTitleID: installer2.TitleID,
+			Type:            fleet.PolicyTypeDynamic,
 		},
 	})
 	require.Error(t, err)
@@ -5061,6 +5096,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "team1",
 			Platform:        "darwin",
 			SoftwareTitleID: &va2.TitleID,
+			Type:            fleet.PolicyTypeDynamic,
 		},
 	})
 	require.Error(t, err)
@@ -5076,6 +5112,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "No team",
 			Platform:        "darwin",
 			SoftwareTitleID: installer2.TitleID,
+			Type:            fleet.PolicyTypeDynamic,
 		},
 	})
 	require.Error(t, err)
@@ -5091,6 +5128,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "No team",
 			Platform:        "darwin",
 			SoftwareTitleID: &va2.TitleID,
+			Type:            fleet.PolicyTypeDynamic,
 		},
 	})
 	require.Error(t, err)
@@ -5106,6 +5144,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "team1",
 			Platform:        "darwin",
 			SoftwareTitleID: ptr.Uint(999_999),
+			Type:            fleet.PolicyTypeDynamic,
 		},
 	})
 	require.Error(t, err)
@@ -5121,6 +5160,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "No team",
 			Platform:        "darwin",
 			SoftwareTitleID: ptr.Uint(999_999),
+			Type:            fleet.PolicyTypeDynamic,
 		},
 	})
 	require.Error(t, err)
@@ -5136,6 +5176,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "team2",
 			Platform:        "linux",
 			SoftwareTitleID: ptr.Uint(0),
+			Type:            fleet.PolicyTypeDynamic,
 		},
 	})
 	require.NoError(t, err)
@@ -5181,6 +5222,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "team1",
 			Platform:        "darwin",
 			SoftwareTitleID: installer1.TitleID,
+			Type:            fleet.PolicyTypeDynamic,
 		},
 		{
 			Name:            "Team policy 2",
@@ -5190,6 +5232,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "team2",
 			Platform:        "linux",
 			SoftwareTitleID: installer4.TitleID,
+			Type:            fleet.PolicyTypeDynamic,
 		},
 		{
 			Name:            "VPP Team policy 1",
@@ -5199,6 +5242,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "team1",
 			Platform:        "darwin",
 			SoftwareTitleID: &va1.TitleID,
+			Type:            fleet.PolicyTypeDynamic,
 		},
 		{
 			Name:            "VPP Team policy 2",
@@ -5208,6 +5252,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "team2",
 			Platform:        "linux",
 			SoftwareTitleID: &va4Team2.TitleID,
+			Type:            fleet.PolicyTypeDynamic,
 		},
 	})
 	require.NoError(t, err)
@@ -5258,6 +5303,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "team1",
 			Platform:        "darwin",
 			SoftwareTitleID: installer1.TitleID,
+			Type:            fleet.PolicyTypeDynamic,
 		},
 		{
 			Name:            "VPP Team policy 1",
@@ -5267,6 +5313,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "team1",
 			Platform:        "darwin",
 			SoftwareTitleID: &va1.TitleID,
+			Type:            fleet.PolicyTypeDynamic,
 		},
 	})
 	require.NoError(t, err)
@@ -5310,6 +5357,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "team1",
 			Platform:        "darwin",
 			SoftwareTitleID: installer5.TitleID,
+			Type:            fleet.PolicyTypeDynamic,
 		},
 		{
 			Name:            "VPP Team policy 1",
@@ -5319,6 +5367,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "team1",
 			Platform:        "darwin",
 			SoftwareTitleID: &va4Team1.TitleID,
+			Type:            fleet.PolicyTypeDynamic,
 		},
 	})
 	require.NoError(t, err)
