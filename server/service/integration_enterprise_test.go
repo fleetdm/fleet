@@ -26524,7 +26524,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		getPolicyResp := getPolicyByIDResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", policyID), nil, http.StatusOK, &getPolicyResp)
 		require.NotNil(t, getPolicyResp.Policy)
-		require.Equal(t, "dynamic", getPolicyResp.Policy.Type)
+		require.Nil(t, getPolicyResp.Policy.Type)
 		require.Empty(t, getPolicyResp.Policy.PatchSoftware)
 		require.Empty(t, getPolicyResp.Policy.PatchSoftwareTitleID)
 	})
