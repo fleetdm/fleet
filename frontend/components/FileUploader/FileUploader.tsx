@@ -244,9 +244,9 @@ export const FileUploader = ({
 
   const renderFileUploader = () => {
     return (
-      <div className="content-wrapper">
-        <div className="outer">
-          <div className="inner">
+      <div className={`${baseClass}__content-wrapper`}>
+        <div className={`${baseClass}__outer`}>
+          <div className={`${baseClass}__inner`}>
             <div className={`${baseClass}__graphics`}>{renderGraphics()}</div>
             {renderTitle()}
             <p className={`${baseClass}__message`}>{message}</p>
@@ -265,6 +265,7 @@ export const FileUploader = ({
               id="upload-file"
               type="file"
               onChange={onFileSelect}
+              className="file-input-visually-hidden"
             />
           )}
         </div>

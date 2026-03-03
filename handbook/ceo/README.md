@@ -241,6 +241,14 @@ Mike and the Fleet team
 5. Using the [🌧️🦉 Investors + advisors](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1068113636) spreadsheet, bcc the correct individuals and send the email.
 
 
+### Manually archive a Slack channel
+
+Use the following steps to manually archive a Slack channel and save any artifacts, e.g., images, attachments, or videos:
+1. Download all pictures and videos in the channel to your device you want to archive. To do this, you will go to that channel, click the "Files" tab, then "See all", and download each item.  
+2. Create a new folder inside of the [memories folder](https://drive.google.com/drive/folders/1lA38aTxsl4_qDtHCrYHcAaadES5ws0yJ?usp=drive_link) in Google Drive named ARCHIVED_DATE - CHANNEL_NAME and upload all of your artifacts.
+3. After you save your artifacts in Google Drive, navigate to and archive the Slack channel. Click the 3 dots in the top right corner, click "Edit settings", and "Archive channel for everyone".
+
+
 ### Archive a document
 
 Follow these steps to archive any document:

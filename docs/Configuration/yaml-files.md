@@ -445,7 +445,7 @@ In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_`. F
 | `$FLEET_VAR_HOST_PLATFORM`                         | macOS, iOS, iPadOS, Windows | Host's platform. Values are `"macos"`, `"ios"`, `"ipados"`, and `"windows"`. |
 | `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`       | macOS, iOS, iPadOS, Windows | Fleet-managed one-time challenge password used during SCEP certificate configuration profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [custom_scep_proxy](#custom-scep-proxy). |
 | `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`       | macOS, iOS, iPadOS, Windows | Fleet-managed SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
-| `$FLEET_VAR_SCEP_RENEWAL_ID`       | macOS, iOS, iPadOS | Fleet-managed ID that's required to automatically renew Smallstep, Microsoft NDES, and custom SCEP certificates. The ID must be specified in the Organizational Unit (OU) field in the configuration profile. |
+| `$FLEET_VAR_SCEP_RENEWAL_ID`       | macOS, iOS, iPadOS, Windows | Fleet-managed ID that's required to automatically renew Smallstep, Microsoft NDES, and custom SCEP certificates. The ID must be specified in the Organizational Unit (OU) field in the configuration profile. |
 | `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>`           | macOS, iOS, iPadOS | Fleet-managed password required to decode the base64-encoded certificate data issued by a specified DigiCert certificate authority during PKCS12 profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert). |
 | `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`               | macOS, iOS, iPadOS | Fleet-managed base64-encoded certificate data issued by a specified DigiCert certificate authority during PKCS12 profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert). |
 | `$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID`               | Windows | ID used for SCEP configuration profile on Windows. It must be included in the `<LocURI>` field.|
@@ -472,7 +472,7 @@ The `macos_setup` section lets you control the out-of-the-box [setup experience]
 - `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android. 
 - `require_all_software` specifies whether to cancel setup on a macOS host if any software installs fail.
 - `enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business Manager (ABM).
-- `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json). Applies to macOS and iOS/iPadOS hosts.
+- `macos_setup_assistant` is a path to a custom [automatic enrollment (ADE) profile](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web) (.json). Applies to macOS and iOS/iPadOS hosts.
 - `script` is the path to a custom setup script to run after the host is first set up. Applies to macOS only.
 
 #### Example

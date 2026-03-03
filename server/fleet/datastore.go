@@ -725,6 +725,9 @@ type Datastore interface {
 	NewSoftwareCategory(ctx context.Context, name string) (*SoftwareCategory, error)
 	// GetSoftwareCategoryIDs the list of IDs that correspond to the given list of software category names.
 	GetSoftwareCategoryIDs(ctx context.Context, names []string) ([]uint, error)
+	// GetSoftwareCategoryNameToIDMap returns a map of software category names to their IDs for the given names.
+	// Only categories that exist in the database are included in the map.
+	GetSoftwareCategoryNameToIDMap(ctx context.Context, names []string) (map[string]uint, error)
 	// GetCategoriesForSoftwareTitles takes a set of software title IDs and returns a map
 	// from the title IDs to the categories assigned to the installers for those titles.
 	GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
@@ -2676,7 +2679,7 @@ type Datastore interface {
 	// - If validity period > 30 days: renew within 30 days of expiration
 	// - If validity period <= 30 days: renew within half the validity period of expiration
 	// Only returns certificates with status 'delivered' or 'verified' and operation_type 'install'.
-	GetAndroidCertificateTemplatesForRenewal(ctx context.Context, limit int) ([]HostCertificateTemplateForRenewal, error)
+	GetAndroidCertificateTemplatesForRenewal(ctx context.Context, now time.Time, limit int) ([]HostCertificateTemplateForRenewal, error)
 
 	// SetAndroidCertificateTemplatesForRenewal marks the specified certificate templates for renewal
 	// by setting status to 'pending', clearing validity fields, and generating a new UUID.

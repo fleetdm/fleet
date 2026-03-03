@@ -233,7 +233,7 @@ func TestLookupEnvSecrets(t *testing.T) {
 			map[string]string{},
 			checkMultiErrors(t, "environment variable \"FLEET_SECRET_foo\" not set"),
 		},
-		{map[string]string{"FLEET_SECRET_foo": "test&123"}, `<Add>$FLEET_SECRET_foo</Add>`, map[string]string{"FLEET_SECRET_foo": "test&amp;123"}, nil},
+		{map[string]string{"FLEET_SECRET_foo": "test&123"}, `<Add>$FLEET_SECRET_foo</Add>`, map[string]string{"FLEET_SECRET_foo": "test&123"}, nil},
 	} {
 		// save the current env before clearing it.
 		testutils.SaveEnv(t)

@@ -6,7 +6,7 @@
 ## Types of championship that a Fleet customer can help with
 
 1. Logo usage on our website
-2. Customer testimonials
+2. [Customer testimonials](https://fleetdm.com/customers)
 3. Press interview
 4. Press quote
 5. Peer review - Gartner
