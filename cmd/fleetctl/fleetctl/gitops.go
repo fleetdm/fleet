@@ -31,6 +31,7 @@ func gitopsCommand() *cli.Command {
 		flFilenames             cli.StringSlice
 		flDryRun                bool
 		flDeleteOtherTeams      bool
+		flAllowUnknownKeys      bool
 		flConcurrentIconUploads int
 		flConcurrentIconUpdates int
 	)
@@ -58,6 +59,12 @@ func gitopsCommand() *cli.Command {
 				EnvVars:     []string{"DRY_RUN"},
 				Destination: &flDryRun,
 				Usage:       "Do not apply the file(s), just validate",
+			},
+			&cli.BoolFlag{
+				Name:        "allow-unknown-keys",
+				EnvVars:     []string{"ALLOW_UNKNOWN_KEYS"},
+				Destination: &flAllowUnknownKeys,
+				Usage:       "Log unknown keys as warnings instead of failing with errors",
 			},
 			&cli.IntFlag{
 				Name:        "icons-concurrent-uploads",
@@ -218,9 +225,10 @@ func gitopsCommand() *cli.Command {
 			// List of things we want to do at the end of this run
 			var allPostOps []func() error
 
+			gitOpsOpts := spec.GitOpsOptions{AllowUnknownKeys: flAllowUnknownKeys}
 			for _, flFilename := range flFilenames.Value() {
 				baseDir := filepath.Dir(flFilename)
-				config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, logf)
+				config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, logf, gitOpsOpts)
 				if err != nil {
 					return err
 				}

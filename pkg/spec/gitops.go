@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"strings"
@@ -105,6 +106,20 @@ func (e *ParseTypeError) Error() string {
 
 func (e *ParseTypeError) Unwrap() error {
 	return e.err
+}
+
+// ParseUnknownKeyError represents an unknown/misspelled key found in a GitOps YAML file.
+type ParseUnknownKeyError struct {
+	Filename string
+	Keys     []string // path context, e.g. ["controls", "macos_settings"]
+	Field    string   // the unknown field name
+}
+
+func (e *ParseUnknownKeyError) Error() string {
+	if len(e.Keys) > 0 {
+		return fmt.Sprintf("unknown key %q in %q (file %q)", e.Field, strings.Join(e.Keys, "."), e.Filename)
+	}
+	return fmt.Sprintf("unknown key %q (file %q)", e.Field, e.Filename)
 }
 
 func MaybeParseTypeError(filename string, keysPath []string, err error) error {
@@ -274,8 +289,19 @@ type GitOpsSoftware struct {
 
 type Logf func(format string, a ...interface{})
 
+// GitOpsOptions configures optional behavior for GitOps file parsing.
+type GitOpsOptions struct {
+	// AllowUnknownKeys causes unknown key errors to be logged as warnings
+	// instead of returned as errors.
+	AllowUnknownKeys bool
+}
+
 // GitOpsFromFile parses a GitOps yaml file.
-func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig, logFn Logf) (*GitOps, error) {
+func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig, logFn Logf, opts ...GitOpsOptions) (*GitOps, error) {
+	var options GitOpsOptions
+	if len(opts) > 0 {
+		options = opts[0]
+	}
 	b, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %s: %w", filePath, err)
@@ -385,6 +411,20 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 
 	// Policies can reference software installers and scripts, thus we parse them after parseSoftware and parseControls.
 	multiError = parsePolicies(top, result, baseDir, filePath, multiError)
+
+	// If AllowUnknownKeys is set, filter out ParseUnknownKeyError and log them as warnings.
+	if options.AllowUnknownKeys && multiError != nil {
+		var filtered *multierror.Error
+		for _, err := range multiError.Errors {
+			var unknownKeyErr *ParseUnknownKeyError
+			if errors.As(err, &unknownKeyErr) {
+				logFn("[!] warning: %s\n", unknownKeyErr.Error())
+			} else {
+				filtered = multierror.Append(filtered, err)
+			}
+		}
+		return result, filtered.ErrorOrNil()
+	}
 
 	return result, multiError.ErrorOrNil()
 }
@@ -750,12 +790,13 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 	if err := json.Unmarshal(controlsRaw, &controlsTop); err != nil {
 		return multierror.Append(multiError, MaybeParseTypeError(yamlFilename, []string{"controls"}, err))
 	}
+	// Validate unknown keys in controls section.
+	for _, err := range validateRawKeys(controlsRaw, reflect.TypeOf(GitOpsControls{}), yamlFilename, []string{"controls"}) {
+		multiError = multierror.Append(multiError, err)
+	}
 	controlsTop.Defined = true
 	controlsFilePath := yamlFilename
-	err := processControlsPathIfNeeded(controlsTop, result, &controlsFilePath)
-	if err != nil {
-		return multierror.Append(multiError, err)
-	}
+	multiError = processControlsPathIfNeeded(controlsTop, result, &controlsFilePath, multiError)
 
 	controlsDir := filepath.Dir(controlsFilePath)
 	var scriptErrs []error
@@ -881,35 +922,42 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 	return multiError
 }
 
-func processControlsPathIfNeeded(controlsTop GitOpsControls, result *GitOps, controlsFilePath *string) error {
+func processControlsPathIfNeeded(controlsTop GitOpsControls, result *GitOps, controlsFilePath *string, multiError *multierror.Error) *multierror.Error {
 	if controlsTop.Path == nil {
 		result.Controls = controlsTop
-		return nil
+		return multiError
 	}
 
 	// There is a path attribute which points to the real controls section in a separate file, so we need to process that.
 	controlsFilePath = ptr.String(resolveApplyRelativePath(filepath.Dir(*controlsFilePath), *controlsTop.Path))
 	fileBytes, err := os.ReadFile(*controlsFilePath)
 	if err != nil {
-		return fmt.Errorf("failed to read controls file %s: %v", *controlsTop.Path, err)
+		return multierror.Append(multiError, fmt.Errorf("failed to read controls file %s: %v", *controlsTop.Path, err))
 	}
 
 	// Replace $var and ${var} with env values.
 	fileBytes, err = ExpandEnvBytes(fileBytes)
 	if err != nil {
-		return fmt.Errorf("failed to expand environment in file %s: %v", *controlsTop.Path, err)
+		return multierror.Append(multiError, fmt.Errorf("failed to expand environment in file %s: %v", *controlsTop.Path, err))
 	}
 
 	var pathControls GitOpsControls
 	if err := YamlUnmarshal(fileBytes, &pathControls); err != nil {
-		return MaybeParseTypeError(*controlsTop.Path, []string{"controls"}, err)
+		return multierror.Append(multiError, MaybeParseTypeError(*controlsTop.Path, []string{"controls"}, err))
+	}
+	// Validate unknown keys in path-referenced controls file.
+	var rawControls json.RawMessage
+	if err := YamlUnmarshal(fileBytes, &rawControls); err == nil {
+		for _, err := range validateRawKeys(rawControls, reflect.TypeOf(GitOpsControls{}), *controlsTop.Path, []string{"controls"}) {
+			multiError = multierror.Append(multiError, err)
+		}
 	}
 	if pathControls.Path != nil {
-		return fmt.Errorf("nested paths are not supported: %s in %s", *pathControls.Path, *controlsTop.Path)
+		return multierror.Append(multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pathControls.Path, *controlsTop.Path))
 	}
 	pathControls.Defined = true
 	result.Controls = pathControls
-	return nil
+	return multiError
 }
 
 func resolveAndUpdateProfilePathToAbsolute(controlsDir string, profile *fleet.MDMProfileSpec, result *GitOps) error {
@@ -1096,6 +1144,10 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 	if err := json.Unmarshal(labelsRaw, &labels); err != nil {
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"labels"}, err))
 	}
+	// Validate unknown keys in labels section.
+	for _, err := range validateRawKeys(labelsRaw, reflect.TypeOf([]Label{}), filePath, []string{"labels"}) {
+		multiError = multierror.Append(multiError, err)
+	}
 	for _, item := range labels {
 		if item.Path == nil {
 			result.Labels = append(result.Labels, &item.LabelSpec)
@@ -1116,6 +1168,13 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 				if err := YamlUnmarshal(fileBytes, &pathLabels); err != nil {
 					multiError = multierror.Append(multiError, MaybeParseTypeError(*item.Path, []string{"labels"}, err))
 					continue
+				}
+				// Validate unknown keys in path-referenced labels file.
+				var rawLabels json.RawMessage
+				if err := YamlUnmarshal(fileBytes, &rawLabels); err == nil {
+					for _, err := range validateRawKeys(rawLabels, reflect.TypeOf([]Label{}), *item.Path, []string{"labels"}) {
+						multiError = multierror.Append(multiError, err)
+					}
 				}
 				for _, pq := range pathLabels {
 					pq := pq
@@ -1187,6 +1246,10 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	if err := json.Unmarshal(policiesRaw, &policies); err != nil {
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"policies"}, err))
 	}
+	// Validate unknown keys in policies section.
+	for _, err := range validateRawKeys(policiesRaw, reflect.TypeOf([]Policy{}), filePath, []string{"policies"}) {
+		multiError = multierror.Append(multiError, err)
+	}
 	for _, item := range policies {
 		if item.Path == nil {
 			if err := parsePolicyInstallSoftware(baseDir, result.TeamName, &item, result.Software.Packages, result.Software.AppStoreApps); err != nil {
@@ -1216,6 +1279,13 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				if err := YamlUnmarshal(fileBytes, &pathPolicies); err != nil {
 					multiError = multierror.Append(multiError, MaybeParseTypeError(*item.Path, []string{"policies"}, err))
 					continue
+				}
+				// Validate unknown keys in path-referenced policies file.
+				var rawPolicies json.RawMessage
+				if err := YamlUnmarshal(fileBytes, &rawPolicies); err == nil {
+					for _, err := range validateRawKeys(rawPolicies, reflect.TypeOf([]Policy{}), *item.Path, []string{"policies"}) {
+						multiError = multierror.Append(multiError, err)
+					}
 				}
 				for _, pp := range pathPolicies {
 					pp := pp
@@ -1404,6 +1474,10 @@ func parseReports(top map[string]json.RawMessage, result *GitOps, baseDir string
 	if err := json.Unmarshal(reportsRaw, &queries); err != nil {
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"reports"}, err))
 	}
+	// Validate unknown keys in reports section.
+	for _, err := range validateRawKeys(reportsRaw, reflect.TypeOf([]Query{}), filePath, []string{"reports"}) {
+		multiError = multierror.Append(multiError, err)
+	}
 	for i, item := range queries {
 		if item.Path == nil {
 			if err := validateReport(&item.QuerySpec, filePath, fmt.Sprintf("reports[%d]", i)); err != nil {
@@ -1429,6 +1503,13 @@ func parseReports(top map[string]json.RawMessage, result *GitOps, baseDir string
 				if err := YamlUnmarshal(fileBytes, &pathQueries); err != nil {
 					multiError = multierror.Append(multiError, MaybeParseTypeError(*item.Path, []string{"reports"}, err))
 					continue
+				}
+				// Validate unknown keys in path-referenced reports file.
+				var rawQueries json.RawMessage
+				if err := YamlUnmarshal(fileBytes, &rawQueries); err == nil {
+					for _, err := range validateRawKeys(rawQueries, reflect.TypeOf([]Query{}), *item.Path, []string{"reports"}) {
+						multiError = multierror.Append(multiError, err)
+					}
 				}
 				for i, pq := range pathQueries {
 					if pq != nil {
@@ -1475,6 +1556,10 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	if len(softwareRaw) > 0 {
 		if err := json.Unmarshal(softwareRaw, &software); err != nil {
 			return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"software"}, err))
+		}
+		// Validate unknown keys in software section.
+		for _, err := range validateRawKeys(softwareRaw, reflect.TypeOf(Software{}), filePath, []string{"software"}) {
+			multiError = multierror.Append(multiError, err)
 		}
 	}
 	for _, item := range software.AppStoreApps {
