@@ -302,10 +302,6 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 		return nil, ctxerr.Wrap(ctx, err, "laoding policy labels")
 	}
 
-	if policy.TeamID == nil {
-		policy.Type = nil
-	}
-
 	return &policy, nil
 }
 
