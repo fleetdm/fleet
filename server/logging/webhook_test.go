@@ -3,18 +3,18 @@ package logging
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/stretchr/testify/require"
 )
 
 func TestWebhookSubmission(t *testing.T) {
 	ctx := context.Background()
-	logger := platformlogging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	var body struct {
 		Timestamp time.Time         `json:"timestamp"`
 		Details   []json.RawMessage `json:"details"`
@@ -42,7 +42,7 @@ func TestWebhookSubmission(t *testing.T) {
 
 func TestWebhookFailure(t *testing.T) {
 	ctx := context.Background()
-	logger := platformlogging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad", http.StatusBadRequest)
 	}))

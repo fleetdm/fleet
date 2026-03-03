@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 import { AxiosError } from "axios";
@@ -40,6 +40,7 @@ interface IScriptBatchHostsTableProps {
   orderKey: ScriptBatchHostsOrderKey;
   setHostScriptExecutionIdForModal: (id: string) => void;
   router: InjectedRouter;
+  onDataLoaded?: (recordCount: number) => void;
 }
 
 const ScriptBatchHostsTable = ({
@@ -50,6 +51,7 @@ const ScriptBatchHostsTable = ({
   orderKey,
   setHostScriptExecutionIdForModal,
   router,
+  onDataLoaded,
 }: IScriptBatchHostsTableProps) => {
   const perPage = DEFAULT_PAGE_SIZE;
   const { data: hostResults, isLoading, error } = useQuery<
@@ -113,6 +115,12 @@ const ScriptBatchHostsTable = ({
     },
     [selectedHostStatus, orderKey, orderDirection, batchExecutionId, router]
   );
+
+  useEffect(() => {
+    if (hostResults && onDataLoaded) {
+      onDataLoaded(hostResults.count);
+    }
+  }, [hostResults, onDataLoaded]);
 
   if (error) {
     return <DataError description="Could not load host results." />;

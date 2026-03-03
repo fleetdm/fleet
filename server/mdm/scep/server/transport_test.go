@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"io/ioutil"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -15,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/gorilla/mux"
 )
 
@@ -239,9 +239,9 @@ func newServer(t *testing.T, opts ...scepserver.ServiceOption) (*httptest.Server
 			t.Fatal(err)
 		}
 	}
-	logger := logging.NewNopLogger()
+	slogLogger := slog.New(slog.DiscardHandler)
 	e := scepserver.MakeServerEndpoints(svc)
-	scepHandler := scepserver.MakeHTTPHandler(e, svc, logger)
+	scepHandler := scepserver.MakeHTTPHandler(e, svc, slogLogger)
 	r := mux.NewRouter()
 	r.Handle("/scep", scepHandler)
 	server := httptest.NewServer(r)

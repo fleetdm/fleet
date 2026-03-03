@@ -12,6 +12,7 @@ import (
 	"os"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/oauth2"
 )
 
@@ -71,9 +72,11 @@ func NewClient(opts ...ClientOpt) *http.Client {
 	if co.noFollow {
 		cli.CheckRedirect = noFollowRedirect
 	}
+	var baseTransport http.RoundTripper
 	if co.tlsConf != nil {
-		cli.Transport = NewTransport(WithTLSConfig(co.tlsConf))
+		baseTransport = NewTransport(WithTLSConfig(co.tlsConf))
 	}
+	cli.Transport = otelhttp.NewTransport(baseTransport)
 	if co.cookieJar != nil {
 		cli.Jar = co.cookieJar
 	}
@@ -125,11 +128,13 @@ func noFollowRedirect(*http.Request, []*http.Request) error {
 // token for authentication (as OAuth2 static token).
 func NewGithubClient() *http.Client {
 	if githubToken := os.Getenv("NETWORK_TEST_GITHUB_TOKEN"); githubToken != "" {
-		return oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
+		cli := oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
 			&oauth2.Token{
 				AccessToken: githubToken,
 			},
 		))
+		cli.Transport = otelhttp.NewTransport(cli.Transport)
+		return cli
 	}
 	return NewClient()
 }

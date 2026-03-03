@@ -3,6 +3,7 @@ package fleet
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 	_ "time/tzdata" // embed timezone information in the program
 
@@ -102,6 +103,7 @@ func FireCalendarWebhook(
 	hostDisplayName string,
 	failingCalendarPolicies []PolicyCalendarData,
 	err string,
+	logger *slog.Logger,
 ) error {
 	if err := server.PostJSONWithTimeout(context.Background(), webhookURL, &CalendarWebhookPayload{
 		Timestamp:        time.Now(),
@@ -110,7 +112,7 @@ func FireCalendarWebhook(
 		HostSerialNumber: hostHardwareSerial,
 		FailingPolicies:  failingCalendarPolicies,
 		Error:            err,
-	}); err != nil {
+	}, logger); err != nil {
 		return fmt.Errorf("POST to %q: %w", server.MaskSecretURLParams(webhookURL), server.MaskURLError(err))
 	}
 	return nil

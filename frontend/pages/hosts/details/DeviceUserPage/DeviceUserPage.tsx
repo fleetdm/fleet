@@ -674,7 +674,10 @@ const DeviceUserPage = ({
     }
 
     const hasAnyBypassDisabledFailingCAPolicy = host?.policies.some(
-      (p) => p.response === "fail" && !p.conditional_access_bypass_enabled
+      (p) =>
+        p.response === "fail" &&
+        p.conditional_access_enabled &&
+        !p.conditional_access_bypass_enabled
     );
 
     return (
@@ -856,9 +859,7 @@ const DeviceUserPage = ({
         )}
         {!!host && showOSSettingsModal && (
           <OSSettingsModal
-            canResendProfiles={
-              isMacOS(host.platform) || isWindows(host.platform)
-            }
+            canResendProfiles={isAppleHost || isWindows(host.platform)}
             platform={host.platform}
             hostMDMData={host.mdm}
             resendRequest={resendProfile}

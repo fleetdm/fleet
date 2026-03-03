@@ -137,7 +137,7 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponse(t *testing.T) {
 			hostUUID: "host-uuid",
 			expectedPayload: &MDMWindowsProfilePayload{
 				HostUUID:    "host-uuid",
-				Status:      &MDMDeliveryVerifying,
+				Status:      &MDMDeliveryVerified,
 				Detail:      "",
 				CommandUUID: "foo",
 			},
@@ -237,7 +237,7 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponse(t *testing.T) {
 			hostUUID: "host-uuid",
 			expectedPayload: &MDMWindowsProfilePayload{
 				HostUUID:    "host-uuid",
-				Status:      &MDMDeliveryVerifying,
+				Status:      &MDMDeliveryVerified,
 				Detail:      "",
 				CommandUUID: "foo",
 			},
@@ -298,7 +298,7 @@ func TestWindowsResponseToDeliveryStatus(t *testing.T) {
 		{
 			name:     "response starts with 2",
 			resp:     "202",
-			expected: MDMDeliveryVerifying,
+			expected: MDMDeliveryVerified,
 		},
 		{
 			name:     "bad requests",

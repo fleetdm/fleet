@@ -28,7 +28,6 @@ import (
 	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	depsync "github.com/fleetdm/fleet/v4/server/mdm/nanodep/sync"
-	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 const (
@@ -443,7 +442,7 @@ func (d *DEPService) EnsureCustomSetupAssistantIfExists(ctx context.Context, tea
 }
 
 func (d *DEPService) RunAssigner(ctx context.Context) error {
-	syncerLogger := logging.NewNanoDEPLogger(platformlogging.NewLogger(d.logger.With("component", "nanodep-syncer")))
+	syncerLogger := logging.NewNanoDEPLogger(ctx, d.logger.With("component", "nanodep-syncer"))
 	teams, err := d.ds.ListTeams(
 		ctx, fleet.TeamFilter{
 			User: &fleet.User{
@@ -1393,8 +1392,8 @@ func (pb *ProfileBimap) add(wantedProfile, currentProfile *fleet.MDMAppleProfile
 	pb.currentState[currentProfile] = wantedProfile
 }
 
-// NewActivityFunc is the function signature for creating a new activity.
-type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
+// NewActivityFunc is an alias for fleet.NewActivityFunc.
+type NewActivityFunc = fleet.NewActivityFunc
 
 func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger *slog.Logger,
 	newActivityFn NewActivityFunc) error {

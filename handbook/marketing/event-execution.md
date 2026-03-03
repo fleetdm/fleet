@@ -13,13 +13,20 @@ All child tasks in GitHub (e.g., draft and finalize talk title/abstract, design 
 
 ## **GitHub labels**
 
-We use GitHub labels to organize the difference between overall event issues and detailed execution tasks, allowing us to filter and track between overview issues only, and specific events only.
+We use GitHub labels to organize the difference between overall event issues and detailed execution tasks, allowing us to filter and track between overview issues only, and specific events only.  The color coding will help us to visually tell the difference between events.  Note the specific event labels have 6 possible colors defined. These should get re-used, as events are completed.
 
-* `:mktg-event` \- The standard label for all events.  
-* `:mktg-event:tp` \- Indicates this issue is part of event execution in general.  
-* `:mktg-event:overview` \- The parent issue for the event.  
-* `:mktg-event:detail` \- Used for detailed tasks (children) of the overall event.  
-* `:mktg-event:YYMM-eventname-city` \- A custom label created for each specific event to group a family of tasks together.
+| Label | Color | Hex Code | Definition (When to use it) |
+| :---- | :---- | :---- | :---- |
+| **:mktg-event** | Orange | \#F97316 | The standard label for all events. |
+| **:mktg-event:tp** | Dark Rust | \#9A3412 | Indicates this issue is part of event execution in general. |
+| **:mktg-event:overview** | Light Peach | \#FFDED2 | The parent issue for the event. |
+| **:mktg-event:detail** | Amber | \#F59E0B | Used for detailed tasks (children) of the overall event. |
+| **:mktg-event:YYMM-eventname-city** | Sunset Red | \#EF4444 | A first custom label created for each specific event to group a family of tasks together. |
+| **:mktg-event:YYMM-eventname-city** | Tangerine | \#FF8A65 | 2nd color custom lable for specific events |
+| **:mktg-event:YYMM-eventname-city** | Marigold | \#FBBF24 | 3rd color custom lable for specific events |
+| **:mktg-event:YYMM-eventname-city** | Terracotta | \#C2410C | 4th color custom lable for specific events |
+| **:mktg-event:YYMM-eventname-city** | Salmon | \#FA8072 | 5th color custom lable for specific events |
+| **:mktg-event:YYMM-eventname-city** | Brick | \#B91C1C | 6th color custom lable for specific events |
 
 ## **Event plans**
 

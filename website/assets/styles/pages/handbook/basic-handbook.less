@@ -465,6 +465,9 @@
       li:last-child {
         padding-bottom: 0px;
       }
+      :first-child {// Remove top padding from the first element inside purpose="tip" blockquotes
+        padding-top: 0;
+      }
     }
     [purpose='ritual-description'] {
       white-space: preserve;

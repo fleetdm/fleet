@@ -40,8 +40,9 @@ SYSTEMS=${SYSTEMS:-macos linux linux-arm64 windows windows-arm64}
 
 echo "Generating components for $SYSTEMS"
 
-NUDGE_VERSION=stable
+NUDGE_VERSION=1.1.10.81462
 ESCROW_BUDDY_PKG_VERSION=1.0.0
+SWIFT_DIALOG_VERSION=2.5.6
 
 if [[ -z "$OSQUERY_VERSION" ]]; then
     OSQUERY_VERSION=5.21.0
@@ -183,36 +184,35 @@ for system in $SYSTEMS; do
             --target nudge.app.tar.gz \
             --platform macos \
             --name nudge \
-            --version $ORBIT_VERSION -t $ORBIT_MAJOR.$ORBIT_MINOR -t $ORBIT_MAJOR -t stable
+            --version $NUDGE_VERSION -t stable
         rm nudge.app.tar.gz
     fi
 
     # Add swiftDialog on macos (if enabled).
     if [[ $system == "macos" && -n "$SWIFT_DIALOG" ]]; then
-        curl https://updates.fleetdm.com/targets/swiftDialog/macos/stable/swiftDialog.app.tar.gz --output swiftDialog.app.tar.gz
+        curl https://updates.fleetdm.com/targets/swiftDialog/macos/$SWIFT_DIALOG_VERSION/swiftDialog.app.tar.gz --output swiftDialog.app.tar.gz
 
         ./build/fleetctl updates add \
             --path $TUF_PATH \
             --target swiftDialog.app.tar.gz \
             --platform macos \
             --name swiftDialog \
-            --version $ORBIT_VERSION -t $ORBIT_MAJOR.$ORBIT_MINOR -t $ORBIT_MAJOR -t stable
+            --version $SWIFT_DIALOG_VERSION -t stable
         rm swiftDialog.app.tar.gz
     fi
 
     # Add Escrow Buddy on macos (if enabled).
     if [[ $system == "macos" && -n "$ESCROW_BUDDY" ]]; then
-	make escrow-buddy-pkg version=$ESCROW_BUDDY_PKG_VERSION out-path=.
+        make escrow-buddy-pkg version=$ESCROW_BUDDY_PKG_VERSION out-path=.
 
         ./build/fleetctl updates add \
             --path $TUF_PATH \
             --target escrowBuddy.pkg \
             --platform macos \
             --name escrowBuddy \
-            --version $ORBIT_VERSION -t $ORBIT_MAJOR.$ORBIT_MINOR -t $ORBIT_MAJOR -t stable
+            --version $ESCROW_BUDDY_PKG_VERSION -t stable
         rm escrowBuddy.pkg
     fi
-
 
     # Add Fleet Desktop application on windows (if enabled).
     if [[ $system == "windows" && -n "$FLEET_DESKTOP" ]]; then

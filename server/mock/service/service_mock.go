@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
@@ -40,6 +41,10 @@ type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) (users [
 type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error)
 
 type GetHostLiteFunc func(ctx context.Context, id uint) (host *fleet.Host, err error)
+
+type GetActivitiesWebhookSettingsFunc func(ctx context.Context) (fleet.ActivitiesWebhookSettings, error)
+
+type ActivateNextUpcomingActivityForHostFunc func(ctx context.Context, hostID uint, fromCompletedExecID string) error
 
 type GetTransparencyURLFunc func(ctx context.Context) (string, error)
 
@@ -385,6 +390,8 @@ type ModifyTeamEnrollSecretsFunc func(ctx context.Context, teamID uint, secrets 
 
 type ApplyTeamSpecsFunc func(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplyTeamSpecOptions) (map[string]uint, error)
 
+type SetActivityServiceFunc func(activitySvc api.NewActivityService)
+
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 
 type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error)
@@ -539,6 +546,8 @@ type GetVPPTokensFunc func(ctx context.Context) ([]*fleet.VPPTokenDB, error)
 
 type DeleteVPPTokenFunc func(ctx context.Context, tokenID uint) error
 
+type CreateAndroidWebAppFunc func(ctx context.Context, title string, startURL string, icon io.Reader) (string, error)
+
 type BatchAssociateVPPAppsFunc func(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, error)
 
 type GetHostDEPAssignmentFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostDEPAssignment, error)
@@ -632,6 +641,8 @@ type UpdateMDMDiskEncryptionFunc func(ctx context.Context, teamID *uint, enableD
 type VerifyMDMAppleConfiguredFunc func(ctx context.Context) error
 
 type VerifyMDMWindowsConfiguredFunc func(ctx context.Context) error
+
+type VerifyMDMAndroidConfiguredFunc func(ctx context.Context) error
 
 type VerifyAnyMDMConfiguredFunc func(ctx context.Context) error
 
@@ -910,6 +921,12 @@ type Service struct {
 
 	GetHostLiteFunc        GetHostLiteFunc
 	GetHostLiteFuncInvoked bool
+
+	GetActivitiesWebhookSettingsFunc        GetActivitiesWebhookSettingsFunc
+	GetActivitiesWebhookSettingsFuncInvoked bool
+
+	ActivateNextUpcomingActivityForHostFunc        ActivateNextUpcomingActivityForHostFunc
+	ActivateNextUpcomingActivityForHostFuncInvoked bool
 
 	GetTransparencyURLFunc        GetTransparencyURLFunc
 	GetTransparencyURLFuncInvoked bool
@@ -1427,6 +1444,9 @@ type Service struct {
 	ApplyTeamSpecsFunc        ApplyTeamSpecsFunc
 	ApplyTeamSpecsFuncInvoked bool
 
+	SetActivityServiceFunc        SetActivityServiceFunc
+	SetActivityServiceFuncInvoked bool
+
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
 
@@ -1658,6 +1678,9 @@ type Service struct {
 	DeleteVPPTokenFunc        DeleteVPPTokenFunc
 	DeleteVPPTokenFuncInvoked bool
 
+	CreateAndroidWebAppFunc        CreateAndroidWebAppFunc
+	CreateAndroidWebAppFuncInvoked bool
+
 	BatchAssociateVPPAppsFunc        BatchAssociateVPPAppsFunc
 	BatchAssociateVPPAppsFuncInvoked bool
 
@@ -1798,6 +1821,9 @@ type Service struct {
 
 	VerifyMDMWindowsConfiguredFunc        VerifyMDMWindowsConfiguredFunc
 	VerifyMDMWindowsConfiguredFuncInvoked bool
+
+	VerifyMDMAndroidConfiguredFunc        VerifyMDMAndroidConfiguredFunc
+	VerifyMDMAndroidConfiguredFuncInvoked bool
 
 	VerifyAnyMDMConfiguredFunc        VerifyAnyMDMConfiguredFunc
 	VerifyAnyMDMConfiguredFuncInvoked bool
@@ -2243,6 +2269,20 @@ func (s *Service) GetHostLite(ctx context.Context, id uint) (host *fleet.Host, e
 	s.GetHostLiteFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostLiteFunc(ctx, id)
+}
+
+func (s *Service) GetActivitiesWebhookSettings(ctx context.Context) (fleet.ActivitiesWebhookSettings, error) {
+	s.mu.Lock()
+	s.GetActivitiesWebhookSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetActivitiesWebhookSettingsFunc(ctx)
+}
+
+func (s *Service) ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error {
+	s.mu.Lock()
+	s.ActivateNextUpcomingActivityForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.ActivateNextUpcomingActivityForHostFunc(ctx, hostID, fromCompletedExecID)
 }
 
 func (s *Service) GetTransparencyURL(ctx context.Context) (string, error) {
@@ -3449,6 +3489,13 @@ func (s *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, a
 	return s.ApplyTeamSpecsFunc(ctx, specs, applyOpts)
 }
 
+func (s *Service) SetActivityService(activitySvc api.NewActivityService) {
+	s.mu.Lock()
+	s.SetActivityServiceFuncInvoked = true
+	s.mu.Unlock()
+	s.SetActivityServiceFunc(activitySvc)
+}
+
 func (s *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 	s.mu.Lock()
 	s.NewActivityFuncInvoked = true
@@ -3988,6 +4035,13 @@ func (s *Service) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 	return s.DeleteVPPTokenFunc(ctx, tokenID)
 }
 
+func (s *Service) CreateAndroidWebApp(ctx context.Context, title string, startURL string, icon io.Reader) (string, error) {
+	s.mu.Lock()
+	s.CreateAndroidWebAppFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateAndroidWebAppFunc(ctx, title, startURL, icon)
+}
+
 func (s *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, error) {
 	s.mu.Lock()
 	s.BatchAssociateVPPAppsFuncInvoked = true
@@ -4315,6 +4369,13 @@ func (s *Service) VerifyMDMWindowsConfigured(ctx context.Context) error {
 	s.VerifyMDMWindowsConfiguredFuncInvoked = true
 	s.mu.Unlock()
 	return s.VerifyMDMWindowsConfiguredFunc(ctx)
+}
+
+func (s *Service) VerifyMDMAndroidConfigured(ctx context.Context) error {
+	s.mu.Lock()
+	s.VerifyMDMAndroidConfiguredFuncInvoked = true
+	s.mu.Unlock()
+	return s.VerifyMDMAndroidConfiguredFunc(ctx)
 }
 
 func (s *Service) VerifyAnyMDMConfigured(ctx context.Context) error {
