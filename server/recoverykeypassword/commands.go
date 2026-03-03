@@ -5,7 +5,7 @@ import "fmt"
 // SetRecoveryLockCommand returns the raw plist for the SetRecoveryLock MDM command.
 // See https://developer.apple.com/documentation/devicemanagement/set_recovery_lock
 func SetRecoveryLockCommand(cmdUUID, password string) []byte {
-	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+	return fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -19,13 +19,13 @@ func SetRecoveryLockCommand(cmdUUID, password string) []byte {
         <string>%s</string>
     </dict>
 </dict>
-</plist>`, cmdUUID, password))
+</plist>`, cmdUUID, password)
 }
 
 // VerifyRecoveryLockCommand returns the raw plist for the VerifyRecoveryLock MDM command.
 // See https://developer.apple.com/documentation/devicemanagement/verifyrecoverylockcommand
 func VerifyRecoveryLockCommand(cmdUUID, password string) []byte {
-	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+	return fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -39,5 +39,5 @@ func VerifyRecoveryLockCommand(cmdUUID, password string) []byte {
         <string>%s</string>
     </dict>
 </dict>
-</plist>`, cmdUUID, password))
+</plist>`, cmdUUID, password)
 }

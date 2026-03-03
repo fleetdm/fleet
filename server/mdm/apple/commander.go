@@ -600,4 +600,3 @@ func (e *APNSDeliveryError) FailedUUIDs() []string {
 }
 
 func (e *APNSDeliveryError) StatusCode() int { return http.StatusBadGateway }
-
