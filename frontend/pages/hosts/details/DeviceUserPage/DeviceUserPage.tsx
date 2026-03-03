@@ -674,7 +674,10 @@ const DeviceUserPage = ({
     }
 
     const hasAnyBypassDisabledFailingCAPolicy = host?.policies.some(
-      (p) => p.response === "fail" && !p.conditional_access_bypass_enabled
+      (p) =>
+        p.response === "fail" &&
+        p.conditional_access_enabled &&
+        !p.conditional_access_bypass_enabled
     );
 
     return (
