@@ -8,7 +8,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/recoverykeypassword"
 	"github.com/google/uuid"
 )
@@ -23,7 +22,7 @@ const verifyRecoveryLockTask recoveryLockTask = "verify_recovery_lock"
 type RecoveryLock struct {
 	Datastore    fleet.Datastore
 	RKPDatastore recoverykeypassword.Datastore
-	Commander    *apple_mdm.MDMAppleCommander
+	Commander    recoverykeypassword.MDMCommander
 	Log          *slog.Logger
 }
 
@@ -66,7 +65,8 @@ func (r *RecoveryLock) verifyRecoveryLock(ctx context.Context, hostUUID string, 
 	cmdUUID := recoverykeypassword.VerifyRecoveryLockCommandPrefix + uuid.NewString()
 
 	// Send VerifyRecoveryLock command
-	if err := r.Commander.VerifyRecoveryLock(ctx, []string{hostUUID}, cmdUUID, rkp.Password); err != nil {
+	rawCmd := recoverykeypassword.VerifyRecoveryLockCommand(cmdUUID, rkp.Password)
+	if err := r.Commander.EnqueueCommand(ctx, []string{hostUUID}, string(rawCmd)); err != nil {
 		return ctxerr.Wrap(ctx, err, "send VerifyRecoveryLock command")
 	}
 

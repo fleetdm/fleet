@@ -5,20 +5,27 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/google/uuid"
 )
 
+// MDMCommander defines the MDM operations needed by the recovery lock reconciler.
+type MDMCommander interface {
+	// EnqueueCommand enqueues a raw MDM command for the given host UUIDs.
+	EnqueueCommand(ctx context.Context, hostUUIDs []string, rawCommand string) error
+	// SendNotifications sends APNs push notifications to wake up devices.
+	SendNotifications(ctx context.Context, hostUUIDs []string) error
+}
+
 // ReconcileRecoveryLockPasswords is the main cron job function that manages recovery lock passwords.
 // It performs three tasks:
 // 1. Checks for acknowledged SetRecoveryLock commands and sends VerifyRecoveryLock commands
-// 2. Re-pushes stale verifying hosts (where VerifyRecoveryLock hasn't been acknowledged)
+// 2. Re-pushes verifying hosts (where VerifyRecoveryLock hasn't been acknowledged)
 // 3. Sends SetRecoveryLock commands to hosts that need a recovery lock password
 func ReconcileRecoveryLockPasswords(
 	ctx context.Context,
 	rkpDS Datastore,
-	commander *apple_mdm.MDMAppleCommander,
+	commander MDMCommander,
 	logger *logging.Logger,
 ) error {
 	// Step 1: Process pending SetRecoveryLock commands (check for acknowledged/failed)
@@ -40,7 +47,7 @@ func ReconcileRecoveryLockPasswords(
 func processPendingSetCommands(
 	ctx context.Context,
 	rkpDS Datastore,
-	commander *apple_mdm.MDMAppleCommander,
+	commander MDMCommander,
 	logger *logging.Logger,
 ) error {
 	pendingHosts, err := rkpDS.GetPendingRecoveryLockHosts(ctx)
@@ -102,7 +109,7 @@ func processPendingSetCommands(
 func sendVerifyRecoveryLock(
 	ctx context.Context,
 	rkpDS Datastore,
-	commander *apple_mdm.MDMAppleCommander,
+	commander MDMCommander,
 	logger *logging.Logger,
 	host HostPendingRecoveryLock,
 ) error {
@@ -116,7 +123,8 @@ func sendVerifyRecoveryLock(
 	cmdUUID := VerifyRecoveryLockCommandPrefix + uuid.NewString()
 
 	// Send VerifyRecoveryLock command
-	if err := commander.VerifyRecoveryLock(ctx, []string{host.HostUUID}, cmdUUID, rkp.Password); err != nil {
+	rawCmd := VerifyRecoveryLockCommand(cmdUUID, rkp.Password)
+	if err := commander.EnqueueCommand(ctx, []string{host.HostUUID}, string(rawCmd)); err != nil {
 		return ctxerr.Wrap(ctx, err, "send VerifyRecoveryLock command")
 	}
 
@@ -138,7 +146,7 @@ func sendVerifyRecoveryLock(
 func sendSetRecoveryLockCommands(
 	ctx context.Context,
 	rkpDS Datastore,
-	commander *apple_mdm.MDMAppleCommander,
+	commander MDMCommander,
 	logger *logging.Logger,
 ) error {
 	hosts, err := rkpDS.GetHostsForRecoveryLockAction(ctx)
@@ -171,7 +179,7 @@ func sendSetRecoveryLockCommands(
 func processHostForSet(
 	ctx context.Context,
 	rkpDS Datastore,
-	commander *apple_mdm.MDMAppleCommander,
+	commander MDMCommander,
 	logger *logging.Logger,
 	host HostRecoveryLockAction,
 ) error {
@@ -185,7 +193,8 @@ func processHostForSet(
 	cmdUUID := uuid.NewString()
 
 	// Send SetRecoveryLock command
-	if err := commander.SetRecoveryLock(ctx, []string{host.HostUUID}, cmdUUID, password); err != nil {
+	rawCmd := SetRecoveryLockCommand(cmdUUID, password)
+	if err := commander.EnqueueCommand(ctx, []string{host.HostUUID}, string(rawCmd)); err != nil {
 		return ctxerr.Wrap(ctx, err, "send SetRecoveryLock command")
 	}
 
