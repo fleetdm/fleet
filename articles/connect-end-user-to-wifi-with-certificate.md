@@ -412,6 +412,10 @@ The following steps show how to connect end users to Wi-Fi or VPN with a [custom
 
 ### Step 2: Add SCEP configuration profile to Fleet
 
+To deploy SCEP certificates to macOS, iOS, iPadOS, and Windows hosts, we'll follow the steps below to add a configuration profile to Fleet. 
+
+For Android hosts, we won't use a configuration profile. Follow the [Android steps](#android-add-certificate) instead.
+
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_{CA_NAME}`. For `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_{CA_NAME}`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
 
 2. Replace the `{CA_NAME}` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_PASSWORD_WIFI_AUTHENTICATION` and `FLEET_VAR_CUSTOM_SCEP_DIGICERT_DATA_WIFI_AUTHENTICATION`.
