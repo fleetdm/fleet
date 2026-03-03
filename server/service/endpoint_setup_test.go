@@ -18,7 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -191,7 +191,7 @@ func TestDownloadAndUpdateScripts(t *testing.T) {
 			}
 
 			// Call the actual production function
-			err = DownloadAndUpdateScripts(context.Background(), specs, tt.scriptNames, tempDir, kitlog.NewNopLogger())
+			err = DownloadAndUpdateScripts(context.Background(), specs, tt.scriptNames, tempDir, logging.NewNopLogger())
 			require.NoError(t, err)
 
 			// Verify the scripts were downloaded
@@ -288,7 +288,7 @@ func TestDownloadAndUpdateScriptsWithInvalidPaths(t *testing.T) {
 			}
 
 			// Call the actual production function
-			err = DownloadAndUpdateScripts(context.Background(), specs, tt.scriptNames, tempDir, kitlog.NewNopLogger())
+			err = DownloadAndUpdateScripts(context.Background(), specs, tt.scriptNames, tempDir, logging.NewNopLogger())
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.errorMsg)
 		})
@@ -411,7 +411,7 @@ func TestDownloadAndUpdateScriptsTimeout(t *testing.T) {
 			defer cancel()
 
 			// Call the actual production function
-			err = DownloadAndUpdateScripts(ctx, specs, scriptNames, tempDir, kitlog.NewNopLogger())
+			err = DownloadAndUpdateScripts(ctx, specs, scriptNames, tempDir, logging.NewNopLogger())
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -478,7 +478,7 @@ func TestApplyStarterLibraryWithMockClient(t *testing.T) {
 		context.Background(),
 		"https://example.com",
 		"test-token",
-		kitlog.NewNopLogger(),
+		logging.NewNopLogger(),
 		httpClientFactory,
 		clientFactory,
 		mockApplyGroup,
@@ -560,7 +560,7 @@ func TestApplyStarterLibraryWithMalformedYAML(t *testing.T) {
 		context.Background(),
 		"https://example.com",
 		"test-token",
-		kitlog.NewNopLogger(),
+		logging.NewNopLogger(),
 		httpClientFactory,
 		clientFactory,
 		mockApplyGroup,
@@ -666,7 +666,7 @@ func TestApplyStarterLibraryWithFreeLicense(t *testing.T) {
 		context.Background(),
 		"https://example.com",
 		"test-token",
-		kitlog.NewNopLogger(),
+		logging.NewNopLogger(),
 		httpClientFactory,
 		clientFactory,
 		mockApplyGroup,

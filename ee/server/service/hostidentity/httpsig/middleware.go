@@ -10,7 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 )
 
@@ -49,7 +49,7 @@ func FromContext(ctx context.Context) (types.HostIdentityCertificate, bool) {
 // to it, and then calls the handler passed as parameter to the MiddlewareFunc.
 type MiddlewareFunc func(http.Handler) http.Handler
 
-func Middleware(ds fleet.Datastore, requireSignature bool, logger kitlog.Logger) (MiddlewareFunc, error) {
+func Middleware(ds fleet.Datastore, requireSignature bool, logger *logging.Logger) (MiddlewareFunc, error) {
 	// Initialize HTTP signature verifier
 	httpSig := NewHTTPSig(ds, logger)
 	verifier, err := httpSig.Verifier()

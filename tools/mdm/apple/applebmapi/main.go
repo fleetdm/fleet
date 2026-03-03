@@ -60,7 +60,7 @@ func main() {
 	}
 	logger := logging.NewLogfmtLogger(os.Stderr)
 	opts := []mysql.DBOption{
-		mysql.Logger(logger),
+		mysql.Logger(logger.SlogLogger()),
 		mysql.WithFleetConfig(&config.FleetConfig{
 			Server: config.ServerConfig{
 				PrivateKey: *serverPrivateKey,

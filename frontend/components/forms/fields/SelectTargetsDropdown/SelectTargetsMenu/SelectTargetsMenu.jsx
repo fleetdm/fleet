@@ -107,7 +107,7 @@ const SelectTargetsMenuWrapper = (
     const renderTargetGroups = (
       <>
         {renderTargets("all")}
-        {isPremiumTier && renderTargets("teams")}
+        {isPremiumTier && renderTargets("fleets")}
         {renderTargets("labels")}
         {renderTargets("hosts")}
       </>

@@ -17,7 +17,6 @@ import (
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
-	"github.com/go-kit/kit/log"
 	"github.com/smallstep/scep"
 )
 
@@ -112,7 +111,7 @@ var _ scepserver.Service = (*service)(nil)
 type service struct {
 	// The (chainable) CSR signing function
 	signer scepserver.CSRSignerContext
-	logger log.Logger
+	logger *logging.Logger
 	ds     fleet.Datastore
 }
 
@@ -212,7 +211,7 @@ func (svc *service) GetNextCACert(_ context.Context) ([]byte, error) {
 }
 
 // NewSCEPService creates a new conditional access SCEP service.
-func NewSCEPService(ds fleet.Datastore, signer scepserver.CSRSignerContext, logger log.Logger) scepserver.Service {
+func NewSCEPService(ds fleet.Datastore, signer scepserver.CSRSignerContext, logger *logging.Logger) scepserver.Service {
 	return &service{
 		ds:     ds,
 		signer: signer,

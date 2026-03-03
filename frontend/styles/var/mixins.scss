@@ -252,6 +252,12 @@ $max-width: 2560px;
   }
 }
 
+@mixin flex-column-32px-gap {
+  display: flex;
+  flex-direction: column;
+  gap: px-to-rem(32);
+}
+
 @mixin flex-column-24px-gap {
   display: flex;
   flex-direction: column;

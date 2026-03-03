@@ -17,7 +17,7 @@ import (
 	smithy "github.com/aws/smithy-go"
 	"github.com/fleetdm/fleet/v4/server/aws_common"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/go-kit/log"
+	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 )
 
@@ -40,11 +40,11 @@ type KinesisAPI interface {
 type kinesisLogWriter struct {
 	client KinesisAPI
 	stream string
-	logger log.Logger
+	logger *platformlogging.Logger
 	rand   *rand.Rand
 }
 
-func NewKinesisLogWriter(region, endpointURL, id, secret, stsAssumeRoleArn, stsExternalID, stream string, logger log.Logger) (*kinesisLogWriter, error) {
+func NewKinesisLogWriter(region, endpointURL, id, secret, stsAssumeRoleArn, stsExternalID, stream string, logger *platformlogging.Logger) (*kinesisLogWriter, error) {
 	var opts []func(*aws_config.LoadOptions) error
 
 	// The service endpoint is deprecated, but we still set it

@@ -140,7 +140,11 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.AdditionalFilters = strings.Split(additionalInfoFiltersString, ",")
 	}
 
-	teamID := r.URL.Query().Get("team_id")
+	teamID := r.URL.Query().Get("fleet_id")
+	if teamID == "" {
+		teamID = r.URL.Query().Get("team_id")
+		// TODO: warn about deprecated team_id parameter if team_id is used instead of fleet_id.
+	}
 	if teamID != "" {
 		id, err := strconv.ParseUint(teamID, 10, 32)
 		if err != nil {

@@ -12,7 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/bindata"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
-	"github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/klauspost/compress/gzhttp"
 )
 
@@ -25,7 +25,7 @@ func newBinaryFileSystem(root string) *assetfs.AssetFS {
 	}
 }
 
-func ServeFrontend(urlPrefix string, sandbox bool, logger log.Logger) http.Handler {
+func ServeFrontend(urlPrefix string, sandbox bool, logger *logging.Logger) http.Handler {
 	herr := func(w http.ResponseWriter, err string) {
 		logger.Log("err", err)
 		http.Error(w, err, http.StatusInternalServerError)
@@ -80,7 +80,7 @@ func ServeEndUserEnrollOTA(
 	svc fleet.Service,
 	urlPrefix string,
 	ds fleet.Datastore,
-	logger log.Logger,
+	logger *logging.Logger,
 ) http.Handler {
 	herr := func(w http.ResponseWriter, err string) {
 		logger.Log("err", err)

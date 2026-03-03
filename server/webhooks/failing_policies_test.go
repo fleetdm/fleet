@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -18,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -94,13 +94,13 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 	require.NoError(t, err)
 
 	mockClock := time.Now()
-	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, slog.New(slog.DiscardHandler), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 		serverURL, err := url.Parse(ac.ServerSettings.ServerURL)
 		if err != nil {
 			return err
 		}
 		return SendFailingPoliciesBatchedPOSTs(
-			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, mockClock, kitlog.NewNopLogger())
+			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, mockClock, slog.New(slog.DiscardHandler))
 	})
 	require.NoError(t, err)
 	timestamp, err := mockClock.MarshalJSON()
@@ -118,6 +118,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
         "author_name": "Alice",
         "author_email": "alice@example.com",
         "team_id": null,
+		"fleet_id": null,
         "resolution": "policy1 resolution",
         "platform": "darwin",
         "created_at": "0001-01-01T00:00:00Z",
@@ -152,13 +153,13 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 
 	requestBody = ""
 
-	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, slog.New(slog.DiscardHandler), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 		serverURL, err := url.Parse(ac.ServerSettings.ServerURL)
 		if err != nil {
 			return err
 		}
 		return SendFailingPoliciesBatchedPOSTs(
-			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, mockClock, kitlog.NewNopLogger())
+			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, mockClock, slog.New(slog.DiscardHandler))
 	})
 	require.NoError(t, err)
 	assert.Empty(t, requestBody)
@@ -283,13 +284,13 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 	require.NoError(t, err)
 
 	now := time.Now()
-	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, slog.New(slog.DiscardHandler), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 		serverURL, err := url.Parse(ac.ServerSettings.ServerURL)
 		if err != nil {
 			return err
 		}
 		return SendFailingPoliciesBatchedPOSTs(
-			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, now, kitlog.NewNopLogger())
+			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, now, slog.New(slog.DiscardHandler))
 	})
 	require.NoError(t, err)
 
@@ -310,6 +311,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
         "author_name": "Alice",
         "author_email": "alice@example.com",
         "team_id": 1,
+		"fleet_id": 1,
         "resolution": "policy1 resolution",
         "platform": "darwin",
         "created_at": "0001-01-01T00:00:00Z",
@@ -338,13 +340,13 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 
 	webhookBody = ""
 
-	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, slog.New(slog.DiscardHandler), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 		serverURL, err := url.Parse(ac.ServerSettings.ServerURL)
 		if err != nil {
 			return err
 		}
 		return SendFailingPoliciesBatchedPOSTs(
-			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, now, kitlog.NewNopLogger())
+			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, now, slog.New(slog.DiscardHandler))
 	})
 	require.NoError(t, err)
 	assert.Empty(t, webhookBody)
@@ -471,7 +473,7 @@ func TestSendBatchedPOSTs(t *testing.T) {
 				serverURL,
 				webhookURL,
 				now,
-				kitlog.NewNopLogger(),
+				slog.New(slog.DiscardHandler),
 			)
 			require.NoError(t, err)
 			require.Len(t, allHosts, tc.hostCount)

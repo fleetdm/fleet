@@ -33,6 +33,7 @@ import (
 	httpsigproxy "github.com/fleetdm/fleet/v4/ee/orbit/pkg/httpsigproxy"
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/securehw"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/augeas"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/bitlocker"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
@@ -604,6 +605,7 @@ func main() {
 		// it fetches osqueryd once as part of initialization.
 		var updater *update.Updater
 		var updateRunner *update.Runner
+		var osqueryVersion string
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
 			updater, err := update.NewUpdater(opt)
 			if err != nil {
@@ -645,6 +647,7 @@ func main() {
 				if err == nil && version != "" {
 					log.Info().Msgf("Found osquery version: %s", version)
 					updateRunner.OsqueryVersion = version
+					osqueryVersion = version
 				}
 			}
 
@@ -693,6 +696,10 @@ func main() {
 			osquerydPath, err = updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
 			if err != nil {
 				log.Fatal().Err(err).Msgf("locate %s", constant.OsqueryTUFTargetName)
+			}
+			if v, err := update.GetVersion(osquerydPath); err == nil && v != "" {
+				log.Info().Msgf("Found osquery version: %s", v)
+				osqueryVersion = v
 			}
 			if c.Bool("fleet-desktop") {
 				if runtime.GOOS == "darwin" {
@@ -924,7 +931,7 @@ func main() {
 			}
 
 			options = append(options,
-				osquery.WithFlags(osquery.FleetFlags(updateRunner.OsqueryVersion, parsedURL)),
+				osquery.WithFlags(osquery.FleetFlags(osqueryVersion, parsedURL)),
 				osquery.WithFlags([]string{"--tls_server_certs", certPath}),
 			)
 		} else if fleetURL != "https://" {
@@ -938,7 +945,7 @@ func main() {
 			}
 
 			options = append(options,
-				osquery.WithFlags(osquery.FleetFlags(updateRunner.OsqueryVersion, parsedURL)),
+				osquery.WithFlags(osquery.FleetFlags(osqueryVersion, parsedURL)),
 			)
 
 			if certPath = c.String("fleet-certificate"); certPath != "" {
@@ -1090,7 +1097,7 @@ func main() {
 			hostIdentityCertificatePath = hostIdentityCredentials.CertificatePath
 
 			options = append(options,
-				osquery.WithFlags(osquery.FleetFlags(updateRunner.OsqueryVersion, proxy.ParsedURL)),
+				osquery.WithFlags(osquery.FleetFlags(osqueryVersion, proxy.ParsedURL)),
 
 				// This is overriding the previous set of --tls_server_certs in osquery.FleetFlags above.
 				osquery.WithFlags([]string{"--tls_server_certs", proxy.CertificatePath}),
@@ -1213,7 +1220,13 @@ func main() {
 
 		case "windows":
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))
-			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(windowsMDMBitlockerCommandFrequency, orbitClient))
+			comWorker, err := bitlocker.NewCOMWorker()
+			if err != nil {
+				return fmt.Errorf("create BitLocker COM worker: %w", err)
+			}
+			defer comWorker.Close()
+			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(
+				windowsMDMBitlockerCommandFrequency, orbitClient, comWorker))
 		case "linux":
 			orbitClient.RegisterConfigReceiver(luks.New(orbitClient))
 		}

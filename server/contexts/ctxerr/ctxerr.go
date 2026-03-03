@@ -398,11 +398,28 @@ func collectTelemetryContext(ctx context.Context) map[string]any {
 }
 
 // isClientError checks if the error is a client error (4xx).
+// Error types that represent client errors should implement ErrWithIsClientError.
 func isClientError(err error) bool {
-	// Check for explicit client error interface
+	if err == nil {
+		return false
+	}
+
+	// Check for explicit client error interface. All 4xx error types
+	// (not found, already exists, conflict, validation, permission,
+	// bad request, foreign key, etc.) should implement this interface.
 	var clientErr platform_http.ErrWithIsClientError
 	if errors.As(err, &clientErr) {
 		return clientErr.IsClientError()
+	}
+
+	// Check for errors with an explicit HTTP status code in the 4xx range
+	type statusCoder interface{ StatusCode() int }
+	var sc statusCoder
+	if errors.As(err, &sc) {
+		code := sc.StatusCode()
+		if code >= 400 && code < 500 {
+			return true
+		}
 	}
 
 	// Treat context.Canceled as a client error. In HTTP handlers, this typically

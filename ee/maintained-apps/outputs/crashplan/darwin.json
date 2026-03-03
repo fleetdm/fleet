@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "11.8.0",
+      "version": "11.9.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.crashplan.desktop';"
       },
-      "installer_url": "https://download.crashplan.com/installs/agent/cloud/11.8.0/609/install/CrashPlan_11.8.0_609_Mac.dmg",
+      "installer_url": "https://download.crashplan.com/installs/agent/cloud/11.9.0/507/install/CrashPlan_11.9.0_507_Mac.dmg",
       "install_script_ref": "4a9ec0ad",
       "uninstall_script_ref": "d320d3d5",
-      "sha256": "346454ab1bf51a28f2030dc2e7a52ee7bb3dacb3644a8dd7e475028f4c95e24d",
+      "sha256": "d74cc592ec779acbbc6962cdf4d880a8ec3ddfb0e6f0b20f03105f7be93c499a",
       "default_categories": [
         "Productivity"
       ]

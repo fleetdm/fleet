@@ -259,7 +259,19 @@ The acting infrastructure engineer on-call rotation is reflected in the [📈KPI
 2. Legacy method: [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
 
 
-### Respond to messages and alerts 
+### Reset a customer trial
+
+When a customer or prospect requests an extension beyond the standard 30-day trial period, CS is responsible for resetting their trial using the super admin page.
+
+1. Receive the trial reset request (typically via Slack from the customer or an internal team member).
+2. Navigate to the [super admin trial reset page](https://fleetdm.com/admin/reset-trial) (super admin access required).
+3. Enter the customer's information and reset their trial.
+4. Notify the customer or the requestor in Slack that the trial has been reset.
+
+> **Note:** The trial reset page at https://fleetdm.com/admin/reset-trial is only accessible to super admins.
+
+
+### Respond to messages and alerts
 
 Customer Support Engineers (CSEs) are responsible for the first response to Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, MacAdmins Slack and dedicated customer Slack channels. 
 - The 24/7 infrastructure on-call engineer is responsible for alarms related to fleetdm.com and Fleet Managed Cloud, as well as delivering 24/7 support for Fleet Premium customers when tagged in for assistance. Use [on-call runbooks](https://github.com/fleetdm/confidential/tree/main/infrastructure/runbooks#readme) to guide your response. Runbooks provide detailed, step-by-step instructions to quickly and effectively respond to and resolve most 24/7 on-call alerts.
@@ -321,7 +333,7 @@ When a user requests that we delete all data we have stored about them, their da
 
 ### Create a task for a CSA
 
-If assistance is needed for research or solutioning by a CSA, create an issue using the [CSA task template](github.com/fleetdm/fleet/issues/new?template=csa-task.md) for tracking.
+If assistance is needed for research or solutioning by a CSA, create an issue using the [CSA task template](https://github.com/fleetdm/fleet/issues/new?template=csa-task.md) for tracking.
 
 **Ensure all private data is scrubbed and customer code names are used.**
 

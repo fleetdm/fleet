@@ -27,7 +27,6 @@ import (
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
-	"github.com/go-kit/kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/smallstep/scep"
 )
@@ -224,7 +223,7 @@ type service struct {
 	// issuance, RA proxying, etc.
 	signer scepserver.CSRSignerContext
 
-	logger log.Logger
+	logger *logging.Logger
 
 	ds fleet.Datastore
 }
@@ -322,7 +321,7 @@ func (svc *service) GetNextCACert(_ context.Context) ([]byte, error) {
 }
 
 // NewSCEPService creates a new scep service
-func NewSCEPService(ds fleet.Datastore, signer scepserver.CSRSignerContext, logger log.Logger) scepserver.Service {
+func NewSCEPService(ds fleet.Datastore, signer scepserver.CSRSignerContext, logger *logging.Logger) scepserver.Service {
 	return &service{
 		ds:     ds,
 		signer: signer,

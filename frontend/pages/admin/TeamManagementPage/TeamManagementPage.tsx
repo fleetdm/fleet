@@ -119,17 +119,19 @@ const TeamManagementPage = (): JSX.Element => {
           refetchTeams();
         })
         .catch((createError: { data: IApiError }) => {
-          if (createError.data.errors[0].reason.includes("Duplicate")) {
+          const errMsg = createError.data.errors[0].reason.toLowerCase();
+          if (errMsg.includes("duplicate")) {
             setBackendValidators({
               name: "A fleet with this name already exists",
             });
-          } else if (createError.data.errors[0].reason.includes("All teams")) {
+          } else if (
+            errMsg.includes("all teams") ||
+            errMsg.includes("all fleets") ||
+            errMsg.includes("no team") ||
+            errMsg.includes("unassigned")
+          ) {
             setBackendValidators({
-              name: `"All fleets" is a reserved fleet name. Please try another name.`,
-            });
-          } else if (createError.data.errors[0].reason.includes("No team")) {
-            setBackendValidators({
-              name: `"Unassigned" is a reserved fleet name. Please try another name.`,
+              name: `"${formData.name}" is a reserved fleet name. Please try another name.`,
             });
           } else {
             renderFlash("error", "Could not create fleet. Please try again.");

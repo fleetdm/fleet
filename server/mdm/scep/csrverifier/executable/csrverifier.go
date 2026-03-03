@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 const (
@@ -16,7 +16,7 @@ const (
 )
 
 // New creates a executablecsrverifier.ExecutableCSRVerifier.
-func New(path string, logger log.Logger) (*ExecutableCSRVerifier, error) {
+func New(path string, logger *logging.Logger) (*ExecutableCSRVerifier, error) {
 	fileInfo, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -41,7 +41,7 @@ func New(path string, logger log.Logger) (*ExecutableCSRVerifier, error) {
 // In any other cases, the CSR is considered invalid.
 type ExecutableCSRVerifier struct {
 	executable string
-	logger     log.Logger
+	logger     *logging.Logger
 }
 
 func (v *ExecutableCSRVerifier) Verify(data []byte) (bool, error) {

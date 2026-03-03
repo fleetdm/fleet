@@ -241,7 +241,7 @@ func TestDEPClient(t *testing.T) {
 			return &nanodep_client.Config{BaseURL: srv.URL}, nil
 		}
 
-		dep := apple_mdm.NewDEPClient(store, ds, logger)
+		dep := apple_mdm.NewDEPClient(store, ds, logger.SlogLogger())
 		orgName := c.orgName
 		if orgName == "" {
 			// simulate using a new token, not yet saved in the DB, so we pass the

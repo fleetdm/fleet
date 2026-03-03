@@ -15,7 +15,7 @@ import (
 	"github.com/expr-lang/expr"
 	"github.com/expr-lang/expr/ast"
 	"github.com/expr-lang/expr/vm"
-	"github.com/go-kit/log"
+	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 	"github.com/golang/snappy"
 	"github.com/klauspost/compress/zstd"
@@ -68,7 +68,7 @@ var compressionOk = map[string]bool{
 }
 
 // NewNatsLogWriter creates a new NATS log writer.
-func NewNatsLogWriter(server, subject, credFile, nkeyFile, tlsClientCrtFile, tlsClientKeyFile, tlsCACrtFile, compression string, jetstream bool, timeout time.Duration, logger log.Logger) (*natsLogWriter, error) {
+func NewNatsLogWriter(server, subject, credFile, nkeyFile, tlsClientCrtFile, tlsClientKeyFile, tlsCACrtFile, compression string, jetstream bool, timeout time.Duration, logger *platformlogging.Logger) (*natsLogWriter, error) {
 	// Ensure the NATS server is set.
 	if server == "" {
 		return nil, errors.New("nats server missing")

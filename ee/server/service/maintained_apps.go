@@ -64,7 +64,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		return 0, ctxerr.Wrap(ctx, err, "getting maintained app by id")
 	}
 
-	app, err = maintained_apps.Hydrate(ctx, app)
+	app, err = maintained_apps.Hydrate(ctx, app, "", teamID, nil)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "hydrating app from manifest")
 	}
@@ -267,5 +267,5 @@ func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint, teamI
 		return nil, err
 	}
 
-	return maintained_apps.Hydrate(ctx, app)
+	return maintained_apps.Hydrate(ctx, app, "", teamID, nil)
 }

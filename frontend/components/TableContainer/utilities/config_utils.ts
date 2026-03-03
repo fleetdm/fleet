@@ -13,8 +13,12 @@ export const getConditionalSelectHeaderCheckboxProps = ({
   checkIfRowIsSelectable,
 }: GetConditionalSelectHeaderCheckboxProps) => {
   // Define if the checkbox should show as checked or indeterminate
-  const checkIfAllSelectableRowsSelected = (rows: Row<any>[]) =>
-    rows.filter(checkIfRowIsSelectable).every((row) => row.isSelected);
+  const checkIfAllSelectableRowsSelected = (rows: Row<any>[]) => {
+    const selectableRows = rows.filter(checkIfRowIsSelectable);
+    return (
+      selectableRows.length > 0 && selectableRows.every((row) => row.isSelected)
+    );
+  };
   const allSelectableRowsSelected = checkIfAllSelectableRowsSelected(
     headerProps.rows
   );

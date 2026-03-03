@@ -57,7 +57,7 @@ func TestWorker(t *testing.T) {
 	}
 
 	logger := logging.NewNopLogger()
-	w := NewWorker(ds, logger)
+	w := NewWorker(ds, logger.SlogLogger())
 
 	// register a test job
 	jobCalled := false
@@ -113,7 +113,7 @@ func TestWorkerRetries(t *testing.T) {
 	}
 
 	logger := logging.NewNopLogger()
-	w := NewWorker(ds, logger)
+	w := NewWorker(ds, logger.SlogLogger())
 
 	// register a test job
 	jobCalled := 0
@@ -189,7 +189,7 @@ func TestWorkerMiddleJobFails(t *testing.T) {
 	}
 
 	logger := logging.NewNopLogger()
-	w := NewWorker(ds, logger)
+	w := NewWorker(ds, logger.SlogLogger())
 
 	// register a test job
 	var jobCallCount int
@@ -246,7 +246,7 @@ func TestWorkerWithRealDatastore(t *testing.T) {
 	mysql.TruncateTables(t, ds)
 
 	logger := logging.NewNopLogger()
-	w := NewWorker(ds, logger)
+	w := NewWorker(ds, logger.SlogLogger())
 	w.delayPerRetry = []time.Duration{
 		1: 0,
 		2: 0,

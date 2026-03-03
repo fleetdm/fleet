@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 	"github.com/fleetdm/fleet/v4/server/aws_common"
-	"github.com/go-kit/log"
+	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 )
 
@@ -30,10 +30,10 @@ type LambdaAPI interface {
 type lambdaLogWriter struct {
 	client       LambdaAPI
 	functionName string
-	logger       log.Logger
+	logger       *platformlogging.Logger
 }
 
-func NewLambdaLogWriter(region, id, secret, stsAssumeRoleArn, stsExternalID, functionName string, logger log.Logger) (*lambdaLogWriter, error) {
+func NewLambdaLogWriter(region, id, secret, stsAssumeRoleArn, stsExternalID, functionName string, logger *platformlogging.Logger) (*lambdaLogWriter, error) {
 	var opts []func(*aws_config.LoadOptions) error
 
 	// Only provide static credentials if we have them

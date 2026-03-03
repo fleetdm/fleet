@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "11.8.0.609",
+      "version": "11.9.0.507",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'CrashPlan' AND publisher = 'CrashPlan Group LLC';"
       },
-      "installer_url": "https://download.crashplan.com/installs/agent/cloud/11.8.0/609/install/CrashPlan_11.8.0_609_Win64.msi",
+      "installer_url": "https://download.crashplan.com/installs/agent/cloud/11.9.0/507/install/CrashPlan_11.9.0_507_Win64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "86ee21a5",
-      "sha256": "a61de6c765f7a9312f7d2c8775b6ac0c370061ad7bb10e5bd921a531ac09f658",
+      "sha256": "b5f459889d09af1c0cb37ac3c9ab05792fb9c5d5eeb1a7a01cd168a7c771b422",
       "default_categories": [
         "Productivity"
       ],

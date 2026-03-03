@@ -2,12 +2,12 @@ package mysql
 
 import (
 	"errors"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-kit/log"
 	gmysql "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -76,7 +76,7 @@ func TestTransactionReadOnlyTriggersFatalError(t *testing.T) {
 			txFunc: func(ctx *testing.T, db *sqlx.DB, mock sqlmock.Sqlmock) error {
 				return WithRetryTxx(ctx.Context(), db, func(tx sqlx.ExtContext) error {
 					return readOnlyErr()
-				}, log.NewNopLogger())
+				}, slog.New(slog.DiscardHandler))
 			},
 		},
 		{
@@ -88,7 +88,7 @@ func TestTransactionReadOnlyTriggersFatalError(t *testing.T) {
 			txFunc: func(ctx *testing.T, db *sqlx.DB, mock sqlmock.Sqlmock) error {
 				return WithRetryTxx(ctx.Context(), db, func(tx sqlx.ExtContext) error {
 					return nil
-				}, log.NewNopLogger())
+				}, slog.New(slog.DiscardHandler))
 			},
 		},
 		{
@@ -100,7 +100,7 @@ func TestTransactionReadOnlyTriggersFatalError(t *testing.T) {
 			txFunc: func(ctx *testing.T, db *sqlx.DB, mock sqlmock.Sqlmock) error {
 				return WithTxx(ctx.Context(), db, func(tx sqlx.ExtContext) error {
 					return readOnlyErr()
-				}, log.NewNopLogger())
+				}, slog.New(slog.DiscardHandler))
 			},
 		},
 		{
@@ -112,7 +112,7 @@ func TestTransactionReadOnlyTriggersFatalError(t *testing.T) {
 			txFunc: func(ctx *testing.T, db *sqlx.DB, mock sqlmock.Sqlmock) error {
 				return WithTxx(ctx.Context(), db, func(tx sqlx.ExtContext) error {
 					return nil
-				}, log.NewNopLogger())
+				}, slog.New(slog.DiscardHandler))
 			},
 		},
 	}

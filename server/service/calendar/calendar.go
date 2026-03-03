@@ -15,7 +15,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
-	"github.com/go-kit/log/level"
 )
 
 const (
@@ -102,12 +101,12 @@ func getCalendarEventDescriptionAndResolution(ctx context.Context, ds fleet.Data
 		if !ok {
 			id, err := strconv.ParseUint(policyIDs[0], 10, 64)
 			if err != nil {
-				level.Error(logger).Log("msg", "parse policy id", "err", err)
+				logger.ErrorContext(ctx, "parse policy id", "err", err)
 				return getDefaultDescription(), fleet.CalendarDefaultResolution, DefaultEventBodyTag
 			}
 			policyLite, err := ds.PolicyLite(ctx, uint(id))
 			if err != nil {
-				level.Error(logger).Log("msg", "get policy", "err", err)
+				logger.ErrorContext(ctx, "get policy", "err", err)
 				return getDefaultDescription(), fleet.CalendarDefaultResolution, DefaultEventBodyTag
 			}
 			policy = new(PolicyLiteWithMeta)

@@ -36,6 +36,7 @@ module.exports = {
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
+    policyNotFound: { description: 'Specified policy not found', responseType: 'notFound' },
   },
 
 
@@ -105,8 +106,10 @@ module.exports = {
           return response.data;
         }
       }
+    }).intercept({ status: 404 }, (err) => {
+      return {'policyNotFound': `Specified policy not found on this Android enterprise (${androidEnterpriseId}): ${err}`};
     }).intercept((err) => {
-      return new Error(`When attempting to update applications for a policy of Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+      return new Error(`When attempting to update applications for a policy of Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
     });
 
 

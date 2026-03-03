@@ -12,8 +12,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/websocket"
-	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/igm/sockjs-go/v3/sockjs"
 )
@@ -305,7 +305,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 
 // addLiveQueryActivity adds live query activity to the activity feed, including the updated aggregated stats
 func (svc Service) addLiveQueryActivity(
-	ctx context.Context, targetsCount uint, queryID uint, logger log.Logger,
+	ctx context.Context, targetsCount uint, queryID uint, logger *platformlogging.Logger,
 ) {
 	activityData := fleet.ActivityTypeLiveQuery{
 		TargetsCount: targetsCount,
@@ -353,7 +353,7 @@ var (
 )
 
 func (svc Service) updateStats(
-	ctx context.Context, queryID uint, logger log.Logger, tracker *statsTracker, aggregateStats bool,
+	ctx context.Context, queryID uint, logger *platformlogging.Logger, tracker *statsTracker, aggregateStats bool,
 ) {
 	// If we are not saving stats
 	if tracker == nil || !tracker.saveStats ||

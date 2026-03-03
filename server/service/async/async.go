@@ -10,7 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
 )
@@ -54,7 +54,7 @@ func NewTask(ds fleet.Datastore, pool fleet.RedisPool, clck clock.Clock, fleetCo
 // Collect runs the various collectors as distinct background goroutines if
 // async processing is enabled.  Each collector will stop processing when ctx
 // is done.
-func (t *Task) StartCollectors(ctx context.Context, logger kitlog.Logger) {
+func (t *Task) StartCollectors(ctx context.Context, logger *logging.Logger) {
 	collectorErrHandler := func(name string, err error) {
 		level.Error(logger).Log("err", fmt.Sprintf("%s collector", name), "details", err)
 		ctxerr.Handle(ctx, err)

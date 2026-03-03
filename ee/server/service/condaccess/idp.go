@@ -23,7 +23,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	dsig "github.com/russellhaering/goxmldsig"
@@ -105,7 +104,7 @@ func RegisterIdP(
 // This function should be used whenever returning StatusInternalServerError to ensure
 // consistent error handling across the IdP service.
 // Additional key-value pairs can be passed for logging context (e.g., "host_id", hostID).
-func handleInternalServerError(ctx context.Context, w http.ResponseWriter, logger kitlog.Logger, msg string, err error, keyvals ...any) {
+func handleInternalServerError(ctx context.Context, w http.ResponseWriter, logger *logging.Logger, msg string, err error, keyvals ...any) {
 	// Build the log keyvals starting with msg and err
 	logKeyvals := []any{"msg", msg, "err", err}
 	logKeyvals = append(logKeyvals, keyvals...)
@@ -244,7 +243,7 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 type statusInterceptingWriter struct {
 	http.ResponseWriter
 	ctx           context.Context
-	logger        kitlog.Logger
+	logger        *logging.Logger
 	r             *http.Request
 	redirectURL   string
 	headerWritten bool
@@ -302,7 +301,7 @@ func extractNameID(req *saml.IdpAuthnRequest) string {
 // device health verification during SAML SSO flow.
 type deviceHealthSessionProvider struct {
 	ds     fleet.Datastore
-	logger kitlog.Logger
+	logger *logging.Logger
 	hostID uint
 }
 
@@ -490,7 +489,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 // Okta service provider metadata to the IdP.
 type oktaServiceProviderProvider struct {
 	ds     fleet.Datastore
-	logger kitlog.Logger
+	logger *logging.Logger
 }
 
 // GetServiceProvider returns the Okta service provider metadata.

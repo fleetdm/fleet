@@ -7,7 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,7 +20,7 @@ func TestAuthenticatedDeviceFallbackAuth(t *testing.T) {
 		return &fleet.AppConfig{}, nil
 	}
 
-	middleware := authenticatedDevice(svc, log.NewNopLogger(), func(ctx context.Context, request interface{}) (interface{}, error) {
+	middleware := authenticatedDevice(svc, logging.NewNopLogger(), func(ctx context.Context, request any) (any, error) {
 		return "success", nil
 	})
 

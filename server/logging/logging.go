@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/log"
+	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 )
 
@@ -101,7 +101,7 @@ type Config struct {
 	Nats       NatsConfig
 }
 
-func NewJSONLogger(name string, config Config, logger log.Logger) (fleet.JSONLogger, error) {
+func NewJSONLogger(name string, config Config, logger *platformlogging.Logger) (fleet.JSONLogger, error) {
 	switch config.Plugin {
 	case "":
 		// Allow "" to mean filesystem for backwards compatibility

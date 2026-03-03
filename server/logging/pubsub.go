@@ -8,13 +8,13 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/go-kit/log"
+	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 )
 
 type pubSubLogWriter struct {
 	topic         *pubsub.Topic
-	logger        log.Logger
+	logger        *platformlogging.Logger
 	addAttributes bool
 }
 
@@ -24,7 +24,7 @@ type PubSubAttributes struct {
 	Decorations map[string]string `json:"decorations"`
 }
 
-func NewPubSubLogWriter(projectId string, topicName string, addAttributes bool, logger log.Logger) (*pubSubLogWriter, error) {
+func NewPubSubLogWriter(projectId string, topicName string, addAttributes bool, logger *platformlogging.Logger) (*pubSubLogWriter, error) {
 	ctx := context.Background()
 
 	client, err := pubsub.NewClient(ctx, projectId)

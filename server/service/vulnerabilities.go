@@ -31,6 +31,10 @@ func (p cveNotFoundError) IsNotFound() bool {
 	return true
 }
 
+func (p cveNotFoundError) IsClientError() bool {
+	return true
+}
+
 type listVulnerabilitiesRequest struct {
 	fleet.VulnListOptions
 }

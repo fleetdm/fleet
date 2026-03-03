@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kit/log"
+	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/golang/snappy"
 	"github.com/klauspost/compress/zstd"
 	"github.com/nats-io/nats-server/v2/server"
@@ -199,7 +199,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"",
 			false,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		require.NoError(t, err)
@@ -241,7 +241,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"",
 			false,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		require.NoError(t, err)
@@ -294,7 +294,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"",
 			true,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		require.NoError(t, err)
@@ -348,7 +348,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"",
 			true,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		require.NoError(t, err)
@@ -421,7 +421,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"gzip",
 			false,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		require.NoError(t, err)
@@ -466,7 +466,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"gzip",
 			true,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		require.NoError(t, err)
@@ -548,7 +548,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"snappy",
 			false,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		require.NoError(t, err)
@@ -614,7 +614,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"zstd",
 			false,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		require.NoError(t, err)
@@ -659,7 +659,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"snappy",
 			true,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		require.NoError(t, err)
@@ -721,7 +721,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"zstd",
 			true,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		require.NoError(t, err)
@@ -774,7 +774,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"invalid",
 			false,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		// Ensure an error is returned.

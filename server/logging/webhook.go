@@ -8,16 +8,16 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/kit/log/level"
-	"github.com/go-kit/log"
 )
 
 type webhookLogWriter struct {
 	url    string
-	logger log.Logger
+	logger *platformlogging.Logger
 }
 
-func NewWebhookLogWriter(webhookURL string, logger log.Logger) (*webhookLogWriter, error) {
+func NewWebhookLogWriter(webhookURL string, logger *platformlogging.Logger) (*webhookLogWriter, error) {
 	if webhookURL == "" {
 		return nil, errors.New("webhook URL missing")
 	}

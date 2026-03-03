@@ -2486,6 +2486,52 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
 }
 
+func TestDirectIngestHostCertificatesDarwinHexEscapes(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+	// Simulate osquery outputting Cyrillic characters as literal \xHH escape
+	// sequences. "АБ" in UTF-8 is bytes D0 90 D0 91, which osquery returns as
+	// the 16-character ASCII string `\xD0\x90\xD0\x91`.
+	row := map[string]string{
+		"ca":                "0",
+		"common_name":       `\xD0\x90\xD0\x91`,
+		"subject":           `/C=US/O=\xD0\x90\xD0\x91/OU=\xD0\x92\xD0\x93/CN=\xD0\x94\xD0\x95`,
+		"issuer":            `/O=\xD0\x96\xD0\x97/CN=\xD0\x98\xD0\x9A`,
+		"key_algorithm":     "rsaEncryption",
+		"key_strength":      "2048",
+		"key_usage":         "Digital Signature",
+		"serial":            "abc123",
+		"signing_algorithm": "sha256WithRSAEncryption",
+		"not_valid_after":   "1822755797",
+		"not_valid_before":  "1770228826",
+		"sha1":              "aabbccdd00112233445566778899aabbccddeeff",
+		"source":            "system",
+		"path":              "/Library/Keychains/System.keychain",
+	}
+
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
+		require.Len(t, certs, 1)
+		cert := certs[0]
+
+		assert.Equal(t, "АБ", cert.CommonName)
+		assert.Equal(t, "ДЕ", cert.SubjectCommonName)
+		assert.Equal(t, "АБ", cert.SubjectOrganization)
+		assert.Equal(t, "ВГ", cert.SubjectOrganizationalUnit)
+		assert.Equal(t, "US", cert.SubjectCountry)
+		assert.Equal(t, "ИК", cert.IssuerCommonName)
+		assert.Equal(t, "ЖЗ", cert.IssuerOrganization)
+
+		return nil
+	}
+
+	err := directIngestHostCertificatesDarwin(ctx, logger, host, ds, []map[string]string{row})
+	require.NoError(t, err)
+	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
+}
+
 func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := t.Context()

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -63,7 +63,7 @@ func TestJiraFailer(t *testing.T) {
 	jira := &Jira{
 		FleetURL:  "http://example.com",
 		Datastore: ds,
-		Log:       kitlog.NewNopLogger(),
+		Log:       slog.New(slog.DiscardHandler),
 		NewClientFunc: func(opts *externalsvc.JiraOptions) (JiraClient, error) {
 			return failer, nil
 		},
@@ -122,7 +122,7 @@ func TestZendeskFailer(t *testing.T) {
 	zendesk := &Zendesk{
 		FleetURL:  "http://example.com",
 		Datastore: ds,
-		Log:       kitlog.NewNopLogger(),
+		Log:       slog.New(slog.DiscardHandler),
 		NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
 			return failer, nil
 		},

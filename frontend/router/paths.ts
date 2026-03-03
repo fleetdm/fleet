@@ -142,7 +142,7 @@ export default {
     return `${URL_PREFIX}/hosts/manage/labels/${labelId}`;
   },
   HOST_DETAILS: (id: number, teamId?: number): string => {
-    if (teamId) {
+    if (typeof teamId === "number") {
       return `${URL_PREFIX}/hosts/${id}/details?fleet_id=${teamId}`;
     }
     return `${URL_PREFIX}/hosts/${id}/details`;
@@ -178,6 +178,9 @@ export default {
   },
   DEVICE_USER_DETAILS_POLICIES: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}/policies`;
+  },
+  DEVICE_TRANSPARENCY: (deviceAuthToken: string): string => {
+    return `${URL_PREFIX}/api/v1/fleet/device/${deviceAuthToken}/transparency`;
   },
 
   TEAM_DETAILS_USERS: (teamId?: number): string => {

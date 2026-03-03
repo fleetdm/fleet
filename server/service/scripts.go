@@ -460,7 +460,7 @@ type createScriptRequest struct {
 func (createScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var decoded createScriptRequest
 
-	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
+	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -468,13 +468,13 @@ func (createScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (
 		}
 	}
 
-	val := r.MultipartForm.Value["team_id"]
+	val := r.MultipartForm.Value["fleet_id"]
 	if len(val) > 0 {
-		teamID, err := strconv.ParseUint(val[0], 10, 64)
+		fleetID, err := strconv.ParseUint(val[0], 10, 64)
 		if err != nil {
-			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode fleet_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = ptr.Uint(uint(teamID))
+		decoded.TeamID = ptr.Uint(uint(fleetID)) // nolint:gosec // ignore G115
 	}
 
 	fhs, ok := r.MultipartForm.File["script"]

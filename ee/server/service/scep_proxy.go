@@ -21,9 +21,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log/level"
-	"github.com/go-kit/log"
 	"github.com/google/uuid"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding/unicode"
@@ -200,12 +200,12 @@ func (a *certificateTemplateForHostAdapter) GetProfileUUID() string {
 type scepProxyService struct {
 	ds fleet.Datastore
 	// info logging is implemented in the service middleware layer.
-	debugLogger log.Logger
+	debugLogger *logging.Logger
 	Timeout     *time.Duration
 }
 
 // NewSCEPProxyService creates a new scep proxy service
-func NewSCEPProxyService(ds fleet.Datastore, logger log.Logger, timeout *time.Duration) scepserver.ServiceWithIdentifier {
+func NewSCEPProxyService(ds fleet.Datastore, logger *logging.Logger, timeout *time.Duration) scepserver.ServiceWithIdentifier {
 	if timeout == nil {
 		timeout = ptr.Duration(30 * time.Second)
 	}
@@ -485,12 +485,12 @@ func (svc *scepProxyService) handleFleetChallenge(ctx context.Context, fleetChal
 }
 
 type SCEPConfigService struct {
-	logger log.Logger
+	logger *logging.Logger
 	// Timeout is the timeout for SCEP requests.
 	Timeout *time.Duration
 }
 
-func NewSCEPConfigService(logger log.Logger, timeout *time.Duration) fleet.SCEPConfigService {
+func NewSCEPConfigService(logger *logging.Logger, timeout *time.Duration) fleet.SCEPConfigService {
 	if timeout == nil {
 		timeout = ptr.Duration(30 * time.Second)
 	}
@@ -513,7 +513,7 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 	// Get the challenge from NDES
 	client := fleethttp.NewClient(fleethttp.WithTimeout(*s.Timeout))
 	client.Transport = ntlmssp.Negotiator{
-		RoundTripper: fleethttp.NewSSRFProtectedTransport(),
+		RoundTripper: fleethttp.NewTransport(),
 	}
 	req, err := http.NewRequest(http.MethodGet, adminURL, http.NoBody)
 	if err != nil {
@@ -586,10 +586,8 @@ func (s *SCEPConfigService) ValidateSmallstepChallengeURL(ctx context.Context, c
 }
 
 func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fleet.SmallstepSCEPProxyCA) (string, error) {
-	client := fleethttp.NewClient(
-		fleethttp.WithTimeout(30*time.Second),
-		fleethttp.WithTransport(fleethttp.NewSSRFProtectedTransport()),
-	)
+	// Get the challenge from Smallstep
+	client := fleethttp.NewClient(fleethttp.WithTimeout(30 * time.Second))
 	var reqBody bytes.Buffer
 	if err := json.NewEncoder(&reqBody).Encode(fleet.SmallstepChallengeRequestBody{
 		Webhook: fleet.SmallstepChallengeWebhook{
