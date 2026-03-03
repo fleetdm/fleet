@@ -163,6 +163,7 @@ policies:
     critical: false
     calendar_events_enabled: false
     conditional_access_enabled: true
+    conditional_access_bypass_enabled: true
     labels_include_any:
       - Engineering
       - Customer Support
@@ -181,6 +182,7 @@ policies:
   critical: false
   calendar_events_enabled: false
   conditional_access_enabled: true
+  conditional_access_bypass_enabled: true
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
   resolution: As an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
