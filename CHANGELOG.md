@@ -22,7 +22,8 @@
 - Fixed query results cleanup cron failing with "too many placeholders" error by filtering to only saved queries and batching the SQL IN clause.
 - Fixed matching logic on App component for pages titles.
 - Fixed issue where the status name was wrapping at smaller viewport witdths on the mdm card on the Dashboard page.
-- Fleet UI: Do not allow editing Fleet-maintained app in the UI while GitOps mode is enabled.
+- Disallowed editing Fleet-maintained app in the UI while GitOps mode is enabled.
+- Fixed error handling on failed VPP install commands not initiated by Fleet VPP app installation.
 
 ## Fleet 4.81.0 (Feb 20, 2026)
 
