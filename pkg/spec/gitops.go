@@ -13,7 +13,6 @@ import (
 	"unicode"
 
 	"github.com/bmatcuk/doublestar/v4"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
@@ -385,8 +384,6 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	}
 
 	// Policies can reference software installers and scripts, thus we parse them after parseSoftware and parseControls.
-	fmt.Println(">>>>> BEFORE PARSE POLICIES: ")
-	spew.Dump(result.Software.Packages)
 	multiError = parsePolicies(top, result, baseDir, filePath, multiError)
 
 	return result, multiError.ErrorOrNil()
