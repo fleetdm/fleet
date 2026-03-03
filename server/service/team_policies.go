@@ -35,6 +35,8 @@ type teamPolicyRequest struct {
 	LabelsExcludeAny               []string `json:"labels_exclude_any"`
 	ConditionalAccessEnabled       bool     `json:"conditional_access_enabled"`
 	ConditionalAccessBypassEnabled *bool    `json:"conditional_access_bypass_enabled"`
+	Type                           *string  `json:"type"`
+	PatchSoftwareTitleID           *uint    `json:"patch_software_title_id"`
 }
 
 type teamPolicyResponse struct {
@@ -61,6 +63,8 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		LabelsExcludeAny:               req.LabelsExcludeAny,
 		ConditionalAccessEnabled:       req.ConditionalAccessEnabled,
 		ConditionalAccessBypassEnabled: req.ConditionalAccessBypassEnabled,
+		Type:                           req.Type,
+		PatchSoftwareTitleID:           req.PatchSoftwareTitleID,
 	})
 	if err != nil {
 		return teamPolicyResponse{Err: err}, nil
@@ -107,6 +111,9 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 	}
 	if err := svc.populatePolicyRunScript(ctx, policy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
+	}
+	if err := svc.populatePolicyPatchSoftware(ctx, policy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate patch_software")
 	}
 
 	if teamID == 0 {
@@ -191,7 +198,29 @@ func (svc *Service) populatePolicyRunScript(ctx context.Context, p *fleet.Policy
 	return nil
 }
 
+func (svc *Service) populatePolicyPatchSoftware(ctx context.Context, p *fleet.Policy) error {
+	if p.PatchSoftwareTitleID != nil {
+		installerMetadata, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, p.TeamID, *p.PatchSoftwareTitleID, false)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get software installer metadata by title id")
+		}
+		p.PatchSoftware = &fleet.PolicySoftwareTitle{
+			SoftwareTitleID: *installerMetadata.TitleID,
+			Name:            installerMetadata.SoftwareTitle,
+			DisplayName:     installerMetadata.DisplayName,
+		}
+		return nil
+	}
+	return nil
+}
+
 func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, teamID uint, p fleet.NewTeamPolicyPayload) (fleet.PolicyPayload, error) {
+	policyType := fleet.PolicyTypeDynamic
+
+	if p.Type != nil && *p.Type == fleet.PolicyTypePatch {
+		policyType = fleet.PolicyTypePatch
+	}
+
 	softwareInstallerID, vppAppsTeamsID, err := svc.getInstallerOrVPPAppForTitle(ctx, &teamID, p.SoftwareTitleID)
 	if err != nil {
 		return fleet.PolicyPayload{}, err
@@ -213,6 +242,8 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		LabelsExcludeAny:               p.LabelsExcludeAny,
 		ConditionalAccessEnabled:       p.ConditionalAccessEnabled,
 		ConditionalAccessBypassEnabled: p.ConditionalAccessBypassEnabled,
+		Type:                           policyType,
+		PatchSoftwareTitleID:           p.PatchSoftwareTitleID,
 	}, nil
 }
 
@@ -294,6 +325,9 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 		}
 		if err := svc.populatePolicyRunScript(ctx, teamPolicies[i]); err != nil {
 			return nil, nil, ctxerr.Wrapf(ctx, err, "populate run_script for policy_id: %d", teamPolicies[i].ID)
+		}
+		if err := svc.populatePolicyPatchSoftware(ctx, teamPolicies[i]); err != nil {
+			return nil, nil, ctxerr.Wrapf(ctx, err, "populate patch_software for policy_id: %d", teamPolicies[i].ID)
 		}
 	}
 
@@ -405,6 +439,9 @@ func (svc Service) GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, po
 	}
 	if err := svc.populatePolicyRunScript(ctx, teamPolicy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
+	}
+	if err := svc.populatePolicyPatchSoftware(ctx, teamPolicy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate patch_software")
 	}
 
 	return teamPolicy, nil
@@ -581,6 +618,9 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		})
 	}
 
+	if policy.Type != nil {
+		p.Type = *policy.Type
+	}
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("policy payload verification: %s", err),
@@ -687,6 +727,9 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	}
 	if err := svc.populatePolicyRunScript(ctx, policy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
+	}
+	if err := svc.populatePolicyPatchSoftware(ctx, policy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate patch_software")
 	}
 
 	if teamID == nil {

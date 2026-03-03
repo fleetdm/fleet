@@ -323,6 +323,10 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 		policy.FleetMaintainedAppSlug = slug
 	}
 
+	if policy.TeamID == nil {
+		policy.Type = nil
+	}
+
 	return &policy, nil
 }
 
@@ -1074,7 +1078,40 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 
 func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (policy *fleet.Policy, err error) {
 	var newPolicy *fleet.Policy
+	if args.Type != fleet.PolicyTypePatch {
+		// type should already be set to dynamic when called from the service layer
+		args.Type = fleet.PolicyTypeDynamic
+	}
 	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if args.Type == fleet.PolicyTypePatch {
+			installer, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &teamID, *args.PatchSoftwareTitleID, false)
+			if err != nil {
+				return err
+			}
+			if installer.FleetMaintainedAppID == nil {
+				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					// TODO(JK): improve error message
+					Message: fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for team ID %d", *args.PatchSoftwareTitleID, teamID),
+				})
+			}
+			if installer.Platform == string(fleet.MacOSPlatform) {
+				args.Query = fmt.Sprintf(
+					"SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') >= 0;",
+					installer.BundleIdentifier,
+					installer.Version,
+				)
+				args.Platform = string(fleet.MacOSPlatform)
+			} else if installer.Platform == "windows" {
+				// TODO: use upgrade code if possible?
+				args.Query = fmt.Sprintf(
+					"SELECT 1 FROM programs WHERE name = '%s' AND version_compare(bundle_short_version, '%s') >= 0;",
+					installer.SoftwareTitle,
+					installer.Version,
+				)
+				args.Platform = "windows"
+			}
+		}
+
 		p, err := newTeamPolicy(ctx, tx, teamID, authorID, args)
 		if err != nil {
 			return err
@@ -1127,7 +1164,8 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 			`INSERT INTO policies (
 				name, query, description, team_id, resolution, author_id,
 				platforms, critical, calendar_events_enabled, software_installer_id,
-				script_id, vpp_apps_teams_id, conditional_access_enabled, conditional_access_bypass_enabled, checksum, type, patch_software_title_id
+				script_id, vpp_apps_teams_id, conditional_access_enabled, conditional_access_bypass_enabled, checksum,
+				type, patch_software_title_id
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?)`,
 			policiesChecksumComputedColumn(),
 		),
@@ -1138,6 +1176,10 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 	switch {
 	case err == nil:
 		// OK
+	case IsDuplicate(err) && args.Type == fleet.PolicyTypePatch:
+		return nil, &fleet.ConflictError{
+			Message: "Couldn't add. Specified \"patch_software_title_id\" already has a policy with \"type\" set to \"patch\".",
+		}
 	case IsDuplicate(err):
 		return nil, ctxerr.Wrap(ctx, alreadyExists("Policy", nameUnicode))
 	default:
