@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "9.32.7",
+      "version": "9.32.10",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.quip.Desktop';"
       },
-      "installer_url": "https://quip-clients.com/macosx_9.32.7.dmg",
+      "installer_url": "https://quip-clients.com/macosx_9.32.10.dmg",
       "install_script_ref": "f98672c5",
       "uninstall_script_ref": "dd5d6524",
-      "sha256": "6ced18c92925f75a8cc32f17d83d9d444956105dac582377eda75bf17452e843",
+      "sha256": "4b4385a8935ce2baf35b12f43b1bce6b814cb716da1d5b9a3a651fbd8d788a44",
       "default_categories": [
         "Productivity"
       ]
