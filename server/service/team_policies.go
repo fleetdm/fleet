@@ -618,6 +618,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		})
 	}
 
+	p.Type = policy.Type
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("policy payload verification: %s", err),
@@ -640,13 +641,6 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		if policy.Query != *p.Query {
 			removeAllMemberships = true
 			removeStats = true
-
-			if policy.Type == fleet.PolicyTypePatch {
-				return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-					// TODO(JK): error message?
-					Message: "patch policy query cannot be modified",
-				})
-			}
 		}
 		policy.Query = *p.Query
 	}
@@ -656,13 +650,6 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if p.Platform != nil {
 		if policy.Platform != *p.Platform {
 			removeStats = true
-
-			if policy.Type == fleet.PolicyTypePatch {
-				return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-					// TODO(JK): error message?
-					Message: "patch policy platform cannot be modified",
-				})
-			}
 		}
 		policy.Platform = *p.Platform
 	}

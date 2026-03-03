@@ -125,6 +125,8 @@ var (
 	errPolicyPatchAndQuerySet    = errors.New("If the \"type\" is \"patch\", the \"query\" field is not supported.")
 	errPolicyPatchAndPlatformSet = errors.New("If the \"type\" is \"patch\", the \"platform\" field is not supported.")
 	errPolicyPatchNoTitleID      = errors.New("If the \"type\" is \"patch\", the \"patch_software_title_id\" field is required.")
+	errPolicyQueryUpdated        = errors.New("\"query\" can't be updated")
+	errPolicyPlatformUpdated     = errors.New("\"platform\" can't be updated")
 )
 
 // PolicyNoTeamID is the team ID of "No team" policies.
@@ -260,6 +262,21 @@ type ModifyPolicyPayload struct {
 
 // Verify verifies the policy payload is valid.
 func (p ModifyPolicyPayload) Verify() error {
+	if p.Type == PolicyTypePatch {
+		if p.Name != nil {
+			if err := verifyPolicyName(*p.Name); err != nil {
+				return err
+			}
+		}
+		if p.Query != nil {
+			return errPolicyQueryUpdated
+		}
+		if p.Platform != nil {
+			return errPolicyPlatformUpdated
+		}
+		return nil
+	}
+
 	if p.Name != nil {
 		if err := verifyPolicyName(*p.Name); err != nil {
 			return err

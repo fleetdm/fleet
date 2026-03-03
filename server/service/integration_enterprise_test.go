@@ -26374,12 +26374,6 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 	_, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Team 1"})
 	require.NoError(t, err)
 
-	// Add a policy with type "badtype"
-	// Add a patch policy with no title id
-	// Add a patch policy with a title id that doesn't match an FMA
-	// Add a patch policy with a good title id
-	// Add that same policy again with a different name
-
 	t.Run("no_team_patch_policy", func(t *testing.T) {
 		// add a regular "No team" policy
 		tpParams := teamPolicyRequest{
@@ -26453,7 +26447,6 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			PatchSoftwareTitleID: &titleID,
 		}, http.StatusOK, &policyResp)
 		policyID := policyResp.Policy.ID
-		policyQuery := policyResp.Policy.Query
 
 		// attempt to add the same policy again
 		params = map[string]any{
@@ -26474,7 +26467,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		}
 		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", policyID), params, http.StatusBadRequest)
 		errMsg = extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, `patch policy query cannot be modified`)
+		require.Contains(t, errMsg, `"query" can't be updated`)
 		res.Body.Close()
 
 		// attempt to update patch policy with platform
@@ -26483,16 +26476,16 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		}
 		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", policyID), params, http.StatusBadRequest)
 		errMsg = extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, `patch policy platform cannot be modified`)
+		require.Contains(t, errMsg, `"platform" can't be updated`)
 		res.Body.Close()
 
 		// update the patch policy successfully
-		modifyPolicyResp := modifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", policyID), teamPolicyRequest{
-			Name:     "test-6-new-name",
-			Query:    policyQuery,
-			Platform: "darwin",
-		}, http.StatusOK, &modifyPolicyResp)
+		params = map[string]any{
+			"name":        "test-6-new-name",
+			"description": "new description",
+		}
+		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", policyID), params, http.StatusOK)
+		res.Body.Close()
 
 		// list policies
 		var listPolResp listTeamPoliciesResponse
