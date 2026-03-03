@@ -43,11 +43,10 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "aiFeaturesDisabled": true,
   "maintenanceWindowsEnabled": true,
   "maintenanceWindowsConfigured": true,
-  "entraConditionalAccessEnabled": true,
-  "entraConditionalAccessConfigured": true,
-  "oktaConditionalAccessEnabled": true,
   "oktaConditionalAccessConfigured": true,
+  "entraConditionalAccessConfigured": true,
   "conditionalAccessBypassDisabled": false,
+  "conditionalAccessEnabled": true,
   "fleetMaintainedAppsMacOS": [
     "1password/darwin",
     "slack/darwin",
