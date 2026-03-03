@@ -42,7 +42,7 @@ func StartNewAppleGDMFTestServer(t *testing.T) {
 	appleGDMFSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		// load the test data from the file
-		b, err := os.ReadFile("../../../server/mdm/apple/gdmf/testdata/gdmf.json")
+		b, err := os.ReadFile("../mdm/apple/gdmf/testdata/gdmf.json")
 		require.NoError(t, err)
 		_, err = w.Write(b)
 		require.NoError(t, err)
