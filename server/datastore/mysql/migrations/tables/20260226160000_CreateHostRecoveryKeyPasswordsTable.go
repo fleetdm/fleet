@@ -14,6 +14,11 @@ func Up_20260226160000(tx *sql.Tx) error {
 		CREATE TABLE host_recovery_key_passwords (
 			host_id int unsigned NOT NULL,
 			encrypted_password BLOB NOT NULL,
+			status ENUM('pending', 'verifying', 'verified', 'failed') NOT NULL DEFAULT 'pending',
+			set_command_uuid VARCHAR(127) DEFAULT NULL,
+			verify_command_uuid VARCHAR(127) DEFAULT NULL,
+			set_command_ack_at TIMESTAMP(6) DEFAULT NULL,
+			error_message TEXT DEFAULT NULL,
 			created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 			updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 			PRIMARY KEY (host_id)

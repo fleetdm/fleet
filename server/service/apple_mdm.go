@@ -3880,6 +3880,11 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				return nil, ctxerr.Wrap(r.Context, err, "DeviceLocation: calling handlers")
 			}
 		}
+
+	case "VerifyRecoveryLock":
+		if err := svc.runCommandHandlers(r.Context, "VerifyRecoveryLock", NewRecoveryLockResult(cmdResult)); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "VerifyRecoveryLock: calling handlers")
+		}
 	}
 
 	return nil, nil

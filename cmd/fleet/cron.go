@@ -33,6 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/policies"
+	"github.com/fleetdm/fleet/v4/server/recoverykeypassword"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
@@ -1966,5 +1967,30 @@ func cronMigrateToPerHostPolicy(
 			return androidSvc.MigrateToPerDevicePolicy(ctx)
 		}),
 	)
+	return s, nil
+}
+
+func newRecoveryLockPasswordSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	rkpDS recoverykeypassword.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger *logging.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronRecoveryLockPassword)
+		defaultInterval = 5 * time.Minute
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("reconcile_recovery_lock_passwords", func(ctx context.Context) error {
+			return recoverykeypassword.ReconcileRecoveryLockPasswords(ctx, rkpDS, commander, logger)
+		}),
+	)
+
 	return s, nil
 }
