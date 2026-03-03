@@ -50,7 +50,7 @@ jobs:
   test-go-activity:
     strategy:
       matrix:
-        mysql: ["mysql:8.0.44", "mysql:9.6.0"]
+        mysql: ["mysql:8.0.44", "mysql:9.5.0"]
     uses: ./.github/workflows/test-go-suite.yaml
     with:
       suite: activity

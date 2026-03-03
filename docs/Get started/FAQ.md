@@ -152,7 +152,7 @@ See the ["How to uninstall fleetd" guide](https://fleetdm.com/guides/how-to-unin
 
 ### What MySQL versions are supported?
 
-Fleet is tested with MySQL 8.0.34, 8.4.8, and 9.6.0. Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.08.2. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
+Fleet is tested with MySQL 8.0.34, 8.4.8, and 9.5.0 (9.6.0 is currently incompatible). Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.08.2. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
 
 ### What version of the Mac Admins osquery extension is supported?
 

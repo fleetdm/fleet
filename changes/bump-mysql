@@ -1,1 +1,1 @@
-* Revised which versions Fleet tests MySQL against to 8.0.39, 8.0.44, 8.4.8, and 9.6.0.
+* Revised which versions Fleet tests MySQL against to 9.5.0 (unchanged), 8.4.8, 8.0.44, and 8.0.39, 8.0.44.
