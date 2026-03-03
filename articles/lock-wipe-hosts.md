@@ -11,7 +11,7 @@ Restricting wipe for iPhones and iPads to only company-owned iPhones and iPads i
 ## Lock a host
 
 1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the device you want to lock. You can search by name, hostname, UUID, serial number, or private IP address in the search box in the upper right corner.
-2. Click the host to open the **Host Overview** page.
+2. Click the host to open the **Host details** page.
 3. Click the **Actions** dropdown, then click  **Lock**.
 4. A confirmation dialog will appear. Confirm that you want to lock the device. The host will now be marked with a "Lock pending" badge. Once the lock command is acknowledged by the host, the badge will update to "Locked".*
 
@@ -51,9 +51,11 @@ Example URL:
 3. Click the **Actions** dropdown, then click  **Wipe**.
 4. Confirm that you want to wipe the device in the dialog. The host will now be marked with a "Wipe pending" badge. Once the wipe command is acknowledged by the host, the badge will update to "Wiped".
 
-> **Important** When wiping and re-installing the operating system (OS) on a host, delete the host from Fleet before you re-enroll it. If you re-enroll without deleting, Fleet won't escrow a new disk encryption key.
+When wiping and re-installing the operating system (OS) on a host, delete the host from Fleet before you re-enroll it. If you re-enroll without deleting, Fleet won't escrow a new disk encryption key.
 
-> **Windows hosts** Fleet uses the [doWipeProtected](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipeprotected) command. According to Microsoft, this leaves the host [unable to boot](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#:~:text=In%20some%20device%20configurations%2C%20this%20command%20may%20leave%20the%20device%20unable%20to%20boot.).
+If you're gifting a company-owned macOS host or you want to prevent the host from automatically re-enrolling to Fleet for some other reason, first release the host from Apple Business Manager (ABM) and then delete the host in Fleet.
+
+For Windows hosts, Fleet uses the [doWipeProtected](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipeprotected) command. According to Microsoft, this leaves the host [unable to boot](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#:~:text=In%20some%20device%20configurations%2C%20this%20command%20may%20leave%20the%20device%20unable%20to%20boot.).
 
 ## Unlock a host
 

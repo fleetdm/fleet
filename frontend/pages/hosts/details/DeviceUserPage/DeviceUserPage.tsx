@@ -856,9 +856,7 @@ const DeviceUserPage = ({
         )}
         {!!host && showOSSettingsModal && (
           <OSSettingsModal
-            canResendProfiles={
-              isMacOS(host.platform) || isWindows(host.platform)
-            }
+            canResendProfiles={isAppleHost || isWindows(host.platform)}
             platform={host.platform}
             hostMDMData={host.mdm}
             resendRequest={resendProfile}

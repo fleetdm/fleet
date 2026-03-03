@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+	"sync"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 )
@@ -23,13 +24,17 @@ type MockNewActivityService struct {
 	NewActivityFunc        NewActivityFunc // defaults to NoopNewActivityFunc if nil
 	NewActivityFuncInvoked bool
 	Delegate               activity_api.NewActivityService
+
+	mu sync.Mutex
 }
 
 // Ensure MockNewActivityService implements activity_api.NewActivityService.
 var _ activity_api.NewActivityService = (*MockNewActivityService)(nil)
 
 func (m *MockNewActivityService) NewActivity(ctx context.Context, user *activity_api.User, activity activity_api.ActivityDetails) error {
+	m.mu.Lock()
 	m.NewActivityFuncInvoked = true
+	m.mu.Unlock()
 	if m.Delegate != nil {
 		if err := m.Delegate.NewActivity(ctx, user, activity); err != nil {
 			return err
