@@ -110,16 +110,21 @@ func (e *ParseTypeError) Unwrap() error {
 
 // ParseUnknownKeyError represents an unknown/misspelled key found in a GitOps YAML file.
 type ParseUnknownKeyError struct {
-	Filename string
-	Keys     []string // path context, e.g. ["controls", "macos_settings"]
-	Field    string   // the unknown field name
+	Filename   string
+	Keys       []string // path context, e.g. ["controls", "macos_settings"]
+	Field      string   // the unknown field name
+	Suggestion string   // suggested correct key, if a close match exists
 }
 
 func (e *ParseUnknownKeyError) Error() string {
-	if len(e.Keys) > 0 {
-		return fmt.Sprintf("unknown key %q in %q (file %q)", e.Field, strings.Join(e.Keys, "."), e.Filename)
+	var suffix string
+	if e.Suggestion != "" {
+		suffix = fmt.Sprintf("; did you mean %q?", e.Suggestion)
 	}
-	return fmt.Sprintf("unknown key %q (file %q)", e.Field, e.Filename)
+	if len(e.Keys) > 0 {
+		return fmt.Sprintf("unknown key %q in %q (file %q)%s", e.Field, strings.Join(e.Keys, "."), e.Filename, suffix)
+	}
+	return fmt.Sprintf("unknown key %q (file %q)%s", e.Field, e.Filename, suffix)
 }
 
 func MaybeParseTypeError(filename string, keysPath []string, err error) error {

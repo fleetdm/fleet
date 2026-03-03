@@ -2094,6 +2094,31 @@ software:
 		assert.Contains(t, err.Error(), "bad_policy_key")
 	})
 
+	t.Run("multiple unknown keys within a single section", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+agent_options:
+controls:
+  macos_updates:
+    minimum_version: "14.0"
+    deadlinee: "2024-01-01"
+    update_new_hostss: true
+  bad_control_key: true
+reports:
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "deadlinee")
+		assert.Contains(t, err.Error(), "update_new_hostss")
+		assert.Contains(t, err.Error(), "bad_control_key")
+	})
+
 	t.Run("valid config no unknown key errors", func(t *testing.T) {
 		t.Parallel()
 		config := `

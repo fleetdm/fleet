@@ -101,19 +101,15 @@ func TestValidateUnknownKeys(t *testing.T) {
 
 	t.Run("unknown key detected", func(t *testing.T) {
 		data := map[string]interface{}{
-			"name":                "test-query",
-			"query":               "SELECT 1",
-			"unknown_field":       "bad",
-			"other_unknown_field": "also bad",
+			"name":          "test-query",
+			"query":         "SELECT 1",
+			"unknown_field": "bad",
 		}
 		errs := validateUnknownKeys(data, reflect.TypeOf(fleet.QuerySpec{}), []string{"reports", "[0]"}, "test.yml")
-		require.Len(t, errs, 2)
+		require.Len(t, errs, 1)
 		assert.Contains(t, errs[0].Error(), "unknown_field")
 		assert.Contains(t, errs[0].Error(), "reports.[0]")
 		assert.Contains(t, errs[0].Error(), "test.yml")
-		assert.Contains(t, errs[1].Error(), "other_unknown_field")
-		assert.Contains(t, errs[1].Error(), "reports.[0]")
-		assert.Contains(t, errs[1].Error(), "test.yml")
 
 		var unknownErr *ParseUnknownKeyError
 		require.ErrorAs(t, errs[0], &unknownErr)
@@ -180,6 +176,65 @@ func TestValidateUnknownKeys(t *testing.T) {
 	})
 }
 
+func TestLevenshtein(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, 0, levenshtein("", ""))
+	assert.Equal(t, 3, levenshtein("", "abc"))
+	assert.Equal(t, 3, levenshtein("abc", ""))
+	assert.Equal(t, 0, levenshtein("query", "query"))
+	assert.Equal(t, 2, levenshtein("qurey", "query"))       // transposition = 2 edits in classic Levenshtein
+	assert.Equal(t, 1, levenshtein("deadlinee", "deadline")) // extra char
+	assert.Equal(t, 1, levenshtein("deadlin", "deadline"))   // missing char
+	assert.Equal(t, 3, levenshtein("delaine", "deadline"))
+}
+
+func TestSuggestKey(t *testing.T) {
+	t.Parallel()
+
+	known := knownJSONKeys(reflect.TypeOf(fleet.QuerySpec{}))
+
+	t.Run("close typo suggests match", func(t *testing.T) {
+		assert.Equal(t, "query", suggestKey("qurey", known))
+		assert.Equal(t, "query", suggestKey("qeury", known))
+		assert.Equal(t, "name", suggestKey("nme", known))
+		assert.Equal(t, "interval", suggestKey("intervl", known))
+		assert.Equal(t, "description", suggestKey("desciption", known))
+	})
+
+	t.Run("completely unrelated no suggestion", func(t *testing.T) {
+		assert.Empty(t, suggestKey("zzzzzzzzz", known))
+		assert.Empty(t, suggestKey("xylophone", known))
+	})
+
+	t.Run("suggestion included in error message", func(t *testing.T) {
+		data := map[string]interface{}{
+			"name":  "q",
+			"qurey": "SELECT 1",
+		}
+		errs := validateUnknownKeys(data, reflect.TypeOf(fleet.QuerySpec{}), []string{"reports"}, "test.yml")
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), `did you mean "query"`)
+
+		var unknownErr *ParseUnknownKeyError
+		require.ErrorAs(t, errs[0], &unknownErr)
+		assert.Equal(t, "query", unknownErr.Suggestion)
+	})
+
+	t.Run("no suggestion when too distant", func(t *testing.T) {
+		data := map[string]interface{}{
+			"name":       "q",
+			"xylophone":  "SELECT 1",
+		}
+		errs := validateUnknownKeys(data, reflect.TypeOf(fleet.QuerySpec{}), []string{"reports"}, "test.yml")
+		require.Len(t, errs, 1)
+		assert.NotContains(t, errs[0].Error(), "did you mean")
+
+		var unknownErr *ParseUnknownKeyError
+		require.ErrorAs(t, errs[0], &unknownErr)
+		assert.Empty(t, unknownErr.Suggestion)
+	})
+}
+
 func TestAnyFieldTypeRegistry(t *testing.T) {
 	t.Parallel()
 
@@ -195,6 +250,7 @@ func TestAnyFieldTypeRegistry(t *testing.T) {
 		require.Len(t, errs, 1)
 		assert.Contains(t, errs[0].Error(), "deadlinee")
 		assert.Contains(t, errs[0].Error(), "controls.macos_updates")
+		assert.Contains(t, errs[0].Error(), `did you mean "deadline"`)
 	})
 
 	t.Run("windows_updates any-field recursion", func(t *testing.T) {

@@ -107,6 +107,61 @@ var anyFieldTypes = map[reflect.Type]map[string]reflect.Type{
 	},
 }
 
+// levenshtein computes the edit distance between two strings.
+func levenshtein(a, b string) int {
+	if len(a) == 0 {
+		return len(b)
+	}
+	if len(b) == 0 {
+		return len(a)
+	}
+
+	// Use single-row DP to save memory.
+	prev := make([]int, len(b)+1)
+	for j := range prev {
+		prev[j] = j
+	}
+
+	for i := 1; i <= len(a); i++ {
+		curr := make([]int, len(b)+1)
+		curr[0] = i
+		for j := 1; j <= len(b); j++ {
+			cost := 1
+			if a[i-1] == b[j-1] {
+				cost = 0
+			}
+			curr[j] = min(
+				prev[j]+1,      // deletion
+				curr[j-1]+1,    // insertion
+				prev[j-1]+cost, // substitution
+			)
+		}
+		prev = curr
+	}
+	return prev[len(b)]
+}
+
+// suggestKey returns the closest known key name if one is within a reasonable
+// edit distance, or empty string if no good match exists.
+func suggestKey(unknown string, known map[string]fieldInfo) string {
+	bestKey := ""
+	bestDist := len(unknown) // worst case: replace every character
+	for candidate := range known {
+		d := levenshtein(unknown, candidate)
+		if d < bestDist {
+			bestDist = d
+			bestKey = candidate
+		}
+	}
+	// Suggest only if the distance is at most ~40% of the longer string's length,
+	// with a minimum threshold of 1 (exact single-char typos always suggest).
+	maxDist := max(1, max(len(unknown), len(bestKey))*2/5)
+	if bestDist <= maxDist {
+		return bestKey
+	}
+	return ""
+}
+
 // validateUnknownKeys walks parsed JSON data and compares keys against
 // struct field tags at every nesting level. Returns all unknown key errors found.
 func validateUnknownKeys(data any, targetType reflect.Type, path []string, filePath string) []error {
@@ -146,9 +201,10 @@ func validateMapKeys(data map[string]interface{}, targetType reflect.Type, path 
 		fi, ok := known[key]
 		if !ok {
 			errs = append(errs, &ParseUnknownKeyError{
-				Filename: filePath,
-				Keys:     append([]string(nil), path...),
-				Field:    key,
+				Filename:   filePath,
+				Keys:       append([]string(nil), path...),
+				Field:      key,
+				Suggestion: suggestKey(key, known),
 			})
 			continue
 		}
