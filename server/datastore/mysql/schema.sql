@@ -979,14 +979,19 @@ CREATE TABLE `host_orbit_info` (
 CREATE TABLE `host_recovery_key_passwords` (
   `host_id` int unsigned NOT NULL,
   `encrypted_password` blob NOT NULL,
-  `status` enum('pending','verifying','verified','failed') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `operation_type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'install',
   `set_command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `verify_command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `set_command_ack_at` timestamp(6) NULL DEFAULT NULL,
   `error_message` text COLLATE utf8mb4_unicode_ci,
   `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-  PRIMARY KEY (`host_id`)
+  PRIMARY KEY (`host_id`),
+  KEY `status` (`status`),
+  KEY `operation_type` (`operation_type`),
+  CONSTRAINT `host_recovery_key_passwords_ibfk_1` FOREIGN KEY (`status`) REFERENCES `mdm_delivery_status` (`status`) ON UPDATE CASCADE,
+  CONSTRAINT `host_recovery_key_passwords_ibfk_2` FOREIGN KEY (`operation_type`) REFERENCES `mdm_operation_types` (`operation_type`) ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

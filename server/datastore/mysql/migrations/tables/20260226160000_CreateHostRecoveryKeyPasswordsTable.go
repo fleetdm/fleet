@@ -14,14 +14,19 @@ func Up_20260226160000(tx *sql.Tx) error {
 		CREATE TABLE host_recovery_key_passwords (
 			host_id int unsigned NOT NULL,
 			encrypted_password BLOB NOT NULL,
-			status ENUM('pending', 'verifying', 'verified', 'failed') NOT NULL DEFAULT 'pending',
+			status VARCHAR(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+			operation_type VARCHAR(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'install',
 			set_command_uuid VARCHAR(127) DEFAULT NULL,
 			verify_command_uuid VARCHAR(127) DEFAULT NULL,
 			set_command_ack_at TIMESTAMP(6) DEFAULT NULL,
 			error_message TEXT DEFAULT NULL,
 			created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 			updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-			PRIMARY KEY (host_id)
+			PRIMARY KEY (host_id),
+			KEY status (status),
+			KEY operation_type (operation_type),
+			CONSTRAINT host_recovery_key_passwords_ibfk_1 FOREIGN KEY (status) REFERENCES mdm_delivery_status (status) ON UPDATE CASCADE,
+			CONSTRAINT host_recovery_key_passwords_ibfk_2 FOREIGN KEY (operation_type) REFERENCES mdm_operation_types (operation_type) ON UPDATE CASCADE
 		)
 	`); err != nil {
 		return fmt.Errorf("creating host_recovery_key_passwords table: %w", err)
