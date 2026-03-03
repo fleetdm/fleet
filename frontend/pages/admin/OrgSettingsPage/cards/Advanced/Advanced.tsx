@@ -495,10 +495,11 @@ const Advanced = ({
                   !disableChildren && (
                     <>
                       <>
-                        Disabling reports will decrease database usage, <br />
+                        Disabling stored results will decrease database usage,{" "}
+                        <br />
                         but will prevent you from accessing report results in
                         <br />
-                        Fleet and will delete existing reports. This can also be{" "}
+                        Fleet and will delete existing results. This can also be{" "}
                         <br />
                         disabled on a per-report basis by enabling &quot;Discard{" "}
                         <br />
@@ -510,9 +511,9 @@ const Advanced = ({
                     </>
                   )
                 }
-                helpText="Enabling this setting will delete all existing reports in Fleet."
+                helpText="Enabling this setting will delete all existing report results in Fleet."
               >
-                Disable reports
+                Disable stored results
               </Checkbox>
             )}
           />
