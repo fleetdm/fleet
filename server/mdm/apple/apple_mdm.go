@@ -106,7 +106,6 @@ func (d *DEPService) getDefaultProfile() *godep.Profile {
 		IsMDMRemovable:   false,
 		Language:         "en",
 		OrgMagic:         "1",
-		Region:           "US",
 		SkipSetupItems: []string{
 			"Appearance",
 			"AppleID",
