@@ -406,10 +406,6 @@ const PackageForm = ({
   );
 
   const renderCustomEditor = () => {
-    if (isEditingSoftware && !isFleetMaintainedApp) {
-      return null;
-    }
-
     const fmaVersionsSortedByLatestFirst = sortByVersionLatestFirst<ISoftwareVersion>(
       defaultSoftware.fleet_maintained_versions || []
     );
@@ -442,7 +438,7 @@ const PackageForm = ({
       <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
         <FileUploader
           canEdit={canEditFile}
-          customEditor={renderCustomEditor}
+          customEditor={isFleetMaintainedApp ? renderCustomEditor : undefined}
           graphicName={getGraphicName(ext || "")}
           accept={ACCEPTED_EXTENSIONS}
           message={renderFileTypeMessage()}

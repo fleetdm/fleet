@@ -16,7 +16,6 @@ import (
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -41,9 +40,9 @@ func TestVPPAuth(t *testing.T) {
 	androidMockClient.EnterprisesWebAppsCreateFunc = func(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
 		return &androidmanagement.WebApp{Name: "webapp1"}, nil
 	}
-	activityModule := activities.NewActivityModule()
+	noopNewActivity := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil }
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	androidSvc, err := android_service.NewServiceWithClient(logger, ds, androidMockClient, "test-private-key", ds, activityModule, config.AndroidAgentConfig{})
+	androidSvc, err := android_service.NewServiceWithClient(logger, ds, androidMockClient, "test-private-key", ds, noopNewActivity, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, androidModule: androidSvc})
