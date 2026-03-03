@@ -3,12 +3,12 @@ FROM debian:trixie-slim@sha256:f6e2cfac5cf956ea044b4bd75e6397b4372ad88fe00908045
 RUN apt-get update
 RUN apt-get install -y build-essential autoconf libxml2-dev libssl-dev zlib1g-dev curl git
 
-# Build bomutils
+# Build bomutils with static linking for libgcc and libstdc++
 RUN git clone -b master \
     --no-tags --progress \
     --no-recurse-submodules https://github.com/hogliux/bomutils.git && \
     cd bomutils && git reset --hard c41ad8b67d82a0071245ce8a5069023d39a885b8 && \
-    make && make install
+    make LDFLAGS="-static-libgcc -static-libstdc++ -pie -Wl,-z,now,-z,relro" && make install
 
 # Install xar
 RUN curl -L https://github.com/mackyle/xar/archive/refs/tags/xar-1.6.1.tar.gz > xar.tar.gz && \
