@@ -6329,9 +6329,7 @@ func (ds *Datastore) GetSoftwareCategoryNameToIDMap(ctx context.Context, names [
 
 	var categories []fleet.SoftwareCategory
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &categories, stmt, args...); err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.Wrap(ctx, err, "get software category name to id map")
-		}
+		return nil, ctxerr.Wrap(ctx, err, "get software category name to id map")
 	}
 
 	result := make(map[string]uint, len(categories))
