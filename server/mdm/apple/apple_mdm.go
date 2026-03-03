@@ -103,7 +103,7 @@ func (d *DEPService) getDefaultProfile() *godep.Profile {
 		IsSupervised:     false,
 		IsMultiUser:      false,
 		IsMandatory:      false,
-		IsMDMRemovable:   true,
+		IsMDMRemovable:   false,
 		Language:         "en",
 		OrgMagic:         "1",
 		Region:           "US",
