@@ -13,6 +13,7 @@ import (
 	"unicode"
 
 	"github.com/bmatcuk/doublestar/v4"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
@@ -384,6 +385,8 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	}
 
 	// Policies can reference software installers and scripts, thus we parse them after parseSoftware and parseControls.
+	fmt.Println(">>>>> BEFORE PARSE POLICIES: ")
+	spew.Dump(result.Software.Packages)
 	multiError = parsePolicies(top, result, baseDir, filePath, multiError)
 
 	return result, multiError.ErrorOrNil()
@@ -1329,6 +1332,11 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, policy.InstallSoftware.PackagePath))
 		if err != nil {
 			return fmt.Errorf("failed to read install_software.package_path file %q: %v", policy.InstallSoftware.PackagePath, err)
+		}
+		// Replace $var and ${var} with env values.
+		fileBytes, err = ExpandEnvBytes(fileBytes)
+		if err != nil {
+			return fmt.Errorf("failed to expand environment in file %q: %v", policy.InstallSoftware.PackagePath, err)
 		}
 		var policyInstallSoftwareSpec fleet.SoftwarePackageSpec
 		if err := YamlUnmarshal(fileBytes, &policyInstallSoftwareSpec); err != nil {
