@@ -89,6 +89,7 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 				Resolution:                     &args.Resolution,
 				AuthorID:                       authorID,
 				ConditionalAccessBypassEnabled: ptr.Bool(true),
+				Type:                           "dynamic",
 			},
 		}, nil
 	}

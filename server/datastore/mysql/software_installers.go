@@ -484,6 +484,7 @@ func (ds *Datastore) createAutomaticPolicy(ctx context.Context, tx sqlx.ExtConte
 		Description:         policyData.Description,
 		SoftwareInstallerID: softwareInstallerID,
 		VPPAppsTeamsID:      vppAppsTeamsID,
+		Type:                fleet.PolicyTypeDynamic,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create automatic policy query")
@@ -1002,7 +1003,8 @@ SELECT
   si.uploaded_at,
   si.self_service,
   si.url,
-  COALESCE(st.name, '') AS software_title
+  COALESCE(st.name, '') AS software_title,
+  COALESCE(st.bundle_identifier, '') AS bundle_identifier
   %s
 FROM
   software_installers si
