@@ -414,7 +414,7 @@ The following steps show how to connect end users to Wi-Fi or VPN with a [custom
 
 To deploy SCEP certificates to macOS, iOS, iPadOS, and Windows hosts, we'll follow the steps below to add a configuration profile to Fleet. 
 
-For Android hosts, we won't use a configuration profile. Follow the [Android steps](#android-add-certificate) instead.
+For Android hosts, we use a configuration profile and a certificate template. Follow the [Android steps](#android-deploy-certificate) instead.
 
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_{CA_NAME}`. For `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_{CA_NAME}`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
 
@@ -426,15 +426,23 @@ For Android hosts, we won't use a configuration profile. Follow the [Android ste
 
 When the profile is delivered to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
 
-### Android: Add certificate
+### Android: Deploy certificate
 
 How to deploy SCEP certificates to Android hosts:
 
-1. In Fleet, head to **Controls > OS settings > Certificates** and select **Add certificate**.
-2. In **Name**, enter a name for the certificate (e.g., "wifi-certificate"). This name is used as the certificate alias to reference in configuration profiles (e.g. [WiFi configuration](https://developers.google.com/android/management/configure-networks#eap_authentication)).
-3. In **Certificate authority**, select the custom SCEP CA you created in step 1.
-4. In **Subject name**, enter the certificate's subject name (SN). Separate subject fields by a ",". You can use [Fleet's host variables](https://fleetdm.com/docs/configuration/yaml-files#variables) to make the certificate unique to each host. For example: `CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL`.
-5. Select **Save**. Fleet will deploy the certificate to your Android hosts.
+1. Create a `add-certificates-to-work-profile.json` file, copy/paste the below JSON into it, and then, in Fleet, head to to **Controls > OS settings > Custom settings**, select **Add profile**, and upload your new `add-certificates-to-work-profile.json` profile.
+
+```json
+{
+  "privateKeySelectionEnabled": true
+}
+```
+
+2. In Fleet, head to **Controls > OS settings > Certificates** and select **Add certificate**.
+3. In **Name**, enter a name for the certificate (e.g., "wifi-certificate"). This name is used as the certificate alias to reference in configuration profiles (e.g. [WiFi configuration](https://developers.google.com/android/management/configure-networks#eap_authentication)).
+4. In **Certificate authority**, select the custom SCEP CA you created in step 1.
+5. In **Subject name**, enter the certificate's subject name (SN). Separate subject fields by a ",". You can use [Fleet's host variables](https://fleetdm.com/docs/configuration/yaml-files#variables) to make the certificate unique to each host. For example: `CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL`.
+6. Select **Save**. Fleet will deploy the certificate to your Android hosts.
 
 If something goes wrong, errors will appear on each host's **Host details > OS settings**.
 
