@@ -1851,9 +1851,9 @@ parasails.registerPage('configuration-builder', {
                 ],
                 formInput: {
                   type: 'number',
-                  maxValue: 9000,
+                  maxValue: 999,
                   minValue: 1,
-                  unitLabel: 'seconds'
+                  unitLabel: 'minutes'
                 },
                 formOutput: {
                   settingFormat: 'int',
@@ -1874,9 +1874,9 @@ parasails.registerPage('configuration-builder', {
                 ],
                 formInput: {
                   type: 'number',
-                  maxValue: 9000,
+                  maxValue: 999,
                   minValue: 1,
-                  unitLabel: 'seconds'
+                  unitLabel: 'minutes'
                 },
                 formOutput: {
                   settingFormat: 'int',
