@@ -10,7 +10,7 @@ Currently, these are supported platforms for each certificate authority:
 - **DigiCert**: macOS, iOS, and iPadOS
 - **Microsoft NDES**: macOS and Windows (coming soon)
 - **Smallstep**: macOS, iOS, and iPadOS
-- **Hydrant**: Linux, macOS, and Windows
+- **Hydrant**: Linux
 - **Custom SCEP server**: macOS, Windows, iOS, iPadOS, and Android
 - **Custom EST**: Linux, macOS, and Windows
 
