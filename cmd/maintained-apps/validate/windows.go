@@ -91,14 +91,6 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 
 			logger.InfoContext(ctx, fmt.Sprintf("Found app: '%s' at %s, Version: %s", result.Name, result.InstallLocation, result.Version))
 
-			// Google Chrome auto-updates immediately after installation, so the
-			// installed version may be newer than the installer version. For
-			// Chrome, we only verify that the app exists.
-			if appName == "Google Chrome" {
-				logger.InfoContext(ctx, "Google Chrome detected - skipping version check due to auto-update behavior")
-				return true, nil
-			}
-
 			// Sublime Text's Inno Setup installer may not write version to registry properly
 			// If app is found but version is empty, check if it's Sublime Text and skip version check
 			if appName == "Sublime Text" && result.Version == "" {
@@ -118,6 +110,14 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 			// Check if expected version starts with found version (handles cases where osquery reports shorter version)
 			// This handles cases where expected is "6.4.0" but osquery reports "6.4"
 			if strings.HasPrefix(appVersion, result.Version+".") {
+				return true, nil
+			}
+
+			// Google Chrome auto-updates immediately after installation, so the
+			// installed version may be newer than the installer version. If
+			// version didn't match above, fall back to existence-only check.
+			if appName == "Google Chrome" {
+				logger.InfoContext(ctx, "Google Chrome detected - version mismatch but app is installed, skipping version check due to auto-update behavior")
 				return true, nil
 			}
 		}
