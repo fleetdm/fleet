@@ -110,28 +110,45 @@ The Executive Assistant will verify daily that the CEO's calendar is accurate fo
   - Use the Brex card.
   - Frequent flyer details of all (previously flown) airlines are in 1Password as well as important travel documents.
   - The CEO will schedule his own transportation (e.g. to/from hotel/event location) while traveling. If the CEO is traveling to an event or meeting where other Fleeties are present, he may use travel time (e.g. an Uber ride) as time to align with other team members in person.
-  - ONLY for flights where the first leg crosses international borders, then allow 90m for water and boarding.  (This is because they blockade international gates and make you wait in line AND the boarding time is longer.)  Otherwise it's always 30m, no matter what.
-  - 30 minutes for customs and redoing security when entering the US or entering any different country on any connection flight, even if there are other connections.
 
-The CEO's calendar should reflect the following schedule (all times are default assumptions and subject to change depending on senario):
-- 45 min for time to pack.
+The CEO's calendar should reflect the following schedule for travel:
+- Time block for the CEO to pack (always have this event even if the CEO doesn't check any bags in, he always bring a carry-on bag),
+  - 45 minutes
   - Calendar event name: 🧳 Pack
-- Travel time from the CEO's home to the airport, assume 30 min for this. 
+- Time block to check out of hotel
+  - Only if the CEO is checking out of a hotel, otherwise not needed.
+  - 30 minutes
+  - Calendar event: Check out
+- Travel time to the airport the CEO is going to,
+  - Assume 30 minutes for this if it's the CEO's home airport, otherwise, check the time it takes from where the CEO is to the airport the CEO needs to get to. (e.g. If the CEO is leaving his hotel to the airport, google directions from the location of the hotel to the airport, but make sure you change the time at when the CEO will leave his hotel.)
   - Calendar event name: Travel to NAME_OF_AIRPORT
-  - Location: Address of the airport the CEO is flying from.
-- Time30min for 🕶️ security 
-30min Get water and boarding
-🛫
-🛬
-30min Get water
-Uber to hotel or wherever he needs to go (with location in event)
-Check in to hotel (30 min)
-(Side quest along the way) 
-🚌Travel
-🪥Find a toothbrush
-🚌Travel
-Or Uber home
-
+  - Location: Address of the airport the CEO needs to go to.
+- Time block to go through security,
+  - 30 minuites for domestic and international flights
+  - Calendar event name: Security
+  - Agenda: CEO's link to the boarding pass. You will get this when it's time to check in for the CEO's flight. It will come by email or by text to which you can email it to yourself or text it to yourself. If you cannot get a link, download the boarding pass and upload as a google doc. Make sure the CEO has access to the doc before placing the link in the agenda as the boarding pass. 
+- Time block to get water and boarding,
+  - 30 minutes for domestic flights
+  - 90 minutes for international flights where the first leg crosses international borders (this is because they blockade international gates and make you wait in line and the boarding time in longer)
+  - Calendar event name: Get water and boarding
+- Airline flight calendar event
+  - The airline website will either offer to download the flight or have it emailed. After you download the flights from the airline website, import it to the CEO's calendar (this is in the calendar settings) or send it to the CEO's email. (For either option, there is either a calendar icon to click or a button that says "add to calendar".)
+  - If there is no offer to download or email it (usually happens with international flights), manually put it on the CEO's calendar with this event title: ABBREVIATED_AIRPORT to ABREVIATED_ AIRPORT. Make sure to double check the time the flight starts and lands.
+  - For connecting flights, when there is a time gap between flights, fill the gap with a calendar event named: Find next gate
+- Time block to get water and bags (this is after the CEO lands from the flight),
+  - 30 minutes
+  - Calendar event name if the CEO has checked bags: Get water and bags
+  - Calendar event name if the CEO has no checked bags: Get water
+  - No calendar event to get water and bags, if CEO is going home
+- Travel time from the airport to the CEO's next destination,
+ - Time varies, you will need to google directions from the airport to the address the CEO needs to go to. Make sure to match the time they will need to leave the airport.
+ - The CEO sometimes needs to go straight to the event they are needed at whether it's a meeting, an event, resturaunt, etc.
+ - Calendar event: Travel to NAME_OF_DESTINATION (e.g. Travel to NAME_OF_HOTEL, NAME_OF_VENUE, NAME_OF_RESTURUANT, etc.)
+ - Location: Address to destination
+ - Calendar event name if CEO is going home: Travel home
+- If the CEO is checking into a hotel, they need a time block to check-in,
+ - 30 minutes
+ - Calendar event: Check-in at hotel
 
 
 ### Schedule CEO interview
