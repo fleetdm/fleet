@@ -16,8 +16,9 @@ import { getPathWithQueryParams } from "utilities/url";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import DropdownWrapper, {
+  CustomOptionType,
+} from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Modal from "components/Modal";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
@@ -195,31 +196,34 @@ const InstallSoftwareModal = ({
   // Filters and transforms software titles into dropdown options
   // to include only software compatible with the policy's platform(s)
   const availableSoftwareOptions = useCallback(
-    (policy: IFormPolicy) => {
+    (policy: IFormPolicy): CustomOptionType[] => {
       const policyPlatforms = policy.platform.split(",");
-      return titlesAvailableForInstall
-        ?.filter(
-          (title) => title.platform && policyPlatforms.includes(title.platform)
-        )
-        .map((title) => {
-          return {
-            label: getDisplayedSoftwareName(title.name, title.display_name),
-            value: title.id,
-            helpText: generateSoftwareOptionHelpText(title),
-          };
-        });
+      return (
+        titlesAvailableForInstall
+          ?.filter(
+            (title) =>
+              title.platform && policyPlatforms.includes(title.platform)
+          )
+          .map((title) => {
+            return {
+              label: getDisplayedSoftwareName(title.name, title.display_name),
+              value: String(title.id), // string for DropdownWrapper
+              helpText: generateSoftwareOptionHelpText(title),
+            };
+          }) ?? []
+      );
     },
     [titlesAvailableForInstall]
   );
 
   // Cache availableSoftwareOptions for each unique platform
   const memoizedAvailableSoftwareOptions = useMemo(() => {
-    const cache = new Map();
-    return (policy: IFormPolicy) => {
-      let options = availableSoftwareOptions(policy) || [];
+    const cache = new Map<string, CustomOptionType[]>();
+    return (policy: IFormPolicy): CustomOptionType[] => {
+      let options = availableSoftwareOptions(policy);
       const installOptionsByPlatformMismatchSelectedInstaller =
         policy.swIdToInstall &&
-        !options.some((opt) => opt.value === policy.swIdToInstall);
+        !options.some((opt) => Number(opt.value) === policy.swIdToInstall);
 
       // More unique cache key if installOptionsByPlatformMismatchSelectedInstaller
       const key = `${policy.platform}${
@@ -241,7 +245,7 @@ const InstallSoftwareModal = ({
                   currentSoftware.name,
                   currentSoftware.display_name
                 ),
-                value: currentSoftware.id,
+                value: String(currentSoftware.id),
                 helpText: generateSoftwareOptionHelpText(currentSoftware),
               },
               ...options,
@@ -251,7 +255,7 @@ const InstallSoftwareModal = ({
 
         cache.set(key, options);
       }
-      return cache.get(key);
+      return cache.get(key) ?? [];
     };
   }, [availableSoftwareOptions, titlesAvailableForInstall]);
 
@@ -311,22 +315,27 @@ const InstallSoftwareModal = ({
                     onClick={(e) => {
                       e.stopPropagation();
                     }}
+                    className={`${baseClass}__dropdown-wrapper`}
                   >
-                    <Dropdown
-                      options={memoizedAvailableSoftwareOptions(formPolicy)} // Options filtered for policy's platform(s)
-                      value={formPolicy.swIdToInstall}
-                      onChange={({ value }: ISwDropdownField) =>
+                    <DropdownWrapper
+                      options={memoizedAvailableSoftwareOptions(formPolicy)}
+                      value={
+                        formPolicy.swIdToInstall != null
+                          ? String(formPolicy.swIdToInstall)
+                          : ""
+                      }
+                      onChange={(newValue) =>
                         onChange(
                           onSelectPolicySoftware(item, {
                             name: formPolicy.name,
-                            value,
+                            value: newValue?.value ? Number(newValue.value) : 0,
                           })
                         )
                       }
                       placeholder="Select software"
                       className={`${baseClass}__software-dropdown`}
                       name={formPolicy.name}
-                      parseTarget
+                      isSearchable
                     />
                   </span>
                 ) : null;

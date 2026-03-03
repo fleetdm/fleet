@@ -67,6 +67,7 @@ func TestPolicies(t *testing.T) {
 		{"TestPoliciesNameSort", testPoliciesNameSort},
 		{"TestGetCalendarPolicies", testGetCalendarPolicies},
 		{"GetTeamHostsPolicyMemberships", testGetTeamHostsPolicyMemberships},
+		{"GetTeamHostsPolicyMembershipsEmailPriority", testGetTeamHostsPolicyMembershipsEmailPriority},
 		{"TestPoliciesNewGlobalPolicyWithInstaller", testNewGlobalPolicyWithInstaller},
 		{"TestPoliciesTeamPoliciesWithInstaller", testTeamPoliciesWithInstaller},
 		{"TestPoliciesTeamPoliciesWithVPP", testTeamPoliciesWithVPP},
@@ -4344,6 +4345,132 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	require.True(t, hostsTeam2[0].Passing)
 	require.Equal(t, "serial2", hostsTeam2[0].HostHardwareSerial)
 	require.Equal(t, "display_name2", hostsTeam2[0].HostDisplayName)
+}
+
+func testGetTeamHostsPolicyMembershipsEmailPriority(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test-team"})
+	require.NoError(t, err)
+
+	calendarPolicy, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:                  "Calendar Policy",
+		Query:                 "SELECT 1;",
+		CalendarEventsEnabled: true,
+	})
+	require.NoError(t, err)
+
+	newHost := func(name string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:  ptr.String(name),
+			NodeKey:        ptr.String(name),
+			HardwareSerial: name + "-serial",
+			ComputerName:   name,
+			TeamID:         &team.ID,
+		})
+		require.NoError(t, err)
+		// Make the host fail the calendar policy so it always appears in results.
+		err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{calendarPolicy.ID: ptr.Bool(false)}, time.Now(), false)
+		require.NoError(t, err)
+		return h
+	}
+
+	setEmails := func(hostID uint, mappings ...*fleet.HostDeviceMapping) {
+		// Group by source so each source gets its own ReplaceHostDeviceMapping call,
+		// matching production usage (each source replaces its own slice).
+		bySource := make(map[string][]*fleet.HostDeviceMapping)
+		for _, m := range mappings {
+			bySource[m.Source] = append(bySource[m.Source], m)
+		}
+		for src, ms := range bySource {
+			err := ds.ReplaceHostDeviceMapping(ctx, hostID, ms, src)
+			require.NoError(t, err)
+		}
+	}
+
+	getResults := func(domain string) []fleet.HostPolicyMembershipData {
+		results, err := ds.GetTeamHostsPolicyMemberships(ctx, domain, team.ID, []uint{calendarPolicy.ID}, nil)
+		require.NoError(t, err)
+		sort.Slice(results, func(i, j int) bool { return results[i].HostID < results[j].HostID })
+		return results
+	}
+
+	emailFor := func(results []fleet.HostPolicyMembershipData, h *fleet.Host) string {
+		for _, r := range results {
+			if r.HostID == h.ID {
+				return r.Email
+			}
+		}
+		t.Fatalf("host %d not found in results", h.ID)
+		return ""
+	}
+
+	testCases := []struct {
+		name     string
+		mappings []*fleet.HostDeviceMapping
+		expected string
+	}{
+		{
+			name: "idp-vs-chrome",
+			mappings: []*fleet.HostDeviceMapping{
+				{Email: "chrome@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+				{Email: "idp@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+			},
+			expected: "idp@example.com",
+		},
+		{
+			name: "idpsrc-vs-chrome",
+			mappings: []*fleet.HostDeviceMapping{
+				{Email: "chrome@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+				{Email: "idpsrc@example.com", Source: fleet.DeviceMappingIDP},
+			},
+			expected: "idpsrc@example.com",
+		},
+		{
+			name: "custom-vs-chrome",
+			mappings: []*fleet.HostDeviceMapping{
+				{Email: "chrome@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+				{Email: "custom@example.com", Source: "custom"},
+			},
+			expected: "chrome@example.com",
+		},
+		{
+			name: "multi-idp",
+			mappings: []*fleet.HostDeviceMapping{
+				{Email: "zebra@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+				{Email: "apple@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+			},
+			expected: "apple@example.com",
+		},
+		{
+			name: "multi-chrome",
+			mappings: []*fleet.HostDeviceMapping{
+				{Email: "zebra@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+				{Email: "apple@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+			},
+			expected: "apple@example.com",
+		},
+		{
+			name: "idp-wrong-domain",
+			mappings: []*fleet.HostDeviceMapping{
+				{Email: "idp@other.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+				{Email: "chrome@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+			},
+			expected: "chrome@example.com",
+		},
+	}
+
+	for _, tC := range testCases {
+		host := newHost(tC.name)
+
+		for _, m := range tC.mappings {
+			m.HostID = host.ID
+		}
+		setEmails(host.ID, tC.mappings...)
+
+		results := getResults("example.com")
+		require.Equal(t, tC.expected, emailFor(results, host), tC.name)
+	}
 }
 
 func testNewGlobalPolicyWithInstaller(t *testing.T, ds *Datastore) {

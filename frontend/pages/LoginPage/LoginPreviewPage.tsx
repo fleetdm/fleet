@@ -7,6 +7,7 @@ import paths from "router/paths";
 import { AppContext } from "context/app";
 import sessionsAPI from "services/entities/sessions";
 import local from "utilities/local";
+import authToken from "utilities/auth_token";
 
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 // @ts-ignore
@@ -35,7 +36,7 @@ const LoginPreviewPage = ({ router }: ILoginPreviewPageProps): JSX.Element => {
       const { user, available_teams, token } = await sessionsAPI.login(
         formData
       );
-      local.setItem("auth_token", token);
+      authToken.save(token);
 
       setCurrentUser(user);
       setAvailableTeams(user, available_teams);

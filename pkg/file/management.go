@@ -2,6 +2,7 @@ package file
 
 import (
 	_ "embed"
+	"fmt"
 	"regexp"
 )
 
@@ -78,6 +79,27 @@ var UninstallMsiWithUpgradeCodeScript string
 
 var PackageIDRegex = regexp.MustCompile(`((("\$PACKAGE_ID")|(\$PACKAGE_ID))(?P<suffix>\W|$))|(("\${PACKAGE_ID}")|(\${PACKAGE_ID}))`)
 var UpgradeCodeRegex = regexp.MustCompile(`((("\$UPGRADE_CODE")|(\$UPGRADE_CODE))(?P<suffix>\W|$))|(("\${UPGRADE_CODE}")|(\${UPGRADE_CODE}))`)
+
+// safeIdentifierRegex matches strings that contain only safe characters for
+// interpolation into shell scripts. This allowlist prevents shell injection
+// via crafted package metadata (e.g., package IDs containing $(), backticks,
+// pipes, or other shell metacharacters).
+var safeIdentifierRegex = regexp.MustCompile(`^[a-zA-Z0-9._\-{} +,/:~@]+$`)
+
+// ValidatePackageIdentifiers checks that package IDs and upgrade codes contain
+// only safe characters for shell script interpolation. Returns an error if any
+// identifier contains shell metacharacters.
+func ValidatePackageIdentifiers(packageIDs []string, upgradeCode string) error {
+	for _, id := range packageIDs {
+		if !safeIdentifierRegex.MatchString(id) {
+			return fmt.Errorf("package identifier %q contains invalid characters", id)
+		}
+	}
+	if upgradeCode != "" && !safeIdentifierRegex.MatchString(upgradeCode) {
+		return fmt.Errorf("upgrade code %q contains invalid characters", upgradeCode)
+	}
+	return nil
+}
 
 //go:embed scripts/uninstall_deb.sh
 var uninstallDebScript string

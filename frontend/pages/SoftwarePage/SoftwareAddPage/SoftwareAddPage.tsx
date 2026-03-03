@@ -17,6 +17,8 @@ import TabText from "components/TabText";
 import SidePanelContent from "components/SidePanelContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 
+import { FmaPlatformValue } from "./SoftwareFleetMaintained/FleetMaintainedAppsTable/FmaFilters/FmaFilters";
+
 const baseClass = "software-add-page";
 
 interface IAddSoftwareSubNavItem {
@@ -52,6 +54,7 @@ export interface ISoftwareAddPageQueryParams {
   page?: string;
   order_key?: string;
   order_direction?: "asc" | "desc";
+  platform: FmaPlatformValue;
 }
 
 interface ISoftwareAddPageProps {

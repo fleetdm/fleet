@@ -81,6 +81,10 @@ module.exports = {
         name: `enterprises/${androidEnterpriseId}/applications/${applicationId}`,
       });
       return getApplicationsResult.data;
+    }).intercept({status: 429}, (err)=>{
+      // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
+      sails.log.warn(`p1: Android management API rate limit exceeded!`);
+      return new Error(`When attempting to get an application for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
     }).intercept({status: 404}, () => {
       return {'notFound': 'App not found.'};
     }).intercept((err) => {

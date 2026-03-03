@@ -1,0 +1,1 @@
+* Refactored NewActivity functionality by moving it to the new activity bounded context.

@@ -90,6 +90,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, false, stats.MDMMacOsEnabled)
 	assert.Equal(t, false, stats.HostExpiryEnabled)
 	assert.Equal(t, false, stats.MDMWindowsEnabled)
+	assert.Equal(t, false, stats.MDMRecoveryLockPasswordEnabled)
 	assert.Equal(t, false, stats.LiveQueryDisabled)
 	assert.Equal(t, false, stats.AIFeaturesDisabled)
 	assert.Equal(t, false, stats.MaintenanceWindowsEnabled)
