@@ -337,7 +337,7 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 					}},
 					ConditionalAccessEnabled:       true,
 					ConditionalAccessBypassEnabled: ptr.Bool(true),
-					Type:                           fleet.PolicyTypeDynamic,
+					Type:                           ptr.String(fleet.PolicyTypeDynamic),
 				},
 				InstallSoftware: &fleet.PolicySoftwareTitle{
 					SoftwareTitleID: 1,
@@ -356,7 +356,7 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				Platform:                       "linux,windows",
 				ConditionalAccessEnabled:       true,
 				ConditionalAccessBypassEnabled: ptr.Bool(true),
-				Type:                           fleet.PolicyTypeDynamic,
+				Type:                           ptr.String(fleet.PolicyTypeDynamic),
 			},
 			RunScript: &fleet.PolicyScript{
 				ID: 1,
@@ -374,7 +374,7 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				ConditionalAccessEnabled:       true,
 				ConditionalAccessBypassEnabled: ptr.Bool(false),
 				FleetMaintainedAppSlug:         "foo/darwin",
-				Type:                           fleet.PolicyTypePatch,
+				Type:                           ptr.String(fleet.PolicyTypePatch),
 			},
 		},
 	}, nil

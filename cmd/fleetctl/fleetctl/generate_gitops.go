@@ -1435,8 +1435,8 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 		if policy.FleetMaintainedAppSlug != "" {
 			policySpec["fleet_maintained_app_slug"] = policy.FleetMaintainedAppSlug
 		}
-		if policy.Type != "" {
-			policySpec["type"] = policy.Type
+		if v := ptr.ValOrZero(policy.Type); v != "" {
+			policySpec["type"] = v
 		}
 		// Handle software automation.
 		if policy.InstallSoftware != nil {
