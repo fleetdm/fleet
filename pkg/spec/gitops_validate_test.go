@@ -65,6 +65,18 @@ func TestKnownJSONKeys(t *testing.T) {
 		assert.Contains(t, keys, "path")
 	})
 
+	t.Run("renameto alias accepted", func(t *testing.T) {
+		// PolicySpec has `json:"team" renameto:"fleet"` — both should be known
+		keys := knownJSONKeys(reflect.TypeOf(fleet.PolicySpec{}))
+		assert.Contains(t, keys, "team")
+		assert.Contains(t, keys, "fleet")
+
+		// LabelSpec has `json:"team_id" renameto:"fleet_id"`
+		keys = knownJSONKeys(reflect.TypeOf(fleet.LabelSpec{}))
+		assert.Contains(t, keys, "team_id")
+		assert.Contains(t, keys, "fleet_id")
+	})
+
 	t.Run("caching works", func(t *testing.T) {
 		t1 := reflect.TypeOf(Label{})
 		keys1 := knownJSONKeys(t1)
