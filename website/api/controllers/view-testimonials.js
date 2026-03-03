@@ -50,7 +50,7 @@ module.exports = {
     ];
 
     let filteredTestimonialsForThisPage = _.filter(testimonials, (testimonial)=>{
-      return !testimonialAuthorsToExcludeOnThisPage.includes(testimonial.quoteAuthorName)
+      return !testimonialAuthorsToExcludeOnThisPage.includes(testimonial.quoteAuthorName);
     });
 
     filteredTestimonialsForThisPage.sort((a, b)=>{
