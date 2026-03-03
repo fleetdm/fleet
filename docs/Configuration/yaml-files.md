@@ -562,6 +562,11 @@ software:
       categories:
         - Communication
         - Productivity
+    - slug: parallels/darwin
+      version: "^26"
+      self_service: true
+      labels_include_any:
+        - Engineering
 ```
 
 #### self_service, labels, categories, and setup_experience
