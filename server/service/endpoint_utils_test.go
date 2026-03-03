@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"mime/multipart"
@@ -265,6 +266,7 @@ func TestUniversalDecoderSizeLimit(t *testing.T) {
 	}
 	decoder := makeDecoder(universalStruct{}, platform_http.MaxRequestBodySize)
 
+	// Body larger than the limit should return PayloadTooLargeError.
 	largeBody := `{"key": "` + strings.Repeat("A", int(platform_http.MaxRequestBodySize)+1) + `"}`
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(largeBody))
 	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
@@ -273,6 +275,18 @@ func TestUniversalDecoderSizeLimit(t *testing.T) {
 	require.Error(t, err)
 	require.IsType(t, platform_http.PayloadTooLargeError{}, err)
 
+	// Body within the limit but with broken JSON
+	incompleteBody := `{"key": "` + strings.Repeat("A", 100) // missing closing "}
+	req = httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(incompleteBody))
+	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+
+	_, err = decoder(context.Background(), req)
+	require.Error(t, err)
+	require.True(t, errors.Is(err, io.ErrUnexpectedEOF), "expected io.ErrUnexpectedEOF, got %T: %v", err, err)
+	_, isPayloadTooLarge := err.(platform_http.PayloadTooLargeError)
+	require.False(t, isPayloadTooLarge, "incomplete body within size limit must not produce PayloadTooLargeError, got %T: %v", err, err)
+
+	// Body within the limit and complete ... OK
 	largeBody = `{"key": "` + strings.Repeat("A", int(platform_http.MaxRequestBodySize)-11) + `"}` // -11 to account for the wrapping JSON
 	req = httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(largeBody))
 	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
