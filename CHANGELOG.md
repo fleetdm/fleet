@@ -12,7 +12,7 @@
 - Updated storage of the auth token used in the UI; move if from local storage to a cookie.
 - Improved spacing on the Controls > OS Settings page.
 - Added the ability to specify allowed Entra tenant IDs for enrollments.
-- Fleet UI: Show CTA to turn on Android MDM for Android software setup experience if MDM is not configured.
+- Added CTA to turn on Android MDM for Android software setup experience if MDM is not configured.
 - Addded CVE alias for python visual studio code extension.
 - Improved validation for host transfers.
 - Fixed query results cleanup cron failing with "too many placeholders" error by filtering to only saved queries and batching the SQL IN clause.
