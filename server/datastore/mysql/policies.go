@@ -1033,36 +1033,35 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 		// type should already be set to dynamic when called from the service layer
 		args.Type = fleet.PolicyTypeDynamic
 	}
-	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		if args.Type == fleet.PolicyTypePatch {
-			installer, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &teamID, *args.PatchSoftwareTitleID, false)
-			if err != nil {
-				return err
-			}
-			if installer.FleetMaintainedAppID == nil {
-				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-					// TODO(JK): improve error message
-					Message: fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for team ID %d", *args.PatchSoftwareTitleID, teamID),
-				})
-			}
-			if installer.Platform == string(fleet.MacOSPlatform) {
-				args.Query = fmt.Sprintf(
-					"SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') >= 0;",
-					installer.BundleIdentifier,
-					installer.Version,
-				)
-				args.Platform = string(fleet.MacOSPlatform)
-			} else if installer.Platform == "windows" {
-				// TODO: use upgrade code if possible?
-				args.Query = fmt.Sprintf(
-					"SELECT 1 FROM programs WHERE name = '%s' AND version_compare(bundle_short_version, '%s') >= 0;",
-					installer.SoftwareTitle,
-					installer.Version,
-				)
-				args.Platform = "windows"
-			}
+	if args.Type == fleet.PolicyTypePatch {
+		installer, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &teamID, *args.PatchSoftwareTitleID, false)
+		if err != nil {
+			return nil, err
 		}
+		if installer.FleetMaintainedAppID == nil {
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for team ID %d", *args.PatchSoftwareTitleID, teamID),
+			})
+		}
+		if installer.Platform == string(fleet.MacOSPlatform) {
+			args.Query = fmt.Sprintf(
+				"SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') >= 0;",
+				installer.BundleIdentifier,
+				installer.Version,
+			)
+			args.Platform = string(fleet.MacOSPlatform)
+		} else if installer.Platform == "windows" {
+			// TODO: use upgrade code if possible?
+			args.Query = fmt.Sprintf(
+				"SELECT 1 FROM programs WHERE name = '%s' AND version_compare(bundle_short_version, '%s') >= 0;",
+				installer.SoftwareTitle,
+				installer.Version,
+			)
+			args.Platform = "windows"
+		}
+	}
 
+	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		p, err := newTeamPolicy(ctx, tx, teamID, authorID, args)
 		if err != nil {
 			return err
