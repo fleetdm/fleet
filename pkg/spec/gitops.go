@@ -1378,7 +1378,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	return nil
 }
 
-func validateReport(r *fleet.QuerySpec, filePath string, itemPath string, fleetName *string) error {
+func validateReport(r *fleet.QuerySpec, filePath string, itemPath string) error {
 	if r.Name == "" {
 		return fmt.Errorf("`name` is required for each report in %s at %s", filepath.Base(filePath), itemPath)
 	}
@@ -1387,11 +1387,6 @@ func validateReport(r *fleet.QuerySpec, filePath string, itemPath string, fleetN
 	}
 	if !isASCII(r.Name) {
 		return fmt.Errorf("`name` must be in ASCII: %s in %s at %s", r.Name, filepath.Base(filePath), itemPath)
-	}
-	if fleetName != nil {
-		r.TeamName = *fleetName
-	} else {
-		r.TeamName = ""
 	}
 	return nil
 }
@@ -1412,10 +1407,11 @@ func parseReports(top map[string]json.RawMessage, result *GitOps, baseDir string
 	}
 	for i, item := range queries {
 		if item.Path == nil {
-			if err := validateReport(&item.QuerySpec, filePath, fmt.Sprintf("reports[%d]", i), result.TeamName); err != nil {
+			if err := validateReport(&item.QuerySpec, filePath, fmt.Sprintf("reports[%d]", i)); err != nil {
 				multiError = multierror.Append(multiError, err)
 				continue
 			}
+			item.QuerySpec.TeamName = ptr.ValOrZero(result.TeamName)
 			result.Queries = append(result.Queries, &item.QuerySpec)
 		} else {
 			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
@@ -1442,10 +1438,11 @@ func parseReports(top map[string]json.RawMessage, result *GitOps, baseDir string
 								multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pq.Path, *item.Path),
 							)
 						} else {
-							if err := validateReport(&pq.QuerySpec, *item.Path, fmt.Sprintf("reports[%d]", i), result.TeamName); err != nil {
+							if err := validateReport(&pq.QuerySpec, *item.Path, fmt.Sprintf("reports[%d]", i)); err != nil {
 								multiError = multierror.Append(multiError, err)
 								continue
 							}
+							pq.QuerySpec.TeamName = ptr.ValOrZero(result.TeamName)
 							result.Queries = append(result.Queries, &pq.QuerySpec)
 						}
 					}
