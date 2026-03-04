@@ -1155,9 +1155,9 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			return nil, err
 		}
 
-		macosSettingsT := reflect.TypeOf(fleet.MacOSSettings{})
-		windowsSettingsT := reflect.TypeOf(fleet.WindowsSettings{})
-		androidSettingsT := reflect.TypeOf(fleet.AndroidSettings{})
+		macosSettingsT := reflect.TypeFor[fleet.MacOSSettings]()
+		windowsSettingsT := reflect.TypeFor[fleet.WindowsSettings]()
+		androidSettingsT := reflect.TypeFor[fleet.AndroidSettings]()
 
 		if cmd.AppConfig.MDM.EnabledAndConfigured && profiles != nil {
 			if len(profiles["apple_profiles"].([]map[string]interface{})) > 0 {
