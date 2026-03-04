@@ -83,19 +83,7 @@ export default {
     const queryString = buildQueryStringFromParams(snakeCaseParams);
     const path = `${GLOBAL_POLICIES}?${queryString}`;
 
-    return sendRequest("GET", path).then((res: ILoadAllPoliciesResponse) => {
-      // TODO: FAKE DATA — remove before merging
-      res.policies?.forEach((p, i) => {
-        if (i === 0) {
-          p.critical = true;
-          p.conditional_access_enabled = true;
-        } else if (i === 1) {
-          p.critical = false;
-          p.conditional_access_enabled = true;
-        }
-      });
-      return res;
-    });
+    return sendRequest("GET", path);
   },
   getCount: ({
     query,

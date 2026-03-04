@@ -10,19 +10,7 @@ export default {
     const { CONFIG } = endpoints;
     const path = `${CONFIG}`;
 
-    return sendRequest("GET", path).then((config: IConfig) => {
-      // TODO: FAKE DATA — remove before merging
-      config.conditional_access = {
-        ...config.conditional_access,
-        microsoft_entra_tenant_id: "",
-        microsoft_entra_connection_configured: false,
-        okta_idp_id: "fake-okta-idp-id",
-        okta_assertion_consumer_service_url: "https://fake.okta.com/acs",
-        okta_audience_uri: "https://fake.okta.com/audience",
-        okta_certificate: "FAKE_CERT",
-      };
-      return config;
-    });
+    return sendRequest("GET", path);
   },
   loadCertificate: () => {
     const { CONFIG } = endpoints;

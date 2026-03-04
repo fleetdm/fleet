@@ -166,19 +166,7 @@ export default {
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);
     const path = `${TEAMS}/${teamId}/policies?${queryString}`;
-    return sendRequest("GET", path).then((res: ILoadTeamPoliciesResponse) => {
-      // TODO: FAKE DATA — remove before merging
-      res.policies?.forEach((p, i) => {
-        if (i === 0 || i === 1) {
-          p.critical = true;
-          p.conditional_access_enabled = true;
-        } else if (i === 2) {
-          p.critical = false;
-          p.conditional_access_enabled = true;
-        }
-      });
-      return res;
-    });
+    return sendRequest("GET", path);
   },
   getCount: async ({
     query,
