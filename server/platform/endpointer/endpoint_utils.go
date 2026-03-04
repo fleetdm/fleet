@@ -518,8 +518,9 @@ func MakeDecoder(
 	}
 	if rd, ok := iface.(RequestDecoder); ok {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
+			var limitedReader *io.LimitedReader
 			if maxRequestBodySize != -1 {
-				limitedReader := io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
+				limitedReader = io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
 
 				r.Body = &LimitedReadCloser{
 					LimitedReader: limitedReader,
@@ -527,7 +528,7 @@ func MakeDecoder(
 				}
 			}
 			ret, err := rd.DecodeRequest(ctx, r)
-			if err != nil && errors.Is(err, io.ErrUnexpectedEOF) {
+			if err != nil && errors.Is(err, io.ErrUnexpectedEOF) && limitedReader != nil && limitedReader.N == 0 {
 				return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
 			}
 			return ret, err
@@ -544,8 +545,9 @@ func MakeDecoder(
 		nilBody := false
 		var rewriter *JSONKeyRewriteReader
 
+		var limitedReader *io.LimitedReader
 		if maxRequestBodySize != -1 {
-			limitedReader := io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
+			limitedReader = io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
 
 			r.Body = &LimitedReadCloser{
 				LimitedReader: limitedReader,
@@ -590,7 +592,7 @@ func MakeDecoder(
 						}
 					}
 
-					if errors.Is(err, io.ErrUnexpectedEOF) {
+					if errors.Is(err, io.ErrUnexpectedEOF) && limitedReader != nil && limitedReader.N == 0 {
 						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
 					}
 
@@ -680,7 +682,7 @@ func MakeDecoder(
 					}
 				}
 
-				if errors.Is(err, io.ErrUnexpectedEOF) {
+				if errors.Is(err, io.ErrUnexpectedEOF) && limitedReader != nil && limitedReader.N == 0 {
 					return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
 				}
 				return nil, err
