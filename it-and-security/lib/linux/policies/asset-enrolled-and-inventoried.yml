@@ -1,0 +1,17 @@
+- name: Linux - Enrolled and inventoried (ISO 27001 A.8.1)
+  query: >-
+    SELECT 1 WHERE
+      EXISTS (SELECT 1 FROM system_info WHERE hardware_serial != '')
+      AND EXISTS (SELECT 1 FROM os_version WHERE version != '')
+      AND EXISTS (SELECT 1 FROM interface_details WHERE mac != '00:00:00:00:00:00' LIMIT 1);
+  critical: false
+  description: >-
+    ISO 27001 Annex A.8.1 (Asset Management) requires that information assets are
+    identified and an inventory of these assets is drawn up and maintained. This policy
+    verifies that the endpoint is enrolled in Fleet and reporting basic inventory data
+    including hardware serial number, OS version, and network interface details.
+  resolution: >-
+    Ensure the device is properly enrolled in Fleet with a valid serial number and
+    reporting system information. If this policy is failing, try restarting the Fleet
+    agent (fleetd) or re-enrolling the device.
+  platform: linux

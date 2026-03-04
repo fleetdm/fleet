@@ -1,6 +1,9 @@
 - name: Linux - Disk encryption enabled
   query: SELECT 1 FROM mounts m, disk_encryption d WHERE m.device_alias = d.name AND d.encrypted = 1 AND m.path = '/';
   critical: false
-  description: This policy checks if disk encryption is enabled.
+  description: >-
+    ISO 27001 Annex A.8.5 requires protection against unauthorized disclosure of
+    information on media. This policy checks if LUKS disk encryption is enabled on
+    the root partition to ensure data at rest is protected.
   resolution: Disk encryption can only be configured during initial operating system install. Please re-install your operating system ensuring disk encryption is enabled.
   platform: linux

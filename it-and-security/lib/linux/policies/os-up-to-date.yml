@@ -1,0 +1,28 @@
+- name: Linux - Operating system up to date (ISO 27001 A.8.8)
+  query: >-
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM deb_packages WHERE name = 'unattended-upgrades'
+        AND status != 'install ok installed'
+    ) OR EXISTS (
+      SELECT 1 FROM rpm_packages WHERE name = 'dnf-automatic'
+    ) OR NOT EXISTS (
+      SELECT 1 FROM os_version WHERE
+        (name LIKE '%Ubuntu%' AND major = '24')
+        OR (name LIKE '%Ubuntu%' AND major = '22')
+        OR (name LIKE '%Fedora%' AND CAST(major AS INTEGER) >= 41)
+        OR (name LIKE '%Debian%' AND CAST(major AS INTEGER) >= 12)
+        OR (name LIKE '%Red Hat%' AND CAST(major AS INTEGER) >= 9)
+        OR (name LIKE '%CentOS%' AND CAST(major AS INTEGER) >= 9)
+    );
+  critical: false
+  description: >-
+    ISO 27001 Annex A.8.8 (Management of technical vulnerabilities) requires that
+    information about technical vulnerabilities is obtained in a timely fashion and
+    the organization's exposure evaluated. This policy checks that the Linux host is
+    running a supported OS version (latest or n-1 release) to ensure security patches
+    are available.
+  resolution: >-
+    Upgrade your Linux distribution to a currently supported version. For Ubuntu, use
+    version 22.04 LTS or 24.04 LTS. For Fedora, use version 41 or later. For
+    RHEL/CentOS, use version 9 or later. For Debian, use version 12 or later.
+  platform: linux

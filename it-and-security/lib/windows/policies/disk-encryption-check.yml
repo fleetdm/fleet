@@ -1,9 +1,12 @@
 - name: Windows - Disk encryption enabled
   query: SELECT 1 FROM bitlocker_info WHERE protection_status = 1;
   critical: false
-  description: This policy checks if disk encryption is enabled.
+  description: >-
+    ISO 27001 Annex A.8.5 requires protection against unauthorized disclosure of
+    information on media. This policy checks if BitLocker disk encryption is enabled
+    to ensure data at rest is protected.
   resolution: |-
     Disk encryption should be automatically enforced by Fleet. If you are failing this policy, please restart your device. After restarting, open Fleet Desktop and click Refetch to clear this policy failure. 
 
-    If the issue persists, please reach out in #help-dogfooding. 
+    If the issue persists, please reach out in #help-dogfooding.
   platform: windows

@@ -1,8 +1,10 @@
 - name: macOS - Operating system up to date
   query: SELECT 1 FROM os_version WHERE version >= '26.3' OR version >= '15.7.4';
   critical: true
-  description: Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.
+  description: >-
+    ISO 27001 Annex A.8.8 (Management of technical vulnerabilities) requires timely
+    patching. Using an outdated macOS version risks exposure to security vulnerabilities
+    and potential system instability.
   resolution: Please find time to run Software Update.  > System Settings > Software Update
   platform: darwin
   calendar_events_enabled: false
-  
