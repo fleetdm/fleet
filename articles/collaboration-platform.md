@@ -4,9 +4,7 @@ A global technology company provides a collaboration platform that helps people 
 
 To support its distributed workforce, the company manages a large fleet of devices across macOS, Windows, Linux, ChromeOS, and mobile platforms. As the environment grew, the team needed a simpler way to manage devices across operating systems while maintaining consistent visibility and security controls.
 
----
-
-## **At a glance**
+## At a glance
 
 * **Industry:** Technology and cloud collaboration
 
@@ -16,9 +14,7 @@ To support its distributed workforce, the company manages a large fleet of devic
 
 * **Previous challenge:** Fragmented tooling and inconsistent visibility across platforms
 
----
-
-## **The challenge: fragmented tools created operational complexity**
+## The challenge
 
 The company previously relied on multiple device management tools such as Jamf and Intune. This fragmentation created operational complexity and increased costs. Teams managing different platforms had to maintain separate systems, workflows, and expertise.
 
@@ -26,26 +22,19 @@ Visibility was also inconsistent. Linux servers and remote laptops lacked a reli
 
 As the workforce became more distributed, the company needed a single platform that could provide unified visibility and simplify device management operations.
 
----
-
-## **The evaluation criteria**
+## Evaluation criteria
 
 During the evaluation process, Fleet needed to meet three core requirements:
 
-1. **Hosting flexibility**  
-    Support both on-premise and cloud-hosted deployments.
+1. **Hosting flexibility:** Support both on-premise and cloud-hosted deployments.
 
-2. **GitOps workflows**  
-    Allow device configurations and policies to be managed through version-controlled code.
+2. **GitOps workflows:** Allow device configurations and policies to be managed through version-controlled code.
 
-3. **Strong osquery integration**  
-    Provide deep, real-time visibility into device state across all operating systems.
+3. **Strong osquery integration:** Provide deep, real-time visibility into device state across all operating systems.
 
 The team also wanted a platform capable of managing macOS, Windows, and Linux devices through a single API rather than separate tools.
 
----
-
-## **The solution: a unified platform for large-scale fleets**
+## The solution
 
 Fleet provided the company with a single platform for managing its diverse device environment.
 
@@ -57,17 +46,13 @@ The company also began onboarding Linux endpoints into Fleet. Starting with an i
 
 Fleet’s open-source model was also important. The ability to inspect code and extend the platform reduces vendor lock-in and allows the team to adapt the system to their infrastructure.
 
----
-
-## **A gradual migration across a massive fleet**
+### A gradual migration across a massive fleet
 
 Core components of the Fleet environment were deployed over roughly two years. This gradual rollout allowed the team to transition systems without disrupting employees or critical infrastructure.
 
 During the transition, automatic updates and self-service software installation options improved the user experience. In many cases, employees experienced fewer interruptions compared to previous management systems.
 
----
-
-## **The results: unified visibility and faster security response**
+## The results
 
 Fleet introduced a single source of truth for device data across the organization.
 
@@ -75,17 +60,13 @@ Security teams now have real-time visibility into device state across operating 
 
 Streaming device telemetry into internal monitoring tools also improves threat detection. Security teams can now investigate issues across macOS, Windows, and Linux simultaneously.
 
----
-
-## **Why they recommend Fleet**
+### Why they recommend Fleet
 
 Fleet provides a unified and extensible platform.
 
 Instead of maintaining separate management systems for each operating system, organizations can operate from a single control plane. This reduces operational complexity and allows IT and security teams to work together more effectively.
 
----
-
-## **About Fleet**
+## About Fleet
 
 Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations, Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.
 
