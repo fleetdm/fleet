@@ -34,6 +34,7 @@ require (
 	github.com/beevik/etree v1.5.0
 	github.com/beevik/ntp v0.3.0
 	github.com/blakesmith/ar v0.0.0-20190502131153-809d4375e1fb
+	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/boltdb/bolt v1.3.1
 	github.com/briandowns/spinner v1.23.1
 	github.com/cavaliergopher/rpm v1.2.0
@@ -62,7 +63,6 @@ require (
 	github.com/go-ini/ini v1.67.0
 	github.com/go-json-experiment/json v0.0.0-20250517221953-25912455fbc8
 	github.com/go-kit/kit v0.12.0
-	github.com/go-kit/log v0.2.1
 	github.com/go-ole/go-ole v1.2.6
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/gocarina/gocsv v0.0.0-20220310154401-d4df709ca055
@@ -257,6 +257,7 @@ require (
 	github.com/garyburd/go-oauth v0.0.0-20180319155456-bca2e7f09a17 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.6.2 // indirect
+	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect

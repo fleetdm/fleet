@@ -30,7 +30,11 @@ You cannot confidently manage what you cannot accurately observe. IT leaders nee
 
 **From the field:** When [Fastly](https://www.fastly.com/) needed to secure both their corporate endpoints and their global CDN infrastructure, they realized their previous MDM couldn't provide the certainty their leadership required. By switching to Fleet, they achieved a unified security posture.
 
->"We have much better visibility of our endpoints with Fleet compared to our previous MDM... The shift to GitOps has modernized our operations giving us the agility and change control we needed, giving leadership real-time confidence in device health and compliance." **- Dan Jackson, Sr Manager Systems Engineering, [Fleet @ Fastly case study](https://fleetdm.com/case-study/fastly)**
+<blockquote purpose="quote">
+We have much better visibility of our endpoints with Fleet compared to our previous MDM... The shift to GitOps has modernized our operations giving us the agility and change control we needed, giving leadership real-time confidence in device health and compliance.
+</blockquote>
+
+**- Dan Jackson, Senior Manager, Systems Engineering -- [Fleet @ Fastly case study](https://fleetdm.com/case-study/fastly)**
 
 ## Challenge 2: The "Click-Ops" trap
 
@@ -42,7 +46,11 @@ Yet, when it comes to managing employee devices, these same teams are forced bac
 
 **From the field:** [Stripe](https://stripe.com/) views MDM as critical infrastructure. Managing 10,000 Macs manually was not an option for their engineering culture.
 
->"Stripe has a strong focus on security and automation. Their previous MDM relied on manual, UI-driven workflows, which didn't fit their 'infrastructure as code' approach. Fragmented APIs made it hard to automate even simple tasks... The MDM had to fit Stripe's automation workflows. Choosing Fleet gave Stripe additional confidence." **- [Fleet @ Stripe case study](https://fleetdm.com/case-study/stripe)**
+<blockquote purpose="quote">
+Stripe has a strong focus on security and automation. Their previous MDM relied on manual, UI-driven workflows, which didn't fit their 'infrastructure as code' approach. Fragmented APIs made it hard to automate even simple tasks... The MDM had to fit Stripe's automation workflows. Choosing Fleet gave Stripe additional confidence.
+</blockquote>
+
+**[Fleet @ Stripe case study](https://fleetdm.com/case-study/stripe)**
 
 ## Challenge 3: Tool sprawl and OS silos
 
@@ -54,7 +62,11 @@ Legacy MDM vendors usually specialize in one ecosystem. This forces IT leaders t
 
 **From the field:** The small IT team at [Foursquare](https://foursquare.com/) was overwhelmed by maintaining multiple tools for their 200+ Macs and Windows devices.
 
->"As a small team, [we] were running two separate MDM platforms... The overhead of maintaining both systems was overwhelming and added unnecessary complexity. By switching to Fleet, Foursquare cut endpoint maintenance effort by 50% and achieved 114% ROI by removing duplicate tools." **- [Fleet @ Foursquare case study](https://fleetdm.com/case-study/foursquare)**
+<blockquote purpose="quote">
+As a small team, [we] were running two separate MDM platforms... The overhead of maintaining both systems was overwhelming and added unnecessary complexity. By switching to Fleet, Foursquare cut endpoint maintenance effort by 50% and achieved 114% ROI by removing duplicate tools.
+</blockquote>
+
+**- Mike Meyer, Senior Manager of Corporate Engineering -- [Fleet @ Foursquare case study](https://fleetdm.com/case-study/foursquare)**
 
 ## Closing the gap
 
