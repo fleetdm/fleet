@@ -302,25 +302,6 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 		return nil, ctxerr.Wrap(ctx, err, "loading policy labels")
 	}
 
-	globalOrTeamID := ptr.ValOrZero(teamID)
-	if policy.PatchSoftwareTitleID != nil {
-		var slug string
-		stmt := `
-			SELECT
-				fma.slug
-			FROM software_installers si
-			JOIN fleet_maintained_apps fma ON si.fleet_maintained_app_id = fma.id
-			WHERE si.title_id = ?
-			AND si.global_or_team_id = ?
-			AND si.is_active = true
-		`
-		if err := sqlx.GetContext(ctx, q, &slug, stmt, *policy.PatchSoftwareTitleID, globalOrTeamID); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "policyDB: loading fma slug")
-		}
-
-		policy.FleetMaintainedAppSlug = slug
-	}
-
 	return &policy, nil
 }
 
@@ -822,27 +803,6 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 
 	if err := loadLabelsForPolicies(ctx, q, policies); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loading policy labels")
-	}
-
-	for _, policy := range policies {
-		globalOrTeamID := ptr.ValOrZero(teamID)
-		if policy.PatchSoftwareTitleID != nil {
-			var slug string
-			stmt := `
-			SELECT
-				fma.slug
-			FROM software_installers si
-			JOIN fleet_maintained_apps fma ON si.fleet_maintained_app_id = fma.id
-			WHERE si.title_id = ?
-			AND si.global_or_team_id = ?
-			AND si.is_active = true
-		`
-			if err := sqlx.GetContext(ctx, q, &slug, stmt, *policy.PatchSoftwareTitleID, globalOrTeamID); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "loading fma slug")
-			}
-
-			policy.FleetMaintainedAppSlug = slug
-		}
 	}
 
 	return policies, nil

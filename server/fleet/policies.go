@@ -355,8 +355,6 @@ type PolicyData struct {
 	// Only applies to team policies with the patch type.
 	PatchSoftwareTitleID *uint `json:"-" db:"patch_software_title_id"`
 
-	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug,omitempty"`
-
 	UpdateCreateTimestamps
 }
 
