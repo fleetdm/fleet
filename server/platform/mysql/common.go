@@ -183,7 +183,7 @@ func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger *slog.Logger) err
 			return ctxerr.Wrapf(ctx, err, "got err '%s' rolling back after err", rbErr.Error())
 		}
 		if IsReadOnlyError(err) {
-			TriggerFatalError(err)
+			TriggerFatalError(ctx, err)
 		}
 		return err
 	}
@@ -191,7 +191,7 @@ func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger *slog.Logger) err
 	if err := tx.Commit(); err != nil {
 		err = ctxerr.Wrap(ctx, err, "commit transaction")
 		if IsReadOnlyError(err) {
-			TriggerFatalError(err)
+			TriggerFatalError(ctx, err)
 		}
 		return err
 	}

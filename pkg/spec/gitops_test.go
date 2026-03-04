@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -435,7 +436,7 @@ reports:
   logging: snapshot
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "duplicate query names")
+	assert.ErrorContains(t, err, "duplicate report names")
 }
 
 func TestUnicodeQueryNames(t *testing.T) {
@@ -453,7 +454,7 @@ reports:
   logging: snapshot
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "query name must be in ASCII")
+	assert.ErrorContains(t, err, "`name` must be in ASCII")
 }
 
 func TestUnicodeTeamName(t *testing.T) {
@@ -722,11 +723,13 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					_, err = GitOpsFromFile(unassignedPath5, unassignedBasePath5, nil, nopLogf)
 					assert.ErrorContains(t, err, "unsupported settings option 'features' in unassigned.yml")
 
-					// Missing secrets
+					// Missing secrets -- should be a no-op (existing secrets preserved)
 					config = getConfig([]string{"settings"})
 					config += "settings:\n"
-					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "'settings.secrets' is required")
+					result, err := gitOpsFromString(t, config)
+					assert.NoError(t, err)
+					_, hasSecrets := result.TeamSettings["secrets"]
+					assert.False(t, hasSecrets, "secrets should not be set when omitted from config")
 				} else {
 					// 'software' is not allowed in global config
 					config := getConfig(nil)
@@ -767,11 +770,25 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "must have a 'secret' key")
 
-					// Missing secrets
+					// Invalid secrets 3 (using wrong type in one key)
+					config = getConfig([]string{"org_settings"})
+					config += "org_settings:\n  secrets: \n    - secret: some secret\n    - secret: 123\n"
+					_, err = gitOpsFromString(t, config)
+					assert.ErrorContains(t, err, "each item in 'secrets' must have a 'secret' key")
+
+					// Missing secrets -- should be a no-op (existing secrets preserved)
 					config = getConfig([]string{"org_settings"})
 					config += "org_settings:\n"
+					result, err := gitOpsFromString(t, config)
+					assert.NoError(t, err)
+					_, hasSecrets := result.OrgSettings["secrets"]
+					assert.False(t, hasSecrets, "secrets should not be set when omitted from config")
+
+					// Empty secrets (valid, will remove all secrets)
+					config = getConfig([]string{"org_settings"})
+					config += "org_settings:\n  secrets: \n"
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "'org_settings.secrets' is required")
+					assert.NoError(t, err)
 
 					// Bad label spec (float instead of string in hosts)
 					config = getConfig([]string{"labels"})
@@ -856,17 +873,17 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				_, err = gitOpsFromString(t, config)
 				assert.ErrorContains(t, err, "expected type spec.Query but got number")
 
-				// Query name missing
+				// Report name missing
 				config = getConfig([]string{"reports"})
 				config += "reports:\n  - query: SELECT 1;\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "name is required")
+				assert.ErrorContains(t, err, "`name` is required")
 
-				// Query SQL query missing
+				// Report SQL missing
 				config = getConfig([]string{"reports"})
 				config += "reports:\n  - name: Test Query\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "query is required")
+				assert.ErrorContains(t, err, "`query` is required")
 			},
 		)
 	}
@@ -1662,5 +1679,399 @@ policies: []
 		assert.NoError(t, err)
 		assert.NotNil(t, gitops)
 		assert.NotNil(t, gitops.TeamSettings["webhook_settings"])
+	})
+}
+
+func TestContainsGlobMeta(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"./scripts/foo.sh", false},
+		{"./scripts/*.sh", true},
+		{"./scripts/**/*.sh", true},
+		{"./scripts/[abc].sh", true},
+		{"./scripts/{a,b}.sh", true},
+		{"./scripts/foo?.sh", true},
+		{"", false},
+	}
+	for _, tt := range tests {
+		assert.Equal(t, tt.want, containsGlobMeta(tt.input), "containsGlobMeta(%q)", tt.input)
+	}
+}
+
+func TestResolveScriptPathsGlob(t *testing.T) {
+	t.Parallel()
+
+	// requireErrorContains is a helper that asserts at least one error contains substr.
+	requireErrorContains := func(t *testing.T, errs []error, substr string) {
+		t.Helper()
+		require.NotEmpty(t, errs, "expected errors but got none")
+		var found bool
+		for _, err := range errs {
+			if strings.Contains(err.Error(), substr) {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "expected an error containing %q, got: %v", substr, errs)
+	}
+
+	t.Run("basic_glob", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "c.ps1"), []byte("# powershell"), 0o644))
+
+		items := []BaseItem{{Paths: ptr.String("*.sh")}}
+		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 2)
+		assert.Equal(t, filepath.Join(dir, "a.sh"), *result[0].Path)
+		assert.Equal(t, filepath.Join(dir, "b.sh"), *result[1].Path)
+		// Paths field should not be set on expanded items
+		assert.Nil(t, result[0].Paths)
+		assert.Nil(t, result[1].Paths)
+	})
+
+	t.Run("recursive_glob", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		subdir := filepath.Join(dir, "sub")
+		require.NoError(t, os.MkdirAll(subdir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "top.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(subdir, "nested.sh"), []byte("#!/bin/bash"), 0o644))
+
+		items := []BaseItem{{Paths: ptr.String("**/*.sh")}}
+		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 2)
+		// Results are sorted
+		assert.Equal(t, filepath.Join(subdir, "nested.sh"), *result[0].Path)
+		assert.Equal(t, filepath.Join(dir, "top.sh"), *result[1].Path)
+	})
+
+	t.Run("mixed_path_and_paths", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "single.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "glob1.ps1"), []byte("# ps1"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "glob2.ps1"), []byte("# ps1"), 0o644))
+
+		items := []BaseItem{
+			{Path: ptr.String("single.sh")},
+			{Paths: ptr.String("*.ps1")},
+		}
+		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 3)
+		assert.Equal(t, filepath.Join(dir, "single.sh"), *result[0].Path)
+		assert.Equal(t, filepath.Join(dir, "glob1.ps1"), *result[1].Path)
+		assert.Equal(t, filepath.Join(dir, "glob2.ps1"), *result[2].Path)
+	})
+
+	t.Run("paths_without_glob_error", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{Paths: ptr.String("scripts/foo.sh")}}
+		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
+		requireErrorContains(t, errs, `does not contain glob characters`)
+	})
+
+	t.Run("path_with_glob_error", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{Path: ptr.String("scripts/*.sh")}}
+		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
+		requireErrorContains(t, errs, `contains glob characters`)
+	})
+
+	t.Run("both_path_and_paths_error", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{Path: ptr.String("foo.sh"), Paths: ptr.String("*.sh")}}
+		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
+		requireErrorContains(t, errs, `cannot have both "path" and "paths"`)
+	})
+
+	t.Run("neither_path_nor_paths_error", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{}}
+		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
+		requireErrorContains(t, errs, `no "path" or "paths" field`)
+	})
+
+	t.Run("no_matches_warning", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		var warnings []string
+		logFn := func(format string, args ...any) {
+			warnings = append(warnings, fmt.Sprintf(format, args...))
+		}
+		items := []BaseItem{{Paths: ptr.String("*.sh")}}
+		result, errs := resolveScriptPaths(items, dir, logFn)
+		require.Empty(t, errs)
+		assert.Empty(t, result)
+		require.Len(t, warnings, 1)
+		assert.Contains(t, warnings[0], "matched no script")
+	})
+
+	t.Run("duplicate_basenames_error", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		sub1 := filepath.Join(dir, "sub1")
+		sub2 := filepath.Join(dir, "sub2")
+		require.NoError(t, os.MkdirAll(sub1, 0o755))
+		require.NoError(t, os.MkdirAll(sub2, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(sub1, "dup.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(sub2, "dup.sh"), []byte("#!/bin/bash"), 0o644))
+
+		items := []BaseItem{{Paths: ptr.String("**/*.sh")}}
+		_, errs := resolveScriptPaths(items, dir, nopLogf)
+		requireErrorContains(t, errs, "duplicate script basename")
+	})
+
+	t.Run("duplicate_basenames_across_items_error", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		sub := filepath.Join(dir, "sub")
+		require.NoError(t, os.MkdirAll(sub, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "script.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(sub, "script.sh"), []byte("#!/bin/bash"), 0o644))
+
+		items := []BaseItem{
+			{Path: ptr.String("script.sh")},
+			{Paths: ptr.String("sub/*.sh")},
+		}
+		_, errs := resolveScriptPaths(items, dir, nopLogf)
+		requireErrorContains(t, errs, "duplicate script basename")
+	})
+
+	t.Run("non_script_files_skipped_with_warning", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "good.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "bad.txt"), []byte("text"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "bad.py"), []byte("python"), 0o644))
+
+		var warnings []string
+		logFn := func(format string, args ...any) {
+			warnings = append(warnings, fmt.Sprintf(format, args...))
+		}
+
+		items := []BaseItem{{Paths: ptr.String("*")}}
+		result, errs := resolveScriptPaths(items, dir, logFn)
+		require.Empty(t, errs)
+		require.Len(t, result, 1)
+		assert.Equal(t, filepath.Join(dir, "good.sh"), *result[0].Path)
+		assert.Len(t, warnings, 2)
+	})
+
+	// Results are only sorted for the sake of tests,
+	// but having an explicit test protects against regression.
+	t.Run("results_sorted", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "z.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "m.sh"), []byte("#!/bin/bash"), 0o644))
+
+		items := []BaseItem{{Paths: ptr.String("*.sh")}}
+		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 3)
+		assert.Equal(t, filepath.Join(dir, "a.sh"), *result[0].Path)
+		assert.Equal(t, filepath.Join(dir, "m.sh"), *result[1].Path)
+		assert.Equal(t, filepath.Join(dir, "z.sh"), *result[2].Path)
+	})
+
+	t.Run("multiple_errors_collected", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{}, {Path: ptr.String("scripts/*.sh")}, {Paths: ptr.String("noglob.sh")}}
+		_, errs := resolveScriptPaths(items, "", nil)
+		require.Len(t, errs, 3)
+		assert.Contains(t, errs[0].Error(), `no "path" or "paths"`)
+		assert.Contains(t, errs[1].Error(), `contains glob characters`)
+		assert.Contains(t, errs[2].Error(), `does not contain glob characters`)
+	})
+}
+
+func TestGitOpsGlobScripts(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	scriptsDir := filepath.Join(dir, "scripts")
+	require.NoError(t, os.MkdirAll(scriptsDir, 0o755))
+	scriptsSubDir := filepath.Join(scriptsDir, "sub")
+	require.NoError(t, os.MkdirAll(scriptsSubDir, 0o755))
+
+	// Create script files
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "alpha.sh"), []byte("#!/bin/bash\necho alpha"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "beta.sh"), []byte("#!/bin/bash\necho beta"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "gamma.ps1"), []byte("Write-Host gamma"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsSubDir, "delta.sh"), []byte("nada"), 0o644))
+
+	// Write a gitops YAML file that uses paths: glob
+	config := getGlobalConfig([]string{"controls"})
+	config += `controls:
+  scripts:
+    - paths: scripts/*.sh
+    - path: scripts/gamma.ps1
+`
+	yamlPath := filepath.Join(dir, "gitops.yml")
+	require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+	result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+	require.NoError(t, err)
+	require.Len(t, result.Controls.Scripts, 3)
+
+	// Glob results come first (sorted), then the explicit path
+	assert.Equal(t, filepath.Join(scriptsDir, "alpha.sh"), *result.Controls.Scripts[0].Path)
+	assert.Equal(t, filepath.Join(scriptsDir, "beta.sh"), *result.Controls.Scripts[1].Path)
+	assert.Equal(t, filepath.Join(scriptsDir, "gamma.ps1"), *result.Controls.Scripts[2].Path)
+}
+
+func TestSoftwarePackagesScriptPath(t *testing.T) {
+	t.Parallel()
+	appConfig := &fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+
+	t.Run("valid_sh_script_path", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/install-app.sh
+      categories:
+        - Utilities
+      self_service: true
+`
+		path, basePath := createTempFile(t, "", config)
+
+		err := file.Copy(
+			filepath.Join("testdata", "software", "install-app.sh"),
+			filepath.Join(basePath, "software", "install-app.sh"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		assert.True(t, strings.HasSuffix(result.Software.Packages[0].InstallScript.Path, "install-app.sh"))
+		assert.Equal(t, []string{"Utilities"}, result.Software.Packages[0].Categories)
+		assert.True(t, result.Software.Packages[0].SelfService)
+		assert.Empty(t, result.Software.Packages[0].URL)
+		assert.Empty(t, result.Software.Packages[0].SHA256)
+	})
+
+	t.Run("valid_ps1_script_path", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/install-app.ps1
+      self_service: false
+`
+		path, basePath := createTempFile(t, "", config)
+
+		// Copy the test script file
+		err := file.Copy(
+			filepath.Join("testdata", "software", "install-app.ps1"),
+			filepath.Join(basePath, "software", "install-app.ps1"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		assert.True(t, strings.HasSuffix(result.Software.Packages[0].InstallScript.Path, "install-app.ps1"))
+	})
+
+	t.Run("invalid_extension_error", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/install-app.txt
+`
+		path, basePath := createTempFile(t, "", config)
+
+		// Create a .txt file
+		err := os.MkdirAll(filepath.Join(basePath, "software"), 0o755)
+		require.NoError(t, err)
+		err = os.WriteFile(filepath.Join(basePath, "software", "install-app.txt"), []byte("test"), 0o644)
+		require.NoError(t, err)
+
+		_, err = GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		assert.ErrorContains(t, err, "unsupported extension")
+		assert.ErrorContains(t, err, "only .yml, .yaml, .sh, or .ps1 files are supported")
+	})
+
+	t.Run("script_with_team_options", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/install-app.sh
+      categories:
+        - Browsers
+        - Productivity
+      self_service: true
+      setup_experience: true
+      labels_include_any:
+        - include_label
+`
+		path, basePath := createTempFile(t, "", config)
+
+		err := file.Copy(
+			filepath.Join("testdata", "software", "install-app.sh"),
+			filepath.Join(basePath, "software", "install-app.sh"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		pkg := result.Software.Packages[0]
+		assert.Equal(t, []string{"Browsers", "Productivity"}, pkg.Categories)
+		assert.True(t, pkg.SelfService)
+		assert.True(t, pkg.InstallDuringSetup.Value)
+		assert.Equal(t, []string{"include_label"}, pkg.LabelsIncludeAny)
+	})
+
+	t.Run("mixed_yaml_and_script_paths", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/single-package.yml
+    - path: software/install-app.sh
+      self_service: true
+`
+		path, basePath := createTempFile(t, "", config)
+
+		err := file.Copy(
+			filepath.Join("testdata", "software", "single-package.yml"),
+			filepath.Join(basePath, "software", "single-package.yml"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+		err = file.Copy(
+			filepath.Join("testdata", "software", "install-app.sh"),
+			filepath.Join(basePath, "software", "install-app.sh"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 2)
+		assert.NotEmpty(t, result.Software.Packages[0].SHA256)
+		assert.True(t, strings.HasSuffix(result.Software.Packages[1].InstallScript.Path, "install-app.sh"))
+		assert.True(t, result.Software.Packages[1].SelfService)
 	})
 }
