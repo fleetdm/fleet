@@ -23,6 +23,9 @@ controls:
     - certificate_authority_name: DIGIDOO
       name: my_certypoo
       subject_name: CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
+  apple_settings:
+    custom_settings:
+    - path: "../lib/team-a-👍/profiles/team-macos-mobileconfig-profile.mobileconfig"
   enable_disk_encryption: true
   ios_updates:
     deadline: "2021-12-31"
@@ -32,9 +35,6 @@ controls:
     deadline: "2022-12-31"
     minimum_version: "98.2"
     update_new_hosts:
-  macos_settings:
-    custom_settings:
-    - path: "../lib/team-a-👍/profiles/team-macos-mobileconfig-profile.mobileconfig"
   macos_updates:
     deadline: "2020-12-31"
     minimum_version: "95.1"

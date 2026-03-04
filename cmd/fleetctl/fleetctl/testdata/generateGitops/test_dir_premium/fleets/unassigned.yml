@@ -14,13 +14,13 @@ controls:
     enable: true
     mode: voluntary
     webhook_url: https://some-macos-migration-webhook-url.com
-  macos_setup: 'TODO: update with your macos_setup configuration'
   macos_updates:
     deadline: "2024-12-31"
     minimum_version: "15.1"
     update_new_hosts: true
   scripts:
   - path: ../lib/unassigned/scripts/Script Z.ps1
+  setup_experience: 'TODO: update with your setup_experience configuration'
   windows_enabled_and_configured: true
   windows_entra_tenant_ids:
   - 5b84b6dd-d257-415e-b8b4-0240666ba4d4

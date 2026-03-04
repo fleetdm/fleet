@@ -1,4 +1,4 @@
-macos_settings:
+apple_settings:
   custom_settings:
     - labels_include_all:
         - Label A

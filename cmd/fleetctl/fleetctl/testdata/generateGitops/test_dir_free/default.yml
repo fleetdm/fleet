@@ -16,7 +16,7 @@ controls:
   android_settings:
     custom_settings:
     - path: ./lib/profiles/global-android-profile.json
-  macos_settings:
+  apple_settings:
     custom_settings:
     - labels_include_all:
       - Label A
