@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260226160000, Down_20260226160000)
+	MigrationClient.AddMigration(Up_20260304160000, Down_20260304160000)
 }
 
-func Up_20260226160000(tx *sql.Tx) error {
+func Up_20260304160000(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 		CREATE TABLE host_recovery_key_passwords (
 			host_id int unsigned NOT NULL,
@@ -34,6 +34,6 @@ func Up_20260226160000(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260226160000(tx *sql.Tx) error {
+func Down_20260304160000(tx *sql.Tx) error {
 	return nil
 }
