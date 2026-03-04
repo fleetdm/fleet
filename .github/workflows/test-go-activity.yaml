@@ -1,0 +1,151 @@
+name: Go tests (activity)
+
+on:
+  push:
+    branches:
+      - main
+      - patch-*
+      - prepare-*
+    paths:
+      - 'server/activity/**.go'
+      - 'server/platform/**.go'
+      - 'server/contexts/**.go'
+      - 'server/ptr/**.go'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/test-go-activity.yaml'
+      - '.github/workflows/test-go-suite.yaml'
+  pull_request:
+    paths:
+      - 'server/activity/**.go'
+      - 'server/platform/**.go'
+      - 'server/contexts/**.go'
+      - 'server/ptr/**.go'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/test-go-activity.yaml'
+      - '.github/workflows/test-go-suite.yaml'
+  workflow_dispatch: # Manual
+  schedule:
+    - cron: '0 4 * * *'
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # Activity suite: always-run versions (every push/PR + cron).
+  # make sure to update supported versions docs when MySQL versions change
+  # ──────────────────────────────────────────────────────────────────────────
+  test-go-activity:
+    strategy:
+      matrix:
+        mysql: ["mysql:8.0.36", "mysql:9.5.0"]
+    uses: ./.github/workflows/test-go-suite.yaml
+    with:
+      suite: activity
+      mysql: ${{ matrix.mysql }}
+      cover_pkg: 'github.com/fleetdm/fleet/v4/server/activity/...'
+      generate_go: false
+      is_cron: ${{ github.event_name == 'schedule' }}
+    secrets: inherit
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Extended MySQL coverage: only on the nightly cron schedule.
+  # Tests the same suite against older/intermediate versions.
+  # ──────────────────────────────────────────────────────────────────────────
+  test-go-activity-extended-mysql:
+    if: github.event_name == 'schedule'
+    strategy:
+      matrix:
+        mysql: ["mysql:8.0.32", "mysql:8.4.7"]
+    uses: ./.github/workflows/test-go-suite.yaml
+    with:
+      suite: activity
+      mysql: ${{ matrix.mysql }}
+      cover_pkg: 'github.com/fleetdm/fleet/v4/server/activity/...'
+      generate_go: false
+      is_cron: true
+    secrets: inherit
+
+  # We upload all backend coverage in one step so that we're less likely to end up with a partial coverage report.
+  upload-coverage:
+    needs: [test-go-activity, test-go-activity-extended-mysql]
+    # Run even if extended-mysql was skipped (non-cron) or individual suites failed.
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout Code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - name: Download artifacts
+        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
+        with:
+          pattern: '*-coverage'
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673 # v4.5.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: backend-activity
+
+  # Our Go test suites are run with continue-on-error: true, so they don't contribute to the workflow pass/fail.
+  # This job explicitly checks if any Go test suites have failed and marks the overall workflow with the proper pass/fail status.
+  aggregate-result:
+    needs: [test-go-activity, test-go-activity-extended-mysql]
+    # Run even if extended-mysql was skipped (non-cron) or individual suites failed.
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Download artifacts
+        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
+        with:
+          pattern: '*-status'
+
+      - name: Check for failures
+        run: |
+          failed_tests=""
+          status_count=0
+          # Find all status files (they are in directories like 'activity-mysql8.0.36-status/status')
+          for status_file in $(find ./ -type f -name 'status'); do
+            status_count=$((status_count + 1))
+            # Extract test name from parent directory (e.g., 'activity-mysql8.0.36-status')
+            test_dir=$(basename $(dirname "$status_file"))
+            # Remove '-status' suffix to get the test name
+            test_name="${test_dir%-status}"
+            status_content=$(cat "$status_file")
+            echo "Processing: $status_file (Test: $test_name) with status content: $status_content"
+            if grep -q "fail" "$status_file"; then
+              echo "  ❌ Test failed: $test_name"
+              failed_tests="${failed_tests}${test_name}, "
+            else
+              echo "  ✅ Test passed: $test_name"
+            fi
+          done
+          if [[ $status_count -eq 0 ]]; then
+            echo "❌ ERROR: No status files found! This indicates a workflow issue."
+            exit 1
+          fi
+          if [[ -n "$failed_tests" ]]; then
+            echo "❌ One or more test jobs failed: ${failed_tests%, }"
+            exit 1
+          fi
+          echo "✅ All test jobs succeeded."

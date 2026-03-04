@@ -251,7 +251,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 			hostTmID = *host.TeamID
 		}
 		if scriptTmID != hostTmID {
-			return nil, fleet.NewInvalidArgumentError("script_id", `The script does not belong to the same team (or no team) as the host.`)
+			return nil, fleet.NewInvalidArgumentError("script_id", `The script does not belong to the same fleet (or "Unassigned") as the host.`)
 		}
 
 		isQueued, err := svc.ds.IsExecutionPendingForHost(ctx, request.HostID, *request.ScriptID)
@@ -542,7 +542,7 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 		if errors.As(err, &existsErr) {
 			err = fleet.NewInvalidArgumentError("script", "A script with this name already exists.").WithStatus(http.StatusConflict)
 		} else if errors.As(err, &fkErr) {
-			err = fleet.NewInvalidArgumentError("team_id", "The team does not exist.").WithStatus(http.StatusNotFound)
+			err = fleet.NewInvalidArgumentError("team_id/fleet_id", "The fleet does not exist.").WithStatus(http.StatusNotFound)
 		}
 		return nil, ctxerr.Wrap(ctx, err, "create script")
 	}
@@ -1505,7 +1505,7 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 			continue
 		}
 		if host.TeamID == nil || script.TeamID == nil || *host.TeamID != *script.TeamID {
-			return "", fleet.NewInvalidArgumentError("host_ids", "all hosts must be on the same team as the script")
+			return "", fleet.NewInvalidArgumentError("host_ids", "all hosts must be on the same fleet as the script")
 		}
 	}
 

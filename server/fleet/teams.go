@@ -183,6 +183,9 @@ func (t *Team) UnmarshalJSON(b []byte) error {
 	if !x.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		x.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
+	if !x.MDM.MacOSSetup.LockEndUserInfo.Valid {
+		x.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+	}
 	*t = Team{
 		ID:          x.ID,
 		CreatedAt:   x.CreatedAt,
@@ -415,6 +418,9 @@ func (t TeamConfig) Value() (driver.Value, error) {
 	if !t.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		t.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
+	if !t.MDM.MacOSSetup.LockEndUserInfo.Valid {
+		t.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+	}
 	return json.Marshal(t)
 }
 
@@ -529,18 +535,18 @@ func ValidGlobalRole(role string) bool {
 func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
 	if globalRole == nil || *globalRole == "" {
 		if len(teamUsers) == 0 {
-			return NewError(ErrNoRoleNeeded, "either global role or team role needs to be defined")
+			return NewError(ErrNoRoleNeeded, "either global role or fleet role needs to be defined")
 		}
 		for _, t := range teamUsers {
 			if !ValidTeamRole(t.Role) {
-				return NewErrorf(ErrNoRoleNeeded, "invalid team role: %s", t.Role)
+				return NewErrorf(ErrNoRoleNeeded, "invalid fleet role: %s", t.Role)
 			}
 		}
 		return nil
 	}
 
 	if len(teamUsers) > 0 {
-		return NewError(ErrNoRoleNeeded, "Cannot specify both Global Role and Team Roles")
+		return NewError(ErrNoRoleNeeded, "Cannot specify both global and fleet-scoped roles")
 	}
 
 	if !ValidGlobalRole(*globalRole) {
@@ -631,7 +637,8 @@ func (f TeamFilter) UserCanAccessSelectedTeam() bool {
 }
 
 const (
-	TeamKind = "team"
+	TeamKind  = "team"
+	FleetKind = "fleet"
 )
 
 type TeamSpec struct {

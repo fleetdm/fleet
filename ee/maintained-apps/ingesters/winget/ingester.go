@@ -298,7 +298,11 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			}
 		}
 		if uninstallScript == "" && upgradeCode != "" {
-			uninstallScript = buildUpgradeCodeBasedUninstallScript(upgradeCode)
+			var err error
+			uninstallScript, err = buildUpgradeCodeBasedUninstallScript(upgradeCode)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "building upgrade code based uninstall script")
+			}
 		}
 
 		if uninstallScript == "" {
@@ -351,7 +355,11 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		Exists: fmt.Sprintf(existsTemplate, name, publisher),
 	}
 	out.InstallScript = installScript
-	out.UninstallScript = preProcessUninstallScript(uninstallScript, productCode)
+	processedUninstallScript, err := preProcessUninstallScript(uninstallScript, productCode)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "pre-processing uninstall script")
+	}
+	out.UninstallScript = processedUninstallScript
 	out.InstallScriptRef = maintained_apps.GetScriptRef(out.InstallScript)
 	out.UninstallScriptRef = maintained_apps.GetScriptRef(out.UninstallScript)
 	out.Frozen = input.Frozen
@@ -361,13 +369,19 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	return &out, nil
 }
 
-func buildUpgradeCodeBasedUninstallScript(upgradeCode string) string {
-	return file.UpgradeCodeRegex.ReplaceAllString(file.UninstallMsiWithUpgradeCodeScript, fmt.Sprintf("\"%s\"${suffix}", upgradeCode))
+func buildUpgradeCodeBasedUninstallScript(upgradeCode string) (string, error) {
+	if err := file.ValidatePackageIdentifiers(nil, upgradeCode); err != nil {
+		return "", err
+	}
+	return file.UpgradeCodeRegex.ReplaceAllString(file.UninstallMsiWithUpgradeCodeScript, fmt.Sprintf("'%s'${suffix}", upgradeCode)), nil
 }
 
-func preProcessUninstallScript(uninstallScript, productCode string) string {
-	code := fmt.Sprintf("\"%s\"", productCode)
-	return file.PackageIDRegex.ReplaceAllString(uninstallScript, fmt.Sprintf("%s${suffix}", code))
+func preProcessUninstallScript(uninstallScript, productCode string) (string, error) {
+	if err := file.ValidatePackageIdentifiers([]string{productCode}, ""); err != nil {
+		return "", err
+	}
+	code := fmt.Sprintf("'%s'", productCode)
+	return file.PackageIDRegex.ReplaceAllString(uninstallScript, fmt.Sprintf("%s${suffix}", code)), nil
 }
 
 // these are installer types that correspond to software vendors, not the actual installer type

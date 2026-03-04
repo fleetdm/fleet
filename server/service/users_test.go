@@ -98,11 +98,6 @@ func TestUserAuth(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
 	ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
 		return 2, nil // Return 2 to allow operations that check for last admin
 	}
@@ -588,9 +583,6 @@ func TestMFAHandling(t *testing.T) {
 	ms.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
 		user.ID = 4
 		return user, nil
-	}
-	ms.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
 	}
 	user, _, err := svc.CreateUser(ctx, payload)
 	require.NoError(t, err)
@@ -1542,10 +1534,6 @@ func TestDeleteUserLastAdminProtection(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
 		}
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-			return nil
-		}
-
 		_, err := svc.DeleteUser(ctx, adminUser.ID)
 		require.NoError(t, err)
 		assert.True(t, ds.DeleteUserFuncInvoked)
@@ -1592,10 +1580,6 @@ func TestDeleteUserLastAdminProtection(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
 		}
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-			return nil
-		}
-
 		_, err := svc.DeleteUser(ctx, maintainerUser.ID)
 		require.NoError(t, err)
 		assert.True(t, ds.DeleteUserFuncInvoked)
@@ -1662,10 +1646,6 @@ func TestModifyUserLastAdminProtection(t *testing.T) {
 		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 			return nil
 		}
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-			return nil
-		}
-
 		_, err := svc.ModifyUser(ctx, adminUser.ID, fleet.UserPayload{
 			GlobalRole: ptr.String(fleet.RoleMaintainer),
 		})
@@ -1679,10 +1659,6 @@ func TestModifyUserLastAdminProtection(t *testing.T) {
 		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 			return nil
 		}
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-			return nil
-		}
-
 		_, err := svc.ModifyUser(ctx, adminUser.ID, fleet.UserPayload{
 			GlobalRole: ptr.String(fleet.RoleAdmin),
 		})
@@ -1732,10 +1708,6 @@ func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 			return nil
 		}
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-			return nil
-		}
-
 		var deletedPasswordResetForUserID uint
 		ds.DeletePasswordResetRequestsForUserFunc = func(ctx context.Context, userID uint) error {
 			deletedPasswordResetForUserID = userID

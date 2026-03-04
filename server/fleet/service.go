@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
 )
@@ -96,10 +97,20 @@ type LookupService interface {
 	HostLookupService
 }
 
+// ActivityLookupService extends LookupService with methods needed by the
+// activity bounded context's ACL adapter.
+type ActivityLookupService interface {
+	LookupService
+
+	// GetActivitiesWebhookSettings returns the webhook settings for activities.
+	GetActivitiesWebhookSettings(ctx context.Context) (ActivitiesWebhookSettings, error)
+	// ActivateNextUpcomingActivityForHost activates the next upcoming activity for the given host.
+	ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error
+}
+
 type Service interface {
 	OsqueryService
-	UserLookupService
-	HostLookupService
+	ActivityLookupService
 
 	// GetTransparencyURL gets the URL to redirect to when an end user clicks About Fleet
 	GetTransparencyURL(ctx context.Context) (string, error)
@@ -631,6 +642,10 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
 
+	// SetActivityService sets the activity bounded context service for creating activities.
+	// This should be called after service creation to inject the activity service dependency.
+	SetActivityService(activitySvc api.NewActivityService)
+
 	// NewActivity creates the given activity on the datastore.
 	//
 	// What we call "Activities" are administrative operations,
@@ -850,6 +865,8 @@ type Service interface {
 	GetVPPTokens(ctx context.Context) ([]*VPPTokenDB, error)
 	DeleteVPPToken(ctx context.Context, tokenID uint) error
 
+	CreateAndroidWebApp(ctx context.Context, title, startURL string, icon io.Reader) (string, error)
+
 	BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []VPPBatchPayload, dryRun bool) ([]VPPAppResponse, error)
 
 	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
@@ -1022,6 +1039,11 @@ type Service interface {
 	// Windows MDM. If an error is returned, authorization is skipped so the
 	// error can be raised to the user.
 	VerifyMDMWindowsConfigured(ctx context.Context) error
+
+	// VerifyMDMAndroidConfigured verifies that the server is configured for
+	// Android MDM. If an error is returned, authorization is skipped so the
+	// error can be raised to the user.
+	VerifyMDMAndroidConfigured(ctx context.Context) error
 
 	// VerifyAnyMDMConfigured verifies that the server is configured for any MDM
 	// (Apple, Windows, or Android). If an error is returned, authorization is

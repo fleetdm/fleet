@@ -88,7 +88,7 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 	if eventDetails.TeamID == nil {
 		// Should not happen
 		svc.authz.SkipAuthorization(ctx)
-		return fmt.Errorf("calendar event %s has no team ID", eventUUID)
+		return fmt.Errorf("calendar event %s has no fleet ID", eventUUID)
 	}
 
 	localConfig := &calendar.Config{
