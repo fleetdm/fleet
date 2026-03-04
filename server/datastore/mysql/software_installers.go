@@ -1112,14 +1112,26 @@ WHERE
 }
 
 var (
-	errDeleteInstallerWithAssociatedPolicy = &fleet.ConflictError{Message: "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again."}
-	errDeleteInstallerInstalledDuringSetup = &fleet.ConflictError{Message: "Couldn't delete. This software is installed during new host setup. Please remove software in Controls > Setup experience and try again."}
+	errDeleteInstallerWithAssociatedInstallPolicy = &fleet.ConflictError{Message: "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again."}
+	errDeleteInstallerInstalledDuringSetup        = &fleet.ConflictError{Message: "Couldn't delete. This software is installed during new host setup. Please remove software in Controls > Setup experience and try again."}
+	errDeleteInstallerWithAssociatedPatchPolicy   = &fleet.ConflictError{Message: "Couldn’t delete. This software has a patch policy. Please remove the patch policy and try again."}
 )
 
 func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
 	var activateAffectedHostIDs []uint
 
-	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	// check if there is a patch policy that uses this title
+	policyStmt := `SELECT 1 FROM policies p JOIN software_installers si ON si.title_id = p.patch_software_title_id WHERE si.id = ?`
+	var policyExists bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &policyExists, policyStmt, id)
+	if err != nil && err != sql.ErrNoRows {
+		return ctxerr.Wrap(ctx, err, "checking if patch policy exists for software installer")
+	}
+	if policyExists {
+		return errDeleteInstallerWithAssociatedPatchPolicy
+	}
+
+	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		affectedHostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, id, true, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "clean up related installs and uninstalls")
@@ -1136,7 +1148,7 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 					return ctxerr.Wrapf(ctx, err, "getting reference from policies")
 				}
 				if count > 0 {
-					return errDeleteInstallerWithAssociatedPolicy
+					return errDeleteInstallerWithAssociatedInstallPolicy
 				}
 			}
 			return ctxerr.Wrap(ctx, err, "delete software installer")

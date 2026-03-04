@@ -26435,12 +26435,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			TeamID:        nil,
 		}
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
-
-		var titleID uint
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(context.Background(), q, &titleID, `SELECT title_id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, 0, payload.Filename)
-		})
-		require.NotZero(t, titleID)
+		titleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
 
 		// try to add a patch policy that matches to an installer, but not an FMA
 		params = map[string]any{
@@ -26565,4 +26560,54 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Empty(t, getPolicyResp.Policy.PatchSoftware)
 		require.Empty(t, getPolicyResp.Policy.PatchSoftwareTitleID)
 	})
+
+	t.Run("no_team_patch_policy", func(t *testing.T) {
+		// Test 1: delete software installer when there is an associatd patch policy
+
+		// upload a software installer
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "some install script",
+			Filename:      "dummy_installer.pkg",
+			TeamID:        nil,
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+		titleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
+
+		// add a fleet maintained app and associate the installer with it
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			res, err := q.ExecContext(ctx, `INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
+			VALUES ('DummyApp', 'dummy/darwin', 'darwin', 'com.example.dummy')`)
+			require.NoError(t, err)
+			id, err := res.LastInsertId()
+			require.NoError(t, err)
+
+			_, err = q.ExecContext(ctx, `UPDATE software_installers SET fleet_maintained_app_id = ? WHERE title_id = ?`, id, titleID)
+			require.NoError(t, err)
+			return nil
+		})
+
+		// add a patch policy
+		policyResp := teamPolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", teamPolicyRequest{
+			Type:                 ptr.String("patch"),
+			PatchSoftwareTitleID: &titleID,
+		}, http.StatusOK, &policyResp)
+
+		// attempt to delete installer
+		res := s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusConflict, "team_id", "0")
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `Couldn’t delete. This software has a patch policy. Please remove the patch policy and try again.`)
+		res.Body.Close()
+
+		// remove patch policy and delete installer
+		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies/delete", deleteGlobalPoliciesRequest{
+			IDs: []uint{policyResp.Policy.ID},
+		}, http.StatusOK, &deleteGlobalPoliciesResponse{})
+
+		// Test 2: Update the fleet maintained app installer
+
+		// Test 3: gitops updated existing fleet maintained app installer?
+
+	})
+
 }
