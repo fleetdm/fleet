@@ -71,6 +71,10 @@ const MainContent = ({
       } else if (isFleetLicenseExpired) {
         banner = <LicenseExpirationBanner />;
       }
+    } else if (isApplePnsExpired || willApplePnsExpire) {
+      // APNS exipiration banner will show for either premium or free tiers
+      // but all other banners are only for premium tiers
+      banner = <ApplePNCertRenewalMessage expired={isApplePnsExpired} />;
     }
 
     if (banner) {
