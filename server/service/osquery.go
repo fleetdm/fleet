@@ -30,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	nodeauthctx "github.com/fleetdm/fleet/v4/server/contexts/nodeauth"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
@@ -2796,7 +2797,7 @@ func (r submitLogsRequest) DecodeRequest(ctx context.Context, req *http.Request)
 			osqErr.StatusCode = http.StatusRequestTimeout
 			return nil, osqErr
 		}
-		return nil, err
+		return nil, endpointer.BadRequestErr("json decoder error", err)
 	}
 
 	return &submitLogsRequest{
@@ -2832,6 +2833,7 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	instrumentHostLogger(ctx, req.host.ID)
 	if ac, ok := authz_ctx.FromContext(ctx); ok {
 		ac.SetAuthnMethod(authz_ctx.AuthnHostToken)
+		ac.SetChecked()
 	}
 
 	var hlogger *slog.Logger
