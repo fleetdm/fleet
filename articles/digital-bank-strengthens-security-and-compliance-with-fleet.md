@@ -2,9 +2,7 @@
 
 The company serves millions of customers through a mobile-first platform designed to expand access to financial services. Supporting that mission requires a secure and reliable device environment across thousands of employees. The company manages more than 10,000 devices across macOS, Windows, Linux, and ChromeOS, all of which must meet strict security and regulatory requirements.
 
----
-
-## **At a glance**
+## At a glance
 
 * **Industry:** Financial services and digital banking
 
@@ -14,9 +12,7 @@ The company serves millions of customers through a mobile-first platform designe
 
 * **Previous challenge:** Limited visibility across non-Mac devices and concerns around proprietary management tools
 
----
-
-## **The challenge: security visibility in a regulated environment**
+## The challenge
 
 Legacy device management tools created several challenges. Port configurations were complex, visibility across non-Mac devices was limited, and proprietary agents acted as black boxes. That lack of transparency created risk in an environment where security teams must understand exactly how device policies are enforced.
 
@@ -24,26 +20,19 @@ Linux servers and remote laptops were also difficult to monitor consistently. Wi
 
 The team needed a platform that provided full visibility, strong automation, and complete control over how the system operated.
 
----
-
-## **The evaluation criteria**
+## Evaluation criteria
 
 During the evaluation process, Fleet had to meet three key requirements:
 
-1. **On-premise hosting**  
-    The company required full control of infrastructure to satisfy financial and regulatory compliance.
+1. **On-premise hosting:** The company required full control of infrastructure to satisfy financial and regulatory compliance.
 
-2. **osquery integration**  
-    Security teams needed deep, SQL-based visibility into device state across operating systems.
+2. **osquery integration:** Security teams needed deep, SQL-based visibility into device state across operating systems.
 
-3. **GitOps and automation**  
-    Device management had to integrate with existing CI/CD workflows and automation pipelines.
+3. **GitOps and automation:** Device management had to integrate with existing CI/CD workflows and automation pipelines.
 
 The team also wanted a unified approach to managing macOS, Windows, Linux, and ChromeOS devices instead of maintaining separate management silos.
 
----
-
-## **The solution: transparent, automated device management**
+## The solution
 
 Fleet provided a platform that aligned with both security and engineering requirements.
 
@@ -55,17 +44,13 @@ Fleet’s API allows the team to automatically generate and prioritize vulnerabi
 
 Device telemetry also streams directly into the company’s internal monitoring tools, providing real-time visibility into device health and software changes.
 
----
-
-## **A phased rollout across a global fleet**
+### A phased rollout across a global fleet
 
 The company used a phased deployment strategy across multiple Fleet instances. Each segment of the fleet was migrated gradually to ensure stability and maintain regulatory compliance throughout the process.
 
 Despite the scale of the transition, end-user disruption remained minimal. Automated policies and carefully managed update cycles allowed employees to continue working without interruption.
 
----
-
-## **The results: unified visibility and faster security response**
+## The results
 
 Fleet introduced a unified view of the company’s device environment.
 
@@ -75,9 +60,7 @@ Real-time telemetry also improves response time to vulnerabilities and complianc
 
 Operational efficiency has improved as well. By consolidating device management into a unified platform, the team reduced management overhead and improved license management across the organization.
 
----
-
-## **Why they recommend Fleet**
+### Why they recommend Fleet
 
 For other technology leaders in regulated industries, their recommendation focuses on transparency and control.
 
@@ -85,9 +68,7 @@ Fleet provides an open platform that allows security teams to understand exactly
 
 For organizations managing thousands of devices in regulated environments, that level of insight and control is essential.
 
----
-
-## **About Fleet**
+## About Fleet
 
 Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations, Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.
 
