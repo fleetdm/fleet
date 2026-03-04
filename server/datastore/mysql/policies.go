@@ -1048,6 +1048,7 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 		args.Query = generated.Query
 		args.Platform = generated.Platform
 		args.Description = generated.Description
+		args.Resolution = generated.Resolution
 	}
 
 	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
@@ -2449,6 +2450,7 @@ type patchPolicy struct {
 	Query       string
 	Platform    string
 	Description string
+	Resolution  string
 }
 
 func generatePatchPolicy(installer *fleet.SoftwareInstaller) *patchPolicy {
@@ -2474,6 +2476,7 @@ func generatePatchPolicy(installer *fleet.SoftwareInstaller) *patchPolicy {
 	default:
 	}
 	policy.Description = "Outdated software might introduce security vulnerabilities or compatibility issues."
+	policy.Resolution = "Install the latest version from self-service."
 
 	return &policy
 }
