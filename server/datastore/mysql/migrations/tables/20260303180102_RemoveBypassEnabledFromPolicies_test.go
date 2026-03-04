@@ -164,6 +164,29 @@ func TestUp_20260303180102(t *testing.T) {
 		assert.False(t, columnExists(t, db, "policies", "conditional_access_bypass_enabled"))
 	})
 
+	t.Run("teams with missing ca config", func(t *testing.T) {
+		db := applyUpToPrev(t)
+
+		setOktaConfig(t, db, true)
+
+		// Team with no integrations key at all (pre-feature teams in production).
+		noIntegrationsTeamID := execNoErrLastID(t, db, `INSERT INTO teams (name, config) VALUES (?, ?)`, "no-integrations", `{}`)
+		noIntegrationsTeamIDUint := uint(noIntegrationsTeamID) //nolint:gosec // dismiss G115
+
+		// Team with integrations key but no conditional_access_enabled field.
+		noCAKeyTeamID := execNoErrLastID(t, db, `INSERT INTO teams (name, config) VALUES (?, ?)`, "no-ca-key", `{"integrations":{}}`)
+		noCAKeyTeamIDUint := uint(noCAKeyTeamID) //nolint:gosec // dismiss G115
+
+		policyNoIntegrations := insertPolicy(t, db, "policy-no-integrations", &noIntegrationsTeamIDUint, true, false)
+		policyNoCAKey := insertPolicy(t, db, "policy-no-ca-key", &noCAKeyTeamIDUint, true, false)
+
+		applyNext(t, db)
+
+		assert.False(t, policyIsCritical(t, db, policyNoIntegrations))
+		assert.False(t, policyIsCritical(t, db, policyNoCAKey))
+		assert.False(t, columnExists(t, db, "policies", "conditional_access_bypass_enabled"))
+	})
+
 	t.Run("no teams exist", func(t *testing.T) {
 		db := applyUpToPrev(t)
 

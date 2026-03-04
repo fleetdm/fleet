@@ -18,7 +18,7 @@ func Up_20260303180102(tx *sql.Tx) error {
 		WHERE conditional_access_bypass_enabled = TRUE
 		  AND team_id IN (
 		      SELECT id FROM teams
-		      WHERE CAST(JSON_EXTRACT(config, '$.integrations.conditional_access_enabled') AS UNSIGNED) = 1
+		      WHERE JSON_UNQUOTE(JSON_EXTRACT(config, '$.integrations.conditional_access_enabled')) = 'true'
 		  )
 		  AND EXISTS (
 		      SELECT 1 FROM app_config_json
