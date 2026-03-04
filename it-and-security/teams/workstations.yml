@@ -85,6 +85,11 @@ controls:
       - path: ../lib/macos/configuration-profiles/santa-rules.mobileconfig
         labels_include_any:
           - "Santa test devices"
+      # SOC 2 compliance profiles
+      - path: ../lib/macos/configuration-profiles/disable-password-hints.mobileconfig
+      - path: ../lib/macos/configuration-profiles/require-password-after-sleep.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-remote-apple-events.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-remote-login-ssh.mobileconfig
       - path: ../lib/macos/configuration-profiles/nudge-configuration.mobileconfig
       - path: ../lib/macos/configuration-profiles/microsoft-autoupdate-settings.mobileconfig
         labels_include_any:
@@ -141,6 +146,15 @@ policies:
   - path: ../lib/macos/policies/company-portal-installed.yml
   - path: ../lib/macos/policies/entra-conditional-access-check.yml
   - path: ../lib/macos/policies/install-nudge.yml
+  # macOS SOC 2 compliance policies
+  - path: ../lib/macos/policies/sip-enabled.yml
+  - path: ../lib/macos/policies/gatekeeper-enabled.yml
+  - path: ../lib/macos/policies/firewall-enabled.yml
+  - path: ../lib/macos/policies/xprotect-up-to-date.yml
+  - path: ../lib/macos/policies/screen-lock-enabled.yml
+  - path: ../lib/macos/policies/ssh-disabled.yml
+  - path: ../lib/macos/policies/audit-logging-enabled.yml
+  - path: ../lib/macos/policies/automatic-updates-enabled.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml

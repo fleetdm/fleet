@@ -1,0 +1,17 @@
+- name: macOS - Screen lock enabled (5 minutes or less)
+  query: >-
+    SELECT 1 FROM managed_policies
+    WHERE domain = 'com.apple.screensaver'
+    AND name = 'idleTime'
+    AND CAST(value AS INTEGER) <= 300;
+  critical: false
+  description: >-
+    SOC 2 CC6 - The screen must lock automatically after no more than 5 minutes
+    of inactivity. This prevents unauthorized physical access to unattended
+    workstations.
+  resolution: >-
+    Screen lock settings should be enforced automatically via MDM profile. If
+    this policy is failing, please contact IT via #help-it in Slack. You can also
+    check System Settings > Lock Screen and ensure the screen saver activates
+    after 5 minutes or less.
+  platform: darwin

@@ -1,0 +1,11 @@
+- name: macOS - Gatekeeper enabled
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+  critical: true
+  description: >-
+    SOC 2 CC6.6 - Gatekeeper verifies that applications are signed by an
+    identified developer or distributed through the App Store. This prevents
+    the execution of unauthorized or malicious software.
+  resolution: >-
+    Gatekeeper should be enforced automatically via MDM profile. If this policy
+    is failing, please contact IT via #help-it in Slack.
+  platform: darwin

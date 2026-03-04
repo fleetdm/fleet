@@ -1,0 +1,15 @@
+- name: macOS - Remote login (SSH) disabled
+  query: >-
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM sharing_preferences WHERE service = 'com.apple.sshd-keygen-wrapper' AND enabled = 1
+    );
+  critical: false
+  description: >-
+    SOC 2 CC6.6 - Remote Login (SSH) should be disabled on workstations unless
+    explicitly required. SSH access increases the network attack surface and
+    should only be enabled on systems that require remote administration.
+  resolution: >-
+    Disable Remote Login in System Settings > General > Sharing > Remote Login.
+    If you require SSH access for your work, please request an exception through
+    IT via #help-it in Slack.
+  platform: darwin
