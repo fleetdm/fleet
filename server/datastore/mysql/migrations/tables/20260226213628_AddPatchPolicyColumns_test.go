@@ -3,6 +3,7 @@ package tables
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -20,22 +21,29 @@ func TestUp_20260226213628(t *testing.T) {
 			(?, 'policy-4', 'SELECT 1;', '', 'checksum4')
 	`, teamID, teamID, teamID, teamID)
 
+	timestamps := make([]time.Time, 0, 4)
+	err := db.SelectContext(context.Background(), &timestamps, `SELECT updated_at FROM policies`)
+	require.NoError(t, err)
+	require.Len(t, timestamps, 4)
+
 	// Apply current migration.
 	applyNext(t, db)
 
 	var policyCheck []struct {
-		ID      int64  `db:"id"`
-		Name    string `db:"name"`
-		Type    string `db:"type"`
-		TitleID *uint  `db:"patch_software_title_id"`
+		ID        int64     `db:"id"`
+		Name      string    `db:"name"`
+		Type      string    `db:"type"`
+		TitleID   *uint     `db:"patch_software_title_id"`
+		UpdatedAt time.Time `db:"updated_at"`
 	}
-	err := db.SelectContext(context.Background(), &policyCheck, `SELECT id, name, type, patch_software_title_id FROM policies`)
+	err = db.SelectContext(context.Background(), &policyCheck, `SELECT id, name, type, patch_software_title_id, updated_at FROM policies`)
 	require.NoError(t, err)
 	require.Len(t, policyCheck, 4)
 	// check that type was set to 'dynamic' on all previous policies
-	for _, policy := range policyCheck {
+	for i, policy := range policyCheck {
 		require.Equal(t, "dynamic", policy.Type)
 		require.Nil(t, policy.TitleID)
+		require.Equal(t, timestamps[i], policy.UpdatedAt)
 	}
 
 	// check software title foreign key
