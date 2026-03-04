@@ -979,8 +979,8 @@ CREATE TABLE `host_orbit_info` (
 CREATE TABLE `host_recovery_key_passwords` (
   `host_id` int unsigned NOT NULL,
   `encrypted_password` blob NOT NULL,
-  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `operation_type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `operation_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `set_command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `verify_command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `set_command_ack_at` timestamp(6) NULL DEFAULT NULL,
