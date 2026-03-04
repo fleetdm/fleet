@@ -1,0 +1,13 @@
+- name: macOS - Remote login (SSH) disabled (ISO 27001)
+  query: SELECT 1 FROM sharing_preferences WHERE remote_login = 0;
+  critical: false
+  description: >-
+    Checks that remote login (SSH) is disabled. ISO 27001 Annex A control A.8.20
+    (Network security) and A.5.15 (Access control) require that remote access
+    services are restricted and that unnecessary network services are disabled to
+    reduce the attack surface of endpoint devices.
+  resolution: >-
+    Contact your IT administrator to ensure remote login (SSH) is disabled on
+    your Mac. This can be configured in System Settings > General > Sharing.
+    Fleet/MDM should automatically enforce this setting.
+  platform: darwin

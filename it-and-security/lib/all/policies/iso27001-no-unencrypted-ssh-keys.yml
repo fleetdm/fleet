@@ -1,0 +1,6 @@
+- name: No unencrypted SSH keys present (ISO 27001)
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM users CROSS JOIN user_ssh_keys USING (uid) WHERE encrypted = 0);
+  critical: false
+  description: Identifies SSH keys created without a passphrase. ISO 27001 A.8.24 (Use of cryptography) and A.5.17 (Authentication information) require that authentication credentials are properly protected.
+  resolution: "Rotate unencrypted keys by running: ssh-keygen -o -p -f /path/to/key"
+  platform: darwin,linux,windows

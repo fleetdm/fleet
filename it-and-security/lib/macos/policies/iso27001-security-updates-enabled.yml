@@ -1,0 +1,13 @@
+- name: macOS - Critical security updates enabled (ISO 27001)
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.SoftwareUpdate' AND name = 'CriticalUpdateInstall' AND value = 1 LIMIT 1;
+  critical: false
+  description: >-
+    Checks that automatic installation of critical security updates and system
+    data files is enabled via MDM. ISO 27001 Annex A control A.8.8 (Management
+    of technical vulnerabilities) requires that critical security patches are
+    applied promptly to protect against known threats.
+  resolution: >-
+    Contact your IT administrator to ensure your Mac is receiving an MDM profile
+    that enables automatic installation of critical security updates. This
+    should be automatically enforced by Fleet.
+  platform: darwin

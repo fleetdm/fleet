@@ -1,0 +1,12 @@
+- name: Windows - Automatic updates enabled (ISO 27001)
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\WindowsUpdate\AU\NoAutoUpdate' AND CAST(data AS INTEGER) = 0;
+  critical: false
+  description: >-
+    Checks that automatic Windows updates are enabled via Group Policy. ISO
+    27001 Annex A control A.8.8 (Management of technical vulnerabilities)
+    requires timely identification and remediation of vulnerabilities.
+  resolution: >-
+    Contact your IT administrator to ensure your computer is receiving a Group
+    Policy that enables automatic updates. This should be automatically enforced
+    by Fleet.
+  platform: windows

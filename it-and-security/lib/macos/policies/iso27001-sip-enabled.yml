@@ -1,0 +1,14 @@
+- name: macOS - System Integrity Protection enabled (ISO 27001)
+  query: SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;
+  critical: false
+  description: >-
+    Checks that System Integrity Protection (SIP) is enabled. ISO 27001 Annex A
+    control A.8.6 (Capacity management) and A.8.9 (Configuration management)
+    require that system integrity is maintained and that configurations protect
+    against unauthorized modification of critical system files and processes.
+  resolution: >-
+    Contact your IT administrator. System Integrity Protection should be enabled
+    by default on macOS. If disabled, the Mac must be booted into Recovery Mode
+    to re-enable SIP using "csrutil enable". Fleet/MDM should monitor this
+    setting.
+  platform: darwin

@@ -1,0 +1,12 @@
+- name: Windows - Screen lock enabled (ISO 27001)
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\System\InactivityTimeoutSecs' AND CAST(data AS INTEGER) <= 1800;
+  critical: false
+  description: >-
+    Checks that the screen lock is enabled and configured to lock the system
+    within 30 minutes or less of inactivity. ISO 27001 Annex A control A.8.1
+    (User endpoint devices) requires that unattended equipment is protected.
+  resolution: >-
+    Contact your IT administrator to enable the Interactive Logon: Machine
+    inactivity limit setting with a value of 1800 seconds or lower via Group
+    Policy. This should be automatically enforced by Fleet.
+  platform: windows

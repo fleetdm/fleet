@@ -1,0 +1,12 @@
+- name: Windows - Firewall enabled, domain profile (ISO 27001)
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\DomainProfile\EnableFirewall' AND CAST(data AS INTEGER) = 1;
+  critical: false
+  description: >-
+    Checks that the Windows Firewall domain profile is enabled via Group Policy.
+    ISO 27001 Annex A control A.8.20 (Network security) requires network
+    security controls to protect information systems.
+  resolution: >-
+    Contact your IT administrator to ensure your computer is receiving a Group
+    Policy that enables the domain profile for Windows Firewall. This should be
+    automatically enforced by Fleet.
+  platform: windows

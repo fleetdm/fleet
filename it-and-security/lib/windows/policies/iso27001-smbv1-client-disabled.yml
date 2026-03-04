@@ -1,0 +1,13 @@
+- name: Windows - SMBv1 client disabled (ISO 27001)
+  query: SELECT 1 FROM windows_optional_features WHERE name = 'SMB1Protocol-Client' AND state != 1;
+  critical: false
+  description: >-
+    Checks that the SMBv1 client is disabled. SMBv1 has known security
+    vulnerabilities. ISO 27001 Annex A control A.8.8 (Management of technical
+    vulnerabilities) requires that technical vulnerabilities are managed and
+    insecure protocols are disabled.
+  resolution: >-
+    Contact your IT administrator to disable SMBv1 on your system. It can be
+    disabled via: Disable-WindowsOptionalFeature -Online -FeatureName
+    SMB1Protocol-Client
+  platform: windows

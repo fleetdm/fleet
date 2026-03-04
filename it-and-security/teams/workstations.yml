@@ -151,6 +151,43 @@ policies:
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
+  # ISO 27001 compliance policies - macOS
+  - path: ../lib/macos/policies/iso27001-screen-lock-enabled.yml
+  - path: ../lib/macos/policies/iso27001-screen-lock-timeout.yml
+  - path: ../lib/macos/policies/iso27001-password-minimum-length.yml
+  - path: ../lib/macos/policies/iso27001-automatic-login-disabled.yml
+  - path: ../lib/macos/policies/iso27001-guest-account-disabled.yml
+  - path: ../lib/macos/policies/iso27001-guest-shared-folders-disabled.yml
+  - path: ../lib/macos/policies/iso27001-automatic-updates-enabled.yml
+  - path: ../lib/macos/policies/iso27001-automatic-os-updates-install.yml
+  - path: ../lib/macos/policies/iso27001-security-updates-enabled.yml
+  - path: ../lib/macos/policies/iso27001-firewall-enabled.yml
+  - path: ../lib/macos/policies/iso27001-firewall-logging-enabled.yml
+  - path: ../lib/macos/policies/iso27001-antivirus-healthy.yml
+  - path: ../lib/macos/policies/iso27001-gatekeeper-enabled.yml
+  - path: ../lib/macos/policies/iso27001-sip-enabled.yml
+  - path: ../lib/macos/policies/iso27001-mdm-enrolled.yml
+  - path: ../lib/macos/policies/iso27001-internet-sharing-blocked.yml
+  - path: ../lib/macos/policies/iso27001-icloud-sync-disabled.yml
+  - path: ../lib/macos/policies/iso27001-remote-login-disabled.yml
+  # ISO 27001 compliance policies - Windows
+  - path: ../lib/windows/policies/iso27001-screen-lock-enabled.yml
+  - path: ../lib/windows/policies/iso27001-password-minimum-length.yml
+  - path: ../lib/windows/policies/iso27001-automatic-updates-enabled.yml
+  - path: ../lib/windows/policies/iso27001-firewall-domain-profile.yml
+  - path: ../lib/windows/policies/iso27001-firewall-private-profile.yml
+  - path: ../lib/windows/policies/iso27001-firewall-public-profile.yml
+  - path: ../lib/windows/policies/iso27001-antivirus-healthy.yml
+  - path: ../lib/windows/policies/iso27001-smbv1-client-disabled.yml
+  - path: ../lib/windows/policies/iso27001-smbv1-server-disabled.yml
+  - path: ../lib/windows/policies/iso27001-llmnr-disabled.yml
+  # ISO 27001 compliance policies - Linux
+  - path: ../lib/linux/policies/iso27001-screen-lock-enabled.yml
+  - path: ../lib/linux/policies/iso27001-firewall-enabled.yml
+  - path: ../lib/linux/policies/iso27001-antivirus-healthy.yml
+  # ISO 27001 compliance policies - Cross-platform
+  - path: ../lib/all/policies/iso27001-ssh-keys-encrypted.yml
+  - path: ../lib/all/policies/iso27001-no-unencrypted-ssh-keys.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
   - path: ../lib/macos/queries/collect-santa-denied-logs.yml

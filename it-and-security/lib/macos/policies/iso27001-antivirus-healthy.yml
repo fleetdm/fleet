@@ -1,0 +1,14 @@
+- name: macOS - Antivirus healthy (XProtect running) (ISO 27001)
+  query: SELECT 1 WHERE EXISTS (SELECT 1 FROM launchd WHERE name = 'com.apple.XprotectFramework.PluginService');
+  critical: false
+  description: >-
+    Checks that Apple XProtect antivirus service is running. ISO 27001 Annex A
+    control A.8.7 (Protection against malware) requires that protection against
+    malware is implemented and supported by appropriate user awareness to detect
+    and prevent the spread of malicious software.
+  resolution: >-
+    Contact your IT administrator. The XProtect service should be running by
+    default on macOS. If it is not running, the system may require
+    troubleshooting or reinstallation of security components. Fleet/MDM should
+    automatically enforce this setting.
+  platform: darwin

@@ -1,0 +1,6 @@
+- name: Linux - Firewall enabled (ISO 27001)
+  query: SELECT 1 FROM iptables WHERE chain = 'INPUT' AND policy != '' LIMIT 1;
+  critical: false
+  description: Checks if iptables has active rules, indicating an active firewall. ISO 27001 A.8.20 (Networks security) requires network protection mechanisms.
+  resolution: Ensure a firewall (iptables, nftables, or ufw) is installed and configured. Contact your IT administrator for assistance.
+  platform: linux

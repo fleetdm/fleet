@@ -1,0 +1,13 @@
+- name: macOS - Automatic macOS updates installation enabled (ISO 27001)
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.SoftwareUpdate' AND name = 'AutomaticallyInstallMacOSUpdates' AND value = 1 LIMIT 1;
+  critical: false
+  description: >-
+    Checks that automatic installation of macOS updates is enabled via MDM.
+    ISO 27001 Annex A control A.8.8 (Management of technical vulnerabilities)
+    requires that patches and updates are applied in a timely manner to reduce
+    exposure to known vulnerabilities.
+  resolution: >-
+    Contact your IT administrator to ensure your Mac is receiving an MDM profile
+    that enables automatic installation of macOS updates. This should be
+    automatically enforced by Fleet.
+  platform: darwin

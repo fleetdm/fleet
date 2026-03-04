@@ -1,0 +1,13 @@
+- name: macOS - Gatekeeper enabled (ISO 27001)
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+  critical: false
+  description: >-
+    Checks that Gatekeeper is enabled, ensuring only trusted software is allowed
+    to run. ISO 27001 Annex A control A.8.7 (Protection against malware)
+    requires that controls are in place to prevent execution of unauthorized or
+    malicious software on endpoint devices.
+  resolution: >-
+    Contact your IT administrator to ensure your Mac has Gatekeeper enabled.
+    This should be automatically enforced by Fleet/MDM. You can verify by
+    running "spctl --status" in Terminal.
+  platform: darwin

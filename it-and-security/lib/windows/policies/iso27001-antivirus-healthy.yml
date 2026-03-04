@@ -1,0 +1,12 @@
+- name: Windows - Antivirus healthy (ISO 27001)
+  query: SELECT 1 FROM windows_security_center wsc CROSS JOIN windows_security_products wsp WHERE antivirus = 'Good' AND type = 'Antivirus' AND signatures_up_to_date = 1;
+  critical: false
+  description: >-
+    Checks the status of antivirus and signature updates from the Windows
+    Security Center. ISO 27001 Annex A control A.8.7 (Protection against
+    malware) requires that protection against malware is implemented and kept up
+    to date.
+  resolution: >-
+    Ensure Windows Defender or your third-party antivirus is running, up to
+    date, and visible in the Windows Security Center.
+  platform: windows

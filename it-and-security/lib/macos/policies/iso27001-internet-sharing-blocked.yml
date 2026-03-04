@@ -1,0 +1,12 @@
+- name: macOS - Internet sharing blocked (ISO 27001)
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.MCX' AND name = 'forceInternetSharingOff' AND value = '1' LIMIT 1;
+  critical: false
+  description: >-
+    Checks that internet sharing is blocked via MDM. ISO 27001 Annex A control
+    A.8.20 (Network security) requires that network services are secured and
+    that devices do not create unauthorized network bridges or access points that
+    could bypass network security controls.
+  resolution: >-
+    Contact your IT administrator to ensure your Mac is receiving an MDM profile
+    that blocks internet sharing. This should be automatically enforced by Fleet.
+  platform: darwin

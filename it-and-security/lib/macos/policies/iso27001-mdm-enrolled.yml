@@ -1,0 +1,14 @@
+- name: macOS - MDM enrolled (ISO 27001)
+  query: SELECT 1 FROM mdm WHERE enrolled = 'true';
+  critical: false
+  description: >-
+    Checks that the device is enrolled in Mobile Device Management (MDM).
+    ISO 27001 Annex A control A.8.1 (User endpoint devices) requires that
+    information stored in, processed by, or accessible via user endpoint devices
+    is protected, and MDM enrollment is essential for centralized policy
+    enforcement and device management.
+  resolution: >-
+    Contact your IT administrator to enroll your Mac in MDM. This is required
+    for centralized security policy enforcement. Fleet should be configured as
+    the MDM provider for your organization.
+  platform: darwin

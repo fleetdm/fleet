@@ -1,0 +1,6 @@
+- name: Linux - Screen lock enabled (ISO 27001)
+  query: SELECT 1 WHERE EXISTS (SELECT 1 FROM (SELECT key, value FROM parse_json WHERE path = '/etc/dconf/db/local.d/00-screensaver') WHERE key = 'idle-delay' AND CAST(value AS INTEGER) > 0) OR EXISTS (SELECT 1 FROM file WHERE path = '/etc/dconf/db/local.d/00-screensaver');
+  critical: false
+  description: Checks if screen lock timeout is configured in GNOME settings. ISO 27001 A.8.1 (User endpoint devices) requires unattended equipment is protected.
+  resolution: "Configure your desktop environment to automatically lock the screen after inactivity. For GNOME, run: gsettings set org.gnome.desktop.session idle-delay 300 && gsettings set org.gnome.desktop.screensaver lock-enabled true"
+  platform: linux

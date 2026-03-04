@@ -1,0 +1,6 @@
+- name: Linux - Antivirus healthy (ISO 27001)
+  query: SELECT score FROM (SELECT CASE WHEN COUNT(*) = 2 THEN 1 ELSE 0 END AS score FROM processes WHERE (name = 'clamd') OR (name = 'freshclam')) WHERE score == 1;
+  critical: false
+  description: Checks that ClamAV daemon and updater are running. ISO 27001 A.8.7 (Protection against malware) requires malware protection.
+  resolution: "Ensure ClamAV and Freshclam are installed and running: sudo systemctl enable --now clamav-daemon clamav-freshclam"
+  platform: linux

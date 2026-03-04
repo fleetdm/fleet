@@ -1,0 +1,12 @@
+- name: Windows - LLMNR disabled (ISO 27001)
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMulticast' AND CAST(data AS INTEGER) = 0;
+  critical: false
+  description: >-
+    Checks that Link-Local Multicast Name Resolution (LLMNR) is disabled. LLMNR
+    can be exploited to capture credentials. ISO 27001 Annex A control A.8.20
+    (Network security) requires that insecure network protocols are disabled to
+    prevent credential theft and lateral movement.
+  resolution: >-
+    Contact your IT administrator to ensure your computer is receiving a Group
+    Policy that disables LLMNR. This should be automatically enforced by Fleet.
+  platform: windows
