@@ -114,13 +114,9 @@ The Executive Assistant will verify daily that the CEO's calendar is accurate fo
 The CEO's calendar should reflect the following schedule for travel:
 - Time block for the CEO to pack (always have this event even if the CEO doesn't check any bags in, he always bring a carry-on bag),
   - 45 minutes
-  - Calendar event name: 🧳 Pack
-- Time block to check out of hotel
-  - Only if the CEO is checking out of a hotel, otherwise not needed.
-  - 30 minutes
-  - Calendar event: Check out
+  - Calendar event name: Pack
 - Travel time to the airport the CEO is going to,
-  - Assume 30 minutes for this if it's the CEO's home airport, otherwise, check the time it takes from where the CEO is to the airport the CEO needs to get to. (e.g. If the CEO is leaving his hotel to the airport, google directions from the location of the hotel to the airport, but make sure you change the time at when the CEO will leave his hotel.)
+  - Check the time it takes from where the CEO is to the airport the CEO needs to get to, even if it's to his home airport. (e.g. If the CEO is leaving thier hotel to the airport, google directions from the location of the hotel to the airport, but make sure you change the time at when the CEO will leave their hotel.)
   - Calendar event name: Travel to NAME_OF_AIRPORT
   - Location: Address of the airport the CEO needs to go to.
 - Time block to go through security,
@@ -139,7 +135,7 @@ The CEO's calendar should reflect the following schedule for travel:
   - 30 minutes
   - Calendar event name if the CEO has checked bags: Get water and bags
   - Calendar event name if the CEO has no checked bags: Get water
-  - No calendar event to get water and bags, if CEO is going home
+  - No calendar event to get water and bags, if CEO is going home.
 - Travel time from the airport to the CEO's next destination,
  - Time varies, you will need to google directions from the airport to the address the CEO needs to go to. Make sure to match the time they will need to leave the airport.
  - The CEO sometimes needs to go straight to the event they are needed at whether it's a meeting, an event, resturaunt, etc.
