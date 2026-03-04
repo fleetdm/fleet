@@ -6,4 +6,4 @@
   platform: linux
   calendar_events_enabled: false
   run_script:
-    path: ../scripts/uninstall-clawbot.sh
+    path: ../scripts/uninstall-clawbot-linux.sh
