@@ -12,8 +12,8 @@ team_settings:
     enable_host_users: true
     enable_software_inventory: true
   host_expiry_settings:
-    host_expiry_enabled: false
-    host_expiry_window: 0
+    host_expiry_enabled: true
+    host_expiry_window: 30
   secrets:
     - secret: $DOGFOOD_WORKSTATIONS_ENROLL_SECRET
   integrations:
@@ -56,8 +56,7 @@ controls:
       - path: ../lib/macos/configuration-profiles/disable-internet-sharing.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-media-sharing.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-safari-safefiles.mobileconfig
-      # - path: ../lib/macos/configuration-profiles/enable-doh.mobileconfig
-      # Commenting out until I understand why we have this and if there's a better multi-platform solution
+      - path: ../lib/macos/configuration-profiles/enable-doh.mobileconfig
       - path: ../lib/macos/configuration-profiles/enable-firewall-logging.mobileconfig
       - path: ../lib/macos/configuration-profiles/enable-gatekeeper.mobileconfig
       - path: ../lib/macos/configuration-profiles/enforce-library-validation.mobileconfig
@@ -106,8 +105,8 @@ controls:
       - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
       - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
   windows_updates:
-    deadline_days: 7
-    grace_period_days: 2
+    deadline_days: 5
+    grace_period_days: 1
   scripts:
     - path: ../lib/macos/scripts/collect-fleetd-logs.sh
     - path: ../lib/macos/scripts/see-automatic-enrollment-profile.sh
@@ -141,6 +140,7 @@ policies:
   - path: ../lib/macos/policies/company-portal-installed.yml
   - path: ../lib/macos/policies/entra-conditional-access-check.yml
   - path: ../lib/macos/policies/install-nudge.yml
+  - path: ../lib/macos/policies/update-safari.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
