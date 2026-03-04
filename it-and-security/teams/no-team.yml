@@ -1,7 +1,3 @@
 name: No team
-team_settings:
-  features:
-    enable_host_users: true
-    enable_software_inventory: true
 policies:
   - path: ../lib/all/policies/host-assigned-to-team.yml
