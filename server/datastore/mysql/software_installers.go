@@ -682,9 +682,12 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 
 	var touchUploaded string
 	var clearFleetMaintainedAppID string // FMA becomes custom package when uploading a new installer file
+	var clearPatchPolicy bool            // Delete patch policy
 	if payload.InstallerFile != nil {
 		touchUploaded = ", uploaded_at = NOW()"
 		clearFleetMaintainedAppID = ", fleet_maintained_app_id = NULL"
+		// we need to remove the associated patch policy
+		clearPatchPolicy = true
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -746,6 +749,13 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 		// When an installer is modified reset attempt numbers for policy automations
 		if err := ds.resetInstallerPolicyAutomationAttempts(ctx, tx, payload.InstallerID); err != nil {
 			return ctxerr.Wrap(ctx, err, "resetting policy automation attempts for installer")
+		}
+
+		// TODO(JK): remove patch policy
+		if clearPatchPolicy {
+			if err := ds.deletePatchPolicy(ctx, ptr.ValOrZero(payload.TeamID), payload.TitleID); err != nil {
+				return ctxerr.Wrap(ctx, err, "update software title display name")
+			}
 		}
 
 		return nil

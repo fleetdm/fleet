@@ -2500,3 +2500,13 @@ func generatePatchPolicy(installer *fleet.SoftwareInstaller) *patchPolicy {
 
 	return &policy
 }
+
+func (ds *Datastore) deletePatchPolicy(ctx context.Context, teamID, titleID uint) error {
+	var policyID uint
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &policyID, `SELECT id FROM policies WHERE team_id = ? AND patch_software_title_id = ?`, teamID, titleID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get patch policy for title id")
+	}
+	ds.DeleteTeamPolicies(ctx, teamID, []uint{policyID})
+	return nil
+}

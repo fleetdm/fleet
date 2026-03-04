@@ -26604,7 +26604,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			IDs: []uint{policyResp.Policy.ID},
 		}, http.StatusOK, &deleteGlobalPoliciesResponse{})
 
-		// Test 2: Update the fleet maintained app installer
+		// Test 2: Update the fleet maintained app installer so that its no longer a fleet maintained app
 
 		// Test 3: gitops updated existing fleet maintained app installer?
 
