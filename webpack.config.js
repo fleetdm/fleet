@@ -107,6 +107,14 @@ const config = {
               sassOptions: {
                 includePaths: bourbon,
                 importer: globImporter(),
+                silenceDeprecations: [
+                  "import",
+                  "global-builtin",
+                  "slash-div",
+                  "color-functions",
+                  "mixed-decls",
+                  "legacy-js-api",
+                ],
               },
             },
           },

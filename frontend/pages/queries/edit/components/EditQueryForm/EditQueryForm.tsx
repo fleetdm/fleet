@@ -572,13 +572,13 @@ const EditQueryForm = ({
       if (isEditing) {
         return (
           <p>
-            Editing report for <strong>{currentTeamName}</strong> fleet.
+            Editing report for <strong>{currentTeamName}</strong>.
           </p>
         );
       }
       return (
         <p>
-          Creating a new report for <strong>{currentTeamName}</strong> fleet.
+          Creating a new report for <strong>{currentTeamName}</strong>.
         </p>
       );
     }
