@@ -8206,7 +8206,6 @@ _Available in Fleet Premium_
     "host_count_updated_at": null,
     "calendar_events_enabled": true,
     "conditional_access_enabled": false,
-    "conditional_access_bypass_enabled": false,
     "fleet_maintained": false,
     "labels_include_any": ["Macs on Sonoma"],
     "patch_software": {
@@ -8524,9 +8523,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 _Available in Fleet Premium_
 
-> **Experimental features.** 
-> + The `conditional_access_bypass_enabled` setting is experimental, and will be replaced with a reference to the policy's `critical` setting in Fleet 4.83.0. To ensure a seamless upgrade, please avoid enabling bypass for policies marked `critical`.
-> + Software related features (like install software policy automation) are undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+> **Experimental feature.** Software related features (like install software policy automation) are undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 `PATCH /api/v1/fleet/teams/:team_id/policies/:policy_id`
 
