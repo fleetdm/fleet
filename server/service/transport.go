@@ -659,7 +659,7 @@ func readUntil(r io.Reader, maxToRead int, endChar byte) (string, error) {
 		s.Write(b[:])
 	}
 	if !endCharFound {
-		return "", fmt.Errorf(`end character not found: %q`, s.String())
+		return "", fmt.Errorf("end character not found within %d bytes", maxToRead)
 	}
 	return s.String(), nil
 }
