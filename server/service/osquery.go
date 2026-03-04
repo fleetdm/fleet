@@ -2705,8 +2705,8 @@ type submitLogsRequest struct {
 
 // DecodeRequest implements the endpointer.RequestDecoder interface.
 // The log endpoint can receive very large payloads.
-// To prevent DoS, we authenticate the host by reading only the "node_key" portion of the payload
-// and "log_type" fields before reading the (potentially large) "data" field.
+// To prevent DoS, we authenticate the host by reading only the "node_key" field via streaming
+// before decoding the rest of the (potentially large) body with a standard JSON decoder.
 func (r submitLogsRequest) DecodeRequest(ctx context.Context, req *http.Request) (any, error) {
 	body := io.Reader(req.Body)
 	if req.Header.Get("content-encoding") == "gzip" {
@@ -2724,7 +2724,10 @@ func (r submitLogsRequest) DecodeRequest(ctx context.Context, req *http.Request)
 		return osqErr
 	}
 
-	// 1. Must start with {
+	// Stream just the node_key field so we can authenticate before reading the
+	// (potentially large) remainder of the body.
+
+	// Must start with {
 	delimiter := make([]byte, 1)
 	if _, err := body.Read(delimiter); err != nil {
 		return nil, newInvalidRequestError(fmt.Errorf("failed to read object start: %w", err))
@@ -2732,39 +2735,22 @@ func (r submitLogsRequest) DecodeRequest(ctx context.Context, req *http.Request)
 	if string(delimiter) != "{" {
 		return nil, newInvalidRequestError(fmt.Errorf("expected '{', got %q", string(delimiter)))
 	}
-	// 2. Must continue with "node_key":".
+	// Must continue with "node_key":".
 	nodeKeyLabel := make([]byte, 12)
-	if _, err := body.Read(nodeKeyLabel); err != nil {
+	if _, err := io.ReadFull(body, nodeKeyLabel); err != nil {
 		return nil, newInvalidRequestError(fmt.Errorf(`failed to read "node_key" key: %w`, err))
 	}
 	if string(nodeKeyLabel) != `"node_key":"` {
 		return nil, newInvalidRequestError(fmt.Errorf(`expected "node_key":", got %q`, string(nodeKeyLabel)))
 	}
-	// 3. Must continue with a string (node key value).
+	// Must continue with a string (node key value).
 	const maxNodeKeySize = 255
 	nodeKey, err := readUntil(body, maxNodeKeySize, '"')
 	if err != nil {
 		return nil, newInvalidRequestError(fmt.Errorf(`invalid "node_key" field: %w`, err))
 	}
-	// 4. Must continue with ,"log_type":".
-	logTypeLabel := make([]byte, 13)
-	if _, err := body.Read(logTypeLabel); err != nil {
-		return nil, newInvalidRequestError(fmt.Errorf(`failed to read "log_type" key: %w`, err))
-	}
-	if string(logTypeLabel) != `,"log_type":"` {
-		return nil, newInvalidRequestError(fmt.Errorf(`expected ,"log_type":", got %q`, string(logTypeLabel)))
-	}
-	// 5. Must continue with a string (log type value).
-	const maxLogTypeSize = 64
-	logType, err := readUntil(body, maxLogTypeSize, '"')
-	if err != nil {
-		return nil, newInvalidRequestError(fmt.Errorf(`invalid "log_type" field: %w`, err))
-	}
 
-	//
-	// 6. Authenticate the host before reading the (potentially large) "data" field.
-	//
-
+	// Authenticate the host before reading the rest of the body.
 	authenticator := nodeauthctx.FromContext(ctx)
 	if authenticator == nil {
 		return nil, newOsqueryError("internal: missing host authenticator in context")
@@ -2775,22 +2761,16 @@ func (r submitLogsRequest) DecodeRequest(ctx context.Context, req *http.Request)
 		return nil, err
 	}
 
-	//
-	// 7. Authentication successful. Now read the "data" field.
-	//
+	// Reconstruct the full JSON by prepending the already-consumed prefix so that
+	// the standard JSON decoder sees a complete, valid object.
+	consumed := `{"node_key":"` + nodeKey + `"`
+	fullReader := io.MultiReader(strings.NewReader(consumed), body)
 
-	// Must continue with ,"data":
-	dataLabel := make([]byte, 8)
-	if _, err := body.Read(dataLabel); err != nil {
-		return nil, newInvalidRequestError(fmt.Errorf(`failed to read "data" key: %w`, err))
+	var logReq struct {
+		LogType string            `json:"log_type"`
+		Data    []json.RawMessage `json:"data"`
 	}
-	if string(dataLabel) != `,"data":` {
-		return nil, newInvalidRequestError(fmt.Errorf(`expected ,"data":, got %q`, string(dataLabel)))
-	}
-
-	// Decode the data array (or null).
-	var data []json.RawMessage
-	if err := json.NewDecoder(body).Decode(&data); err != nil {
+	if err := json.NewDecoder(fullReader).Decode(&logReq); err != nil {
 		var netErr net.Error
 		if errors.Is(err, os.ErrDeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout()) {
 			osqErr := NewOsqueryError("request body read error: "+err.Error(), false)
@@ -2802,8 +2782,8 @@ func (r submitLogsRequest) DecodeRequest(ctx context.Context, req *http.Request)
 
 	return &submitLogsRequest{
 		NodeKey: nodeKey,
-		LogType: logType,
-		Data:    data,
+		LogType: logReq.LogType,
+		Data:    logReq.Data,
 		host:    host,
 		debug:   debug,
 	}, nil
