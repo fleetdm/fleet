@@ -58,7 +58,7 @@ Security teams can now track patch cadence, monitor configuration drift, and gen
 
 Telemetry from devices also streams directly into the company’s internal data platforms. This integration allows the team to build custom dashboards that track device health and security trends across the entire fleet.
 
-The shift from fragmented tools to a unified platform also improved operational efficiency. With automation handling routine compliance checks and remediation tasks, the IT team can focus on higher-impact infrastructure work.
+The shift from fragmented tools to a unified platform also improved operational efficiency. By automating routine compliance checks and remediation tasks, the IT team can focus on higher-impact infrastructure work.
 
 ### Why they recommend Fleet
 
@@ -70,7 +70,11 @@ The platform allows teams to customize policies, automate remediation, and maint
 
 ## About Fleet
 
-Fleet is the open-source endpoint management platform that gives you total control, unlike the proprietary 'black boxes' of legacy vendors. Our open device management provides full visibility into our code and roadmap, plus a true choice of deployment—on-prem or cloud—with 100% feature parity. Our API-first approach empowers technical teams to automate with GitOps, scale confidently, and get the real-time data needed to secure their entire macOS, iOS, Windows, and Linux fleets.
+Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations, Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.
+
+By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.
+
+Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.
 
 <meta name="articleTitle" value="EV manufacturer brings Linux workstations under centralized management with Fleet">
 <meta name="authorFullName" value="Irena Reedy">
