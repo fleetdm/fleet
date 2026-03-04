@@ -566,22 +566,20 @@ const EditQueryForm = ({
   };
 
   const renderQueryTeam = (isEditing = false) => {
-    if (isFreeTier) return null;
+    if (isFreeTier || !currentTeamName) return null;
 
-    if (currentTeamName) {
-      if (isEditing) {
-        return (
-          <p>
-            Editing report for <strong>{currentTeamName}</strong>.
-          </p>
-        );
-      }
+    if (isEditing) {
       return (
         <p>
-          Creating a new report for <strong>{currentTeamName}</strong>.
+          Editing report for <strong>{currentTeamName}</strong>.
         </p>
       );
     }
+    return (
+      <p>
+        Creating a new report for <strong>{currentTeamName}</strong>.
+      </p>
+    );
   };
 
   // Observers and observer+ of existing query
