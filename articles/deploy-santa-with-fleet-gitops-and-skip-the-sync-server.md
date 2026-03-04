@@ -71,3 +71,4 @@ The [next article](https://fleetdm.com/guides/how-we-deployed-santa-at-fleet) in
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-02-04">
 <meta name="description" value="Part 1 of 2 - Learn to manage Santa in a whole new way with less complexity and overhead.">
+<meta name="useBasicArticleTemplate" value="true">

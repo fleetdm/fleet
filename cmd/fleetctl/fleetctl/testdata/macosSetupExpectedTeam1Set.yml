@@ -13,6 +13,7 @@ spec:
       conditional_access_enabled: null
     mdm:
       enable_disk_encryption: false
+      enable_recovery_lock_password: false
       windows_require_bitlocker_pin: null
       macos_settings:
         custom_settings: null
@@ -24,6 +25,7 @@ spec:
       macos_setup:
         bootstrap_package: %s
         enable_end_user_authentication: false
+        lock_end_user_info: false
         macos_setup_assistant: %s
         manual_agent_install: null
         require_all_software_macos: false
@@ -63,6 +65,7 @@ spec:
       conditional_access_enabled: null
     mdm:
       enable_disk_encryption: false
+      enable_recovery_lock_password: false
       windows_require_bitlocker_pin: null
       macos_settings:
         custom_settings: null
@@ -74,6 +77,7 @@ spec:
       macos_setup:
         bootstrap_package: %s
         enable_end_user_authentication: false
+        lock_end_user_info: false
         macos_setup_assistant: %s
         manual_agent_install: null
         require_all_software_macos: false
