@@ -1329,6 +1329,11 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		if err != nil {
 			return fmt.Errorf("failed to read install_software.package_path file %q: %v", policy.InstallSoftware.PackagePath, err)
 		}
+		// Replace $var and ${var} with env values.
+		fileBytes, err = ExpandEnvBytes(fileBytes)
+		if err != nil {
+			return fmt.Errorf("failed to expand environment in file %q: %v", policy.InstallSoftware.PackagePath, err)
+		}
 		var policyInstallSoftwareSpec fleet.SoftwarePackageSpec
 		if err := YamlUnmarshal(fileBytes, &policyInstallSoftwareSpec); err != nil {
 			// see if the issue is that a package path was passed in that references multiple packages
