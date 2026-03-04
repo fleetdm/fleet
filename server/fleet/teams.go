@@ -392,7 +392,7 @@ type TeamSpecMDM struct {
 	// value, but if it isn't provided, we need to leave the existing value
 	// unmodified.
 	MacOSSettings map[string]any `json:"macos_settings" renameto:"apple_settings"`
-	MacOSSetup    MacOSSetup             `json:"macos_setup" renameto:"setup_experience"`
+	MacOSSetup    MacOSSetup     `json:"macos_setup" renameto:"setup_experience"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
