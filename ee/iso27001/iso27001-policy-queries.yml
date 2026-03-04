@@ -1,0 +1,612 @@
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Full disk encryption enabled (macOS)"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Checks that FileVault full disk encryption is enabled. ISO 27001 Annex A control A.8.24 (Use of cryptography) requires encryption of data at rest to protect confidentiality of information stored on endpoints.
+  resolution: |
+    To enable full disk encryption, on the failing device, select System Settings > Privacy & Security > FileVault > Turn On FileVault. Alternatively, ask your system administrator to enforce FileVault via MDM.
+  query: |
+    SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.24
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Full disk encryption enabled (Windows)"
+  platforms: Windows
+  platform: windows
+  description: |
+    Checks that BitLocker full disk encryption is enabled on the system drive. ISO 27001 Annex A control A.8.24 (Use of cryptography) requires encryption of data at rest to protect confidentiality of information stored on endpoints.
+  resolution: |
+    To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. If protection_status is 0, the drive is unprotected. Enable BitLocker via Group Policy or contact your IT administrator.
+  query: |
+    SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.24
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Full disk encryption enabled (Linux)"
+  platforms: Linux
+  platform: linux
+  description: |
+    Checks that the root filesystem is encrypted. ISO 27001 Annex A control A.8.24 (Use of cryptography) requires encryption of data at rest to protect confidentiality of information stored on endpoints.
+  resolution: |
+    Ensure the image deployed to your Linux workstation includes full disk encryption (e.g., LUKS). Contact your IT administrator for assistance.
+  query: |
+    SELECT 1 FROM mounts m JOIN disk_encryption d ON m.device_alias = d.name WHERE d.encrypted = 1 AND m.path = '/';
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.24
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Screen lock enabled (macOS)"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Checks that screen lock is enabled via MDM and a password is required after screen saver or display sleep. ISO 27001 Annex A control A.8.1 (User endpoint devices) requires that unattended equipment is protected, and A.8.5 (Secure authentication) requires appropriate access controls.
+  resolution: |
+    Contact your IT administrator to ensure your Mac is receiving an MDM profile that enables screen lock with password requirement.
+  query: |
+    SELECT 1 FROM managed_policies WHERE name = 'askForPassword' AND value = '1' LIMIT 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.1, ISO27001_A.8.5
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Screen lock enabled (Windows)"
+  platforms: Windows
+  platform: windows
+  description: |
+    Checks that the screen lock is enabled and configured to lock the system within 30 minutes or less. ISO 27001 Annex A control A.8.1 (User endpoint devices) requires that unattended equipment is protected.
+  resolution: |
+    Contact your IT administrator to enable the Interactive Logon: Machine inactivity limit setting with a value of 1800 seconds or lower via Group Policy.
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\System\InactivityTimeoutSecs' AND CAST(data AS INTEGER) <= 1800;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.1, ISO27001_A.8.5
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Screen lock enabled (Linux)"
+  platforms: Linux
+  platform: linux
+  description: |
+    Checks if a screen lock timeout is configured in GNOME settings (idle-delay > 0 and lock enabled). ISO 27001 Annex A control A.8.1 (User endpoint devices) requires that unattended equipment is protected.
+  resolution: |
+    Configure your desktop environment to automatically lock the screen after a period of inactivity. For GNOME, run: gsettings set org.gnome.desktop.session idle-delay 300 && gsettings set org.gnome.desktop.screensaver lock-enabled true
+  query: |
+    SELECT 1 WHERE EXISTS (
+      SELECT 1 FROM (
+        SELECT key, value FROM parse_json WHERE path = '/etc/dconf/db/local.d/00-screensaver'
+      ) WHERE key = 'idle-delay' AND CAST(value AS INTEGER) > 0
+    ) OR EXISTS (
+      SELECT 1 FROM file WHERE path = '/etc/dconf/db/local.d/00-screensaver'
+    );
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.1, ISO27001_A.8.5
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Lock screen after inactivity of 20 minutes or less (macOS)"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Checks that a mobile device management (MDM) solution configures the Mac to lock the screen after 20 minutes or less of inactivity. ISO 27001 Annex A control A.8.1 (User endpoint devices) requires protection of unattended equipment with automatic locking.
+  resolution: |
+    Contact your IT administrator to ensure your Mac is receiving a profile that enables the screen saver after inactivity of 20 minutes or less.
+  query: |
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT CAST(value AS INTEGER(4)) valueint FROM managed_policies
+        WHERE domain = 'com.apple.screensaver' AND name = 'askForPasswordDelay' AND valueint <= 60 LIMIT 1
+      )
+      AND EXISTS (
+        SELECT CAST(value AS INTEGER(4)) valueint FROM managed_policies
+        WHERE domain = 'com.apple.screensaver' AND name = 'idleTime' AND valueint <= 1200 LIMIT 1
+      )
+      AND EXISTS (
+        SELECT 1 FROM managed_policies
+        WHERE domain = 'com.apple.screensaver' AND name = 'askForPassword' AND value = 1 LIMIT 1
+      );
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Password minimum length set to 10 or more characters (macOS)"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Checks that the password policy requires at least 10 characters. ISO 27001 Annex A control A.8.5 (Secure authentication) requires strong authentication mechanisms including password complexity requirements.
+  resolution: |
+    Contact your IT administrator to ensure your Mac is receiving configuration profiles for password length of 10 or more characters.
+  query: |
+    SELECT 1 FROM (SELECT CAST(lengthtxt AS INTEGER(2)) minlength FROM (SELECT SUBSTRING(length, 1, 2) AS lengthtxt FROM (SELECT policy_description, policy_identifier, split(policy_content, '{', 1) AS length FROM password_policy WHERE policy_identifier LIKE '%minLength')) WHERE minlength >= 10);
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.5
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Minimum password length set to 14 or more characters (Windows)"
+  platforms: Windows
+  platform: windows
+  description: |
+    Checks that the minimum password length is set to 14 characters or more. ISO 27001 Annex A control A.8.5 (Secure authentication) requires strong authentication mechanisms including password complexity requirements.
+  resolution: |
+    Ask your system administrator to establish the recommended configuration via Group Policy: Computer Configuration > Policies > Windows Settings > Security Settings > Account Policies > Password Policy > Minimum password length set to 14 or more.
+  query: |
+    SELECT 1 FROM security_profile_info WHERE minimum_password_length >= 14;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.5
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Automatic login disabled (macOS)"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Checks that a mobile device management (MDM) solution configures the Mac to prevent automatic login without a password. ISO 27001 Annex A control A.8.5 (Secure authentication) requires proper authentication before granting access to systems.
+  resolution: |
+    Contact your IT administrator to ensure your Mac is receiving a profile that disables automatic login.
+  query: |
+    SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'DisableFDEAutoLogin' AND value = 1 LIMIT 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.5
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Guest account disabled (macOS)"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Checks that a mobile device management (MDM) solution configures the Mac to disable the guest account. ISO 27001 Annex A control A.5.15 (Access control) and A.8.2 (Privileged access rights) require that access is restricted to authorized users only.
+  resolution: |
+    Contact your IT administrator to ensure your Mac is receiving a profile that disables the guest account.
+  query: |
+    SELECT 1 FROM managed_policies WHERE domain = 'com.apple.MCX' AND name = 'DisableGuestAccount' AND value = '1' LIMIT 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.5.15, ISO27001_A.8.2
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Guest access to shared folders disabled (macOS)"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Checks that a mobile device management (MDM) solution configures the Mac to disable guest access to shared folders. ISO 27001 Annex A control A.5.15 (Access control) requires that access to information is restricted to authorized individuals.
+  resolution: |
+    Contact your IT administrator to ensure your Mac is receiving a profile that prevents guest access to shared folders.
+  query: |
+    SELECT 1 FROM managed_policies WHERE domain = 'com.apple.AppleFileServer' AND name = 'guestAccess' AND value = '0' LIMIT 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.5.15
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Operating system up to date (macOS)"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Checks that the operating system is up to date. ISO 27001 Annex A control A.8.8 (Management of technical vulnerabilities) requires that technical vulnerabilities are identified and patched in a timely manner.
+  resolution: |
+    From the Apple menu in the corner of your screen, choose System Settings > General > Software Update and install the latest available update.
+  query: |
+    SELECT 1 FROM os_version WHERE version >= '15.0';
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.8, template
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Automatic updates enabled (macOS)"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Checks that the system is configured via MDM to automatically check for updates. ISO 27001 Annex A control A.8.8 (Management of technical vulnerabilities) requires timely identification and remediation of vulnerabilities.
+  resolution: |
+    Contact your IT administrator to ensure your Mac is receiving an MDM profile that enables automatic update checks.
+  query: |
+    SELECT 1 FROM managed_policies WHERE domain = 'com.apple.SoftwareUpdate' AND name = 'AutomaticCheckEnabled' AND value = 1 LIMIT 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.8
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Automatic updates enabled (Windows)"
+  platforms: Windows
+  platform: windows
+  description: |
+    Checks if a Group Policy configures the computer to enable automatic updates. ISO 27001 Annex A control A.8.8 (Management of technical vulnerabilities) requires timely identification and remediation of vulnerabilities.
+  resolution: |
+    Contact your IT administrator to ensure your computer is receiving a Group Policy that enables automatic updates.
+  query: |
+    SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\WindowsUpdate\AU\NoAutoUpdate' AND CAST(data AS INTEGER) = 0;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.8
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Automatic installation of OS updates enabled (macOS)"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Checks that the system is configured via MDM to automatically install macOS updates. ISO 27001 Annex A control A.8.8 (Management of technical vulnerabilities) requires that security patches are applied in a timely manner.
+  resolution: |
+    Contact your IT administrator to ensure your Mac is receiving an MDM profile that enables automatic installation of operating system updates.
+  query: |
+    SELECT 1 FROM managed_policies WHERE domain = 'com.apple.SoftwareUpdate' AND name = 'AutomaticallyInstallMacOSUpdates' AND value = 1 LIMIT 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.8
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Firewall enabled (macOS)"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Checks if the macOS application firewall is enabled. ISO 27001 Annex A control A.8.20 (Networks security) and A.8.21 (Security of network services) require network protection mechanisms to safeguard information in systems and applications.
+  resolution: |
+    In System Settings, open Network > Firewall and turn on Firewall. Alternatively, ask your system administrator to deploy a configuration profile that enables the firewall.
+  query: |
+    SELECT 1 FROM alf WHERE global_state >= 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.20, ISO27001_A.8.21
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Firewall enabled, domain profile (Windows)"
+  platforms: Windows
+  platform: windows
+  description: |
+    Checks if a Group Policy configures the computer to enable the domain profile for Windows Firewall. ISO 27001 Annex A control A.8.20 (Networks security) requires network security controls to protect information systems.
+  resolution: |
+    Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the domain profile for Windows Firewall.
+  query: |
+    SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\DomainProfile\EnableFirewall' AND CAST(data AS INTEGER) = 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.20
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Firewall enabled, private profile (Windows)"
+  platforms: Windows
+  platform: windows
+  description: |
+    Checks if a Group Policy configures the computer to enable the private profile for Windows Firewall. ISO 27001 Annex A control A.8.20 (Networks security) requires network security controls to protect information systems.
+  resolution: |
+    Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the private profile for Windows Firewall.
+  query: |
+    SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\PrivateProfile\EnableFirewall' AND CAST(data AS INTEGER) = 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.20
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Firewall enabled, public profile (Windows)"
+  platforms: Windows
+  platform: windows
+  description: |
+    Checks if a Group Policy configures the computer to enable the public profile for Windows Firewall. ISO 27001 Annex A control A.8.20 (Networks security) requires network security controls to protect information systems.
+  resolution: |
+    Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the public profile for Windows Firewall.
+  query: |
+    SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\PublicProfile\EnableFirewall' AND CAST(data AS INTEGER) = 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.20
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Firewall enabled (Linux)"
+  platforms: Linux
+  platform: linux
+  description: |
+    Checks if iptables has active rules configured, indicating an active firewall. ISO 27001 Annex A control A.8.20 (Networks security) requires network protection mechanisms to safeguard information systems.
+  resolution: |
+    Ensure a firewall (iptables, nftables, or ufw) is installed and configured. Contact your IT administrator for assistance with firewall configuration.
+  query: |
+    SELECT 1 FROM iptables WHERE chain = 'INPUT' AND policy != '' LIMIT 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.20
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Antivirus healthy (macOS)"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Checks that XProtect (built-in macOS antivirus) is running. ISO 27001 Annex A control A.8.7 (Protection against malware) requires that protection against malware is implemented and supported by appropriate user awareness.
+  resolution: |
+    Ensure XProtect is running. To enable automatic security definition updates, go to System Settings > General > Software Update > Automatic Updates, and ensure "Install Security Responses and system files" is enabled.
+  query: |
+    SELECT 1 WHERE EXISTS (
+      SELECT 1 FROM launchd WHERE name = 'com.apple.XprotectFramework.PluginService'
+    );
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.7
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Antivirus healthy (Windows)"
+  platforms: Windows
+  platform: windows
+  description: |
+    Checks the status of antivirus and signature updates from the Windows Security Center. ISO 27001 Annex A control A.8.7 (Protection against malware) requires that protection against malware is implemented and kept up to date.
+  resolution: |
+    Ensure Windows Defender or your third-party antivirus is running, up to date, and visible in the Windows Security Center.
+  query: |
+    SELECT 1 FROM windows_security_center wsc CROSS JOIN windows_security_products wsp WHERE antivirus = 'Good' AND type = 'Antivirus' AND signatures_up_to_date = 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.7
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Antivirus healthy (Linux)"
+  platforms: Linux
+  platform: linux
+  description: |
+    Checks that both ClamAV daemon (clamd) and its updater service (freshclam) are running. ISO 27001 Annex A control A.8.7 (Protection against malware) requires that protection against malware is implemented.
+  resolution: |
+    Ensure ClamAV and Freshclam are installed and running. Install with your package manager and enable the services: sudo systemctl enable --now clamav-daemon clamav-freshclam
+  query: |
+    SELECT score FROM (SELECT CASE WHEN COUNT(*) = 2 THEN 1 ELSE 0 END AS score FROM processes WHERE (name = 'clamd') OR (name = 'freshclam')) WHERE score == 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.7
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Gatekeeper enabled (macOS)"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Checks that the Gatekeeper feature is enabled. Gatekeeper ensures only trusted software is run on the Mac. ISO 27001 Annex A control A.8.7 (Protection against malware) requires controls to prevent execution of unauthorized software.
+  resolution: |
+    To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable
+  query: |
+    SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.7
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - System Integrity Protection enabled (macOS)"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Checks that System Integrity Protection (SIP) is enabled. SIP protects system files and directories from unauthorized modification. ISO 27001 Annex A control A.8.9 (Configuration management) requires systems to be securely configured and protected from unauthorized changes.
+  resolution: |
+    System Integrity Protection can only be enabled from macOS Recovery. Restart the Mac, hold Command+R, then from Utilities > Terminal, run: csrutil enable
+  query: |
+    SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.9
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - SSH keys encrypted"
+  platforms: macOS, Windows, Linux
+  platform: darwin,linux,windows
+  description: |
+    Checks that all SSH keys on the system are encrypted with a passphrase. ISO 27001 Annex A control A.8.24 (Use of cryptography) requires the use of cryptographic controls to protect sensitive authentication material.
+  resolution: |
+    Use this command to encrypt existing SSH keys by providing the path to the file: ssh-keygen -o -p -f /path/to/file
+  query: |
+    SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM users CROSS JOIN user_ssh_keys USING (uid) WHERE encrypted = '0');
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.24
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Firewall logging enabled (macOS)"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Checks that firewall logging is enabled via MDM. ISO 27001 Annex A control A.8.15 (Logging) requires that logs of activities, exceptions, faults, and other relevant events are produced, stored, protected, and analysed.
+  resolution: |
+    Contact your IT administrator to ensure your Mac is receiving a profile that enables firewall logging.
+  query: |
+    SELECT 1 FROM managed_policies WHERE domain = 'com.apple.security.firewall' AND name = 'EnableLogging' AND value = '1' LIMIT 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.15
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Internet sharing blocked (macOS)"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Checks that a mobile device management (MDM) solution configures the Mac to prevent Internet sharing. ISO 27001 Annex A control A.8.20 (Networks security) requires appropriate network segmentation and controls to prevent unauthorized network access.
+  resolution: |
+    Contact your IT administrator to ensure your Mac is receiving a profile that prevents Internet sharing.
+  query: |
+    SELECT 1 FROM managed_policies WHERE domain = 'com.apple.MCX' AND name = 'forceInternetSharingOff' AND value = '1' LIMIT 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.20
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - SMBv1 client driver disabled (Windows)"
+  platforms: Windows
+  platform: windows
+  description: |
+    Checks that the SMBv1 client is disabled. SMBv1 has known security vulnerabilities. ISO 27001 Annex A control A.8.8 (Management of technical vulnerabilities) requires that technical vulnerabilities are managed and insecure protocols are disabled.
+  resolution: |
+    Contact your IT administrator to disable SMBv1 on your system. It can be disabled via: Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol-Client
+  query: |
+    SELECT 1 FROM windows_optional_features WHERE name = 'SMB1Protocol-Client' AND state != 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.8
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - SMBv1 server disabled (Windows)"
+  platforms: Windows
+  platform: windows
+  description: |
+    Checks that the SMBv1 server is disabled. SMBv1 has known security vulnerabilities. ISO 27001 Annex A control A.8.8 (Management of technical vulnerabilities) requires that insecure protocols and services are disabled.
+  resolution: |
+    Contact your IT administrator to disable SMBv1 on your system. It can be disabled via: Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol-Server
+  query: |
+    SELECT 1 FROM windows_optional_features WHERE name = 'SMB1Protocol-Server' AND state != 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.8
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - MDM enrolled (macOS)"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Checks that the Mac is enrolled in a Mobile Device Management (MDM) solution. ISO 27001 Annex A control A.8.1 (User endpoint devices) requires that information stored on, processed by, or accessible via user endpoint devices is protected through centralized device management.
+  resolution: |
+    Enroll your device in MDM. Contact your IT administrator for enrollment instructions.
+  query: |
+    SELECT 1 FROM mdm WHERE enrolled = 'true';
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Automatic security and data file updates enabled (macOS)"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Checks that a mobile device management (MDM) solution configures the Mac to automatically download security updates to built-in macOS security tools. ISO 27001 Annex A control A.8.8 (Management of technical vulnerabilities) requires timely application of security patches.
+  resolution: |
+    Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic security and data update installation.
+  query: |
+    SELECT 1 FROM managed_policies WHERE domain = 'com.apple.SoftwareUpdate' AND name = 'CriticalUpdateInstall' AND value = 1 LIMIT 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.8
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - LLMNR disabled (Windows)"
+  platforms: Windows
+  platform: windows
+  description: |
+    Checks if Link-Local Multicast Name Resolution (LLMNR) is disabled. LLMNR can be exploited to capture credentials. ISO 27001 Annex A control A.8.20 (Networks security) requires that insecure network protocols are disabled to prevent credential theft and lateral movement.
+  resolution: |
+    Contact your IT administrator to ensure your computer is receiving a Group Policy that disables LLMNR.
+  query: |
+    SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMulticast' AND CAST(data AS INTEGER) = 0;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.20
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - iCloud Desktop and Document sync disabled (macOS)"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Checks that a mobile device management (MDM) solution configures the Mac to prevent iCloud Desktop and Documents sync. ISO 27001 Annex A control A.8.11 (Data masking) and A.5.14 (Information transfer) require controls over data leaving the organization to prevent unauthorized data transfer to personal cloud services.
+  resolution: |
+    Contact your IT administrator to ensure your Mac is receiving a profile to prevent iCloud Desktop and Documents sync.
+  query: |
+    SELECT 1 FROM managed_policies WHERE domain = 'com.apple.icloud.managed' AND name = 'DisableCloudSync' AND value = '1' LIMIT 1;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.5.14, ISO27001_A.8.11
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - Remote login (SSH) disabled (macOS)"
+  platforms: macOS
+  platform: darwin
+  description: |
+    Checks that remote login (SSH) is disabled unless explicitly required. ISO 27001 Annex A control A.8.20 (Networks security) requires that unnecessary network services are disabled to reduce the attack surface.
+  resolution: |
+    To disable remote login, go to System Settings > General > Sharing and turn off Remote Login. Alternatively, run: sudo systemsetup -setremotelogin off
+  query: |
+    SELECT 1 FROM sharing_preferences WHERE remote_login = 0;
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.20
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: "ISO 27001 - No unencrypted SSH keys present"
+  platforms: macOS, Windows, Linux
+  platform: darwin,linux,windows
+  description: |
+    Identifies SSH keys created without a passphrase. ISO 27001 Annex A control A.8.24 (Use of cryptography) and A.5.17 (Authentication information) require that authentication credentials are properly protected using encryption.
+  resolution: |
+    First, make the user aware about the impact of unencrypted SSH keys. Then rotate the unencrypted keys detected by running: ssh-keygen -o -p -f /path/to/key
+  query: |
+    SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM users CROSS JOIN user_ssh_keys USING (uid) WHERE encrypted = 0);
+  purpose: Informational
+  tags: compliance, ISO27001, ISO27001_A.8.24, ISO27001_A.5.17
+  contributors: fleet
