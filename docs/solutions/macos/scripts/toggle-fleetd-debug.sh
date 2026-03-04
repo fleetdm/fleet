@@ -3,12 +3,6 @@
 # This script only works on macOS hosts
 # Use it to enable (and then disable) debug mode for troubleshooting
 
-# 1. Run the script on the affected host.
-# 2. Wait ~10 min.
-# 3. Refetch the host.
-# 4. Wait another ~10 min.
-# 5. Run the script again to disable debug logging.
-# 6. Grab the logs from `/var/log/orbit/orbit.stderr.log`.
 
 function change_state {
   echo "------[ $(date) ]--------"

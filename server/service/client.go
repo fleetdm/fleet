@@ -1887,8 +1887,10 @@ func (c *Client) DoGitOps(
 
 		// Enroll secrets are managed separately in Client.ApplyGroup, so we remove them from the
 		// OrgSettings so that they are not applied as part of the AppConfig.
-		group.EnrollSecret = &fleet.EnrollSecretSpec{Secrets: incoming.OrgSettings["secrets"].([]*fleet.EnrollSecret)}
-		delete(incoming.OrgSettings, "secrets")
+		if orgSecrets, ok := incoming.OrgSettings["secrets"]; ok {
+			group.EnrollSecret = &fleet.EnrollSecretSpec{Secrets: orgSecrets.([]*fleet.EnrollSecret)}
+			delete(incoming.OrgSettings, "secrets")
+		}
 
 		// Certificate authorities are managed separately in Client.ApplyGroup, so we remove them from the
 		// OrgSettings so that they are not applied as part of the AppConfig.
@@ -2113,7 +2115,9 @@ func (c *Client) DoGitOps(
 		team["software"].(map[string]any)["app_store_apps"] = incoming.Software.AppStoreApps
 		team["software"].(map[string]any)["packages"] = incoming.Software.Packages
 		team["software"].(map[string]any)["fleet_maintained_apps"] = incoming.Software.FleetMaintainedApps
-		team["secrets"] = incoming.TeamSettings["secrets"]
+		if teamSecrets, ok := incoming.TeamSettings["secrets"]; ok {
+			team["secrets"] = teamSecrets
+		}
 
 		// Ensure webhooks settings exists
 		webhookSettings, ok := incoming.TeamSettings["webhook_settings"]

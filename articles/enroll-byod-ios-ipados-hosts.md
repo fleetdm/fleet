@@ -24,7 +24,7 @@ Fleet only collects software inventory for apps installed through Fleet. Built-i
 
 ## Profile-based vs. account-driven enrollment
 
-Currently, BYOD enrollment in Fleet requires end users to install a configuration profile on their device. This is called profile-based _device_ enrollment. Apple recently deprecated profile-based _user_ enrollment (not supported in Fleet) in favor of the new account-driven enrollment: enrollment happens when end users add a Managed Apple Account to their device. Account-driven enrollment in Fleet is coming soon.
+BYOD enrollment in Fleet requires end users to install a configuration profile on their device. This is called profile-based _device_ enrollment. Apple recently deprecated profile-based _user_ enrollment (not supported in Fleet) in favor of the new account-driven enrollment: enrollment happens when end users add a Managed Apple Account to their device. Both profile-based and account-driven enrollment methods are supported in Fleet. To learn more, see this [guide](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account).
 
 ## Conclusion
 
