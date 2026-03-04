@@ -1336,7 +1336,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		policy.SoftwareTitleID = ptr.Uint(0) // unset the installer
 		return nil
 	}
-	if installSoftwareObj != nil && (installSoftwareObj.PackagePath != "" || installSoftwareObj.AppStoreID != "") && teamName == nil {
+	if (installSoftwareObj.PackagePath != "" || installSoftwareObj.AppStoreID != "") && teamName == nil {
 		return errors.New("install_software can only be set on team policies")
 	}
 	if installSoftwareObj.PackagePath == "" && installSoftwareObj.AppStoreID == "" && installSoftwareObj.HashSHA256 == "" {
