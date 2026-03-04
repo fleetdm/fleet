@@ -436,7 +436,7 @@ reports:
   logging: snapshot
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "duplicate query names")
+	assert.ErrorContains(t, err, "duplicate report names")
 }
 
 func TestUnicodeQueryNames(t *testing.T) {
@@ -454,7 +454,7 @@ reports:
   logging: snapshot
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "query name must be in ASCII")
+	assert.ErrorContains(t, err, "`name` must be in ASCII")
 }
 
 func TestUnicodeTeamName(t *testing.T) {
@@ -873,17 +873,17 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				_, err = gitOpsFromString(t, config)
 				assert.ErrorContains(t, err, "expected type spec.Query but got number")
 
-				// Query name missing
+				// Report name missing
 				config = getConfig([]string{"reports"})
 				config += "reports:\n  - query: SELECT 1;\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "name is required")
+				assert.ErrorContains(t, err, "`name` is required")
 
-				// Query SQL query missing
+				// Report SQL missing
 				config = getConfig([]string{"reports"})
 				config += "reports:\n  - name: Test Query\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "query is required")
+				assert.ErrorContains(t, err, "`query` is required")
 			},
 		)
 	}
