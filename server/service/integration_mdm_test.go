@@ -4247,7 +4247,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	var summaryResp getMDMAppleBootstrapPackageSummaryResponse
 	s.DoJSON("GET", "/api/latest/fleet/bootstrap/summary", nil, http.StatusOK, &summaryResp)
 	// We don't count the "skipped" device as it is pending migration and will not install the bootstrap package
-	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(noTeamDevices) - 1)}, summaryResp.MDMAppleBootstrapPackageSummary)
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(noTeamDevices) - 1)}, summaryResp.MDMAppleBootstrapPackageSummary) //nolint:gosec // dismiss G115
 
 	var lhr listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &lhr, "team_id", "0", "bootstrap_package", "pending")
@@ -4279,7 +4279,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 	summaryResp = getMDMAppleBootstrapPackageSummaryResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/bootstrap/summary?team_id=%d", team.ID), nil, http.StatusOK, &summaryResp)
-	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(teamDevices) - 1)}, summaryResp.MDMAppleBootstrapPackageSummary)
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(teamDevices) - 1)}, summaryResp.MDMAppleBootstrapPackageSummary) //nolint:gosec // dismiss G115
 
 	mockErrorChain := []mdm.ErrorChain{
 		{ErrorCode: 12021, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "Unknown command", USEnglishDescription: "Unknown command"},

@@ -2,7 +2,7 @@
 
 A global technology company provides a collaboration platform that helps people and businesses securely store, organize, and share files. Supporting millions of users requires reliable infrastructure and strong internal security practices.
 
-To support its distributed workforce, the company manages a large fleet of devices across macOS, Windows, Linux, ChromeOS, and mobile platforms. As the environment grew, the team needed a simpler way to manage devices across operating systems while maintaining consistent visibility and security controls.
+To support its distributed workforce, the company manages a large fleet of devices across macOS, Windows, Linux, ChromeOS, and mobile platforms. As the environment grows, the team needs a simpler way to manage devices across operating systems while maintaining consistent visibility and security controls.
 
 ## At a glance
 
