@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	fleetLogging "github.com/fleetdm/fleet/v4/server/contexts/logging"
 	nodeauthctx "github.com/fleetdm/fleet/v4/server/contexts/nodeauth"
@@ -4870,6 +4871,22 @@ func TestSubmitLogsDecodeRequest(t *testing.T) {
 			require.Equal(t, validHost, got.host)
 		})
 	}
+}
+
+// TestSubmitLogsEndpointNilHost verifies that the nil-host guard in submitLogsEndpoint
+// returns the correct error.
+func TestSubmitLogsEndpointNilHost(t *testing.T) {
+	authzCtx := &authz_ctx.AuthorizationContext{}
+	ctx := authz_ctx.NewContext(context.Background(), authzCtx)
+
+	resp, err := submitLogsEndpoint(ctx, &submitLogsRequest{host: nil}, nil)
+
+	require.NoError(t, err)
+	require.True(t, authzCtx.Checked())
+	slResp, ok := resp.(submitLogsResponse)
+	require.True(t, ok)
+	require.Error(t, slResp.Err)
+	require.Contains(t, slResp.Err.Error(), "internal: missing host after authentication")
 }
 
 // makeLiveQueryStore creates a mock live query store that returns `countToReturn` from the
