@@ -155,6 +155,11 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 		require.NoError(t, err)
 	}
 
+	// Delete policies in "No team" (the others are deleted in ts.DS.DeleteTeam above).
+	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM policies WHERE team_id = 0;`)
+		return err
+	})
 	// Clean software installers in "No team" (the others are deleted in ts.DS.DeleteTeam above).
 	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
@@ -3612,4 +3617,101 @@ reports:
 	require.Len(t, secrets, 1)
 	assert.Equal(t, secretPasswordValue, secrets[0].Value,
 		"secret should be stored as the raw value (not XML-escaped)")
+}
+
+// TestGitOpsSoftwareWithEnvVarInstalledByPolicy tests that a software package
+// with an environment variable in the URL can be referenced by a policy to be
+// installed automatically.
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsSoftwareWithEnvVarInstalledByPolicy() {
+	t := s.T()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	const (
+		globalTemplate = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+reports:
+`
+
+		noTeamTemplate = `name: No team
+controls:
+policies:
+  - description: Test policy.
+    install_software:
+      package_path: ./lib/ruby.yml
+    name: 'Install ruby'
+    platform: linux
+    query: SELECT 1 FROM file WHERE path = "/usr/local/bin/ruby";
+    resolution: Install ruby.
+software:
+  packages:
+    - path: ./lib/ruby.yml
+`
+
+		packageTemplate = `- url: ${CUSTOM_SOFTWARE_INSTALLER_URL}/ruby.deb`
+
+		fleetTemplate = `
+controls:
+software:
+  packages:
+    - path: ./lib/ruby.yml
+reports:
+policies:
+  - description: Test policy.
+    install_software:
+      package_path: ./lib/ruby.yml
+    name: 'Install ruby'
+    platform: linux
+    query: SELECT 1 FROM file WHERE path = "/usr/local/bin/ruby";
+    resolution: Install ruby.
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+`
+	)
+
+	tempDir := t.TempDir()
+
+	globalFile := filepath.Join(tempDir, "global.yml")
+	err := os.WriteFile(globalFile, []byte(globalTemplate), 0o644) //nolint:gosec
+	require.NoError(t, err)
+
+	noTeamFile := filepath.Join(tempDir, "no-team.yml")
+	err = os.WriteFile(noTeamFile, []byte(noTeamTemplate), 0o644)
+	require.NoError(t, err)
+
+	fleetName := uuid.NewString()
+	fleetFile := filepath.Join(tempDir, "fleet.yml")
+	err = os.WriteFile(fleetFile, []byte(fmt.Sprintf(fleetTemplate, fleetName)), 0o644)
+	require.NoError(t, err)
+
+	pkgFile := filepath.Join(tempDir, "lib", "ruby.yml")
+	err = os.MkdirAll(filepath.Dir(pkgFile), 0o755)
+	require.NoError(t, err)
+	err = os.WriteFile(pkgFile, []byte(packageTemplate), 0o644)
+	require.NoError(t, err)
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.Server.URL)
+	testing_utils.StartSoftwareInstallerServer(t)
+
+	// Apply configs, installer URL env var is not defined yet
+	_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", noTeamFile, "-f", fleetFile, "--dry-run"})
+	require.ErrorContains(t, err, `environment variable "CUSTOM_SOFTWARE_INSTALLER_URL" not set`)
+	_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", noTeamFile, "-f", fleetFile})
+	require.ErrorContains(t, err, `environment variable "CUSTOM_SOFTWARE_INSTALLER_URL" not set`)
+
+	// // Get the team ID
+	// team, err := s.DS.TeamByName(ctx, teamName)
+	// require.NoError(t, err)
 }
