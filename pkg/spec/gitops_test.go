@@ -436,7 +436,7 @@ reports:
   logging: snapshot
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "duplicate query names")
+	assert.ErrorContains(t, err, "duplicate report names")
 }
 
 func TestUnicodeQueryNames(t *testing.T) {
@@ -454,7 +454,7 @@ reports:
   logging: snapshot
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "query name must be in ASCII")
+	assert.ErrorContains(t, err, "`name` must be in ASCII")
 }
 
 func TestUnicodeTeamName(t *testing.T) {
@@ -723,11 +723,13 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					_, err = GitOpsFromFile(unassignedPath5, unassignedBasePath5, nil, nopLogf)
 					assert.ErrorContains(t, err, "unsupported settings option 'features' in unassigned.yml")
 
-					// Missing secrets
+					// Missing secrets -- should be a no-op (existing secrets preserved)
 					config = getConfig([]string{"settings"})
 					config += "settings:\n"
-					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "'settings.secrets' is required")
+					result, err := gitOpsFromString(t, config)
+					assert.NoError(t, err)
+					_, hasSecrets := result.TeamSettings["secrets"]
+					assert.False(t, hasSecrets, "secrets should not be set when omitted from config")
 				} else {
 					// 'software' is not allowed in global config
 					config := getConfig(nil)
@@ -768,11 +770,25 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "must have a 'secret' key")
 
-					// Missing secrets
+					// Invalid secrets 3 (using wrong type in one key)
+					config = getConfig([]string{"org_settings"})
+					config += "org_settings:\n  secrets: \n    - secret: some secret\n    - secret: 123\n"
+					_, err = gitOpsFromString(t, config)
+					assert.ErrorContains(t, err, "each item in 'secrets' must have a 'secret' key")
+
+					// Missing secrets -- should be a no-op (existing secrets preserved)
 					config = getConfig([]string{"org_settings"})
 					config += "org_settings:\n"
+					result, err := gitOpsFromString(t, config)
+					assert.NoError(t, err)
+					_, hasSecrets := result.OrgSettings["secrets"]
+					assert.False(t, hasSecrets, "secrets should not be set when omitted from config")
+
+					// Empty secrets (valid, will remove all secrets)
+					config = getConfig([]string{"org_settings"})
+					config += "org_settings:\n  secrets: \n"
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "'org_settings.secrets' is required")
+					assert.NoError(t, err)
 
 					// Bad label spec (float instead of string in hosts)
 					config = getConfig([]string{"labels"})
@@ -857,17 +873,17 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				_, err = gitOpsFromString(t, config)
 				assert.ErrorContains(t, err, "expected type spec.Query but got number")
 
-				// Query name missing
+				// Report name missing
 				config = getConfig([]string{"reports"})
 				config += "reports:\n  - query: SELECT 1;\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "name is required")
+				assert.ErrorContains(t, err, "`name` is required")
 
-				// Query SQL query missing
+				// Report SQL missing
 				config = getConfig([]string{"reports"})
 				config += "reports:\n  - name: Test Query\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "query is required")
+				assert.ErrorContains(t, err, "`query` is required")
 			},
 		)
 	}
@@ -2052,5 +2068,151 @@ org_settings:
 		require.Len(t, winSettings.CustomSettings.Value, 1)
 
 		require.NotNil(t, gitops.Controls.MacOSSetup, "macos_setup (via setup_experience in external file) not parsed")
+	})
+}
+
+func TestSoftwarePackagesScriptPath(t *testing.T) {
+	t.Parallel()
+	appConfig := &fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+
+	t.Run("valid_sh_script_path", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/install-app.sh
+      categories:
+        - Utilities
+      self_service: true
+`
+		path, basePath := createTempFile(t, "", config)
+
+		err := file.Copy(
+			filepath.Join("testdata", "software", "install-app.sh"),
+			filepath.Join(basePath, "software", "install-app.sh"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		assert.True(t, strings.HasSuffix(result.Software.Packages[0].InstallScript.Path, "install-app.sh"))
+		assert.Equal(t, []string{"Utilities"}, result.Software.Packages[0].Categories)
+		assert.True(t, result.Software.Packages[0].SelfService)
+		assert.Empty(t, result.Software.Packages[0].URL)
+		assert.Empty(t, result.Software.Packages[0].SHA256)
+	})
+
+	t.Run("valid_ps1_script_path", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/install-app.ps1
+      self_service: false
+`
+		path, basePath := createTempFile(t, "", config)
+
+		// Copy the test script file
+		err := file.Copy(
+			filepath.Join("testdata", "software", "install-app.ps1"),
+			filepath.Join(basePath, "software", "install-app.ps1"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		assert.True(t, strings.HasSuffix(result.Software.Packages[0].InstallScript.Path, "install-app.ps1"))
+	})
+
+	t.Run("invalid_extension_error", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/install-app.txt
+`
+		path, basePath := createTempFile(t, "", config)
+
+		// Create a .txt file
+		err := os.MkdirAll(filepath.Join(basePath, "software"), 0o755)
+		require.NoError(t, err)
+		err = os.WriteFile(filepath.Join(basePath, "software", "install-app.txt"), []byte("test"), 0o644)
+		require.NoError(t, err)
+
+		_, err = GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		assert.ErrorContains(t, err, "unsupported extension")
+		assert.ErrorContains(t, err, "only .yml, .yaml, .sh, or .ps1 files are supported")
+	})
+
+	t.Run("script_with_team_options", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/install-app.sh
+      categories:
+        - Browsers
+        - Productivity
+      self_service: true
+      setup_experience: true
+      labels_include_any:
+        - include_label
+`
+		path, basePath := createTempFile(t, "", config)
+
+		err := file.Copy(
+			filepath.Join("testdata", "software", "install-app.sh"),
+			filepath.Join(basePath, "software", "install-app.sh"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		pkg := result.Software.Packages[0]
+		assert.Equal(t, []string{"Browsers", "Productivity"}, pkg.Categories)
+		assert.True(t, pkg.SelfService)
+		assert.True(t, pkg.InstallDuringSetup.Value)
+		assert.Equal(t, []string{"include_label"}, pkg.LabelsIncludeAny)
+	})
+
+	t.Run("mixed_yaml_and_script_paths", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/single-package.yml
+    - path: software/install-app.sh
+      self_service: true
+`
+		path, basePath := createTempFile(t, "", config)
+
+		err := file.Copy(
+			filepath.Join("testdata", "software", "single-package.yml"),
+			filepath.Join(basePath, "software", "single-package.yml"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+		err = file.Copy(
+			filepath.Join("testdata", "software", "install-app.sh"),
+			filepath.Join(basePath, "software", "install-app.sh"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 2)
+		assert.NotEmpty(t, result.Software.Packages[0].SHA256)
+		assert.True(t, strings.HasSuffix(result.Software.Packages[1].InstallScript.Path, "install-app.sh"))
+		assert.True(t, result.Software.Packages[1].SelfService)
 	})
 }

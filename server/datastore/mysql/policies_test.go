@@ -6937,7 +6937,7 @@ func testPolicyModificationResetsAttemptNumber(t *testing.T, ds *Datastore) {
 	script, err := ds.NewScript(ctx, &fleet.Script{
 		Name:            "test.sh",
 		TeamID:          &team.ID,
-		ScriptContentID: uint(scriptContentID),
+		ScriptContentID: uint(scriptContentID), //nolint:gosec // dismiss G115
 		ScriptContents:  "echo 'test'",
 	})
 	require.NoError(t, err)
