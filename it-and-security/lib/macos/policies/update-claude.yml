@@ -1,0 +1,15 @@
+- name: macOS - Claude up to date
+  query: |
+    SELECT 1 WHERE EXISTS (
+      SELECT 1 FROM apps WHERE name = 'Claude.app'
+    ) AND NOT EXISTS (
+      SELECT 1 FROM apps WHERE name = 'Claude.app' AND
+        bundle_short_version < (SELECT value FROM fleet_maintained_app_latest_version)
+    );
+  critical: false
+  description: "Checks that Claude is up to date on macOS. If this policy fails, Claude will be updated to the latest version."
+  resolution: "Update Claude to the latest version."
+  platform: darwin
+  calendar_events_enabled: false
+  install_software:
+    package_type: fleet_maintained
