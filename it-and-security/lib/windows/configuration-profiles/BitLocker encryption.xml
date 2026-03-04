@@ -1,0 +1,58 @@
+<!-- SOC 2 CC6.1 - Enforce BitLocker disk encryption -->
+<Replace>
+  <!-- Require device encryption -->
+  <CmdID>1</CmdID>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption</LocURI>
+    </Target>
+    <!-- 1 = Required -->
+    <Data>1</Data>
+  </Item>
+</Replace>
+
+<Replace>
+  <!-- Allow standard user to enable encryption during Autopilot -->
+  <CmdID>2</CmdID>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+
+<Replace>
+  <!-- Configure encryption method for OS drive: XTS-AES 256-bit -->
+  <CmdID>3</CmdID>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/BitLocker/EncryptionMethodByDriveType</LocURI>
+    </Target>
+    <!-- 7 = XTS-AES 256-bit for OS drive -->
+    <Data>7</Data>
+  </Item>
+</Replace>
+
+<Replace>
+  <!-- Require storage card encryption -->
+  <CmdID>4</CmdID>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/BitLocker/RequireStorageCardEncryption</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
