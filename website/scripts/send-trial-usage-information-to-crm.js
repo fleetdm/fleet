@@ -80,7 +80,7 @@ module.exports = {
       };
       // Skip reporting usage information for users with a fleetdm.com email address.
       let emailDomain = thisRenderTrialsUser.emailAddress.split('@')[1];
-      if(emailDomain === 'fleetdm.com'){
+      if(emailDomain.toLowerCase() === 'fleetdm.com'){
         sails.log(`Skipping reporting usage information for a Render trial instance (slug: ${renderTrial.slug}) because it is used by a fleetdm.com email address`);
         continue;
       }
