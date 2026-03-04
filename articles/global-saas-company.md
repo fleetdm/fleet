@@ -1,12 +1,10 @@
 # Global SaaS company modernizes device management with Fleet
 
-A global SaaS company builds software that helps businesses manage marketing, sales, and customer service. Its platform supports thousands of employees and engineers across the world.
+A global SaaS company builds software that helps businesses manage marketing, sales, and customer service. Its platform supports thousands of employees and engineers worldwide.
 
 To support that workforce, the company manages more than 10,000 devices across macOS, Windows, and Linux. As their engineering culture matured, they needed device management that matched the same automation and transparency standards used across the rest of their infrastructure.
 
----
-
-## **At a glance**
+## At a glance
 
 * **Industry:** SaaS and software engineering
 
@@ -16,9 +14,7 @@ To support that workforce, the company manages more than 10,000 devices across m
 
 * **Previous challenge:** Slow inventory updates and limited automation from legacy tooling
 
----
-
-## **The challenge: legacy workflows slowed down automation**
+## The challenge
 
 The team previously relied on Jamf for macOS management.
 
@@ -28,26 +24,19 @@ Linux systems were another challenge. Engineering servers and remote Linux works
 
 The company needed a system that could manage devices with the same engineering-first approach they use to build software.
 
----
-
-## **The evaluation criteria**
+## Evaluation criteria
 
 During their evaluation, Fleet needed to meet three requirements:
 
-1. **GitOps and automation**  
-    Device configurations needed to be managed through code, with version control and peer review.
+1. **GitOps and automation:** Device configurations needed to be managed through code, with version control and peer review.
 
-2. **osquery integration**  
-    The team required deep, SQL-based visibility into device state for compliance and security monitoring.
+2. **osquery integration:** The team required deep, SQL-based visibility into device state for compliance and security monitoring.
 
-3. **Policy scoping and labeling**  
-    With more than 10,000 devices, the team needed precise ways to target policies and queries across different groups.
+3. **Policy scoping and labeling:** With more than 10,000 devices, the team needed precise ways to target policies and queries across different groups.
 
 They also wanted a single system that could manage macOS, Windows, and Linux rather than separate tools for each platform.
 
----
-
-## **The solution: engineering-friendly device management**
+## The solution
 
 Using Fleet, they now manage device policies and labels through GitOps workflows. Configuration changes are tracked in version control and applied automatically across the fleet.
 
@@ -55,9 +44,7 @@ The Fleet API enables deeper automation. The team runs custom queries to generat
 
 Fleet also allowed them to bring Linux systems into standard device management for the first time. Engineering servers and remote Linux users are now visible and monitored alongside macOS and Windows devices.
 
----
-
-## **A careful migration at global scale**
+### A careful migration at a global scale
 
 Migrating more than 10,000 devices required a deliberate rollout.
 
@@ -65,9 +52,7 @@ The team took a phased approach over several weeks and months, prioritizing stab
 
 Support tickets during the rollout remained low, demonstrating that large device fleets can migrate smoothly when the process is carefully planned.
 
----
-
-## **The results: real-time visibility and precise control**
+## The results
 
 The most immediate improvement has been real-time device visibility.
 
@@ -77,9 +62,7 @@ The platform also enables more precise device management. Labels and scoped poli
 
 By consolidating tooling and moving away from Jamf’s pricing structure, the company also reduced licensing costs and redirected those resources into security automation.
 
----
-
-## **Why they recommend Fleet**
+### Why they recommend Fleet
 
 For leaders evaluating device management platforms, their advice focuses on two themes: scalability and collaboration.
 
@@ -87,15 +70,9 @@ Fleet scales to tens of thousands of devices while maintaining a transparent dev
 
 Combined with GitOps workflows, Fleet enables device management that feels consistent with modern engineering practices.
 
----
+## About Fleet
 
-## **About Fleet**
-
-Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations, Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.
-
-By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.
-
-Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.
+Fleet is the open-source endpoint management platform that gives you total control, unlike the proprietary 'black boxes' of legacy vendors. Our open device management provides full visibility into our code and roadmap, plus a true choice of deployment—on-prem or cloud—with 100% feature parity. Our API-first approach empowers technical teams to automate with GitOps, scale confidently, and get the real-time data needed to secure their entire macOS, iOS, Windows, and Linux fleets.
 
 <meta name="articleTitle" value="Global SaaS company modernizes device management with Fleet">
 <meta name="authorFullName" value="Irena Reedy">
