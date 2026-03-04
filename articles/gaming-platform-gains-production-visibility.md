@@ -2,7 +2,7 @@
 
 A global technology company operates a large-scale platform where millions of people create and share immersive digital experiences. Supporting this platform requires a distributed infrastructure that includes production servers, developer systems, and corporate devices.
 
-To support its operations, the company manages more than 135,000 hosts across macOS, Windows, and Linux. As the platform grew, the team needed better visibility into its production infrastructure without introducing performance overhead.
+To support its operations, the company manages more than 135,000 hosts across macOS, Windows, and Linux. As the platform grows, the team needs better visibility into its production infrastructure without introducing performance overhead.
 
 ---
 
