@@ -178,17 +178,17 @@ func NewPermissionError(message string) *PermissionError {
 	return &PermissionError{message: message}
 }
 
-func (e PermissionError) Error() string {
+func (e *PermissionError) Error() string {
 	return e.message
 }
 
-func (e PermissionError) PermissionError() []map[string]string {
+func (e *PermissionError) PermissionError() []map[string]string {
 	var forbidden []map[string]string
 	return forbidden
 }
 
 // IsClientError implements ErrWithIsClientError.
-func (e PermissionError) IsClientError() bool {
+func (e *PermissionError) IsClientError() bool {
 	return true
 }
 
@@ -207,15 +207,15 @@ type OTAForbiddenError struct {
 	InternalErr error
 }
 
-func (e OTAForbiddenError) Error() string {
+func (e *OTAForbiddenError) Error() string {
 	return "Couldn't install the profile. Invalid enroll secret. Please contact your IT admin."
 }
 
-func (e OTAForbiddenError) StatusCode() int {
+func (e *OTAForbiddenError) StatusCode() int {
 	return http.StatusForbidden
 }
 
-func (e OTAForbiddenError) Internal() string {
+func (e *OTAForbiddenError) Internal() string {
 	if e.InternalErr == nil {
 		return ""
 	}
@@ -223,7 +223,7 @@ func (e OTAForbiddenError) Internal() string {
 }
 
 // IsClientError implements ErrWithIsClientError.
-func (e OTAForbiddenError) IsClientError() bool {
+func (e *OTAForbiddenError) IsClientError() bool {
 	return true
 }
 
@@ -232,16 +232,16 @@ type licenseError struct {
 	ErrorWithUUID
 }
 
-func (e licenseError) Error() string {
+func (e *licenseError) Error() string {
 	return "Requires Fleet Premium license"
 }
 
-func (e licenseError) StatusCode() int {
+func (e *licenseError) StatusCode() int {
 	return http.StatusPaymentRequired
 }
 
 // IsClientError implements ErrWithIsClientError.
-func (e licenseError) IsClientError() bool {
+func (e *licenseError) IsClientError() bool {
 	return true
 }
 

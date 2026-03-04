@@ -56,7 +56,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	}
 
 	if len(tokens) == 0 {
-		return nil, notFoundError{}
+		return nil, &notFoundError{}
 	}
 
 	if len(tokens) > 1 {
