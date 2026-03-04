@@ -1841,7 +1841,7 @@ parasails.registerPage('configuration-builder', {
                 name: 'Maximum inactivity time before device locks',
                 uniqueSlug: 'windows-device-lock-max-inactivity-before-device-locks',
                 category: 'Device lock',
-                tooltip: 'The number of seconds a device can remain inactive before a password is required to unlock the device.',
+                tooltip: 'The number of minutes a device can remain inactive before a password is required to unlock the device.',
                 supportedAccessTypes: ['add', 'replace'],
                 alsoAutoSetWhenSelected: [
                   {
@@ -1851,9 +1851,9 @@ parasails.registerPage('configuration-builder', {
                 ],
                 formInput: {
                   type: 'number',
-                  maxValue: 9000,
+                  maxValue: 999,
                   minValue: 1,
-                  unitLabel: 'seconds'
+                  unitLabel: 'minutes'
                 },
                 formOutput: {
                   settingFormat: 'int',
@@ -1864,7 +1864,7 @@ parasails.registerPage('configuration-builder', {
                 name: 'Maximum inactivity time before device locks with external display',
                 uniqueSlug: 'windows-device-lock-max-inactivity-before-device-locks-with-external-display',
                 category: 'Device lock',
-                tooltip: 'The number of seconds a device can remain inactive while using an external monitor before a password is required to unlock the device.',
+                tooltip: 'The number of minutes a device can remain inactive while using an external monitor before a password is required to unlock the device.',
                 supportedAccessTypes: ['add', 'replace'],
                 alsoAutoSetWhenSelected: [
                   {
@@ -1874,9 +1874,9 @@ parasails.registerPage('configuration-builder', {
                 ],
                 formInput: {
                   type: 'number',
-                  maxValue: 9000,
+                  maxValue: 999,
                   minValue: 1,
-                  unitLabel: 'seconds'
+                  unitLabel: 'minutes'
                 },
                 formOutput: {
                   settingFormat: 'int',
