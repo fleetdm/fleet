@@ -23,10 +23,10 @@ Learn more about automatically installing software [the Automatically install so
 > Software cannot be added to "All teams."
 * Click the **Add software** button in the top right corner.
 * Select the **Custom package** tab.
-* Choose a file to upload. `.pkg`, `.msi`, `.exe`, `.rpm`, `.deb`, `.ipa`, `.tar.gz`, `.sh`, and `.ps1` files are supported.
+* Choose a file to upload. `.pkg`, `.msi`, `.exe`, `.rpm`, `.deb`, `.ipa`, `.tar.gz`, `.sh`, `.py`, and `.ps1` files are supported.
 * If you check the **Automatic install** box, Fleet will create a policy that checks for the existence of the software and will automatically trigger an install on hosts where the software does not exist. 
 
-> **Note:** Automatic install is not supported for payload-free packages (`.sh` and `.ps1` files).
+> **Note:** Automatic install is not supported for payload-free packages (`.sh`, `.py`, and `.ps1` files).
 * To allow users to install the software from Fleet Desktop, check the **Self-service** checkbox.
 * To customize installer behavior, click on **Advanced options**.
 
@@ -51,7 +51,7 @@ Software installer uploads will fail if Fleet can't extract this metadata and ve
 
 ### Payload-free packages
 
-Payload-free packages (`.sh` and `.ps1` files) are packages that only contain a script that runs directly on hosts without installing traditional software. The script file's contents become the install script.  The `.sh` files are supported for Linux hosts, and`.ps1` files for Windows hosts.
+Payload-free packages (`.sh`, `.py`, and `.ps1` files) are packages that only contain a script that runs directly on hosts without installing traditional software. The script file's contents become the install script.  The `.sh` and `.py` files are supported for Linux hosts, and`.ps1` files for Windows hosts.
 
 Payload-free packages are useful for:
 - Self-service configuration scripts (e.g., connecting to a VPN, configuring printers)
