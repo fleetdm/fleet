@@ -1,0 +1,7 @@
+- name: Windows - Desktop background is a photo of @alex
+  query: "SELECT 1 FROM registry WHERE path = 'HKEY_CURRENT_USER\\Control Panel\\Desktop\\Wallpaper' AND data LIKE '%alex%';"
+  critical: false
+  description: "Checks that the desktop background is set to a photo of @alex. The wallpaper file path should contain 'alex' in the name."
+  resolution: "Set your desktop background to a photo of @alex. Make sure the file name contains 'alex' (e.g., alex.jpg)."
+  platform: windows
+  calendar_events_enabled: false

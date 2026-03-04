@@ -1,0 +1,7 @@
+- name: macOS - Desktop background is a photo of @alex
+  query: "SELECT 1 FROM plist WHERE path = '/Users/' || (SELECT user FROM logged_in_users ORDER BY time DESC LIMIT 1) || '/Library/Preferences/com.apple.desktop.plist' AND value LIKE '%alex%';"
+  critical: false
+  description: "Checks that the desktop background is set to a photo of @alex. The wallpaper file path should contain 'alex' in the name."
+  resolution: "Set your desktop background to a photo of @alex. Make sure the file name contains 'alex' (e.g., alex.jpg)."
+  platform: darwin
+  calendar_events_enabled: false
