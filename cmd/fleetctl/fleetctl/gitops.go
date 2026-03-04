@@ -838,7 +838,7 @@ func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.Enri
 				break
 			}
 			baseDir := filepath.Dir(flFilename)
-			config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, func(format string, a ...interface{}) {}, gitOpsOpts)
+			config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, func(format string, a ...any) {}, gitOpsOpts)
 			if err != nil {
 				return spec.GitOpsControls{}, false, fileName, err
 			}
