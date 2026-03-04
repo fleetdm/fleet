@@ -148,9 +148,11 @@ policies:
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
+  - path: ../lib/windows/policies/update-firefox.yml
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
+  - path: ../lib/linux/policies/update-firefox.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
   - path: ../lib/macos/queries/collect-santa-denied-logs.yml
@@ -160,6 +162,7 @@ software:
     # macOS apps
     - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for macOS (universal)
       self_service: true
+      policy: "macOS - Firefox up to date"
       categories:
         - Browsers
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
@@ -248,6 +251,20 @@ software:
         - Communication
       labels_include_any:
         - "RPM-based Linux hosts"
+    - path: ../lib/linux/software/mozilla-firefox-deb.yml # Mozilla Firefox for Ubuntu
+      self_service: true
+      policy: "Linux - Firefox up to date"
+      categories:
+        - Browsers
+      labels_include_any:
+        - "Debian-based Linux hosts"
+    - path: ../lib/linux/software/mozilla-firefox-rpm.yml # Mozilla Firefox for RedHat
+      self_service: true
+      policy: "Linux - Firefox up to date"
+      categories:
+        - Browsers
+      labels_include_any:
+        - "RPM-based Linux hosts"
     # Windows apps
     # Commenting out until #25407 is implemented
     # - path: ../lib/windows/software/zoom-arm.yml # Zoom for Windows (ARM)
@@ -276,6 +293,13 @@ software:
       setup_experience: true
       categories:
         - Security
+    - path: ../lib/windows/software/mozilla-firefox.yml # Mozilla Firefox for Windows
+      self_service: true
+      policy: "Windows - Firefox up to date"
+      categories:
+        - Browsers
+      labels_include_any:
+        - "x86-based Windows hosts"
   app_store_apps:
     - app_store_id: "361285480" # Keynote
       display_name: "Keynote"

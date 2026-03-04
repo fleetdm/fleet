@@ -1,0 +1,6 @@
+- name: "Linux - Firefox up to date"
+  query: "SELECT 1 FROM deb_packages WHERE name = 'firefox' AND version >= (SELECT JSON_EXTRACT(json, '$.LATEST_FIREFOX') FROM (SELECT content AS json FROM curl WHERE url = 'https://product-details.mozilla.org/1.0/firefox_versions.json') AS subquery) UNION SELECT 1 FROM rpm_packages WHERE name = 'firefox' AND version >= (SELECT JSON_EXTRACT(json, '$.LATEST_FIREFOX') FROM (SELECT content AS json FROM curl WHERE url = 'https://product-details.mozilla.org/1.0/firefox_versions.json') AS subquery);"
+  critical: false
+  description: "Checks that Mozilla Firefox is installed and up to date on Linux."
+  resolution: "Install or update Mozilla Firefox to the latest version."
+  platform: linux
