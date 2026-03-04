@@ -1,0 +1,6 @@
+- name: "Windows - Internet Explorer not installed"
+  query: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '%Internet Explorer%');"
+  critical: false
+  description: "Checks that Internet Explorer is not installed on Windows devices. Internet Explorer is a deprecated browser with known security vulnerabilities."
+  resolution: "Uninstall Internet Explorer. Go to Settings > Apps > Optional features, find Internet Explorer, and click Uninstall. Alternatively, run 'dism /online /Remove-Capability /CapabilityName:Browser.InternetExplorer~~~~0.0.11.0' in an elevated command prompt."
+  platform: windows
