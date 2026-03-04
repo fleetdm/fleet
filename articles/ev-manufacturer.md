@@ -4,9 +4,7 @@ An electric vehicle manufacturer builds software and hardware that power modern 
 
 As the company’s engineering footprint grew, Linux workstations became increasingly critical. Managing those systems with the same rigor as corporate laptops required a more flexible device management platform.
 
----
-
-## **At a glance**
+## At a glance
 
 * **Industry:** Automotive and electric vehicles
 
@@ -16,9 +14,7 @@ As the company’s engineering footprint grew, Linux workstations became increas
 
 * **Previous challenge:** Limited visibility and management for Linux engineering systems
 
----
-
-## **The challenge: unmanaged Linux devices created security gaps**
+## The challenge
 
 The company’s engineering teams rely heavily on Linux systems, especially Ubuntu-based workstations used for development and testing.
 
@@ -28,44 +24,33 @@ This created blind spots across the organization. Engineering workstations that 
 
 The team needed a system that could manage Linux devices with the same consistency and automation as macOS and Windows systems.
 
----
+## Evaluation criteria
 
-## **The evaluation criteria**
+1. **Centralized Linux management:** Provide strong support for Ubuntu-based engineering workstations.
 
-1. **Centralized Linux management**  
-    Provide strong support for Ubuntu-based engineering workstations.
+2. **Policy automation and script execution:** Detect configuration drift and automatically remediate issues at scale.
 
-2. **Policy automation and script execution**  
-    Detect configuration drift and automatically remediate issues at scale.
-
-3. **GitOps workflows**  
-    Manage device configurations using version-controlled processes similar to the company’s vehicle software pipelines.
+3. **GitOps workflows:** Manage device configurations using version-controlled processes similar to the company’s vehicle software pipelines.
 
 A unified platform across macOS, Windows, and Linux was also critical. The team wanted to avoid maintaining separate tools for each operating system.
 
----
-
-## **The solution: automated, cross-platform device management**
+## The solution:
 
 Fleet gave the team a unified system to manage engineering and corporate devices.
 
 Linux workstations that were previously unmanaged are now fully visible and monitored. The platform allows security teams to query system state in real time and enforce consistent policies across the entire fleet.
 
-Automation plays a key role. Fleet policies detect configuration drift and automatically run remediation scripts when issues appear. For example, the team implemented automated DNS configuration monitoring. If a device’s DNS settings drift from the company’s standard configuration, Fleet automatically runs a remediation script every hour until the issue is corrected.
+Automation plays a key role. Fleet policies detect configuration drift and automatically run remediation scripts when issues appear. For example, the team implemented automated monitoring of DNS configuration. If a device’s DNS settings drift from the company’s standard configuration, Fleet automatically runs a remediation script every hour until the issue is corrected.
 
 Fleet’s open-source model also provides transparency and flexibility. Security teams can inspect how the system works and adapt it to meet the needs of a highly technical engineering environment.
 
----
-
-## **A phased rollout with minimal disruption**
+### A phased rollout with minimal disruption
 
 Devices were gradually enrolled into Fleet while maintaining the uptime required for automotive development operations. This careful approach allowed the organization to expand coverage without interrupting engineering workflows.
 
 In some cases, Fleet actually improved the user experience. Automated agent updates and self-service software installation helped reduce friction for engineers working on development systems.
 
----
-
-## **The results: real-time visibility and automated remediation**
+## The results
 
 Fleet introduced centralized visibility across Linux, macOS, and Windows systems.
 
@@ -75,9 +60,7 @@ Telemetry from devices also streams directly into the company’s internal data 
 
 The shift from fragmented tools to a unified platform also improved operational efficiency. With automation handling routine compliance checks and remediation tasks, the IT team can focus on higher-impact infrastructure work.
 
----
-
-## **Why they recommend Fleet**
+### Why they recommend Fleet
 
 For technology leaders in engineering-heavy organizations, their recommendation is straightforward:
 
@@ -85,17 +68,11 @@ Fleet provides the granularity and flexibility needed to manage modern developme
 
 The platform allows teams to customize policies, automate remediation, and maintain visibility across diverse operating systems without relying on rigid, one-size-fits-all tooling.
 
----
+## About Fleet
 
-## **About Fleet**
+Fleet is the open-source endpoint management platform that gives you total control, unlike the proprietary 'black boxes' of legacy vendors. Our open device management provides full visibility into our code and roadmap, plus a true choice of deployment—on-prem or cloud—with 100% feature parity. Our API-first approach empowers technical teams to automate with GitOps, scale confidently, and get the real-time data needed to secure their entire macOS, iOS, Windows, and Linux fleets.
 
-Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations, Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.
-
-By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.
-
-Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.
-
-<meta name="articleTitle" value="Robotics company unifies Mac, Windows, Linux, and Android devices">
+<meta name="articleTitle" value="EV manufacturer brings Linux workstations under centralized management with Fleet">
 <meta name="authorFullName" value="Irena Reedy">
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="case study">
