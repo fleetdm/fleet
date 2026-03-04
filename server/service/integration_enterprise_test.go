@@ -26579,5 +26579,6 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Len(t, listPolResp.Policies, 1)
 		require.NotNil(t, listPolResp.Policies[0].PatchSoftware)
 		require.Equal(t, title.ID, listPolResp.Policies[0].PatchSoftware.SoftwareTitleID)
+		require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
 	})
 }

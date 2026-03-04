@@ -2737,6 +2737,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		softwareTitleIDsByInstallerURL := make(map[string]uint)
 		softwareTitleIDsByAppStoreAppID := make(map[string]uint)
 		softwareTitleIDsByHash := make(map[string]uint)
+		softwareTitleIDsBySlug := make(map[string]uint)
 		for _, softwareInstaller := range teamSoftwareInstallers {
 			if softwareInstaller.TitleID == nil {
 				// Should not happen, but to not panic we just log a warning.
@@ -2750,6 +2751,11 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			}
 			softwareTitleIDsByInstallerURL[softwareInstaller.URL] = *softwareInstaller.TitleID
 			softwareTitleIDsByHash[softwareInstaller.HashSHA256] = *softwareInstaller.TitleID
+
+			if softwareInstaller.Slug != "" {
+				fmt.Printf("softwareInstaller.Slug: %v\n", softwareInstaller.Slug)
+				softwareTitleIDsBySlug[softwareInstaller.Slug] = *softwareInstaller.TitleID
+			}
 		}
 		for _, vppApp := range teamVPPApps {
 			if vppApp.Platform != fleet.MacOSPlatform {
@@ -2771,7 +2777,20 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		for i := range config.Policies {
 			config.Policies[i].SoftwareTitleID = ptr.Uint(0) // 0 unsets the installer
 
-			if config.Policies[i].InstallSoftware == nil {
+			if !config.Policies[i].InstallSoftware.IsOther && config.Policies[i].InstallSoftware.Bool {
+				fmt.Printf("softwareTitleIDsBySlug: %v\n", softwareTitleIDsBySlug)
+				softwareTitleID, ok := softwareTitleIDsBySlug[config.Policies[i].FleetMaintainedAppSlug]
+				if !ok {
+					// Should not happen because FMAs are uploaded first.
+					if !dryRun {
+						logFn("[!] fleet-maintained app slug without software title ID: %s\n", config.Policies[i].FleetMaintainedAppSlug)
+					}
+					continue
+				}
+				config.Policies[i].SoftwareTitleID = &softwareTitleID
+			}
+
+			if config.Policies[i].InstallSoftware.Other == nil {
 				continue
 			}
 			if config.Policies[i].InstallSoftwareURL != "" {
@@ -2785,23 +2804,23 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				}
 				config.Policies[i].SoftwareTitleID = &softwareTitleID
 			}
-			if config.Policies[i].InstallSoftware.AppStoreID != "" {
-				softwareTitleID, ok := softwareTitleIDsByAppStoreAppID[config.Policies[i].InstallSoftware.AppStoreID]
+			if config.Policies[i].InstallSoftware.Other.AppStoreID != "" {
+				softwareTitleID, ok := softwareTitleIDsByAppStoreAppID[config.Policies[i].InstallSoftware.Other.AppStoreID]
 				if !ok {
 					// Should not happen because app store apps are uploaded first.
 					if !dryRun {
-						logFn("[!] software app store app ID without software title ID: %s\n", config.Policies[i].InstallSoftware.AppStoreID)
+						logFn("[!] software app store app ID without software title ID: %s\n", config.Policies[i].InstallSoftware.Other.AppStoreID)
 					}
 					continue
 				}
 				config.Policies[i].SoftwareTitleID = &softwareTitleID
 			}
-			if config.Policies[i].InstallSoftware.HashSHA256 != "" {
-				softwareTitleID, ok := softwareTitleIDsByHash[config.Policies[i].InstallSoftware.HashSHA256]
+			if config.Policies[i].InstallSoftware.Other.HashSHA256 != "" {
+				softwareTitleID, ok := softwareTitleIDsByHash[config.Policies[i].InstallSoftware.Other.HashSHA256]
 				if !ok {
 					// Should not happen because software packages are uploaded first.
 					if !dryRun {
-						logFn("[!] software hash without software title ID: %s\n", config.Policies[i].InstallSoftware.HashSHA256)
+						logFn("[!] software hash without software title ID: %s\n", config.Policies[i].InstallSoftware.Other.HashSHA256)
 					}
 					continue
 				}

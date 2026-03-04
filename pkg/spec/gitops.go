@@ -12,6 +12,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
@@ -183,8 +184,8 @@ type Policy struct {
 
 type GitOpsPolicySpec struct {
 	fleet.PolicySpec
-	RunScript       *PolicyRunScript       `json:"run_script"`
-	InstallSoftware *PolicyInstallSoftware `json:"install_software"`
+	RunScript       *PolicyRunScript                       `json:"run_script"`
+	InstallSoftware optjson.BoolOr[*PolicyInstallSoftware] `json:"install_software"`
 	// InstallSoftwareURL is populated after parsing the software installer yaml
 	// referenced by InstallSoftware.PackagePath.
 	InstallSoftwareURL string `json:"-"`
@@ -1196,35 +1197,36 @@ func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *strin
 }
 
 func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec, appStoreApps []*fleet.TeamSpecAppStoreApp) error {
-	if policy.InstallSoftware == nil {
+	installSoftwareObj := policy.InstallSoftware.Other
+	if installSoftwareObj == nil {
 		policy.SoftwareTitleID = ptr.Uint(0) // unset the installer
 		return nil
 	}
-	if policy.InstallSoftware != nil && (policy.InstallSoftware.PackagePath != "" || policy.InstallSoftware.AppStoreID != "") && teamName == nil {
+	if installSoftwareObj != nil && (installSoftwareObj.PackagePath != "" || installSoftwareObj.AppStoreID != "") && teamName == nil {
 		return errors.New("install_software can only be set on team policies")
 	}
-	if policy.InstallSoftware.PackagePath == "" && policy.InstallSoftware.AppStoreID == "" && policy.InstallSoftware.HashSHA256 == "" {
+	if installSoftwareObj.PackagePath == "" && installSoftwareObj.AppStoreID == "" && installSoftwareObj.HashSHA256 == "" {
 		return errors.New("install_software must include either a package_path, an app_store_id or a hash_sha256")
 	}
-	if policy.InstallSoftware.PackagePath != "" && policy.InstallSoftware.AppStoreID != "" {
+	if installSoftwareObj.PackagePath != "" && installSoftwareObj.AppStoreID != "" {
 		return errors.New("install_software must have only one of package_path or app_store_id")
 	}
 
-	if policy.InstallSoftware.PackagePath != "" {
-		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, policy.InstallSoftware.PackagePath))
+	if installSoftwareObj.PackagePath != "" {
+		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, installSoftwareObj.PackagePath))
 		if err != nil {
-			return fmt.Errorf("failed to read install_software.package_path file %q: %v", policy.InstallSoftware.PackagePath, err)
+			return fmt.Errorf("failed to read install_software.package_path file %q: %v", installSoftwareObj.PackagePath, err)
 		}
 		var policyInstallSoftwareSpec fleet.SoftwarePackageSpec
 		if err := YamlUnmarshal(fileBytes, &policyInstallSoftwareSpec); err != nil {
 			// see if the issue is that a package path was passed in that references multiple packages
 			var multiplePackages []fleet.SoftwarePackageSpec
 			if err := YamlUnmarshal(fileBytes, &multiplePackages); err != nil || len(multiplePackages) == 0 {
-				return fmt.Errorf("file %q does not contain a valid software package definition", policy.InstallSoftware.PackagePath)
+				return fmt.Errorf("file %q does not contain a valid software package definition", installSoftwareObj.PackagePath)
 			}
 
 			if len(multiplePackages) > 1 {
-				return fmt.Errorf("file %q contains multiple packages, so cannot be used as a target for policy automation", policy.InstallSoftware.PackagePath)
+				return fmt.Errorf("file %q contains multiple packages, so cannot be used as a target for policy automation", installSoftwareObj.PackagePath)
 			}
 
 			policyInstallSoftwareSpec = multiplePackages[0]
@@ -1238,25 +1240,25 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		}
 		if !installerOnTeamFound {
 			if policyInstallSoftwareSpec.URL != "" {
-				return fmt.Errorf("install_software.package_path URL %s not found on team: %s", policyInstallSoftwareSpec.URL, policy.InstallSoftware.PackagePath)
+				return fmt.Errorf("install_software.package_path URL %s not found on team: %s", policyInstallSoftwareSpec.URL, installSoftwareObj.PackagePath)
 			}
-			return fmt.Errorf("install_software.package_path SHA256 %s not found on team: %s", policyInstallSoftwareSpec.SHA256, policy.InstallSoftware.PackagePath)
+			return fmt.Errorf("install_software.package_path SHA256 %s not found on team: %s", policyInstallSoftwareSpec.SHA256, installSoftwareObj.PackagePath)
 		}
 
 		policy.InstallSoftwareURL = policyInstallSoftwareSpec.URL
-		policy.InstallSoftware.HashSHA256 = policyInstallSoftwareSpec.SHA256
+		policy.InstallSoftware.Other.HashSHA256 = policyInstallSoftwareSpec.SHA256
 	}
 
-	if policy.InstallSoftware.AppStoreID != "" {
+	if policy.InstallSoftware.Other.AppStoreID != "" {
 		appOnTeamFound := false
 		for _, app := range appStoreApps {
-			if app.AppStoreID == policy.InstallSoftware.AppStoreID {
+			if app.AppStoreID == policy.InstallSoftware.Other.AppStoreID {
 				appOnTeamFound = true
 				break
 			}
 		}
 		if !appOnTeamFound {
-			return fmt.Errorf("install_software.app_store_id %s not found on team %s", policy.InstallSoftware.AppStoreID, *teamName)
+			return fmt.Errorf("install_software.app_store_id %s not found on team %s", policy.InstallSoftware.Other.AppStoreID, *teamName)
 		}
 	}
 
