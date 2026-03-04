@@ -56,11 +56,11 @@ type ErrWithRetryAfter = platform_http.ErrWithRetryAfter
 type ErrWithIsClientError = platform_errors.ErrWithIsClientError
 
 type invalidArgWithStatusError struct {
-	InvalidArgumentError
+	*InvalidArgumentError
 	code int
 }
 
-func (e invalidArgWithStatusError) Status() int {
+func (e *invalidArgWithStatusError) Status() int {
 	if e.code == 0 {
 		// 422 is the default code for invalid args
 		return http.StatusUnprocessableEntity
@@ -118,7 +118,7 @@ func (e *InvalidArgumentError) Appendf(name, reasonFmt string, args ...interface
 // WithStatus returns an error that combines the InvalidArgumentError
 // with a custom status code.
 func (e *InvalidArgumentError) WithStatus(code int) error {
-	return &invalidArgWithStatusError{*e, code}
+	return &invalidArgWithStatusError{e, code}
 }
 
 func (e *InvalidArgumentError) HasErrors() bool {
