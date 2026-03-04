@@ -17,7 +17,10 @@ import TabText from "components/TabText";
 import SidePanelContent from "components/SidePanelContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 
-import { FmaPlatformValue } from "./SoftwareFleetMaintained/FleetMaintainedAppsTable/FmaFilters/FmaFilters";
+import {
+  FmaPlatformValue,
+  FmaStatusValue,
+} from "./SoftwareFleetMaintained/FleetMaintainedAppsTable/FmaFilters/FmaFilters";
 
 const baseClass = "software-add-page";
 
@@ -55,6 +58,7 @@ export interface ISoftwareAddPageQueryParams {
   order_key?: string;
   order_direction?: "asc" | "desc";
   platform: FmaPlatformValue;
+  status: FmaStatusValue;
 }
 
 interface ISoftwareAddPageProps {

@@ -1061,7 +1061,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 			expectedProfileStatuses["N1"] = fleet.MDMDeliveryPending
 			expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
 			checkProfilesStatus(t)
-			expectedRetryCounts["N1"] = uint(i + 1)
+			expectedRetryCounts["N1"] = uint(i + 1) //nolint:gosec // dismiss G115
 			checkRetryCounts(t)
 		}
 
