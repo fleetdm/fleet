@@ -1,0 +1,2 @@
+* Removed the body size limit for `osquery/log` end-point by implementing a custom submitLogsRequest.DecodeRequest method that streams the `node_key` and uses that to authenticate the host before reading the potentially huge rest of the payload.
+* Fixed false positive PayloadTooLargeError errors.
