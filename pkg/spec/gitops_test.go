@@ -358,15 +358,15 @@ func TestValidGitOpsYaml(t *testing.T) {
 					assert.NotNil(t, gitops.Policies[5].InstallSoftware)
 
 					if name == "team_config_with_paths_and_only_sha256" {
-						assert.Equal(t, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", gitops.Policies[5].InstallSoftware.HashSHA256)
+						assert.Equal(t, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", gitops.Policies[5].InstallSoftware.Other.HashSHA256)
 					} else {
-						assert.Equal(t, "./microsoft-teams.pkg.software.yml", gitops.Policies[5].InstallSoftware.PackagePath)
+						assert.Equal(t, "./microsoft-teams.pkg.software.yml", gitops.Policies[5].InstallSoftware.Other.PackagePath)
 						assert.Equal(t, "https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg", gitops.Policies[5].InstallSoftwareURL)
 					}
 
 					assert.Equal(t, "Slack on macOS is installed", gitops.Policies[6].Name)
 					assert.NotNil(t, gitops.Policies[6].InstallSoftware)
-					assert.Equal(t, "123456", gitops.Policies[6].InstallSoftware.AppStoreID)
+					assert.Equal(t, "123456", gitops.Policies[6].InstallSoftware.Other.AppStoreID)
 
 					assert.Equal(t, "Script run policy", gitops.Policies[7].Name)
 					assert.NotNil(t, gitops.Policies[7].RunScript)
