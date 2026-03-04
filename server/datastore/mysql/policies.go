@@ -1043,22 +1043,12 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 				Message: fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for team ID %d", *args.PatchSoftwareTitleID, teamID),
 			})
 		}
-		if installer.Platform == string(fleet.MacOSPlatform) {
-			args.Query = fmt.Sprintf(
-				"SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') >= 0;",
-				installer.BundleIdentifier,
-				installer.Version,
-			)
-			args.Platform = string(fleet.MacOSPlatform)
-		} else if installer.Platform == "windows" {
-			// TODO: use upgrade code if possible?
-			args.Query = fmt.Sprintf(
-				"SELECT 1 FROM programs WHERE name = '%s' AND version_compare(bundle_short_version, '%s') >= 0;",
-				installer.SoftwareTitle,
-				installer.Version,
-			)
-			args.Platform = "windows"
-		}
+		generated := generatePatchPolicy(installer)
+		args.Name = generated.Name
+		args.Query = generated.Query
+		args.Platform = generated.Platform
+		args.Description = generated.Description
+		args.Resolution = generated.Resolution
 	}
 
 	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
@@ -2453,4 +2443,40 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 	}
 
 	return policies, nil
+}
+
+type patchPolicy struct {
+	Name        string
+	Query       string
+	Platform    string
+	Description string
+	Resolution  string
+}
+
+func generatePatchPolicy(installer *fleet.SoftwareInstaller) *patchPolicy {
+	var policy patchPolicy
+	switch {
+	case installer.Platform == string(fleet.MacOSPlatform):
+		policy.Query = fmt.Sprintf(
+			"SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') >= 0;",
+			installer.BundleIdentifier,
+			installer.Version,
+		)
+		policy.Platform = string(fleet.MacOSPlatform)
+		policy.Name = fmt.Sprintf("macOS - %s up to date", installer.SoftwareTitle)
+	case installer.Platform == "windows":
+		// TODO: use upgrade code to improve accuracy?
+		policy.Query = fmt.Sprintf(
+			"SELECT 1 FROM programs WHERE name = '%s' AND version_compare(bundle_short_version, '%s') >= 0;",
+			installer.SoftwareTitle,
+			installer.Version,
+		)
+		policy.Platform = "windows"
+		policy.Name = fmt.Sprintf("Windows - %s up to date", installer.SoftwareTitle)
+	default:
+	}
+	policy.Description = "Outdated software might introduce security vulnerabilities or compatibility issues."
+	policy.Resolution = "Install the latest version from self-service."
+
+	return &policy
 }
