@@ -133,7 +133,7 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	assert.Equal(t, "TNMS", sw.Name)
 	assert.Equal(t, "21.10.0.590.1", sw.Version)
 
-	// Test JetBrains version sanitizer - transforms build number to marketing version
+	// Test JetBrains version sanitizer - extracts version from product name
 	jetbrainsGoLand := &fleet.Software{
 		Name:    "GoLand 2025.3.3",
 		Source:  "programs",
@@ -142,6 +142,16 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	}
 	MutateSoftwareOnIngestion(t.Context(), jetbrainsGoLand, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "2025.3.3", jetbrainsGoLand.Version)
+
+	// Test JetBrains with 4-part version number
+	jetbrainsIntelliJ := &fleet.Software{
+		Name:    "IntelliJ IDEA 2025.3.1.1",
+		Source:  "programs",
+		Vendor:  "JetBrains s.r.o.",
+		Version: "253.31033.200",
+	}
+	MutateSoftwareOnIngestion(t.Context(), jetbrainsIntelliJ, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2025.3.1.1", jetbrainsIntelliJ.Version)
 
 	// Test JetBrains Toolbox is excluded (reports correct version)
 	jetbrainsToolbox := &fleet.Software{
@@ -153,19 +163,19 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	MutateSoftwareOnIngestion(t.Context(), jetbrainsToolbox, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "2.6.2.38498", jetbrainsToolbox.Version)
 
-	// Test JetBrains software with correct version format is not transformed
-	jetbrainsCorrectVersion := &fleet.Software{
-		Name:    "IntelliJ IDEA 2025.1",
+	// Test JetBrains software without version in name is not transformed
+	jetbrainsNoVersionInName := &fleet.Software{
+		Name:    "IntelliJ IDEA",
 		Source:  "programs",
 		Vendor:  "JetBrains s.r.o.",
-		Version: "2025.1.1",
+		Version: "253.31033.139",
 	}
-	MutateSoftwareOnIngestion(t.Context(), jetbrainsCorrectVersion, slog.New(slog.DiscardHandler))
-	assert.Equal(t, "2025.1.1", jetbrainsCorrectVersion.Version)
+	MutateSoftwareOnIngestion(t.Context(), jetbrainsNoVersionInName, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "253.31033.139", jetbrainsNoVersionInName.Version)
 
-	// Test non-JetBrains software with similar version format is not transformed
+	// Test non-JetBrains software is not transformed
 	nonJetbrains := &fleet.Software{
-		Name:    "Some Software",
+		Name:    "Some Software 2025.1.1",
 		Source:  "programs",
 		Vendor:  "Some Vendor",
 		Version: "253.31033.139",

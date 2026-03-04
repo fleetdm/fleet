@@ -2102,11 +2102,9 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 var (
 	dcvVersionFormat         = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
 	tunnelblickVersionFormat = regexp.MustCompile(`^(.+?)\s*\(build\s+\d+\)$`)
-	// jetbrainsBuildFormat matches JetBrains build numbers like "253.31033.139" where:
-	// - First segment is exactly 3 digits (e.g., "253") encoding year (25=2025) and major version (3)
-	// - Second segment is 4+ digits (e.g., "31033") where the first digit is the minor version
-	// - Third segment is 1+ digits (patch/build counter, dropped in conversion)
-	jetbrainsBuildFormat = regexp.MustCompile(`^(\d{2})(\d)\.(\d)\d{3,}\.\d+$`)
+	// jetbrainsNameVersion extracts version from JetBrains product names like "GoLand 2025.3.3"
+	// or "IntelliJ IDEA 2025.3.1.1" (supports 3 or 4 part versions)
+	jetbrainsNameVersion = regexp.MustCompile(`\s(\d{4}\.\d+\.\d+(?:\.\d+)?)$`)
 	basicAppSanitizers   = []struct {
 		matchBundleIdentifier string
 		matchName             string
@@ -2227,21 +2225,18 @@ var (
 		},
 		{
 			// JetBrains products on Windows report build numbers (e.g., "253.31033.139")
-			// instead of marketing versions (e.g., "2025.3.3"). This sanitizer converts
-			// the build number to the marketing version format.
+			// instead of marketing versions. This sanitizer extracts the version from
+			// the product name (e.g., "GoLand 2025.3.3" -> "2025.3.3").
 			// Excludes JetBrains Toolbox which reports the correct version.
 			matches: func(s *fleet.Software) bool {
 				return s.Source == "programs" &&
 					strings.Contains(strings.ToLower(s.Vendor), "jetbrains") &&
 					!strings.Contains(s.Name, "Toolbox") &&
-					jetbrainsBuildFormat.MatchString(s.Version)
+					jetbrainsNameVersion.MatchString(s.Name)
 			},
 			mutate: func(s *fleet.Software, logger *slog.Logger) {
-				if matches := jetbrainsBuildFormat.FindStringSubmatch(s.Version); len(matches) == 4 {
-					year := "20" + matches[1]
-					major := matches[2]
-					minor := matches[3]
-					s.Version = fmt.Sprintf("%s.%s.%s", year, major, minor)
+				if matches := jetbrainsNameVersion.FindStringSubmatch(s.Name); len(matches) == 2 {
+					s.Version = matches[1]
 				}
 			},
 		},
