@@ -444,6 +444,11 @@ NEW_LABEL=":mktg-event:${WORKSHOP_SLUG}"
 PARENT_LABELS=":mktg-event,:mktg-event:overview,:mktg-event:tp"
 CHILD_LABELS=":mktg-event,:mktg-event:detail,:mktg-event:tp"
 
+# Temp file for issue bodies (avoids heredoc/subshell parenthesis conflicts)
+BODY_FILE=$(mktemp)
+cleanup() { rm -f "$BODY_FILE"; }
+trap cleanup EXIT
+
 # Ensure the specific workshop label exists
 echo "1. Ensuring label '${NEW_LABEL}' exists..."
 gh label create "$NEW_LABEL" --repo "$ORG/$REPO" --force >/dev/null 2>&1 || true
@@ -456,7 +461,7 @@ echo "2. Creating Parent Issue (Overview)..."
 
 PARENT_TITLE="${WORKSHOP_SLUG} Workshop Overview"
 
-PARENT_BODY=$(cat << EOF
+cat > "$BODY_FILE" << EOF
 Master tracking issue for the GitOps Workshop: ${WORKSHOP_SLUG}.
 
 EXECUTION for request $REQUEST_ISSUE
@@ -467,7 +472,7 @@ Use this section for a quick overview. If someone only reads this part, they sho
 
 | Category | Details |
 |---|---|
-| Workshop Name | [e.g., GitOps Workshop — Montreal] |
+| Workshop Name | [e.g., GitOps Workshop — Atlanta] |
 | Date | [Date] |
 | Location | [City, Venue Name] |
 | Capacity | [Max Attendees] |
@@ -488,13 +493,11 @@ Use this section for a quick overview. If someone only reads this part, they sho
 - [ ] 5. Travel & Staffing
 - [ ] 6. Post-Mortem & Follow-Up
 EOF
-)
 
-# Create Parent
 PARENT_URL=$(gh issue create \
   --repo "$ORG/$REPO" \
   --title "$PARENT_TITLE" \
-  --body "$PARENT_BODY" \
+  --body-file "$BODY_FILE" \
   --label "$PARENT_LABELS,$NEW_LABEL")
 
 if [ -z "$PARENT_URL" ]; then
@@ -518,7 +521,6 @@ if [ -z "$PARENT_NODE_ID" ] || [ "$PARENT_NODE_ID" == "null" ]; then
 fi
 
 echo "   🔹 Parent Node ID: $PARENT_NODE_ID"
-
 gh project item-add "$PROJECT_NUMBER" --owner "$ORG" --url "$PARENT_URL" >/dev/null 2>&1
 
 
@@ -527,12 +529,12 @@ gh project item-add "$PROJECT_NUMBER" --owner "$ORG" --url "$PARENT_URL" >/dev/n
 # ==========================================
 create_sub_issue() {
     local TITLE="$1"
-    local BODY="$2"
+    # Body is already written to $BODY_FILE by the caller
 
     CHILD_URL=$(gh issue create \
       --repo "$ORG/$REPO" \
       --title "$TITLE: ${WORKSHOP_SLUG}" \
-      --body "$BODY" \
+      --body-file "$BODY_FILE" \
       --label "$CHILD_LABELS,$NEW_LABEL")
 
     if [ -n "$CHILD_URL" ]; then
@@ -575,44 +577,42 @@ create_sub_issue() {
 echo "3. Creating and Linking Child Issues..."
 
 # --- Child 1 ---
-BODY=$(cat << EOF
+cat > "$BODY_FILE" << EOF
 **Description**
 Get the main workshop event live to start gathering leads.
 
-> Note: You can launch with "Venue TBD" or "Downtown [City]" if the specific room isn't booked yet.
+Note: You can launch with "Venue TBD" or "Downtown [City]" if the specific room isn't booked yet.
 
 **Who:** Marketing DRI
 
-- [ ] Create Workshop Landing Page (Eventbrite/Luma registration page)
+- [ ] Create Workshop Landing Page on Eventbrite or Luma
 - [ ] Schedule Email Blast to target audience
 - [ ] Schedule LinkedIn and Twitter/X posts and request speaker graphics
 - [ ] Notify AEs and Partners to drive personal invites
 - [ ] Monitor registration — watch for waitlists or low attendance and adjust promo if needed
 - [ ] Update the $PLANNING_DOC_URL with "Promotion & Marketing Plan" details and registration link
 EOF
-)
-create_sub_issue "1. Workshop Promotion & Registration Launch" "$BODY"
+create_sub_issue "1. Workshop Promotion & Registration Launch"
 
 
 # --- Child 2 ---
-BODY=$(cat << EOF
+cat > "$BODY_FILE" << EOF
 **Description**
 Secure the physical space for the workshop. Once confirmed, notify attendees.
 
 **Who:** Onsite DRI
 
 - [ ] Secure venue — confirm availability for workshop date
-- [ ] Power audit — confirm every seat has access to power (or plan to bring extension cords)
+- [ ] Power audit — confirm every seat has access to power, or plan to bring extension cords
 - [ ] AV check — confirm projector/HDMI availability
 - [ ] Update Workshop Landing Page with the specific venue name and address
 - [ ] Update the $PLANNING_DOC_URL with "Venue Details" section
 EOF
-)
-create_sub_issue "2. Venue Selection & Logistics" "$BODY"
+create_sub_issue "2. Venue Selection & Logistics"
 
 
 # --- Child 3 ---
-BODY=$(cat << EOF
+cat > "$BODY_FILE" << EOF
 **Description**
 Plan the post-workshop networking. This is treated as a separate event to allow for broader networking — invite people who couldn't make the workshop itself.
 
@@ -620,60 +620,56 @@ Plan the post-workshop networking. This is treated as a separate event to allow 
 
 - [ ] Secure venue — find a bar/restaurant within a 5-minute walk of the workshop area
 - [ ] Confirm menu/tab — decide on Open Bar vs. Fixed Menu and set the budget cap
-- [ ] Create Happy Hour registration page (Eventbrite/Luma) and promote separately
+- [ ] Create Happy Hour registration page on Eventbrite or Luma and promote separately
 - [ ] Schedule LinkedIn/Twitter posts promoting the Happy Hour
-- [ ] Update the $PLANNING_DOC_URL with "Post-Event Happy Hour" section (venue and registration link)
+- [ ] Update the $PLANNING_DOC_URL with "Post-Event Happy Hour" section including venue and registration link
 EOF
-)
-create_sub_issue "3. Happy Hour Planning & Promotion" "$BODY"
+create_sub_issue "3. Happy Hour Planning & Promotion"
 
 
 # --- Child 4 ---
-BODY=$(cat << EOF
+cat > "$BODY_FILE" << EOF
 **Description**
 Finalize in-room food and drink orders.
 
-> Wait to complete this until ~1 week before the event so you have an accurate headcount.
+Wait to complete this until ~1 week before the event so you have an accurate headcount.
 
 **Who:** Onsite DRI
 
-- [ ] Check registration count — confirm headcount (Registered + Waitlist) to avoid over-ordering
+- [ ] Check registration count — confirm headcount from Registered and Waitlist to avoid over-ordering
 - [ ] Order food and drinks
 - [ ] Update the $PLANNING_DOC_URL with "Catering" section and order details
 EOF
-)
-create_sub_issue "4. Workshop Catering" "$BODY"
+create_sub_issue "4. Workshop Catering"
 
 
 # --- Child 5 ---
-BODY=$(cat << EOF
+cat > "$BODY_FILE" << EOF
 **Description**
 Ensure the instructor and support staff can get to the city and are prepared for the event.
 
 **Who:** Onsite DRI, Marketing DRI, Attendees
 
-- [ ] Book flights for Lead Instructor and TA (if traveling)
+- [ ] Book flights for Lead Instructor and TA if traveling
 - [ ] Book hotel — ensure proximity to the venue
-- [ ] Confirm booth staffing assignments and attire
+- [ ] Confirm staffing assignments and attire
 - [ ] Update the $PLANNING_DOC_URL with "Staff Travel" and "Logistics" sections
 EOF
-)
-create_sub_issue "5. Travel & Staffing" "$BODY"
+create_sub_issue "5. Travel & Staffing"
 
 
 # --- Child 6 ---
-BODY=$(cat << EOF
+cat > "$BODY_FILE" << EOF
 **Description**
 To be completed within 48 hours after the event. Close the loop on leads and technical feedback.
 
 - [ ] Calculate stats — record Registered, Attended, and No-Show rates for both Workshop and Happy Hour
 - [ ] Log technical issues — document any WiFi drops or firewall blockers for future reference
 - [ ] CRM upload — upload attendee list to Salesforce/HubSpot
-- [ ] Send follow-up email — "Thanks for coming" email with slides and repo links
+- [ ] Send follow-up email with slides and repo links
 - [ ] Update the $PLANNING_DOC_URL with completed "Post-Mortem & Follow-Up" section
 EOF
-)
-create_sub_issue "6. Post-Mortem & Follow-Up" "$BODY"
+create_sub_issue "6. Post-Mortem & Follow-Up"
 
 echo "Done."
 ```
