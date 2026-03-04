@@ -1,0 +1,7 @@
+- name: Windows - Secure boot enabled
+  query: "SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\SecureBoot\\State\\UEFISecureBootEnabled' AND data = 1;"
+  critical: false
+  description: Checks that UEFI Secure Boot is enabled. Secure Boot helps protect the boot process from tampering.
+  resolution: Secure Boot must be enabled in the device's UEFI/BIOS firmware settings.
+  platform: windows
+  calendar_events_enabled: false

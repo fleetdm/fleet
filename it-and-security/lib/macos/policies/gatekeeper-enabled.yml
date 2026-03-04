@@ -1,0 +1,7 @@
+- name: macOS - Gatekeeper enabled
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+  critical: false
+  description: Checks that Gatekeeper is enabled. Gatekeeper helps prevent malware by verifying apps before they run.
+  resolution: An administrator can deploy a configuration profile to enable Gatekeeper.
+  platform: darwin
+  calendar_events_enabled: false

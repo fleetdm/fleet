@@ -1,0 +1,7 @@
+- name: macOS - System Integrity Protection enabled
+  query: SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;
+  critical: true
+  description: Checks that System Integrity Protection (SIP) is enabled. SIP protects critical system files and processes from modification.
+  resolution: SIP can only be enabled by booting into Recovery Mode and running 'csrutil enable' from the terminal.
+  platform: darwin
+  calendar_events_enabled: false

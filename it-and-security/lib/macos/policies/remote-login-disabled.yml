@@ -1,0 +1,7 @@
+- name: macOS - Remote login (SSH) disabled
+  query: SELECT 1 FROM sharing_preferences WHERE remote_login = 0;
+  critical: false
+  description: Checks that remote login (SSH) is disabled. Disabling remote login reduces the attack surface of the device.
+  resolution: Open System Settings > General > Sharing and turn off Remote Login.
+  platform: darwin
+  calendar_events_enabled: false

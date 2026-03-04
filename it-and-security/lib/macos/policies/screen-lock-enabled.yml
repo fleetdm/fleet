@@ -1,0 +1,7 @@
+- name: macOS - Screen lock enabled
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'askForPassword' AND value = '1';
+  critical: false
+  description: Checks that the screen lock is configured to require a password immediately.
+  resolution: An administrator can deploy a configuration profile to enforce screen lock settings.
+  platform: darwin
+  calendar_events_enabled: false

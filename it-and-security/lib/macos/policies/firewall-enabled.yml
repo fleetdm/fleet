@@ -1,0 +1,7 @@
+- name: macOS - Firewall enabled
+  query: SELECT 1 FROM alf WHERE global_state >= 1;
+  critical: false
+  description: Checks that the macOS application firewall is enabled.
+  resolution: An administrator can deploy a configuration profile to enable the firewall.
+  platform: darwin
+  calendar_events_enabled: false

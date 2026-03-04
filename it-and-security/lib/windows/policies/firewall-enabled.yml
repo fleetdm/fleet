@@ -1,0 +1,7 @@
+- name: Windows - Firewall enabled
+  query: SELECT 1 FROM windows_security_center WHERE firewall = 'Good';
+  critical: false
+  description: Checks that the Windows firewall is enabled and in good standing.
+  resolution: An administrator can deploy a configuration profile to enable the Windows firewall.
+  platform: windows
+  calendar_events_enabled: false
