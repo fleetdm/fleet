@@ -2710,7 +2710,7 @@ type submitLogsRequest struct {
 func (r submitLogsRequest) DecodeRequest(ctx context.Context, req *http.Request) (any, error) {
 	body := io.Reader(req.Body)
 	if req.Header.Get("content-encoding") == "gzip" {
-		gzr, err := gzip.NewReader(req.Body)
+		gzr, err := gzip.NewReader(body)
 		if err != nil {
 			return nil, newOsqueryError("gzip decoder error: " + err.Error())
 		}
@@ -2798,6 +2798,15 @@ func (r submitLogsResponse) Error() error { return r.Err }
 func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*submitLogsRequest)
 
+	// Replicate the side-effects that authenticatedHost middleware normally applies
+	// for endpoints on the he (host-authenticated) endpointer.
+	// SetChecked must be called before the nil-host guard below so that the
+	// authzcheck middleware does not swallow the error response.
+	if ac, ok := authz_ctx.FromContext(ctx); ok {
+		ac.SetAuthnMethod(authz_ctx.AuthnHostToken)
+		ac.SetChecked()
+	}
+
 	// DecodeRequest must have authenticated the host before returning. A nil host
 	// here means a programming error (DecodeRequest returned without error and without
 	// a host), not a normal runtime condition.
@@ -2805,16 +2814,10 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		return submitLogsResponse{Err: newOsqueryError("internal: missing host after authentication")}, nil
 	}
 
-	// Replicate the side-effects that authenticatedHost middleware normally applies
-	// for endpoints on the he (host-authenticated) endpointer.
 	ctx = hostctx.NewContext(ctx, req.host)
 	hostProvider := &hostctx.HostAttributeProvider{Host: req.host}
 	ctx = ctxerr.AddErrorContextProvider(ctx, hostProvider)
 	instrumentHostLogger(ctx, req.host.ID)
-	if ac, ok := authz_ctx.FromContext(ctx); ok {
-		ac.SetAuthnMethod(authz_ctx.AuthnHostToken)
-		ac.SetChecked()
-	}
 
 	var hlogger *slog.Logger
 	if req.debug {
