@@ -16,7 +16,7 @@
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 name: "💻 Workstations"
 controls:
-  apple_setup:
+  setup_experience:
     ###########################################################
     # Configure the macOS setup experience
     # 
@@ -59,11 +59,11 @@ controls:
   # ```
   ###########################################################
   apple_settings:
-    profiles:
+    configuration_profiles:
       - paths: ../platforms/macos/declaration-profiles/*.json
       - paths: ../platforms/macos/configuration-profiles/*.mobileconfig
   windows_settings:
-    profiles:
+    configuration_profiles:
       - paths: ../platforms/windows/configuration-profiles/*.xml
   
   ###########################################################
