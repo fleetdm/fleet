@@ -305,8 +305,8 @@ type TeamMDM struct {
 	IOSUpdates                 AppleOSUpdateSettings `json:"ios_updates"`
 	IPadOSUpdates              AppleOSUpdateSettings `json:"ipados_updates"`
 	WindowsUpdates             WindowsUpdates        `json:"windows_updates"`
-	MacOSSettings              MacOSSettings         `json:"macos_settings"`
-	MacOSSetup                 MacOSSetup            `json:"macos_setup"`
+	MacOSSettings              MacOSSettings         `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSetup                 MacOSSetup            `json:"macos_setup" renameto:"setup_experience"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
@@ -391,8 +391,8 @@ type TeamSpecMDM struct {
 	// custom_settings key is specified but empty, then we need to clear the
 	// value, but if it isn't provided, we need to leave the existing value
 	// unmodified.
-	MacOSSettings map[string]interface{} `json:"macos_settings"`
-	MacOSSetup    MacOSSetup             `json:"macos_setup"`
+	MacOSSettings map[string]interface{} `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSetup    MacOSSetup             `json:"macos_setup" renameto:"setup_experience"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 

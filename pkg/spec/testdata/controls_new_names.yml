@@ -1,0 +1,33 @@
+apple_settings:
+  configuration_profiles:
+    - path: ./lib/macos-password.mobileconfig
+windows_settings:
+  configuration_profiles:
+    - path: ./lib/windows-screenlock.xml
+scripts:
+  - path: ./lib/collect-fleetd-logs.sh
+enable_disk_encryption: true
+macos_migration:
+  enable: false
+  mode: ""
+  webhook_url: ""
+setup_experience:
+  bootstrap_package: null
+  enable_end_user_authentication: false
+  apple_setup_assistant: null
+macos_updates:
+  deadline: null
+  minimum_version: null
+ios_updates:
+  deadline: null
+  minimum_version: null
+ipados_updates:
+  deadline: null
+  minimum_version: null
+windows_enabled_and_configured: true
+windows_migration_enabled: false
+enable_turn_on_windows_mdm_manually: false
+windows_entra_tenant_ids: []
+windows_updates:
+  deadline_days: null
+  grace_period_days: null

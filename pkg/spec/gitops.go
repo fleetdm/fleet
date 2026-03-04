@@ -148,8 +148,8 @@ type GitOpsControls struct {
 	MacOSUpdates   any               `json:"macos_updates"`
 	IOSUpdates     any               `json:"ios_updates"`
 	IPadOSUpdates  any               `json:"ipados_updates"`
-	MacOSSettings  any               `json:"macos_settings"`
-	MacOSSetup     *fleet.MacOSSetup `json:"macos_setup"`
+	MacOSSettings  any               `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSetup     *fleet.MacOSSetup `json:"macos_setup" renameto:"setup_experience"`
 	MacOSMigration any               `json:"macos_migration"`
 
 	WindowsUpdates                 any `json:"windows_updates"`
@@ -747,13 +747,18 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 		return multiError
 	}
 
+	controlsRaw, _, err := rewriteNewToOldKeys(controlsRaw, &GitOpsControls{})
+	if err != nil {
+		return multierror.Append(multiError, fmt.Errorf("failed to rewrite controls keys: %v", err))
+	}
+
 	var controlsTop GitOpsControls
 	if err := json.Unmarshal(controlsRaw, &controlsTop); err != nil {
 		return multierror.Append(multiError, MaybeParseTypeError(yamlFilename, []string{"controls"}, err))
 	}
 	controlsTop.Defined = true
 	controlsFilePath := yamlFilename
-	err := processControlsPathIfNeeded(controlsTop, result, &controlsFilePath)
+	err = processControlsPathIfNeeded(controlsTop, result, &controlsFilePath)
 	if err != nil {
 		return multierror.Append(multiError, err)
 	}
@@ -801,6 +806,10 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 		if err != nil {
 			return multierror.Append(multiError, fmt.Errorf("failed to process controls.macos_settings: %v", err))
 		}
+		data, _, err = rewriteNewToOldKeys(data, &macOSSettings)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to rewrite macos_settings keys: %v", err))
+		}
 		err = json.Unmarshal(data, &macOSSettings)
 		if err != nil {
 			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "macos_settings"}, err))
@@ -822,6 +831,10 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 		data, err := json.Marshal(result.Controls.WindowsSettings)
 		if err != nil {
 			return multierror.Append(multiError, fmt.Errorf("failed to process controls.windows_settings: %v", err))
+		}
+		data, _, err = rewriteNewToOldKeys(data, &windowsSettings)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to rewrite windows_settings keys: %v", err))
 		}
 		err = json.Unmarshal(data, &windowsSettings)
 		if err != nil {
@@ -846,6 +859,10 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 		data, err := json.Marshal(result.Controls.AndroidSettings)
 		if err != nil {
 			return multierror.Append(multiError, fmt.Errorf("failed to process controls.android_settings: %v", err))
+		}
+		data, _, err = rewriteNewToOldKeys(data, &androidSettings)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to rewrite android_settings keys: %v", err))
 		}
 		err = json.Unmarshal(data, &androidSettings)
 		if err != nil {
@@ -902,7 +919,15 @@ func processControlsPathIfNeeded(controlsTop GitOpsControls, result *GitOps, con
 	}
 
 	var pathControls GitOpsControls
-	if err := YamlUnmarshal(fileBytes, &pathControls); err != nil {
+	jsonBytes, err := yaml.YAMLToJSON(fileBytes)
+	if err != nil {
+		return MaybeParseTypeError(*controlsTop.Path, []string{"controls"}, fmt.Errorf("failed to unmarshal YAML to JSON: %w", err))
+	}
+	jsonBytes, _, err = rewriteNewToOldKeys(jsonBytes, &GitOpsControls{})
+	if err != nil {
+		return fmt.Errorf("failed to rewrite controls keys in %s: %v", *controlsTop.Path, err)
+	}
+	if err := json.Unmarshal(jsonBytes, &pathControls); err != nil {
 		return MaybeParseTypeError(*controlsTop.Path, []string{"controls"}, err)
 	}
 	if pathControls.Path != nil {
