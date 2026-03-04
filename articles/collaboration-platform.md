@@ -75,5 +75,5 @@ Fleet is the open-source endpoint management platform that gives you total contr
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="case study">
 <meta name="publishedOn" value="2026-03-03">
-<meta name="description" value="A global collaboration platform uses Fleet and osquery to simplify device management and improve visibility across tens of thousands of devices.>
+<meta name="description" value="A global collaboration platform uses Fleet and osquery to simplify device management and improve visibility across tens of thousands of devices.">
 <meta name="useBasicArticleTemplate" value="true">
