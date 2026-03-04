@@ -182,7 +182,7 @@ func TestLevenshtein(t *testing.T) {
 	assert.Equal(t, 3, levenshtein("", "abc"))
 	assert.Equal(t, 3, levenshtein("abc", ""))
 	assert.Equal(t, 0, levenshtein("query", "query"))
-	assert.Equal(t, 2, levenshtein("qurey", "query"))       // transposition = 2 edits in classic Levenshtein
+	assert.Equal(t, 2, levenshtein("qurey", "query"))        // transposition = 2 edits in classic Levenshtein
 	assert.Equal(t, 1, levenshtein("deadlinee", "deadline")) // extra char
 	assert.Equal(t, 1, levenshtein("deadlin", "deadline"))   // missing char
 	assert.Equal(t, 3, levenshtein("delaine", "deadline"))
