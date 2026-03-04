@@ -265,7 +265,7 @@ describe("formatSoftwareType", () => {
       "chocolatey_packages",
       "pkg_packages",
       "vscode_extensions",
-      "go_packages",
+      "go_binaries",
     ] as const;
 
     allSourceTypes.forEach((source) => {
