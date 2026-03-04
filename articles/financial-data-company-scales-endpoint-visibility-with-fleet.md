@@ -2,7 +2,7 @@
 
 A financial data and media company provides business intelligence, analytics, and global news. Its products support financial institutions, governments, and enterprises that rely on accurate, real-time information.
 
-Supporting this infrastructure requires strong internal security and operational visibility. The company manages approximately 140,000 hosts across macOS, Windows, and Linux, making large-scale device visibility and compliance a critical requirement.
+Supporting this infrastructure requires strong internal security and operational visibility. The company manages approximately 140,000 hosts across macOS, Windows, and Linux. At this scale, device visibility and compliance are critical.
 
 ---
 
