@@ -128,6 +128,9 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
+      - name: Install gotestsum
+        run: go install gotest.tools/gotestsum@latest
+
       - name: verify mysql
         run: |
           while ! mysqladmin ping --host=localhost --port=$PORT --protocol=TCP --silent; do
@@ -144,9 +147,10 @@ jobs:
 
       - name: Run Go tests
         run: |
-          go test -v -parallel 8 -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT \
+          gotestsum --format=testdox --jsonfile=/tmp/test-output.json -- \
+            -v -parallel 8 -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT \
             -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/server/mdm/nanomdm/... \
-          ./server/mdm/nanomdm/storage/mysql 2>&1 | tee /tmp/gotest.log
+            ./server/mdm/nanomdm/storage/mysql 2>&1 | tee /tmp/gotest.log
 
       - name: Save coverage
         uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
@@ -197,6 +201,14 @@ jobs:
         with:
           name: nanomdm-summary-test-log
           path: /tmp/summary.txt
+
+      - name: Upload JSON test output
+        if: always()
+        uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a  # v4.3.6
+        with:
+          name: nanomdm-test-json
+          path: /tmp/test-output.json
+          if-no-files-found: warn
 
   # We upload all backend coverage in one step so that we're less like to end up in a situation with a partial coverage report.
   upload-coverage:
