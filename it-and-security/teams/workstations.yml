@@ -130,6 +130,7 @@ policies:
   # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
+  - path: ../lib/macos/policies/update-chrome.yml
   - path: ../lib/macos/policies/latest-macos.yml
   - path: ../lib/macos/policies/all-software-updates-installed.yml
   - path: ../lib/macos/policies/update-slack.yml
@@ -147,6 +148,7 @@ policies:
   - path: ../lib/windows/policies/disk-encryption-check.yml
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
+  - path: ../lib/windows/policies/update-chrome.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
