@@ -66,9 +66,11 @@ export interface ISoftwareTitleVersion {
   hosts_count?: number;
 }
 
+export type SoftwareInstallPolicyType = "dynamic" | "patch";
 export interface ISoftwareInstallPolicy {
   id: number;
   name: string;
+  type: SoftwareInstallPolicyType;
 }
 
 // Match allowedCategories in cmd/maintained-apps/main.go

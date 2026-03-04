@@ -9,7 +9,7 @@ import {
   encodeScriptBase64,
   SCRIPTS_ENCODED_HEADER,
 } from "utilities/scripts_encoding";
-import {
+import software, {
   ISoftwareResponse,
   ISoftwareCountResponse,
   ISoftwareVersion,
@@ -717,6 +717,12 @@ export default {
       softwareId
     )}?team_id=${teamId}`;
     return sendRequest("DELETE", path);
+  },
+
+  addPatchPolicy: (softwareId: number, teamId: number) => {
+    const { SOFTWARE_ADD_PATCH_POLICY } = endpoints;
+    const path = `${SOFTWARE_ADD_PATCH_POLICY(softwareId)}?team_id=${teamId}`;
+    return sendRequest("POST", path);
   },
 
   getSoftwarePackageToken: (

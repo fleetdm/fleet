@@ -6,6 +6,7 @@ import { getPathWithQueryParams } from "utilities/url";
 
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import SoftwareInstallPolicyBadge from "components/SoftwareInstallPolicyBadge";
 
 interface IInstallerPoliciesTableConfig {
   teamId?: number;
@@ -39,12 +40,18 @@ const generateInstallerPoliciesTableConfig = ({
       Cell: (cellProps: ICellProps) => (
         <LinkCell
           value={cellProps.cell.value}
+          tooltipTruncate
           path={getPathWithQueryParams(
             PATHS.EDIT_POLICY(cellProps.row.original.id),
             {
               fleet_id: teamId,
             }
           )}
+          suffix={
+            <SoftwareInstallPolicyBadge
+              policyType={cellProps.row.original.type}
+            />
+          }
         />
       ),
     },

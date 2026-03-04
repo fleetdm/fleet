@@ -9,6 +9,7 @@ import React, { useContext } from "react";
 import { SingleValue } from "react-select-5";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import { TooltipContent } from "interfaces/dropdownOption";
+import { isFleetMaintainedPackageType } from "interfaces/package_type";
 
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
 import { getGitOpsModeTipContent } from "utilities/helpers";
@@ -36,6 +37,7 @@ import OSIcon from "../../icons/OSIcon";
 const ACTION_EDIT_APPEARANCE = "edit_appearance";
 const ACTION_EDIT_SOFTWARE = "edit_software";
 const ACTION_EDIT_CONFIGURATION = "edit_configuration";
+const ACTION_PATCH = "patch";
 const ACTION_EDIT_AUTO_UPDATE_CONFIGURATION = "edit_auto_update_configuration";
 
 const buildActionOptions = (
@@ -44,6 +46,8 @@ const buildActionOptions = (
   source: string | undefined,
   canEditSoftware: boolean,
   canEditConfiguration: boolean,
+  androidSoftwareAvailableForInstall: boolean,
+  canAddPatchPolicy: boolean,
   canConfigureAutoUpdate: boolean
 ): CustomOptionType[] => {
   let disableEditAppearanceTooltipContent: TooltipContent | undefined;
@@ -57,6 +61,7 @@ const buildActionOptions = (
     disableEditAppearanceTooltipContent = gitOpsModeTooltipContent;
     disabledEditConfigurationTooltipContent = gitOpsModeTooltipContent;
 
+    console.log("source", source);
     if (source === "vpp_apps") {
       disableEditSoftwareTooltipContent = gitOpsModeTooltipContent;
     }
@@ -88,6 +93,16 @@ const buildActionOptions = (
       value: ACTION_EDIT_CONFIGURATION,
       isDisabled: !!disabledEditConfigurationTooltipContent,
       tooltipContent: disabledEditConfigurationTooltipContent,
+    });
+  }
+
+  // Show patch option only for fleet maintained apps
+  if (canAddPatchPolicy) {
+    options.push({
+      label: "Patch",
+      value: ACTION_PATCH,
+      // isDisabled: !!disabledEditConfigurationTooltipContent,
+      // tooltipContent: disabledEditConfigurationTooltipContent,
     });
   }
 
@@ -128,6 +143,8 @@ interface ISoftwareDetailsSummaryProps {
   /** Displays an edit CTA to edit the software installer
    * Should only be defined for team view of an installable software */
   onClickEditSoftware?: () => void;
+  /** Displays Patch CTA to add a patch policy */
+  onClickAddPatchPolicy?: () => void;
   /** undefined unless previewing icon, in which case is string or null */
   /** Displays an edit CTA to edit the software's icon
    * Should only be defined for team view of an installable software */
@@ -152,6 +169,7 @@ const SoftwareDetailsSummary = ({
   canManageSoftware = false,
   onClickEditAppearance,
   onClickEditSoftware,
+  onClickAddPatchPolicy,
   onClickEditConfiguration,
   onClickEditAutoUpdateConfig,
   iconPreviewUrl,
@@ -172,6 +190,9 @@ const SoftwareDetailsSummary = ({
         break;
       case ACTION_EDIT_SOFTWARE:
         onClickEditSoftware && onClickEditSoftware();
+        break;
+      case ACTION_PATCH:
+        onClickAddPatchPolicy && onClickAddPatchPolicy();
         break;
       case ACTION_EDIT_CONFIGURATION:
         onClickEditConfiguration && onClickEditConfiguration();
@@ -219,6 +240,7 @@ const SoftwareDetailsSummary = ({
     source,
     !!onClickEditSoftware,
     !!onClickEditConfiguration,
+    !!onClickAddPatchPolicy,
     !!onClickEditAutoUpdateConfig
   );
 

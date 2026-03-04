@@ -224,6 +224,8 @@ export default {
     `/${API_VERSION}/fleet/software/titles/${id}/app_store_app`, // VPP apps and Google Play apps
   SOFTWARE_ICON: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/icon`,
+  SOFTWARE_ADD_PATCH_POLICY: (id: number) =>
+    `/${API_VERSION}/fleet/software/titles/${id}/patch_policy`,
   SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,
   SOFTWARE_VERSION: (id: number) =>
     `/${API_VERSION}/fleet/software/versions/${id}`,
