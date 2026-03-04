@@ -6,12 +6,5 @@ team_settings:
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
-agent_options:
-  path: ../lib/all/agent-options/agent-options.yml
-controls:
-  enable_disk_encryption: false
-  scripts:
 policies:
   - path: ../lib/all/policies/host-assigned-to-team.yml
-queries:
-software:
