@@ -1389,7 +1389,7 @@ func TestGenerateControls(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, controlsRaw)
 	_, ok = controlsRaw["setup_experience"]
-	require.False(t, ok, "Expected no setup_experience section for no-team controls")
+	require.False(t, ok, "Expected no setup_experience section")
 
 	// Generate controls for a team with a bootstrap pacakge.
 	controlsRaw, err = cmd.generateControls(ptr.Uint(3), "some_team", nil)
