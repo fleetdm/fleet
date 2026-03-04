@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"runtime"
 	"slices"
 	"sort"
 	"strings"
@@ -304,7 +303,6 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 	}
 
 	globalOrTeamID := ptr.ValOrZero(teamID)
-	fmt.Printf("ptr.ValOrZero(policy.PatchSoftwareTitleID): %v\n", ptr.ValOrZero(policy.PatchSoftwareTitleID))
 	if policy.PatchSoftwareTitleID != nil {
 		var slug string
 		stmt := `
@@ -318,7 +316,6 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 		if err := sqlx.GetContext(ctx, q, &slug, stmt, *policy.PatchSoftwareTitleID, globalOrTeamID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "loading fma slug")
 		}
-		fmt.Printf("slug: %v\n", slug)
 
 		policy.FleetMaintainedAppSlug = slug
 	}
@@ -828,7 +825,6 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 
 	for _, policy := range policies {
 		globalOrTeamID := ptr.ValOrZero(teamID)
-		fmt.Printf("ptr.ValOrZero(policy.PatchSoftwareTitleID): %v\n", ptr.ValOrZero(policy.PatchSoftwareTitleID))
 		if policy.PatchSoftwareTitleID != nil {
 			var slug string
 			stmt := `
@@ -842,13 +838,10 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 			if err := sqlx.GetContext(ctx, q, &slug, stmt, *policy.PatchSoftwareTitleID, globalOrTeamID); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "loading fma slug")
 			}
-			fmt.Printf("slug: %v\n", slug)
 
 			policy.FleetMaintainedAppSlug = slug
 		}
 	}
-
-	fmt.Printf("[DEBUG %s] %s list\n", time.Now().Format(time.RFC3339Nano), func() string { _, f, l, _ := runtime.Caller(0); return fmt.Sprintf("%s:%d", f, l) }())
 
 	return policies, nil
 }
@@ -1152,7 +1145,6 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 	if args.ConditionalAccessBypassEnabled == nil {
 		args.ConditionalAccessBypassEnabled = ptr.Bool(true)
 	}
-	fmt.Printf("[DEBUG %s] %s newTeamPolicy\n", time.Now().Format(time.RFC3339Nano), func() string { _, f, l, _ := runtime.Caller(0); return fmt.Sprintf("%s:%d", f, l) }())
 
 	res, err := db.ExecContext(ctx,
 		fmt.Sprintf(
@@ -1424,8 +1416,6 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		}
 	}
 
-	fmt.Printf("[JVE %s] %s hmm\n", time.Now().Format(time.RFC3339Nano), func() string { _, f, l, _ := runtime.Caller(0); return fmt.Sprintf("%s:%d", f, l) }())
-
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		query := fmt.Sprintf(
 			`
@@ -1487,10 +1477,6 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				}
 
 				fmaTitleID := fmaTitleIDs[teamNameToID[spec.Team]][spec.FleetMaintainedAppSlug]
-
-				fmt.Printf("[JVE %s] %s fmaTitleID: %v\n", time.Now().Format(time.RFC3339Nano), func() string { _, f, l, _ := runtime.Caller(0); return fmt.Sprintf("%s:%d", f, l) }(), ptr.ValOrZero(fmaTitleID))
-				fmt.Printf("spec.Name: %v\n", spec.Name)
-				fmt.Printf("spec.FleetMaintainedAppSlug: %v\n", spec.FleetMaintainedAppSlug)
 
 				res, err := tx.ExecContext(
 					ctx,
