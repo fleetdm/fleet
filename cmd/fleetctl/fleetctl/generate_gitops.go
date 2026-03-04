@@ -1155,24 +1155,28 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			return nil, err
 		}
 
+		macosSettingsT := reflect.TypeOf(fleet.MacOSSettings{})
+		windowsSettingsT := reflect.TypeOf(fleet.WindowsSettings{})
+		androidSettingsT := reflect.TypeOf(fleet.AndroidSettings{})
+
 		if cmd.AppConfig.MDM.EnabledAndConfigured && profiles != nil {
 			if len(profiles["apple_profiles"].([]map[string]interface{})) > 0 {
 				result[jsonFieldName(t, "MacOSSettings")] = map[string]interface{}{
-					"custom_settings": profiles["apple_profiles"],
+					jsonFieldName(macosSettingsT, "CustomSettings"): profiles["apple_profiles"],
 				}
 			}
 		}
 		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && profiles != nil {
 			if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
 				result[jsonFieldName(t, "WindowsSettings")] = map[string]interface{}{
-					"custom_settings": profiles["windows_profiles"],
+					jsonFieldName(windowsSettingsT, "CustomSettings"): profiles["windows_profiles"],
 				}
 			}
 		}
 		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured && profiles != nil {
 			if len(profiles["android_profiles"].([]map[string]interface{})) > 0 {
 				result[jsonFieldName(t, "AndroidSettings")] = map[string]interface{}{
-					"custom_settings": profiles["android_profiles"],
+					jsonFieldName(androidSettingsT, "CustomSettings"): profiles["android_profiles"],
 				}
 			}
 		}

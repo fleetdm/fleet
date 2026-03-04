@@ -24,7 +24,7 @@ controls:
       name: my_certypoo
       subject_name: CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
   apple_settings:
-    custom_settings:
+    configuration_profiles:
     - path: "../lib/team-a-👍/profiles/team-macos-mobileconfig-profile.mobileconfig"
   enable_disk_encryption: true
   ios_updates:
