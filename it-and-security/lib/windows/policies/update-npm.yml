@@ -1,0 +1,6 @@
+- name: Windows - NPM up to date
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM npm_packages WHERE name = 'npm' AND version_compare(version, '11.11.0') < 0);
+  critical: false
+  description: The host may have an outdated version of NPM (Node Package Manager), potentially risking security vulnerabilities or compatibility issues.
+  resolution: Update NPM by running "npm install -g npm@latest" in a terminal or PowerShell.
+  platform: windows

@@ -141,6 +141,7 @@ policies:
   - path: ../lib/macos/policies/company-portal-installed.yml
   - path: ../lib/macos/policies/entra-conditional-access-check.yml
   - path: ../lib/macos/policies/install-nudge.yml
+  - path: ../lib/macos/policies/update-npm.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
@@ -148,9 +149,11 @@ policies:
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
+  - path: ../lib/windows/policies/update-npm.yml
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
+  - path: ../lib/linux/policies/update-npm.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
   - path: ../lib/macos/queries/collect-santa-denied-logs.yml
