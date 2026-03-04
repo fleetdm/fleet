@@ -16,11 +16,11 @@
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 name: "💻 Workstations"
 controls:
-  apple_setup:
+  setup_experience:
     ###########################################################
-    # Configure the macOS setup experience
+    # Configure the macOS, Windows, and Linux setup experience
     # 
-    # (Optional) edit the automatic enrollment profile referenced
+    # (Optional) edit the macOS automatic enrollment profile referenced
     # here to change which items are skipped during macOS setup
     # and other aspects of the end user's experience during
     # their first few minutes with their new Mac.
@@ -59,11 +59,11 @@ controls:
   # ```
   ###########################################################
   apple_settings:
-    profiles:
+    configuration_profiles:
       - paths: ../platforms/macos/declaration-profiles/*.json
       - paths: ../platforms/macos/configuration-profiles/*.mobileconfig
   windows_settings:
-    profiles:
+    configuration_profiles:
       - paths: ../platforms/windows/configuration-profiles/*.xml
   
   ###########################################################
