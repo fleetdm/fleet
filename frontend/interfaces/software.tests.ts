@@ -59,9 +59,9 @@ describe("formatSoftwareType", () => {
         description: "macOS pkg packages",
       },
       {
-        source: "go_packages" as const,
-        expected: "Package (Go)",
-        description: "Go packages",
+        source: "go_binaries" as const,
+        expected: "Binary (Go)",
+        description: "Go binaries",
       },
     ];
 
