@@ -99,6 +99,8 @@ func gitopsCommand() *cli.Command {
 			logDeprecatedFlagName(c, "delete-other-teams", "delete-other-fleets")
 			logDeprecatedEnvVar(c, "DELETE_OTHER_TEAMS", "DELETE_OTHER_FLEETS")
 
+			gitOpsOpts := spec.GitOpsOptions{AllowUnknownKeys: flAllowUnknownKeys}
+
 			logf := func(format string, a ...interface{}) {
 				_, _ = fmt.Fprintf(c.App.Writer, format, a...)
 			}
@@ -142,7 +144,7 @@ func gitopsCommand() *cli.Command {
 			}
 
 			// We need the controls from no-team.yml to apply them when applying the global app config.
-			noTeamControls, noTeamPresent, noTeamFilename, err := extractControlsForNoTeam(flFilenames, appConfig)
+			noTeamControls, noTeamPresent, noTeamFilename, err := extractControlsForNoTeam(flFilenames, appConfig, gitOpsOpts)
 			if err != nil {
 				return fmt.Errorf("extracting controls from %s: %w", noTeamFilename, err)
 			}
@@ -225,7 +227,6 @@ func gitopsCommand() *cli.Command {
 			// List of things we want to do at the end of this run
 			var allPostOps []func() error
 
-			gitOpsOpts := spec.GitOpsOptions{AllowUnknownKeys: flAllowUnknownKeys}
 			for _, flFilename := range flFilenames.Value() {
 				baseDir := filepath.Dir(flFilename)
 				config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, logf, gitOpsOpts)
@@ -828,7 +829,7 @@ func getCustomSettings(osSettings interface{}) ([]fleet.MDMProfileSpec, bool) {
 	return nil, false
 }
 
-func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.EnrichedAppConfig) (spec.GitOpsControls, bool, string, error) {
+func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.EnrichedAppConfig, gitOpsOpts spec.GitOpsOptions) (spec.GitOpsControls, bool, string, error) {
 	for _, flFilename := range flFilenames.Value() {
 		fileName := filepath.Base(flFilename)
 		if fileName == "no-team.yml" || fileName == "unassigned.yml" {
@@ -837,7 +838,7 @@ func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.Enri
 				break
 			}
 			baseDir := filepath.Dir(flFilename)
-			config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, func(format string, a ...interface{}) {})
+			config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, func(format string, a ...interface{}) {}, gitOpsOpts)
 			if err != nil {
 				return spec.GitOpsControls{}, false, fileName, err
 			}

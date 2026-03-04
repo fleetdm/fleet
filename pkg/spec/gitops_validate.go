@@ -268,3 +268,14 @@ func validateRawKeys(raw json.RawMessage, targetType reflect.Type, filePath stri
 	}
 	return validateUnknownKeys(data, targetType, keysPath, filePath)
 }
+
+// validateYAMLKeys unmarshals raw YAML into a generic structure and validates
+// all keys against the target type. Use this for path-referenced files that
+// contain YAML rather than JSON.
+func validateYAMLKeys(yamlBytes []byte, targetType reflect.Type, filePath string, keysPath []string) []error {
+	var data any
+	if err := YamlUnmarshal(yamlBytes, &data); err != nil {
+		return nil // parse errors already caught by the struct unmarshal
+	}
+	return validateUnknownKeys(data, targetType, keysPath, filePath)
+}

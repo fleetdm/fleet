@@ -2176,6 +2176,86 @@ software:
 		}
 		assert.True(t, found, "expected warning about unknown_control_field in log messages: %v", logMessages)
 	})
+
+	t.Run("unknown key in controls on no-team path", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: No team
+controls:
+  unknown_control_field: true
+policies:
+`
+		path, basePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_control_field")
+	})
+
+	t.Run("unknown key in software package via path", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: pkg.yml
+`
+		path, basePath := createTempFile(t, "", config)
+		pkgYAML := `
+url: https://example.com/pkg.pkg
+hash_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+unknown_pkg_field: bad
+`
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "pkg.yml"), []byte(pkgYAML), 0o644))
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_pkg_field")
+	})
+
+	t.Run("unknown key in software package array via path", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: pkgs.yml
+`
+		path, basePath := createTempFile(t, "", config)
+		pkgYAML := `
+- url: https://example.com/pkg.pkg
+  hash_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  unknown_array_field: bad
+`
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "pkgs.yml"), []byte(pkgYAML), 0o644))
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_array_field")
+	})
+
+	t.Run("unknown key in policy install_software package_path", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig([]string{"policies", "software"})
+		config += `
+software:
+  packages:
+    - url: https://example.com/pkg.pkg
+      hash_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+policies:
+  - name: Test policy
+    query: SELECT 1;
+    install_software:
+      package_path: pkg.yml
+`
+		path, basePath := createTempFile(t, "", config)
+		pkgYAML := `
+url: https://example.com/pkg.pkg
+hash_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+unknown_policy_pkg_field: bad
+`
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "pkg.yml"), []byte(pkgYAML), 0o644))
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_policy_pkg_field")
+	})
 }
 
 func TestSoftwarePackagesScriptPath(t *testing.T) {
