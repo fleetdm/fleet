@@ -436,7 +436,7 @@ reports:
   logging: snapshot
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "duplicate query names")
+	assert.ErrorContains(t, err, "duplicate report names")
 }
 
 func TestUnicodeQueryNames(t *testing.T) {
@@ -454,7 +454,7 @@ reports:
   logging: snapshot
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "query name must be in ASCII")
+	assert.ErrorContains(t, err, "`name` must be in ASCII")
 }
 
 func TestUnicodeTeamName(t *testing.T) {
@@ -723,11 +723,13 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					_, err = GitOpsFromFile(unassignedPath5, unassignedBasePath5, nil, nopLogf)
 					assert.ErrorContains(t, err, "unsupported settings option 'features' in unassigned.yml")
 
-					// Missing secrets
+					// Missing secrets -- should be a no-op (existing secrets preserved)
 					config = getConfig([]string{"settings"})
 					config += "settings:\n"
-					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "'settings.secrets' is required")
+					result, err := gitOpsFromString(t, config)
+					assert.NoError(t, err)
+					_, hasSecrets := result.TeamSettings["secrets"]
+					assert.False(t, hasSecrets, "secrets should not be set when omitted from config")
 				} else {
 					// 'software' is not allowed in global config
 					config := getConfig(nil)
@@ -768,11 +770,25 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "must have a 'secret' key")
 
-					// Missing secrets
+					// Invalid secrets 3 (using wrong type in one key)
+					config = getConfig([]string{"org_settings"})
+					config += "org_settings:\n  secrets: \n    - secret: some secret\n    - secret: 123\n"
+					_, err = gitOpsFromString(t, config)
+					assert.ErrorContains(t, err, "each item in 'secrets' must have a 'secret' key")
+
+					// Missing secrets -- should be a no-op (existing secrets preserved)
 					config = getConfig([]string{"org_settings"})
 					config += "org_settings:\n"
+					result, err := gitOpsFromString(t, config)
+					assert.NoError(t, err)
+					_, hasSecrets := result.OrgSettings["secrets"]
+					assert.False(t, hasSecrets, "secrets should not be set when omitted from config")
+
+					// Empty secrets (valid, will remove all secrets)
+					config = getConfig([]string{"org_settings"})
+					config += "org_settings:\n  secrets: \n"
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "'org_settings.secrets' is required")
+					assert.NoError(t, err)
 
 					// Bad label spec (float instead of string in hosts)
 					config = getConfig([]string{"labels"})
@@ -857,17 +873,17 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				_, err = gitOpsFromString(t, config)
 				assert.ErrorContains(t, err, "expected type spec.Query but got number")
 
-				// Query name missing
+				// Report name missing
 				config = getConfig([]string{"reports"})
 				config += "reports:\n  - query: SELECT 1;\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "name is required")
+				assert.ErrorContains(t, err, "`name` is required")
 
-				// Query SQL query missing
+				// Report SQL missing
 				config = getConfig([]string{"reports"})
 				config += "reports:\n  - name: Test Query\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "query is required")
+				assert.ErrorContains(t, err, "`query` is required")
 			},
 		)
 	}

@@ -377,7 +377,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	// Get other top-level entities.
 	multiError = parseControls(top, result, multiError, filePath, logFn)
 	multiError = parseAgentOptions(top, result, baseDir, logFn, filePath, multiError)
-	multiError = parseQueries(top, result, baseDir, logFn, filePath, multiError)
+	multiError = parseReports(top, result, baseDir, logFn, filePath, multiError)
 
 	if appConfig != nil && appConfig.License.IsPremium() {
 		multiError = parseSoftware(top, result, baseDir, filePath, multiError)
@@ -641,14 +641,13 @@ func parseSecrets(result *GitOps, multiError *multierror.Error) *multierror.Erro
 	var ok bool
 	if result.TeamName == nil {
 		rawSecrets, ok = result.OrgSettings["secrets"]
-		if !ok {
-			return multierror.Append(multiError, errors.New("'org_settings.secrets' is required"))
-		}
 	} else {
 		rawSecrets, ok = result.TeamSettings["secrets"]
-		if !ok {
-			return multierror.Append(multiError, errors.New("'settings.secrets' is required"))
-		}
+	}
+	if !ok {
+		// Allow omitting secrets key, resulting in a no-op for secrets.
+		// Any secrets present on the server will be retained.
+		return multiError
 	}
 	// When secrets slice is empty, all secrets are removed.
 	enrollSecrets := make([]*fleet.EnrollSecret, 0)
@@ -1378,7 +1377,20 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	return nil
 }
 
-func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, filePath string, multiError *multierror.Error) *multierror.Error {
+func validateReport(r *fleet.QuerySpec, filePath string, itemPath string) error {
+	if r.Name == "" {
+		return fmt.Errorf("`name` is required for each report in %s at %s", filepath.Base(filePath), itemPath)
+	}
+	if r.Query == "" {
+		return fmt.Errorf("`query` is required for each report in %s at %s", filepath.Base(filePath), itemPath)
+	}
+	if !isASCII(r.Name) {
+		return fmt.Errorf("`name` must be in ASCII: %s in %s at %s", r.Name, filepath.Base(filePath), itemPath)
+	}
+	return nil
+}
+
+func parseReports(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, filePath string, multiError *multierror.Error) *multierror.Error {
 	reportsRaw, ok := top["reports"]
 	if result.IsNoTeam() {
 		if ok {
@@ -1392,8 +1404,13 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 	if err := json.Unmarshal(reportsRaw, &queries); err != nil {
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"reports"}, err))
 	}
-	for _, item := range queries {
+	for i, item := range queries {
 		if item.Path == nil {
+			if err := validateReport(&item.QuerySpec, filePath, fmt.Sprintf("reports[%d]", i)); err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
+			}
+			item.QuerySpec.TeamName = ptr.ValOrZero(result.TeamName)
 			result.Queries = append(result.Queries, &item.QuerySpec)
 		} else {
 			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
@@ -1413,37 +1430,23 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 					multiError = multierror.Append(multiError, MaybeParseTypeError(*item.Path, []string{"reports"}, err))
 					continue
 				}
-				for _, pq := range pathQueries {
-					pq := pq
+				for i, pq := range pathQueries {
 					if pq != nil {
 						if pq.Path != nil {
 							multiError = multierror.Append(
 								multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pq.Path, *item.Path),
 							)
 						} else {
+							if err := validateReport(&pq.QuerySpec, *item.Path, fmt.Sprintf("reports[%d]", i)); err != nil {
+								multiError = multierror.Append(multiError, err)
+								continue
+							}
+							pq.QuerySpec.TeamName = ptr.ValOrZero(result.TeamName)
 							result.Queries = append(result.Queries, &pq.QuerySpec)
 						}
 					}
 				}
 			}
-		}
-	}
-	// Make sure team name is correct and do additional validation
-	for _, q := range result.Queries {
-		if q.Name == "" {
-			multiError = multierror.Append(multiError, errors.New("query name is required for each query"))
-		}
-		if q.Query == "" {
-			multiError = multierror.Append(multiError, errors.New("query SQL query is required for each query"))
-		}
-		// Don't use non-ASCII
-		if !isASCII(q.Name) {
-			multiError = multierror.Append(multiError, fmt.Errorf("query name must be in ASCII: %s", q.Name))
-		}
-		if result.TeamName != nil {
-			q.TeamName = *result.TeamName
-		} else {
-			q.TeamName = ""
 		}
 	}
 	duplicates := getDuplicateNames(
@@ -1452,7 +1455,7 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 		},
 	)
 	if len(duplicates) > 0 {
-		multiError = multierror.Append(multiError, fmt.Errorf("duplicate query names: %v", duplicates))
+		multiError = multierror.Append(multiError, fmt.Errorf("duplicate report names: %v", duplicates))
 	}
 	return multiError
 }
