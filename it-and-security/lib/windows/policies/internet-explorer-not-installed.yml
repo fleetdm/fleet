@@ -1,0 +1,6 @@
+- name: "Windows - Internet Explorer not installed"
+  query: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '%Internet Explorer%');"
+  critical: false
+  description: "Checks that Internet Explorer is not installed on Windows devices. Internet Explorer is deprecated and should not be used."
+  resolution: "Uninstall Internet Explorer from the device. Go to Settings > Apps > Optional features, find Internet Explorer, and uninstall it."
+  platform: windows
