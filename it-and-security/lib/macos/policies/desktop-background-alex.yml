@@ -1,7 +1,7 @@
 - name: macOS - Desktop background is a photo of @alex
-  query: "SELECT 1 FROM plist WHERE path = '/Users/' || (SELECT user FROM logged_in_users ORDER BY time DESC LIMIT 1) || '/Library/Preferences/com.apple.desktop.plist' AND value LIKE '%alex-mitchell.png%';"
+  query: "SELECT 1 FROM plist WHERE path = '/Users/' || (SELECT user FROM logged_in_users ORDER BY time DESC LIMIT 1) || '/Library/Preferences/com.apple.desktop.plist' AND value LIKE '%alex-mitchell.png%' AND (SELECT hostname FROM system_info) = 'Alex''s MacBook Pro';"
   critical: false
-  description: "Checks that the desktop background is set to alex-mitchell.png."
+  description: "Checks that the desktop background is set to alex-mitchell.png on Alex's MacBook Pro."
   resolution: "The desktop background will be automatically set to alex-mitchell.png."
   platform: darwin
   calendar_events_enabled: false

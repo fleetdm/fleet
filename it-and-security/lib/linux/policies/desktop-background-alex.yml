@@ -1,9 +1,0 @@
-- name: Linux - Desktop background is a photo of @alex
-  query: "SELECT 1 FROM dconf WHERE key = '/org/gnome/desktop/background/picture-uri' AND value LIKE '%alex-mitchell.png%';"
-  critical: false
-  description: "Checks that the desktop background is set to alex-mitchell.png."
-  resolution: "The desktop background will be automatically set to alex-mitchell.png."
-  platform: linux
-  calendar_events_enabled: false
-  run_script:
-    path: ../../linux/scripts/set-desktop-background-alex.sh

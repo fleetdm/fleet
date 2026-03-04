@@ -122,9 +122,7 @@ controls:
     - path: ../lib/windows/scripts/install-bitdefender.ps1
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
     - path: ../lib/windows/scripts/create-admin-user.ps1
-    - path: ../lib/windows/scripts/set-desktop-background-alex.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
-    - path: ../lib/linux/scripts/set-desktop-background-alex.sh
     - path: ../lib/macos/scripts/uninstall-santa-extension.sh
     - path: ../lib/macos/scripts/install-macos-compatibility-extension.sh
     - path: ../lib/macos/scripts/install-nudge.sh
@@ -152,11 +150,9 @@ policies:
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
-  - path: ../lib/windows/policies/desktop-background-alex.yml
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
-  - path: ../lib/linux/policies/desktop-background-alex.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
   - path: ../lib/macos/queries/collect-santa-denied-logs.yml

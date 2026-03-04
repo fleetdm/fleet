@@ -1,9 +1,0 @@
-- name: Windows - Desktop background is a photo of @alex
-  query: "SELECT 1 FROM registry WHERE path = 'HKEY_CURRENT_USER\\Control Panel\\Desktop\\Wallpaper' AND data LIKE '%alex-mitchell.png%';"
-  critical: false
-  description: "Checks that the desktop background is set to alex-mitchell.png."
-  resolution: "The desktop background will be automatically set to alex-mitchell.png."
-  platform: windows
-  calendar_events_enabled: false
-  run_script:
-    path: ../../windows/scripts/set-desktop-background-alex.ps1
