@@ -1,1 +1,1 @@
-* Fixed table header "select all" checkbox not selecting rows when the page has fewer than 20 rows.
+* Fixed select-all header checkbox not selecting rows on partial pages.
