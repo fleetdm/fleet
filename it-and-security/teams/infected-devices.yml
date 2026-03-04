@@ -1,0 +1,59 @@
+name: Infected devices
+team_settings:
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  secrets:
+    - secret: $DOGFOOD_INFECTED_DEVICES_ENROLL_SECRET
+agent_options:
+  config:
+    decorators:
+      load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+    options:
+      disable_distributed: false
+      distributed_interval: 10
+      distributed_plugin: tls
+      distributed_tls_max_attempts: 3
+      logger_tls_endpoint: /api/osquery/log
+      logger_tls_period: 10
+      pack_delimiter: /
+controls:
+  enable_disk_encryption: true
+  macos_settings:
+    custom_settings:
+      - path: ../lib/macos/configuration-profiles/firewall.mobileconfig
+      - path: ../lib/macos/configuration-profiles/enable-firewall-logging.mobileconfig
+      - path: ../lib/macos/configuration-profiles/enable-gatekeeper.mobileconfig
+      - path: ../lib/macos/configuration-profiles/enforce-library-validation.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-bluetooth-file-sharing.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-content-caching.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-guest-account.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-guest-shares.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-internet-sharing.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-media-sharing.mobileconfig
+      - path: ../lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig
+  windows_settings:
+    custom_settings:
+      - path: ../lib/windows/configuration-profiles/Enable firewall.xml
+      - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
+      - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
+  scripts:
+    - path: ../lib/macos/scripts/collect-fleetd-logs.sh
+    - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
+    - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
+    - path: ../lib/windows/scripts/enable-ms-defender.ps1
+    - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
+policies:
+  # macOS policies
+  - path: ../lib/macos/policies/disk-encryption-check.yml
+  # Windows policies
+  - path: ../lib/windows/policies/disk-encryption-check.yml
+  - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
+  - path: ../lib/windows/policies/windows-defender-compliance-check.yml
+  # Linux policies
+  - path: ../lib/linux/policies/disk-encryption-check.yml
