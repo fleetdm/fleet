@@ -2,6 +2,8 @@
   query: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE name LIKE '%clawbot%');"
   critical: false
   description: "Checks that Clawbot is not installed on macOS devices."
-  resolution: "Uninstall Clawbot from the device."
+  resolution: "Clawbot will be automatically uninstalled."
   platform: darwin
   calendar_events_enabled: false
+  run_script:
+    path: ../scripts/uninstall-clawbot.sh

@@ -116,12 +116,15 @@ controls:
     - path: ../lib/macos/scripts/install-wine.sh
     - path: ../lib/macos/scripts/create-conditional-access-allow-file.sh
     - path: ../lib/macos/scripts/set-lock-screen-message.sh
+    - path: ../lib/macos/scripts/uninstall-clawbot.sh
     - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
     - path: ../lib/windows/scripts/install-bitdefender.ps1
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
     - path: ../lib/windows/scripts/create-admin-user.ps1
+    - path: ../lib/windows/scripts/uninstall-clawbot.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
+    - path: ../lib/linux/scripts/uninstall-clawbot.sh
     - path: ../lib/macos/scripts/uninstall-santa-extension.sh
     - path: ../lib/macos/scripts/install-macos-compatibility-extension.sh
     - path: ../lib/macos/scripts/install-nudge.sh
