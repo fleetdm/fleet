@@ -8896,6 +8896,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	err = ds.ConditionalAccessBypassDevice(ctx, host.ID)
 	require.NoError(t, err)
 
+	err = ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID)
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool

@@ -155,6 +155,11 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 		require.NoError(t, err)
 	}
 
+	// Delete policies in "No team" (the others are deleted in ts.DS.DeleteTeam above).
+	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM policies WHERE team_id = 0;`)
+		return err
+	})
 	// Clean software installers in "No team" (the others are deleted in ts.DS.DeleteTeam above).
 	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
@@ -3539,4 +3544,212 @@ team_settings:
 			}
 		})
 	}
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestConfigurationProfileEscaping() {
+	t := s.T()
+	ctx := context.Background()
+	tempDir := t.TempDir()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	// Get the testdata mobileconfig profile
+	_, currentFile, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	profilePath := filepath.Join(filepath.Dir(currentFile), "testdata", "apple-profile.mobileconfig")
+	require.FileExists(t, profilePath)
+
+	const secretPasswordValue = "custom&password<tag>"
+	t.Setenv("FLEET_SECRET_PASSWORD", secretPasswordValue)
+	t.Setenv("API_KEY", "my-api-key&value")
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	gitopsConfig := fmt.Sprintf(`
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: test_secret
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s
+policies:
+reports:
+`, s.Server.URL, profilePath)
+
+	configPath := filepath.Join(tempDir, "gitops.yml")
+	require.NoError(t, os.WriteFile(configPath, []byte(gitopsConfig), 0o644)) //nolint:gosec
+
+	// Run gitops
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", configPath})
+
+	// Verify the stored profile in the DB, based on my testing these vars are okay as they are not host-specific and we can avoid enrolling a host and checking the host specific payload.
+	profiles, err := s.DS.ListMDMAppleConfigProfiles(ctx, nil)
+	require.NoError(t, err)
+
+	var storedProfile *fleet.MDMAppleConfigProfile
+	for _, p := range profiles {
+		if strings.Contains(p.Identifier, "fleet.9913C522") {
+			storedProfile = p
+			break
+		}
+	}
+	require.NotNil(t, storedProfile, "should find the uploaded profile")
+	profileBody := string(storedProfile.Mobileconfig)
+
+	// $FLEET_SECRET_PASSWORD should NOT be expanded, as it will be expanded server-side
+	assert.Contains(t, profileBody, "$FLEET_SECRET_PASSWORD",
+		"stored profile should still contain the FLEET_SECRET_ placeholder")
+	// $API_KEY should be expanded and its value should have been escaped during gitops
+	assert.Contains(t, profileBody, "my-api-key&amp;value",
+		"stored profile should have the expanded $API_KEY value")
+	assert.NotContains(t, profileBody, "$API_KEY",
+		"stored profile should not contain the $API_KEY variable reference")
+
+	// Verify the secret was saved to the server unescaped, to avoid double encoding secrets.
+	secrets, err := s.DS.GetSecretVariables(ctx, []string{"PASSWORD"})
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+	assert.Equal(t, secretPasswordValue, secrets[0].Value,
+		"secret should be stored as the raw value (not XML-escaped)")
+}
+
+// TestGitOpsSoftwareWithEnvVarInstalledByPolicy tests that a software package
+// with an environment variable in the URL can be referenced by a policy to be
+// installed automatically.
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsSoftwareWithEnvVarInstalledByPolicy() {
+	t := s.T()
+	ctx := t.Context()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	const (
+		globalTemplate = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+reports:
+`
+
+		noTeamTemplate = `name: No team
+controls:
+policies:
+  - description: Test policy.
+    install_software:
+      package_path: ./lib/ruby.yml
+    name: Install ruby
+    platform: linux
+    query: SELECT 1 FROM file WHERE path = "/usr/local/bin/ruby";
+    resolution: Install ruby.
+software:
+  packages:
+    - path: ./lib/ruby.yml
+`
+
+		packageTemplate = `- url: ${CUSTOM_SOFTWARE_INSTALLER_URL}/ruby.deb`
+
+		fleetTemplate = `
+controls:
+software:
+  packages:
+    - path: ./lib/ruby.yml
+reports:
+policies:
+  - description: Test policy.
+    install_software:
+      package_path: ./lib/ruby.yml
+    name: Install team ruby
+    platform: linux
+    query: SELECT 1 FROM file WHERE path = "/usr/local/bin/ruby";
+    resolution: Install ruby.
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+`
+	)
+
+	tempDir := t.TempDir()
+
+	globalFile := filepath.Join(tempDir, "global.yml")
+	err := os.WriteFile(globalFile, []byte(globalTemplate), 0o644) //nolint:gosec
+	require.NoError(t, err)
+
+	noTeamFile := filepath.Join(tempDir, "no-team.yml")
+	err = os.WriteFile(noTeamFile, []byte(noTeamTemplate), 0o644)
+	require.NoError(t, err)
+
+	fleetName := uuid.NewString()
+	fleetFile := filepath.Join(tempDir, "fleet.yml")
+	err = os.WriteFile(fleetFile, fmt.Appendf(nil, fleetTemplate, fleetName), 0o644)
+	require.NoError(t, err)
+
+	pkgFile := filepath.Join(tempDir, "lib", "ruby.yml")
+	err = os.MkdirAll(filepath.Dir(pkgFile), 0o755)
+	require.NoError(t, err)
+	err = os.WriteFile(pkgFile, []byte(packageTemplate), 0o644)
+	require.NoError(t, err)
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.Server.URL)
+	testing_utils.StartSoftwareInstallerServer(t)
+
+	// Apply configs, installer URL env var is not defined yet
+	_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", noTeamFile, "-f", fleetFile, "--dry-run"})
+	require.ErrorContains(t, err, `environment variable "CUSTOM_SOFTWARE_INSTALLER_URL" not set`)
+	_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", noTeamFile, "-f", fleetFile})
+	require.ErrorContains(t, err, `environment variable "CUSTOM_SOFTWARE_INSTALLER_URL" not set`)
+
+	// define the URL env var and apply again, should succeed
+	t.Setenv("CUSTOM_SOFTWARE_INSTALLER_URL", os.Getenv("SOFTWARE_INSTALLER_URL"))
+	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", noTeamFile, "-f", fleetFile, "--dry-run"}))
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", noTeamFile, "-f", fleetFile}))
+
+	// no-team has a ruby custom installer
+	titles, _, _, err := s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: ptr.Uint(0)}, fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, "ruby", titles[0].Name)
+	require.NotNil(t, titles[0].SoftwarePackage)
+	installer, err := s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, titles[0].ID, false)
+	require.NoError(t, err)
+
+	tmPols, err := s.DS.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, tmPols, 1)
+	require.Equal(t, "Install ruby", tmPols[0].Name)
+	require.NotNil(t, tmPols[0].SoftwareInstallerID)
+	require.Equal(t, installer.InstallerID, *tmPols[0].SoftwareInstallerID)
+
+	// Get the team ID
+	tm, err := s.DS.TeamByName(ctx, fleetName)
+	require.NoError(t, err)
+
+	// team has a ruby custom installer
+	titles, _, _, err = s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: &tm.ID}, fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, "ruby", titles[0].Name)
+	require.NotNil(t, titles[0].SoftwarePackage)
+	installer, err = s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &tm.ID, titles[0].ID, false)
+	require.NoError(t, err)
+
+	tmPols, err = s.DS.ListMergedTeamPolicies(ctx, tm.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, tmPols, 1)
+	require.Equal(t, "Install team ruby", tmPols[0].Name)
+	require.NotNil(t, tmPols[0].SoftwareInstallerID)
+	require.Equal(t, installer.InstallerID, *tmPols[0].SoftwareInstallerID)
 }

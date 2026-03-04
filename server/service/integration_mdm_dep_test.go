@@ -665,10 +665,6 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 
 		// for iDevices, fleetd is not installed so the rest of this test does not apply.
 		if opts.EnableReleaseManually {
-			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-				mysql.DumpTable(t, q, "jobs")
-				return nil
-			})
 			// get the worker's pending job from the future, there should not be any
 			// because it needs to be released manually
 			pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
