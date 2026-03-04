@@ -293,7 +293,7 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   sh_packages: "linux", // 4.76 Added support for Linux hosts only
   ps1_packages: "windows",
   jetbrains_plugins: null,
-  go_packages: null,
+  go_binaries: null,
 } as const;
 
 export const SCRIPT_PACKAGE_SOURCES = ["sh_packages", "ps1_packages"];
