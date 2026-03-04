@@ -50,13 +50,13 @@ module.exports = {
       }
       if(lastReportedStatisticsForThisTrial.length < 1) {
         // If we didn't find usage statistics reported by a Render trial instance, log a warning and continue.
-        sails.log.warn(`When reporting usage details for Render trial instances to Salesforce, no usage analytics were found reported by a Render trial (slug: ${renderTrial.slug})`);
+        sails.log(`Skipping reporting information for a trial instance (slug: ${renderTrial.slug}). No usage analytics were found reported by a Render trial (slug: ${renderTrial.slug})`);
         continue;
       }
       let thisRenderTrialsUser = await User.findOne({id: renderTrial.user});
       if(!thisRenderTrialsUser) {
         // If the user record associated with this Render trial is missing, (e.g., if this person requested that we delete their account) log a warning and continue.
-        sails.log.warn(`When reporting usage details for Render trial instances to Salesforce, no user could be found that was associated with a Render trial (slug: ${renderTrial.slug})`);
+        sails.log(`Skipping reporting information for a trial instance (slug: ${renderTrial.slug}). No user could be found that was associated with this Render trial.`);
         continue;
       }
       // Create a formatted timestamp of when this Render trial was started (When this user signed up)
@@ -79,6 +79,12 @@ module.exports = {
         numHostsEnrolled: lastReportedStatisticsForThisTrial[0].numHostsEnrolled
       };
 
+      // Skip reporting usage information for users with a fleetdm.com email address.
+      if(!_.contains(thisRenderTrialsUser.emailAddress, 'fleetdm.com')){
+        sails.log(`Skipping reporting usage information for a Render trial instance (slug: ${renderTrial.slug}) because it is used by a fleetdm.com email address`);
+        continue;
+      }
+
       // Update the contact record that was created for this user when they signed up.
       await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
         emailAddress: thisRenderTrialsUser.emailAddress,
@@ -86,6 +92,8 @@ module.exports = {
         lastName: thisRenderTrialsUser.lastName,
         contactSource: 'Website - Sign up',
         trialInstanceUsageDetails: trialInstanceUsageDetails
+      }).tolerate((err)=>{
+        sails.log.warn(`When reporting usage information about a Render trial instance (slug: ${renderTrial.slug}), an error occured when updating/creating a Salesforce contact/account. Full error: ${require('util').inspect(err)}`);
       });
 
 
