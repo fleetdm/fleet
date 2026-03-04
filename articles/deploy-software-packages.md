@@ -26,7 +26,7 @@ Learn more about automatically installing software [the Automatically install so
 * Choose a file to upload. `.pkg`, `.msi`, `.exe`, `.rpm`, `.deb`, `.ipa`, `.tar.gz`, `.sh`, `.py`, and `.ps1` files are supported.
 * If you check the **Automatic install** box, Fleet will create a policy that checks for the existence of the software and will automatically trigger an install on hosts where the software does not exist. 
 
-> **Note:** Automatic install is not supported for payload-free packages (`.sh`, `.py`, and `.ps1` files).
+> **Note:** Automatic install is not supported for script-only packages (`.sh`, `.py`, and `.ps1` files).
 * To allow users to install the software from Fleet Desktop, check the **Self-service** checkbox.
 * To customize installer behavior, click on **Advanced options**.
 
@@ -49,11 +49,11 @@ Software installer uploads will fail if Fleet can't extract this metadata and ve
 
 .tar.gz archives are uploaded as-is without attempting to pull metadata, and will be added successfully as long as they are valid archives, and as long as install and uninstall scripts are supplied.
 
-### Payload-free packages
+### Script-only packages
 
-Payload-free packages (`.sh`, `.py`, and `.ps1` files) are packages that only contain a script that runs directly on hosts without installing traditional software. The script file's contents become the install script.  The `.sh` and `.py` files are supported for Linux hosts, and`.ps1` files for Windows hosts.
+Script-only packages (`.sh`, `.py`, and `.ps1` files) are packages that only contain a script that runs directly on hosts without installing traditional software. The script file's contents become the install script.  The `.sh` and `.py` files are supported for Linux hosts, and`.ps1` files for Windows hosts.
 
-Payload-free packages are useful for:
+Script-only packages are useful for:
 - Self-service configuration scripts (e.g., connecting to a VPN, configuring printers)
 - Running maintenance tasks on demand
 - Deploying configuration changes that don't require a traditional installer
