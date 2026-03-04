@@ -3,12 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="robots" content="noindex" />
+    <meta property="csp-nonce" content="{{.CSPNonce}}" />
     <meta name="viewport" content="width=768" id="viewport-meta-tag" />
 
     <link
       rel="stylesheet"
       type="text/css"
       href="{{.URLPrefix}}<%= htmlWebpackPlugin.files.css[0] %>"
+      nonce="{{.CSPNonce}}"
     />
     <link rel="shortcut icon" href="{{.URLPrefix}}/assets/favicon.ico" />
 
@@ -20,6 +22,7 @@
     <script
       async
       defer
+      nonce="{{.CSPNonce}}"
       src="{{.URLPrefix}}<%= htmlWebpackPlugin.files.js[0] %>"
     ></script>
   </body>

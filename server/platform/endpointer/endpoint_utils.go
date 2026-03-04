@@ -727,10 +727,17 @@ func MakeDecoder(
 	}
 }
 
-func WriteBrowserSecurityHeaders(w http.ResponseWriter, serveCSP bool) {
+// TODO perhaps use just basic RNG. Nonce may only include valid base64 chars after the "nonce-" portion, so
+// we must strip dashes
+func newNonce() string {
+	return "8IBTHwOdqNKAWeKl7plt8g=="
+}
+
+func WriteBrowserSecurityHeaders(w http.ResponseWriter, serveCSP bool) string {
 	// Strict-Transport-Security informs browsers that the site should only be
 	// accessed using HTTPS, and that any future attempts to access it using
 	// HTTP should automatically be converted to HTTPS.
+	nonce := newNonce() // generate a unique nonce for this response
 	w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains;")
 	// X-Frames-Options disallows embedding the UI in other sites via <frame>,
 	// <iframe>, <embed> or <object>, which can prevent attacks like
@@ -746,8 +753,10 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter, serveCSP bool) {
 	if serveCSP {
 		// TODO Is https OK for img-src? We allow customers to upload their own images and we have to reach out to gravatar for them.
 		// TODO: Fix unsafe-inline style-src
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; connect-src 'self' www.gravatar.com ws: wss:; img-src 'self' www.gravatar.com data: https:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'")
+		// NB: If default-src ever changes from 'none' make sure to add object-src 'none'
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; base-uri 'self'; connect-src 'self' www.gravatar.com ws: wss:; img-src 'self' www.gravatar.com data: https:; style-src 'self' 'nonce-"+nonce+"'; font-src 'self'; script-src 'self'")
 	}
+	return nonce
 }
 
 // handlerKey identifies a registered handler by HTTP method and unversioned path template.
