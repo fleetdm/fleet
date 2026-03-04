@@ -440,9 +440,9 @@ REPO="confidential"
 PROJECT_NUMBER="94"
 
 # 1. Define Labels
-NEW_LABEL=":mktg-workshop:${WORKSHOP_SLUG}"
-PARENT_LABELS=":mktg-workshop,:mktg-workshop:overview,:mktg-workshop:tp"
-CHILD_LABELS=":mktg-workshop,:mktg-workshop:detail,:mktg-workshop:tp"
+NEW_LABEL=":mktg-event:${WORKSHOP_SLUG}"
+PARENT_LABELS=":mktg-event,:mktg-event:overview,:mktg-event:tp"
+CHILD_LABELS=":mktg-event,:mktg-event:detail,:mktg-event:tp"
 
 # Ensure the specific workshop label exists
 echo "1. Ensuring label '${NEW_LABEL}' exists..."
