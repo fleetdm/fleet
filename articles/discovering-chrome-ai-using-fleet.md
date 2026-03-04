@@ -54,7 +54,7 @@ SELECT fullkey,path FROM parse_json WHERE path LIKE '/Users/%/Library/Applicatio
 
 ### Conclusion
 
-Fleet's powerful querying abilities allow you to monitor features like these across all of your devices.
+Fleet's powerful reporting abilities allow you to monitor features like these across all of your devices.
 
 <meta name="articleTitle" value="Discovering Chrome AI using Fleet">
 <meta name="authorFullName" value="Brock Walters">

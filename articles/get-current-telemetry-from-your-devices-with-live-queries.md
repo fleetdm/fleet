@@ -68,7 +68,7 @@ The response time can vary due to osquery's heartbeat response time. This is bec
 
 ## Discover more
 
-Fleet’s live report feature represents a powerful tool in the arsenal of IT and security administrators. By harnessing the capabilities of live queries, tasks that once required extensive manual effort can now be executed swiftly and efficiently. This real-time querying ability enhances operational efficiency and significantly bolsters security and compliance measures across a range of devices.
+Fleet’s live report feature represents a powerful tool in the arsenal of IT and security administrators. By harnessing the capabilities of live queries, tasks that once required extensive manual effort can now be executed swiftly and efficiently. This real-time reporting ability enhances operational efficiency and significantly bolsters security and compliance measures across a range of devices.
 
 The integration of Fleet with Osquery agents, the flexibility offered by interfaces like the web UI, `fleetctl`, and the REST API, and the efficient data handling through mechanisms like Redis Pub/Sub and WebSockets API all come together to create a robust, real-time telemetry gathering system. This system is designed to keep you informed about the current state of your device fleet, helping you make informed decisions quickly.
 

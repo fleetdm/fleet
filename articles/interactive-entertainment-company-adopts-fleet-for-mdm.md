@@ -28,7 +28,7 @@ Unified device management across macOS and Windows.
 Smooth and seamless migration.
 </div>
 
-By switching to Fleet, they continue to manage their devices through automated MDM workflows that support thousands of devices. Capabilities like automated device enrollment, dynamic host segmentation, real-time querying, and assisted migration allowed them to enforce security settings without overly restricting endpoints or their users.
+By switching to Fleet, they continue to manage their devices through automated MDM workflows that support thousands of devices. Capabilities like automated device enrollment, dynamic host segmentation, real-time reporting, and assisted migration allowed them to enforce security settings without overly restricting endpoints or their users.
 
 
 ## Their story
@@ -63,7 +63,7 @@ Fleet provides timely issue resolutions, guidance, and ensures a smooth transiti
 
 ## Conclusion
 
-By switching to Fleet, it solved their critical challenges in device management, including integration with existing tools, cross-platform compatibility, and scalability. Fleet's Infrastructure-as-Code workflows, real-time querying, and automation eliminated manual inefficiencies and consolidated tools. With Fleet, the company improved visibility, enforced security policies, and managed thousands of devices without performance impacts. The smooth migration process and dedicated support made Fleet a practical, long-term solution for their complex, enterprise-level needs.
+By switching to Fleet, it solved their critical challenges in device management, including integration with existing tools, cross-platform compatibility, and scalability. Fleet's Infrastructure-as-Code workflows, real-time reporting, and automation eliminated manual inefficiencies and consolidated tools. With Fleet, the company improved visibility, enforced security policies, and managed thousands of devices without performance impacts. The smooth migration process and dedicated support made Fleet a practical, long-term solution for their complex, enterprise-level needs.
 
 <call-to-action></call-to-action>
 
