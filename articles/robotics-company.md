@@ -19,9 +19,9 @@ Fleet met the requirement for a single point of truth across macOS, Windows, and
 
 ## The results
 
-- **Google Auth on Windows:** the team automated the deployment of the Google Credential Provider for Windows, removing the need for Active Directory dependencies.  
-- **Real-time network access:** by integrating host vitals with Tailscale, the team now makes real-time network access decisions based on device health.  
-- **Proactive IT:** cross-platform automation and policy checks have allowed the team to shift from reactive troubleshooting to proactive management.  
+- **Google Auth on Windows:** The team automated the deployment of the Google Credential Provider for Windows, removing the need for Active Directory dependencies.  
+- **Real-time network access:** By integrating host vitals with Tailscale, the team now makes real-time network access decisions based on device health.  
+- **Proactive IT:** Cross-platform automation and policy checks have allowed the team to shift from reactive troubleshooting to proactive management.  
 
 ## About Fleet
 
@@ -29,7 +29,7 @@ Fleet is the single endpoint management platform for macOS, iOS, Android, Window
 
 By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.
 
-Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.hnical teams to automate with GitOps, scale confidently, and get the real-time data needed to secure their entire macOS, iOS, Windows, and Linux fleets.
+Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.
 
 <meta name="articleTitle" value="Robotics company unifies Mac, Windows, Linux, and Android devices">
 <meta name="authorFullName" value="Irena Reedy">
