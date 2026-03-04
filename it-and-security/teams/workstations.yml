@@ -148,9 +148,11 @@ policies:
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
+  - path: ../lib/windows/policies/update-firefox.yml
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
+  - path: ../lib/linux/policies/update-firefox.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
   - path: ../lib/macos/queries/collect-santa-denied-logs.yml
@@ -216,6 +218,18 @@ software:
       setup_experience: true
       categories:
         - Security
+      labels_include_any:
+        - "RPM-based Linux hosts"
+    - path: ../lib/linux/software/firefox-deb.yml # Firefox for Ubuntu
+      self_service: true
+      categories:
+        - Browsers
+      labels_include_any:
+        - "Debian-based Linux hosts"
+    - path: ../lib/linux/software/firefox-rpm.yml # Firefox for RedHat
+      self_service: true
+      categories:
+        - Browsers
       labels_include_any:
         - "RPM-based Linux hosts"
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
@@ -328,6 +342,12 @@ software:
       categories:
         - Security
     # Windows apps
+    - slug: mozilla-firefox/windows # Firefox for Windows
+      self_service: true
+      categories:
+        - Browsers
+      labels_include_any:
+        - "x86-based Windows hosts"
     - slug: okta-verify/windows # Okta Verify for Windows
       self_service: true
       setup_experience: true

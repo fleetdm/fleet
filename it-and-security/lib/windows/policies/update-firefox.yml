@@ -1,0 +1,7 @@
+- name: "Windows - Firefox up to date"
+  query: "SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox%' AND version >= (SELECT MAX(version) FROM programs WHERE name LIKE 'Mozilla Firefox%');"
+  critical: false
+  description: "Checks that Mozilla Firefox on Windows is up to date. If this policy fails, install the latest version of Firefox."
+  resolution: "Update Firefox to the latest version. You can update from within Firefox (Settings > General > Firefox Updates) or reinstall from Fleet's self-service software."
+  platform: windows
+  calendar_events_enabled: true

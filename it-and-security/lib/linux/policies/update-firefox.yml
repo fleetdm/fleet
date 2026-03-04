@@ -1,0 +1,7 @@
+- name: "Linux - Firefox up to date"
+  query: "SELECT 1 WHERE EXISTS (SELECT 1 FROM deb_packages WHERE name = 'firefox' OR name LIKE 'firefox-esr%') OR EXISTS (SELECT 1 FROM rpm_packages WHERE name = 'firefox');"
+  critical: false
+  description: "Checks that Mozilla Firefox is installed and available on Linux. If this policy fails, install the latest version of Firefox."
+  resolution: "Update Firefox to the latest version using your system package manager (apt or dnf/yum) or reinstall from Fleet's self-service software."
+  platform: linux
+  calendar_events_enabled: true
