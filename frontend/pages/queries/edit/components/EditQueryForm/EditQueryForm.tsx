@@ -221,8 +221,8 @@ const EditQueryForm = ({
     labels_include_any:
       selectedTargetType === "Custom"
         ? Object.entries(selectedLabels)
-            .filter(([, selected]) => selected)
-            .map(([labelName]) => labelName)
+          .filter(([, selected]) => selected)
+          .map(([labelName]) => labelName)
         : [],
   };
 
@@ -485,9 +485,8 @@ const EditQueryForm = ({
                   name="query-name"
                   placeholder="Add name"
                   value={lastEditedQueryName}
-                  inputClassName={`${baseClass}__query-name ${
-                    !lastEditedQueryName ? "no-value" : ""
-                  }`}
+                  inputClassName={`${baseClass}__query-name ${!lastEditedQueryName ? "no-value" : ""
+                    }`}
                   maxLength={160}
                   hasError={errors && errors.name}
                   onChange={setLastEditedQueryName}
@@ -542,9 +541,8 @@ const EditQueryForm = ({
                   placeholder="Add description"
                   value={lastEditedQueryDescription}
                   maxLength={250}
-                  inputClassName={`${baseClass}__query-description ${
-                    !lastEditedQueryDescription ? "no-value" : ""
-                  }`}
+                  inputClassName={`${baseClass}__query-description ${!lastEditedQueryDescription ? "no-value" : ""
+                    }`}
                   onChange={setLastEditedQueryDescription}
                   onKeyPress={onInputKeypress}
                   isFocused={isEditingDescription}
@@ -572,21 +570,16 @@ const EditQueryForm = ({
       if (isEditing) {
         return (
           <p>
-            Editing report for <strong>{currentTeamName}</strong> fleet.
+            Editing report for <strong>{currentTeamName}</strong>.
           </p>
         );
       }
       return (
         <p>
-          Creating a new report for <strong>{currentTeamName}</strong> fleet.
+          Creating a new report for <strong>{currentTeamName}</strong>.
         </p>
       );
     }
-
-    if (isEditing) {
-      return <p>Editing global report.</p>;
-    }
-    return <p>Creating a new global report.</p>;
   };
 
   // Observers and observer+ of existing query
@@ -631,32 +624,32 @@ const EditQueryForm = ({
       {(lastEditedQueryObserverCanRun ||
         isObserverPlus ||
         isAnyTeamObserverPlus) && (
-        <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
-          <TooltipWrapper
-            className="live-query-button-tooltip"
-            tipContent="Live reports are disabled in organization settings"
-            disableTooltip={!disabledLiveQuery}
-            position="top"
-            showArrow
-            tipOffset={8}
-            underline={false}
-          >
-            <Button
-              onClick={() => {
-                router.push(
-                  getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
-                    host_id: hostId,
-                    fleet_id: apiTeamIdForQuery,
-                  })
-                );
-              }}
-              disabled={disabledLiveQuery}
+          <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
+            <TooltipWrapper
+              className="live-query-button-tooltip"
+              tipContent="Live reports are disabled in organization settings"
+              disableTooltip={!disabledLiveQuery}
+              position="top"
+              showArrow
+              tipOffset={8}
+              underline={false}
             >
-              Live report <Icon name="run" />
-            </Button>
-          </TooltipWrapper>
-        </div>
-      )}
+              <Button
+                onClick={() => {
+                  router.push(
+                    getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
+                      host_id: hostId,
+                      fleet_id: apiTeamIdForQuery,
+                    })
+                  );
+                }}
+                disabled={disabledLiveQuery}
+              >
+                Live report <Icon name="run" />
+              </Button>
+            </TooltipWrapper>
+          </div>
+        )}
     </form>
   );
 
@@ -685,7 +678,7 @@ const EditQueryForm = ({
   const changedPlatforms =
     storedQuery &&
     formatPlatformEquivalences(lastEditedQueryPlatforms) !==
-      formatPlatformEquivalences(storedQuery?.platform);
+    formatPlatformEquivalences(storedQuery?.platform);
 
   const changedMinOsqueryVersion =
     storedQuery &&
