@@ -1,0 +1,6 @@
+- name: "Linux - Firefox up to date"
+  query: "SELECT 1 WHERE EXISTS (SELECT 1 FROM deb_packages WHERE name = 'firefox' UNION SELECT 1 FROM rpm_packages WHERE name = 'firefox') AND NOT EXISTS (SELECT 1 FROM deb_packages WHERE name = 'firefox' AND version < (SELECT MAX(version) FROM deb_packages WHERE name = 'firefox')) AND NOT EXISTS (SELECT 1 FROM rpm_packages WHERE name = 'firefox' AND version < (SELECT MAX(version) FROM rpm_packages WHERE name = 'firefox'));"
+  critical: false
+  description: "Checks that Mozilla Firefox on Linux is up to date. If this policy fails, update Firefox to the latest version."
+  resolution: "Update Firefox to the latest version using your package manager. For Debian/Ubuntu: sudo apt update && sudo apt upgrade firefox. For RHEL/Fedora: sudo dnf update firefox."
+  platform: linux

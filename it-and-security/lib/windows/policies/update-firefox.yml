@@ -1,0 +1,6 @@
+- name: "Windows - Firefox up to date"
+  query: "SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox%' AND version >= (SELECT MAX(version) FROM programs WHERE name LIKE 'Mozilla Firefox%');"
+  critical: false
+  description: "Checks that Mozilla Firefox on Windows is up to date. If this policy fails, update Firefox to the latest version."
+  resolution: "Update Firefox to the latest version. Open Firefox, go to Settings > General > Firefox Updates, and click 'Check for updates'. Alternatively, download the latest version from https://www.mozilla.org/firefox/."
+  platform: windows
