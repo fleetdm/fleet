@@ -6,8 +6,7 @@ team_settings:
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
-  secrets:
-    - secret: $DOGFOOD_INFECTED_DEVICES_ENROLL_SECRET
+  secrets: [] # TODO: Add secret once DOGFOOD_INFECTED_DEVICES_ENROLL_SECRET is configured in CI
 agent_options:
   config:
     decorators:
