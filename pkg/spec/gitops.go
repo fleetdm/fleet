@@ -802,7 +802,9 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 	}
 	controlsTop.Defined = true
 	controlsFilePath := yamlFilename
-	multiError = processControlsPathIfNeeded(controlsTop, result, &controlsFilePath, multiError)
+	for _, err := range processControlsPathIfNeeded(controlsTop, result, &controlsFilePath) {
+		multiError = multierror.Append(multiError, err)
+	}
 
 	controlsDir := filepath.Dir(controlsFilePath)
 	var scriptErrs []error
@@ -928,39 +930,39 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 	return multiError
 }
 
-func processControlsPathIfNeeded(controlsTop GitOpsControls, result *GitOps, controlsFilePath *string, multiError *multierror.Error) *multierror.Error {
+func processControlsPathIfNeeded(controlsTop GitOpsControls, result *GitOps, controlsFilePath *string) []error {
 	if controlsTop.Path == nil {
 		result.Controls = controlsTop
-		return multiError
+		return nil
 	}
 
 	// There is a path attribute which points to the real controls section in a separate file, so we need to process that.
 	controlsFilePath = ptr.String(resolveApplyRelativePath(filepath.Dir(*controlsFilePath), *controlsTop.Path))
 	fileBytes, err := os.ReadFile(*controlsFilePath)
 	if err != nil {
-		return multierror.Append(multiError, fmt.Errorf("failed to read controls file %s: %v", *controlsTop.Path, err))
+		return []error{fmt.Errorf("failed to read controls file %s: %v", *controlsTop.Path, err)}
 	}
 
 	// Replace $var and ${var} with env values.
 	fileBytes, err = ExpandEnvBytes(fileBytes)
 	if err != nil {
-		return multierror.Append(multiError, fmt.Errorf("failed to expand environment in file %s: %v", *controlsTop.Path, err))
+		return []error{fmt.Errorf("failed to expand environment in file %s: %v", *controlsTop.Path, err)}
 	}
 
+	var errs []error
 	var pathControls GitOpsControls
 	if err := YamlUnmarshal(fileBytes, &pathControls); err != nil {
-		return multierror.Append(multiError, MaybeParseTypeError(*controlsTop.Path, []string{"controls"}, err))
+		return []error{MaybeParseTypeError(*controlsTop.Path, []string{"controls"}, err)}
 	}
 	// Validate unknown keys in path-referenced controls file.
-	for _, err := range validateYAMLKeys(fileBytes, reflect.TypeFor[GitOpsControls](), *controlsTop.Path, []string{"controls"}) {
-		multiError = multierror.Append(multiError, err)
-	}
+	errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[GitOpsControls](), *controlsTop.Path, []string{"controls"})...)
 	if pathControls.Path != nil {
-		return multierror.Append(multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pathControls.Path, *controlsTop.Path))
+		errs = append(errs, fmt.Errorf("nested paths are not supported: %s in %s", *pathControls.Path, *controlsTop.Path))
+		return errs
 	}
 	pathControls.Defined = true
 	result.Controls = pathControls
-	return multiError
+	return errs
 }
 
 func resolveAndUpdateProfilePathToAbsolute(controlsDir string, profile *fleet.MDMProfileSpec, result *GitOps) error {
