@@ -151,17 +151,13 @@ Once disabled on the Okta side, you can delete the conditional access configurat
 
 ## Bypassing conditional access
 
-End users can temporarily bypass conditional access from their **My device** page if their host is failing a policy. To trigger a bypass, click a failing policy labeled **Action required**, select **Resolve later**, and confirm in the following modal. The bypass allows the user to complete a single login even with failing policies and is consumed immediately upon successful login.
+End users can temporarily bypass conditional access from their **My device** page if their host is not failing any critical policies. To trigger a bypass, click a non-critical failing policy labeled **Action required**, select **Resolve later**, and confirm in the following modal. The bypass allows the user to complete a single login even with failing policies and is consumed immediately upon successful login.
 
-This feature is enabled by default, but can be disabled by checking the **Disable bypass** checkbox in **Settings** > **Integrations** > **Conditional access**.
+If a host is failing multiple conditional access policies, the bypass option is only available if **no** failing policy is marked critical. If any one of the failing policies is marked critical, the end user will not see the option to bypass and must resolve the issue to regain access. (You can update a policy's `critical` setting on the **Edit policy** page.)
 
-### Per-policy bypass
+This feature is enabled by default, but can be disabled by checking the **Disable bypass** checkbox in **Settings** > **Integrations** > **Conditional access**. 
 
-> **Experimental feature.** The per-policy bypass setting is experimental, and will be replaced with a reference to the policy's `critical` setting in Fleet 4.83.0. To ensure a seamless upgrade, please avoid enabling bypass for policies marked critical.
 
-By default, all conditional access policies allow bypassing. You can control which policies allow bypass individually in **Manage automations** > **Conditional access**. Each policy with conditional access enabled has an additional checkbox to allow or disallow bypass.
-
-If a host is failing multiple conditional access policies, the bypass option is only available if **every** failing policy allows bypass. If any one of the failing policies does not allow bypass, the end user will not see the option to bypass and must resolve the issue to regain access.
 
 
 <meta name="articleTitle" value="Conditional access: Okta">
