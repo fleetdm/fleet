@@ -270,7 +270,7 @@ const EditQueryPage = ({
             host_id: hostId,
           })
         );
-        renderFlash("success", "Report created!");
+        renderFlash("success", "Report created.");
         setBackendValidators({});
       } catch (createError: any) {
         if (getErrorReason(createError).includes("already exists")) {
@@ -316,7 +316,7 @@ const EditQueryPage = ({
 
     try {
       await queryAPI.update(queryId, updatedQuery);
-      renderFlash("success", "Report updated!");
+      renderFlash("success", "Report updated.");
       refetchStoredQuery(); // Required to compare recently saved query to a subsequent save to the query
     } catch (updateError: any) {
       console.error(updateError);
