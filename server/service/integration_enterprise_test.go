@@ -26446,6 +26446,9 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			Type:                 ptr.String("patch"),
 			PatchSoftwareTitleID: &titleID,
 		}, http.StatusOK, &policyResp)
+		require.Equal(t, policyResp.Policy.Name, "macOS - DummyApp up to date")
+		require.Contains(t, policyResp.Policy.Query, "SELECT 1 FROM apps WHERE bundle_identifier =")
+		require.Contains(t, policyResp.Policy.Description, "Outdated software might")
 		policyID := policyResp.Policy.ID
 
 		// attempt to add the same policy again
