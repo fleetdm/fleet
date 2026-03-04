@@ -79,9 +79,15 @@ func (e *notFoundErr) NotFound() bool {
 
 // Implement Is so that errors.Is(err, sql.ErrNoRows) returns true for an
 // error of type *notFoundError, without having to wrap sql.ErrNoRows
-// explicitly.
+// explicitly. It also matches other *notFoundErr targets so that pointer-based
+// comparison works (pointers to distinct structs are never == even if their
+// contents are identical).
 func (e *notFoundErr) Is(other error) bool {
-	return other == sql.ErrNoRows
+	if other == sql.ErrNoRows {
+		return true
+	}
+	_, ok := other.(*notFoundErr)
+	return ok
 }
 
 // isNotFoundErr reports whether err's chain contains a *notFoundErr.
