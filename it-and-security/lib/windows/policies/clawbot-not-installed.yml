@@ -1,0 +1,7 @@
+- name: "Windows - Clawbot not installed"
+  query: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '%clawbot%');"
+  critical: false
+  description: "Checks that Clawbot is not installed on Windows devices."
+  resolution: "Uninstall Clawbot from the device."
+  platform: windows
+  calendar_events_enabled: false

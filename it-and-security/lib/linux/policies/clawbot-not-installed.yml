@@ -1,0 +1,7 @@
+- name: "Linux - Clawbot not installed"
+  query: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM deb_packages WHERE name LIKE '%clawbot%') AND NOT EXISTS (SELECT 1 FROM rpm_packages WHERE name LIKE '%clawbot%');"
+  critical: false
+  description: "Checks that Clawbot is not installed on Linux devices."
+  resolution: "Uninstall Clawbot from the device."
+  platform: linux
+  calendar_events_enabled: false
