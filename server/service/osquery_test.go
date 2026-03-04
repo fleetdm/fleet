@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -11,6 +12,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"reflect"
 	"sort"
@@ -25,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	fleetLogging "github.com/fleetdm/fleet/v4/server/contexts/logging"
+	nodeauthctx "github.com/fleetdm/fleet/v4/server/contexts/nodeauth"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
@@ -4741,6 +4744,132 @@ func TestUpdateFleetdVersion(t *testing.T) {
 		updateFleetdVersion("windows", results)
 		require.Equal(t, originalResults, results)
 	})
+}
+
+// mockHostAuth is a fleet.HostAuthenticator that delegates to a function.
+type mockHostAuth struct {
+	fn func(ctx context.Context, nodeKey string) (*fleet.Host, bool, error)
+}
+
+func (m *mockHostAuth) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
+	return m.fn(ctx, nodeKey)
+}
+
+func TestSubmitLogsDecodeRequest(t *testing.T) {
+	validNodeKey := "valid-node-key-1234"
+	validHost := &fleet.Host{ID: 42, NodeKey: &validNodeKey}
+
+	// Returns a context with an authenticator that accepts only validNodeKey.
+	ctxWithAuth := nodeauthctx.NewContext(context.Background(), &mockHostAuth{
+		fn: func(_ context.Context, nodeKey string) (*fleet.Host, bool, error) {
+			if nodeKey == validNodeKey {
+				return validHost, false, nil
+			}
+			return nil, false, fleet.NewAuthFailedError("invalid node key")
+		},
+	})
+
+	makeBody := func(s string) *http.Request {
+		return httptest.NewRequest("POST", "/api/osquery/log", strings.NewReader(s))
+	}
+
+	makeGzipBody := func(v any) *http.Request {
+		var buf bytes.Buffer
+		gw := gzip.NewWriter(&buf)
+		enc := json.NewEncoder(gw)
+		enc.SetEscapeHTML(false)
+		require.NoError(t, enc.Encode(v))
+		require.NoError(t, gw.Close())
+		req := httptest.NewRequest("POST", "/api/osquery/log", &buf)
+		req.Header.Set("Content-Encoding", "gzip")
+		return req
+	}
+
+	tests := []struct {
+		name        string
+		req         *http.Request
+		ctx         context.Context
+		wantErr     bool
+		wantErrMsg  string
+		wantNodeKey string
+		wantLogType string
+	}{
+		{
+			name:        "valid JSON request",
+			req:         makeBody(`{"node_key":"valid-node-key-1234","log_type":"status","data":null}`),
+			ctx:         ctxWithAuth,
+			wantNodeKey: validNodeKey,
+			wantLogType: "status",
+		},
+		{
+			name:        "valid gzip-encoded request",
+			req:         makeGzipBody(submitLogsRequest{NodeKey: validNodeKey, LogType: "result"}),
+			ctx:         ctxWithAuth,
+			wantNodeKey: validNodeKey,
+			wantLogType: "result",
+		},
+		{
+			name:       "invalid node key is rejected with auth error",
+			req:        makeBody(`{"node_key":"bad-key","log_type":"status","data":null}`),
+			ctx:        ctxWithAuth,
+			wantErr:    true,
+			wantErrMsg: "Authentication failed",
+		},
+		{
+			name:       "body does not start with {",
+			req:        makeBody(`["node_key","bad"]`),
+			ctx:        ctxWithAuth,
+			wantErr:    true,
+			wantErrMsg: "expected '{'",
+		},
+		{
+			name:       "node_key is not the first field",
+			req:        makeBody(`{"log_type":"status","node_key":"valid-node-key-1234","data":null}`),
+			ctx:        ctxWithAuth,
+			wantErr:    true,
+			wantErrMsg: `expected "node_key":`,
+		},
+		{
+			name:       "node_key exceeds 255 bytes",
+			req:        makeBody(`{"node_key":"` + strings.Repeat("A", 256) + `","log_type":"status","data":null}`),
+			ctx:        ctxWithAuth,
+			wantErr:    true,
+			wantErrMsg: "end character not found",
+		},
+		{
+			name:       "empty body",
+			req:        makeBody(``),
+			ctx:        ctxWithAuth,
+			wantErr:    true,
+			wantErrMsg: "failed to read object start",
+		},
+		{
+			name:       "missing authenticator in context",
+			req:        makeBody(`{"node_key":"valid-node-key-1234","log_type":"status","data":null}`),
+			ctx:        context.Background(), // no authenticator
+			wantErr:    true,
+			wantErrMsg: "missing host authenticator in context",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := (submitLogsRequest{}).DecodeRequest(tt.ctx, tt.req)
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.wantErrMsg != "" {
+					require.Contains(t, err.Error(), tt.wantErrMsg)
+				}
+				return
+			}
+			require.NoError(t, err)
+			got, ok := result.(*submitLogsRequest)
+			require.True(t, ok)
+			require.Equal(t, tt.wantNodeKey, got.NodeKey)
+			require.Equal(t, tt.wantLogType, got.LogType)
+			require.Equal(t, validHost, got.host)
+		})
+	}
 }
 
 // makeLiveQueryStore creates a mock live query store that returns `countToReturn` from the
