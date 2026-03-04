@@ -81,5 +81,5 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="case study">
 <meta name="publishedOn" value="2026-03-03">
-<meta name="description" value="Fleet helps digital bank manage 10,000+ devices with on-premise control, real-time visibility, and automation across macOS, Windows, Linux, and ChromeOS."> 
+<meta name="description" value="Fleet helps a digital bank manage 10,000+ devices with on-prem control, real-time visibility, and automation across macOS, Windows, Linux, ChromeOS."> 
 <meta name="useBasicArticleTemplate" value="true">
