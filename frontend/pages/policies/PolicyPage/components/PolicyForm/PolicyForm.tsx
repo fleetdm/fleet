@@ -641,12 +641,10 @@ const PolicyForm = ({
           <TooltipWrapper
             tipContent={
               <p>
-                If automations are turned on, this
-                <br /> information is included.
+                If automations are turned on, this information is included.{" "}
                 <br />
-                <br />
-                If Okta conditional access is configured,
-                <br /> end users can never bypass critical policies.
+                If Okta conditional access is configured, end users can never
+                bypass critical policies.
               </p>
             }
           >

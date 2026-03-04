@@ -2,6 +2,7 @@ import React, { useContext, useRef, useState } from "react";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CriticalPolicyBadge from "components/CriticalPolicyBadge";
 import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";
@@ -76,12 +77,12 @@ const ConditionalAccessModal = ({
     />
   );
 
-  const renderItemLabel = (item: IFormPolicy) => {
-    if (!item.critical) {
-      return null;
-    }
-    return <CriticalPolicyBadge />;
-  };
+  const renderItemLabel = (policy: IFormPolicy) => (
+    <>
+      <TooltipTruncatedText value={policy.name} />
+      {policy.critical && <CriticalPolicyBadge />}
+    </>
+  );
 
   const renderConfigured = () => {
     return (
