@@ -1,0 +1,6 @@
+- name: Host assigned to team
+  query: "SELECT 1 WHERE 1=0;"
+  critical: true
+  description: "Hosts should be assigned to a team. This policy fails for any host in the 'No team' (Unassigned) team."
+  resolution: "Assign this host to the appropriate team in Fleet."
+  calendar_events_enabled: false

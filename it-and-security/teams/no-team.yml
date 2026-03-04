@@ -1,5 +1,17 @@
 name: No team
-policies:
-software:
+team_settings:
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+agent_options:
+  path: ../lib/all/agent-options/agent-options.yml
 controls:
-  macos_settings:
+  enable_disk_encryption: false
+  scripts:
+policies:
+  - path: ../lib/all/policies/host-assigned-to-team.yml
+queries:
+software:
