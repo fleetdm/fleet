@@ -5,3 +5,5 @@
   resolution: Download the latest version from self-service or check for updates using Chrome's built-in update functionality. You can also delete Chrome if you are no longer using it.
   platform: darwin
   calendar_events_enabled: false
+  labels_include_any:
+    - "Department: Information Technology"

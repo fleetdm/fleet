@@ -4,3 +4,5 @@
   description: The host may have an outdated version of Google Chrome, potentially risking security vulnerabilities (CVE-2026-0628) or compatibility issues.
   resolution: Check for updates using Chrome's built-in update functionality or download the latest version from self-service.
   platform: windows
+  labels_include_any:
+    - "Department: Information Technology"
