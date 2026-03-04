@@ -11,5 +11,3 @@
   resolution: "Update Claude to the latest version."
   platform: darwin
   calendar_events_enabled: false
-  install_software:
-    package_type: fleet_maintained
