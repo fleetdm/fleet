@@ -95,15 +95,15 @@ func collectFields(t reflect.Type, keys map[string]fieldInfo) {
 // When the walker encounters an `any`-typed field, it checks this registry to determine
 // the concrete type to use for recursive validation.
 var anyFieldTypes = map[reflect.Type]map[string]reflect.Type{
-	reflect.TypeOf(GitOpsControls{}): {
-		"macos_updates":    reflect.TypeOf(fleet.AppleOSUpdateSettings{}),
-		"ios_updates":      reflect.TypeOf(fleet.AppleOSUpdateSettings{}),
-		"ipados_updates":   reflect.TypeOf(fleet.AppleOSUpdateSettings{}),
-		"macos_migration":  reflect.TypeOf(fleet.MacOSMigration{}),
-		"windows_updates":  reflect.TypeOf(fleet.WindowsUpdates{}),
-		"macos_settings":   reflect.TypeOf(fleet.MacOSSettings{}),
-		"windows_settings": reflect.TypeOf(fleet.WindowsSettings{}),
-		"android_settings": reflect.TypeOf(fleet.AndroidSettings{}),
+	reflect.TypeFor[GitOpsControls](): {
+		"macos_updates":    reflect.TypeFor[fleet.AppleOSUpdateSettings](),
+		"ios_updates":      reflect.TypeFor[fleet.AppleOSUpdateSettings](),
+		"ipados_updates":   reflect.TypeFor[fleet.AppleOSUpdateSettings](),
+		"macos_migration":  reflect.TypeFor[fleet.MacOSMigration](),
+		"windows_updates":  reflect.TypeFor[fleet.WindowsUpdates](),
+		"macos_settings":   reflect.TypeFor[fleet.MacOSSettings](),
+		"windows_settings": reflect.TypeFor[fleet.WindowsSettings](),
+		"android_settings": reflect.TypeFor[fleet.AndroidSettings](),
 	},
 }
 
@@ -170,9 +170,9 @@ func validateUnknownKeys(data any, targetType reflect.Type, path []string, fileP
 	}
 
 	switch d := data.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		return validateMapKeys(d, targetType, path, filePath)
-	case []interface{}:
+	case []any:
 		return validateSliceKeys(d, targetType, path, filePath)
 	default:
 		return nil
@@ -181,7 +181,7 @@ func validateUnknownKeys(data any, targetType reflect.Type, path []string, fileP
 
 // validateMapKeys validates keys in a JSON object against the known keys
 // for the target struct type.
-func validateMapKeys(data map[string]interface{}, targetType reflect.Type, path []string, filePath string) []error {
+func validateMapKeys(data map[string]any, targetType reflect.Type, path []string, filePath string) []error {
 	if targetType.Kind() == reflect.Ptr {
 		targetType = targetType.Elem()
 	}
@@ -235,7 +235,7 @@ func validateMapKeys(data map[string]interface{}, targetType reflect.Type, path 
 }
 
 // validateSliceKeys validates each element in a JSON array.
-func validateSliceKeys(data []interface{}, targetType reflect.Type, path []string, filePath string) []error {
+func validateSliceKeys(data []any, targetType reflect.Type, path []string, filePath string) []error {
 	// Determine the element type from the target slice type.
 	var elemType reflect.Type
 	switch targetType.Kind() {

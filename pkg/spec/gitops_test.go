@@ -2160,7 +2160,7 @@ software:
 `
 		path, basePath := createTempFile(t, "", config)
 		var logMessages []string
-		logFn := func(format string, a ...interface{}) {
+		logFn := func(format string, a ...any) {
 			logMessages = append(logMessages, fmt.Sprintf(format, a...))
 		}
 		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), logFn, GitOpsOptions{AllowUnknownKeys: true})

@@ -797,7 +797,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 		return multierror.Append(multiError, MaybeParseTypeError(yamlFilename, []string{"controls"}, err))
 	}
 	// Validate unknown keys in controls section.
-	for _, err := range validateRawKeys(controlsRaw, reflect.TypeOf(GitOpsControls{}), yamlFilename, []string{"controls"}) {
+	for _, err := range validateRawKeys(controlsRaw, reflect.TypeFor[GitOpsControls](), yamlFilename, []string{"controls"}) {
 		multiError = multierror.Append(multiError, err)
 	}
 	controlsTop.Defined = true
@@ -954,7 +954,7 @@ func processControlsPathIfNeeded(controlsTop GitOpsControls, result *GitOps, con
 	// Validate unknown keys in path-referenced controls file.
 	var rawControls json.RawMessage
 	if err := YamlUnmarshal(fileBytes, &rawControls); err == nil {
-		for _, err := range validateRawKeys(rawControls, reflect.TypeOf(GitOpsControls{}), *controlsTop.Path, []string{"controls"}) {
+		for _, err := range validateRawKeys(rawControls, reflect.TypeFor[GitOpsControls](), *controlsTop.Path, []string{"controls"}) {
 			multiError = multierror.Append(multiError, err)
 		}
 	}
@@ -1151,7 +1151,7 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"labels"}, err))
 	}
 	// Validate unknown keys in labels section.
-	for _, err := range validateRawKeys(labelsRaw, reflect.TypeOf([]Label{}), filePath, []string{"labels"}) {
+	for _, err := range validateRawKeys(labelsRaw, reflect.TypeFor[[]Label](), filePath, []string{"labels"}) {
 		multiError = multierror.Append(multiError, err)
 	}
 	for _, item := range labels {
@@ -1178,7 +1178,7 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 				// Validate unknown keys in path-referenced labels file.
 				var rawLabels json.RawMessage
 				if err := YamlUnmarshal(fileBytes, &rawLabels); err == nil {
-					for _, err := range validateRawKeys(rawLabels, reflect.TypeOf([]Label{}), *item.Path, []string{"labels"}) {
+					for _, err := range validateRawKeys(rawLabels, reflect.TypeFor[[]Label](), *item.Path, []string{"labels"}) {
 						multiError = multierror.Append(multiError, err)
 					}
 				}
@@ -1253,7 +1253,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"policies"}, err))
 	}
 	// Validate unknown keys in policies section.
-	for _, err := range validateRawKeys(policiesRaw, reflect.TypeOf([]Policy{}), filePath, []string{"policies"}) {
+	for _, err := range validateRawKeys(policiesRaw, reflect.TypeFor[[]Policy](), filePath, []string{"policies"}) {
 		multiError = multierror.Append(multiError, err)
 	}
 	for _, item := range policies {
@@ -1289,7 +1289,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				// Validate unknown keys in path-referenced policies file.
 				var rawPolicies json.RawMessage
 				if err := YamlUnmarshal(fileBytes, &rawPolicies); err == nil {
-					for _, err := range validateRawKeys(rawPolicies, reflect.TypeOf([]Policy{}), *item.Path, []string{"policies"}) {
+					for _, err := range validateRawKeys(rawPolicies, reflect.TypeFor[[]Policy](), *item.Path, []string{"policies"}) {
 						multiError = multierror.Append(multiError, err)
 					}
 				}
@@ -1481,7 +1481,7 @@ func parseReports(top map[string]json.RawMessage, result *GitOps, baseDir string
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"reports"}, err))
 	}
 	// Validate unknown keys in reports section.
-	for _, err := range validateRawKeys(reportsRaw, reflect.TypeOf([]Query{}), filePath, []string{"reports"}) {
+	for _, err := range validateRawKeys(reportsRaw, reflect.TypeFor[[]Query](), filePath, []string{"reports"}) {
 		multiError = multierror.Append(multiError, err)
 	}
 	for i, item := range queries {
@@ -1513,7 +1513,7 @@ func parseReports(top map[string]json.RawMessage, result *GitOps, baseDir string
 				// Validate unknown keys in path-referenced reports file.
 				var rawQueries json.RawMessage
 				if err := YamlUnmarshal(fileBytes, &rawQueries); err == nil {
-					for _, err := range validateRawKeys(rawQueries, reflect.TypeOf([]Query{}), *item.Path, []string{"reports"}) {
+					for _, err := range validateRawKeys(rawQueries, reflect.TypeFor[[]Query](), *item.Path, []string{"reports"}) {
 						multiError = multierror.Append(multiError, err)
 					}
 				}
@@ -1564,7 +1564,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"software"}, err))
 		}
 		// Validate unknown keys in software section.
-		for _, err := range validateRawKeys(softwareRaw, reflect.TypeOf(Software{}), filePath, []string{"software"}) {
+		for _, err := range validateRawKeys(softwareRaw, reflect.TypeFor[Software](), filePath, []string{"software"}) {
 			multiError = multierror.Append(multiError, err)
 		}
 	}
