@@ -2102,7 +2102,12 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 var (
 	dcvVersionFormat         = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
 	tunnelblickVersionFormat = regexp.MustCompile(`^(.+?)\s*\(build\s+\d+\)$`)
-	basicAppSanitizers       = []struct {
+	// jetbrainsBuildFormat matches JetBrains build numbers like "253.31033.139" where:
+	// - First segment is exactly 3 digits (e.g., "253") encoding year (25=2025) and major version (3)
+	// - Second segment is 4+ digits (e.g., "31033") where the first digit is the minor version
+	// - Third segment is 1+ digits (patch/build counter, dropped in conversion)
+	jetbrainsBuildFormat = regexp.MustCompile(`^(\d{2})(\d)\.(\d)\d{3,}\.\d+$`)
+	basicAppSanitizers   = []struct {
 		matchBundleIdentifier string
 		matchName             string
 		mutate                func(*fleet.Software, *slog.Logger)
@@ -2204,19 +2209,51 @@ var (
 		},
 		// end of #34159 cleanup in basic matchers
 	}
-	customAppSanitizers = []struct {
+	customSanitizers = []struct {
 		matches func(*fleet.Software) bool
 		mutate  func(*fleet.Software, *slog.Logger)
 	}{
 		{
 			matches: func(s *fleet.Software) bool { // #34159
-				return strings.HasPrefix(s.Name, "TNMS ") &&
+				return s.Source == "apps" &&
+					strings.HasPrefix(s.Name, "TNMS ") &&
 					strings.HasPrefix(s.BundleIdentifier, "TNMS_") &&
 					strings.Replace(s.BundleIdentifier, "_", " ", 1) == s.Name
 			},
 			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				s.Name = "TNMS"
 				s.Version = strings.Replace(s.BundleIdentifier, "TNMS_", "", 1)
+			},
+		},
+		{
+			// JetBrains products on Windows report build numbers (e.g., "253.31033.139")
+			// instead of marketing versions (e.g., "2025.3.3"). This sanitizer converts
+			// the build number to the marketing version format.
+			// Excludes JetBrains Toolbox which reports the correct version.
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "programs" &&
+					strings.Contains(strings.ToLower(s.Vendor), "jetbrains") &&
+					!strings.Contains(s.Name, "Toolbox") &&
+					jetbrainsBuildFormat.MatchString(s.Version)
+			},
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				if matches := jetbrainsBuildFormat.FindStringSubmatch(s.Version); len(matches) == 4 {
+					year := "20" + matches[1]
+					major := matches[2]
+					minor := matches[3]
+					s.Version = fmt.Sprintf("%s.%s.%s", year, major, minor)
+				}
+			},
+		},
+		{
+			// For RHEL kernels, join version and release to match OVAL format.
+			// See server/vulnerabilities/goval_dictionary/database.Eval
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "rpm_packages" && s.Name == rpmKernelName && s.Release != ""
+			},
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				s.Version = fmt.Sprintf("%s-%s", s.Version, s.Release)
+				s.Release = "" // Clear release to avoid issues with vulnerability matching
 			},
 		},
 	}
@@ -2226,9 +2263,11 @@ var (
 //
 // Some fields are reported with known incorrect values and we need to fix them before using them.
 func MutateSoftwareOnIngestion(ctx context.Context, s *fleet.Software, logger *slog.Logger) {
-	// all of our current on-ingest mutations use this table,
-	// so might as well let other stuff go faster and save some redundant checks inside the matchers
-	if s != nil && s.Source == "apps" {
+	if s == nil {
+		return
+	}
+	// basicAppSanitizers only apply to macOS apps
+	if s.Source == "apps" {
 		for _, sanitizer := range basicAppSanitizers {
 			if (sanitizer.matchBundleIdentifier != "" || sanitizer.matchName != "") &&
 				(sanitizer.matchBundleIdentifier == "" || sanitizer.matchBundleIdentifier == s.BundleIdentifier) &&
@@ -2242,24 +2281,18 @@ func MutateSoftwareOnIngestion(ctx context.Context, s *fleet.Software, logger *s
 				break
 			}
 		}
-		for _, sanitizer := range customAppSanitizers {
-			if sanitizer.matches(s) {
-				defer func() {
-					if r := recover(); r != nil {
-						logger.WarnContext(ctx, "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
-					}
-				}()
-				sanitizer.mutate(s, logger)
-				break
-			}
-		}
 	}
 
-	// For RHEL kernels, join version and release to match OVAL format.
-	// See server/vulnerabilities/goval_dictionary/database.Eval
-	if s != nil && s.Source == "rpm_packages" && s.Name == rpmKernelName && s.Release != "" {
-		s.Version = fmt.Sprintf("%s-%s", s.Version, s.Release)
-		s.Release = "" // Clear release to avoid issues with vulnerability matching
+	for _, sanitizer := range customSanitizers {
+		if sanitizer.matches(s) {
+			defer func() {
+				if r := recover(); r != nil {
+					logger.WarnContext(ctx, "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
+				}
+			}()
+			sanitizer.mutate(s, logger)
+			break
+		}
 	}
 }
 
