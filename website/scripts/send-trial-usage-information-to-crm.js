@@ -50,7 +50,7 @@ module.exports = {
       }
       if(lastReportedStatisticsForThisTrial.length < 1) {
         // If we didn't find usage statistics reported by a Render trial instance, log a warning and continue.
-        sails.log(`Skipping reporting information for a trial instance (slug: ${renderTrial.slug}). No usage analytics were found reported by a Render trial (slug: ${renderTrial.slug})`);
+        sails.log(`Skipping reporting information for a trial instance (slug: ${renderTrial.slug}). No usage analytics were found reported by this Render trial`);
         continue;
       }
       let thisRenderTrialsUser = await User.findOne({id: renderTrial.user});
