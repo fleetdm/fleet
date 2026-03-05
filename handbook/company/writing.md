@@ -47,23 +47,40 @@ We use `<meta>` tags in Markdown articles to set metadata information about the 
     - `authorFullName`:  The full name of the author of the article.
     - `authorGithubUsername`: The Github username of the author.
     - `category`: The category of the article. determines the article category page the article will be shown on. 
-      > Note: All markdown articles can be found at fleetdm.com/articles
+      > Note: All markdown articles can be found at [fleetdm.com/blog](/blog)
         - Supported values: 
-            - `releases` - For Fleet release notes. Articles in this category are available at fleetdm.com/releases
-            - `security` - For security-related articles. Articles in this category are available at fleetdm.com/securing
-            - `engineering` - For engineering-related articles. Articles in this category are available at fleetdm.com/engineering
-            - `success stories` - Articles about how/why Fleet is being used by our customers. Articles in this category are available at fleetdm.com/success-stories
-            - `announcements` - News and announcements about new features and changes to Fleet. Articles in this category are available at fleeetdm.com/announcements
-            - `guides` - Non-reference documentation and how-to guides. Articles in this category are available at fleetdm.com/guides
-            - `podcasts` - Episodes of Fleet's podcast. Articles in this category are available at fleetdm.com/podcasts
+            - `releases` - For Fleet release notes. Articles in this category are available at [fleetdm.com/releases](/releases)
+            - `security` - For security-related articles. Articles in this category are available at [fleetdm.com/securing](/securing)
+            - `engineering` - For engineering-related articles. Articles in this category are available at [fleetdm.com/engineering](/engineering)
+            - `case study` - Articles about how/why Fleet is being used by our customers. Articles in this category are available at [fleetdm.com/customers](/customers)
+            - `announcements` - News and announcements about new features and changes to Fleet. Articles in this category are available at [fleeetdm.com/announcements](/announcements)
+            - `guides` - Non-reference documentation and how-to guides. Articles in this category are available at [fleetdm.com/guides](/guides)
+            - `podcasts` - Episodes of Fleet's podcast. Articles in this category are available at [fleetdm.com/podcasts](/podcasts)
+            - `comparison` - Articles that present a comparison between Fleet and a competing product. Articles in this category are only visible in the list of all articles at [fleetdm.com/blog](/blog)
+            - `articles` - A catch-all category for articles and blog posts that do not fit into other categories. Articles in this category are only visible in the list of all articles at [fleetdm.com/blog](/blog)
     - `publishedOn`:  An ISO 8601 formatted date (YYYY-MM-DD) of the articles publish date. If the article is a guide, this value should be updated whenever a change to the guide is made.
 - Optional meta tags:
-    - `articleImageUrl`: A relative link to a cover image for the article. If provided, the image needs to live in the /website/assets/images/articles folder. The image will be added to the card for this article on it's category page, as well as a cover image on the article page. If this value is not provided, the card for the article will display the Fleet logo and the article will have no cover image.
-    - `description`: A description of the article that will be visible in search results and social share previews. If provided, this value will override the generated meta description for this article. otherwise, the description will default to `[articleTitle] by [authorFullName]`.
+    - `articleImageUrl`: A relative link to a cover image for the article used for social share previews. If provided, the image needs to live in the /website/assets/images/articles folder. 
+    - `description`: A description of the article that will be visible in search results and social share previews. If provided, this value will override the generated meta description for this article. Otherwise, the description will default to `[articleTitle] by [authorFullName]`.
+- Case study specific meta tags:
+  - `useBasicArticleTemplate` - Whether or not the case study should use the standard article template or the non-anonymous case study template. **Note:** if this meta tag is set, the case study specific meta tags below are not required.
+  - `summaryChallenge` - The challenge this case study subject faced before they started using Fleet. Used in the case study summary on the non-anonymous case study template page.
+  - `summarySolution` - How Fleet helped the case study subject acomplish their goals. Used in the case study summary on the non-anonymous case study template page.
+  - `summaryKeyResults` - A semicolon-separated list of results that the case study subject saw after using Fleet. Each item in the list is added a bullet point to the case study summary on the non-anonymous case study template page.
+  - Optional case study specific meta tags:
+    - `companyLogoFilename` - The filename of the case study subject's logo in the `website/assets/images/` folder. **Note:** images for this value are not stored in the articles folder, because they may be used outside of articles (e.g., Testimonial cards on landing pages)
+    - `quoteContent` - A quote from the case study subject. Used in the quote below the article title on the non-anonymous case study template.
+    - `quoteAuthorName` - The name of the person quoted for the case study. Used in the quote below the article title on the non-anonymous case study template page. **Note:** this meta tag is required if a `quoteContent` meta tag is set
+    - `quoteAuthorJobTitle` - The job title of the person quoted for the case study. Used in the quote below the article title on the non-anonymous case study template page. **Note:** this meta tag is required if a `quoteContent` meta tag is set
+    - `quoteAuthorImageFilename` - The filename of the LinkedIn profile image of the person quoted in the case study. Used in the quote below the article title on the non-anonymous case study template page. Images for this value are not stored in the articles folder, because they may be in used outside of articles (e.g., Testimonial cards on landing pages). **Note:** this meta tag is required if a `quoteContent` meta tag is set. 
+    - `companyName` - The name of the subject of the case study. Used in the "About [companyName]" section on the non-anonymous case study template page. **Note:** This value will only be used if a `companyInfo` meta tag is also set.
+    - `companyInfo` - A description of the case study subject. Used in the "About [companyName]" section on the non-anonymous case study template page. **Note:** This value will only be used if a `companyName` meta tag is also set.
+    - `companyInfoLineTwo` - An additional description of the case study subject. Used to add a second paragraph to the "About [companyName]" section on the non-anonymous case study template page. **Note:** This value will only be used if `companyName` and `companyInfo` meta tags are set.
+
 
 **Example meta tag section:**
 
-```html
+```
 <meta name="articleTitle" value="Building an effective dashboard with Fleet's REST API, Flask, and Plotly: A step-by-step guide">
 <meta name="authorFullName" value="Dave Herder">
 <meta name="authorGitHubUsername" value="dherder">
@@ -73,7 +90,29 @@ We use `<meta>` tags in Markdown articles to set metadata information about the 
 <meta name="description" value="Step-by-step guide on building a dynamic dashboard with Fleet's REST API, Flask, and Plotly. Master data visualization with open-source tools!">
 ```
 
+**Example case study meta tag section**
 
+```
+<meta name="category" value="case study">
+<meta name="publishedOn" value="2025-12-11">
+<meta name="authorGitHubUsername" value="n/a">
+<meta name="authorFullName" value="Fleetdm">
+<meta name="articleTitle" value="Foursquare cut costs and gained 114% ROI with Fleet">
+
+<meta name="companyLogoFilename" value="foursquare-logo-212x40@2x.png">
+<meta name="summaryChallenge" value="Foursquare wanted to simplify how they managed Macs and Windows devices. Their devices were split across two different MDMs, which created extra work and made automation harder for a small IT team.">
+<meta name="summarySolution" value="Fleet provided Foursquare with a single MDM platform that supports both Mac and Windows. Migrating from their previous MDMs was seamless and easy, thanks to Fleet-provided out-of-the-box tools that added speed and simplicity.">
+<meta name="summaryKeyResults" value="Cut endpoint maintenance effort by 50%; Reduced licensing costs by 24%; Achieved 114% ROI by removing duplicate tools; Real-time visibility with direct integration to their SIEM, with no latency; Increased reliability of security controls with GitOps">
+
+<meta name="quoteContent" value="“One of the easiest, quickest, smoothest migrations I’ve ever done.”">
+<meta name="quoteAuthorImageFilename" value="mike-meyer-120x120@2x.png">
+<meta name="quoteAuthorName" value="Mike Meyer">
+<meta name="quoteAuthorJobTitle" value="Senior Manager, Corporate Engineer">
+
+<meta name="companyName" value="Foursquare">
+<meta name="companyInfo" value="Foursquare is the industry's leading geospatial technology platform, designed to help businesses make smarter decisions and create more engaging customer experiences.">
+<meta name="companyInfoLineTwo" value="Powered by deep machine learning and a privacy-forward approach, their technology and solutions are redefining how organizations derive value from location intelligence.">
+```
 
 
 ## Linking to a location on GitHub
