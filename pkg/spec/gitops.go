@@ -363,7 +363,9 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 			multiError = parseTeamSettings(settingsRaw, result, baseDir, filePath, multiError)
 		}
 	default:
-		multiError = multierror.Append(multiError, errors.New("if `name` is not provided, 'org_settings' is required"))
+		// Allow omitting `org_settings` key for global file, clearing all org settings as a result.
+		orgSettingsRaw = json.RawMessage("null")
+		multiError = parseOrgSettings(orgSettingsRaw, result, baseDir, filePath, multiError)
 	}
 
 	for _, topKey := range topKeys {
