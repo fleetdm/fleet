@@ -65,7 +65,7 @@ func (svc *Service) GetScheduledQueriesInPack(ctx context.Context, id uint, opts
 
 type scheduleQueryRequest struct {
 	PackID   uint    `json:"pack_id"`
-	QueryID  uint    `json:"query_id"`
+	QueryID  uint    `json:"query_id" renameto:"report_id"`
 	Interval uint    `json:"interval"`
 	Snapshot *bool   `json:"snapshot"`
 	Removed  *bool   `json:"removed"`

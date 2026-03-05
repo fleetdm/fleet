@@ -90,8 +90,8 @@ describe("Edit Auto Update Config Modal", () => {
         <EditAutoUpdateConfigModal
           softwareTitle={createMockSoftwareTitleDetails({
             auto_update_enabled: true,
-            auto_update_start_time: "02:00",
-            auto_update_end_time: "04:00",
+            auto_update_window_start: "02:00",
+            auto_update_window_end: "04:00",
           })}
           teamId={1}
           refetchSoftwareTitle={jest.fn()}
@@ -144,8 +144,8 @@ describe("Edit Auto Update Config Modal", () => {
         <EditAutoUpdateConfigModal
           softwareTitle={createMockSoftwareTitleDetails({
             auto_update_enabled: true,
-            auto_update_start_time: "02:00",
-            auto_update_end_time: "04:00",
+            auto_update_window_start: "02:00",
+            auto_update_window_end: "04:00",
           })}
           teamId={1}
           refetchSoftwareTitle={jest.fn()}
@@ -510,8 +510,8 @@ describe("Edit Auto Update Config Modal", () => {
       await waitFor(() => {
         expect(requestSpy).toHaveBeenCalledWith({
           auto_update_enabled: true,
-          auto_update_start_time: "02:00",
-          auto_update_end_time: "04:00",
+          auto_update_window_start: "02:00",
+          auto_update_window_end: "04:00",
           labels_include_any: [],
           labels_exclude_any: [],
           team_id: 1,

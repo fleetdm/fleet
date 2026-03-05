@@ -6,7 +6,7 @@ import { formatDistanceToNow } from "date-fns";
 import { AppContext } from "context/app";
 import PATHS from "router/paths";
 
-import UploadList from "pages/ManageControlsPage/components/UploadList";
+import UploadList from "components/UploadList";
 import UploadListHeading from "pages/ManageControlsPage/components/UploadListHeading";
 
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -21,6 +21,7 @@ import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SectionHeader from "components/SectionHeader";
 import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 import {
   DEFAULT_USE_QUERY_OPTIONS,
@@ -93,7 +94,7 @@ const Certificates = ({
 
   // pagination controls
   const path = PATHS.CONTROLS_CERTIFICATES;
-  const queryString = isPremiumTier ? `?team_id=${currentTeamId}&` : "?";
+  const queryString = isPremiumTier ? `?fleet_id=${currentTeamId}&` : "?";
 
   const onPrevPage = useCallback(() => {
     router.push(path.concat(`${queryString}page=${currentPage - 1}`));
@@ -160,7 +161,7 @@ const Certificates = ({
             return (
               <ListItem
                 graphic="file-certificate"
-                title={name}
+                title={<TooltipTruncatedText value={name} />}
                 details={details}
                 actions={
                   <GitOpsModeTooltipWrapper

@@ -1,8 +1,6 @@
 .calendar-event-preview-modal {
   .modal__content {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-large;
+    @include vertical-modal-layout;
   }
 
   &__preview {

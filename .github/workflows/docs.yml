@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
       with:
         egress-policy: audit
 
@@ -38,9 +38,9 @@ jobs:
 
     - name: Verify Markdown documentation is free of "here" and "click here" link anchors
       run: |
-        if [[ $(grep -Eir --exclude-dir=node_modules --include=\*.md '\[(click )?here\]' .) ]]; then
+        if [[ $(grep -Eir --exclude-dir=node_modules --exclude-dir=third_party --include=\*.md '\[(click )?here\]' .) ]]; then
           echo '❌ fail: links found with "here" or "click here" anchors in Markdown files'
-          grep -Eir --exclude-dir=node_modules --include=\*.md '\[(click )?here\]' .
+          grep -Eir --exclude-dir=node_modules --exclude-dir=third_party --include=\*.md '\[(click )?here\]' .
           exit 1
         fi
 

@@ -13,6 +13,8 @@ const (
 	ActionCreate = "create"
 	// ActionCancelHostActivity refers to canceling an upcoming activity on a host.
 	ActionCancelHostActivity = "cancel_host_activity"
+	// ActionResend refers to resending an entity on a single host (currently used for configuration profiles).
+	ActionResend = "resend"
 
 	//
 	// User specific actions

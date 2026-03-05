@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import kotlinx.coroutines.sync.Mutex
 
 /**
  * WorkManager worker that handles certificate enrollment operations in the background.
@@ -17,6 +18,19 @@ import androidx.work.WorkerParameters
 class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParameters) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
+        // Skip if another enrollment is already running (periodic + one-time work are tracked separately)
+        if (!enrollmentMutex.tryLock()) {
+            Log.d(TAG, "Skipping enrollment, another run is already in progress")
+            return Result.success()
+        }
+        return try {
+            doEnrollment()
+        } finally {
+            enrollmentMutex.unlock()
+        }
+    }
+
+    private suspend fun doEnrollment(): Result {
         return try {
             Log.d(TAG, "Starting certificate enrollment worker (attempt ${runAttemptCount + 1})")
 
@@ -49,7 +63,7 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
                     is CleanupResult.AlreadyRemoved ->
                         Log.d(TAG, "Certificate $certId already removed (alias: ${result.alias})")
                     is CleanupResult.Failure ->
-                        Log.e(TAG, "Failed to cleanup certificate $certId: ${result.reason}", result.exception)
+                        FleetLog.e(TAG, "Failed to cleanup certificate $certId: ${result.reason}", result.exception)
                 }
             }
 
@@ -86,7 +100,7 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
                         // Treat as handled - no retry needed
                     }
                     is CertificateEnrollmentHandler.EnrollmentResult.Failure -> {
-                        Log.e(TAG, "Certificate $certificateId enrollment failed: ${result.reason}", result.exception)
+                        FleetLog.e(TAG, "Certificate $certificateId enrollment failed: ${result.reason}", result.exception)
                         if (result.isRetryable) {
                             hasTransientFailure = true
                         } else {
@@ -126,7 +140,7 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Unexpected error in certificate enrollment", e)
+            FleetLog.e(TAG, "Unexpected error in certificate enrollment", e)
             Result.failure()
         }
     }
@@ -135,5 +149,8 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
         const val WORK_NAME = "certificate_enrollment"
         private const val TAG = "fleet-CertificateEnrollmentWorker"
         private const val MAX_RETRY_ATTEMPTS = 5
+
+        // Mutex to prevent concurrent enrollment runs across all worker instances
+        private val enrollmentMutex = Mutex()
     }
 }

@@ -9,36 +9,126 @@ import (
 
 const m = archtest.ModuleName
 
+// TestPlatformPackageDependencies checks that platform packages are NOT dependent on Fleet domain packages
+// to maintain decoupling and modularity. This is a catch-all test.
+func TestPlatformPackageDependencies(t *testing.T) {
+	t.Parallel()
+	archtest.NewPackageTest(t, m+"/server/platform...").
+		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
+		WithTests().
+		ShouldNotDependOn(m+"/...").
+		IgnoreDeps(
+			// Platform packages can depend on each other
+			m+"/server/platform...",
+			// Infra packages
+			m+"/pkg/fleethttp",
+			m+"/server/contexts/authz",
+			m+"/server/contexts/ctxerr",
+			m+"/server/contexts/license",
+			m+"/server/contexts/logging",
+			m+"/server/contexts/publicip",
+		).
+		Check()
+}
+
 // TestEndpointerPackageDependencies checks that endpointer package is not dependent on other Fleet domain packages
 // to maintain decoupling and modularity.
 func TestEndpointerPackageDependencies(t *testing.T) {
 	t.Parallel()
-	archtest.NewPackageTest(t, m+"/server/service/middleware/endpoint_utils").
+	archtest.NewPackageTest(t, m+"/server/platform/endpointer").
 		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
 		WithTests().
 		ShouldNotDependOn(m+"/...").
 		IgnoreDeps(
 			// Platform packages
 			m+"/server/platform...",
-			// Other infra packages
+			// Infra packages
+			m+"/pkg/fleethttp",
 			m+"/server/contexts/authz",
 			m+"/server/contexts/ctxerr",
 			m+"/server/contexts/license",
 			m+"/server/contexts/logging",
 			m+"/server/contexts/publicip",
-			m+"/server/service/middleware/authzcheck",
-			m+"/server/service/middleware/ratelimit",
 		).
 		Check()
 }
 
-// TestPlatformPackageDependencies checks that platform packages are NOT dependent on ANY other Fleet packages
-// to maintain decoupling and modularity.
-func TestPlatformPackageDependencies(t *testing.T) {
+func TestHTTPPackageDependencies(t *testing.T) {
 	t.Parallel()
-	archtest.NewPackageTest(t, m+"/server/platform...").
+	archtest.NewPackageTest(t, m+"/server/platform/http").
+		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
+		WithTests().
+		ShouldNotDependOn(m+"/...").
+		IgnoreDeps(
+			m+"/pkg/fleethttp",
+			m+"/server/platform/errors",
+		).
+		Check()
+}
+
+func TestAuthzCheckPackageDependencies(t *testing.T) {
+	t.Parallel()
+	archtest.NewPackageTest(t, m+"/server/platform/middleware/authzcheck").
+		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
+		WithTests().
+		ShouldNotDependOn(m+"/...").
+		IgnoreDeps(
+			// Platform packages
+			m+"/server/platform/errors",
+			m+"/server/platform/http",
+			// Other infra packages
+			m+"/pkg/fleethttp",
+			m+"/server/contexts/authz",
+		).
+		Check()
+}
+
+func TestRatelimitPackageDependencies(t *testing.T) {
+	t.Parallel()
+	archtest.NewPackageTest(t, m+"/server/platform/middleware/ratelimit").
+		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
+		WithTests().
+		ShouldNotDependOn(m+"/...").
+		IgnoreDeps(
+			// Platform packages
+			m+"/server/platform/errors",
+			m+"/server/platform/http",
+			// Other infra packages
+			m+"/server/contexts/authz",
+			m+"/server/contexts/ctxerr",
+			m+"/server/contexts/publicip",
+		).
+		Check()
+}
+
+// TestMysqlPackageDependencies checks that mysql package is not dependent on other Fleet domain packages
+// to maintain decoupling and modularity.
+func TestMysqlPackageDependencies(t *testing.T) {
+	t.Parallel()
+	archtest.NewPackageTest(t, m+"/server/platform/mysql...").
+		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
+		WithTests().
+		ShouldNotDependOn(m+"/...").
+		IgnoreDeps(
+			// Ignore our own packages
+			m+"/server/platform/mysql...",
+			// Other infra packages
+			m+"/server/platform/errors",
+			m+"/server/platform/logging",
+			m+"/server/contexts/ctxerr",
+		).
+		Check()
+}
+
+func TestLoggingPackageDependencies(t *testing.T) {
+	t.Parallel()
+	archtest.NewPackageTest(t, m+"/server/platform/logging...").
 		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
 		WithTests().
 		ShouldNotDependOn(m + "/...").
+		IgnoreDeps(
+			// Ignore our own packages
+			m + "/server/platform/logging...",
+		).
 		Check()
 }

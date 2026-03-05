@@ -20,6 +20,7 @@ import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import { getEarliestExpiry } from "components/App/App";
 
 import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
 import AddAbmModal from "./components/AddAbmModal";
@@ -47,7 +48,7 @@ const AddAbmMessage = ({ onAddAbm }: IAddAbmMessageProps) => {
 };
 
 const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
-  const { config, isPremiumTier } = useContext(AppContext);
+  const { config, isPremiumTier, setABMExpiry } = useContext(AppContext);
 
   const [showRenewModal, setShowRenewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -70,6 +71,18 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
       retry: (tries, error) =>
         error.status !== 404 && error.status !== 400 && tries <= 3,
       select: (data) => data?.abm_tokens,
+      onSuccess: (data) => {
+        // we need to call setABMExpiry here to update the expiry info so the terms banner
+        // displays correctly
+        if (data.length === 0) {
+          setABMExpiry({ earliestExpiry: "", needsAbmTermsRenewal: false });
+        } else {
+          setABMExpiry({
+            earliestExpiry: getEarliestExpiry(data),
+            needsAbmTermsRenewal: data.some((token) => token.terms_expired),
+          });
+        }
+      },
       enabled: isPremiumTier,
     }
   );

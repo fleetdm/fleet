@@ -117,7 +117,7 @@ interface ITableContainerProps<T = any> {
   renderTableHelpText?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
   disableTableHeader?: boolean;
-  /** Set to true to persist the row selections across table data filters */
+  /** Set to true to persist row selection across client-side filters and pagination */
   persistSelectedRows?: boolean;
   /** Set to `true` to not display the footer section of the table */
   hideFooter?: boolean;
@@ -332,7 +332,10 @@ const TableContainer = <T,>({
           <>
             {actionButton.buttonText}
             {actionButton.iconSvg && (
-              <Icon name={actionButton.iconSvg} color="ui-fleet-black-75" />
+              <Icon
+                name={actionButton.iconSvg}
+                color={actionButton.iconColor || "ui-fleet-black-75"}
+              />
             )}
           </>
         </Button>

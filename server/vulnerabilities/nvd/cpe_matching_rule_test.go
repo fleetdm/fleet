@@ -261,4 +261,42 @@ func TestGetKnownNVDBugRules(t *testing.T) {
 	require.True(t, ok)
 	ok = rule.CPEMatches(cpeMeta)
 	require.False(t, ok)
+
+	// Test that gitk CVEs don't match the base git package
+	gitCPEMeta, err := wfn.Parse("cpe:2.3:a:git:git:2.47.1:*:*:*:*:*:*:*")
+	require.NoError(t, err)
+
+	rule, ok = cpeMatchingRules.FindMatch("CVE-2025-27613")
+	require.True(t, ok)
+	ok = rule.CPEMatches(gitCPEMeta)
+	require.False(t, ok, "CVE-2025-27613 should not match git:git")
+
+	rule, ok = cpeMatchingRules.FindMatch("CVE-2025-27614")
+	require.True(t, ok)
+	ok = rule.CPEMatches(gitCPEMeta)
+	require.False(t, ok, "CVE-2025-27614 should not match git:git")
+
+	rule, ok = cpeMatchingRules.FindMatch("CVE-2025-46835")
+	require.True(t, ok)
+	ok = rule.CPEMatches(gitCPEMeta)
+	require.False(t, ok, "CVE-2025-46835 should not match git:git")
+
+	// Test that CVE-2024-7006 (libtiff) only matches on Linux.
+	rule, ok = cpeMatchingRules.FindMatch("CVE-2024-7006")
+	require.True(t, ok)
+
+	// Should not match on Windows
+	cpeMetaWindows, err := wfn.Parse("cpe:2.3:a:libtiff:libtiff:4.0.0:*:*:*:*:windows:*:*")
+	require.NoError(t, err)
+	require.False(t, rule.CPEMatches(cpeMetaWindows))
+
+	// Should not match on macOS
+	cpeMetaMacOS, err := wfn.Parse("cpe:2.3:a:libtiff:libtiff:4.0.0:*:*:*:*:macos:*:*")
+	require.NoError(t, err)
+	require.False(t, rule.CPEMatches(cpeMetaMacOS))
+
+	// Should match on Linux
+	cpeMetaLinux, err := wfn.Parse("cpe:2.3:a:libtiff:libtiff:4.0.0:*:*:*:*:linux:*:*")
+	require.NoError(t, err)
+	require.True(t, rule.CPEMatches(cpeMetaLinux))
 }

@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
@@ -81,6 +81,7 @@ jobs:
           DOGFOOD_HOST_STATUS_WEBHOOK_URL: ${{ secrets.DOGFOOD_HOST_STATUS_WEBHOOK_URL }}
           DOGFOOD_END_USER_SSO_METADATA: ${{ secrets.DOGFOOD_END_USER_SSO_METADATA }}
           DOGFOOD_TESTING_AND_QA_ENROLL_SECRET: ${{ secrets.DOGFOOD_TESTING_AND_QA_ENROLL_SECRET }}
+          DOGFOOD_OKTA_CA_CERTIFICATE: ${{ secrets.DOGFOOD_OKTA_CA_CERTIFICATE }}
 
       - name: Notify on Gitops failure
         if: failure() && github.ref_name == 'main'

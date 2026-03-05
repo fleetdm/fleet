@@ -70,6 +70,7 @@ data "aws_iam_policy_document" "gha-permissions" {
       "s3:*",
       "lambda:*",
       "ecs:*",
+      "eks:*",
       "rds:*",
       "rds-data:*",
       "secretsmanager:*",
@@ -103,5 +104,13 @@ data "aws_iam_policy_document" "gha-permissions" {
       "backup-storage:*"
     ]
     resources = ["*"]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "sts:AssumeRole"
+    ]
+    resources = ["arn:aws:iam::353365949058:role/terraform-dogfood"]
   }
 }

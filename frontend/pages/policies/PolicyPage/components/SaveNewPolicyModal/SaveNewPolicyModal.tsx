@@ -308,18 +308,18 @@ const SaveNewPolicyModal = ({
                 name="critical-policy"
                 onChange={(value: boolean) => setLastEditedQueryCritical(value)}
                 value={lastEditedQueryCritical}
-                isLeftLabel
                 disabled={disableForm}
               >
                 <TooltipWrapper
                   tipContent={
                     <p>
-                      If automations are turned on, this
-                      <br /> information is included.
+                      If automations are turned on, this information is
+                      included. If Okta conditional access is configured, end
+                      users can never bypass critical policies.
                     </p>
                   }
                 >
-                  Critical:
+                  Critical
                 </TooltipWrapper>
               </Checkbox>
             </div>

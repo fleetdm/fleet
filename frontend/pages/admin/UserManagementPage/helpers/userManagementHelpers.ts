@@ -81,6 +81,11 @@ export const roleOptions = ({
       value: "observer_plus",
     });
 
+    roles.splice(2, 0, {
+      label: "Technician",
+      value: "technician",
+    });
+
     if (isApiOnly) {
       roles.splice(3, 0, {
         label: "GitOps",

@@ -33,6 +33,8 @@
 
 - CSPs: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider
 
+- Initial PoC PR's: [MDM Server](https://github.com/fleetdm/fleet/pull/9178) [Programmatic Enrollment](https://github.com/fleetdm/fleet/pull/9500)
+
 ### Android
 
 See the [Android MDM documentation](./android-mdm.md)

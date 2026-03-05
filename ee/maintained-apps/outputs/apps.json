@@ -41,7 +41,7 @@
       "slug": "8x8-work/darwin",
       "platform": "darwin",
       "unique_identifier": "com.electron.8x8---virtual-office",
-      "description": "8x8 Work is a communications application with voice, video, chat, and web conferencing."
+      "description": "8x8 Work is a communications application with voice, video, chat, and web conferencing.<br/><br/>Note: After installation, the app may show an auto-update error on each login if file ownership is set to root; changing ownership of 8x8 Work.app to the logged-in user resolves this, or auto-updates can be disabled via the Profile Policies setting in the 8x8 Admin Console."
     },
     {
       "name": "8x8 Work",
@@ -233,6 +233,13 @@
       "description": "BBEdit is a text, code, and markup editor."
     },
     {
+      "name": "BetterDisplay",
+      "slug": "betterdisplay/darwin",
+      "platform": "darwin",
+      "unique_identifier": "pro.betterdisplay.BetterDisplay",
+      "description": "BetterDisplay is a display management tool."
+    },
+    {
       "name": "Beyond Compare",
       "slug": "beyond-compare/darwin",
       "platform": "darwin",
@@ -366,6 +373,13 @@
       "description": "Claude is Anthropic's official Claude AI desktop app."
     },
     {
+      "name": "Claude",
+      "slug": "claude/windows",
+      "platform": "windows",
+      "unique_identifier": "Claude",
+      "description": "Claude is Anthropic's official Claude AI desktop app."
+    },
+    {
       "name": "CleanMyMac",
       "slug": "cleanmymac/darwin",
       "platform": "darwin",
@@ -422,11 +436,11 @@
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
-      "name": "Company Portal",
-      "slug": "company-portal/windows",
-      "platform": "windows",
-      "unique_identifier": "Microsoft.CompanyPortal",
-      "description": "Microsoft Company Portal is the app for accessing company resources and managing devices in a secure environment."
+      "name": "Connect Fonts",
+      "slug": "connect-fonts/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.extensis.SuitcaseFusion",
+      "description": "Connect Fonts is an app that manages fonts and digital assets."
     },
     {
       "name": "CotEditor",
@@ -702,6 +716,13 @@
       "description": "GIMP is a free and open-source image editor."
     },
     {
+      "name": "GIMP",
+      "slug": "gimp/windows",
+      "platform": "windows",
+      "unique_identifier": "GIMP 3.0.8-2",
+      "description": "GIMP is a free and open-source image editor."
+    },
+    {
       "name": "GitHub Desktop",
       "slug": "github-desktop/windows",
       "platform": "windows",
@@ -884,6 +905,13 @@
       "description": "Keka is a file archiver."
     },
     {
+      "name": "LastPass",
+      "slug": "lastpass/windows",
+      "platform": "windows",
+      "unique_identifier": "LastPass",
+      "description": "LastPass is a password manager."
+    },
+    {
       "name": "Lens",
       "slug": "lens/darwin",
       "platform": "darwin",
@@ -1038,6 +1066,13 @@
       "description": "MySQL Workbench is a visual tool to design, develop and administer MySQL servers."
     },
     {
+      "name": "Nextcloud",
+      "slug": "nextcloud/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.nextcloud.desktopclient",
+      "description": "Nextcloud is a self-hosted file sync and sharing platform that provides secure access to your data across devices with collaboration features."
+    },
+    {
       "name": "NordPass",
       "slug": "nordpass/darwin",
       "platform": "darwin",
@@ -1119,6 +1154,13 @@
       "slug": "okta-verify/darwin",
       "platform": "darwin",
       "unique_identifier": "com.okta.mobile",
+      "description": "Okta Verify is a multi-factor authentication app that provides secure identity verification and passwordless sign-in for users accessing Okta-protected applications."
+    },
+    {
+      "name": "Okta Verify",
+      "slug": "okta-verify/windows",
+      "platform": "windows",
+      "unique_identifier": "Okta Verify",
       "description": "Okta Verify is a multi-factor authentication app that provides secure identity verification and passwordless sign-in for users accessing Okta-protected applications."
     },
     {
@@ -1232,6 +1274,20 @@
       "platform": "darwin",
       "unique_identifier": "ch.protonvpn.mac",
       "description": "ProtonVPN is a VPN client focusing on security."
+    },
+    {
+      "name": "Proxifier",
+      "slug": "proxifier/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.initex.proxifier.v3.macos",
+      "description": "Proxifier is an app that allows network applications that do not support working through proxy servers to operate through a SOCKS or HTTPS proxy and chains."
+    },
+    {
+      "name": "PuTTY",
+      "slug": "putty/windows",
+      "platform": "windows",
+      "unique_identifier": "PuTTY release 0.83 (x64)",
+      "description": "PuTTY is a free, open-source SSH and Telnet client for Windows."
     },
     {
       "name": "PyCharm Community Edition",
@@ -1721,6 +1777,13 @@
       "slug": "yubico-authenticator/darwin",
       "platform": "darwin",
       "unique_identifier": "com.yubico.yubioath",
+      "description": "Yubico Authenticator is an application for generating TOTP and HOTP codes."
+    },
+    {
+      "name": "Yubico Authenticator",
+      "slug": "yubico-authenticator/windows",
+      "platform": "windows",
+      "unique_identifier": "Yubico Authenticator",
       "description": "Yubico Authenticator is an application for generating TOTP and HOTP codes."
     },
     {

@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"io/ioutil"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,8 +17,6 @@ import (
 	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/gorilla/mux"
-
-	kitlog "github.com/go-kit/log"
 )
 
 func TestCACaps(t *testing.T) {
@@ -83,6 +82,25 @@ func TestGetCACertMessage(t *testing.T) {
 	}
 	if !strings.Contains(req.URL.RawQuery, "message="+testMsg) {
 		t.Fatal("RawQuery does not contain message")
+	}
+}
+
+func TestEncodeSCEPRequest_PKIOperation_UsesStdBase64(t *testing.T) {
+	// Data that encodes to "++++////" in standard base64
+	testData := []byte{0xfb, 0xef, 0xbe, 0xff, 0xff, 0xff}
+
+	req, _ := http.NewRequest("GET", "http://example.com/scep", nil)
+	if err := scepserver.EncodeSCEPRequest(t.Context(), req, scepserver.SCEPRequest{
+		Operation: "PKIOperation",
+		Message:   testData,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify message decodes correctly with StdEncoding (not URLEncoding)
+	msg := req.URL.Query().Get("message")
+	if _, err := base64.StdEncoding.DecodeString(msg); err != nil {
+		t.Fatalf("message should be valid standard base64: %v", err)
 	}
 }
 
@@ -221,9 +239,9 @@ func newServer(t *testing.T, opts ...scepserver.ServiceOption) (*httptest.Server
 			t.Fatal(err)
 		}
 	}
-	logger := kitlog.NewNopLogger()
+	slogLogger := slog.New(slog.DiscardHandler)
 	e := scepserver.MakeServerEndpoints(svc)
-	scepHandler := scepserver.MakeHTTPHandler(e, svc, logger)
+	scepHandler := scepserver.MakeHTTPHandler(e, svc, slogLogger)
 	r := mux.NewRouter()
 	r.Handle("/scep", scepHandler)
 	server := httptest.NewServer(r)

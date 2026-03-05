@@ -30,7 +30,7 @@ import UploadedPackageView from "./components/UploadedPackageView";
 import DeleteBootstrapPackageModal from "./components/DeleteBootstrapPackageModal";
 import BootstrapAdvancedOptions from "./components/BootstrapAdvancedOptions";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
-import { getInstallSoftwareDuringSetupCount } from "../InstallSoftware/components/AddInstallSoftware/helpers";
+import { getInstallSoftwareDuringSetupCount } from "../InstallSoftware/components/InstallSoftwareForm/helpers";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 import getManualAgentInstallSetting from "../../helpers";
 
@@ -143,7 +143,7 @@ const BootstrapPackage = ({
         team_id: currentTeamId,
         manual_agent_install: false,
       });
-      renderFlash("success", "Successfully deleted!");
+      renderFlash("success", "Successfully deleted.");
     } catch {
       renderFlash("error", "Couldn't delete. Please try again.");
     } finally {

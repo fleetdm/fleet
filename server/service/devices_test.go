@@ -26,6 +26,57 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 		require.Empty(t, sum)
 	})
 
+	t.Run("alternative browser host URL gets mapped from app config", func(t *testing.T) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return false, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return nil, nil
+		}
+		ds.HasSelfServiceSoftwareInstallersFunc = func(ctx context.Context, platform string, teamID *uint) (bool, error) {
+			return false, nil
+		}
+		ds.FailingPoliciesCountFunc = func(ctx context.Context, host *fleet.Host) (uint, error) {
+			return uint(0), nil
+		}
+
+		testCases := []struct {
+			name                   string
+			appCfg                 fleet.AppConfig
+			expectedBrowserHostURL string
+		}{
+			{
+				name:                   "empty app config",
+				appCfg:                 fleet.AppConfig{},
+				expectedBrowserHostURL: "",
+			},
+			{
+				name: "with some value stored",
+				appCfg: fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{
+					AlternativeBrowserHost: "https://example.com",
+				}},
+				expectedBrowserHostURL: "https://example.com",
+			},
+		}
+		for _, tc := range testCases {
+			c := tc
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &c.appCfg, nil
+			}
+
+			ctx := test.HostContext(ctx, &fleet.Host{
+				OsqueryHostID: ptr.String("test"),
+			})
+			sum, err := svc.GetFleetDesktopSummary(ctx)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedBrowserHostURL, sum.AlternativeBrowserHost)
+		}
+	})
+
 	t.Run("different app config values for managed host", func(t *testing.T) {
 		ds := new(mock.Store)
 		license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
@@ -367,6 +418,25 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 				},
 			},
 			{
+				name: "throttled ADE assignment status",
+				host: &fleet.Host{
+					DEPAssignedToFleet: ptr.Bool(true),
+					OsqueryHostID:      ptr.String("test"),
+				},
+				hostMDM: &fleet.HostMDM{
+					IsServer:               false,
+					InstalledFromDep:       true,
+					Enrolled:               true,
+					Name:                   fleet.WellKnownMDMIntune,
+					DEPProfileAssignStatus: ptr.String(string(fleet.DEPAssignProfileResponseThrottled)),
+				},
+				err: nil,
+				out: fleet.DesktopNotifications{
+					NeedsMDMMigration:      false,
+					RenewEnrollmentProfile: false,
+				},
+			},
+			{
 				name: "not accessible ADE assignment status",
 				host: &fleet.Host{
 					DEPAssignedToFleet: ptr.Bool(true),
@@ -550,7 +620,7 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 			return appConfig, nil
 		}
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.ErrorContains(t, err, "Disk encryption is not enabled for hosts not assigned to a team.")
+		require.ErrorContains(t, err, "Disk encryption is not enabled for hosts not assigned to a fleet.")
 
 		// valid platform, team, encryption not enabled
 		host.TeamID = ptr.Uint(1)
@@ -560,7 +630,7 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 			return teamConfig, nil
 		}
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.ErrorContains(t, err, "Disk encryption is not enabled for this host's team.")
+		require.ErrorContains(t, err, "Disk encryption is not enabled for this host's fleet.")
 
 		// valid platform, team, host disk is not encrypted or unknown encryption state
 		teamConfig = &fleet.TeamMDM{EnableDiskEncryption: true}

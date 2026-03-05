@@ -16,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -142,7 +141,7 @@ func truncateScriptResult(output string) string {
 	return output
 }
 
-func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (*fleet.HostScriptResult,
+func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload, attemptNumber *int) (*fleet.HostScriptResult,
 	string, error,
 ) {
 	const resultExistsStmt = `
@@ -161,7 +160,8 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
     output = ?,
     runtime = ?,
     exit_code = ?,
-    timeout = ?
+    timeout = ?,
+    attempt_number = ?
   WHERE
     host_id = ? AND
     execution_id = ?`
@@ -197,7 +197,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 			return ctxerr.Wrap(ctx, err, "check if host script result exists")
 		}
 		if resultExists {
-			level.Debug(ds.logger).Log("msg", "duplicate script execution result sent, will be ignored (original result is preserved)",
+			ds.logger.DebugContext(ctx, "duplicate script execution result sent, will be ignored (original result is preserved)",
 				"host_id", result.HostID,
 				"execution_id", result.ExecutionID,
 			)
@@ -222,6 +222,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 			// See /orbit/pkg/scripts/exec_windows.go
 			int32(result.ExitCode), //nolint:gosec // dismiss G115
 			result.Timeout,
+			attemptNumber,
 			result.HostID,
 			result.ExecutionID,
 		)
@@ -400,7 +401,8 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		hsr.host_deleted_at,
 		hsr.setup_experience_script_id,
 		hsr.canceled,
-		bahr.batch_execution_id
+		bahr.batch_execution_id,
+		hsr.attempt_number
 	FROM
 		host_script_results hsr
 	LEFT JOIN
@@ -432,7 +434,9 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		COALESCE(ua.payload->'$.sync_request', 0) as sync_request,
 		NULL as host_deleted_at,
 		sua.setup_experience_script_id,
-		0 as canceled
+		0 as canceled,
+		NULL as batch_execution_id,
+		NULL as attempt_number
   FROM
 		upcoming_activities ua
 		INNER JOIN script_upcoming_activities sua
@@ -459,6 +463,27 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		}
 	}
 	return &result, nil
+}
+
+func (ds *Datastore) CountHostScriptAttempts(ctx context.Context, hostID, scriptID, policyID uint) (int, error) {
+	var count int
+	// Only count attempts from the current retry sequence.
+	// When a policy passes, all attempt_number values are reset to 0 to mark them as "old sequence".
+	// We count attempts where attempt_number > 0 (current sequence) OR attempt_number IS NULL (currently being processed).
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `
+		SELECT COUNT(*)
+		FROM host_script_results
+		WHERE host_id = ?
+		  AND script_id = ?
+		  AND policy_id = ?
+		  AND canceled = 0
+		  AND (attempt_number > 0 OR attempt_number IS NULL)
+	`, hostID, scriptID, policyID)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count host script attempts")
+	}
+
+	return count, nil
 }
 
 func (ds *Datastore) NewScript(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {
@@ -516,7 +541,7 @@ func (ds *Datastore) UpdateScriptContents(ctx context.Context, scriptID uint, sc
 			// Try to clean up the old content if no longer used
 			// Don't fail the transaction if cleanup fails; just log it
 			if err := ds.cleanupScriptContent(ctx, tx, uint(oldContentID)); err != nil { //nolint:gosec
-				level.Error(ds.logger).Log("msg", "failed to cleanup orphaned script content",
+				ds.logger.ErrorContext(ctx, "failed to cleanup orphaned script content",
 					"script_id", scriptID, "old_content_id", oldContentID, "err", err)
 				ctxerr.Handle(ctx, err)
 			}
@@ -531,6 +556,11 @@ func (ds *Datastore) UpdateScriptContents(ctx context.Context, scriptID uint, sc
 		// Cancel pending executions
 		if err := ds.cancelUpcomingScriptActivities(ctx, tx, scriptID); err != nil {
 			return ctxerr.Wrap(ctx, err, "canceling upcoming script executions")
+		}
+
+		// When a script is modified reset attempt numbers for policy automations
+		if err := ds.resetScriptPolicyAutomationAttempts(ctx, tx, scriptID); err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting policy automation attempts for script")
 		}
 
 		return nil
@@ -567,6 +597,26 @@ WHERE
 		if _, err := ds.cancelHostUpcomingActivity(ctx, db, upcomingExecution.HostID, upcomingExecution.ExecutionID); err != nil {
 			return ctxerr.Wrap(ctx, err, "canceling upcoming activity")
 		}
+	}
+
+	// Cancel scripts that were already activated and are in host_script_results but not yet executed
+	const activatedStmt = `UPDATE host_script_results SET canceled = 1 WHERE script_id = ? AND exit_code IS NULL AND canceled = 0`
+	if _, err := db.ExecContext(ctx, activatedStmt, scriptID); err != nil {
+		return ctxerr.Wrap(ctx, err, "canceling activated pending script executions")
+	}
+
+	return nil
+}
+
+// resetScriptPolicyAutomationAttempts resets all attempt numbers for script executions for policy automations
+func (ds *Datastore) resetScriptPolicyAutomationAttempts(ctx context.Context, db sqlx.ExecerContext, scriptID uint) error {
+	_, err := db.ExecContext(ctx, `
+		UPDATE host_script_results
+		SET attempt_number = 0
+		WHERE script_id = ? AND policy_id IS NOT NULL AND (attempt_number > 0 OR attempt_number IS NULL)
+	`, scriptID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reset policy automation script attempts")
 	}
 
 	return nil
@@ -1445,8 +1495,20 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get lock reference")
 			}
+
 			status.LockMDMCommand = cmd
 			status.LockMDMCommandResult = cmdRes
+
+			// for ADE enrolled iDevices, we don't advance to "locked" until we have location data
+			if hostPlatform == "ios" || hostPlatform == "ipados" {
+				_, err = ds.GetHostLocationData(ctx, host.ID)
+				switch {
+				case fleet.IsNotFound(err):
+					status.LocationPending = true
+				case err != nil:
+					return nil, err
+				}
+			}
 		}
 
 		if mdmActions.WipeRef != nil {
@@ -1463,16 +1525,22 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 		// lock and unlock references are scripts
 		if mdmActions.LockRef != nil {
 			hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.LockRef, scriptExecutionSearchOpts{IncludeCanceled: true})
-			if err != nil {
+			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "get lock reference script result")
+			}
+			if fleet.IsNotFound(err) {
+				ds.logger.ErrorContext(ctx, "orphan lock script execution reference", "host_id", host.ID, "execution_id", *mdmActions.LockRef)
 			}
 			status.LockScript = hsr
 		}
 
 		if mdmActions.UnlockRef != nil {
 			hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.UnlockRef, scriptExecutionSearchOpts{IncludeCanceled: true})
-			if err != nil {
+			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "get unlock reference script result")
+			}
+			if fleet.IsNotFound(err) {
+				ds.logger.ErrorContext(ctx, "orphan unlock script execution reference", "host_id", host.ID, "execution_id", *mdmActions.UnlockRef)
 			}
 			status.UnlockScript = hsr
 		}
@@ -1488,8 +1556,11 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 				status.WipeMDMCommandResult = cmdRes
 			} else {
 				hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.WipeRef, scriptExecutionSearchOpts{IncludeCanceled: true})
-				if err != nil {
+				if err != nil && !fleet.IsNotFound(err) {
 					return nil, ctxerr.Wrap(ctx, err, "get wipe reference script result")
+				}
+				if fleet.IsNotFound(err) {
+					ds.logger.ErrorContext(ctx, "orphan wipe script execution reference", "host_id", host.ID, "execution_id", *mdmActions.WipeRef)
 				}
 				status.WipeScript = hsr
 			}
@@ -2445,7 +2516,7 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 		}
 
 		if !teamIDEq(host.TeamID, script.TeamID) {
-			return "", ctxerr.Errorf(ctx, "all hosts must be on the same team as the script")
+			return "", ctxerr.Errorf(ctx, "all hosts must be on the same fleet as the script")
 		}
 	}
 

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/rs/zerolog"
 )
@@ -32,7 +33,7 @@ var (
 	CantDisableDiskEncryptionIfPINRequiredErrMsg = "Couldn't disable disk encryption, you need to disable the BitLocker PIN requirement first."
 	CantEnablePINRequiredIfDiskEncryptionEnabled = "Couldn't enable BitLocker PIN requirement, you must enable disk encryption first."
 	CantResendAppleDeclarationProfilesMessage    = "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles."
-	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has a package or app available for install on the %s team."
+	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has an installer available for the %s team."
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
@@ -51,15 +52,15 @@ type ErrWithLogFields = platform_http.ErrWithLogFields
 // ErrWithRetryAfter is an alias for platform_http.ErrWithRetryAfter.
 type ErrWithRetryAfter = platform_http.ErrWithRetryAfter
 
-// ErrWithIsClientError is an alias for platform_http.ErrWithIsClientError.
-type ErrWithIsClientError = platform_http.ErrWithIsClientError
+// ErrWithIsClientError is an alias for platform_errors.ErrWithIsClientError.
+type ErrWithIsClientError = platform_errors.ErrWithIsClientError
 
 type invalidArgWithStatusError struct {
-	InvalidArgumentError
+	*InvalidArgumentError
 	code int
 }
 
-func (e invalidArgWithStatusError) Status() int {
+func (e *invalidArgWithStatusError) Status() int {
 	if e.code == 0 {
 		// 422 is the default code for invalid args
 		return http.StatusUnprocessableEntity
@@ -95,7 +96,7 @@ func NewInvalidArgumentError(name, reason string) *InvalidArgumentError {
 	return &invalid
 }
 
-func (e InvalidArgumentError) IsClientError() bool {
+func (e *InvalidArgumentError) IsClientError() bool {
 	return true
 }
 
@@ -106,14 +107,18 @@ func (e *InvalidArgumentError) Append(name, reason string) {
 	})
 }
 
+func (e *InvalidArgumentError) AppendInvalidArgument(invalidArg InvalidArgument) {
+	e.Errors = append(e.Errors, invalidArg)
+}
+
 func (e *InvalidArgumentError) Appendf(name, reasonFmt string, args ...interface{}) {
 	e.Append(name, fmt.Sprintf(reasonFmt, args...))
 }
 
 // WithStatus returns an error that combines the InvalidArgumentError
 // with a custom status code.
-func (e InvalidArgumentError) WithStatus(code int) error {
-	return invalidArgWithStatusError{e, code}
+func (e *InvalidArgumentError) WithStatus(code int) error {
+	return &invalidArgWithStatusError{e, code}
 }
 
 func (e *InvalidArgumentError) HasErrors() bool {
@@ -121,7 +126,7 @@ func (e *InvalidArgumentError) HasErrors() bool {
 }
 
 // Error implements the error interface.
-func (e InvalidArgumentError) Error() string {
+func (e *InvalidArgumentError) Error() string {
 	switch len(e.Errors) {
 	case 0:
 		return "validation failed"
@@ -133,7 +138,7 @@ func (e InvalidArgumentError) Error() string {
 	}
 }
 
-func (e InvalidArgumentError) Invalid() []map[string]string {
+func (e *InvalidArgumentError) Invalid() []map[string]string {
 	var invalid []map[string]string
 	for _, i := range e.Errors {
 		invalid = append(invalid, map[string]string{"name": i.name, "reason": i.reason})
@@ -173,13 +178,18 @@ func NewPermissionError(message string) *PermissionError {
 	return &PermissionError{message: message}
 }
 
-func (e PermissionError) Error() string {
+func (e *PermissionError) Error() string {
 	return e.message
 }
 
-func (e PermissionError) PermissionError() []map[string]string {
+func (e *PermissionError) PermissionError() []map[string]string {
 	var forbidden []map[string]string
 	return forbidden
+}
+
+// IsClientError implements ErrWithIsClientError.
+func (e *PermissionError) IsClientError() bool {
+	return true
 }
 
 // OTAForbiddenError is a special kind of forbidden error that intentionally
@@ -197,19 +207,24 @@ type OTAForbiddenError struct {
 	InternalErr error
 }
 
-func (e OTAForbiddenError) Error() string {
+func (e *OTAForbiddenError) Error() string {
 	return "Couldn't install the profile. Invalid enroll secret. Please contact your IT admin."
 }
 
-func (e OTAForbiddenError) StatusCode() int {
+func (e *OTAForbiddenError) StatusCode() int {
 	return http.StatusForbidden
 }
 
-func (e OTAForbiddenError) Internal() string {
+func (e *OTAForbiddenError) Internal() string {
 	if e.InternalErr == nil {
 		return ""
 	}
 	return e.InternalErr.Error()
+}
+
+// IsClientError implements ErrWithIsClientError.
+func (e *OTAForbiddenError) IsClientError() bool {
+	return true
 }
 
 // licenseError is returned when the application is not properly licensed.
@@ -217,12 +232,17 @@ type licenseError struct {
 	ErrorWithUUID
 }
 
-func (e licenseError) Error() string {
+func (e *licenseError) Error() string {
 	return "Requires Fleet Premium license"
 }
 
-func (e licenseError) StatusCode() int {
+func (e *licenseError) StatusCode() int {
 	return http.StatusPaymentRequired
+}
+
+// IsClientError implements ErrWithIsClientError.
+func (e *licenseError) IsClientError() bool {
+	return true
 }
 
 // MDMNotConfiguredError is used when an MDM endpoint or resource is accessed
@@ -239,6 +259,11 @@ func (e *MDMNotConfiguredError) Error() string {
 	return MDMNotConfiguredMessage
 }
 
+// IsClientError implements ErrWithIsClientError.
+func (e *MDMNotConfiguredError) IsClientError() bool {
+	return true
+}
+
 // WindowsMDMNotConfiguredError is used when an MDM endpoint or resource is accessed
 // without having Windows MDM correctly configured.
 type WindowsMDMNotConfiguredError struct{}
@@ -253,6 +278,11 @@ func (e *WindowsMDMNotConfiguredError) Error() string {
 	return WindowsMDMNotConfiguredMessage
 }
 
+// IsClientError implements ErrWithIsClientError.
+func (e *WindowsMDMNotConfiguredError) IsClientError() bool {
+	return true
+}
+
 // AndroidMDMNotConfiguredError is used when an MDM endpoint or resource is accessed
 // without having Android MDM correctly configured.
 type AndroidMDMNotConfiguredError struct{}
@@ -265,6 +295,11 @@ func (e *AndroidMDMNotConfiguredError) StatusCode() int {
 
 func (e *AndroidMDMNotConfiguredError) Error() string {
 	return AndroidMDMNotConfiguredMessage
+}
+
+// IsClientError implements ErrWithIsClientError.
+func (e *AndroidMDMNotConfiguredError) IsClientError() bool {
+	return true
 }
 
 // NotConfiguredError is a generic "not configured" error that can be used
@@ -370,7 +405,7 @@ func GetJSONUnknownField(err error) *string {
 }
 
 // Cause returns the root error in err's chain.
-var Cause = platform_http.Cause
+var Cause = platform_errors.Cause
 
 // FleetdError is an error that can be reported by any of the fleetd
 // components.
@@ -431,6 +466,13 @@ func (e OrbitError) StatusCode() int {
 		return http.StatusInternalServerError
 	}
 	return e.code
+}
+
+// IsClientError implements ErrWithIsClientError.
+// Returns true for 4xx status codes, false for 5xx.
+func (e OrbitError) IsClientError() bool {
+	code := e.StatusCode()
+	return code >= 400 && code < 500
 }
 
 func NewOrbitIDPAuthRequiredError() *OrbitError {
@@ -510,10 +552,13 @@ func (e ConflictError) IsConflict() bool {
 	return true
 }
 
-// Errorer interface is implemented by response structs to encode business logic errors
-type Errorer interface {
-	Error() error
+// IsClientError implements ErrWithIsClientError.
+func (e ConflictError) IsClientError() bool {
+	return true
 }
+
+// Errorer is an alias for platform_http.Errorer.
+type Errorer = platform_http.Errorer
 
 type VPPIconAvailable struct {
 	IconURL string

@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/big"
 	"time"
 
@@ -15,11 +16,10 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
-	"github.com/go-kit/log"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -29,14 +29,14 @@ const maxCommonNameLength = 255
 type HostIdentitySCEPDepot struct {
 	db     *sqlx.DB
 	ds     fleet.Datastore
-	logger log.Logger
+	logger *slog.Logger
 	config *config.FleetConfig
 }
 
 var _ depot.Depot = (*HostIdentitySCEPDepot)(nil)
 
 // NewHostIdentitySCEPDepot creates and returns a *HostIdentitySCEPDepot.
-func NewHostIdentitySCEPDepot(db *sqlx.DB, ds fleet.Datastore, logger log.Logger, cfg *config.FleetConfig) (*HostIdentitySCEPDepot, error) {
+func NewHostIdentitySCEPDepot(db *sqlx.DB, ds fleet.Datastore, logger *slog.Logger, cfg *config.FleetConfig) (*HostIdentitySCEPDepot, error) {
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
@@ -135,7 +135,7 @@ func (d *HostIdentitySCEPDepot) Put(name string, crt *x509.Certificate) error {
 		}
 		rowsAffected, _ := result.RowsAffected()
 		if rowsAffected > 0 {
-			d.logger.Log("msg", "revoked existing host identity certificate", "name", name)
+			d.logger.InfoContext(context.Background(), "revoked existing host identity certificate", "name", name)
 		}
 
 		_, err = tx.ExecContext(context.Background(), `

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -15,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -45,7 +45,7 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	}
 
 	returnStatus = http.StatusNotFound
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	svc := NewSCEPConfigService(logger, nil)
 	err := svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.ErrorContains(t, err, "unexpected status code")
@@ -99,6 +99,83 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	}
 	err = svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.NoError(t, err)
+
+	// Test UTF-8 response (like Okta returns) - should also work with auto-detection
+	returnPage = func() []byte {
+		// Return UTF-8 directly without converting to UTF-16
+		dat, err := os.ReadFile("./testdata/mscep_admin_password.html")
+		require.NoError(t, err)
+		return dat
+	}
+	err = svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
+	assert.NoError(t, err)
+}
+
+func TestDecodeHTMLResponse(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name        string
+		input       []byte
+		contentType string
+		expected    string
+	}{
+		{
+			name:        "empty input",
+			input:       []byte{},
+			contentType: "",
+			expected:    "",
+		},
+		{
+			name:        "UTF-8 ASCII without content type",
+			input:       []byte("<HTML><Body>The enrollment challenge password is: <B> ABC123 </B></Body></HTML>"),
+			contentType: "",
+			expected:    "<HTML><Body>The enrollment challenge password is: <B> ABC123 </B></Body></HTML>",
+		},
+		{
+			name:        "UTF-8 with explicit charset",
+			input:       []byte("<HTML><Body>Test</Body></HTML>"),
+			contentType: "text/html; charset=utf-8",
+			expected:    "<HTML><Body>Test</Body></HTML>",
+		},
+		{
+			name: "UTF-16 LE detected by HTML pattern",
+			input: func() []byte {
+				// "<HTML>" in UTF-16 LE: '<' 0x00 'H' 0x00 ... detected by '<' 0x00 pattern
+				s := "<HTML>"
+				result := make([]byte, len(s)*2)
+				for i := 0; i < len(s); i++ {
+					result[i*2] = s[i]
+					result[i*2+1] = 0x00
+				}
+				return result
+			}(),
+			contentType: "",
+			expected:    "<HTML>",
+		},
+		{
+			name: "UTF-16 LE detected by BOM",
+			input: func() []byte {
+				// BOM (FF FE) followed by "<H>" in UTF-16 LE
+				return []byte{0xFF, 0xFE, '<', 0x00, 'H', 0x00, '>', 0x00}
+			}(),
+			contentType: "",
+			expected:    "<H>",
+		},
+		{
+			name:        "short UTF-8 input",
+			input:       []byte("Hi"),
+			contentType: "",
+			expected:    "Hi",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := decodeHTMLResponse(tc.input, tc.contentType)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
 }
 
 func TestValidateSCEPURL(t *testing.T) {
@@ -108,7 +185,7 @@ func TestValidateSCEPURL(t *testing.T) {
 	proxy := fleet.NDESSCEPProxyCA{
 		URL: srv.URL + "/scep",
 	}
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	svc := NewSCEPConfigService(logger, nil)
 	err := svc.ValidateSCEPURL(context.Background(), proxy.URL)
 	assert.NoError(t, err)
@@ -122,7 +199,7 @@ func TestValidateIdentifier(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	// Helper to create a scepProxyService with a mock datastore
 	newTestService := func(ds *mock.DataStore) *scepProxyService {

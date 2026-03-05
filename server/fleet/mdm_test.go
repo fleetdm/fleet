@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -17,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,7 +67,7 @@ func TestDEPClient(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	logger := log.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	ds := new(mock.Store)
 
 	appCfg := fleet.AppConfig{}

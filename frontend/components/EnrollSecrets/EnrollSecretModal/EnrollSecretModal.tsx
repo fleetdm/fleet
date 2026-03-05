@@ -38,7 +38,7 @@ const EnrollSecretModal = ({
 }: IEnrollSecretModal): JSX.Element => {
   const teamInfo =
     selectedTeamId <= 0
-      ? { name: "No team", secrets: globalSecrets }
+      ? { name: "Unassigned", secrets: globalSecrets }
       : teams.find((team) => team.id === selectedTeamId);
 
   const addNewSecretClick = () => {
@@ -58,7 +58,7 @@ const EnrollSecretModal = ({
             <div className={`${baseClass}__header`}>
               <div className={`${baseClass}__description`}>
                 Use these secret(s) to enroll hosts
-                {primoMode ? (
+                {primoMode || teamInfo?.name === "Unassigned" ? (
                   ""
                 ) : (
                   <>
@@ -100,7 +100,7 @@ const EnrollSecretModal = ({
               info={
                 <>
                   Add secret(s) to enroll hosts
-                  {primoMode ? (
+                  {primoMode || teamInfo?.name === "Unassigned" ? (
                     ""
                   ) : (
                     <>

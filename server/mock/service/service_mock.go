@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
@@ -34,6 +35,16 @@ type SubmitStatusLogsFunc func(ctx context.Context, logs []json.RawMessage) (err
 type SubmitResultLogsFunc func(ctx context.Context, logs []json.RawMessage) (err error)
 
 type YaraRuleByNameFunc func(ctx context.Context, name string) (*fleet.YaraRule, error)
+
+type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) (users []*fleet.User, err error)
+
+type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error)
+
+type GetHostLiteFunc func(ctx context.Context, id uint) (host *fleet.Host, err error)
+
+type GetActivitiesWebhookSettingsFunc func(ctx context.Context) (fleet.ActivitiesWebhookSettings, error)
+
+type ActivateNextUpcomingActivityForHostFunc func(ctx context.Context, hostID uint, fromCompletedExecID string) error
 
 type GetTransparencyURLFunc func(ctx context.Context) (string, error)
 
@@ -65,8 +76,6 @@ type UserUnauthorizedFunc func(ctx context.Context, id uint) (user *fleet.User, 
 
 type AuthenticatedUserFunc func(ctx context.Context) (user *fleet.User, err error)
 
-type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) (users []*fleet.User, err error)
-
 type ChangePasswordFunc func(ctx context.Context, oldPass string, newPass string) error
 
 type RequestPasswordResetFunc func(ctx context.Context, email string) (err error)
@@ -79,7 +88,7 @@ type ResetPasswordFunc func(ctx context.Context, token string, password string) 
 
 type ModifyUserFunc func(ctx context.Context, userID uint, p fleet.UserPayload) (user *fleet.User, err error)
 
-type DeleteUserFunc func(ctx context.Context, id uint) error
+type DeleteUserFunc func(ctx context.Context, id uint) (*fleet.User, error)
 
 type ChangeUserEmailFunc func(ctx context.Context, token string) (string, error)
 
@@ -171,7 +180,7 @@ type GetQuerySpecsFunc func(ctx context.Context, teamID *uint) ([]*fleet.QuerySp
 
 type GetQuerySpecFunc func(ctx context.Context, teamID *uint, name string) (*fleet.QuerySpec, error)
 
-type ListQueriesFunc func(ctx context.Context, opt fleet.ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, platform *string) ([]*fleet.Query, int, *fleet.PaginationMetadata, error)
+type ListQueriesFunc func(ctx context.Context, opt fleet.ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, platform *string) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error)
 
 type GetQueryFunc func(ctx context.Context, id uint) (*fleet.Query, error)
 
@@ -217,8 +226,6 @@ type ListHostsFunc func(ctx context.Context, opt fleet.HostListOptions) (hosts [
 
 type GetHostFunc func(ctx context.Context, id uint, opts fleet.HostDetailOptions) (host *fleet.HostDetail, err error)
 
-type GetHostLiteFunc func(ctx context.Context, id uint) (host *fleet.Host, err error)
-
 type GetHostHealthFunc func(ctx context.Context, id uint) (hostHealth *fleet.HostHealth, err error)
 
 type GetHostSummaryFunc func(ctx context.Context, teamID *uint, platform *string, lowDiskSpace *int) (summary *fleet.HostSummary, err error)
@@ -252,6 +259,8 @@ type HostLiteByIdentifierFunc func(ctx context.Context, identifier string) (*fle
 type HostLiteByIDFunc func(ctx context.Context, id uint) (*fleet.HostLite, error)
 
 type ListDevicePoliciesFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error)
+
+type BypassConditionalAccessFunc func(ctx context.Context, host *fleet.Host) error
 
 type GetDeviceSoftwareIconsTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error)
 
@@ -381,13 +390,11 @@ type ModifyTeamEnrollSecretsFunc func(ctx context.Context, teamID uint, secrets 
 
 type ApplyTeamSpecsFunc func(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplyTeamSpecOptions) (map[string]uint, error)
 
+type SetActivityServiceFunc func(activitySvc api.NewActivityService)
+
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 
-type ListActivitiesFunc func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
-
 type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error)
-
-type ListHostPastActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
 type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, executionID string) error
 
@@ -407,7 +414,7 @@ type ApplyCertificateTemplateSpecsFunc func(ctx context.Context, specs []*fleet.
 
 type DeleteCertificateTemplateSpecsFunc func(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error
 
-type UpdateCertificateStatusFunc func(ctx context.Context, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string, operationType *string) error
+type UpdateCertificateStatusFunc func(ctx context.Context, update *fleet.CertificateStatusUpdate) error
 
 type GlobalScheduleQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
 
@@ -455,6 +462,8 @@ type ListSoftwareTitlesFunc func(ctx context.Context, opt fleet.SoftwareTitleLis
 
 type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint) (*fleet.SoftwareTitle, error)
 
+type SoftwareTitleNameForHostFilterFunc func(ctx context.Context, id uint) (name string, displayName string, err error)
+
 type InstallSoftwareTitleFunc func(ctx context.Context, hostID uint, softwareTitleID uint) error
 
 type UpdateSoftwareTitleAutoUpdateConfigFunc func(ctx context.Context, titleID uint, teamID *uint, config fleet.SoftwareAutoUpdateConfig) error
@@ -479,7 +488,7 @@ type GetAppStoreAppsFunc func(ctx context.Context, teamID *uint) ([]*fleet.VPPAp
 
 type AddAppStoreAppFunc func(ctx context.Context, teamID *uint, appTeam fleet.VPPAppTeam) (uint, error)
 
-type UpdateAppStoreAppFunc func(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, error)
+type UpdateAppStoreAppFunc func(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, *fleet.ActivityEditedAppStoreApp, error)
 
 type GetInHouseAppManifestFunc func(ctx context.Context, titleID uint, teamID *uint) ([]byte, error)
 
@@ -507,9 +516,11 @@ type ModifyTeamPolicyFunc func(ctx context.Context, teamID uint, id uint, p flee
 
 type GetTeamPolicyByIDQueriesFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
 
-type CountTeamPoliciesFunc func(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool) (int, error)
+type CountTeamPoliciesFunc func(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool) (int, int, error)
 
 type LookupGeoIPFunc func(ctx context.Context, ip string) *fleet.GeoLocation
+
+type GetHostLocationDataFunc func(ctx context.Context, hostID uint) (*fleet.GeoLocation, error)
 
 type GetSoftwareInstallDetailsFunc func(ctx context.Context, installUUID string) (*fleet.SoftwareInstallDetails, error)
 
@@ -534,6 +545,8 @@ type UpdateVPPTokenTeamsFunc func(ctx context.Context, tokenID uint, teamIDs []u
 type GetVPPTokensFunc func(ctx context.Context) ([]*fleet.VPPTokenDB, error)
 
 type DeleteVPPTokenFunc func(ctx context.Context, tokenID uint) error
+
+type CreateAndroidWebAppFunc func(ctx context.Context, title string, startURL string, icon io.Reader) (string, error)
 
 type BatchAssociateVPPAppsFunc func(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, error)
 
@@ -628,6 +641,8 @@ type UpdateMDMDiskEncryptionFunc func(ctx context.Context, teamID *uint, enableD
 type VerifyMDMAppleConfiguredFunc func(ctx context.Context) error
 
 type VerifyMDMWindowsConfiguredFunc func(ctx context.Context) error
+
+type VerifyMDMAndroidConfiguredFunc func(ctx context.Context) error
 
 type VerifyAnyMDMConfiguredFunc func(ctx context.Context) error
 
@@ -898,6 +913,21 @@ type Service struct {
 	YaraRuleByNameFunc        YaraRuleByNameFunc
 	YaraRuleByNameFuncInvoked bool
 
+	ListUsersFunc        ListUsersFunc
+	ListUsersFuncInvoked bool
+
+	UsersByIDsFunc        UsersByIDsFunc
+	UsersByIDsFuncInvoked bool
+
+	GetHostLiteFunc        GetHostLiteFunc
+	GetHostLiteFuncInvoked bool
+
+	GetActivitiesWebhookSettingsFunc        GetActivitiesWebhookSettingsFunc
+	GetActivitiesWebhookSettingsFuncInvoked bool
+
+	ActivateNextUpcomingActivityForHostFunc        ActivateNextUpcomingActivityForHostFunc
+	ActivateNextUpcomingActivityForHostFuncInvoked bool
+
 	GetTransparencyURLFunc        GetTransparencyURLFunc
 	GetTransparencyURLFuncInvoked bool
 
@@ -942,9 +972,6 @@ type Service struct {
 
 	AuthenticatedUserFunc        AuthenticatedUserFunc
 	AuthenticatedUserFuncInvoked bool
-
-	ListUsersFunc        ListUsersFunc
-	ListUsersFuncInvoked bool
 
 	ChangePasswordFunc        ChangePasswordFunc
 	ChangePasswordFuncInvoked bool
@@ -1171,9 +1198,6 @@ type Service struct {
 	GetHostFunc        GetHostFunc
 	GetHostFuncInvoked bool
 
-	GetHostLiteFunc        GetHostLiteFunc
-	GetHostLiteFuncInvoked bool
-
 	GetHostHealthFunc        GetHostHealthFunc
 	GetHostHealthFuncInvoked bool
 
@@ -1224,6 +1248,9 @@ type Service struct {
 
 	ListDevicePoliciesFunc        ListDevicePoliciesFunc
 	ListDevicePoliciesFuncInvoked bool
+
+	BypassConditionalAccessFunc        BypassConditionalAccessFunc
+	BypassConditionalAccessFuncInvoked bool
 
 	GetDeviceSoftwareIconsTitleIconFunc        GetDeviceSoftwareIconsTitleIconFunc
 	GetDeviceSoftwareIconsTitleIconFuncInvoked bool
@@ -1417,17 +1444,14 @@ type Service struct {
 	ApplyTeamSpecsFunc        ApplyTeamSpecsFunc
 	ApplyTeamSpecsFuncInvoked bool
 
+	SetActivityServiceFunc        SetActivityServiceFunc
+	SetActivityServiceFuncInvoked bool
+
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
 
-	ListActivitiesFunc        ListActivitiesFunc
-	ListActivitiesFuncInvoked bool
-
 	ListHostUpcomingActivitiesFunc        ListHostUpcomingActivitiesFunc
 	ListHostUpcomingActivitiesFuncInvoked bool
-
-	ListHostPastActivitiesFunc        ListHostPastActivitiesFunc
-	ListHostPastActivitiesFuncInvoked bool
 
 	CancelHostUpcomingActivityFunc        CancelHostUpcomingActivityFunc
 	CancelHostUpcomingActivityFuncInvoked bool
@@ -1528,6 +1552,9 @@ type Service struct {
 	SoftwareTitleByIDFunc        SoftwareTitleByIDFunc
 	SoftwareTitleByIDFuncInvoked bool
 
+	SoftwareTitleNameForHostFilterFunc        SoftwareTitleNameForHostFilterFunc
+	SoftwareTitleNameForHostFilterFuncInvoked bool
+
 	InstallSoftwareTitleFunc        InstallSoftwareTitleFunc
 	InstallSoftwareTitleFuncInvoked bool
 
@@ -1612,6 +1639,9 @@ type Service struct {
 	LookupGeoIPFunc        LookupGeoIPFunc
 	LookupGeoIPFuncInvoked bool
 
+	GetHostLocationDataFunc        GetHostLocationDataFunc
+	GetHostLocationDataFuncInvoked bool
+
 	GetSoftwareInstallDetailsFunc        GetSoftwareInstallDetailsFunc
 	GetSoftwareInstallDetailsFuncInvoked bool
 
@@ -1647,6 +1677,9 @@ type Service struct {
 
 	DeleteVPPTokenFunc        DeleteVPPTokenFunc
 	DeleteVPPTokenFuncInvoked bool
+
+	CreateAndroidWebAppFunc        CreateAndroidWebAppFunc
+	CreateAndroidWebAppFuncInvoked bool
 
 	BatchAssociateVPPAppsFunc        BatchAssociateVPPAppsFunc
 	BatchAssociateVPPAppsFuncInvoked bool
@@ -1788,6 +1821,9 @@ type Service struct {
 
 	VerifyMDMWindowsConfiguredFunc        VerifyMDMWindowsConfiguredFunc
 	VerifyMDMWindowsConfiguredFuncInvoked bool
+
+	VerifyMDMAndroidConfiguredFunc        VerifyMDMAndroidConfiguredFunc
+	VerifyMDMAndroidConfiguredFuncInvoked bool
 
 	VerifyAnyMDMConfiguredFunc        VerifyAnyMDMConfiguredFunc
 	VerifyAnyMDMConfiguredFuncInvoked bool
@@ -2214,6 +2250,41 @@ func (s *Service) YaraRuleByName(ctx context.Context, name string) (*fleet.YaraR
 	return s.YaraRuleByNameFunc(ctx, name)
 }
 
+func (s *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) (users []*fleet.User, err error) {
+	s.mu.Lock()
+	s.ListUsersFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListUsersFunc(ctx, opt)
+}
+
+func (s *Service) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error) {
+	s.mu.Lock()
+	s.UsersByIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UsersByIDsFunc(ctx, ids)
+}
+
+func (s *Service) GetHostLite(ctx context.Context, id uint) (host *fleet.Host, err error) {
+	s.mu.Lock()
+	s.GetHostLiteFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostLiteFunc(ctx, id)
+}
+
+func (s *Service) GetActivitiesWebhookSettings(ctx context.Context) (fleet.ActivitiesWebhookSettings, error) {
+	s.mu.Lock()
+	s.GetActivitiesWebhookSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetActivitiesWebhookSettingsFunc(ctx)
+}
+
+func (s *Service) ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error {
+	s.mu.Lock()
+	s.ActivateNextUpcomingActivityForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.ActivateNextUpcomingActivityForHostFunc(ctx, hostID, fromCompletedExecID)
+}
+
 func (s *Service) GetTransparencyURL(ctx context.Context) (string, error) {
 	s.mu.Lock()
 	s.GetTransparencyURLFuncInvoked = true
@@ -2319,13 +2390,6 @@ func (s *Service) AuthenticatedUser(ctx context.Context) (user *fleet.User, err 
 	return s.AuthenticatedUserFunc(ctx)
 }
 
-func (s *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) (users []*fleet.User, err error) {
-	s.mu.Lock()
-	s.ListUsersFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListUsersFunc(ctx, opt)
-}
-
 func (s *Service) ChangePassword(ctx context.Context, oldPass string, newPass string) error {
 	s.mu.Lock()
 	s.ChangePasswordFuncInvoked = true
@@ -2368,7 +2432,7 @@ func (s *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPaylo
 	return s.ModifyUserFunc(ctx, userID, p)
 }
 
-func (s *Service) DeleteUser(ctx context.Context, id uint) error {
+func (s *Service) DeleteUser(ctx context.Context, id uint) (*fleet.User, error) {
 	s.mu.Lock()
 	s.DeleteUserFuncInvoked = true
 	s.mu.Unlock()
@@ -2690,7 +2754,7 @@ func (s *Service) GetQuerySpec(ctx context.Context, teamID *uint, name string) (
 	return s.GetQuerySpecFunc(ctx, teamID, name)
 }
 
-func (s *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, platform *string) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+func (s *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, platform *string) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListQueriesFuncInvoked = true
 	s.mu.Unlock()
@@ -2851,13 +2915,6 @@ func (s *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailOpt
 	return s.GetHostFunc(ctx, id, opts)
 }
 
-func (s *Service) GetHostLite(ctx context.Context, id uint) (host *fleet.Host, err error) {
-	s.mu.Lock()
-	s.GetHostLiteFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetHostLiteFunc(ctx, id)
-}
-
 func (s *Service) GetHostHealth(ctx context.Context, id uint) (hostHealth *fleet.HostHealth, err error) {
 	s.mu.Lock()
 	s.GetHostHealthFuncInvoked = true
@@ -2975,6 +3032,13 @@ func (s *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*
 	s.ListDevicePoliciesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListDevicePoliciesFunc(ctx, host)
+}
+
+func (s *Service) BypassConditionalAccess(ctx context.Context, host *fleet.Host) error {
+	s.mu.Lock()
+	s.BypassConditionalAccessFuncInvoked = true
+	s.mu.Unlock()
+	return s.BypassConditionalAccessFunc(ctx, host)
 }
 
 func (s *Service) GetDeviceSoftwareIconsTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error) {
@@ -3425,6 +3489,13 @@ func (s *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, a
 	return s.ApplyTeamSpecsFunc(ctx, specs, applyOpts)
 }
 
+func (s *Service) SetActivityService(activitySvc api.NewActivityService) {
+	s.mu.Lock()
+	s.SetActivityServiceFuncInvoked = true
+	s.mu.Unlock()
+	s.SetActivityServiceFunc(activitySvc)
+}
+
 func (s *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 	s.mu.Lock()
 	s.NewActivityFuncInvoked = true
@@ -3432,25 +3503,11 @@ func (s *Service) NewActivity(ctx context.Context, user *fleet.User, activity fl
 	return s.NewActivityFunc(ctx, user, activity)
 }
 
-func (s *Service) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-	s.mu.Lock()
-	s.ListActivitiesFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListActivitiesFunc(ctx, opt)
-}
-
 func (s *Service) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListHostUpcomingActivitiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostUpcomingActivitiesFunc(ctx, hostID, opt)
-}
-
-func (s *Service) ListHostPastActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-	s.mu.Lock()
-	s.ListHostPastActivitiesFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListHostPastActivitiesFunc(ctx, hostID, opt)
 }
 
 func (s *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error {
@@ -3516,11 +3573,11 @@ func (s *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certificat
 	return s.DeleteCertificateTemplateSpecsFunc(ctx, certificateTemplateIDs, teamID)
 }
 
-func (s *Service) UpdateCertificateStatus(ctx context.Context, certificateTemplateID uint, status fleet.MDMDeliveryStatus, detail *string, operationType *string) error {
+func (s *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.CertificateStatusUpdate) error {
 	s.mu.Lock()
 	s.UpdateCertificateStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateCertificateStatusFunc(ctx, certificateTemplateID, status, detail, operationType)
+	return s.UpdateCertificateStatusFunc(ctx, update)
 }
 
 func (s *Service) GlobalScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
@@ -3684,6 +3741,13 @@ func (s *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) 
 	return s.SoftwareTitleByIDFunc(ctx, id, teamID)
 }
 
+func (s *Service) SoftwareTitleNameForHostFilter(ctx context.Context, id uint) (name string, displayName string, err error) {
+	s.mu.Lock()
+	s.SoftwareTitleNameForHostFilterFuncInvoked = true
+	s.mu.Unlock()
+	return s.SoftwareTitleNameForHostFilterFunc(ctx, id)
+}
+
 func (s *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {
 	s.mu.Lock()
 	s.InstallSoftwareTitleFuncInvoked = true
@@ -3768,7 +3832,7 @@ func (s *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appTeam flee
 	return s.AddAppStoreAppFunc(ctx, teamID, appTeam)
 }
 
-func (s *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, error) {
+func (s *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, *fleet.ActivityEditedAppStoreApp, error) {
 	s.mu.Lock()
 	s.UpdateAppStoreAppFuncInvoked = true
 	s.mu.Unlock()
@@ -3866,7 +3930,7 @@ func (s *Service) GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, pol
 	return s.GetTeamPolicyByIDQueriesFunc(ctx, teamID, policyID)
 }
 
-func (s *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool) (int, error) {
+func (s *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool) (int, int, error) {
 	s.mu.Lock()
 	s.CountTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
@@ -3878,6 +3942,13 @@ func (s *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation
 	s.LookupGeoIPFuncInvoked = true
 	s.mu.Unlock()
 	return s.LookupGeoIPFunc(ctx, ip)
+}
+
+func (s *Service) GetHostLocationData(ctx context.Context, hostID uint) (*fleet.GeoLocation, error) {
+	s.mu.Lock()
+	s.GetHostLocationDataFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostLocationDataFunc(ctx, hostID)
 }
 
 func (s *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID string) (*fleet.SoftwareInstallDetails, error) {
@@ -3962,6 +4033,13 @@ func (s *Service) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 	s.DeleteVPPTokenFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteVPPTokenFunc(ctx, tokenID)
+}
+
+func (s *Service) CreateAndroidWebApp(ctx context.Context, title string, startURL string, icon io.Reader) (string, error) {
+	s.mu.Lock()
+	s.CreateAndroidWebAppFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateAndroidWebAppFunc(ctx, title, startURL, icon)
 }
 
 func (s *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, error) {
@@ -4291,6 +4369,13 @@ func (s *Service) VerifyMDMWindowsConfigured(ctx context.Context) error {
 	s.VerifyMDMWindowsConfiguredFuncInvoked = true
 	s.mu.Unlock()
 	return s.VerifyMDMWindowsConfiguredFunc(ctx)
+}
+
+func (s *Service) VerifyMDMAndroidConfigured(ctx context.Context) error {
+	s.mu.Lock()
+	s.VerifyMDMAndroidConfiguredFuncInvoked = true
+	s.mu.Unlock()
+	return s.VerifyMDMAndroidConfiguredFunc(ctx)
 }
 
 func (s *Service) VerifyAnyMDMConfigured(ctx context.Context) error {

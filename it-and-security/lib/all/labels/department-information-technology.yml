@@ -1,0 +1,6 @@
+- name: "Department: Information Technology"
+  description: Hosts belonging to members of the Information Technology department
+  label_membership_type: host_vitals
+  criteria:
+    vital: end_user_idp_department
+    value: Information Technology

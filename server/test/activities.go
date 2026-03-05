@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -31,7 +30,7 @@ func SetHostScriptResult(t *testing.T, ds fleet.Datastore, host *fleet.Host, exe
 	ctx := context.Background()
 	_, _, err := ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID: host.ID, ExecutionID: execID, Output: "a", ExitCode: exitCode,
-	})
+	}, nil) // nil = manual script run, not policy automation
 	require.NoError(t, err)
 }
 
@@ -69,7 +68,7 @@ func SetHostSoftwareInstallResult(t *testing.T, ds fleet.Datastore, host *fleet.
 		HostID:                host.ID,
 		InstallUUID:           execID,
 		InstallScriptExitCode: &exitCode,
-	})
+	}, nil)
 	require.NoError(t, err)
 }
 
@@ -108,7 +107,7 @@ func SetHostSoftwareUninstallResult(t *testing.T, ds fleet.Datastore, host *flee
 		HostID:      host.ID,
 		ExecutionID: execID,
 		ExitCode:    exitCode,
-	})
+	}, nil) // nil = manual/uninstall script, not policy automation
 	require.NoError(t, err)
 }
 
@@ -137,9 +136,8 @@ func CreateHostVPPAppInstallUpcomingActivity(t *testing.T, ds fleet.Datastore, h
 // The adamID is the one for the VPP app created by that call, and status is
 // one of the Apple MDM status string (Acknowledged, Error, CommandFormatError,
 // etc).
-func SetHostVPPAppInstallResult(t *testing.T, ds fleet.Datastore, nanods storage.CommandAndReportResultsStore, host *fleet.Host, execID, adamID, status string) {
+func SetHostVPPAppInstallResult(t *testing.T, ds fleet.Datastore, nanods storage.CommandAndReportResultsStore, host *fleet.Host, execID, adamID, status string, newActivityFn fleet.NewActivityFunc) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
 	nanoCtx := &mdm.Request{EnrollID: &mdm.EnrollID{ID: host.UUID}, Context: ctx}
 
 	cmdRes := &mdm.CommandResults{
@@ -149,12 +147,12 @@ func SetHostVPPAppInstallResult(t *testing.T, ds fleet.Datastore, nanods storage
 	}
 	err := nanods.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
-	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+	err = newActivityFn(ctx, nil, fleet.ActivityInstalledAppStoreApp{
 		HostID:      host.ID,
 		AppStoreID:  adamID,
 		CommandUUID: execID,
-		Status:      "Error",
-	}, []byte(`{}`), time.Now())
+		Status:      status,
+	})
 	require.NoError(t, err)
 }
 
@@ -180,9 +178,8 @@ func CreateHostInHouseAppInstallUpcomingActivity(t *testing.T, ds fleet.Datastor
 	return execID
 }
 
-func SetHostInHouseAppInstallResult(t *testing.T, ds fleet.Datastore, nanods storage.CommandAndReportResultsStore, host *fleet.Host, execID, status string) {
+func SetHostInHouseAppInstallResult(t *testing.T, ds fleet.Datastore, nanods storage.CommandAndReportResultsStore, host *fleet.Host, execID, status string, newActivityFn fleet.NewActivityFunc) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
 	nanoCtx := &mdm.Request{EnrollID: &mdm.EnrollID{ID: host.UUID}, Context: ctx}
 
 	cmdRes := &mdm.CommandResults{
@@ -192,10 +189,10 @@ func SetHostInHouseAppInstallResult(t *testing.T, ds fleet.Datastore, nanods sto
 	}
 	err := nanods.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
-	err = ds.NewActivity(ctx, nil, fleet.ActivityTypeInstalledSoftware{
+	err = newActivityFn(ctx, nil, fleet.ActivityTypeInstalledSoftware{
 		HostID:      host.ID,
 		CommandUUID: execID,
-		Status:      "Error",
-	}, []byte(`{}`), time.Now())
+		Status:      status,
+	})
 	require.NoError(t, err)
 }

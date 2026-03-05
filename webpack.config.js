@@ -84,7 +84,6 @@ const config = {
         use: {
           loader: "esbuild-loader",
           options: {
-            loader: "tsx", // Or 'ts' if you don't need tsx
             target: "es2016",
           },
         },
@@ -138,7 +137,7 @@ const config = {
     alias: {
       "node-sql-parser": path.resolve(
         __dirname,
-        "node_modules/node-sql-parser/umd/sqlite.umd.js"
+        "node_modules/@sgress454/node-sql-parser/umd/sqlite.umd.js"
       ),
     },
   },

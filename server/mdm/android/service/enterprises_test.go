@@ -3,20 +3,19 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	ds_mock "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
-	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,10 +26,10 @@ import (
 func TestEnterprisesAuth(t *testing.T) {
 	androidAPIClient := android_mock.Client{}
 	androidAPIClient.InitCommonMocks()
-	logger := kitlog.NewLogfmtLogger(os.Stdout)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	fleetDS := InitCommonDSMocks()
-	activityModule := activities.NewActivityModule(fleetDS, logger)
-	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule)
+	newActivity := noopNewActivity // This test does not verify activity creation.
+	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, newActivity, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -125,11 +124,11 @@ func TestEnterprisesAuth(t *testing.T) {
 func TestEnterpriseSignupMissingPrivateKey(t *testing.T) {
 	androidAPIClient := android_mock.Client{}
 	androidAPIClient.InitCommonMocks()
-	logger := kitlog.NewLogfmtLogger(os.Stdout)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	fleetDS := InitCommonDSMocks()
-	activityModule := activities.NewActivityModule(fleetDS, logger)
+	newActivity := noopNewActivity // This test does not verify activity creation.
 
-	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule)
+	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, newActivity, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 
 	user := &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}
@@ -211,9 +210,6 @@ func InitCommonDSMocks() *AndroidMockDS {
 	ds.Store.BulkSetAndroidHostsUnenrolledFunc = func(ctx context.Context) error {
 		return nil
 	}
-	ds.Store.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
-	}
 	ds.Store.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		return &fleet.Job{}, nil
 	}
@@ -235,8 +231,13 @@ type notFoundError struct{}
 func (e *notFoundError) Error() string    { return "not found" }
 func (e *notFoundError) IsNotFound() bool { return true }
 
+// noopNewActivity is a no-op activity creation function for tests that don't verify activity creation.
+func noopNewActivity(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+	return nil
+}
+
 func TestGetEnterprise(t *testing.T) {
-	logger := kitlog.NewLogfmtLogger(os.Stdout)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	user := &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
 
@@ -245,8 +246,8 @@ func TestGetEnterprise(t *testing.T) {
 		androidAPIClient.InitCommonMocks()
 
 		fleetDS := InitCommonDSMocks()
-		activityModule := activities.NewActivityModule(fleetDS, logger)
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule)
+		newActivity := noopNewActivity // This test does not verify activity creation.
+		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, newActivity, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
 		enterprise, err := svc.GetEnterprise(ctx)
@@ -265,8 +266,8 @@ func TestGetEnterprise(t *testing.T) {
 			return nil, &notFoundError{}
 		}
 
-		activityModule := activities.NewActivityModule(fleetDS, logger)
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule)
+		newActivity := noopNewActivity // This test does not verify activity creation.
+		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, newActivity, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
 		enterprise, err := svc.GetEnterprise(ctx)
@@ -280,7 +281,7 @@ func TestGetEnterprise(t *testing.T) {
 }
 
 func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
-	logger := kitlog.NewLogfmtLogger(os.Stdout)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	user := &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
 
@@ -311,8 +312,8 @@ func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
 			}, nil
 		}
 
-		activityModule := activities.NewActivityModule(fleetDS, logger)
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule)
+		newActivity := noopNewActivity // This test does not verify activity creation.
+		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, newActivity, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
 		err = svc.VerifyExistingEnterpriseIfAny(ctx)
@@ -360,8 +361,8 @@ func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
 			}, nil
 		}
 
-		activityModule := activities.NewActivityModule(fleetDS, logger)
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule)
+		newActivity := noopNewActivity // This test does not verify activity creation.
+		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, newActivity, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
 		err = svc.VerifyExistingEnterpriseIfAny(ctx)
@@ -401,8 +402,8 @@ func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
 			}
 		}
 
-		activityModule := activities.NewActivityModule(fleetDS, logger)
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule)
+		newActivity := noopNewActivity // This test does not verify activity creation.
+		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, newActivity, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
 		err = svc.VerifyExistingEnterpriseIfAny(ctx)
@@ -442,8 +443,8 @@ func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
 			return []*androidmanagement.Enterprise{}, nil
 		}
 
-		activityModule := activities.NewActivityModule(fleetDS, logger)
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule)
+		newActivity := noopNewActivity // This test does not verify activity creation.
+		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, newActivity, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
 		err = svc.VerifyExistingEnterpriseIfAny(ctx)
@@ -509,8 +510,8 @@ func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
 					}, nil
 				}
 
-				activityModule := activities.NewActivityModule(fleetDS, logger)
-				svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule)
+				newActivity := noopNewActivity // This test does not verify activity creation.
+				svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, newActivity, config.AndroidAgentConfig{})
 				require.NoError(t, err)
 
 				err = svc.VerifyExistingEnterpriseIfAny(ctx)
@@ -539,8 +540,8 @@ func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
 			return nil, &notFoundError{}
 		}
 
-		activityModule := activities.NewActivityModule(fleetDS, logger)
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule)
+		newActivity := noopNewActivity // This test does not verify activity creation.
+		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, newActivity, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
 		err = svc.VerifyExistingEnterpriseIfAny(ctx)

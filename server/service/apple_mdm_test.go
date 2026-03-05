@@ -15,6 +15,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -35,6 +36,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -45,13 +47,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	digicert_mock "github.com/fleetdm/fleet/v4/server/mock/digicert"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/test"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
@@ -74,7 +76,7 @@ func (nopProfileMatcher) RetrieveProfiles(ctx context.Context, extHostID string)
 	return fleet.MDMApplePreassignHostProfiles{}, nil
 }
 
-func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Service, context.Context, *mock.Store) {
+func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Service, context.Context, *mock.Store, *TestServerOpts) {
 	ds := new(mock.Store)
 	cfg := config.TestConfig()
 	testCertPEM, testKeyPEM, err := generateCertWithAPNsTopic()
@@ -103,7 +105,7 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 		mdmStorage,
 		mdmStorage,
 		pushFactory,
-		NewNanoMDMLogger(kitlog.NewJSONLogger(os.Stdout)),
+		NewNanoMDMLogger(slog.New(slog.NewJSONHandler(os.Stdout, nil))),
 	)
 
 	opts := &TestServerOpts{
@@ -252,11 +254,11 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 		return []*fleet.ABMToken{{ID: 1}}, nil
 	}
 
-	return svc, ctx, ds
+	return svc, ctx, ds, opts
 }
 
 func TestAppleMDMAuthorization(t *testing.T) {
-	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
 		return []*fleet.EnrollSecret{
@@ -579,7 +581,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 }
 
 func TestMDMAppleConfigProfileAuthz(t *testing.T) {
-	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 	profUUID := "a" + uuid.NewString()
 	testCases := []struct {
@@ -655,9 +657,6 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 	}
 	ds.ListMDMAppleConfigProfilesFunc = func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
 		return nil, nil
-	}
-	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
-		return nil
 	}
 	ds.GetMDMAppleProfilesSummaryFunc = func(context.Context, *uint) (*fleet.MDMProfilesSummary, error) {
 		return nil, nil
@@ -771,7 +770,7 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 }
 
 func TestNewMDMAppleConfigProfile(t *testing.T) {
-	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 	identifier := "Bar.$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
@@ -782,9 +781,6 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 		assert.Equal(t, identifier, cp.Identifier)
 		require.Equal(t, mcBytes, []byte(cp.Mobileconfig))
 		return &cp, nil
-	}
-	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
-		return nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
 	) (updates fleet.MDMProfilesUpdates, err error) {
@@ -834,7 +830,7 @@ func mcBytesForTest(name, identifier, uuid string) []byte {
 }
 
 func TestBatchSetMDMAppleProfilesWithSecrets(t *testing.T) {
-	svc, ctx, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	svc, ctx, _, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 	// Test profile with FLEET_SECRET in PayloadDisplayName
@@ -851,7 +847,7 @@ func TestBatchSetMDMAppleProfilesWithSecrets(t *testing.T) {
 }
 
 func TestNewMDMAppleDeclaration(t *testing.T) {
-	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 	// Unsupported Fleet variable
@@ -867,9 +863,6 @@ func TestNewMDMAppleDeclaration(t *testing.T) {
 	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 		return d, nil
 	}
-	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
-		return nil
-	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
@@ -882,9 +875,183 @@ func TestNewMDMAppleDeclaration(t *testing.T) {
 	assert.NotNil(t, d)
 }
 
+func setupAppleMDMServiceWithSkipValidation(t *testing.T, license *fleet.LicenseInfo, skipValidation bool) (fleet.Service, context.Context, *mock.Store) {
+	ds := new(mock.Store)
+	cfg := config.TestConfig()
+	cfg.MDM.AllowAllDeclarations = skipValidation
+	testCertPEM, testKeyPEM, err := generateCertWithAPNsTopic()
+	require.NoError(t, err)
+	config.SetTestMDMConfig(t, &cfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
+
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	depStorage := &nanodep_mock.Storage{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		NewNanoMDMLogger(slog.New(slog.NewJSONHandler(os.Stdout, nil))),
+	)
+
+	opts := &TestServerOpts{
+		FleetConfig:    &cfg,
+		MDMStorage:     mdmStorage,
+		DEPStorage:     depStorage,
+		MDMPusher:      pusher,
+		License:        license,
+		ProfileMatcher: nopProfileMatcher{},
+	}
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			OrgInfo: fleet.OrgInfo{
+				OrgName: "Foo Inc.",
+			},
+			ServerSettings: fleet.ServerSettings{
+				ServerURL: "https://foo.example.com",
+			},
+			MDM: fleet.MDM{
+				EnabledAndConfigured: true,
+			},
+		}, nil
+	}
+
+	return svc, ctx, ds
+}
+
+func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
+	t.Run("forbidden declaration type fails validation by default", func(t *testing.T) {
+		svc, ctx, ds := setupAppleMDMServiceWithSkipValidation(t, &fleet.LicenseInfo{Tier: fleet.TierPremium}, false)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, s string) (string, *time.Time, error) {
+			return s, nil, nil
+		}
+
+		// Status subscription declarations are forbidden
+		b := []byte(`{
+			"Type": "com.apple.configuration.management.status-subscriptions",
+			"Identifier": "test-status-sub"
+		}`)
+		_, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-status-sub", fleet.LabelsIncludeAll)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "status subscription type")
+	})
+
+	t.Run("forbidden declaration type allowed with skip validation", func(t *testing.T) {
+		svc, ctx, ds := setupAppleMDMServiceWithSkipValidation(t, &fleet.LicenseInfo{Tier: fleet.TierPremium}, true)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, s string) (string, *time.Time, error) {
+			return s, nil, nil
+		}
+		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+			return d, nil
+		}
+		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
+		) (updates fleet.MDMProfilesUpdates, err error) {
+			return fleet.MDMProfilesUpdates{}, nil
+		}
+
+		// Status subscription declarations are forbidden but should be allowed when skip is enabled
+		b := []byte(`{
+			"Type": "com.apple.configuration.management.status-subscriptions",
+			"Identifier": "test-status-sub"
+		}`)
+		d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-status-sub", fleet.LabelsIncludeAll)
+		require.NoError(t, err)
+		assert.NotNil(t, d)
+	})
+
+	t.Run("invalid declaration type fails by default", func(t *testing.T) {
+		svc, ctx, ds := setupAppleMDMServiceWithSkipValidation(t, &fleet.LicenseInfo{Tier: fleet.TierPremium}, false)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, s string) (string, *time.Time, error) {
+			return s, nil, nil
+		}
+
+		// Non com.apple.configuration.* types are invalid
+		b := []byte(`{
+			"Type": "com.example.invalid",
+			"Identifier": "test-invalid"
+		}`)
+		_, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-invalid", fleet.LabelsIncludeAll)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "Only configuration declarations")
+	})
+
+	t.Run("invalid declaration type allowed with skip validation", func(t *testing.T) {
+		svc, ctx, ds := setupAppleMDMServiceWithSkipValidation(t, &fleet.LicenseInfo{Tier: fleet.TierPremium}, true)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, s string) (string, *time.Time, error) {
+			return s, nil, nil
+		}
+		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+			return d, nil
+		}
+		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
+		) (updates fleet.MDMProfilesUpdates, err error) {
+			return fleet.MDMProfilesUpdates{}, nil
+		}
+
+		// Invalid type should be allowed when skip is enabled
+		b := []byte(`{
+			"Type": "com.example.invalid",
+			"Identifier": "test-invalid"
+		}`)
+		d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-invalid", fleet.LabelsIncludeAll)
+		require.NoError(t, err)
+		assert.NotNil(t, d)
+	})
+
+	t.Run("OS update declaration blocked without custom OS updates flag", func(t *testing.T) {
+		svc, ctx, ds := setupAppleMDMServiceWithSkipValidation(t, &fleet.LicenseInfo{Tier: fleet.TierPremium}, false)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, s string) (string, *time.Time, error) {
+			return s, nil, nil
+		}
+
+		b := []byte(`{
+			"Type": "com.apple.configuration.softwareupdate.enforcement.specific",
+			"Identifier": "test-os-update"
+		}`)
+		_, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-os-update", fleet.LabelsIncludeAll)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "OS updates settings")
+	})
+
+	t.Run("OS update declaration allowed with skip validation even without custom OS updates flag", func(t *testing.T) {
+		svc, ctx, ds := setupAppleMDMServiceWithSkipValidation(t, &fleet.LicenseInfo{Tier: fleet.TierPremium}, true)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, s string) (string, *time.Time, error) {
+			return s, nil, nil
+		}
+		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+			return d, nil
+		}
+		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
+		) (updates fleet.MDMProfilesUpdates, err error) {
+			return fleet.MDMProfilesUpdates{}, nil
+		}
+
+		b := []byte(`{
+			"Type": "com.apple.configuration.softwareupdate.enforcement.specific",
+			"Identifier": "test-os-update"
+		}`)
+		d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-os-update", fleet.LabelsIncludeAll)
+		require.NoError(t, err)
+		assert.NotNil(t, d)
+	})
+}
+
 // Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
 func TestHostDetailsMDMProfiles(t *testing.T) {
-	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 	expected := []fleet.HostMDMAppleProfile{
@@ -941,6 +1108,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
 		return nil, nil
 	}
+	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
 	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostId uint) (time.Time, error) {
 		return time.Time{}, nil
 	}
@@ -952,6 +1122,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
+	}
+	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
 	}
 
 	expectedNilSlice := []fleet.HostMDMAppleProfile(nil)
@@ -1063,7 +1236,7 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 }
 
 func TestMDMCommandAuthz(t *testing.T) {
-	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 		switch hostID {
@@ -1078,9 +1251,6 @@ func TestMDMCommandAuthz(t *testing.T) {
 		return &fleet.HostMDMCheckinInfo{Platform: "darwin"}, nil
 	}
 
-	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
-		return nil
-	}
 	ds.MDMTurnOffFunc = func(ctx context.Context, uuid string) ([]*fleet.User, []fleet.ActivityDetails, error) {
 		return nil, nil, nil
 	}
@@ -1195,12 +1365,12 @@ func TestMDMCommandAuthz(t *testing.T) {
 
 func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 	ds := new(mock.Store)
-	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), newActivity)
+	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
 	svc := MDMAppleCheckinAndCommandService{
 		ds:            ds,
 		mdmLifecycle:  mdmLifecycle,
 		keyValueStore: redis_key_value.New(redistest.NopRedis()),
-		logger:        kitlog.NewNopLogger(),
+		logger:        slog.New(slog.DiscardHandler),
 	}
 	ctx := context.Background()
 	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
@@ -1245,12 +1415,12 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 
 func TestMDMAuthenticateADE(t *testing.T) {
 	ds := new(mock.Store)
-	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), newActivity)
+	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
 	svc := MDMAppleCheckinAndCommandService{
 		ds:            ds,
 		mdmLifecycle:  mdmLifecycle,
 		keyValueStore: redis_key_value.New(redistest.NopRedis()),
-		logger:        kitlog.NewNopLogger(),
+		logger:        slog.New(slog.DiscardHandler),
 	}
 	ctx := context.Background()
 	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
@@ -1295,11 +1465,15 @@ func TestMDMAuthenticateADE(t *testing.T) {
 
 func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
 	ds := new(mock.Store)
-	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), newActivity)
+	var newActivityInvoked bool
+	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+		newActivityInvoked = true
+		return nil
+	})
 	svc := MDMAppleCheckinAndCommandService{
 		ds:           ds,
 		mdmLifecycle: mdmLifecycle,
-		logger:       kitlog.NewNopLogger(),
+		logger:       slog.New(slog.DiscardHandler),
 	}
 	ctx := context.Background()
 	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
@@ -1313,11 +1487,6 @@ func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
 		}, nil
 	}
 
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
 	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
 		require.Equal(t, uuid, hostUUID)
 		require.True(t, scepRenewalInProgress)
@@ -1344,12 +1513,12 @@ func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, ds.MDMAppleUpsertHostFuncInvoked)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
-	require.False(t, ds.NewActivityFuncInvoked)
+	require.False(t, newActivityInvoked)
 	require.True(t, ds.MDMResetEnrollmentFuncInvoked)
 }
 
 func TestAppleMDMUnenrollment(t *testing.T) {
-	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 	hostOne := &fleet.Host{ID: 1, UUID: "test-host-no-team-2", Platform: "ios"}
@@ -1370,9 +1539,6 @@ func TestAppleMDMUnenrollment(t *testing.T) {
 		return &fleet.HostMDMCheckinInfo{Platform: "darwin"}, nil
 	}
 
-	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
-		return nil
-	}
 	ds.MDMTurnOffFunc = func(ctx context.Context, uuid string) ([]*fleet.User, []fleet.ActivityDetails, error) {
 		return nil, nil, nil
 	}
@@ -1409,17 +1575,31 @@ func TestMDMTokenUpdate(t *testing.T) {
 		mdmStorage,
 		mdmStorage,
 		pushFactory,
-		NewNanoMDMLogger(kitlog.NewJSONLogger(os.Stdout)),
+		NewNanoMDMLogger(slog.New(slog.NewJSONHandler(os.Stdout, nil))),
 	)
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
-	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), newActivity)
+	uuid, serial, model, wantTeamID := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1", uint(12)
+	var newActivityFuncInvoked bool
+	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		newActivityFuncInvoked = true
+		a, ok := activity.(*fleet.ActivityTypeMDMEnrolled)
+		require.True(t, ok)
+		require.Nil(t, user)
+		require.Equal(t, "mdm_enrolled", activity.ActivityName())
+		require.NotNil(t, a.HostSerial)
+		require.Equal(t, serial, *a.HostSerial)
+		require.Nil(t, a.EnrollmentID)
+		require.Equal(t, a.HostDisplayName, model)
+		require.True(t, a.InstalledFromDEP)
+		require.Equal(t, fleet.MDMPlatformApple, a.MDMPlatform)
+		return nil
+	})
 	svc := MDMAppleCheckinAndCommandService{
 		ds:           ds,
 		mdmLifecycle: mdmLifecycle,
 		commander:    cmdr,
-		logger:       kitlog.NewNopLogger(),
+		logger:       slog.New(slog.DiscardHandler),
 	}
-	uuid, serial, model, wantTeamID := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1", uint(12)
 
 	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -1452,22 +1632,6 @@ func TestMDMTokenUpdate(t *testing.T) {
 		}, nil
 	}
 
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		a, ok := activity.(*fleet.ActivityTypeMDMEnrolled)
-		require.True(t, ok)
-		require.Nil(t, user)
-		require.Equal(t, "mdm_enrolled", activity.ActivityName())
-		require.NotNil(t, a.HostSerial)
-		require.Equal(t, serial, *a.HostSerial)
-		require.Nil(t, a.EnrollmentID)
-		require.Equal(t, a.HostDisplayName, model)
-		require.True(t, a.InstalledFromDEP)
-		require.Equal(t, fleet.MDMPlatformApple, a.MDMPlatform)
-		return nil
-	}
-
 	ds.NewJobFunc = func(ctx context.Context, j *fleet.Job) (*fleet.Job, error) {
 		return j, nil
 	}
@@ -1483,7 +1647,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.NewJobFuncInvoked)
-	require.True(t, ds.NewActivityFuncInvoked)
+	require.True(t, newActivityFuncInvoked)
 	ds.GetHostMDMCheckinInfoFuncInvoked = false
 	ds.NewJobFuncInvoked = false
 
@@ -1503,7 +1667,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.NewJobFuncInvoked)
-	require.True(t, ds.NewActivityFuncInvoked)
+	require.True(t, newActivityFuncInvoked)
 
 	// With AwaitingConfiguration - should check for and enqueue SetupExperience items
 	ds.EnqueueSetupExperienceItemsFunc = func(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
@@ -1566,7 +1730,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 	// Should NOT call the setup experience enqueue function but it should mark the migration complete
 	require.False(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
 	require.True(t, ds.SetHostMDMMigrationCompletedFuncInvoked)
-	require.True(t, ds.NewActivityFuncInvoked)
+	require.True(t, newActivityFuncInvoked)
 
 	ds.SetHostMDMMigrationCompletedFuncInvoked = false
 	err = svc.TokenUpdate(
@@ -1585,7 +1749,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 	// Should NOT call the setup experience enqueue function but it should mark the migration complete
 	require.False(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
 	require.True(t, ds.SetHostMDMMigrationCompletedFuncInvoked)
-	require.True(t, ds.NewActivityFuncInvoked)
+	require.True(t, newActivityFuncInvoked)
 }
 
 func TestMDMTokenUpdateIOS(t *testing.T) {
@@ -1597,15 +1761,15 @@ func TestMDMTokenUpdateIOS(t *testing.T) {
 		mdmStorage,
 		mdmStorage,
 		pushFactory,
-		NewNanoMDMLogger(kitlog.NewJSONLogger(os.Stdout)),
+		NewNanoMDMLogger(slog.New(slog.NewJSONHandler(os.Stdout, nil))),
 	)
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
-	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), newActivity)
+	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
 	svc := MDMAppleCheckinAndCommandService{
 		ds:           ds,
 		mdmLifecycle: mdmLifecycle,
 		commander:    cmdr,
-		logger:       kitlog.NewNopLogger(),
+		logger:       slog.New(slog.DiscardHandler),
 	}
 	uuid, serial, model, wantTeamID := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1", uint(12)
 
@@ -1621,10 +1785,6 @@ func TestMDMTokenUpdateIOS(t *testing.T) {
 
 	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
-	}
-
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
 	}
 
 	ds.NewJobFunc = func(ctx context.Context, j *fleet.Job) (*fleet.Job, error) {
@@ -1756,11 +1916,12 @@ func TestMDMTokenUpdateIOS(t *testing.T) {
 
 func TestMDMCheckout(t *testing.T) {
 	ds := new(mock.Store)
-	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), newActivity)
+	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
+	var newActivityFuncInvoked bool
 	svc := MDMAppleCheckinAndCommandService{
 		ds:           ds,
 		mdmLifecycle: mdmLifecycle,
-		logger:       kitlog.NewNopLogger(),
+		logger:       slog.New(slog.DiscardHandler),
 	}
 	ctx := context.Background()
 	uuid, serial, installedFromDEP, displayName, platform := "ABC-DEF-GHI", "XYZABC", true, "Test's MacBook", "darwin"
@@ -1783,9 +1944,10 @@ func TestMDMCheckout(t *testing.T) {
 	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	svc.newActivityFn = func(
+		_ context.Context, user *fleet.User, activity fleet.ActivityDetails,
 	) error {
+		newActivityFuncInvoked = true
 		a, ok := activity.(*fleet.ActivityTypeMDMUnenrolled)
 		require.True(t, ok)
 		require.Nil(t, user)
@@ -1811,7 +1973,7 @@ func TestMDMCheckout(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.MDMTurnOffFuncInvoked)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
-	require.True(t, ds.NewActivityFuncInvoked)
+	require.True(t, newActivityFuncInvoked)
 }
 
 func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
@@ -1901,7 +2063,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("%s%s-%d", c.requestType, c.status, i), func(t *testing.T) {
 			ds := new(mock.Store)
-			svc := MDMAppleCheckinAndCommandService{ds: ds}
+			svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
 			ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, targetCmd string) (string, error) {
 				require.Equal(t, commandUUID, targetCmd)
 				return c.requestType, nil
@@ -1954,7 +2116,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 }
 
 func TestMDMBatchSetAppleProfiles(t *testing.T) {
-	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		return &fleet.Team{ID: 1, Name: name}, nil
@@ -1963,11 +2125,6 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 		return &fleet.Team{ID: id, Name: "team"}, nil
 	}
 	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, teamID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
-		return nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
 		return nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
@@ -2302,7 +2459,7 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 }
 
 func TestMDMBatchSetAppleProfilesBoolArgs(t *testing.T) {
-	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	svc, ctx, ds, svcOpts := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		return &fleet.Team{ID: 1, Name: name}, nil
@@ -2311,11 +2468,6 @@ func TestMDMBatchSetAppleProfilesBoolArgs(t *testing.T) {
 		return &fleet.Team{ID: id, Name: "team"}, nil
 	}
 	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, teamID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
-		return nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
 		return nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, profileUUIDs, uuids []string,
@@ -2334,29 +2486,24 @@ func TestMDMBatchSetAppleProfilesBoolArgs(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
 	require.False(t, ds.BulkSetPendingMDMHostProfilesFuncInvoked)
-	require.False(t, ds.NewActivityFuncInvoked)
+	require.False(t, svcOpts.ActivityMock.NewActivityFuncInvoked)
 
 	// skipping bulk set only skips that method
 	err = svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{}, false, true)
 	require.NoError(t, err)
 	require.True(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
 	require.False(t, ds.BulkSetPendingMDMHostProfilesFuncInvoked)
-	require.True(t, ds.NewActivityFuncInvoked)
+	require.True(t, svcOpts.ActivityMock.NewActivityFuncInvoked)
 }
 
 func TestUpdateMDMAppleSettings(t *testing.T) {
-	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 	ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: id, Name: "team"}, nil
 	}
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		return team, nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -2502,17 +2649,12 @@ func TestUpdateMDMAppleSettings(t *testing.T) {
 
 func TestUpdateMDMAppleSetup(t *testing.T) {
 	setupTest := func(tier string) (fleet.Service, context.Context, *mock.Store) {
-		svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: tier})
+		svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: tier})
 		ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 			return &fleet.Team{ID: id, Name: "team"}, nil
 		}
 		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			return team, nil
-		}
-		ds.NewActivityFunc = func(
-			ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-		) error {
-			return nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
@@ -2668,7 +2810,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		mdmStorage,
 		mdmStorage,
 		pushFactory,
-		NewNanoMDMLogger(kitlog.NewNopLogger()),
+		NewNanoMDMLogger(slog.New(slog.DiscardHandler)),
 	)
 	mdmConfig := config.MDMConfig{
 		AppleSCEPCert: "./testdata/server.pem",
@@ -3016,7 +3158,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			failedCount++
 			require.Len(t, payload, 0)
 		}
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler))
 		require.NoError(t, err)
 		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallAndRemoveFuncInvoked)
@@ -3063,7 +3205,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		}
 
 		enqueueFailForOp = fleet.MDMOperationTypeRemove
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler))
 		require.NoError(t, err)
 		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallAndRemoveFuncInvoked)
@@ -3136,7 +3278,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		}
 
 		enqueueFailForOp = fleet.MDMOperationTypeInstall
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler))
 		require.NoError(t, err)
 		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallAndRemoveFuncInvoked)
@@ -3310,7 +3452,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			contents1 = originalContents1
 			expectedContents1 = originalExpectedContents1
 		})
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler))
 		require.NoError(t, err)
 		assert.Equal(t, 2, upsertCount)
 		// checkAndReset(t, true, &ds.GetAllCertificateAuthoritiesFuncInvoked)
@@ -3338,7 +3480,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
 			return nil, errors.New("GetHostEmailsFuncError")
 		}
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler))
 		assert.ErrorContains(t, err, "GetHostEmailsFuncError")
 		// checkAndReset(t, true, &ds.GetAllCertificateAuthoritiesFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallAndRemoveFuncInvoked)
@@ -3400,7 +3542,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			hostUUIDs = append(hostUUIDs, p.HostUUID)
 		}
 
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, slog.New(slog.DiscardHandler))
 		require.NoError(t, err)
 		assert.Empty(t, hostUUIDs, "all host+profile combinations should be updated")
 		require.Equal(t, 5, failedCount, "number of profiles with bad content")
@@ -3416,7 +3558,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 
 func TestPreprocessProfileContents(t *testing.T) {
 	ctx := context.Background()
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	appCfg := &fleet.AppConfig{}
 	appCfg.ServerSettings.ServerURL = "https://test.example.com"
 	appCfg.MDM.EnabledAndConfigured = true
@@ -3890,6 +4032,141 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 }
 
+// TestPreprocessProfileContentsDigiCertUPNMultiHost is a regression test for
+// https://github.com/fleetdm/fleet/issues/39324. When the same DigiCert CA is
+// used for multiple hosts in a single batch, the CertificateUserPrincipalNames
+// slice was shared via a shallow copy. In-place variable substitution for Host 1
+// corrupted the cached CA entry, so Host 2 and later hosts received Host 1's
+// substituted UPN instead of their own.
+func TestPreprocessProfileContentsDigiCertUPNIsUniqueForMultipleHosts(t *testing.T) {
+	ctx := context.Background()
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	logger := slog.New(slog.DiscardHandler)
+	appCfg := &fleet.AppConfig{}
+	appCfg.ServerSettings.ServerURL = "https://test.example.com"
+	appCfg.MDM.EnabledAndConfigured = true
+	ds := new(mock.Store)
+
+	svc := eeservice.NewSCEPConfigService(logger, nil)
+
+	const caName = "myCA"
+	const host1UUID = "host-uuid-1"
+	const host2UUID = "host-uuid-2"
+	const host1Serial = "SERIAL-AAA"
+	const host2Serial = "SERIAL-BBB"
+	const cmdUUID = "cmd-uuid-1"
+
+	// Track which UPNs were sent to GetCertificate per host.
+	upnByHostUUID := make(map[string]string)
+
+	mockDigiCert := &digicert_mock.Service{}
+	mockDigiCert.GetCertificateFunc = func(ctx context.Context, config fleet.DigiCertCA) (*fleet.DigiCertCertificate, error) {
+		// The UPN in config should have been substituted with each host's own
+		// hardware serial. Record it so we can assert correctness later.
+		require.Len(t, config.CertificateUserPrincipalNames, 1)
+		upn := config.CertificateUserPrincipalNames[0]
+		// Determine which host this call is for by checking which serial is in the UPN.
+		switch {
+		case strings.Contains(upn, host1Serial):
+			upnByHostUUID[host1UUID] = upn
+		case strings.Contains(upn, host2Serial):
+			upnByHostUUID[host2UUID] = upn
+		default:
+			t.Errorf("GetCertificate called with unexpected UPN %q", upn)
+		}
+		now := time.Now()
+		return &fleet.DigiCertCertificate{
+			PfxData:        []byte("fake-pfx"),
+			Password:       "fake-password",
+			NotValidBefore: now,
+			NotValidAfter:  now.Add(365 * 24 * time.Hour),
+			SerialNumber:   upn, // reuse upn as serial for easy tracing
+		}, nil
+	}
+
+	// Both hosts share the same profile UUID but are separate enrollment IDs.
+	targets := map[string]*cmdTarget{
+		"p1": {
+			cmdUUID:       cmdUUID,
+			profIdent:     "com.apple.security.pkcs12",
+			enrollmentIDs: []string{host1UUID, host2UUID},
+		},
+	}
+
+	pending := fleet.MDMDeliveryPending
+	hostProfilesToInstallMap := map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{HostUUID: host1UUID, ProfileUUID: "p1"}: {
+			ProfileUUID:       "p1",
+			ProfileIdentifier: "com.apple.security.pkcs12",
+			HostUUID:          host1UUID,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &pending,
+			CommandUUID:       cmdUUID,
+			Scope:             fleet.PayloadScopeSystem,
+		},
+		{HostUUID: host2UUID, ProfileUUID: "p1"}: {
+			ProfileUUID:       "p1",
+			ProfileIdentifier: "com.apple.security.pkcs12",
+			HostUUID:          host2UUID,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &pending,
+			CommandUUID:       cmdUUID,
+			Scope:             fleet.PayloadScopeSystem,
+		},
+	}
+
+	// Profile contains both DigiCert fleet variables.
+	profileContents := map[string]mobileconfig.Mobileconfig{
+		"p1": []byte("$FLEET_VAR_" + string(fleet.FleetVarDigiCertPasswordPrefix) + caName + " $FLEET_VAR_" + string(fleet.FleetVarDigiCertDataPrefix) + caName),
+	}
+
+	// DigiCert CA whose UPN contains the hardware serial variable.
+	groupedCAs := &fleet.GroupedCertificateAuthorities{
+		DigiCert: []fleet.DigiCertCA{
+			{
+				Name:                          caName,
+				URL:                           "https://digicert.example.com",
+				APIToken:                      "api_token",
+				ProfileID:                     "profile_id",
+				CertificateCommonName:         "common_name",
+				CertificateUserPrincipalNames: []string{"$FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "@example.com"},
+				CertificateSeatID:             "seat_id",
+			},
+		},
+	}
+
+	// Mock datastore: return each host's own hardware serial when queried.
+	hostsByUUID := map[string]*fleet.Host{
+		host1UUID: {ID: 1, UUID: host1UUID, HardwareSerial: host1Serial, Platform: "darwin"},
+		host2UUID: {ID: 2, UUID: host2UUID, HardwareSerial: host2Serial, Platform: "darwin"},
+	}
+	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+		var hosts []*fleet.Host
+		for _, uuid := range uuids {
+			if h, ok := hostsByUUID[uuid]; ok {
+				hosts = append(hosts, h)
+			}
+		}
+		return hosts, nil
+	}
+	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+		return nil
+	}
+	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
+		return nil
+	}
+
+	err := preprocessProfileContents(ctx, appCfg, ds, svc, mockDigiCert, logger, targets, profileContents, hostProfilesToInstallMap, make(map[string]string), groupedCAs)
+	require.NoError(t, err)
+
+	// Both hosts must have received GetCertificate calls with their own serial.
+	require.True(t, mockDigiCert.GetCertificateFuncInvoked, "GetCertificate was never called")
+	require.Contains(t, upnByHostUUID, host1UUID, "GetCertificate was not called for host 1")
+	require.Contains(t, upnByHostUUID, host2UUID, "GetCertificate was not called for host 2")
+	assert.Equal(t, host1Serial+"@example.com", upnByHostUUID[host1UUID], "host 1 UPN should contain its own serial")
+	assert.Equal(t, host2Serial+"@example.com", upnByHostUUID[host2UUID], "host 2 UPN should contain its own serial")
+}
+
 func TestAppleMDMFileVaultEscrowFunctions(t *testing.T) {
 	svc := Service{}
 
@@ -3911,7 +4188,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 	testError := errors.New("test error")
 	testURL := "https://example.com"
 	testTeamName := "test-team"
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	mdmConfig := config.MDMConfig{
 		AppleSCEPCert: "./testdata/server.pem",
 		AppleSCEPKey:  "./testdata/server.key",
@@ -4102,13 +4379,8 @@ func TestEnsureFleetdConfig(t *testing.T) {
 }
 
 func TestMDMAppleSetupAssistant(t *testing.T) {
-	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
 	ds.NewJobFunc = func(ctx context.Context, j *fleet.Job) (*fleet.Job, error) {
 		return j, nil
 	}
@@ -4192,7 +4464,7 @@ func TestMDMAppleSetupAssistant(t *testing.T) {
 }
 
 func TestMDMApplePreassignEndpoints(t *testing.T) {
-	svc, ctx, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	svc, ctx, _, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 	checkAuthErr := func(t *testing.T, err error, shouldFailWithAuth bool) {
 		t.Helper()
@@ -4387,9 +4659,11 @@ func generateCertWithAPNsTopic() ([]byte, []byte, error) {
 	return certPEM, keyPEM, nil
 }
 
-func setupTest(t *testing.T) (context.Context, kitlog.Logger, *mock.Store, *config.FleetConfig, *mdmmock.MDMAppleStore, *apple_mdm.MDMAppleCommander) {
+func setupTest(t *testing.T) (context.Context, *slog.Logger, *mock.Store, *config.FleetConfig, *mdmmock.MDMAppleStore,
+	*apple_mdm.MDMAppleCommander,
+) {
 	ctx := context.Background()
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	cfg := config.TestConfig()
 	ds := new(mock.Store)
 	mdmStorage := &mdmmock.MDMAppleStore{}
@@ -4785,7 +5059,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 	lostModeCommandUUID := uuid.NewString()
 
 	ds := new(mock.Store)
-	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: kitlog.NewNopLogger()}
+	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		return &fleet.Host{
@@ -5099,7 +5373,7 @@ func TestNeedsOSUpdateForDEPEnrollment(t *testing.T) {
 			return tt.platform, &tt.appleOSUpdateSettings, tt.returnedErr
 		}
 
-		svc := &Service{ds: ds, logger: kitlog.NewNopLogger()}
+		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
 
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := svc.needsOSUpdateForDEPEnrollment(ctx, tt.appleMachineInfo)
@@ -5110,7 +5384,7 @@ func TestNeedsOSUpdateForDEPEnrollment(t *testing.T) {
 }
 
 func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
-	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 	gdmf := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -5121,7 +5395,7 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 		require.NoError(t, err)
 	}))
 	defer gdmf.Close()
-	t.Setenv("FLEET_DEV_GDMF_URL", gdmf.URL)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", gdmf.URL, t)
 
 	latestMacOSVersion := "14.6.1"
 	latestMacOSBuild := "23G93"
@@ -5446,7 +5720,7 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 
 func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 	ctx := context.Background()
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	appCfg := &fleet.AppConfig{}
 	appCfg.ServerSettings.ServerURL = "https://test.example.com"
 	appCfg.MDM.EnabledAndConfigured = true
@@ -6299,4 +6573,228 @@ var customProfileValidationMobileconfig string
 
 func customProfileForValidation(value string) string {
 	return fmt.Sprintf(customProfileValidationMobileconfig, value)
+}
+
+func TestParseHHMM(t *testing.T) {
+	tests := []struct {
+		input    string
+		wantHour int
+		wantMin  int
+		wantErr  bool
+	}{
+		{"00:00", 0, 0, false},
+		{"09:30", 9, 30, false},
+		{"23:59", 23, 59, false},
+		{"12:05", 12, 5, false},
+		{"invalid", 0, 0, true},
+		{"12", 0, 0, true},
+		{"12:60", 0, 0, true},
+		{"24:00", 0, 0, true},
+		{"-01:00", 0, 0, true},
+		{"12:xx", 0, 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			h, m, err := parseHHMM(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("parseHHMM(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+			}
+			if err == nil && (h != tt.wantHour || m != tt.wantMin) {
+				t.Fatalf("parseHHMM(%q) = %d:%d, want %02d:%02d", tt.input, h, m, tt.wantHour, tt.wantMin)
+			}
+		})
+	}
+}
+
+func TestGetCurrentLocalTimeInHostTimeZone(t *testing.T) {
+	// Save original and restore after test
+	originalMock := nowFunc
+	defer func() { nowFunc = originalMock }()
+
+	// Fix "now" to a known UTC time: 2026-01-02 14:30:00 UTC
+	fixedNow := time.Date(2026, 1, 2, 14, 30, 0, 0, time.UTC)
+	nowFunc = func() time.Time {
+		return fixedNow
+	}
+
+	tests := []struct {
+		name     string
+		timezone string
+		wantHour int
+		wantMin  int
+		wantErr  bool
+	}{
+		{"UTC", "UTC", 14, 30, false},
+		{"New York", "America/New_York", 9, 30, false},       // EST = UTC-5
+		{"Los Angeles", "America/Los_Angeles", 6, 30, false}, // PST = UTC-8
+		{"London", "Europe/London", 14, 30, false},           // GMT in winter
+		{"Tokyo", "Asia/Tokyo", 23, 30, false},               // JST = UTC+9
+		{"Invalid TZ", "Invalid/Timezone", 0, 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getCurrentLocalTimeInHostTimeZone(context.Background(), tt.timezone)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("getCurrentLocalTimeInHostTimeZone(%q) error = %v, wantErr %v", tt.timezone, err, tt.wantErr)
+			}
+			if err == nil {
+				if got.Hour() != tt.wantHour || got.Minute() != tt.wantMin {
+					t.Fatalf("getCurrentLocalTimeInHostTimeZone(%q) = %02d:%02d, want %02d:%02d",
+						tt.timezone, got.Hour(), got.Minute(), tt.wantHour, tt.wantMin)
+				}
+			}
+		})
+	}
+}
+
+func TestIsTimezoneInWindow(t *testing.T) {
+	// Save original and restore after test
+	originalMock := nowFunc
+	defer func() { nowFunc = originalMock }()
+
+	// Helper to set a fixed UTC time, which will be converted to local time
+	setMockUTCNow := func(year, month, day, hour, min_ int) {
+		nowFunc = func() time.Time {
+			return time.Date(year, time.Month(month), day, hour, min_, 0, 0, time.UTC)
+		}
+	}
+
+	tests := []struct {
+		name         string
+		mockUTCHour  int
+		mockUTCMin   int
+		timezone     string
+		start        string
+		end          string
+		wantInWindow bool
+		wantErr      bool
+	}{
+		// Normal window (no midnight cross)
+		{name: "normal inside", mockUTCHour: 14, mockUTCMin: 0, timezone: "America/New_York", start: "08:00", end: "17:00", wantInWindow: true, wantErr: false},  // 09:00 EST
+		{name: "normal before", mockUTCHour: 12, mockUTCMin: 0, timezone: "America/New_York", start: "09:00", end: "17:00", wantInWindow: false, wantErr: false}, // 07:00 EST
+		{name: "normal at start", mockUTCHour: 14, mockUTCMin: 0, timezone: "America/New_York", start: "09:00", end: "17:00", wantInWindow: true, wantErr: false},
+		{name: "normal at end", mockUTCHour: 22, mockUTCMin: 0, timezone: "America/New_York", start: "09:00", end: "17:00", wantInWindow: true, wantErr: false}, // 17:00 EST
+
+		// Midnight-crossing window
+		{name: "too early", mockUTCHour: 4, mockUTCMin: 0, timezone: "America/Los_Angeles", start: "22:00", end: "06:00", wantInWindow: false, wantErr: false},              // 20:00 PST
+		{name: "crossing late night", mockUTCHour: 7, mockUTCMin: 0, timezone: "America/Los_Angeles", start: "22:00", end: "06:00", wantInWindow: true, wantErr: false},     // 23:00 PST
+		{name: "crossing early morning", mockUTCHour: 12, mockUTCMin: 0, timezone: "America/Los_Angeles", start: "22:00", end: "06:00", wantInWindow: true, wantErr: false}, // 04:00 PST
+		{name: "crossing outside", mockUTCHour: 16, mockUTCMin: 0, timezone: "America/Los_Angeles", start: "22:00", end: "06:00", wantInWindow: false, wantErr: false},      // 08:00 PST
+
+		// Edge cases
+		{name: "full day", mockUTCHour: 12, mockUTCMin: 0, timezone: "UTC", start: "00:00", end: "23:59", wantInWindow: true, wantErr: false},
+		{name: "single minute", mockUTCHour: 10, mockUTCMin: 5, timezone: "UTC", start: "10:05", end: "10:05", wantInWindow: true, wantErr: false},
+		{name: "invalid start", mockUTCHour: 12, mockUTCMin: 0, timezone: "UTC", start: "25:00", end: "17:00", wantInWindow: false, wantErr: true},
+		{name: "invalid timezone", mockUTCHour: 12, mockUTCMin: 0, timezone: "Invalid/TZ", start: "09:00", end: "17:00", wantInWindow: false, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setMockUTCNow(2026, 1, 2, tt.mockUTCHour, tt.mockUTCMin)
+
+			got, err := isTimezoneInWindow(context.Background(), tt.timezone, tt.start, tt.end)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("isTimezoneInWindow(%q, %s-%s) error = %v, wantErr %v", tt.timezone, tt.start, tt.end, err, tt.wantErr)
+			}
+			if got != tt.wantInWindow {
+				t.Fatalf("isTimezoneInWindow(%q, %s-%s) = %v, want %v", tt.timezone, tt.start, tt.end, got, tt.wantInWindow)
+			}
+		})
+	}
+}
+
+func TestToValidSemVer(t *testing.T) {
+	testVersions := []struct {
+		rawVersion                           string
+		expectedVersion                      string
+		versionToSemverVersionExpectedToFail bool
+	}{
+		{
+			"25.48.0",
+			"25.48.0",
+			false,
+		},
+		{
+			" 353.0 ", // Meta Horizon like version.
+			"353.0",
+			false,
+		},
+		{
+			"18.14.0",
+			"18.14.0",
+			false,
+		},
+		{
+			"412.0.0",
+			"412.0.0",
+			false,
+		},
+		{
+			"00.001010.01",
+			"0.1010.1",
+			false,
+		},
+		{
+			"6.0.251229",
+			"6.0.251229",
+			false,
+		},
+		{
+			"4.2602.11600",
+			"4.2602.11600",
+			false,
+		},
+		{
+			"144.0.7559.53", // Google Chrome like version.
+			"144.0.7559-53",
+			false,
+		},
+		{
+			"144.0.7559.03", // Google Chrome like version, leading zeros.
+			"144.0.7559-3",
+			false,
+		},
+		{
+			"4.9999999999999999999999999.11600", // Not a valid semantic version, so we leave unchanged.
+			"4.9999999999999999999999999.11600",
+			true,
+		},
+		{
+			"04.0000099999999999999999999999990.011600", // Not a valid semantic version, but we clean it anyway.
+			"4.99999999999999999999999990.11600",
+			true,
+		},
+		{
+			"21.02.3", // YouTube like version.
+			"21.2.3",
+			false,
+		},
+		{
+			"21", // Just major version.
+			"21",
+			false,
+		},
+		{
+			"v2.3.4", // Remove leading v.
+			"2.3.4",
+			false,
+		},
+		{
+			"02.03.04-01",
+			"2.3.4-1",
+			false,
+		},
+	}
+	for _, tc := range testVersions {
+		cleanedVersion := toValidSemVer(tc.rawVersion)
+		require.Equal(t, tc.expectedVersion, cleanedVersion)
+		_, err := fleet.VersionToSemverVersion(cleanedVersion)
+		if !tc.versionToSemverVersionExpectedToFail {
+			require.NoError(t, err, tc.rawVersion)
+		} else {
+			require.Error(t, err, tc.rawVersion)
+		}
+	}
 }

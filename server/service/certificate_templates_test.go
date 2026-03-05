@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -63,10 +63,6 @@ func TestCreateCertificateTemplate(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
-	}
-
 	t.Run("Invalid CA type", func(t *testing.T) {
 		_, err := svc.CreateCertificateTemplate(ctx, "my template", TeamID, uint(InvalidCATypeID), "CN=$FLEET_VAR_HOST_UUID")
 		require.Error(t, err)
@@ -96,10 +92,7 @@ func TestCreateCertificateTemplate(t *testing.T) {
 	})
 
 	t.Run("Name too long", func(t *testing.T) {
-		longName := string(make([]byte, 256))
-		for i := range longName {
-			longName = longName[:i] + "a" + longName[i+1:]
-		}
+		longName := strings.Repeat("a", 256)
 		_, err := svc.CreateCertificateTemplate(ctx, longName, TeamID, uint(ValidCATypeID), "CN=$FLEET_VAR_HOST_UUID")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Certificate template name is too long")
@@ -167,6 +160,15 @@ func TestCreateCertificateTemplate(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("Empty or whitespace-only subject name", func(t *testing.T) {
+		whitespaceSubjectNames := []string{"", " ", "   \t\n  "}
+		for _, subjectName := range whitespaceSubjectNames {
+			_, err := svc.CreateCertificateTemplate(ctx, "my template", TeamID, uint(ValidCATypeID), subjectName)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "Certificate template subject name is required")
+		}
+	})
 }
 
 func TestApplyCertificateTemplateSpecs(t *testing.T) {
@@ -184,10 +186,6 @@ func TestApplyCertificateTemplateSpecs(t *testing.T) {
 			ID:   id,
 			Name: "Test Team",
 		}, nil
-	}
-
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
 	}
 
 	// Set up certificate authority mocks
@@ -356,10 +354,7 @@ func TestApplyCertificateTemplateSpecs(t *testing.T) {
 	})
 
 	t.Run("Name too long", func(t *testing.T) {
-		longName := string(make([]byte, 256))
-		for i := range longName {
-			longName = longName[:i] + "a" + longName[i+1:]
-		}
+		longName := strings.Repeat("a", 256)
 		err := svc.ApplyCertificateTemplateSpecs(ctx, []*fleet.CertificateRequestSpec{
 			{
 				Name:                   longName,
@@ -369,5 +364,18 @@ func TestApplyCertificateTemplateSpecs(t *testing.T) {
 		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Certificate template name is too long")
+	})
+
+	t.Run("Whitespace-only subject name", func(t *testing.T) {
+		err := svc.ApplyCertificateTemplateSpecs(ctx, []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "Template 2",
+				CertificateAuthorityId: 1,
+				SubjectName:            "   ",
+			},
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Certificate template subject name is required")
+		require.Contains(t, err.Error(), "Template 2")
 	})
 }

@@ -125,6 +125,15 @@
   },
   {
     "software": {
+      "bundle_identifier": ["com.nextcloud.desktopclient"]
+    },
+    "filter": {
+      "product": ["desktop"],
+      "vendor": ["nextcloud"]
+    }
+  },
+  {
+    "software": {
       "name": ["jira"],
       "source": ["python_packages"]
     },
@@ -628,6 +637,14 @@
   },
   {
     "software": {
+      "name": ["git-man"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "bundle_identifier": ["org.virtualbox.app.VirtualBox"]
     },
     "filter": {
@@ -709,6 +726,27 @@
     },
     "filter": {
       "target_sw": ["intellij"]
+    }
+  },
+  {
+    "software": {
+      "name": ["/(?i)^pgadmin ?4/"],
+      "source": ["programs", "homebrew_packages"]
+    },
+    "filter": {
+      "product": ["pgadmin", "pgadmin_4"],
+      "vendor": ["pgadmin"],
+      "target_sw": ["postgresql"]
+    }
+  },
+  {
+    "software": {
+      "name": ["Acrobat Reader"],
+      "source": ["apps"],
+      "bundle_identifier": ["com.adobe.Reader"]
+    },
+    "filter": {
+      "product": ["acrobat_reader_dc"]
     }
   }
 ]

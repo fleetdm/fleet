@@ -6,6 +6,7 @@ import {
   SCRIPT_PACKAGE_SOURCES,
   ISoftwarePackage,
 } from "interfaces/software";
+import { getDisplayedSoftwareName } from "../helpers";
 
 export interface InstallerCardInfo {
   softwareTitleName: string;
@@ -41,7 +42,10 @@ export const getInstallerCardInfo = (
 
   return {
     softwareTitleName: softwareTitle.name,
-    softwareDisplayName: softwareTitle.display_name || softwareTitle.name,
+    softwareDisplayName: getDisplayedSoftwareName(
+      softwareTitle.name,
+      softwareTitle.display_name
+    ),
     softwareInstaller: installerData,
     name: (isPackage && installerData.name) || softwareTitle.name,
     version:
@@ -60,7 +64,7 @@ export const getInstallerCardInfo = (
     isScriptPackage:
       SCRIPT_PACKAGE_SOURCES.includes(softwareTitle.source) || false,
     autoUpdateEnabled: softwareTitle.auto_update_enabled,
-    autoUpdateStartTime: softwareTitle.auto_update_start_time,
-    autoUpdateEndTime: softwareTitle.auto_update_end_time,
+    autoUpdateStartTime: softwareTitle.auto_update_window_start,
+    autoUpdateEndTime: softwareTitle.auto_update_window_end,
   };
 };

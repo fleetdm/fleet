@@ -9,13 +9,13 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/rootcert"
 )
@@ -78,10 +78,12 @@ func GetLatestOSVersion(device fleet.MDMAppleMachineInfo) (*Asset, error) {
 		return nil, fmt.Errorf("retrieving asset metadata: %w", err)
 	}
 
-	assetSet := r.PublicAssetSets.MacOS // default to public asset set; note that if the device is not macOS, iPhone, or iPad, we'll fail to match the supported device and return an error below
+	assetSet := r.PublicAssetSets.MacOS // default to public asset set; note that if the device is not macOS, iPhone, iPad, or iPod we'll fail to match the supported device and return an error below
 	if strings.HasPrefix(device.Product, "iPhone") ||
+		strings.HasPrefix(device.Product, "iPod") ||
 		strings.HasPrefix(device.Product, "iPad") ||
 		strings.HasPrefix(device.SoftwareUpdateDeviceID, "iPhone") ||
+		strings.HasPrefix(device.SoftwareUpdateDeviceID, "iPod") ||
 		strings.HasPrefix(device.SoftwareUpdateDeviceID, "iPad") {
 		assetSet = r.PublicAssetSets.IOS
 	}
@@ -205,7 +207,7 @@ func doWithRetry(req *http.Request) (*http.Response, error) {
 }
 
 func getBaseURL() string {
-	devURL := os.Getenv("FLEET_DEV_GDMF_URL")
+	devURL := dev_mode.Env("FLEET_DEV_GDMF_URL")
 	if devURL != "" {
 		return devURL
 	}

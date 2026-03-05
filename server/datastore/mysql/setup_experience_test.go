@@ -32,6 +32,7 @@ func TestSetupExperience(t *testing.T) {
 		{"TestHostInSetupExperience", testHostInSetupExperience},
 		{"TestGetSetupExperienceScriptByID", testGetSetupExperienceScriptByID},
 		{"TestUpdateSetupExperienceScriptWhileEnqueued", testUpdateSetupExperienceScriptWhileEnqueued},
+		{"TestEnqueueSetupExperienceItemsWindows", testEnqueueSetupExperienceItemsWindows},
 	}
 
 	for _, c := range cases {
@@ -230,6 +231,103 @@ func testEnqueueSetupExperienceLinuxScriptPackages(t *testing.T, ds *Datastore) 
 	})
 }
 
+func testEnqueueSetupExperienceItemsWindows(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// Create some software installers and add them to setup experience
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	installerID1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		UninstallScript:   "goodbye",
+		InstallerFile:     tfr1,
+		StorageID:         "storage1",
+		Filename:          "file1",
+		Title:             "Software1",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		TeamID:            &team1.ID,
+		Platform:          "windows",
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	installerID2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "banana",
+		PreInstallQuery:   "SELECT 3",
+		PostInstallScript: "apple",
+		InstallerFile:     tfr2,
+		StorageID:         "storage3",
+		Filename:          "file3",
+		Title:             "Software2",
+		Version:           "3.0",
+		Source:            "apps",
+		SelfService:       true,
+		UserID:            user1.ID,
+		TeamID:            &team2.ID,
+		Platform:          "windows",
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id IN (?, ?)", installerID1, installerID2)
+		return err
+	})
+
+	host1UUID := "11111111-1111-1111-1111-111111111111"
+	host2UUID := "22222222-2222-2222-2222-222222222222"
+
+	// Freshly enrolled host, should get items enqueued
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "windows-test-1",
+		OsqueryHostID:  ptr.String("osquery-windows-1"),
+		NodeKey:        ptr.String("node-key-windows-1"),
+		UUID:           host1UUID,
+		Platform:       "windows",
+		HardwareSerial: "654321a-1",
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE hosts SET last_enrolled_at = ? WHERE uuid = ?", time.Now().Add(-1*time.Hour), host1UUID)
+		return err
+	})
+
+	// Enroll date > 24 hours ago and is windows. This should not get items enqueued.
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "windows-test-2",
+		OsqueryHostID:  ptr.String("osquery-windows-2"),
+		NodeKey:        ptr.String("node-key-windows-2"),
+		UUID:           host2UUID,
+		Platform:       "windows",
+		HardwareSerial: "654321b-2",
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE hosts SET last_enrolled_at = ? WHERE uuid = ?", time.Now().Add(-25*time.Hour), host2UUID)
+		return err
+	})
+
+	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "windows", host1UUID, team1.ID)
+	require.NoError(t, err)
+	require.True(t, anythingEnqueued)
+
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "windows", host2UUID, team2.ID)
+	require.NoError(t, err)
+	require.False(t, anythingEnqueued)
+}
+
 func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	test.CreateInsertGlobalVPPToken(t, ds)
@@ -318,7 +416,69 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 
 	hostTeam1 := "123"
 	hostTeam2 := "456"
+	hostTeam2Missing := "555"
 	hostTeam3 := "789"
+	hostTeam1Old := "000"
+	hostTeam1New := "007"
+
+	// No enroll date. This should be treated as a new host and have items enqueued.
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-test-1",
+		OsqueryHostID:  ptr.String("osquery-macos-1"),
+		NodeKey:        ptr.String("node-key-macos-1"),
+		UUID:           hostTeam1,
+		Platform:       "darwin",
+		HardwareSerial: "654321a",
+	})
+	require.NoError(t, err)
+
+	// Enroll date < 24 hours ago. This should be treated as a new host and have items enqueued.
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-test-2",
+		OsqueryHostID:  ptr.String("osquery-macos-2"),
+		NodeKey:        ptr.String("node-key-macos-2"),
+		UUID:           hostTeam2,
+		Platform:       "darwin",
+		HardwareSerial: "654321a-2",
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE hosts SET last_enrolled_at = ? WHERE uuid = ?", time.Now().Add(-1*time.Hour), hostTeam2)
+		return err
+	})
+
+	// Deliberately not adding a record for the hostTeam2Missing, to verify that
+	// we still enqueue items for it if it doesn't exist in the database.
+
+	// Enroll date > 24 hours ago but is macOS. This should get items enqueued.
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-test-4",
+		OsqueryHostID:  ptr.String("osquery-macos-4"),
+		NodeKey:        ptr.String("node-key-macos-4"),
+		UUID:           hostTeam1Old,
+		Platform:       "darwin",
+		HardwareSerial: "654321a-4",
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE hosts SET last_enrolled_at = ? WHERE uuid = ?", time.Now().Add(-25*time.Hour), hostTeam1Old)
+		return err
+	})
+
+	// Enroll date of the Fleet "zero time". This should have items enqueued.
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-test-4",
+		OsqueryHostID:  ptr.String("osquery-macos-5"),
+		NodeKey:        ptr.String("node-key-macos-5"),
+		UUID:           hostTeam1New,
+		Platform:       "darwin",
+		HardwareSerial: "654321a-4",
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE hosts SET last_enrolled_at = ? WHERE uuid = ?", time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC), hostTeam1New)
+		return err
+	})
 
 	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam1, team1.ID)
 	require.NoError(t, err)
@@ -327,10 +487,24 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, awaitingConfig)
 
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam1New, team1.ID)
+	require.NoError(t, err)
+	require.True(t, anythingEnqueued)
+	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam1New)
+	require.NoError(t, err)
+	require.True(t, awaitingConfig)
+
 	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam2, team2.ID)
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam2)
+	require.NoError(t, err)
+	require.True(t, awaitingConfig)
+
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam2Missing, team2.ID)
+	require.NoError(t, err)
+	require.True(t, anythingEnqueued)
+	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam2Missing)
 	require.NoError(t, err)
 	require.True(t, awaitingConfig)
 
@@ -344,13 +518,22 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	require.True(t, fleet.IsNotFound(err))
 	require.False(t, awaitingConfig)
 
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam1Old, team1.ID)
+	require.NoError(t, err)
+	require.True(t, anythingEnqueued)
+	// This host enrolled > 24 hours ago, but it's darwin, so we should enqueue items for it.
+	awaitingConfig, err = ds.GetHostAwaitingConfiguration(ctx, hostTeam1Old)
+	require.NoError(t, err)
+	require.True(t, awaitingConfig)
+
 	seRows := []setupExperienceInsertTestRows{}
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &seRows, "SELECT host_uuid, name, status, software_installer_id, setup_experience_script_id, vpp_app_team_id FROM setup_experience_status_results")
 	})
 
-	require.Len(t, seRows, 6)
+	// five hosts with three items enqueued each.
+	require.Len(t, seRows, 15)
 
 	for _, tc := range []setupExperienceInsertTestRows{
 		{
@@ -427,6 +610,9 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam2, team2.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam2Missing, team2.ID)
+	require.NoError(t, err)
+	require.False(t, anythingEnqueued)
 
 	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", hostTeam3, team3.ID)
 	require.NoError(t, err)
@@ -436,7 +622,9 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 		return sqlx.SelectContext(ctx, q, &seRows, "SELECT host_uuid, name, status, software_installer_id, setup_experience_script_id, vpp_app_team_id FROM setup_experience_status_results")
 	})
 
-	require.Len(t, seRows, 3)
+	// Only the team 1 and team 3 hosts should have items enqueued now.
+	// Two hosts with three items each.
+	require.Len(t, seRows, 9)
 
 	for _, tc := range []setupExperienceInsertTestRows{
 		{
@@ -471,11 +659,8 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	}
 
 	for _, row := range seRows {
-		if row.HostUUID == hostTeam3 || row.HostUUID == hostTeam2 {
+		if row.HostUUID == hostTeam2 {
 			team := 2
-			if row.HostUUID == hostTeam3 {
-				team = 3
-			}
 			t.Errorf("team %d shouldn't have any any entries", team)
 		}
 	}

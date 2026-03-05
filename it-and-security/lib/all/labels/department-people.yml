@@ -1,0 +1,6 @@
+- name: "Department: People"
+  description: Hosts belonging to members of the People department
+  label_membership_type: host_vitals
+  criteria:
+    vital: end_user_idp_department
+    value: People

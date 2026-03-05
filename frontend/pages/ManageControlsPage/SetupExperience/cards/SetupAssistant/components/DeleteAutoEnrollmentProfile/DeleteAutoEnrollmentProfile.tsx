@@ -24,7 +24,7 @@ const DeleteAutoEnrollProfile = ({
   const handleDelete = async () => {
     try {
       await mdmAPI.deleteSetupEnrollmentProfile(currentTeamId);
-      renderFlash("success", "Successfully deleted!");
+      renderFlash("success", "Successfully deleted.");
     } catch {
       renderFlash("error", "Couldn’t delete. Please try again.");
     }

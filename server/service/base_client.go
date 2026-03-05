@@ -45,7 +45,7 @@ type baseClient struct {
 func (bc *baseClient) parseResponse(verb, path string, response *http.Response, responseDest interface{}) error {
 	switch response.StatusCode {
 	case http.StatusNotFound:
-		return notFoundErr{
+		return &notFoundErr{
 			msg: extractServerErrorText(response.Body),
 		}
 	case http.StatusUnauthorized:

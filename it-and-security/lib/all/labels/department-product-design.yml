@@ -1,0 +1,6 @@
+- name: "Department: Product Design"
+  description: Hosts belonging to members of the Product Design department
+  label_membership_type: host_vitals
+  criteria:
+    vital: end_user_idp_department
+    value: Product Design

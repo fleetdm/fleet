@@ -1,3 +1,7 @@
 .org-name-cell {
-
+  &__tooltip-wrapper {
+    // use display inline so that the tooltip will be positioned correctly
+    // above the text
+    display: inline;
+  }
 }

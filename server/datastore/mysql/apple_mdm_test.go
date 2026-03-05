@@ -17,7 +17,6 @@ import (
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
@@ -27,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-sql-driver/mysql"
@@ -59,6 +59,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestGetMDMAppleProfilesContents", testGetMDMAppleProfilesContents},
 		{"TestAggregateMacOSSettingsStatusWithFileVault", testAggregateMacOSSettingsStatusWithFileVault},
 		{"TestMDMAppleHostsProfilesStatus", testMDMAppleHostsProfilesStatus},
+		{"TestMDMAppleHostsDiskEncryption", testMDMAppleHostsDiskEncryption},
 		{"TestMDMAppleIdPAccount", testMDMAppleIdPAccount},
 		{"TestIgnoreMDMClientError", testDoNotIgnoreMDMClientError},
 		{"TestDeleteMDMAppleProfilesForHost", testDeleteMDMAppleProfilesForHost},
@@ -106,6 +107,9 @@ func TestMDMApple(t *testing.T) {
 		{"TestLockUnlockWipeIphone", testLockUnlockWipeIphone},
 		{"TestGetLatestAppleMDMCommandOfType", testGetLatestAppleMDMCommandOfType},
 		{"TestSetLockCommandForLostModeCheckin", testSetLockCommandForLostModeCheckin},
+		{"DeviceLocation", testDeviceLocation},
+		{"TestGetDEPAssignProfileExpiredCooldowns", testGetDEPAssignProfileExpiredCooldowns},
+		{"DeleteMDMAppleDeclarationByNameCancelsInstalls", testDeleteMDMAppleDeclarationByNameCancelsInstalls},
 	}
 
 	for _, c := range cases {
@@ -3103,7 +3107,17 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	for i := 0; i < 7; i++ {
 		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
 			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now())
+		nanoEnrollUserDeviceAndSetHostMDMData(t, ds, h)
 		hosts = append(hosts, h)
+	}
+
+	hostCountEncryptionStatus := func(status fleet.DiskEncryptionStatus, teamID *uint) int {
+		gotHosts, err := ds.ListHosts(ctx,
+			fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
+			fleet.HostListOptions{OSSettingsDiskEncryptionFilter: status, TeamFilter: teamID},
+		)
+		require.NoError(t, err)
+		return len(gotHosts)
 	}
 
 	// no teams tests =====
@@ -3131,6 +3145,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(0), fvProfileSummary.Enforcing)
 	require.Equal(t, uint(0), fvProfileSummary.Failed)
 	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
 
 	allProfilesSummary, err := ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
@@ -3139,6 +3154,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(0), allProfilesSummary.Failed)
 	require.Equal(t, uint(1), allProfilesSummary.Verifying)
 	require.Equal(t, uint(0), allProfilesSummary.Verified)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
 
 	// action required status
 	requiredActionHost := hosts[1]
@@ -3160,6 +3176,8 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(0), fvProfileSummary.Enforcing)
 	require.Equal(t, uint(0), fvProfileSummary.Failed)
 	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionActionRequired, nil))
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
@@ -3189,6 +3207,9 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
 	require.Equal(t, uint(0), fvProfileSummary.Failed)
 	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionActionRequired, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionEnforcing, nil))
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
@@ -3215,6 +3236,9 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
 	require.Equal(t, uint(0), fvProfileSummary.Failed)
 	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionActionRequired, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionEnforcing, nil))
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
@@ -3243,6 +3267,9 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
 	require.Equal(t, uint(0), fvProfileSummary.Failed)
 	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionActionRequired, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionEnforcing, nil))
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
@@ -3265,6 +3292,10 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
 	require.Equal(t, uint(1), fvProfileSummary.Failed)
 	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionActionRequired, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionEnforcing, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionFailed, nil))
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
@@ -3287,6 +3318,11 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
 	require.Equal(t, uint(1), fvProfileSummary.Failed)
 	require.Equal(t, uint(1), fvProfileSummary.RemovingEnforcement)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionActionRequired, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionEnforcing, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionFailed, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionRemovingEnforcement, nil))
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
@@ -3317,6 +3353,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(0), fvProfileSummary.Enforcing)
 	require.Equal(t, uint(0), fvProfileSummary.Failed)
 	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, &tm.ID))
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, &tm.ID)
 	require.NoError(t, err)
@@ -3343,6 +3380,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(0), fvProfileSummary.Enforcing)
 	require.Equal(t, uint(0), fvProfileSummary.Failed)
 	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerified, &tm.ID))
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, &tm.ID)
 	require.NoError(t, err)
@@ -5645,6 +5683,10 @@ func testLockUnlockWipeIphone(t *testing.T, ds *Datastore) {
 	err = ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, cmd.CommandUUID, "EnableLostMode", true)
 	require.NoError(t, err)
 
+	// Record a location from the DeviceLocation command
+	err = ds.InsertHostLocationData(ctx, fleet.HostLocationData{HostID: host.ID, Latitude: 42.42, Longitude: -42.42})
+	require.NoError(t, err)
+
 	// it is now locked
 	status, err = ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
@@ -6807,10 +6849,11 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	depDevices := []godep.Device{
 		{SerialNumber: "iOS0_SERIAL", DeviceFamily: "iPhone", OpType: "added"},
 		{SerialNumber: "iPadOS0_SERIAL", DeviceFamily: "iPad", OpType: "added"},
+		{SerialNumber: "iPod_SERIAL", DeviceFamily: "iPod", OpType: "added"},
 	}
 	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID, nil, nil, nil)
 	require.NoError(t, err)
-	require.Equal(t, int64(2), n)
+	require.Equal(t, int64(3), n)
 
 	// Hosts are not enrolled yet (e.g. DEP enrolled)
 	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
@@ -6841,17 +6884,30 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	nanoEnroll(t, ds, iPadOS0, false)
 
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           "iPod_UUID",
+		HardwareSerial: "iPod_SERIAL",
+		HardwareModel:  "iPod 7",
+		Platform:       "ios",
+		OsqueryHostID:  ptr.String("iPod_OSQUERY_HOST_ID"),
+	}, false)
+	require.NoError(t, err)
+	iPod, err := ds.HostByIdentifier(ctx, "iPod_SERIAL")
+	require.NoError(t, err)
+	nanoEnroll(t, ds, iPod, false)
+
 	// Test with hosts but empty state in nanomdm command tables.
 	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Len(t, devices, 2)
-	uuids := []string{devices[0].UUID, devices[1].UUID}
+	require.Len(t, devices, 3)
+	uuids := []string{devices[0].UUID, devices[1].UUID, devices[2].UUID}
 	sort.Slice(uuids, func(i, j int) bool {
 		return uuids[i] < uuids[j]
 	})
-	assert.Equal(t, uuids, []string{"iOS0_UUID", "iPadOS0_UUID"})
+	assert.Equal(t, uuids, []string{"iOS0_UUID", "iPadOS0_UUID", "iPod_UUID"})
 	assert.Empty(t, devices[0].CommandsAlreadySent)
 	assert.Empty(t, devices[1].CommandsAlreadySent)
+	assert.Empty(t, devices[2].CommandsAlreadySent)
 
 	// Set iOS detail_updated_at as 30 minutes in the past.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -6862,8 +6918,9 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	// iOS device should not be returned because it was refetched recently
 	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
-	require.Len(t, devices, 1)
+	require.Len(t, devices, 2)
 	require.Equal(t, devices[0].UUID, "iPadOS0_UUID")
+	require.Equal(t, devices[1].UUID, "iPod_UUID")
 
 	// Set iPadOS detail_updated_at as 30 minutes in the past.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -6871,7 +6928,19 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	// Both devices are up-to-date thus none should be returned.
+	// two devices are up to date now, only iPod should be returned
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	require.NoError(t, err)
+	require.Len(t, devices, 1)
+	require.Equal(t, devices[0].UUID, "iPod_UUID")
+
+	// set iPod device detail_updated_at as 30 minutes in the past.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET detail_updated_at = DATE_SUB(NOW(), INTERVAL 30 MINUTE) WHERE id = ?`, iPod.ID)
+		return err
+	})
+
+	// all devices are up to date now, none should be returned
 	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
 	require.Empty(t, devices)
@@ -6996,6 +7065,7 @@ func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) 
 	depDevices := []godep.Device{
 		{SerialNumber: "iOS0_SERIAL", DeviceFamily: "iPhone", OpType: "added"},
 		{SerialNumber: "iPadOS0_SERIAL", DeviceFamily: "iPad", OpType: "added"},
+		{SerialNumber: "iPod_SERIAL", DeviceFamily: "iPod", OpType: "added"},
 	}
 
 	encTok := uuid.NewString()
@@ -7005,7 +7075,7 @@ func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) 
 
 	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID, nil, nil, nil)
 	require.NoError(t, err)
-	require.Equal(t, int64(2), n)
+	require.Equal(t, int64(3), n)
 
 	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{
 		User: &fleet.User{
@@ -7013,11 +7083,13 @@ func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) 
 		},
 	}, fleet.HostListOptions{})
 	require.NoError(t, err)
-	require.Len(t, hosts, 2)
+	require.Len(t, hosts, 3)
 	require.Equal(t, "ios", hosts[0].Platform)
 	require.Equal(t, false, hosts[0].RefetchRequested)
 	require.Equal(t, "ipados", hosts[1].Platform)
 	require.Equal(t, false, hosts[1].RefetchRequested)
+	require.Equal(t, "ios", hosts[2].Platform)
+	require.Equal(t, false, hosts[2].RefetchRequested)
 }
 
 func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
@@ -7072,6 +7144,17 @@ func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
 	iPadOS0, err := ds.HostByIdentifier(ctx, "iPadOS0_UUID")
 	require.NoError(t, err)
 	nanoEnroll(t, ds, iPadOS0, false)
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           "iPod_UUID",
+		HardwareSerial: "iPod_SERIAL",
+		HardwareModel:  "iPod 7",
+		Platform:       "ios",
+		OsqueryHostID:  ptr.String("iPod_OSQUERY_HOST_ID"),
+	}, false)
+	require.NoError(t, err)
+	iPod, err := ds.HostByIdentifier(ctx, "iPod_UUID")
+	require.NoError(t, err)
+	nanoEnroll(t, ds, iPod, false)
 
 	someProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("a", "a", 0), nil)
 	require.NoError(t, err)
@@ -7087,6 +7170,10 @@ func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
 	require.Len(t, profiles, 1)
 	require.Equal(t, someProfile.Name, profiles[0].Name)
 	profiles, err = ds.GetHostMDMAppleProfiles(ctx, "iPadOS0_UUID")
+	require.NoError(t, err)
+	require.Len(t, profiles, 1)
+	require.Equal(t, someProfile.Name, profiles[0].Name)
+	profiles, err = ds.GetHostMDMAppleProfiles(ctx, "iPod_UUID")
 	require.NoError(t, err)
 	require.Len(t, profiles, 1)
 	require.Equal(t, someProfile.Name, profiles[0].Name)
@@ -7150,9 +7237,23 @@ func testGetEnrollmentIDsWithPendingMDMAppleCommands(t *testing.T, ds *Datastore
 	err = commander.EnqueueCommand(ctx, []string{hostUUIDToUserEnrollmentID[hosts[3].UUID], hostUUIDToUserEnrollmentID[hosts[4].UUID], hostUUIDToUserEnrollmentID[hosts[5].UUID]}, rawCmd2)
 	require.NoError(t, err)
 
-	ids, err = ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
+	firstIds, err := ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
 	require.NoError(t, err)
-	require.ElementsMatch(t, []string{hosts[1].UUID, hosts[2].UUID, hostUUIDToUserEnrollmentID[hosts[3].UUID], hostUUIDToUserEnrollmentID[hosts[4].UUID], hostUUIDToUserEnrollmentID[hosts[5].UUID]}, ids)
+	require.ElementsMatch(t, []string{hosts[1].UUID, hosts[2].UUID, hostUUIDToUserEnrollmentID[hosts[3].UUID], hostUUIDToUserEnrollmentID[hosts[4].UUID], hostUUIDToUserEnrollmentID[hosts[5].UUID]}, firstIds)
+
+	// Get a list of pending ID's 3 times and match against the first list, to avoid test flakiness.
+	// In a real world scenario it's okay for it to be the same as we will fetch it again later.
+	allAttemptsWereEqual := true
+	for range 3 {
+		secondIds, err := ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
+		require.NoError(t, err)
+		isIdsEqual := assert.ObjectsAreEqualValues(firstIds, secondIds)
+		if !isIdsEqual {
+			allAttemptsWereEqual = false
+			break
+		}
+	}
+	require.False(t, allAttemptsWereEqual, "GetEnrollmentIDsWithPendingMDMAppleCommands returned the same result 3 times in a row")
 
 	err = storage.StoreCommandReport(&mdm.Request{
 		EnrollID: &mdm.EnrollID{ID: hostUUIDToUserEnrollmentID[hosts[3].UUID]},
@@ -9592,4 +9693,228 @@ func testSetLockCommandForLostModeCheckin(t *testing.T, ds *Datastore) {
 	// Fails if trying to insert on existing row
 	err = ds.SetLockCommandForLostModeCheckin(ctx, hostID, commandUUID)
 	require.Error(t, err)
+}
+
+func testDeviceLocation(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	iOSHost := newTestHostWithPlatform(t, ds, "iphone_"+t.Name(), string(fleet.IOSPlatform), nil)
+
+	expected := fleet.HostLocationData{HostID: iOSHost.ID, Latitude: 42.42, Longitude: -42.42}
+	err := ds.InsertHostLocationData(ctx, expected)
+	require.NoError(t, err)
+
+	locData, err := ds.GetHostLocationData(ctx, iOSHost.ID)
+	require.NoError(t, err)
+
+	assert.Equal(t, expected, *locData)
+
+	// Update data
+	expected = fleet.HostLocationData{HostID: iOSHost.ID, Latitude: 20.25, Longitude: 20.25}
+	err = ds.InsertHostLocationData(ctx, expected)
+	require.NoError(t, err)
+
+	locData, err = ds.GetHostLocationData(ctx, iOSHost.ID)
+	require.NoError(t, err)
+
+	assert.Equal(t, expected, *locData)
+
+	err = ds.DeleteHostLocationData(ctx, iOSHost.ID)
+	require.NoError(t, err)
+
+	_, err = ds.GetHostLocationData(ctx, iOSHost.ID)
+	require.True(t, fleet.IsNotFound(err))
+}
+
+func testGetDEPAssignProfileExpiredCooldowns(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := newTestHostWithPlatform(t, ds, "macos", "macos", nil)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO host_dep_assignments (host_id, profile_uuid) VALUES (?, ?)`, host.ID, uuid.NewString())
+		return err
+	})
+
+	cooldowns, err := ds.GetDEPAssignProfileExpiredCooldowns(ctx)
+	require.NoError(t, err)
+	require.Len(t, cooldowns, 0, "no failed assign response")
+
+	// Set failed and assigned response within the last minute
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_dep_assignments SET assign_profile_response = ?, retry_job_id = 0, response_updated_at = NOW() WHERE host_id = ?`, fleet.DEPAssignProfileResponseFailed, host.ID)
+		return err
+	})
+	cooldowns, err = ds.GetDEPAssignProfileExpiredCooldowns(ctx)
+	require.NoError(t, err)
+	require.Len(t, cooldowns, 0, "failed but still in cooldown")
+
+	// Set response_updated_at to be dep cooldown + 10 seconds to avoid timing issues
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_dep_assignments SET response_updated_at = DATE_SUB(NOW(), INTERVAL ? SECOND) WHERE host_id = ?`, depFailedCooldownPeriod.Seconds()+10, host.ID)
+		return err
+	})
+	cooldowns, err = ds.GetDEPAssignProfileExpiredCooldowns(ctx)
+	require.NoError(t, err)
+	require.Len(t, cooldowns, 1, "failed and cooldown expired")
+
+	// Generate 200 entries to test limit and order by
+	for i := range 200 {
+		h := newTestHostWithPlatform(t, ds, fmt.Sprintf("host-%d", i), "macos", nil)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_dep_assignments (host_id, profile_uuid, assign_profile_response, response_updated_at, retry_job_id) VALUES (?, ?, ?, DATE_SUB(NOW(), INTERVAL ? SECOND), 0)`, h.ID, uuid.NewString(), fleet.DEPAssignProfileResponseFailed, depFailedCooldownPeriod.Seconds()+10)
+			return err
+		})
+	}
+
+	cooldowns, err = ds.GetDEPAssignProfileExpiredCooldowns(ctx)
+	require.NoError(t, err)
+	require.Len(t, cooldowns, 1, "only expect no team ID")
+	allSerials := []string{}
+	for _, cd := range cooldowns {
+		allSerials = append(allSerials, cd...)
+	}
+	require.Len(t, allSerials, apple_mdm.DEPSyncLimit, "limit process cooldowns to sync limit")
+	require.LessOrEqual(t, len(allSerials), 1000, "never go above 1000 devices as per Apple's recommendations")
+}
+
+func testMDMAppleHostsDiskEncryption(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team"})
+	require.NoError(t, err)
+
+	hostCountEncryptionStatus := func(status fleet.DiskEncryptionStatus, teamID *uint) int {
+		gotHosts, err := ds.ListHosts(ctx,
+			fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
+			fleet.HostListOptions{OSSettingsDiskEncryptionFilter: status, TeamFilter: teamID},
+		)
+		require.NoError(t, err)
+		return len(gotHosts)
+	}
+
+	hostUnenrolled := test.NewHost(t, ds, "host-unenrolled", "", "key-1", "uuid-1", time.Now())
+	hostEnrolled := test.NewHost(t, ds, "host-enrolled", "", "key-2", "uuid-2", time.Now())
+	nanoEnrollUserDeviceAndSetHostMDMData(t, ds, hostEnrolled)
+
+	FVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP(fleetmdm.FleetFileVaultProfileName, mobileconfig.FleetFileVaultPayloadIdentifier, team.ID), nil)
+	require.NoError(t, err)
+
+	upsertHostCPs(
+		[]*fleet.Host{hostUnenrolled},
+		[]*fleet.MDMAppleConfigProfile{FVProfile},
+		fleet.MDMOperationTypeInstall,
+		&fleet.MDMDeliveryVerifying,
+		ctx, ds, t,
+	)
+	oneMinuteAfterThreshold := time.Now().Add(+1 * time.Minute)
+	createDiskEncryptionRecord(ctx, ds, t, hostUnenrolled, "key-1", true, oneMinuteAfterThreshold)
+
+	fvProfileSummary, err := ds.GetMDMAppleFileVaultSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(0), fvProfileSummary.Verifying)
+	require.Equal(t, 0, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
+
+	upsertHostCPs(
+		[]*fleet.Host{hostEnrolled},
+		[]*fleet.MDMAppleConfigProfile{FVProfile},
+		fleet.MDMOperationTypeInstall,
+		&fleet.MDMDeliveryVerifying,
+		ctx, ds, t,
+	)
+	oneMinuteAfterThreshold = time.Now().Add(+1 * time.Minute)
+	createDiskEncryptionRecord(ctx, ds, t, hostEnrolled, "key-2", true, oneMinuteAfterThreshold)
+
+	fvProfileSummary, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Verifying)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
+
+	upsertHostCPs(
+		[]*fleet.Host{hostEnrolled},
+		[]*fleet.MDMAppleConfigProfile{FVProfile},
+		fleet.MDMOperationTypeInstall,
+		&fleet.MDMDeliveryPending,
+		ctx, ds, t,
+	)
+
+	fvProfileSummary, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionEnforcing, nil))
+}
+
+func testDeleteMDMAppleDeclarationByNameCancelsInstalls(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	SetTestABMAssets(t, ds, "fleet")
+
+	runTest := func(t *testing.T, teamID *uint) {
+		// Create two declarations.
+		appleDecls := []*fleet.MDMAppleDeclaration{
+			declForTest("D1", "D1", "{}"),
+			declForTest("D2", "D2", "{}"),
+		}
+		_, err := ds.BatchSetMDMProfiles(ctx, teamID, nil, nil, appleDecls, nil, nil)
+		require.NoError(t, err)
+		declNameToDeclarations := make(map[string]*fleet.MDMConfigProfilePayload)
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, teamID, fleet.ListOptions{})
+		require.NoError(t, err)
+		for _, prof := range profs {
+			declNameToDeclarations[prof.Name] = prof
+		}
+
+		// Delete declaration D1.
+		err = ds.DeleteMDMAppleDeclarationByName(ctx, teamID, "D1")
+		require.NoError(t, err)
+
+		// Create two hosts.
+		var opts []test.NewHostOption
+		if teamID != nil {
+			opts = append(opts, test.WithTeamID(*teamID))
+		}
+		host1 := test.NewHost(t, ds, "host1", "1"+t.Name(), "h1key"+t.Name(), "host1uuid"+t.Name(), time.Now(), opts...)
+		host2 := test.NewHost(t, ds, "host2", "2"+t.Name(), "h2key"+t.Name(), "host2uuid"+t.Name(), time.Now(), opts...)
+		nanoEnroll(t, ds, host1, false)
+		nanoEnroll(t, ds, host2, false)
+
+		for _, h := range []*fleet.Host{host1, host2} {
+			err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", false)
+			require.NoError(t, err)
+		}
+
+		// Set the D2 declaration as pending install on host1, installed on host2
+		forceSetAppleHostDeclarationStatus(t, ds, host1.UUID, test.ToMDMAppleDecl(declNameToDeclarations["D2"]), fleet.MDMOperationTypeInstall, "")
+		forceSetAppleHostDeclarationStatus(t, ds, host2.UUID, test.ToMDMAppleDecl(declNameToDeclarations["D2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+		assertHostProfileOpStatus(t, ds, host1.UUID,
+			hostProfileOpStatus{declNameToDeclarations["D2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall})
+		assertHostProfileOpStatus(t, ds, host2.UUID,
+			hostProfileOpStatus{declNameToDeclarations["D2"].ProfileUUID, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall})
+
+		// Delete declaration D2.
+		err = ds.DeleteMDMAppleDeclarationByName(ctx, teamID, "D2")
+		require.NoError(t, err)
+
+		assertHostProfileOpStatus(t, ds, host1.UUID)
+		assertHostProfileOpStatus(t, ds, host2.UUID,
+			hostProfileOpStatus{declNameToDeclarations["D2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
+
+		// Deleting unexisting declaration should not fail.
+		err = ds.DeleteMDMAppleDeclarationByName(ctx, teamID, "D3")
+		require.NoError(t, err)
+	}
+
+	t.Run("No team", func(t *testing.T) {
+		runTest(t, nil)
+	})
+
+	t.Run("Team", func(t *testing.T) {
+		team, err := ds.NewTeam(t.Context(), &fleet.Team{
+			Name: t.Name(),
+		})
+		require.NoError(t, err)
+		runTest(t, &team.ID)
+	})
 }

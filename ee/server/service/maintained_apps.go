@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -14,9 +12,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
-	"github.com/go-kit/kit/log/level"
 )
 
 // noCheckHash is used by homebrew to signal that a hash shouldn't be checked, and FMA carries this convention over
@@ -64,14 +62,14 @@ func (svc *Service) AddFleetMaintainedApp(
 		return 0, ctxerr.Wrap(ctx, err, "getting maintained app by id")
 	}
 
-	app, err = maintained_apps.Hydrate(ctx, app)
+	app, err = maintained_apps.Hydrate(ctx, app, "", teamID, nil)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "hydrating app from manifest")
 	}
 
 	// Download installer from the URL
 	timeout := maintained_apps.InstallerTimeout
-	if v := os.Getenv("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT"); v != "" {
+	if v := dev_mode.Env("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT"); v != "" {
 		timeout, _ = time.ParseDuration(v)
 	}
 	client := fleethttp.NewClient(fleethttp.WithTimeout(timeout))
@@ -164,19 +162,27 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 
 	payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
-	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+	// Get the mapping of category names to IDs, filtering out categories that don't exist
+	// This allows apps to be added even if some categories (like "Security" or "Utilities")
+	// don't exist in older versions of Fleet.
+	categoryMap, err := svc.ds.GetSoftwareCategoryNameToIDMap(ctx, payload.Categories)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "getting software category ids")
+		return 0, ctxerr.Wrap(ctx, err, "getting software category name to id map")
 	}
 
-	if len(catIDs) != len(payload.Categories) {
-		return 0, &fleet.BadRequestError{
-			Message:     "some or all of the categories provided don't exist",
-			InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
+	// Filter payload.Categories to only include categories that exist in the database
+	var existingCategories []string
+	var existingCategoryIDs []uint
+	for _, catName := range payload.Categories {
+		if catID, exists := categoryMap[catName]; exists {
+			existingCategories = append(existingCategories, catName)
+			existingCategoryIDs = append(existingCategoryIDs, catID)
 		}
 	}
 
-	payload.CategoryIDs = catIDs
+	// Update payload with only the existing categories
+	payload.Categories = existingCategories
+	payload.CategoryIDs = existingCategoryIDs
 
 	// Create record in software installers table
 	_, titleID, err = svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
@@ -220,7 +226,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		}
 
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
-			level.Warn(svc.logger).Log("msg", "failed to create activity for create automatic install policy for FMA", "err", err)
+			svc.logger.WarnContext(ctx, "failed to create activity for create automatic install policy for FMA", "err", err)
 		}
 	}
 
@@ -267,5 +273,5 @@ func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint, teamI
 		return nil, err
 	}
 
-	return maintained_apps.Hydrate(ctx, app)
+	return maintained_apps.Hydrate(ctx, app, "", teamID, nil)
 }

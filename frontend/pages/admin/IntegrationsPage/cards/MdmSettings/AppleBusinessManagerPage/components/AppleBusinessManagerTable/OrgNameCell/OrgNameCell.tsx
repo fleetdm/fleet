@@ -1,6 +1,8 @@
+import React from "react";
+
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import React from "react";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "org-name-cell";
 
@@ -11,9 +13,21 @@ interface IOrgNameCellProps {
 
 const OrgNameCell = ({ orgName, termsExpired }: IOrgNameCellProps) => {
   const cellContent = termsExpired ? (
-    <>
+    <TooltipWrapper
+      showArrow
+      underline={false}
+      position="top"
+      tipContent={
+        <>
+          The ABM terms have changed.
+          <br />
+          To accept terms, go to ABM.
+        </>
+      }
+      className={`${baseClass}__tooltip-wrapper`}
+    >
       <span>{orgName}</span> <Icon name="warning" />
-    </>
+    </TooltipWrapper>
   ) : (
     orgName
   );

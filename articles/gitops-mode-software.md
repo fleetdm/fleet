@@ -1,6 +1,6 @@
 # Manage software using GitOps
 
-This guide is a walkthrough on how to manage software using [GitOps](https://fleetdm.com/docs/configuration/yaml-files#gitops). In Fleet, there are three types of software: [Fleet-maintained apps](#fleet-maintained-apps), [App Store (VPP) apps](#app-store-vpp-apps), and [custom packages](#custom-packages).
+This guide is a walkthrough on how to manage software using [GitOps](https://fleetdm.com/docs/configuration/yaml-files#gitops). In Fleet, there are three types of software: [Fleet-maintained apps](#fleet-maintained-apps), [app store apps](#app-store-apps), and [custom packages](#custom-packages).
 
 When using GitOps, you can optionally put Fleet in [GitOps mode](https://fleetdm.com/guides/gitops-mode). This prevents you from making changes in the UI that would be overridden by GitOps workflows.
 
@@ -19,13 +19,13 @@ If you want to use Fleet to host custom packages instead of a third-party packag
     3. Make sure that the package YAML is referenced from your team YAML.
     4. Download the additional queries and scripts that are linked in the modal and add them to your repository. Make sure to use the paths listed in the contents area above.
 
-## App Store (VPP) apps
+## App store apps
 
-To manage App Store (VPP) apps via GitOps, please see the [`app_store_apps`](https://fleetdm.com/docs/configuration/yaml-files#app-store-apps) in Fleet's best practice GitOps docs. Note that VPP apps must first be added to [Apple Business Manager](https://business.apple.com).
+To manage Apple App Store (VPP) or Android Google Play apps via GitOps, please see the [`app_store_apps`](https://fleetdm.com/docs/configuration/yaml-files#app-store-apps) in Fleet's best practice GitOps docs. Note that VPP apps must first be added to [Apple Business Manager](https://business.apple.com).
 
 ## Fleet-maintained apps
 
-To manage App Store (VPP) apps via GitOps, please see the [`fleet_maintained_apps`](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps) in Fleet's best practice GitOps docs.
+To manage Fleet-maintained apps via GitOps, please see the [`fleet_maintained_apps`](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps) in Fleet's best practice GitOps docs.
 
 
 <meta name="category" value="guides">

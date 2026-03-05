@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,13 +16,11 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	queries "github.com/fleetdm/fleet/v4/server/service/osquery_utils"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 var preInstalled = []string{}
 
-func postApplicationInstall(_ kitlog.Logger, _ string) error {
+func postApplicationInstall(_ context.Context, _ *slog.Logger, _ string) error {
 	return nil
 }
 
@@ -40,7 +39,7 @@ func normalizeVersion(version string) string {
 	return strings.Join(parts, ".")
 }
 
-func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentifier, appVersion, appPath string) (bool, error) {
+func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifier, appVersion, appPath string) (bool, error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -51,7 +50,7 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 		return false, fmt.Errorf("Invalid character found in appPath: '%w'. Not executing query...", err)
 	}
 
-	level.Info(logger).Log("msg", fmt.Sprintf("Looking for app: %s, version: %s", appName, appVersion))
+	logger.InfoContext(ctx, fmt.Sprintf("Looking for app: %s, version: %s", appName, appVersion))
 	query := `
 		SELECT name, install_location, version 
 		FROM programs
@@ -64,7 +63,7 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 	cmd := exec.CommandContext(execTimeout, "osqueryi", "--json", query)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		level.Error(logger).Log("msg", fmt.Sprintf("osquery output: %s", string(output)))
+		logger.ErrorContext(ctx, fmt.Sprintf("osquery output: %s", string(output)))
 		return false, fmt.Errorf("executing osquery command: %w", err)
 	}
 
@@ -75,7 +74,7 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 	}
 	var results []AppResult
 	if err := json.Unmarshal(output, &results); err != nil {
-		level.Error(logger).Log("msg", fmt.Sprintf("osquery output: %s", string(output)))
+		logger.ErrorContext(ctx, fmt.Sprintf("osquery output: %s", string(output)))
 		return false, fmt.Errorf("parsing osquery JSON output: %w", err)
 	}
 
@@ -86,16 +85,16 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 				Version: result.Version,
 				Source:  "programs",
 			}
-			queries.MutateSoftwareOnIngestion(software, logger)
+			queries.MutateSoftwareOnIngestion(ctx, software, logger)
 			result.Version = software.Version
 			result.Name = software.Name
 
-			level.Info(logger).Log("msg", fmt.Sprintf("Found app: '%s' at %s, Version: %s", result.Name, result.InstallLocation, result.Version))
+			logger.InfoContext(ctx, fmt.Sprintf("Found app: '%s' at %s, Version: %s", result.Name, result.InstallLocation, result.Version))
 
 			// Sublime Text's Inno Setup installer may not write version to registry properly
 			// If app is found but version is empty, check if it's Sublime Text and skip version check
 			if appName == "Sublime Text" && result.Version == "" {
-				level.Info(logger).Log("msg", "Sublime Text detected with empty version - skipping version check (installer may not write version to registry)")
+				logger.InfoContext(ctx, "Sublime Text detected with empty version - skipping version check (installer may not write version to registry)")
 				return true, nil
 			}
 
@@ -149,7 +148,7 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 
 		if provisioned.DisplayName != "" || provisioned.PackageName != "" {
 			provisionedVersion := provisioned.Version
-			level.Info(logger).Log("msg", fmt.Sprintf("Found provisioned AppX package: '%s', Version: %s", provisioned.DisplayName, provisionedVersion))
+			logger.InfoContext(ctx, fmt.Sprintf("Found provisioned AppX package: '%s', Version: %s", provisioned.DisplayName, provisionedVersion))
 
 			// Normalize both versions for comparison
 			normalizedProvisioned := normalizeVersion(provisionedVersion)

@@ -54,7 +54,10 @@ type VPPAppTeam struct {
 	DisplayName                 *string `json:"display_name"`
 	// Configuration is a json file used to customize Android app
 	// behavior/settings. Applicable to Android apps only.
-	Configuration json.RawMessage `json:"configuration,omitempty"`
+	Configuration       json.RawMessage `json:"configuration,omitempty"`
+	AutoUpdateEnabled   *bool           `json:"-"`
+	AutoUpdateStartTime *string         `json:"-"`
+	AutoUpdateEndTime   *string         `json:"-"`
 }
 
 func (v VPPAppTeam) GetPlatform() string {
@@ -82,7 +85,7 @@ type VPPApp struct {
 	// TeamID is used for authorization, it must be json serialized to be available
 	// to the rego script. We don't set it outside authorization anyway, so it
 	// won't render otherwise.
-	TeamID  *uint `db:"-" json:"team_id,omitempty"`
+	TeamID  *uint `db:"-" json:"team_id,omitempty" renameto:"fleet_id"`
 	TitleID uint  `db:"title_id" json:"-"`
 
 	CreatedAt time.Time `db:"created_at" json:"-"`
@@ -151,6 +154,14 @@ type HostVPPSoftwareInstall struct {
 	HostID               uint       `db:"host_id"`
 	InstallCommandStatus string     `db:"install_command_status"`
 	BundleIdentifier     string     `db:"bundle_identifier"`
+	RetryCount           int        `db:"retry_count"`
+	ExpectedVersion      string     `db:"expected_version"`
+}
+
+type HostVPPSoftwareInstallLite struct {
+	InstallCommandUUID string `db:"command_uuid"`
+	HostID             uint   `db:"host_id"`
+	RetryCount         int    `db:"retry_count"`
 }
 
 // HostAndroidVPPSoftwareInstall represents the payload needed to

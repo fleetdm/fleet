@@ -28,7 +28,7 @@ const baseClass = "transfer-host-modal";
 
 const NO_TEAM_OPTION = {
   value: "no-team",
-  label: "No team",
+  label: "Unassigned",
 };
 
 const TransferHostModal = ({
@@ -75,11 +75,7 @@ const TransferHostModal = ({
   };
 
   return (
-    <Modal
-      onExit={onCancel}
-      title={`Transfer host${multipleHosts ? "s" : ""}`}
-      className={baseClass}
-    >
+    <Modal onExit={onCancel} title="Transfer" className={baseClass}>
       <>
         <form className={`${baseClass}__form`}>
           <Dropdown
@@ -88,18 +84,18 @@ const TransferHostModal = ({
             value={selectedTeam && selectedTeam.id}
             options={createTeamDropdownOptions()}
             onChange={onChangeSelectTeam}
-            placeholder="Select a team"
+            placeholder="Select a fleet"
             searchable
             autoFocus
           />
           {isGlobalAdmin ? (
             <p>
-              Team not here?{" "}
+              Fleet not here?{" "}
               <Link
                 to={PATHS.ADMIN_TEAMS}
                 className={`${baseClass}__team-link`}
               >
-                Create a team
+                Create a fleet
               </Link>
             </p>
           ) : null}

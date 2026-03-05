@@ -32,6 +32,7 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 			if team.ID == teamID &&
 				(team.Role == fleet.RoleAdmin ||
 					team.Role == fleet.RoleMaintainer ||
+					team.Role == fleet.RoleTechnician ||
 					team.Role == fleet.RoleGitOps) {
 				return true
 			}
@@ -46,6 +47,7 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 		}
 		return *user.GlobalRole == fleet.RoleAdmin ||
 			*user.GlobalRole == fleet.RoleMaintainer ||
+			*user.GlobalRole == fleet.RoleTechnician ||
 			*user.GlobalRole == fleet.RoleGitOps
 	}
 
@@ -82,6 +84,7 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 		for _, team := range user.Teams {
 			if team.Role == fleet.RoleAdmin ||
 				team.Role == fleet.RoleMaintainer ||
+				team.Role == fleet.RoleTechnician ||
 				team.Role == fleet.RoleGitOps {
 				return true
 			}
@@ -182,7 +185,7 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 					(existingLabel.TeamID != nil && spec.TeamID == nil ||
 						existingLabel.TeamID == nil && spec.TeamID != nil ||
 						(existingLabel.TeamID != nil && spec.TeamID != nil && *existingLabel.TeamID != *spec.TeamID)) {
-					return ctxerr.Wrap(ctx, err, "one or more specified labels exists on another team")
+					return ctxerr.New(ctx, "one or more specified labels exists on another team")
 				}
 			}
 		}
@@ -276,13 +279,13 @@ DELETE FROM label_membership WHERE label_id = ?
 
 			intRegex := regexp.MustCompile(`^[0-9]+$`)
 			// Split hostnames into batches to avoid parameter limit in MySQL.
-			for _, hostIdentifiers := range batchHostnames(s.Hosts) {
+			for _, hostIdentifiersBatch := range batchHostnames(s.Hosts) {
 				var stringIdents []string
 				// Start with 0 so id IN (?) always has at least one element.
 				// id = 0 never matches any real host.
 				intIdents := []uint64{0}
 
-				for _, s := range hostIdentifiers {
+				for _, s := range hostIdentifiersBatch {
 					stringIdents = append(stringIdents, s)
 					// Use strconv to check if it's a valid integer
 					if intRegex.MatchString(s) {
@@ -291,10 +294,34 @@ DELETE FROM label_membership WHERE label_id = ?
 					}
 				}
 
+				hostsFilterClause := `(hostname IN (?) OR hardware_serial IN (?) OR uuid IN (?) OR id IN (?))`
+
+				if s.TeamID != nil {
+					// Team labels can only be applied to hosts on that team.
+					hostnames := stringIdents
+					serialNumbers := stringIdents
+					uuids := stringIdents
+					hostIDs := intIdents
+					if err := checkHostIdentifiersInTeam(ctx, tx,
+						*s.TeamID,
+						hostsFilterClause,
+						[]any{
+							hostnames,
+							serialNumbers,
+							uuids,
+							hostIDs,
+						},
+					); err != nil {
+						return ctxerr.Wrap(ctx, err, "check host identifiers in team")
+					}
+				}
+
 				// Use ignore because duplicate hostnames could appear in
 				// different batches and would result in duplicate key errors.
-				sql = `
-INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT DISTINCT ?, id FROM hosts where hostname IN (?) OR hardware_serial IN (?) OR uuid IN (?) OR id IN (?))`
+				sql = fmt.Sprintf(
+					`INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT DISTINCT ?, id FROM hosts WHERE %s)`,
+					hostsFilterClause,
+				)
 				sql, args, err := sqlx.In(sql, labelID, stringIdents, stringIdents, stringIdents, intIdents)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "build membership IN statement")
@@ -310,6 +337,32 @@ INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT DISTINCT ?, id F
 	})
 
 	return ctxerr.Wrap(ctx, err, "ApplyLabelSpecs transaction")
+}
+
+var errLabelMismatchHostTeam = errors.New("supplied hosts are on a different team than the label")
+
+func checkHostIdentifiersInTeam(
+	ctx context.Context,
+	tx sqlx.QueryerContext,
+	teamID uint,
+	andFilter string,
+	args []any,
+) error {
+	hostTeamCheckSql, args, err := sqlx.In(
+		`SELECT COUNT(id) FROM hosts WHERE (team_id != ? OR team_id IS NULL) AND `+andFilter,
+		append([]any{teamID}, args...)...,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build host identifiers team membership check IN statement")
+	}
+	var hostCountOnWrongTeam int
+	if err := tx.QueryRowxContext(ctx, hostTeamCheckSql, args...).Scan(&hostCountOnWrongTeam); err != nil {
+		return ctxerr.Wrap(ctx, err, "execute host identifiers team membership check query")
+	}
+	if hostCountOnWrongTeam > 0 {
+		return ctxerr.Wrap(ctx, errLabelMismatchHostTeam)
+	}
+	return nil
 }
 
 func batchHostnames(hostnames []string) [][]string {
@@ -348,29 +401,24 @@ func (ds *Datastore) UpdateLabelMembershipByHostIDs(ctx context.Context, label f
 		}
 
 		// Split hostIds into batches to avoid parameter limit in MySQL.
-		for _, hostIds := range batchHostIds(hostIds) {
-			if label.TeamID != nil { // team labels can only be applied to hosts on that team
-				hostTeamCheckSql := `SELECT COUNT(id) FROM hosts WHERE (team_id != ? OR team_id IS NULL) AND id IN (?)`
-				hostTeamCheckSql, args, err := sqlx.In(hostTeamCheckSql, label.TeamID, hostIds)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "build host team membership check IN statement")
-				}
-
-				var hostCountOnWrongTeam int
-				if err := tx.QueryRowxContext(ctx, hostTeamCheckSql, args...).Scan(&hostCountOnWrongTeam); err != nil {
-					return ctxerr.Wrap(ctx, err, "execute host team membership check query")
-				}
-				if hostCountOnWrongTeam > 0 {
-					return ctxerr.Wrap(ctx, errors.New("supplied hosts are on a different team than the label"))
+		for _, hostIDsBatch := range batchHostIds(hostIds) {
+			if label.TeamID != nil {
+				// Team labels can only be applied to hosts on that team.
+				if err := checkHostIdentifiersInTeam(ctx, tx,
+					*label.TeamID,
+					`id IN (?)`,
+					[]any{hostIDsBatch},
+				); err != nil {
+					return ctxerr.Wrap(ctx, err, "check host IDs in team")
 				}
 			}
 
-			// Use ignore because duplicate hostIds could appear in
+			// Use ignore because duplicate host IDs could appear in
 			// different batches and would result in duplicate key errors.
 			var values []any
 			var placeholders []string
 
-			for _, hostID := range hostIds {
+			for _, hostID := range hostIDsBatch {
 				values = append(values, label.ID, hostID)
 				placeholders = append(placeholders, "(?, ?)")
 			}
@@ -586,6 +634,9 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 
 	id, _ := result.LastInsertId()
 	label.ID = uint(id) //nolint:gosec // dismiss G115
+	now := time.Now().UTC().Truncate(time.Second)
+	label.CreatedAt = now
+	label.UpdatedAt = now
 	return label, nil
 }
 
@@ -1016,6 +1067,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
       COALESCE(hst.seen_time, h.created_at) as seen_time,
       COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
       h.last_restarted_at,
+      h.timezone,
       (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
       %s
       %s
@@ -1176,15 +1228,15 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	if diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
 		return "", nil, err
 	} else if opt.OSSettingsFilter.IsValid() {
-		query, whereParams, err = ds.filterHostsByOSSettingsStatus(query, opt, whereParams, diskEncryptionConfig)
+		query, whereParams, err = ds.filterHostsByOSSettingsStatus(ctx, query, opt, whereParams, diskEncryptionConfig)
 		if err != nil {
 			return "", nil, err
 		}
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
-		query, whereParams = ds.filterHostsByOSSettingsDiskEncryptionStatus(query, opt, whereParams, diskEncryptionConfig)
+		query, whereParams = ds.filterHostsByOSSettingsDiskEncryptionStatus(ctx, query, opt, whereParams, diskEncryptionConfig)
 	}
 	// TODO: should search columns include display_name (requires join to host_display_names)?
-	query, whereParams, _ = hostSearchLike(query, whereParams, opt.MatchQuery, hostSearchColumns...)
+	query, whereParams = hostSearchLike(query, whereParams, opt.MatchQuery, hostSearchColumns...)
 
 	if opt.ListOptions.OrderKey == "issues" {
 		opt.ListOptions.OrderKey = "host_issues.total_issues_count"

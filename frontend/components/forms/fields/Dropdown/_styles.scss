@@ -141,6 +141,11 @@
     }
   }
 
+  &.is-focused:not(.is-open) > .Select-control {
+    box-shadow: none;
+    border-color: $ui-fleet-black-75; // Override blue border on focus
+  }
+
   &.is-open {
     .dropdown__custom-arrow .dropdown__icon {
       svg {
@@ -201,15 +206,17 @@
 
     &.is-disabled {
       > .Select-control .Select-value .Select-value-label {
-        color: $ui-fleet-black-50;
+        color: $ui-fleet-black-5;
       }
     }
   }
 
   .Select-menu-outer {
+    position: relative;
     box-shadow: 0 4px 10px rgba(52, 59, 96, 0.15);
     z-index: 6;
-    overflow: hidden;
+    overflow: auto;
+    max-height: 198px; // Fits 4 options without scrolling
     border: 0;
     margin: 1px 0 0;
     padding: $pad-small;
@@ -217,7 +224,8 @@
   }
 
   .Select-menu {
-    max-height: 190px;
+    max-height: none; // Important to scroll in .Select-menu-outer
+    overflow: visible;
   }
 
   .Select-noresults {
@@ -238,7 +246,7 @@
     }
 
     &.is-focused {
-      background-color: $ui-fleet-black-10;
+      background-color: $ui-fleet-black-5;
 
       .Select-icon {
         color: $ui-fleet-black-10;
@@ -300,6 +308,7 @@
       .Select-value {
         border: 1px solid $ui-fleet-black-50;
         vertical-align: middle;
+        align-items: center;
         margin-top: 0;
         display: inline-flex;
         flex-direction: row-reverse;

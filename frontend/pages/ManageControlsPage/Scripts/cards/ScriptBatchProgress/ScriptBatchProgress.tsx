@@ -44,7 +44,7 @@ export const EMPTY_STATE_DETAILS: Record<ScriptBatchStatus, string> = {
 const getEmptyState = (status: ScriptBatchStatus) => {
   return (
     <div className={`${baseClass}__empty`}>
-      <b>No batch scripts {status} for this team</b>
+      <b>No batch scripts {status} for this fleet</b>
       <p>{EMPTY_STATE_DETAILS[status]}</p>
     </div>
   );

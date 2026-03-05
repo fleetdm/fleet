@@ -53,6 +53,7 @@ interface IActionsDropdownProps {
   repoURL?: string;
   isFMA?: boolean;
   isAndroidPlayStoreApp?: boolean;
+  isTechnician?: boolean;
 }
 
 export const SoftwareActionButtons = ({
@@ -63,6 +64,7 @@ export const SoftwareActionButtons = ({
   repoURL,
   isFMA,
   isAndroidPlayStoreApp,
+  isTechnician,
 }: IActionsDropdownProps) => {
   let options = [...SOFTWARE_PACKAGE_ACTION_OPTIONS];
 
@@ -106,6 +108,10 @@ export const SoftwareActionButtons = ({
     });
   }
 
+  if (isTechnician) {
+    options = options.filter((option) => option.value !== "delete");
+  }
+
   // Map action values to handlers
   const actionHandlers = {
     download: onDownloadClick,
@@ -113,12 +119,12 @@ export const SoftwareActionButtons = ({
   };
 
   return (
-    <div className={`${baseClass}__actions`}>
+    <div className={`${baseClass}__actions-wrapper`}>
       {options.map((option) => {
         const ButtonContent = (
           <Button
             key={option.value}
-            className={`btn btn-link ${baseClass}__action-btn`}
+            className={`${baseClass}__action-btn`}
             disabled={option.disabled}
             onClick={() =>
               actionHandlers[option.value as keyof typeof actionHandlers]?.()
@@ -202,6 +208,7 @@ const SoftwareInstallerCard = ({
     installerType,
     isAndroidPlayStoreApp,
     isFleetMaintainedApp,
+    isLatestFmaVersion,
     isCustomPackage,
     isIosOrIpadosApp,
     sha256,
@@ -216,6 +223,8 @@ const SoftwareInstallerCard = ({
     isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
+    isGlobalTechnician,
+    isTeamTechnician,
   } = useContext(AppContext);
 
   const { renderFlash } = useContext(NotificationContext);
@@ -253,7 +262,12 @@ const SoftwareInstallerCard = ({
   }, [renderFlash, softwareId, name, teamId]);
 
   const showActions =
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isTeamAdmin ||
+    isTeamMaintainer ||
+    isGlobalTechnician ||
+    isTeamTechnician;
 
   return (
     <Card borderRadiusSize="xxlarge" className={baseClass}>
@@ -267,6 +281,7 @@ const SoftwareInstallerCard = ({
               addedTimestamp={addedTimestamp}
               sha256={sha256}
               isFma={isFleetMaintainedApp}
+              isLatestFmaVersion={isLatestFmaVersion}
               isScriptPackage={isScriptPackage}
               androidPlayStoreId={androidPlayStoreId}
             />
@@ -315,19 +330,18 @@ const SoftwareInstallerCard = ({
               )}
             </div>
           </div>
-          <div className={`${baseClass}__actions-wrapper`}>
-            {showActions && (
-              <SoftwareActionButtons
-                installerType={installerType}
-                onDownloadClick={onDownloadClick}
-                onDeleteClick={onDeleteClick}
-                gitOpsModeEnabled={gitOpsModeEnabled}
-                repoURL={repoURL}
-                isFMA={isFleetMaintainedApp}
-                isAndroidPlayStoreApp={isAndroidPlayStoreApp}
-              />
-            )}
-          </div>
+          {showActions && (
+            <SoftwareActionButtons
+              installerType={installerType}
+              onDownloadClick={onDownloadClick}
+              onDeleteClick={onDeleteClick}
+              gitOpsModeEnabled={gitOpsModeEnabled}
+              repoURL={repoURL}
+              isFMA={isFleetMaintainedApp}
+              isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+              isTechnician={isGlobalTechnician || isTeamTechnician}
+            />
+          )}
         </div>
         {gitOpsModeEnabled && isCustomPackage && (
           <div className={`${baseClass}__row-2`}>
@@ -360,11 +374,13 @@ const SoftwareInstallerCard = ({
         <DeleteSoftwareModal
           gitOpsModeEnabled={gitOpsModeEnabled}
           softwareId={softwareId}
-          softwareDisplayName={softwareDisplayName}
-          softwareTitleName={softwareTitleName}
           teamId={teamId}
           onExit={() => setShowDeleteModal(false)}
           onSuccess={onDeleteSuccess}
+          isAppStoreApp={
+            installerType === "app-store" && !isAndroidPlayStoreApp
+          }
+          isAndroidApp={isAndroidPlayStoreApp}
         />
       )}
       {showViewYamlModal && isCustomPackage && (

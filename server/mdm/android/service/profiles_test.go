@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -18,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -96,6 +96,11 @@ func TestReconcileProfiles(t *testing.T) {
 				DS:         ds,
 				Enterprise: enterprise,
 				Client:     client,
+				AndroidAgentConfig: config.AndroidAgentConfig{
+					Package:       "com.fleetdm.agent",
+					SigningSHA256: "abc123def456",
+				},
+				Logger: slog.New(slog.DiscardHandler),
 			}
 
 			c.fn(t, ds, client, reconciler)
@@ -229,9 +234,9 @@ func testHostsWithConflictProfile(t *testing.T, ds fleet.Datastore, client *mock
 	client.EnterprisesDevicesPatchFuncInvoked = false
 
 	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
-		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"key1" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"key1" isn't applied. It's overridden by another configuration profile.`},
 		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
-		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"key1" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"key1" isn't applied. It's overridden by another configuration profile.`},
 		{HostUUID: h2.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
 	})
 
@@ -284,8 +289,8 @@ func testHostsWithMultiOverrideProfile(t *testing.T, ds fleet.Datastore, client 
 	client.EnterprisesDevicesPatchFuncInvoked = false
 
 	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
-		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"key1", and "key2" aren't applied. They are overridden by other configuration profile.`},
-		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"key1", "key2", and "key3" aren't applied. They are overridden by other configuration profile.`},
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"key1", and "key2" aren't applied. They are overridden by other configuration profiles.`},
+		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"key1", "key2", and "key3" aren't applied. They are overridden by other configuration profiles.`},
 		{HostUUID: h1.UUID, ProfileUUID: p3.ProfileUUID, ProfileName: p3.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
 	})
 
@@ -337,8 +342,8 @@ func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Cli
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
 
 	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
-		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: nil, RequestFailCount: 0, PolicyRequestUUID: nil, DeviceRequestUUID: nil, Detail: `Couldn't apply profile. Google returned error. Please re-add profile to try again.`},
-		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: nil, RequestFailCount: 0, PolicyRequestUUID: nil, DeviceRequestUUID: nil, Detail: `Couldn't apply profile. Google returned error. Please re-add profile to try again.`},
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: nil, RequestFailCount: 0, PolicyRequestUUID: nil, DeviceRequestUUID: nil, Detail: `Couldn't apply profile. Google returned error: nope. Please re-add the profile and try again.`},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: nil, RequestFailCount: 0, PolicyRequestUUID: nil, DeviceRequestUUID: nil, Detail: `Couldn't apply profile. Google returned error: nope. Please re-add the profile and try again.`},
 	})
 
 	// next run has nothing to do
@@ -470,9 +475,9 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	client.EnterprisesDevicesPatchFuncInvoked = false
 
 	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
-		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(4), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(4), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
 		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(4), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
-		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(4), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(4), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
 		{HostUUID: h2.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(4), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
 	})
 
@@ -631,9 +636,9 @@ func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.C
 
 	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
 		{HostUUID: h1.UUID, ProfileUUID: pNoLabel.ProfileUUID, ProfileName: pNoLabel.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
-		{HostUUID: h1.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h1.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
 		{HostUUID: h2.UUID, ProfileUUID: pNoLabel.ProfileUUID, ProfileName: pNoLabel.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
-		{HostUUID: h2.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h2.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
 	})
 
 	// make h1 member of inclany and h2 of inclall
@@ -653,11 +658,11 @@ func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.C
 
 	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
 		{HostUUID: h1.UUID, ProfileUUID: pNoLabel.ProfileUUID, ProfileName: pNoLabel.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
-		{HostUUID: h1.UUID, ProfileUUID: pInclAny.ProfileUUID, ProfileName: pInclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
-		{HostUUID: h1.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h1.UUID, ProfileUUID: pInclAny.ProfileUUID, ProfileName: pInclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
+		{HostUUID: h1.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
 		{HostUUID: h2.UUID, ProfileUUID: pNoLabel.ProfileUUID, ProfileName: pNoLabel.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
-		{HostUUID: h2.UUID, ProfileUUID: pInclAll.ProfileUUID, ProfileName: pInclAll.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
-		{HostUUID: h2.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h2.UUID, ProfileUUID: pInclAll.ProfileUUID, ProfileName: pInclAll.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
+		{HostUUID: h2.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
 	})
 
 	// make h1 member of exclAny so it stops receiving this profile
@@ -676,12 +681,12 @@ func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.C
 
 	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
 		{HostUUID: h1.UUID, ProfileUUID: pNoLabel.ProfileUUID, ProfileName: pNoLabel.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
-		{HostUUID: h1.UUID, ProfileUUID: pInclAny.ProfileUUID, ProfileName: pInclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h1.UUID, ProfileUUID: pInclAny.ProfileUUID, ProfileName: pInclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
 		{HostUUID: h1.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
 
 		{HostUUID: h2.UUID, ProfileUUID: pNoLabel.ProfileUUID, ProfileName: pNoLabel.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(h2Version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
-		{HostUUID: h2.UUID, ProfileUUID: pInclAll.ProfileUUID, ProfileName: pInclAll.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(h2Version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
-		{HostUUID: h2.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(h2Version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h2.UUID, ProfileUUID: pInclAll.ProfileUUID, ProfileName: pInclAll.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(h2Version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
+		{HostUUID: h2.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(h2Version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
 	})
 
 	// run again, nothing to process
@@ -747,7 +752,7 @@ func createAndroidHostInTeam(t *testing.T, ds fleet.Datastore, suffixID int, tea
 		},
 	}
 	host.SetNodeKey(*host.Device.EnterpriseSpecificID)
-	_, err := ds.NewAndroidHost(context.Background(), host)
+	_, err := ds.NewAndroidHost(context.Background(), host, false)
 	require.NoError(t, err)
 
 	return host
@@ -899,15 +904,6 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 		return &androidmanagement.Policy{}, nil
 	}
 
-	oldPackageValue := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
-	oldSHA256Value := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", "com.fleetdm.agent")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", "abc123def456")
-	defer func() {
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", oldPackageValue)
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", oldSHA256Value)
-	}()
-
 	err = reconciler.reconcileCertificateTemplates(ctx)
 	require.NoError(t, err)
 
@@ -916,21 +912,24 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 	require.Equal(t, fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), host1.Host.UUID), capturedPolicyName)
 	require.Len(t, capturedPolicies, 1)
 
-	// Verify the managed configuration contains certificate template IDs
+	// Verify the managed configuration contains certificate template IDs with status and operation
 	var managedConfig android.AgentManagedConfiguration
 	err = json.Unmarshal(capturedPolicies[0].ManagedConfiguration, &managedConfig)
 	require.NoError(t, err)
 	require.Len(t, managedConfig.CertificateTemplateIDs, 2)
 	for _, certTemplate := range managedConfig.CertificateTemplateIDs {
 		require.Contains(t, certificateTemplateIDs, certTemplate.ID)
+		// When sent to API, templates are in "delivering" status (transition to "delivered" happens after API success)
+		require.EqualValues(t, fleet.CertificateTemplateDelivering, certTemplate.Status)
+		require.EqualValues(t, fleet.MDMOperationTypeInstall, certTemplate.Operation)
 	}
 
-	// Verify that host_certificate_template records were created with pending status
+	// Verify that host_certificate_template records were created with delivered status
 	var host1CertTemplates []struct {
-		HostUUID              string `db:"host_uuid"`
-		CertificateTemplateID uint   `db:"certificate_template_id"`
-		FleetChallenge        string `db:"fleet_challenge"`
-		Status                string `db:"status"`
+		HostUUID              string  `db:"host_uuid"`
+		CertificateTemplateID uint    `db:"certificate_template_id"`
+		FleetChallenge        *string `db:"fleet_challenge"`
+		Status                string  `db:"status"`
 	}
 	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
 		query := `
@@ -945,7 +944,8 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 
 	for _, hct := range host1CertTemplates {
 		require.Equal(t, host1.Host.UUID, hct.HostUUID)
-		require.NotEmpty(t, hct.FleetChallenge)
+		// Challenge is created on-demand when device fetches the certificate, so it's nil here
+		require.Nil(t, hct.FleetChallenge)
 		require.EqualValues(t, fleet.CertificateTemplateDelivered, hct.Status)
 	}
 
@@ -1004,22 +1004,17 @@ func testBuildAndSendFleetAgentConfigForEnrollment(t *testing.T, ds fleet.Datast
 		return &androidmanagement.Policy{}, nil
 	}
 
-	oldPackageValue := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
-	oldSHA256Value := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", "com.fleetdm.agent")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", "abc123def456")
-	defer func() {
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", oldPackageValue)
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", oldSHA256Value)
-	}()
-
 	// Create service and call BuildAndSendFleetAgentConfig with skipHostsWithoutNewCerts=false
 	// This simulates the enrollment flow from software_worker.go
 	svc := &Service{
-		logger:           kitlog.NewNopLogger(),
+		logger:           slog.New(slog.DiscardHandler),
 		fleetDS:          ds,
 		ds:               ds.(fleet.AndroidDatastore),
 		androidAPIClient: client,
+		androidAgentConfig: config.AndroidAgentConfig{
+			Package:       "com.fleetdm.agent",
+			SigningSHA256: "abc123def456",
+		},
 	}
 
 	// Call with skipHostsWithoutNewCerts=false (enrollment scenario)
@@ -1188,15 +1183,6 @@ func testCertificateTemplatesIncludesExistingVerified(t *testing.T, ds fleet.Dat
 		return &androidmanagement.Policy{}, nil
 	}
 
-	oldPackageValue := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
-	oldSHA256Value := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", "com.fleetdm.agent")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", "abc123def456")
-	defer func() {
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", oldPackageValue)
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", oldSHA256Value)
-	}()
-
 	// Run reconciliation
 	err = reconciler.reconcileCertificateTemplates(ctx)
 	require.NoError(t, err)
@@ -1214,14 +1200,22 @@ func testCertificateTemplatesIncludesExistingVerified(t *testing.T, ds fleet.Dat
 	require.Len(t, managedConfig.CertificateTemplateIDs, 5,
 		"Agent config should include all certificate templates (verified, delivered, delivering, failed, and pending)")
 
-	// Verify all certificate template IDs are present
-	templateIDs := make(map[uint]bool)
+	// Verify all certificate template IDs are present with correct status and operation
+	templatesByID := make(map[uint]android.AgentCertificateTemplate)
 	for _, tmpl := range managedConfig.CertificateTemplateIDs {
-		templateIDs[tmpl.ID] = true
+		templatesByID[tmpl.ID] = tmpl
 	}
-	require.True(t, templateIDs[verifiedCert.ID], "Verified certificate should be in the config")
-	require.True(t, templateIDs[deliveredCert.ID], "Delivered certificate should be in the config")
-	require.True(t, templateIDs[deliveringCert.ID], "Delivering certificate should be in the config")
-	require.True(t, templateIDs[failedCert.ID], "Failed certificate should be in the config")
-	require.True(t, templateIDs[pendingCert.ID], "Pending certificate should be in the config")
+
+	assertCertTemplate := func(certID uint, expectedStatus fleet.CertificateTemplateStatus, expectedOp fleet.MDMOperationType) {
+		require.Contains(t, templatesByID, certID)
+		require.EqualValues(t, expectedStatus, templatesByID[certID].Status)
+		require.EqualValues(t, expectedOp, templatesByID[certID].Operation)
+	}
+
+	assertCertTemplate(verifiedCert.ID, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall)
+	assertCertTemplate(deliveredCert.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall)
+	assertCertTemplate(deliveringCert.ID, fleet.CertificateTemplateDelivering, fleet.MDMOperationTypeInstall)
+	assertCertTemplate(failedCert.ID, fleet.CertificateTemplateFailed, fleet.MDMOperationTypeInstall)
+	// Pending certificate transitions to delivering before the API call
+	assertCertTemplate(pendingCert.ID, fleet.CertificateTemplateDelivering, fleet.MDMOperationTypeInstall)
 }

@@ -60,9 +60,18 @@ class MockScepClient : ScepClient {
 
         val cert = generateSelfSignedCertificate(keyPair, subject)
 
+        // Extract certificate metadata from generated certificate
+        val x509Cert = cert as X509Certificate
+        val notAfter = x509Cert.notAfter
+        val notBefore = x509Cert.notBefore
+        val serialNumber = x509Cert.serialNumber
+
         return ScepResult(
             privateKey = keyPair.private,
             certificateChain = listOf(cert),
+            notAfter = notAfter,
+            notBefore = notBefore,
+            serialNumber = serialNumber,
         )
     }
 

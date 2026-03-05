@@ -17,9 +17,9 @@ export default [
   },
   {
     path: PATHS.MANAGE_QUERIES,
-    title: `Queries | ${DOCUMENT_TITLE_SUFFIX}`,
+    title: `Reports | ${DOCUMENT_TITLE_SUFFIX}`,
   },
-  { path: PATHS.NEW_QUERY, title: `New query | ${DOCUMENT_TITLE_SUFFIX}` },
+  { path: PATHS.NEW_QUERY, title: `New report | ${DOCUMENT_TITLE_SUFFIX}` },
   {
     path: PATHS.MANAGE_POLICIES,
     title: `Policies | ${DOCUMENT_TITLE_SUFFIX}`,

@@ -27,7 +27,7 @@ const ConfigProfileHostCountCell = ({
   onClickResend,
 }: IConfigProfileHostCountCellProps) => {
   const hostPath = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
-    team_id: teamId,
+    fleet_id: teamId,
     profile_uuid: uuid,
     profile_status: status,
   })}`;

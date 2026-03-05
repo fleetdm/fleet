@@ -9,7 +9,7 @@ const AwaitingResults = () => {
     <EmptyTable
       graphicName="collecting-results"
       header="Phoning home..."
-      info=" There are currently no results to your query. Please wait while we talk
+      info=" There are currently no results to your report. Please wait while we talk
         to more hosts."
       className={baseClass}
     />

@@ -7,16 +7,15 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
-	"github.com/micromdm/nanolib/log"
-	"github.com/micromdm/nanolib/log/ctxlog"
 )
 
 // Schema holds the schema for the NanoMDM MySQL storage.
@@ -27,7 +26,7 @@ var Schema string
 var ErrNoCert = errors.New("no certificate in MDM Request")
 
 type MySQLStorage struct {
-	logger        log.Logger
+	logger        *slog.Logger
 	db            *sql.DB
 	rm            bool
 	asyncLastSeen *asyncLastSeen
@@ -38,7 +37,7 @@ type config struct {
 	driver        string
 	dsn           string
 	db            *sql.DB
-	logger        log.Logger
+	logger        *slog.Logger
 	rm            bool
 	asyncCap      int
 	asyncInterval time.Duration
@@ -53,7 +52,7 @@ func WithReaderFunc(readerFunc func(ctx context.Context) fleet.DBReader) Option 
 	}
 }
 
-func WithLogger(logger log.Logger) Option {
+func WithLogger(logger *slog.Logger) Option {
 	return func(c *config) {
 		c.logger = logger
 	}
@@ -96,7 +95,7 @@ func New(opts ...Option) (*MySQLStorage, error) {
 		asyncLastSeenCap           = 1000
 	)
 
-	cfg := &config{logger: log.NopLogger, driver: "mysql", asyncCap: asyncLastSeenCap, asyncInterval: asyncLastSeenFlushInterval}
+	cfg := &config{logger: slog.New(slog.DiscardHandler), driver: "mysql", asyncCap: asyncLastSeenCap, asyncInterval: asyncLastSeenFlushInterval}
 	for _, opt := range opts {
 		opt(cfg)
 	}
@@ -180,9 +179,7 @@ func (s *MySQLStorage) storeUserTokenUpdate(r *mdm.Request, msg *mdm.TokenUpdate
 	// there shouldn't be an Unlock Token on the user channel, but
 	// complain if there is to warn an admin
 	if len(msg.UnlockToken) > 0 {
-		ctxlog.Logger(r.Context, s.logger).Info(
-			"msg", "Unlock Token on user channel not stored",
-		)
+		s.logger.InfoContext(r.Context, "Unlock Token on user channel not stored")
 	}
 	_, err := s.db.ExecContext(
 		r.Context, `
@@ -334,20 +331,20 @@ func (s *MySQLStorage) updateLastSeenBatch(ctx context.Context, ids []string) {
 
 	stmt, args, err := sqlx.In(`UPDATE nano_enrollments SET last_seen_at = CURRENT_TIMESTAMP WHERE id IN (?)`, ids)
 	if err != nil {
-		s.logger.Info("msg", "error building nano_enrollments.last_seen_at sql", "err", err)
+		s.logger.ErrorContext(ctx, "error building nano_enrollments.last_seen_at sql", "err", err)
 		return
 	}
 
 	err = common_mysql.WithRetryTxx(ctx, sqlx.NewDb(s.db, ""), func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, stmt, args...)
 		return err
-	}, loggerWrapper{s.logger})
+	}, s.logger)
 	if err != nil {
-		s.logger.Info("msg", "error batch updating nano_enrollments.last_seen_at", "err", err)
+		s.logger.ErrorContext(ctx, "error batch updating nano_enrollments.last_seen_at", "err", err)
 	}
 }
 
-func (s *MySQLStorage) ExpandEmbeddedSecrets(_ context.Context, document string) (string, error) {
-	s.logger.Info("level", "error", "err", "MySQLStorage.ExpandEmbeddedSecrets not implemented")
+func (s *MySQLStorage) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
+	s.logger.ErrorContext(ctx, "MySQLStorage.ExpandEmbeddedSecrets not implemented")
 	return document, nil
 }
