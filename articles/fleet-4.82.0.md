@@ -16,7 +16,7 @@ Fleet 4.82.0 is now available. See the complete [changelog](https://github.com/f
 
 Fleet now uses "fleets" instead of "teams" and "reports" instead of "queries" across the UI, API, CLI, and GitOps (YAML). The new "fleets" terminology better reflects how hosts are grouped and managed in Fleet. "Reports" makes it clearer that these are used to collect host information.
 
-Existing workflows continue to work. All API endpoints, CLI commands, and YAML Keys with "teams" and "queries" are still supported for backward compatibility and automatically map to "fleets" and "reports" respectively.
+Existing workflows continue to work. All API endpoints, CLI commands, and YAML Keys with "teams" and "queries" are still supported for backward compatibility and automatically map to "fleets" and "reports" respectively. Reference documentation updates are coming soon.
 
 GitHub issues: [#39314](https://github.com/fleetdm/fleet/issues/39314), [#39238](https://github.com/fleetdm/fleet/issues/39238) 
 
