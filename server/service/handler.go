@@ -801,6 +801,12 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAnyMW.POST("/api/_version_/fleet/configuration_profiles/resend/batch", batchResendMDMProfileToHostsEndpoint, batchResendMDMProfileToHostsRequest{})
 	mdmAnyMW.GET("/api/_version_/fleet/configuration_profiles/{profile_uuid}/status", getMDMConfigProfileStatusEndpoint, getMDMConfigProfileStatusRequest{})
 
+	// Windows enforcement profiles
+	ue.GET("/api/_version_/fleet/enforcement/profiles", listWindowsEnforcementProfilesEndpoint, listWindowsEnforcementProfilesRequest{})
+	ue.WithRequestBodySizeLimit(fleet.MaxProfileSize).POST("/api/_version_/fleet/enforcement/profiles", uploadWindowsEnforcementProfileEndpoint, uploadWindowsEnforcementProfileRequest{})
+	ue.GET("/api/_version_/fleet/enforcement/profiles/{profile_uuid}", getWindowsEnforcementProfileEndpoint, getWindowsEnforcementProfileRequest{})
+	ue.DELETE("/api/_version_/fleet/enforcement/profiles/{profile_uuid}", deleteWindowsEnforcementProfileEndpoint, deleteWindowsEnforcementProfileRequest{})
+
 	// Deprecated: PATCH /mdm/apple/settings is deprecated, replaced by POST /disk_encryption.
 	// It was only used to set disk encryption.
 	mdmAnyMW.PATCH("/api/_version_/fleet/mdm/apple/settings", updateMDMAppleSettingsEndpoint, updateMDMAppleSettingsRequest{})

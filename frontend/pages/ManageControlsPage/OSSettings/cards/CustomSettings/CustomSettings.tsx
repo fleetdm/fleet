@@ -9,6 +9,8 @@ import { NotificationContext } from "context/notification";
 import { IMdmProfile } from "interfaces/mdm";
 
 import mdmAPI, { IMdmProfilesResponse } from "services/entities/mdm";
+import enforcementAPI from "services/entities/enforcement";
+import { IEnforcementProfilesResponse } from "interfaces/enforcement";
 
 import Card from "components/Card/Card";
 import CustomLink from "components/CustomLink";
@@ -105,11 +107,64 @@ const CustomSettings = ({
       refetchOnWindowFocus: false,
     }
   );
-  const profiles = profilesData?.profiles;
+
+  const {
+    data: enforcementData,
+    isLoading: isLoadingEnforcement,
+    isError: isErrorEnforcement,
+    refetch: refetchEnforcement,
+  } = useQuery<IEnforcementProfilesResponse, unknown>(
+    [
+      {
+        scope: "enforcement_profiles",
+        team_id: currentTeamId,
+        page: currentPage,
+        per_page: PROFILES_PER_PAGE,
+      },
+    ],
+    () =>
+      enforcementAPI.getProfiles({
+        team_id: currentTeamId,
+        page: currentPage,
+        per_page: PROFILES_PER_PAGE,
+      }),
+    {
+      refetchOnWindowFocus: false,
+    }
+  );
+
+  // Merge MDM and enforcement profiles into a single list
+  const mergedProfiles: IMdmProfile[] = React.useMemo(() => {
+    const mdmProfiles: IMdmProfile[] = (profilesData?.profiles || []).map(
+      (p) => ({ ...p, profile_type: "mdm" as const })
+    );
+    const enfProfiles: IMdmProfile[] = (
+      enforcementData?.profiles || []
+    ).map((ep) => ({
+      profile_uuid: ep.profile_uuid,
+      team_id: ep.team_id ?? 0,
+      name: ep.name,
+      platform: "windows" as const,
+      profile_type: "enforcement" as const,
+      identifier: null,
+      created_at: ep.created_at,
+      updated_at: ep.updated_at,
+      checksum: null,
+    }));
+    return [...mdmProfiles, ...enfProfiles].sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, [profilesData, enforcementData]);
+
+  const profiles = mergedProfiles.length > 0 ? mergedProfiles : null;
   const meta = profilesData?.meta;
+  const isLoadingAllProfiles = isLoadingProfiles || isLoadingEnforcement;
+  const isErrorAllProfiles = isErrorProfiles || isErrorEnforcement;
 
   const onUploadProfile = () => {
     refetchProfiles();
+    refetchEnforcement();
     onMutation();
   };
 
@@ -126,8 +181,16 @@ const CustomSettings = ({
   const onDeleteProfile = async (profileId: string) => {
     setIsDeleting(true);
     try {
-      await mdmAPI.deleteProfile(profileId);
+      const isEnforcement =
+        selectedProfile.current?.profile_type === "enforcement" ||
+        profileId.startsWith("e");
+      if (isEnforcement) {
+        await enforcementAPI.deleteProfile(profileId);
+      } else {
+        await mdmAPI.deleteProfile(profileId);
+      }
       refetchProfiles();
+      refetchEnforcement();
       onMutation();
       renderFlash("success", "Successfully deleted.");
     } catch (e) {
@@ -162,11 +225,11 @@ const CustomSettings = ({
   };
 
   const renderProfileList = () => {
-    if (isLoadingProfiles) {
+    if (isLoadingAllProfiles) {
       return <Spinner />;
     }
 
-    if (isErrorProfiles) {
+    if (isErrorAllProfiles) {
       return <DataError />;
     }
 
@@ -242,17 +305,7 @@ const CustomSettings = ({
           </>
         }
       />
-      {!mdmEnabled ? (
-        <GenericMsgWithNavButton
-          header="Manage your hosts"
-          buttonText="Turn on"
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          router={router}
-          info="MDM must be turned on to apply custom settings."
-        />
-      ) : (
-        renderProfileList()
-      )}
+      {renderProfileList()}
       {showAddProfileModal && (
         <AddProfileModal
           currentTeamId={currentTeamId}

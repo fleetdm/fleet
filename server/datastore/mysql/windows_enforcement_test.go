@@ -1,0 +1,361 @@
+package mysql
+
+import (
+	"context"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestWindowsEnforcement(t *testing.T) {
+	ds := CreateMySQLDS(t)
+
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"BatchSetWindowsEnforcementProfiles", testBatchSetWindowsEnforcementProfiles},
+		{"ListWindowsEnforcementProfiles", testListWindowsEnforcementProfiles},
+		{"GetDeleteWindowsEnforcementProfile", testGetDeleteWindowsEnforcementProfile},
+		{"BulkUpsertHostWindowsEnforcement", testBulkUpsertHostWindowsEnforcement},
+		{"GetHostWindowsEnforcement", testGetHostWindowsEnforcement},
+		{"GetHostWindowsEnforcementHash", testGetHostWindowsEnforcementHash},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testBatchSetWindowsEnforcementProfiles(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Apply empty set for no-team - should not error
+	err := ds.BatchSetWindowsEnforcementProfiles(ctx, nil, nil)
+	require.NoError(t, err)
+
+	// Apply a set of profiles for no-team
+	profiles := []*fleet.WindowsEnforcementProfile{
+		{Name: "registry-cis", RawPolicy: []byte(`{"registry":[{"path":"HKLM\\Test","name":"TestVal","type":"dword","value":1}]}`)},
+		{Name: "audit-cis", RawPolicy: []byte(`{"audit_policy":[{"subcategory":"Logon","include":"Success"}]}`)},
+	}
+	err = ds.BatchSetWindowsEnforcementProfiles(ctx, nil, profiles)
+	require.NoError(t, err)
+
+	// Verify profiles were created
+	got, err := ds.ListWindowsEnforcementProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+
+	for _, p := range got {
+		require.True(t, strings.HasPrefix(p.ProfileUUID, fleet.WindowsEnforcementUUIDPrefix),
+			"profile UUID should start with %q, got %q", fleet.WindowsEnforcementUUIDPrefix, p.ProfileUUID)
+		require.NotEmpty(t, p.Checksum)
+	}
+
+	// Apply same profiles - should be idempotent (no changes)
+	err = ds.BatchSetWindowsEnforcementProfiles(ctx, nil, profiles)
+	require.NoError(t, err)
+
+	got2, err := ds.ListWindowsEnforcementProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, got2, 2)
+
+	// UUIDs should be the same as before (not regenerated)
+	uuids1 := make(map[string]string)
+	for _, p := range got {
+		uuids1[p.Name] = p.ProfileUUID
+	}
+	for _, p := range got2 {
+		require.Equal(t, uuids1[p.Name], p.ProfileUUID)
+	}
+
+	// Update one profile's content
+	profiles[0].RawPolicy = []byte(`{"registry":[{"path":"HKLM\\Test","name":"TestVal","type":"dword","value":2}]}`)
+	err = ds.BatchSetWindowsEnforcementProfiles(ctx, nil, profiles)
+	require.NoError(t, err)
+
+	got3, err := ds.ListWindowsEnforcementProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, got3, 2)
+
+	// Remove one profile
+	profiles = profiles[:1]
+	err = ds.BatchSetWindowsEnforcementProfiles(ctx, nil, profiles)
+	require.NoError(t, err)
+
+	got4, err := ds.ListWindowsEnforcementProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, got4, 1)
+	require.Equal(t, "registry-cis", got4[0].Name)
+
+	// Apply profiles for a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test-team"})
+	require.NoError(t, err)
+
+	teamProfiles := []*fleet.WindowsEnforcementProfile{
+		{Name: "team-registry", RawPolicy: []byte(`{"registry":[]}`)},
+	}
+	err = ds.BatchSetWindowsEnforcementProfiles(ctx, &team.ID, teamProfiles)
+	require.NoError(t, err)
+
+	gotTeam, err := ds.ListWindowsEnforcementProfiles(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, gotTeam, 1)
+
+	// Verify no-team profiles are unaffected
+	gotNoTeam, err := ds.ListWindowsEnforcementProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, gotNoTeam, 1)
+
+	// Clear all team profiles
+	err = ds.BatchSetWindowsEnforcementProfiles(ctx, &team.ID, nil)
+	require.NoError(t, err)
+
+	gotTeam, err = ds.ListWindowsEnforcementProfiles(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, gotTeam, 0)
+}
+
+func testListWindowsEnforcementProfiles(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Empty list
+	profiles, err := ds.ListWindowsEnforcementProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Empty(t, profiles)
+
+	// Add profiles and verify order
+	batch := []*fleet.WindowsEnforcementProfile{
+		{Name: "zz-last", RawPolicy: []byte(`{}`)},
+		{Name: "aa-first", RawPolicy: []byte(`{}`)},
+		{Name: "mm-middle", RawPolicy: []byte(`{}`)},
+	}
+	err = ds.BatchSetWindowsEnforcementProfiles(ctx, nil, batch)
+	require.NoError(t, err)
+
+	profiles, err = ds.ListWindowsEnforcementProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, profiles, 3)
+	require.Equal(t, "aa-first", profiles[0].Name)
+	require.Equal(t, "mm-middle", profiles[1].Name)
+	require.Equal(t, "zz-last", profiles[2].Name)
+}
+
+func testGetDeleteWindowsEnforcementProfile(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a profile
+	batch := []*fleet.WindowsEnforcementProfile{
+		{Name: "test-profile", RawPolicy: []byte(`{"registry":[]}`)},
+	}
+	err := ds.BatchSetWindowsEnforcementProfiles(ctx, nil, batch)
+	require.NoError(t, err)
+
+	profiles, err := ds.ListWindowsEnforcementProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, profiles, 1)
+	uuid := profiles[0].ProfileUUID
+
+	// Get by UUID
+	got, err := ds.GetWindowsEnforcementProfile(ctx, uuid)
+	require.NoError(t, err)
+	require.Equal(t, "test-profile", got.Name)
+	require.Equal(t, uuid, got.ProfileUUID)
+
+	// Delete by UUID
+	err = ds.DeleteWindowsEnforcementProfile(ctx, uuid)
+	require.NoError(t, err)
+
+	// Verify deletion
+	profiles, err = ds.ListWindowsEnforcementProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Empty(t, profiles)
+}
+
+func testBulkUpsertHostWindowsEnforcement(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Empty payload should not error
+	err := ds.BulkUpsertHostWindowsEnforcement(ctx, nil)
+	require.NoError(t, err)
+
+	// Create host and enforcement profile
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "test-host",
+		Platform:       "windows",
+		OsqueryHostID:  ptr.String("test-host-osquery"),
+		NodeKey:        ptr.String("test-host-node"),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:       time.Now(),
+	})
+	require.NoError(t, err)
+
+	batch := []*fleet.WindowsEnforcementProfile{
+		{Name: "test-profile", RawPolicy: []byte(`{}`)},
+	}
+	err = ds.BatchSetWindowsEnforcementProfiles(ctx, nil, batch)
+	require.NoError(t, err)
+
+	profiles, err := ds.ListWindowsEnforcementProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, profiles, 1)
+
+	pending := fleet.MDMDeliveryPending
+	payload := []*fleet.HostWindowsEnforcement{
+		{
+			HostUUID:      host.UUID,
+			ProfileUUID:   profiles[0].ProfileUUID,
+			Name:          "test-profile",
+			Status:        &pending,
+			OperationType: fleet.MDMOperationTypeInstall,
+		},
+	}
+	err = ds.BulkUpsertHostWindowsEnforcement(ctx, payload)
+	require.NoError(t, err)
+
+	// Update status
+	verified := fleet.MDMDeliveryVerified
+	payload[0].Status = &verified
+	err = ds.BulkUpsertHostWindowsEnforcement(ctx, payload)
+	require.NoError(t, err)
+}
+
+func testGetHostWindowsEnforcement(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create host and enforcement profile
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "test-host-2",
+		Platform:       "windows",
+		OsqueryHostID:  ptr.String("test-host-2-osquery"),
+		NodeKey:        ptr.String("test-host-2-node"),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:       time.Now(),
+	})
+	require.NoError(t, err)
+
+	// Empty result for host with no enforcement
+	results, err := ds.GetHostWindowsEnforcement(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Empty(t, results)
+
+	// Create profile and upsert enforcement status
+	batch := []*fleet.WindowsEnforcementProfile{
+		{Name: "test-get-profile", RawPolicy: []byte(`{}`)},
+	}
+	err = ds.BatchSetWindowsEnforcementProfiles(ctx, nil, batch)
+	require.NoError(t, err)
+
+	profiles, err := ds.ListWindowsEnforcementProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, profiles, 1)
+
+	pending := fleet.MDMDeliveryPending
+	payload := []*fleet.HostWindowsEnforcement{
+		{
+			HostUUID:      host.UUID,
+			ProfileUUID:   profiles[0].ProfileUUID,
+			Name:          "test-get-profile",
+			Status:        &pending,
+			OperationType: fleet.MDMOperationTypeInstall,
+		},
+	}
+	err = ds.BulkUpsertHostWindowsEnforcement(ctx, payload)
+	require.NoError(t, err)
+
+	results, err = ds.GetHostWindowsEnforcement(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.Equal(t, host.UUID, results[0].HostUUID)
+	assert.Equal(t, profiles[0].ProfileUUID, results[0].ProfileUUID)
+	assert.Equal(t, "test-get-profile", results[0].Name)
+	require.NotNil(t, results[0].Status)
+	assert.Equal(t, fleet.MDMDeliveryPending, *results[0].Status)
+}
+
+func testGetHostWindowsEnforcementHash(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a Windows host with no team
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "hash-test-host",
+		Platform:       "windows",
+		OsqueryHostID:  ptr.String("hash-test-osquery"),
+		NodeKey:        ptr.String("hash-test-node"),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:       time.Now(),
+	})
+	require.NoError(t, err)
+
+	// No enforcement profiles - hash should be empty
+	hash, err := ds.GetHostWindowsEnforcementHash(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.Empty(t, hash)
+
+	// Add enforcement profiles for no-team
+	batch := []*fleet.WindowsEnforcementProfile{
+		{Name: "hash-test-profile", RawPolicy: []byte(`{}`)},
+	}
+	err = ds.BatchSetWindowsEnforcementProfiles(ctx, nil, batch)
+	require.NoError(t, err)
+
+	// Now hash should be non-empty
+	hash, err = ds.GetHostWindowsEnforcementHash(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.NotEmpty(t, hash)
+
+	// Same profiles should give same hash
+	hash2, err := ds.GetHostWindowsEnforcementHash(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.Equal(t, hash, hash2)
+
+	// Adding another profile should change the hash
+	batch = append(batch, &fleet.WindowsEnforcementProfile{
+		Name: "hash-test-profile-2", RawPolicy: []byte(`{"registry":[]}`),
+	})
+	err = ds.BatchSetWindowsEnforcementProfiles(ctx, nil, batch)
+	require.NoError(t, err)
+
+	hash3, err := ds.GetHostWindowsEnforcementHash(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.NotEmpty(t, hash3)
+	assert.NotEqual(t, hash, hash3)
+}
+
+// helper
+func withEnforcementTeamID(p *fleet.WindowsEnforcementProfile, teamID uint) *fleet.WindowsEnforcementProfile {
+	p.TeamID = &teamID
+	return p
+}
+
+// TruncateTables helper - truncates enforcement-related tables
+func truncateEnforcementTables(t *testing.T, ds *Datastore) {
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), `DELETE FROM host_windows_enforcement`)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), `DELETE FROM windows_enforcement_profile_labels`)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), `DELETE FROM windows_enforcement_profiles`)
+		return err
+	})
+}

@@ -1,0 +1,13 @@
+registry:
+  - path: "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Personalization"
+    name: "NoLockScreenCamera"
+    type: "dword"
+    value: 1
+    ensure: "present"
+    cis_ref: "18.10.43.6.1"
+  - path: "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Personalization"
+    name: "NoLockScreenSlideshow"
+    type: "dword"
+    value: 1
+    ensure: "present"
+    cis_ref: "18.10.43.6.2"

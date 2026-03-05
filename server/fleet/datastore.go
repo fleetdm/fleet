@@ -1879,6 +1879,51 @@ type Datastore interface {
 	SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration) (*MDMAppleDeclaration, error)
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Windows Enforcement Profiles
+
+	// BatchSetWindowsEnforcementProfiles sets the enforcement profiles for a
+	// team (or no team) in a single transaction, inserting, updating, or
+	// deleting profiles as needed.
+	BatchSetWindowsEnforcementProfiles(ctx context.Context, teamID *uint, profiles []*WindowsEnforcementProfile) error
+
+	// ListWindowsEnforcementProfiles returns all enforcement profiles for a
+	// team (or no team).
+	ListWindowsEnforcementProfiles(ctx context.Context, teamID *uint) ([]*WindowsEnforcementProfile, error)
+
+	// GetWindowsEnforcementProfile returns a single enforcement profile by UUID.
+	GetWindowsEnforcementProfile(ctx context.Context, profileUUID string) (*WindowsEnforcementProfile, error)
+
+	// DeleteWindowsEnforcementProfile deletes an enforcement profile by UUID.
+	DeleteWindowsEnforcementProfile(ctx context.Context, profileUUID string) error
+
+	// ListWindowsEnforcementToInstall returns per-host enforcement payloads
+	// that should be installed based on diffing the desired vs current state.
+	ListWindowsEnforcementToInstall(ctx context.Context) ([]*HostWindowsEnforcement, error)
+
+	// ListWindowsEnforcementToRemove returns per-host enforcement payloads
+	// that should be removed based on diffing the desired vs current state.
+	ListWindowsEnforcementToRemove(ctx context.Context) ([]*HostWindowsEnforcement, error)
+
+	// BulkUpsertHostWindowsEnforcement bulk-adds/updates host enforcement
+	// status records.
+	BulkUpsertHostWindowsEnforcement(ctx context.Context, payload []*HostWindowsEnforcement) error
+
+	// GetHostWindowsEnforcement returns the enforcement status for a host.
+	GetHostWindowsEnforcement(ctx context.Context, hostUUID string) ([]HostWindowsEnforcement, error)
+
+	// BulkSetPendingWindowsEnforcementForHosts sets enforcement profiles to
+	// pending for the specified hosts.
+	BulkSetPendingWindowsEnforcementForHosts(ctx context.Context, hostIDs []uint) error
+
+	// GetHostWindowsEnforcementHash returns a hash of the enforcement profile
+	// set for a host, used to detect changes for Orbit notifications.
+	GetHostWindowsEnforcementHash(ctx context.Context, hostUUID string) (string, error)
+
+	// GetPendingWindowsEnforcementForHost returns enforcement policies to
+	// deliver to a host via OrbitConfig.
+	GetPendingWindowsEnforcementForHost(ctx context.Context, hostUUID string) ([]OrbitEnforcementPolicy, error)
+
+	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results
 
 	// NewHostScriptExecutionRequest creates a new host script result entry with

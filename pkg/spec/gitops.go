@@ -159,6 +159,8 @@ type GitOpsControls struct {
 	EnableTurnOnWindowsMDMManually any `json:"enable_turn_on_windows_mdm_manually"`
 	WindowsEntraTenantIDs          any `json:"windows_entra_tenant_ids"`
 
+	WindowsEnforcement any `json:"windows_enforcement"`
+
 	AndroidEnabledAndConfigured any `json:"android_enabled_and_configured"`
 	AndroidSettings             any `json:"android_settings"`
 
@@ -175,6 +177,7 @@ func (c GitOpsControls) Set() bool {
 		c.MacOSSetup != nil || c.MacOSMigration != nil ||
 		c.WindowsUpdates != nil || c.WindowsSettings != nil || c.WindowsEnabledAndConfigured != nil ||
 		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || len(c.Scripts) > 0 ||
+		c.WindowsEnforcement != nil ||
 		c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil
 }
 
@@ -836,6 +839,27 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 		}
 		// Since we already unmarshalled and updated the path, we need to update the result struct.
 		result.Controls.WindowsSettings = windowsSettings
+	}
+
+	if result.Controls.WindowsEnforcement != nil {
+		var enforcementSettings fleet.WindowsEnforcementSettings
+		data, err := json.Marshal(result.Controls.WindowsEnforcement)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to process controls.windows_enforcement: %v", err))
+		}
+		err = json.Unmarshal(data, &enforcementSettings)
+		if err != nil {
+			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "windows_enforcement"}, err))
+		}
+		if enforcementSettings.CustomSettings.Valid {
+			for i := range enforcementSettings.CustomSettings.Value {
+				err := resolveAndUpdateProfilePathToAbsolute(controlsDir, &enforcementSettings.CustomSettings.Value[i], result)
+				if err != nil {
+					return multierror.Append(multiError, err)
+				}
+			}
+		}
+		result.Controls.WindowsEnforcement = enforcementSettings
 	}
 
 	if result.Controls.AndroidSettings != nil {

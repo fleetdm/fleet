@@ -1235,6 +1235,28 @@ type NewMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDM
 
 type SetOrUpdateMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error)
 
+type BatchSetWindowsEnforcementProfilesFunc func(ctx context.Context, teamID *uint, profiles []*fleet.WindowsEnforcementProfile) error
+
+type ListWindowsEnforcementProfilesFunc func(ctx context.Context, teamID *uint) ([]*fleet.WindowsEnforcementProfile, error)
+
+type GetWindowsEnforcementProfileFunc func(ctx context.Context, profileUUID string) (*fleet.WindowsEnforcementProfile, error)
+
+type DeleteWindowsEnforcementProfileFunc func(ctx context.Context, profileUUID string) error
+
+type ListWindowsEnforcementToInstallFunc func(ctx context.Context) ([]*fleet.HostWindowsEnforcement, error)
+
+type ListWindowsEnforcementToRemoveFunc func(ctx context.Context) ([]*fleet.HostWindowsEnforcement, error)
+
+type BulkUpsertHostWindowsEnforcementFunc func(ctx context.Context, payload []*fleet.HostWindowsEnforcement) error
+
+type GetHostWindowsEnforcementFunc func(ctx context.Context, hostUUID string) ([]fleet.HostWindowsEnforcement, error)
+
+type BulkSetPendingWindowsEnforcementForHostsFunc func(ctx context.Context, hostIDs []uint) error
+
+type GetHostWindowsEnforcementHashFunc func(ctx context.Context, hostUUID string) (string, error)
+
+type GetPendingWindowsEnforcementForHostFunc func(ctx context.Context, hostUUID string) ([]fleet.OrbitEnforcementPolicy, error)
+
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
 type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.HostScriptResultPayload, attemptNumber *int) (hsr *fleet.HostScriptResult, action string, err error)
@@ -3603,6 +3625,39 @@ type DataStore struct {
 
 	SetOrUpdateMDMAppleDeclarationFunc        SetOrUpdateMDMAppleDeclarationFunc
 	SetOrUpdateMDMAppleDeclarationFuncInvoked bool
+
+	BatchSetWindowsEnforcementProfilesFunc        BatchSetWindowsEnforcementProfilesFunc
+	BatchSetWindowsEnforcementProfilesFuncInvoked bool
+
+	ListWindowsEnforcementProfilesFunc        ListWindowsEnforcementProfilesFunc
+	ListWindowsEnforcementProfilesFuncInvoked bool
+
+	GetWindowsEnforcementProfileFunc        GetWindowsEnforcementProfileFunc
+	GetWindowsEnforcementProfileFuncInvoked bool
+
+	DeleteWindowsEnforcementProfileFunc        DeleteWindowsEnforcementProfileFunc
+	DeleteWindowsEnforcementProfileFuncInvoked bool
+
+	ListWindowsEnforcementToInstallFunc        ListWindowsEnforcementToInstallFunc
+	ListWindowsEnforcementToInstallFuncInvoked bool
+
+	ListWindowsEnforcementToRemoveFunc        ListWindowsEnforcementToRemoveFunc
+	ListWindowsEnforcementToRemoveFuncInvoked bool
+
+	BulkUpsertHostWindowsEnforcementFunc        BulkUpsertHostWindowsEnforcementFunc
+	BulkUpsertHostWindowsEnforcementFuncInvoked bool
+
+	GetHostWindowsEnforcementFunc        GetHostWindowsEnforcementFunc
+	GetHostWindowsEnforcementFuncInvoked bool
+
+	BulkSetPendingWindowsEnforcementForHostsFunc        BulkSetPendingWindowsEnforcementForHostsFunc
+	BulkSetPendingWindowsEnforcementForHostsFuncInvoked bool
+
+	GetHostWindowsEnforcementHashFunc        GetHostWindowsEnforcementHashFunc
+	GetHostWindowsEnforcementHashFuncInvoked bool
+
+	GetPendingWindowsEnforcementForHostFunc        GetPendingWindowsEnforcementForHostFunc
+	GetPendingWindowsEnforcementForHostFuncInvoked bool
 
 	NewHostScriptExecutionRequestFunc        NewHostScriptExecutionRequestFunc
 	NewHostScriptExecutionRequestFuncInvoked bool
@@ -8672,6 +8727,83 @@ func (s *DataStore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declarat
 	s.SetOrUpdateMDMAppleDeclarationFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetOrUpdateMDMAppleDeclarationFunc(ctx, declaration)
+}
+
+func (s *DataStore) BatchSetWindowsEnforcementProfiles(ctx context.Context, teamID *uint, profiles []*fleet.WindowsEnforcementProfile) error {
+	s.mu.Lock()
+	s.BatchSetWindowsEnforcementProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchSetWindowsEnforcementProfilesFunc(ctx, teamID, profiles)
+}
+
+func (s *DataStore) ListWindowsEnforcementProfiles(ctx context.Context, teamID *uint) ([]*fleet.WindowsEnforcementProfile, error) {
+	s.mu.Lock()
+	s.ListWindowsEnforcementProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListWindowsEnforcementProfilesFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetWindowsEnforcementProfile(ctx context.Context, profileUUID string) (*fleet.WindowsEnforcementProfile, error) {
+	s.mu.Lock()
+	s.GetWindowsEnforcementProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetWindowsEnforcementProfileFunc(ctx, profileUUID)
+}
+
+func (s *DataStore) DeleteWindowsEnforcementProfile(ctx context.Context, profileUUID string) error {
+	s.mu.Lock()
+	s.DeleteWindowsEnforcementProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteWindowsEnforcementProfileFunc(ctx, profileUUID)
+}
+
+func (s *DataStore) ListWindowsEnforcementToInstall(ctx context.Context) ([]*fleet.HostWindowsEnforcement, error) {
+	s.mu.Lock()
+	s.ListWindowsEnforcementToInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListWindowsEnforcementToInstallFunc(ctx)
+}
+
+func (s *DataStore) ListWindowsEnforcementToRemove(ctx context.Context) ([]*fleet.HostWindowsEnforcement, error) {
+	s.mu.Lock()
+	s.ListWindowsEnforcementToRemoveFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListWindowsEnforcementToRemoveFunc(ctx)
+}
+
+func (s *DataStore) BulkUpsertHostWindowsEnforcement(ctx context.Context, payload []*fleet.HostWindowsEnforcement) error {
+	s.mu.Lock()
+	s.BulkUpsertHostWindowsEnforcementFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkUpsertHostWindowsEnforcementFunc(ctx, payload)
+}
+
+func (s *DataStore) GetHostWindowsEnforcement(ctx context.Context, hostUUID string) ([]fleet.HostWindowsEnforcement, error) {
+	s.mu.Lock()
+	s.GetHostWindowsEnforcementFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostWindowsEnforcementFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) BulkSetPendingWindowsEnforcementForHosts(ctx context.Context, hostIDs []uint) error {
+	s.mu.Lock()
+	s.BulkSetPendingWindowsEnforcementForHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkSetPendingWindowsEnforcementForHostsFunc(ctx, hostIDs)
+}
+
+func (s *DataStore) GetHostWindowsEnforcementHash(ctx context.Context, hostUUID string) (string, error) {
+	s.mu.Lock()
+	s.GetHostWindowsEnforcementHashFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostWindowsEnforcementHashFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetPendingWindowsEnforcementForHost(ctx context.Context, hostUUID string) ([]fleet.OrbitEnforcementPolicy, error) {
+	s.mu.Lock()
+	s.GetPendingWindowsEnforcementForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPendingWindowsEnforcementForHostFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {

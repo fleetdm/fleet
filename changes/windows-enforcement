@@ -1,0 +1,4 @@
+Add Windows enforcement as a first-class Fleet feature. Enforcement policies are defined in GitOps
+YAML under `controls.windows_enforcement`, stored in the Fleet database, distributed to endpoints
+via Orbit's OrbitConfig, and enforced by a new Orbit ConfigReceiver using native Windows APIs.
+Compliance is reported through a built-in `fleet_windows_enforcement` osquery table.

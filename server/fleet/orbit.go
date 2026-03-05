@@ -55,6 +55,11 @@ type OrbitConfigNotifications struct {
 	// see EnforceBitLockerEncryption for Windows and RotateDiskEncryptionKey
 	// for macOS.
 	RunDiskEncryptionEscrow bool `json:"run_disk_encryption_escrow,omitempty"`
+
+	// PendingWindowsEnforcementHash is set to a non-empty hash when the host
+	// has pending Windows enforcement policies to apply. The hash changes when
+	// the set of enforcement policies changes.
+	PendingWindowsEnforcementHash string `json:"pending_windows_enforcement_hash,omitempty"`
 }
 
 type OrbitConfig struct {
@@ -67,6 +72,22 @@ type OrbitConfig struct {
 	//
 	// If UpdateChannels is nil it means the server isn't using/setting this feature.
 	UpdateChannels *OrbitUpdateChannels `json:"update_channels,omitempty"`
+	// WindowsEnforcement holds the enforcement policies to apply on this host.
+	// It is only set when there are pending enforcement changes.
+	WindowsEnforcement *OrbitWindowsEnforcement `json:"windows_enforcement,omitempty"`
+}
+
+// OrbitWindowsEnforcement contains the enforcement policies to be applied by
+// the Orbit agent on a Windows host.
+type OrbitWindowsEnforcement struct {
+	Policies []OrbitEnforcementPolicy `json:"policies"`
+}
+
+// OrbitEnforcementPolicy is a single enforcement policy delivered to a host.
+type OrbitEnforcementPolicy struct {
+	ProfileUUID string `json:"profile_uuid" db:"profile_uuid"`
+	Name        string `json:"name" db:"name"`
+	RawPolicy   []byte `json:"raw_policy" db:"raw_policy"`
 }
 
 type OrbitConfigReceiver interface {

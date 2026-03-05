@@ -1183,6 +1183,18 @@ type Service interface {
 	// ListMDMConfigProfiles returns a list of paginated configuration profiles.
 	ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt ListOptions) ([]*MDMConfigProfilePayload, *PaginationMetadata, error)
 
+	// ListWindowsEnforcementProfiles returns enforcement profiles for a team or no-team.
+	ListWindowsEnforcementProfiles(ctx context.Context, teamID *uint) ([]*WindowsEnforcementProfile, error)
+
+	// NewWindowsEnforcementProfile creates or updates a Windows enforcement profile.
+	NewWindowsEnforcementProfile(ctx context.Context, teamID uint, name string, rawPolicy []byte) (*WindowsEnforcementProfile, error)
+
+	// GetWindowsEnforcementProfile retrieves a Windows enforcement profile by UUID.
+	GetWindowsEnforcementProfile(ctx context.Context, profileUUID string) (*WindowsEnforcementProfile, error)
+
+	// DeleteWindowsEnforcementProfile deletes a Windows enforcement profile by UUID.
+	DeleteWindowsEnforcementProfile(ctx context.Context, profileUUID string) error
+
 	// BatchSetMDMProfiles replaces the custom Windows/macOS/Android profiles for a specified
 	// team or for hosts with no team.
 	BatchSetMDMProfiles(

@@ -7,6 +7,7 @@ import classnames from "classnames";
 import { IMdmProfile, ProfilePlatform } from "interfaces/mdm";
 import { isAppleDevice } from "interfaces/platform";
 import mdmAPI, { isDDMProfile } from "services/entities/mdm";
+import enforcementAPI from "services/entities/enforcement";
 
 import Button from "components/buttons/Button";
 import Graphic from "components/Graphic";
@@ -16,6 +17,13 @@ import strUtils from "utilities/strings";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "profile-list-item";
+
+const isEnforcementProfile = (profile: IMdmProfile) => {
+  return (
+    profile.profile_type === "enforcement" ||
+    profile.profile_uuid.startsWith("e")
+  );
+};
 
 const LabelCount = ({
   className,
@@ -33,14 +41,19 @@ interface IProfileDetailsProps {
   platform: ProfilePlatform;
   uploadedAt: string;
   isDDM?: boolean;
+  isEnforcement?: boolean;
 }
 
 const ProfileDetails = ({
   platform,
   uploadedAt,
   isDDM,
+  isEnforcement,
 }: IProfileDetailsProps) => {
   const getPlatformName = () => {
+    if (isEnforcement) {
+      return "Native settings";
+    }
     switch (platform) {
       case "windows":
         return "Windows";
@@ -67,6 +80,9 @@ const ProfileDetails = ({
 };
 
 const createProfileExtension = (profile: IMdmProfile) => {
+  if (isEnforcementProfile(profile)) {
+    return "yml";
+  }
   if (isDDMProfile(profile)) {
     return "json";
   }
@@ -77,6 +93,9 @@ const createProfileExtension = (profile: IMdmProfile) => {
 };
 
 const createFileContent = async (profile: IMdmProfile) => {
+  if (isEnforcementProfile(profile)) {
+    return enforcementAPI.downloadProfile(profile.profile_uuid);
+  }
   const content = await mdmAPI.downloadProfile(profile.profile_uuid);
   if (isDDMProfile(profile)) {
     return JSON.stringify(content, null, 2);
@@ -152,6 +171,7 @@ const ProfileListItem = ({
               platform={platform}
               uploadedAt={updated_at}
               isDDM={isDDMProfile(profile)}
+              isEnforcement={isEnforcementProfile(profile)}
             />
           </div>
         </div>

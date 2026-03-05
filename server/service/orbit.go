@@ -403,6 +403,19 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
+	// Windows enforcement notifications
+	var windowsEnforcement *fleet.OrbitWindowsEnforcement
+	if host.Platform == "windows" {
+		enforcementHash, err := svc.ds.GetHostWindowsEnforcementHash(ctx, host.UUID)
+		if err == nil && enforcementHash != "" {
+			notifs.PendingWindowsEnforcementHash = enforcementHash
+			policies, err := svc.ds.GetPendingWindowsEnforcementForHost(ctx, host.UUID)
+			if err == nil && len(policies) > 0 {
+				windowsEnforcement = &fleet.OrbitWindowsEnforcement{Policies: policies}
+			}
+		}
+	}
+
 	// load the (active, ready to execute) pending script executions for that host
 	pending, err := svc.ds.ListReadyToExecuteScriptsForHost(ctx, host.ID, appConfig.ServerSettings.ScriptsDisabled)
 	if err != nil {
@@ -509,12 +522,13 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 
 		return fleet.OrbitConfig{
-			ScriptExeTimeout: opts.ScriptExecutionTimeout,
-			Flags:            opts.CommandLineStartUpFlags,
-			Extensions:       extensionsFiltered,
-			Notifications:    notifs,
-			NudgeConfig:      nudgeConfig,
-			UpdateChannels:   updateChannels,
+			ScriptExeTimeout:   opts.ScriptExecutionTimeout,
+			Flags:              opts.CommandLineStartUpFlags,
+			Extensions:         extensionsFiltered,
+			Notifications:      notifs,
+			NudgeConfig:        nudgeConfig,
+			UpdateChannels:     updateChannels,
+			WindowsEnforcement: windowsEnforcement,
 		}, nil
 	}
 
@@ -584,12 +598,13 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	return fleet.OrbitConfig{
-		ScriptExeTimeout: opts.ScriptExecutionTimeout,
-		Flags:            opts.CommandLineStartUpFlags,
-		Extensions:       extensionsFiltered,
-		Notifications:    notifs,
-		NudgeConfig:      nudgeConfig,
-		UpdateChannels:   updateChannels,
+		ScriptExeTimeout:   opts.ScriptExecutionTimeout,
+		Flags:              opts.CommandLineStartUpFlags,
+		Extensions:         extensionsFiltered,
+		Notifications:      notifs,
+		NudgeConfig:        nudgeConfig,
+		UpdateChannels:     updateChannels,
+		WindowsEnforcement: windowsEnforcement,
 	}, nil
 }
 

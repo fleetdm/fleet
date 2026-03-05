@@ -1463,6 +1463,29 @@ func newWindowsMDMProfileManagerSchedule(
 	return s, nil
 }
 
+func newWindowsEnforcementSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronWindowsEnforcement)
+		defaultInterval = 30 * time.Second
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("reconcile_windows_enforcement", func(ctx context.Context) error {
+			return service.ReconcileWindowsEnforcement(ctx, ds, logger)
+		}),
+	)
+
+	return s, nil
+}
+
 func newAndroidMDMProfileManagerSchedule(
 	ctx context.Context,
 	instanceID string,
