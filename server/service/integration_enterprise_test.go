@@ -24494,7 +24494,7 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 
 		// Make the policy non-bypassable
 		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-			_, innerErr := db.ExecContext(ctx, `UPDATE policies SET conditional_access_bypass_enabled = 0 WHERE id = ?`, policy.ID)
+			_, innerErr := db.ExecContext(ctx, `UPDATE policies SET conditional_access_bypass_enabled = 0, conditional_access_enabled = 1 WHERE id = ?`, policy.ID)
 			return innerErr
 		})
 
