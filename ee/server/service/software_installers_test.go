@@ -218,13 +218,14 @@ func TestPreProcessUninstallScriptSkipsValidationWhenNoTemplateVars(t *testing.T
 		require.Equal(t, "$PACKAGE_ID\n\necho 'foo'", payload.UninstallScript) // confirm no variable substitution
 	})
 
-	t.Run("empty PackageIDs returns nil", func(t *testing.T) {
+	t.Run("empty PackageIDs skips processing", func(t *testing.T) {
 		payload := fleet.UploadSoftwareInstallerPayload{
 			Extension:       "exe",
 			UninstallScript: "$PACKAGE_ID",
 			PackageIDs:      []string{},
 		}
 		require.NoError(t, preProcessUninstallScript(&payload))
+		require.Equal(t, "$PACKAGE_ID", payload.UninstallScript) // confirm no variable substitution
 	})
 }
 
