@@ -17,7 +17,35 @@ Currently, these are supported platforms for each certificate authority:
 
 ## Okta
 
-The following steps show how to deploy SCEP certificates from Okta's certificate authority (CA). We'll deploy a certificate with a dynamic SCEP challenge. To deploy certificates with a static challenge, follow this [separate guide](https://fleetdm.com/guides/enable-okta-verify-on-macos-with-configuration-profile).
+The following steps show how to deploy SCEP certificates from Okta's certificate authority (CA). 
+
+We'll deploy a certificate with a dynamic SCEP challenge. To deploy certificates with a static challenge, follow this [separate guide](https://fleetdm.com/guides/enable-okta-verify-on-macos-with-configuration-profile).
+
+### Step 1: Get Okta credentials
+
+1. In Okta, head to **Security > Device integrations** and on the **Endpoint management** tab, select **Add platform**.
+2. Select **Desktop (Windows and macOS only)** and then select **Next**.
+3. On the **Add device management platform** page, select the following options:
+- **Use Okta as Certificate Authority**.
+- **Dynamic SCEP URL** and verify that **Generic** is selected.
+4. Select **Generate**.
+  
+### Step 2: Connect Fleet to Okta's CA
+
+1. In Fleet, head to **Settings > Integrations > Certificates**.
+2. Select the **Add CA** button and select **Okta CA or Microsoft NDES** in the dropdown. Okta uses NDES under the hood.
+3. Enter your **SCEP URL**, **Admin URL**, and **Username** and **Password**.
+4. Select **Add CA**. Your Okta CA should appear in the list in Fleet.
+
+### Step 3: Add SCEP configuration profile to Fleet
+
+1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use `$FLEET_VAR_NDES_SCEP_CHALLENGE`. For `URL`, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
+
+2. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [Apple’s built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
+
+3. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
+
+When the profile is delivered to your hosts, Fleet replaces the variables. If something fails, errors appear on each host's **Host details > OS settings**.
 
 ## DigiCert
 
@@ -122,7 +150,7 @@ The following steps show how to deploy [Microsoft NDES](https://learn.microsoft.
 ### Step 1: Connect Fleet to NDES
 
 1. In Fleet, head to **Settings > **Integrations > Certificates**.
-2. Select the **Add CA** button and select **Microsoft NDES** in the dropdown.
+2. Select the **Add CA** button and select **Okta CA or Microsoft NDES** in the dropdown.
 3. Enter your **SCEP URL**, **Admin URL**, and **Username** and **Password**.
 4. Select **Add CA**. Your NDES certificate authority (CA) should appear in the list in Fleet.
 
@@ -134,7 +162,7 @@ When saving the configuration, Fleet will attempt to connect to the SCEP server 
 
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_NDES_SCEP_CHALLENGE`. For `URL`, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
 
-2. If your Wi-Fi or VPN requires certificates that are unique to each host, update the `Subject`. You can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if your hosts automatically enrolled (via ADE) to Fleet with [end user authentication](https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping) enabled. You can also use any of the [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
+2. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
 
 3. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
 
@@ -242,7 +270,7 @@ Currently, using the Smallstep-Jamf connector is the best practice. Fleet is tes
 
 2. Replace the `{CA_NAME}` with the name you created in step 2. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
 
-3. If your Wi-Fi or VPN requires certificates that are unique to each host, update the `Subject`. You can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if your hosts automatically enrolled (via ADE) to Fleet with [end user authentication](https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping) enabled. You can also use any of the [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
+3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
 
 4. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
 
@@ -426,7 +454,7 @@ For Android hosts, we use a configuration profile and a certificate template. Fo
 
 2. Replace the `{CA_NAME}` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_PASSWORD_WIFI_AUTHENTICATION` and `FLEET_VAR_CUSTOM_SCEP_DIGICERT_DATA_WIFI_AUTHENTICATION`.
 
-3. If your Wi-Fi or VPN requires certificates that are unique to each host, update the `Subject`. You can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if your hosts automatically enrolled (via ADE) to Fleet with [end user authentication](https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping) enabled. You can also use any of [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
+3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
 
 4. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
 
