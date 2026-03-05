@@ -21,6 +21,7 @@ func (ds *Datastore) ConditionalAccessBypassDevice(ctx context.Context, hostID u
 		policies p ON pm.policy_id = p.id
 	WHERE
 		pm.host_id = ?
+		AND p.conditional_access_enabled = 1
 		AND p.conditional_access_bypass_enabled = 0
 		AND pm.passes = 0
 	`
