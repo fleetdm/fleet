@@ -146,13 +146,13 @@ If a host is restarted/shut down during macOS Setup Assistant, it will fail to e
 
 ### Apple Business Manager (ABM)
 
-Fleet surfaces Apple Business Manager (ABM) automatic enrollment profile assignment by monitoring profile statuses ('assigned', 'pushed') for each host. When ABM reports a failure during assignment or push, Fleet records the error type, timestamp, and affected host. IT admins can view error details, last event timestamps, and filter hosts with ABM integration issues for targeted troubleshooting.
+Fleet surfaces Apple Business Manager (ABM) automatic enrollment profile assignment by retrieving assignment errors and timestamps for each host. While Fleet does not actively monitor push events, admins can view assignment and push timestamps in host details. If a device shows an assignment time but no push time, admins can infer the push did not occur and may need to restart the device or run `sudo profiles renew -type enrollment` for remediation. Error details and timestamps are available for targeted troubleshooting. Customers may need to contact Apple support if an online host never has a push time. 
 
 ![Fleet_ABM-workflow-small](https://github.com/user-attachments/assets/b120f7c5-dd8c-4f4e-80ed-1e6cad99d516)
 
 To view an ABM issue:
 
-1. If there is an active issue a vital called **ABM issue** will be on the **Dashboard** page. This will take you to a filtered list of hosts with ABM issues.
+1. If there is an active issue assigning a profile, a vital called **ABM issue** will be on the **Dashboard** page. This will take you to a filtered list of hosts with ABM issues.
 2. Select a host to view host details where you can review the MDM status. Clicking on the MDM status will display a modal with the following information:
    - **MDM status**: the host’s current state in Fleet’s MDM lifecycle.
    - **Profile assignment**: timestamp of the last successful profile assignment reported by Apple Business Manager for this host.
