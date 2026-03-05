@@ -8,7 +8,6 @@ import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { IAppStoreApp, isIpadOrIphoneSoftware } from "interfaces/software";
 import { IVppApp } from "services/entities/mdm_apple";
 
-import Card from "components/Card";
 import CustomLink from "components/CustomLink";
 import Radio from "components/forms/fields/Radio";
 import Button from "components/buttons/Button";
@@ -298,6 +297,7 @@ const SoftwareVppForm = ({
     }
 
     // Add VPP form
+    // 4.83+ has no additional options to select beyond the app
     if (vppApps) {
       return (
         <div className={`${baseClass}__form-fields`}>
@@ -310,43 +310,6 @@ const SoftwareVppForm = ({
             These apps were added in Apple Business Manager (ABM). To add more
             apps, head to{" "}
             <CustomLink url="https://business.apple.com" text="ABM" newTab />
-          </div>
-          <div className={`${baseClass}__form-frame`}>
-            <Card paddingSize="medium" borderRadiusSize="large">
-              <SoftwareOptionsSelector
-                platform={
-                  ("selectedApp" in formData &&
-                    formData.selectedApp &&
-                    formData.selectedApp.platform) ||
-                  ""
-                }
-                formData={formData}
-                onToggleAutomaticInstall={onToggleAutomaticInstall}
-                onToggleSelfService={onToggleSelfService}
-                onSelectCategory={onSelectCategory}
-                onClickPreviewEndUserExperience={() =>
-                  onClickPreviewEndUserExperience(
-                    isIpadOrIphoneSoftware(formData.selectedApp?.platform || "")
-                  )
-                }
-              />
-            </Card>
-            <Card paddingSize="medium" borderRadiusSize="large">
-              <TargetLabelSelector
-                selectedTargetType={formData.targetType}
-                selectedCustomTarget={formData.customTarget}
-                selectedLabels={formData.labelTargets}
-                customTargetOptions={CUSTOM_TARGET_OPTIONS}
-                className={`${baseClass}__target`}
-                onSelectTargetType={onSelectTargetType}
-                onSelectCustomTarget={onSelectCustomTargetOption}
-                onSelectLabel={onSelectLabel}
-                labels={labels || []}
-                dropdownHelpText={
-                  generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
-                }
-              />
-            </Card>
           </div>
         </div>
       );

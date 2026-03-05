@@ -29,6 +29,19 @@ interface ICategoriesSelector {
   onClickPreviewEndUserExperience: () => void;
 }
 
+export const AndroidOptionsDescription = () => (
+  <p>
+    Currently, Android apps can only be added as self-service and the end user
+    can install them from the <strong>Play Store</strong> in their work profile.
+    Additionally, you can install it when hosts enroll on the{" "}
+    <CustomLink
+      url={paths.CONTROLS_INSTALL_SOFTWARE("android")}
+      text="Setup experience"
+    />{" "}
+    page.
+  </p>
+);
+
 const CategoriesSelector = ({
   onSelectCategory,
   selectedCategories,
@@ -159,19 +172,7 @@ const SoftwareOptionsSelector = ({
 
   const renderOptionsDescription = () => {
     if (isPlatformAndroid) {
-      return (
-        <p>
-          Currently, Android apps can only be added as self-service and the end
-          user can install them from the <strong>Play Store</strong> in their
-          work profile. Additionally, you can install it when hosts enroll on
-          the{" "}
-          <CustomLink
-            url={paths.CONTROLS_INSTALL_SOFTWARE("android")}
-            text="Setup experience"
-          />{" "}
-          page.
-        </p>
-      );
+      return <AndroidOptionsDescription />;
     }
     // Render unavailable description for iOS or iPadOS add software form only
     return isPlatformIosOrIpados && !isEditingSoftware ? (

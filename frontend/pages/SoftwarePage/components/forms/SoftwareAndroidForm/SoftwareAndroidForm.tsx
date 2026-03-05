@@ -22,6 +22,7 @@ import {
 } from "pages/SoftwarePage/helpers";
 
 import generateFormValidation from "./helpers";
+import { AndroidOptionsDescription } from "../SoftwareOptionsSelector/SoftwareOptionsSelector";
 
 const baseClass = "software-android-form";
 
@@ -148,43 +149,35 @@ const SoftwareAndroidForm = ({
 
     // Add Android form
     return (
-      <div className={`${baseClass}__form-fields`}>
-        <InputField
-          autoFocus
-          label="Application ID"
-          placeholder="com.android.chrome"
-          helpText={
-            <>
-              The ID at the end of the app&apos;s{" "}
-              <CustomLink
-                text="Google Play URL"
-                url={`${LEARN_MORE_ABOUT_BASE_LINK}/google-play-store`}
-                newTab
-              />{" "}
-              E.g. &quot;com.android.chrome&quot; from
-              &quot;https://play.google.com/store/apps/details?id=com.android.chrome&quot;
-            </>
-          }
-          onChange={onInputChange}
-          name="applicationID"
-          value={formData.applicationID}
-          parseTarget
-          disabled={gitOpsModeEnabled} // TODO: Confirm GitOps behavior
-        />
-        <div className={`${baseClass}__form-frame`}>
-          <Card paddingSize="medium" borderRadiusSize="large">
-            <SoftwareOptionsSelector
-              platform="android"
-              formData={formData}
-              onToggleAutomaticInstall={onToggleAutomaticInstall}
-              onToggleSelfService={onToggleSelfService}
-              onSelectCategory={onSelectCategory}
-              onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
-              disableOptions
-            />
-          </Card>
+      <>
+        <div className={`${baseClass}__form-fields`}>
+          <InputField
+            autoFocus
+            label="Application ID"
+            placeholder="com.android.chrome"
+            helpText={
+              <>
+                The ID at the end of the app&apos;s{" "}
+                <CustomLink
+                  text="Google Play URL"
+                  url={`${LEARN_MORE_ABOUT_BASE_LINK}/google-play-store`}
+                  newTab
+                />{" "}
+                E.g. &quot;com.android.chrome&quot; from
+                &quot;https://play.google.com/store/apps/details?id=com.android.chrome&quot;
+              </>
+            }
+            onChange={onInputChange}
+            name="applicationID"
+            value={formData.applicationID}
+            parseTarget
+            disabled={gitOpsModeEnabled} // TODO: Confirm GitOps behavior
+          />
         </div>
-      </div>
+        <div>
+          <AndroidOptionsDescription />
+        </div>
+      </>
     );
   };
 

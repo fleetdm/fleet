@@ -257,3 +257,13 @@ func (c *Client) InstallSoftware(hostID uint, softwareTitleID uint) error {
 	var responseBody installSoftwareResponse
 	return c.authenticatedRequest(nil, verb, path, &responseBody)
 }
+
+func (c *Client) GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error) {
+	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/software/fleet_maintained_apps/%d", id)
+	var responseBody getFleetMaintainedAppResponse
+	err := c.authenticatedRequest(nil, verb, path, &responseBody)
+	if err != nil {
+		return nil, err
+	}
+	return responseBody.FleetMaintainedApp, nil
+}
