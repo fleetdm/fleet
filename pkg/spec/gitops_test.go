@@ -2071,7 +2071,7 @@ org_settings:
 	})
 
 	// Test that duplicate settings with old and new key names produce an error
-	t.Run("duplicate_old_and_new_keys_error", func(t *testing.T) {
+	t.Run("duplicate_old_and_new_keys_error_apple_settings", func(t *testing.T) {
 		dir := t.TempDir()
 		profileDir := filepath.Join(dir, "lib")
 		require.NoError(t, os.Mkdir(profileDir, 0o755))
@@ -2088,9 +2088,6 @@ controls:
     configuration_profiles:
       - path: ./lib/macos-password.mobileconfig
   macos_settings:
-    custom_settings:
-      - path: ./lib/macos-password.mobileconfig
-
 `
 		yamlPath := filepath.Join(dir, "gitops.yml")
 		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
@@ -2098,6 +2095,148 @@ controls:
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "apple_settings")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_apple_custom_settings", func(t *testing.T) {
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:		
+controls:
+  apple_settings:
+    configuration_profiles:
+      - path: ./lib/macos-password.mobileconfig
+    custom_settings:
+      - path: ./lib/macos-password.mobileconfig
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "configuration_profiles")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_windows_custom_settings", func(t *testing.T) {
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:		
+controls:
+  windows_settings:
+    configuration_profiles:
+      - path: ./lib/foo
+    custom_settings:
+      - path: ./lib/bar
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "configuration_profiles")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_android_custom_settings", func(t *testing.T) {
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:		
+controls:
+  android_settings:
+    configuration_profiles:
+      - path: ./lib/foo
+    custom_settings:
+      - path: ./lib/bar
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "configuration_profiles")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_setup_experience", func(t *testing.T) {
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:		
+controls:
+  setup_experience:
+  macos_setup:    
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "setup_experience")
+	})
+
+	t.Run("duplicate_keys_external_file", func(t *testing.T) {
+		t.Parallel()
+
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+
+		controlsYAML := `
+apple_settings:
+macos_settings:
+`
+		controlsPath := filepath.Join(dir, "controls.yml")
+		require.NoError(t, os.WriteFile(controlsPath, []byte(controlsYAML), 0o644))
+
+		config := `
+controls:
+  path: ./controls.yml
+reports:
+policies:
+agent_options:
+org_settings:
+  secrets:
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "apple_settings")
 	})
 }
 
