@@ -26751,7 +26751,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
 		require.Nil(t, listPolResp.Policies[0].InstallSoftware)
 
-		// FMA Version is updated (query should use new version)
+		// Test 2: FMA Version is updated (query should use new version)
 		resetFMAState(states["/zoom/windows.json"], "1.2", []byte("abc"))
 
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
@@ -26773,7 +26773,28 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Len(t, listPolResp.Policies, 1)
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.2", title.ID)
 
-		// FMA Version is pinned back after update? (query should use old version)
+		// Test 3: FMA Version is pinned back after update? (query should use old version)
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
+				{Slug: ptr.String("zoom/windows"), SelfService: true, RollbackVersion: "1.0"},
+			}, TeamName: team.Name},
+			http.StatusAccepted, &resp,
+			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+
+		applyResp = applyPolicySpecsResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/spec/policies",
+			applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
+			http.StatusOK, &applyResp,
+		)
+		title = getActiveTitleForTeam(team.ID, "zoom")
+
+		listPolResp = listTeamPoliciesResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		require.Len(t, listPolResp.Policies, 1)
+		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
+
 	})
 }
 

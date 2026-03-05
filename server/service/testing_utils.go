@@ -1434,8 +1434,6 @@ func (s *fmaTestState) ComputeSHA(b []byte) {
 }
 
 func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTestState) {
-	// DONE: allow for configurable FMAs
-
 	if len(states) == 0 {
 		states = make(map[string]*fmaTestState, 1)
 		states["/zoom/windows.json"] = &fmaTestState{
