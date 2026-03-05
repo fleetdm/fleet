@@ -1044,11 +1044,17 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 			})
 		}
 		generated := generatePatchPolicy(installer)
-		args.Name = generated.Name
-		args.Query = generated.Query
+		if args.Name == "" {
+			args.Name = generated.Name
+		}
+		if args.Description == "" {
+			args.Description = generated.Description
+		}
+		if args.Resolution == "" {
+			args.Resolution = generated.Resolution
+		}
 		args.Platform = generated.Platform
-		args.Description = generated.Description
-		args.Resolution = generated.Resolution
+		args.Query = generated.Query
 	}
 
 	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
@@ -1419,6 +1425,12 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					}
 				}
 
+				if err := spec.Verify(); err != nil {
+					return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: fmt.Sprintf("policy spec payload verification: %s", err),
+					})
+				}
+
 				scriptID := spec.ScriptID
 				if spec.ScriptID != nil && *spec.ScriptID == 0 {
 					scriptID = nil
@@ -1429,6 +1441,34 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				}
 
 				fmaTitleID := fmaTitleIDs[teamNameToID[spec.Team]][spec.FleetMaintainedAppSlug]
+
+				// PATCH POLICIES!!!!!
+				// we need to generate a new query for the patch policy
+				// TODO(JK): since this is kinda duplicated can i make this nicer.
+				// Actually maybe we can have a patch_policy interface to do this! Since its split between policySpec and policyPayload
+				if spec.Type == fleet.PolicyTypePatch {
+					installer, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, *fmaTitleID, false)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "getting patch policy software installer")
+					}
+					if installer.FleetMaintainedAppID == nil {
+						return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+							Message: fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for team ID %d", *fmaTitleID, teamID),
+						})
+					}
+					patch := generatePatchPolicy(installer)
+					if spec.Name == "" {
+						spec.Name = patch.Name
+					}
+					if spec.Description == "" {
+						spec.Description = patch.Description
+					}
+					if spec.Resolution == "" {
+						spec.Resolution = patch.Resolution
+					}
+					spec.Platform = patch.Platform
+					spec.Query = patch.Query
+				}
 
 				res, err := tx.ExecContext(
 					ctx,

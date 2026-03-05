@@ -7250,4 +7250,6 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 		Platform: "darwin",
 	})
 	require.NoError(t, err)
+
+	// TODO(JK):: test name/description/resolution arent overwritten
 }

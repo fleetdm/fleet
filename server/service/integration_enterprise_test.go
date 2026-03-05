@@ -26476,15 +26476,15 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		// add the same patch policy, but this time it belongs to an FMA
 		policyResp := teamPolicyResponse{}
 		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", teamPolicyRequest{
-			Name:                 "test-4",
+			Name:                 "",
 			Query:                "",
-			Description:          "um",
+			Description:          "",
 			Type:                 ptr.String("patch"),
 			PatchSoftwareTitleID: &titleID,
 		}, http.StatusOK, &policyResp)
-		require.Equal(t, policyResp.Policy.Name, "macOS - DummyApp up to date")
-		require.Equal(t, policyResp.Policy.Description, "Outdated software might introduce security vulnerabilities or compatibility issues.")
-		require.Equal(t, *policyResp.Policy.Resolution, "Install the latest version from self-service.")
+		require.Equal(t, "macOS - DummyApp up to date", policyResp.Policy.Name)
+		require.Equal(t, "Outdated software might introduce security vulnerabilities or compatibility issues.", policyResp.Policy.Description)
+		require.Equal(t, "Install the latest version from self-service.", *policyResp.Policy.Resolution)
 		require.Contains(t, policyResp.Policy.Query, "SELECT 1 FROM apps WHERE bundle_identifier =")
 		require.NotNil(t, policyResp.Policy.PatchSoftware)
 		require.Equal(t, titleID, policyResp.Policy.PatchSoftware.SoftwareTitleID)
@@ -26616,6 +26616,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			return nil
 		})
 
+		// can delete installer successfully
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", strconv.Itoa(int(teamID)))
 
 		// Test 2: Update the fleet maintained app installer so that its no longer a fleet maintained app
@@ -26629,9 +26630,6 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, `Couldn't update. The package can't be changed for Fleet-maintained apps.`)
 		res.Body.Close()
-
-		// Test 3: gitops updated existing fleet maintained app installer?
-
 	})
 
 	t.Run("batch team patch policy", func(t *testing.T) {
@@ -26684,6 +26682,8 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.NotNil(t, listPolResp.Policies[0].PatchSoftware)
 		require.Equal(t, title.ID, listPolResp.Policies[0].PatchSoftware.SoftwareTitleID)
 		require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
+		require.Equal(t, `SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND version_compare(bundle_short_version, '1.0') >= 0;`, listPolResp.Policies[0].Query)
+		require.Equal(t, spec.Name, listPolResp.Policies[0].Name)
 
 		// now enable automation on the policy
 		spec = &fleet.PolicySpec{
@@ -26711,6 +26711,8 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
 		// This is only set if the automation is enable
 		require.Equal(t, title.ID, listPolResp.Policies[0].InstallSoftware.SoftwareTitleID)
+		require.Equal(t, `SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND version_compare(bundle_short_version, '1.0') >= 0;`, listPolResp.Policies[0].Query)
+		require.Equal(t, spec.Name, listPolResp.Policies[0].Name)
 
 		// Now disable the automation
 		spec = &fleet.PolicySpec{
@@ -26736,6 +26738,12 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Equal(t, title.ID, listPolResp.Policies[0].PatchSoftware.SoftwareTitleID)
 		require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
 		require.Nil(t, listPolResp.Policies[0].InstallSoftware)
+		require.Equal(t, `SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND version_compare(bundle_short_version, '1.0') >= 0;`, listPolResp.Policies[0].Query)
+		require.Equal(t, spec.Name, listPolResp.Policies[0].Name)
+
+		// FMA Version is updated (query should use new version)
+
+		// FMA Version is pinned back after update? (query should use old version)
 	})
 }
 
