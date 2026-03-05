@@ -2769,7 +2769,6 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			softwareTitleIDsByHash[softwareInstaller.HashSHA256] = *softwareInstaller.TitleID
 
 			if softwareInstaller.Slug != "" {
-				fmt.Printf("softwareInstaller.Slug: %v\n", softwareInstaller.Slug)
 				softwareTitleIDsBySlug[softwareInstaller.Slug] = *softwareInstaller.TitleID
 			}
 		}

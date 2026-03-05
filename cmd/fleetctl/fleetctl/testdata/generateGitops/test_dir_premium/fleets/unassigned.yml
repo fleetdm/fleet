@@ -50,7 +50,6 @@ policies:
   fleet_maintained_app_slug: foo/darwin
   name: Team patch policy
   platform: linux,windows
-  query: SELECT * FROM team_policy WHERE id = 1
   resolution: Do a team thing
   type: patch
 settings:
