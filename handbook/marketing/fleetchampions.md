@@ -39,11 +39,7 @@
 4. Publish case study
 
 ## Process to publish customer testimonials on the website
-1. <To be described - including how to add to [testimonials.yml](https://github.com/fleetdm/fleet/blob/c86ad041b2cbeb6ddeac08464ca6d1bf88af0aa5/handbook/company/testimonials.yml#L31) file>
-
-### Process to capture customer testimonials 
 Spontaneous, nice things that customers say about Fleet in:
-
 - Conversations
 - Offical meetings
 - Slack
@@ -85,9 +81,9 @@ Software management
 Device management
 ```
 
-7. See the top of the `YAML` file for this formatting information if this explanation is unclear.
+7. See the top of the [testimonials.yml](https://github.com/fleetdm/fleet/blob/c86ad041b2cbeb6ddeac08464ca6d1bf88af0aa5/handbook/company/testimonials.yml#L31) file for this formatting information if this explanation is unclear.
 8. If the testimonial is being added for immediate use on the website, adding the the new text block with the correct fields is sufficient.
-9. If the testimonial is being saved in the testimonials.yml file but not published the block just added should be commented out so that the text is not processed by the website build. Your block should look like this:
+9. If the testimonial is being saved in the `testimonials.yml` file but not published the block just added should be commented out so that the text is not processed by the website build. Your block should look like this:
 
 ```
 # -
