@@ -3,6 +3,7 @@ package tests
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -186,11 +187,9 @@ func testEnqueueErrorContinuesWithOtherHosts(t *testing.T, s *integrationTestSui
 	hostID2 := s.insertHostFull(t, "host2", "uuid-2", "darwin", "macOS 15.7", &teamID)
 	s.insertNanoEnrollment(t, "uuid-2", "Device", true)
 
-	// Make first enqueue fail
-	callCount := 0
+	// Make enqueue fail for uuid-1 deterministically based on host UUID
 	s.commander.EnqueueCommandFunc = func(ctx context.Context, hostUUIDs []string, rawCommand string) error {
-		callCount++
-		if callCount == 1 {
+		if slices.Contains(hostUUIDs, "uuid-1") {
 			return errors.New("enqueue failed")
 		}
 		return nil
@@ -200,7 +199,7 @@ func testEnqueueErrorContinuesWithOtherHosts(t *testing.T, s *integrationTestSui
 	require.NoError(t, err) // Should not return error, just log and continue
 
 	// Should have tried both hosts
-	assert.Equal(t, 2, callCount)
+	assert.Len(t, s.commander.EnqueueCommandCalls, 2)
 
 	// Second host should have status set (first host failed before status update)
 	status := s.getRecoveryLockStatus(t, hostID2)
