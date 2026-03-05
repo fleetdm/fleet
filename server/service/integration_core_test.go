@@ -15927,8 +15927,9 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 	// A truncated (malformed) body within the limit must NOT return 413.
 	// Before the fix, io.ErrUnexpectedEOF from the JSON decoder was incorrectly
 	// converted to PayloadTooLargeError even when the reader had not been exhausted.
+	// The correct response is 400 Bad Request.
 	truncatedLog := fmt.Appendf(nil, `{"node_key":%q,"log_type":"status","data":[`, *host.NodeKey) // missing closing ]}
-	s.DoRawNoAuth("POST", "/api/osquery/log", truncatedLog, http.StatusInternalServerError)
+	s.DoRawNoAuth("POST", "/api/osquery/log", truncatedLog, http.StatusBadRequest)
 
 	// Body over DefaultMaxOsqueryDistributedWriteSize must be rejected with 413.
 	distPrefix := fmt.Sprintf(`{"node_key":%q,"queries":{"q1":[{"data":"`, *host.NodeKey)
@@ -15950,6 +15951,7 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", withinLimitDist, http.StatusOK)
 
 	// A truncated body within the limit must NOT return 413 (same false-positive guard).
+	// The bodyDecoder path returns the raw io.ErrUnexpectedEOF which encodes as 500.
 	truncatedDist := fmt.Appendf(nil, `{"node_key":%q,"queries":{"q1":[`, *host.NodeKey) // missing closing
 	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", truncatedDist, http.StatusInternalServerError)
 
