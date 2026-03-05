@@ -550,10 +550,7 @@ const SelectTargets = ({
     if (isGlobalPlainObserver) {
       // Global plain observers have the same restrictions as team-level
       // observers but applied to ALL teams/fleets (including "Unassigned")
-      const allTeamIds = teams?.map((t) => t.id) || [];
-      if (isOnGlobalTeam) {
-        allTeamIds.push(0); // "Unassigned"
-      }
+      const allTeamIds = [...(teams?.map((t) => t.id) || []), 0]; // 0 = "Unassigned"
       allTeamIds.forEach((teamId) => {
         if (shouldDisableForObserver(teamId)) {
           disabled.add(teamId);
