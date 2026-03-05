@@ -99,6 +99,85 @@ quotes and braces for (
 	assert.Equal(t, `"foo"`, payload.UninstallScript)
 }
 
+func TestPreProcessUninstallScriptSkipsValidationWhenNoTemplateVars(t *testing.T) {
+	t.Parallel()
+
+	// Non-ASCII package ID that would fail the safeIdentifierRegex validation
+	nonASCIIID := "CrossCore\u00ae Embedded Studio v3.0.2"
+
+	t.Run("non-ASCII ID succeeds when script has no template vars", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "exe",
+			UninstallScript: `$softwareName = "CrossCore Embedded Studio"`,
+			PackageIDs:      []string{nonASCIIID},
+		}
+		require.NoError(t, preProcessUninstallScript(&payload))
+		assert.Equal(t, `$softwareName = "CrossCore Embedded Studio"`, payload.UninstallScript)
+	})
+
+	t.Run("non-ASCII ID succeeds when script uses PACKAGE_ID", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "exe",
+			UninstallScript: "$PACKAGE_ID",
+			PackageIDs:      []string{nonASCIIID},
+		}
+		require.NoError(t, preProcessUninstallScript(&payload))
+		assert.Contains(t, payload.UninstallScript, "'"+nonASCIIID+"'")
+	})
+
+	t.Run("non-ASCII upgrade code succeeds when script has no UPGRADE_CODE", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "msi",
+			UninstallScript: "msiexec /x $PACKAGE_ID /quiet",
+			PackageIDs:      []string{"valid-id"},
+			UpgradeCode:     "code\u00ae",
+		}
+		require.NoError(t, preProcessUninstallScript(&payload))
+		assert.Contains(t, payload.UninstallScript, "'valid-id'")
+	})
+
+	t.Run("non-ASCII upgrade code succeeds when script uses UPGRADE_CODE", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "msi",
+			UninstallScript: "msiexec /x $UPGRADE_CODE /quiet",
+			PackageIDs:      []string{"valid-id"},
+			UpgradeCode:     "code\u00ae",
+		}
+		require.NoError(t, preProcessUninstallScript(&payload))
+		assert.Contains(t, payload.UninstallScript, "'code\u00ae'")
+	})
+
+	t.Run("dmg skips validation entirely", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "dmg",
+			UninstallScript: "$PACKAGE_ID\n\necho 'foo'",
+			PackageIDs:      []string{nonASCIIID},
+		}
+		require.NoError(t, preProcessUninstallScript(&payload))
+		require.Equal(t, "$PACKAGE_ID\n\necho 'foo'", payload.UninstallScript) // confirm no variable substitution
+	})
+
+	t.Run("zip skips validation entirely", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "zip",
+			UninstallScript: "$PACKAGE_ID\n\necho 'foo'",
+			PackageIDs:      []string{nonASCIIID},
+		}
+		require.NoError(t, preProcessUninstallScript(&payload))
+		require.Equal(t, "$PACKAGE_ID\n\necho 'foo'", payload.UninstallScript) // confirm no variable substitution
+	})
+
+	t.Run("empty PackageIDs skips processing", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "exe",
+			UninstallScript: "$PACKAGE_ID",
+			PackageIDs:      []string{},
+		}
+		require.NoError(t, preProcessUninstallScript(&payload))
+		require.Equal(t, "$PACKAGE_ID", payload.UninstallScript) // confirm no variable substitution
+	})
+}
+
 func TestInstallUninstallAuth(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
