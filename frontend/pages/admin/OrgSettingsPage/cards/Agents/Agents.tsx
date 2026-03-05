@@ -35,7 +35,7 @@ const Agents = ({
 }: IAppConfigFormProps): JSX.Element => {
   const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
 
-  const { ADMIN_FLEETS: ADMIN_TEAMS } = paths;
+  const { ADMIN_FLEETS } = paths;
 
   const [formData, setFormData] = useState<IAgentOptionsFormData>({
     agentOptions: agentOptionsToYaml(appConfig.agent_options),
@@ -103,7 +103,7 @@ const Agents = ({
             <div>
               These options are not applied to hosts in a fleet. To update agent
               options for hosts in a fleet, head to the&nbsp;
-              <CustomLink url={ADMIN_TEAMS} text="Fleets page" />.
+              <CustomLink url={ADMIN_FLEETS} text="Fleets page" />.
             </div>
           </InfoBanner>
         ) : (

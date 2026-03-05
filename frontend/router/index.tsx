@@ -247,9 +247,9 @@ const routes = (
               <Route path="options" component={AgentOptionsPage} />
               <Route path="settings" component={TeamSettings} />
             </Route>
-            <Redirect from="teams/:team_id" to="teams" />
-            <Redirect from="teams/:team_id/users" to="teams" />
-            <Redirect from="teams/:team_id/options" to="teams" />
+            <Redirect from="teams/:team_id" to="fleets" />
+            <Redirect from="teams/:team_id/users" to="fleets" />
+            <Redirect from="teams/:team_id/options" to="fleets" />
           </Route>
           <Route path="labels">
             <IndexRedirect to="manage" />
@@ -380,7 +380,12 @@ const routes = (
             </Route>
           </Route>
           <Redirect from="queries" to="reports" />
+          <Redirect from="queries/manage" to="reports/manage" />
+          <Redirect from="queries/new" to="reports/new" />
+          <Redirect from="queries/new/live" to="reports/new/live" />
           <Redirect from="queries/:id" to="reports/:id" />
+          <Redirect from="queries/:id/edit" to="reports/:id/edit" />
+          <Redirect from="queries/:id/live" to="reports/:id/live" />
           <Route path="reports">
             <IndexRedirect to="manage" />
             <Route path="manage" component={ManageQueriesPage} />
