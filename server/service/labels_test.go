@@ -159,7 +159,7 @@ func TestLabelsAuth(t *testing.T) {
 		case team2LabelID: // team2 label
 			return &fleet.LabelWithTeamName{Label: team2Label}, nil, nil
 		}
-		return nil, nil, ctxerr.Wrap(ctx, notFoundErr{"label", fleet.ErrorWithUUID{}})
+		return nil, nil, ctxerr.Wrap(ctx, &notFoundErr{msg: "label"})
 	}
 
 	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
