@@ -35,7 +35,7 @@ const Agents = ({
 }: IAppConfigFormProps): JSX.Element => {
   const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
 
-  const { ADMIN_TEAMS } = paths;
+  const { ADMIN_FLEETS: ADMIN_TEAMS } = paths;
 
   const [formData, setFormData] = useState<IAgentOptionsFormData>({
     agentOptions: agentOptionsToYaml(appConfig.agent_options),

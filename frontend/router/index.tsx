@@ -212,7 +212,8 @@ const routes = (
                   <Route path="users" component={AdminUserManagementPage} />
                 </Route>
                 <Route component={PremiumRoutes}>
-                  <Route path="teams" component={AdminTeamManagementPage} />
+                  <Redirect from="teams" to="fleets" />
+                  <Route path="fleets" component={AdminTeamManagementPage} />
                 </Route>
               </Route>
             </Route>
@@ -236,7 +237,11 @@ const routes = (
             <Redirect from="integrations/vpp/setup" to="integrations/mdm/vpp" />
             <Route path="integrations/mdm/vpp" component={VppPage} />
 
-            <Route path="teams" component={TeamDetailsWrapper}>
+            <Redirect from="teams" to="fleets" />
+            <Redirect from="teams/users" to="fleets/users" />
+            <Redirect from="teams/options" to="fleets/options" />
+            <Redirect from="teams/settings" to="fleets/settings" />
+            <Route path="fleets" component={TeamDetailsWrapper}>
               <Redirect from="members" to="users" />
               <Route path="users" component={UsersPage} />
               <Route path="options" component={AgentOptionsPage} />
@@ -271,7 +276,7 @@ const routes = (
             />
             <Route path=":host_id" component={HostDetailsPage}>
               <IndexRedirect to="details" />
-              <Redirect from="schedule" to="queries" />
+              <Redirect from="schedule" to="reports" />
               <Route path="details" component={HostDetailsPage} />
               <Route path="scripts" component={HostDetailsPage} />
               <Route path="software" component={HostDetailsPage}>
@@ -282,9 +287,13 @@ const routes = (
               <Route path="policies" component={HostDetailsPage} />
             </Route>
 
+            <Redirect
+              from=":host_id/queries/:query_id"
+              to=":host_id/reports/:query_id"
+            />
             <Route
               // outside of '/hosts' nested routes to avoid react-tabs-specific routing issues
-              path=":host_id/queries/:query_id"
+              path=":host_id/reports/:query_id"
               component={HostQueryReport}
             />
           </Route>
@@ -370,7 +379,9 @@ const routes = (
               </Route>
             </Route>
           </Route>
-          <Route path="queries">
+          <Redirect from="queries" to="reports" />
+          <Redirect from="queries/:id" to="reports/:id" />
+          <Route path="reports">
             <IndexRedirect to="manage" />
             <Route path="manage" component={ManageQueriesPage} />
             <Route component={AuthAnyMaintainerAdminObserverPlusRoutes}>
