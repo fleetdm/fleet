@@ -667,6 +667,7 @@ const DeviceUserPage = ({
               hostSoftwareUpdatedAt={host.software_updated_at}
               hostDisplayName={host?.hostname || ""}
               isMobileView={shouldShowMobileUI}
+              mdmEnrollmentStatus={host.mdm.enrollment_status || "Off"}
             />
           </div>
         </div>
@@ -750,6 +751,7 @@ const DeviceUserPage = ({
                     isHostDetailsPolling={showRefetchSpinner}
                     hostSoftwareUpdatedAt={host.software_updated_at}
                     hostDisplayName={host?.hostname || ""}
+                    mdmEnrollmentStatus={host.mdm.enrollment_status || "Off"}
                   />
                 </TabPanel>
               )}
