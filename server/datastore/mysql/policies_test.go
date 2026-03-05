@@ -7131,6 +7131,7 @@ func testBatchedPolicyMembershipCleanupOnPolicyUpdate(t *testing.T, ds *Datastor
 	policyMembershipDeleteBatchSize = 2
 	t.Cleanup(func() { policyMembershipDeleteBatchSize = orig })
 
+	// ── Part 1: platform-based cleanup ──────────────────────────────────────
 	// Create a windows-only policy.
 	pol := newTestPolicy(t, ds, user1, "batch platform cleanup", "windows", nil)
 
@@ -7186,6 +7187,71 @@ func testBatchedPolicyMembershipCleanupOnPolicyUpdate(t *testing.T, ds *Datastor
 	var hostIDs []uint
 	require.NoError(t, ds.writer(ctx).Select(&hostIDs, `SELECT host_id FROM policy_membership WHERE policy_id = ?`, pol.ID))
 	require.ElementsMatch(t, []uint{winHost.ID}, hostIDs)
+
+	// ── Part 2: label-based cleanup ─────────────────────────────────────────
+	// Create a label and a policy that targets only hosts in that label.
+	inclLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "batch-incl-label"})
+	require.NoError(t, err)
+
+	// Create 1 host that belongs to the label (should survive cleanup) and 5
+	// that do not (should be removed in multiple batches of 2).
+	lblID := "batch-lbl-0"
+	lblHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   &lblID,
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         &lblID,
+		UUID:            lblID,
+		Hostname:        lblID,
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddLabelsToHost(ctx, lblHost.ID, []uint{inclLabel.ID}))
+
+	nonLblHosts := make([]*fleet.Host, 5)
+	for i := range nonLblHosts {
+		id := fmt.Sprintf("batch-nonlbl-%d", i)
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:   &id,
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         &id,
+			UUID:            id,
+			Hostname:        id,
+			Platform:        "linux",
+		})
+		require.NoError(t, err)
+		nonLblHosts[i] = h
+	}
+
+	// Create a label-scoped policy (no platform restriction).
+	lblPol := newTestPolicy(t, ds, user1, "batch label cleanup", "", nil)
+	lblPol.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: inclLabel.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, lblPol, false, false))
+
+	// Record policy results for all label-test hosts so policy_membership is populated.
+	labelHosts := append([]*fleet.Host{lblHost}, nonLblHosts...)
+	for _, h := range labelHosts {
+		err := ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{lblPol.ID: ptr.Bool(false)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, lblPol.ID))
+	require.Equal(t, 6, count)
+
+	// Run cleanupPolicyMembershipOnPolicyUpdate with no platform restriction so
+	// only the label-based branch fires.
+	err = cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.reader(ctx), ds.writer(ctx), lblPol.ID, "" /* no platform filter */)
+	require.NoError(t, err)
+
+	// Only the host that belongs to the include label should remain.
+	var lblHostIDs []uint
+	require.NoError(t, ds.writer(ctx).Select(&lblHostIDs, `SELECT host_id FROM policy_membership WHERE policy_id = ?`, lblPol.ID))
+	require.ElementsMatch(t, []uint{lblHost.ID}, lblHostIDs)
 }
 
 // testApplyPolicySpecsNeedsFullMembershipCleanupFlag verifies that:
