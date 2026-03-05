@@ -1257,8 +1257,20 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			installDuringSetup = &si.InstallDuringSetup.Value
 		}
 
+		// For script packages from path, use "script://" URL scheme to pass the filename
+		urlValue := si.URL
+		sha256Value := si.SHA256
+		if fleet.IsScriptPackage(filepath.Ext(si.ReferencedYamlPath)) && si.URL == "" {
+			scriptFilename := filepath.Base(si.ReferencedYamlPath)
+			urlValue = "script://" + scriptFilename
+			if sha256Value == "" && len(ic) > 0 {
+				hash := sha256.Sum256(ic)
+				sha256Value = hex.EncodeToString(hash[:])
+			}
+		}
+
 		softwarePayloads[i] = fleet.SoftwareInstallerPayload{
-			URL:                si.URL,
+			URL:                urlValue,
 			SelfService:        si.SelfService,
 			PreInstallQuery:    qc,
 			InstallScript:      string(ic),
@@ -1267,7 +1279,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			InstallDuringSetup: installDuringSetup,
 			LabelsIncludeAny:   si.LabelsIncludeAny,
 			LabelsExcludeAny:   si.LabelsExcludeAny,
-			SHA256:             si.SHA256,
+			SHA256:             sha256Value,
 			Categories:         si.Categories,
 			DisplayName:        si.DisplayName,
 			IconPath:           si.Icon.Path,
@@ -2285,9 +2297,13 @@ func (c *Client) DoGitOps(
 
 		// Put in default value for enable_disk_encryption
 		enableDiskEncryption := false
+		enableRecoveryLockPassword := false
 		requireBitLockerPIN := false
 		if incoming.Controls.EnableDiskEncryption != nil {
 			enableDiskEncryption = incoming.Controls.EnableDiskEncryption.(bool)
+		}
+		if incoming.Controls.EnableRecoveryLockPassword != nil {
+			enableRecoveryLockPassword = incoming.Controls.EnableRecoveryLockPassword.(bool)
 		}
 		if incoming.Controls.RequireBitLockerPIN != nil {
 			requireBitLockerPIN = incoming.Controls.RequireBitLockerPIN.(bool)
@@ -2297,6 +2313,7 @@ func (c *Client) DoGitOps(
 		}
 
 		mdmAppConfig["enable_disk_encryption"] = enableDiskEncryption
+		mdmAppConfig["enable_recovery_lock_password"] = enableRecoveryLockPassword
 		mdmAppConfig["windows_require_bitlocker_pin"] = requireBitLockerPIN
 
 		if incoming.TeamName != nil {
