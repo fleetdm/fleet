@@ -26415,6 +26415,21 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		})
 	}
 
+	// resetFMAState resets an fmaTestState to the given version and installer bytes.
+	resetFMAState := func(state *fmaTestState, version string, installerBytes []byte) {
+		state.version = version
+		state.installerBytes = installerBytes
+		state.ComputeSHA(installerBytes)
+	}
+
+	checkPolicy := func(policy *fleet.Policy, name, version string, titleID uint) {
+		require.NotNil(t, policy.PatchSoftware)
+		require.Equal(t, titleID, policy.PatchSoftware.SoftwareTitleID)
+		require.Equal(t, fleet.PolicyTypePatch, policy.Type)
+		require.Equal(t, fmt.Sprintf(`SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND version_compare(bundle_short_version, '%s') >= 0;`, version), policy.Query)
+		require.Equal(t, name, policy.Name)
+	}
+
 	t.Run("no_team_patch_policy", func(t *testing.T) {
 		// add a regular "No team" policy
 		tpParams := teamPolicyRequest{
@@ -26686,11 +26701,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		var listPolResp = listTeamPoliciesResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
-		require.NotNil(t, listPolResp.Policies[0].PatchSoftware)
-		require.Equal(t, title.ID, listPolResp.Policies[0].PatchSoftware.SoftwareTitleID)
-		require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
-		require.Equal(t, `SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND version_compare(bundle_short_version, '1.0') >= 0;`, listPolResp.Policies[0].Query)
-		require.Equal(t, spec.Name, listPolResp.Policies[0].Name)
+		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
 
 		// now enable automation on the policy
 		spec = &fleet.PolicySpec{
@@ -26713,13 +26724,9 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		listPolResp = listTeamPoliciesResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
-		require.NotNil(t, listPolResp.Policies[0].PatchSoftware)
-		require.Equal(t, title.ID, listPolResp.Policies[0].PatchSoftware.SoftwareTitleID)
-		require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
+		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
 		// This is only set if the automation is enable
 		require.Equal(t, title.ID, listPolResp.Policies[0].InstallSoftware.SoftwareTitleID)
-		require.Equal(t, `SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND version_compare(bundle_short_version, '1.0') >= 0;`, listPolResp.Policies[0].Query)
-		require.Equal(t, spec.Name, listPolResp.Policies[0].Name)
 
 		// Now disable the automation
 		spec = &fleet.PolicySpec{
@@ -26741,22 +26748,10 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		listPolResp = listTeamPoliciesResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
-		require.NotNil(t, listPolResp.Policies[0].PatchSoftware)
-		require.Equal(t, title.ID, listPolResp.Policies[0].PatchSoftware.SoftwareTitleID)
-		require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
+		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
 		require.Nil(t, listPolResp.Policies[0].InstallSoftware)
-		require.Equal(t, `SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND version_compare(bundle_short_version, '1.0') >= 0;`, listPolResp.Policies[0].Query)
-		require.Equal(t, spec.Name, listPolResp.Policies[0].Name)
-		// TODO(JK): shorten this check by extracting it to a function? ^^
 
 		// FMA Version is updated (query should use new version)
-
-		// resetFMAState resets an fmaTestState to the given version and installer bytes.
-		resetFMAState := func(state *fmaTestState, version string, installerBytes []byte) {
-			state.version = version
-			state.installerBytes = installerBytes
-			state.ComputeSHA(installerBytes)
-		}
 		resetFMAState(states["/zoom/windows.json"], "1.2", []byte("abc"))
 
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
@@ -26776,8 +26771,8 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		listPolResp = listTeamPoliciesResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
-		require.Equal(t, `SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND version_compare(bundle_short_version, '1.2') >= 0;`, listPolResp.Policies[0].Query)
-		require.Equal(t, spec.Name, listPolResp.Policies[0].Name)
+		checkPolicy(listPolResp.Policies[0], spec.Name, "1.2", title.ID)
+
 		// FMA Version is pinned back after update? (query should use old version)
 	})
 }
