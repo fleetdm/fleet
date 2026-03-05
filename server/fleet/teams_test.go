@@ -302,6 +302,25 @@ func TestTeamMDMCopy(t *testing.T) {
 		)
 		require.NotSame(t, tm.MacOSSettings.DeprecatedEnableDiskEncryption, clone.MacOSSettings.DeprecatedEnableDiskEncryption)
 	})
+
+	t.Run("copy WindowsEnforcement", func(t *testing.T) {
+		tm := &TeamMDM{
+			WindowsEnforcement: WindowsEnforcementSettings{
+				CustomSettings: optjson.SetSlice([]MDMProfileSpec{
+					{Path: "cis-registry.yml"},
+					{Path: "cis-audit.yml"},
+				}),
+			},
+		}
+		clone := tm.Copy()
+		require.NotSame(t, tm, clone)
+		require.Equal(t, tm, clone)
+		require.True(t, clone.WindowsEnforcement.CustomSettings.Set)
+		require.Len(t, clone.WindowsEnforcement.CustomSettings.Value, 2)
+		// Verify deep copy - modifying clone doesn't affect original
+		clone.WindowsEnforcement.CustomSettings.Value[0].Path = "changed.yml"
+		require.Equal(t, "cis-registry.yml", tm.WindowsEnforcement.CustomSettings.Value[0].Path)
+	})
 }
 
 func TestTeamConfigCopy(t *testing.T) {

@@ -989,3 +989,186 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 	})
 	require.Equal(t, 1, retryCount, "should have scheduled a retry in upcoming_activities")
 }
+
+func TestGetOrbitConfigWindowsEnforcement(t *testing.T) {
+	setupWindowsHost := func(t *testing.T) (*mock.Store, fleet.Service, context.Context) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+		host := &fleet.Host{
+			OsqueryHostID: ptr.String("test-windows"),
+			UUID:          "host-uuid-1",
+			ID:            1,
+			Platform:      "windows",
+		}
+
+		appCfg := &fleet.AppConfig{}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appCfg, nil
+		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return false, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return nil, sql.ErrNoRows
+		}
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+			return nil, nil
+		}
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return false
+		}
+		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
+			return &fleet.OperatingSystem{Platform: "windows", Version: "10.0.19045"}, nil
+		}
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
+		}
+
+		ctx = test.HostContext(ctx, host)
+		return ds, svc, ctx
+	}
+
+	t.Run("hash and policies returned", func(t *testing.T) {
+		ds, svc, ctx := setupWindowsHost(t)
+
+		ds.GetHostWindowsEnforcementHashFunc = func(ctx context.Context, hostUUID string) (string, error) {
+			require.Equal(t, "host-uuid-1", hostUUID)
+			return "abc123hash", nil
+		}
+		ds.GetPendingWindowsEnforcementForHostFunc = func(ctx context.Context, hostUUID string) ([]fleet.OrbitEnforcementPolicy, error) {
+			return []fleet.OrbitEnforcementPolicy{
+				{ProfileUUID: "e-uuid-1", Name: "cis-registry", RawPolicy: []byte(`{"registry":[]}`)},
+			}, nil
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, "abc123hash", cfg.Notifications.PendingWindowsEnforcementHash)
+		require.NotNil(t, cfg.WindowsEnforcement)
+		require.Len(t, cfg.WindowsEnforcement.Policies, 1)
+		require.Equal(t, "cis-registry", cfg.WindowsEnforcement.Policies[0].Name)
+		require.True(t, ds.GetHostWindowsEnforcementHashFuncInvoked)
+		require.True(t, ds.GetPendingWindowsEnforcementForHostFuncInvoked)
+	})
+
+	t.Run("empty hash skips policies lookup", func(t *testing.T) {
+		ds, svc, ctx := setupWindowsHost(t)
+
+		ds.GetHostWindowsEnforcementHashFunc = func(ctx context.Context, hostUUID string) (string, error) {
+			return "", nil
+		}
+		ds.GetPendingWindowsEnforcementForHostFuncInvoked = false
+		ds.GetPendingWindowsEnforcementForHostFunc = func(ctx context.Context, hostUUID string) ([]fleet.OrbitEnforcementPolicy, error) {
+			t.Fatal("should not be called when hash is empty")
+			return nil, nil
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Empty(t, cfg.Notifications.PendingWindowsEnforcementHash)
+		require.Nil(t, cfg.WindowsEnforcement)
+		require.False(t, ds.GetPendingWindowsEnforcementForHostFuncInvoked)
+	})
+
+	t.Run("hash error skips enforcement silently", func(t *testing.T) {
+		ds, svc, ctx := setupWindowsHost(t)
+
+		ds.GetHostWindowsEnforcementHashFunc = func(ctx context.Context, hostUUID string) (string, error) {
+			return "", errors.New("db error")
+		}
+		ds.GetPendingWindowsEnforcementForHostFunc = func(ctx context.Context, hostUUID string) ([]fleet.OrbitEnforcementPolicy, error) {
+			t.Fatal("should not be called when hash lookup fails")
+			return nil, nil
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Empty(t, cfg.Notifications.PendingWindowsEnforcementHash)
+		require.Nil(t, cfg.WindowsEnforcement)
+	})
+
+	t.Run("policies error skips enforcement silently", func(t *testing.T) {
+		ds, svc, ctx := setupWindowsHost(t)
+
+		ds.GetHostWindowsEnforcementHashFunc = func(ctx context.Context, hostUUID string) (string, error) {
+			return "abc123hash", nil
+		}
+		ds.GetPendingWindowsEnforcementForHostFunc = func(ctx context.Context, hostUUID string) ([]fleet.OrbitEnforcementPolicy, error) {
+			return nil, errors.New("db error")
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, "abc123hash", cfg.Notifications.PendingWindowsEnforcementHash)
+		require.Nil(t, cfg.WindowsEnforcement)
+	})
+
+	t.Run("empty policies list skips WindowsEnforcement", func(t *testing.T) {
+		ds, svc, ctx := setupWindowsHost(t)
+
+		ds.GetHostWindowsEnforcementHashFunc = func(ctx context.Context, hostUUID string) (string, error) {
+			return "abc123hash", nil
+		}
+		ds.GetPendingWindowsEnforcementForHostFunc = func(ctx context.Context, hostUUID string) ([]fleet.OrbitEnforcementPolicy, error) {
+			return []fleet.OrbitEnforcementPolicy{}, nil
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, "abc123hash", cfg.Notifications.PendingWindowsEnforcementHash)
+		require.Nil(t, cfg.WindowsEnforcement)
+	})
+
+	t.Run("non-windows host skips enforcement entirely", func(t *testing.T) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+		host := &fleet.Host{
+			OsqueryHostID: ptr.String("test-linux"),
+			UUID:          "host-uuid-2",
+			ID:            2,
+			Platform:      "ubuntu",
+		}
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return false, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return nil, sql.ErrNoRows
+		}
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+			return nil, nil
+		}
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return false
+		}
+		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
+			return &fleet.OperatingSystem{Platform: "ubuntu", Version: "20.04"}, nil
+		}
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
+		}
+		ds.GetHostWindowsEnforcementHashFunc = func(ctx context.Context, hostUUID string) (string, error) {
+			t.Fatal("should not be called for non-windows host")
+			return "", nil
+		}
+
+		ctx = test.HostContext(ctx, host)
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Nil(t, cfg.WindowsEnforcement)
+		require.Empty(t, cfg.Notifications.PendingWindowsEnforcementHash)
+	})
+}

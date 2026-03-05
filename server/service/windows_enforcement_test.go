@@ -664,6 +664,94 @@ func TestDeleteWindowsEnforcementProfileErrors(t *testing.T) {
 	})
 }
 
+func TestUploadWindowsEnforcementProfileEndpointServiceError(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = test.UserContext(ctx, test.UserAdmin)
+
+	ds.ListWindowsEnforcementProfilesFunc = func(ctx context.Context, tid *uint) ([]*fleet.WindowsEnforcementProfile, error) {
+		return nil, errors.New("db connection lost")
+	}
+
+	fh := createTestFileHeader(t, "test-policy.yml", []byte(`registry: []`))
+	req := &uploadWindowsEnforcementProfileRequest{TeamID: 1, Profile: fh}
+	resp, err := uploadWindowsEnforcementProfileEndpoint(ctx, req, svc)
+	require.NoError(t, err)
+	uploadResp := resp.(*uploadWindowsEnforcementProfileResponse)
+	require.Error(t, uploadResp.Err)
+	assert.Contains(t, uploadResp.Err.Error(), "listing existing")
+}
+
+func TestDeleteWindowsEnforcementProfileTeamAuth(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	teamID := uint(99)
+	ds.GetWindowsEnforcementProfileFunc = func(ctx context.Context, uuid string) (*fleet.WindowsEnforcementProfile, error) {
+		return &fleet.WindowsEnforcementProfile{
+			ProfileUUID: uuid,
+			TeamID:      &teamID,
+			Name:        "team-profile",
+		}, nil
+	}
+	ds.DeleteWindowsEnforcementProfileFunc = func(ctx context.Context, uuid string) error {
+		t.Fatal("should not reach delete when auth fails")
+		return nil
+	}
+
+	err := svc.DeleteWindowsEnforcementProfile(test.UserContext(ctx, test.UserNoRoles), "e-uuid-1")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+}
+
+func TestDeleteWindowsEnforcementProfileEndpointServiceError(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = test.UserContext(ctx, test.UserAdmin)
+
+	ds.GetWindowsEnforcementProfileFunc = func(ctx context.Context, uuid string) (*fleet.WindowsEnforcementProfile, error) {
+		return &fleet.WindowsEnforcementProfile{ProfileUUID: uuid, Name: "test"}, nil
+	}
+	ds.DeleteWindowsEnforcementProfileFunc = func(ctx context.Context, uuid string) error {
+		return errors.New("constraint violation")
+	}
+
+	resp, err := deleteWindowsEnforcementProfileEndpoint(ctx, &deleteWindowsEnforcementProfileRequest{ProfileUUID: "e-uuid-1"}, svc)
+	require.NoError(t, err)
+	delResp := resp.(*deleteWindowsEnforcementProfileResponse)
+	require.Error(t, delResp.Err)
+}
+
+func TestGetWindowsEnforcementProfileEndpointServiceError(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = test.UserContext(ctx, test.UserAdmin)
+
+	ds.GetWindowsEnforcementProfileFunc = func(ctx context.Context, uuid string) (*fleet.WindowsEnforcementProfile, error) {
+		return nil, errors.New("db error")
+	}
+
+	resp, err := getWindowsEnforcementProfileEndpoint(ctx, &getWindowsEnforcementProfileRequest{ProfileUUID: "e-uuid-bad"}, svc)
+	require.NoError(t, err)
+	getResp := resp.(*getWindowsEnforcementProfileResponse)
+	require.Error(t, getResp.Err)
+}
+
+func TestListWindowsEnforcementProfilesEndpointServiceError(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = test.UserContext(ctx, test.UserAdmin)
+
+	ds.ListWindowsEnforcementProfilesFunc = func(ctx context.Context, teamID *uint) ([]*fleet.WindowsEnforcementProfile, error) {
+		return nil, errors.New("timeout")
+	}
+
+	resp, err := listWindowsEnforcementProfilesEndpoint(ctx, &listWindowsEnforcementProfilesRequest{}, svc)
+	require.NoError(t, err)
+	listResp := resp.(*listWindowsEnforcementProfilesResponse)
+	require.Error(t, listResp.Err)
+}
+
 func TestReconcileWindowsEnforcementPayloadFields(t *testing.T) {
 	ds := new(mock.Store)
 
