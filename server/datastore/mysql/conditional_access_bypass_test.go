@@ -299,7 +299,7 @@ func testConditionalAccessBypassDeviceWithBlockingPolicy(t *testing.T, ds *Datas
 
 	// Set conditional_access_bypass_enabled = 0 to make it non-bypassable
 	ExecAdhocSQL(t, ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(ctx, `UPDATE policies SET conditional_access_bypass_enabled = 0 WHERE id = ?`, policy.ID)
+		_, err := db.ExecContext(ctx, `UPDATE policies SET conditional_access_bypass_enabled = 0, conditional_access_enabled = 1 WHERE id = ?`, policy.ID)
 		return err
 	})
 
