@@ -5,10 +5,10 @@ package enforcement
 import (
 	"context"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"strings"
 
 	"golang.org/x/sys/windows/registry"
+	"gopkg.in/yaml.v3"
 )
 
 // RegistrySetting represents a single registry enforcement setting from the

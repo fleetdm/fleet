@@ -10,9 +10,7 @@ import (
 )
 
 // EnforcementClient is the interface for reporting results back to Fleet.
-type EnforcementClient interface {
-	// SetOrUpdateDeviceMapping sets the enforcement status for a host.
-}
+type EnforcementClient = any
 
 // WindowsEnforcementRunner is a ConfigReceiver that enforces Windows security
 // policies received via OrbitConfig. It follows the BitLocker receiver pattern.

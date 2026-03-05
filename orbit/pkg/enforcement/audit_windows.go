@@ -119,7 +119,7 @@ func getAuditPolicy(ctx context.Context) (map[string]string, error) {
 	}
 
 	result := make(map[string]string)
-	for _, line := range strings.Split(string(output), "\n") {
+	for line := range strings.SplitSeq(string(output), "\n") {
 		line = strings.TrimSpace(line)
 		parts := strings.Split(line, ",")
 		if len(parts) >= 4 {

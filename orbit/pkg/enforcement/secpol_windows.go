@@ -148,7 +148,7 @@ func exportSecurityPolicy(ctx context.Context) (map[string]string, error) {
 	}
 
 	result := make(map[string]string)
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		line = strings.TrimSpace(line)
 		if idx := strings.Index(line, "="); idx > 0 {
 			key := strings.TrimSpace(line[:idx])

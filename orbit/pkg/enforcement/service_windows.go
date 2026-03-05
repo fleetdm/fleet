@@ -5,10 +5,10 @@ package enforcement
 import (
 	"context"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"strings"
 
 	"golang.org/x/sys/windows/svc/mgr"
+	"gopkg.in/yaml.v3"
 )
 
 type serviceSetting struct {
@@ -41,7 +41,7 @@ func (h *ServiceHandler) Diff(ctx context.Context, rawPolicy []byte) ([]DiffResu
 	if err != nil {
 		return nil, fmt.Errorf("connecting to service manager: %w", err)
 	}
-	defer m.Disconnect()
+	defer func() { _ = m.Disconnect() }()
 
 	var results []DiffResult
 	for _, s := range policy.Services {
@@ -65,7 +65,7 @@ func (h *ServiceHandler) Diff(ctx context.Context, rawPolicy []byte) ([]DiffResu
 		}
 
 		cfg, err := svc.Config()
-		svc.Close()
+		_ = svc.Close()
 
 		if err != nil {
 			results = append(results, DiffResult{
@@ -109,7 +109,7 @@ func (h *ServiceHandler) Apply(ctx context.Context, rawPolicy []byte) ([]ApplyRe
 	if err != nil {
 		return nil, fmt.Errorf("connecting to service manager: %w", err)
 	}
-	defer m.Disconnect()
+	defer func() { _ = m.Disconnect() }()
 
 	var results []ApplyResult
 	for _, s := range policy.Services {
@@ -132,7 +132,7 @@ func (h *ServiceHandler) Apply(ctx context.Context, rawPolicy []byte) ([]ApplyRe
 
 		cfg, err := svc.Config()
 		if err != nil {
-			svc.Close()
+			_ = svc.Close()
 			results = append(results, ApplyResult{
 				SettingName: s.Name,
 				Category:    "service",
@@ -144,7 +144,7 @@ func (h *ServiceHandler) Apply(ctx context.Context, rawPolicy []byte) ([]ApplyRe
 
 		desired, err := stringToStartType(s.StartupType)
 		if err != nil {
-			svc.Close()
+			_ = svc.Close()
 			results = append(results, ApplyResult{
 				SettingName: s.Name,
 				Category:    "service",
@@ -156,7 +156,7 @@ func (h *ServiceHandler) Apply(ctx context.Context, rawPolicy []byte) ([]ApplyRe
 
 		cfg.StartType = desired
 		err = svc.UpdateConfig(cfg)
-		svc.Close()
+		_ = svc.Close()
 
 		if err != nil {
 			results = append(results, ApplyResult{
