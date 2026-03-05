@@ -787,7 +787,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.T().Setenv("FLEET_DEV_AZURE_JWT_JWKS_URI", jwksServer.URL+"/jwks.json")
 
 	dev_mode.SetOverride("FLEET_DEV_BATCH_RETRY_INTERVAL", "1s")
-
 }
 
 func (s *integrationMDMTestSuite) TearDownSuite() {
@@ -3409,6 +3408,52 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.False(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
+
+	// test via apply team specs
+	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			EnableRecoveryLockPassword: optjson.SetBool(true),
+		},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	// check it's enabled
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
+
+	// apply with recovery lock password disabled
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			EnableRecoveryLockPassword: optjson.SetBool(false),
+		},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	// check it's disabled
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.False(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
+
+	// create a new team via spec with recovery lock password enabled
+	newTeamName := teamName + "2"
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: newTeamName,
+		MDM: fleet.TeamSpecMDM{
+			EnableRecoveryLockPassword: optjson.SetBool(true),
+		},
+	}}}
+	var specResp applyTeamSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+	newTeamID := specResp.TeamIDsByName[newTeamName]
+	require.NotZero(t, newTeamID)
+
+	// check the new team has recovery lock password enabled
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", newTeamID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
 }
 
 func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
@@ -10447,6 +10492,14 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 				},
 				// disk encryption does not require mdm enabled and configured
 				http.StatusOK,
+			},
+			{
+				"enable recovery lock password",
+				&fleet.TeamSpecMDM{
+					EnableRecoveryLockPassword: optjson.SetBool(true),
+				},
+				// recovery lock password requires mdm enabled and configured
+				http.StatusUnprocessableEntity,
 			},
 			// Ian - this test still passes, that is, returns 4xx – perhaps related to one of the endpoints we still need to update
 			{

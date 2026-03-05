@@ -488,7 +488,7 @@ func TestGetInHouseAppManifest(t *testing.T) {
 			}, nil
 		}
 
-		return nil, notFoundError{}
+		return nil, &notFoundError{}
 	}
 
 	expected := `
