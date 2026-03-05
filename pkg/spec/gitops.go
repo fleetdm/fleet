@@ -356,14 +356,28 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 				multiError = parseNoTeamSettings(settingsRaw, result, filePath, multiError)
 			}
 		default:
+			// Allow omitting settings key for teams, clearing all team settings as a result.
 			if !settingsOk {
-				multiError = multierror.Append(multiError, errors.New("'settings' is required when 'name' is provided"))
-			} else {
-				multiError = parseTeamSettings(settingsRaw, result, baseDir, filePath, multiError)
+				settingsRaw = json.RawMessage("null")
 			}
+			multiError = parseTeamSettings(settingsRaw, result, baseDir, filePath, multiError)
 		}
 	default:
-		multiError = multierror.Append(multiError, errors.New("either 'org_settings' or 'name' and 'settings' is required"))
+		multiError = multierror.Append(multiError, errors.New("if `name` is not provided, 'org_settings' is required"))
+	}
+
+	for _, topKey := range topKeys {
+		// "name" is handled later with special logic based on the filename.
+		// "labels" is a special case where omitting is a no-op, rather than a directive to clear settings.
+		// settings keys were handled above.
+		if topKey == "name" || topKey == "labels" || topKey == "settings" || topKey == "org_settings" {
+			continue
+		}
+		// Default top keys to null if not present.
+		// This will clear the settings as if the key was provided with an empty value.
+		if _, ok := top[topKey]; !ok {
+			top[topKey] = json.RawMessage("null")
+		}
 	}
 
 	// Get the labels. If `labels:` is specified but no labels are listed, this will
