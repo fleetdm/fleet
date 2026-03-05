@@ -116,6 +116,9 @@ func sendVerifyRecoveryLock(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host recovery key password")
 	}
+	if rkp == nil {
+		return ctxerr.New(ctx, "no recovery key password found for host")
+	}
 
 	// Generate verification command UUID with prefix
 	cmdUUID := VerifyRecoveryLockCommandPrefix + uuid.NewString()
