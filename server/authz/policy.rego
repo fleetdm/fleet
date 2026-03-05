@@ -559,7 +559,7 @@ allow {
   action == run_new
 }
 
-# Global observers can run observer_can_run global queries (no team restriction).
+# Global observers can run observer_can_run global queries (`null` team_id).
 allow {
   object.type == "targeted_query"
   object.observer_can_run == true
