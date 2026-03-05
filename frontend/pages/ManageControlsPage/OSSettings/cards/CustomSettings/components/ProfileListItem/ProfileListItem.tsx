@@ -95,6 +95,7 @@ interface IProfileListItemProps {
   setProfileLabelsModalData: React.Dispatch<
     React.SetStateAction<IMdmProfile | null>
   >;
+  isTechnician?: boolean;
 }
 
 const ProfileListItem = ({
@@ -103,6 +104,7 @@ const ProfileListItem = ({
   onClickInfo,
   onClickDelete,
   setProfileLabelsModalData,
+  isTechnician,
 }: IProfileListItemProps) => {
   const {
     updated_at,
@@ -180,18 +182,20 @@ const ProfileListItem = ({
           >
             <Icon name="download" />
           </Button>
-          <GitOpsModeTooltipWrapper
-            renderChildren={(disableChildren) => (
-              <Button
-                disabled={disableChildren}
-                className={`${subClass}__action-button`}
-                variant="icon"
-                onClick={() => onClickDelete(profile)}
-              >
-                <Icon name="trash" />
-              </Button>
-            )}
-          />
+          {!isTechnician && (
+            <GitOpsModeTooltipWrapper
+              renderChildren={(disableChildren) => (
+                <Button
+                  disabled={disableChildren}
+                  className={`${subClass}__action-button`}
+                  variant="icon"
+                  onClick={() => onClickDelete(profile)}
+                >
+                  <Icon name="trash" />
+                </Button>
+              )}
+            />
+          )}
         </div>
       </div>
     </div>

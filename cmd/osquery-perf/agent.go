@@ -5,6 +5,7 @@ import (
 	"compress/bzip2"
 	cryptorand "crypto/rand"
 	"crypto/sha1" // nolint:gosec
+	"crypto/sha256"
 	"crypto/tls"
 	"embed"
 	"encoding/base64"
@@ -372,6 +373,13 @@ type agent struct {
 	// Cached software indices (pointers into global softwareDB array for this agent's platform)
 	cachedSoftwareIndices []uint32
 
+	// Cached last_opened_at timestamps per software (keyed by software name).
+	// Note that this requires a mutex because both the runLoop and the live
+	// query goroutines may call DistributedWrite (which calls processQuery
+	// which calls genLastOpenedAt).
+	cachedLastOpenedAtMutex sync.RWMutex
+	cachedLastOpenedAt      map[string]*time.Time
+
 	// Host identity client for HTTP message signatures
 	hostIdentityClient *hostidentity.Client
 
@@ -585,6 +593,7 @@ func newAgent(
 		bufferedResults:          make(map[resultLog]int),
 		scheduledQueryData:       new(sync.Map),
 		softwareVersionMap:       make(map[rune]int),
+		cachedLastOpenedAt:       make(map[string]*time.Time),
 		commonSoftwareNameSuffix: commonSoftwareNameSuffix,
 		mdmProfileFailureProb:    mdmProfileFailureProb,
 
@@ -1110,8 +1119,36 @@ func (a *agent) runMacosMDMLoop() {
 				}
 				log.Printf("got install application command for %d", appRequest.Command["iTunesStoreID"])
 
+				// The lowest valid iTunesStoreID we accept, anything below this will fail the MDM protocl with the same error code.
+				const failureThreshold = 100_000
+
+				var installedAdamID uint64
 				if adamID, ok := appRequest.Command["iTunesStoreID"].(uint64); ok {
-					a.installedAdamIDs = append(a.installedAdamIDs, int(adamID))
+					if adamID >= failureThreshold {
+						a.installedAdamIDs = append(a.installedAdamIDs, int(adamID))
+					}
+					installedAdamID = adamID
+				}
+
+				if installedAdamID == 0 {
+					log.Printf("InstallApplication command missing iTunesStoreID or it was not a uint64")
+					a.stats.IncrementMDMErrors()
+					break INNER_FOR_LOOP
+				} else if installedAdamID < failureThreshold {
+					// Fail with the specific requested ID to simulate specific VPP app install error codes.
+					log.Printf("failing install application with error code %d", installedAdamID)
+					_, err = a.macMDMClient.Err(mdmCommandPayload.CommandUUID, []mdm.ErrorChain{
+						{
+							ErrorCode:            int(installedAdamID),
+							LocalizedDescription: "Failed to install VPP application (osquery-perf custom failure)",
+						},
+					})
+					if err != nil {
+						log.Printf("MDM Error request failed: %s", err)
+						a.stats.IncrementMDMErrors()
+						break INNER_FOR_LOOP
+					}
+					continue INNER_FOR_LOOP
 				}
 
 				mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
@@ -1771,8 +1808,6 @@ func (a *agent) hostUsers() []map[string]string {
 }
 
 func (a *agent) softwareMacOS() []map[string]string {
-	var lastOpenedCount int
-
 	totalCommon := a.softwareCount.common
 	totalDuplicates := (a.softwareCount.common * a.softwareCount.duplicateBundleIdentifiersPercent) / 100
 	totalSoftware := totalCommon + totalDuplicates
@@ -1808,13 +1843,12 @@ func (a *agent) softwareMacOS() []map[string]string {
 	groupSize := 4
 
 	for i := startIdx; i < endIdx; i++ {
-		var lastOpenedAt string
-		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
-			lastOpenedAt = fmt.Sprint(l.Unix())
-		}
-
 		if i < totalCommon {
 			name := fmt.Sprintf("Common_%d%s", i, a.commonSoftwareNameSuffix)
+			var lastOpenedAt string
+			if l := a.genLastOpenedAt(name); l != nil {
+				lastOpenedAt = fmt.Sprint(l.Unix())
+			}
 			commonSoftware = append(commonSoftware, map[string]string{
 				"name":              name,
 				"version":           a.selectSoftwareVersion(name, "0.0.1", "0.0.2"),
@@ -1848,11 +1882,11 @@ func (a *agent) softwareMacOS() []map[string]string {
 	// Unique Software (always per-host, not distributed)
 	uniqueSoftware := make([]map[string]string, a.softwareCount.unique)
 	for i := 0; i < len(uniqueSoftware); i++ {
+		name := fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i)
 		var lastOpenedAt string
-		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
+		if l := a.genLastOpenedAt(name); l != nil {
 			lastOpenedAt = l.Format(time.UnixDate)
 		}
-		name := fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i)
 		uniqueSoftware[i] = map[string]string{
 			"name":              name,
 			"version":           a.selectSoftwareVersion(name, "1.1.1", "1.1.2"),
@@ -1917,7 +1951,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 			}
 
 			var lastOpenedAt string
-			if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
+			if l := a.genLastOpenedAt(sw.Name); l != nil {
 				lastOpenedAt = l.Format(time.UnixDate)
 			}
 
@@ -2126,16 +2160,50 @@ var defaultQueryResult = []map[string]string{
 	{"foo": "bar"},
 }
 
-func (a *agent) genLastOpenedAt(count *int) *time.Time {
-	if *count >= a.softwareCount.withLastOpened {
+// genLastOpenedAt returns a cached last_opened_at timestamp for the given software.
+// On first call for a piece of software, it decides whether to assign a timestamp
+// (up to withLastOpened items total). On subsequent calls, it returns the cached
+// value, occasionally updating it based on lastOpenedProb to simulate the app
+// being reopened.
+func (a *agent) genLastOpenedAt(softwareName string) *time.Time {
+	a.cachedLastOpenedAtMutex.Lock()
+	defer a.cachedLastOpenedAtMutex.Unlock()
+
+	// Check if we already have a cached value for this software
+	if cached, exists := a.cachedLastOpenedAt[softwareName]; exists {
+		if cached == nil {
+			// This software was decided to not have last_opened_at
+			return nil
+		}
+		// Maybe update the timestamp (simulating the app being reopened)
+		if rand.Float64() <= a.softwareCount.lastOpenedProb {
+			now := time.Now()
+			a.cachedLastOpenedAt[softwareName] = &now
+			return &now
+		}
+		// Return the existing cached timestamp
+		return cached
+	}
+
+	// First time seeing this software - decide if it should have a last_opened_at
+	// Count how many software items already have a timestamp
+	countWithTimestamp := 0
+	for _, v := range a.cachedLastOpenedAt {
+		if v != nil {
+			countWithTimestamp++
+		}
+	}
+
+	if countWithTimestamp >= a.softwareCount.withLastOpened {
+		// We've reached the limit, this software won't have last_opened_at
+		a.cachedLastOpenedAt[softwareName] = nil
 		return nil
 	}
-	*count++
-	if rand.Float64() <= a.softwareCount.lastOpenedProb {
-		now := time.Now()
-		return &now
-	}
-	return nil
+
+	// Assign a timestamp to this software
+	now := time.Now()
+	a.cachedLastOpenedAt[softwareName] = &now
+	return &now
 }
 
 func (a *agent) runPolicy(query string) []map[string]string {
@@ -2768,9 +2836,36 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 					if len(teamIdentifier) > 10 {
 						teamIdentifier = teamIdentifier[:10]
 					}
+					cdhashSHA256 := fmt.Sprintf("%x", sha1.Sum([]byte(installedPath))) // cdhash returns 40 characters, matching the length of the sha1 here
 					results = append(results, map[string]string{
 						"path":            installedPath,
 						"team_identifier": teamIdentifier,
+						"cdhash_sha256":   cdhashSHA256,
+					})
+				}
+			}
+		}
+		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"software_macos_executable_sha256":
+		ss := fleet.StatusOK
+		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb {
+			ss = fleet.OsqueryStatus(1)
+		}
+		if ss == fleet.StatusOK {
+			if len(cachedResults.software) > 0 {
+				for _, s := range cachedResults.software {
+					if s["source"] != "apps" {
+						continue
+					}
+					installedPath := s["installed_path"]
+					// Generate mock executable path
+					executablePath := installedPath + "/Contents/MacOS/" + strings.TrimSuffix(s["name"], ".app")
+					// Generate a mock sha256 hash based on the executable path for consistency
+					executableSHA256 := fmt.Sprintf("%x", sha256.Sum256([]byte(executablePath)))
+					results = append(results, map[string]string{
+						"path":              installedPath,
+						"executable_path":   executablePath,
+						"executable_sha256": executableSHA256,
 					})
 				}
 			}
@@ -3141,7 +3236,7 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 			switch mdmCommandPayload.Command.RequestType {
 			case "DeviceInformation":
 				mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformation(udid, mdmCommandPayload.CommandUUID, deviceName,
-					productName)
+					productName, "America/Los_Angeles")
 			case "InstalledApplicationList":
 				software := a.softwareIOSandIPadOS(softwareSource)
 				mdmCommandPayload, err = mdmClient.AcknowledgeInstalledApplicationList(udid, mdmCommandPayload.CommandUUID, software)
@@ -3291,8 +3386,8 @@ func main() {
 		// This flag can be used to set the number of vulnerable software items reported by each host picked randomly from the
 		// list of vulnerable software.  Use -1 to load all vulnerable software.
 		vulnerableSoftwareCount     = flag.Int("vulnerable_software_count", 10, "Number of vulnerable installed applications reported to fleet.  Use -1 to load all vulnerable software.")
-		withLastOpenedSoftwareCount = flag.Int("with_last_opened_software_count", 10, "Number of applications that may report a last opened timestamp to fleet")
-		lastOpenedChangeProb        = flag.Float64("last_opened_change_prob", 0.1, "Probability of last opened timestamp to be reported as changed [0, 1]")
+		withLastOpenedSoftwareCount = flag.Int("with_last_opened_software_count", 50, "Number of applications that may report a last opened timestamp to fleet")
+		lastOpenedChangeProb        = flag.Float64("last_opened_change_prob", 0.5, "Probability of last opened timestamp to be reported as changed [0, 1]")
 		commonUserCount             = flag.Int("common_user_count", 10, "Number of common host users reported to fleet")
 		uniqueUserCount             = flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
 		policyPassProb              = flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")

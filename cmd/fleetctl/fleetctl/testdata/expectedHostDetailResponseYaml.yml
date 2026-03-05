@@ -1,9 +1,11 @@
+---
 apiVersion: v1
 kind: host
 spec:
   build: ""
   code_name: ""
   computer_name: test_host
+  conditional_access_bypassed: false
   config_tls_refresh: 0
   cpu_brand: ""
   cpu_logical_cores: 0
@@ -12,13 +14,15 @@ spec:
   cpu_type: ""
   created_at: "0001-01-01T00:00:00Z"
   detail_updated_at: "0001-01-01T00:00:00Z"
-  display_text: test_host
   display_name: test_host
+  display_text: test_host
   distributed_interval: 0
   fleet_desktop_version: null
+  fleet_id: null
+  fleet_name: null
+  gigs_all_disk_space: null
   gigs_disk_space_available: 0
   gigs_total_disk_space: 0
-  gigs_all_disk_space: null
   hardware_model: ""
   hardware_serial: ""
   hardware_vendor: ""
@@ -36,15 +40,15 @@ spec:
   last_restarted_at: "0001-01-01T00:00:00Z"
   logger_tls_period: 0
   mdm:
+    connected_to_fleet: null
     dep_profile_error: false
     device_status: unlocked
-    encryption_key_available: false
     encryption_key_archived: false
+    encryption_key_available: false
     enrollment_status: null
     name: ""
     pending_action: ""
     server_url: null
-    connected_to_fleet: null
   memory: 0
   orbit_version: null
   os_version: ""
@@ -55,43 +59,47 @@ spec:
   platform: ""
   platform_like: ""
   policies:
-    - author_email: "alice@example.com"
-      author_id: 1
-      author_name: Alice
-      id: 1
-      description: "Some description"
-      name: query1
-      platform: ""
-      query: select 1 from osquery_info where start_time > 1;
-      resolution: "Some resolution"
-      response: passes
-      team_id: 1
-      created_at: "0001-01-01T00:00:00Z"
-      updated_at: "0001-01-01T00:00:00Z"
-      critical: false
-      calendar_events_enabled: true
-      conditional_access_enabled: false
-    - author_email: "alice@example.com"
-      author_id: 1
-      author_name: Alice
-      id: 2
-      description: ""
-      name: query2
-      platform: ""
-      query: select 1 from osquery_info where start_time > 1;
-      response: fails
-      team_id: null
-      created_at: "0001-01-01T00:00:00Z"
-      updated_at: "0001-01-01T00:00:00Z"
-      critical: false
-      calendar_events_enabled: false
-      conditional_access_enabled: false
+  - author_email: alice@example.com
+    author_id: 1
+    author_name: Alice
+    calendar_events_enabled: true
+    conditional_access_bypass_enabled: true
+    conditional_access_enabled: false
+    created_at: "0001-01-01T00:00:00Z"
+    critical: false
+    description: Some description
+    fleet_id: 1
+    id: 1
+    name: query1
+    platform: ""
+    query: select 1 from osquery_info where start_time > 1;
+    resolution: Some resolution
+    response: passes
+    team_id: 1
+    updated_at: "0001-01-01T00:00:00Z"
+  - author_email: alice@example.com
+    author_id: 1
+    author_name: Alice
+    calendar_events_enabled: false
+    conditional_access_bypass_enabled: false
+    conditional_access_enabled: false
+    created_at: "0001-01-01T00:00:00Z"
+    critical: false
+    description: ""
+    fleet_id: null
+    id: 2
+    name: query2
+    platform: ""
+    query: select 1 from osquery_info where start_time > 1;
+    response: fails
+    team_id: null
+    updated_at: "0001-01-01T00:00:00Z"
   policy_updated_at: "0001-01-01T00:00:00Z"
-  public_ip: ""
   primary_ip: ""
   primary_mac: ""
-  refetch_requested: false
+  public_ip: ""
   refetch_critical_queries_until: null
+  refetch_requested: false
   scripts_enabled: null
   seen_time: "0001-01-01T00:00:00Z"
   software: []

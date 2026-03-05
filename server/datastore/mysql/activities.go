@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -13,329 +12,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
 var (
-	automationActivityAuthor = "Fleet"
-	deleteIDsBatchSize       = 1000
+	deleteIDsBatchSize = 1000
 )
-
-// NewActivity stores an activity item that the user performed
-func (ds *Datastore) NewActivity(
-	ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-) error {
-	// Sanity check to ensure we processed activity webhook before storing the activity
-	processed, _ := ctx.Value(fleet.ActivityWebhookContextKey).(bool)
-	if !processed {
-		return ctxerr.New(
-			ctx, "activity webhook not processed. Please use svc.NewActivity instead of ds.NewActivity. This is a Fleet server bug.",
-		)
-	}
-
-	var userID *uint
-	var userName *string
-	var userEmail *string
-	var fleetInitiated bool
-	var hostOnly bool
-	if user != nil {
-		// To support creating activities with users that were deleted. This can happen
-		// for automatically installed software which uses the author of the upload as the author of
-		// the installation.
-		if user.ID != 0 && !user.Deleted {
-			userID = &user.ID
-		}
-		userName = &user.Name
-		userEmail = &user.Email
-	}
-	if automatableActivity, ok := activity.(fleet.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
-		userName = &automationActivityAuthor
-		fleetInitiated = true
-	}
-
-	if hostOnlyActivity, ok := activity.(fleet.ActivityHostOnly); ok && hostOnlyActivity.HostOnly() {
-		hostOnly = true
-	}
-
-	cols := []string{"fleet_initiated", "user_id", "user_name", "activity_type", "details", "created_at", "host_only"}
-	args := []any{
-		fleetInitiated,
-		userID,
-		userName,
-		activity.ActivityName(),
-		details,
-		createdAt,
-		hostOnly,
-	}
-	if userEmail != nil {
-		args = append(args, userEmail)
-		cols = append(cols, "user_email")
-	}
-
-	if aa, ok := activity.(fleet.ActivityActivator); ok && aa.MustActivateNextUpcomingActivity() {
-		hostID, cmdUUID := aa.ActivateNextUpcomingActivityArgs()
-		// NOTE: ideally this would be called in the same transaction as storing
-		// the nanomdm command results, but the current design doesn't allow for
-		// that with the nano store being a distinct entity to our datastore (we
-		// should get rid of that distinction eventually, we've broken it already
-		// in some places and it doesn't bring much benefit anymore).
-		//
-		// Instead, this gets called from CommandAndReportResults, which is
-		// executed after the results have been saved in nano, but we already
-		// accept this non-transactional fact for many other states we manage in
-		// Fleet (wipe, lock results, setup experience results, etc. - see all
-		// critical data that gets updated in CommandAndReportResults) so there's
-		// no reason to treat the unified queue differently.
-		//
-		// This place here is a bit hacky but perfect for VPP/InHouse apps as the activity
-		// gets created only when the MDM command status is in a final state
-		// (success or failure), which is exactly when we want to activate the next
-		// activity. Though note that on success of the MDM command, we wait until the
-		// app gets verified (or it times out waiting for verification) to activate the
-		// next activity, to ensure the app is actually installed.
-		if _, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), hostID, cmdUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install")
-		}
-	}
-
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		const insertActStmt = `INSERT INTO activities (%s) VALUES (%s)`
-		sql := fmt.Sprintf(insertActStmt, strings.Join(cols, ","), strings.Repeat("?,", len(cols)-1)+"?")
-		res, err := tx.ExecContext(ctx, sql, args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "new activity")
-		}
-
-		// this supposes a reasonable amount of hosts per activity, to revisit if we
-		// get in the 10K+.
-		if ah, ok := activity.(fleet.ActivityHosts); ok {
-			const insertActHostStmt = `INSERT INTO host_activities (host_id, activity_id) VALUES `
-
-			var sb strings.Builder
-			if hostIDs := ah.HostIDs(); len(hostIDs) > 0 {
-				sb.WriteString(insertActHostStmt)
-				actID, _ := res.LastInsertId()
-				for _, hid := range hostIDs {
-					sb.WriteString(fmt.Sprintf("(%d, %d),", hid, actID))
-				}
-
-				stmt := strings.TrimSuffix(sb.String(), ",")
-				if _, err := tx.ExecContext(ctx, stmt); err != nil {
-					return ctxerr.Wrap(ctx, err, "insert host activity")
-				}
-			}
-		}
-		return nil
-	})
-}
-
-// ListActivities returns a slice of activities performed across the organization
-func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-	// Fetch activities
-
-	activities := []*fleet.Activity{}
-	activitiesQ := `
-		SELECT
-			a.id,
-			a.user_id,
-			a.created_at,
-			a.activity_type,
-			a.user_name as name,
-			a.streamed,
-			a.user_email,
-			a.fleet_initiated
-		FROM activities a
-		WHERE a.host_only = false`
-
-	var args []interface{}
-	if opt.Streamed != nil {
-		activitiesQ += " AND a.streamed = ?"
-		args = append(args, *opt.Streamed)
-	}
-	opt.ListOptions.IncludeMetadata = !(opt.ListOptions.UsesCursorPagination())
-
-	// Searching activites currently only supports searching by user name or email.
-	if opt.ListOptions.MatchQuery != "" {
-
-		activitiesQ += " AND (a.user_name LIKE ? OR a.user_email LIKE ?" // Final ')' will be added at the bottom of this IF
-		args = append(args, opt.ListOptions.MatchQuery+"%", opt.ListOptions.MatchQuery+"%")
-
-		// Also search the users table here to get the most up to date information
-		users, err := ds.ListUsers(ctx, fleet.UserListOptions{
-			ListOptions: fleet.ListOptions{
-				MatchQuery: opt.ListOptions.MatchQuery,
-			},
-		})
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "list users for activity search")
-		}
-
-		if len(users) != 0 {
-			userIds := make([]uint, 0, len(users))
-			for _, u := range users {
-				userIds = append(userIds, u.ID)
-			}
-
-			inQ, inArgs, err := sqlx.In("a.user_id IN (?)", userIds)
-			if err != nil {
-				return nil, nil, ctxerr.Wrap(ctx, err, "bind user IDs for IN clause")
-			}
-			inQ = ds.reader(ctx).Rebind(inQ)
-			activitiesQ += " OR " + inQ
-			args = append(args, inArgs...)
-		}
-
-		activitiesQ += ")"
-	}
-
-	if opt.ActivityType != "" {
-		activitiesQ += " AND a.activity_type = ?"
-		args = append(args, opt.ActivityType)
-	}
-
-	if opt.StartCreatedAt != "" || opt.EndCreatedAt != "" {
-		start := opt.StartCreatedAt
-		end := opt.EndCreatedAt
-		switch {
-		case start == "" && end != "":
-			// Only EndCreatedAt is set, so filter up to end
-			activitiesQ += " AND a.created_at <= ?"
-			args = append(args, end)
-		case start != "" && end == "":
-			// Only StartCreatedAt is set, so filter from start to now
-			activitiesQ += " AND a.created_at >= ? AND a.created_at <= ?"
-			args = append(args, start, time.Now().UTC())
-		case start != "" && end != "":
-			// Both are set
-			activitiesQ += " AND a.created_at >= ? AND a.created_at <= ?"
-			args = append(args, start, end)
-		}
-	}
-
-	activitiesQ, args = appendListOptionsWithCursorToSQL(activitiesQ, args, &opt.ListOptions)
-
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, activitiesQ, args...)
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "select activities")
-	}
-
-	if len(activities) > 0 {
-		// Fetch details as a separate query due to sort buffer issue triggered by large JSON details entries. Issue last reproduced on MySQL 8.0.36
-		// https://stackoverflow.com/questions/29575835/error-1038-out-of-sort-memory-consider-increasing-sort-buffer-size/67266529
-		IDs := make([]uint, 0, len(activities))
-		for _, a := range activities {
-			IDs = append(IDs, a.ID)
-		}
-		detailsStmt, detailsArgs, err := sqlx.In("SELECT id, details FROM activities WHERE id IN (?)", IDs)
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "Error binding activity IDs")
-		}
-		type activityDetails struct {
-			ID      uint             `db:"id"`
-			Details *json.RawMessage `db:"details"`
-		}
-		var details []activityDetails
-		err = sqlx.SelectContext(ctx, ds.reader(ctx), &details, detailsStmt, detailsArgs...)
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "select activities details")
-		}
-		detailsLookup := make(map[uint]*json.RawMessage, len(details))
-		for _, d := range details {
-			detailsLookup[d.ID] = d.Details
-		}
-		for _, a := range activities {
-			det, ok := detailsLookup[a.ID]
-			if !ok {
-				level.Warn(ds.logger).Log("msg", "Activity details not found", "activity_id", a.ID)
-				continue
-			}
-			a.Details = det
-		}
-	}
-
-	// Fetch users as a stand-alone query (because of performance reasons)
-
-	lookup := make(map[uint][]int)
-	for idx, a := range activities {
-		if a.ActorID != nil {
-			lookup[*a.ActorID] = append(lookup[*a.ActorID], idx)
-		}
-	}
-
-	if len(lookup) != 0 {
-		// TODO: We left this query here for user replacement, to keep the scope simple, and the users table is never going to be super big, so it won't tank performance.
-		usersQ := `
-			SELECT u.id, u.name, u.gravatar_url, u.email, u.api_only
-			FROM users u
-			WHERE id IN (?)
-		`
-		userIDs := make([]uint, 0, len(lookup))
-		for k := range lookup {
-			userIDs = append(userIDs, k)
-		}
-
-		usersQ, usersArgs, err := sqlx.In(usersQ, userIDs)
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "Error binding usersIDs")
-		}
-
-		var usersR []struct {
-			ID          uint   `db:"id"`
-			Name        string `db:"name"`
-			GravatarUrl string `db:"gravatar_url"`
-			Email       string `db:"email"`
-			APIOnly     bool   `db:"api_only"`
-		}
-
-		err = sqlx.SelectContext(ctx, ds.reader(ctx), &usersR, usersQ, usersArgs...)
-		if err != nil && err != sql.ErrNoRows {
-			return nil, nil, ctxerr.Wrap(ctx, err, "selecting users")
-		}
-
-		for _, r := range usersR {
-			entries, ok := lookup[r.ID]
-			if !ok {
-				continue
-			}
-
-			email := r.Email
-			gravatar := r.GravatarUrl
-			name := r.Name
-			apiOnly := r.APIOnly
-
-			for _, idx := range entries {
-				activities[idx].ActorEmail = &email
-				activities[idx].ActorGravatar = &gravatar
-				activities[idx].ActorFullName = &name
-				activities[idx].ActorAPIOnly = &apiOnly
-			}
-		}
-	}
-
-	var metaData *fleet.PaginationMetadata
-	if opt.ListOptions.IncludeMetadata {
-		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
-		if len(activities) > int(opt.ListOptions.PerPage) { //nolint:gosec // dismiss G115
-			metaData.HasNextResults = true
-			activities = activities[:len(activities)-1]
-		}
-	}
-
-	return activities, metaData, nil
-}
-
-func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error {
-	stmt := `UPDATE activities SET streamed = true WHERE id IN (?);`
-	query, args, err := sqlx.In(stmt, activityIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "sqlx.In mark activities as streamed")
-	}
-	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "exec mark activities as streamed")
-	}
-	return nil
-}
 
 // ListHostUpcomingActivities returns the list of activities pending execution
 // or processing for the specific host. It is the "unified queue" of work to be
@@ -615,78 +297,10 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	return activities, metaData, nil
 }
 
-func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-	const listStmt = `
-	SELECT
-		ha.activity_id as id,
-		a.user_email as user_email,
-		a.user_name as name,
-		a.activity_type as activity_type,
-		a.details as details,
-		u.gravatar_url as gravatar_url,
-		a.created_at as created_at,
-		u.id as user_id,
-		u.api_only as api_only,
-		a.fleet_initiated as fleet_initiated
-	FROM
-		host_activities ha
-		JOIN activities a
-			ON ha.activity_id = a.id
-		LEFT OUTER JOIN
-			users u ON u.id = a.user_id
-	WHERE
-		ha.host_id = ?
-	`
-
-	args := []any{hostID}
-	stmt, args := appendListOptionsWithCursorToSQL(listStmt, args, &opt)
-
-	var activities []*fleet.Activity
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "select upcoming activities")
-	}
-
-	var metaData *fleet.PaginationMetadata
-	if opt.IncludeMetadata {
-		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
-		if len(activities) > int(opt.PerPage) { //nolint:gosec // dismiss G115
-			metaData.HasNextResults = true
-			activities = activities[:len(activities)-1]
-		}
-	}
-
-	return activities, metaData, nil
-}
-
-func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, maxCount int, expiredWindowDays int) error {
-	const selectActivitiesQuery = `
-		SELECT a.id FROM activities a
-		LEFT JOIN host_activities ha ON (a.id=ha.activity_id)
-		WHERE ha.activity_id IS NULL AND a.created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
-		ORDER BY a.id ASC
-		LIMIT ?;`
-	var activityIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &activityIDs, selectActivitiesQuery, expiredWindowDays, maxCount); err != nil {
-		return ctxerr.Wrap(ctx, err, "select activities for deletion")
-	}
-	if len(activityIDs) > 0 {
-		deleteActivitiesQuery, args, err := sqlx.In(`DELETE FROM activities WHERE id IN (?);`, activityIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build activities IN query")
-		}
-		if _, err := ds.writer(ctx).ExecContext(ctx, deleteActivitiesQuery, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete expired activities")
-		}
-	}
-
-	// `activities` and `queries` are not tied because the activity itself holds
-	// the query SQL so they don't need to be executed on the same transaction.
-	//
+func (ds *Datastore) CleanupExpiredLiveQueries(ctx context.Context, expiredWindowDays int) error {
 	// All expired live queries are deleted in batch sizes of
 	// `deleteIDsBatchSize` to ensure the table size is kept in check
-	// with high volumes of live queries (zero-trust workflows). This differs
-	// from the `activities` cleanup which uses maxCount as a limit to the
-	// number of activities to delete.
+	// with high volumes of live queries (zero-trust workflows).
 
 	const selectUnsavedQueryIDs = `
 		SELECT id
@@ -1013,9 +627,9 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		return nil, ctxerr.Wrap(ctx, err, "activate next upcoming activity")
 	}
 
-	// creating the canceled activity must be done via svc.NewActivity (not
-	// ds.NewActivity), so we return the ready-to-insert activity struct to the
-	// caller and let svc do the rest.
+	// creating the canceled activity must be done via svc.NewActivity, so we
+	// return the ready-to-insert activity struct to the caller and let svc do
+	// the rest.
 	return pastAct, nil
 }
 
@@ -1298,6 +912,19 @@ func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxH
 	return len(blockedHostIDs), ds.activateNextUpcomingActivityForBatchOfHosts(ctx, blockedHostIDs)
 }
 
+// ActivateNextUpcomingActivityForHost activates the next upcoming activity for the given host.
+// fromCompletedExecID is the execution ID of the activity that just completed (if any).
+//
+// NOTE: this intentionally does not use a transaction wrapper. The original
+// call site in NewActivity (now in the activity bounded context) also called
+// activateNextUpcomingActivity outside a transaction. See @mna's comment in
+// cab7cc15bef (2025-10-28) explaining that this non-transactional approach is
+// accepted and consistent with how other critical state updates work in Fleet.
+func (ds *Datastore) ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error {
+	_, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), hostID, fromCompletedExecID)
+	return err
+}
+
 func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Context, hostIDs []uint) error {
 	const maxHostIDsPerBatch = 500
 
@@ -1514,7 +1141,7 @@ func (ds *Datastore) activateNextSoftwareInstallActivity(ctx context.Context, tx
 	const insStmt = `
 INSERT INTO host_software_installs
 	(execution_id, host_id, software_installer_id, user_id, self_service,
-		policy_id, installer_filename, version, software_title_id, software_title_name)
+		policy_id, installer_filename, version, software_title_id, software_title_name, attempt_number)
 SELECT
 	ua.execution_id,
 	ua.host_id,
@@ -1525,7 +1152,24 @@ SELECT
 	COALESCE(si.filename, ua.payload->>'$.installer_filename', '[deleted installer]'),
 	COALESCE(si.version, ua.payload->>'$.version', 'unknown'),
 	COALESCE(si.title_id, siua.software_title_id),
-	COALESCE(st.name, ua.payload->>'$.software_title_name', '[deleted title]')
+	COALESCE(st.name, ua.payload->>'$.software_title_name', '[deleted title]'),
+	-- Compute the attempt number for this activation. Each retry creates a
+	-- new upcoming_activity (via InsertSoftwareInstallRequest), so when that
+	-- new activity activates, COUNT(*) of previous completed attempts gives
+	-- the number of prior tries. +1 makes this the next attempt in sequence:
+	-- first install = 1, first retry = 2, second retry = 3, etc.
+	CASE
+		WHEN siua.policy_id IS NULL AND COALESCE(ua.payload->'$.with_retries', 0) = 1 THEN (
+			SELECT COUNT(*) + 1
+			FROM host_software_installs hsi2
+			WHERE hsi2.host_id = ua.host_id
+			AND hsi2.software_installer_id = siua.software_installer_id
+			AND hsi2.policy_id IS NULL
+			AND hsi2.removed = 0 AND hsi2.canceled = 0 AND hsi2.host_deleted_at IS NULL
+			AND (hsi2.attempt_number > 0 OR hsi2.attempt_number IS NULL)
+		)
+		ELSE NULL
+	END
 FROM
 	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua
@@ -1880,7 +1524,7 @@ WHERE
 	// have a cron job that will retry for hosts with pending MDM commands.
 	if ds.pusher != nil {
 		if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
-			level.Error(ds.logger).Log("msg", "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID) //nolint:errcheck
+			ds.logger.ErrorContext(ctx, "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID)
 		}
 	}
 	return nil

@@ -120,3 +120,7 @@ Following is the process to run when a `CRITICAL` CVE affects the released `flee
 1. After `security/status.md` is updated, notify users/customers about the CVE in the `fleetdm/fleetctl` image and possible remediations.
 2. Create a Github issue with a `P0`/`security` label to track the fix.
 3. The fix will be released on the next release of the `fleetdm/fleetctl` docker image.
+
+## Troubleshooting
+
+- The `trivy` command/executable can have some differences in CVEs reported when executing `trivy image` on a macOS host vs a Linux host. Mostly the difference seems to be in vulnerabilities found by the `gobinary` tool on `fleet` or `fleetctl` executables within the docker images. Thus, when in doubt, run trivy on a Ubuntu host to match CI which runs on `ubuntu-*` Github runners.

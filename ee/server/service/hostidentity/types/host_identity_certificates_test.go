@@ -31,23 +31,15 @@ func TestHostIdentityCertificate_PublicKey(t *testing.T) {
 	})
 
 	t.Run("invalid format - missing 0x04 prefix", func(t *testing.T) {
-		// Generate a P256 key but remove the 0x04 prefix
-		key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		require.NoError(t, err)
-
-		// Create raw bytes without 0x04 prefix, padded to 32 bytes each
-		xBytes := make([]byte, 32)
-		yBytes := make([]byte, 32)
-		key.X.FillBytes(xBytes)
-		key.Y.FillBytes(yBytes)
-		pubKeyRaw := xBytes
-		pubKeyRaw = append(pubKeyRaw, yBytes...)
+		// Create 64 raw bytes with a first byte that is definitely not 0x04
+		pubKeyRaw := make([]byte, 64)
+		pubKeyRaw[0] = 0x05
 
 		cert := &HostIdentityCertificate{
 			PublicKeyRaw: pubKeyRaw,
 		}
 
-		_, err = cert.UnmarshalPublicKey()
+		_, err := cert.UnmarshalPublicKey()
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "unsupported EC point format")
 	})

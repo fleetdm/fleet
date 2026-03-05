@@ -116,7 +116,10 @@ func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, 
 	}
 
 	// No pending lock, create a new one
-	unlockPIN = GenerateRandomPin(6)
+	unlockPIN, err = GenerateRandomPin(6)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "generating random PIN for DeviceLock")
+	}
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -236,7 +239,10 @@ func (svc *MDMAppleCommander) DisableLostMode(ctx context.Context, host *fleet.H
 }
 
 func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, host *fleet.Host, uuid string) error {
-	pin := GenerateRandomPin(6)
+	pin, err := GenerateRandomPin(6)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "generating random PIN for EraseDevice")
+	}
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -318,7 +324,7 @@ func (svc *MDMAppleCommander) InstallEnterpriseApplicationWithEmbeddedManifest(
 	return svc.EnqueueCommand(ctx, hostUUIDs, string(raw))
 }
 
-func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string, uuid, fullName, userName string) error {
+func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string, uuid, fullName, userName string, lockPrimaryAccountInfo bool) error {
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -330,7 +336,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
       <key>PrimaryAccountUserName</key>
       <string>%s</string>
       <key>LockPrimaryAccountInfo</key>
-      <true />
+      <%t />
       <key>RequestType</key>
       <string>AccountConfiguration</string>
     </dict>
@@ -338,7 +344,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
     <key>CommandUUID</key>
     <string>%s</string>
   </dict>
-</plist>`, fullName, userName, uuid)
+</plist>`, fullName, userName, lockPrimaryAccountInfo, uuid)
 
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }

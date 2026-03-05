@@ -9,24 +9,34 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 )
 
+// certificateTemplateAllowedOrderKeys defines the allowed order keys for ListCertificateTemplates.
+// SECURITY: This prevents information disclosure via arbitrary column sorting.
+var certificateTemplateAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id": "certificate_templates.id",
+}
+
+const certificateTemplateResponseSql = `
+	SELECT
+		certificate_templates.id,
+		certificate_templates.name,
+		certificate_templates.team_id,
+		certificate_templates.subject_name,
+		certificate_templates.created_at,
+		certificate_authorities.id AS certificate_authority_id,
+		certificate_authorities.name AS certificate_authority_name,
+		certificate_authorities.type AS certificate_authority_type
+	FROM certificate_templates
+	INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
+`
+
 func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*fleet.CertificateTemplateResponse, error) {
 	var template fleet.CertificateTemplateResponse
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &template, `
-		SELECT
-			certificate_templates.id,
-			certificate_templates.name,
-			certificate_templates.team_id,
-			certificate_templates.subject_name,
-			certificate_templates.created_at,
-			certificate_authorities.id AS certificate_authority_id,
-			certificate_authorities.name AS certificate_authority_name,
-			certificate_authorities.type AS certificate_authority_type
-		FROM certificate_templates
-		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &template, certificateTemplateResponseSql+`
 		WHERE certificate_templates.id = ?
 	`, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -38,20 +48,30 @@ func (ds *Datastore) GetCertificateTemplateById(ctx context.Context, id uint) (*
 	return &template, nil
 }
 
+func (ds *Datastore) GetCertificateTemplatesByIdsAndTeam(ctx context.Context, ids []uint, teamID uint) ([]*fleet.CertificateTemplateResponse, error) {
+	var certificateTemplates []*fleet.CertificateTemplateResponse
+
+	if len(ids) == 0 {
+		return certificateTemplates, nil
+	}
+	// for no team pass 0 as teamID
+	query, args, err := sqlx.In(certificateTemplateResponseSql+`
+		WHERE certificate_templates.team_id = ? AND certificate_templates.id IN (?)
+	`, teamID, ids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query for certificate_templates by team id and ids")
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &certificateTemplates, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "query certificate_template by team id and ids")
+	}
+
+	return certificateTemplates, nil
+}
+
 func (ds *Datastore) GetCertificateTemplateByTeamIDAndName(ctx context.Context, teamID uint, name string) (*fleet.CertificateTemplateResponse, error) {
 	var template fleet.CertificateTemplateResponse
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &template, `
-		SELECT
-			certificate_templates.id,
-			certificate_templates.name,
-			certificate_templates.team_id,
-			certificate_templates.subject_name,
-			certificate_templates.created_at,
-			certificate_authorities.id AS certificate_authority_id,
-			certificate_authorities.name AS certificate_authority_name,
-			certificate_authorities.type AS certificate_authority_type
-		FROM certificate_templates
-		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &template, certificateTemplateResponseSql+`
 		WHERE certificate_templates.team_id = ? AND certificate_templates.name = ?
 	`, teamID, name); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting certificate_template by team id and name")
@@ -133,7 +153,10 @@ func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID
 		%s
 `, fromClause)
 
-	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, args, &opts)
+	stmtPaged, args, err := appendListOptionsWithCursorToSQLSecure(stmt, args, &opts, certificateTemplateAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 
 	var templates []*fleet.CertificateTemplateResponseSummary
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &templates, stmtPaged, args...); err != nil {

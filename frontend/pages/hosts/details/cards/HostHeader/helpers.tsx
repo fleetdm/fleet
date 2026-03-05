@@ -52,8 +52,9 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
       );
     },
   },
+  /** When device_status is "locked" and pending_action is "location", still show "Locked" tag */
   locating: {
-    title: "LOCKED",
+    title: "Locked",
     tagType: "warning",
     generateTooltip: (platform) => {
       if (isIPadOrIPhone(platform)) {
@@ -90,6 +91,8 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
     generateTooltip: () =>
       "Host will unlock when it comes online.  If the host is online, it will unlock the next time it checks in to Fleet.",
   },
+  /** "locking" also includes device_status is "unlocked" and pending_action is "location" as
+   * that combination is a part of the locking process */
   locking: {
     title: "Lock pending",
     tagType: "warning",
@@ -100,10 +103,8 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
   wiped: {
     title: "Wiped",
     tagType: "error",
-    generateTooltip: (platform) =>
-      isMacOS(platform)
-        ? "Host is wiped. To prevent the host from automatically reenrolling to Fleet, first release the host from Apple Business Manager and then delete the host in Fleet."
-        : "Host is wiped.",
+    generateTooltip: () =>
+      "Host is wiped. If you re-enrolled the host, delete it to clear the wiped badge. The host will automatically re-appear in Fleet.",
   },
   wiping: {
     title: "Wipe pending",

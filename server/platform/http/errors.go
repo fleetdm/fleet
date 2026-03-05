@@ -7,8 +7,12 @@ import (
 	"net/http"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
+	"sync"
 
+	"github.com/docker/go-units"
+	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	"github.com/google/uuid"
 )
 
@@ -36,21 +40,23 @@ type ErrorUUIDer interface {
 }
 
 // ErrorWithUUID can be embedded in error types to implement ErrorUUIDer.
+// The UUID is lazily generated on first access and is safe for concurrent use.
 type ErrorWithUUID struct {
-	uuid string
+	uuidOnce sync.Once
+	uuid     string
 }
 
 var _ ErrorUUIDer = (*ErrorWithUUID)(nil)
 
 // UUID implements the ErrorUUIDer interface.
 func (e *ErrorWithUUID) UUID() string {
-	if e.uuid == "" {
+	e.uuidOnce.Do(func() {
 		u, err := uuid.NewRandom()
 		if err != nil {
 			panic(err)
 		}
 		e.uuid = u.String()
-	}
+	})
 	return e.uuid
 }
 
@@ -74,11 +80,54 @@ func (e *BadRequestError) BadRequestError() []map[string]string {
 }
 
 // Internal implements the ErrWithInternal interface.
-func (e BadRequestError) Internal() string {
+func (e *BadRequestError) Internal() string {
 	if e.InternalErr != nil {
 		return e.InternalErr.Error()
 	}
 	return ""
+}
+
+// We implement the second type of Unwrap that returns an error array, which still works for errors.Is/As, but is not supported in errors.Unwrap
+// This allows us to check the error chain, but not log the most inner error in the HTTP response.
+func (e *BadRequestError) Unwrap() []error {
+	return []error{e.InternalErr}
+}
+
+// IsClientError implements ErrWithIsClientError.
+func (e *BadRequestError) IsClientError() bool {
+	return true
+}
+
+type PayloadTooLargeError struct {
+	ContentLength  string
+	MaxRequestSize int64
+}
+
+func (e PayloadTooLargeError) Error() string {
+	return fmt.Sprintf("Request exceeds the max size limit of %s. Configure the limit: https://fleetdm.com/docs/configuration/fleet-server-configuration#server-default-max-request-body-size", units.HumanSize(float64(e.MaxRequestSize)))
+}
+
+func (e PayloadTooLargeError) Internal() string {
+	// This is for us to have an indication of the size we get, might be spoofable, but better than nothing
+	msg := fmt.Sprintf("Request exceeds the max size limit of %s", units.HumanSize(float64(e.MaxRequestSize)))
+	if e.ContentLength != "" {
+		size := e.ContentLength
+		contentLengthAsNumber, err := strconv.ParseFloat(e.ContentLength, 64)
+		if err == nil {
+			// We don't care if we failed to parse the number, only if we were successful
+			size = units.HumanSize(contentLengthAsNumber)
+		}
+		msg += fmt.Sprintf(", Incoming Content-Length: %s", size)
+	}
+	return msg
+}
+
+func (e PayloadTooLargeError) StatusCode() int {
+	return http.StatusRequestEntityTooLarge
+}
+
+func (e PayloadTooLargeError) IsClientError() bool {
+	return true
 }
 
 // UserMessageError is an error that wraps another error with a user-friendly message.
@@ -104,11 +153,18 @@ func NewUserMessageError(err error, statusCode int) *UserMessageError {
 }
 
 // StatusCode returns the HTTP status code for this error.
-func (e UserMessageError) StatusCode() int {
+func (e *UserMessageError) StatusCode() int {
 	if e.statusCode > 0 {
 		return e.statusCode
 	}
 	return http.StatusUnprocessableEntity
+}
+
+// IsClientError implements ErrWithIsClientError.
+// Returns true for 4xx status codes, false for 5xx.
+func (e *UserMessageError) IsClientError() bool {
+	code := e.StatusCode()
+	return code >= 400 && code < 500
 }
 
 var rxJSONUnknownField = regexp.MustCompile(`^json: unknown field "(.+)"$`)
@@ -122,7 +178,7 @@ func IsJSONUnknownFieldError(err error) bool {
 
 // GetJSONUnknownField returns the unknown field name from a JSON unknown field error.
 func GetJSONUnknownField(err error) *string {
-	errCause := Cause(err)
+	errCause := platform_errors.Cause(err)
 	if IsJSONUnknownFieldError(errCause) {
 		substr := rxJSONUnknownField.FindStringSubmatch(errCause.Error())
 		return &substr[1]
@@ -133,8 +189,8 @@ func GetJSONUnknownField(err error) *string {
 // UserMessage implements the user-friendly translation of the error if its
 // root cause is one of the supported types, otherwise it returns the error
 // message.
-func (e UserMessageError) UserMessage() string {
-	cause := Cause(e.error)
+func (e *UserMessageError) UserMessage() string {
+	cause := platform_errors.Cause(e.error)
 	switch cause := cause.(type) {
 	case *json.UnmarshalTypeError:
 		var sb strings.Builder
@@ -158,17 +214,6 @@ func (e UserMessageError) UserMessage() string {
 			return fmt.Sprintf("unsupported key provided: %q", matches[1])
 		}
 		return e.Error()
-	}
-}
-
-// Cause returns the root error in err's chain.
-func Cause(err error) error {
-	for {
-		uerr := errors.Unwrap(err)
-		if uerr == nil {
-			return err
-		}
-		err = uerr
 	}
 }
 
@@ -196,21 +241,6 @@ func IsForeignKey(err error) bool {
 	return false
 }
 
-// NotFoundError is an interface for errors when a resource cannot be found.
-type NotFoundError interface {
-	error
-	IsNotFound() bool
-}
-
-// IsNotFound returns true if err is a not-found error.
-func IsNotFound(err error) bool {
-	var nfe NotFoundError
-	if errors.As(err, &nfe) {
-		return nfe.IsNotFound()
-	}
-	return false
-}
-
 // AlreadyExistsError is an interface for errors when a resource already exists.
 type AlreadyExistsError interface {
 	error
@@ -230,14 +260,6 @@ func (e *Error) Error() string {
 	return e.Message
 }
 
-// ErrWithIsClientError is an interface for errors that explicitly specify
-// whether they are client errors or not. By default, errors are treated as
-// server errors.
-type ErrWithIsClientError interface {
-	error
-	IsClientError() bool
-}
-
 // AuthFailedError is returned when authentication fails.
 type AuthFailedError struct {
 	// internal is the reason that should only be logged internally
@@ -252,18 +274,23 @@ func NewAuthFailedError(internal string) *AuthFailedError {
 }
 
 // Error implements the error interface.
-func (e AuthFailedError) Error() string {
+func (e *AuthFailedError) Error() string {
 	return "Authentication failed"
 }
 
 // Internal implements ErrWithInternal.
-func (e AuthFailedError) Internal() string {
+func (e *AuthFailedError) Internal() string {
 	return e.internal
 }
 
 // StatusCode implements kithttp.StatusCoder.
-func (e AuthFailedError) StatusCode() int {
+func (e *AuthFailedError) StatusCode() int {
 	return http.StatusUnauthorized
+}
+
+// IsClientError implements ErrWithIsClientError.
+func (e *AuthFailedError) IsClientError() bool {
+	return true
 }
 
 // AuthRequiredError is returned when authentication is required.
@@ -280,18 +307,23 @@ func NewAuthRequiredError(internal string) *AuthRequiredError {
 }
 
 // Error implements the error interface.
-func (e AuthRequiredError) Error() string {
+func (e *AuthRequiredError) Error() string {
 	return "Authentication required"
 }
 
 // Internal implements ErrWithInternal.
-func (e AuthRequiredError) Internal() string {
+func (e *AuthRequiredError) Internal() string {
 	return e.internal
 }
 
 // StatusCode implements kithttp.StatusCoder.
-func (e AuthRequiredError) StatusCode() int {
+func (e *AuthRequiredError) StatusCode() int {
 	return http.StatusUnauthorized
+}
+
+// IsClientError implements ErrWithIsClientError.
+func (e *AuthRequiredError) IsClientError() bool {
+	return true
 }
 
 // AuthHeaderRequiredError is returned when an authorization header is required.
@@ -310,18 +342,23 @@ func NewAuthHeaderRequiredError(internal string) *AuthHeaderRequiredError {
 }
 
 // Error implements the error interface.
-func (e AuthHeaderRequiredError) Error() string {
+func (e *AuthHeaderRequiredError) Error() string {
 	return "Authorization header required"
 }
 
 // Internal implements ErrWithInternal.
-func (e AuthHeaderRequiredError) Internal() string {
+func (e *AuthHeaderRequiredError) Internal() string {
 	return e.internal
 }
 
 // StatusCode implements kithttp.StatusCoder.
-func (e AuthHeaderRequiredError) StatusCode() int {
+func (e *AuthHeaderRequiredError) StatusCode() int {
 	return http.StatusUnauthorized
+}
+
+// IsClientError implements ErrWithIsClientError.
+func (e *AuthHeaderRequiredError) IsClientError() bool {
+	return true
 }
 
 // ErrPasswordResetRequired is returned when a password reset is required.
@@ -332,13 +369,18 @@ type passwordResetRequiredError struct {
 }
 
 // Error implements the error interface.
-func (e passwordResetRequiredError) Error() string {
+func (e *passwordResetRequiredError) Error() string {
 	return "password reset required"
 }
 
 // StatusCode implements kithttp.StatusCoder.
-func (e passwordResetRequiredError) StatusCode() int {
+func (e *passwordResetRequiredError) StatusCode() int {
 	return http.StatusUnauthorized
+}
+
+// IsClientError implements ErrWithIsClientError.
+func (e *passwordResetRequiredError) IsClientError() bool {
+	return true
 }
 
 // ForbiddenErrorMessage is the error message that should be returned to

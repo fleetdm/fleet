@@ -20,21 +20,20 @@ const DeleteTeamModal = ({
 }: IDeleteTeamModalProps): JSX.Element => {
   return (
     <Modal
-      title="Delete team"
+      title="Delete fleet"
       onExit={onCancel}
       onEnter={onSubmit}
       className={baseClass}
     >
       <>
         <p>
-          You are about to delete{" "}
-          <span className={`${baseClass}__name`}>{name}</span> from Fleet.
+          This will delete the{" "}
+          <span className={`${baseClass}__name`}>{name}</span> fleet.
         </p>
         <p>
-          Users on this team who are not assigned to other teams will lose
-          access to Fleet.
+          Users on this fleet who are not assigned to other fleets won&apos;t be
+          able to log in.
         </p>
-        <p className={`${baseClass}__warning`}>This action cannot be undone.</p>
         <div className="modal-cta-wrap">
           <Button
             type="button"

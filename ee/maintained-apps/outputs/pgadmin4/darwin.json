@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "9.11",
+      "version": "9.12",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.pgadmin.pgadmin4';"
       },
-      "installer_url": "https://ftp.postgresql.org/pub/pgadmin/pgadmin4/v9.11/macos/pgadmin4-9.11-arm64.dmg",
+      "installer_url": "https://ftp.postgresql.org/pub/pgadmin/pgadmin4/v9.12/macos/pgadmin4-9.12-arm64.dmg",
       "install_script_ref": "3c7763d1",
       "uninstall_script_ref": "f1163b80",
-      "sha256": "eb95f0613108f1a5b3a8ec3233da77047f8040064a76551f780c21325974eab5",
+      "sha256": "baf8be3257b3aea308a142269b15ce39fbe5f9125c499d9dc88027bfebaf399d",
       "default_categories": [
         "Developer tools"
       ]

@@ -126,9 +126,9 @@ module.exports.custom = {
     // ⚗️ Reference, config surface, built-in queries, API, and other documentation
     // 'docs/Using-Fleet/REST-API.md': '',              // « Covered in CODEOWNERS (2023-07-22)
     // 'docs/Contributing/reference/api-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
-    // 'schema': '',                                    // « Covered in CODEOWNERS (2023-07-22)
+    'schema': 'noahtalerman',                               // Data tables (osquery/fleetd schema) documentation
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
-    '/docs/get-started/faq': 'zayhanlon',
+    'docs/get-started/faq': 'zayhanlon',
     'docs/Contributing/rituals': 'lukeheath',
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
@@ -148,7 +148,8 @@ module.exports.custom = {
     'website/config': 'eashaw',
     'website/config/routes.js': 'eashaw',//« Website redirects and URLs
     'website/scripts': 'eashaw',
-    'website/package.json': 'eashaw',
+    'website/package.json': 'eashaw',// « This is where new website dependencies get added
+    'website/.sailsrc': 'eashaw', // «This gets changed automatically when docs are compiled, so it's easy to accidentally check in changes that shouldn't be checked in.
 
     // 🫧 Vulnerability dashboard
     'ee/vulnerability-dashboard': 'eashaw',// (catch-all)
@@ -171,19 +172,33 @@ module.exports.custom = {
     'handbook/company/writing.md': 'mike-j-thomas',
     'handbook/engineering': 'lukeheath',
     'handbook/product-design': 'noahtalerman',
+    'handbook/finance': 'rfoo2015',
+    'handbook/people': 'ireedy',
+    'handbook/it': 'allenhouchins',
+    'handbook/sales': 'sampfluger88',
+    'handbook/customer-success': 'zayhanlon',
+    'handbook/marketing': 'akuthiala',
+    'handbook/ceo': 'mikermcneil',
+    'handbook/README.md': 'mikermcneil',
+    'handbook/company/README.md': 'mikermcneil',
+    'handbook/company/why-this-way.md': 'mikermcneil',
+    'handbook/company/communications.md': 'mikermcneil',
+    'handbook/company/leadership.md': 'mikermcneil',
+    'handbook/it/security.md': 'allenhouchins',
+    'handbook/company/go-to-market-operations.md': 'sampfluger88',
 
     // 🫧 Other brandfronts
     'README.md': 'mikermcneil',// « GitHub brandfront
     'tools/fleetctl-npm/README.md': 'mikermcneil',// « NPM brandfront (npmjs.com/package/fleetctl)
 
     // 🌐 Repo automation and change control settings
-    'CODEOWNERS': 'sampfluger88',
-    'website/config/custom.js': 'sampfluger88',
-    '.gitignore': 'sampfluger88',// « what files should not be checked in?
+    'CODEOWNERS': 'ireedy',
+    'website/config/custom.js': 'eashaw',
+    '.gitignore': 'lukeheath',// « what files should not be checked in?
 
 
     // 🌐 GitHub issue templates
-    '.github/ISSUE_TEMPLATE': 'sampfluger88',
+    '.github/ISSUE_TEMPLATE': 'ireedy',
 
     // 💝 Fleet-maintained apps
     'ee/maintained-apps/inputs': 'allenhouchins',
@@ -218,7 +233,7 @@ module.exports.custom = {
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw', 'noahtalerman', 'eashaw'],// (standard query library)
     '/docs/get-started/faq': ['ksatter', 'ddribeiro', 'zayhanlon'],
     'docs/REST API/rest-api.md': ['rachaelshaw', 'lukeheath'],// (standard query library)
-    'schema': ['eashaw'],// (Osquery table schema)
+    'schema': ['eashaw', 'lukeheath'],// (Osquery table schema)
     'ee/cis': ['lukeheath', 'sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],
 
     // Fleet's internal IT and security (+dogfooding)
@@ -272,23 +287,24 @@ module.exports.custom = {
     '.github/workflows/dogfood-gitops.yml': 'allenhouchins',
 
     // Repo automation and change control settings
-    'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath'],// (« for changing who reviews is automatically requested from for given paths)
-    'website/config/custom.js': ['eashaw', 'mikermcneil', 'lukeheath', 'sampfluger88'],// (« for changing whose changes automatically approve and unfreeze relevant PRs changing given paths)
+    'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath', 'ireedy'],// (« for changing who reviews is automatically requested from for given paths)
+    'website/config/custom.js': ['eashaw', 'mikermcneil', 'lukeheath', 'sampfluger88', 'ireedy'],// (« for changing whose changes automatically approve and unfreeze relevant PRs changing given paths)
 
     // Handbook
     'handbook/README.md': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
     'handbook/company': 'mikermcneil',
+    'handbook/ceo': 'mikermcneil',
     'handbook/company/product-maturity-assessment': ['mikermcneil','noahtalerman','allenhouchins'],
     'handbook/company/open-positions.yml': ['sampfluger88', 'mikermcneil', 'ireedy'],
-    'handbook/company/communications.md': ['mikermcneil'],
-    'handbook/company/writing.md': ['mike-j-thomas', 'mikermcneil'],
-    'handbook/company/go-to-market-groups.md': ['sampfluger88', 'mikermcneil'],
+    'handbook/company/communications.md': ['mikermcneil', 'sampfluger88'],
+    'handbook/company/writing.md': ['mike-j-thomas', 'mikermcneil', 'sampfluger88'],
+    'handbook/company/go-to-market-operations.md': ['sampfluger88', 'mikermcneil'],
     'handbook/company/leadership.md': ['sampfluger88', 'mikermcneil', 'ireedy'],
-    'handbook/it-and-enablement': ['sampfluger88', 'mikermcneil'],
-    'handbook/finance': ['sampfluger88', 'mikermcneil'],
+    'handbook/it': ['sampfluger88', 'mikermcneil', 'allenhouchins'],
+    'handbook/finance': ['sampfluger88', 'mikermcneil', 'rfoo2015'],
     'handbook/sales': ['sampfluger88', 'mikermcneil'],
-    'handbook/marketing': ['sampfluger88', 'mikermcneil'],
-    'handbook/customer-success': ['sampfluger88', ' mikermcneil'],
+    'handbook/marketing': ['sampfluger88', 'mikermcneil', 'akuthiala'],
+    'handbook/customer-success': ['sampfluger88', ' mikermcneil', 'zayhanlon'],
 
     // 🫧 Pricing and features and dev process
     'handbook/company/pricing-features-table.yml': ['noahtalerman', 'mikermcneil'],
@@ -311,10 +327,20 @@ module.exports.custom = {
     // Config as code for infrastructure, internal security and IT use cases, and more.
     'mdm_profiles': ['lukeheath'],//« for dogfood.fleetdm.com, this is the required OS settings applied to contributor Macs
     'vpn': ['rfairburn', 'lukeheath'],// « for managing VPN rules for accessing customer and Fleet Sandbox infrastructure
-    '.github/workflows': ['sampfluger88', 'lukeheath'],//« CI/CD workflows
+    '.github/workflows': ['lukeheath'],//« CI/CD workflows
+
+    // Issue templates
+    '.github/ISSUE_TEMPLATE/3-sale.md': ['sampfluger88'],
+    '.github/ISSUE_TEMPLATE/2-expansion.md': ['sampfluger88'],
+    '.github/ISSUE_TEMPLATE/9-renewal.md': ['sampfluger88'],
+    '.github/ISSUE_TEMPLATE/prepare-event.md': ['sampfluger88'],
+    '.github/ISSUE_TEMPLATE/technical-evaluation.md': ['allenhouchins', 'sampfluger88'],
+    '.github/ISSUE_TEMPLATE/solutions-consulting-task.md': ['allenhouchins'],
+    '.github/ISSUE_TEMPLATE/new-nfr-request.yml': ['allenhouchins'],
+
 
     // Repo automation and change control settings
-    'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath'],
+    'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath', 'ireedy'], // (« for changing who reviews is automatically requested from for given paths)
     '.gitignore': ['lukeheath', 'rfairburn', 'sampfluger88'],// « what files should not be checked in?
     'free-for-all': '*',//« Folder that any fleetie (core team member, not consultants) can push to, willy-nilly
 
@@ -337,7 +363,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.20.0',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.21.0',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗
@@ -477,6 +503,7 @@ module.exports.custom = {
   // compliancePartnerClientId: '…',
   // compliancePartnerClientSecret: '…',
   // cloudCustomerCompliancePartnerSharedSecret: '…',
+  // alternateCompliancePartnerSharedSecret: '…',
 
 
   // Android proxy
@@ -485,8 +512,16 @@ module.exports.custom = {
   // androidEnterpriseServiceAccountPrivateKey: '…',
 
   // VPP proxy
+  // vppProxyAuthenticationPrivateKey: '',
+  // vppProxyAuthenticationPublicKey: '',
+  // vppProxyAuthenticationPassphrase: '',
   // vppProxyTokenTeamId: '',
   // vppProxyTokenKeyId: '',
   // vppProxyTokenPrivateKey: '',
+
+
+  // Eventbrite API
+  // eventbriteOrgId: '',
+  // eventbriteApiToken: '',
 
 };

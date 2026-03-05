@@ -11,7 +11,7 @@ import (
 )
 
 // RefreshVersions updatest the LatestVersion fields for the VPP apps stored in Fleet.
-func RefreshVersions(ctx context.Context, ds fleet.Datastore, vppAuthenticator apple_apps.Authenticator) error {
+func RefreshVersions(ctx context.Context, ds fleet.Datastore, vppAppsConfig apple_apps.Config) error {
 	apps, err := ds.GetAllVPPApps(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting all VPP apps")
@@ -29,7 +29,6 @@ func RefreshVersions(ctx context.Context, ds fleet.Datastore, vppAuthenticator a
 	for _, app := range apps {
 		adamIDs[app.AdamID] = struct{}{}
 		appsByAdamID[app.AdamID] = append(appsByAdamID[app.AdamID], app)
-
 	}
 	adamIDsToQuery := slices.Collect(maps.Keys(adamIDs))
 
@@ -46,7 +45,7 @@ func RefreshVersions(ctx context.Context, ds fleet.Datastore, vppAuthenticator a
 	var appsToUpdate []*fleet.VPPApp
 
 	for _, vppToken := range vppTokens {
-		meta, err := apple_apps.GetMetadata(adamIDsToQuery, vppToken.Token, vppAuthenticator)
+		meta, err := apple_apps.GetMetadata(adamIDsToQuery, vppToken.Token, vppAppsConfig)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting VPP app metadata from Apple API")
 		}

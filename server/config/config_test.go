@@ -828,3 +828,43 @@ func TestServerConfigWithH2C(t *testing.T) {
 
 	t.Logf("Response from ServerConfig: %s", string(body))
 }
+
+func TestConditionalAccessConfigValidate(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		format    string
+		expectErr bool
+	}{
+		{
+			name:      "valid hex format",
+			format:    CertSerialFormatHex,
+			expectErr: false,
+		},
+		{
+			name:      "valid decimal format",
+			format:    CertSerialFormatDecimal,
+			expectErr: false,
+		},
+		{
+			name:      "invalid format",
+			format:    "invalid",
+			expectErr: true,
+		},
+		{
+			name:      "empty format",
+			format:    "",
+			expectErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := ConditionalAccessConfig{CertSerialFormat: tt.format}
+			called := false
+			cfg.Validate(func(err error, msg string) { called = true })
+			require.Equal(t, tt.expectErr, called)
+		})
+	}
+}

@@ -13,6 +13,7 @@ import {
   IAppStoreApp,
 } from "interfaces/software";
 
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import Card from "components/Card";
 import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary";
 import TitleVersionsTable from "./TitleVersionsTable";
@@ -57,6 +58,11 @@ const SoftwareSummaryCard = ({
     setShowEditAutoUpdateConfigModal,
   ] = useState(false);
 
+  const softwareDisplayName = getDisplayedSoftwareName(
+    softwareTitle.name,
+    softwareTitle.display_name
+  );
+
   // Hide versions table for tgz_packages, sh_packages, & ps1_packages and when no hosts have the
   // software installed
   const showVersionsTable =
@@ -70,12 +76,12 @@ const SoftwareSummaryCard = ({
       <>
         <Card borderRadiusSize="xxlarge" className={baseClass}>
           <SoftwareDetailsSummary
-            displayName={softwareTitle.display_name || softwareTitle.name}
+            displayName={softwareDisplayName}
             type={formatSoftwareType(softwareTitle)}
             versions={softwareTitle.versions?.length ?? 0}
             hostCount={softwareTitle.hosts_count}
             countsUpdatedAt={softwareTitle.counts_updated_at}
-            queryParams={{ software_title_id: softwareId, team_id: teamId }}
+            queryParams={{ software_title_id: softwareId, fleet_id: teamId }}
             name={softwareTitle.name}
             source={softwareTitle.source}
             iconUrl={softwareTitle.icon_url}
@@ -104,15 +110,20 @@ const SoftwareSummaryCard = ({
     softwareInstaller,
     installerType,
     isIosOrIpadosApp,
+    isFleetMaintainedApp,
     isAndroidPlayStoreApp,
+    isAndroidPlayStoreWebApp,
     canManageSoftware,
   } = meta;
 
   const canEditAppearance = canManageSoftware;
-  const canEditSoftware = canManageSoftware;
-  const canEditConfiguration = canManageSoftware && isAndroidPlayStoreApp;
+  const canEditSoftware = canManageSoftware && !isAndroidPlayStoreApp;
+  /** Permission to manage software + Google Playstore app that's not a web app */
+  const canEditConfiguration =
+    canManageSoftware && isAndroidPlayStoreApp && !isAndroidPlayStoreWebApp;
   /** Installer modals require a specific team; hidden from "All Teams" */
   const hasValidTeamId = typeof teamId === "number" && teamId >= 0;
+  const softwareInstallerOnTeam = hasValidTeamId && softwareInstaller;
 
   const canEditAutoUpdateConfig =
     softwareTitle.app_store_app && isIosOrIpadosApp && canManageSoftware;
@@ -127,14 +138,14 @@ const SoftwareSummaryCard = ({
     <>
       <Card borderRadiusSize="xxlarge" className={baseClass}>
         <SoftwareDetailsSummary
-          displayName={softwareTitle.display_name || softwareTitle.name}
+          displayName={softwareDisplayName}
           type={formatSoftwareType(softwareTitle)}
           versions={softwareTitle.versions?.length ?? 0}
           hostCount={softwareTitle.hosts_count}
           countsUpdatedAt={softwareTitle.counts_updated_at}
           queryParams={{
             software_title_id: softwareId,
-            team_id: teamId,
+            fleet_id: teamId,
           }}
           name={softwareTitle.name}
           source={softwareTitle.source}
@@ -166,7 +177,7 @@ const SoftwareSummaryCard = ({
           />
         )}
       </Card>
-      {showEditIconModal && hasValidTeamId && softwareInstaller && (
+      {showEditIconModal && softwareInstallerOnTeam && (
         <EditIconModal
           softwareId={softwareId}
           teamIdForApi={teamId}
@@ -177,7 +188,7 @@ const SoftwareSummaryCard = ({
           setIconUploadedAt={setIconUploadedAt}
           installerType={installerType}
           previewInfo={{
-            name: softwareTitle.display_name || softwareTitle.name,
+            name: softwareDisplayName,
             titleName: softwareTitle.name,
             type: formatSoftwareType(softwareTitle),
             source: softwareTitle.source,
@@ -188,7 +199,7 @@ const SoftwareSummaryCard = ({
           }}
         />
       )}
-      {showEditSoftwareModal && hasValidTeamId && softwareInstaller && (
+      {showEditSoftwareModal && softwareInstallerOnTeam && (
         <EditSoftwareModal
           router={router}
           softwareId={softwareId}
@@ -198,14 +209,15 @@ const SoftwareSummaryCard = ({
           refetchSoftwareTitle={refetchSoftwareTitle}
           installerType={installerType}
           openViewYamlModal={onToggleViewYaml}
+          isFleetMaintainedApp={isFleetMaintainedApp}
           isIosOrIpadosApp={isIosOrIpadosApp}
           name={softwareTitle.name}
-          displayName={softwareTitle.display_name || softwareTitle.name}
+          displayName={softwareDisplayName}
           source={softwareTitle.source}
           iconUrl={softwareTitle.icon_url}
         />
       )}
-      {showEditConfigurationModal && hasValidTeamId && softwareInstaller && (
+      {showEditConfigurationModal && softwareInstallerOnTeam && (
         <EditConfigurationModal
           softwareInstaller={softwareInstaller as IAppStoreApp}
           softwareId={softwareId}
@@ -214,7 +226,7 @@ const SoftwareSummaryCard = ({
           onExit={() => setShowEditConfigurationModal(false)}
         />
       )}
-      {showEditAutoUpdateConfigModal && softwareInstaller && teamId && (
+      {showEditAutoUpdateConfigModal && softwareInstallerOnTeam && (
         <EditAutoUpdateConfigModal
           softwareTitle={softwareTitle}
           teamId={teamId}

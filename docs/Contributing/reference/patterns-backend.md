@@ -33,6 +33,13 @@ Invalid inputs should NOT log a server error. Server errors should be reserved f
 
 ## Go
 
+### Go style guide
+
+Follow the [Go style guide](https://google.github.io/styleguide/go/decisions.html).
+
+Exceptions:
+- Underscores may be used in package names when they improve clarity or are required to align with osquery table names.
+
 ### Integer number types
 
 Use `int` number type for general integer numbers. See [Why does len() returned a signed value?](https://stackoverflow.com/questions/39088945/why-does-len-returned-a-signed-value) for some context.

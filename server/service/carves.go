@@ -2,10 +2,16 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
+	carvestorectx "github.com/fleetdm/fleet/v4/server/contexts/carvestore"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -212,6 +218,7 @@ func (svc *Service) CarveBegin(ctx context.Context, payload fleet.CarveBeginPayl
 		return nil, newOsqueryError("carve_size does not match block_size and block_count")
 	}
 
+	// sessionId generated here is overriden if the carve store is S3 (in svc.carveStore.NewCarve).
 	sessionId, err := uuid.NewRandom()
 	if err != nil {
 		return nil, newOsqueryError("internal error: generate session ID for carve: " + err.Error())
@@ -255,6 +262,162 @@ type carveBlockResponse struct {
 }
 
 func (r carveBlockResponse) Error() error { return r.Err }
+
+// DecodeRequest for the /api/v1/osquery/carve/block endpoint performs raw JSON parsing
+// to prevent DoS attacks on this unauthenticated endpoint.
+// Carve block requests are authenticated by their "session_id" and "request_id".
+// The osquery API sends the "session_id" and "request_id" in the JSON object in the body that
+// also includes the "data" field with the actual "block". If Fleet parses the full JSON to extract
+// the "session_id" and "request_id" then attackers could DoS Fleet by sending big JSON documents.
+// To prevent such an attack, we rely on the stability of the osquery carve endpoints (they have been
+// stable for many years) and parse the body field by field. The "session_id" and "request_id" always
+// come before the "data" field; thus Fleet will extract "session_id" and "request_id", perform authentication
+// and if the credentials are valid parse and decode the "data" field.
+func (r carveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request) (any, error) {
+	carveStore := carvestorectx.FromContext(ctx)
+	if carveStore == nil {
+		return nil, ctxerr.New(ctx, "missing carve store from context")
+	}
+
+	newAuthRequiredError := func(err error) error {
+		// We don't want to return details to clients.
+		return ctxerr.Wrap(ctx, fleet.NewAuthFailedError(err.Error()), "authentication error")
+	}
+
+	readUntil := func(maxToRead int, endChar byte) (string, error) {
+		var s strings.Builder
+		endCharFound := false
+		for i := 0; i <= maxToRead; i++ {
+			character := make([]byte, 1)
+			if _, err := req.Body.Read(character); err != nil {
+				return "", fmt.Errorf("failed to read character: %w", err)
+			}
+			if character[0] == endChar {
+				endCharFound = true
+				break
+			}
+			s.Write(character)
+		}
+		if !endCharFound {
+			return "", fmt.Errorf(`end character not found: %q`, s.String())
+		}
+		return s.String(), nil
+	}
+
+	// 1. Must start with {
+	delimiter := make([]byte, 1)
+	if _, err := req.Body.Read(delimiter); err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf("failed to read object start: %w", err))
+	}
+	if string(delimiter) != "{" {
+		return nil, newAuthRequiredError(fmt.Errorf("expected '{', got %q", string(delimiter)))
+	}
+	// 2. Must continue with "block_id":.
+	blockIDKey := make([]byte, 11)
+	if _, err := req.Body.Read(blockIDKey); err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf(`failed to read "block_id" key: %w`, err))
+	}
+	if string(blockIDKey) != `"block_id":` {
+		return nil, newAuthRequiredError(fmt.Errorf(`expected "block_id":, got %q`, string(blockIDKey)))
+	}
+	// 3. Must continue with a number.
+	const maxNumberOfDigits = 19
+	blockIDStr, err := readUntil(maxNumberOfDigits, ',')
+	if err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf(`invalid "block_id" field: %w`, err))
+	}
+	blockID, err := strconv.ParseInt(blockIDStr, 10, 64)
+	if err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf(`invalid "block_id" format: %w`, err))
+	}
+	// 4. Must continue with "session_id":".
+	sessionIDKey := make([]byte, 14)
+	if _, err := req.Body.Read(sessionIDKey); err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf(`failed to read "session_id" key: %w`, err))
+	}
+	if string(sessionIDKey) != `"session_id":"` {
+		return nil, newAuthRequiredError(fmt.Errorf(`expected "session_id":", got %q`, string(sessionIDKey)))
+	}
+	// 5. Must continue with a string (up to 255 chars).
+	const maxSizeSessionID = 255 // defined in DB
+	sessionID, err := readUntil(maxSizeSessionID, '"')
+	if err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf(`invalid "session_id" field: %w`, err))
+	}
+	if sessionID == "" {
+		return nil, newAuthRequiredError(errors.New("empty session_id"))
+	}
+	// 6. Must continue with ,"request_id":".
+	requestIDKey := make([]byte, 15)
+	if _, err := req.Body.Read(requestIDKey); err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf(`failed to read "request_id" key: %w`, err))
+	}
+	if string(requestIDKey) != `,"request_id":"` {
+		return nil, newAuthRequiredError(fmt.Errorf(`expected ,"request_id":", got %q`, string(requestIDKey)))
+	}
+	// 7. Must continue with a string (up to 64 chars).
+	const maxSizeRequestID = 64 // defined in DB.
+	requestID, err := readUntil(maxSizeRequestID, '"')
+	if err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf(`invalid "request_id" field: %w`, err))
+	}
+	if requestID == "" {
+		return nil, newAuthRequiredError(errors.New("empty request_id"))
+	}
+
+	//
+	// 8. Perform authentication before continuing with the read and parse of the "data" field.
+	//
+
+	carve, err := carveStore.CarveBySessionId(ctx, sessionID)
+	if err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf("carve by session ID: %w", err))
+	}
+	if requestID != carve.RequestId {
+		return nil, newAuthRequiredError(errors.New("request_id does not match session"))
+	}
+
+	//
+	// 9. At this point the request is authenticated.
+	//
+
+	// Must continue with ,"data":".
+	dataKey := make([]byte, 9)
+	if _, err := req.Body.Read(dataKey); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, `failed to read "data" key`)
+	}
+	if string(dataKey) != `,"data":"` {
+		return nil, ctxerr.New(ctx, fmt.Sprintf(`expected ,"data":", got %s`, dataKey))
+	}
+
+	// 10. Must continue with a string with the base64 encoded data.
+	encodedData, err := io.ReadAll(req.Body)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, `read "data" field`)
+	}
+	if len(encodedData) < 2 {
+		return nil, ctxerr.New(ctx, `invalid "data" ending length`)
+	}
+	if ending := string(encodedData[len(encodedData)-2:]); ending != `"}` {
+		return nil, ctxerr.New(ctx, fmt.Sprintf(`invalid "data" ending: %s`, ending))
+	}
+	// 11. Skip ending `"}`
+	encodedData = encodedData[:len(encodedData)-2]
+	// 12. Decode the base64-encoded field.
+	data := make([]byte, base64.RawStdEncoding.DecodedLen(len(encodedData)))
+	n, err := base64.StdEncoding.Decode(data, encodedData)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "base64 decode block data")
+	}
+	data = data[:n]
+
+	return &carveBlockRequest{
+		BlockId:   blockID,
+		SessionId: sessionID,
+		RequestId: requestID,
+		Data:      data,
+	}, nil
+}
 
 func carveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*carveBlockRequest)

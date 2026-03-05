@@ -42,7 +42,7 @@ func TestValidateUserProvided(t *testing.T) {
 </SyncML>
 `),
 			},
-			wantErr: "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.",
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "Add top level element",
@@ -160,7 +160,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Alert>
 `),
 			},
-			wantErr: "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.",
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "XML with Replace and Atomic",
@@ -178,7 +178,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Atomic>
 `),
 			},
-			wantErr: "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.",
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "XML with Replace and Delete",
@@ -196,7 +196,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Delete>
 `),
 			},
-			wantErr: "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.",
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "XML with Replace and Exec",
@@ -232,7 +232,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Get>
 `),
 			},
-			wantErr: "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.",
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "XML with Replace and Results",
@@ -250,7 +250,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Results>
 `),
 			},
-			wantErr: "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.",
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "XML with Replace and Status",
@@ -268,7 +268,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Status>
 `),
 			},
-			wantErr: "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.",
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "XML with elements not defined in the protocol",
@@ -286,7 +286,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Foo>
 `),
 			},
-			wantErr: "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.",
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "invalid XML with mismatched tags",
@@ -469,23 +469,6 @@ func TestValidateUserProvided(t *testing.T) {
 				`),
 			},
 			wantErr: "",
-		},
-		{
-			name: "XML with top level comment followed by invalid element",
-			profile: MDMWindowsConfigProfile{
-				SyncML: []byte(`
-				  <!-- this is a comment -->
-				  <!-- this is another comment -->
-				  <LocURI>Custom/URI</LocURI>
-				  <Replace>
-				  <!-- this is a comment inside replace -->
-				    <Target>
-				      <LocURI>Custom/URI</LocURI>
-				    </Target>
-				  </Replace>
-				`),
-			},
-			wantErr: "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements after comments",
 		},
 		{
 			name: "XML with nested root element in data",
@@ -780,6 +763,90 @@ func TestValidateUserProvided(t *testing.T) {
 				`),
 			},
 			wantErr: fmt.Sprintf("\"ClientCertificateInstall/SCEP/%s/Install/Enroll\" must be included within <Exec>. Please add and try again.", FleetVarSCEPWindowsCertificateID.WithPrefix()),
+		},
+		{
+			name: "Atomic profile with other top-level elements",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				<Atomic>
+				</Atomic>
+				<Add>
+				</Add>
+				`),
+			},
+			wantErr: "<Atomic> element must wrap all the elements in a Windows configuration profile.",
+		},
+		{
+			name: "non Atomic profile with other <Atomic> top-level elements",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				<Add>
+				</Add>
+				<Atomic>
+				</Atomic>
+				`),
+			},
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
+		},
+		{
+			name: "disallow top-level Delete element",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				<Delete>
+				</Delete>
+				`),
+			},
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
+		},
+		{
+			name: "disallow top-level Get element",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				<Get>
+				</Get>
+				`),
+			},
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
+		},
+		{
+			name: "disallow Delete element inside Atomic profile",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				<Atomic>
+					<Delete>
+					</Delete>
+				</Atomic>
+				`),
+			},
+			wantErr: "Windows configuration profiles can only include <Replace> or <Add> within the <Atomic> element.",
+		},
+		{
+			name: "disallow top-level Get element inside Atomic profile",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				<Atomic>
+					<Get>
+					</Get>
+				</Atomic>
+				`),
+			},
+			wantErr: "Windows configuration profiles can only include <Replace> or <Add> within the <Atomic> element.",
+		},
+		{
+			name: "valid Atomic profile",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				<Atomic>
+					<Add>
+						<LocURI>Custom/URI</LocURI>
+					</Add>
+					<Replace>
+						<LocURI>Another/URI</LocURI>
+					</Replace>
+				</Atomic>
+				`),
+			},
+			wantErr: "",
 		},
 	}
 

@@ -16,7 +16,7 @@
     },
     "exclude": [
         "node_modules",
-        "jest.config.ts",
+        "jest.config.js",
         "jest.setup.ts",
         "jsdomwithfetch.ts"
     ],

@@ -30,7 +30,7 @@ const DEFAULT_OPTIONS = [
     premiumOnly: true,
   },
   {
-    label: "Query",
+    label: "Live report",
     value: "query",
     disabled: false,
   },
@@ -77,8 +77,10 @@ interface IHostActionConfigOptions {
   isGlobalAdmin: boolean;
   isGlobalMaintainer: boolean;
   isGlobalObserver: boolean;
+  isGlobalTechnician: boolean;
   isTeamAdmin: boolean;
   isTeamMaintainer: boolean;
+  isTeamTechnician: boolean;
   isTeamObserver: boolean;
   isHostOnline: boolean;
   isEnrolledInMdm: boolean;
@@ -89,6 +91,7 @@ interface IHostActionConfigOptions {
   doesStoreEncryptionKey: boolean;
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
   hostScriptsEnabled: boolean | null;
+  scriptsGloballyDisabled: boolean | undefined;
   isPrimoMode: boolean;
   hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
 }
@@ -280,11 +283,20 @@ const canRunScript = ({
   hostPlatform,
   isGlobalAdmin,
   isGlobalMaintainer,
+  isGlobalTechnician,
   isTeamAdmin,
   isTeamMaintainer,
+  isTeamTechnician,
 }: IHostActionConfigOptions) => {
+  // Scripts globally disabled, shown as disabled by modifyOptions
+
   return (
-    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isGlobalTechnician ||
+      isTeamAdmin ||
+      isTeamMaintainer ||
+      isTeamTechnician) &&
     isScriptSupportedPlatform(hostPlatform)
   );
 };
@@ -339,8 +351,13 @@ const removeUnavailableOptions = (
 // Available tooltips for disabled options
 export const getDropdownOptionTooltipContent = (
   value: string | number,
-  isHostOnline?: boolean
+  isHostOnline?: boolean,
+  scriptsGloballyDisabled?: boolean
 ) => {
+  if (value === "runScript" && scriptsGloballyDisabled) {
+    return <>Running scripts is disabled in organization settings.</>;
+  }
+
   const tooltipAction: Record<string, string> = {
     runScript: "run scripts on",
     wipe: "wipe",
@@ -359,7 +376,7 @@ export const getDropdownOptionTooltipContent = (
     );
   }
   if (!isHostOnline && value === "query") {
-    return <>You can&apos;t query an offline host.</>;
+    return <>You can&apos;t run a live report on an offline host.</>;
   }
   return undefined;
 };
@@ -384,6 +401,7 @@ const modifyOptions = (
     hostMdmDeviceStatus,
     hostScriptsEnabled,
     hostPlatform,
+    scriptsGloballyDisabled,
   }: IHostActionConfigOptions
 ) => {
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
@@ -391,7 +409,8 @@ const modifyOptions = (
       option.disabled = true;
       option.tooltipContent = getDropdownOptionTooltipContent(
         option.value,
-        isHostOnline
+        isHostOnline,
+        scriptsGloballyDisabled
       );
     });
   };
@@ -421,6 +440,13 @@ const modifyOptions = (
       options.filter(
         (option) => option.value === "query" || option.value === "mdmOff"
       )
+    );
+  }
+
+  // Disable run script feature if scripts are globally disabled
+  if (scriptsGloballyDisabled) {
+    optionsToDisable = optionsToDisable.concat(
+      options.filter((option) => option.value === "runScript")
     );
   }
 

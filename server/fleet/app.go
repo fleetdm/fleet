@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -99,6 +100,7 @@ type ConditionalAccessSettings struct {
 	OktaAssertionConsumerServiceURL optjson.String `json:"okta_assertion_consumer_service_url"`
 	OktaAudienceURI                 optjson.String `json:"okta_audience_uri"`
 	OktaCertificate                 optjson.String `json:"okta_certificate"`
+	BypassDisabled                  optjson.Bool   `json:"bypass_disabled"`
 }
 
 // OktaConfigured returns true if all Okta conditional access fields are configured.
@@ -111,6 +113,10 @@ func (c *ConditionalAccessSettings) OktaConfigured() bool {
 		c.OktaAssertionConsumerServiceURL.Valid && c.OktaAssertionConsumerServiceURL.Value != "" &&
 		c.OktaAudienceURI.Valid && c.OktaAudienceURI.Value != "" &&
 		c.OktaCertificate.Valid && c.OktaCertificate.Value != ""
+}
+
+func (c *ConditionalAccessSettings) BypassEnabled() bool {
+	return !c.BypassDisabled.Valid || !c.BypassDisabled.Value
 }
 
 // SMTPSettings is part of the AppConfig which defines the wire representation
@@ -161,16 +167,16 @@ type VulnerabilitySettings struct {
 // hosts when they're ingested during the ABM sync.
 type MDMAppleABMAssignmentInfo struct {
 	OrganizationName string `json:"organization_name"`
-	MacOSTeam        string `json:"macos_team"`
-	IOSTeam          string `json:"ios_team"`
-	IpadOSTeam       string `json:"ipados_team"`
+	MacOSTeam        string `json:"macos_team" renameto:"macos_fleet"`
+	IOSTeam          string `json:"ios_team" renameto:"ios_fleet"`
+	IpadOSTeam       string `json:"ipados_team" renameto:"ipados_fleet"`
 }
 
 // MDMAppleVolumePurchasingProgramInfo represents an user definition of the association
 // between a VPP token (via location) and the team associations.
 type MDMAppleVolumePurchasingProgramInfo struct {
 	Location string   `json:"location"`
-	Teams    []string `json:"teams"`
+	Teams    []string `json:"teams" renameto:"fleets"`
 }
 
 // MDM is part of AppConfig and defines the mdm settings.
@@ -232,6 +238,8 @@ type MDM struct {
 	EnableTurnOnWindowsMDMManually bool                     `json:"enable_turn_on_windows_mdm_manually"`
 	EndUserAuthentication          MDMEndUserAuthentication `json:"end_user_authentication"`
 
+	WindowsEntraTenantIDs optjson.Slice[string] `json:"windows_entra_tenant_ids"`
+
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
 	// the support, but it is still called "EnabledAndConfigured" for consistency
@@ -239,6 +247,8 @@ type MDM struct {
 	WindowsEnabledAndConfigured bool `json:"windows_enabled_and_configured"`
 
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
+
+	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
 
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
 
@@ -283,7 +293,7 @@ func (c *AppConfig) MDMUrl() string {
 //   - https://foo.example.com:8080 -> https://okta.foo.example.com:8080
 //
 // Returns an error if the server URL is not configured or cannot be parsed.
-func (c *AppConfig) ConditionalAccessIdPSSOURL(getenv func(string) string) (string, error) {
+func (c *AppConfig) ConditionalAccessIdPSSOURL(getenv dev_mode.GetEnv) (string, error) {
 	// Check for dev override
 	if devURL := getenv("FLEET_DEV_OKTA_SSO_SERVER_URL"); devURL != "" {
 		return devURL, nil
@@ -524,12 +534,25 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 type MacOSSetup struct {
 	BootstrapPackage            optjson.String                     `json:"bootstrap_package"`
 	EnableEndUserAuthentication bool                               `json:"enable_end_user_authentication"`
+	LockEndUserInfo             optjson.Bool                       `json:"lock_end_user_info"`
 	MacOSSetupAssistant         optjson.String                     `json:"macos_setup_assistant"`
 	EnableReleaseDeviceManually optjson.Bool                       `json:"enable_release_device_manually"`
 	Script                      optjson.String                     `json:"script"`
 	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
 	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install"`
 	RequireAllSoftware          bool                               `json:"require_all_software_macos"`
+}
+
+func (mos *MacOSSetup) Validate() error {
+	if mos == nil {
+		return nil
+	}
+
+	if mos.ManualAgentInstall.Valid && mos.ManualAgentInstall.Value && (!mos.BootstrapPackage.Valid || mos.BootstrapPackage.Value == "") {
+		return NewInvalidArgumentError("macos_setup.manual_agent_install", `Couldn't enable manual_agent_install. To use this option, first specify a bootstrap package.`)
+	}
+
+	return nil
 }
 
 func (mos *MacOSSetup) SetDefaultsIfNeeded() {
@@ -544,6 +567,9 @@ func (mos *MacOSSetup) SetDefaultsIfNeeded() {
 	}
 	if !mos.EnableReleaseDeviceManually.Valid {
 		mos.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
+	if !mos.LockEndUserInfo.Valid {
+		mos.LockEndUserInfo = optjson.SetBool(false)
 	}
 	if !mos.Script.Valid {
 		mos.Script = optjson.SetString("")
@@ -685,6 +711,9 @@ func (c *AppConfig) Obfuscate() {
 	for _, zdIntegration := range c.Integrations.Zendesk {
 		zdIntegration.APIToken = MaskedPassword
 	}
+	for _, gcIntegration := range c.Integrations.GoogleCalendar {
+		gcIntegration.ApiKey.SetMasked()
+	}
 	// // TODO(hca): confirm that we're properly masking credentials in the new endpoints
 	// if c.Integrations.NDESSCEPProxy.Valid {
 	// 	c.Integrations.NDESSCEPProxy.Value.Password = MaskedPassword
@@ -771,8 +800,10 @@ func (c *AppConfig) Copy() *AppConfig {
 		for i, g := range c.Integrations.GoogleCalendar {
 			gCal := *g
 			clone.Integrations.GoogleCalendar[i] = &gCal
-			clone.Integrations.GoogleCalendar[i].ApiKey = make(map[string]string, len(g.ApiKey))
-			maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey, g.ApiKey)
+			if len(g.ApiKey.Values) > 0 {
+				clone.Integrations.GoogleCalendar[i].ApiKey.Values = make(map[string]string, len(g.ApiKey.Values))
+				maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey.Values, g.ApiKey.Values)
+			}
 		}
 	}
 	// // TODO(hca): do we want to cache the new grouped CAs datastore method?
@@ -858,6 +889,11 @@ func (c *AppConfig) Copy() *AppConfig {
 	if c.ConditionalAccess != nil {
 		conditionalAccess := *c.ConditionalAccess
 		clone.ConditionalAccess = &conditionalAccess
+	}
+
+	if c.MDM.WindowsEntraTenantIDs.Set {
+		clone.MDM.WindowsEntraTenantIDs = optjson.SetSlice(make([]string, len(c.MDM.WindowsEntraTenantIDs.Value)))
+		copy(clone.MDM.WindowsEntraTenantIDs.Value, c.MDM.WindowsEntraTenantIDs.Value)
 	}
 
 	return &clone
@@ -1081,8 +1117,14 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	if !c.MDM.EnableDiskEncryption.Valid {
 		c.MDM.EnableDiskEncryption = optjson.SetBool(false)
 	}
+	if !c.MDM.EnableRecoveryLockPassword.Valid {
+		c.MDM.EnableRecoveryLockPassword = optjson.SetBool(false)
+	}
 	if !c.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		c.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
+	if !c.MDM.MacOSSetup.LockEndUserInfo.Valid {
+		c.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
 	}
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)
@@ -1134,14 +1176,14 @@ const DefaultOrgInfoContactURL = "https://fleetdm.com/company/contact"
 // ServerSettings contains general settings about the Fleet application.
 type ServerSettings struct {
 	ServerURL            string `json:"server_url"`
-	LiveQueryDisabled    bool   `json:"live_query_disabled"`
+	LiveQueryDisabled    bool   `json:"live_query_disabled" renameto:"live_reporting_disabled"`
 	EnableAnalytics      bool   `json:"enable_analytics"`
 	DebugHostIDs         []uint `json:"debug_host_ids,omitempty"`
 	DeferredSaveHost     bool   `json:"deferred_save_host"`
-	QueryReportsDisabled bool   `json:"query_reports_disabled"`
+	QueryReportsDisabled bool   `json:"query_reports_disabled" renameto:"discard_reports_data"`
 	ScriptsDisabled      bool   `json:"scripts_disabled"`
 	AIFeaturesDisabled   bool   `json:"ai_features_disabled"`
-	QueryReportCap       int    `json:"query_report_cap"`
+	QueryReportCap       int    `json:"query_report_cap" renameto:"report_cap"`
 }
 
 const DefaultMaxQueryReportRows int = 1000
@@ -1228,6 +1270,9 @@ func (f *Features) Copy() *Features {
 type FleetDesktopSettings struct {
 	// TransparencyURL is the URL used for the “About Fleet” link in the Fleet Desktop menu.
 	TransparencyURL string `json:"transparency_url"`
+	// AlternativeBrowserHost if set, Fleet Desktop will use this to open any links;
+	// this is used in scenarios where we want Fleet Desktop traffic to use a custom proxy, for security reasons.
+	AlternativeBrowserHost string `json:"alternative_browser_host"`
 }
 
 // DefaultTransparencyURL is the default URL used for the “About Fleet” link in the Fleet Desktop menu.
@@ -1290,6 +1335,7 @@ const DefaultPerPage = 1000000
 // Interface methods for common_mysql.ListOptions
 
 func (l ListOptions) GetPage() uint { return l.Page }
+
 func (l ListOptions) GetPerPage() uint {
 	if l.PerPage == 0 {
 		return DefaultPerPage
@@ -1319,16 +1365,6 @@ type ListQueryOptions struct {
 	// Return queries that are scheduled to run on this platform. One of "macos",
 	// "windows", or "linux"
 	Platform *string
-}
-
-type ListActivitiesOptions struct {
-	ListOptions
-	ActivityType string `query:"activity_type,optional"`
-	// StartCreatedAt filters activities created after this ISO string.
-	StartCreatedAt string `query:"start_created_at,optional"`
-	// EndCreatedAt filters activities created before this ISO string.
-	EndCreatedAt string `query:"end_created_at,optional"`
-	Streamed     *bool
 }
 
 // ApplySpecOptions are the options available when applying a YAML or JSON spec.
@@ -1398,7 +1434,7 @@ type EnrollSecret struct {
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	// TeamID is the ID for the associated team. If no ID is set, then this is a
 	// global enroll secret.
-	TeamID *uint `json:"team_id,omitempty" db:"team_id"`
+	TeamID *uint `json:"team_id,omitempty" renameto:"fleet_id" db:"team_id"`
 }
 
 func (e *EnrollSecret) GetTeamID() *uint {
@@ -1635,7 +1671,9 @@ type DeviceGlobalMDMConfig struct {
 type DeviceFeatures struct {
 	// EnableSoftwareInventory is the setting used by the device's team (or
 	// globally in the AppConfig if the device is not in any team).
-	EnableSoftwareInventory bool `json:"enable_software_inventory"`
+	EnableSoftwareInventory       bool `json:"enable_software_inventory"`
+	EnableConditionalAccess       bool `json:"enable_conditional_access"`
+	EnableConditionalAccessBypass bool `json:"enable_conditional_access_bypass"`
 }
 
 // Version is the authz type used to check access control to the version endpoint.

@@ -5,7 +5,7 @@
 1. Find the app's metadata in its [Homebrew formulae](https://formulae.brew.sh/)
 2. Create a new manifest file called `$YOUR_APP_NAME.json` in the `inputs/homebrew/` directory. For
    example, if you wanted to add Box Drive, create the file `inputs/homebrew/box-drive.json`. 
-3. Fill out the file according to the [input schema below](#input-file-schema). For our example Box Drive app, it would look like this:
+3. Fill out the file according to the [input schema below](#macos-input-file-schema). For our example Box Drive app, it would look like this:
 
    ```json
    {

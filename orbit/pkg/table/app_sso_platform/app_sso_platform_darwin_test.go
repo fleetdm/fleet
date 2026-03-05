@@ -21,6 +21,9 @@ var (
 
 	//go:embed testdata/app_sso_platform_state_empty.txt
 	empty string
+
+	//go:embed testdata/app_sso_platform_state_empty_kerberos_status.txt
+	noKerberosStatus string
 )
 
 func TestParseAppSSOPlatformCommandOutput(t *testing.T) {
@@ -35,6 +38,11 @@ func TestParseAppSSOPlatformCommandOutput(t *testing.T) {
 
 	// Empty, Platform SSO not set yet.
 	data, err = parseAppSSOPlatformCommandOutput([]byte(empty), "com.microsoft.CompanyPortalMac.ssoextension", "KERBEROS.MICROSOFTONLINE.COM")
+	require.NoError(t, err)
+	require.Nil(t, data)
+
+	// No, kerberos status - this could happen if user removes the SSO account via Company portal
+	data, err = parseAppSSOPlatformCommandOutput([]byte(noKerberosStatus), "com.microsoft.CompanyPortalMac.ssoextension", "KERBEROS.MICROSOFTONLINE.COM")
 	require.NoError(t, err)
 	require.Nil(t, data)
 

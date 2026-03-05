@@ -27,17 +27,13 @@ export default (
   isAnyTeamAdmin = false,
   isAnyTeamMaintainer = false,
   isGlobalMaintainer = false,
-  isNoAccess = false
+  isNoAccess = false,
+  isGlobalTechnician = false,
+  isAnyTeamTechnician = false
 ): INavItem[] => {
   if (!user) {
     return [];
   }
-
-  const isMaintainerOrAdmin =
-    isGlobalMaintainer ||
-    isAnyTeamMaintainer ||
-    isGlobalAdmin ||
-    isAnyTeamAdmin;
 
   const logo = [
     {
@@ -58,7 +54,7 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/hosts/`),
         pathname: PATHS.MANAGE_HOSTS,
       },
-      withParams: { type: "query", names: ["team_id"] },
+      withParams: { type: "query", names: ["fleet_id"] },
     },
     {
       name: "Controls",
@@ -66,9 +62,16 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/controls/`),
         pathname: PATHS.CONTROLS,
       },
-      exclude: !isMaintainerOrAdmin,
+      exclude: !(
+        isGlobalMaintainer ||
+        isAnyTeamMaintainer ||
+        isGlobalAdmin ||
+        isAnyTeamAdmin ||
+        isGlobalTechnician ||
+        isAnyTeamTechnician
+      ),
       alwaysToPathname: true,
-      withParams: { type: "query", names: ["team_id"] },
+      withParams: { type: "query", names: ["fleet_id"] },
     },
     {
       name: "Software",
@@ -77,15 +80,15 @@ export default (
         pathname: PATHS.SOFTWARE_TITLES,
       },
       alwaysToPathname: true,
-      withParams: { type: "query", names: ["team_id"] },
+      withParams: { type: "query", names: ["fleet_id"] },
     },
     {
-      name: "Queries",
+      name: "Reports",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/queries/`),
         pathname: PATHS.MANAGE_QUERIES,
       },
-      withParams: { type: "query", names: ["team_id"] },
+      withParams: { type: "query", names: ["fleet_id"] },
     },
     {
       name: "Policies",
@@ -93,7 +96,7 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/(policies)/`),
         pathname: PATHS.MANAGE_POLICIES,
       },
-      withParams: { type: "query", names: ["team_id"] },
+      withParams: { type: "query", names: ["fleet_id"] },
     },
   ];
 

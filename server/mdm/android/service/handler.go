@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -33,7 +34,7 @@ func attachFleetAPIRoutes(r *mux.Router, fleetSvc fleet.Service, svc android.Ser
 
 	ne.GET("/api/_version_/fleet/android_enterprise/connect/{token}", enterpriseSignupCallbackEndpoint, enterpriseSignupCallbackRequest{})
 	ne.GET("/api/_version_/fleet/android_enterprise/enrollment_token", enrollmentTokenEndpoint, enrollmentTokenRequest{})
-	ne.POST(pubSubPushPath, pubSubPushEndpoint, PubSubPushRequest{})
+	ne.WithRequestBodySizeLimit(10*units.MiB).POST(pubSubPushPath, pubSubPushEndpoint, PubSubPushRequest{})
 }
 
 func apiVersions() []string {

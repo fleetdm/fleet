@@ -2,9 +2,9 @@
 package health
 
 import (
+	"context"
+	"log/slog"
 	"net/http"
-
-	"github.com/go-kit/log"
 )
 
 // Checker returns an error indicating if a service is in an unhealthy state.
@@ -17,7 +17,7 @@ type Checker interface {
 // Handler responds with either:
 // 200 OK if the server can successfully communicate with it's backends or
 // 500 if any of the backends are reporting an issue.
-func Handler(logger log.Logger, allCheckers map[string]Checker) http.HandlerFunc {
+func Handler(logger *slog.Logger, allCheckers map[string]Checker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		checkers := make(map[string]Checker)
 		checks, ok := r.URL.Query()["check"]
@@ -49,11 +49,11 @@ func Handler(logger log.Logger, allCheckers map[string]Checker) http.HandlerFunc
 
 // CheckHealth checks multiple checkers returning false if any of them fail.
 // CheckHealth logs the reason a checker fails.
-func CheckHealth(logger log.Logger, checkers map[string]Checker) bool {
+func CheckHealth(logger *slog.Logger, checkers map[string]Checker) bool {
 	healthy := true
 	for name, hc := range checkers {
 		if err := hc.HealthCheck(); err != nil {
-			log.With(logger, "component", "healthz").Log("err", err, "health-checker", name)
+			logger.With("component", "healthz").WarnContext(context.TODO(), "health check failed", "err", err, "health-checker", name)
 			healthy = false
 			continue
 		}

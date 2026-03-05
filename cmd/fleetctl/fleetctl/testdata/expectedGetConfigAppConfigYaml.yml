@@ -4,6 +4,7 @@ kind: config
 spec:
   fleet_desktop:
     transparency_url: https://fleetdm.com/transparency
+    alternative_browser_host: ""
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
@@ -17,6 +18,7 @@ spec:
     okta_assertion_consumer_service_url: null
     okta_audience_uri: null
     okta_certificate: null
+    bypass_disabled: null
   features:
     enable_host_users: true
     enable_software_inventory: false
@@ -35,9 +37,11 @@ spec:
     volume_purchasing_program: null
     windows_enabled_and_configured: false
     enable_disk_encryption: false
+    enable_recovery_lock_password: false
     windows_require_bitlocker_pin: null
     windows_migration_enabled: false
     enable_turn_on_windows_mdm_manually: false
+    windows_entra_tenant_ids: null
     macos_migration:
       enable: false
       mode: ""
@@ -63,6 +67,7 @@ spec:
       bootstrap_package:
       enable_end_user_authentication: false
       enable_release_device_manually: false
+      lock_end_user_info: false
       macos_setup_assistant:
       manual_agent_install:
       require_all_software_macos: false
@@ -89,8 +94,11 @@ spec:
     deferred_save_host: false
     enable_analytics: false
     live_query_disabled: false
+    live_reporting_disabled: false
     query_report_cap: 0
     query_reports_disabled: false
+    report_cap: 0
+    discard_reports_data: false
     server_url: ""
     scripts_disabled: false
     ai_features_disabled: false

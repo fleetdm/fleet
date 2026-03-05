@@ -71,6 +71,10 @@ func (e *existsError) IsExists() bool {
 	return true
 }
 
+func (e *existsError) IsClientError() bool {
+	return true
+}
+
 func (e *existsError) Resource() string {
 	return e.ResourceType
 }

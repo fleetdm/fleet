@@ -13,6 +13,10 @@ module.exports = {
       type: 'string',
       required: true,
     },
+    fleetLicenseKey: {
+      type: 'string',
+      required: true,
+    }
   },
 
 
@@ -34,17 +38,7 @@ module.exports = {
   },
 
 
-  fn: async function ({fleetServerUrl}) {
-
-    // Get the Fleet license key that was sent in the Authorization header as a bearer token.
-    let authHeader = this.req.get('authorization');
-    let fleetLicenseKey;
-
-    if (authHeader && authHeader.startsWith('Bearer')) {
-      fleetLicenseKey = authHeader.replace('Bearer', '').trim();
-    } else {
-      throw 'couldNotVerifyLicense';
-    }
+  fn: async function ({fleetServerUrl, fleetLicenseKey}) {
 
     // Validate provided fleetLicenseKey
     try {
@@ -67,10 +61,23 @@ module.exports = {
 
 
     // Generate a new FleetServerSecret for this Fleet instance.
-    let fleetServerSecret = sails.helpers.strings.random.with({len: 30});
+    let expiresAtInSeconds = Math.floor((Date.now() + (1000 * 60 * 60 * 24 * 365)) / 1000);
+    let nowAtInSeconds = Math.floor(Date.now() / 1000);
 
-    // Create a new database record for this Fleet instance.
-    await FleetInstanceUsingVpp.create({fleetInstanceUrl: fleetServerUrl, fleetServerSecret});
+    let fleetServerSecret = require('jsonwebtoken').sign(
+      {
+        iss: 'Fleet VPP proxy',
+        exp: expiresAtInSeconds,
+        iat: nowAtInSeconds,
+      },
+      {
+        key: sails.config.custom.vppProxyAuthenticationPrivateKey,
+        passphrase: sails.config.custom.vppProxyAuthenticationPassphrase
+      },
+      {
+        algorithm: 'ES256',
+      }
+    );
 
     // Return the generated fleetServerSecret
     return {

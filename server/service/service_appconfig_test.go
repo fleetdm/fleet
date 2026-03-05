@@ -98,6 +98,9 @@ func TestEmptyEnrollSecret(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
+	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
+		return nil, nil
+	}
 
 	err := svc.ApplyEnrollSecretSpec(
 		test.UserContext(ctx, test.UserAdmin),

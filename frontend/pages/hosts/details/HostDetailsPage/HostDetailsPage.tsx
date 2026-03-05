@@ -94,6 +94,7 @@ import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import CommandResultsModal from "pages/hosts/components/CommandDetailsModal";
 
@@ -162,6 +163,7 @@ interface IHostDetailsProps {
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
+      fleet_id?: string;
     };
     search?: string;
   };
@@ -199,12 +201,14 @@ const HostDetailsPage = ({
     currentUser,
     isGlobalAdmin = false,
     isGlobalMaintainer,
+    isGlobalTechnician,
     isTeamMaintainerOrTeamAdmin,
     isPremiumTier = false,
     isOnlyObserver,
     filteredHostsPath,
     currentTeam,
     isAnyMaintainerAdminObserverPlus,
+    isMacMdmEnabledAndConfigured,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -304,9 +308,6 @@ const HostDetailsPage = ({
     () => teamAPI.loadAll(),
     {
       enabled: !!hostIdFromURL && !!isPremiumTier,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
       retry: false,
       select: (data: ILoadTeamsResponse) => data.teams,
     }
@@ -317,9 +318,6 @@ const HostDetailsPage = ({
     () => hostAPI.getMdm(hostIdFromURL),
     {
       enabled: !!hostIdFromURL,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
       retry: false,
       onError: (err) => {
         // no handling needed atm. data is simply not shown.
@@ -333,9 +331,6 @@ const HostDetailsPage = ({
     () => hostAPI.loadHostDetailsExtension(hostIdFromURL, "macadmins"),
     {
       enabled: !!hostIdFromURL, // TODO(android): disable for unsupported platforms?
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
       retry: false,
       select: (data: IMacadminsResponse) => data.macadmins,
     }
@@ -397,9 +392,6 @@ const HostDetailsPage = ({
     () => hostAPI.loadHostDetails(hostIdFromURL),
     {
       enabled: !!hostIdFromURL,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
       retry: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
@@ -574,6 +566,9 @@ const HostDetailsPage = ({
     }
   );
 
+  const canGetMDMCommands =
+    !!isMacMdmEnabledAndConfigured && isAppleDevice(host?.platform);
+
   const {
     data: pastMDMCommands,
     isError: pastMDMCommandsIsError,
@@ -600,13 +595,12 @@ const HostDetailsPage = ({
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isAppleDevice(host?.platform),
+      enabled: canGetMDMCommands,
       keepPreviousData: true,
       staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
 
-  // request to get the host mdm commands
   const {
     data: upcomingMDMCommands,
     isError: upcomingMDMCommandsIsError,
@@ -633,7 +627,7 @@ const HostDetailsPage = ({
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isAppleDevice(host?.platform),
+      enabled: canGetMDMCommands,
       keepPreviousData: true,
       staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
@@ -663,7 +657,7 @@ const HostDetailsPage = ({
   useEffect(() => {
     setUsersState(() => {
       return (
-        host?.users.filter((user) => {
+        host?.users?.filter((user) => {
           return user.username
             .toLowerCase()
             .includes(usersSearchString.toLowerCase());
@@ -788,7 +782,10 @@ const HostDetailsPage = ({
               fleetInstallStatus: details?.status as SoftwareInstallUninstallStatus,
               hostDisplayName:
                 host?.display_name || details?.host_display_name || "",
-              appName: details.software_display_name || details?.name || "", // TODO: Confirm correct field
+              appName: getDisplayedSoftwareName(
+                details.software_title,
+                details.software_display_name
+              ),
               commandUuid: details?.command_uuid,
             });
           } else if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
@@ -814,8 +811,10 @@ const HostDetailsPage = ({
         case "uninstalled_software":
           setPackageUninstallDetails({
             ...details,
-            softwareName:
-              details?.software_display_name || details?.software_title || "",
+            softwareName: getDisplayedSoftwareName(
+              details?.software_title,
+              details?.software_display_name
+            ),
             uninstallStatus: resolveUninstallStatus(details?.status),
             scriptExecutionId: details?.script_execution_id || "",
             hostDisplayName: host?.display_name || details?.host_display_name,
@@ -823,8 +822,10 @@ const HostDetailsPage = ({
           break;
         case "installed_app_store_app":
           setActivityVPPInstallDetails({
-            appName:
-              details?.software_display_name || details?.software_title || "",
+            appName: getDisplayedSoftwareName(
+              details?.software_title,
+              details?.software_display_name
+            ),
             fleetInstallStatus: (details?.status ||
               "pending_install") as SoftwareInstallUninstallStatus,
             commandUuid: details?.command_uuid || "",
@@ -894,7 +895,7 @@ const HostDetailsPage = ({
 
       const successMessage =
         teamId === null
-          ? `Host successfully removed from teams.`
+          ? `Host successfully removed from fleets.`
           : `Host successfully transferred to  ${team.name}.`;
 
       renderFlash("success", successMessage);
@@ -961,7 +962,7 @@ const HostDetailsPage = ({
   const onClickAddQuery = () => {
     router.push(
       getPathWithQueryParams(PATHS.NEW_QUERY, {
-        team_id: currentTeam?.id,
+        fleet_id: currentTeam?.id || location.query.fleet_id,
         host_id: hostIdFromURL,
       })
     );
@@ -1085,16 +1086,28 @@ const HostDetailsPage = ({
 
   const navigateToNav = (i: number): void => {
     const navPath = hostDetailsSubNav[i].pathname;
-    router.push(navPath);
+    router.push(
+      getPathWithQueryParams(navPath, {
+        fleet_id: currentTeam?.id || location.query.fleet_id,
+      })
+    );
   };
 
   const navigateToSoftwareTab = (i: number): void => {
     const navPath = hostSoftwareSubNav[i].pathname;
-    router.push(navPath);
+    router.push(
+      getPathWithQueryParams(navPath, {
+        fleet_id: currentTeam?.id || location.query.fleet_id,
+      })
+    );
   };
 
   const isHostTeamAdmin = permissions.isTeamAdmin(currentUser, host?.team_id);
   const isHostTeamMaintainer = permissions.isTeamMaintainer(
+    currentUser,
+    host?.team_id
+  );
+  const isHostTeamTechnician = permissions.isTeamTechnician(
     currentUser,
     host?.team_id
   );
@@ -1110,16 +1123,19 @@ const HostDetailsPage = ({
   const isAndroidHost = isAndroid(host.platform);
   const isWindowsHost = isWindows(host.platform);
   const isChromeHost = isChrome(host.platform);
+  const isAppleDeviceHost = isAppleDevice(host.platform);
 
   const isSupportedHostQueriesPlatform =
     !isIosOrIpadosHost && !isAndroidHost && !isChromeHost;
 
   const canResendProfiles =
-    (isMacOSHost || isWindowsHost) &&
+    (isAppleDeviceHost || isWindowsHost) &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
+      isGlobalTechnician ||
       isHostTeamAdmin ||
-      isHostTeamMaintainer);
+      isHostTeamMaintainer ||
+      isHostTeamTechnician);
 
   const showSoftwareLibraryTab = isPremiumTier;
 
@@ -1127,7 +1143,7 @@ const HostDetailsPage = ({
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showCertificatesCard =
-    isAppleDevice(host.platform) && !!hostCertificates?.certificates.length;
+    isAppleDeviceHost && !!hostCertificates?.certificates.length;
 
   const renderSoftwareCard = () => {
     return (
@@ -1267,7 +1283,12 @@ const HostDetailsPage = ({
           <div className={`${baseClass}__header-links`}>
             <BackButton
               text="Back to all hosts"
-              path={filteredHostsPath || PATHS.MANAGE_HOSTS}
+              path={
+                filteredHostsPath ||
+                getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
+                  fleet_id: location.query.fleet_id,
+                })
+              }
             />
           </div>
           <div className={`${baseClass}__header-summary`}>
@@ -1276,13 +1297,7 @@ const HostDetailsPage = ({
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionsDropdown={renderActionsDropdown}
-              // Setting this to "locking" because if a host is "locating", it is also
-              // "locking"; an iOS/iPadOS host isn't "locked" until the location is found.
-              hostMdmDeviceStatus={
-                hostMdmDeviceStatus === "locating"
-                  ? "locking"
-                  : hostMdmDeviceStatus
-              }
+              hostMdmDeviceStatus={hostMdmDeviceStatus}
               hostMdmEnrollmentStatus={host.mdm?.enrollment_status || undefined}
             />
           </div>
@@ -1392,7 +1407,7 @@ const HostDetailsPage = ({
                       isHostTeamAdmin ||
                       isHostTeamMaintainer
                     }
-                    showMDMCommandsToggle={isAppleDevice(host.platform)}
+                    showMDMCommandsToggle={canGetMDMCommands}
                     showMDMCommands={showMDMCommands}
                     onShowMDMCommands={() => {
                       setActivityPage(0);
@@ -1640,6 +1655,7 @@ const HostDetailsPage = ({
             <WipeModal
               id={host.id}
               hostName={host.display_name}
+              isWindowsHost={isWindowsHost}
               onSuccess={() => setHostMdmDeviceState("wiping")}
               onClose={() => setShowWipeModal(false)}
             />

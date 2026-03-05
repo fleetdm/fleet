@@ -53,6 +53,34 @@
     }
   }
 
+  // OS version with requirement icon + tooltip truncation
+  &__os-version {
+    display: flex;
+    align-items: center;
+    gap: $pad-xsmall;
+    min-width: 0;
+
+    // Prevent the error icon from shrinking
+    .icon {
+      flex-shrink: 0;
+    }
+  }
+
+  &__os-version-tooltip {
+    min-width: 0;
+
+    > .component__tooltip-wrapper__element {
+      overflow: hidden;
+    }
+  }
+
+  &__os-version-text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .text-muted {
     color: $ui-fleet-black-50;
   }

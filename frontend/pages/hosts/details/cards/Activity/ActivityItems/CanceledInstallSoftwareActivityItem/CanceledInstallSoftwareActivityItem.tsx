@@ -1,6 +1,7 @@
 import React from "react";
 
 import ActivityItem from "components/ActivityItem";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import { IHostActivityItemComponentProps } from "../../ActivityConfig";
 
 const baseClass = "canceled-install-software-activity-item";
@@ -18,8 +19,10 @@ const CanceledInstallSoftwareActivityItem = ({
       <>
         <b>{activity.actor_full_name}</b> canceled{" "}
         <b>
-          {activity.details.software_display_name ||
-            activity.details.software_title}
+          {getDisplayedSoftwareName(
+            activity.details.software_title,
+            activity.details.software_display_name
+          )}
         </b>{" "}
         install on this host.
       </>

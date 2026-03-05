@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -21,9 +20,11 @@ import (
 	"github.com/MicahParks/jwkset"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 	"github.com/smallstep/pkcs7"
 )
 
@@ -67,6 +68,7 @@ type STSClaims struct {
 
 type AzureData struct {
 	UPN        string
+	Audience   []string
 	TenantID   string
 	UniqueName string
 	SCP        string
@@ -258,7 +260,7 @@ func GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, e
 	// Parse JWT token
 	jwksURI := "https://login.microsoftonline.com/common/discovery/v2.0/keys"
 	var token *jwt.Token
-	FLEET_DEV_AZURE_JWT_JWKS_URI := os.Getenv("FLEET_DEV_AZURE_JWT_JWKS_URI")
+	FLEET_DEV_AZURE_JWT_JWKS_URI := dev_mode.Env("FLEET_DEV_AZURE_JWT_JWKS_URI")
 	if FLEET_DEV_AZURE_JWT_JWKS_URI != "" {
 		jwksURI = FLEET_DEV_AZURE_JWT_JWKS_URI
 	}
@@ -320,6 +322,40 @@ func GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, e
 		return AzureData{}, ctxerr.New(ctx, "invalid TenantID claim")
 	}
 
+	// Validate that tenant ID is a UUID and matches the issuer
+	_, err = uuid.Parse(tenantIDClaim)
+	if err != nil {
+		return AzureData{}, ctxerr.Wrap(ctx, err, "invalid TenantID claim format")
+	}
+	issuer, ok := claims["iss"].(string)
+	if !ok || len(issuer) == 0 {
+		return AzureData{}, ctxerr.New(ctx, "invalid Issuer claim")
+	}
+
+	// Depending on exactly how the Azure AD app is configured, the issuer claim
+	// may vary. Validate that the issuer contains the tenant ID.
+	issuerMatchesTenant := false
+	for _, expectedIssuer := range []string{fmt.Sprintf("https://sts.windows.net/%s/", tenantIDClaim), fmt.Sprintf("https://login.microsoftonline.com/%s/", tenantIDClaim)} {
+		if strings.HasPrefix(issuer, expectedIssuer) {
+			issuerMatchesTenant = true
+			break
+		}
+	}
+	if !issuerMatchesTenant {
+		return AzureData{}, ctxerr.New(ctx, "issuer claim does not match tenant ID")
+	}
+
+	audience := []string{}
+	singleAudience, ok := claims["aud"].(string)
+	if !ok {
+		multiAudience, ok := claims["aud"].([]string)
+		if ok {
+			audience = multiAudience
+		}
+	} else {
+		audience = append(audience, singleAudience)
+	}
+
 	// Get UniqueName claim
 	uniqueNameClaim, ok := claims["unique_name"].(string)
 	if !ok {
@@ -337,6 +373,7 @@ func GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, e
 		TenantID:   tenantIDClaim,
 		UniqueName: uniqueNameClaim,
 		SCP:        azureSCPClaim,
+		Audience:   audience,
 	}, nil
 }
 

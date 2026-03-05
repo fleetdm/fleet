@@ -8,6 +8,8 @@ import { isAndroid } from "interfaces/platform";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
+
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import {
   TargetTitle,
   TargetValue,
@@ -38,7 +40,10 @@ const AppStoreDetailsModal = ({
         <div className={`${baseClass}__modal-content`}>
           <DataSet
             title="Name"
-            value={details.software_display_name || details.software_title}
+            value={getDisplayedSoftwareName(
+              details.software_title,
+              details.software_display_name
+            )}
           />
           <DataSet
             title={

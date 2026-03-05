@@ -1,0 +1,1 @@
+Fixed a bug where the list activities API endpoint would fail with a database error when there were more than 65,535 activities and no pagination parameters were specified. The maximum `per_page` for activities endpoints is now 10,000.

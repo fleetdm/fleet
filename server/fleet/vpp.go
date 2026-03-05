@@ -85,7 +85,7 @@ type VPPApp struct {
 	// TeamID is used for authorization, it must be json serialized to be available
 	// to the rego script. We don't set it outside authorization anyway, so it
 	// won't render otherwise.
-	TeamID  *uint `db:"-" json:"team_id,omitempty"`
+	TeamID  *uint `db:"-" json:"team_id,omitempty" renameto:"fleet_id"`
 	TitleID uint  `db:"title_id" json:"-"`
 
 	CreatedAt time.Time `db:"created_at" json:"-"`
@@ -155,6 +155,7 @@ type HostVPPSoftwareInstall struct {
 	InstallCommandStatus string     `db:"install_command_status"`
 	BundleIdentifier     string     `db:"bundle_identifier"`
 	RetryCount           int        `db:"retry_count"`
+	ExpectedVersion      string     `db:"expected_version"`
 }
 
 type HostVPPSoftwareInstallLite struct {

@@ -215,7 +215,8 @@ export interface IHostResponse {
   host: IHost;
 }
 
-export interface IDeviceUserResponse {
+// Device User Page
+export interface IDUPDetails {
   host: IHostDevice;
   license: ILicense;
   org_logo_url: string;
@@ -326,6 +327,7 @@ export interface IHost {
   device_mapping: IDeviceUser[] | null;
   /** There will be at most 1 end user */
   end_users?: IHostEndUser[];
+  conditional_access_bypassed: boolean;
 }
 
 /*

@@ -197,9 +197,6 @@ export interface IEditAppStoreAppPostBody {
 const ORDER_KEY = "name";
 const ORDER_DIRECTION = "asc";
 
-export const MAX_FILE_SIZE_MB = 3000;
-export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-
 const handleAndroidForm = (
   teamId: number,
   formData: ISoftwareAndroidFormData

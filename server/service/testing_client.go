@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/http/cookiejar"
@@ -25,12 +26,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/test"
 	fleet_httptest "github.com/fleetdm/fleet/v4/server/test/httptest"
 	"github.com/ghodss/yaml"
-	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,13 +39,14 @@ import (
 )
 
 type withDS struct {
-	s  *suite.Suite
-	ds *mysql.Datastore
+	s       *suite.Suite
+	ds      *mysql.Datastore
+	dbConns *common_mysql.DBConnections
 }
 
 func (ts *withDS) SetupSuite(dbName string) {
 	t := ts.s.T()
-	ts.ds = mysql.CreateNamedMySQLDS(t, dbName)
+	ts.ds, ts.dbConns = mysql.CreateNamedMySQLDSWithConns(t, dbName)
 	// remove any migration-created labels
 	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(), `DELETE FROM labels`)
@@ -79,6 +81,8 @@ type withServer struct {
 	lq *live_query_mock.MockLiveQuery
 
 	redisPool fleet.RedisPool
+
+	fleetSvc fleet.Service
 }
 
 func (ts *withServer) SetupSuite(dbName string) {
@@ -93,9 +97,10 @@ func (ts *withServer) SetupSuite(dbName string) {
 		Lq:          ts.lq,
 		FleetConfig: &cfg,
 		Pool:        redisPool,
+		DBConns:     ts.dbConns,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		opts.Logger = kitlog.NewNopLogger()
+		opts.Logger = slog.New(slog.DiscardHandler)
 	}
 	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds, opts)
 	ts.server = server
@@ -169,7 +174,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		}
 	}
 
-	queries, _, _, err := ts.ds.ListQueries(ctx, fleet.ListQueryOptions{})
+	queries, _, _, _, err := ts.ds.ListQueries(ctx, fleet.ListQueryOptions{})
 	require.NoError(t, err)
 	queryIDs := make([]uint, 0, len(queries))
 	for _, query := range queries {
@@ -255,6 +260,10 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	})
 	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM invites; ")
+		return err
+	})
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM host_conditional_access")
 		return err
 	})
 }
@@ -583,6 +592,14 @@ func (ts *withServer) loginSSOUserIDPInitiated(
 	return res
 }
 
+type listActivitiesResponse struct {
+	Meta       *fleet.PaginationMetadata `json:"meta"`
+	Activities []*fleet.Activity         `json:"activities"`
+	Err        error                     `json:"error,omitempty"`
+}
+
+func (r listActivitiesResponse) Error() error { return r.Err }
+
 func (ts *withServer) lastActivityMatches(name, details string, id uint) uint {
 	return ts.lastActivityMatchesExtended(name, details, id, nil)
 }
@@ -665,6 +682,16 @@ func (ts *withServer) lastActivityOfTypeDoesNotMatch(name, details string, id ui
 			}
 		}
 	}
+}
+
+// listActivities retrieves all activities via the HTTP API endpoint.
+func (ts *withServer) listActivities() []*fleet.Activity {
+	t := ts.s.T()
+	var resp listActivitiesResponse
+	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &resp,
+		"order_key", "a.id", "order_direction", "asc", "per_page", "10000")
+	require.NotNil(t, resp.Activities)
+	return resp.Activities
 }
 
 func (ts *withServer) uploadSoftwareInstaller(

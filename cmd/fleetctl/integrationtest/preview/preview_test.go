@@ -41,11 +41,6 @@ func TestIntegrationsPreview(t *testing.T) {
 
 	// run some sanity checks on the preview environment
 
-	// starter library queries must have been loaded
-	queries := fleetctl.RunAppForTest(t, []string{"get", "queries", "--config", configPath, "--json"})
-	n := strings.Count(queries, `"kind":"query"`)
-	require.Greater(t, n, 0)
-
 	// app configuration must disable analytics
 	appConf := fleetctl.RunAppForTest(t, []string{"get", "config", "--include-server-config", "--config", configPath, "--yaml"})
 	ok := strings.Contains(appConf, `enable_analytics: false`)

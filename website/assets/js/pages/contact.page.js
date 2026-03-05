@@ -42,6 +42,21 @@ parasails.registerPage('contact', {
       message: {required: true},
     },
 
+    workshopRequestFormRules: {
+      emailAddress: {isEmail: true, required: true},
+      firstName: {required: true},
+      lastName: {required: true},
+      location: {required: true},
+      numberOfHosts: {required: true},
+      managedPlatforms: {
+        required: true,
+        custom: (selectedPlatforms)=>{
+          return _.keysIn(selectedPlatforms).length > 0 && _.contains(_.values(selectedPlatforms), true);
+        }
+      },
+
+    },
+
     formDataToPrefillForLoggedInUsers: {},
 
     // Server error state for the form
@@ -88,6 +103,10 @@ parasails.registerPage('contact', {
     if (window.location.hash === '#apply') {// prefill from URL bar
       this.formToDisplay = 'apply';
     }
+    if (window.location.hash === '#gitops') {// prefill from URL bar
+      this.formToDisplay = 'gitops-workshop-request';
+      this.formData.managedPlatforms = {};
+    }
   },
   mounted: async function() {
     //…
@@ -101,6 +120,12 @@ parasails.registerPage('contact', {
     submittedContactForm: async function() {
       if(typeof gtag !== 'undefined'){
         gtag('event','fleet_website__contact_forms');
+        // Additional conversion tracking
+        gtag('event', 'conversion', {
+          'send_to': 'AW-10788733823/e9FrCNGYrPobEP-GvJgo',
+          'value': 1.0,
+          'currency': 'USD'
+        });
       }
       if(typeof window.lintrk !== 'undefined') {
         window.lintrk('track', { conversion_id: 18587089 });// eslint-disable-line camelcase
@@ -123,6 +148,12 @@ parasails.registerPage('contact', {
         } else {
           gtag('event','fleet_website__contact_forms__demo__icp');
         }
+        // Additional conversion tracking
+        gtag('event', 'conversion', {
+          'send_to': 'AW-10788733823/aNrhCNSYrPobEP-GvJgo',
+          'value': 1.0,
+          'currency': 'USD'
+        });
       }
 
       this.goto(report.eventUrl);
@@ -131,6 +162,23 @@ parasails.registerPage('contact', {
     submittedApplicationForm: async function() {
       // Show the success message.
       this.cloudSuccess = true;
+    },
+
+    submittedWorkshopRequestForm: async function() {
+      if(typeof gtag !== 'undefined'){
+        // Additional conversion tracking
+        gtag('event', 'conversion', {
+          'send_to': 'AW-10788733823/RULOCNeYrPobEP-GvJgo',
+          'value': 1.0,
+          'currency': 'USD'
+        });
+      }
+      // Show the success message.
+      this.cloudSuccess = true;
+    },
+
+    clickSelectCustomCheckbox: async function() {
+      await this.forceRender();
     },
 
     clickSwitchForms: function(form) {

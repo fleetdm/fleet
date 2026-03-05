@@ -43,7 +43,7 @@ interface IPolicyPageProps {
   location: {
     pathname: string;
     search: string;
-    query: { host_ids: string; team_id: string };
+    query: { host_ids: string; fleet_id: string };
     hash?: string;
   };
 }
@@ -98,6 +98,7 @@ const PolicyPage = ({
       maintainer: true,
       observer: true,
       observer_plus: true,
+      technician: true,
     },
   });
 
@@ -223,11 +224,11 @@ const PolicyPage = ({
     !isStoredPolicyLoading &&
     storedPolicy?.team_id !== undefined &&
     storedPolicy?.team_id !== null &&
-    !(storedPolicy?.team_id?.toString() === location.query.team_id)
+    !(storedPolicy?.team_id?.toString() === location.query.fleet_id)
   ) {
     router.push(
       getPathWithQueryParams(location.pathname, {
-        team_id: storedPolicy?.team_id?.toString(),
+        fleet_id: storedPolicy?.team_id?.toString(),
       })
     );
   }
@@ -286,7 +287,7 @@ const PolicyPage = ({
       <div className={`${baseClass}__warning`}>
         <div className={`${baseClass}__message`}>
           <p>
-            Fleet is unable to run a live query. Refresh the page or log in
+            Fleet is unable to run a live report. Refresh the page or log in
             again. If this keeps happening please{" "}
             <CustomLink
               url="https://github.com/fleetdm/fleet/issues/new/choose"

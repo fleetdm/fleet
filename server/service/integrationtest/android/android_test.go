@@ -190,6 +190,8 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			err = json.Unmarshal(decoded, &et)
 			require.NoError(t, err)
 
+			require.Equal(t, "PERSONAL_USAGE_ALLOWED", et.AllowPersonalUsage)
+
 			var enrollmentRequest enrollmentTokenRequest
 			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
 			require.NoError(t, err)
@@ -231,12 +233,70 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			err = json.Unmarshal(decoded, &et)
 			require.NoError(t, err)
 
+			require.Equal(t, "PERSONAL_USAGE_ALLOWED", et.AllowPersonalUsage)
+
 			var enrollmentRequest enrollmentTokenRequest
 			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
 			require.NoError(t, err)
 
 			require.Equal(t, globalSecret, enrollmentRequest.EnrollSecret)
 			require.Equal(t, idpAccount.UUID, enrollmentRequest.IdpUUID)
+
+			t.Cleanup(func() {
+				mysql.TruncateTables(t, s.DS)
+			})
+		})
+
+		t.Run("when fully_managed is true", func(t *testing.T) {
+			enableAndroidMDM()
+			createTeamAndSecret(globalSecret, globalSecret, false)
+			setupAndroidEnterprise()
+
+			var resp android.EnrollmentTokenResponse
+			s.DoJSON(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token?fully_managed=true", nil, http.StatusOK, &resp, "enroll_secret", globalSecret)
+
+			decoded, err := base64.StdEncoding.DecodeString(resp.EnrollmentToken.EnrollmentToken)
+			require.NoError(t, err)
+			var et androidmanagement.EnrollmentToken
+			err = json.Unmarshal(decoded, &et)
+			require.NoError(t, err)
+
+			require.Equal(t, "PERSONAL_USAGE_DISALLOWED", et.AllowPersonalUsage)
+
+			var enrollmentRequest enrollmentTokenRequest
+			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
+			require.NoError(t, err)
+
+			require.Equal(t, globalSecret, enrollmentRequest.EnrollSecret)
+			require.Equal(t, "", enrollmentRequest.IdpUUID)
+
+			t.Cleanup(func() {
+				mysql.TruncateTables(t, s.DS)
+			})
+		})
+
+		t.Run("when fully_managed is false", func(t *testing.T) {
+			enableAndroidMDM()
+			createTeamAndSecret(globalSecret, globalSecret, false)
+			setupAndroidEnterprise()
+
+			var resp android.EnrollmentTokenResponse
+			s.DoJSON(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token?fully_managed=false", nil, http.StatusOK, &resp, "enroll_secret", globalSecret)
+
+			decoded, err := base64.StdEncoding.DecodeString(resp.EnrollmentToken.EnrollmentToken)
+			require.NoError(t, err)
+			var et androidmanagement.EnrollmentToken
+			err = json.Unmarshal(decoded, &et)
+			require.NoError(t, err)
+
+			require.Equal(t, "PERSONAL_USAGE_ALLOWED", et.AllowPersonalUsage)
+
+			var enrollmentRequest enrollmentTokenRequest
+			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
+			require.NoError(t, err)
+
+			require.Equal(t, globalSecret, enrollmentRequest.EnrollSecret)
+			require.Equal(t, "", enrollmentRequest.IdpUUID)
 
 			t.Cleanup(func() {
 				mysql.TruncateTables(t, s.DS)

@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/kit/log/level"
 )
 
 // Certificate template name validation constants
@@ -50,7 +49,7 @@ func validateCertificateTemplateName(name string) error {
 
 type createCertificateTemplateRequest struct {
 	Name                   string `json:"name"`
-	TeamID                 uint   `json:"team_id"` // If not provided, intentionally defaults to 0 aka "No team"
+	TeamID                 uint   `json:"team_id" renameto:"fleet_id"` // If not provided, intentionally defaults to 0 aka "No team"
 	CertificateAuthorityId uint   `json:"certificate_authority_id"`
 	SubjectName            string `json:"subject_name"`
 }
@@ -151,7 +150,7 @@ type listCertificateTemplatesRequest struct {
 	fleet.ListOptions
 
 	// If not provided, intentionally defaults to 0 aka "No team"
-	TeamID uint `query:"team_id,optional"`
+	TeamID uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type listCertificateTemplatesResponse struct {
@@ -180,7 +179,7 @@ func (svc *Service) ListCertificateTemplates(ctx context.Context, teamID uint, o
 	opts.After = ""
 
 	// custom ordering is not supported, always by sort by id
-	opts.OrderKey = "certificate_templates.id"
+	opts.OrderKey = "id"
 	opts.OrderDirection = fleet.OrderAscending
 
 	// no matching query support
@@ -257,6 +256,18 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 		return certificate, nil
 	}
 	certificate.SubjectName = subjectName
+
+	// On-demand challenge creation for delivered status.
+	// If FleetChallenge is nil or empty, create one now (the challenge TTL starts from this moment).
+	if certificate.Status == fleet.CertificateTemplateDelivered {
+		if certificate.FleetChallenge == nil || *certificate.FleetChallenge == "" {
+			challenge, err := svc.ds.GetOrCreateFleetChallengeForCertificateTemplate(ctx, host.UUID, id)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create fleet challenge on-demand")
+			}
+			certificate.FleetChallenge = &challenge
+		}
+	}
 
 	return certificate, nil
 }
@@ -512,7 +523,7 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 
 type deleteCertificateTemplateSpecsRequest struct {
 	IDs    []uint `json:"ids"`
-	TeamID uint   `json:"team_id"` // If not provided, intentionally defaults to 0 aka "No team"
+	TeamID uint   `json:"team_id" renameto:"fleet_id"` // If not provided, intentionally defaults to 0 aka "No team"
 }
 
 type deleteCertificateTemplateSpecsResponse struct {
@@ -531,8 +542,26 @@ func deleteCertificateTemplateSpecsEndpoint(ctx context.Context, request interfa
 }
 
 func (svc *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error {
+	// Authorize team
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
+	}
+	// Authorize all ids are on team
+	certificateTemplates, err := svc.ds.GetCertificateTemplatesByIdsAndTeam(ctx, certificateTemplateIDs, teamID)
+	if err != nil {
+		return err
+	}
+	uniqueIDs := make(map[uint]struct{}, len(certificateTemplateIDs))
+	for _, id := range certificateTemplateIDs {
+		uniqueIDs[id] = struct{}{}
+	}
+	if len(uniqueIDs) != len(certificateTemplates) {
+		return authz.ForbiddenWithInternal(
+			"can only delete templates from team parameter",
+			authz.UserFromContext(ctx),
+			&fleet.CertificateTemplate{TeamID: teamID},
+			fleet.ActionWrite,
+		)
 	}
 
 	deletedRows, err := svc.ds.BatchDeleteCertificateTemplates(ctx, certificateTemplateIDs)
@@ -648,7 +677,7 @@ func (svc *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.C
 	}
 
 	if record.OperationType != update.OperationType {
-		level.Info(svc.logger).Log("msg", "ignoring certificate status update for different operation type", "host_uuid", host.UUID, "certificate_template_id", update.CertificateTemplateID, "current_operation_type", record.OperationType, "new_operation_type", update.OperationType)
+		svc.logger.InfoContext(ctx, "ignoring certificate status update for different operation type", "host_uuid", host.UUID, "certificate_template_id", update.CertificateTemplateID, "current_operation_type", record.OperationType, "new_operation_type", update.OperationType)
 		return nil
 	}
 
@@ -660,7 +689,7 @@ func (svc *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.C
 	}
 
 	if record.Status != fleet.CertificateTemplateDelivered {
-		level.Info(svc.logger).Log("msg", "ignoring certificate status update for non-delivered certificate", "host_uuid", host.UUID, "certificate_template_id", update.CertificateTemplateID, "current_status", record.Status, "new_status", update.Status)
+		svc.logger.InfoContext(ctx, "ignoring certificate status update for non-delivered certificate", "host_uuid", host.UUID, "certificate_template_id", update.CertificateTemplateID, "current_status", record.Status, "new_status", update.Status)
 		return nil
 	}
 

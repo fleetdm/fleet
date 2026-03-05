@@ -25,6 +25,11 @@ module.exports = {
     projects_v2_item: { type: {} }, //eslint-disable-line camelcase
   },
 
+  exits: {
+    success: {description: 'A GitHub event was successfully received.'},
+    unexpectedBotSignature: {description: 'The provided botSignature was incorrect', responseType: 'unauthorized' },
+  },
+
 
   fn: async function ({botSignature, action, sender, repository, changes, issue, comment, pull_request: pr, label, release, projects_v2_item: projectsV2Item}) {
 
@@ -101,7 +106,6 @@ module.exports = {
       'kc9wwh',
       'JordanMontgomery',
       'ds0x',
-      'bettapizza',
       'irenareedy',
       'jakestenger',
       'AndreyKizimenko',
@@ -142,7 +146,7 @@ module.exports = {
       throw new Error('No GitHub bot webhook secret configured!  (Please set `sails.config.custom.githubBotWebhookSecret`.)');
     }//•
     if (sails.config.custom.githubBotWebhookSecret !== botSignature) {
-      throw new Error('Received unexpected GitHub webhook request with botSignature set to: '+botSignature);
+      throw 'unexpectedBotSignature';
     }//•
 
     if (!sails.config.custom.githubAccessToken) {
@@ -526,7 +530,7 @@ module.exports = {
         // if(!isMainBranchFrozen && pocketOfPrNumbersUnfrozen.length > 0) {
         //   await Platform.updateOne({id: platformRecord.id}).set({currentUnfrozenGitHubPrNumbers: []});
         // }
-        if (isAutoApprovalExpected) {
+        if (isAutoApprovalExpected && issueOrPr.user.login !== 'fleet-release') {
           // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
             event: 'APPROVE'

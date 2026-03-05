@@ -1,1 +1,0 @@
-* Added support for in-house apps to use Cloudfront signed URLs in manifest if Cloudfront is configured.

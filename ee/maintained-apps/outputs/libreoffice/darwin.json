@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "25.8.4",
+      "version": "26.2.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.libreoffice.script';"
       },
-      "installer_url": "https://download.documentfoundation.org/libreoffice/stable/25.8.4/mac/aarch64/LibreOffice_25.8.4_MacOS_aarch64.dmg",
+      "installer_url": "https://download.documentfoundation.org/libreoffice/stable/26.2.1/mac/aarch64/LibreOffice_26.2.1_MacOS_aarch64.dmg",
       "install_script_ref": "b6e360a7",
       "uninstall_script_ref": "5f8f4731",
-      "sha256": "972bb495bd5e249257c53d4030c013f2a5706a6203d3669b8c410ceafe3d0426",
+      "sha256": "6814d25db1d64ffe0f617d5b5ab626ddbd2f017b14b937b81d5d43d1551ea384",
       "default_categories": [
         "Productivity"
       ]

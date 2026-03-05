@@ -1,0 +1,1 @@
+* Added warning message on gitops label rename to clarify to users that renaming a label implies a delete operation.

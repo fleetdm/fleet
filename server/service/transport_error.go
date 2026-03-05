@@ -90,6 +90,19 @@ func (e *OsqueryError) Status() int {
 	return e.StatusCode
 }
 
+// IsClientError implements ErrWithIsClientError.
+// OsqueryError is a client error when the node is invalid (auth failure)
+// or when the status code is in the 4xx range.
+func (e *OsqueryError) IsClientError() bool {
+	if e.nodeInvalid {
+		return true
+	}
+	if e.StatusCode >= 400 && e.StatusCode < 500 {
+		return true
+	}
+	return false
+}
+
 func NewOsqueryError(message string, nodeInvalid bool) *OsqueryError {
 	return &OsqueryError{
 		message:     message,

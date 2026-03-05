@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "8.29.1",
+      "version": "8.31.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.8x8---virtual-office';"
       },
-      "installer_url": "https://work-desktop-assets.8x8.com/prod-publish/ga/work-arm64-dmg-v8.29.1-3.dmg",
+      "installer_url": "https://work-desktop-assets.8x8.com/prod-publish/ga/work-arm64-dmg-v8.31.3-1.dmg",
       "install_script_ref": "7add5651",
       "uninstall_script_ref": "7ed20ad7",
-      "sha256": "c6aa78d0911a0cb504a21bcf8421de703cc7dd07b7388903cf29227ca5955737",
+      "sha256": "298446c6581c8da07eee245603695de77a935c93a0babddda8dd956f81c170d0",
       "default_categories": [
         "Communication"
       ]

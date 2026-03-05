@@ -1,6 +1,8 @@
 import React, { useContext } from "react";
 import { Link } from "react-router";
 
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
 import PATHS from "router/paths";
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
@@ -14,10 +16,17 @@ import CustomLink from "components/CustomLink";
 import Card from "components/Card";
 
 import IphoneLockPreview from "../../../../../../../assets/images/iphone-lock-preview.png";
+import IpadLockPreview from "../../../../../../../assets/images/ipad-lock-preview.png";
 
 const baseClass = "lock-modal";
 
-const IosOrIpadLockPreview = () => {
+const IosOrIpadLockPreview = ({ platform }: { platform: string }) => {
+  const isIPad = platform === "ipados";
+  const previewImage = isIPad ? IpadLockPreview : IphoneLockPreview;
+  const altText = isIPad
+    ? "iPad with a lock screen message"
+    : "iPhone with a lock screen message";
+
   return (
     <Card
       color="grey"
@@ -34,7 +43,7 @@ const IosOrIpadLockPreview = () => {
         />
         .
       </p>
-      <img src={IphoneLockPreview} alt="iPhone with a lock screen message" />
+      <img src={previewImage} alt={altText} />
     </Card>
   );
 };
@@ -84,6 +93,16 @@ const LockModal = ({
             .
           </p>
           <p> It can only be unlocked through Fleet.</p>
+          <p>
+            If the host is turned off or restarted while locked, it will
+            disconnect from Wi-Fi, and you won&apos;t be able to unlock it
+            remotely.{" "}
+            <CustomLink
+              newTab
+              text="Learn more"
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/unlock-ios-ipados`}
+            />
+          </p>
         </>
       );
     }
@@ -118,7 +137,9 @@ const LockModal = ({
             </Checkbox>
           </div>
         </div>
-        {isIPadOrIPhone(platform) && <IosOrIpadLockPreview />}
+        {isIPadOrIPhone(platform) && (
+          <IosOrIpadLockPreview platform={platform} />
+        )}
         <div className="modal-cta-wrap">
           <Button
             type="button"

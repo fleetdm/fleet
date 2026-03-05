@@ -26,10 +26,10 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 	)
 }
 
-func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
+func makeDecoder(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
 	return eu.MakeDecoder(iface, func(body io.Reader, req any) error {
 		return json.UnmarshalRead(body, req)
-	}, nil, nil, nil, nil)
+	}, nil, nil, nil, nil, requestBodySizeLimit)
 }
 
 // handlerFunc is the handler function type for Android service endpoints.
@@ -43,7 +43,8 @@ type androidEndpointer struct {
 }
 
 func (e *androidEndpointer) CallHandlerFunc(f handlerFunc, ctx context.Context, request any,
-	svc any) (platform_http.Errorer, error) {
+	svc any,
+) (platform_http.Errorer, error) {
 	return f(ctx, request, svc.(android.Service)), nil
 }
 
@@ -52,7 +53,8 @@ func (e *androidEndpointer) Service() any {
 }
 
 func newUserAuthenticatedEndpointer(fleetSvc fleet.Service, svc android.Service, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *eu.CommonEndpointer[handlerFunc] {
+	versions ...string,
+) *eu.CommonEndpointer[handlerFunc] {
 	return &eu.CommonEndpointer[handlerFunc]{
 		EP: &androidEndpointer{
 			svc: svc,
@@ -69,7 +71,8 @@ func newUserAuthenticatedEndpointer(fleetSvc fleet.Service, svc android.Service,
 }
 
 func newNoAuthEndpointer(fleetSvc fleet.Service, svc android.Service, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *eu.CommonEndpointer[handlerFunc] {
+	versions ...string,
+) *eu.CommonEndpointer[handlerFunc] {
 	return &eu.CommonEndpointer[handlerFunc]{
 		EP: &androidEndpointer{
 			svc: svc,

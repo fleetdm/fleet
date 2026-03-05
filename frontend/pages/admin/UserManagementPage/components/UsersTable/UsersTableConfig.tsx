@@ -119,7 +119,7 @@ const generateTableHeaders = (
                   <br />
                   the same functions as an Observer, with the added
                   <br />
-                  ability to run any live query against all hosts.
+                  ability to run any live report against all hosts.
                 </>
               }
             >
@@ -181,8 +181,8 @@ const generateTableHeaders = (
   // Add Teams column for premium tier
   if (isPremiumTier) {
     tableHeaders.splice(2, 0, {
-      title: "Teams",
-      Header: "Teams",
+      title: "Fleets",
+      Header: "Fleets",
       accessor: "teams",
       disableSortBy: true,
       Cell: (cellProps: ICellProps) => (
@@ -208,6 +208,8 @@ const generateActionDropdownOptions = (
   isInvitePending: boolean,
   isSsoEnabled: boolean
 ): IDropdownOption[] => {
+  const disableDelete = isCurrentUser;
+
   let dropdownOptions = [
     {
       label: "Edit",
@@ -226,8 +228,19 @@ const generateActionDropdownOptions = (
     },
     {
       label: "Delete",
-      disabled: isCurrentUser,
+      disabled: disableDelete,
       value: "delete",
+      tooltipContent: disableDelete ? (
+        <>
+          There must be at least one Admin
+          <br />
+          user on the account. To delete this
+          <br />
+          user, add or set existing user with
+          <br />
+          role of &quot;Admin&quot;.
+        </>
+      ) : undefined,
     },
   ];
 

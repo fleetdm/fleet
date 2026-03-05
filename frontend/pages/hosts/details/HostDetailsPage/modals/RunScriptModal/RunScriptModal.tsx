@@ -84,6 +84,8 @@ const RunScriptModal = ({
       generateTableColumnConfigs(
         currentUser,
         hostTeamId,
+        // 4.81+ users won't reach this modal if scripts are disabled
+        // Intentionally left disabled actions in as a safeguard
         !!config?.server_settings?.scripts_disabled,
         onClickViewScript,
         onSelectAction

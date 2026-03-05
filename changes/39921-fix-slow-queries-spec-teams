@@ -1,0 +1,1 @@
+* Removed unnecessary calls to `svc.ds.BulkSetPendingMDMHostProfiles` in `POST /api/latest/fleet/spec/fleets`.
