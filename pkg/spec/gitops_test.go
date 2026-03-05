@@ -2096,6 +2096,7 @@ controls:
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Conflicting field names")
 		require.Contains(t, err.Error(), "apple_settings")
+		require.Contains(t, err.Error(), "`macos_settings` (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_apple_custom_settings", func(t *testing.T) {
@@ -2124,6 +2125,7 @@ controls:
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Conflicting field names")
 		require.Contains(t, err.Error(), "configuration_profiles")
+		require.Contains(t, err.Error(), "`custom_settings` (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_windows_custom_settings", func(t *testing.T) {
@@ -2152,6 +2154,7 @@ controls:
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Conflicting field names")
 		require.Contains(t, err.Error(), "configuration_profiles")
+		require.Contains(t, err.Error(), "`custom_settings` (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_android_custom_settings", func(t *testing.T) {
@@ -2180,6 +2183,7 @@ controls:
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Conflicting field names")
 		require.Contains(t, err.Error(), "configuration_profiles")
+		require.Contains(t, err.Error(), "`custom_settings` (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_setup_experience", func(t *testing.T) {
@@ -2205,6 +2209,7 @@ controls:
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Conflicting field names")
 		require.Contains(t, err.Error(), "setup_experience")
+		require.Contains(t, err.Error(), "`macos_setup` (deprecated)")
 	})
 
 	t.Run("duplicate_keys_external_file", func(t *testing.T) {
@@ -2237,6 +2242,7 @@ org_settings:
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Conflicting field names")
 		require.Contains(t, err.Error(), "apple_settings")
+		require.Contains(t, err.Error(), "`macos_settings` (deprecated)")
 	})
 }
 
