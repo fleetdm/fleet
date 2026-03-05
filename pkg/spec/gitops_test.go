@@ -598,10 +598,10 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "must have a 'secret' key")
 
-					// Missing settings (formerly settings).
+					// Missing settings is now allowed (defaults to null, clearing team settings).
 					config = getConfig([]string{"settings"})
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "'settings' is required when 'name' is provided")
+					assert.NoError(t, err)
 
 					// settings is now allowed on "no-team.yml" for webhook settings
 					config = getConfig([]string{"name", "settings"}) // Exclude settings with secrets
@@ -905,17 +905,22 @@ func TestTopLevelGitOpsValidation(t *testing.T) {
 			shouldPass:    true,
 			isTeam:        true,
 		},
-		"missing_all": {
+		// Top-level keys besides "name" and "org_settings" are now optional.
+		// A file must have either "name" (team) or "org_settings" (global).
+		"missing_all_global": {
 			optsToExclude: []string{"controls", "reports", "policies", "agent_options", "org_settings"},
 		},
 		"missing_reports": {
 			optsToExclude: []string{"reports"},
+			shouldPass:    true,
 		},
 		"missing_policies": {
 			optsToExclude: []string{"policies"},
+			shouldPass:    true,
 		},
 		"missing_agent_options": {
 			optsToExclude: []string{"agent_options"},
+			shouldPass:    true,
 		},
 		"missing_org_settings": {
 			optsToExclude: []string{"org_settings"},
@@ -926,6 +931,7 @@ func TestTopLevelGitOpsValidation(t *testing.T) {
 		},
 		"missing_settings": {
 			optsToExclude: []string{"settings"},
+			shouldPass:    true,
 			isTeam:        true,
 		},
 	}

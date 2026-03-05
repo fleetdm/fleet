@@ -3753,3 +3753,172 @@ settings:
 	require.NotNil(t, tmPols[0].SoftwareInstallerID)
 	require.Equal(t, installer.InstallerID, *tmPols[0].SoftwareInstallerID)
 }
+
+// TestOmittedTopLevelKeysGlobal verifies that omitting top-level keys from a global
+// gitops file clears the corresponding settings (e.g. policies, agent_options).
+func (s *enterpriseIntegrationGitopsTestSuite) TestOmittedTopLevelKeysGlobal() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	// Step 1: Apply a full global config with policies and agent_options.
+	const fullGlobalConfig = `
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+agent_options:
+  config:
+    options:
+      pack_delimiter: /
+controls:
+policies:
+  - name: Test Global Policy
+    query: SELECT 1;
+reports:
+`
+	fullFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = fullFile.WriteString(fullGlobalConfig)
+	require.NoError(t, err)
+	require.NoError(t, fullFile.Close())
+
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fullFile.Name()}))
+
+	// Verify policy and agent_options were applied.
+	policies, err := s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	require.Equal(t, "Test Global Policy", policies[0].Name)
+
+	appCfg, err := s.DS.AppConfig(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, appCfg.AgentOptions)
+	require.Contains(t, string(*appCfg.AgentOptions), "pack_delimiter")
+
+	// Step 2: Apply a minimal global config that omits policies, agent_options, controls, reports.
+	const minimalGlobalConfig = `
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+`
+	minimalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = minimalFile.WriteString(minimalGlobalConfig)
+	require.NoError(t, err)
+	require.NoError(t, minimalFile.Close())
+
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", minimalFile.Name()}))
+
+	// Verify policies were cleared.
+	policies, err = s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, policies, 0)
+
+	// Verify agent_options were cleared (set to null).
+	appCfg, err = s.DS.AppConfig(ctx)
+	require.NoError(t, err)
+	require.Nil(t, appCfg.AgentOptions)
+}
+
+// TestOmittedTopLevelKeysTeam verifies that omitting top-level keys from a team
+// gitops file clears the corresponding settings (e.g. policies, agent_options, settings).
+func (s *enterpriseIntegrationGitopsTestSuite) TestOmittedTopLevelKeysTeam() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	teamName := "Test Omitted Keys " + uuid.NewString()
+
+	// We need a global file for the gitops run.
+	const globalConfig = `
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+`
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(globalConfig)
+	require.NoError(t, err)
+	require.NoError(t, globalFile.Close())
+
+	// Step 1: Apply a full team config with policies and agent_options.
+	fullTeamConfig := fmt.Sprintf(`
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+agent_options:
+  config:
+    options:
+      pack_delimiter: /
+controls:
+policies:
+  - name: Test Team Policy
+    query: SELECT 1;
+reports:
+software:
+`, teamName)
+
+	fullTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = fullTeamFile.WriteString(fullTeamConfig)
+	require.NoError(t, err)
+	require.NoError(t, fullTeamFile.Close())
+
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", fullTeamFile.Name(),
+	}))
+
+	// Verify policy and agent_options were applied.
+	tm, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+
+	tmPols, err := s.DS.ListMergedTeamPolicies(ctx, tm.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, tmPols, 1)
+	require.Equal(t, "Test Team Policy", tmPols[0].Name)
+
+	tm, err = s.DS.Team(ctx, tm.ID)
+	require.NoError(t, err)
+	require.NotNil(t, tm.Config.AgentOptions)
+	require.Contains(t, string(*tm.Config.AgentOptions), "pack_delimiter")
+
+	// Step 2: Apply a minimal team config that omits policies, agent_options, controls, reports, software, settings.
+	minimalTeamConfig := fmt.Sprintf(`
+name: %s
+`, teamName)
+
+	minimalTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = minimalTeamFile.WriteString(minimalTeamConfig)
+	require.NoError(t, err)
+	require.NoError(t, minimalTeamFile.Close())
+
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", minimalTeamFile.Name(),
+	}))
+
+	// Verify policies were cleared.
+	tmPols, err = s.DS.ListMergedTeamPolicies(ctx, tm.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, tmPols, 0)
+
+	// Verify agent_options were cleared (set to null).
+	tm, err = s.DS.Team(ctx, tm.ID)
+	require.NoError(t, err)
+	require.Nil(t, tm.Config.AgentOptions)
+}
