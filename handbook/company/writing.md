@@ -62,21 +62,6 @@ We use `<meta>` tags in Markdown articles to set metadata information about the 
 - Optional meta tags:
     - `articleImageUrl`: A relative link to a cover image for the article used for social share previews. If provided, the image needs to live in the /website/assets/images/articles folder. 
     - `description`: A description of the article that will be visible in search results and social share previews. If provided, this value will override the generated meta description for this article. Otherwise, the description will default to `[articleTitle] by [authorFullName]`.
-- Case study specific meta tags:
-  - `useBasicArticleTemplate` - Whether or not the case study should use the standard article template or the non-anonymous case study template. **Note:** if this meta tag is set, the case study specific meta tags below are not required.
-  - `summaryChallenge` - The challenge this case study subject faced before they started using Fleet. Used in the case study summary on the non-anonymous case study template page.
-  - `summarySolution` - How Fleet helped the case study subject acomplish their goals. Used in the case study summary on the non-anonymous case study template page.
-  - `summaryKeyResults` - A semicolon-separated list of results that the case study subject saw after using Fleet. Each item in the list is added a bullet point to the case study summary on the non-anonymous case study template page.
-  - Optional case study specific meta tags:
-    - `companyLogoFilename` - The filename of the case study subject's logo in the `website/assets/images/` folder. **Note:** images for this value are not stored in the articles folder, because they may be used outside of articles (e.g., Testimonial cards on landing pages)
-    - `quoteContent` - A quote from the case study subject. Used in the quote below the article title on the non-anonymous case study template.
-    - `quoteAuthorName` - The name of the person quoted for the case study. Used in the quote below the article title on the non-anonymous case study template page. **Note:** this meta tag is required if a `quoteContent` meta tag is set
-    - `quoteAuthorJobTitle` - The job title of the person quoted for the case study. Used in the quote below the article title on the non-anonymous case study template page. **Note:** this meta tag is required if a `quoteContent` meta tag is set
-    - `quoteAuthorImageFilename` - The filename of the LinkedIn profile image of the person quoted in the case study. Used in the quote below the article title on the non-anonymous case study template page. Images for this value are not stored in the articles folder, because they may be in used outside of articles (e.g., Testimonial cards on landing pages). **Note:** this meta tag is required if a `quoteContent` meta tag is set. 
-    - `companyName` - The name of the subject of the case study. Used in the "About [companyName]" section on the non-anonymous case study template page. **Note:** This value will only be used if a `companyInfo` meta tag is also set.
-    - `companyInfo` - A description of the case study subject. Used in the "About [companyName]" section on the non-anonymous case study template page. **Note:** This value will only be used if a `companyName` meta tag is also set.
-    - `companyInfoLineTwo` - An additional description of the case study subject. Used to add a second paragraph to the "About [companyName]" section on the non-anonymous case study template page. **Note:** This value will only be used if `companyName` and `companyInfo` meta tags are set.
-
 
 **Example meta tag section:**
 
@@ -89,6 +74,29 @@ We use `<meta>` tags in Markdown articles to set metadata information about the 
 <meta name="articleImageUrl" value="../website/assets/images/articles/building-an-effective-dashboard-with-fleet-rest-api-flask-and-plotly@2x.jpg">
 <meta name="description" value="Step-by-step guide on building a dynamic dashboard with Fleet's REST API, Flask, and Plotly. Master data visualization with open-source tools!">
 ```
+
+> Note: Some categories of articles will require additional `<meta>` tags.
+
+
+### Case study article meta tags
+
+Case study articles use a separate article template that requires additional `<meta>` tags to populate content outside of the Markdown article.
+
+- Required `<meta>` tags:
+  - `useBasicArticleTemplate` - Whether or not the case study should use the standard article template or the non-anonymous case study template. **Note:** if this meta tag is set, the case study specific meta tags below are not required.
+  - `summaryChallenge` - The challenge this case study subject faced before they started using Fleet. Used in the case study summary on the non-anonymous case study template page.
+  - `summarySolution` - How Fleet helped the case study subject acomplish their goals. Used in the case study summary on the non-anonymous case study template page.
+  - `summaryKeyResults` - A semicolon-separated list of results that the case study subject saw after using Fleet. Each item in the list is added a bullet point to the case study summary on the non-anonymous case study template page.
+- Optional `<meta>` tags:
+  - `companyLogoFilename` - The filename of the case study subject's logo in the `website/assets/images/` folder. **Note:** images for this value are not stored in the articles folder, because they may be used outside of articles (e.g., Testimonial cards on landing pages)
+  - `quoteContent` - A quote from the case study subject. Used in the quote below the article title on the non-anonymous case study template.
+  - `quoteAuthorName` - The name of the person quoted for the case study. Used in the quote below the article title on the non-anonymous case study template page. **Note:** this meta tag is required if a `quoteContent` meta tag is set
+  - `quoteAuthorJobTitle` - The job title of the person quoted for the case study. Used in the quote below the article title on the non-anonymous case study template page. **Note:** this meta tag is required if a `quoteContent` meta tag is set
+  - `quoteAuthorImageFilename` - The filename of the LinkedIn profile image of the person quoted in the case study. Used in the quote below the article title on the non-anonymous case study template page. Images for this value are not stored in the articles folder, because they may be in used outside of articles (e.g., Testimonial cards on landing pages). **Note:** this meta tag is required if a `quoteContent` meta tag is set. 
+  - `companyName` - The name of the subject of the case study. Used in the "About [companyName]" section on the non-anonymous case study template page. **Note:** This value will only be used if a `companyInfo` meta tag is also set.
+  - `companyInfo` - A description of the case study subject. Used in the "About [companyName]" section on the non-anonymous case study template page. **Note:** This value will only be used if a `companyName` meta tag is also set.
+  - `companyInfoLineTwo` - An additional description of the case study subject. Used to add a second paragraph to the "About [companyName]" section on the non-anonymous case study template page. **Note:** This value will only be used if `companyName` and `companyInfo` meta tags are set.
+
 
 **Example case study meta tag section**
 
@@ -112,6 +120,35 @@ We use `<meta>` tags in Markdown articles to set metadata information about the 
 <meta name="companyName" value="Foursquare">
 <meta name="companyInfo" value="Foursquare is the industry's leading geospatial technology platform, designed to help businesses make smarter decisions and create more engaging customer experiences.">
 <meta name="companyInfoLineTwo" value="Powered by deep machine learning and a privacy-forward approach, their technology and solutions are redefining how organizations derive value from location intelligence.">
+```
+
+
+
+### Comparison article meta tags
+
+Comparison articles use a separate article template that requires additional `<meta>` tags to populate content outside of the Markdown article.
+
+- Required `<meta>` tags:
+  - `articleSubtitle` - The text content of the smaller heading that is above the article's title on the comparison article template. Example: "How to choose the right MDM" 
+  - `introductionTextBlockOne` - The introduction paragraph for the comparison. This is a required meta tag because the introduction, article title, and article subtitle are displayed above the Markdown content of comparison articles.
+  - `articleSlugInCategory` - The URL slug of the comparison article after `fleetdm.com/compare`. i.e., If an article has a `articleSlugInCategory` value set to `jamf`, it will be available at `fleetdm.com/compare/jamf` .
+- Optional `<meta>` tags: 
+  - `introductionTextBlockTwo` - A optional second introduction paragraph for the comparison. The contents of this meta tag are added as a separate paragraph to the introduction above the Markdown content.
+
+
+**Example comparison article meta tag section**
+
+```
+<meta name="articleTitle" value="Fleet vs. Jamf"> 
+<meta name="category" value="comparison">
+<meta name="authorFullName" value="Brock Walters">
+<meta name="authorGitHubUsername" value="nonpunctual">
+<meta name="publishedOn" value="2026-01-27">
+<meta name="description" value="This guide compares and contrasts the capabilities of Fleet with Jamf Pro, highlighting deployment approaches and buying decision criteria.">
+<meta name="articleSubtitle" value="How to choose the right MDM">
+<meta name="articleSlugInCategory" value="jamf"> 
+<meta name="introductionTextBlockOne" value="Organizations managing Apple devices face a choice: pick one of a number of available Apple device management solutions, or, a solution with multi-platform capabilities."> 
+<meta name="introductionTextBlockTwo" value="This guide compares and contrasts the capabilities of Fleet with Jamf Pro, highlighting deployment approaches and buying decision criteria."> 
 ```
 
 
