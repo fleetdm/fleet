@@ -48,10 +48,12 @@ const buildActionOptions = (
   canEditConfiguration: boolean,
   androidSoftwareAvailableForInstall: boolean,
   canAddPatchPolicy: boolean,
-  canConfigureAutoUpdate: boolean
+  canConfigureAutoUpdate: boolean,
+  patchPolicyId?: number
 ): CustomOptionType[] => {
   let disableEditAppearanceTooltipContent: TooltipContent | undefined;
   let disableEditSoftwareTooltipContent: TooltipContent | undefined;
+  let disabledPatchPolicyTooltipContent: TooltipContent | undefined;
   let disabledEditConfigurationTooltipContent: TooltipContent | undefined;
 
   if (gitOpsModeEnabled) {
@@ -65,6 +67,10 @@ const buildActionOptions = (
     if (source === "vpp_apps") {
       disableEditSoftwareTooltipContent = gitOpsModeTooltipContent;
     }
+  }
+
+  if (patchPolicyId) {
+    disabledPatchPolicyTooltipContent = "Patch policy already added.";
   }
 
   const options: CustomOptionType[] = [
@@ -101,8 +107,8 @@ const buildActionOptions = (
     options.push({
       label: "Patch",
       value: ACTION_PATCH,
-      // isDisabled: !!disabledEditConfigurationTooltipContent,
-      // tooltipContent: disabledEditConfigurationTooltipContent,
+      isDisabled: !!disabledPatchPolicyTooltipContent,
+      tooltipContent: disabledPatchPolicyTooltipContent,
     });
   }
 
@@ -153,6 +159,7 @@ interface ISoftwareDetailsSummaryProps {
   iconPreviewUrl?: string | null;
   /** timestamp of when icon was last uploaded, used to force refresh of cached icon */
   iconUploadedAt?: string;
+  patchPolicyId?: number;
 }
 
 const SoftwareDetailsSummary = ({
@@ -174,6 +181,7 @@ const SoftwareDetailsSummary = ({
   onClickEditAutoUpdateConfig,
   iconPreviewUrl,
   iconUploadedAt,
+  patchPolicyId,
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
 
@@ -241,7 +249,8 @@ const SoftwareDetailsSummary = ({
     !!onClickEditSoftware,
     !!onClickEditConfiguration,
     !!onClickAddPatchPolicy,
-    !!onClickEditAutoUpdateConfig
+    !!onClickEditAutoUpdateConfig,
+    patchPolicyId
   );
 
   return (

@@ -171,6 +171,7 @@ const SoftwareSummaryCard = ({
           onClickEditAutoUpdateConfig={
             canEditAutoUpdateConfig ? onClickEditAutoUpdateConfig : undefined
           }
+          patchPolicyId={softwareTitle.software_package?.patch_policy?.id} // TODO: Update according to Marko
         />
         {showVersionsTable && (
           <TitleVersionsTable

@@ -1,12 +1,15 @@
 import React from "react";
 
-import { ISoftwareInstallPolicy } from "interfaces/software";
+import {
+  ISoftwareInstallerPolicyIncludeType,
+  ISoftwareInstallPolicy,
+} from "interfaces/software";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import SoftwareInstallPolicyBadge from "components/SoftwareInstallPolicyBadge";
+import SoftwareInstallPolicyBadges from "components/SoftwareInstallPolicyBadges";
 
 interface IInstallerPoliciesTableConfig {
   teamId?: number;
@@ -16,7 +19,7 @@ interface ICellProps {
     value: string;
   };
   row: {
-    original: ISoftwareInstallPolicy;
+    original: ISoftwareInstallerPolicyIncludeType;
   };
   column: {
     isSortedDesc: boolean;
@@ -48,8 +51,9 @@ const generateInstallerPoliciesTableConfig = ({
             }
           )}
           suffix={
-            <SoftwareInstallPolicyBadge
-              policyType={cellProps.row.original.type}
+            // TODO: We're not using type
+            <SoftwareInstallPolicyBadges
+              policyType={cellProps.row.original.type} // TODO: Update according to Marko
             />
           }
         />

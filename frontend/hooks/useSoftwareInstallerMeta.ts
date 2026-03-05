@@ -111,6 +111,11 @@ export const useSoftwareInstaller = (
       automatic_install_policies: automaticInstallPolicies,
     } = softwareInstaller;
 
+    const patchPolicy =
+      "patch_policy" in softwareInstaller
+        ? softwareInstaller.patch_policy
+        : undefined;
+
     const {
       isGlobalAdmin,
       isGlobalMaintainer,
@@ -146,6 +151,7 @@ export const useSoftwareInstaller = (
         isIosOrIpadosApp,
         sha256,
         androidPlayStoreId,
+        patchPolicy,
         automaticInstallPolicies,
         gitOpsModeEnabled,
         repoURL,

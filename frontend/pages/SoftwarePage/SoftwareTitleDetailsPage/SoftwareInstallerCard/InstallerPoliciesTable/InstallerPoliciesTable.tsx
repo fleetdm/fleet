@@ -34,7 +34,7 @@ const InstallerPoliciesTable = ({
 
   return (
     <TableContainer
-      className={baseClass}
+      className={classNames}
       isLoading={isLoading}
       columnConfigs={softwareStatusHeaders}
       data={policies || []}

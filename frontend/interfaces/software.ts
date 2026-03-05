@@ -66,10 +66,19 @@ export interface ISoftwareTitleVersion {
   hosts_count?: number;
 }
 
-export type SoftwareInstallPolicyType = "dynamic" | "patch";
+export interface ISoftwarePatchPolicy {
+  id: number;
+  name: string;
+}
+
 export interface ISoftwareInstallPolicy {
   id: number;
   name: string;
+}
+
+export type SoftwareInstallPolicyType = Set<"dynamic" | "patch">;
+export interface ISoftwareInstallerPolicyIncludeType
+  extends ISoftwareInstallPolicy {
   type: SoftwareInstallPolicyType;
 }
 
@@ -119,6 +128,7 @@ export interface ISoftwarePackage {
   self_service: boolean;
   icon_url: string | null;
   status: ISoftwarePackageStatus;
+  patch_policy?: ISoftwarePatchPolicy | null;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   install_during_setup?: boolean;
   labels_include_any: ILabelSoftwareTitle[] | null;

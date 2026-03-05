@@ -2,14 +2,14 @@ import React from "react";
 
 import TooltipWrapper from "components/TooltipWrapper";
 
-const baseClass = "tooltip-pill";
+const baseClass = "pill-badge";
 
-interface ITooltipPill {
+interface IPillBadge {
   text: string;
   tipContent?: JSX.Element | string;
 }
 
-const TooltipPill = ({ text, tipContent }: ITooltipPill) => {
+const PillBadge = ({ text, tipContent }: IPillBadge) => {
   return (
     <div className={`${baseClass}__`}>
       <TooltipWrapper
@@ -26,4 +26,4 @@ const TooltipPill = ({ text, tipContent }: ITooltipPill) => {
   );
 };
 
-export default TooltipPill;
+export default PillBadge;

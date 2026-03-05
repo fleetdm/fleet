@@ -213,6 +213,7 @@ const SoftwareInstallerCard = ({
     isIosOrIpadosApp,
     sha256,
     androidPlayStoreId,
+    patchPolicy,
     automaticInstallPolicies,
     gitOpsModeEnabled,
     repoURL,
