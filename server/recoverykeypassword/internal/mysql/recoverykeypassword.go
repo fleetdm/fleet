@@ -129,6 +129,9 @@ func decrypt(encrypted []byte, privateKey string) ([]byte, error) {
 	}
 
 	nonceSize := aesGCM.NonceSize()
+	if len(encrypted) < nonceSize+1 {
+		return nil, fmt.Errorf("malformed ciphertext: length %d is less than minimum required %d", len(encrypted), nonceSize+1)
+	}
 	nonce, ciphertext := encrypted[:nonceSize], encrypted[nonceSize:]
 
 	decrypted, err := aesGCM.Open(nil, nonce, ciphertext, nil)
