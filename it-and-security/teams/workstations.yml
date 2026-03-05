@@ -105,6 +105,7 @@ controls:
       - path: ../lib/windows/configuration-profiles/Disable OneDrive.xml
       - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
       - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
+      - path: ../lib/windows/configuration-profiles/Screen lock settings.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
@@ -141,6 +142,13 @@ policies:
   - path: ../lib/macos/policies/company-portal-installed.yml
   - path: ../lib/macos/policies/entra-conditional-access-check.yml
   - path: ../lib/macos/policies/install-nudge.yml
+  # macOS ISO 27001 compliance policies
+  - path: ../lib/macos/policies/screen-lock-enabled.yml
+  - path: ../lib/macos/policies/password-complexity-enabled.yml
+  - path: ../lib/macos/policies/gatekeeper-enabled.yml
+  - path: ../lib/macos/policies/firewall-enabled.yml
+  - path: ../lib/macos/policies/automatic-updates-enabled.yml
+  - path: ../lib/macos/policies/audit-logging-enabled.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
@@ -148,9 +156,20 @@ policies:
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
+  # Windows ISO 27001 compliance policies
+  - path: ../lib/windows/policies/screen-lock-enabled.yml
+  - path: ../lib/windows/policies/password-complexity-enabled.yml
+  - path: ../lib/windows/policies/firewall-enabled.yml
+  - path: ../lib/windows/policies/automatic-updates-enabled.yml
+  - path: ../lib/windows/policies/audit-logging-enabled.yml
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
+  # Linux ISO 27001 compliance policies
+  - path: ../lib/linux/policies/screen-lock-enabled.yml
+  - path: ../lib/linux/policies/firewall-enabled.yml
+  - path: ../lib/linux/policies/audit-logging-enabled.yml
+  - path: ../lib/linux/policies/os-up-to-date.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
   - path: ../lib/macos/queries/collect-santa-denied-logs.yml

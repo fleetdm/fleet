@@ -1,0 +1,10 @@
+- name: macOS - Firewall enabled (ISO 27001 A.13)
+  query: SELECT 1 FROM alf WHERE global_state >= 1;
+  critical: false
+  description: |-
+    Verifies that the Application Layer Firewall is enabled on this Mac. This supports ISO 27001 Annex A.13 (Communications Security).
+  resolution: |-
+    The firewall should be automatically enforced by Fleet via an MDM configuration profile. If you are failing this policy, enable the firewall: System Settings > Network > Firewall.
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: darwin

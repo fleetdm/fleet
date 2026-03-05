@@ -1,0 +1,13 @@
+- name: Linux - Audit logging enabled (ISO 27001 A.12.4)
+  query: |
+    SELECT 1 WHERE
+      EXISTS (SELECT 1 FROM processes WHERE name = 'auditd')
+      OR EXISTS (SELECT 1 FROM processes WHERE name = 'journald');
+  critical: false
+  description: |-
+    Verifies that audit logging (auditd or journald) is active on this Linux device, ensuring security events are logged. This supports ISO 27001 Annex A.12.4 (Logging and Monitoring).
+  resolution: |-
+    Enable audit logging on your Linux device. For most distributions: install and enable auditd with 'sudo apt install auditd && sudo systemctl enable --now auditd' (Debian/Ubuntu) or 'sudo yum install audit && sudo systemctl enable --now auditd' (RHEL/CentOS).
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: linux

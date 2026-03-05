@@ -1,0 +1,13 @@
+- name: Windows - Screen lock enabled (ISO 27001 A.9)
+  query: |
+    SELECT 1 FROM registry
+    WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\InactivityTimeoutSecs'
+      AND CAST(data AS INTEGER) <= 900 AND CAST(data AS INTEGER) > 0;
+  critical: false
+  description: |-
+    Verifies that an inactivity timeout is configured to lock the screen on this Windows device. This supports ISO 27001 Annex A.9 (Access Control).
+  resolution: |-
+    Screen lock should be automatically enforced by Fleet via MDM configuration profiles. If you are failing this policy, ensure the MDM profile has been applied successfully.
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: windows
