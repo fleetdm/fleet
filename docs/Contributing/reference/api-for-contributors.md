@@ -4411,7 +4411,7 @@ Body: <blob>
   "self_service": true,
   "max_retries": 2,
   "installer_url": {
-    "url": "https://d1nsa5964r3p4i.cloudfront.net/software-/98330e7e6db3507b444d576dc437a9ac4d82333a88a6bb6ef36a91fe3d85fa92?Expires=1736178766&Signature=HpcpyniNSBkS695mZhkZRjXo6UQ5JtXQ2sk0poLEMDMeF063IjsBj2O56rruzk3lomYFjqoxc3BdnFqEjrEXQSieSALiCufZ2LjTfWffs7f7qnNVZwlkg-upZd5KBfrCHSIyzMYSPhgWFPOpNRVqOc4NFXx8fxRLagK7NBKFAEfCAwo0~KMCSJiof0zWOdY0a8p0NNAbBn0uLqK7vZLwSttVpoK6ytWRaJlnemofWNvLaa~Et3p5wJJRfYGv73AK-pe4FMb8dc9vqGNSZaDAqw2SOdXrLhrpvSMjNmMO3OvTcGS9hVHMtJvBmgqvCMAWmHBK6v5C9BobSh4TCNLIuA__&Key-Pair-Id=K1HFGXOMBB6TFF",
+    "url": "https://d1nsa5964r3p4i.cloudfront.net/software-installers/98330e7e6db3507b444d576dc437a9ac4d82333a88a6bb6ef36a91fe3d85fa92?Expires=1736178766&Signature=HpcpyniNSBkS695mZhkZRjXo6UQ5JtXQ2sk0poLEMDMeF063IjsBj2O56rruzk3lomYFjqoxc3BdnFqEjrEXQSieSALiCufZ2LjTfWffs7f7qnNVZwlkg-upZd5KBfrCHSIyzMYSPhgWFPOpNRVqOc4NFXx8fxRLagK7NBKFAEfCAwo0~KMCSJiof0zWOdY0a8p0NNAbBn0uLqK7vZLwSttVpoK6ytWRaJlnemofWNvLaa~Et3p5wJJRfYGv73AK-pe4FMb8dc9vqGNSZaDAqw2SOdXrLhrpvSMjNmMO3OvTcGS9hVHMtJvBmgqvCMAWmHBK6v5C9BobSh4TCNLIuA__&Key-Pair-Id=K1HFGXOMBB6TFF",
     "filename": "my-installer.pkg"
   }
 }
