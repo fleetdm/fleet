@@ -1,6 +1,8 @@
 package tests
 
 import (
+	"database/sql"
+	"errors"
 	"log/slog"
 	"testing"
 
@@ -197,6 +199,7 @@ func (s *integrationTestSuite) insertNanoCommandResult(t *testing.T, commandUUID
 }
 
 // getRecoveryLockStatus returns the status of a host's recovery lock password.
+// Returns nil if no row exists for the host. Fails the test on other DB errors.
 func (s *integrationTestSuite) getRecoveryLockStatus(t *testing.T, hostID uint) *fleet.MDMDeliveryStatus {
 	t.Helper()
 	ctx := t.Context()
@@ -206,7 +209,10 @@ func (s *integrationTestSuite) getRecoveryLockStatus(t *testing.T, hostID uint) 
 		SELECT status FROM host_recovery_key_passwords WHERE host_id = ?
 	`, hostID)
 	if err != nil {
-		return nil
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		require.NoError(t, err, "unexpected DB error querying recovery lock status")
 	}
 	return status
 }
