@@ -1160,6 +1160,24 @@ CREATE TABLE `host_vpp_software_installs` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `host_windows_enforcement` (
+  `host_uuid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `profile_uuid` varchar(37) NOT NULL,
+  `status` varchar(20) DEFAULT NULL,
+  `operation_type` varchar(20) DEFAULT NULL,
+  `detail` text COLLATE utf8mb4_unicode_ci,
+  `retries` tinyint unsigned NOT NULL DEFAULT '0',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`host_uuid`,`profile_uuid`),
+  KEY `status` (`status`),
+  KEY `operation_type` (`operation_type`),
+  CONSTRAINT `host_windows_enforcement_ibfk_1` FOREIGN KEY (`status`) REFERENCES `mdm_delivery_status` (`status`) ON UPDATE CASCADE,
+  CONSTRAINT `host_windows_enforcement_ibfk_2` FOREIGN KEY (`operation_type`) REFERENCES `mdm_operation_types` (`operation_type`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `hosts` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `osquery_host_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -3098,6 +3116,32 @@ CREATE TABLE `windows_mdm_responses` (
   PRIMARY KEY (`id`),
   KEY `enrollment_id` (`enrollment_id`),
   CONSTRAINT `windows_mdm_responses_ibfk_1` FOREIGN KEY (`enrollment_id`) REFERENCES `mdm_windows_enrollments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `windows_enforcement_profile_labels` (
+  `profile_uuid` varchar(37) NOT NULL,
+  `label_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `label_id` int unsigned DEFAULT NULL,
+  `exclude` tinyint(1) NOT NULL DEFAULT '0',
+  `require_all` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`profile_uuid`,`label_name`),
+  CONSTRAINT `windows_enforcement_profile_labels_ibfk_1` FOREIGN KEY (`profile_uuid`) REFERENCES `windows_enforcement_profiles` (`profile_uuid`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `windows_enforcement_profiles` (
+  `profile_uuid` varchar(37) NOT NULL,
+  `team_id` int unsigned NOT NULL DEFAULT '0',
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `raw_policy` mediumblob NOT NULL,
+  `checksum` binary(16) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`profile_uuid`),
+  UNIQUE KEY `idx_enforcement_team_name` (`team_id`,`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

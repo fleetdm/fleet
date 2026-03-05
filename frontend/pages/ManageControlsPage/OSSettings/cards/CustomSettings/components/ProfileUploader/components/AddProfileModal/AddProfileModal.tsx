@@ -161,9 +161,7 @@ const AddProfileModal = ({
 
     setIsLoading(true);
     try {
-      if (
-        fileDetails?.profile_type === "enforcement"
-      ) {
+      if (fileDetails?.profile_type === "enforcement") {
         await enforcementAPI.uploadProfile({
           file,
           teamId: currentTeamId,

@@ -729,8 +729,11 @@ type NewMDMInvalidJSONConfigProfileFunc func(ctx context.Context, teamID uint, e
 type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error)
 
 type ListWindowsEnforcementProfilesFunc func(ctx context.Context, teamID *uint) ([]*fleet.WindowsEnforcementProfile, error)
+
 type NewWindowsEnforcementProfileFunc func(ctx context.Context, teamID uint, name string, rawPolicy []byte) (*fleet.WindowsEnforcementProfile, error)
+
 type GetWindowsEnforcementProfileFunc func(ctx context.Context, profileUUID string) (*fleet.WindowsEnforcementProfile, error)
+
 type DeleteWindowsEnforcementProfileFunc func(ctx context.Context, profileUUID string) error
 
 type BatchSetMDMProfilesFunc func(ctx context.Context, teamID *uint, teamName *string, profiles []fleet.MDMProfileBatchPayload, dryRun bool, skipBulkPending bool, assumeEnabled *bool, noCache bool) error
