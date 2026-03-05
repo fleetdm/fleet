@@ -73,7 +73,7 @@ quoteLinkUrl: required
 quoteAuthorProfileImageFilename: required
 ```
 
-6. The other fields are not required, but the `productCategories` field should only be populated with one of the following:
+5. The other fields are not required, but the `productCategories` field should only be populated with one of the following:
 
 ```
 Observability
@@ -81,9 +81,9 @@ Software management
 Device management
 ```
 
-7. See the top of the [testimonials.yml](https://github.com/fleetdm/fleet/blob/c86ad041b2cbeb6ddeac08464ca6d1bf88af0aa5/handbook/company/testimonials.yml#L31) file for this formatting information if this explanation is unclear.
-8. If the testimonial is being added for immediate use on the website, adding the the new text block with the correct fields is sufficient.
-9. If the testimonial is being saved in the `testimonials.yml` file but not published the block just added should be commented out so that the text is not processed by the website build. Your block should look like this:
+6. See the top of the [testimonials.yml](https://github.com/fleetdm/fleet/blob/c86ad041b2cbeb6ddeac08464ca6d1bf88af0aa5/handbook/company/testimonials.yml#L31) file for this formatting information if this explanation is unclear.
+7. If the testimonial is being added for immediate use on the website, adding the the new text block with the correct fields is sufficient.
+8. If the testimonial is being saved in the `testimonials.yml` file but not published the block just added should be commented out so that the text is not processed by the website build. Your block should look like this:
 
 ```
 # -
