@@ -25,6 +25,7 @@ func TestConditionalAccessBypass(t *testing.T) {
 		{"ConditionalAccessBypassDeletedWithHost", testConditionalAccessBypassDeletedWithHost},
 		{"ConditionalAccessBypassedAt", testConditionalAccessBypassedAt},
 		{"ConditionalAccessBypassAllowedWithNonCAFailingCriticalPolicy", testConditionalAccessBypassAllowedWithNonCAFailingCriticalPolicy},
+		{"ConditionalAccessBypassAllowedWithCAEnabledNonCriticalPolicy", testConditionalAccessBypassAllowedWithCAEnabledNonCriticalPolicy},
 	}
 
 	for _, c := range cases {
@@ -372,6 +373,55 @@ func testConditionalAccessBypassAllowedWithNonCAFailingCriticalPolicy(t *testing
 	require.NoError(t, err)
 
 	// Verify a host_conditional_access row was created
+	var count int
+	innerErr := ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM host_conditional_access WHERE host_id = ?", host.ID)
+	require.NoError(t, innerErr)
+	require.Equal(t, 1, count)
+}
+
+// testConditionalAccessBypassAllowedWithCAEnabledNonCriticalPolicy verifies that a CA-enabled but
+// non-critical failing policy does NOT block bypass. Both critical=1 AND conditional_access_enabled=1
+// are required to block.
+func testConditionalAccessBypassAllowedWithCAEnabledNonCriticalPolicy(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "Carol", "carol@example.com", true)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("ca-non-critical-host"),
+		UUID:            "ca-non-critical-uuid",
+		Hostname:        "ca-non-critical.local",
+		PrimaryIP:       "192.168.1.12",
+		PrimaryMac:      "30-65-EC-6F-C4-72",
+	})
+	require.NoError(t, err)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "ca-non-critical-team"})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+	// CA-enabled but NOT critical — failing
+	nonCriticalCAPolicy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+		Name:                     "ca-enabled-non-critical",
+		Query:                    "select 1;",
+		Critical:                 false,
+		ConditionalAccessEnabled: true,
+	})
+	require.NoError(t, err)
+
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
+		nonCriticalCAPolicy.ID: ptr.Bool(false), // failing
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	// Bypass must succeed: policy is CA-enabled but not critical
+	err = ds.ConditionalAccessBypassDevice(ctx, host.ID)
+	require.NoError(t, err)
+
 	var count int
 	innerErr := ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM host_conditional_access WHERE host_id = ?", host.ID)
 	require.NoError(t, innerErr)

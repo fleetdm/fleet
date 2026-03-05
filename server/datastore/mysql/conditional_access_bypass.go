@@ -22,6 +22,7 @@ func (ds *Datastore) ConditionalAccessBypassDevice(ctx context.Context, hostID u
 	WHERE
 		pm.host_id = ?
 		AND p.conditional_access_enabled = 1
+		AND p.critical = 1
 		AND pm.passes = 0
 	`
 	const insertStmt = `
