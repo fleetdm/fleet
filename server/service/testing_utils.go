@@ -1420,43 +1420,57 @@ func messageWithAndroidIdentifiers(t *testing.T, notificationType android.Notifi
 	}
 }
 
-func startFMAServers(t *testing.T, ds fleet.Datastore) {
-	// TODO: allow for configurable FMAs
-	type fmaTestState struct {
-		version        string
-		installerBytes []byte
-		sha256         string
+type fmaTestState struct {
+	version        string
+	installerBytes []byte
+	sha256         string
+	installerPath  string
+}
+
+func (s *fmaTestState) ComputeSHA(b []byte) {
+	h := sha256.New()
+	h.Write(b)
+	s.sha256 = hex.EncodeToString(h.Sum(nil))
+}
+
+func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTestState) {
+	// DONE: allow for configurable FMAs
+
+	if len(states) == 0 {
+		states = make(map[string]*fmaTestState, 1)
+		states["/zoom/windows.json"] = &fmaTestState{
+			version:        "1.0",
+			installerBytes: []byte("xyz"),
+			installerPath:  "/zoom.msi",
+		}
 	}
 
-	computeSHA := func(b []byte) string {
-		h := sha256.New()
-		h.Write(b)
-		return hex.EncodeToString(h.Sum(nil))
+	statesByInstallerPath := make(map[string]*fmaTestState, len(states))
+	for _, state := range states {
+		state.ComputeSHA(state.installerBytes)
+		statesByInstallerPath[state.installerPath] = state
 	}
-
-	zoomState := &fmaTestState{version: "1.0", installerBytes: []byte("xyz")}
-	zoomState.sha256 = computeSHA(zoomState.installerBytes)
-
 	var downloadMu sync.Mutex
 
 	// Mock installer server — routes by path to serve per-FMA bytes.
 	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		downloadMu.Lock()
 		defer downloadMu.Unlock()
-		_, _ = w.Write(zoomState.installerBytes)
 
+		state, found := statesByInstallerPath[r.URL.Path]
+		if !found {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write(state.installerBytes)
 	}))
 
 	maintained_apps.SyncApps(t, ds)
 
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var state *fmaTestState
-		var installerPath string
-		switch r.URL.Path {
-		case "/zoom/windows.json":
-			state = zoomState
-			installerPath = "/zoom.msi"
-		default:
+		state, found := states[r.URL.Path]
+		if !found {
 			http.NotFound(w, r)
 			return
 		}
@@ -1465,7 +1479,7 @@ func startFMAServers(t *testing.T, ds fleet.Datastore) {
 			{
 				Version:            state.version,
 				Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
-				InstallerURL:       installerServer.URL + installerPath,
+				InstallerURL:       installerServer.URL + state.installerPath,
 				InstallScriptRef:   "foobaz",
 				UninstallScriptRef: "foobaz",
 				SHA256:             state.sha256,

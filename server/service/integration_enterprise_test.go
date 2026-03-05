@@ -26633,7 +26633,14 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 	})
 
 	t.Run("batch team patch policy", func(t *testing.T) {
-		startFMAServers(t, s.ds)
+		// initialize FMA server
+		states := make(map[string]*fmaTestState, 1)
+		states["/zoom/windows.json"] = &fmaTestState{
+			version:        "1.0",
+			installerBytes: []byte("xyz"),
+			installerPath:  "/zoom.msi",
+		}
+		startFMAServers(t, s.ds, states)
 
 		getActiveTitleForTeam := func(teamID uint, titleName string) fleet.SoftwareTitleListResult {
 			var resp listSoftwareTitlesResponse
@@ -26740,9 +26747,37 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Nil(t, listPolResp.Policies[0].InstallSoftware)
 		require.Equal(t, `SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND version_compare(bundle_short_version, '1.0') >= 0;`, listPolResp.Policies[0].Query)
 		require.Equal(t, spec.Name, listPolResp.Policies[0].Name)
+		// TODO(JK): shorten this check by extracting it to a function? ^^
 
 		// FMA Version is updated (query should use new version)
 
+		// resetFMAState resets an fmaTestState to the given version and installer bytes.
+		resetFMAState := func(state *fmaTestState, version string, installerBytes []byte) {
+			state.version = version
+			state.installerBytes = installerBytes
+			state.ComputeSHA(installerBytes)
+		}
+		resetFMAState(states["/zoom/windows.json"], "1.2", []byte("abc"))
+
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}}, TeamName: team.Name},
+			http.StatusAccepted, &resp,
+			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+
+		applyResp = applyPolicySpecsResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/spec/policies",
+			applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
+			http.StatusOK, &applyResp,
+		)
+		title = getActiveTitleForTeam(team.ID, "zoom")
+
+		listPolResp = listTeamPoliciesResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		require.Len(t, listPolResp.Policies, 1)
+		require.Equal(t, `SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND version_compare(bundle_short_version, '1.2') >= 0;`, listPolResp.Policies[0].Query)
+		require.Equal(t, spec.Name, listPolResp.Policies[0].Name)
 		// FMA Version is pinned back after update? (query should use old version)
 	})
 }
