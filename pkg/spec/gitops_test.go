@@ -2069,6 +2069,36 @@ org_settings:
 
 		require.NotNil(t, gitops.Controls.MacOSSetup, "macos_setup (via setup_experience in external file) not parsed")
 	})
+
+	// Test that duplicate settings with old and new key names produce an error
+	t.Run("duplicate_old_and_new_keys_error", func(t *testing.T) {
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:		
+controls:
+  apple_settings:
+    configuration_profiles:
+      - path: ./lib/macos-password.mobileconfig
+  macos_settings:
+    custom_settings:
+      - path: ./lib/macos-password.mobileconfig
+
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+	})
 }
 
 func TestSoftwarePackagesScriptPath(t *testing.T) {
