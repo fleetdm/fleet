@@ -390,7 +390,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			}
 			asst := setupAsstByTeam[tmID]
 			if asst == nil {
-				return nil, eeservice.NotFoundError{}
+				return nil, &eeservice.NotFoundError{}
 			}
 			return asst, nil
 		}
