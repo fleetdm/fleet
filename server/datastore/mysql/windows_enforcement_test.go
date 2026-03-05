@@ -25,6 +25,9 @@ func TestWindowsEnforcement(t *testing.T) {
 		{"BulkUpsertHostWindowsEnforcement", testBulkUpsertHostWindowsEnforcement},
 		{"GetHostWindowsEnforcement", testGetHostWindowsEnforcement},
 		{"GetHostWindowsEnforcementHash", testGetHostWindowsEnforcementHash},
+		{"ListWindowsEnforcementToInstallRemove", testListWindowsEnforcementToInstallRemove},
+		{"BulkSetPendingWindowsEnforcementForHosts", testBulkSetPendingWindowsEnforcementForHosts},
+		{"GetPendingWindowsEnforcementForHost", testGetPendingWindowsEnforcementForHost},
 	}
 
 	for _, c := range cases {
@@ -335,4 +338,181 @@ func testGetHostWindowsEnforcementHash(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, hash3)
 	assert.NotEqual(t, hash, hash3)
+}
+
+func testListWindowsEnforcementToInstallRemove(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a Windows host
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "install-remove-host",
+		Platform:        "windows",
+		OsqueryHostID:   ptr.String("install-remove-osquery"),
+		NodeKey:         ptr.String("install-remove-node"),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	// No profiles - empty results
+	toInstall, err := ds.ListWindowsEnforcementToInstall(ctx)
+	require.NoError(t, err)
+	require.Empty(t, toInstall)
+
+	toRemove, err := ds.ListWindowsEnforcementToRemove(ctx)
+	require.NoError(t, err)
+	require.Empty(t, toRemove)
+
+	// Add enforcement profile for no-team (host has no team)
+	batch := []*fleet.WindowsEnforcementProfile{
+		{Name: "install-test", RawPolicy: []byte(`{"registry":[]}`)},
+	}
+	err = ds.BatchSetWindowsEnforcementProfiles(ctx, nil, batch)
+	require.NoError(t, err)
+
+	profiles, err := ds.ListWindowsEnforcementProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, profiles, 1)
+
+	// Now there should be profiles to install (desired but not current)
+	toInstall, err = ds.ListWindowsEnforcementToInstall(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, toInstall)
+
+	// Find our host in the results
+	var foundHost bool
+	for _, p := range toInstall {
+		if p.HostUUID == host.UUID {
+			foundHost = true
+			assert.Equal(t, profiles[0].ProfileUUID, p.ProfileUUID)
+			break
+		}
+	}
+	assert.True(t, foundHost, "host should be in install list")
+
+	// Nothing to remove yet
+	toRemove, err = ds.ListWindowsEnforcementToRemove(ctx)
+	require.NoError(t, err)
+	require.Empty(t, toRemove)
+
+	// Now upsert the enforcement status (simulating that it was installed)
+	verified := fleet.MDMDeliveryVerified
+	payload := []*fleet.HostWindowsEnforcement{
+		{
+			HostUUID:      host.UUID,
+			ProfileUUID:   profiles[0].ProfileUUID,
+			Status:        &verified,
+			OperationType: fleet.MDMOperationTypeInstall,
+		},
+	}
+	err = ds.BulkUpsertHostWindowsEnforcement(ctx, payload)
+	require.NoError(t, err)
+
+	// Remove the enforcement profile from desired state
+	err = ds.BatchSetWindowsEnforcementProfiles(ctx, nil, nil)
+	require.NoError(t, err)
+
+	// Now there should be profiles to remove (current but not desired)
+	toRemove, err = ds.ListWindowsEnforcementToRemove(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, toRemove)
+
+	foundHost = false
+	for _, p := range toRemove {
+		if p.HostUUID == host.UUID {
+			foundHost = true
+			break
+		}
+	}
+	assert.True(t, foundHost, "host should be in remove list")
+}
+
+func testBulkSetPendingWindowsEnforcementForHosts(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Empty host IDs - should not error
+	err := ds.BulkSetPendingWindowsEnforcementForHosts(ctx, nil)
+	require.NoError(t, err)
+
+	err = ds.BulkSetPendingWindowsEnforcementForHosts(ctx, []uint{})
+	require.NoError(t, err)
+
+	// Create a Windows host and enforcement profile
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "bulk-pending-host",
+		Platform:        "windows",
+		OsqueryHostID:   ptr.String("bulk-pending-osquery"),
+		NodeKey:         ptr.String("bulk-pending-node"),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	batch := []*fleet.WindowsEnforcementProfile{
+		{Name: "bulk-pending-profile", RawPolicy: []byte(`{"registry":[]}`)},
+	}
+	err = ds.BatchSetWindowsEnforcementProfiles(ctx, nil, batch)
+	require.NoError(t, err)
+
+	// Set pending for this host
+	err = ds.BulkSetPendingWindowsEnforcementForHosts(ctx, []uint{host.ID})
+	require.NoError(t, err)
+
+	// Verify the host now has pending enforcement
+	results, err := ds.GetHostWindowsEnforcement(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.NotNil(t, results[0].Status)
+	assert.Equal(t, fleet.MDMDeliveryPending, *results[0].Status)
+	assert.Equal(t, fleet.MDMOperationTypeInstall, results[0].OperationType)
+}
+
+func testGetPendingWindowsEnforcementForHost(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a Windows host
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "pending-enforcement-host",
+		Platform:        "windows",
+		OsqueryHostID:   ptr.String("pending-enforcement-osquery"),
+		NodeKey:         ptr.String("pending-enforcement-node"),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	// No enforcement profiles - empty result
+	policies, err := ds.GetPendingWindowsEnforcementForHost(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Empty(t, policies)
+
+	// Add enforcement profiles
+	batch := []*fleet.WindowsEnforcementProfile{
+		{Name: "cis-registry", RawPolicy: []byte(`{"registry":[{"path":"HKLM\\Test","name":"v","type":"dword","value":1}]}`)},
+		{Name: "cis-audit", RawPolicy: []byte(`{"audit_policy":[]}`)},
+	}
+	err = ds.BatchSetWindowsEnforcementProfiles(ctx, nil, batch)
+	require.NoError(t, err)
+
+	// Now the host should have pending policies
+	policies, err = ds.GetPendingWindowsEnforcementForHost(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Len(t, policies, 2)
+
+	// Should be ordered by name
+	assert.Equal(t, "cis-audit", policies[0].Name)
+	assert.Equal(t, "cis-registry", policies[1].Name)
+
+	// Each should have profile UUID and raw_policy
+	for _, p := range policies {
+		assert.NotEmpty(t, p.ProfileUUID)
+		assert.NotEmpty(t, p.Name)
+		assert.NotEmpty(t, p.RawPolicy)
+	}
 }
