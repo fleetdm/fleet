@@ -551,15 +551,15 @@ const ConditionalAccess = () => {
               <TooltipWrapper
                 tipContent={
                   <>
-                    When enabled, disables the per-policy setting to allow
-                    bypassing Okta conditional access.{" "}
+                    Disables bypassing Okta conditional access for non-critical
+                    policies.{" "}
                     <em>
                       (Default: <strong>Off</strong>)
                     </em>
                     <br />
                     <br />
                     Bypassing is valid for a single login attempt and is tracked
-                    in audit logs.
+                    in audit logs. Critical policies can never be bypassed.
                   </>
                 }
                 showArrow={false}

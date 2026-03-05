@@ -8,7 +8,6 @@ import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
 import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
-import Icon from "components/Icon";
 import { IPolicyStats } from "interfaces/policy";
 import PATHS from "router/paths";
 
@@ -16,6 +15,7 @@ import { getPathWithQueryParams } from "utilities/url";
 import sortUtils from "utilities/sort";
 import { PolicyResponse } from "utilities/constants";
 
+import CriticalPolicyBadge from "components/CriticalPolicyBadge";
 import InheritedBadge from "components/InheritedBadge";
 import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -116,32 +116,7 @@ const generateTableHeaders = (
             value={cellProps.cell.value}
             suffix={
               <>
-                {isPremiumTier && critical && (
-                  <div className="critical-badge">
-                    <span
-                      className="critical-badge-icon"
-                      data-tooltip-id={`critical-tooltip-${id}`}
-                    >
-                      <Icon
-                        className="critical-policy-icon"
-                        name="policy"
-                        size="small"
-                        color="ui-fleet-black-75"
-                      />
-                    </span>
-                    <ReactTooltip5
-                      className="critical-tooltip"
-                      disableStyleInjection
-                      place="top"
-                      opacity={1}
-                      id={`critical-tooltip-${id}`}
-                      offset={8}
-                      positionStrategy="fixed"
-                    >
-                      This policy has been marked as critical.
-                    </ReactTooltip5>
-                  </div>
-                )}
+                {isPremiumTier && critical && <CriticalPolicyBadge />}
                 {viewingTeamPolicies && team_id === null && (
                   <InheritedBadge tooltipContent="This policy runs on all hosts." />
                 )}
