@@ -14,7 +14,8 @@ import (
 )
 
 // testPrivateKey is a 32-byte key for AES-256 encryption in tests.
-const testPrivateKey = "abcdef0123456789abcdef0123456789"
+// This is a synthetic test-only value, not a real secret.
+const testPrivateKey = "FLEET_TEST_KEY_DO_NOT_USE_IN_PRD"
 
 // integrationTestSuite holds all dependencies for integration tests.
 type integrationTestSuite struct {
