@@ -286,21 +286,6 @@ const SoftwareInstallerCard = ({
               androidPlayStoreId={androidPlayStoreId}
             />
             <div className={`${baseClass}__tags-wrapper`}>
-              {Array.isArray(automaticInstallPolicies) &&
-                automaticInstallPolicies.length > 0 && (
-                  <TooltipWrapper
-                    showArrow
-                    position="top"
-                    tipContent={
-                      automaticInstallPolicies.length === 1
-                        ? "A policy triggers install."
-                        : `${automaticInstallPolicies.length} policies trigger install.`
-                    }
-                    underline={false}
-                  >
-                    <Tag icon="refresh" text="Automatic install" />
-                  </TooltipWrapper>
-                )}
               {isSelfService && (
                 <TooltipWrapper
                   showArrow

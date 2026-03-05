@@ -3,13 +3,13 @@ import { render, screen } from "@testing-library/react";
 
 import { noop } from "lodash";
 
-import DeleteSoftwareModal from "./DeleteSoftwareModal";
+import AddPatchPolicyModal from "./AddPatchPolicyModal";
 
 const renderModal = (
-  props: Partial<React.ComponentProps<typeof DeleteSoftwareModal>> = {}
+  props: Partial<React.ComponentProps<typeof AddPatchPolicyModal>> = {}
 ) => {
   return render(
-    <DeleteSoftwareModal
+    <AddPatchPolicyModal
       softwareId={1}
       teamId={1}
       onExit={noop}
@@ -19,7 +19,7 @@ const renderModal = (
   );
 };
 
-describe("DeleteSoftwareModal", () => {
+describe("AddPatchPolicyModal", () => {
   beforeEach(() => {
     jest.resetAllMocks();
   });
@@ -32,31 +32,5 @@ describe("DeleteSoftwareModal", () => {
         "You are currently in GitOps mode. If the package is defined in GitOps, it will reappear when GitOps runs."
       )
     ).toBeVisible();
-  });
-
-  it("renders default platform message when not VPP app or Android app", () => {
-    renderModal();
-
-    expect(screen.getByText(/won't be uninstalled/i)).toBeVisible();
-    expect(
-      screen.getByText(/Pending installs and uninstalls will be canceled\./i)
-    ).toBeVisible();
-  });
-
-  it("renders App Store message when isAppStoreApp is true", () => {
-    renderModal({ isAppStoreApp: true });
-
-    expect(screen.getByText(/won't be uninstalled/i)).toBeVisible();
-    expect(
-      screen.getByText(
-        /Pending or already started installs and uninstalls won't be canceled/i
-      )
-    ).toBeVisible();
-  });
-
-  it("renders Android message when isAndroidApp is true", () => {
-    renderModal({ isAndroidApp: true });
-
-    expect(screen.getByText(/will be uninstalled/i)).toBeVisible();
   });
 });

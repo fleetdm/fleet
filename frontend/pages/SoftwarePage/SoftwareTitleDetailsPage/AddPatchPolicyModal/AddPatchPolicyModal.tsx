@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useState } from "react";
 
-import softwareAPI from "services/entities/software";
+import teamPoliciesAPI from "services/entities/team_policies";
 import { NotificationContext } from "context/notification";
 
 import { getErrorReason } from "interfaces/errors";
@@ -33,7 +33,11 @@ const AddPatchPolicyModal = ({
   const onAddPatchPolicy = useCallback(async () => {
     setIsAddingPatchPolicy(true);
     try {
-      await softwareAPI.addPatchPolicy(softwareId, teamId);
+      await teamPoliciesAPI.create({
+        type: "patch",
+        patch_software_title_id: softwareId,
+        team_id: teamId,
+      });
       renderFlash("success", "Successfully added patch policy.");
       onSuccess();
     } catch (error) {

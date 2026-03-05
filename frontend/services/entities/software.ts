@@ -719,12 +719,6 @@ export default {
     return sendRequest("DELETE", path);
   },
 
-  addPatchPolicy: (softwareId: number, teamId: number) => {
-    const { SOFTWARE_ADD_PATCH_POLICY } = endpoints;
-    const path = `${SOFTWARE_ADD_PATCH_POLICY(softwareId)}?team_id=${teamId}`;
-    return sendRequest("POST", path);
-  },
-
   getSoftwarePackageToken: (
     softwareTitleId: number,
     teamId: number

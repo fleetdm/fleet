@@ -4,37 +4,30 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 
 import { SoftwareInstallPolicyType } from "interfaces/software";
+import PillWithTooltip from "components/TableContainer/DataTable/PillWithTooltip";
 
-const baseClass = "software-install-policy-badge";
+const baseClass = "software-install-policy-badges";
 
-interface IPatchBadgeProps {
+interface IPatchBadgesProps {
   policyType?: SoftwareInstallPolicyType;
 }
 
-const SoftwareInstallPolicyBadge = ({ policyType }: IPatchBadgeProps) => {
-  if (policyType !== "patch") {
-    return (
-      <div className={baseClass}>
-        <TooltipWrapper
-          tipContent={
-            <>
-              Hosts will fail this policy if they&apos;re <br />
-              running an older version.
-            </>
-          }
-          showArrow
-          position="top"
-          tipOffset={8}
-          underline={false}
-          delayInMs={300} // TODO: Apply pattern of delay tooltip for repeated table tooltips
-        >
-          <span className={`${baseClass}__element-text`}>Patch</span>
-        </TooltipWrapper>
-      </div>
-    );
-  }
-  if (policyType === "dynamic") {
-    return (
+const SoftwareInstallPolicyBadges = ({ policyType }: IPatchBadgesProps) => {
+  const renderPatchBadge = () =>
+    policyType !== "patch" ? (
+      <PillWithTooltip
+        text="Patch"
+        tipContent={
+          <>
+            Hosts will fail this policy if they&apos;re <br />
+            running an older version.
+          </>
+        }
+      />
+    ) : undefined;
+
+  const renderAutomaticInstallBadge = () =>
+    policyType !== "dynamic" ? (
       <TooltipWrapper
         className={`${baseClass}__dynamic-policy-tooltip`}
         tipContent={
@@ -50,9 +43,15 @@ const SoftwareInstallPolicyBadge = ({ policyType }: IPatchBadgeProps) => {
       >
         <Icon name="refresh" color="ui-fleet-black-75" />
       </TooltipWrapper>
-    );
-  }
-  return null;
+    ) : undefined;
+
+  console.log("rendering badge with policy type", policyType);
+  return (
+    <>
+      {renderPatchBadge()}
+      {renderAutomaticInstallBadge()}
+    </>
+  );
 };
 
-export default SoftwareInstallPolicyBadge;
+export default SoftwareInstallPolicyBadges;
