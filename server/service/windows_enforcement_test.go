@@ -1,9 +1,11 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"log/slog"
+	"mime/multipart"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -437,4 +439,271 @@ func TestReconcileWindowsEnforcement(t *testing.T) {
 			assert.Equal(t, fleet.MDMDeliveryPending, *p.Status)
 		}
 	})
+}
+
+// createTestFileHeader creates a multipart.FileHeader for testing uploads.
+func createTestFileHeader(t *testing.T, filename string, content []byte) *multipart.FileHeader {
+	t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	part, err := w.CreateFormFile("profile", filename)
+	require.NoError(t, err)
+	_, err = part.Write(content)
+	require.NoError(t, err)
+	require.NoError(t, w.Close())
+
+	reader := multipart.NewReader(&buf, w.Boundary())
+	form, err := reader.ReadForm(1 << 20)
+	require.NoError(t, err)
+
+	fhs := form.File["profile"]
+	require.Len(t, fhs, 1)
+	return fhs[0]
+}
+
+func TestUploadWindowsEnforcementProfileEndpoint(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = test.UserContext(ctx, test.UserAdmin)
+
+	rawPolicy := []byte(`registry:
+  - path: HKLM\Software\Test
+    name: TestValue
+    type: dword
+    value: 1
+`)
+
+	callCount := 0
+	ds.ListWindowsEnforcementProfilesFunc = func(ctx context.Context, tid *uint) ([]*fleet.WindowsEnforcementProfile, error) {
+		callCount++
+		if callCount <= 1 {
+			return nil, nil
+		}
+		return []*fleet.WindowsEnforcementProfile{
+			{ProfileUUID: "e-uuid-new", Name: "test-policy", RawPolicy: rawPolicy},
+		}, nil
+	}
+	ds.BatchSetWindowsEnforcementProfilesFunc = func(ctx context.Context, tid *uint, profiles []*fleet.WindowsEnforcementProfile) error {
+		return nil
+	}
+
+	// Test valid .yml upload
+	fh := createTestFileHeader(t, "test-policy.yml", rawPolicy)
+	req := &uploadWindowsEnforcementProfileRequest{TeamID: 1, Profile: fh}
+	resp, err := uploadWindowsEnforcementProfileEndpoint(ctx, req, svc)
+	require.NoError(t, err)
+	uploadResp := resp.(*uploadWindowsEnforcementProfileResponse)
+	require.Nil(t, uploadResp.Err)
+	assert.Equal(t, "e-uuid-new", uploadResp.ProfileUUID)
+
+	// Test valid .yaml upload
+	callCount = 0
+	fh = createTestFileHeader(t, "test-policy.yaml", rawPolicy)
+	req = &uploadWindowsEnforcementProfileRequest{TeamID: 1, Profile: fh}
+	resp, err = uploadWindowsEnforcementProfileEndpoint(ctx, req, svc)
+	require.NoError(t, err)
+	uploadResp = resp.(*uploadWindowsEnforcementProfileResponse)
+	require.Nil(t, uploadResp.Err)
+
+	// Test valid .json upload
+	callCount = 0
+	jsonPolicy := []byte(`{"registry":[]}`)
+	ds.ListWindowsEnforcementProfilesFunc = func(ctx context.Context, tid *uint) ([]*fleet.WindowsEnforcementProfile, error) {
+		callCount++
+		if callCount <= 1 {
+			return nil, nil
+		}
+		return []*fleet.WindowsEnforcementProfile{
+			{ProfileUUID: "e-uuid-json", Name: "test-json", RawPolicy: jsonPolicy},
+		}, nil
+	}
+	fh = createTestFileHeader(t, "test-json.json", jsonPolicy)
+	req = &uploadWindowsEnforcementProfileRequest{TeamID: 1, Profile: fh}
+	resp, err = uploadWindowsEnforcementProfileEndpoint(ctx, req, svc)
+	require.NoError(t, err)
+	uploadResp = resp.(*uploadWindowsEnforcementProfileResponse)
+	require.Nil(t, uploadResp.Err)
+
+	// Test invalid file extension
+	fh = createTestFileHeader(t, "test-policy.txt", rawPolicy)
+	req = &uploadWindowsEnforcementProfileRequest{TeamID: 1, Profile: fh}
+	resp, err = uploadWindowsEnforcementProfileEndpoint(ctx, req, svc)
+	require.NoError(t, err)
+	uploadResp = resp.(*uploadWindowsEnforcementProfileResponse)
+	require.Error(t, uploadResp.Err)
+	assert.Contains(t, uploadResp.Err.Error(), "Only .yml, .yaml, and .json")
+
+	// Test .exe rejection
+	fh = createTestFileHeader(t, "malicious.exe", []byte("MZ"))
+	req = &uploadWindowsEnforcementProfileRequest{TeamID: 1, Profile: fh}
+	resp, err = uploadWindowsEnforcementProfileEndpoint(ctx, req, svc)
+	require.NoError(t, err)
+	uploadResp = resp.(*uploadWindowsEnforcementProfileResponse)
+	require.Error(t, uploadResp.Err)
+}
+
+func TestNewWindowsEnforcementProfileErrors(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	t.Run("list existing error", func(t *testing.T) {
+		ds.ListWindowsEnforcementProfilesFunc = func(ctx context.Context, tid *uint) ([]*fleet.WindowsEnforcementProfile, error) {
+			return nil, errors.New("list failed")
+		}
+
+		_, err := svc.NewWindowsEnforcementProfile(test.UserContext(ctx, test.UserAdmin), 1, "test", []byte(`{}`))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "listing existing")
+	})
+
+	t.Run("batch set error", func(t *testing.T) {
+		ds.ListWindowsEnforcementProfilesFunc = func(ctx context.Context, tid *uint) ([]*fleet.WindowsEnforcementProfile, error) {
+			return nil, nil
+		}
+		ds.BatchSetWindowsEnforcementProfilesFunc = func(ctx context.Context, tid *uint, profiles []*fleet.WindowsEnforcementProfile) error {
+			return errors.New("batch set failed")
+		}
+
+		_, err := svc.NewWindowsEnforcementProfile(test.UserContext(ctx, test.UserAdmin), 1, "test", []byte(`{}`))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "batch setting")
+	})
+
+	t.Run("post-save list error", func(t *testing.T) {
+		callCount := 0
+		ds.ListWindowsEnforcementProfilesFunc = func(ctx context.Context, tid *uint) ([]*fleet.WindowsEnforcementProfile, error) {
+			callCount++
+			if callCount == 1 {
+				return nil, nil
+			}
+			return nil, errors.New("post-save list failed")
+		}
+		ds.BatchSetWindowsEnforcementProfilesFunc = func(ctx context.Context, tid *uint, profiles []*fleet.WindowsEnforcementProfile) error {
+			return nil
+		}
+
+		_, err := svc.NewWindowsEnforcementProfile(test.UserContext(ctx, test.UserAdmin), 1, "test", []byte(`{}`))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "listing saved")
+	})
+
+	t.Run("profile not found after save", func(t *testing.T) {
+		callCount := 0
+		ds.ListWindowsEnforcementProfilesFunc = func(ctx context.Context, tid *uint) ([]*fleet.WindowsEnforcementProfile, error) {
+			callCount++
+			if callCount == 1 {
+				return nil, nil
+			}
+			// Return profiles but not the one we're looking for
+			return []*fleet.WindowsEnforcementProfile{
+				{ProfileUUID: "e-uuid-other", Name: "other-policy"},
+			}, nil
+		}
+		ds.BatchSetWindowsEnforcementProfilesFunc = func(ctx context.Context, tid *uint, profiles []*fleet.WindowsEnforcementProfile) error {
+			return nil
+		}
+
+		_, err := svc.NewWindowsEnforcementProfile(test.UserContext(ctx, test.UserAdmin), 1, "my-policy", []byte(`{}`))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found after save")
+	})
+}
+
+func TestGetWindowsEnforcementProfileErrors(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	t.Run("datastore error", func(t *testing.T) {
+		ds.GetWindowsEnforcementProfileFunc = func(ctx context.Context, uuid string) (*fleet.WindowsEnforcementProfile, error) {
+			return nil, errors.New("db error")
+		}
+
+		_, err := svc.GetWindowsEnforcementProfile(test.UserContext(ctx, test.UserAdmin), "e-uuid-1")
+		require.Error(t, err)
+	})
+
+	t.Run("team auth error", func(t *testing.T) {
+		teamID := uint(99)
+		ds.GetWindowsEnforcementProfileFunc = func(ctx context.Context, uuid string) (*fleet.WindowsEnforcementProfile, error) {
+			return &fleet.WindowsEnforcementProfile{
+				ProfileUUID: uuid,
+				TeamID:      &teamID,
+				Name:        "team-profile",
+			}, nil
+		}
+
+		_, err := svc.GetWindowsEnforcementProfile(test.UserContext(ctx, test.UserNoRoles), "e-uuid-1")
+		require.Error(t, err)
+	})
+}
+
+func TestDeleteWindowsEnforcementProfileErrors(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	t.Run("get profile error", func(t *testing.T) {
+		ds.GetWindowsEnforcementProfileFunc = func(ctx context.Context, uuid string) (*fleet.WindowsEnforcementProfile, error) {
+			return nil, errors.New("not found")
+		}
+
+		err := svc.DeleteWindowsEnforcementProfile(test.UserContext(ctx, test.UserAdmin), "e-uuid-1")
+		require.Error(t, err)
+	})
+
+	t.Run("delete error", func(t *testing.T) {
+		ds.GetWindowsEnforcementProfileFunc = func(ctx context.Context, uuid string) (*fleet.WindowsEnforcementProfile, error) {
+			return &fleet.WindowsEnforcementProfile{ProfileUUID: uuid, Name: "test"}, nil
+		}
+		ds.DeleteWindowsEnforcementProfileFunc = func(ctx context.Context, uuid string) error {
+			return errors.New("delete failed")
+		}
+
+		err := svc.DeleteWindowsEnforcementProfile(test.UserContext(ctx, test.UserAdmin), "e-uuid-1")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "deleting enforcement")
+	})
+}
+
+func TestReconcileWindowsEnforcementPayloadFields(t *testing.T) {
+	ds := new(mock.Store)
+
+	ds.ListWindowsEnforcementToInstallFunc = func(ctx context.Context) ([]*fleet.HostWindowsEnforcement, error) {
+		return []*fleet.HostWindowsEnforcement{
+			{HostUUID: "host-1", ProfileUUID: "e-uuid-1", Name: "cis-policy"},
+		}, nil
+	}
+	ds.ListWindowsEnforcementToRemoveFunc = func(ctx context.Context) ([]*fleet.HostWindowsEnforcement, error) {
+		return []*fleet.HostWindowsEnforcement{
+			{HostUUID: "host-2", ProfileUUID: "e-uuid-2"},
+		}, nil
+	}
+
+	var upsertedPayload []*fleet.HostWindowsEnforcement
+	ds.BulkUpsertHostWindowsEnforcementFunc = func(ctx context.Context, payload []*fleet.HostWindowsEnforcement) error {
+		upsertedPayload = payload
+		return nil
+	}
+
+	logger := slog.New(slog.DiscardHandler)
+	err := ReconcileWindowsEnforcement(context.Background(), ds, logger)
+	require.NoError(t, err)
+
+	require.Len(t, upsertedPayload, 2)
+
+	// Install payload
+	install := upsertedPayload[0]
+	assert.Equal(t, "host-1", install.HostUUID)
+	assert.Equal(t, "e-uuid-1", install.ProfileUUID)
+	assert.Equal(t, "cis-policy", install.Name)
+	assert.Equal(t, fleet.MDMOperationTypeInstall, install.OperationType)
+	require.NotNil(t, install.Status)
+	assert.Equal(t, fleet.MDMDeliveryPending, *install.Status)
+
+	// Remove payload
+	remove := upsertedPayload[1]
+	assert.Equal(t, "host-2", remove.HostUUID)
+	assert.Equal(t, "e-uuid-2", remove.ProfileUUID)
+	assert.Equal(t, fleet.MDMOperationTypeRemove, remove.OperationType)
+	require.NotNil(t, remove.Status)
+	assert.Equal(t, fleet.MDMDeliveryPending, *remove.Status)
 }

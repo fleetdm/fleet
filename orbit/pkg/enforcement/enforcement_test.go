@@ -318,3 +318,240 @@ func TestApplyResultFields(t *testing.T) {
 	assert.False(t, r.Success)
 	assert.Equal(t, "access denied", r.Error)
 }
+
+func TestRunnerAllCompliant(t *testing.T) {
+	handler := &mockHandler{
+		name: "registry",
+		diffResults: []DiffResult{
+			{SettingName: "EnableLUA", Category: "registry", Compliant: true, DesiredValue: "1", CurrentValue: "1"},
+			{SettingName: "LmLevel", Category: "registry", Compliant: true, DesiredValue: "5", CurrentValue: "5"},
+		},
+	}
+
+	cache := NewComplianceCache()
+	runner := NewRunner(map[string]Handler{"registry": handler}, cache)
+
+	cfg := &fleet.OrbitConfig{
+		Notifications: fleet.OrbitConfigNotifications{
+			PendingWindowsEnforcementHash: "hash-all-compliant",
+		},
+		WindowsEnforcement: &fleet.OrbitWindowsEnforcement{
+			Policies: []fleet.OrbitEnforcementPolicy{
+				{ProfileUUID: "e-uuid-1", Name: "cis-policy", RawPolicy: []byte(`{}`)},
+			},
+		},
+	}
+
+	err := runner.Run(cfg)
+	require.NoError(t, err)
+
+	// Apply should NOT be called since all are compliant
+	assert.Equal(t, 0, handler.applyCalls)
+
+	// Records should still be cached
+	records := cache.Records()
+	require.Len(t, records, 2)
+	assert.True(t, records[0].Compliant)
+	assert.True(t, records[1].Compliant)
+	assert.Equal(t, "cis-policy", records[0].PolicyName)
+	assert.Equal(t, "1", records[0].DesiredValue)
+	assert.Equal(t, "1", records[0].CurrentValue)
+}
+
+func TestRunnerMultiplePolicies(t *testing.T) {
+	handler := &mockHandler{
+		name: "registry",
+		diffResults: []DiffResult{
+			{SettingName: "s1", Category: "registry", Compliant: true},
+		},
+	}
+
+	cache := NewComplianceCache()
+	runner := NewRunner(map[string]Handler{"registry": handler}, cache)
+
+	cfg := &fleet.OrbitConfig{
+		Notifications: fleet.OrbitConfigNotifications{
+			PendingWindowsEnforcementHash: "hash-multi",
+		},
+		WindowsEnforcement: &fleet.OrbitWindowsEnforcement{
+			Policies: []fleet.OrbitEnforcementPolicy{
+				{ProfileUUID: "e-uuid-1", Name: "policy-a", RawPolicy: []byte(`{}`)},
+				{ProfileUUID: "e-uuid-2", Name: "policy-b", RawPolicy: []byte(`{}`)},
+				{ProfileUUID: "e-uuid-3", Name: "policy-c", RawPolicy: []byte(`{}`)},
+			},
+		},
+	}
+
+	err := runner.Run(cfg)
+	require.NoError(t, err)
+
+	// Should have 3 records (one per policy since handler returns 1 result)
+	records := cache.Records()
+	require.Len(t, records, 3)
+
+	// Each record should have the corresponding policy name
+	policyNames := map[string]bool{}
+	for _, r := range records {
+		policyNames[r.PolicyName] = true
+	}
+	assert.True(t, policyNames["policy-a"])
+	assert.True(t, policyNames["policy-b"])
+	assert.True(t, policyNames["policy-c"])
+}
+
+func TestRunnerPostApplyDiffError(t *testing.T) {
+	diffCallCount := 0
+	handler := &mockHandler{
+		name: "test",
+	}
+	// Override with a custom diff that fails on second call
+	originalDiff := handler.Diff
+	_ = originalDiff
+
+	// First diff returns non-compliant, second diff (post-apply) fails
+	customHandler := &mockHandlerWithPostDiffError{
+		name:      "failing-post-diff",
+		diffCount: 0,
+		firstDiff: []DiffResult{
+			{SettingName: "s1", Compliant: false},
+		},
+		applyResults: []ApplyResult{
+			{SettingName: "s1", Success: true},
+		},
+	}
+	_ = diffCallCount
+
+	cache := NewComplianceCache()
+	runner := NewRunner(map[string]Handler{"failing-post-diff": customHandler}, cache)
+
+	cfg := &fleet.OrbitConfig{
+		Notifications: fleet.OrbitConfigNotifications{
+			PendingWindowsEnforcementHash: "hash-post-diff-err",
+		},
+		WindowsEnforcement: &fleet.OrbitWindowsEnforcement{
+			Policies: []fleet.OrbitEnforcementPolicy{
+				{ProfileUUID: "e-uuid-1", Name: "test-policy", RawPolicy: []byte(`{}`)},
+			},
+		},
+	}
+
+	err := runner.Run(cfg)
+	require.NoError(t, err)
+	assert.Equal(t, 1, customHandler.applyCalls)
+
+	// No records cached because post-apply diff failed
+	assert.Empty(t, cache.Records())
+}
+
+func TestRunnerApplySuccessWithLogs(t *testing.T) {
+	handler := &mockHandler{
+		name: "registry",
+		diffResults: []DiffResult{
+			{SettingName: "EnableLUA", Category: "registry", Compliant: false, DesiredValue: "1", CurrentValue: "0"},
+		},
+		applyResults: []ApplyResult{
+			{SettingName: "EnableLUA", Category: "registry", Success: true},
+		},
+	}
+
+	cache := NewComplianceCache()
+	runner := NewRunner(map[string]Handler{"registry": handler}, cache)
+
+	cfg := &fleet.OrbitConfig{
+		Notifications: fleet.OrbitConfigNotifications{
+			PendingWindowsEnforcementHash: "hash-apply-success",
+		},
+		WindowsEnforcement: &fleet.OrbitWindowsEnforcement{
+			Policies: []fleet.OrbitEnforcementPolicy{
+				{ProfileUUID: "e-uuid-1", Name: "cis-uac", RawPolicy: []byte(`{}`)},
+			},
+		},
+	}
+
+	err := runner.Run(cfg)
+	require.NoError(t, err)
+	assert.Equal(t, 1, handler.applyCalls)
+
+	// After apply, a re-diff happens; since our mock returns the same results,
+	// we'll get them in the cache
+	records := cache.Records()
+	require.Len(t, records, 1)
+	assert.Equal(t, "cis-uac", records[0].PolicyName)
+}
+
+func TestRunnerApplyWithPartialFailures(t *testing.T) {
+	handler := &mockHandler{
+		name: "registry",
+		diffResults: []DiffResult{
+			{SettingName: "s1", Category: "registry", Compliant: false},
+			{SettingName: "s2", Category: "registry", Compliant: false},
+		},
+		applyResults: []ApplyResult{
+			{SettingName: "s1", Category: "registry", Success: true},
+			{SettingName: "s2", Category: "registry", Success: false, Error: "access denied"},
+		},
+	}
+
+	cache := NewComplianceCache()
+	runner := NewRunner(map[string]Handler{"registry": handler}, cache)
+
+	cfg := &fleet.OrbitConfig{
+		Notifications: fleet.OrbitConfigNotifications{
+			PendingWindowsEnforcementHash: "hash-partial",
+		},
+		WindowsEnforcement: &fleet.OrbitWindowsEnforcement{
+			Policies: []fleet.OrbitEnforcementPolicy{
+				{ProfileUUID: "e-uuid-1", Name: "mixed-results", RawPolicy: []byte(`{}`)},
+			},
+		},
+	}
+
+	err := runner.Run(cfg)
+	require.NoError(t, err)
+	assert.Equal(t, 1, handler.applyCalls)
+}
+
+func TestComplianceRecordFields(t *testing.T) {
+	now := time.Now()
+	r := ComplianceRecord{
+		SettingName:  "EnableLUA",
+		Category:     "registry",
+		PolicyName:   "cis-uac",
+		CISRef:       "2.3.17.7",
+		DesiredValue: "1",
+		CurrentValue: "0",
+		Compliant:    false,
+		LastChecked:  now,
+	}
+	assert.Equal(t, "EnableLUA", r.SettingName)
+	assert.Equal(t, "registry", r.Category)
+	assert.Equal(t, "cis-uac", r.PolicyName)
+	assert.Equal(t, "2.3.17.7", r.CISRef)
+	assert.Equal(t, "1", r.DesiredValue)
+	assert.Equal(t, "0", r.CurrentValue)
+	assert.False(t, r.Compliant)
+	assert.Equal(t, now, r.LastChecked)
+}
+
+// mockHandlerWithPostDiffError is a handler that returns an error on the second Diff call
+// (post-apply verification), simulating a transient failure.
+type mockHandlerWithPostDiffError struct {
+	name         string
+	diffCount    int
+	firstDiff    []DiffResult
+	applyResults []ApplyResult
+	applyCalls   int
+}
+
+func (h *mockHandlerWithPostDiffError) Name() string { return h.name }
+func (h *mockHandlerWithPostDiffError) Diff(ctx context.Context, rawPolicy []byte) ([]DiffResult, error) {
+	h.diffCount++
+	if h.diffCount > 1 {
+		return nil, errors.New("post-apply diff failed")
+	}
+	return h.firstDiff, nil
+}
+func (h *mockHandlerWithPostDiffError) Apply(ctx context.Context, rawPolicy []byte) ([]ApplyResult, error) {
+	h.applyCalls++
+	return h.applyResults, nil
+}

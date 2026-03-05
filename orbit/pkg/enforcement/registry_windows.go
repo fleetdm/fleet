@@ -14,12 +14,12 @@ import (
 // RegistrySetting represents a single registry enforcement setting from the
 // YAML policy.
 type RegistrySetting struct {
-	Path   string      `json:"path" yaml:"path"`
-	Name   string      `json:"name" yaml:"name"`
-	Type   string      `json:"type" yaml:"type"`
-	Value  any         `json:"value" yaml:"value"`
-	Ensure string      `json:"ensure,omitempty" yaml:"ensure,omitempty"`
-	CISRef string      `json:"cis_ref,omitempty" yaml:"cis_ref,omitempty"`
+	Path   string `json:"path" yaml:"path"`
+	Name   string `json:"name" yaml:"name"`
+	Type   string `json:"type" yaml:"type"`
+	Value  any    `json:"value" yaml:"value"`
+	Ensure string `json:"ensure,omitempty" yaml:"ensure,omitempty"`
+	CISRef string `json:"cis_ref,omitempty" yaml:"cis_ref,omitempty"`
 }
 
 type registryPolicy struct {

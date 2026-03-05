@@ -307,17 +307,17 @@ func TestGetExclusionZones(t *testing.T) {
 		{
 			[]string{"testdata", "global_config_no_paths.yml"},
 			map[[2]int]string{
-				{1031, 1114}: "    description: Collect osquery performance stats directly from osquery\n    query:", //
-				{1916, 1980}: "    description: This policy should always fail.\n    resolution:",                    //
-				{1965, 2031}: "    resolution: There is no resolution for this policy.\n    query:",                  //
-				{2148, 2212}: "    description: This policy should always pass.\n    resolution:",                    //
-				{2197, 2263}: "    resolution: There is no resolution for this policy.\n    query:",                  //
-				{2553, 2617}: "    description: This policy should always fail.\n    resolution:",                    //
-				{2602, 2668}: "    resolution: There is no resolution for this policy.\n    query:",                  //
-				{2766, 2830}: "    description: This policy should always fail.\n    resolution:",                    //
-				{2815, 3188}: "    resolution: |\n      Automated method:\n      Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:\n      cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed \"s/${origExpire}/expire-after:60d OR 5G/\" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;\n    query:",
-				{6255, 6302}: "    description: A cool global label\n    query:", //
-				{6399, 6445}: "    description: A fly global label\n    hosts:",  //
+				{1031, 1114}: "    description: Collect osquery performance stats directly from osquery\n    query:",
+				{1919, 1983}: "    description: This policy should always fail.\n    resolution:",
+				{1968, 2034}: "    resolution: There is no resolution for this policy.\n    query:",
+				{2151, 2215}: "    description: This policy should always pass.\n    resolution:",
+				{2200, 2266}: "    resolution: There is no resolution for this policy.\n    query:",
+				{2559, 2623}: "    description: This policy should always fail.\n    resolution:",
+				{2608, 2674}: "    resolution: There is no resolution for this policy.\n    query:",
+				{2778, 2842}: "    description: This policy should always fail.\n    resolution:",
+				{2827, 3200}: "    resolution: |\n      Automated method:\n      Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:\n      cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed \"s/${origExpire}/expire-after:60d OR 5G/\" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;\n    query:",
+				{6267, 6314}: "    description: A cool global label\n    query:",
+				{6411, 6457}: "    description: A fly global label\n    hosts:",
 			},
 		},
 	}
