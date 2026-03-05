@@ -562,6 +562,7 @@ func TestAppConfigCopyWindowsEnforcement(t *testing.T) {
 		},
 	}
 	clone := ac.Copy()
+	require.NotNil(t, clone)
 	require.NotSame(t, ac, clone)
 	require.True(t, clone.MDM.WindowsEnforcement.CustomSettings.Set)
 	require.Len(t, clone.MDM.WindowsEnforcement.CustomSettings.Value, 2)
@@ -575,5 +576,6 @@ func TestAppConfigCopyWindowsEnforcement(t *testing.T) {
 func TestAppConfigCopyWindowsEnforcementUnset(t *testing.T) {
 	ac := &AppConfig{}
 	clone := ac.Copy()
+	require.NotNil(t, clone)
 	require.False(t, clone.MDM.WindowsEnforcement.CustomSettings.Set)
 }
