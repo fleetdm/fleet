@@ -206,6 +206,13 @@ func processHostForSet(
 	// Send SetRecoveryLock command
 	rawCmd := setRecoveryLockCommand(cmdUUID, password)
 	if err := commander.EnqueueCommand(ctx, []string{host.HostUUID}, string(rawCmd)); err != nil {
+		if markErr := rkpDS.SetRecoveryLockFailed(ctx, host.HostID, "SetRecoveryLock enqueue failed: "+err.Error()); markErr != nil {
+			logger.ErrorContext(ctx, "failed to mark recovery lock as failed after enqueue error",
+				"host_id", host.HostID,
+				"host_uuid", host.HostUUID,
+				"error", markErr,
+			)
+		}
 		return ctxerr.Wrap(ctx, err, "send SetRecoveryLock command")
 	}
 
