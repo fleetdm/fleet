@@ -10,7 +10,7 @@ import (
 
 // TestGetAssetMetadata checks that we can fetch OS information from Apple.
 func TestGetAssetMetadata(t *testing.T) {
-	resp, err := gdmf.GetAssetMetadata(true) // skip cache to ensure we're testing the API call
+	resp, err := gdmf.GetAssetMetadata()
 	require.NoError(t, err)
 	assert.Greater(t, len(resp.AssetSets.MacOS), 0)
 }

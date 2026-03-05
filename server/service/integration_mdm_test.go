@@ -710,7 +710,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		require.NoError(s.T(), err)
 	}))
 	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", s.appleGDMFSrv.URL, s.T())
-	dev_mode.SetOverride("FLEET_DEV_GDMF_CACHE_DURATION", "0", s.T()) // disable cache to ensure we're getting the data from the test server
 
 	s.T().Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
 	s.T().Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", s.appleVPPProxySrv.URL)

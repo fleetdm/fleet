@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff"
@@ -22,21 +21,6 @@ import (
 )
 
 const baseURL = "https://gdmf.apple.com/v2/pmv"
-
-// TODO: Interested in feedback from the team. Not sure if we want to go with caching and if so what
-// approach we want to take, e.g., in-memory per instance (as illustrated in this PR), redis, or
-// DB-based. We don't expect the Apple assets sets to change very frequently so there is definitely
-// a benefit to caching in terms of speeding up MDM enrollments as well as GitOps. On the other
-// hand, per instance caching without some form of synchronization could lead to some inconsistent
-// behavior when changes do occur. In the meantime, I've implemented a simple in-memory cache with a
-// TTL and a force reset option that can be used when retrieving the asset metadata to mitigate some
-// of the consistency issues, just to see what that might look like.
-var cache = struct {
-	assetMetadata *AssetMetadata
-	lastUpdated   time.Time
-
-	mu sync.Mutex
-}{}
 
 // Asset represents the metadata for an asset in the Apple Software Lookup Service[1][2].
 // Example:
@@ -89,7 +73,7 @@ type AssetMetadata struct {
 // [1]: http://gdmf.apple.com/v2/pmv
 // [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
 func GetLatestOSVersion(device fleet.MDMAppleMachineInfo) (*Asset, error) {
-	am, err := GetAssetMetadata(false)
+	am, err := GetAssetMetadata()
 	if err != nil {
 		return nil, fmt.Errorf("retrieving asset metadata: %w", err)
 	}
@@ -124,7 +108,7 @@ func GetLatestOSVersion(device fleet.MDMAppleMachineInfo) (*Asset, error) {
 }
 
 func ValidateAppleSupportedOSVersion(platform string, version string, includeDEP bool) error {
-	am, err := GetAssetMetadata(false)
+	am, err := GetAssetMetadata()
 	if err != nil {
 		return fmt.Errorf("retrieving asset metadata: %w", err)
 	}
@@ -179,14 +163,7 @@ func createClient() *http.Client {
 // GetAssetMetadata retrieves the asset metadata from the Apple Software Lookup Service[1][2].
 // [1]: http://gdmf.apple.com/v2/pmv
 // [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
-func GetAssetMetadata(forceResetCache bool) (*AssetMetadata, error) {
-	cache.mu.Lock()
-	defer cache.mu.Unlock()
-
-	if !forceResetCache && cache.assetMetadata != nil && time.Since(cache.lastUpdated) < getCacheDuration() {
-		return cache.assetMetadata, nil
-	}
-
+func GetAssetMetadata() (*AssetMetadata, error) {
 	baseURL := getBaseURL()
 	reqURL, err := url.Parse(baseURL)
 	if err != nil {
@@ -212,9 +189,6 @@ func GetAssetMetadata(forceResetCache bool) (*AssetMetadata, error) {
 	if err := json.Unmarshal(body, &dest); err != nil {
 		return nil, fmt.Errorf("decoding response data from Apple endpoint: %w", err)
 	}
-
-	cache.assetMetadata = &dest
-	cache.lastUpdated = time.Now()
 
 	return &dest, nil
 }
@@ -272,14 +246,4 @@ func getBaseURL() string {
 		return devURL
 	}
 	return baseURL
-}
-
-func getCacheDuration() time.Duration {
-	devTTL := dev_mode.Env("FLEET_DEV_GDMF_CACHE_DURATION")
-	if devTTL != "" {
-		if ttl, err := time.ParseDuration(devTTL); err == nil {
-			return ttl
-		}
-	}
-	return 6 * time.Hour // default cache duration
 }

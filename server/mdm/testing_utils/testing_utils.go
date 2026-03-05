@@ -55,5 +55,4 @@ func StartNewAppleGDMFTestServer(t *testing.T) {
 	t.Cleanup(appleGDMFSrv.Close)
 
 	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", appleGDMFSrv.URL, t)
-	dev_mode.SetOverride("FLEET_DEV_GDMF_CACHE_DURATION", "0", t) // disable cache to ensure we're getting the data from the test server
 }

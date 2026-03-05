@@ -5419,7 +5419,6 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 	}))
 	defer gdmf.Close()
 	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", gdmf.URL, t)
-	dev_mode.SetOverride("FLEET_DEV_GDMF_CACHE_DURATION", "0", t) // disable caching to ensure we hit the test server for each request
 
 	latestMacOSVersion := "14.6.1"
 	latestIOSVersion := "17.6.1"

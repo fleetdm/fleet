@@ -5,7 +5,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -27,7 +26,6 @@ func TestGetLatest(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", srv.URL, t)
-	dev_mode.SetOverride("FLEET_DEV_GDMF_CACHE_DURATION", "0", t) // disable cache to ensure we're testing the function and not cached data
 
 	// test the function
 	d := fleet.MDMAppleMachineInfo{
@@ -229,7 +227,6 @@ func TestRetries(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", srv.URL, t)
-	dev_mode.SetOverride("FLEET_DEV_GDMF_CACHE_DURATION", "0", t) // disable cache to ensure retries happen
 
 	latest, err := GetLatestOSVersion(fleet.MDMAppleMachineInfo{
 		OSVersion:                "14.4.1",
@@ -245,66 +242,4 @@ func TestRetries(t *testing.T) {
 	require.ErrorContains(t, err, "calling gdmf endpoint failed with status 400")
 	require.Nil(t, latest)
 	require.Equal(t, 4, retryCount)
-}
-
-func TestCache(t *testing.T) {
-	callCount := 0
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		callCount++
-		w.WriteHeader(http.StatusOK)
-		b, err := os.ReadFile("./testdata/gdmf.json")
-		require.NoError(t, err)
-		_, err = w.Write(b)
-		require.NoError(t, err)
-	}))
-	t.Cleanup(srv.Close)
-	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", srv.URL, t)
-	dev_mode.SetOverride("FLEET_DEV_GDMF_CACHE_DURATION", "1m", t) // set long cache duration to ensure cache is used
-
-	resp, err := GetAssetMetadata(true) // force the cache to refresh
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	require.Equal(t, 1, callCount, "expected 1 call to the server")
-
-	for range 5 {
-		resp, err := GetAssetMetadata(false) // don't refresh cache
-		require.NoError(t, err)
-		require.NotNil(t, resp)
-	}
-
-	require.Equal(t, 1, callCount, "expected only 1 call to the server due to caching")
-}
-
-func TestCacheExpiration(t *testing.T) {
-	callCount := 0
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		callCount++
-		w.WriteHeader(http.StatusOK)
-		b, err := os.ReadFile("./testdata/gdmf.json")
-		require.NoError(t, err)
-		_, err = w.Write(b)
-		require.NoError(t, err)
-	}))
-	t.Cleanup(srv.Close)
-	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", srv.URL, t)
-	dev_mode.SetOverride("FLEET_DEV_GDMF_CACHE_DURATION", "5ms", t)
-
-	resp, err := GetAssetMetadata(true) // force the cache to refresh
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	require.Equal(t, 1, callCount, "expected 1 call to the server")
-
-	// try again immediately
-	resp, err = GetAssetMetadata(false) // should use cache
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	require.Equal(t, 1, callCount, "expected still only 1 call to the server due to caching")
-
-	// wait for cache to expire
-	time.Sleep(10 * time.Millisecond)
-
-	resp, err = GetAssetMetadata(false) // cache should be expired
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	require.Equal(t, 2, callCount, "expected a second call to the server after cache expiration")
 }
