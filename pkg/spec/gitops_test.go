@@ -284,6 +284,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "macos_settings not found")
 				_, ok = gitops.Controls.WindowsSettings.(fleet.WindowsSettings)
 				assert.True(t, ok, "windows_settings not found")
+				_, ok = gitops.Controls.WindowsEnforcement.(fleet.WindowsEnforcementSettings)
+				assert.True(t, ok, "windows_enforcement not found")
 				_, ok = gitops.Controls.EnableDiskEncryption.(bool)
 				assert.True(t, ok, "enable_disk_encryption not found")
 				_, ok = gitops.Controls.MacOSMigration.(map[string]interface{})
