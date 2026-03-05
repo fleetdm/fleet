@@ -168,7 +168,8 @@ func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInf
 	for _, varName := range foundVars {
 		if !slices.Contains(fleetVarsSupportedInWindowsProfiles, fleet.FleetVarName(varName)) &&
 			!strings.HasPrefix(varName, string(fleet.FleetVarCustomSCEPChallengePrefix)) &&
-			!strings.HasPrefix(varName, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) {
+			!strings.HasPrefix(varName, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) &&
+			!strings.HasPrefix(varName, string(fleet.FleetVarHostEndUserIDPCustomPrefix)) {
 			return nil, fleet.NewInvalidArgumentError("profile", fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in Windows profiles.", varName))
 		}
 	}

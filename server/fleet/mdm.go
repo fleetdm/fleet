@@ -79,6 +79,9 @@ const (
 	FleetVarSmallstepSCEPProxyURLPrefix  FleetVarName = "SMALLSTEP_SCEP_PROXY_URL_"
 	FleetVarSCEPWindowsCertificateID     FleetVarName = "SCEP_WINDOWS_CERTIFICATE_ID" // nolint:gosec // G101: Potential hardcoded credentials
 
+	// Custom IdP attribute variables
+	FleetVarHostEndUserIDPCustomPrefix FleetVarName = "HOST_END_USER_IDP_CUSTOM_"
+
 	// OneTimeChallengeTTL is the time to live for one-time challenges.
 	OneTimeChallengeTTL = 1 * time.Hour
 )
@@ -109,6 +112,7 @@ var (
 		FleetVarHostEndUserIDPGroups,
 		FleetVarHostEndUserIDPDepartment,
 		FleetVarHostEndUserIDPFullname,
+		FleetVarHostEndUserIDPCustomPrefix,
 	}
 )
 

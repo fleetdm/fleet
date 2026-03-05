@@ -60,6 +60,10 @@ func (ds *Datastore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (
 			return ctxerr.Wrap(ctx, err, "insert scim user emails")
 		}
 
+		if err := insertCustomAttributes(ctx, tx, user); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert scim user custom attributes")
+		}
+
 		// FIXME: Consider ways we could lift ancillary actions like this to the service layer,
 		// perhaps some `WithCallback` pattern to inject these into the SCIM handlers.
 		if err := maybeAssociateScimUserWithHostMDMIdP(ctx, tx, ds.logger, user); err != nil {
@@ -101,6 +105,13 @@ func (ds *Datastore) ScimUserByID(ctx context.Context, id uint) (*fleet.ScimUser
 	}
 	user.Groups = groups
 
+	// Get the user's custom attributes
+	customAttrs, err := ds.getScimUserCustomAttributes(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	user.CustomAttributes = customAttrs
+
 	return user, nil
 }
 
@@ -138,6 +149,13 @@ func scimUserByUserName(ctx context.Context, q sqlx.QueryerContext, userName str
 		return nil, err
 	}
 	user.Groups = groups
+
+	// Get the user's custom attributes
+	customAttrs, err := getScimUserCustomAttributes(ctx, q, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	user.CustomAttributes = customAttrs
 
 	return user, nil
 }
@@ -222,6 +240,13 @@ func (ds *Datastore) ScimUserByHostID(ctx context.Context, hostID uint) (*fleet.
 	}
 	user.Groups = groups
 
+	// Get the user's custom attributes
+	customAttrs, err := ds.getScimUserCustomAttributes(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	user.CustomAttributes = customAttrs
+
 	return user, nil
 }
 
@@ -270,6 +295,13 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		return err
 	}
 	emailsNeedUpdate := emailsRequireUpdate(currentEmails, user.Emails)
+
+	// Get current custom attributes and check if they need to be updated
+	currentCustomAttrs, err := ds.getScimUserCustomAttributes(ctx, user.ID)
+	if err != nil {
+		return err
+	}
+	customAttrsNeedUpdate := customAttributesRequireUpdate(currentCustomAttrs, user.CustomAttributes)
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// load the username and department before updating the user, to check if it changed
@@ -346,6 +378,20 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 			}
 		}
 
+		// Update custom attributes if they've changed
+		if customAttrsNeedUpdate {
+			// Delete all existing custom attributes and re-insert
+			const deleteCustomAttrsQuery = `DELETE FROM scim_user_custom_attributes WHERE scim_user_id = ?`
+			_, err = tx.ExecContext(ctx, deleteCustomAttrsQuery, user.ID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "delete scim user custom attributes")
+			}
+			err = insertCustomAttributes(ctx, tx, user)
+			if err != nil {
+				return err
+			}
+		}
+
 		// Get the user's groups
 		groups, err := ds.getScimUserGroups(ctx, user.ID)
 		if err != nil {
@@ -356,6 +402,14 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		// resend profiles that depend on this username if it changed
 		if usernameChanged || departmentChanged || nameChanged {
 			err = triggerResendProfilesForIDPUserChange(ctx, tx, user.ID)
+			if err != nil {
+				return err
+			}
+		}
+
+		// resend profiles that depend on custom IdP attributes if they changed
+		if customAttrsNeedUpdate {
+			err = triggerResendProfilesForIDPCustomAttributeChange(ctx, tx, user.ID)
 			if err != nil {
 				return err
 			}
@@ -555,6 +609,30 @@ func (ds *Datastore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersList
 				ID:          ug.ID,
 				DisplayName: ug.DisplayName,
 			})
+		}
+	}
+
+	// Fetch custom attributes for all users in a single query
+	customAttrQuery, customAttrArgs, err := sqlx.In(`
+		SELECT scim_user_id, name, value
+		FROM scim_user_custom_attributes
+		WHERE scim_user_id IN (?)
+		ORDER BY name ASC
+	`, userIDs)
+	if err != nil {
+		return nil, 0, ctxerr.Wrap(ctx, err, "prepare custom attributes query")
+	}
+	customAttrQuery = ds.reader(ctx).Rebind(customAttrQuery)
+	var allCustomAttrs []fleet.ScimUserCustomAttribute
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &allCustomAttrs, customAttrQuery, customAttrArgs...); err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return nil, 0, ctxerr.Wrap(ctx, err, "select scim user custom attributes")
+		}
+	}
+	for i := range allCustomAttrs {
+		attr := allCustomAttrs[i]
+		if user, ok := userMap[attr.ScimUserID]; ok {
+			user.CustomAttributes = append(user.CustomAttributes, attr)
 		}
 	}
 
@@ -1201,6 +1279,7 @@ func triggerResendProfilesForIDPUserDeleted(ctx context.Context, tx sqlx.ExtCont
 			fleet.FleetVarHostEndUserIDPGroups,
 			fleet.FleetVarHostEndUserIDPDepartment,
 			fleet.FleetVarHostEndUserIDPFullname,
+			fleet.FleetVarHostEndUserIDPCustomPrefix,
 		})
 }
 
@@ -1236,6 +1315,17 @@ func triggerResendProfilesForIDPGroupChangeByUsers(ctx context.Context, tx sqlx.
 		[]fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
 }
 
+func triggerResendProfilesForIDPCustomAttributeChange(ctx context.Context, tx sqlx.ExtContext, updatedScimUserID uint) error {
+	hostIDs, err := getHostIDsHavingScimIDPUser(ctx, tx, updatedScimUserID)
+	if err != nil {
+		return err
+	}
+	return triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
+		[]fleet.FleetVarName{
+			fleet.FleetVarHostEndUserIDPCustomPrefix,
+		})
+}
+
 func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.ExtContext, hostID, updatedScimUserID uint) error {
 	// check that this user is indeed the scim IdP user for this host (and not an
 	// extra, unused one)
@@ -1254,6 +1344,7 @@ func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.Ext
 			fleet.FleetVarHostEndUserIDPDepartment,
 			fleet.FleetVarHostEndUserIDPGroups,
 			fleet.FleetVarHostEndUserIDPFullname,
+			fleet.FleetVarHostEndUserIDPCustomPrefix,
 		})
 }
 
@@ -1417,4 +1508,54 @@ func (ds *Datastore) ScimUsersExist(ctx context.Context, ids []uint) (bool, erro
 	}
 
 	return true, nil
+}
+
+// getScimUserCustomAttributes retrieves custom attributes for a SCIM user
+func (ds *Datastore) getScimUserCustomAttributes(ctx context.Context, userID uint) ([]fleet.ScimUserCustomAttribute, error) {
+	return getScimUserCustomAttributes(ctx, ds.reader(ctx), userID)
+}
+
+func getScimUserCustomAttributes(ctx context.Context, q sqlx.QueryerContext, userID uint) ([]fleet.ScimUserCustomAttribute, error) {
+	const query = `SELECT scim_user_id, name, value FROM scim_user_custom_attributes WHERE scim_user_id = ? ORDER BY name`
+	var attrs []fleet.ScimUserCustomAttribute
+	if err := sqlx.SelectContext(ctx, q, &attrs, query, userID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select scim user custom attributes")
+	}
+	return attrs, nil
+}
+
+func insertCustomAttributes(ctx context.Context, tx sqlx.ExtContext, user *fleet.ScimUser) error {
+	if len(user.CustomAttributes) == 0 {
+		return nil
+	}
+	valueStrings := make([]string, 0, len(user.CustomAttributes))
+	valueArgs := make([]interface{}, 0, len(user.CustomAttributes)*3)
+	for _, attr := range user.CustomAttributes {
+		valueStrings = append(valueStrings, "(?, ?, ?)")
+		valueArgs = append(valueArgs, user.ID, attr.Name, attr.Value)
+	}
+	insertQuery := `INSERT INTO scim_user_custom_attributes (scim_user_id, name, value) VALUES ` +
+		strings.Join(valueStrings, ",") +
+		` ON DUPLICATE KEY UPDATE value = VALUES(value)`
+	_, err := tx.ExecContext(ctx, insertQuery, valueArgs...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "insert scim user custom attributes")
+	}
+	return nil
+}
+
+func customAttributesRequireUpdate(current, new []fleet.ScimUserCustomAttribute) bool {
+	if len(current) != len(new) {
+		return true
+	}
+	currentMap := make(map[string]string, len(current))
+	for _, attr := range current {
+		currentMap[attr.Name] = attr.Value
+	}
+	for _, attr := range new {
+		if val, ok := currentMap[attr.Name]; !ok || val != attr.Value {
+			return true
+		}
+	}
+	return false
 }

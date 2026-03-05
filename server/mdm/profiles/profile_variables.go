@@ -91,6 +91,28 @@ func ReplaceHostEndUserIDPVariables(ctx context.Context, ds fleet.Datastore,
 		return "", false, nil
 	}
 
+	// Handle custom IdP attribute variables ($FLEET_VAR_HOST_END_USER_IDP_CUSTOM_<KEY>)
+	if strings.HasPrefix(fleetVar, string(fleet.FleetVarHostEndUserIDPCustomPrefix)) {
+		attrName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarHostEndUserIDPCustomPrefix))
+		value := ""
+		if user.IdpCustomAttributes != nil {
+			value = user.IdpCustomAttributes[attrName]
+		}
+		if value == "" {
+			return "", false, onError(fmt.Sprintf(
+				"There is no custom IdP attribute %q for this host. Fleet couldn't populate $FLEET_VAR_%s.",
+				attrName, fleetVar,
+			))
+		}
+		replacedContents, err = ReplaceExactFleetPrefixVariableInXML(
+			string(fleet.FleetVarHostEndUserIDPCustomPrefix), attrName, profileContents, value,
+		)
+		if err != nil {
+			return "", false, fmt.Errorf("replacing Fleet variable for custom IdP attribute: %w", err)
+		}
+		return replacedContents, true, nil
+	}
+
 	var rx *regexp.Regexp
 	var value string
 	switch fleetVar {
@@ -157,6 +179,7 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore,
 		if fleetVar == string(fleet.FleetVarHostEndUserIDPFullname) && strings.TrimSpace(idpUser.IdpFullName) == "" {
 			return nil, false, onError(noFullnameErr)
 		}
+		// Custom attributes are validated in the caller (ReplaceHostEndUserIDPVariables), not here.
 
 		return &idpUser, true, nil
 	}
@@ -164,15 +187,19 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore,
 	// otherwise there's no IdP user, mark the profile as failed with the
 	// appropriate detail message.
 	var detail string
-	switch fleetVar {
-	case string(fleet.FleetVarHostEndUserIDPUsername), string(fleet.FleetVarHostEndUserIDPUsernameLocalPart):
+	switch {
+	case fleetVar == string(fleet.FleetVarHostEndUserIDPUsername) || fleetVar == string(fleet.FleetVarHostEndUserIDPUsernameLocalPart):
 		detail = fmt.Sprintf("There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleetVar)
-	case string(fleet.FleetVarHostEndUserIDPGroups):
+	case fleetVar == string(fleet.FleetVarHostEndUserIDPGroups):
 		detail = noGroupsErr
-	case string(fleet.FleetVarHostEndUserIDPDepartment):
+	case fleetVar == string(fleet.FleetVarHostEndUserIDPDepartment):
 		detail = noDepartmentErr
-	case string(fleet.FleetVarHostEndUserIDPFullname):
+	case fleetVar == string(fleet.FleetVarHostEndUserIDPFullname):
 		detail = noFullnameErr
+	case strings.HasPrefix(fleetVar, string(fleet.FleetVarHostEndUserIDPCustomPrefix)):
+		detail = fmt.Sprintf("There is no IdP user for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleetVar)
+	default:
+		detail = fmt.Sprintf("There is no IdP data for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleetVar)
 	}
 	return nil, false, onError(detail)
 }

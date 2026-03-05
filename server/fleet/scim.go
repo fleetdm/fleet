@@ -8,6 +8,9 @@ import (
 // SCIMMaxFieldLength is the default maximum length for SCIM fields
 const SCIMMaxFieldLength = 255
 
+// SCIMCustomAttributeMaxValueLength is the maximum length for custom attribute values
+const SCIMCustomAttributeMaxValueLength = 1024
+
 // SCIMValidationError is returned when a SCIM field fails validation (e.g., exceeds max length).
 type SCIMValidationError struct {
 	Field   string
@@ -20,16 +23,25 @@ func (e *SCIMValidationError) Error() string {
 
 // ScimUser represents a SCIM user in the database
 type ScimUser struct {
-	ID         uint      `db:"id"`
-	ExternalID *string   `db:"external_id"`
-	UserName   string    `db:"user_name"`
-	GivenName  *string   `db:"given_name"`
-	FamilyName *string   `db:"family_name"`
-	Department *string   `db:"department"`
-	Active     *bool     `db:"active"`
-	UpdatedAt  time.Time `db:"updated_at"`
-	Emails     []ScimUserEmail
-	Groups     []ScimUserGroup
+	ID               uint      `db:"id"`
+	ExternalID       *string   `db:"external_id"`
+	UserName         string    `db:"user_name"`
+	GivenName        *string   `db:"given_name"`
+	FamilyName       *string   `db:"family_name"`
+	Department       *string   `db:"department"`
+	Manager          *string   `db:"manager"`
+	Active           *bool     `db:"active"`
+	UpdatedAt        time.Time `db:"updated_at"`
+	Emails           []ScimUserEmail
+	Groups           []ScimUserGroup
+	CustomAttributes []ScimUserCustomAttribute
+}
+
+// ScimUserCustomAttribute represents a custom key-value attribute from the IdP
+type ScimUserCustomAttribute struct {
+	ScimUserID uint   `db:"scim_user_id"`
+	Name       string `db:"name"`
+	Value      string `db:"value"`
 }
 
 type ScimUserGroup struct {
