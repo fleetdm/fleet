@@ -17,7 +17,6 @@ import recoveryLockPasswordAPI from "services/entities/recovery_lock_password";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
 import PageDescription from "components/PageDescription";
@@ -78,6 +77,7 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
 
   const onUpdateRecoveryLockPassword = async () => {
     try {
+      // TODO - use response to set state of checkbox, once confirmed it will be there.
       await recoveryLockPasswordAPI.updateRecoveryLockPassword(
         enableRecoveryLockPassword,
         currentTeamId
