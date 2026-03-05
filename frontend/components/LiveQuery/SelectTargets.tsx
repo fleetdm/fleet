@@ -418,6 +418,11 @@ const SelectTargets = ({
     return (
       <>
         {entityType && <h3>{capitalize(displayType)}</h3>}
+        {isTeamsSection && !!disabledIds?.size && (
+          <p className={`${baseClass}__team-help-text`}>
+            Results limited to fleets you can access.
+          </p>
+        )}
         {isSearchEnabled && (
           <>
             <SearchField

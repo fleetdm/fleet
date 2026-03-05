@@ -434,6 +434,74 @@ describe("SelectTargets - team disabling", () => {
     });
   });
 
+  describe("helper text visibility", () => {
+    it("shows helper text when some fleets are disabled", async () => {
+      const plainObserver = createMockUser({
+        global_role: "observer",
+        teams: [],
+      });
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            currentUser: plainObserver,
+            isPremiumTier: true,
+            isOnGlobalTeam: true,
+          },
+        },
+      });
+
+      render(
+        <SelectTargets
+          {...defaultProps}
+          isObserverCanRunQuery={false}
+          queryTeamId={1}
+        />
+      );
+
+      await waitFor(() => {
+        expect(
+          screen.getByText("Results limited to fleets you can access.")
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("does not show helper text when no fleets are disabled", async () => {
+      const globalAdmin = createMockUser({
+        global_role: "admin",
+        teams: [],
+      });
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            currentUser: globalAdmin,
+            isPremiumTier: true,
+            isOnGlobalTeam: true,
+          },
+        },
+      });
+
+      render(
+        <SelectTargets
+          {...defaultProps}
+          isObserverCanRunQuery={false}
+          queryTeamId={1}
+        />
+      );
+
+      // Wait for teams to render to confirm loading is done before asserting absence
+      await waitFor(() => {
+        expect(getTeamButton("Team Alpha")).toBeInTheDocument();
+      });
+      expect(
+        screen.queryByText("Results limited to fleets you can access.")
+      ).not.toBeInTheDocument();
+    });
+  });
+
   describe("global observer+", () => {
     const globalObserverPlus = createMockUser({
       global_role: "observer_plus",
