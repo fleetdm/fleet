@@ -6025,6 +6025,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicySpecConditionalAccessBypassEn
 				Query:                          "SELECT 1",
 				Team:                           teamName,
 				ConditionalAccessBypassEnabled: tc.createBypass,
+				Type:                           fleet.PolicyTypeDynamic,
 			}
 
 			applyResp := applyPolicySpecsResponse{}
@@ -26402,7 +26403,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 	ctx := context.Background()
 
 	// team tests and no team tests
-	_, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Team 1"})
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Team 1" + t.Name()})
 	require.NoError(t, err)
 
 	t.Run("no_team_patch_policy", func(t *testing.T) {
@@ -26564,5 +26565,109 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Equal(t, "dynamic", getPolicyResp.Policy.Type)
 		require.Empty(t, getPolicyResp.Policy.PatchSoftware)
 		require.Empty(t, getPolicyResp.Policy.PatchSoftwareTitleID)
+	})
+
+	t.Run("batch team patch policy", func(t *testing.T) {
+		startFMAServers(t, s.ds)
+
+		getActiveTitleForTeam := func(teamID uint, titleName string) fleet.SoftwareTitleListResult {
+			var resp listSoftwareTitlesResponse
+			s.DoJSON(
+				"GET", "/api/latest/fleet/software/titles",
+				listSoftwareTitlesRequest{},
+				http.StatusOK, &resp,
+				"per_page", "1",
+				"order_key", "name",
+				"order_direction", "desc",
+				"available_for_install", "true",
+				"team_id", fmt.Sprintf("%d", teamID),
+				"query", titleName,
+			)
+			require.Equal(t, 1, resp.Count)
+			return resp.SoftwareTitles[0]
+		}
+
+		var resp batchSetSoftwareInstallersResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}}, TeamName: team.Name},
+			http.StatusAccepted, &resp,
+			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+
+		spec := &fleet.PolicySpec{
+			Name:                   "team patch policy",
+			Query:                  "SELECT 1",
+			Team:                   team.Name,
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "zoom/windows",
+		}
+
+		applyResp := applyPolicySpecsResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/spec/policies",
+			applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
+			http.StatusOK, &applyResp,
+		)
+
+		title := getActiveTitleForTeam(team.ID, "zoom")
+
+		var listPolResp = listTeamPoliciesResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		require.Len(t, listPolResp.Policies, 1)
+		require.NotNil(t, listPolResp.Policies[0].PatchSoftware)
+		require.Equal(t, title.ID, listPolResp.Policies[0].PatchSoftware.SoftwareTitleID)
+		require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
+
+		// now enable automation on the policy
+		spec = &fleet.PolicySpec{
+			Name:                   "team patch policy",
+			Query:                  "SELECT 1",
+			Team:                   team.Name,
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "zoom/windows",
+			SoftwareTitleID:        ptr.Uint(title.ID),
+		}
+
+		applyResp = applyPolicySpecsResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/spec/policies",
+			applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
+			http.StatusOK, &applyResp,
+		)
+
+		title = getActiveTitleForTeam(team.ID, "zoom")
+
+		listPolResp = listTeamPoliciesResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		require.Len(t, listPolResp.Policies, 1)
+		require.NotNil(t, listPolResp.Policies[0].PatchSoftware)
+		require.Equal(t, title.ID, listPolResp.Policies[0].PatchSoftware.SoftwareTitleID)
+		require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
+		// This is only set if the automation is enable
+		require.Equal(t, title.ID, listPolResp.Policies[0].InstallSoftware.SoftwareTitleID)
+
+		// Now disable the automation
+		spec = &fleet.PolicySpec{
+			Name:                   "team patch policy",
+			Query:                  "SELECT 1",
+			Team:                   team.Name,
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "zoom/windows",
+		}
+
+		applyResp = applyPolicySpecsResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/spec/policies",
+			applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
+			http.StatusOK, &applyResp,
+		)
+
+		title = getActiveTitleForTeam(team.ID, "zoom")
+
+		listPolResp = listTeamPoliciesResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		require.Len(t, listPolResp.Policies, 1)
+		require.NotNil(t, listPolResp.Policies[0].PatchSoftware)
+		require.Equal(t, title.ID, listPolResp.Policies[0].PatchSoftware.SoftwareTitleID)
+		require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
+		require.Nil(t, listPolResp.Policies[0].InstallSoftware)
 	})
 }

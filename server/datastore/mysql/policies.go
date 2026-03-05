@@ -299,7 +299,7 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 	}
 
 	if err := loadLabelsForPolicies(ctx, q, []*fleet.Policy{&policy}); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "laoding policy labels")
+		return nil, ctxerr.Wrap(ctx, err, "loading policy labels")
 	}
 
 	return &policy, nil
@@ -1239,6 +1239,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 	teamIDToPolicies := make(map[*uint][]*fleet.PolicySpec, 1)
 	softwareInstallerIDs := make(map[*uint]map[uint]*uint) // teamID -> titleID -> softwareInstallerID
 	vppAppsTeamsIDs := make(map[*uint]map[uint]*uint)      // teamID -> titleID -> vppAppsTeamsID
+	fmaTitleIDs := make(map[*uint]map[string]*uint)        // teamID -> FMA slug -> titleID
 	vppTitleIDs := make(map[uint]struct{})                 // set when a title is a VPP app rather than a software installer
 
 	// Get the team IDs
@@ -1270,6 +1271,25 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 	// Get software installer ids + VPP apps teams IDs from software title IDs.
 	for _, spec := range specs {
+
+		if spec.FleetMaintainedAppSlug != "" {
+			var fmaTitleID *uint
+			err := sqlx.GetContext(ctx, queryerContext, &fmaTitleID, `
+			SELECT si.title_id FROM software_installers si
+						JOIN fleet_maintained_apps fma ON si.fleet_maintained_app_id = fma.id
+						WHERE fma.slug = ?
+						AND si.global_or_team_id = ?
+			`, spec.FleetMaintainedAppSlug, teamNameToID[spec.Team])
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get fma title id")
+			}
+			if len(fmaTitleIDs[teamNameToID[spec.Team]]) == 0 {
+				fmaTitleIDs[teamNameToID[spec.Team]] = make(map[string]*uint)
+			}
+			fmaTitleIDs[teamNameToID[spec.Team]][spec.FleetMaintainedAppSlug] = fmaTitleID
+
+		}
+
 		if spec.SoftwareTitleID == nil || *spec.SoftwareTitleID == 0 {
 			continue
 		}
@@ -1366,8 +1386,10 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		    script_id,
 			conditional_access_enabled,
 			conditional_access_bypass_enabled,
-			checksum
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)
+			checksum,
+			type,
+			patch_software_title_id
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
@@ -1380,7 +1402,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			vpp_apps_teams_id = VALUES(vpp_apps_teams_id),
 			script_id = VALUES(script_id),
 			conditional_access_enabled = VALUES(conditional_access_enabled),
-			conditional_access_bypass_enabled = VALUES(conditional_access_bypass_enabled)
+			conditional_access_bypass_enabled = VALUES(conditional_access_bypass_enabled),
+			type = VALUES(type),
+			patch_software_title_id = VALUES(patch_software_title_id)
 		`, policiesChecksumComputedColumn(),
 		)
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -1404,12 +1428,14 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					spec.ConditionalAccessBypassEnabled = ptr.Bool(true)
 				}
 
+				fmaTitleID := fmaTitleIDs[teamNameToID[spec.Team]][spec.FleetMaintainedAppSlug]
+
 				res, err := tx.ExecContext(
 					ctx,
 					query,
 					spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamID, spec.Platform, spec.Critical,
 					spec.CalendarEventsEnabled, softwareInstallerID, vppAppsTeamsID, scriptID, spec.ConditionalAccessEnabled,
-					spec.ConditionalAccessBypassEnabled,
+					spec.ConditionalAccessBypassEnabled, spec.Type, fmaTitleID,
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
