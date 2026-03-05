@@ -1397,7 +1397,8 @@ func (pb *ProfileBimap) add(wantedProfile, currentProfile *fleet.MDMAppleProfile
 type NewActivityFunc = fleet.NewActivityFunc
 
 func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger *slog.Logger,
-	newActivityFn NewActivityFunc) error {
+	newActivityFn NewActivityFunc,
+) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching app config")
@@ -1511,7 +1512,8 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 // turnOffMDMIfAPNSFailed checks if the error is an APNSDeliveryError and turns off MDM for the failed devices.
 // Returns a boolean value to indicate whether or not MDM was turned off.
 func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, logger *slog.Logger, newActivityFn NewActivityFunc) (bool,
-	error) {
+	error,
+) {
 	var e *APNSDeliveryError
 	if !errors.As(err, &e) {
 		return false, nil
@@ -1622,17 +1624,24 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 
 	errs := make(map[string]error, 3)
 	if macOSUpdates.MinimumVersion.Value != "" {
+		// TODO: Post-enrollment, admins have a much wider choice of versions that Apple supports. Do we
+		// want to allow admins to set macOS versions that aren't supported in DEP if they opt not to
+		// update new hosts? How do we want to address this nuance in docs/UI? What about iOS/iPadOS?
 		if err := gdmf.ValidateAppleSupportedOSVersion("macos", macOSUpdates.MinimumVersion.Value, macOSUpdates.UpdateNewHosts.Value); err != nil {
 			errs["mdm.macos_updates.minimum_version"] = errors.New(fleet.AppleOSVersionUnsupportedMessage)
 		}
 	}
 	if iOSUpdates.MinimumVersion.Value != "" {
-		if err := gdmf.ValidateAppleSupportedOSVersion("ios", iOSUpdates.MinimumVersion.Value, iOSUpdates.UpdateNewHosts.Value); err != nil {
+		// iOS always updates new hosts to latest if minimum version is set, so we need to pass true
+		// for the includeDEP parameter to validate against public asset sets
+		if err := gdmf.ValidateAppleSupportedOSVersion("ios", iOSUpdates.MinimumVersion.Value, true); err != nil {
 			errs["mdm.ios_updates.minimum_version"] = errors.New(fleet.AppleOSVersionUnsupportedMessage)
 		}
 	}
 	if iPadOSUpdates.MinimumVersion.Value != "" {
-		if err := gdmf.ValidateAppleSupportedOSVersion("ipados", iPadOSUpdates.MinimumVersion.Value, iPadOSUpdates.UpdateNewHosts.Value); err != nil {
+		// iPadOS always updates new hosts to latest if minimum version is set, so we need to pass true
+		// for the includeDEP parameter to validate against public asset sets
+		if err := gdmf.ValidateAppleSupportedOSVersion("ipados", iPadOSUpdates.MinimumVersion.Value, true); err != nil {
 			errs["mdm.ipados_updates.minimum_version"] = errors.New(fleet.AppleOSVersionUnsupportedMessage)
 		}
 	}

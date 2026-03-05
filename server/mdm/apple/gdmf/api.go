@@ -23,6 +23,14 @@ import (
 
 const baseURL = "https://gdmf.apple.com/v2/pmv"
 
+// TODO: Interested in feedback from the team. Not sure if we want to go with caching and if so what
+// approach we want to take, e.g., in-memory per instance (as illustrated in this PR), redis, or
+// DB-based. We don't expect the Apple assets sets to change very frequently so there is definitely
+// a benefit to caching in terms of speeding up MDM enrollments as well as GitOps. On the other
+// hand, per instance caching without some form of synchronization could lead to some inconsistent
+// behavior when changes do occur. In the meantime, I've implemented a simple in-memory cache with a
+// TTL and a force reset option that can be used when retrieving the asset metadata to mitigate some
+// of the consistency issues, just to see what that might look like.
 var cache = struct {
 	assetMetadata *AssetMetadata
 	lastUpdated   time.Time
@@ -120,7 +128,11 @@ func ValidateAppleSupportedOSVersion(platform string, version string, includeDEP
 	if err != nil {
 		return fmt.Errorf("retrieving asset metadata: %w", err)
 	}
-
+	// TODO: Post-enrollment, admins have a much wider choice of versions that Apple supports. Do we
+	// want to allow admins to set macOS versions that aren't supported in DEP if they opt not to
+	// update new hosts? How do we want to address this nuance in docs/UI? What about iOS/iPadOS?
+	// We probably shouldn't let Fleet-specific business rules bleed into this package so we'll
+	// need to address this at the caller level via the includeDEP parameter.
 	as := am.AssetSets
 	if includeDEP {
 		as = am.PublicAssetSets
