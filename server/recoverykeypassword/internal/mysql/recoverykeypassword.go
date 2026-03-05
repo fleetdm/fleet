@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/recoverykeypassword"
 	"github.com/fleetdm/fleet/v4/server/recoverykeypassword/internal/password"
@@ -56,14 +57,14 @@ func (ds *Datastore) SetHostRecoveryKeyPassword(ctx context.Context, hostID uint
 
 	const stmt = `
 		INSERT INTO host_recovery_key_passwords (host_id, encrypted_password, status, operation_type)
-		VALUES (?, ?, 'pending', 'install')
+		VALUES (?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			encrypted_password = VALUES(encrypted_password),
 			status = VALUES(status),
 			operation_type = VALUES(operation_type)
 	`
 
-	if _, err := ds.primary.ExecContext(ctx, stmt, hostID, encrypted); err != nil {
+	if _, err := ds.primary.ExecContext(ctx, stmt, hostID, encrypted, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "storing recovery key password")
 	}
 
