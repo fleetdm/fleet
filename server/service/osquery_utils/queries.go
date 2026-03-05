@@ -1149,7 +1149,7 @@ SELECT
   '' AS arch,
   installed_path AS installed_path
 FROM go_binaries
-WHERE version <> '' AND version <> '(devel)'`,
+WHERE version <> ''`,
 	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
 	Discovery: discoveryTable("go_binaries"),
 	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
