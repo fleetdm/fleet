@@ -2123,7 +2123,7 @@ func (svc *Service) shouldOSUpdateForDEPEnrollment(ctx context.Context, m fleet.
 
 	minVersion := settings.MinimumVersion.Value
 	isSetMinVersion := settings.MinimumVersion.Set && settings.MinimumVersion.Valid && minVersion != ""
-	logs := []interface{}{
+	logs := []any{
 		"platform", platform,
 		"minimum_version", minVersion,
 		"current_version", m.OSVersion,
