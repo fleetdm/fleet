@@ -549,3 +549,33 @@ func TestGoogleCalendarApiKeyMarshalUnmarshal(t *testing.T) {
 		require.Contains(t, string(data), `"api_key_json":"********"`)
 	})
 }
+
+func TestAppConfigCopyWindowsEnforcement(t *testing.T) {
+	ac := &AppConfig{
+		MDM: MDM{
+			WindowsEnforcement: WindowsEnforcementSettings{
+				CustomSettings: optjson.SetSlice([]MDMProfileSpec{
+					{Path: "cis-registry.yml"},
+					{Path: "cis-audit.yml"},
+				}),
+			},
+		},
+	}
+	clone := ac.Copy()
+	require.NotNil(t, clone)
+	require.NotSame(t, ac, clone)
+	require.True(t, clone.MDM.WindowsEnforcement.CustomSettings.Set)
+	require.Len(t, clone.MDM.WindowsEnforcement.CustomSettings.Value, 2)
+	require.Equal(t, "cis-registry.yml", clone.MDM.WindowsEnforcement.CustomSettings.Value[0].Path)
+
+	// Verify deep copy - modifying clone doesn't affect original
+	clone.MDM.WindowsEnforcement.CustomSettings.Value[0].Path = "changed.yml"
+	require.Equal(t, "cis-registry.yml", ac.MDM.WindowsEnforcement.CustomSettings.Value[0].Path)
+}
+
+func TestAppConfigCopyWindowsEnforcementUnset(t *testing.T) {
+	ac := &AppConfig{}
+	clone := ac.Copy()
+	require.NotNil(t, clone)
+	require.False(t, clone.MDM.WindowsEnforcement.CustomSettings.Set)
+}

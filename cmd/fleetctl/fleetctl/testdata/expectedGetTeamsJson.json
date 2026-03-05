@@ -57,6 +57,9 @@
           "minimum_version": null,
           "update_new_hosts": null
         },
+        "windows_enforcement": {
+          "custom_settings": null
+        },
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
           "custom_settings": null
@@ -133,6 +136,9 @@
           "deadline": null,
           "minimum_version": null,
           "update_new_hosts": null
+        },
+        "windows_enforcement": {
+          "custom_settings": null
         },
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
@@ -232,6 +238,9 @@
           "minimum_version": "12.3.1",
           "update_new_hosts": null
         },
+        "windows_enforcement": {
+          "custom_settings": null
+        },
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
           "custom_settings": null
@@ -323,6 +332,9 @@
           "deadline": "2021-12-14",
           "minimum_version": "12.3.1",
           "update_new_hosts": null
+        },
+        "windows_enforcement": {
+          "custom_settings": null
         },
         "windows_require_bitlocker_pin": false,
         "windows_settings": {

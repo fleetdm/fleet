@@ -48,6 +48,8 @@ spec:
         grace_period_days: null
       windows_settings:
         custom_settings: null
+      windows_enforcement:
+        custom_settings: null
     scripts: null
     secrets: null
     webhook_settings:
@@ -99,6 +101,8 @@ spec:
         deadline_days: null
         grace_period_days: null
       windows_settings:
+        custom_settings: null
+      windows_enforcement:
         custom_settings: null
     scripts: null
     secrets: null

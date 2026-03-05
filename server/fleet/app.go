@@ -254,6 +254,8 @@ type MDM struct {
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
+	WindowsEnforcement WindowsEnforcementSettings `json:"windows_enforcement"`
+
 	VolumePurchasingProgram optjson.Slice[MDMAppleVolumePurchasingProgramInfo] `json:"volume_purchasing_program"`
 
 	// AndroidEnabledAndConfigured is set to true if Fleet successfully bound to an Android Management Enterprise
@@ -841,6 +843,14 @@ func (c *AppConfig) Copy() *AppConfig {
 			windowsSettings[i] = *mps.Copy()
 		}
 		clone.MDM.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
+	}
+
+	if c.MDM.WindowsEnforcement.CustomSettings.Set {
+		enforcementSettings := make([]MDMProfileSpec, len(c.MDM.WindowsEnforcement.CustomSettings.Value))
+		for i, mps := range c.MDM.WindowsEnforcement.CustomSettings.Value {
+			enforcementSettings[i] = *mps.Copy()
+		}
+		clone.MDM.WindowsEnforcement.CustomSettings = optjson.SetSlice(enforcementSettings)
 	}
 
 	if c.MDM.AndroidSettings.CustomSettings.Set {

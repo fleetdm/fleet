@@ -9,6 +9,7 @@ import { ILabelSummary } from "interfaces/label";
 
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import mdmAPI from "services/entities/mdm";
+import enforcementAPI from "services/entities/enforcement";
 
 // @ts-ignore
 import Button from "components/buttons/Button";
@@ -52,6 +53,8 @@ const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
           .json for Android.
           <br />
           .xml for Windows.
+          <br />
+          .yml and .yaml for native OS settings (all platforms).
         </>
       }
     />
@@ -67,7 +70,7 @@ const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
       </label>
     </Button>
     <input
-      accept=".json,.mobileconfig,application/x-apple-aspen-config,.xml"
+      accept=".json,.mobileconfig,application/x-apple-aspen-config,.xml,.yml,.yaml"
       id="upload-profile"
       type="file"
       onChange={(e) => {
@@ -158,16 +161,23 @@ const AddProfileModal = ({
 
     setIsLoading(true);
     try {
-      const labelKey = generateLabelKey(
-        selectedTargetType,
-        selectedCustomTarget,
-        selectedLabels
-      );
-      await mdmAPI.uploadProfile({
-        file,
-        teamId: currentTeamId,
-        ...labelKey,
-      });
+      if (fileDetails?.profile_type === "enforcement") {
+        await enforcementAPI.uploadProfile({
+          file,
+          teamId: currentTeamId,
+        });
+      } else {
+        const labelKey = generateLabelKey(
+          selectedTargetType,
+          selectedCustomTarget,
+          selectedLabels
+        );
+        await mdmAPI.uploadProfile({
+          file,
+          teamId: currentTeamId,
+          ...labelKey,
+        });
+      }
       renderFlash("success", "Successfully uploaded.");
       onUpload();
     } catch (e) {

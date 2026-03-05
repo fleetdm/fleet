@@ -310,6 +310,8 @@ type TeamMDM struct {
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
+	WindowsEnforcement WindowsEnforcementSettings `json:"windows_enforcement"`
+
 	AndroidSettings AndroidSettings `json:"android_settings"`
 	// NOTE: TeamSpecMDM must be kept in sync with TeamMDM.
 
@@ -351,6 +353,13 @@ func (t *TeamMDM) Copy() *TeamMDM {
 			windowsSettings[i] = *mps.Copy()
 		}
 		clone.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
+	}
+	if t.WindowsEnforcement.CustomSettings.Set {
+		enforcementSettings := make([]MDMProfileSpec, len(t.WindowsEnforcement.CustomSettings.Value))
+		for i, mps := range t.WindowsEnforcement.CustomSettings.Value {
+			enforcementSettings[i] = *mps.Copy()
+		}
+		clone.WindowsEnforcement.CustomSettings = optjson.SetSlice(enforcementSettings)
 	}
 	if t.AndroidSettings.CustomSettings.Set {
 		androidSettings := make([]MDMProfileSpec, len(t.AndroidSettings.CustomSettings.Value))
@@ -395,6 +404,8 @@ type TeamSpecMDM struct {
 	MacOSSetup    MacOSSetup             `json:"macos_setup"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
+
+	WindowsEnforcement WindowsEnforcementSettings `json:"windows_enforcement"`
 
 	AndroidSettings AndroidSettings `json:"android_settings"`
 

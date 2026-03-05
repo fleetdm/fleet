@@ -728,6 +728,14 @@ type NewMDMInvalidJSONConfigProfileFunc func(ctx context.Context, teamID uint, e
 
 type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error)
 
+type ListWindowsEnforcementProfilesFunc func(ctx context.Context, teamID *uint) ([]*fleet.WindowsEnforcementProfile, error)
+
+type NewWindowsEnforcementProfileFunc func(ctx context.Context, teamID uint, name string, rawPolicy []byte) (*fleet.WindowsEnforcementProfile, error)
+
+type GetWindowsEnforcementProfileFunc func(ctx context.Context, profileUUID string) (*fleet.WindowsEnforcementProfile, error)
+
+type DeleteWindowsEnforcementProfileFunc func(ctx context.Context, profileUUID string) error
+
 type BatchSetMDMProfilesFunc func(ctx context.Context, teamID *uint, teamName *string, profiles []fleet.MDMProfileBatchPayload, dryRun bool, skipBulkPending bool, assumeEnabled *bool, noCache bool) error
 
 type LinuxHostDiskEncryptionStatusFunc func(ctx context.Context, host fleet.Host) (fleet.HostMDMDiskEncryption, error)
@@ -1950,6 +1958,18 @@ type Service struct {
 
 	ListMDMConfigProfilesFunc        ListMDMConfigProfilesFunc
 	ListMDMConfigProfilesFuncInvoked bool
+
+	ListWindowsEnforcementProfilesFunc        ListWindowsEnforcementProfilesFunc
+	ListWindowsEnforcementProfilesFuncInvoked bool
+
+	NewWindowsEnforcementProfileFunc        NewWindowsEnforcementProfileFunc
+	NewWindowsEnforcementProfileFuncInvoked bool
+
+	GetWindowsEnforcementProfileFunc        GetWindowsEnforcementProfileFunc
+	GetWindowsEnforcementProfileFuncInvoked bool
+
+	DeleteWindowsEnforcementProfileFunc        DeleteWindowsEnforcementProfileFunc
+	DeleteWindowsEnforcementProfileFuncInvoked bool
 
 	BatchSetMDMProfilesFunc        BatchSetMDMProfilesFunc
 	BatchSetMDMProfilesFuncInvoked bool
@@ -4670,6 +4690,34 @@ func (s *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt f
 	s.ListMDMConfigProfilesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListMDMConfigProfilesFunc(ctx, teamID, opt)
+}
+
+func (s *Service) ListWindowsEnforcementProfiles(ctx context.Context, teamID *uint) ([]*fleet.WindowsEnforcementProfile, error) {
+	s.mu.Lock()
+	s.ListWindowsEnforcementProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListWindowsEnforcementProfilesFunc(ctx, teamID)
+}
+
+func (s *Service) NewWindowsEnforcementProfile(ctx context.Context, teamID uint, name string, rawPolicy []byte) (*fleet.WindowsEnforcementProfile, error) {
+	s.mu.Lock()
+	s.NewWindowsEnforcementProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewWindowsEnforcementProfileFunc(ctx, teamID, name, rawPolicy)
+}
+
+func (s *Service) GetWindowsEnforcementProfile(ctx context.Context, profileUUID string) (*fleet.WindowsEnforcementProfile, error) {
+	s.mu.Lock()
+	s.GetWindowsEnforcementProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetWindowsEnforcementProfileFunc(ctx, profileUUID)
+}
+
+func (s *Service) DeleteWindowsEnforcementProfile(ctx context.Context, profileUUID string) error {
+	s.mu.Lock()
+	s.DeleteWindowsEnforcementProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteWindowsEnforcementProfileFunc(ctx, profileUUID)
 }
 
 func (s *Service) BatchSetMDMProfiles(ctx context.Context, teamID *uint, teamName *string, profiles []fleet.MDMProfileBatchPayload, dryRun bool, skipBulkPending bool, assumeEnabled *bool, noCache bool) error {

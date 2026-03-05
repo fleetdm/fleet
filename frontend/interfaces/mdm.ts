@@ -157,11 +157,14 @@ export interface IProfileLabel {
   broken?: boolean;
 }
 
+export type ProfileType = "mdm" | "enforcement";
+
 export interface IMdmProfile {
   profile_uuid: string;
   team_id: number;
   name: string;
   platform: ProfilePlatform;
+  profile_type?: ProfileType;
   identifier: string | null; // null for windows profiles
   created_at: string;
   updated_at: string;

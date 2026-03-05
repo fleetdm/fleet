@@ -1,0 +1,3 @@
+Added Windows enforcement ConfigReceiver to Orbit. Receives enforcement policies via OrbitConfig,
+applies settings through native Windows APIs (registry, secedit, SCM, auditpol), and reports
+compliance status back to Fleet via a built-in osquery table.

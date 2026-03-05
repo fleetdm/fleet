@@ -113,6 +113,9 @@
       "windows_settings": {
         "custom_settings": null
       },
+      "windows_enforcement": {
+        "custom_settings": null
+      },
       "android_settings": {
         "certificates": null,
         "custom_settings": null

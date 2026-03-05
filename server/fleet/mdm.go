@@ -22,6 +22,7 @@ const (
 	MDMAppleProfileUUIDPrefix     = "a"
 	MDMWindowsProfileUUIDPrefix   = "w"
 	MDMAndroidProfileUUIDPrefix   = "g"
+	WindowsEnforcementUUIDPrefix  = "e"
 
 	// RefetchMDMUnenrollCriticalQueryDuration is the duration to set the
 	// RefetchCriticalQueriesUntil field when migrating a device from a

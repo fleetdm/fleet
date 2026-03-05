@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+
 	"net/http"
 	"net/url"
 	"os"
@@ -36,6 +37,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/bitlocker"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	enforcementpkg "github.com/fleetdm/fleet/v4/orbit/pkg/enforcement"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/installer"
@@ -48,6 +50,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	setupexperience "github.com/fleetdm/fleet/v4/orbit/pkg/setup_experience"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
+	enforcementtable "github.com/fleetdm/fleet/v4/orbit/pkg/table/enforcement"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_logs"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/orbit_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
@@ -1227,6 +1230,18 @@ func main() {
 			defer comWorker.Close()
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(
 				windowsMDMBitlockerCommandFrequency, orbitClient, comWorker))
+
+			// Windows enforcement ConfigReceiver
+			enforcementCache := enforcementpkg.NewComplianceCache()
+			enforcementtable.SetCache(enforcementCache)
+			enforcementHandlers := map[string]enforcementpkg.Handler{
+				"registry": enforcementpkg.NewRegistryHandler(),
+				"secpol":   enforcementpkg.NewSecpolHandler(),
+				"audit":    enforcementpkg.NewAuditHandler(),
+				"service":  enforcementpkg.NewServiceHandler(),
+			}
+			enforcementRunner := enforcementpkg.NewRunner(enforcementHandlers, enforcementCache)
+			orbitClient.RegisterConfigReceiver(enforcementRunner)
 		case "linux":
 			orbitClient.RegisterConfigReceiver(luks.New(orbitClient))
 		}

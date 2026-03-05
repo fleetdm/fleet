@@ -158,6 +158,11 @@ export default {
   MDM_PROFILES: `/${API_VERSION}/fleet/mdm/profiles`,
   MDM_PROFILE: (id: string) => `/${API_VERSION}/fleet/mdm/profiles/${id}`,
 
+  // Windows enforcement profile endpoints
+  ENFORCEMENT_PROFILES: `/${API_VERSION}/fleet/enforcement/profiles`,
+  ENFORCEMENT_PROFILE: (id: string) =>
+    `/${API_VERSION}/fleet/enforcement/profiles/${id}`,
+
   MDM_UPDATE_APPLE_SETTINGS: `/${API_VERSION}/fleet/mdm/apple/settings`,
   PROFILES_STATUS_SUMMARY: `/${API_VERSION}/fleet/configuration_profiles/summary`,
   DISK_ENCRYPTION: `/${API_VERSION}/fleet/disk_encryption`,

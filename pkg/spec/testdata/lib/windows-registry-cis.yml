@@ -1,0 +1,5 @@
+registry:
+  - path: HKLM\SOFTWARE\Policies\Microsoft\Windows\System
+    name: EnableSmartScreen
+    type: dword
+    value: 1

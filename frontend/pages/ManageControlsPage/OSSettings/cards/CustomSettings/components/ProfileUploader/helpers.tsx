@@ -10,6 +10,7 @@ export interface IParseFileResult {
   name: string;
   platform: string;
   ext: string;
+  profile_type: "mdm" | "enforcement";
 }
 
 export const parseFile = async (file: File): Promise<IParseFileResult> => {
@@ -24,13 +25,28 @@ export const parseFile = async (file: File): Promise<IParseFileResult> => {
         name,
         platform: "Windows",
         ext,
+        profile_type: "mdm",
       };
     }
     case "mobileconfig": {
-      return { name, platform: "macOS, iOS, iPadOS", ext };
+      return { name, platform: "macOS, iOS, iPadOS", ext, profile_type: "mdm" };
     }
     case "json": {
-      return { name, platform: "Android or macOS(DDM)", ext };
+      return {
+        name,
+        platform: "Android or macOS(DDM)",
+        ext,
+        profile_type: "mdm",
+      };
+    }
+    case "yml":
+    case "yaml": {
+      return {
+        name,
+        platform: "Native settings (all platforms)",
+        ext,
+        profile_type: "enforcement",
+      };
     }
     default: {
       throw new Error(`Invalid file type: ${ext}`);
