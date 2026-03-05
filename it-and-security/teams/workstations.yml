@@ -151,10 +151,14 @@ policies:
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
+  # ISO 42001 AI compliance policies (all platforms)
+  - path: ../lib/all/policies/iso42001-ai-compliance.policies.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
   - path: ../lib/macos/queries/collect-santa-denied-logs.yml
   - path: ../lib/all/queries/dex-queries.yml
+  # ISO 42001 AI discovery & inventory queries (all platforms)
+  - path: ../lib/all/queries/iso42001-ai-inventory.queries.yml
 software:
   packages:
     # macOS apps
