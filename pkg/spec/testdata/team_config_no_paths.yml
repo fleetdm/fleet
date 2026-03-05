@@ -39,6 +39,7 @@ controls:
   scripts:
     - path: ./lib/collect-fleetd-logs.sh
   enable_disk_encryption: true
+  enable_recovery_lock_password: true
   windows_require_bitlocker_pin: true
   macos_setup:
     bootstrap_package: null
