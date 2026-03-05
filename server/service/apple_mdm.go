@@ -2123,39 +2123,39 @@ func (svc *Service) shouldOSUpdateForDEPEnrollment(ctx context.Context, m fleet.
 
 	minVersion := settings.MinimumVersion.Value
 	isSetMinVersion := settings.MinimumVersion.Set && settings.MinimumVersion.Valid && minVersion != ""
+	logs := []interface{}{
+		"platform", platform,
+		"minimum_version", minVersion,
+		"current_version", m.OSVersion,
+		"serial", m.Serial,
+	}
 
-	// For macOS hosts, whether to update new hosts during DEP enrollment is determined solely by UpdateNewHosts
+	if platform != "darwin" && !isSetMinVersion {
+		svc.logger.InfoContext(ctx, "checking os updates settings for non-macos platform, minimum version not set, skipping version check", logs...)
+		return false, nil
+	}
+
 	if platform == "darwin" {
 		updateNewHosts := settings.UpdateNewHosts.Set && settings.UpdateNewHosts.Valid && settings.UpdateNewHosts.Value
-
-		if !isSetMinVersion {
-			svc.logger.InfoContext(ctx, "checking os updates settings for macos, MinimumVersion is not set host will be forced to update if UpdateNewHosts is set.",
-				"update_new_hosts", updateNewHosts,
-				"minimum_version", minVersion,
-				"current_version", m.OSVersion,
-				"serial", m.Serial,
-			)
-			return updateNewHosts, nil
-		}
-
-		if !updateNewHosts {
-			svc.logger.InfoContext(ctx, "checking os updates settings for macos, UpdateNewHosts is not set, host will not be forced to update.",
-				"update_new_hosts", updateNewHosts,
-				"minimum_version", minVersion,
-				"current_version", m.OSVersion,
-				"serial", m.Serial,
-			)
+		logs = append(logs, "update_new_hosts", updateNewHosts)
+		switch {
+		case !updateNewHosts:
+			// never update macos if updateNewHosts is false
+			svc.logger.InfoContext(ctx, "checking os updates settings for macos, new hosts should not update", logs...)
 			return false, nil
+		case !isSetMinVersion:
+			// always update macos if updateNewHosts is true and minimum version is not set
+			svc.logger.InfoContext(ctx, "checking os updates settings for macos, new hosts should always update to latest", logs...)
+			return true, nil
+		default:
+			// default to normal version check (require update if less than minimum version)
+			svc.logger.InfoContext(ctx, "checking os updates settings for macos, new hosts should update to latest if below minimum version", logs...)
 		}
 	}
 
 	needsUpdate, err := apple_mdm.IsLessThanVersion(m.OSVersion, minVersion)
 	if err != nil {
-		svc.logger.InfoContext(ctx, "checking os updates settings, cannot compare versions",
-			"serial", m.Serial,
-			"current_version", m.OSVersion,
-			"minimum_version", minVersion,
-		)
+		svc.logger.InfoContext(ctx, "checking os updates settings, cannot compare versions", logs...)
 		return false, nil
 	}
 
