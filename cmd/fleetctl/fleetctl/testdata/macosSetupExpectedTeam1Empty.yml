@@ -18,6 +18,8 @@ spec:
       windows_require_bitlocker_pin: null
       macos_settings:
         custom_settings: null
+      windows_enforcement:
+        custom_settings: null
       android_settings:
         custom_settings: null
         certificates: null
@@ -47,6 +49,8 @@ spec:
         deadline_days: null
         grace_period_days: null
       windows_settings:
+        custom_settings: null
+      windows_enforcement:
         custom_settings: null
     scripts: null
     secrets: null
@@ -70,6 +74,8 @@ spec:
       windows_require_bitlocker_pin: null
       macos_settings:
         custom_settings: null
+      windows_enforcement:
+        custom_settings: null
       android_settings:
         custom_settings: null
         certificates: null
@@ -99,6 +105,8 @@ spec:
         deadline_days: null
         grace_period_days: null
       windows_settings:
+        custom_settings: null
+      windows_enforcement:
         custom_settings: null
     scripts: null
     secrets: null

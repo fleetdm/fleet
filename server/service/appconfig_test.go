@@ -975,6 +975,9 @@ func TestMDMConfig(t *testing.T) {
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
+				WindowsEnforcement: fleet.WindowsEnforcementSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+				},
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
@@ -1028,6 +1031,9 @@ func TestMDMConfig(t *testing.T) {
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
+				WindowsEnforcement: fleet.WindowsEnforcementSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+				},
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
@@ -1062,6 +1068,9 @@ func TestMDMConfig(t *testing.T) {
 				AndroidSettings: fleet.AndroidSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+				},
+				WindowsEnforcement: fleet.WindowsEnforcementSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
@@ -1105,6 +1114,9 @@ func TestMDMConfig(t *testing.T) {
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
+				WindowsEnforcement: fleet.WindowsEnforcementSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+				},
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
@@ -1147,6 +1159,9 @@ func TestMDMConfig(t *testing.T) {
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
+				WindowsEnforcement: fleet.WindowsEnforcementSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+				},
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
@@ -1188,6 +1203,9 @@ func TestMDMConfig(t *testing.T) {
 				AndroidSettings: fleet.AndroidSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+				},
+				WindowsEnforcement: fleet.WindowsEnforcementSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
@@ -1255,6 +1273,9 @@ func TestMDMConfig(t *testing.T) {
 				AndroidSettings: fleet.AndroidSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+				},
+				WindowsEnforcement: fleet.WindowsEnforcementSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
