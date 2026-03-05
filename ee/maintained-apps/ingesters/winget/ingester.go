@@ -377,6 +377,9 @@ func buildUpgradeCodeBasedUninstallScript(upgradeCode string) (string, error) {
 }
 
 func preProcessUninstallScript(uninstallScript, productCode string) (string, error) {
+	if productCode == "" {
+		return uninstallScript, nil
+	}
 	if err := file.ValidatePackageIdentifiers([]string{productCode}, ""); err != nil {
 		return "", err
 	}
