@@ -15927,7 +15927,7 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 	// A truncated (malformed) body within the limit must NOT return 413.
 	// Before the fix, io.ErrUnexpectedEOF from the JSON decoder was incorrectly
 	// converted to PayloadTooLargeError even when the reader had not been exhausted.
-	truncatedLog := []byte(fmt.Sprintf(`{"node_key":%q,"log_type":"status","data":[`, *host.NodeKey)) // missing closing ]}
+	truncatedLog := fmt.Appendf(nil, `{"node_key":%q,"log_type":"status","data":[`, *host.NodeKey) // missing closing ]}
 	s.DoRawNoAuth("POST", "/api/osquery/log", truncatedLog, http.StatusInternalServerError)
 
 	// Body over DefaultMaxOsqueryDistributedWriteSize must be rejected with 413.
@@ -15942,7 +15942,7 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 	withinLimitDist, err := json.Marshal(submitDistributedQueryResultsRequestShim{
 		NodeKey:  *host.NodeKey,
 		Results:  map[string]json.RawMessage{},
-		Statuses: map[string]interface{}{},
+		Statuses: map[string]any{},
 		Messages: map[string]string{},
 		Stats:    map[string]*fleet.Stats{},
 	})
@@ -15950,7 +15950,7 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", withinLimitDist, http.StatusOK)
 
 	// A truncated body within the limit must NOT return 413 (same false-positive guard).
-	truncatedDist := []byte(fmt.Sprintf(`{"node_key":%q,"queries":{"q1":[`, *host.NodeKey)) // missing closing
+	truncatedDist := fmt.Appendf(nil, `{"node_key":%q,"queries":{"q1":[`, *host.NodeKey) // missing closing
 	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", truncatedDist, http.StatusInternalServerError)
 
 	// Verify that Osquery.MaxLogWriteBodySize and MaxDistributedWriteBodySize

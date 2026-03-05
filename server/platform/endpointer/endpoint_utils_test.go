@@ -240,7 +240,7 @@ type testRequestDecoderType struct {
 	Data string `json:"data"`
 }
 
-func (d *testRequestDecoderType) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (d *testRequestDecoderType) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	err := json.NewDecoder(r.Body).Decode(d)
 	return d, err
 }
