@@ -151,13 +151,33 @@ policies:
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
-  # ISO 42001 AI compliance policies (all platforms)
+  # ISO 42001 AI compliance policies (per-platform)
+  - path: ../lib/macos/policies/iso42001-ai-apps-inventory-exists.yml
+  - path: ../lib/macos/policies/iso42001-no-unauthorized-ai-apps.yml
+  - path: ../lib/macos/policies/iso42001-ai-apps-up-to-date.yml
+  - path: ../lib/windows/policies/iso42001-ai-apps-inventory-exists.yml
+  - path: ../lib/windows/policies/iso42001-no-unauthorized-ai-apps.yml
+  - path: ../lib/windows/policies/iso42001-ai-apps-up-to-date.yml
+  - path: ../lib/linux/policies/iso42001-ai-apps-inventory-exists.yml
+  - path: ../lib/linux/policies/iso42001-no-unauthorized-ai-apps.yml
+  - path: ../lib/linux/policies/iso42001-ai-apps-up-to-date.yml
+  # ISO 42001 AI compliance policies (cross-platform)
   - path: ../lib/all/policies/iso42001-ai-compliance.policies.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
   - path: ../lib/macos/queries/collect-santa-denied-logs.yml
   - path: ../lib/all/queries/dex-queries.yml
-  # ISO 42001 AI discovery & inventory queries (all platforms)
+  # ISO 42001 AI discovery & inventory queries (per-platform)
+  - path: ../lib/macos/queries/iso42001-ai-apps-installed.yml
+  - path: ../lib/macos/queries/iso42001-ai-startup-items.yml
+  - path: ../lib/macos/queries/iso42001-ai-app-versions.yml
+  - path: ../lib/windows/queries/iso42001-ai-apps-installed.yml
+  - path: ../lib/windows/queries/iso42001-ai-startup-items.yml
+  - path: ../lib/windows/queries/iso42001-ai-app-versions.yml
+  - path: ../lib/linux/queries/iso42001-ai-apps-installed.yml
+  - path: ../lib/linux/queries/iso42001-ai-startup-items.yml
+  - path: ../lib/linux/queries/iso42001-ai-app-versions.yml
+  # ISO 42001 AI discovery & inventory queries (cross-platform)
   - path: ../lib/all/queries/iso42001-ai-inventory.queries.yml
 software:
   packages:

@@ -1,0 +1,31 @@
+# ISO 42001 - AI startup items (macOS)
+- name: ISO 42001 - AI startup items (macOS)
+  description: >-
+    Detects AI applications configured to start at login on macOS by checking
+    launchd entries for AI-related services. Supports ISO 42001 persistent AI
+    deployment tracking.
+  query: |
+    SELECT
+      name,
+      label AS identifier,
+      program AS executable,
+      run_at_load,
+      'launchd' AS startup_type
+    FROM launchd
+    WHERE label LIKE '%ollama%'
+      OR label LIKE '%lmstudio%'
+      OR label LIKE '%anthropic%'
+      OR label LIKE '%openai%'
+      OR label LIKE '%copilot%'
+      OR label LIKE '%gpt4all%'
+      OR program LIKE '%ollama%'
+      OR program LIKE '%lmstudio%'
+      OR name LIKE '%Ollama%'
+      OR name LIKE '%LM Studio%'
+      OR name LIKE '%Claude%'
+      OR name LIKE '%ChatGPT%';
+  platform: darwin
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot
