@@ -34,7 +34,7 @@ type listWindowsEnforcementProfilesResponse struct {
 
 func (r listWindowsEnforcementProfilesResponse) Error() error { return r.Err }
 
-func listWindowsEnforcementProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func listWindowsEnforcementProfilesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listWindowsEnforcementProfilesRequest)
 	profiles, err := svc.ListWindowsEnforcementProfiles(ctx, req.TeamID)
 	if err != nil {
@@ -70,7 +70,7 @@ type uploadWindowsEnforcementProfileResponse struct {
 
 func (r uploadWindowsEnforcementProfileResponse) Error() error { return r.Err }
 
-func (uploadWindowsEnforcementProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (uploadWindowsEnforcementProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	decoded := uploadWindowsEnforcementProfileRequest{}
 	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
 	if err != nil {
@@ -81,7 +81,7 @@ func (uploadWindowsEnforcementProfileRequest) DecodeRequest(ctx context.Context,
 	}
 	val := r.MultipartForm.Value["team_id"]
 	if len(val) > 0 {
-		teamID, err := strconv.ParseUint(val[0], 10, 64)
+		teamID, err := strconv.ParseUint(val[0], 10, 32)
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: "invalid team_id"}
 		}
@@ -95,7 +95,7 @@ func (uploadWindowsEnforcementProfileRequest) DecodeRequest(ctx context.Context,
 	return &decoded, nil
 }
 
-func uploadWindowsEnforcementProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func uploadWindowsEnforcementProfileEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*uploadWindowsEnforcementProfileRequest)
 
 	ff, err := req.Profile.Open()
@@ -188,7 +188,7 @@ type getWindowsEnforcementProfileResponse struct {
 
 func (r getWindowsEnforcementProfileResponse) Error() error { return r.Err }
 
-func getWindowsEnforcementProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getWindowsEnforcementProfileEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getWindowsEnforcementProfileRequest)
 	profile, err := svc.GetWindowsEnforcementProfile(ctx, req.ProfileUUID)
 	if err != nil {
@@ -236,7 +236,7 @@ type deleteWindowsEnforcementProfileResponse struct {
 
 func (r deleteWindowsEnforcementProfileResponse) Error() error { return r.Err }
 
-func deleteWindowsEnforcementProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func deleteWindowsEnforcementProfileEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteWindowsEnforcementProfileRequest)
 	err := svc.DeleteWindowsEnforcementProfile(ctx, req.ProfileUUID)
 	if err != nil {
@@ -311,7 +311,7 @@ func ReconcileWindowsEnforcement(ctx context.Context, ds fleet.Datastore, logger
 		return ctxerr.Wrap(ctx, err, "bulk upserting host enforcement status")
 	}
 
-	logger.Info(fmt.Sprintf("reconciled windows enforcement: %d to install, %d to remove",
+	logger.InfoContext(ctx, fmt.Sprintf("reconciled windows enforcement: %d to install, %d to remove",
 		len(toInstall), len(toRemove)))
 
 	return nil

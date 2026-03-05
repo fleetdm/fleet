@@ -7,8 +7,8 @@ import "context"
 // SecpolHandler is a stub for non-Windows platforms.
 type SecpolHandler struct{}
 
-func NewSecpolHandler() *SecpolHandler     { return &SecpolHandler{} }
-func (h *SecpolHandler) Name() string      { return "secpol" }
+func NewSecpolHandler() *SecpolHandler { return &SecpolHandler{} }
+func (h *SecpolHandler) Name() string  { return "secpol" }
 func (h *SecpolHandler) Diff(ctx context.Context, rawPolicy []byte) ([]DiffResult, error) {
 	return nil, ErrNotSupported
 }

@@ -17,9 +17,7 @@ export interface IOSSettingsCommonProps {
   onMutation: () => void;
 }
 
-type IOSSettingsCardProps =
-  | IDiskEncryptionProps
-  | ICustomSettingsProps;
+type IOSSettingsCardProps = IDiskEncryptionProps | ICustomSettingsProps;
 
 const OS_SETTINGS_NAV_ITEMS: ISideNavItem<IOSSettingsCardProps>[] = [
   {

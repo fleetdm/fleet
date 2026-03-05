@@ -135,22 +135,22 @@ const CustomSettings = ({
 
   // Merge MDM and enforcement profiles into a single list
   const mergedProfiles: IMdmProfile[] = React.useMemo(() => {
-    const mdmProfiles: IMdmProfile[] = (profilesData?.profiles || []).map(
-      (p) => ({ ...p, profile_type: "mdm" as const })
+    const mdmProfiles: IMdmProfile[] = (
+      profilesData?.profiles || []
+    ).map((p) => ({ ...p, profile_type: "mdm" as const }));
+    const enfProfiles: IMdmProfile[] = (enforcementData?.profiles || []).map(
+      (ep) => ({
+        profile_uuid: ep.profile_uuid,
+        team_id: ep.team_id ?? 0,
+        name: ep.name,
+        platform: "windows" as const,
+        profile_type: "enforcement" as const,
+        identifier: null,
+        created_at: ep.created_at,
+        updated_at: ep.updated_at,
+        checksum: null,
+      })
     );
-    const enfProfiles: IMdmProfile[] = (
-      enforcementData?.profiles || []
-    ).map((ep) => ({
-      profile_uuid: ep.profile_uuid,
-      team_id: ep.team_id ?? 0,
-      name: ep.name,
-      platform: "windows" as const,
-      profile_type: "enforcement" as const,
-      identifier: null,
-      created_at: ep.created_at,
-      updated_at: ep.updated_at,
-      checksum: null,
-    }));
     return [...mdmProfiles, ...enfProfiles].sort(
       (a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()

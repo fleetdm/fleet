@@ -52,7 +52,9 @@ const enforcementAPI = {
 
   downloadProfile: (profileUUID: string) => {
     const { ENFORCEMENT_PROFILE } = endpoints;
-    const path = `${ENFORCEMENT_PROFILE(profileUUID)}?${buildQueryStringFromParams({
+    const path = `${ENFORCEMENT_PROFILE(
+      profileUUID
+    )}?${buildQueryStringFromParams({
       alt: "media",
     })}`;
     return sendRequest("GET", path);

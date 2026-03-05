@@ -12,12 +12,12 @@ import (
 
 // mockHandler is a test handler that tracks calls and returns configurable results.
 type mockHandler struct {
-	name        string
-	diffResults []DiffResult
-	diffErr     error
-	applyCalls  int
+	name         string
+	diffResults  []DiffResult
+	diffErr      error
+	applyCalls   int
 	applyResults []ApplyResult
-	applyErr    error
+	applyErr     error
 }
 
 func (h *mockHandler) Name() string { return h.name }

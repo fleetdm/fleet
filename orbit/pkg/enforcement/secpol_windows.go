@@ -4,8 +4,8 @@ package enforcement
 
 import (
 	"context"
-	"gopkg.in/yaml.v3"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"os"
 	"os/exec"
 	"path/filepath"

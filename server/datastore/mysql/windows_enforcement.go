@@ -114,8 +114,8 @@ ON DUPLICATE KEY UPDATE
 			existing, ok := existingByName[p.Name]
 			if ok {
 				// check if the content actually changed
-				newChecksum := md5.Sum(p.RawPolicy)  //nolint:gosec
-				oldChecksum := md5.Sum(existing.RawPolicy)  //nolint:gosec
+				newChecksum := md5.Sum(p.RawPolicy)        //nolint:gosec
+				oldChecksum := md5.Sum(existing.RawPolicy) //nolint:gosec
 				if newChecksum == oldChecksum {
 					continue // no change, skip
 				}
@@ -283,7 +283,7 @@ ON DUPLICATE KEY UPDATE
 `
 
 	batchCount := 0
-	args := make([]interface{}, 0, batchSize*6)
+	args := make([]any, 0, batchSize*6)
 	sb := strings.Builder{}
 	sb.WriteString(baseStmt)
 
@@ -459,4 +459,3 @@ ORDER BY wep.name
 	}
 	return policies, nil
 }
-

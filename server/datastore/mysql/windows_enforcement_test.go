@@ -8,7 +8,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -191,14 +190,14 @@ func testBulkUpsertHostWindowsEnforcement(t *testing.T, ds *Datastore) {
 
 	// Create host and enforcement profile
 	host, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "test-host",
-		Platform:       "windows",
-		OsqueryHostID:  ptr.String("test-host-osquery"),
-		NodeKey:        ptr.String("test-host-node"),
+		Hostname:        "test-host",
+		Platform:        "windows",
+		OsqueryHostID:   ptr.String("test-host-osquery"),
+		NodeKey:         ptr.String("test-host-node"),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
-		SeenTime:       time.Now(),
+		SeenTime:        time.Now(),
 	})
 	require.NoError(t, err)
 
@@ -237,14 +236,14 @@ func testGetHostWindowsEnforcement(t *testing.T, ds *Datastore) {
 
 	// Create host and enforcement profile
 	host, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "test-host-2",
-		Platform:       "windows",
-		OsqueryHostID:  ptr.String("test-host-2-osquery"),
-		NodeKey:        ptr.String("test-host-2-node"),
+		Hostname:        "test-host-2",
+		Platform:        "windows",
+		OsqueryHostID:   ptr.String("test-host-2-osquery"),
+		NodeKey:         ptr.String("test-host-2-node"),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
-		SeenTime:       time.Now(),
+		SeenTime:        time.Now(),
 	})
 	require.NoError(t, err)
 
@@ -292,14 +291,14 @@ func testGetHostWindowsEnforcementHash(t *testing.T, ds *Datastore) {
 
 	// Create a Windows host with no team
 	host, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "hash-test-host",
-		Platform:       "windows",
-		OsqueryHostID:  ptr.String("hash-test-osquery"),
-		NodeKey:        ptr.String("hash-test-node"),
+		Hostname:        "hash-test-host",
+		Platform:        "windows",
+		OsqueryHostID:   ptr.String("hash-test-osquery"),
+		NodeKey:         ptr.String("hash-test-node"),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
-		SeenTime:       time.Now(),
+		SeenTime:        time.Now(),
 	})
 	require.NoError(t, err)
 
@@ -336,26 +335,4 @@ func testGetHostWindowsEnforcementHash(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, hash3)
 	assert.NotEqual(t, hash, hash3)
-}
-
-// helper
-func withEnforcementTeamID(p *fleet.WindowsEnforcementProfile, teamID uint) *fleet.WindowsEnforcementProfile {
-	p.TeamID = &teamID
-	return p
-}
-
-// TruncateTables helper - truncates enforcement-related tables
-func truncateEnforcementTables(t *testing.T, ds *Datastore) {
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(context.Background(), `DELETE FROM host_windows_enforcement`)
-		return err
-	})
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(context.Background(), `DELETE FROM windows_enforcement_profile_labels`)
-		return err
-	})
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(context.Background(), `DELETE FROM windows_enforcement_profiles`)
-		return err
-	})
 }

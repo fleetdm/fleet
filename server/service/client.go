@@ -2273,10 +2273,6 @@ func (c *Client) DoGitOps(
 		// Put in default values for windows_enforcement
 		if incoming.Controls.WindowsEnforcement != nil {
 			mdmAppConfig["windows_enforcement"] = incoming.Controls.WindowsEnforcement
-		} else {
-			mdmAppConfig["windows_enforcement"] = fleet.WindowsEnforcementSettings{
-				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Value: []fleet.MDMProfileSpec{}},
-			}
 		}
 		// Put in default values for android_settings
 		if incoming.Controls.AndroidSettings != nil {

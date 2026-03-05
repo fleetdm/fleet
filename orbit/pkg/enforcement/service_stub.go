@@ -7,8 +7,8 @@ import "context"
 // ServiceHandler is a stub for non-Windows platforms.
 type ServiceHandler struct{}
 
-func NewServiceHandler() *ServiceHandler     { return &ServiceHandler{} }
-func (h *ServiceHandler) Name() string       { return "service" }
+func NewServiceHandler() *ServiceHandler { return &ServiceHandler{} }
+func (h *ServiceHandler) Name() string   { return "service" }
 func (h *ServiceHandler) Diff(ctx context.Context, rawPolicy []byte) ([]DiffResult, error) {
 	return nil, ErrNotSupported
 }

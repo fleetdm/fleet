@@ -4,8 +4,8 @@ package enforcement
 
 import (
 	"context"
-	"gopkg.in/yaml.v3"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"strings"
 
 	"golang.org/x/sys/windows/registry"
@@ -17,7 +17,7 @@ type RegistrySetting struct {
 	Path   string      `json:"path" yaml:"path"`
 	Name   string      `json:"name" yaml:"name"`
 	Type   string      `json:"type" yaml:"type"`
-	Value  interface{} `json:"value" yaml:"value"`
+	Value  any         `json:"value" yaml:"value"`
 	Ensure string      `json:"ensure,omitempty" yaml:"ensure,omitempty"`
 	CISRef string      `json:"cis_ref,omitempty" yaml:"cis_ref,omitempty"`
 }
@@ -251,7 +251,7 @@ func rootKeyToHKEY(rootKey string) (registry.Key, error) {
 	}
 }
 
-func readRegistryValue(k registry.Key, name, regType string) (interface{}, error) {
+func readRegistryValue(k registry.Key, name, regType string) (any, error) {
 	switch strings.ToLower(regType) {
 	case "dword", "reg_dword":
 		val, _, err := k.GetIntegerValue(name)
@@ -267,7 +267,7 @@ func readRegistryValue(k registry.Key, name, regType string) (interface{}, error
 	}
 }
 
-func writeRegistryValue(k registry.Key, name, regType string, value interface{}) error {
+func writeRegistryValue(k registry.Key, name, regType string, value any) error {
 	switch strings.ToLower(regType) {
 	case "dword", "reg_dword":
 		var v uint32
