@@ -26405,6 +26405,15 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 	_, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Team 1"})
 	require.NoError(t, err)
 
+	// most logic relies on fma id being present, so no need to create manifest server
+	updateInstallerFMAID := func(fmaID, teamID, titleID uint) {
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err = q.ExecContext(ctx, `UPDATE software_installers SET fleet_maintained_app_id = ? WHERE global_or_team_id = ? AND title_id = ?`, fmaID, teamID, titleID)
+			require.NoError(t, err)
+			return nil
+		})
+	}
+
 	t.Run("no_team_patch_policy", func(t *testing.T) {
 		// add a regular "No team" policy
 		tpParams := teamPolicyRequest{
@@ -26561,53 +26570,75 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Empty(t, getPolicyResp.Policy.PatchSoftwareTitleID)
 	})
 
-	t.Run("no_team_patch_policy", func(t *testing.T) {
+	t.Run("patch_policy_lifecycle", func(t *testing.T) {
 		// Test 1: delete software installer when there is an associatd patch policy
+
+		resp := teamResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
+			TeamPayload: fleet.TeamPayload{Name: ptr.String("team_1")},
+		}, http.StatusOK, &resp)
+		teamID := resp.Team.ID
 
 		// upload a software installer
 		payload := &fleet.UploadSoftwareInstallerPayload{
 			InstallScript: "some install script",
 			Filename:      "dummy_installer.pkg",
-			TeamID:        nil,
+			TeamID:        &teamID,
 		}
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 		titleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
+		fmaID := getFleetMaintainedAppID(t, s.ds, "dummy/darwin")
 
 		// add a fleet maintained app and associate the installer with it
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			res, err := q.ExecContext(ctx, `INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
-			VALUES ('DummyApp', 'dummy/darwin', 'darwin', 'com.example.dummy')`)
-			require.NoError(t, err)
-			id, err := res.LastInsertId()
-			require.NoError(t, err)
-
-			_, err = q.ExecContext(ctx, `UPDATE software_installers SET fleet_maintained_app_id = ? WHERE title_id = ?`, id, titleID)
-			require.NoError(t, err)
-			return nil
-		})
+		updateInstallerFMAID(fmaID, teamID, titleID)
 
 		// add a patch policy
 		policyResp := teamPolicyResponse{}
-		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", teamPolicyRequest{
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", teamID), teamPolicyRequest{
 			Type:                 ptr.String("patch"),
 			PatchSoftwareTitleID: &titleID,
 		}, http.StatusOK, &policyResp)
 
 		// attempt to delete installer
-		res := s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusConflict, "team_id", "0")
+		res := s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusConflict, "team_id", strconv.Itoa(int(teamID)))
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, `Couldn’t delete. This software has a patch policy. Please remove the patch policy and try again.`)
 		res.Body.Close()
 
 		// remove patch policy and delete installer
-		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies/delete", deleteGlobalPoliciesRequest{
-			IDs: []uint{policyResp.Policy.ID},
-		}, http.StatusOK, &deleteGlobalPoliciesResponse{})
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/delete", teamID), deleteTeamPoliciesRequest{
+			TeamID: teamID,
+			IDs:    []uint{policyResp.Policy.ID}}, http.StatusOK, &deleteTeamPoliciesResponse{})
+
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			mysql.DumpTable(t, q, "policies", "team_id", "name", "type", "patch_software_title_id")
+			return nil
+		})
+
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", strconv.Itoa(int(teamID)))
 
 		// Test 2: Update the fleet maintained app installer so that its no longer a fleet maintained app
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+		updateInstallerFMAID(fmaID, teamID, titleID)
+
+		dummyBytes, err := os.ReadFile("testdata/software-installers/dummy_installer.pkg")
+		require.NoError(t, err)
+		body, headers := generateMultipartRequest(t, "software", "dummy_installer.pkg", dummyBytes, s.token, map[string][]string{"team_id": {strconv.Itoa(int(teamID))}})
+		res = s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusBadRequest, headers)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `Couldn't update. The package can't be changed for Fleet-maintained apps.`)
+		res.Body.Close()
 
 		// Test 3: gitops updated existing fleet maintained app installer?
 
 	})
 
+}
+
+func getFleetMaintainedAppID(t *testing.T, ds *mysql.Datastore, slug string) uint {
+	var id uint
+	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &id, `SELECT id FROM fleet_maintained_apps WHERE slug = ?`, slug)
+	})
+	return id
 }

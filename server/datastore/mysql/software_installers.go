@@ -681,13 +681,9 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 	}
 
 	var touchUploaded string
-	var clearFleetMaintainedAppID string // FMA becomes custom package when uploading a new installer file
-	var clearPatchPolicy bool            // Delete patch policy
 	if payload.InstallerFile != nil {
+		// installer cannot be changed when associated with an FMA
 		touchUploaded = ", uploaded_at = NOW()"
-		clearFleetMaintainedAppID = ", fleet_maintained_app_id = NULL"
-		// we need to remove the associated patch policy
-		clearPatchPolicy = true
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -704,8 +700,8 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 			upgrade_code = ?,
 			user_id = ?,
 			user_name = (SELECT name FROM users WHERE id = ?),
-			user_email = (SELECT email FROM users WHERE id = ?)%s%s
-			WHERE id = ?`, touchUploaded, clearFleetMaintainedAppID)
+			user_email = (SELECT email FROM users WHERE id = ?)%s
+			WHERE id = ?`, touchUploaded)
 
 		args := []interface{}{
 			payload.StorageID,
@@ -749,13 +745,6 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 		// When an installer is modified reset attempt numbers for policy automations
 		if err := ds.resetInstallerPolicyAutomationAttempts(ctx, tx, payload.InstallerID); err != nil {
 			return ctxerr.Wrap(ctx, err, "resetting policy automation attempts for installer")
-		}
-
-		// TODO(JK): remove patch policy
-		if clearPatchPolicy {
-			if err := ds.deletePatchPolicy(ctx, ptr.ValOrZero(payload.TeamID), payload.TitleID); err != nil {
-				return ctxerr.Wrap(ctx, err, "update software title display name")
-			}
 		}
 
 		return nil
@@ -1131,7 +1120,7 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 	var activateAffectedHostIDs []uint
 
 	// check if there is a patch policy that uses this title
-	policyStmt := `SELECT 1 FROM policies p JOIN software_installers si ON si.title_id = p.patch_software_title_id WHERE si.id = ?`
+	policyStmt := `SELECT 1 FROM policies p JOIN software_installers si ON si.title_id = p.patch_software_title_id AND si.global_or_team_id = p.team_id WHERE si.id = ?`
 	var policyExists bool
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &policyExists, policyStmt, id)
 	if err != nil && err != sql.ErrNoRows {
