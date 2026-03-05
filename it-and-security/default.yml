@@ -89,6 +89,7 @@ queries:
   - path: ./lib/all/queries/collect-known-vulnerable-chrome-extensions.yml
   - path: ./lib/macos/queries/detect-apns-certificate.yml
   - path: ./lib/macos/queries/collect-macos-compatibility-data.yml
+  - path: ./lib/macos/queries/collect-xprotect-reports.yml
 controls:
   enable_disk_encryption: true
   macos_migration:

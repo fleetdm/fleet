@@ -73,7 +73,7 @@
 -
   task: "Update content calendar"
   startedOn: "2025-08-04"
-  frequency: "Weekly"
+  frequency: "Triweekly"
   description: "Every Monday, the Content Specialist will verify that the next two weeks of content are completely planned and the content calendar is updated."
   moreInfoUrl: "https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=390351382#gid=390351382"
   dri: "irenareedy"

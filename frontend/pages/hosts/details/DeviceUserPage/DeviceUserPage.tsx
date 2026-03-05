@@ -673,8 +673,8 @@ const DeviceUserPage = ({
       );
     }
 
-    const hasAnyBypassDisabledFailingCAPolicy = host?.policies.some(
-      (p) => p.response === "fail" && !p.conditional_access_bypass_enabled
+    const hasAnyCriticalFailingCAPolicy = host?.policies.some(
+      (p) => p.response === "fail" && p.conditional_access_enabled && p.critical
     );
 
     return (
@@ -844,8 +844,7 @@ const DeviceUserPage = ({
             onResolveLater={
               globalConfig?.features?.enable_conditional_access &&
               globalConfig.features?.enable_conditional_access_bypass &&
-              !hasAnyBypassDisabledFailingCAPolicy &&
-              selectedPolicy?.conditional_access_bypass_enabled
+              !hasAnyCriticalFailingCAPolicy
                 ? () => {
                     onCancelPolicyDetailsModal();
                     setShowBypassModal(true);
@@ -856,9 +855,7 @@ const DeviceUserPage = ({
         )}
         {!!host && showOSSettingsModal && (
           <OSSettingsModal
-            canResendProfiles={
-              isMacOS(host.platform) || isWindows(host.platform)
-            }
+            canResendProfiles={isAppleHost || isWindows(host.platform)}
             platform={host.platform}
             hostMDMData={host.mdm}
             resendRequest={resendProfile}
