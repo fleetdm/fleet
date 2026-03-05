@@ -46,3 +46,10 @@ This approach exemplifies the flexibility that makes open source solutions so po
 To get the step-by-step guide for devlievering custom osquery extensions with example custom extensions from Fleet's internal deployment, see the [next article](https://fleetdm.com/guides/deploying-custom-osquery-extensions-in-fleet-step-by-step-guide) in this series.
 
 About the author: Allen Houchins is Head of IT & Solutions Consulting at Fleet Device Management.
+
+<meta name="articleTitle" value="Deploying custom osquery extensions in Fleet">
+<meta name="authorFullName" value="Allen Houchins">
+<meta name="authorGitHubUsername" value="allenhouchins">
+<meta name="category" value="articles">
+<meta name="publishedOn" value="2026-03-05">
+<meta name="description" value="Learn how to deploy custom osquery extensions directly from Fleet.">
