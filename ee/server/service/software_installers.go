@@ -115,7 +115,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	// Update $PACKAGE_ID/$UPGRADE_CODE in uninstall script
 	if err := preProcessUninstallScript(payload); err != nil {
 		return nil, &fleet.BadRequestError{
-			Message: "Couldn't add. $UPGRADE_CODE variable was used but package does not have an UpgradeCode.",
+			Message: fmt.Sprintf("Couldn't add software: %s", err),
 		}
 	}
 
@@ -272,7 +272,7 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) er
 	// If $UPGRADE_CODE is in the script and we have one, replace it; if the var is included but we don't have one, error
 	if file.UpgradeCodeRegex.MatchString(payload.UninstallScript) {
 		if payload.UpgradeCode == "" {
-			return errors.New("blank upgrade code when required in script")
+			return errors.New("$UPGRADE_CODE variable was used in uninstall script but package does not have an UpgradeCode")
 		}
 
 		payload.UninstallScript = file.UpgradeCodeRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("'%s'${suffix}", payload.UpgradeCode))
@@ -552,7 +552,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 			if err := preProcessUninstallScript(payloadForUninstallScript); err != nil {
 				return nil, &fleet.BadRequestError{
-					Message: "Couldn't add. $UPGRADE_CODE variable was used but package does not have an UpgradeCode.",
+					Message: fmt.Sprintf("Couldn't edit software: %s", err),
 				}
 			}
 
@@ -1153,7 +1153,7 @@ func (svc *Service) getSoftwareInstallerBinary(ctx context.Context, storageID st
 		return nil, ctxerr.Wrap(ctx, err, "checking if installer exists")
 	}
 	if !exists {
-		return nil, ctxerr.Wrapf(ctx, notFoundError{}, "%s with filename %s does not exist in software installer store", storageID,
+		return nil, ctxerr.Wrapf(ctx, &notFoundError{}, "%s with filename %s does not exist in software installer store", storageID,
 			filename)
 	}
 
@@ -2584,7 +2584,7 @@ func (svc *Service) softwareBatchUpload(
 
 			// Update $PACKAGE_ID/$UPGRADE_CODE in uninstall script
 			if err := preProcessUninstallScript(installer); err != nil {
-				return errors.New("$UPGRADE_CODE variable was used but package does not have an UpgradeCode")
+				return fmt.Errorf("processing uninstall script: %w", err)
 			}
 
 			// if filename was empty, try to extract it from the URL with the
@@ -2705,7 +2705,7 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 		return "", "", nil, ctxerr.Wrap(ctx, err, "failed to get result")
 	}
 	if result == nil {
-		return "", "", nil, ctxerr.Wrap(ctx, notFoundError{}, "request_uuid not found")
+		return "", "", nil, ctxerr.Wrap(ctx, &notFoundError{}, "request_uuid not found")
 	}
 
 	switch {

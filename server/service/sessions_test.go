@@ -194,7 +194,7 @@ func TestMFA(t *testing.T) {
 		if token == mfaToken {
 			return session, mfaUser, nil
 		}
-		return nil, nil, notFoundErr{}
+		return nil, nil, &notFoundErr{}
 	}
 	resp, err := sessionCreateEndpoint(ctx, &sessionCreateRequest{Token: "foo"}, svc)
 	require.NoError(t, err)
