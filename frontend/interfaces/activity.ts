@@ -293,7 +293,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   added_software: "Added software",
   applied_spec_pack: "GitOps: edited packs",
   applied_spec_policy: "GitOps: edited policies",
-  applied_spec_saved_query: "GitOps: edited queries",
+  applied_spec_saved_query: "GitOps: edited reports",
   applied_spec_team: "GitOps: edited fleets",
   applied_spec_software: "GitOps: edited software",
   canceled_install_app_store_app:
