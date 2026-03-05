@@ -261,7 +261,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			if !(found[0].Title == payload.Title && found[0].Source == payload.Source) {
 				return 0, 0, fleet.NewInvalidArgumentError(
 					"software",
-					"Couldn't add software. An installer with identical contents already exists on this team.",
+					"Couldn't add software. An installer with identical contents already exists on this fleet.",
 				)
 			}
 			// If exact duplicate (same title and source), continue to let DB constraint handle it
