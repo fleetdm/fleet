@@ -276,7 +276,6 @@ const routes = (
             />
             <Route path=":host_id" component={HostDetailsPage}>
               <IndexRedirect to="details" />
-              <Redirect from="schedule" to="reports" />
               <Route path="details" component={HostDetailsPage} />
               <Route path="scripts" component={HostDetailsPage} />
               <Route path="software" component={HostDetailsPage}>
