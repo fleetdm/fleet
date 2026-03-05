@@ -24,6 +24,7 @@ func TestConditionalAccessBypass(t *testing.T) {
 		{"ConditionalAccessClearBypasses", testConditionalAccessClearBypasses},
 		{"ConditionalAccessBypassDeletedWithHost", testConditionalAccessBypassDeletedWithHost},
 		{"ConditionalAccessBypassedAt", testConditionalAccessBypassedAt},
+		{"ConditionalAccessBypassAllowedWithNonCAFailingCriticalPolicy", testConditionalAccessBypassAllowedWithNonCAFailingCriticalPolicy},
 	}
 
 	for _, c := range cases {
@@ -289,11 +290,17 @@ func testConditionalAccessBypassDeviceWithBlockingPolicy(t *testing.T, ds *Datas
 	})
 	require.NoError(t, err)
 
-	// Create a global critical policy (not bypassable)
-	policy, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
-		Name:     "critical-policy",
-		Query:    "select 1;",
-		Critical: true,
+	// Assign host to a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "blocking-policy-team"})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+	// Create a team CA-enabled critical policy that should block bypass
+	policy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+		Name:                     "ca-critical-policy",
+		Query:                    "select 1;",
+		Critical:                 true,
+		ConditionalAccessEnabled: true,
 	})
 	require.NoError(t, err)
 
@@ -301,7 +308,7 @@ func testConditionalAccessBypassDeviceWithBlockingPolicy(t *testing.T, ds *Datas
 	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: ptr.Bool(false)}, time.Now(), false)
 	require.NoError(t, err)
 
-	// Bypass should fail because the host has a failing critical policy
+	// Bypass should fail because the host has a failing CA-enabled policy
 	err = ds.ConditionalAccessBypassDevice(ctx, host.ID)
 	require.Error(t, err)
 	var badReqErr *fleet.BadRequestError
@@ -312,4 +319,61 @@ func testConditionalAccessBypassDeviceWithBlockingPolicy(t *testing.T, ds *Datas
 	innerErr := ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM host_conditional_access WHERE host_id = ?", host.ID)
 	require.NoError(t, innerErr)
 	require.Equal(t, 0, count)
+}
+
+func testConditionalAccessBypassAllowedWithNonCAFailingCriticalPolicy(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "Bob", "bob@example.com", true)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("non-ca-policy-host"),
+		UUID:            "non-ca-policy-uuid",
+		Hostname:        "non-ca.local",
+		PrimaryIP:       "192.168.1.11",
+		PrimaryMac:      "30-65-EC-6F-C4-71",
+	})
+	require.NoError(t, err)
+
+	// Assign host to a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "non-ca-policy-team"})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+	// CA policy — passing
+	caPolicy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+		Name:                     "ca-policy-passing",
+		Query:                    "select 1;",
+		Critical:                 true,
+		ConditionalAccessEnabled: true,
+	})
+	require.NoError(t, err)
+
+	// Non-CA critical policy — failing
+	nonCAPolicy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+		Name:     "non-ca-policy-failing",
+		Query:    "select 1;",
+		Critical: true,
+	})
+	require.NoError(t, err)
+
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
+		caPolicy.ID:    ptr.Bool(true),  // passing
+		nonCAPolicy.ID: ptr.Bool(false), // failing
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	// Bypass must succeed: the only failing policy is not CA-enabled
+	err = ds.ConditionalAccessBypassDevice(ctx, host.ID)
+	require.NoError(t, err)
+
+	// Verify a host_conditional_access row was created
+	var count int
+	innerErr := ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM host_conditional_access WHERE host_id = ?", host.ID)
+	require.NoError(t, innerErr)
+	require.Equal(t, 1, count)
 }

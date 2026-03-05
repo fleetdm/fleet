@@ -24321,12 +24321,17 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 		token := fmt.Sprintf("bypass-critical-%s", uuid.New().String())
 		host := createHostAndDeviceToken(t, s.ds, token)
 
-		// Create a global policy
+		// Assign host to a team
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: fmt.Sprintf("ca-blocking-team-%s", uuid.New().String())})
+		require.NoError(t, err)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
 		adminUser := s.users["admin1@example.com"]
-		policy, err := s.ds.NewGlobalPolicy(ctx, &adminUser.ID, fleet.PolicyPayload{
-			Name:     fmt.Sprintf("critical-%s", uuid.New().String()),
-			Query:    "select 1;",
-			Critical: true,
+		policy, err := s.ds.NewTeamPolicy(ctx, team.ID, &adminUser.ID, fleet.PolicyPayload{
+			Name:                     fmt.Sprintf("ca-critical-%s", uuid.New().String()),
+			Query:                    "select 1;",
+			Critical:                 true,
+			ConditionalAccessEnabled: true,
 		})
 		require.NoError(t, err)
 
@@ -24343,6 +24348,51 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 		bypassedAt, err := s.ds.ConditionalAccessBypassedAt(ctx, host.ID)
 		require.NoError(t, err)
 		require.Nil(t, bypassedAt)
+	})
+
+	t.Run("bypass allowed when only non-CA critical policy is failing", func(t *testing.T) {
+		token := fmt.Sprintf("bypass-non-ca-%s", uuid.New().String())
+		host := createHostAndDeviceToken(t, s.ds, token)
+
+		// Assign host to a team
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: fmt.Sprintf("non-ca-team-%s", uuid.New().String())})
+		require.NoError(t, err)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+		adminUser := s.users["admin1@example.com"]
+
+		// CA policy — passing
+		caPolicy, err := s.ds.NewTeamPolicy(ctx, team.ID, &adminUser.ID, fleet.PolicyPayload{
+			Name:                     fmt.Sprintf("ca-policy-%s", uuid.New().String()),
+			Query:                    "select 1;",
+			Critical:                 true,
+			ConditionalAccessEnabled: true,
+		})
+		require.NoError(t, err)
+
+		// Non-CA critical policy — failing
+		nonCAPolicy, err := s.ds.NewTeamPolicy(ctx, team.ID, &adminUser.ID, fleet.PolicyPayload{
+			Name:     fmt.Sprintf("non-ca-policy-%s", uuid.New().String()),
+			Query:    "select 1;",
+			Critical: true,
+		})
+		require.NoError(t, err)
+
+		err = s.ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
+			caPolicy.ID:    ptr.Bool(true),  // passing
+			nonCAPolicy.ID: ptr.Bool(false), // failing
+		}, time.Now(), false)
+		require.NoError(t, err)
+
+		// Bypass must succeed: the only failing policy is not CA-enabled
+		var bypassResp bypassConditionalAccessResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusOK, &bypassResp)
+		require.Nil(t, bypassResp.Err)
+
+		bypassedAt, err := s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+		require.NoError(t, err)
+		require.NotNil(t, bypassedAt)
 	})
 }
 
