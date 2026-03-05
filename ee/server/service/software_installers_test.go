@@ -166,15 +166,14 @@ func TestPreProcessUninstallScriptSkipsValidationWhenNoTemplateVars(t *testing.T
 		assert.Equal(t, `$softwareName = "CrossCore Embedded Studio"`, payload.UninstallScript)
 	})
 
-	t.Run("non-ASCII ID fails when script uses PACKAGE_ID", func(t *testing.T) {
+	t.Run("non-ASCII ID succeeds when script uses PACKAGE_ID", func(t *testing.T) {
 		payload := fleet.UploadSoftwareInstallerPayload{
 			Extension:       "exe",
 			UninstallScript: "$PACKAGE_ID",
 			PackageIDs:      []string{nonASCIIID},
 		}
-		err := preProcessUninstallScript(&payload)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "contains invalid characters")
+		require.NoError(t, preProcessUninstallScript(&payload))
+		assert.Contains(t, payload.UninstallScript, "'"+nonASCIIID+"'")
 	})
 
 	t.Run("non-ASCII upgrade code succeeds when script has no UPGRADE_CODE", func(t *testing.T) {
@@ -188,16 +187,15 @@ func TestPreProcessUninstallScriptSkipsValidationWhenNoTemplateVars(t *testing.T
 		assert.Contains(t, payload.UninstallScript, "'valid-id'")
 	})
 
-	t.Run("non-ASCII upgrade code fails when script uses UPGRADE_CODE", func(t *testing.T) {
+	t.Run("non-ASCII upgrade code succeeds when script uses UPGRADE_CODE", func(t *testing.T) {
 		payload := fleet.UploadSoftwareInstallerPayload{
 			Extension:       "msi",
 			UninstallScript: "msiexec /x $UPGRADE_CODE /quiet",
 			PackageIDs:      []string{"valid-id"},
 			UpgradeCode:     "code\u00ae",
 		}
-		err := preProcessUninstallScript(&payload)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "contains invalid characters")
+		require.NoError(t, preProcessUninstallScript(&payload))
+		assert.Contains(t, payload.UninstallScript, "'code\u00ae'")
 	})
 
 	t.Run("dmg skips validation entirely", func(t *testing.T) {
