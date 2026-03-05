@@ -26626,11 +26626,6 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			TeamID: teamID,
 			IDs:    []uint{policyResp.Policy.ID}}, http.StatusOK, &deleteTeamPoliciesResponse{})
 
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			mysql.DumpTable(t, q, "policies", "team_id", "name", "type", "patch_software_title_id")
-			return nil
-		})
-
 		// can delete installer successfully
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", strconv.Itoa(int(teamID)))
 

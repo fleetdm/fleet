@@ -1034,16 +1034,12 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 		args.Type = fleet.PolicyTypeDynamic
 	}
 	if args.Type == fleet.PolicyTypePatch {
-		installer, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &teamID, *args.PatchSoftwareTitleID, false)
+		generated, err := ds.generatePatchPolicy(ctx, teamID, *args.PatchSoftwareTitleID)
 		if err != nil {
-			return nil, err
+			return nil, ctxerr.Wrap(ctx, err, "generating patch policy fields")
 		}
-		if installer.FleetMaintainedAppID == nil {
-			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for team ID %d", *args.PatchSoftwareTitleID, teamID),
-			})
-		}
-		generated := generatePatchPolicy(installer)
+
+		// TODO(JK): how to extract this part when it can be either PolicyPayload or PolicySpec
 		if args.Name == "" {
 			args.Name = generated.Name
 		}
@@ -1444,19 +1440,12 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 				// PATCH POLICIES!!!!!
 				// we need to generate a new query for the patch policy
-				// TODO(JK): since this is kinda duplicated can i make this nicer.
-				// Actually maybe we can have a patch_policy interface to do this! Since its split between policySpec and policyPayload
 				if spec.Type == fleet.PolicyTypePatch {
-					installer, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, *fmaTitleID, false)
+					// TODO(JK): not sure about this ValOrZero, can teamID be null here?
+					patch, err := ds.generatePatchPolicy(ctx, ptr.ValOrZero(teamID), *fmaTitleID)
 					if err != nil {
-						return ctxerr.Wrap(ctx, err, "getting patch policy software installer")
+						return ctxerr.Wrap(ctx, err, "generating patch policy fields")
 					}
-					if installer.FleetMaintainedAppID == nil {
-						return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-							Message: fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for team ID %d", *fmaTitleID, teamID),
-						})
-					}
-					patch := generatePatchPolicy(installer)
 					if spec.Name == "" {
 						spec.Name = patch.Name
 					}
@@ -2539,7 +2528,17 @@ type patchPolicy struct {
 	Resolution  string
 }
 
-func generatePatchPolicy(installer *fleet.SoftwareInstaller) *patchPolicy {
+func (ds *Datastore) generatePatchPolicy(ctx context.Context, teamID, titleID uint) (*patchPolicy, error) {
+	installer, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &teamID, titleID, false)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting software installer")
+	}
+	if installer.FleetMaintainedAppID == nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for team ID %d", titleID, teamID),
+		})
+	}
+
 	var policy patchPolicy
 	switch {
 	case installer.Platform == string(fleet.MacOSPlatform):
@@ -2564,7 +2563,7 @@ func generatePatchPolicy(installer *fleet.SoftwareInstaller) *patchPolicy {
 	policy.Description = "Outdated software might introduce security vulnerabilities or compatibility issues."
 	policy.Resolution = "Install the latest version from self-service."
 
-	return &policy
+	return &policy, nil
 }
 
 func (ds *Datastore) deletePatchPolicy(ctx context.Context, teamID, titleID uint) error {
