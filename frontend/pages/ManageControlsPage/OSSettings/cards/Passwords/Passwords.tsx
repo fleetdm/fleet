@@ -2,7 +2,9 @@ import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import { getErrorReason } from "interfaces/errors";
 
 import {
   DEFAULT_USE_QUERY_OPTIONS,
@@ -10,6 +12,7 @@ import {
 } from "utilities/constants";
 
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+import recoveryLockPasswordAPI from "services/entities/recovery_lock_password";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -37,13 +40,14 @@ const RECOVERY_LOCK_TOOLTIP_CONTENT = (
   </>
 );
 
-const Passwords = ({ currentTeamId }: IOSSettingsCommonProps) => {
+const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
   const {
     isPremiumTier,
     config,
     isTeamTechnician,
     isGlobalTechnician,
   } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   const isTechnician = isTeamTechnician || isGlobalTechnician;
 
@@ -71,6 +75,25 @@ const Passwords = ({ currentTeamId }: IOSSettingsCommonProps) => {
   });
 
   const showLoading = currentTeamId !== API_NO_TEAM_ID && isLoadingTeam;
+
+  const onUpdateRecoveryLockPassword = async () => {
+    try {
+      await recoveryLockPasswordAPI.updateRecoveryLockPassword(
+        enableRecoveryLockPassword,
+        currentTeamId
+      );
+      renderFlash(
+        "success",
+        "Successfully updated Recovery Lock password enforcement."
+      );
+      onMutation();
+    } catch (e) {
+      const errorMsg =
+        getErrorReason(e) ??
+        "Couldn't enable Recovery Lock password. Please try again.";
+      renderFlash("error", errorMsg);
+    }
+  };
 
   return (
     <div className={baseClass}>
@@ -103,6 +126,7 @@ const Passwords = ({ currentTeamId }: IOSSettingsCommonProps) => {
                 <Button
                   disabled={disabled}
                   className={`${baseClass}__save-button`}
+                  onClick={onUpdateRecoveryLockPassword}
                 >
                   Save
                 </Button>

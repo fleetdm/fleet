@@ -191,6 +191,9 @@ export default {
   // Disk encryption endpoints
   UPDATE_DISK_ENCRYPTION: `/${API_VERSION}/fleet/disk_encryption`,
 
+  // Recovery Lock password endpoints
+  UPDATE_RECOVERY_LOCK_PASSWORD: `/${API_VERSION}/fleet/recovery_lock_password`,
+
   // Setup experiece endpoints
   MDM_SETUP_EXPERIENCE: `/${API_VERSION}/fleet/setup_experience`,
   MDM_SETUP_EXPERIENCE_SOFTWARE: `/${API_VERSION}/fleet/setup_experience/software`,
