@@ -45,6 +45,7 @@ describe("buildActionOptions", () => {
       true, // androidSoftwareAvailableForInstall
       false,
       false,
+      false,
       false
     );
 
@@ -70,6 +71,7 @@ describe("buildActionOptions", () => {
       "https://repo.git", // repoURL
       "vpp_apps", // source
       true, // androidSoftwareAvailableForInstall
+      false,
       false,
       false,
       false
