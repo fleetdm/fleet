@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 
 	"github.com/agnivade/levenshtein"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/hashicorp/go-multierror"
 )
 
 // fieldInfo holds metadata about a struct field extracted from its JSON tag.
@@ -245,4 +247,21 @@ func validateYAMLKeys(yamlBytes []byte, targetType reflect.Type, filePath string
 		return nil // parse errors already caught by the struct unmarshal
 	}
 	return validateUnknownKeys(data, targetType, keysPath, filePath)
+}
+
+// filterWarnings removes errors matching the given types from a multierror,
+// logging them as warnings instead. Returns the filtered error (nil if empty).
+func filterWarnings(multiError *multierror.Error, logFn func(string, ...any), types ...reflect.Type) error {
+	if multiError == nil {
+		return nil
+	}
+	var filtered *multierror.Error
+	for _, err := range multiError.Errors {
+		if slices.Contains(types, reflect.TypeOf(err)) {
+			logFn("[!] warning: %s\n", err.Error())
+		} else {
+			filtered = multierror.Append(filtered, err)
+		}
+	}
+	return filtered.ErrorOrNil()
 }

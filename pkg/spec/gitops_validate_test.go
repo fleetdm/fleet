@@ -1,10 +1,13 @@
 package spec
 
 import (
+	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/hashicorp/go-multierror"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -327,5 +330,78 @@ func TestValidateRawKeys(t *testing.T) {
 		raw := []byte(`{invalid json`)
 		errs := validateRawKeys(raw, reflect.TypeFor[fleet.QuerySpec](), "test.yml", []string{"reports"})
 		assert.Empty(t, errs) // parse errors handled elsewhere
+	})
+}
+
+func TestFilterWarnings(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil multierror", func(t *testing.T) {
+		err := filterWarnings(nil, func(string, ...any) {}, reflect.TypeFor[*ParseUnknownKeyError]())
+		assert.NoError(t, err)
+	})
+
+	t.Run("filters matching errors and logs them", func(t *testing.T) {
+		multiError := &multierror.Error{}
+		multiError = multierror.Append(multiError,
+			&ParseUnknownKeyError{Filename: "test.yml", Field: "bad_key"},
+			fmt.Errorf("some other error"),
+			&ParseUnknownKeyError{Filename: "test.yml", Field: "another_bad"},
+		)
+
+		var warnings []string
+		logFn := func(format string, args ...any) {
+			warnings = append(warnings, fmt.Sprintf(format, args...))
+		}
+
+		result := filterWarnings(multiError, logFn, reflect.TypeFor[*ParseUnknownKeyError]())
+		require.Error(t, result)
+		assert.Contains(t, result.Error(), "some other error")
+		assert.NotContains(t, result.Error(), "bad_key")
+		assert.Len(t, warnings, 2)
+		assert.Contains(t, warnings[0], "bad_key")
+		assert.Contains(t, warnings[1], "another_bad")
+	})
+
+	t.Run("returns nil when all errors filtered", func(t *testing.T) {
+		multiError := &multierror.Error{}
+		multiError = multierror.Append(multiError,
+			&ParseUnknownKeyError{Filename: "test.yml", Field: "bad1"},
+			&ParseUnknownKeyError{Filename: "test.yml", Field: "bad2"},
+		)
+
+		result := filterWarnings(multiError, func(string, ...any) {}, reflect.TypeFor[*ParseUnknownKeyError]())
+		assert.NoError(t, result)
+	})
+
+	t.Run("preserves all errors when none match", func(t *testing.T) {
+		multiError := &multierror.Error{}
+		multiError = multierror.Append(multiError,
+			fmt.Errorf("error one"),
+			fmt.Errorf("error two"),
+		)
+
+		result := filterWarnings(multiError, func(string, ...any) {}, reflect.TypeFor[*ParseUnknownKeyError]())
+		require.Error(t, result)
+		var resultMulti *multierror.Error
+		require.True(t, errors.As(result, &resultMulti))
+		assert.Len(t, resultMulti.Errors, 2)
+	})
+
+	t.Run("multiple filter types", func(t *testing.T) {
+		multiError := &multierror.Error{}
+		multiError = multierror.Append(multiError,
+			&ParseUnknownKeyError{Filename: "test.yml", Field: "bad"},
+			&ParseTypeError{Filename: "test.yml", Keys: []string{"controls"}},
+			fmt.Errorf("kept error"),
+		)
+
+		result := filterWarnings(multiError, func(string, ...any) {},
+			reflect.TypeFor[*ParseUnknownKeyError](),
+			reflect.TypeFor[*ParseTypeError](),
+		)
+		require.Error(t, result)
+		assert.Contains(t, result.Error(), "kept error")
+		assert.NotContains(t, result.Error(), "bad")
 	})
 }

@@ -420,17 +420,8 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	multiError = parsePolicies(top, result, baseDir, filePath, multiError)
 
 	// If AllowUnknownKeys is set, filter out ParseUnknownKeyError and log them as warnings.
-	if options.AllowUnknownKeys && multiError != nil {
-		var filtered *multierror.Error
-		for _, err := range multiError.Errors {
-			var unknownKeyErr *ParseUnknownKeyError
-			if errors.As(err, &unknownKeyErr) {
-				logFn("[!] warning: %s\n", unknownKeyErr.Error())
-			} else {
-				filtered = multierror.Append(filtered, err)
-			}
-		}
-		return result, filtered.ErrorOrNil()
+	if options.AllowUnknownKeys {
+		return result, filterWarnings(multiError, logFn, reflect.TypeFor[*ParseUnknownKeyError]())
 	}
 
 	return result, multiError.ErrorOrNil()
@@ -979,8 +970,7 @@ func processControlsPathIfNeeded(controlsTop GitOpsControls, result *GitOps, con
 	// Validate unknown keys in path-referenced controls file.
 	errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[GitOpsControls](), *controlsTop.Path, []string{"controls"})...)
 	if pathControls.Path != nil {
-		errs = append(errs, fmt.Errorf("nested paths are not supported: %s in %s", *pathControls.Path, *controlsTop.Path))
-		return errs
+		return append(errs, fmt.Errorf("nested paths are not supported: %s in %s", *pathControls.Path, *controlsTop.Path))
 	}
 	pathControls.Defined = true
 	result.Controls = pathControls
