@@ -1391,7 +1391,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	}
 	errPrefix := fmt.Sprintf("failed to parse policy install_software %q: ", policy.Name)
 	wrapErr := func(err error) error {
-		return fmt.Errorf("%s: %w", errPrefix, err)
+		return fmt.Errorf("%s%w", errPrefix, err)
 	}
 	wrapErrs := func(err error) []error {
 		return []error{wrapErr(err)}

@@ -1982,6 +1982,7 @@ software:
 		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "deadlinee")
+		assert.Contains(t, err.Error(), `did you mean "deadline"?`)
 		assert.Contains(t, err.Error(), "controls.macos_updates")
 	})
 
@@ -2162,21 +2163,19 @@ software:
 `
 		path, basePath := createTempFile(t, "", config)
 		var logMessages []string
+		sawExpectErrorMsg := false
 		logFn := func(format string, a ...any) {
-			logMessages = append(logMessages, fmt.Sprintf(format, a...))
+			msg := fmt.Sprintf(format, a...)
+			if strings.Contains(msg, "unknown_control_field") {
+				sawExpectErrorMsg = true
+			}
+			logMessages = append(logMessages, msg)
 		}
 		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), logFn, GitOpsOptions{AllowUnknownKeys: true})
 		require.NoError(t, err)
 		// Should have logged a warning about the unknown key
 		require.NotEmpty(t, logMessages)
-		found := false
-		for _, msg := range logMessages {
-			if strings.Contains(msg, "unknown_control_field") {
-				found = true
-				break
-			}
-		}
-		assert.True(t, found, "expected warning about unknown_control_field in log messages: %v", logMessages)
+		assert.True(t, sawExpectErrorMsg, "expected warning about unknown_control_field in log messages: %v", logMessages)
 	})
 
 	t.Run("unknown key in controls on no-team path", func(t *testing.T) {
@@ -2739,8 +2738,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil)
 		require.Len(t, errs, 1)
-		assert.Contains(t, errs[0].Error(), `failed to parse policy install_software "my policy"`)
-		assert.Contains(t, errs[0].Error(), "must include either")
+		assert.Equal(t, errs[0].Error(), `failed to parse policy install_software "my policy": install_software must include either a package_path, an app_store_id or a hash_sha256`)
 	})
 
 	t.Run("unknown key in package_path file", func(t *testing.T) {
