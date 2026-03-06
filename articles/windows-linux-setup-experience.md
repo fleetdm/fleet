@@ -6,6 +6,8 @@ In Fleet, you can customize the out-of-the-box Windows and Linux setup.
 
 Currently, Windows setup experience is only supported for [manual enrollments](https://fleetdm.com/guides/windows-mdm-setup#manual-enrollment). [Automatic enrollment](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment) and [Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot) support is coming soon.
 
+Currently, Linux setup experience is only supported for Ubuntu, Debian, Fedora, Amazon Linux, and Red Hat Enterprise Linux (RHEL).
+
 Here's what you can configure, and in what order each happen, to your Windows and Linux hosts during setup:
 
 1. Require [end users to authenticate](#end-user-authentication) with your identity provider (IdP).
@@ -39,7 +41,7 @@ Fleet automatically opens the default web browser to show end users software ins
 
 The browser can be closed, and the installation will continue in the background. End users can return to the setup experience page by clicking **My Device** from Fleet Desktop.  Once all steps have completed, the **My Device** page will show the host information as usual.
 
-For Linux, Fleet automatically installs on compatible platforms. This means `.deb` packages are only installed on Ubuntu and Debian Linux hosts. `.rpm` packges are only installed on all other [supported Linux flavors](https://fleetdm.com/docs/get-started/faq#what-host-operating-systems-does-fleet-support).
+For Linux, Fleet automatically installs on compatible platforms. This means `.deb` packages are only installed on Ubuntu and Debian Linux hosts. `.rpm` packges are only installed on Fedora, Amazon Linux, and Red Hat Enterprise Linux (RHEL).
 
 If software installs fail, Fleet automatically retries. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience#end-user-authentication).
 
