@@ -112,13 +112,13 @@ export interface IHostAndroidCert {
   detail: string;
 }
 
-// Prefer to IMdmMacOsSettings, introduced MDM has expanded to non-mac platforms
 export type RecoveryLockPasswordStatus =
   | "verified"
   | "verifying"
   | "pending"
   | "failed";
 
+// Prefer this over IMdmMacOsSettings, introduced MDM has expanded to non-mac platforms
 export interface IOSSettings {
   disk_encryption: {
     status: DiskEncryptionStatus | null;
@@ -131,7 +131,7 @@ export interface IOSSettings {
   certificates: IHostAndroidCert[];
 }
 
-// legacy mac mdm settings. prefer IOSSettings
+// Legacy Mac mdm settings. Prefer IOSSettings
 interface IMdmMacOsSettings {
   disk_encryption: DiskEncryptionStatus | null;
   action_required: MacDiskEncryptionActionRequired | null;

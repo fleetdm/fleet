@@ -530,7 +530,6 @@ const modifyOptions = (
     }
   }
 
-  // Disable recovery lock password if the profile is pending or failed
   if (
     recoveryLockPasswordProfileStatus === "pending" ||
     recoveryLockPasswordProfileStatus === "failed"

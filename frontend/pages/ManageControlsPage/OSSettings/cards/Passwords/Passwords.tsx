@@ -70,7 +70,7 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
     },
   });
 
-  // Sync state from global config when "no team" is selected
+  // Sync state from global config when selecting "Unassigned" fleet
   useEffect(() => {
     if (currentTeamId === API_NO_TEAM_ID) {
       setEnableRecoveryLockPassword(
