@@ -28,7 +28,7 @@ Security baselines are a consensus-driven, recommended set of configurations app
 Prominent examples of these baselines include:
 
 * [**Center for Internet Security (CIS) Benchmarks**](https://www.cisecurity.org/cis-benchmarks)**:** Developed through community consensus by cybersecurity experts globally, the CIS Benchmarks provide detailed, prescriptive guidance for securing various operating systems, including multiple Linux distributions (Red Hat, Ubuntu, Debian), as well as Macs and Windows.  
-* **Governmental Frameworks:** Agencies like the USA’s [**NIST**](https://www.nist.gov/itl/nvd) (National Institute of Standards and Technology) have already published [Linux security frameworks](https://github.com/usnistgov/linux_security). The UK’s **[NCSC](https://www.ncsc.gov.uk/)** (National Cyber Security Centre) along with other organizations and standards bodies publish extensive recommendations for securing endpoints in line with government’s high-security standards.
+* **Governmental Frameworks:** Agencies like the USA’s [**NIST**](https://www.nist.gov/itl/nvd) (National Institute of Standards and Technology) have already published [Linux security frameworks](https://github.com/usnistgov/linux_security). The UK’s [**NCSC**](https://www.ncsc.gov.uk/) (National Cyber Security Centre) along with other organizations and standards bodies publish extensive recommendations for securing endpoints in line with government’s high-security standards.
 
 These baselines are not abstract theory. They are practical, operational guidance covering essential security such like access controls (password complexity, use of biometrics), system configuration (restricting access to sensitive binaries and configuration files), and network configuration (limiting inbound and outbound connections). By adopting them, enterprises gain an established, authoritative standard.
 
@@ -56,7 +56,7 @@ For many organizations, security standards are not optional. They are mandatory 
 
 ## The new mandate
 
-The message is clear: if your enterprise leverages Linux workstations, they must be secured with the same rigor and established standards as your Macs and Windows devices. You do not need to re-invent security best practices. By adopting recognized security baselines ike the readily available guidance offered by CIS Benchmarks for Red Hat, Ubuntu, Debian, and others you can immediately elevate your security posture. Implementing this strategy is the critical next step in ensuring that your most powerful workstations serve as a secure, foundational element of employee productivity, not a looming threat to enterprise security.
+The message is clear: if your enterprise leverages Linux workstations, they must be secured with the same rigor and established standards as your Macs and Windows devices. You do not need to re-invent security best practices. By adopting recognized security baselines like the readily available guidance offered by CIS Benchmarks for Red Hat, Ubuntu, Debian, and others you can immediately elevate your security posture. Implementing this strategy is the critical next step in ensuring that your most powerful workstations serve as a secure, foundational element of employee productivity, not a looming threat to enterprise security.
 
 <meta name="articleTitle" value="Security baselines for Linux: closing the gap on exemptions">  
 <meta name="authorFullName" value="Ashish Kuthiala">  

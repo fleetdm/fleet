@@ -82,6 +82,7 @@ interface IFleetMaintainedAppsTableProps {
   orderDirection: "asc" | "desc";
   orderKey: string;
   platformParam?: FmaPlatformValue;
+  statusParam?: FmaStatusValue;
   currentPage: number;
   router: InjectedRouter;
   data?: ISoftwareFleetMaintainedAppsResponse;
@@ -100,10 +101,11 @@ const FleetMaintainedAppsTable = ({
   perPage,
   orderDirection,
   platformParam,
+  statusParam,
   orderKey,
   currentPage,
 }: IFleetMaintainedAppsTableProps) => {
-  const [status, setStatus] = useState<FmaStatusValue>("all");
+  const [status, setStatus] = useState<FmaStatusValue>(statusParam || "all");
   const [platform, setPlatform] = useState<FmaPlatformValue>(
     platformParam || "all"
   );
@@ -122,13 +124,15 @@ const FleetMaintainedAppsTable = ({
             return val !== currentPage;
           case "platform":
             return val !== platformParam;
+          case "status":
+            return val !== statusParam;
           default:
             return false;
         }
       });
       return changedEntry?.[0] ?? "";
     },
-    [currentPage, orderDirection, orderKey, query, platformParam]
+    [currentPage, orderDirection, orderKey, query, platformParam, statusParam]
   );
 
   const generateNewQueryParams = useCallback(
