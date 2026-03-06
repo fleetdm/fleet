@@ -1048,9 +1048,9 @@ func expandGlobPattern(pattern string, baseDir string, entityType string, opts G
 	return result, nil
 }
 
-// expandBaseItems validates path/paths fields on each item, expands glob
-// patterns in "paths" entries, and returns a flat list where every item with
-// a file reference has only Path set (resolved to an absolute path). Items
+// expandBaseItems validates path/paths fields on each entity (e.g. Label), expands glob
+// patterns in "paths" entries, and returns a flat list where every entity with
+// a file reference has only Path set (resolved to an absolute path). Entities
 // without path/paths are passed through unchanged unless
 // opts.RequireFileReference is set, in which case an error is returned.
 // Errors are collected rather than returned early, so callers get all
@@ -1058,7 +1058,7 @@ func expandGlobPattern(pattern string, baseDir string, entityType string, opts G
 func expandBaseItems[T any, PT interface {
 	*T
 	SupportsFileInclude
-}](input []T, baseDir string, entityType string, o ...GlobExpandOptions) ([]T, []error) {
+}](inputEntities []T, baseDir string, entityType string, o ...GlobExpandOptions) ([]T, []error) {
 	var opts GlobExpandOptions
 	if len(o) > 1 {
 		panic("too many GlobExpandOptions arguments")
@@ -1073,8 +1073,8 @@ func expandBaseItems[T any, PT interface {
 	var errs []error
 	seenBasenames := make(map[string]string) // basename -> source (path or pattern)
 
-	for _, item := range input {
-		baseItem := PT(&item).FileInclude()
+	for _, entity := range inputEntities {
+		baseItem := PT(&entity).FileInclude()
 		hasPath := baseItem.Path != nil
 		hasPaths := baseItem.Paths != nil
 
@@ -1082,13 +1082,13 @@ func expandBaseItems[T any, PT interface {
 		case hasPath && hasPaths:
 			errs = append(errs, fmt.Errorf(`%s entry cannot have both "path" and "paths" fields`, entityType))
 			continue
-		// Inline item (no file reference).
+		// Inline entity (no file reference).
 		case !hasPath && !hasPaths:
 			if opts.RequireFileReference {
 				errs = append(errs, fmt.Errorf(`%s entry has no "path" or "paths" field; check for a stray "-" in the list`, entityType))
 				continue
 			}
-			result = append(result, item)
+			result = append(result, entity)
 		// Single path -- resolve to absolute path and add to result.
 		case hasPath:
 			if containsGlobMeta(*baseItem.Path) {
@@ -1105,8 +1105,8 @@ func expandBaseItems[T any, PT interface {
 				}
 				seenBasenames[base] = *baseItem.Path
 			}
-			PT(&item).FileInclude(BaseItem{Path: &resolved})
-			result = append(result, item)
+			PT(&entity).FileInclude(BaseItem{Path: &resolved})
+			result = append(result, entity)
 		// Glob -- expand and add files to result.
 		case hasPaths:
 			if !containsGlobMeta(*baseItem.Paths) {
