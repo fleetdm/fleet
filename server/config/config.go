@@ -1315,7 +1315,7 @@ func (man Manager) addConfigs() {
 	man.addConfigByteSize("osquery.max_distributed_write_body_size", "0",
 		"Maximum body size for the osquery/distributed/write endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (5MiB). Values below the server minimum request body size are raised to that minimum.")
 	man.addConfigByteSize("osquery.max_config_body_size", "0",
-		"Maximum body size for the osquery/config endpoint (e.g. 1MiB, 500KB). 0 means use the built-in default (1MiB). Values below the server minimum request body size are raised to that minimum.")
+		"Maximum body size for the osquery/config endpoint (e.g. 1MiB, 500KB). 0 means use the built-in default (5MiB). Values below the server minimum request body size are raised to that minimum.")
 
 	// Activities
 	man.addConfigBool("activity.enable_audit_log", false,
