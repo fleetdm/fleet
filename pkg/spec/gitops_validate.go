@@ -217,7 +217,7 @@ func validateSliceKeys(data []any, targetType reflect.Type, path []string, fileP
 
 	var errs []error
 	for i, elem := range data {
-		elemPath := append(append([]string(nil), path...), fmt.Sprintf("[%d]", i))
+		elemPath := append(slices.Clone(path), fmt.Sprintf("[%d]", i))
 		childErrs := validateUnknownKeys(elem, elemType, elemPath, filePath)
 		errs = append(errs, childErrs...)
 	}
@@ -230,7 +230,7 @@ func validateSliceKeys(data []any, targetType reflect.Type, path []string, fileP
 func validateRawKeys(raw json.RawMessage, targetType reflect.Type, filePath string, keysPath []string) []error {
 	var data any
 	if err := json.Unmarshal(raw, &data); err != nil {
-		return nil // parse errors already caught by the struct unmarshal
+		return []error{err} // parse errors already caught by the struct unmarshal
 	}
 	return validateUnknownKeys(data, targetType, keysPath, filePath)
 }
@@ -241,7 +241,7 @@ func validateRawKeys(raw json.RawMessage, targetType reflect.Type, filePath stri
 func validateYAMLKeys(yamlBytes []byte, targetType reflect.Type, filePath string, keysPath []string) []error {
 	var data any
 	if err := YamlUnmarshal(yamlBytes, &data); err != nil {
-		return nil // parse errors already caught by the struct unmarshal
+		return []error{err}
 	}
 	return validateUnknownKeys(data, targetType, keysPath, filePath)
 }

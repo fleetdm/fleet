@@ -326,10 +326,11 @@ func TestValidateRawKeys(t *testing.T) {
 		assert.Contains(t, errs[0].Error(), "typo_field")
 	})
 
-	t.Run("invalid json no error", func(t *testing.T) {
+	t.Run("invalid json returns parse error", func(t *testing.T) {
 		raw := []byte(`{invalid json`)
 		errs := validateRawKeys(raw, reflect.TypeFor[fleet.QuerySpec](), "test.yml", []string{"reports"})
-		assert.Empty(t, errs) // parse errors handled elsewhere
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), "invalid")
 	})
 }
 
