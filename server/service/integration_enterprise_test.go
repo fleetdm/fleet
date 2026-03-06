@@ -26406,7 +26406,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Team 1" + t.Name()})
 	require.NoError(t, err)
 
-	// most an installer being uploaded through FMA
+	// mock an installer being uploaded through FMA
 	updateInstallerFMAID := func(fmaID, teamID, titleID uint) {
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err = q.ExecContext(ctx, `UPDATE software_installers SET fleet_maintained_app_id = ? WHERE global_or_team_id = ? AND title_id = ?`, fmaID, teamID, titleID)

@@ -7285,7 +7285,6 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 	require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') >= 0;", p4.Query)
 
 	// test GetPatchPolicy
-
 	data, err := ds.GetPatchPolicy(ctx, &team1.ID, titleID)
 	require.NoError(t, err)
 	require.Equal(t, p4.ID, data.ID)
