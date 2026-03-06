@@ -148,6 +148,7 @@ const makeLinuxRows = ({ profiles, os_settings }: IHostMdmData) => {
     isLinuxDiskEncryptionStatus(os_settings.disk_encryption.status)
   ) {
     rows.push(
+      // TODO - do this kind of thing for recovery lock MDM command status
       generateLinuxDiskEncryptionSetting(
         os_settings.disk_encryption.status,
         os_settings.disk_encryption.detail
