@@ -1280,8 +1280,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 			result.Policies = append(result.Policies, &item.GitOpsPolicySpec)
 		} else {
-			filePath := resolveApplyRelativePath(baseDir, *item.Path)
-			fileBytes, err := os.ReadFile(filePath)
+			fileBytes, err := os.ReadFile(*item.Path)
 			if err != nil {
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to read policies file %s: %v", *item.Path, err))
 				continue
@@ -1306,11 +1305,11 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 								multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pp.Path, *item.Path),
 							)
 						} else {
-							if err := parsePolicyInstallSoftware(filepath.Dir(filePath), result.TeamName, pp, result.Software.Packages, result.Software.AppStoreApps); err != nil {
+							if err := parsePolicyInstallSoftware(filepath.Dir(*item.Path), result.TeamName, pp, result.Software.Packages, result.Software.AppStoreApps); err != nil {
 								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy install_software %q: %v", pp.Name, err))
 								continue
 							}
-							if err := parsePolicyRunScript(filepath.Dir(filePath), parentFilePath, result.TeamName, pp, result.Controls.Scripts); err != nil {
+							if err := parsePolicyRunScript(filepath.Dir(*item.Path), parentFilePath, result.TeamName, pp, result.Controls.Scripts); err != nil {
 								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy run_script %q: %v", pp.Name, err))
 								continue
 							}
