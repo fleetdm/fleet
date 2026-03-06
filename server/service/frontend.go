@@ -224,7 +224,13 @@ func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSec
 }
 
 func initiateOTAEnrollSSO(svc fleet.Service, w http.ResponseWriter, r *http.Request, enrollSecret string) error {
-	ssnID, ssnDurationSecs, idpURL, err := svc.InitiateMDMSSO(r.Context(), "ota_enroll", "/enroll?enroll_secret="+url.QueryEscape(enrollSecret), "")
+	requestURL := "/enroll?enroll_secret=" + url.QueryEscape(enrollSecret)
+	// pass the fully_managed parameter for Android enrollments so that it is returned after the callback, else the
+	// user won't get the android fully managed page
+	if r.URL.Query().Get("fully_managed") == "true" {
+		requestURL += "&fully_managed=true"
+	}
+	ssnID, ssnDurationSecs, idpURL, err := svc.InitiateMDMSSO(r.Context(), "ota_enroll", requestURL, "")
 	if err != nil {
 		return err
 	}
