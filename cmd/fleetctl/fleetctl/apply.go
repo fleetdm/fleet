@@ -54,6 +54,10 @@ func applyCommand() *cli.Command {
 			enableLogTopicsFlag(),
 			disableLogTopicsFlag(),
 		},
+		Before: func(c *cli.Context) error {
+			logDeprecatedFlagName(c, "policies-team", "policies-fleet")
+			return nil
+		},
 		Action: func(c *cli.Context) error {
 			// Disable field deprecation warnings for now.
 			// TODO - remove this in future release to unleash warnings.
