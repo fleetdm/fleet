@@ -909,7 +909,7 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 				return ctxerr.Wrapf(ctx, err, "getting reference from policies")
 			}
 			if count > 0 {
-				return errDeleteInstallerWithAssociatedPolicy
+				return errDeleteInstallerWithAssociatedInstallPolicy
 			}
 
 		}
