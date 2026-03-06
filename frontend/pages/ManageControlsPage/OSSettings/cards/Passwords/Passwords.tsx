@@ -12,7 +12,7 @@ import {
 } from "utilities/constants";
 
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-import recoveryLockPasswordAPI from "services/entities/recovery_lock_password";
+import configAPI from "services/entities/config";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -77,11 +77,18 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
 
   const onUpdateRecoveryLockPassword = async () => {
     try {
-      const res = await recoveryLockPasswordAPI.updateRecoveryLockPassword(
-        enableRecoveryLockPassword,
-        currentTeamId
-      );
-      setEnableRecoveryLockPassword(res.enable_recovery_lock_password);
+      if (currentTeamId === API_NO_TEAM_ID) {
+        await configAPI.update({
+          mdm: { enable_recovery_lock_password: enableRecoveryLockPassword },
+        });
+      } else {
+        await teamsAPI.updateConfig(
+          {
+            mdm: { enable_recovery_lock_password: enableRecoveryLockPassword },
+          },
+          currentTeamId
+        );
+      }
       renderFlash(
         "success",
         "Successfully updated Recovery Lock password enforcement."
