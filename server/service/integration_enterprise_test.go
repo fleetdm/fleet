@@ -26628,7 +26628,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		}, http.StatusOK, &policyResp)
 
 		// attempt to delete installer
-		res := s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusConflict, "team_id", strconv.Itoa(int(teamID)))
+		res := s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusConflict, "team_id", strconv.Itoa(int(teamID))) //nolint:gosec // dismiss G115
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, `Couldn’t delete. This software has a patch policy. Please remove the patch policy and try again.`)
 		res.Body.Close()
@@ -26639,7 +26639,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			IDs:    []uint{policyResp.Policy.ID}}, http.StatusOK, &deleteTeamPoliciesResponse{})
 
 		// can delete installer successfully
-		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", strconv.Itoa(int(teamID)))
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", strconv.Itoa(int(teamID))) //nolint:gosec // dismiss G115
 
 		// Test 2: Update the fleet maintained app installer so that its no longer a fleet maintained app
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
@@ -26647,7 +26647,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 		dummyBytes, err := os.ReadFile("testdata/software-installers/dummy_installer.pkg")
 		require.NoError(t, err)
-		body, headers := generateMultipartRequest(t, "software", "dummy_installer.pkg", dummyBytes, s.token, map[string][]string{"team_id": {strconv.Itoa(int(teamID))}})
+		body, headers := generateMultipartRequest(t, "software", "dummy_installer.pkg", dummyBytes, s.token, map[string][]string{"team_id": {strconv.Itoa(int(teamID))}}) //nolint:gosec // dismiss G115
 		res = s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusBadRequest, headers)
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, `Couldn't update. The package can't be changed for Fleet-maintained apps.`)
