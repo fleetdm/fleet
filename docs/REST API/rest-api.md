@@ -9895,6 +9895,8 @@ Get a list of all software.
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         }
       ],
+      "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9",
+      "binary_sha256": "b0b1730ecbc7ff4505142c49f1295e6eda6bcaed7e2c68c5be91b5a11001f024"
     },
     {
       "id": 22,
