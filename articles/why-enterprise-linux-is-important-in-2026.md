@@ -39,7 +39,7 @@ Modern software is commonly deployed on AWS, Azure, or Google Cloud, running in 
 
 ### Security and trust
 
-The rise in supply-chain attacks and large-scale malware campaigns has sharpened the focus on device visibility and threat detection. Organizatins and governments increasingly recognize that, for sensitive deployments, open-source systems can offer a higher level of trust provided they are properly audited and managed.
+The rise in supply-chain attacks and large-scale malware campaigns has sharpened the focus on device visibility and threat detection. Organizations and governments increasingly recognize that, for sensitive deployments, open-source systems can offer a higher level of trust provided they are properly audited and managed.
 
 ## Linux at work
 
