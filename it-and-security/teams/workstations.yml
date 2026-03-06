@@ -105,6 +105,7 @@ controls:
       - path: ../lib/windows/configuration-profiles/Disable OneDrive.xml
       - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
       - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
+      - path: ../lib/windows/configuration-profiles/Screen lock timeout.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
@@ -141,6 +142,10 @@ policies:
   - path: ../lib/macos/policies/company-portal-installed.yml
   - path: ../lib/macos/policies/entra-conditional-access-check.yml
   - path: ../lib/macos/policies/install-nudge.yml
+  # macOS ISO 27001 policies
+  - path: ../lib/macos/policies/asset-enrolled-and-inventoried.yml
+  - path: ../lib/macos/policies/malware-protection-check.yml
+  - path: ../lib/macos/policies/audit-logging-check.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
@@ -148,9 +153,20 @@ policies:
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
+  # Windows ISO 27001 policies
+  - path: ../lib/windows/policies/asset-enrolled-and-inventoried.yml
+  - path: ../lib/windows/policies/event-logging-check.yml
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
+  # Linux ISO 27001 policies
+  - path: ../lib/linux/policies/asset-enrolled-and-inventoried.yml
+  - path: ../lib/linux/policies/malware-protection-check.yml
+  - path: ../lib/linux/policies/os-up-to-date.yml
+  - path: ../lib/linux/policies/screen-lock-check.yml
+  - path: ../lib/linux/policies/firewall-check.yml
+  - path: ../lib/linux/policies/audit-logging-check.yml
+  - path: ../lib/linux/policies/password-complexity-check.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
   - path: ../lib/macos/queries/collect-santa-denied-logs.yml

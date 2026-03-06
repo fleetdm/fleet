@@ -77,6 +77,6 @@
         END as policy_compliance;
 
   critical: true
-  description: "Failing this policy indicates that the Windows Defender service is not running, or one or more of the following features are disabled: anti-spyware protection, real-time protection, behavior monitoring, cloud protection (MAPS), or script scanning. This could leave your device vulnerable to malware, spyware, and other security threats."
+  description: "ISO 27001 Annex A.8.7 (Protection against malware) requires malware protection to be implemented. Failing this policy indicates that the Windows Defender service is not running, or one or more of the following features are disabled: anti-spyware protection, real-time protection, behavior monitoring, cloud protection (MAPS), or script scanning. This could leave your device vulnerable to malware, spyware, and other security threats."
   resolution: "Corrective actions include ensuring the Windows Defender service is running and that anti-spyware protection, real-time protection, behavior monitoring, cloud protection, and script scanning are all enabled. Check that the MDM configuration profile has been applied successfully. If these actions are not successful, try rebooting before sending a message to #help-dogfooding in Slack."
   platform: windows

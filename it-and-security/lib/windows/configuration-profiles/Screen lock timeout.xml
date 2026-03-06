@@ -1,0 +1,27 @@
+<Replace>
+  <!-- ISO 27001 A.8.9: Enforce screen lock after 5 minutes of inactivity -->
+  <CmdID>1</CmdID>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock</LocURI>
+    </Target>
+    <Data>5</Data>
+  </Item>
+</Replace>
+
+<Replace>
+  <!-- Require password on wakeup from idle -->
+  <CmdID>2</CmdID>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/DeviceLock/AllowIdleReturnWithoutPassword</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>

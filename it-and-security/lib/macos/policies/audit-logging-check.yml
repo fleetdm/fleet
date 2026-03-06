@@ -1,0 +1,16 @@
+- name: macOS - Audit logging enabled (ISO 27001 A.8.24)
+  query: >-
+    SELECT 1 WHERE
+      EXISTS (SELECT 1 FROM launchd WHERE name = 'com.apple.auditd' AND status != -15)
+      OR EXISTS (SELECT 1 FROM processes WHERE name = 'auditd');
+  critical: false
+  description: >-
+    ISO 27001 Annex A.8.24 requires that activities, exceptions, faults, and other
+    relevant events are logged and monitored. This policy checks that the macOS audit
+    daemon (auditd / unified logging) is running to ensure system events are being
+    recorded for security monitoring and incident response.
+  resolution: >-
+    The macOS audit daemon should be running by default. If this policy is failing,
+    check that auditing has not been disabled. Run: sudo launchctl load -w
+    /System/Library/LaunchDaemons/com.apple.auditd.plist
+  platform: darwin

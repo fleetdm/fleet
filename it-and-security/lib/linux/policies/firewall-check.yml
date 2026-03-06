@@ -1,0 +1,26 @@
+- name: Linux - Firewall enabled (ISO 27001 A.8.20)
+  query: >-
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM iptables WHERE chain = 'INPUT' AND policy != 'ACCEPT'
+      )
+      OR EXISTS (
+        SELECT 1 FROM services WHERE name = 'ufw' AND status = 'RUNNING'
+      )
+      OR EXISTS (
+        SELECT 1 FROM services WHERE name = 'firewalld' AND status = 'RUNNING'
+      )
+      OR EXISTS (
+        SELECT 1 FROM services WHERE name = 'nftables' AND status = 'RUNNING'
+      );
+  critical: false
+  description: >-
+    ISO 27001 Annex A.8.20 (Network security) requires that networks and network
+    devices are secured and managed. This policy verifies that a host-based firewall
+    (ufw, firewalld, nftables, or iptables with a non-ACCEPT default INPUT policy)
+    is active on the Linux endpoint.
+  resolution: >-
+    Enable a firewall on your Linux workstation. For Ubuntu/Debian:
+    sudo ufw enable. For RHEL/Fedora: sudo systemctl enable --now firewalld.
+    Ensure your firewall rules allow necessary traffic while blocking unauthorized access.
+  platform: linux

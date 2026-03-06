@@ -1,0 +1,32 @@
+- name: Linux - Screen lock enabled (ISO 27001 A.8.9)
+  query: >-
+    SELECT 1 WHERE
+      EXISTS (
+        SELECT 1 FROM dconf_read
+        WHERE key = '/org/gnome/desktop/screensaver/lock-enabled'
+          AND value = 'true'
+      )
+      OR EXISTS (
+        SELECT 1 FROM dconf_read
+        WHERE key = '/org/gnome/desktop/session/idle-delay'
+          AND CAST(REPLACE(REPLACE(value, 'uint32 ', ''), '''', '') AS INTEGER) > 0
+          AND CAST(REPLACE(REPLACE(value, 'uint32 ', ''), '''', '') AS INTEGER) <= 300
+      )
+      OR NOT EXISTS (
+        SELECT 1 FROM os_version WHERE
+          name LIKE '%Ubuntu%' OR name LIKE '%Fedora%'
+          OR name LIKE '%Debian%' OR platform = 'debian'
+      );
+  critical: false
+  description: >-
+    ISO 27001 Annex A.8.9 requires that automatic screen lock is configured after a
+    period of inactivity to prevent unauthorized access to unattended devices. This
+    policy checks that the GNOME screensaver lock is enabled with a timeout of no more
+    than 5 minutes (300 seconds).
+  resolution: >-
+    Enable automatic screen lock on your Linux workstation. For GNOME:
+    Settings > Privacy > Screen Lock > enable Automatic Screen Lock and set the delay
+    to 5 minutes or less. Alternatively, run:
+    gsettings set org.gnome.desktop.screensaver lock-enabled true &&
+    gsettings set org.gnome.desktop.session idle-delay 300
+  platform: linux
