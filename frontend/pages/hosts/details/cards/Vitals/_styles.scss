@@ -81,6 +81,16 @@
     white-space: nowrap;
   }
 
+  &__os-data-set {
+    .component__tooltip-wrapper {
+      margin-left: $pad-xxsmall;
+    }
+
+    .component__tooltip-wrapper__element {
+      line-height: inherit;
+    }
+  }
+
   .text-muted {
     color: $ui-fleet-black-50;
   }
