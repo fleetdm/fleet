@@ -378,6 +378,10 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		if topKey == "name" || topKey == "labels" || topKey == "settings" || topKey == "org_settings" {
 			continue
 		}
+		// "agent_options" and "reports" are not supported in no-team/unassigned files.
+		if result.IsNoTeam() && (topKey == "agent_options" || topKey == "reports") {
+			continue
+		}
 		// Default top keys to null if not present.
 		// This will clear the settings as if the key was provided with an empty value.
 		if _, ok := top[topKey]; !ok {
