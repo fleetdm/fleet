@@ -3301,7 +3301,7 @@ If you have an [Apple Developer account that is enabled as an MDM vendor](https:
   mdm:
     apple_vpp_app_metadata_api_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
   ```
-  
+
 ### fleet_allow_bootstrap_package_during_migration
 
 When set to `1` or `true`, this environment variable enables Fleet to install bootstrap packages on hosts during MDM migration enrollments (i.e. non-DEP enrollments). By default, bootstrap packages are only installed for DEP-enrolled hosts. Setting this variable restores the previous behavior, ensuring all new enrollments receive the bootstrap package.
@@ -3309,6 +3309,15 @@ When set to `1` or `true`, this environment variable enables Fleet to install bo
 This is only supported as an environment variable.
 
 - Environment variable: `FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION`
+
+### silent_migration_enrollment_profile
+
+Specifies the original enrollment profile from the previous MDM, used by Fleet for migrated Apple hosts during SCEP certificate renewal. This profile ensures that migrated hosts can renew their SCEP certificates without requiring re-enrollment or user interaction, enabling seamless MDM migration. Required when migrating hosts from another MDM to Fleet to maintain uninterrupted certificate management.
+
+The enrollment profile must be base64-encoded. This is only supported as an environment variable. 
+
+- Environment variable: `FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE`
+- Note: If you are experiencing systems failing SCEP renewal, please [contact us](mailto: support@fleetdm.com).
 
 ## Conditional access
 
