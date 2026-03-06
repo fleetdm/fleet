@@ -27,7 +27,46 @@ If you find a piece of collateral that is duplicate to one listed below, please 
 | [Product Roadmap](https://docs.google.com/document/d/16si8Nkh0F25opUMpZYm6XwU8LEhGd7H4eOzPKFz8jGw/edit) | Future development vision and open roadmap opportunities. | Jan 20, 2021 |
 |[Fleet in 3 Minutes VIDEO](https://www.youtube.com/watch?v=q1Tm3IBcx24)| A short 3 minute demo video of how fleet works. | May 13, 2026 |
 
-### Case Studies & Success Stories
+### Fleet champion stories
+
+## Case studies & success stories
+
+| Date updated | Asset | Description | Author |
+| ------------ | ----- | ----------- | ------ |
+| 2026-02-23 | [Agritech producer replaces manual tracking across 273 devices](https://fleetdm.com/case-study/agritech-producer) | An African agritech producer unified its devices with Fleet, eliminating manual tracking and securing cold-chain logistics. | Irena Reedy |
+| 2026-02-22 | [Workspace software company consolidates Kandji and Intune across 1,465 devices](https://fleetdm.com/case-study/workspace-software-company) | A workspace software company unified 1,400+ devices with Fleet, replacing Kandji and Intune and adopting GitOps for proactive auditing. | Irena Reedy |
+| 2026-02-22 | [Robotics company unifies Mac, Windows, Linux, and Android devices](https://fleetdm.com/case-study/robotics-company) | A robotics company unified Mac, Windows, Linux, and Android with Fleet, enabling GitOps, proactive security, and real-time device control. | Irena Reedy |
+| 2026-02-22 | [Open-source organization manages 1,556 devices with real-time compliance](https://fleetdm.com/case-study/open-source-organization) | Open-source org manages 1,556 devices with equal Mac, Windows, and Linux support, real-time compliance, and unified threat visibility. | Irena Reedy |
+| 2026-02-22 | [Journalism nonprofit manages Mac and Linux devices with GitOps](https://fleetdm.com/case-study/journalism-nonprofit) | Journalism nonprofit manages Mac and Linux devices with open source, GitOps workflows, and transparent, real-time compliance visibility. | Irena Reedy |
+| 2026-02-22 | [IT service provider scales to 8,000+ devices with GitOps](https://fleetdm.com/case-study/it-service-provider) | As an IT-as-a-Service provider, managing over 8,000 laptops across 120 SME customers. | Irena Reedy |
+| 2026-02-22 | [IT platform provider automates patching across thousands of Mac, Windows, and Linux devices](https://fleetdm.com/case-study/it-platform-provider) | An IT platform provider used Fleet and GitOps to automate patching, unify Mac, Windows, and Linux, and replace legacy tools. | Irena Reedy |
+| 2026-02-22 | [Gaming technology company runs GitOps-driven device management on-prem](https://fleetdm.com/case-study/gaming-technology-company) | Gaming tech company manages 1,600+ devices with GitOps automation, on-prem control, and faster vulnerability response across Mac, Windows, and Linux. | Irena Reedy |
+| 2026-02-22 | [Financial technology company manages 15,000 devices with GitOps](https://fleetdm.com/case-study/financial-technology-company) | A financial technology company manages a massive environment of roughly 15,000 endpoints. | Irena Reedy |
+| 2026-02-22 | [Financial services platform manages 6,000+ hosts with continuous compliance visibility](https://fleetdm.com/case-study/financial-services-platform) | Financial services platform manages 6,000+ hosts with cross-platform support, continuous auditing, and open, flexible device management. | Irena Reedy |
+| 2026-02-22 | [Enforcing security policies in minutes across a regulated healthcare environment](https://fleetdm.com/case-study/healthcare-technology-organization) | Healthcare tech org enforces policies in minutes, not weeks, with self-hosted, multi-OS management and clear compliance visibility. | Irena Reedy |
+| 2026-02-22 | [Cannabis technology company consolidates Jamf and Intune with Fleet](https://fleetdm.com/case-study/cannabis-technology-company) | A cannabis tech company consolidated Jamf and Intune with Fleet, unified macOS and Windows, and adopted GitOps with Okta integration. | Irena Reedy |
+| 2026-02-22 | [Banking platform guarantees script execution and audit-ready compliance](https://fleetdm.com/case-study/banking-platform) | A banking platform replaced legacy tools with Fleet to guarantee script execution, unify Mac and Windows, and prove compliance in audits. | Irena Reedy |
+| 2026-02-22 | [AI security company runs live queries to verify CVEs in seconds](https://fleetdm.com/case-study/ai-security-company) | An AI security company replaced legacy MDMs with Fleet for Linux visibility, security as code, and instant CVE response. | Irena Reedy |
+| 2026-02-20 | [Communications platform unifies device management across 3,000 devices](https://fleetdm.com/case-study/communications-platform) | Communications platform unifies 3,000 devices with real-time visibility, GitOps automation, and transparent cross-platform management. | Irena Reedy |
+| 2025-12-11 | [Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually](https://fleetdm.com/case-study/stripe) | | Fleetdm |
+| 2025-12-11 | [Foursquare cut costs and gained 114% ROI with Fleet](https://fleetdm.com/case-study/foursquare) | | Fleetdm |
+| 2025-12-11 | [Faire secures Macs with CIS benchmarks and Fleet](https://fleetdm.com/case-study/faire) | | Fleetdm |
+| 2025-10-07 | [Establishing visibility in a distributed hybrid environment](https://fleetdm.com/case-study/global-saas-company) | AI tech company gains instant visibility across 140 devices with cross-platform management, Fleet Cloud, and automated compliance sync. | Irena Reedy |
+| 2025-01-29 | [Fastly gains visibility into all endpoints and critical infrastructure worldwide](https://fleetdm.com/case-study/fastly) | | Fleetdm |
+| 2024-12-23 | [Leading interactive entertainment company adopts Fleet for MDM](https://fleetdm.com/case-study/interactive-entertainment-company) | Leading interactive entertainment company adopts Fleet for MDM. | Andrew Baker |
+| 2024-12-20 | [Cloud-based data leader chooses Fleet for orchestration](https://fleetdm.com/case-study/cloud-data-platform) | Cloud-based data leader chooses Fleet for orchestration. | Andrew Baker |
+| 2024-12-19 | [American financial services company migrates to Fleet for MDM and next-gen change management](https://fleetdm.com/case-study/financial-services-company) | American financial services company migrates to Fleet for MDM and next-gen change management. | Andrew Baker |
+| 2024-12-17 | [How a global workforce management company achieved compliance and clarity with Fleet — keeping shift work in sync](https://fleetdm.com/case-study/global-workforce-management-company) | How a global workforce management company achieved compliance and clarity with Fleet — keeping shift work in sync. | Harrison Ravazzolo |
+| 2024-12-16 | [Global social media platform migrates to Fleet](https://fleetdm.com/case-study/global-social-media-platform) | Global social media platform migrates to Fleet. | Andrew Baker |
+| 2024-12-12 | [Vehicle manufacturer transitions to Fleet for endpoint security](https://fleetdm.com/case-study/electric-vehicle-manufacturer) | Vehicle manufacturer transitions to Fleet for endpoint security. | Andrew Baker |
+| 2024-12-11 | [Large gaming company enhances server observability with Fleet](https://fleetdm.com/case-study/online-gaming-platform) | Large gaming company enhances server observability with Fleet. | Andrew Baker |
+| 2024-12-10 | [Worldwide security and authentication platform chooses Fleet for Linux management](https://fleetdm.com/case-study/worldwide-security-and-authentication-platform) | Worldwide security and authentication platform switches to Fleet for Linux device management. | Andrew Baker |
+| | [Global collaboration platform consolidates device management with Fleet](https://fleetdm.com/case-study/collaboration-platform) | A global collaboration platform uses Fleet and osquery to simplify device management and improve visibility across tens of thousands of devices. | |
+| | [Digital bank strengthens security and compliance with Fleet](https://fleetdm.com/case-study/digital-bank) | Fleet helps a digital bank manage 10,000+ devices with on-prem control, real-time visibility, and automation across macOS, Windows, Linux, and ChromeOS. | |
+| | [EV manufacturer brings Linux workstations under centralized management with Fleet](https://fleetdm.com/case-study/ev-manufacturer) | How an EV manufacturer uses Fleet to manage Linux workstations with centralized visibility and automated remediation. | |
+
+
+### Other
 
 | Date updated | Asset | Description | Author |
 | :--- | :--- | :--- | :--- |
