@@ -20,4 +20,5 @@ const (
 
 	DefaultMaxOsqueryDistributedWriteSize int64 = 5 * units.MiB
 	DefaultMaxOsqueryLogWriteSize         int64 = 10 * units.MiB
+	DefaultMaxOsqueryConfigBodySize       int64 = 5 * units.MiB
 )
