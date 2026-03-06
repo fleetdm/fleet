@@ -45,6 +45,11 @@ const DEFAULT_OPTIONS = [
     disabled: false,
   },
   {
+    label: "Show Recovery Lock password",
+    value: "recoveryLockPassword",
+    disabled: false,
+  },
+  {
     label: "Turn off MDM",
     value: "mdmOff",
     disabled: false,
@@ -94,6 +99,9 @@ interface IHostActionConfigOptions {
   scriptsGloballyDisabled: boolean | undefined;
   isPrimoMode: boolean;
   hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
+  isRecoveryLockPasswordEnabled: boolean;
+  diskEncryptionProfileStatus: string | undefined;
+  recoveryLockPasswordProfileStatus: string | undefined;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -279,6 +287,25 @@ const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
   return doesStoreEncryptionKey;
 };
 
+const canShowRecoveryLockPassword = (config: IHostActionConfigOptions) => {
+  const {
+    isPremiumTier,
+    isConnectedToFleetMdm,
+    hostPlatform,
+    isRecoveryLockPasswordEnabled,
+  } = config;
+  if (!isPremiumTier) {
+    return false;
+  }
+  if (hostPlatform !== "darwin") {
+    return false;
+  }
+  if (!isConnectedToFleetMdm) {
+    return false;
+  }
+  return isRecoveryLockPasswordEnabled;
+};
+
 const canRunScript = ({
   hostPlatform,
   isGlobalAdmin,
@@ -315,6 +342,12 @@ const removeUnavailableOptions = (
 
   if (!canShowDiskEncryption(config)) {
     options = options.filter((option) => option.value !== "diskEncryption");
+  }
+
+  if (!canShowRecoveryLockPassword(config)) {
+    options = options.filter(
+      (option) => option.value !== "recoveryLockPassword"
+    );
   }
 
   if (!canTurnOffMdm(config)) {
@@ -402,6 +435,8 @@ const modifyOptions = (
     hostScriptsEnabled,
     hostPlatform,
     scriptsGloballyDisabled,
+    diskEncryptionProfileStatus,
+    recoveryLockPasswordProfileStatus,
   }: IHostActionConfigOptions
 ) => {
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
@@ -476,6 +511,45 @@ const modifyOptions = (
       );
     }
   }
+  if (
+    diskEncryptionProfileStatus === "pending" ||
+    diskEncryptionProfileStatus === "failed"
+  ) {
+    const diskEncOption = options.find(
+      (option) => option.value === "diskEncryption"
+    );
+    if (diskEncOption) {
+      diskEncOption.disabled = true;
+      diskEncOption.tooltipContent = (
+        <>
+          Disk encryption key is unavailable
+          <br />
+          while pending or has failed.
+        </>
+      );
+    }
+  }
+
+  // Disable recovery lock password if the profile is pending or failed
+  if (
+    recoveryLockPasswordProfileStatus === "pending" ||
+    recoveryLockPasswordProfileStatus === "failed"
+  ) {
+    const rlpOption = options.find(
+      (option) => option.value === "recoveryLockPassword"
+    );
+    if (rlpOption) {
+      rlpOption.disabled = true;
+      rlpOption.tooltipContent = (
+        <>
+          Recovery Lock password is unavailable
+          <br />
+          while pending or has failed.
+        </>
+      );
+    }
+  }
+
   disableOptions(optionsToDisable);
   formatTurnOffOptionLabel(options, hostPlatform);
   return options;

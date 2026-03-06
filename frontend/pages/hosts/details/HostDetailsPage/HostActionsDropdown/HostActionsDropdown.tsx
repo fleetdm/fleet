@@ -22,6 +22,9 @@ interface IHostActionsDropdownProps {
   hostPlatform?: string;
   onSelect: (value: string) => void;
   hostScriptsEnabled: boolean | null;
+  isRecoveryLockPasswordEnabled?: boolean;
+  diskEncryptionProfileStatus?: string;
+  recoveryLockPasswordProfileStatus?: string;
 }
 
 const HostActionsDropdown = ({
@@ -34,6 +37,9 @@ const HostActionsDropdown = ({
   hostPlatform = "",
   hostScriptsEnabled = false,
   onSelect,
+  isRecoveryLockPasswordEnabled = false,
+  diskEncryptionProfileStatus,
+  recoveryLockPasswordProfileStatus,
 }: IHostActionsDropdownProps) => {
   const {
     isPremiumTier = false,
@@ -84,6 +90,9 @@ const HostActionsDropdown = ({
     scriptsGloballyDisabled: globalConfig?.server_settings.scripts_disabled,
     isPrimoMode: globalConfig?.partnerships?.enable_primo ?? false,
     hostMdmEnrollmentStatus,
+    isRecoveryLockPasswordEnabled,
+    diskEncryptionProfileStatus,
+    recoveryLockPasswordProfileStatus,
   });
 
   // No options to render. Exit early

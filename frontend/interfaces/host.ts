@@ -236,6 +236,14 @@ export interface IHostEncrpytionKeyResponse {
   };
 }
 
+export interface IHostRecoveryLockPasswordResponse {
+  host_id: number;
+  recovery_lock_password: {
+    updated_at: string;
+    password: string;
+  };
+}
+
 export interface IHostIssues {
   total_issues_count: number;
   critical_vulnerabilities_count?: number; // Premium
