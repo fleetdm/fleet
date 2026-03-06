@@ -1,3 +1,10 @@
+## Fleet 4.81.2 (Mar 06, 2026)
+
+### Bug fixes
+
+- Fixed a bug where macOS systems previous enrolled in fleet wouldn't always go through setup experience after a wipe.
+- Fixed issue where policy automation retries were potentially reading stale data from replica database.
+
 ## Fleet 4.81.1 (Mar 2, 2026)
 
 ### Bug fixes
