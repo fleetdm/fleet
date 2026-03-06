@@ -92,7 +92,7 @@ const TransferHostModal = ({
             <p>
               Fleet not here?{" "}
               <Link
-                to={PATHS.ADMIN_TEAMS}
+                to={PATHS.ADMIN_FLEETS}
                 className={`${baseClass}__team-link`}
               >
                 Create a fleet
