@@ -643,6 +643,8 @@ type GetCalendarPoliciesFunc func(ctx context.Context, teamID uint) ([]fleet.Pol
 
 type GetPoliciesForConditionalAccessFunc func(ctx context.Context, teamID uint) ([]uint, error)
 
+type GetPatchPolicyFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.PatchPolicyData, error)
+
 type ConditionalAccessBypassDeviceFunc func(ctx context.Context, hostID uint) error
 
 type ConditionalAccessConsumeBypassFunc func(ctx context.Context, hostID uint) (*time.Time, error)
@@ -2715,6 +2717,9 @@ type DataStore struct {
 
 	GetPoliciesForConditionalAccessFunc        GetPoliciesForConditionalAccessFunc
 	GetPoliciesForConditionalAccessFuncInvoked bool
+
+	GetPatchPolicyFunc        GetPatchPolicyFunc
+	GetPatchPolicyFuncInvoked bool
 
 	ConditionalAccessBypassDeviceFunc        ConditionalAccessBypassDeviceFunc
 	ConditionalAccessBypassDeviceFuncInvoked bool
@@ -6600,6 +6605,13 @@ func (s *DataStore) GetPoliciesForConditionalAccess(ctx context.Context, teamID 
 	s.GetPoliciesForConditionalAccessFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetPoliciesForConditionalAccessFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*fleet.PatchPolicyData, error) {
+	s.mu.Lock()
+	s.GetPatchPolicyFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPatchPolicyFunc(ctx, teamID, titleID)
 }
 
 func (s *DataStore) ConditionalAccessBypassDevice(ctx context.Context, hostID uint) error {

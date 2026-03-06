@@ -2528,7 +2528,7 @@ type patchPolicy struct {
 	Resolution  string
 }
 
-func (ds *Datastore) generatePatchPolicy(ctx context.Context, teamID, titleID uint) (*patchPolicy, error) {
+func (ds *Datastore) generatePatchPolicy(ctx context.Context, teamID uint, titleID uint) (*patchPolicy, error) {
 	installer, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &teamID, titleID, false)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting software installer")
@@ -2566,12 +2566,17 @@ func (ds *Datastore) generatePatchPolicy(ctx context.Context, teamID, titleID ui
 	return &policy, nil
 }
 
-func (ds *Datastore) deletePatchPolicy(ctx context.Context, teamID, titleID uint) error {
-	var policyID uint
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &policyID, `SELECT id FROM policies WHERE team_id = ? AND patch_software_title_id = ?`, teamID, titleID)
+func (ds *Datastore) GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*fleet.PatchPolicyData, error) {
+	query := `SELECT id, name FROM policies WHERE team_id = ? AND patch_software_title_id = ?`
+	var policy fleet.PatchPolicyData
+
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &policy, query, ptr.ValOrZero(teamID), titleID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get patch policy for title id")
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("PatchPolicy"), "get patch policy")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get patch policy")
 	}
-	ds.DeleteTeamPolicies(ctx, teamID, []uint{policyID})
-	return nil
+
+	return &policy, nil
 }
