@@ -3882,10 +3882,11 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestOmittedTopLevelKeysTeam() {
 	user := s.createGitOpsUser(t)
 	fleetctlConfig := s.createFleetctlConfig(t, user)
 	t.Setenv("FLEET_URL", s.Server.URL)
+	testing_utils.StartSoftwareInstallerServer(t)
 
 	teamName := "Test Omitted Keys " + uuid.NewString()
 
-	// Step 1: Apply a full team config with policies, agent_options, controls, features, and reports.
+	// Step 1: Apply a full team config with policies, agent_options, controls, features, reports, and software.
 	fullTeamConfig := fmt.Sprintf(`
 name: %s
 settings:
@@ -3908,6 +3909,8 @@ reports:
     schedule: 1
     automations_enabled: false
 software:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
 `, teamName)
 
 	fullTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -3943,6 +3946,11 @@ software:
 	require.NoError(t, err)
 	require.Len(t, teamSecrets, 1)
 	require.Equal(t, "foobar", teamSecrets[0].Secret)
+
+	titles, _, _, err := s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: &tm.ID},
+		fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
 
 	// Step 2: Apply a minimal team config that omits policies, agent_options, controls, reports, software, settings.
 	minimalTeamConfig := fmt.Sprintf(`
@@ -3986,4 +3994,10 @@ name: %s
 	require.NoError(t, err)
 	require.Len(t, teamSecrets, 1)
 	require.Equal(t, "foobar", teamSecrets[0].Secret)
+
+	// Verify software was cleared.
+	titles, _, _, err = s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: &tm.ID},
+		fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	require.Len(t, titles, 0)
 }
