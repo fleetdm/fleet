@@ -231,8 +231,8 @@ type MDM struct {
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
-	MacOSSettings                  MacOSSettings            `json:"macos_settings"`
-	MacOSSetup                     MacOSSetup               `json:"macos_setup"`
+	MacOSSettings                  MacOSSettings            `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSetup                     MacOSSetup               `json:"macos_setup" renameto:"setup_experience"`
 	MacOSMigration                 MacOSMigration           `json:"macos_migration"`
 	WindowsMigrationEnabled        bool                     `json:"windows_migration_enabled"`
 	EnableTurnOnWindowsMDMManually bool                     `json:"enable_turn_on_windows_mdm_manually"`
@@ -247,6 +247,8 @@ type MDM struct {
 	WindowsEnabledAndConfigured bool `json:"windows_enabled_and_configured"`
 
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
+
+	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
 
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
 
@@ -433,7 +435,7 @@ type MacOSSettings struct {
 	//
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
-	CustomSettings                 []MDMProfileSpec `json:"custom_settings"`
+	CustomSettings                 []MDMProfileSpec `json:"custom_settings" renameto:"configuration_profiles"`
 	DeprecatedEnableDiskEncryption *bool            `json:"enable_disk_encryption,omitempty"`
 
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
@@ -533,7 +535,7 @@ type MacOSSetup struct {
 	BootstrapPackage            optjson.String                     `json:"bootstrap_package"`
 	EnableEndUserAuthentication bool                               `json:"enable_end_user_authentication"`
 	LockEndUserInfo             optjson.Bool                       `json:"lock_end_user_info"`
-	MacOSSetupAssistant         optjson.String                     `json:"macos_setup_assistant"`
+	MacOSSetupAssistant         optjson.String                     `json:"macos_setup_assistant" renameto:"apple_setup_assistant"`
 	EnableReleaseDeviceManually optjson.Bool                       `json:"enable_release_device_manually"`
 	Script                      optjson.String                     `json:"script"`
 	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
@@ -1115,6 +1117,9 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	if !c.MDM.EnableDiskEncryption.Valid {
 		c.MDM.EnableDiskEncryption = optjson.SetBool(false)
 	}
+	if !c.MDM.EnableRecoveryLockPassword.Valid {
+		c.MDM.EnableRecoveryLockPassword = optjson.SetBool(false)
+	}
 	if !c.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		c.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
@@ -1682,7 +1687,7 @@ func (v *Version) AuthzType() string {
 type WindowsSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
-	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings"`
+	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings" renameto:"configuration_profiles"`
 }
 
 func (ws WindowsSettings) GetMDMProfileSpecs() []MDMProfileSpec {
@@ -1695,7 +1700,7 @@ var _ WithMDMProfileSpecs = WindowsSettings{}
 type AndroidSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
-	CustomSettings optjson.Slice[MDMProfileSpec]          `json:"custom_settings"`
+	CustomSettings optjson.Slice[MDMProfileSpec]          `json:"custom_settings" renameto:"configuration_profiles"`
 	Certificates   optjson.Slice[CertificateTemplateSpec] `json:"certificates"`
 }
 

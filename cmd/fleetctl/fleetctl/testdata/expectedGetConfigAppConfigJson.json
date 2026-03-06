@@ -117,6 +117,7 @@
       "volume_purchasing_program": null,
       "windows_enabled_and_configured": false,
       "enable_disk_encryption": false,
+      "enable_recovery_lock_password": false,
       "macos_updates": {
         "minimum_version": null,
         "deadline": null,

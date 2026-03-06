@@ -37,7 +37,7 @@ func TestParseResponseKnownErrors(t *testing.T) {
 		code    int
 		out     error
 	}{
-		{"not found errors", http.StatusNotFound, notFoundErr{}},
+		{"not found errors", http.StatusNotFound, &notFoundErr{}},
 		{"unauthenticated errors", http.StatusUnauthorized, ErrUnauthenticated},
 		{"license errors", http.StatusPaymentRequired, ErrMissingLicense},
 	}
