@@ -76,7 +76,7 @@ When looking for a management solution to overcome these challenges around Linux
 
 Not only can your Linux devices be enrolled and managed, Fleet offers an automated [Setup Experience](https://fleetdm.com/guides/windows-linux-setup-experience) for Linux, meaning you can realize zero-touch, automated provisioning for your Linux end users and link your Linux endpoints to your user’s identity in your IdP just like you do on your other platforms.  
 
-The next article in this series will cover more on the topic of enforcing security baselines for Linux: how detecting device state, monitoring compliance and automatically bringing devices back into compliance by triggering automations will finally allow your Linux devices to be as secure as the other OS platforms in your fleet.
+The [next article](https://fleetdm.com/articles/security-baselines-for-linux) in this series will cover more on the topic of enforcing security baselines for Linux: how detecting device state, monitoring compliance and automatically bringing devices back into compliance by triggering automations will finally allow your Linux devices to be as secure as the other OS platforms in your fleet.
 
 <meta name="articleTitle" value="Automated provisioning for Linux desktop in the enterprise">
 <meta name="authorFullName" value="Ashish Kuthiala">
