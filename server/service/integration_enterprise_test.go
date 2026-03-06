@@ -26430,6 +26430,18 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Equal(t, name, policy.Name)
 	}
 
+	createHostPolicyResults := func(host *fleet.Host, policy *fleet.Policy) {
+		distributedResp := submitDistributedQueryResultsResponse{}
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+			host,
+			map[uint]*bool{
+				policy.ID: ptr.Bool(false),
+			},
+		), http.StatusOK, &distributedResp)
+		err = s.ds.UpdateHostPolicyCounts(ctx)
+		require.NoError(t, err)
+	}
+
 	t.Run("no_team_patch_policy", func(t *testing.T) {
 		// add a regular "No team" policy
 		tpParams := teamPolicyRequest{
@@ -26652,6 +26664,11 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		}
 		startFMAServers(t, s.ds, states)
 
+		// Add some hosts
+		teamHosts := s.createHosts(t, "windows", "windows")
+		require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{teamHosts[0].ID})))
+		require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{teamHosts[1].ID})))
+
 		getActiveTitleForTeam := func(teamID uint, titleName string) fleet.SoftwareTitleListResult {
 			var resp listSoftwareTitlesResponse
 			s.DoJSON(
@@ -26746,6 +26763,12 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
 		require.Nil(t, listPolResp.Policies[0].InstallSoftware)
 
+		// check policy membership
+		createHostPolicyResults(teamHosts[0], listPolResp.Policies[0])
+		listPolResp.Policies[0], err = s.ds.Policy(ctx, listPolResp.Policies[0].ID)
+		require.NoError(t, err)
+		require.Equal(t, uint(1), listPolResp.Policies[0].FailingHostCount)
+
 		// Test 2: FMA Version is updated (query should use new version)
 		resetFMAState(states["/zoom/windows.json"], "1.2", []byte("abc"))
 
@@ -26767,6 +26790,11 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.2", title.ID)
+
+		// check policy membership
+		listPolResp.Policies[0], err = s.ds.Policy(ctx, listPolResp.Policies[0].ID)
+		require.NoError(t, err)
+		require.Equal(t, uint(0), listPolResp.Policies[0].FailingHostCount)
 
 		// Test 3: FMA Version is pinned back after update? (query should use old version)
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
