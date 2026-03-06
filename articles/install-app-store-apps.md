@@ -30,6 +30,22 @@ You can also manage which Google Play Store apps are available for self-service 
 
 3. Select **Add software > App store**, choose the Android platform, then enter the application ID.
 
+#### Install Android web app (web clip)
+
+To add an Android web app, first create the web app using the Fleet API. Send a request to the [`Create Android web app`](https://fleetdm.com/docs/rest-api/rest-api#create-android-web-app).
+
+The response includes an `app_store_id` (e.g. `com.google.enterprise.webapp.x1c41e22ab611cb98`). Use this ID as the application ID in **Add software > App store** (step 3 above).
+
+**Example request**
+
+```sh
+curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
+  -H "Authorization: Bearer <your_fleet_api_token>" \
+  -F 'title=Acme web app' \
+  -F 'url=https://app.acme.com' \
+  -F 'icon=@/path/to/app-icon.png'
+```
+
 ## Edit or delete the app
 
 1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
