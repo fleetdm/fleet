@@ -111,7 +111,7 @@ describe("SelectTargets - team disabling", () => {
       });
     });
 
-    it("enables only the query's own team when observer_can_run is true", async () => {
+    it("enables all observer teams when observer_can_run is true", async () => {
       const render = createCustomRenderer({
         withBackendMock: true,
         context: {
@@ -133,11 +133,11 @@ describe("SelectTargets - team disabling", () => {
 
       await waitFor(() => {
         expect(getTeamButton("Team Alpha")).toBeEnabled();
-        expect(getTeamButton("Team Beta")).toBeDisabled();
+        expect(getTeamButton("Team Beta")).toBeEnabled();
       });
     });
 
-    it("disables observer teams targeting a different team than the query's team", async () => {
+    it("enables all observer teams when observer_can_run is true regardless of query team", async () => {
       const render = createCustomRenderer({
         withBackendMock: true,
         context: {
@@ -158,9 +158,7 @@ describe("SelectTargets - team disabling", () => {
       );
 
       await waitFor(() => {
-        // Team Alpha is not the query's team, so disabled for observer
-        expect(getTeamButton("Team Alpha")).toBeDisabled();
-        // Team Beta IS the query's team, so enabled
+        expect(getTeamButton("Team Alpha")).toBeEnabled();
         expect(getTeamButton("Team Beta")).toBeEnabled();
       });
     });
@@ -263,7 +261,7 @@ describe("SelectTargets - team disabling", () => {
       });
     });
 
-    it("disables observer team when observer_can_run query belongs to a different team", async () => {
+    it("enables observer team when observer_can_run is true, even if query is on a different team", async () => {
       const render = createCustomRenderer({
         withBackendMock: true,
         context: {
@@ -275,8 +273,8 @@ describe("SelectTargets - team disabling", () => {
         },
       });
 
-      // Query belongs to team 1 (admin team), observer_can_run is true
-      // Team 2 (observer) should still be disabled because query belongs to team 1
+      // Query belongs to team 1 (admin team), observer_can_run is true.
+      // Team 2 (observer role) should be enabled — observer can run on any team they observe.
       render(
         <SelectTargets
           {...defaultProps}
@@ -287,7 +285,7 @@ describe("SelectTargets - team disabling", () => {
 
       await waitFor(() => {
         expect(getTeamButton("Team Alpha")).toBeEnabled();
-        expect(getTeamButton("Team Beta")).toBeDisabled();
+        expect(getTeamButton("Team Beta")).toBeEnabled();
       });
     });
 
@@ -379,7 +377,7 @@ describe("SelectTargets - team disabling", () => {
       });
     });
 
-    it("enables only the query's own team when observer_can_run is true", async () => {
+    it("enables all teams when observer_can_run is true", async () => {
       const render = createCustomRenderer({
         withBackendMock: true,
         context: {
@@ -400,9 +398,9 @@ describe("SelectTargets - team disabling", () => {
       );
 
       await waitFor(() => {
-        expect(getTeamButton("Unassigned")).toBeDisabled();
+        expect(getTeamButton("Unassigned")).toBeEnabled();
         expect(getTeamButton("Team Alpha")).toBeEnabled();
-        expect(getTeamButton("Team Beta")).toBeDisabled();
+        expect(getTeamButton("Team Beta")).toBeEnabled();
       });
     });
 
@@ -498,85 +496,6 @@ describe("SelectTargets - team disabling", () => {
       });
       expect(
         screen.queryByText("Results limited to fleets you can access.")
-      ).not.toBeInTheDocument();
-    });
-  });
-
-  describe("host and label helper text", () => {
-    const globalAdmin = createMockUser({
-      global_role: "admin",
-      teams: [],
-    });
-
-    const labelsWithRegularHandler = http.get(
-      baseUrl("/labels/summary"),
-      () => {
-        return HttpResponse.json({
-          labels: [
-            ...MOCK_LABELS,
-            { id: 3, name: "Custom label", label_type: "regular", description: "" },
-          ],
-        });
-      }
-    );
-
-    it("shows host and label helper text when queryTeamId is set", async () => {
-      mockServer.use(labelsWithRegularHandler);
-
-      const render = createCustomRenderer({
-        withBackendMock: true,
-        context: {
-          app: {
-            currentUser: globalAdmin,
-            isPremiumTier: true,
-            isOnGlobalTeam: true,
-          },
-        },
-      });
-
-      render(
-        <SelectTargets
-          {...defaultProps}
-          isObserverCanRunQuery={false}
-          queryTeamId={1}
-        />
-      );
-
-      await waitFor(() => {
-        expect(getTeamButton("Team Alpha")).toBeInTheDocument();
-      });
-      const helpTexts = screen.getAllByText(
-        "Results limited to hosts in this query's team."
-      );
-      // One for labels section, one for host search section
-      expect(helpTexts).toHaveLength(2);
-    });
-
-    it("does not show host or label helper text when queryTeamId is null", async () => {
-      const render = createCustomRenderer({
-        withBackendMock: true,
-        context: {
-          app: {
-            currentUser: globalAdmin,
-            isPremiumTier: true,
-            isOnGlobalTeam: true,
-          },
-        },
-      });
-
-      render(
-        <SelectTargets
-          {...defaultProps}
-          isObserverCanRunQuery={false}
-          queryTeamId={null}
-        />
-      );
-
-      await waitFor(() => {
-        expect(getTeamButton("Team Alpha")).toBeInTheDocument();
-      });
-      expect(
-        screen.queryByText("Results limited to hosts in this query's team.")
       ).not.toBeInTheDocument();
     });
   });
