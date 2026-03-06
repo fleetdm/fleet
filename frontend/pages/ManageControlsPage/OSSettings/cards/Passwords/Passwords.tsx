@@ -77,12 +77,11 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
 
   const onUpdateRecoveryLockPassword = async () => {
     try {
-      // TODO - use response to set state of checkbox, once confirmed it will be there.
-      // TODO clarify how this is supposed to work
-      await recoveryLockPasswordAPI.updateRecoveryLockPassword(
+      const res = await recoveryLockPasswordAPI.updateRecoveryLockPassword(
         enableRecoveryLockPassword,
         currentTeamId
       );
+      setEnableRecoveryLockPassword(res.enable_recovery_lock_password);
       renderFlash(
         "success",
         "Successfully updated Recovery Lock password enforcement."
