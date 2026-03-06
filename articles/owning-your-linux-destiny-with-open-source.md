@@ -9,6 +9,8 @@
 - Part 5: [Protecting the Linux device: remote wipe, USB and sudo](https://fleetdm.com/articles/protecting-the-linux-device-remote-wipe-usb-sudo)
 - Part 6: Owning your Linux destiny with open source
 
+-----
+
 Given the reliance on complex toolchains and dependencies to build modern software along with software developer use of package managers like `npm`, `pip`, `brew`, et al, software supply chain security is now a boardroom concern. High-profile breaches have made vendor trust feel riskier than ever. As a result, many organizations are asking for more transparency about what runs on their devices and where their data goes. Open-source solves this by letting teams inspect, audit, and modify the code they depend on. Let's look at the security advantages, how Linux fits the broader enterprise open source trend, and how to manage Linux devices without compromising on transparency.
 
 ## The open source security advantage
