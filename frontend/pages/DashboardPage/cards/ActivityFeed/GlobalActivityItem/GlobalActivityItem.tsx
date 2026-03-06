@@ -489,7 +489,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        viewed the Recovery lock password for{" "}
+        viewed the Recovery Lock password for{" "}
         <b>{activity.details?.host_display_name}</b>.
       </>
     );
@@ -498,7 +498,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        set a Recovery lock password for{" "}
+        set a Recovery Lock password for{" "}
         <b>{activity.details?.host_display_name}</b>.
       </>
     );
@@ -737,11 +737,11 @@ const TAGGED_TEMPLATES = {
   },
   enabledRecoveryLockPasswords: (activity: IActivity) => {
     const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
-    return <>enforced Recovery lock passwords for hosts {suffix}.</>;
+    return <>enforced Recovery Lock passwords for hosts {suffix}.</>;
   },
   disabledRecoveryLockPasswords: (activity: IActivity) => {
     const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
-    return <>removed Recovery lock password enforcement for hosts {suffix}.</>;
+    return <>removed Recovery Lock password enforcement for hosts {suffix}.</>;
   },
   changedMacOSSetupAssistant: (activity: IActivity) => {
     return getMacOSSetupAssistantMessage(

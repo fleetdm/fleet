@@ -239,7 +239,7 @@ export const isLinuxDiskEncryptionStatus = (
 
 export const FLEET_FILEVAULT_PROFILE_DISPLAY_NAME = "Disk encryption";
 export const FLEET_RECOVERY_LOCK_PASSWORD_DISPLAY_NAME =
-  "Recovery lock password";
+  "Recovery Lock password";
 export const FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID =
   "fleet-host-certificate-template";
 

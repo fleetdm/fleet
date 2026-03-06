@@ -79,7 +79,7 @@ export const generateRecoveryLockPasswordSetting = (
   return {
     profile_uuid: "rec_lock_dummy",
     platform: "darwin",
-    name: "Recovery lock password",
+    name: "Recovery Lock password",
     status,
     detail,
     operation_type: null,

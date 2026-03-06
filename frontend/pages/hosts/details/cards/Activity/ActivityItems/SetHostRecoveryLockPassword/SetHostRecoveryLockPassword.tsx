@@ -10,7 +10,7 @@ const SetHostRecoveryLockPasswordActivityItem = ({
   return (
     <ActivityItem activity={activity} hideCancel hideShowDetails>
       <b>{activity.actor_full_name} </b>
-      set a Recovery lock password for this host.
+      set a Recovery Lock password for this host.
     </ActivityItem>
   );
 };

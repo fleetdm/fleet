@@ -10,7 +10,7 @@ const ViewedHostRecoveryLockPasswordActivityItem = ({
   return (
     <ActivityItem activity={activity} hideCancel hideShowDetails>
       <b>{activity.actor_full_name} </b>
-      viewed the Recovery lock password for this host.
+      viewed the Recovery Lock password for this host.
     </ActivityItem>
   );
 };

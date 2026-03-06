@@ -30,7 +30,7 @@ const baseClass = "passwords";
 
 const RECOVERY_LOCK_TOOLTIP_CONTENT = (
   <>
-    Configure and escrow macOS Recovery lock passwords. These restrict access to
+    Configure and escrow macOS Recovery Lock passwords. These restrict access to
     recoveryOS and are securely stored for authorized admin retrieval.{" "}
     <CustomLink
       text="Learn more"
@@ -97,13 +97,13 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
       }
       renderFlash(
         "success",
-        "Successfully updated Recovery lock password enforcement."
+        "Successfully updated Recovery Lock password enforcement."
       );
       onMutation();
     } catch (e) {
       const errorMsg =
         getErrorReason(e) ??
-        "Couldn't update Recovery lock password enforcement. Please try again.";
+        "Couldn't update Recovery Lock password enforcement. Please try again.";
       renderFlash("error", errorMsg);
     }
   };
@@ -121,7 +121,7 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
         <div className="form passwords-content">
           <div className={`${baseClass}__recovery-lock-header`}>
             <TooltipWrapper tipContent={RECOVERY_LOCK_TOOLTIP_CONTENT}>
-              Recovery lock password
+              Recovery Lock password
             </TooltipWrapper>
           </div>
           <Checkbox
@@ -131,7 +131,7 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
             className={`${baseClass}__checkbox`}
             helpText="This setting is only available on macOS hosts with Apple silicon."
           >
-            Turn on Recovery lock password
+            Turn on Recovery Lock password
           </Checkbox>
           <div className="button-wrap">
             <GitOpsModeTooltipWrapper

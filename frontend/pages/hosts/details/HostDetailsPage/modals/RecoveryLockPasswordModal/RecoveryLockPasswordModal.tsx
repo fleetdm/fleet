@@ -42,7 +42,7 @@ const RecoveryLockPasswordModal = ({
 
   return (
     <Modal
-      title="Recovery lock password"
+      title="Recovery Lock password"
       onExit={onCancel}
       onEnter={onCancel}
       className={baseClass}
