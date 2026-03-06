@@ -423,6 +423,11 @@ const SelectTargets = ({
             Results limited to fleets you can access.
           </p>
         )}
+        {!isTeamsSection && entityType === "labels" && queryTeamId != null && (
+          <p className={`${baseClass}__label-help-text`}>
+            Results limited to hosts in this query&apos;s team.
+          </p>
+        )}
         {isSearchEnabled && (
           <>
             <SearchField
@@ -603,6 +608,11 @@ const SelectTargets = ({
         {!!labels?.other?.length &&
           renderTargetEntitySection("labels", labels.other)}
       </div>
+      {queryTeamId != null && (
+        <p className={`${baseClass}__host-help-text`}>
+          Results limited to hosts in this query&apos;s team.
+        </p>
+      )}
       <TargetsInput
         autofocus
         searchResultsTableConfig={resultsTableConfig}

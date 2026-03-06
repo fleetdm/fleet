@@ -432,7 +432,8 @@ type Service interface {
 	CountHosts(ctx context.Context, labelID *uint, opts HostListOptions) (int, error)
 	// SearchHosts performs a search on the hosts table using the following criteria:
 	//	- matchQuery is the query SQL
-	//	- queryID is the ID of a saved query to run (used to determine whether this is a query that observers can run)
+	//	- queryID is the ID of a saved query to run (used to determine whether this is a query that observers can run,
+	//	  and to scope results to the query's team when a team_id is set on the query)
 	//	- excludedHostIDs is an optional list of IDs to omit from the search
 	SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*Host, error)
 	// ListHostDeviceMapping returns the list of device-mapping of user's email address
@@ -577,7 +578,7 @@ type Service interface {
 
 	// CountHostsInTargets returns the metrics of the hosts in the provided label and explicit host IDs. If the query ID
 	// is provided and the referenced query allows observers to run, targets will include hosts that the user has
-	// observer role for.
+	// observer role for. Results are also scoped to the query's team when the query has a team_id set.
 	CountHostsInTargets(ctx context.Context, queryID *uint, targets HostTargets) (*TargetMetrics, error)
 
 	// /////////////////////////////////////////////////////////////////////////////

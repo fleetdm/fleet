@@ -502,6 +502,85 @@ describe("SelectTargets - team disabling", () => {
     });
   });
 
+  describe("host and label helper text", () => {
+    const globalAdmin = createMockUser({
+      global_role: "admin",
+      teams: [],
+    });
+
+    const labelsWithRegularHandler = http.get(
+      baseUrl("/labels/summary"),
+      () => {
+        return HttpResponse.json({
+          labels: [
+            ...MOCK_LABELS,
+            { id: 3, name: "Custom label", label_type: "regular", description: "" },
+          ],
+        });
+      }
+    );
+
+    it("shows host and label helper text when queryTeamId is set", async () => {
+      mockServer.use(labelsWithRegularHandler);
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            currentUser: globalAdmin,
+            isPremiumTier: true,
+            isOnGlobalTeam: true,
+          },
+        },
+      });
+
+      render(
+        <SelectTargets
+          {...defaultProps}
+          isObserverCanRunQuery={false}
+          queryTeamId={1}
+        />
+      );
+
+      await waitFor(() => {
+        expect(getTeamButton("Team Alpha")).toBeInTheDocument();
+      });
+      const helpTexts = screen.getAllByText(
+        "Results limited to hosts in this query's team."
+      );
+      // One for labels section, one for host search section
+      expect(helpTexts).toHaveLength(2);
+    });
+
+    it("does not show host or label helper text when queryTeamId is null", async () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            currentUser: globalAdmin,
+            isPremiumTier: true,
+            isOnGlobalTeam: true,
+          },
+        },
+      });
+
+      render(
+        <SelectTargets
+          {...defaultProps}
+          isObserverCanRunQuery={false}
+          queryTeamId={null}
+        />
+      );
+
+      await waitFor(() => {
+        expect(getTeamButton("Team Alpha")).toBeInTheDocument();
+      });
+      expect(
+        screen.queryByText("Results limited to hosts in this query's team.")
+      ).not.toBeInTheDocument();
+    });
+  });
+
   describe("global observer+", () => {
     const globalObserverPlus = createMockUser({
       global_role: "observer_plus",

@@ -37,7 +37,9 @@
     }
   }
 
-  &__team-help-text {
+  &__team-help-text,
+  &__label-help-text,
+  &__host-help-text {
     @include help-text;
     margin: 0 0 $pad-small;
   }

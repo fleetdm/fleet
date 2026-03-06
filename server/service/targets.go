@@ -233,16 +233,18 @@ func (svc *Service) CountHostsInTargets(ctx context.Context, queryID *uint, targ
 		return nil, fleet.ErrNoContext
 	}
 
-	includeObserver := false
+	var includeObserver bool
+	var teamID *uint
 	if queryID != nil {
 		query, err := svc.ds.Query(ctx, *queryID)
 		if err != nil {
 			return nil, err
 		}
 		includeObserver = query.ObserverCanRun
+		teamID = query.TeamID
 	}
 
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: includeObserver, TeamID: teamID}
 
 	metrics, err := svc.ds.CountHostsInTargets(ctx, filter, targets, svc.clock.Now())
 	if err != nil {

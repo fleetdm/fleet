@@ -725,7 +725,7 @@ type searchHostsRequest struct {
 	// MatchQuery is the query SQL
 	MatchQuery string `json:"query"`
 	// QueryID is the ID of a saved query to run (used to determine if this is a
-	// query that observers can run).
+	// query that observers can run, and to scope results to the query's team).
 	QueryID *uint `json:"query_id" renameto:"report_id"`
 	// ExcludedHostIDs is the list of IDs selected on the caller side
 	// (e.g. the UI) that will be excluded from the returned payload.
@@ -768,16 +768,18 @@ func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID 
 		return nil, fleet.ErrNoContext
 	}
 
-	includeObserver := false
+	var includeObserver bool
+	var teamID *uint
 	if queryID != nil {
-		canRun, err := svc.ds.ObserverCanRunQuery(ctx, *queryID)
+		query, err := svc.ds.Query(ctx, *queryID)
 		if err != nil {
 			return nil, err
 		}
-		includeObserver = canRun
+		includeObserver = query.ObserverCanRun
+		teamID = query.TeamID
 	}
 
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: includeObserver, TeamID: teamID}
 
 	results := []*fleet.Host{}
 
