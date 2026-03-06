@@ -1400,7 +1400,7 @@ func (pb *ProfileBimap) add(wantedProfile, currentProfile *fleet.MDMAppleProfile
 // NewActivityFunc is the function signature for creating a new activity.
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 
-func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger *platformlogging.Logger,
+func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger kitlog.Logger,
 	newActivityFn NewActivityFunc,
 ) error {
 	appCfg, err := ds.AppConfig(ctx)
@@ -1515,7 +1515,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 
 // turnOffMDMIfAPNSFailed checks if the error is an APNSDeliveryError and turns off MDM for the failed devices.
 // Returns a boolean value to indicate whether or not MDM was turned off.
-func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, logger *platformlogging.Logger, newActivityFn NewActivityFunc) (bool,
+func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, logger kitlog.Logger, newActivityFn NewActivityFunc) (bool,
 	error,
 ) {
 	var e *APNSDeliveryError
