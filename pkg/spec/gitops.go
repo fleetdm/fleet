@@ -307,6 +307,11 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	if err := json.Unmarshal(updatedBytes, &top); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal file %s: %w", filePath, err)
 	}
+	// This should never happen since we don't support empty yaml files,
+	// but adding for defensive purposes.
+	if top == nil {
+		top = make(map[string]json.RawMessage)
+	}
 
 	var multiError *multierror.Error
 	result := &GitOps{}
@@ -366,9 +371,6 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		multiError = multierror.Append(multiError, errors.New("if `name` is not provided, 'org_settings' is required"))
 	}
 
-	if top == nil {
-		top = make(map[string]json.RawMessage)
-	}
 	for _, topKey := range topKeys {
 		// "name" is handled later with special logic based on the filename.
 		// "labels" is a special case where omitting is a no-op, rather than a directive to clear settings.
