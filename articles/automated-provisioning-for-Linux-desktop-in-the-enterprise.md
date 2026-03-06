@@ -1,5 +1,14 @@
 # Automated provisioning for Linux desktop in the enterprise
 
+### Links to article series:
+
+- Part 1: [Why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026)
+- Part 2: Automated provisioning for Linux desktop in the enterprise
+- Part 3: [Security baselines for Linux: closing the gap on exemptions](https://fleetdm.com/articles/security-baselines-for-linux)
+- Part 4: [Unlocking Linux productivity: securing apps and updating certificates](https://fleetdm.com/articles/unlocking-linux-productivity-securing-apps-and-updating-certificates)
+- Part 5: [Protecting the Linux device: remote wipe, USB and sudo](https://fleetdm.com/articles/protecting-the-linux-device-remote-wipe-usb-sudo)
+- Part 6: [Owning your Linux destiny with open source](https://fleetdm.com/articles/owning-your-linux-destiny-with-open-source)
+
 Linux users love the power and flexibility of their systems that include features like: 
 
 * Built-in package managers (e.g., `apt` and `yum`) for installing software  
@@ -74,4 +83,5 @@ The next article in this series will cover more on the topic of enforcing securi
 <meta name="authorGitHubUsername" value="akuthiala">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-02-16">
-<meta name="description" value="Chapter 2 of Protecting Linux endpoints series">
+<meta name="description" value="Part 2 of 6 in the 'Protecting Linux endpoints with modern device management' article series.">
+
