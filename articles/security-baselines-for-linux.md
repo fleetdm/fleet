@@ -9,6 +9,8 @@
 - Part 5: [Protecting the Linux device: remote wipe, USB and sudo](https://fleetdm.com/articles/protecting-the-linux-device-remote-wipe-usb-sudo)
 - Part 6: [Owning your Linux destiny with open source](https://fleetdm.com/articles/owning-your-linux-destiny-with-open-source)
 
+-----
+
 In the modern enterprise, Linux is no longer confined to the server room. It is increasingly the workstation of choice for scientists, engineers and developers. These contributors power innovation, and their endpoints often host an organization’s most valuable assets: source code repositories, confidential architecture plans, sensitive internal roadmaps and product designs. 
 
 The investment in Mobile Device Management (MDM) solutions for Mac and Windows is a given, a foundational layer of corporate security. So why is the security posture of Linux often relegated to a secondary, "special case" status?
