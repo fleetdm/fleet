@@ -1039,7 +1039,6 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 			return nil, ctxerr.Wrap(ctx, err, "generating patch policy fields")
 		}
 
-		// TODO(JK): how to extract this part when it can be either PolicyPayload or PolicySpec
 		if args.Name == "" {
 			args.Name = generated.Name
 		}
@@ -1438,10 +1437,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 				fmaTitleID := fmaTitleIDs[teamNameToID[spec.Team]][spec.FleetMaintainedAppSlug]
 
-				// PATCH POLICIES!!!!!
-				// we need to generate a new query for the patch policy
+				// generate new up-to-date query and other fields for patch policy
 				if spec.Type == fleet.PolicyTypePatch {
-					// TODO(JK): not sure about this ValOrZero, can teamID be null here?
 					patch, err := ds.generatePatchPolicy(ctx, ptr.ValOrZero(teamID), *fmaTitleID)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "generating patch policy fields")

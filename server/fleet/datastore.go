@@ -850,7 +850,7 @@ type Datastore interface {
 	// GetPoliciesForConditionalAccess returns the team policies that are configured for "Conditional access".
 	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint) ([]uint, error)
 	// GetPatchPolicy returns the patch policy associated with the title id
-	GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*PatchPolicyData, error) // TODO(JK): why do we always return pointers to things?
+	GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*PatchPolicyData, error)
 
 	// ConditionalAccessBypassDevice lets the host skip the conditional access check next time it fails
 	ConditionalAccessBypassDevice(ctx context.Context, hostID uint) error
