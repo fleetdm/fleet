@@ -215,6 +215,10 @@ type GitOpsPolicySpec struct {
 	// RunScriptName is populated after confirming the script exists on both the file system
 	// and in the controls scripts list for the same team
 	RunScriptName *string `json:"-"`
+	// WebhooksAndTicketsEnabled indicates whether failing policy webhooks/tickets
+	// should be enabled for this policy. This is a gitops-only convenience that
+	// translates to adding the policy's ID to the failing_policies_webhook.policy_ids list.
+	WebhooksAndTicketsEnabled bool `json:"webhooks_and_tickets_enabled"`
 }
 
 type PolicyRunScript struct {
