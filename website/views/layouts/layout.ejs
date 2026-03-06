@@ -215,6 +215,21 @@
                           </div>
                         </div>
                       </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="linux-management" href="/linux-management">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-linux-management-40x40@2x.png" alt="Linux management">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Linux device management
+                            </p>
+                            <p purpose="nav-item-body">
+                              Manage Linux devices with full visibility and control.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
                       <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Fleet GitOps" href="/fleet-gitops">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
@@ -226,6 +241,21 @@
                             </p>
                             <p purpose="nav-item-body">
                               See every change, undo any error, repeat every success.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Deployment" href="/deployment">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-deployment-40x40@2x.png" alt="Deployment">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Deployment
+                            </p>
+                            <p purpose="nav-item-body">
+                              Run Fleet the way that fits your team.
                             </p>
                           </div>
                         </div>
@@ -391,82 +421,115 @@
                   <a purpose="header-nav-btn" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>">
                     Solutions <img purpose="chevron" src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="A small chevron">
                   </a>
-                  <div purpose="header-dropdown" class="dropdown-menu solutions-dropdown">
-                    <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="device-management" href="/device-management">
+                  <div purpose="header-dropdown" class="dropdown-menu solutions-dropdown flex-row">
 
-                      <div purpose="dropdown-item-link">
-                        <div purpose="dropdown-item-icon">
-                          <img src="/images/nav-icon-device-management-40x40@2x.png" alt="Device management">
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="device-management" href="/device-management">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-device-management-40x40@2x.png" alt="Device management">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Device management</p>
+                            <p purpose="nav-item-body">
+                              Remotely manage, and protect laptops and mobile devices.
+                            </p>
+                          </div>
                         </div>
-                        <div purpose="dropdown-item-text">
-                          <p purpose="nav-item-heading">
-                            Device management</p>
-                          <p purpose="nav-item-body">
-                            Remotely manage, and protect laptops and mobile devices.
-                          </p>
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Fleet GitOps" href="/fleet-gitops">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-gitops-40x40@2x.png" alt="GitOps">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Infrastructure as code
+                            </p>
+                            <p purpose="nav-item-body">
+                              See every change, undo any error, repeat every success.
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </a>
-                    <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="orchestration" href="/orchestration">
-                      <div purpose="dropdown-item-link">
-                        <div purpose="dropdown-item-icon">
-                          <img src="/images/nav-icon-orchestration-40x40@2x.png" alt="Orchestration">
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="orchestration" href="/orchestration">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-orchestration-40x40@2x.png" alt="Orchestration">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Orchestration
+                            </p>
+                            <p purpose="nav-item-body">
+                              Automate tasks across devices, from app installs to scripts.
+                            </p>
+                          </div>
                         </div>
-                        <div purpose="dropdown-item-text">
-                          <p purpose="nav-item-heading">
-                            Orchestration
-                          </p>
-                          <p purpose="nav-item-body">
-                            Automate tasks across devices, from app installs to scripts.
-                          </p>
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Deployment" href="/deployment">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-deployment-40x40@2x.png" alt="Deployment">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Deployment
+                            </p>
+                            <p purpose="nav-item-body">
+                              Run Fleet the way that fits your team.
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </a>
-                    <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="software-management" href="/software-management">
-                      <div purpose="dropdown-item-link">
-                        <div purpose="dropdown-item-icon">
-                          <img src="/images/nav-icon-software-40x40@2x.png" alt="Software management">
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="software-management" href="/software-management">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-software-40x40@2x.png" alt="Software management">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Software management
+                            </p>
+                            <p purpose="nav-item-body">
+                              Inventory, patch, and manage installed software.
+                            </p>
+                          </div>
                         </div>
-                        <div purpose="dropdown-item-text">
-                          <p purpose="nav-item-heading">
-                            Software management
-                          </p>
-                          <p purpose="nav-item-body">
-                            Inventory, patch, and manage installed software.
-                          </p>
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="integrations" href="/integrations">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-integrations-40x40@2x.png" alt="Extend Fleet">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Extend Fleet
+                            </p>
+                            <p purpose="nav-item-body">
+                              Integrate your favorite tools with Fleet.
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </a>
-                    <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Fleet GitOps" href="/fleet-gitops">
-                      <div purpose="dropdown-item-link">
-                        <div purpose="dropdown-item-icon">
-                          <img src="/images/nav-icon-gitops-40x40@2x.png" alt="GitOps">
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="linux-management" href="/linux-management">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-linux-management-40x40@2x.png" alt="Linux management">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Linux device management
+                            </p>
+                            <p purpose="nav-item-body">
+                              Manage Linux devices with full visibility and control.
+                            </p>
+                          </div>
                         </div>
-                        <div purpose="dropdown-item-text">
-                          <p purpose="nav-item-heading">
-                            Infrastructure as code
-                          </p>
-                          <p purpose="nav-item-body">
-                            See every change, undo any error, repeat every success.
-                          </p>
-                        </div>
-                      </div>
-                    </a>
-                    <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="integrations" href="/integrations">
-                      <div purpose="dropdown-item-link">
-                        <div purpose="dropdown-item-icon">
-                          <img src="/images/nav-icon-integrations-40x40@2x.png" alt="Extend Fleet">
-                        </div>
-                        <div purpose="dropdown-item-text">
-                          <p purpose="nav-item-heading">
-                            Extend Fleet
-                          </p>
-                          <p purpose="nav-item-body">
-                            Integrate your favorite tools with Fleet.
-                          </p>
-                        </div>
-                      </div>
-                    </a>
+                      </a>
+
+
+
                   </div>
                 </div>
 
@@ -831,7 +894,9 @@
     <script src="/js/pages/homepage.page.js"></script>
     <script src="/js/pages/integrations.page.js"></script>
     <script src="/js/pages/landing-pages/basic-comparison.page.js"></script>
+    <script src="/js/pages/landing-pages/deployment.page.js"></script>
     <script src="/js/pages/landing-pages/gitops-workshop.page.js"></script>
+    <script src="/js/pages/landing-pages/linux-management.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
     <script src="/js/pages/mdm-commands.page.js"></script>

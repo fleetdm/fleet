@@ -1,4 +1,4 @@
-- name: Detect known vunerable Chrome extensions
+- name: Detect known vulnerable Chrome extensions
   description: "Detects if any device enrolled in Fleet has a known vulnerable Chrome extension installed. More info here: https://www.extensiontotal.com/cyberhaven-incident-live"
   query: 
     SELECT 

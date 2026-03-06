@@ -56,7 +56,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	}
 
 	if len(tokens) == 0 {
-		return nil, notFoundError{}
+		return nil, &notFoundError{}
 	}
 
 	if len(tokens) > 1 {
@@ -212,6 +212,22 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
+	if payload.LockEndUserInfo != nil {
+		if ac.MDM.MacOSSetup.LockEndUserInfo.Value != *payload.LockEndUserInfo {
+			ac.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(*payload.LockEndUserInfo)
+			didUpdate = true
+		}
+	}
+
+	// If the user turned off end user auth and didn't specify lock_end_user_info, turn it off so it does not conflict
+	if didUpdateMacOSEndUserAuth && !ac.MDM.MacOSSetup.EnableEndUserAuthentication && payload.LockEndUserInfo == nil {
+		ac.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+	}
+
+	if !ac.MDM.MacOSSetup.EnableEndUserAuthentication && ac.MDM.MacOSSetup.LockEndUserInfo.Value {
+		return fleet.NewUserMessageError(errors.New("Couldn’t enable lock_end_user_info when enable_end_user_authentication is disabled."), http.StatusUnprocessableEntity)
+	}
+
 	if payload.RequireAllSoftware != nil && ac.MDM.MacOSSetup.RequireAllSoftware != *payload.RequireAllSoftware {
 		ac.MDM.MacOSSetup.RequireAllSoftware = *payload.RequireAllSoftware
 		didUpdate = true
@@ -265,7 +281,7 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 }
 
 func (svc *Service) updateMacOSSetupEnableEndUserAuth(ctx context.Context, enable bool, teamID *uint, teamName *string) error {
-	if _, err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger.SlogLogger(), worker.MacosSetupAssistantUpdateProfile, teamID); err != nil {
+	if _, err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateProfile, teamID); err != nil {
 		return ctxerr.Wrap(ctx, err, "queue macos setup assistant update profile job")
 	}
 
@@ -657,7 +673,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 		if _, err := worker.QueueMacosSetupAssistantJob(
 			ctx,
 			svc.ds,
-			svc.logger.SlogLogger(),
+			svc.logger,
 			worker.MacosSetupAssistantProfileChanged,
 			newAsst.TeamID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "enqueue macos setup assistant profile changed job")
@@ -702,7 +718,7 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 		if _, err := worker.QueueMacosSetupAssistantJob(
 			ctx,
 			svc.ds,
-			svc.logger.SlogLogger(),
+			svc.logger,
 			worker.MacosSetupAssistantProfileDeleted,
 			teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "enqueue macos setup assistant profile deleted job")
@@ -922,7 +938,7 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 	// For more details, check https://github.com/fleetdm/fleet/issues/10744#issuecomment-1540605146
 	username, _, found := strings.Cut(auth.UserID(), "@")
 	if !found {
-		svc.logger.Log("mdm-sso-callback", "IdP UserID doesn't look like an email, using raw value")
+		svc.logger.InfoContext(ctx, "IdP UserID doesn't look like an email, using raw value", "component", "mdm-sso-callback")
 		username = auth.UserID()
 	}
 
@@ -988,7 +1004,7 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 }
 
 func (svc *Service) mdmAppleSyncDEPProfiles(ctx context.Context) error {
-	if _, err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger.SlogLogger(), worker.MacosSetupAssistantUpdateAllProfiles, nil); err != nil {
+	if _, err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateAllProfiles, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "queue macos setup assistant update all profiles job")
 	}
 	return nil
@@ -1129,6 +1145,7 @@ func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []strin
 					// BootstrapPackage:            ac.MDM.MacOSSetup.BootstrapPackage,
 					EnableEndUserAuthentication: ac.MDM.MacOSSetup.EnableEndUserAuthentication,
 					EnableReleaseDeviceManually: ac.MDM.MacOSSetup.EnableReleaseDeviceManually,
+					LockEndUserInfo:             optjson.SetBool(ac.MDM.MacOSSetup.LockEndUserInfo.Value),
 				},
 			},
 		}
@@ -1405,7 +1422,7 @@ func (svc *Service) UploadABMToken(ctx context.Context, token io.Reader) (*fleet
 		EncryptedToken: encryptedToken,
 	}
 
-	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, tok, decryptedToken, svc.depStorage, svc.ds, svc.logger.SlogLogger(), false); err != nil {
+	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, tok, decryptedToken, svc.depStorage, svc.ds, svc.logger, false); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "setting ABM token metadata")
 	}
 
@@ -1566,7 +1583,7 @@ func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID 
 		return nil, ctxerr.Wrap(ctx, err, "decrypting ABM token for renewal")
 	}
 
-	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, oldTok, decryptedToken, svc.depStorage, svc.ds, svc.logger.SlogLogger(), true); err != nil {
+	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, oldTok, decryptedToken, svc.depStorage, svc.ds, svc.logger, true); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "setting ABM token metadata")
 	}
 

@@ -1844,7 +1844,7 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	// Hosts all have to be on the same team as the script
 	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostTeam1.ID})
 	require.Empty(t, execID)
-	require.ErrorContains(t, err, "same team")
+	require.ErrorContains(t, err, "same fleet")
 
 	// Actual good execution
 	execID, err = ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
@@ -1982,7 +1982,7 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	// Hosts all have to be on the same team as the script
 	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostTeam1.ID})
 	require.Empty(t, execID)
-	require.ErrorContains(t, err, "same team")
+	require.ErrorContains(t, err, "same fleet")
 
 	// Actual good execution
 	execID, err = ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
@@ -3163,7 +3163,7 @@ func testScriptModificationResetsAttemptNumber(t *testing.T, ds *Datastore) {
 	script, err := ds.NewScript(ctx, &fleet.Script{
 		Name:            "test.sh",
 		TeamID:          &team.ID,
-		ScriptContentID: uint(scriptContentID),
+		ScriptContentID: uint(scriptContentID), //nolint:gosec // dismiss G115
 		ScriptContents:  "echo 'v1'",
 	})
 	require.NoError(t, err)

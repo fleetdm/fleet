@@ -32,15 +32,11 @@ import (
 	nano_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 )
-
-// Compile-time interface check
-var _ activities.ActivityStore = (*Datastore)(nil)
 
 const (
 	mySQLTimestampFormat = "2006-01-02 15:04:05" // %Y/%m/%d %H:%M:%S

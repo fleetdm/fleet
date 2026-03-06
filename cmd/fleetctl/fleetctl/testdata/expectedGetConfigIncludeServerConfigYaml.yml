@@ -37,6 +37,7 @@ spec:
     enabled_and_configured: false
     windows_enabled_and_configured: false
     enable_disk_encryption: false
+    enable_recovery_lock_password: false
     windows_require_bitlocker_pin: null
     windows_migration_enabled: false
     enable_turn_on_windows_mdm_manually: false
@@ -66,6 +67,7 @@ spec:
       bootstrap_package:
       enable_end_user_authentication: false
       enable_release_device_manually: false
+      lock_end_user_info: false
       macos_setup_assistant:
       manual_agent_install:
       require_all_software_macos: false

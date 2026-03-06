@@ -4,55 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/activity/api"
 )
 
-type ContextKey string
+// NewActivityFunc is the function signature for creating a new activity.
+type NewActivityFunc func(ctx context.Context, user *User, activity ActivityDetails) error
 
-type ActivityWebhookPayload struct {
-	Timestamp     time.Time        `json:"timestamp"`
-	ActorFullName *string          `json:"actor_full_name"`
-	ActorID       *uint            `json:"actor_id"`
-	ActorEmail    *string          `json:"actor_email"`
-	Type          string           `json:"type"`
-	Details       *json.RawMessage `json:"details"`
-}
-
-// ActivityWebhookContextKey is the context key to indicate that the activity webhook has been processed before saving the activity.
-const ActivityWebhookContextKey = ContextKey("ActivityWebhook")
-
-// ActivityAutomationAuthor is the name used for the actor when an activity
-// is performed by Fleet automation (cron jobs, system operations, etc.)
-// rather than by a human user.
-const ActivityAutomationAuthor = "Fleet"
-
-type Activity struct {
-	CreateTimestamp
-
-	// ID is the activity id in the activities table, it is omitted for upcoming
-	// activities as those are "virtual activities" generated from entries in
-	// queues (e.g. pending host_script_results).
-	ID uint `json:"id,omitempty" db:"id"`
-
-	// UUID is the activity UUID for the upcoming activities, as identified in
-	// the relevant queue (e.g. pending host_script_results). It is omitted for
-	// past activities as those are "real activities" with an activity id.
-	UUID string `json:"uuid,omitempty" db:"uuid"`
-
-	ActorFullName  *string          `json:"actor_full_name,omitempty" db:"name"`
-	ActorID        *uint            `json:"actor_id,omitempty" db:"user_id"`
-	ActorGravatar  *string          `json:"actor_gravatar,omitempty" db:"gravatar_url"`
-	ActorEmail     *string          `json:"actor_email,omitempty" db:"user_email"`
-	ActorAPIOnly   *bool            `json:"actor_api_only,omitempty" db:"api_only"`
-	Type           string           `json:"type" db:"activity_type"`
-	Details        *json.RawMessage `json:"details" db:"details"`
-	Streamed       *bool            `json:"-" db:"streamed"`
-	FleetInitiated bool             `json:"fleet_initiated" db:"fleet_initiated"`
-}
-
-// AuthzType implement AuthzTyper to be able to verify access to activities
-func (*Activity) AuthzType() string {
-	return "activity"
-}
+// Activity is an alias for the canonical Activity type defined in server/activity/api.
+type Activity = api.Activity
 
 // UpcomingActivity is the augmented activity type used to return the list of
 // upcoming (pending) activities for a host.
@@ -154,6 +114,9 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeEnabledMacosDiskEncryption{},
 	ActivityTypeDisabledMacosDiskEncryption{},
+
+	ActivityTypeEnabledRecoveryLockPassword{},
+	ActivityTypeDisabledRecoveryLockPassword{},
 
 	ActivityTypeEnabledGitOpsMode{},
 	ActivityTypeDisabledGitOpsMode{},
@@ -260,42 +223,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEditedEnrollSecrets{},
 }
 
-type ActivityDetails interface {
-	// ActivityName is the name/type of the activity.
-	ActivityName() string
-}
-
-// ActivityHosts is the optional additional interface that can be implemented
-// by activities that are related to hosts.
-type ActivityHosts interface {
-	ActivityDetails
-	HostIDs() []uint
-}
-
-// AutomatableActivity is the optional additional interface that can be implemented
-// by activities that are sometimes the result of automation ("Fleet did X"), starting with
-// install/script run policy automations
-type AutomatableActivity interface {
-	ActivityDetails
-	WasFromAutomation() bool
-}
-
-// ActivityHostOnly is the optional additional interface that can be implemented by activities that
-// we want to exclude from the global activity feed, and only show on the Hosts details page
-type ActivityHostOnly interface {
-	ActivityDetails
-	HostOnly() bool
-}
-
-// ActivityActivator is the optional additional interface that can be implemented by activities that
-// may require activating the next upcoming activity when it gets created. Most upcoming activities get
-// activated when the result of the previous one completes (such as scripts and software installs), but
-// some can only be activated when the activity gets recorded (such as VPP and in-house apps).
-type ActivityActivator interface {
-	ActivityDetails
-	MustActivateNextUpcomingActivity() bool
-	ActivateNextUpcomingActivityArgs() (hostID uint, cmdUUID string)
-}
+// ActivityDetails is an alias for the canonical ActivityDetails interface defined in server/activity/api.
+type ActivityDetails = api.ActivityDetails
 
 type ActivityTypeEnabledActivityAutomations struct {
 	WebhookUrl string `json:"webhook_url"`
@@ -803,6 +732,24 @@ type ActivityTypeDisabledMacosDiskEncryption struct {
 
 func (a ActivityTypeDisabledMacosDiskEncryption) ActivityName() string {
 	return "disabled_macos_disk_encryption"
+}
+
+type ActivityTypeEnabledRecoveryLockPassword struct {
+	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeEnabledRecoveryLockPassword) ActivityName() string {
+	return "enabled_recovery_lock_password"
+}
+
+type ActivityTypeDisabledRecoveryLockPassword struct {
+	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeDisabledRecoveryLockPassword) ActivityName() string {
+	return "disabled_recovery_lock_password"
 }
 
 type ActivityTypeEnabledGitOpsMode struct{}

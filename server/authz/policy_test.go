@@ -1291,6 +1291,23 @@ func TestAuthorizeQuery(t *testing.T) {
 		HostTargets: fleet.HostTargets{TeamIDs: []uint{2}},
 		Query:       observerQueryOnTeam1,
 	}
+	observerQueryOnTeam1TargetedToTeam1AndTeam2 := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{1, 2}},
+		Query:       observerQueryOnTeam1,
+	}
+	observerQueryOnTeam2 := &fleet.Query{
+		ID:             8,
+		ObserverCanRun: true,
+		TeamID:         ptr.Uint(2),
+	}
+	observerQueryOnTeam2TargetedToTeam2 := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{2}},
+		Query:       observerQueryOnTeam2,
+	}
+	observerQueryOnTeam1EmptyTeams := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{}},
+		Query:       observerQueryOnTeam1,
+	}
 
 	runTestCasesGroups(t, []tcGroup{
 		{
@@ -1343,8 +1360,12 @@ func TestAuthorizeQuery(t *testing.T) {
 
 				{user: test.UserObserver, object: observerQueryOnTeam3, action: read, allow: true},
 				{user: test.UserObserver, object: observerQueryOnTeam3, action: write, allow: false},
-				{user: test.UserObserver, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: true},
-				{user: test.UserObserver, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: true},
+				{user: test.UserObserver, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: true},  // global observer can run observer_can_run query targeting query's own team
+				{user: test.UserObserver, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: false}, // global observer cannot target team 2 for a team 3 query
+
+				{user: test.UserObserver, object: observerQueryOnTeam1EmptyTeams, action: run, allow: true},               // global observer can run team observer_can_run query with empty teams
+				{user: test.UserObserver, object: observerQueryOnTeam1TargetedToTeam2, action: run, allow: false},         // global observer cannot target team 2 for a team 1 observer_can_run query
+				{user: test.UserObserver, object: observerQueryOnTeam1TargetedToTeam1AndTeam2, action: run, allow: false}, // global observer cannot target multiple teams for a team observer_can_run query
 			},
 		},
 		{
@@ -1475,6 +1496,7 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: teamObserver, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: false},
 				{user: teamObserver, object: observerQueryOnTeam3TargetedToTeam1, action: run, allow: false},
 				{user: teamObserver, object: observerQueryOnTeam1TargetedToTeam1, action: run, allow: true},
+				{user: teamObserver, object: observerQueryOnTeam1EmptyTeams, action: run, allow: true}, // team observer can run observer_can_run query with empty teams
 			},
 		},
 		{
@@ -1638,7 +1660,10 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: twoTeamsAdminObs, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: false},
 				{user: twoTeamsAdminObs, object: observerQueryOnTeam3TargetedToTeam1, action: run, allow: false},
 				{user: twoTeamsAdminObs, object: observerQueryOnTeam1TargetedToTeam1, action: run, allow: true},
-				{user: twoTeamsAdminObs, object: observerQueryOnTeam1TargetedToTeam2, action: run, allow: true},
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam1TargetedToTeam2, action: run, allow: false},         // observer on team 2 cannot run query belonging to team 1
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam1TargetedToTeam1AndTeam2, action: run, allow: false}, // observer on team 2 cannot run query belonging to team 1 targeting both teams
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam1EmptyTeams, action: run, allow: true},               // admin on team 1 can run team 1 observer_can_run query with empty teams
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam2TargetedToTeam2, action: run, allow: true},          // observer on team 2 can run query belonging to team 2
 			},
 		},
 	})

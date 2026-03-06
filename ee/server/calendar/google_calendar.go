@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"regexp"
@@ -15,7 +16,6 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/google/uuid"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
@@ -52,7 +52,7 @@ var (
 type GoogleCalendarConfig struct {
 	Context           context.Context
 	IntegrationConfig *fleet.GoogleCalendarIntegration
-	Logger            *logging.Logger
+	Logger            *slog.Logger
 	ServerURL         string
 	// Should be nil for production
 	API GoogleCalendarAPI
@@ -107,7 +107,7 @@ type eventDetails struct {
 
 type GoogleCalendarLowLevelAPI struct {
 	service   *calendar.Service
-	logger    *logging.Logger
+	logger    *slog.Logger
 	serverURL string
 }
 

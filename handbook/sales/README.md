@@ -158,12 +158,10 @@ To complete a security questionnaire, the AE assigned to the account will:
 The “Attributed to” field in the Salesforce opportunity page will be used to track where each new business opportunity created can be attributed to. This is a temporary solution put in place until we have built out the process that would automate how we track attribution and measure ROI associated with our program spend.  
 
 The “Attributed to” field is associated with a Salesforce user. The opportunity owner will have to determine the correct user to add to the field when the opportunity is created. The rule to determine which user to add to the field:
-
-- Inbound: For all opportunities created based on inbound leads (e.g., digital ads, brand, events, GitOps workshops, organic web traffic, etc), update the field with the CMO’s name
 - Outbound-AE: If the opportunity was created as a result of the AE’s outbound efforts, update the field with the AE's name.
-- Outbound-SDR: If the opportunity was created as a result of the AE’s outbound efforts, update the field with the SDR’s name
+- Outbound-Specialist: If the opportunity was created as a result of the Solutions Specialist’s outbound efforts, update the field with the Specialist’s name.
 - Channel: If a deal was referred to us from a Channel Partner (deal-reg approved by Channel Manager), update the field with the Channel Manager’s name.
-- All other sources: For opportunities that do not fall under any of the above categories, update the field with the CMO's name
+- All other sources: For opportunities that do not fall under any of the above categories, e.g., opportunities created based on inbound leads, digital ads, brand, events, GitOps workshops, organic web traffic, etc, update the field with the Integrations Admin user.
 
 
 ## Rituals

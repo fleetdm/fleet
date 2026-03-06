@@ -107,7 +107,6 @@ const IntegrationsPage = ({
           !isLoadingAppConfig && appConfig ? (
             <CurrentCard
               router={router}
-              // below props used only by settings-related cards e.g. SSO
               appConfig={appConfig}
               handleSubmit={onUpdateSettings}
               isPremiumTier={isPremiumTier}

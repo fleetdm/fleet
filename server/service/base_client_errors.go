@@ -66,22 +66,34 @@ type notFoundErr struct {
 	fleet.ErrorWithUUID
 }
 
-func (e notFoundErr) Error() string {
+func (e *notFoundErr) Error() string {
 	if e.msg != "" {
 		return e.msg
 	}
 	return "The resource was not found"
 }
 
-func (e notFoundErr) NotFound() bool {
+func (e *notFoundErr) NotFound() bool {
 	return true
 }
 
 // Implement Is so that errors.Is(err, sql.ErrNoRows) returns true for an
 // error of type *notFoundError, without having to wrap sql.ErrNoRows
-// explicitly.
-func (e notFoundErr) Is(other error) bool {
-	return other == sql.ErrNoRows
+// explicitly. It also matches other *notFoundErr targets so that pointer-based
+// comparison works (pointers to distinct structs are never == even if their
+// contents are identical).
+func (e *notFoundErr) Is(other error) bool {
+	if other == sql.ErrNoRows {
+		return true
+	}
+	_, ok := other.(*notFoundErr)
+	return ok
+}
+
+// isNotFoundErr reports whether err's chain contains a *notFoundErr.
+func isNotFoundErr(err error) bool {
+	var nfe *notFoundErr
+	return errors.As(err, &nfe)
 }
 
 type ConflictErr interface {

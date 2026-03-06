@@ -3138,8 +3138,8 @@ WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, atomicCmd.C
 SELECT status FROM host_mdm_windows_profiles
 WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, replaceCmd.CommandUUID)
 			})
-			assert.Equal(t, "verifying", atomicProfileStatus)
-			assert.Equal(t, "verifying", replaceProfileStatus)
+			assert.Equal(t, "verified", atomicProfileStatus)
+			assert.Equal(t, "verified", replaceProfileStatus)
 		})
 
 		t.Run("fails only for the failed profile", func(t *testing.T) {
@@ -3199,7 +3199,7 @@ WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, atomicCmd.C
 SELECT status FROM host_mdm_windows_profiles
 WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, replaceCmd.CommandUUID)
 			})
-			assert.Equal(t, "verifying", *atomicProfileStatus)
+			assert.Equal(t, "verified", *atomicProfileStatus)
 			assert.Nil(t, replaceProfileStatus) // We want nil here, as the retry kicks in on failures
 		})
 	})

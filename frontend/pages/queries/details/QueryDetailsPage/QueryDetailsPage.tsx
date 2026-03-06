@@ -70,7 +70,7 @@ const QueryDetailsPage = ({
 }: IQueryDetailsPageProps): JSX.Element => {
   const queryId = parseInt(paramsQueryId, 10);
   if (isNaN(queryId)) {
-    router.push(PATHS.MANAGE_QUERIES);
+    router.push(PATHS.MANAGE_REPORTS);
   }
   const queryParams = location.query;
 
@@ -262,7 +262,7 @@ const QueryDetailsPage = ({
           PATHS.HOST_DETAILS(hostId, currentTeamId)
         );
 
-      return getPathWithQueryParams(PATHS.MANAGE_QUERIES, {
+      return getPathWithQueryParams(PATHS.MANAGE_REPORTS, {
         fleet_id: currentTeamId,
       });
     };
@@ -308,7 +308,7 @@ const QueryDetailsPage = ({
                           queryId &&
                             router.push(
                               getPathWithQueryParams(
-                                PATHS.LIVE_QUERY(queryId),
+                                PATHS.LIVE_REPORT(queryId),
                                 {
                                   host_id: hostId,
                                   fleet_id: currentTeamId,
@@ -338,7 +338,7 @@ const QueryDetailsPage = ({
                     onClick={() => {
                       queryId &&
                         router.push(
-                          getPathWithQueryParams(PATHS.EDIT_QUERY(queryId), {
+                          getPathWithQueryParams(PATHS.EDIT_REPORT(queryId), {
                             fleet_id: currentTeamId,
                             host_id: hostId,
                           })

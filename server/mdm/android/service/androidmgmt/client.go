@@ -2,6 +2,8 @@ package androidmgmt
 
 import (
 	"context"
+	"errors"
+	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"google.golang.org/api/androidmanagement/v1"
@@ -63,9 +65,17 @@ type Client interface {
 
 	EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error)
 
+	// EnterprisesPoliciesModifyPolicyApplications adds or updates the given apps in the policy.
+	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.policies/modifyPolicyApplications
 	EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error)
 
+	// EnterprisesPoliciesRemovePolicyApplications removes the given apps from the policy.
+	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.policies/removePolicyApplications
 	EnterprisesPoliciesRemovePolicyApplications(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error)
+
+	// EnterprisesWebAppsCreate creates a web app in the enterprise.
+	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.webApps/create
+	EnterprisesWebAppsCreate(ctx context.Context, enterpriseName string, webApp *androidmanagement.WebApp) (*androidmanagement.WebApp, error)
 }
 
 type EnterprisesCreateRequest struct {
@@ -95,4 +105,14 @@ type EnterprisesCreateResponse struct {
 // resource has not been modified.
 func IsNotModifiedError(err error) bool {
 	return googleapi.IsNotModified(err)
+}
+
+// IsBadRequestError reports whether the AMAPI error indicates that the
+// request was invalid due to a client error.
+func IsBadRequestError(err error) bool {
+	var ae *googleapi.Error
+	if errors.As(err, &ae) {
+		return ae.Code == http.StatusBadRequest
+	}
+	return false
 }

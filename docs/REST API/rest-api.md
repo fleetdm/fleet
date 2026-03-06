@@ -1238,6 +1238,8 @@ Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allo
 
 To initiate a file carve using the Fleet API, you can use the [live query](#run-live-query) endpoint to run a query against the `carves` table.
 
+Keep in mind that any failure when uploading a file block (like a network error) will result on a failed carved file. Starting in osquery v5.22.1, block uploads will be retried up to three times before failing.
+
 For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/product-groups/orchestration/file-carving.md).
 
 ### List carves
@@ -1495,7 +1497,9 @@ None.
     "android_enabled_and_configured": true,
     "windows_enabled_and_configured": true,
     "windows_entra_tenant_ids": [
-      "fec37e96-3615-4e37-8fac-445d5328af3c"
+      {
+        "tenant_id": "fec37e96-3615-4e37-8fac-445d5328af3c",
+      },
     ],
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
@@ -6705,7 +6709,7 @@ The returned value is a signed `.mobileconfig` OTA enrollment profile (see [Appl
 
 If the team in Fleet has [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) enabled, the OTA enrollment profile won't work. Use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
 
-To enroll macOS hosts, turn on MDM features, and add [human-device mapping](#get-human-device-mapping), use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
+To enroll macOS hosts, turn on MDM features, and add [human-device mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts), use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
 
 #### Parameters
 
@@ -6772,7 +6776,7 @@ To enroll macOS hosts, turn on MDM features, and add [human-device mapping](#get
 
 Retrieves an unsigned manual enrollment profile for macOS hosts. Install this profile on macOS hosts to turn on MDM features manually.
 
-To add [human-device mapping](#get-human-device-mapping), [add the end user's email to the enrollment profle](https://fleetdm.com/guides/config-less-fleetd-agent-deployment#using-human-device-mapping).
+To add [human-device mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts), [add the end user's email to the enrollment profile](https://fleetdm.com/guides/config-less-fleetd-agent-deployment#using-human-device-mapping).
 
 `GET /api/v1/fleet/enrollment_profiles/manual`
 
