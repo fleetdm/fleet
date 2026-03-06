@@ -37,6 +37,8 @@ const RecoveryLockPasswordModal = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (data) => data.recovery_lock_password.password,
+      // prevent caching this sensitive string
+      cacheTime: 0,
     }
   );
 

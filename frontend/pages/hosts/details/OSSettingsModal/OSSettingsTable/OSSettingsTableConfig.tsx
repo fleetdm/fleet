@@ -168,21 +168,16 @@ const makeDarwinRows = ({
   macos_settings,
   os_settings,
 }: IHostMdmData) => {
-  if (!profiles) {
-    return null;
-  }
+  let rows: IHostMdmProfileWithAddedStatus[] = profiles ?? [];
 
-  let rows: IHostMdmProfileWithAddedStatus[] = profiles;
   if (macos_settings?.disk_encryption === "action_required") {
-    rows = profiles.map((p) => {
-      // TODO: this is a brittle check for the filevault profile
-      // it would be better to match on the identifier but it is not
-      // currently available in the API response
-      if (p.name === FLEET_FILEVAULT_PROFILE_DISPLAY_NAME) {
-        return { ...p, status: "action_required" };
-      }
-      return p;
-    });
+    const dERow = profiles?.find(
+      (p) => p.name === FLEET_FILEVAULT_PROFILE_DISPLAY_NAME
+    );
+    if (dERow) {
+      // a reference to the original object in rows, so successfully updates it
+      dERow.status = "action_required";
+    }
   }
 
   if (os_settings?.recovery_lock_password?.status) {
