@@ -27,6 +27,10 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
+import com.fleetdm.agent.device.DeviceIdManager
 
 /**
  * Converts a java.util.Date to ISO8601 format string.
@@ -77,6 +81,46 @@ object ApiClient : CertificateApiClient {
         if (!::dataStore.isInitialized) {
             dataStore = context.applicationContext.prefDataStore
         }
+    }
+
+    suspend fun distributedRead(): Result<DistributedReadResponse> = withReenrollOnUnauthorized {
+        val nodeKey = getNodeKeyOrEnroll().getOrElse { error ->
+            return@withReenrollOnUnauthorized Result.failure(error)
+        }
+
+        makeRequest(
+            endpoint = "/api/v1/osquery/distributed/read",
+            method = "POST",
+            body = DistributedReadRequest(nodeKey = nodeKey),
+            bodySerializer = DistributedReadRequest.serializer(),
+            responseSerializer = DistributedReadResponse.serializer(),
+            authorized = false,
+        )
+    }
+
+    suspend fun distributedWrite(
+        queryResults: Map<String, List<Map<String, String>>>,
+    ): Result<Unit> = withReenrollOnUnauthorized {
+        val nodeKey = getNodeKeyOrEnroll().getOrElse { error ->
+            return@withReenrollOnUnauthorized Result.failure(error)
+        }
+
+        val req = DistributedWriteRequest(nodeKey = nodeKey, queries = queryResults)
+
+        // Fleet usually returns an empty JSON object; we don't care about the body.
+        val res = makeRequest(
+            endpoint = "/api/v1/osquery/distributed/write",
+            method = "POST",
+            body = req,
+            bodySerializer = DistributedWriteRequest.serializer(),
+            responseSerializer = JsonElement.serializer(),
+            authorized = false,
+        )
+
+        res.fold(
+            onSuccess = { Result.success(Unit) },
+            onFailure = { Result.failure(it) },
+        )
     }
 
     private suspend fun setApiKey(key: String) {
@@ -144,6 +188,7 @@ object ApiClient : CertificateApiClient {
                 useCaches = false
                 doInput = true
                 setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("X-Fleet-Device-Id", DeviceIdManager.getOrCreateDeviceId())
                 if (authorized) {
                     getNodeKeyOrEnroll().fold(
                         onFailure = { throwable -> return@withContext Result.failure(throwable) },
@@ -164,11 +209,16 @@ object ApiClient : CertificateApiClient {
             }
 
             val responseCode = connection.responseCode
-            val response = if (responseCode in 200..299) {
+            var response = if (responseCode in 200..299) {
                 connection.inputStream.bufferedReader().use { it.readText() }
             } else {
                 connection.errorStream?.bufferedReader()?.use { it.readText() }
                     ?: "HTTP $responseCode"
+            }
+
+            // Some Fleet endpoints may respond with an empty body on success.
+            if (responseCode in 200..299 && response.isBlank()) {
+                response = "{}"
             }
 
             Log.d(TAG, "server response from $method $endpoint ($responseCode)")
@@ -385,6 +435,32 @@ object ApiClient : CertificateApiClient {
         val computerName: String,
     )
 }
+
+@Serializable
+data class DistributedReadRequest(
+    @SerialName("node_key")
+    val nodeKey: String,
+    @SerialName("queries")
+    val queries: Map<String, String> = emptyMap(),
+)
+
+@Serializable
+data class DistributedReadResponse(
+    @SerialName("queries")
+    val queries: Map<String, String> = emptyMap(),
+)
+
+@Serializable
+data class DistributedWriteRequest(
+    @SerialName("node_key")
+    val nodeKey: String,
+
+    // Map: queryName -> rows[] where each row is {col: value}
+    @SerialName("queries")
+    val queries: Map<String, List<Map<String, String>>> = emptyMap(),
+)
+
+
 
 @Serializable
 data class EnrollRequest(
