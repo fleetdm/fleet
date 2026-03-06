@@ -216,6 +216,7 @@ import VisualStudioCode from "./VisualStudioCode";
 import Vlc from "./Vlc";
 import VncViewer from "./VncViewer";
 import WacomCenter from "./WacomCenter";
+import Warp from "./Warp";
 import WebStorm from "./WebStorm";
 import Webex from "./Webex";
 import WhatsApp from "./WhatsApp";
@@ -463,6 +464,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   vlc: Vlc,
   "wacom center": WacomCenter,
   "wacom tablet": WacomCenter,
+  warp: Warp,
   webstorm: WebStorm,
   webex: Webex,
   whatsapp: WhatsApp,
