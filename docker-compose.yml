@@ -155,7 +155,7 @@ services:
 
   # s3 compatible object storage (file carving/software installers)
   s3:
-    image: rustfs/rustfs:1.0.0-alpha.80
+    image: rustfs/rustfs:1.0.0-alpha.85
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -163,7 +163,6 @@ services:
       - RUSTFS_ADDRESS=0.0.0.0:9000
       - RUSTFS_CONSOLE_ADDRESS=0.0.0.0:9001
       - RUSTFS_CONSOLE_ENABLE=true
-      - RUSTFS_EXTERNAL_ADDRESS=:9000
       - RUSTFS_ACCESS_KEY=locals3
       - RUSTFS_SECRET_KEY=locals3
     volumes:
