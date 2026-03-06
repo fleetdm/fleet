@@ -9,6 +9,8 @@
 - Part 5: [Protecting the Linux device: remote wipe, USB and sudo](https://fleetdm.com/articles/protecting-the-linux-device-remote-wipe-usb-sudo)
 - Part 6: [Owning your Linux destiny with open source](https://fleetdm.com/articles/owning-your-linux-destiny-with-open-source)
 
+-----
+
 The Linux project began in 1991 when Linus Torvalds created an OS kernel for his own use, inspired by Unix. He made the Linux kernel available to the world as open-source code, which did not fit the mainstream corporate operating system development model of the 90s.
 
 Steve Ballmer, CEO of Microsoft, [infamously referred to Linux as a "cancer"](https://www.theregister.com/2001/06/02/ballmer_linux_is_a_cancer). This was a direct attack, meant to reinforce the idea that Linux did not belong in the enterprise.
