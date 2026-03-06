@@ -389,10 +389,10 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	if _, ok := top["labels"]; !ok {
 		result.Labels = make([]*fleet.LabelSpec, 0)
 	} else {
-		multiError = parseLabels(top, result, baseDir, filePath, multiError)
+		multiError = parseLabels(top, result, baseDir, logFn, filePath, multiError)
 	}
 	// Get other top-level entities.
-	multiError = parseControls(top, result, multiError, filePath, logFn)
+	multiError = parseControls(top, result, logFn, filePath, multiError)
 	multiError = parseAgentOptions(top, result, baseDir, logFn, filePath, multiError)
 	multiError = parseReports(top, result, baseDir, logFn, filePath, multiError)
 
@@ -401,7 +401,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	}
 
 	// Policies can reference software installers and scripts, thus we parse them after parseSoftware and parseControls.
-	multiError = parsePolicies(top, result, baseDir, filePath, multiError)
+	multiError = parsePolicies(top, result, baseDir, logFn, filePath, multiError)
 
 	return result, multiError.ErrorOrNil()
 }
@@ -756,7 +756,7 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 	return multiError
 }
 
-func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *multierror.Error, yamlFilename string, logFn Logf) *multierror.Error {
+func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, yamlFilename string, multiError *multierror.Error) *multierror.Error {
 	controlsRaw, ok := top["controls"]
 	if !ok {
 		// Nothing to do, return.
@@ -1058,7 +1058,16 @@ func expandGlobPattern(pattern string, baseDir string, entityType string, opts G
 func expandBaseItems[T any, PT interface {
 	*T
 	SupportsFileInclude
-}](input []T, baseDir string, entityType string, opts GlobExpandOptions) ([]T, []error) {
+}](input []T, baseDir string, entityType string, o ...GlobExpandOptions) ([]T, []error) {
+	var opts GlobExpandOptions
+	if len(o) > 1 {
+		panic("too many GlobExpandOptions arguments")
+	}
+	if len(o) == 1 {
+		opts = o[0]
+	} else {
+		opts = GlobExpandOptions{}
+	}
 	opts.setDefaults()
 	var result []T
 	var errs []error
@@ -1142,7 +1151,7 @@ func resolveScriptPaths(input []BaseItem, baseDir string, logFn Logf) ([]BaseIte
 	})
 }
 
-func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
+func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, filePath string, multiError *multierror.Error) *multierror.Error {
 	labelsRaw, ok := top["labels"]
 
 	// This shouldn't happen as we check for the property earlier,
@@ -1155,11 +1164,17 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 	if err := json.Unmarshal(labelsRaw, &labels); err != nil {
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"labels"}, err))
 	}
+	var errs []error
+	if labels, errs = expandBaseItems(labels, baseDir, "label", GlobExpandOptions{
+		LogFn: logFn,
+	}); len(errs) > 0 {
+		multiError = multierror.Append(multiError, errs...)
+	}
 	for _, item := range labels {
 		if item.Path == nil {
 			result.Labels = append(result.Labels, &item.LabelSpec)
 		} else {
-			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
+			fileBytes, err := os.ReadFile(*item.Path)
 			if err != nil {
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to read labels file %s: %v", *item.Path, err))
 				continue
@@ -1236,7 +1251,7 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 	return multiError
 }
 
-func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
+func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, filePath string, multiError *multierror.Error) *multierror.Error {
 	parentFilePath := filePath
 	policiesRaw, ok := top["policies"]
 	if !ok {
@@ -1246,6 +1261,13 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	if err := json.Unmarshal(policiesRaw, &policies); err != nil {
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"policies"}, err))
 	}
+	var errs []error
+	if policies, errs = expandBaseItems(policies, baseDir, "policy", GlobExpandOptions{
+		LogFn: logFn,
+	}); len(errs) > 0 {
+		multiError = multierror.Append(multiError, errs...)
+	}
+
 	for _, item := range policies {
 		if item.Path == nil {
 			if err := parsePolicyInstallSoftware(baseDir, result.TeamName, &item, result.Software.Packages, result.Software.AppStoreApps); err != nil {
@@ -1468,6 +1490,13 @@ func parseReports(top map[string]json.RawMessage, result *GitOps, baseDir string
 	if err := json.Unmarshal(reportsRaw, &queries); err != nil {
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"reports"}, err))
 	}
+	var errs []error
+	if queries, errs = expandBaseItems(queries, baseDir, "report", GlobExpandOptions{
+		LogFn: logFn,
+	}); len(errs) > 0 {
+		multiError = multierror.Append(multiError, errs...)
+	}
+
 	for i, item := range queries {
 		if item.Path == nil {
 			if err := validateReport(&item.QuerySpec, filePath, fmt.Sprintf("reports[%d]", i)); err != nil {
@@ -1477,7 +1506,7 @@ func parseReports(top map[string]json.RawMessage, result *GitOps, baseDir string
 			item.QuerySpec.TeamName = ptr.ValOrZero(result.TeamName)
 			result.Queries = append(result.Queries, &item.QuerySpec)
 		} else {
-			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
+			fileBytes, err := os.ReadFile(*item.Path)
 			if err != nil {
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to read reports file %s: %v", *item.Path, err))
 				continue
