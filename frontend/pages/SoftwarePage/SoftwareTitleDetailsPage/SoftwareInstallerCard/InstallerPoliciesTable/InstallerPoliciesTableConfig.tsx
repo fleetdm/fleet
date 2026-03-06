@@ -1,11 +1,15 @@
 import React from "react";
 
-import { ISoftwareInstallPolicy } from "interfaces/software";
+import {
+  ISoftwareInstallerPolicyIncludeType,
+  ISoftwareInstallPolicy,
+} from "interfaces/software";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import SoftwareInstallPolicyBadges from "components/SoftwareInstallPolicyBadges";
 
 interface IInstallerPoliciesTableConfig {
   teamId?: number;
@@ -15,7 +19,7 @@ interface ICellProps {
     value: string;
   };
   row: {
-    original: ISoftwareInstallPolicy;
+    original: ISoftwareInstallerPolicyIncludeType;
   };
   column: {
     isSortedDesc: boolean;
@@ -39,12 +43,20 @@ const generateInstallerPoliciesTableConfig = ({
       Cell: (cellProps: ICellProps) => (
         <LinkCell
           value={cellProps.cell.value}
+          tooltipTruncate
           path={getPathWithQueryParams(
             PATHS.EDIT_POLICY(cellProps.row.original.id),
             {
               fleet_id: teamId,
             }
           )}
+          className="w400"
+          suffix={
+            // TODO: We're not using type
+            <SoftwareInstallPolicyBadges
+              policyType={cellProps.row.original.type} // TODO: Update according to Marko
+            />
+          }
         />
       ),
     },
