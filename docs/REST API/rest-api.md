@@ -4695,7 +4695,7 @@ On macOS hosts, `last_opened_at` is supported for software from the `apps` sourc
 
 On Windows hosts, `last_opened_at` is supported for software from the `programs` source. On Linux hosts, `last_opened_at` is supported for software from the `deb_packages` and `rpm_packages` sources. On Windows and Linux hosts, it represents the last open time of any version.
 
-Currently, `hash_sha256` and `binary_sha256` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
+Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
 
 #### Example
 
@@ -4738,7 +4738,8 @@ Currently, `hash_sha256` and `binary_sha256` are only supported for macOS softwa
               "installed_path": "/Applications/Google Chrome.app",
               "team_identifier": "EQHXZ8M8AV",
               "hash_sha256": "a45d00ac9bf21e108fa8e452fabe4d9e05e6765b",
-              "binary_sha256": "7afc9d01a62f03a2de9637936d4afe68090d2de18d03f29c88cfb0b1ba63587f"
+              "executable_sha256": "7afc9d01a62f03a2de9637936d4afe68090d2de18d03f29c88cfb0b1ba63587f",
+              "executable_path": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
             }
           ]
         }
@@ -4792,7 +4793,8 @@ Currently, `hash_sha256` and `binary_sha256` are only supported for macOS softwa
               "installed_path": "/Applications/Logic Pro.app",
               "team_identifier": "",
               "hash_sha256": null,
-              "binary_sha256": null
+              "executable_sha256": null,
+              "executable_path": null
             }
           ]
         }
