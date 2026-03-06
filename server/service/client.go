@@ -2978,7 +2978,6 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 
 			// Extract the existing webhook config and set the resolved policy IDs.
 			fpw := extractFailingPoliciesWebhookFromConfig(config)
-			fpw.Enable = true
 			fpw.PolicyIDs = resolvedIDs
 
 			// Re-apply the webhook settings with the resolved policy IDs.
