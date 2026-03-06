@@ -2183,7 +2183,7 @@ func testDeleteSoftwareInstallers(t *testing.T, ds *Datastore) {
 
 	err = ds.DeleteSoftwareInstaller(ctx, softwareInstallerID)
 	require.Error(t, err)
-	require.ErrorIs(t, err, errDeleteInstallerWithAssociatedPolicy)
+	require.ErrorIs(t, err, errDeleteInstallerWithAssociatedInstallPolicy)
 
 	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{p1.ID})
 	require.NoError(t, err)
