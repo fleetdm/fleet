@@ -1420,12 +1420,6 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					}
 				}
 
-				if err := spec.Verify(); err != nil {
-					return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-						Message: fmt.Sprintf("policy spec payload verification: %s", err),
-					})
-				}
-
 				scriptID := spec.ScriptID
 				if spec.ScriptID != nil && *spec.ScriptID == 0 {
 					scriptID = nil
@@ -2485,7 +2479,8 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 	SELECT
 		p.id AS id,
 		p.name AS name,
-		COALESCE(si.title_id, va.title_id) AS software_title_id
+		COALESCE(si.title_id, va.title_id) AS software_title_id,
+		p.type AS type
 	FROM policies p
 	LEFT JOIN software_installers si ON p.software_installer_id = si.id
 	LEFT JOIN vpp_apps_teams vat ON p.vpp_apps_teams_id = vat.id

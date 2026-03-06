@@ -729,6 +729,7 @@ type AutomaticInstallPolicy struct {
 	ID      uint   `json:"id" db:"id"`
 	Name    string `json:"name" db:"name"`
 	TitleID uint   `json:"-" db:"software_title_id"`
+	Type    string `json:"type" db:"type"`
 }
 
 type PatchPolicyData struct {
