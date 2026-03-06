@@ -49,6 +49,7 @@ import (
 	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/recoverykeypassword"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -3885,6 +3886,18 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			if err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "DeviceLocation: calling handlers")
 			}
+		}
+
+	case "VerifyRecoveryLock":
+		// Handle VerifyRecoveryLock command results for recovery key password verification
+		svc.logger.DebugContext(r.Context, "VerifyRecoveryLock result received",
+			"host_uuid", cmdResult.Identifier(),
+			"command_uuid", cmdResult.CommandUUID,
+			"status", cmdResult.Status,
+		)
+		res := recoverykeypassword.NewRecoveryLockResult(cmdResult)
+		if err := svc.runCommandHandlers(r.Context, "VerifyRecoveryLock", res); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "VerifyRecoveryLock: calling handlers")
 		}
 	}
 

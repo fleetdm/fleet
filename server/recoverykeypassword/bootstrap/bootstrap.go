@@ -9,10 +9,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/recoverykeypassword/internal/mysql"
 )
 
-// New creates a new recovery key password datastore.
+// New creates a new recovery key password service.
+// The commander parameter is used to send MDM commands to devices.
 func New(
 	dbConns *platform_mysql.DBConnections,
+	commander recoverykeypassword.MDMCommander,
 	logger *slog.Logger,
-) recoverykeypassword.Datastore {
-	return mysql.NewDatastore(dbConns, logger)
+) recoverykeypassword.Service {
+	ds := mysql.NewDatastore(dbConns, logger)
+	return recoverykeypassword.NewService(ds, commander, logger)
 }
