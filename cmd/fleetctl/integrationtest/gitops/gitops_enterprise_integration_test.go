@@ -3764,7 +3764,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestOmittedTopLevelKeysGlobal() {
 	fleetctlConfig := s.createFleetctlConfig(t, user)
 	t.Setenv("FLEET_URL", s.Server.URL)
 
-	// Step 1: Apply a full global config with policies and agent_options.
+	// Step 1: Apply a full global config with policies, agent_options, controls, and reports.
 	const fullGlobalConfig = `
 org_settings:
   server_settings:
@@ -3777,10 +3777,15 @@ agent_options:
     options:
       pack_delimiter: /
 controls:
+  enable_disk_encryption: true
 policies:
   - name: Test Global Policy
     query: SELECT 1;
 reports:
+  - name: Test Global Report
+    query: SELECT 1;
+    schedule: 1
+    automations_enabled: false
 `
 	fullFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -3790,7 +3795,7 @@ reports:
 
 	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fullFile.Name()}))
 
-	// Verify policy and agent_options were applied.
+	// Verify policy, agent_options, controls, and reports were applied.
 	policies, err := s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
@@ -3800,6 +3805,12 @@ reports:
 	require.NoError(t, err)
 	require.NotNil(t, appCfg.AgentOptions)
 	require.Contains(t, string(*appCfg.AgentOptions), "pack_delimiter")
+	require.True(t, appCfg.MDM.EnableDiskEncryption.Value)
+
+	queries, _, _, _, err := s.DS.ListQueries(ctx, fleet.ListQueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, queries, 1)
+	require.Equal(t, "Test Global Report", queries[0].Name)
 
 	// Step 2: Apply a minimal global config that omits policies, agent_options, controls, reports.
 	const minimalGlobalConfig = `
@@ -3823,10 +3834,19 @@ org_settings:
 	require.NoError(t, err)
 	require.Len(t, policies, 0)
 
-	// Verify agent_options were cleared (set to null).
 	appCfg, err = s.DS.AppConfig(ctx)
 	require.NoError(t, err)
+
+	// Verify agent_options were cleared (set to null).
 	require.Nil(t, appCfg.AgentOptions)
+
+	// Verify controls were cleared (disk encryption reverts to false).
+	require.False(t, appCfg.MDM.EnableDiskEncryption.Value)
+
+	// Verify reports were cleared.
+	queries, _, _, _, err = s.DS.ListQueries(ctx, fleet.ListQueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, queries, 0)
 }
 
 // TestOmittedTopLevelKeysTeam verifies that omitting top-level keys from a team
@@ -3856,20 +3876,27 @@ org_settings:
 	require.NoError(t, err)
 	require.NoError(t, globalFile.Close())
 
-	// Step 1: Apply a full team config with policies and agent_options.
+	// Step 1: Apply a full team config with policies, agent_options, controls, features, and reports.
 	fullTeamConfig := fmt.Sprintf(`
 name: %s
 settings:
   secrets: [{"secret":"enroll_secret"}]
+  features:
+    enable_host_users: false
 agent_options:
   config:
     options:
       pack_delimiter: /
 controls:
+  enable_disk_encryption: true
 policies:
   - name: Test Team Policy
     query: SELECT 1;
 reports:
+  - name: Test Team Report
+    query: SELECT 1;
+    schedule: 1
+    automations_enabled: false
 software:
 `, teamName)
 
@@ -3883,7 +3910,7 @@ software:
 		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", fullTeamFile.Name(),
 	}))
 
-	// Verify policy and agent_options were applied.
+	// Verify policy, agent_options, controls, features, and reports were applied.
 	tm, err := s.DS.TeamByName(ctx, teamName)
 	require.NoError(t, err)
 
@@ -3892,10 +3919,15 @@ software:
 	require.Len(t, tmPols, 1)
 	require.Equal(t, "Test Team Policy", tmPols[0].Name)
 
-	tm, err = s.DS.TeamByName(ctx, teamName)
-	require.NoError(t, err)
 	require.NotNil(t, tm.Config.AgentOptions)
 	require.Contains(t, string(*tm.Config.AgentOptions), "pack_delimiter")
+	require.True(t, tm.Config.MDM.EnableDiskEncryption)
+	require.False(t, tm.Config.Features.EnableHostUsers)
+
+	tmQueries, _, _, _, err := s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &tm.ID})
+	require.NoError(t, err)
+	require.Len(t, tmQueries, 1)
+	require.Equal(t, "Test Team Report", tmQueries[0].Name)
 
 	// Step 2: Apply a minimal team config that omits policies, agent_options, controls, reports, software, settings.
 	minimalTeamConfig := fmt.Sprintf(`
@@ -3917,8 +3949,20 @@ name: %s
 	require.NoError(t, err)
 	require.Len(t, tmPols, 0)
 
-	// Verify agent_options were cleared (set to null).
 	tm, err = s.DS.TeamByName(ctx, teamName)
 	require.NoError(t, err)
+
+	// Verify agent_options were cleared (set to null).
 	require.Nil(t, tm.Config.AgentOptions)
+
+	// Verify controls were cleared (disk encryption reverts to false).
+	require.False(t, tm.Config.MDM.EnableDiskEncryption)
+
+	// Verify features reverted to defaults (enable_host_users defaults to true).
+	require.True(t, tm.Config.Features.EnableHostUsers)
+
+	// Verify reports were cleared.
+	tmQueries, _, _, _, err = s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &tm.ID})
+	require.NoError(t, err)
+	require.Len(t, tmQueries, 0)
 }
