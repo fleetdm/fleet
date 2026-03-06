@@ -720,7 +720,7 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("viewed the Recovery Lock password for", {
+      screen.getByText("viewed the Recovery lock password for", {
         exact: false,
       })
     ).toBeInTheDocument();
@@ -735,7 +735,7 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("set a Recovery Lock password for", {
+      screen.getByText("set a Recovery lock password for", {
         exact: false,
       })
     ).toBeInTheDocument();
@@ -751,7 +751,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "enforced Recovery Lock passwords for hosts assigned to the",
+        "enforced Recovery lock passwords for hosts assigned to the",
         {
           exact: false,
         }
@@ -770,7 +770,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "enforced Recovery Lock passwords for hosts that are unassigned."
+        "enforced Recovery lock passwords for hosts that are unassigned."
       )
     ).toBeInTheDocument();
     expect(screen.queryByText("assigned to the")).toBeNull();
@@ -785,7 +785,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "removed Recovery Lock password enforcement for hosts assigned to the",
+        "removed Recovery lock password enforcement for hosts assigned to the",
         {
           exact: false,
         }
@@ -804,7 +804,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "removed Recovery Lock password enforcement for hosts that are unassigned.",
+        "removed Recovery lock password enforcement for hosts that are unassigned.",
         {
           exact: false,
         }

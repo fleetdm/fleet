@@ -9,6 +9,7 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import DataError from "components/DataError";
+import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
@@ -29,8 +30,9 @@ const RecoveryLockPasswordModal = ({
   const {
     data: recoveryLockPassword,
     error: recoveryLockPasswordError,
+    isLoading,
   } = useQuery<IHostRecoveryLockPasswordResponse, unknown, string>(
-    "hostRecoveryLockPassword",
+    ["hostRecoveryLockPassword", hostId],
     () => hostAPI.getRecoveryLockPassword(hostId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
@@ -40,32 +42,37 @@ const RecoveryLockPasswordModal = ({
 
   return (
     <Modal
-      title="Recovery Lock password"
+      title="Recovery lock password"
       onExit={onCancel}
       onEnter={onCancel}
       className={baseClass}
     >
-      {recoveryLockPasswordError ? (
-        <DataError
-          description={getErrorReason(recoveryLockPasswordError) || undefined}
-        />
-      ) : (
-        <>
-          <InputFieldHiddenContent value={recoveryLockPassword ?? ""} />
-          <p>
-            Use this to unlock and regain access to the host if the end user
-            forgets their local password.{" "}
-            <CustomLink
-              newTab
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/startup-security-macos`}
-              text="Learn more"
-            />
-          </p>
-          <div className="modal-cta-wrap">
-            <Button onClick={onCancel}>Done</Button>
-          </div>
-        </>
-      )}
+      <>
+        {isLoading && <Spinner />}
+        {recoveryLockPasswordError ? (
+          <DataError
+            description={getErrorReason(recoveryLockPasswordError) || undefined}
+          />
+        ) : (
+          !isLoading && (
+            <>
+              <InputFieldHiddenContent value={recoveryLockPassword ?? ""} />
+              <p>
+                Use this to unlock and regain access to the host if the end user
+                forgets their local password.{" "}
+                <CustomLink
+                  newTab
+                  url={`${LEARN_MORE_ABOUT_BASE_LINK}/startup-security-macos`}
+                  text="Learn more"
+                />
+              </p>
+              <div className="modal-cta-wrap">
+                <Button onClick={onCancel}>Done</Button>
+              </div>
+            </>
+          )
+        )}
+      </>
     </Modal>
   );
 };

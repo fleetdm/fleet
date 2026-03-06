@@ -45,7 +45,7 @@ const DEFAULT_OPTIONS = [
     disabled: false,
   },
   {
-    label: "Show Recovery Lock password",
+    label: "Show Recovery lock password",
     value: "recoveryLockPassword",
     disabled: false,
   },
@@ -542,7 +542,7 @@ const modifyOptions = (
       rlpOption.disabled = true;
       rlpOption.tooltipContent = (
         <>
-          Recovery Lock password is unavailable
+          Recovery lock password is unavailable
           <br />
           while pending or has failed.
         </>

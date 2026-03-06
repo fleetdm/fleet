@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
@@ -17,6 +17,7 @@ import configAPI from "services/entities/config";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
 import PageDescription from "components/PageDescription";
@@ -29,7 +30,7 @@ const baseClass = "passwords";
 
 const RECOVERY_LOCK_TOOLTIP_CONTENT = (
   <>
-    Configure and escrow macOS Recovery Lock passwords. These restrict access to
+    Configure and escrow macOS Recovery lock passwords. These restrict access to
     recoveryOS and are securely stored for authorized admin retrieval.{" "}
     <CustomLink
       text="Learn more"
@@ -50,12 +51,8 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
 
   const isTechnician = isTeamTechnician || isGlobalTechnician;
 
-  const defaultEnableRecoveryLock = currentTeamId
-    ? false
-    : config?.mdm.enable_recovery_lock_password ?? false;
-
   const [enableRecoveryLockPassword, setEnableRecoveryLockPassword] = useState(
-    defaultEnableRecoveryLock
+    false
   );
 
   const { isLoading: isLoadingTeam } = useQuery<
@@ -72,6 +69,15 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
       );
     },
   });
+
+  // Sync state from global config when "no team" is selected
+  useEffect(() => {
+    if (currentTeamId === API_NO_TEAM_ID) {
+      setEnableRecoveryLockPassword(
+        config?.mdm.enable_recovery_lock_password ?? false
+      );
+    }
+  }, [currentTeamId, config?.mdm.enable_recovery_lock_password]);
 
   const showLoading = currentTeamId !== API_NO_TEAM_ID && isLoadingTeam;
 
@@ -91,13 +97,13 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
       }
       renderFlash(
         "success",
-        "Successfully updated Recovery Lock password enforcement."
+        "Successfully updated Recovery lock password enforcement."
       );
       onMutation();
     } catch (e) {
       const errorMsg =
         getErrorReason(e) ??
-        "Couldn't enable Recovery Lock password. Please try again.";
+        "Couldn't update Recovery lock password enforcement. Please try again.";
       renderFlash("error", errorMsg);
     }
   };
@@ -109,12 +115,13 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
         variant="right-panel"
         content="Manage passwords used for recovery, security, or administrative access across supported platforms."
       />
-      {showLoading && <Spinner />}
+      {!isPremiumTier && <PremiumFeatureMessage />}
+      {isPremiumTier && showLoading && <Spinner />}
       {isPremiumTier && !showLoading && !isTechnician && (
         <div className="form passwords-content">
           <div className={`${baseClass}__recovery-lock-header`}>
             <TooltipWrapper tipContent={RECOVERY_LOCK_TOOLTIP_CONTENT}>
-              Recovery Lock password
+              Recovery lock password
             </TooltipWrapper>
           </div>
           <Checkbox
@@ -124,7 +131,7 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
             className={`${baseClass}__checkbox`}
             helpText="This setting is only available on macOS hosts with Apple silicon."
           >
-            Turn on Recovery Lock password
+            Turn on Recovery lock password
           </Checkbox>
           <div className="button-wrap">
             <GitOpsModeTooltipWrapper

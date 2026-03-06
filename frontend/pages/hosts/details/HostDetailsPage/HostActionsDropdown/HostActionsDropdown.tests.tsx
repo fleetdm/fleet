@@ -1562,7 +1562,7 @@ describe("Host Actions Dropdown", () => {
     });
   });
 
-  describe("Show Recovery Lock password action", () => {
+  describe("Show Recovery lock password action", () => {
     it("renders the action when recovery lock is enabled and host is macOS connected to Fleet MDM", async () => {
       const render = createCustomRenderer({
         context: {
@@ -1589,13 +1589,13 @@ describe("Host Actions Dropdown", () => {
       );
 
       expect(
-        screen.queryByText("Show Recovery Lock password")
+        screen.queryByText("Show Recovery lock password")
       ).not.toBeInTheDocument();
 
       await user.click(screen.getByText("Actions"));
 
       expect(
-        screen.getByText("Show Recovery Lock password")
+        screen.getByText("Show Recovery lock password")
       ).toBeInTheDocument();
     });
 
@@ -1627,7 +1627,7 @@ describe("Host Actions Dropdown", () => {
       await user.click(screen.getByText("Actions"));
 
       expect(
-        screen.queryByText("Show Recovery Lock password")
+        screen.queryByText("Show Recovery lock password")
       ).not.toBeInTheDocument();
     });
 
@@ -1659,7 +1659,7 @@ describe("Host Actions Dropdown", () => {
       await user.click(screen.getByText("Actions"));
 
       expect(
-        screen.queryByText("Show Recovery Lock password")
+        screen.queryByText("Show Recovery lock password")
       ).not.toBeInTheDocument();
     });
 
@@ -1691,7 +1691,7 @@ describe("Host Actions Dropdown", () => {
       await user.click(screen.getByText("Actions"));
 
       expect(
-        screen.queryByText("Show Recovery Lock password")
+        screen.queryByText("Show Recovery lock password")
       ).not.toBeInTheDocument();
     });
 
@@ -1723,17 +1723,14 @@ describe("Host Actions Dropdown", () => {
 
       await user.click(screen.getByText("Actions"));
 
-      const option = screen.getByText("Show Recovery Lock password");
+      const option = screen.getByText("Show Recovery lock password");
       expect(option).toBeInTheDocument();
       expect(option).toHaveAttribute("aria-disabled", "true");
 
+      await user.hover(option);
       await waitFor(() => {
-        waitFor(() => {
-          user.hover(option);
-        });
-
         expect(
-          screen.getByText(/Recovery Lock password is unavailable/i)
+          screen.getByText(/Recovery lock password is unavailable/i)
         ).toBeInTheDocument();
       });
     });
@@ -1766,17 +1763,14 @@ describe("Host Actions Dropdown", () => {
 
       await user.click(screen.getByText("Actions"));
 
-      const option = screen.getByText("Show Recovery Lock password");
+      const option = screen.getByText("Show Recovery lock password");
       expect(option).toBeInTheDocument();
       expect(option).toHaveAttribute("aria-disabled", "true");
 
+      await user.hover(option);
       await waitFor(() => {
-        waitFor(() => {
-          user.hover(option);
-        });
-
         expect(
-          screen.getByText(/Recovery Lock password is unavailable/i)
+          screen.getByText(/Recovery lock password is unavailable/i)
         ).toBeInTheDocument();
       });
     });
