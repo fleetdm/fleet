@@ -2283,6 +2283,22 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	// have crowded the inner query's LIMIT 10 before the team filter was applied there).
 	team3, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team3-inaccessible"})
 	require.NoError(t, err)
+	// Create the accessible host first so it gets a lower ID.
+	accessibleHost, err := ds.NewHost(context.Background(), &fleet.Host{
+		OsqueryHostID:   ptr.String("accessible-searchme"),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("accessible-key-searchme"),
+		UUID:            "accessible-uuid-searchme",
+		Hostname:        "searchme-accessible.local",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team2.ID, []uint{accessibleHost.ID})))
+	// Then create 10 inaccessible hosts (higher IDs). Without the inner query team
+	// filter, ORDER BY id DESC LIMIT 10 would return only these hosts, crowding out the
+	// accessible one.
 	var inaccessibleHosts []*fleet.Host
 	for i := range 10 {
 		h, err := ds.NewHost(context.Background(), &fleet.Host{
@@ -2299,22 +2315,7 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team3.ID, []uint{h.ID})))
 		inaccessibleHosts = append(inaccessibleHosts, h)
 	}
-	// This host belongs to team2 (observer's team) but has a lower ID than all the
-	// inaccessible hosts, so without the inner query team filter it would be excluded
-	// by LIMIT 10.
-	accessibleHost, err := ds.NewHost(context.Background(), &fleet.Host{
-		OsqueryHostID:   ptr.String("accessible-searchme"),
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("accessible-key-searchme"),
-		UUID:            "accessible-uuid-searchme",
-		Hostname:        "searchme-accessible.local",
-	})
-	require.NoError(t, err)
-	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team2.ID, []uint{accessibleHost.ID})))
-	// All inaccessible hosts have higher IDs (created after).
+	// Confirm all inaccessible hosts have higher IDs than the accessible host.
 	for _, h := range inaccessibleHosts {
 		assert.Greater(t, h.ID, accessibleHost.ID)
 	}
