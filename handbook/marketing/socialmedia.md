@@ -13,7 +13,7 @@
 | [Facebook](https://www.facebook.com/fleetdm/) | FleetDM |
 | [Instagram](https://www.instagram.com/fleetctl/) | FleetCTL |
 | [Threads](https://www.threads.com/@fleetctl) | FleetCTL |
-| TikTok | FleetDM |
+| [TikTok](https://www.tiktok.com/@fleetdm) | FleetDM |
 | [Bluesky](https://bsky.app/profile/fleetdm.bsky.social) | FleetDM |
 | [Mastodon](https://mastodon.social/@Fleet@discuss.systems) | Fleet |
 
