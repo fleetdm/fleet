@@ -179,7 +179,12 @@ const EditScriptModal = ({
     }
 
     // Set editing mode based on the file extension.
-    const mode = scriptName.match(/\.sh$/) ? "sh" : "powershell";
+    let mode = "sh";
+    if (scriptName.match(/\.ps1$/)) {
+      mode = "powershell";
+    } else if (scriptName.match(/\.py$/)) {
+      mode = "python";
+    }
 
     return (
       <>
