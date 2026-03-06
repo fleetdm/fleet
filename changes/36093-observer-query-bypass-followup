@@ -1,0 +1,1 @@
+* Fixed observer users being incorrectly blocked from targeting teams they observe when the query has `observer_can_run` enabled.
