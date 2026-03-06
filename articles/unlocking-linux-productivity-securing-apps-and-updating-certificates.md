@@ -59,7 +59,7 @@ Starting now with visibility into what's deployed and when it expires gives you 
 
 If you're evaluating ways to tighten Linux software and certificate hygiene, [try Fleet on Linux](https://fleetdm.com/) to see how inventory, targeted updates, and certificate-related scripting can fit into your existing workflows.
 
-The next article in this series will cover protecting the device itself: how remote lock and wipe for lost or stolen Linux workstations, peripheral and port governance, and local identity management (including the persistent "sudo problem") help bring Linux device security closer to what enterprises already expect from macOS and Windows.
+The [next article](https://fleetdm.com/articles/protecting-the-linux-device-remote-wipe-usb-sudo) in this series will cover protecting the device itself: how remote lock and wipe for lost or stolen Linux workstations, peripheral and port governance, and local identity management (including the persistent "sudo problem") help bring Linux device security closer to what enterprises already expect from macOS and Windows.
 
 <meta name="articleTitle" value="Unlocking Linux productivity: securing apps and updating certificates">  
 <meta name="authorFullName" value="Ashish Kuthiala">  
