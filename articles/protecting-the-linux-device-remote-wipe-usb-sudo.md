@@ -26,7 +26,7 @@ Lock and wipe commands only work when a device is online. For offline devices, a
 
 ## The USB threat surface
 
-Malicious USB devices can inject commands and exfiltrate data within seconds of being plugged in. These attacks are fast, quiet, and often unmonitored. Without visibility into what's being connected, teams end up investigating suspicious commands, new local users, or persistence mechanisms that trace back to a device plug-in.
+Malicious USB devices can inject commands and exfiltrate data within seconds of being plugged in. These attacks are fast, quiet, and often unmonitored. Without visibility into what's being connected, teams end up investigating suspicious commands, new local users, or persistence mechanisms that trace back to a [device plug-in](https://arcanenibble.github.io/hardware-hotplug-events-on-linux-the-gory-details.html).
 
 ### Threats to plan for (beyond "USB drives")
 
