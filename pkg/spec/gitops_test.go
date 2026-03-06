@@ -1932,6 +1932,322 @@ func TestGitOpsGlobScripts(t *testing.T) {
 	assert.Equal(t, filepath.Join(scriptsDir, "gamma.ps1"), *result.Controls.Scripts[2].Path)
 }
 
+// TestControlsNewKeyNames verifies that the new multi-platform key names
+// (apple_settings, setup_experience, configuration_profiles, apple_setup_assistant)
+// are accepted in controls parsing and produce the same result as the old names.
+func TestControlsNewKeyNames(t *testing.T) {
+	t.Parallel()
+
+	// Test with inline controls using new key names
+	t.Run("inline_new_names", func(t *testing.T) {
+		t.Parallel()
+
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "windows-screenlock.xml"), []byte("<xml/>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "collect-fleetd-logs.sh"), []byte("#!/bin/bash"), 0o644))
+
+		config := `
+controls:
+  apple_settings:
+    configuration_profiles:
+      - path: ./lib/macos-password.mobileconfig
+  windows_settings:
+    configuration_profiles:
+      - path: ./lib/windows-screenlock.xml
+  scripts:
+    - path: ./lib/collect-fleetd-logs.sh
+  enable_disk_encryption: true
+  setup_experience:
+    bootstrap_package: null
+    enable_end_user_authentication: false
+    apple_setup_assistant: null
+  macos_updates:
+    deadline: null
+    minimum_version: null
+  windows_enabled_and_configured: true
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: Test Org
+  secrets:
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		gitops, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+
+		// Verify controls parsed correctly with new key names
+		macSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
+		require.True(t, ok, "macos_settings (via apple_settings) not parsed")
+		require.Len(t, macSettings.CustomSettings, 1)
+
+		winSettings, ok := gitops.Controls.WindowsSettings.(fleet.WindowsSettings)
+		require.True(t, ok, "windows_settings not parsed")
+		require.True(t, winSettings.CustomSettings.Valid)
+		require.Len(t, winSettings.CustomSettings.Value, 1)
+
+		require.NotNil(t, gitops.Controls.MacOSSetup, "macos_setup (via setup_experience) not parsed")
+
+		diskEnc, ok := gitops.Controls.EnableDiskEncryption.(bool)
+		require.True(t, ok)
+		require.True(t, diskEnc)
+	})
+
+	// Test with external controls file using new key names
+	t.Run("external_file_new_names", func(t *testing.T) {
+		t.Parallel()
+
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "windows-screenlock.xml"), []byte("<xml/>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "collect-fleetd-logs.sh"), []byte("#!/bin/bash"), 0o644))
+
+		controlsYAML := `
+apple_settings:
+  configuration_profiles:
+    - path: ./lib/macos-password.mobileconfig
+windows_settings:
+  configuration_profiles:
+    - path: ./lib/windows-screenlock.xml
+scripts:
+  - path: ./lib/collect-fleetd-logs.sh
+enable_disk_encryption: true
+setup_experience:
+  bootstrap_package: null
+  enable_end_user_authentication: false
+  apple_setup_assistant: null
+macos_updates:
+  deadline: null
+  minimum_version: null
+windows_enabled_and_configured: true
+`
+		controlsPath := filepath.Join(dir, "controls.yml")
+		require.NoError(t, os.WriteFile(controlsPath, []byte(controlsYAML), 0o644))
+
+		config := `
+controls:
+  path: ./controls.yml
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: Test Org
+  secrets:
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		gitops, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+
+		// Verify controls parsed correctly from external file with new key names
+		macSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
+		require.True(t, ok, "macos_settings (via apple_settings in external file) not parsed")
+		require.Len(t, macSettings.CustomSettings, 1)
+
+		winSettings, ok := gitops.Controls.WindowsSettings.(fleet.WindowsSettings)
+		require.True(t, ok, "windows_settings not parsed")
+		require.True(t, winSettings.CustomSettings.Valid)
+		require.Len(t, winSettings.CustomSettings.Value, 1)
+
+		require.NotNil(t, gitops.Controls.MacOSSetup, "macos_setup (via setup_experience in external file) not parsed")
+	})
+
+	// Test that duplicate settings with old and new key names produce an error
+	t.Run("duplicate_old_and_new_keys_error_apple_settings", func(t *testing.T) {
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:		
+controls:
+  apple_settings:
+    configuration_profiles:
+      - path: ./lib/macos-password.mobileconfig
+  macos_settings:
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "apple_settings")
+		require.Contains(t, err.Error(), "`macos_settings` (deprecated)")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_apple_custom_settings", func(t *testing.T) {
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:		
+controls:
+  apple_settings:
+    configuration_profiles:
+      - path: ./lib/macos-password.mobileconfig
+    custom_settings:
+      - path: ./lib/macos-password.mobileconfig
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "configuration_profiles")
+		require.Contains(t, err.Error(), "`custom_settings` (deprecated)")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_windows_custom_settings", func(t *testing.T) {
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:		
+controls:
+  windows_settings:
+    configuration_profiles:
+      - path: ./lib/foo
+    custom_settings:
+      - path: ./lib/bar
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "configuration_profiles")
+		require.Contains(t, err.Error(), "`custom_settings` (deprecated)")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_android_custom_settings", func(t *testing.T) {
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:		
+controls:
+  android_settings:
+    configuration_profiles:
+      - path: ./lib/foo
+    custom_settings:
+      - path: ./lib/bar
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "configuration_profiles")
+		require.Contains(t, err.Error(), "`custom_settings` (deprecated)")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_setup_experience", func(t *testing.T) {
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:		
+controls:
+  setup_experience:
+  macos_setup:    
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "setup_experience")
+		require.Contains(t, err.Error(), "`macos_setup` (deprecated)")
+	})
+
+	t.Run("duplicate_keys_external_file", func(t *testing.T) {
+		t.Parallel()
+
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+
+		controlsYAML := `
+apple_settings:
+macos_settings:
+`
+		controlsPath := filepath.Join(dir, "controls.yml")
+		require.NoError(t, os.WriteFile(controlsPath, []byte(controlsYAML), 0o644))
+
+		config := `
+controls:
+  path: ./controls.yml
+reports:
+policies:
+agent_options:
+org_settings:
+  secrets:
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "apple_settings")
+		require.Contains(t, err.Error(), "`macos_settings` (deprecated)")
+	})
+}
+
 func TestSoftwarePackagesScriptPath(t *testing.T) {
 	t.Parallel()
 	appConfig := &fleet.EnrichedAppConfig{}
