@@ -81,6 +81,10 @@ func TestValidatePackageIdentifiers(t *testing.T) {
 			"a~b",
 			"comma,separated",
 			"with spaces",
+			"CrossCore\u00ae Embedded Studio v3.0.2",
+			"Adobe Acrobat (64-bit)",
+			"C# Runtime",
+			"日本語アプリ",
 		}
 		require.NoError(t, ValidatePackageIdentifiers(validIDs, ""))
 		require.NoError(t, ValidatePackageIdentifiers(nil, "{UPGRADE-CODE-123}"))

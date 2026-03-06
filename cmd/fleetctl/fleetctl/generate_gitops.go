@@ -1156,24 +1156,28 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			return nil, err
 		}
 
+		macosSettingsT := reflect.TypeFor[fleet.MacOSSettings]()
+		windowsSettingsT := reflect.TypeFor[fleet.WindowsSettings]()
+		androidSettingsT := reflect.TypeFor[fleet.AndroidSettings]()
+
 		if cmd.AppConfig.MDM.EnabledAndConfigured && profiles != nil {
 			if len(profiles["apple_profiles"].([]map[string]interface{})) > 0 {
 				result[jsonFieldName(t, "MacOSSettings")] = map[string]interface{}{
-					"custom_settings": profiles["apple_profiles"],
+					jsonFieldName(macosSettingsT, "CustomSettings"): profiles["apple_profiles"],
 				}
 			}
 		}
 		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && profiles != nil {
 			if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
 				result[jsonFieldName(t, "WindowsSettings")] = map[string]interface{}{
-					"custom_settings": profiles["windows_profiles"],
+					jsonFieldName(windowsSettingsT, "CustomSettings"): profiles["windows_profiles"],
 				}
 			}
 		}
 		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured && profiles != nil {
 			if len(profiles["android_profiles"].([]map[string]interface{})) > 0 {
 				result[jsonFieldName(t, "AndroidSettings")] = map[string]interface{}{
-					"custom_settings": profiles["android_profiles"],
+					jsonFieldName(androidSettingsT, "CustomSettings"): profiles["android_profiles"],
 				}
 			}
 		}
@@ -1268,7 +1272,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 
 			// If the team has any of these configured, we need to generate the macos_setup section.
 			if hasBootstrapPackage || hasSetupScript || hasEnrollmentProfile || (teamMdm != nil && teamMdm.MacOSSetup.EnableEndUserAuthentication) {
-				result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your macos_setup configuration"
+				result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your setup_experience configuration"
 				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 					Filename: teamName,
 					Note:     "The macos_setup configuration is not supported by this tool yet.  To configure it, please follow the Fleet documentation at https://fleetdm.com/docs/configuration/yaml-files#macos-setup",
@@ -1424,15 +1428,14 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 	result := make([]map[string]interface{}, len(policies))
 	for i, policy := range policies {
 		policySpec := map[string]interface{}{
-			jsonFieldName(t, "Name"):                           policy.Name,
-			jsonFieldName(t, "Description"):                    policy.Description,
-			jsonFieldName(t, "Resolution"):                     policy.Resolution,
-			jsonFieldName(t, "Query"):                          policy.Query,
-			jsonFieldName(t, "Platform"):                       policy.Platform,
-			jsonFieldName(t, "Critical"):                       policy.Critical,
-			jsonFieldName(t, "CalendarEventsEnabled"):          policy.CalendarEventsEnabled,
-			jsonFieldName(t, "ConditionalAccessEnabled"):       policy.ConditionalAccessEnabled,
-			jsonFieldName(t, "ConditionalAccessBypassEnabled"): policy.ConditionalAccessBypassEnabled,
+			jsonFieldName(t, "Name"):                     policy.Name,
+			jsonFieldName(t, "Description"):              policy.Description,
+			jsonFieldName(t, "Resolution"):               policy.Resolution,
+			jsonFieldName(t, "Query"):                    policy.Query,
+			jsonFieldName(t, "Platform"):                 policy.Platform,
+			jsonFieldName(t, "Critical"):                 policy.Critical,
+			jsonFieldName(t, "CalendarEventsEnabled"):    policy.CalendarEventsEnabled,
+			jsonFieldName(t, "ConditionalAccessEnabled"): policy.ConditionalAccessEnabled,
 		}
 		// Handle software automation.
 		if policy.InstallSoftware != nil {
