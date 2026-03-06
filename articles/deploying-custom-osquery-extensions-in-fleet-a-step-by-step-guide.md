@@ -5,7 +5,7 @@
 - Part 1: [Deploying custom osquery extensions in Fleet](https://fleetdm.com/articles/deploying-custom-osquery-extensions-in-fleet)
 - Part 2: Deploying custom osquery extensions in Fleet: A step-by-step guide
 
-## Step 1: Deploy the Extension Binary
+## Step 1: Deploy the extension binary
 
 Deploy your custom extension binary to any location on the target filesystem. This can be accomplished through:
 
@@ -13,7 +13,7 @@ Deploy your custom extension binary to any location on the target filesystem. Th
 - Scripts
 - Manual deployment for testing
 
-### Critical Requirements
+### Critical requirements
 
 #### Ownership
 
@@ -34,7 +34,7 @@ Example `extensions.load` file:
 /opt/security/monitoring-extension.ext
 ```
 
-## Step 3: Restart the Orbit Agent
+## Step 3: Restart the orbit agent
 
 After placing the extension and configuration file, restart the Orbit agent to load the new extension:
 
@@ -45,24 +45,24 @@ sudo launchctl stop com.fleetdm.orbit
 sudo launchctl start com.fleetdm.orbit
 ```
 
-### Or use systemctl on systemd systems
+### Use systemctl on systemd systems
 
 ```
 sudo systemctl restart orbit
 ```
 
-### For complete examples, see Fleet's repository:
+#### For complete examples, see Fleet's repository:
 
 - [Example Script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/scripts/install-macos-compatibility-extension.sh)
 - [Example Policy](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/policies/install-macos-compatibility-extension.yml)
 
-## Considerations and Best Practices
+## Considerations and best practices
 
 ### Security
 
 When selecting custom extensions to deploy, prioritize open source solutions whenever possible. Open source extensions provide transparency, allowing you to audit the code for security vulnerabilities and ensure trustworthiness before deployment.
 
-### Version Management
+### Version management
 
 Implement versioning in your detection policies and extension names to handle updates.
 
