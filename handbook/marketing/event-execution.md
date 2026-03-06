@@ -1,5 +1,7 @@
 # **Event execution process**
 
+Be happy
+
 This page outlines the execution process for Fleet events. It builds upon our general event strategy and goals outlined in the [Fleet events](https://fleetdm.com/handbook/marketing#fleet-events) section of the handbook.
 
 ## **Tools and single source of truth**
