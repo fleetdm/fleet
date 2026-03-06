@@ -286,6 +286,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "windows_settings not found")
 				_, ok = gitops.Controls.EnableDiskEncryption.(bool)
 				assert.True(t, ok, "enable_disk_encryption not found")
+				_, ok = gitops.Controls.EnableRecoveryLockPassword.(bool)
+				assert.True(t, ok, "enable_recovery_lock_password not found")
 				_, ok = gitops.Controls.MacOSMigration.(map[string]interface{})
 				assert.True(t, ok, "macos_migration not found")
 				assert.NotNil(t, gitops.Controls.MacOSSetup, "macos_setup not found")
@@ -436,7 +438,7 @@ reports:
   logging: snapshot
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "duplicate query names")
+	assert.ErrorContains(t, err, "duplicate report names")
 }
 
 func TestUnicodeQueryNames(t *testing.T) {
@@ -454,7 +456,7 @@ reports:
   logging: snapshot
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "query name must be in ASCII")
+	assert.ErrorContains(t, err, "`name` must be in ASCII")
 }
 
 func TestUnicodeTeamName(t *testing.T) {
@@ -873,17 +875,17 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				_, err = gitOpsFromString(t, config)
 				assert.ErrorContains(t, err, "expected type spec.Query but got number")
 
-				// Query name missing
+				// Report name missing
 				config = getConfig([]string{"reports"})
 				config += "reports:\n  - query: SELECT 1;\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "name is required")
+				assert.ErrorContains(t, err, "`name` is required")
 
-				// Query SQL query missing
+				// Report SQL missing
 				config = getConfig([]string{"reports"})
 				config += "reports:\n  - name: Test Query\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "query is required")
+				assert.ErrorContains(t, err, "`query` is required")
 			},
 		)
 	}
@@ -1928,4 +1930,466 @@ func TestGitOpsGlobScripts(t *testing.T) {
 	assert.Equal(t, filepath.Join(scriptsDir, "alpha.sh"), *result.Controls.Scripts[0].Path)
 	assert.Equal(t, filepath.Join(scriptsDir, "beta.sh"), *result.Controls.Scripts[1].Path)
 	assert.Equal(t, filepath.Join(scriptsDir, "gamma.ps1"), *result.Controls.Scripts[2].Path)
+}
+
+// TestControlsNewKeyNames verifies that the new multi-platform key names
+// (apple_settings, setup_experience, configuration_profiles, apple_setup_assistant)
+// are accepted in controls parsing and produce the same result as the old names.
+func TestControlsNewKeyNames(t *testing.T) {
+	t.Parallel()
+
+	// Test with inline controls using new key names
+	t.Run("inline_new_names", func(t *testing.T) {
+		t.Parallel()
+
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "windows-screenlock.xml"), []byte("<xml/>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "collect-fleetd-logs.sh"), []byte("#!/bin/bash"), 0o644))
+
+		config := `
+controls:
+  apple_settings:
+    configuration_profiles:
+      - path: ./lib/macos-password.mobileconfig
+  windows_settings:
+    configuration_profiles:
+      - path: ./lib/windows-screenlock.xml
+  scripts:
+    - path: ./lib/collect-fleetd-logs.sh
+  enable_disk_encryption: true
+  setup_experience:
+    bootstrap_package: null
+    enable_end_user_authentication: false
+    apple_setup_assistant: null
+  macos_updates:
+    deadline: null
+    minimum_version: null
+  windows_enabled_and_configured: true
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: Test Org
+  secrets:
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		gitops, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+
+		// Verify controls parsed correctly with new key names
+		macSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
+		require.True(t, ok, "macos_settings (via apple_settings) not parsed")
+		require.Len(t, macSettings.CustomSettings, 1)
+
+		winSettings, ok := gitops.Controls.WindowsSettings.(fleet.WindowsSettings)
+		require.True(t, ok, "windows_settings not parsed")
+		require.True(t, winSettings.CustomSettings.Valid)
+		require.Len(t, winSettings.CustomSettings.Value, 1)
+
+		require.NotNil(t, gitops.Controls.MacOSSetup, "macos_setup (via setup_experience) not parsed")
+
+		diskEnc, ok := gitops.Controls.EnableDiskEncryption.(bool)
+		require.True(t, ok)
+		require.True(t, diskEnc)
+	})
+
+	// Test with external controls file using new key names
+	t.Run("external_file_new_names", func(t *testing.T) {
+		t.Parallel()
+
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "windows-screenlock.xml"), []byte("<xml/>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "collect-fleetd-logs.sh"), []byte("#!/bin/bash"), 0o644))
+
+		controlsYAML := `
+apple_settings:
+  configuration_profiles:
+    - path: ./lib/macos-password.mobileconfig
+windows_settings:
+  configuration_profiles:
+    - path: ./lib/windows-screenlock.xml
+scripts:
+  - path: ./lib/collect-fleetd-logs.sh
+enable_disk_encryption: true
+setup_experience:
+  bootstrap_package: null
+  enable_end_user_authentication: false
+  apple_setup_assistant: null
+macos_updates:
+  deadline: null
+  minimum_version: null
+windows_enabled_and_configured: true
+`
+		controlsPath := filepath.Join(dir, "controls.yml")
+		require.NoError(t, os.WriteFile(controlsPath, []byte(controlsYAML), 0o644))
+
+		config := `
+controls:
+  path: ./controls.yml
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: Test Org
+  secrets:
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		gitops, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+
+		// Verify controls parsed correctly from external file with new key names
+		macSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
+		require.True(t, ok, "macos_settings (via apple_settings in external file) not parsed")
+		require.Len(t, macSettings.CustomSettings, 1)
+
+		winSettings, ok := gitops.Controls.WindowsSettings.(fleet.WindowsSettings)
+		require.True(t, ok, "windows_settings not parsed")
+		require.True(t, winSettings.CustomSettings.Valid)
+		require.Len(t, winSettings.CustomSettings.Value, 1)
+
+		require.NotNil(t, gitops.Controls.MacOSSetup, "macos_setup (via setup_experience in external file) not parsed")
+	})
+
+	// Test that duplicate settings with old and new key names produce an error
+	t.Run("duplicate_old_and_new_keys_error_apple_settings", func(t *testing.T) {
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:		
+controls:
+  apple_settings:
+    configuration_profiles:
+      - path: ./lib/macos-password.mobileconfig
+  macos_settings:
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "apple_settings")
+		require.Contains(t, err.Error(), "`macos_settings` (deprecated)")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_apple_custom_settings", func(t *testing.T) {
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:		
+controls:
+  apple_settings:
+    configuration_profiles:
+      - path: ./lib/macos-password.mobileconfig
+    custom_settings:
+      - path: ./lib/macos-password.mobileconfig
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "configuration_profiles")
+		require.Contains(t, err.Error(), "`custom_settings` (deprecated)")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_windows_custom_settings", func(t *testing.T) {
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:		
+controls:
+  windows_settings:
+    configuration_profiles:
+      - path: ./lib/foo
+    custom_settings:
+      - path: ./lib/bar
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "configuration_profiles")
+		require.Contains(t, err.Error(), "`custom_settings` (deprecated)")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_android_custom_settings", func(t *testing.T) {
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:		
+controls:
+  android_settings:
+    configuration_profiles:
+      - path: ./lib/foo
+    custom_settings:
+      - path: ./lib/bar
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "configuration_profiles")
+		require.Contains(t, err.Error(), "`custom_settings` (deprecated)")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_setup_experience", func(t *testing.T) {
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:		
+controls:
+  setup_experience:
+  macos_setup:    
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "setup_experience")
+		require.Contains(t, err.Error(), "`macos_setup` (deprecated)")
+	})
+
+	t.Run("duplicate_keys_external_file", func(t *testing.T) {
+		t.Parallel()
+
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+
+		controlsYAML := `
+apple_settings:
+macos_settings:
+`
+		controlsPath := filepath.Join(dir, "controls.yml")
+		require.NoError(t, os.WriteFile(controlsPath, []byte(controlsYAML), 0o644))
+
+		config := `
+controls:
+  path: ./controls.yml
+reports:
+policies:
+agent_options:
+org_settings:
+  secrets:
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "apple_settings")
+		require.Contains(t, err.Error(), "`macos_settings` (deprecated)")
+	})
+}
+
+func TestSoftwarePackagesScriptPath(t *testing.T) {
+	t.Parallel()
+	appConfig := &fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+
+	t.Run("valid_sh_script_path", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/install-app.sh
+      categories:
+        - Utilities
+      self_service: true
+`
+		path, basePath := createTempFile(t, "", config)
+
+		err := file.Copy(
+			filepath.Join("testdata", "software", "install-app.sh"),
+			filepath.Join(basePath, "software", "install-app.sh"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		assert.True(t, strings.HasSuffix(result.Software.Packages[0].InstallScript.Path, "install-app.sh"))
+		assert.Equal(t, []string{"Utilities"}, result.Software.Packages[0].Categories)
+		assert.True(t, result.Software.Packages[0].SelfService)
+		assert.Empty(t, result.Software.Packages[0].URL)
+		assert.Empty(t, result.Software.Packages[0].SHA256)
+	})
+
+	t.Run("valid_ps1_script_path", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/install-app.ps1
+      self_service: false
+`
+		path, basePath := createTempFile(t, "", config)
+
+		// Copy the test script file
+		err := file.Copy(
+			filepath.Join("testdata", "software", "install-app.ps1"),
+			filepath.Join(basePath, "software", "install-app.ps1"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		assert.True(t, strings.HasSuffix(result.Software.Packages[0].InstallScript.Path, "install-app.ps1"))
+	})
+
+	t.Run("invalid_extension_error", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/install-app.txt
+`
+		path, basePath := createTempFile(t, "", config)
+
+		// Create a .txt file
+		err := os.MkdirAll(filepath.Join(basePath, "software"), 0o755)
+		require.NoError(t, err)
+		err = os.WriteFile(filepath.Join(basePath, "software", "install-app.txt"), []byte("test"), 0o644)
+		require.NoError(t, err)
+
+		_, err = GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		assert.ErrorContains(t, err, "unsupported extension")
+		assert.ErrorContains(t, err, "only .yml, .yaml, .sh, or .ps1 files are supported")
+	})
+
+	t.Run("script_with_team_options", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/install-app.sh
+      categories:
+        - Browsers
+        - Productivity
+      self_service: true
+      setup_experience: true
+      labels_include_any:
+        - include_label
+`
+		path, basePath := createTempFile(t, "", config)
+
+		err := file.Copy(
+			filepath.Join("testdata", "software", "install-app.sh"),
+			filepath.Join(basePath, "software", "install-app.sh"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		pkg := result.Software.Packages[0]
+		assert.Equal(t, []string{"Browsers", "Productivity"}, pkg.Categories)
+		assert.True(t, pkg.SelfService)
+		assert.True(t, pkg.InstallDuringSetup.Value)
+		assert.Equal(t, []string{"include_label"}, pkg.LabelsIncludeAny)
+	})
+
+	t.Run("mixed_yaml_and_script_paths", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/single-package.yml
+    - path: software/install-app.sh
+      self_service: true
+`
+		path, basePath := createTempFile(t, "", config)
+
+		err := file.Copy(
+			filepath.Join("testdata", "software", "single-package.yml"),
+			filepath.Join(basePath, "software", "single-package.yml"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+		err = file.Copy(
+			filepath.Join("testdata", "software", "install-app.sh"),
+			filepath.Join(basePath, "software", "install-app.sh"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 2)
+		assert.NotEmpty(t, result.Software.Packages[0].SHA256)
+		assert.True(t, strings.HasSuffix(result.Software.Packages[1].InstallScript.Path, "install-app.sh"))
+		assert.True(t, result.Software.Packages[1].SelfService)
+	})
 }

@@ -497,7 +497,7 @@ func (oc *OrbitClient) DownloadAndDiscardSoftwareInstaller(installerID uint) err
 func (oc *OrbitClient) Ping() error {
 	verb, path := "HEAD", "/api/fleet/orbit/ping"
 	err := oc.request(verb, path, nil, nil)
-	if err == nil || errors.Is(err, notFoundErr{}) {
+	if err == nil || isNotFoundErr(err) {
 		// notFound is ok, it means an old server without the capabilities header
 		return nil
 	}
@@ -563,7 +563,7 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 		retry.WithErrorFilter(func(err error) (errorOutcome retry.ErrorOutcome) {
 			log.Info().Err(err).Msg("orbit enroll attempt failed")
 			switch {
-			case errors.Is(err, notFoundErr{}):
+			case isNotFoundErr(err):
 				// Do not retry if the endpoint does not exist.
 				return retry.ErrorOutcomeDoNotRetry
 			case errors.Is(err, ErrEndUserAuthRequired):
@@ -595,7 +595,7 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 			}
 		}),
 	); err != nil {
-		if errors.Is(err, notFoundErr{}) {
+		if isNotFoundErr(err) {
 			return "", errors.New("enroll endpoint does not exist")
 		}
 		return "", fmt.Errorf("orbit node key enroll failed, attempts=%d", constant.OrbitEnrollMaxRetries)
