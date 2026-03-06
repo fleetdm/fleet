@@ -10015,6 +10015,10 @@ Get a list of all software.
         "name": "FirefoxInstall.pkg",
         "version": "125.6",
         "self_service": true,
+        "patch_policy": {
+          "id": 122,
+          "name": "Firefox up to date"
+        },
         "automatic_install_policies": [
           {
             "id": 343,
