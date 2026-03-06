@@ -3892,7 +3892,7 @@ software:
 	require.Len(t, tmPols, 1)
 	require.Equal(t, "Test Team Policy", tmPols[0].Name)
 
-	tm, err = s.DS.Team(ctx, tm.ID)
+	tm, err = s.DS.TeamByName(ctx, teamName)
 	require.NoError(t, err)
 	require.NotNil(t, tm.Config.AgentOptions)
 	require.Contains(t, string(*tm.Config.AgentOptions), "pack_delimiter")
@@ -3918,7 +3918,7 @@ name: %s
 	require.Len(t, tmPols, 0)
 
 	// Verify agent_options were cleared (set to null).
-	tm, err = s.DS.Team(ctx, tm.ID)
+	tm, err = s.DS.TeamByName(ctx, teamName)
 	require.NoError(t, err)
 	require.Nil(t, tm.Config.AgentOptions)
 }
