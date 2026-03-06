@@ -557,6 +557,7 @@ describe("Device User Page", () => {
       calendar_events_enabled: false,
       conditional_access_enabled: true,
       conditional_access_bypass_enabled: true,
+      type: "dynamic",
       response: "fail",
     });
 

@@ -19,6 +19,12 @@
     }
   }
 
+  &__filter-automation-wrapper {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: $pad-medium;
+  }
+
   &__manage-automations-wrapper {
     @include button-dropdown;
     .Select-multi-value-wrapper {

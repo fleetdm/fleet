@@ -46,8 +46,10 @@ export interface IPolicy {
   calendar_events_enabled: boolean;
   conditional_access_enabled: boolean;
   conditional_access_bypass_enabled: boolean;
+  type: string;
   install_software?: IPolicySoftwareToInstall;
   run_script?: Pick<IScript, "id" | "name">;
+  patch_software?: IPolicySoftwareToInstall;
   labels_include_any?: ILabelPolicy[];
   labels_exclude_any?: ILabelPolicy[];
 }
