@@ -82,6 +82,8 @@ jobs:
           DOGFOOD_END_USER_SSO_METADATA: ${{ secrets.DOGFOOD_END_USER_SSO_METADATA }}
           DOGFOOD_TESTING_AND_QA_ENROLL_SECRET: ${{ secrets.DOGFOOD_TESTING_AND_QA_ENROLL_SECRET }}
           DOGFOOD_OKTA_CA_CERTIFICATE: ${{ secrets.DOGFOOD_OKTA_CA_CERTIFICATE }}
+          DOGFOOD_OKTA_ANDROID_MANAGEMENT_HINT: ${{ secrets.DOGFOOD_OKTA_ANDROID_MANAGEMENT_HINT }}
+          DOGFOOD_OKTA_IOS_MANAGEMENT_HINT: ${{ secrets.DOGFOOD_OKTA_IOS_MANAGEMENT_HINT }}
 
       - name: Notify on Gitops failure
         if: failure() && github.ref_name == 'main'
