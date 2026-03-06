@@ -51,26 +51,33 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
 
   const isTechnician = isTeamTechnician || isGlobalTechnician;
 
-  const [enableRecoveryLockPassword, setEnableRecoveryLockPassword] = useState(
-    false
+  const [enableRecoveryLockPassword, setEnableRecoveryLockPassword] = useState<
+    boolean | undefined
+  >(undefined);
+
+  const {
+    isLoading: isLoadingTeam,
+    isSuccess: isTeamSuccess,
+    isError: isTeamError,
+  } = useQuery<ILoadTeamResponse, Error, ITeamConfig>(
+    ["team", currentTeamId],
+    () => teamsAPI.load(currentTeamId),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: currentTeamId !== API_NO_TEAM_ID,
+      select: (res) => res.team,
+      onSuccess: (res) => {
+        setEnableRecoveryLockPassword(
+          res.mdm?.enable_recovery_lock_password ?? false
+        );
+      },
+      onError: () => {
+        renderFlash("error", "Couldn't load team settings. Please try again.");
+      },
+    }
   );
 
-  const { isLoading: isLoadingTeam } = useQuery<
-    ILoadTeamResponse,
-    Error,
-    ITeamConfig
-  >(["team", currentTeamId], () => teamsAPI.load(currentTeamId), {
-    ...DEFAULT_USE_QUERY_OPTIONS,
-    enabled: currentTeamId !== API_NO_TEAM_ID,
-    select: (res) => res.team,
-    onSuccess: (res) => {
-      setEnableRecoveryLockPassword(
-        res.mdm?.enable_recovery_lock_password ?? false
-      );
-    },
-  });
-
-  // Sync state from global config when selecting "Unassigned" fleet
+  // Sync state from global config when "no team" is selected
   useEffect(() => {
     if (currentTeamId === API_NO_TEAM_ID) {
       setEnableRecoveryLockPassword(
@@ -79,7 +86,11 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
     }
   }, [currentTeamId, config?.mdm.enable_recovery_lock_password]);
 
-  const showLoading = currentTeamId !== API_NO_TEAM_ID && isLoadingTeam;
+  const isTeamQuery = currentTeamId !== API_NO_TEAM_ID;
+  const showLoading = isTeamQuery && isLoadingTeam;
+  const isFormReady = !isTeamQuery || (isTeamSuccess && !isLoadingTeam);
+  const isFormDisabled =
+    !isFormReady || isTeamError || enableRecoveryLockPassword === undefined;
 
   const onUpdateRecoveryLockPassword = async () => {
     try {
@@ -125,9 +136,9 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
             </TooltipWrapper>
           </div>
           <Checkbox
-            disabled={config?.gitops.gitops_mode_enabled}
+            disabled={isFormDisabled || config?.gitops.gitops_mode_enabled}
             onChange={(value: boolean) => setEnableRecoveryLockPassword(value)}
-            value={enableRecoveryLockPassword}
+            value={enableRecoveryLockPassword ?? false}
             className={`${baseClass}__checkbox`}
             helpText="This setting is only available on macOS hosts with Apple silicon."
           >
@@ -136,9 +147,9 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
           <div className="button-wrap">
             <GitOpsModeTooltipWrapper
               tipOffset={8}
-              renderChildren={(disabled) => (
+              renderChildren={(gitopsDisabled) => (
                 <Button
-                  disabled={disabled}
+                  disabled={isFormDisabled || gitopsDisabled}
                   className={`${baseClass}__save-button`}
                   onClick={onUpdateRecoveryLockPassword}
                 >
