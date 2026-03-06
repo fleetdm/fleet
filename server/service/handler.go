@@ -916,11 +916,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// but even that `v1` is *not* part of the standard versioning, it will still
 	// work even after we remove support for the `v1` version for the rest of the
 	// API. This allows us to deprecate osquery endpoints separately.
-	configBodyLimit := config.Osquery.MaxConfigBodySize
-	if configBodyLimit == 0 {
-		configBodyLimit = fleet.DefaultMaxOsqueryConfigBodySize
-	}
-	he.WithRequestBodySizeLimit(configBodyLimit).WithAltPaths("/api/v1/osquery/config").
+	he.WithAltPaths("/api/v1/osquery/config").
 		POST("/api/osquery/config", getClientConfigEndpoint, getClientConfigRequest{})
 	he.WithAltPaths("/api/v1/osquery/distributed/read").
 		POST("/api/osquery/distributed/read", getDistributedQueriesEndpoint, getDistributedQueriesRequest{})

@@ -15893,13 +15893,13 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 }
 
 // TestOsqueryBodySizeLimit verifies the body size limits on the
-// /api/osquery/log, /api/osquery/distributed/write, and /api/osquery/config endpoints:
+// /api/osquery/log and /api/osquery/distributed/write endpoints:
 //   - Bodies exceeding the default limit are rejected with HTTP 413.
 //   - Bodies within the limit are accepted.
 //   - A malformed (truncated) body within the limit is NOT reported as HTTP 413
 //     (guards against the false-positive PayloadTooLargeError fix).
-//   - Setting Osquery.MaxLogWriteBodySize / MaxDistributedWriteBodySize /
-//     MaxConfigBodySize in the server config overrides the built-in defaults.
+//   - Setting Osquery.MaxLogWriteBodySize / MaxDistributedWriteBodySize in the
+//     server config overrides the built-in defaults.
 func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 	t := s.T()
 
@@ -15955,33 +15955,14 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 	truncatedDist := fmt.Appendf(nil, `{"node_key":%q,"queries":{"q1":[`, *host.NodeKey) // missing closing
 	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", truncatedDist, http.StatusBadRequest)
 
-	// Body over DefaultMaxOsqueryConfigBodySize must be rejected with 413. The padding
-	// is placed in an unknown field that is silently ignored by the decoder.
-	configPrefix := fmt.Sprintf(`{"node_key":%q,"extra":"`, *host.NodeKey)
-	configSuffix := `"}`
-	configPadSize := int(fleet.DefaultMaxOsqueryConfigBodySize) + 1 - len(configPrefix) - len(configSuffix)
-	require.Positive(t, configPadSize, "padding must be positive; DefaultMaxOsqueryConfigBodySize may be too small")
-	overLimitConfig := []byte(configPrefix + strings.Repeat("x", configPadSize) + configSuffix)
-	s.DoRawNoAuth("POST", "/api/osquery/config", overLimitConfig, http.StatusRequestEntityTooLarge)
-
-	// A well-formed body within the limit is accepted.
-	withinLimitConfig, err := json.Marshal(getClientConfigRequest{NodeKey: *host.NodeKey})
-	require.NoError(t, err)
-	s.DoRawNoAuth("POST", "/api/osquery/config", withinLimitConfig, http.StatusOK)
-
-	// A truncated body within the limit must NOT return 413 (same false-positive guard).
-	truncatedConfig := fmt.Appendf(nil, `{"node_key":%q,"extra":"`, *host.NodeKey) // missing closing "}
-	s.DoRawNoAuth("POST", "/api/osquery/config", truncatedConfig, http.StatusBadRequest)
-
-	// Verify that Osquery.MaxLogWriteBodySize, MaxDistributedWriteBodySize, and
-	// MaxConfigBodySize in the server config override the built-in defaults.
+	// Verify that Osquery.MaxLogWriteBodySize and MaxDistributedWriteBodySize
+	// in the server config override the built-in defaults.
 	s.Run("config override", func() {
 		const customLimit = 2 * units.MiB
 
 		cfg := config.TestConfig()
 		cfg.Osquery.MaxLogWriteBodySize = customLimit
 		cfg.Osquery.MaxDistributedWriteBodySize = customLimit
-		cfg.Osquery.MaxConfigBodySize = customLimit
 
 		_, customServer := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{
 			FleetConfig:         &cfg,
@@ -16006,13 +15987,5 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 
 		// body within the custom limit must succeed.
 		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write", withinLimitDist, http.StatusOK)
-
-		// body over the custom limit must return 413.
-		configPad := customLimit + 1 - len(configPrefix) - len(configSuffix)
-		require.Positive(s.T(), configPad, "padding must be positive; customLimit may be too small")
-		ts.DoRawNoAuth("POST", "/api/osquery/config", []byte(configPrefix+strings.Repeat("x", configPad)+configSuffix), http.StatusRequestEntityTooLarge)
-
-		// body within the custom limit must succeed.
-		ts.DoRawNoAuth("POST", "/api/osquery/config", withinLimitConfig, http.StatusOK)
 	})
 }

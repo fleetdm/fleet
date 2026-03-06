@@ -1319,18 +1319,6 @@ Maximum HTTP request body size accepted by the `osquery/distributed/write` endpo
     max_distributed_write_body_size: 10MiB
   ```
 
-### osquery_max_config_body_size
-
-Maximum HTTP request body size accepted by the `osquery/config` endpoint. Accepts a byte size with a unit suffix (e.g. `1MiB`, `500KB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
-
-- Default value: `5MiB`
-- Environment variable: `FLEET_OSQUERY_MAX_CONFIG_BODY_SIZE`
-- Config file format:
-  ```yaml
-  osquery:
-    max_config_body_size: 2MiB
-  ```
-
 ## External activity audit logging
 
 > Available in Fleet Premium. Activity information is available for all Fleet Free and Fleet Premium instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).

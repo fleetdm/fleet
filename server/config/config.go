@@ -218,9 +218,6 @@ type OsqueryConfig struct {
 	// MaxDistributedWriteBodySize overrides the default body size limit for the
 	// osquery/distributed/write endpoint. A value of 0 means use the built-in default.
 	MaxDistributedWriteBodySize int64 `yaml:"max_distributed_write_body_size"`
-	// MaxConfigBodySize overrides the default body size limit for the
-	// osquery/config endpoint. A value of 0 means use the built-in default.
-	MaxConfigBodySize int64 `yaml:"max_config_body_size"`
 }
 
 // AsyncTaskName is the type of names that identify tasks supporting
@@ -1314,8 +1311,6 @@ func (man Manager) addConfigs() {
 		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Values below the server minimum request body size are raised to that minimum.")
 	man.addConfigByteSize("osquery.max_distributed_write_body_size", "0",
 		"Maximum body size for the osquery/distributed/write endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (5MiB). Values below the server minimum request body size are raised to that minimum.")
-	man.addConfigByteSize("osquery.max_config_body_size", "0",
-		"Maximum body size for the osquery/config endpoint (e.g. 1MiB, 500KB). 0 means use the built-in default (5MiB). Values below the server minimum request body size are raised to that minimum.")
 
 	// Activities
 	man.addConfigBool("activity.enable_audit_log", false,
@@ -1761,7 +1756,6 @@ func (man Manager) LoadConfig() FleetConfig {
 			MinSoftwareLastOpenedAtDiff:      man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
 			MaxLogWriteBodySize:              man.getConfigByteSize("osquery.max_log_write_body_size"),
 			MaxDistributedWriteBodySize:      man.getConfigByteSize("osquery.max_distributed_write_body_size"),
-			MaxConfigBodySize:                man.getConfigByteSize("osquery.max_config_body_size"),
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: man.getConfigBool("activity.enable_audit_log"),

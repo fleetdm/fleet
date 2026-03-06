@@ -1,2 +1,2 @@
-* Added configurable body size limits for the `/api/osquery/log`, `/api/osquery/distributed/write`, and `/api/osquery/config` endpoints.
+* Added configurable body size limits for the `/api/osquery/log` and `/api/osquery/distributed/write` endpoints.
 * Fixed false positive `PayloadTooLargeError` errors.
