@@ -10,6 +10,10 @@
     font-size: $small;
   }
 
+  .component__tooltip-wrapper__element {
+    line-height: inherit;
+  }
+
   &__section {
     display: flex;
     gap: $pad-small;
