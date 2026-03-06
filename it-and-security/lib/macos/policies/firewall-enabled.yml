@@ -1,0 +1,12 @@
+- name: macOS - Firewall enabled
+  query: SELECT 1 FROM alf WHERE global_state >= 1;
+  critical: true
+  description: >-
+    SOC 2 CC6.6 - The macOS Application Layer Firewall must be enabled to control
+    incoming network connections and reduce the attack surface. This is a
+    fundamental network security control required for SOC 2 compliance.
+  resolution: >-
+    The firewall should be enforced automatically via MDM profile. If this policy
+    is failing, please contact IT via #help-it in Slack. You can also manually
+    enable the firewall in System Settings > Network > Firewall.
+  platform: darwin

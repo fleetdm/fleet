@@ -1,0 +1,16 @@
+- name: Windows - Remote Desktop (RDP) disabled
+  query: >-
+    SELECT 1 FROM registry
+    WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Terminal Server\fDenyTSConnections'
+    AND data = '1';
+  critical: false
+  description: >-
+    SOC 2 CC6.6 - Remote Desktop Protocol (RDP) should be disabled on
+    workstations unless explicitly required. RDP access increases the network
+    attack surface and should only be enabled on systems that require remote
+    administration.
+  resolution: >-
+    Disable Remote Desktop in Settings > System > Remote Desktop and toggle it
+    off. If you require Remote Desktop access for your work, please request an
+    exception through IT via #help-it in Slack.
+  platform: windows

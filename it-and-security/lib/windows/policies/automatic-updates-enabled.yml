@@ -1,0 +1,17 @@
+- name: Windows - Automatic updates enabled
+  query: >-
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM registry
+      WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU\NoAutoUpdate'
+      AND data = '1'
+    );
+  critical: false
+  description: >-
+    SOC 2 CC7.1 - Automatic installation of Windows updates must be enabled to
+    ensure timely patching of vulnerabilities. This reduces the window of
+    exposure to known security threats.
+  resolution: >-
+    Automatic updates should be enforced via MDM. If this policy is failing,
+    please contact IT via #help-it in Slack. You can also enable it manually
+    in Settings > Windows Update > Advanced options.
+  platform: windows

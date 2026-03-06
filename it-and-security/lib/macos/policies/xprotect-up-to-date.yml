@@ -1,0 +1,18 @@
+- name: macOS - XProtect definitions up to date
+  query: >-
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM software_update
+      WHERE software_update_required = 1
+      AND name LIKE '%XProtect%'
+    );
+  critical: false
+  description: >-
+    SOC 2 CC6.8 - XProtect is Apple's built-in malware detection system. Its
+    definitions must be kept up to date to protect against known malware threats.
+    Outdated definitions leave the system vulnerable to known attack vectors.
+  resolution: >-
+    XProtect updates are typically installed automatically. Ensure automatic
+    updates are enabled in System Settings > General > Software Update >
+    Automatic Updates. If the issue persists, run: sudo softwareupdate -ia
+    in Terminal.
+  platform: darwin

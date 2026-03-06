@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDescription</key>
+	<string>SOC 2 CC6.6 - Disables Remote Apple Events to reduce the attack surface</string>
+	<key>PayloadDisplayName</key>
+	<string>Disable Remote Apple Events</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.soc2.disable-remote-apple-events</string>
+	<key>PayloadOrganization</key>
+	<string>Fleet</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>E5F6A7B8-C9D0-1234-EFAB-345678901234</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadRemovalDisallowed</key>
+	<true/>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>MCX - Disable Remote Apple Events</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.soc2.mcx.remote-apple-events</string>
+			<key>PayloadType</key>
+			<string>com.apple.MCX</string>
+			<key>PayloadUUID</key>
+			<string>F6A7B8C9-D0E1-2345-FABC-456789012345</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>DisableRemoteAppleEvents</key>
+			<true/>
+		</dict>
+	</array>
+</dict>
+</plist>

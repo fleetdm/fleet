@@ -1,0 +1,71 @@
+<!-- SOC 2 CC6 - Screen lock after 5 minutes of inactivity -->
+<Replace>
+  <!-- Maximum inactivity time before screen locks (in seconds): 300 = 5 minutes -->
+  <CmdID>1</CmdID>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock</LocURI>
+    </Target>
+    <Data>5</Data>
+  </Item>
+</Replace>
+
+<Replace>
+  <!-- Require password on wake from sleep -->
+  <CmdID>2</CmdID>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/DeviceLock/AllowIdleReturnWithoutPassword</LocURI>
+    </Target>
+    <!-- 0 = Not allowed (password required on wake) -->
+    <Data>0</Data>
+  </Item>
+</Replace>
+
+<Replace>
+  <!-- Enable screen saver -->
+  <CmdID>3</CmdID>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/ADMX_ControlPanelDisplay/CPL_Personalization_EnableScreenSaver</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/>]]></Data>
+  </Item>
+</Replace>
+
+<Replace>
+  <!-- Require password for screen saver -->
+  <CmdID>4</CmdID>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/ADMX_ControlPanelDisplay/CPL_Personalization_ScreenSaverIsSecure</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/>]]></Data>
+  </Item>
+</Replace>
+
+<Replace>
+  <!-- Screen saver timeout (in seconds): 300 = 5 minutes -->
+  <CmdID>5</CmdID>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/ADMX_ControlPanelDisplay/CPL_Personalization_ScreenSaverTimeOut</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/><data id="ScreenSaverTimeOut" value="300"/>]]></Data>
+  </Item>
+</Replace>

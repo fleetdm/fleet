@@ -85,6 +85,11 @@ controls:
       - path: ../lib/macos/configuration-profiles/santa-rules.mobileconfig
         labels_include_any:
           - "Santa test devices"
+      # SOC 2 compliance profiles
+      - path: ../lib/macos/configuration-profiles/disable-password-hints.mobileconfig
+      - path: ../lib/macos/configuration-profiles/require-password-after-sleep.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-remote-apple-events.mobileconfig
+      - path: ../lib/macos/configuration-profiles/disable-remote-login-ssh.mobileconfig
       - path: ../lib/macos/configuration-profiles/nudge-configuration.mobileconfig
       - path: ../lib/macos/configuration-profiles/microsoft-autoupdate-settings.mobileconfig
         labels_include_any:
@@ -105,6 +110,11 @@ controls:
       - path: ../lib/windows/configuration-profiles/Disable OneDrive.xml
       - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
       - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
+      # SOC 2 compliance profiles
+      - path: ../lib/windows/configuration-profiles/BitLocker encryption.xml
+      - path: ../lib/windows/configuration-profiles/Screen lock and inactivity timeout.xml
+      - path: ../lib/windows/configuration-profiles/Disable password hints.xml
+      - path: ../lib/windows/configuration-profiles/Disable Remote Desktop.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
@@ -141,6 +151,15 @@ policies:
   - path: ../lib/macos/policies/company-portal-installed.yml
   - path: ../lib/macos/policies/entra-conditional-access-check.yml
   - path: ../lib/macos/policies/install-nudge.yml
+  # macOS SOC 2 compliance policies
+  - path: ../lib/macos/policies/sip-enabled.yml
+  - path: ../lib/macos/policies/gatekeeper-enabled.yml
+  - path: ../lib/macos/policies/firewall-enabled.yml
+  - path: ../lib/macos/policies/xprotect-up-to-date.yml
+  - path: ../lib/macos/policies/screen-lock-enabled.yml
+  - path: ../lib/macos/policies/ssh-disabled.yml
+  - path: ../lib/macos/policies/audit-logging-enabled.yml
+  - path: ../lib/macos/policies/automatic-updates-enabled.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
@@ -148,6 +167,13 @@ policies:
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
+  # Windows SOC 2 compliance policies
+  - path: ../lib/windows/policies/firewall-enabled.yml
+  - path: ../lib/windows/policies/screen-lock-enabled.yml
+  - path: ../lib/windows/policies/rdp-disabled.yml
+  - path: ../lib/windows/policies/password-hints-disabled.yml
+  - path: ../lib/windows/policies/audit-logging-enabled.yml
+  - path: ../lib/windows/policies/automatic-updates-enabled.yml
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml

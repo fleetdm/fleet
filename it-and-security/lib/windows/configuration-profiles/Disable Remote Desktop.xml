@@ -1,0 +1,57 @@
+<!-- SOC 2 CC6.6 - Disable Remote Desktop to reduce attack surface -->
+<Replace>
+  <!-- Disable Remote Desktop connections -->
+  <CmdID>1</CmdID>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/RemoteDesktopServices/DoNotAllowDriveRedirection</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/>]]></Data>
+  </Item>
+</Replace>
+
+<Replace>
+  <!-- Require Network Level Authentication if RDP is ever enabled -->
+  <CmdID>2</CmdID>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/RemoteDesktopServices/RequireSecureRPCCommunication</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/>]]></Data>
+  </Item>
+</Replace>
+
+<Replace>
+  <!-- Require NLA for remote connections -->
+  <CmdID>3</CmdID>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/RemoteDesktopServices/ClientConnectionEncryptionLevel</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/><data id="EncryptionLevel" value="3"/>]]></Data>
+  </Item>
+</Replace>
+
+<Replace>
+  <!-- Disable Remote Desktop via connectivity settings -->
+  <CmdID>4</CmdID>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Connectivity/AllowRemoteDesktop</LocURI>
+    </Target>
+    <!-- 0 = Not allowed -->
+    <Data>0</Data>
+  </Item>
+</Replace>

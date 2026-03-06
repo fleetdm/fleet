@@ -1,0 +1,17 @@
+- name: Windows - Screen lock enabled (5 minutes or less)
+  query: >-
+    SELECT 1 FROM registry
+    WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Control Panel\Desktop\ScreenSaveTimeOut'
+    AND CAST(data AS INTEGER) <= 300
+    AND CAST(data AS INTEGER) > 0;
+  critical: false
+  description: >-
+    SOC 2 CC6 - The screen must lock automatically after no more than 5 minutes
+    of inactivity. This prevents unauthorized physical access to unattended
+    workstations.
+  resolution: >-
+    Screen lock settings should be enforced automatically via MDM profile. If
+    this policy is failing, please contact IT via #help-it in Slack. You can also
+    check Settings > Accounts > Sign-in options and ensure the device locks
+    after a short period of inactivity.
+  platform: windows

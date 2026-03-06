@@ -1,0 +1,16 @@
+- name: Windows - Audit logging enabled
+  query: >-
+    SELECT 1 FROM services
+    WHERE name = 'EventLog'
+    AND status = 'RUNNING';
+  critical: false
+  description: >-
+    SOC 2 CC7.2 - The Windows Event Log service must be running to maintain
+    a security audit trail. Audit logging records security-relevant events
+    for monitoring, investigation, and compliance purposes.
+  resolution: >-
+    The Windows Event Log service should be running by default. If this policy is
+    failing, please contact IT via #help-it in Slack. An administrator can
+    start the service by running: net start EventLog in an elevated command
+    prompt.
+  platform: windows

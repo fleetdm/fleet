@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDescription</key>
+	<string>SOC 2 CC6.6 - Disables SSH/Remote Login to reduce the network attack surface unless explicitly needed</string>
+	<key>PayloadDisplayName</key>
+	<string>Disable Remote Login (SSH)</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.soc2.disable-remote-login</string>
+	<key>PayloadOrganization</key>
+	<string>Fleet</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>A7B8C9D0-E1F2-3456-ABCD-567890123456</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadRemovalDisallowed</key>
+	<true/>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>MCX - Disable Remote Login</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.soc2.mcx.remote-login</string>
+			<key>PayloadType</key>
+			<string>com.apple.MCX</string>
+			<key>PayloadUUID</key>
+			<string>B8C9D0E1-F2A3-4567-BCDE-678901234567</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>DisableRemoteLogin</key>
+			<true/>
+		</dict>
+	</array>
+</dict>
+</plist>

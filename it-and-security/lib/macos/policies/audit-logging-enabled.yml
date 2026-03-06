@@ -1,0 +1,15 @@
+- name: macOS - Audit logging enabled
+  query: >-
+    SELECT 1 FROM launchd WHERE name = 'com.apple.auditd'
+    AND status = 'running';
+  critical: false
+  description: >-
+    SOC 2 CC7.2 - The macOS audit daemon (auditd) must be running to maintain
+    a security audit trail. Audit logging records security-relevant events
+    for monitoring, investigation, and compliance purposes.
+  resolution: >-
+    The audit daemon should be running by default on macOS. If this policy is
+    failing, please contact IT via #help-it in Slack. An administrator can
+    enable it by running: sudo launchctl load -w
+    /System/Library/LaunchDaemons/com.apple.auditd.plist
+  platform: darwin

@@ -18,7 +18,7 @@
 			<key>allowActivityContinuation</key>
 			<true/>
 			<key>allowAirDrop</key>
-			<true/>
+			<false/>
 			<key>allowAutoUnlock</key>
 			<true/>
 			<key>allowCamera</key>

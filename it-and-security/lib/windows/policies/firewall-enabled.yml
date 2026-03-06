@@ -1,0 +1,22 @@
+- name: Windows - Firewall enabled
+  query: >-
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM registry
+      WHERE path IN (
+        'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\DomainProfile\EnableFirewall',
+        'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\StandardProfile\EnableFirewall',
+        'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\PublicProfile\EnableFirewall'
+      )
+      AND data = '0'
+    );
+  critical: true
+  description: >-
+    SOC 2 CC6.6 - Windows Firewall must be enabled for all network profiles
+    (Domain, Private, and Public) to control incoming network connections and
+    reduce the attack surface. This is a fundamental network security control
+    required for SOC 2 compliance.
+  resolution: >-
+    The firewall should be enforced automatically via MDM profile. If this policy
+    is failing, please contact IT via #help-it in Slack. You can also manually
+    enable the firewall in Windows Security > Firewall & network protection.
+  platform: windows
