@@ -183,19 +183,16 @@ func validateMapKeys(data map[string]any, targetType reflect.Type, path []string
 
 		// If the field type is `any` (interface{}), check the override registry.
 		if fieldType.Kind() == reflect.Interface {
-			if parentOverrides != nil {
-				if override, ok := parentOverrides[key]; ok {
-					fieldType = override
-				} else {
-					continue // any-typed field with no override, skip
-				}
+			if override, ok := parentOverrides[key]; ok { // indexing a nil map is safe; ok will be false
+				fieldType = override
 			} else {
-				continue // any-typed field with no parent overrides, skip
+				continue // any-typed field with no override, skip
+			}
 			}
 		}
 
 		// Recurse into nested structs or slices.
-		childPath := append(append([]string(nil), path...), key)
+		childPath := append(slices.Clone(path), key)
 		childErrs := validateUnknownKeys(val, fieldType, childPath, filePath)
 		errs = append(errs, childErrs...)
 	}
