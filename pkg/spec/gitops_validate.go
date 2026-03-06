@@ -188,7 +188,6 @@ func validateMapKeys(data map[string]any, targetType reflect.Type, path []string
 			} else {
 				continue // any-typed field with no override, skip
 			}
-			}
 		}
 
 		// Recurse into nested structs or slices.
