@@ -109,6 +109,7 @@ fleet:
       region: ""
       endpointURL: ""
       forceS3PathStyle: false
+      gcsIAMAuth: false
       stsAssumeRoleARN: ""
   softwareInstallers:
     s3:
@@ -119,6 +120,7 @@ fleet:
       region: ""
       endpointURL: ""
       forceS3PathStyle: false
+      gcsIAMAuth: false
       stsAssumeRoleARN: ""
   license:
     secretName: ""
@@ -131,7 +133,7 @@ fleet:
     runAsUser: 3333
     runAsGroup: 3333
   # Add additional CA's to the Fleet container truststore
-  # To add CA's, set enabled: true 
+  # To add CA's, set enabled: true
   # Supports adding CA's from Config maps and Secrets
   # configMaps:
   #   - name: fleet-ca-config
