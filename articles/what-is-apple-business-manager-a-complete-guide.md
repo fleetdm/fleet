@@ -122,5 +122,5 @@ For comprehensive device management across Mac, iPhone, iPad, Windows, and Linux
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-01-11">
+<meta name="publishedOn" value="2026-01-12">
 <meta name="description" value="A complete guide to Apple Business Manager, how it works with MDM, and how organizations use it for automated enrollment and app management.">

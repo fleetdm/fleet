@@ -3,6 +3,7 @@ package msrc
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,7 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/io"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -201,7 +201,7 @@ func TestIsOSVulnerable(t *testing.T) {
 
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
-			isVuln, resolvedIn := isOSVulnerable(c.os, &b, b.Vulnerabities[c.feed], map[string]bool{"123": true}, c.feed, log.NewNopLogger())
+			isVuln, resolvedIn := isOSVulnerable(t.Context(), c.os, &b, b.Vulnerabities[c.feed], map[string]bool{"123": true}, c.feed, slog.New(slog.DiscardHandler))
 			require.Equal(t, c.isVulnerable, isVuln)
 			require.Equal(t, c.resolvedIn, resolvedIn)
 		})
@@ -422,7 +422,7 @@ func TestAnalyze(t *testing.T) {
 				return int64(len(c.vulns)), nil
 			}
 
-			results, err := Analyze(ctx, ds, fos, vulnPath, true, log.NewNopLogger())
+			results, err := Analyze(ctx, ds, fos, vulnPath, true, slog.New(slog.DiscardHandler))
 			require.NoError(t, err)
 			require.ElementsMatch(t, c.vulns, results)
 		})

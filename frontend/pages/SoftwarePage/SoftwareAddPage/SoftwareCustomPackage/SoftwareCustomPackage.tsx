@@ -17,6 +17,7 @@ import FileProgressModal from "components/FileProgressModal";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import InfoBanner from "components/InfoBanner";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
 import PackageForm from "pages/SoftwarePage/components/forms/PackageForm";
@@ -99,7 +100,7 @@ const SoftwareCustomPackage = ({
   const onCancel = () => {
     router.push(
       getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
       })
     );
   };
@@ -113,7 +114,7 @@ const SoftwareCustomPackage = ({
       return;
     }
 
-    setUploadDetails(getFileDetails(formData.software, true));
+    setUploadDetails(getFileDetails(formData.software));
 
     // Note: This TODO is copied to onSaveSoftwareChanges in EditSoftwareModal
     // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
@@ -144,7 +145,7 @@ const SoftwareCustomPackage = ({
       }
 
       const newQueryParams: QueryParams = {
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
         gitops_yaml: gitOpsModeEnabled ? "true" : undefined,
       };
       router.push(
@@ -170,6 +171,13 @@ const SoftwareCustomPackage = ({
 
     return (
       <>
+        {gitOpsModeEnabled && (
+          <InfoBanner color="grey" borderRadius="medium">
+            Add custom packages in GitOps mode so Fleet can host your software.
+            After adding, copy its SHA-256 hash into your YAML so the next
+            GitOps workflow doesn&apos;t delete it.
+          </InfoBanner>
+        )}
         <PackageForm
           labels={labels || []}
           showSchemaButton={!isSidePanelOpen}

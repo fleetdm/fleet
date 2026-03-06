@@ -2461,13 +2461,13 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	// it got deleted and re-inserted from the team's profiles, so this is reflected in
 	// the host's profiles list.
 	newTm1DarwinProfiles = []*fleet.MDMAppleConfigProfile{
-		tm1DarwinProfiles[0],
+		tm1DarwinProfiles[0], //nolint:gosec // dismiss G602
 		configProfileForTest(t, "T1.2a", "T1.2a", "e"),
 		configProfileForTest(t, "T1.3a", "T1.3a", "f"),
 	}
 	newTm1WindowsProfiles = []*fleet.MDMWindowsConfigProfile{
 		windowsConfigProfileForTest(t, "T1.1w", "T1.1"),
-		tm1WindowsProfiles[1],
+		tm1WindowsProfiles[1], //nolint:gosec // dismiss G602
 		windowsConfigProfileForTest(t, "T1.3w", "T1.3"),
 	}
 
@@ -8083,7 +8083,7 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 
 	i++
 	androidHostObj := createAndroidHost(fmt.Sprintf("android-host%d-name", i))
-	androidHostObj, err = ds.NewAndroidHost(ctx, androidHostObj)
+	androidHostObj, err = ds.NewAndroidHost(ctx, androidHostObj, false)
 	androidHost := androidHostObj.Host
 	require.NoError(t, err)
 
@@ -8350,7 +8350,7 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 
 	i++
 	androidHostObj2 := createAndroidHost(fmt.Sprintf("android-host%d-name", i))
-	androidHostObj2, err = ds.NewAndroidHost(ctx, androidHostObj2)
+	androidHostObj2, err = ds.NewAndroidHost(ctx, androidHostObj2, false)
 	require.NoError(t, err)
 	androidHost2 := androidHostObj2.Host
 
@@ -8675,19 +8675,19 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 	windowsEnroll(t, ds, host8)
 
 	androidHost9 := createAndroidHost("enterprise-id-9")
-	newHost, err := ds.NewAndroidHost(context.Background(), androidHost9)
+	newHost, err := ds.NewAndroidHost(context.Background(), androidHost9, false)
 	require.NoError(t, err)
 	require.NotNil(t, newHost)
 	host9 := newHost.Host
 
 	androidHost10 := createAndroidHost("enterprise-id-10")
-	newHost, err = ds.NewAndroidHost(context.Background(), androidHost10)
+	newHost, err = ds.NewAndroidHost(context.Background(), androidHost10, false)
 	require.NoError(t, err)
 	require.NotNil(t, newHost)
 	host10 := newHost.Host
 
 	androidHost11 := createAndroidHost("enterprise-id-11")
-	newHost, err = ds.NewAndroidHost(context.Background(), androidHost11)
+	newHost, err = ds.NewAndroidHost(context.Background(), androidHost11, false)
 	require.NoError(t, err)
 	require.NotNil(t, newHost)
 	host11 := newHost.Host

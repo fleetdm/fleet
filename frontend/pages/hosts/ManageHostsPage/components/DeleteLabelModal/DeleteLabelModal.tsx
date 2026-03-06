@@ -35,7 +35,7 @@ const DeleteLabelModal = ({
               to new hosts.
             </li>
             <li>
-              Queries and policies that target this label will continue to run,
+              Reports and policies that target this label will continue to run,
               but may target different hosts.
             </li>
           </ul>

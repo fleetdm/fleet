@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
+	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 )
 
 // Mock implementations for dependencies outside the bounded context
@@ -53,4 +54,44 @@ func (m *mockUserProvider) FindUserIDs(ctx context.Context, query string) ([]uin
 		}
 	}
 	return ids, nil
+}
+
+type mockHostProvider struct {
+	hosts map[uint]*activity.Host
+}
+
+func newMockHostProvider() *mockHostProvider {
+	return &mockHostProvider{hosts: make(map[uint]*activity.Host)}
+}
+
+func (m *mockHostProvider) AddHost(h *activity.Host) {
+	m.hosts[h.ID] = h
+}
+
+func (m *mockHostProvider) GetHostLite(ctx context.Context, hostID uint) (*activity.Host, error) {
+	if h, ok := m.hosts[hostID]; ok {
+		return h, nil
+	}
+	return nil, platform_mysql.NotFound("Host").WithID(hostID)
+}
+
+// mockDataProviders combines all provider interfaces for testing.
+type mockDataProviders struct {
+	*mockUserProvider
+	*mockHostProvider
+}
+
+func newMockDataProviders() *mockDataProviders {
+	return &mockDataProviders{
+		mockUserProvider: newMockUserProvider(),
+		mockHostProvider: newMockHostProvider(),
+	}
+}
+
+func (m *mockDataProviders) GetActivitiesWebhookConfig(ctx context.Context) (*activity.ActivitiesWebhookSettings, error) {
+	return &activity.ActivitiesWebhookSettings{Enable: false}, nil
+}
+
+func (m *mockDataProviders) ActivateNextUpcomingActivity(ctx context.Context, hostID uint, fromCompletedExecID string) error {
+	return nil
 }

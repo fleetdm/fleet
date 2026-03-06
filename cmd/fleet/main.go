@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"math/rand"
 	"os"
 	"time"
@@ -11,10 +12,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/shellquote"
-	kitlog "github.com/go-kit/log"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/otel"
+	otelsdklog "go.opentelemetry.io/otel/sdk/log"
 )
+
+var tracer = otel.Tracer("github.com/fleetdm/fleet/v4/cmd/fleet")
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
@@ -100,8 +104,8 @@ func applyDevFlags(cfg *config.FleetConfig) {
 		}
 	}
 
-	setIfEmpty(&cfg.Mysql.Username, "fleet")
-	setIfEmpty(&cfg.Mysql.Database, "fleet")
+	// We don't set defaults for database and username here because there are already defaults in config.go
+	// that match our default dev setup.
 	setIfEmpty(&cfg.Mysql.Password, "insecure")
 
 	setIfEmpty(&cfg.Prometheus.BasicAuth.Username, "fleet")
@@ -132,12 +136,14 @@ func applyDevFlags(cfg *config.FleetConfig) {
 	}
 }
 
-// initLogger creates a kitlog.Logger backed by slog.
-func initLogger(cfg config.FleetConfig) kitlog.Logger {
-	slogLogger := logging.NewSlogLogger(logging.Options{
-		JSON:           cfg.Logging.JSON,
-		Debug:          cfg.Logging.Debug,
-		TracingEnabled: cfg.Logging.TracingEnabled,
+// initLogger creates a *slog.Logger with the appropriate handler based on the
+// Fleet configuration (JSON format, debug level, tracing, OTEL logs).
+func initLogger(cfg config.FleetConfig, loggerProvider *otelsdklog.LoggerProvider) *slog.Logger {
+	return logging.NewSlogLogger(logging.Options{
+		JSON:            cfg.Logging.JSON,
+		Debug:           cfg.Logging.Debug,
+		TracingEnabled:  cfg.Logging.TracingEnabled,
+		OtelLogsEnabled: cfg.Logging.OtelLogsEnabled,
+		LoggerProvider:  loggerProvider,
 	})
-	return logging.NewKitlogAdapter(slogLogger)
 }

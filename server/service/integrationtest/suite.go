@@ -2,6 +2,7 @@ package integrationtest
 
 import (
 	"context"
+	"log/slog"
 	"net/http/httptest"
 	"testing"
 
@@ -12,12 +13,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
 type BaseSuite struct {
-	Logger   log.Logger
+	Logger   *slog.Logger
 	FleetCfg config.FleetConfig
 	Server   *httptest.Server
 	DS       *mysql.Datastore

@@ -229,6 +229,8 @@ By default, OpenTelemetry is used. Set `tracing_type` to `elasticapm` only if yo
 
 Enables exporting logs to an OpenTelemetry collector in addition to stderr output. When enabled, logs are sent to the OTLP endpoint configured via the standard `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable. Logs are automatically correlated with traces via `trace_id` and `span_id` attributes.
 
+> **Note:** All log levels, including debug, are always sent to the OpenTelemetry collector regardless of the `logging.debug` setting. The `logging.debug` flag only controls what appears in stderr output.
+
 > **Note:** This option requires `logging.tracing_enabled` to be set to `true`. Fleet will fail to start if `otel_logs_enabled` is `true` but `tracing_enabled` is `false`.
 
 - Default value: `false`
@@ -238,6 +240,26 @@ Enables exporting logs to an OpenTelemetry collector in addition to stderr outpu
   logging:
     tracing_enabled: true
     otel_logs_enabled: true
+  ```
+
+### mdm.allow_all_declarations
+
+> Experimental feature. Use with caution.
+
+If set to `true`, you can add all types of Apple [declaration profiles](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations). By default, Fleet doesn't allow [these configurations](https://github.com/fleetdm/fleet/blob/9589631a7f25a342ed24571c08deffbc959661ec/server/fleet/apple_mdm.go#L704-L717).
+
+**Note:** [Asset](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations#Assets) declarations require additional infrastructure. You need to self-host the asset and include the URL in the [declaration](https://developer.apple.com/documentation/devicemanagement/assetdata#Asset-example).
+
+**Warning:** Enabling this option bypasses all safety checks for declarations, including checks for
+forbidden declaration types, reserved identifiers, and required prefixes. Use only when you need to
+deploy declarations that Fleet would otherwise block.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_ALLOW_ALL_DECLARATIONS`
+- Config file format:
+  ```yaml
+  mdm:
+    allow_all_declarations: true
   ```
 
 ### FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS

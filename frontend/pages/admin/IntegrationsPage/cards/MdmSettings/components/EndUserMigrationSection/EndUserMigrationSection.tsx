@@ -116,7 +116,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
           },
         },
       });
-      renderFlash("success", "Successfully updated end user migration!");
+      renderFlash("success", "Successfully updated end user migration.");
       setConfig(updatedConfig);
     } catch (err) {
       if (

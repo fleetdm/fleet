@@ -41,7 +41,10 @@ const AppleMdmPage = ({ router }: { router: InjectedRouter }) => {
     refetch,
     error: errorMdmApple,
   } = useQuery<IMdmApple, AxiosError, IMdmApple>(
-    ["appleAPNInfo"],
+    [
+      "apppleMDMPage-appleAPNInfo",
+      { isMdmEnabled: config?.mdm.enabled_and_configured ?? false },
+    ],
     () => mdmAppleAPI.getAppleAPNInfo(),
     {
       retry: (tries, error) => error.status !== 404 && tries <= 3,

@@ -14,7 +14,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -226,6 +225,7 @@ func TestEnrollSecretAuth(t *testing.T) {
 	ds.GetEnrollSecretsFunc = func(ctx context.Context, tid *uint) ([]*fleet.EnrollSecret, error) {
 		return nil, nil
 	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
 
 	testCases := []struct {
 		name            string
@@ -333,6 +333,11 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 	)
 	assert.True(t, ds.IsEnrollSecretAvailableFuncInvoked)
 	assert.Equal(t, assert.AnError, err)
+
+	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
+		return nil, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
 
 	ds.IsEnrollSecretAvailableFunc = nil
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
@@ -953,6 +958,7 @@ func TestMDMConfig(t *testing.T) {
 					BootstrapPackage:            optjson.String{Set: true},
 					MacOSSetupAssistant:         optjson.String{Set: true},
 					EnableReleaseDeviceManually: optjson.SetBool(false),
+					LockEndUserInfo:             optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
 					ManualAgentInstall:          optjson.Bool{Set: true},
@@ -969,7 +975,9 @@ func TestMDMConfig(t *testing.T) {
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
-				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
+				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
+				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1003,6 +1011,7 @@ func TestMDMConfig(t *testing.T) {
 					BootstrapPackage:            optjson.String{Set: true},
 					MacOSSetupAssistant:         optjson.String{Set: true},
 					EnableReleaseDeviceManually: optjson.SetBool(false),
+					LockEndUserInfo:             optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
 					ManualAgentInstall:          optjson.Bool{Set: true},
@@ -1019,7 +1028,9 @@ func TestMDMConfig(t *testing.T) {
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
-				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
+				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
+				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1035,6 +1046,7 @@ func TestMDMConfig(t *testing.T) {
 					BootstrapPackage:            optjson.String{Set: true},
 					MacOSSetupAssistant:         optjson.String{Set: true},
 					EnableReleaseDeviceManually: optjson.SetBool(false),
+					LockEndUserInfo:             optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
 					ManualAgentInstall:          optjson.Bool{Set: true},
@@ -1051,7 +1063,9 @@ func TestMDMConfig(t *testing.T) {
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
-				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
+				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
+				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1074,6 +1088,7 @@ func TestMDMConfig(t *testing.T) {
 					BootstrapPackage:            optjson.String{Set: true},
 					MacOSSetupAssistant:         optjson.String{Set: true},
 					EnableReleaseDeviceManually: optjson.SetBool(false),
+					LockEndUserInfo:             optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
 					ManualAgentInstall:          optjson.Bool{Set: true},
@@ -1090,7 +1105,9 @@ func TestMDMConfig(t *testing.T) {
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
-				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
+				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
+				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1113,6 +1130,7 @@ func TestMDMConfig(t *testing.T) {
 					BootstrapPackage:            optjson.String{Set: true},
 					MacOSSetupAssistant:         optjson.String{Set: true},
 					EnableReleaseDeviceManually: optjson.SetBool(false),
+					LockEndUserInfo:             optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
 					ManualAgentInstall:          optjson.Bool{Set: true},
@@ -1129,7 +1147,9 @@ func TestMDMConfig(t *testing.T) {
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
-				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
+				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
+				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1152,6 +1172,7 @@ func TestMDMConfig(t *testing.T) {
 					BootstrapPackage:            optjson.String{Set: true},
 					MacOSSetupAssistant:         optjson.String{Set: true},
 					EnableReleaseDeviceManually: optjson.SetBool(false),
+					LockEndUserInfo:             optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
 					ManualAgentInstall:          optjson.Bool{Set: true},
@@ -1168,7 +1189,9 @@ func TestMDMConfig(t *testing.T) {
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
-				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
+				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
+				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1216,6 +1239,7 @@ func TestMDMConfig(t *testing.T) {
 					BootstrapPackage:            optjson.String{Set: true},
 					MacOSSetupAssistant:         optjson.String{Set: true},
 					EnableReleaseDeviceManually: optjson.SetBool(false),
+					LockEndUserInfo:             optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
 					ManualAgentInstall:          optjson.Bool{Set: true},
@@ -1232,7 +1256,9 @@ func TestMDMConfig(t *testing.T) {
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
-				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
+				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
+				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1273,6 +1299,37 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:  optjson.SetBool(true),
 			},
 			expectedError: fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg,
+		},
+		{
+			name:        "manual_agent_install enabled without bootstrap package",
+			licenseTier: "premium",
+			oldMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{
+					ManualAgentInstall: optjson.SetBool(false),
+				},
+			},
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{
+					ManualAgentInstall: optjson.SetBool(true),
+				},
+			},
+			expectedError: "macos_setup.manual_agent_install Couldn't enable manual_agent_install. To use this option, first specify a bootstrap package.",
+		},
+		{
+			name:        "try to disable End User Authentication with Lock End User Info enabled",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{
+					LockEndUserInfo:             optjson.SetBool(true),
+					EnableEndUserAuthentication: false,
+				},
+				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+					EntityID:    "fleet",
+					MetadataURL: "http://isser.metadata.com",
+					IDPName:     "onelogin",
+				}},
+			},
+			expectedError: "Couldn't enable macos_setup.lock_end_user_info because macos_setup.enable_end_user_authentication is not enabled.",
 		},
 	}
 
@@ -1461,11 +1518,6 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 		*dsAppConfig = *conf
 		return nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
 	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
 		return nil
 	}
@@ -1487,8 +1539,8 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	require.True(t, dsAppConfig.SMTPSettings.SMTPEnabled)
 	require.True(t, updatedAppConfig.SSOSettings.EnableSSO)
 	require.True(t, dsAppConfig.SSOSettings.EnableSSO)
-	require.Equal(t, agentOptions, *updatedAppConfig.AgentOptions)
-	require.Equal(t, agentOptions, *dsAppConfig.AgentOptions)
+	require.JSONEq(t, string(agentOptions), string(*updatedAppConfig.AgentOptions))
+	require.JSONEq(t, string(agentOptions), string(*dsAppConfig.AgentOptions))
 
 	// Not sending sso_settings or agent settings will not change them, and
 	// sending SMTP settings will change them.
@@ -1500,8 +1552,8 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	require.False(t, dsAppConfig.SMTPSettings.SMTPEnabled)
 	require.True(t, updatedAppConfig.SSOSettings.EnableSSO)
 	require.True(t, dsAppConfig.SSOSettings.EnableSSO)
-	require.Equal(t, agentOptions, *updatedAppConfig.AgentOptions)
-	require.Equal(t, agentOptions, *dsAppConfig.AgentOptions)
+	require.JSONEq(t, string(agentOptions), string(*updatedAppConfig.AgentOptions))
+	require.JSONEq(t, string(agentOptions), string(*dsAppConfig.AgentOptions))
 
 	// Not sending smtp_settings or agent settings will not change them, and
 	// sending SSO settings will change them.
@@ -1513,8 +1565,8 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	require.False(t, dsAppConfig.SMTPSettings.SMTPEnabled)
 	require.False(t, updatedAppConfig.SSOSettings.EnableSSO)
 	require.False(t, dsAppConfig.SSOSettings.EnableSSO)
-	require.Equal(t, agentOptions, *updatedAppConfig.AgentOptions)
-	require.Equal(t, agentOptions, *dsAppConfig.AgentOptions)
+	require.JSONEq(t, string(agentOptions), string(*updatedAppConfig.AgentOptions))
+	require.JSONEq(t, string(agentOptions), string(*dsAppConfig.AgentOptions))
 
 	// Not sending smtp_settings or sso_settings will not change them, and
 	// sending agent options will change them.
@@ -1542,8 +1594,7 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	require.False(t, dsAppConfig.SMTPSettings.SMTPEnabled)
 	require.False(t, updatedAppConfig.SSOSettings.EnableSSO)
 	require.False(t, dsAppConfig.SSOSettings.EnableSSO)
-	require.Equal(t, newAgentOptions, *dsAppConfig.AgentOptions)
-	require.Equal(t, newAgentOptions, *dsAppConfig.AgentOptions)
+	require.JSONEq(t, string(newAgentOptions), string(*dsAppConfig.AgentOptions))
 }
 
 // TestModifyEnableAnalytics tests that a premium customer cannot set ServerSettings.EnableAnalytics to be false.

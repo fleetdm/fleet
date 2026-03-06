@@ -1,0 +1,1 @@
+- Fixed information disclosure vulnerability where arbitrary order_key values could be used to extract sensitive data via sort-order correlation attacks.

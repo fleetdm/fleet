@@ -9,6 +9,9 @@ import {
   isAnyTeamMaintainerOrTeamAdmin,
   isTeamAdmin,
   isTeamMaintainer,
+  isGlobalTechnician,
+  isAnyTeamTechnician,
+  isTeamTechnician,
 } from "utilities/permissions/permissions";
 import { IUser } from "interfaces/user";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -57,13 +60,16 @@ const hasEditPermission = (currentUser: IUser, label: ILabel): boolean => {
     // global permissions
     isGlobalAdmin(currentUser) ||
     isGlobalMaintainer(currentUser) ||
+    isGlobalTechnician(currentUser) ||
     // author permission
     (label.author_id === currentUser.id &&
-      isAnyTeamMaintainerOrTeamAdmin(currentUser)) ||
+      (isAnyTeamMaintainerOrTeamAdmin(currentUser) ||
+        isAnyTeamTechnician(currentUser))) ||
     // team permission
     (label.team_id != null &&
       (isTeamAdmin(currentUser, label.team_id) ||
-        isTeamMaintainer(currentUser, label.team_id)))
+        isTeamMaintainer(currentUser, label.team_id) ||
+        isTeamTechnician(currentUser, label.team_id)))
   );
 };
 

@@ -26,6 +26,7 @@ export interface IStoredPolicyResponse {
 
 export interface IPoliciesCountResponse {
   count: number;
+  inherited_policy_count?: number;
 }
 
 export interface IPolicy {
@@ -41,6 +42,7 @@ export interface IPolicy {
   team_id: number | null;
   created_at: string;
   updated_at: string;
+  // A critical policy cannot be "resolved later" if Okta conditional access is enabled for it
   critical: boolean;
   calendar_events_enabled: boolean;
   conditional_access_enabled: boolean;
@@ -103,6 +105,7 @@ export interface ILoadTeamPolicyResponse {
 export interface IPolicyFormData {
   description?: string | number | boolean | undefined;
   resolution?: string | number | boolean | undefined;
+  // A critical policy cannot be "resolved later" if Okta conditional access is enabled for it
   critical?: boolean;
   platform?: CommaSeparatedPlatformString;
   name?: string | number | boolean | undefined;

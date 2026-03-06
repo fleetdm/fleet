@@ -2,7 +2,7 @@ import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import classnames from "classnames";
-import { IAceEditor } from "react-ace/lib/types";
+import { Ace } from "ace-builds";
 import { noop } from "lodash";
 
 import SQLEditor from "components/SQLEditor";
@@ -35,11 +35,11 @@ const FleetMarkdown = ({ markdown, className, name }: IFleetMarkdownProps) => {
 
           // handles code blocks
           pre: ({ children }) => {
-            const onEditorBlur = (editor?: IAceEditor) => {
+            const onEditorBlur = (editor?: Ace.Editor) => {
               editor && editor.clearSelection();
             };
 
-            const onEditorLoad = (editor: IAceEditor) => {
+            const onEditorLoad = (editor: Ace.Editor) => {
               editor.setOptions({
                 indentedSoftWrap: false, // removes automatic indentation when wrapping
               });

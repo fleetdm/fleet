@@ -20,14 +20,13 @@ import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon";
 import Textarea from "components/Textarea";
-import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
-import paths from "router/paths";
 import ActionsDropdown from "components/ActionsDropdown";
 import { generateActionDropdownOptions } from "pages/hosts/details/HostDetailsPage/modals/RunScriptModal/ScriptsTableConfig";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import { getPathWithQueryParams } from "utilities/url";
 import { IPaginatedListScript } from "pages/hosts/ManageHostsPage/components/RunScriptBatchPaginatedList/RunScriptBatchPaginatedList";
+
+import RunScriptHelpText from "./RunScriptHelpText";
 
 const baseClass = "script-details-modal";
 
@@ -86,7 +85,25 @@ const ScriptDetailsModal = ({
     }
   };
 
-  const { currentUser } = useContext(AppContext);
+  const {
+    currentUser,
+    isGlobalAdmin,
+    isAnyTeamAdmin,
+    isGlobalMaintainer,
+    isAnyTeamMaintainer,
+    isTeamTechnician,
+    isGlobalTechnician,
+  } = useContext(AppContext);
+
+  const isTechnician = !!isTeamTechnician || !!isGlobalTechnician;
+
+  const canRunScripts = !!(
+    isGlobalAdmin ||
+    isAnyTeamAdmin ||
+    isGlobalMaintainer ||
+    isAnyTeamMaintainer
+  );
+
   const { renderFlash } = useContext(NotificationContext);
 
   // handle multiple possibilities for `selectedScriptDetails`
@@ -254,26 +271,12 @@ const ScriptDetailsModal = ({
           {scriptContent}
         </Textarea>
         {runScriptHelpText && (
-          <div className="form-field__help-text">
-            To run this script on a host, go to the{" "}
-            <CustomLink
-              text="Hosts"
-              url={getPathWithQueryParams(paths.MANAGE_HOSTS, {
-                team_id: teamIdForApi,
-              })}
-            />{" "}
-            page and select a host.
-            <br />
-            To run the script across multiple hosts, add a policy automation on
-            the{" "}
-            <CustomLink
-              text="Policies"
-              url={getPathWithQueryParams(paths.MANAGE_POLICIES, {
-                team_id: teamIdForApi,
-              })}
-            />{" "}
-            page.
-          </div>
+          <RunScriptHelpText
+            className="form-field__help-text"
+            isTechnician={isTechnician}
+            canRunScripts={canRunScripts}
+            teamId={teamIdForApi}
+          />
         )}
       </div>
     );

@@ -300,6 +300,17 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 					FleetMaintainedAppID: ptr.Uint(1),
 				},
 			},
+			{
+				ID:         9,
+				Name:       "My Windows FMA",
+				HashSHA256: ptr.String("win-fma-package-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:                 "my-fma.msi",
+					Platform:             "windows",
+					Version:              "1",
+					FleetMaintainedAppID: ptr.Uint(2),
+				},
+			},
 		}, nil
 	case "available_for_install=1&team_id=0":
 		return []fleet.SoftwareTitleListResult{}, nil
@@ -485,6 +496,19 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 			},
 			IconUrl:          ptr.String("/api/icon1.png"),
 			BundleIdentifier: ptr.String("com.my.fma"),
+		}, nil
+	case 9:
+		return &fleet.SoftwareTitle{
+			ID:   9,
+			Name: "My Windows FMA",
+			SoftwarePackage: &fleet.SoftwareInstaller{
+				InstallScript:        "install",
+				UninstallScript:      "uninstall",
+				SelfService:          true,
+				Platform:             "windows",
+				FleetMaintainedAppID: ptr.Uint(2),
+			},
+			IconUrl: ptr.String("/api/icon5.png"),
 		}, nil
 	default:
 		return nil, errors.New("software title not found")
@@ -753,7 +777,7 @@ func compareDirs(t *testing.T, sourceDir, targetDir string) {
 func configureFMAManifestServer(t *testing.T) {
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "apps.json") {
-			data := json.RawMessage(`{"version": 2, "apps": [{"name": "My FMA", "slug": "fma1/darwin", "platform": "darwin", "unique_identifier": "com.my.fma"}]}`)
+			data := json.RawMessage(`{"version": 2, "apps": [{"name": "My FMA", "slug": "fma1/darwin", "platform": "darwin", "unique_identifier": "com.my.fma"}, {"name": "My Windows FMA", "slug": "fma2/windows", "platform": "windows", "unique_identifier": "My Windows FMA"}]}`)
 			err := json.NewEncoder(w).Encode(data)
 			require.NoError(t, err)
 			return
@@ -890,7 +914,7 @@ func TestGenerateOrgSettings(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]interface{}
-	b, err := yaml.Marshal(orgSettingsRaw)
+	b, err := yamlMarshalRenamed(orgSettingsRaw)
 	require.NoError(t, err)
 	fmt.Println("Org settings raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &orgSettings)
@@ -933,7 +957,7 @@ func TestGenerateOrgSettingsMaskedGoogleCalendarApiKey(t *testing.T) {
 	require.NotNil(t, orgSettingsRaw)
 
 	// Verify the result can be marshaled to YAML without error.
-	b, err := yaml.Marshal(orgSettingsRaw)
+	b, err := yamlMarshalRenamed(orgSettingsRaw)
 	require.NoError(t, err)
 
 	// Verify api_key_json was replaced with a comment placeholder (not "********")
@@ -986,7 +1010,7 @@ func TestGeneratedOrgSettingsNoSSO(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]any
-	b, err := yaml.Marshal(orgSettingsRaw)
+	b, err := yamlMarshalRenamed(orgSettingsRaw)
 	require.NoError(t, err)
 	err = yaml.Unmarshal(b, &orgSettings)
 	require.NoError(t, err)
@@ -1008,10 +1032,10 @@ func TestGenerateSoftwareAutoUpdateSchedule(t *testing.T) {
 	cmd.AppConfig = appConfig
 
 	// prepare FilesToWrite entry like Run() would
-	cmd.FilesToWrite["teams/test.yml"] = map[string]any{}
+	cmd.FilesToWrite["fleets/test.yml"] = map[string]any{}
 
 	// generate software for team 1
-	res, err := cmd.generateSoftware("teams/test.yml", 1, "team-a", false)
+	res, err := cmd.generateSoftware("fleets/test.yml", 1, "team-a", false)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
@@ -1081,7 +1105,7 @@ func TestGeneratedOrgSettingsOktaConditionalAccessNotIncluded(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]any
-	b, err := yaml.Marshal(orgSettingsRaw)
+	b, err := yamlMarshalRenamed(orgSettingsRaw)
 	require.NoError(t, err)
 	err = yaml.Unmarshal(b, &orgSettings)
 	require.NoError(t, err)
@@ -1125,7 +1149,7 @@ func TestGenerateOrgSettingsInsecure(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]interface{}
-	b, err := yaml.Marshal(orgSettingsRaw)
+	b, err := yamlMarshalRenamed(orgSettingsRaw)
 	require.NoError(t, err)
 	fmt.Println("Org settings raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &orgSettings)
@@ -1164,7 +1188,7 @@ func TestGenerateTeamSettings(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, TeamSettingsRaw)
 	var TeamSettings map[string]interface{}
-	b, err := yaml.Marshal(TeamSettingsRaw)
+	b, err := yamlMarshalRenamed(TeamSettingsRaw)
 	require.NoError(t, err)
 	fmt.Println("Team settings raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &TeamSettings)
@@ -1205,7 +1229,7 @@ func TestGenerateTeamSettingsInsecure(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, TeamSettingsRaw)
 	var TeamSettings map[string]interface{}
-	b, err := yaml.Marshal(TeamSettingsRaw)
+	b, err := yamlMarshalRenamed(TeamSettingsRaw)
 	require.NoError(t, err)
 	fmt.Println("Team settings raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &TeamSettings)
@@ -1309,9 +1333,9 @@ func TestGenerateControls(t *testing.T) {
 	}
 	controlsRaw, err = cmd.generateControls(ptr.Uint(0), "no_team", &mdmConfig)
 	require.NoError(t, err)
-	// Check that the controls do not contain a macos_setup section
-	_, ok := controlsRaw["macos_setup"]
-	require.False(t, ok, "Expected no macos_setup section for no-team controls")
+	// Check that the controls do not contain a setup_experience section
+	_, ok := controlsRaw["setup_experience"]
+	require.False(t, ok, "Expected no setup_experience section for no-team controls")
 
 	// Try that again, but with an MDM config that has "EndUserAuthentication" enabled.
 	mdmConfig = fleet.TeamMDM{
@@ -1362,7 +1386,8 @@ func TestGenerateControls(t *testing.T) {
 	controlsRaw, err = cmd.generateControls(ptr.Uint(2), "some_team", nil)
 	require.NoError(t, err)
 	require.NotNil(t, controlsRaw)
-	require.False(t, ok, "Expected no macos_setup section for no-team controls")
+	_, ok = controlsRaw["setup_experience"]
+	require.False(t, ok, "Expected no setup_experience section")
 
 	// Generate controls for a team with a bootstrap pacakge.
 	controlsRaw, err = cmd.generateControls(ptr.Uint(3), "some_team", nil)
@@ -1766,7 +1791,7 @@ func TestGenerateQueries(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get the expected org settings YAML.
-	b, err = os.ReadFile("./testdata/generateGitops/expectedGlobalQueries.yaml")
+	b, err = os.ReadFile("./testdata/generateGitops/expectedGlobalReports.yaml")
 	require.NoError(t, err)
 	var expectedQueries []map[string]interface{}
 	err = yaml.Unmarshal(b, &expectedQueries)
@@ -1788,7 +1813,7 @@ func TestGenerateQueries(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get the expected org settings YAML.
-	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamQueries.yaml")
+	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamReports.yaml")
 	require.NoError(t, err)
 	err = yaml.Unmarshal(b, &expectedQueries)
 	require.NoError(t, err)
@@ -1837,9 +1862,9 @@ func TestGenerateLabels(t *testing.T) {
 }
 
 func verifyControlsHasMacosSetup(t *testing.T, controlsRaw map[string]interface{}) {
-	macosSetup, ok := controlsRaw["macos_setup"].(string)
-	require.True(t, ok, "Expected macos_setup section to be a string")
-	require.Equal(t, macosSetup, "TODO: update with your macos_setup configuration")
+	macosSetup, ok := controlsRaw["setup_experience"].(string)
+	require.True(t, ok, "Expected setup_experience section to be a string")
+	require.Equal(t, macosSetup, "TODO: update with your setup_experience configuration")
 }
 
 func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
@@ -1928,9 +1953,87 @@ func TestSillyTeamNames(t *testing.T) {
 			require.NoError(t, err, buf.String())
 
 			// Expect a correctly-named .yaml
-			tgtPath := filepath.Join(tempDir, "teams", expectedFilename)
+			tgtPath := filepath.Join(tempDir, "fleets", expectedFilename)
 			_, err = os.Stat(tgtPath)
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestReplaceAliasKeys(t *testing.T) {
+	rules := map[string]string{
+		"old_key":    "new_key",
+		"nested_old": "nested_new",
+	}
+
+	t.Run("deleteOld=true removes old keys", func(t *testing.T) {
+		data := map[string]any{
+			"old_key":   "value1",
+			"other_key": "value2",
+		}
+		replaceAliasKeys(data, rules, true)
+		require.Equal(t, "value1", data["new_key"])
+		_, exists := data["old_key"]
+		require.False(t, exists, "old key should be removed when deleteOld=true")
+		require.Equal(t, "value2", data["other_key"])
+	})
+
+	t.Run("deleteOld=false keeps both keys", func(t *testing.T) {
+		data := map[string]any{
+			"old_key":   "value1",
+			"other_key": "value2",
+		}
+		replaceAliasKeys(data, rules, false)
+		require.Equal(t, "value1", data["new_key"])
+		require.Equal(t, "value1", data["old_key"])
+		require.Equal(t, "value2", data["other_key"])
+	})
+
+	t.Run("nested maps and arrays", func(t *testing.T) {
+		data := map[string]any{
+			"outer": map[string]any{
+				"nested_old": "nested_value",
+			},
+			"list": []any{
+				map[string]any{"old_key": "in_array"},
+			},
+		}
+
+		// deleteOld=true: old keys removed recursively
+		replaceAliasKeys(data, rules, true)
+		outer := data["outer"].(map[string]any)
+		require.Equal(t, "nested_value", outer["nested_new"])
+		_, exists := outer["nested_old"]
+		require.False(t, exists)
+		item := data["list"].([]any)[0].(map[string]any)
+		require.Equal(t, "in_array", item["new_key"])
+		_, exists = item["old_key"]
+		require.False(t, exists)
+	})
+
+	t.Run("nested maps and arrays deleteOld=false", func(t *testing.T) {
+		data := map[string]any{
+			"outer": map[string]any{
+				"nested_old": "nested_value",
+			},
+			"list": []any{
+				map[string]any{"old_key": "in_array"},
+			},
+		}
+
+		replaceAliasKeys(data, rules, false)
+		outer := data["outer"].(map[string]any)
+		require.Equal(t, "nested_value", outer["nested_new"])
+		require.Equal(t, "nested_value", outer["nested_old"])
+		item := data["list"].([]any)[0].(map[string]any)
+		require.Equal(t, "in_array", item["new_key"])
+		require.Equal(t, "in_array", item["old_key"])
+	})
+
+	t.Run("nil map is safe", func(t *testing.T) {
+		replaceAliasKeys(nil, rules, true)
+		replaceAliasKeys(nil, rules, false)
+		var m map[string]any
+		replaceAliasKeys(m, rules, true)
+	})
 }

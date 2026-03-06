@@ -36,9 +36,10 @@ Specialized API-only users, who can modify configurations via GitOps but cannot 
 Labels can be specified in your `default.yml` and `teams/team-name.yml` files using inline configuration or references to separate files in your `lib/` folder. Labels cannot be specified in `teams/no-team.yml`.
 
 - `name` specifies the label's name. Must be unique across all global and team labels.
+    + Changing a label's `name` in GitOps will delete and re-create the label, temporarily clearing its membership. To avoid this, update the label name in the UI before making the change in YAML. 
 - `description` specifies the label's description.
 - `platform` specifies platforms for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. Only supported if `label_membership_type` is `dynamic`.
-- `label_membership_type` specifies label type which determines. Choices for platform are `dynamic` , `manual`, and `host_vitals`.
+- `label_membership_type` specifies label type which determines. Choices for type are `dynamic` , `manual`, and `host_vitals` (default: `dynamic`).
 - `query` is the query in SQL syntax used to filter the hosts. Only supported if `label_membership_type` is `dynamic`.
 - `hosts` is a list of host identifiers (`id`, `hardware_serial`, or `uuid`). The label will apply to any host with a matching identifier. Only supported if `label_membership_type` is `manual`.
 - `criteria` - is the criteria for adding hosts to a host vitals label. Hosts with `vital` data matching the specified `value` will be added to the label. See [criteria](https://fleetdm.com/docs/rest-api/rest-api#criteria) documentation for details.
@@ -115,7 +116,7 @@ Policies can be specified inline in your `default.yml`, `teams/team-name.yml`, o
 
 ### Options
 
-For possible options, see the parameters for the [Add policy API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-policy)
+For possible options, see the parameters for the [Create policy API endpoint](https://fleetdm.com/docs/rest-api/rest-api#create-policy)
 
 In Fleet Premium you can trigger software installs or script runs on policy failure:
 
@@ -444,7 +445,7 @@ In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_`. F
 | `$FLEET_VAR_HOST_PLATFORM`                         | macOS, iOS, iPadOS, Windows | Host's platform. Values are `"macos"`, `"ios"`, `"ipados"`, and `"windows"`. |
 | `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`       | macOS, iOS, iPadOS, Windows | Fleet-managed one-time challenge password used during SCEP certificate configuration profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [custom_scep_proxy](#custom-scep-proxy). |
 | `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`       | macOS, iOS, iPadOS, Windows | Fleet-managed SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
-| `$FLEET_VAR_SCEP_RENEWAL_ID`       | macOS, iOS, iPadOS | Fleet-managed ID that's required to automatically renew Smallstep, Microsoft NDES, and custom SCEP certificates. The ID must be specified in the Organizational Unit (OU) field in the configuration profile. |
+| `$FLEET_VAR_SCEP_RENEWAL_ID`       | macOS, iOS, iPadOS, Windows | Fleet-managed ID that's required to automatically renew Smallstep, Microsoft NDES, and custom SCEP certificates. The ID must be specified in the Organizational Unit (OU) field in the configuration profile. |
 | `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>`           | macOS, iOS, iPadOS | Fleet-managed password required to decode the base64-encoded certificate data issued by a specified DigiCert certificate authority during PKCS12 profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert). |
 | `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`               | macOS, iOS, iPadOS | Fleet-managed base64-encoded certificate data issued by a specified DigiCert certificate authority during PKCS12 profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert). |
 | `$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID`               | Windows | ID used for SCEP configuration profile on Windows. It must be included in the `<LocURI>` field.|
@@ -471,7 +472,7 @@ The `macos_setup` section lets you control the out-of-the-box [setup experience]
 - `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android. 
 - `require_all_software` specifies whether to cancel setup on a macOS host if any software installs fail.
 - `enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business Manager (ABM).
-- `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json). Applies to macOS and iOS/iPadOS hosts.
+- `macos_setup_assistant` is a path to a custom [automatic enrollment (ADE) profile](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web) (.json). Applies to macOS and iOS/iPadOS hosts.
 - `script` is the path to a custom setup script to run after the host is first set up. Applies to macOS only.
 
 #### Example
@@ -508,7 +509,7 @@ The `software` section allows you to configure packages, store apps (Apple App S
 - `app_store_apps` is a list of Apple App Store or Android Play Store apps.
 - `fleet_maintained_apps` is a list of Fleet-maintained apps.
 
-Currently, you can specify `install_software` in the [`policies` YAML](#policies) to automatically install a custom package or App Store app when a host fails a policy. [Automatic install support for Fleet-maintained apps](https://github.com/fleetdm/fleet/issues/29584) is coming soon.
+Currently, you can specify `install_software` in the [`policies` YAML](#policies) to automatically install a custom package or App Store app when a host fails a policy. [Automatic install support for Fleet-maintained apps](https://github.com/fleetdm/fleet/issues/34492) is coming soon.
 
 Currently, Fleet only allows one package, Apple App Store app, or Fleet-maintained app for a specific software. This means, if you specify a Google Chrome for macOS twice in `packages` or once in `packages` and once in `fleet_maintained_apps`, only one of them will be added to Fleet.
 
@@ -578,7 +579,7 @@ software:
 
 ### packages
 
-- `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3.
+- `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3. If you don't want to host the package, add it to Fleet first and then copy the `hash_sha256`.
 - `hash_sha256` specifies the SHA256 hash of the package file. If provided, and a package with that hash was already added to Fleet, the download will be skipped. This speeds up GitOps runs. If a package with that hash doesn't exist in Fleet, Fleet will download the package from the `url` and add the package if the hash matches. Fleet will error if the hash doesn't match. You can specify `hash_sha256` without `url` if the package was already added to Fleet via the UI or the API.
 - `display_name` is the package name that will be displayed in the UI. If not set, `name` will be used instead.
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
@@ -672,7 +673,9 @@ org_settings:
 
 ### fleet_desktop
 
-Direct end users to a custom URL when they select **About Fleet** in the Fleet Desktop dropdown (default: [https://fleetdm.com/transparency](https://fleetdm.com/transparency)).
+The `fleet_desktop` section lets you customize the Fleet Desktop experience by overriding default URLs.
+- `transparency_url` directs end users to a custom URL when they select **About Fleet** in the Fleet Desktop dropdown (default: [https://fleetdm.com/transparency](https://fleetdm.com/transparency)).
+- `alternative_browser_host` is a custom hostname that my hosts will access Fleet Desktop from.
 
 Can only be configured for all teams (`org_settings`).
 
@@ -682,6 +685,7 @@ Can only be configured for all teams (`org_settings`).
 org_settings:
   fleet_desktop:
     transparency_url: https://example.org/transparency
+    alternative_browser_host: fleet-desktop.example.com
 ```
 
 ### host_expiry_settings
@@ -799,7 +803,7 @@ org_settings:
 
 ### integrations
 
-The `integrations` section lets you configure your Google Calendar, Conditional Access (for hosts in "No team"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
+The `integrations` section lets you configure your Google Calendar, Conditional access (enabling/disabling for hosts in "No team"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
 Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
 

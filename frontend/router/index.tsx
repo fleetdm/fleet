@@ -98,6 +98,7 @@ import UnauthenticatedRoutes from "./components/UnauthenticatedRoutes";
 import AuthGlobalAdminMaintainerRoutes from "./components/AuthGlobalAdminMaintainerRoutes";
 import AuthAnyMaintainerAnyAdminRoutes from "./components/AuthAnyMaintainerAnyAdminRoutes";
 import AuthAnyMaintainerAdminObserverPlusRoutes from "./components/AuthAnyMaintainerAdminObserverPlusRoutes";
+import AuthAnyMaintainerAdminTechnicianRoutes from "./components/AuthAnyMaintainerAdminTechnicianRoutes/AuthAnyMaintainerAdminTechnicianRoutes";
 import PremiumRoutes from "./components/PremiumRoutes";
 import ExcludeInSandboxRoutes from "./components/ExcludeInSandboxRoutes";
 
@@ -114,11 +115,12 @@ interface IAppWrapperProps {
   location?: any;
 }
 
+const queryClient = new QueryClient();
+
 // App.tsx needs the context for user and config. We also wrap the application
-// component in the required query client priovider for react-query. This
+// component in the required query client provider for react-query. This
 // will allow us to use react-query hooks in the application component.
 const AppWrapper = ({ children, location }: IAppWrapperProps) => {
-  const queryClient = new QueryClient();
   return (
     <AppProvider>
       <RoutingProvider>
@@ -210,7 +212,8 @@ const routes = (
                   <Route path="users" component={AdminUserManagementPage} />
                 </Route>
                 <Route component={PremiumRoutes}>
-                  <Route path="teams" component={AdminTeamManagementPage} />
+                  <Redirect from="teams" to="fleets" />
+                  <Route path="fleets" component={AdminTeamManagementPage} />
                 </Route>
               </Route>
             </Route>
@@ -234,15 +237,19 @@ const routes = (
             <Redirect from="integrations/vpp/setup" to="integrations/mdm/vpp" />
             <Route path="integrations/mdm/vpp" component={VppPage} />
 
-            <Route path="teams" component={TeamDetailsWrapper}>
+            <Redirect from="teams" to="fleets" />
+            <Redirect from="teams/users" to="fleets/users" />
+            <Redirect from="teams/options" to="fleets/options" />
+            <Redirect from="teams/settings" to="fleets/settings" />
+            <Route path="fleets" component={TeamDetailsWrapper}>
               <Redirect from="members" to="users" />
               <Route path="users" component={UsersPage} />
               <Route path="options" component={AgentOptionsPage} />
               <Route path="settings" component={TeamSettings} />
             </Route>
-            <Redirect from="teams/:team_id" to="teams" />
-            <Redirect from="teams/:team_id/users" to="teams" />
-            <Redirect from="teams/:team_id/options" to="teams" />
+            <Redirect from="teams/:team_id" to="fleets" />
+            <Redirect from="teams/:team_id/users" to="fleets" />
+            <Redirect from="teams/:team_id/options" to="fleets" />
           </Route>
           <Route path="labels">
             <IndexRedirect to="manage" />
@@ -269,7 +276,6 @@ const routes = (
             />
             <Route path=":host_id" component={HostDetailsPage}>
               <IndexRedirect to="details" />
-              <Redirect from="schedule" to="queries" />
               <Route path="details" component={HostDetailsPage} />
               <Route path="scripts" component={HostDetailsPage} />
               <Route path="software" component={HostDetailsPage}>
@@ -280,14 +286,21 @@ const routes = (
               <Route path="policies" component={HostDetailsPage} />
             </Route>
 
+            <Redirect
+              from=":host_id/queries/:query_id"
+              to=":host_id/reports/:query_id"
+            />
             <Route
               // outside of '/hosts' nested routes to avoid react-tabs-specific routing issues
-              path=":host_id/queries/:query_id"
+              path=":host_id/reports/:query_id"
               component={HostQueryReport}
             />
           </Route>
           <Route component={ExcludeInSandboxRoutes}>
-            <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
+            <Route
+              path="controls"
+              component={AuthAnyMaintainerAdminTechnicianRoutes}
+            >
               <IndexRedirect to="os-updates" />
               <Route component={ManageControlsPage}>
                 <Route path="os-updates" component={OSUpdates} />
@@ -320,19 +333,21 @@ const routes = (
             <IndexRedirect to="titles" />
             {/* we check the add route first otherwise a route like 'software/add' will be caught
              * by the 'software/:id' redirect and be redirected to 'software/versions/add  */}
-            <Route path="add" component={SoftwareAddPage}>
-              <IndexRedirect to="fleet-maintained" />
+            <Route component={AuthAnyMaintainerAnyAdminRoutes}>
+              <Route path="add" component={SoftwareAddPage}>
+                <IndexRedirect to="fleet-maintained" />
+                <Route
+                  path="fleet-maintained"
+                  component={SoftwareFleetMaintained}
+                />
+                <Route path="app-store" component={SoftwareAppStore} />
+                <Route path="package" component={SoftwareCustomPackage} />
+              </Route>
               <Route
-                path="fleet-maintained"
-                component={SoftwareFleetMaintained}
+                path="add/fleet-maintained/:id"
+                component={FleetMaintainedAppDetailsPage}
               />
-              <Route path="app-store" component={SoftwareAppStore} />
-              <Route path="package" component={SoftwareCustomPackage} />
             </Route>
-            <Route
-              path="add/fleet-maintained/:id"
-              component={FleetMaintainedAppDetailsPage}
-            />
             <Route component={SoftwarePage}>
               <Route path="titles" component={SoftwareTitles} />
               <Route path="versions" component={SoftwareTitles} />
@@ -363,7 +378,14 @@ const routes = (
               </Route>
             </Route>
           </Route>
-          <Route path="queries">
+          <Redirect from="queries" to="reports" />
+          <Redirect from="queries/manage" to="reports/manage" />
+          <Redirect from="queries/new" to="reports/new" />
+          <Redirect from="queries/new/live" to="reports/new/live" />
+          <Redirect from="queries/:id" to="reports/:id" />
+          <Redirect from="queries/:id/edit" to="reports/:id/edit" />
+          <Redirect from="queries/:id/live" to="reports/:id/live" />
+          <Route path="reports">
             <IndexRedirect to="manage" />
             <Route path="manage" component={ManageQueriesPage} />
             <Route component={AuthAnyMaintainerAdminObserverPlusRoutes}>

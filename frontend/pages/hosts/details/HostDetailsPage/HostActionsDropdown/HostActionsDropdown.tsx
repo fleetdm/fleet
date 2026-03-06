@@ -39,6 +39,7 @@ const HostActionsDropdown = ({
     isPremiumTier = false,
     isGlobalAdmin = false,
     isGlobalMaintainer = false,
+    isGlobalTechnician = false,
     isMacMdmEnabledAndConfigured = false,
     isWindowsMdmEnabledAndConfigured = false,
     isAndroidMdmEnabledAndConfigured = false,
@@ -53,6 +54,10 @@ const HostActionsDropdown = ({
     currentUser,
     hostTeamId
   );
+  const isTeamTechnician = permissions.isTeamTechnician(
+    currentUser,
+    hostTeamId
+  );
   const isTeamObserver = permissions.isTeamObserver(currentUser, hostTeamId);
   const isGlobalObserver = permissions.isGlobalObserver(currentUser);
 
@@ -62,8 +67,10 @@ const HostActionsDropdown = ({
     isGlobalAdmin,
     isGlobalMaintainer,
     isGlobalObserver,
+    isGlobalTechnician,
     isTeamAdmin,
     isTeamMaintainer,
+    isTeamTechnician,
     isTeamObserver,
     isHostOnline: hostStatus === "online",
     isEnrolledInMdm: isEnrolledInMdm(hostMdmEnrollmentStatus),

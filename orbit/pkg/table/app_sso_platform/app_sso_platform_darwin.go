@@ -206,7 +206,7 @@ func parseAppSSOPlatformCommandOutput(output []byte, expectedExtensionIdentifier
 		return nil, fmt.Errorf("could not unmarshal \"User Configuration\" JSON: %w", err)
 	}
 	if len(userConfig.KerberosStatus) == 0 {
-		return nil, errors.New("\"kerberosStatus\" has no entries")
+		return nil, nil
 	}
 	realm_, ok := userConfig.KerberosStatus[0]["realm"]
 	if !ok {

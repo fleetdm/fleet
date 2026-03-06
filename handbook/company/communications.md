@@ -161,7 +161,7 @@ Videos are transcribed, and this makes it easier to find required redactions dur
 
 To schedule a meeting within Fleet:
 - To add a Zoom meeting to a calendar event, click the "Add video conferencing" dropdown and select "Zoom Meeting." Google Calendar will automatically add the Zoom meeting details and instructions to join the event.
-- Enter the `@fleetdm.com` emails for each participant into the "Add guests" box in Google Calendar, and the calendar availability for each participant will appear in your view.
+- Enter the `@fleetdm.com` emails for each participant into the "Add guests" box in Google Calendar, and the calendar availability for each participant will appear in your view. Do not use "Optional" for invitees.
 - Select a meeting time, the participants will automatically be invited and a video conference will be attached to the invite (this can save a lot of communication overhead when scheduling with multiple participants).
 
 **Internal meeting scheduling**: Fleet uses the Zoom add-on for Google Calendar to schedule meetings (exceptions are customers that are non-negotiably required to use a different tool) when we [create calendar events](https://support.google.com/calendar/answer/72143?hl=en&ref_topic=10510646&sjid=7187599067132459840-NA#zippy=%2Cclick-an-empty-time-in-your-calendar). 
@@ -215,6 +215,11 @@ Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valu
 > **Are you scheduling time with the CEO?**
 >
 > Please do not add events to the CEO's calendar, *even if the CEO asks you to*. Instead, [get scheduling help from the Executive Assistant](https://fleetdm.com/handbook/company/leadership#schedule-time-with-the-ceo)).
+
+
+## Shadowing meetings
+
+Calendars at Fleet are public for all Fleeties, and anyone can join any meeting that doesn't say `[no shadows]`. The invitees for a recurring calendar event are those who are mandatory for the meeting. If you are interested in joining a call, add yourself to a particular instance of the meeting. Do not mark yourself as "Optional" in Google Calendar.
 
 
 ## Email relays
@@ -348,7 +353,7 @@ _**Note:**_ There are only a few "special" labels that are exceptions to this ru
 - `story` A user story.
 - `timebox` A timeboxed issue (a task or bug limited to a fixed duration, after which work stops regardless of completion).
 -  `prospect-` A customer prospect.
-- `P-` A [priority level](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs).
+- `P-` A [priority level](https://fleetdm.com/handbook/product-groups#high-priority-user-stories-and-bugs).
 
 
 > If you're adding multiple labels to an issue template, GitHub won't add both labels unless you put them in an array e.g. `labels: ['~air-guitar', ':product']`.  To verify the syntax is correct, you can preview the template and make sure each label name is in a separate box.  
@@ -358,7 +363,6 @@ _**Note:**_ There are only a few "special" labels that are exceptions to this ru
 >
 > If you need to track content from a Slack channel (e.g. #help-customers), you can automatically generate a GitHub issue by adding the emoji `create-github-issue` as a reaction to any message. This will automatically: 
 > - Create an issue tagged with the departmental GitHub label that corresponds with the Slack channel. If there isn't a corresponding departmental label for the channel, the issue defaults to the [:help-it](https://github.com/orgs/fleetdm/projects/101) kanban board.
-
 
 
 ### Process new requests
@@ -372,7 +376,6 @@ To process intake team members will:
 - If the task is to be backlogged (i.e. "Not yet"), place the issue in the "Not yet" column and at-mention the requestor in an issue comment. Explain why the task is unable to be prioritized and provide a tentative ETA on when the task will be completed.
 
 
-
 ### Propose an event
 
 Fleet's Marketing team is responsible for deciding/signing off on the events Fleet will participate in. This includes any event that Fleet pays to attend or sponsor, and even events where Fleet's only involvement is that a Fleetie will give a talk or otherwise represent the brand.
@@ -380,55 +383,14 @@ Fleet's Marketing team is responsible for deciding/signing off on the events Fle
 To propose an event, complete the steps in the [Propose event issue](https://github.com/fleetdm/confidential/issues/new?template=prepare-event.md). Once the request has been submitted with all necessary information, the marketing team will process your request within 72 business hours.
 
 
-
-### Estimation points
-
-Estimation points represent the effort required to complete a task. After accessing wireframes, we typically play planning poker, a gamified estimation technique, to determine the necessary story point value. We use the following story points to estimate tasks:
-
-| Story point | Time |
-|:---|:--------------|
-| 1  | 1 to 2 hours  |
-| 2  | 2 to 4 hours  |
-| 3  | 1 day         |
-| 5  | 2 to 3 days   |
-| 8  | Up to a week  |
-| 13 | 1 to 2 weeks  |
-
-> Larger projects are estimated in a way that can sometimes look disproportionate to account for edge cases that weren't caught during planning. This helps us develop [iteratively](https://fleetdm.com/handbook/company#results) and deliver bite-sized functionality on more predictable time scales.
-
-
-## High-priority user stories and bugs
-
-All issues are treated as standard priority by default. Some issues are assigned a priority label to indicate the level of urgency.
-
-- Emergency: `P0`
-  - Examples: Customer outage, confirmed security vulnerability ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a new feature is needed to address an immediate Fleet emergency.
-  - Response: Immediately stop other work to swarm the issue. Work 24/7 in shifts until resolved.
-  - Impact: Significant impact. May void current sprint.
-
-- Critical: `P1`
-  - Examples: A supported workflow is broken ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a potential security vulnerability, a new feature is required to address an immediate critical Fleet need.
-  - Response: Issue brought to next standup for estimation and immediately brought into the sprint. Necessary team members are assigned as their top priority.
-  - Impact: High impact. Does not void sprint, but reduces overall velocity and requires deprioritizing other work.
-
-- Urgent: `P2`
-  - Examples: A supported workflow is not functioning as intended, a newly drafted feature has an associated urgent Fleet need.
-  - Response: Issue is prioritized at the top of the next sprint. If opportunity cost of waiting for the next sprint is too high, it may be considered for current sprint.
-  - Impact: Low to medium impact. If prioritized into current sprint, may reduce overall velocity and require deprioritizing other work.
-
-Any fleetie can follow the process below to add a priority label to an issue.
-
-1. Add as much context as possible to the issue description and assign labels to help the team
-   understand the problem and what is driving the urgency. 
-2. Add the `P0`, `P1`, or `P2` label based on the urgency of the issue. 
-3. Comment on the GitHub issue explaining why the issue is a priority, and assign the issue to the [Engineering Manager for the associated product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups). For immediate action, follow up with the EM via Slack DM or by phone.
-4. The EM will review the issue to determine if it meets the criteria for the assigned priority label. If so, they will triage as needed based on priority level. If not, they will remove the priority label and add a comment on the issue explaining why.
-
 ## Contributing to the handbook and docs
 
 > Fleet operates as a [handbook-first](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy) company.  If something has changed, it is up to you to update the handbook first.  If the change can't be handbooked in 1 business day, or if you are stuck waiting on a review before it can be merged, get a handbook coach.  They'll pair with you in a scheduled meeting on your calendar and help.  To get a handbook coach, ask [Sam Pfluger](https://fleetdm.slack.com/team/U05CS07KASK) in Slack.
 
 Learn how to contribute to the handbook, documentation, and articles at Fleet on the ["Writing at Fleet" handbook page](https://fleetdm.com/handbook/company/writing).
+
+## Social media 
+When posting about a personal or philosophical topic that potential Fleet customers might read, consider adding a disclaimer that these are your views and don’t necessarily represent your company or peers.
 
 
 ## Feedback
@@ -662,7 +624,7 @@ Variable compensation (i.e. commission) is reviewed and submitted for processing
 
 #### Compensation changes
 
-Fleet benchmarks US-based team members based on the United States Dollar (USD). Non-US Fleeties are benchmarked in the local currency.  Compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Head of People is responsible for the process to [update compensation](https://fleetdm.com/handbook/people#update-a-team-members-compensation).
+Fleet benchmarks US-based team members based on the United States Dollar (USD). Non-US team members' compensation is communicated in local currency, but is benchmarked based on real wages in consideration of both the local currency and USD.  Compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Head of People is responsible for the process to [update compensation](https://fleetdm.com/handbook/people#update-a-team-members-compensation).
 
 
 #### Exercise stock options

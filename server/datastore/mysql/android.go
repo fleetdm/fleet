@@ -13,12 +13,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
+func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
 	if !host.IsValid() {
 		return nil, ctxerr.New(ctx, "valid Android host is required")
 	}
@@ -125,7 +124,7 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 
 		// create entry in host_mdm as enrolled (manually), because currently all
 		// android hosts are necessarily MDM-enrolled when created.
-		if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, false, true, host.Host.ID); err != nil {
+		if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, companyOwned, true, host.Host.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "new Android host MDM info")
 		}
 
@@ -165,7 +164,7 @@ func (ds *Datastore) setTimesToNonZero(host *fleet.AndroidHost) {
 	}
 }
 
-func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
+func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
 	if !host.IsValid() {
 		return ctxerr.New(ctx, "valid Android host is required")
 	}
@@ -218,7 +217,7 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 
 		if fromEnroll {
 			// update host_mdm to set enrolled back to true
-			if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, false, true, host.Host.ID); err != nil {
+			if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, companyOwned, true, host.Host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "update Android host MDM info")
 			}
 
@@ -351,7 +350,7 @@ func (ds *Datastore) insertAndroidHostLabelMembershipTx(ctx context.Context, tx 
 		// Builtin labels can get deleted so it is important that we check that
 		// they still exist before we continue.
 		// Note that this is the same behavior as for the iOS/iPadOS host labels.
-		level.Error(ds.logger).Log("err", fmt.Sprintf("expected 2 builtin labels but got %d", len(labels)))
+		ds.logger.ErrorContext(ctx, fmt.Sprintf("expected 2 builtin labels but got %d", len(labels)))
 		return nil
 	}
 
@@ -430,11 +429,7 @@ UPDATE host_mdm
 	return rows > 0, nil
 }
 
-func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, fromDEP, enrolled bool, hostIDs ...uint) error {
-	if len(hostIDs) == 0 {
-		return nil
-	}
-
+func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, companyOwned, enrolled bool, hostID uint) error {
 	result, err := tx.ExecContext(ctx, `
 		INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)
 		ON DUPLICATE KEY UPDATE server_url = VALUES(server_url)`,
@@ -453,35 +448,10 @@ func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverU
 		}
 	}
 
-	// Query host UUIDs to determine personal enrollment status
-	// For Android, a non-empty UUID (enterprise_specific_id) indicates a BYOD/personal device
-	type hostInfo struct {
-		ID   uint   `db:"id"`
-		UUID string `db:"uuid"`
-	}
-	var hosts []hostInfo
-	query, args, err := sqlx.In(`SELECT id, uuid FROM hosts WHERE id IN (?)`, hostIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "build host query")
-	}
-	if err := sqlx.SelectContext(ctx, tx, &hosts, query, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "query host UUIDs")
-	}
-
-	// Build map of host ID to personal enrollment status
-	hostPersonalEnrollment := make(map[uint]bool)
-	for _, h := range hosts {
-		// Android BYOD devices have a non-empty UUID (enterprise_specific_id)
-		hostPersonalEnrollment[h.ID] = h.UUID != ""
-	}
-
-	args = []interface{}{}
+	args := []any{}
 	parts := []string{}
-	for _, id := range hostIDs {
-		isPersonalEnrollment := hostPersonalEnrollment[id]
-		args = append(args, enrolled, serverURL, fromDEP, mdmID, false, isPersonalEnrollment, id)
-		parts = append(parts, "(?, ?, ?, ?, ?, ?, ?)")
-	}
+	args = append(args, enrolled, serverURL, companyOwned, mdmID, false, !companyOwned, hostID)
+	parts = append(parts, "(?, ?, ?, ?, ?, ?, ?)")
 
 	_, err = tx.ExecContext(ctx, fmt.Sprintf(`
 		INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, is_personal_enrollment, host_id) VALUES %s
@@ -593,7 +563,7 @@ func (ds *Datastore) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID
 		switch {
 		case lbl.Exclude && lbl.RequireAll:
 			// this should never happen so log it for debugging
-			level.Warn(ds.logger).Log("msg", "unsupported profile label: cannot be both exclude and require all. Label will be ignored.",
+			ds.logger.WarnContext(ctx, "unsupported profile label: cannot be both exclude and require all. Label will be ignored.",
 				"profile_uuid", lbl.ProfileUUID,
 				"label_name", lbl.LabelName,
 			)
@@ -1165,7 +1135,8 @@ func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 				policy_request_uuid,
 				device_request_uuid,
 				request_fail_count,
-				included_in_policy_version
+				included_in_policy_version,
+				can_reverify
 			)
 			VALUES %s
 			ON DUPLICATE KEY UPDATE
@@ -1176,7 +1147,8 @@ func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 				policy_request_uuid = VALUES(policy_request_uuid),
 				device_request_uuid = VALUES(device_request_uuid),
 				request_fail_count = VALUES(request_fail_count),
-				included_in_policy_version = VALUES(included_in_policy_version)
+				included_in_policy_version = VALUES(included_in_policy_version),
+				can_reverify = VALUES(can_reverify)
 `, strings.TrimSuffix(valuePart, ","),
 		)
 
@@ -1195,12 +1167,12 @@ func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 	}
 
 	generateValueArgs := func(p *fleet.MDMAndroidProfilePayload) (string, []any) {
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
 		args := []any{
 			p.HostUUID, p.Status, p.OperationType,
 			p.Detail, p.ProfileUUID, p.ProfileName,
 			p.PolicyRequestUUID, p.DeviceRequestUUID, p.RequestFailCount,
-			p.IncludedInPolicyVersion,
+			p.IncludedInPolicyVersion, p.CanReverify,
 		}
 		return valuePart, args
 	}
@@ -1255,18 +1227,14 @@ func (ds *Datastore) ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion
 	stmt := `
 		SELECT profile_uuid, host_uuid, status, operation_type, detail, profile_name, policy_request_uuid, device_request_uuid, request_fail_count, included_in_policy_version
 		FROM host_mdm_android_profiles
-		WHERE host_uuid = ? AND included_in_policy_version <= ? AND operation_type = ? AND status IN (?)
+		WHERE host_uuid = ? AND included_in_policy_version <= ? AND operation_type = ? 
+		AND (status = 'pending' OR (status = 'failed' AND can_reverify = true))
 	`
 
-	stmt, args, err := sqlx.In(stmt, hostUUID, policyVersion, fleet.MDMOperationTypeInstall, []fleet.MDMDeliveryStatus{fleet.MDMDeliveryPending, fleet.MDMDeliveryFailed})
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building query to get pending host MDM Android profiles")
-	}
-
 	var profiles []*fleet.MDMAndroidProfilePayload
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, args...)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, hostUUID, policyVersion, fleet.MDMOperationTypeInstall)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing host MDM Android profiles pending install")
+		return nil, ctxerr.Wrap(ctx, err, "listing host MDM Android profiles pending or failed install")
 	}
 
 	return profiles, nil

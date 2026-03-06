@@ -3,6 +3,7 @@ package maintained_apps
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,7 +45,7 @@ func SyncApps(t *testing.T, ds fleet.Datastore) []fleet.MaintainedApp {
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", srv.URL)
 	defer dev_mode.ClearOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
 
-	err := Refresh(context.Background(), ds, log.NewNopLogger())
+	err := Refresh(context.Background(), ds, slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
 
 	apps, _, err := ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.ListOptions{
@@ -101,7 +101,7 @@ func SyncAndRemoveApps(t *testing.T, ds fleet.Datastore) {
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", srv.URL)
 	defer dev_mode.ClearOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
 
-	err = Refresh(context.Background(), ds, log.NewNopLogger())
+	err = Refresh(context.Background(), ds, slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
 
 	originalApps, _, err := ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.ListOptions{})
@@ -113,7 +113,7 @@ func SyncAndRemoveApps(t *testing.T, ds fleet.Datastore) {
 	removedApp := appsFile.Apps[0]
 	appsFile.Apps = appsFile.Apps[1:]
 
-	err = Refresh(context.Background(), ds, log.NewNopLogger())
+	err = Refresh(context.Background(), ds, slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
 
 	modifiedApps, _, err := ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.ListOptions{})
@@ -128,7 +128,7 @@ func SyncAndRemoveApps(t *testing.T, ds fleet.Datastore) {
 	// remove all apps from upstream.
 	appsFile.Apps = []appListing{}
 
-	err = Refresh(context.Background(), ds, log.NewNopLogger())
+	err = Refresh(context.Background(), ds, slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
 
 	modifiedApps, _, err = ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.ListOptions{})

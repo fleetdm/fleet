@@ -30,7 +30,7 @@ const DEFAULT_OPTIONS = [
     premiumOnly: true,
   },
   {
-    label: "Query",
+    label: "Live report",
     value: "query",
     disabled: false,
   },
@@ -77,8 +77,10 @@ interface IHostActionConfigOptions {
   isGlobalAdmin: boolean;
   isGlobalMaintainer: boolean;
   isGlobalObserver: boolean;
+  isGlobalTechnician: boolean;
   isTeamAdmin: boolean;
   isTeamMaintainer: boolean;
+  isTeamTechnician: boolean;
   isTeamObserver: boolean;
   isHostOnline: boolean;
   isEnrolledInMdm: boolean;
@@ -281,13 +283,20 @@ const canRunScript = ({
   hostPlatform,
   isGlobalAdmin,
   isGlobalMaintainer,
+  isGlobalTechnician,
   isTeamAdmin,
   isTeamMaintainer,
+  isTeamTechnician,
 }: IHostActionConfigOptions) => {
   // Scripts globally disabled, shown as disabled by modifyOptions
 
   return (
-    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isGlobalTechnician ||
+      isTeamAdmin ||
+      isTeamMaintainer ||
+      isTeamTechnician) &&
     isScriptSupportedPlatform(hostPlatform)
   );
 };
@@ -367,7 +376,7 @@ export const getDropdownOptionTooltipContent = (
     );
   }
   if (!isHostOnline && value === "query") {
-    return <>You can&apos;t query an offline host.</>;
+    return <>You can&apos;t run a live report on an offline host.</>;
   }
   return undefined;
 };

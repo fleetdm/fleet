@@ -36,7 +36,7 @@ const SetupAssistantProfileUploader = ({
 
     try {
       await mdmAPI.uploadSetupEnrollmentProfile(file, currentTeamId);
-      renderFlash("success", "Successfully uploaded!");
+      renderFlash("success", "Successfully uploaded.");
       onUpload();
     } catch (e) {
       const error = e as AxiosResponse<IApiError>;

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -21,9 +22,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/google/go-github/v37/github"
 	"github.com/jmoiron/sqlx"
 )
@@ -117,74 +115,118 @@ func DownloadCPEDBFromGithub(vulnPath string, cpeDBURL string) error {
 	return nil
 }
 
-// cpeGeneralSearchQuery puts together several search statements to find the correct row in the CPE datastore.
-// Each statement has a custom weight column, where 1 is the highest priority (most likely to be correct).
-// The SQL statements are combined into a master statements with UNION.
-func cpeGeneralSearchQuery(software *fleet.Software) (string, []interface{}, error) {
-	dialect := goqu.Dialect("sqlite")
+type cpeSearchQuery struct {
+	stm  string
+	args []any
+}
 
-	// 1 - Try to match product and vendor terms
-	search1 := dialect.From(goqu.I("cpe_2").As("c")).
-		Select("c.rowid", "c.product", "c.vendor", "c.deprecated", goqu.L("1 as weight"))
-	var vexps []goqu.Expression
-	for _, v := range vendorVariations(software) {
-		vexps = append(vexps, goqu.I("c.vendor").Eq(v))
+const cpeSelectColumns = `SELECT c.rowid, c.product, c.vendor, c.deprecated FROM cpe_2 c`
+
+// cpeSearchQueries returns individual search queries in priority order for finding CPE matches.
+// Query 1 (vendor+product) and 2 (product-only) are cheap index lookups. Query 3 (full-text search)
+// is expensive. By running them sequentially and returning early on a match, the expensive full-text
+// search is skipped for most software.
+func cpeSearchQueries(software *fleet.Software) []cpeSearchQuery {
+	var queries []cpeSearchQuery
+
+	// 1 - Try to match product and vendor terms (or product-only if no vendor info available)
+	vendors := vendorVariations(software)
+	products := productVariations(software)
+	if len(products) > 0 {
+		var args []any
+		var stm string
+		productPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(products)), ",")
+		if len(vendors) > 0 {
+			vendorPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(vendors)), ",")
+			stm = cpeSelectColumns + " WHERE vendor IN (" + vendorPlaceholders + ") AND product IN (" + productPlaceholders + ")"
+			for _, v := range vendors {
+				args = append(args, v)
+			}
+		} else {
+			stm = cpeSelectColumns + " WHERE product IN (" + productPlaceholders + ")"
+		}
+		for _, p := range products {
+			args = append(args, p)
+		}
+		queries = append(queries, cpeSearchQuery{stm: stm, args: args})
 	}
-	search1 = search1.Where(goqu.Or(vexps...))
-	var nexps []goqu.Expression
-	for _, v := range productVariations(software) {
-		nexps = append(nexps, goqu.I("c.product").Eq(v))
-	}
-	search1 = search1.Where(goqu.Or(nexps...))
 
-	// 2 - Try to match product only
-	search2 := dialect.From(goqu.I("cpe_2").As("c")).
-		Select("c.rowid", "c.product", "c.vendor", "c.deprecated", goqu.L("2 as weight")).
-		Where(goqu.L("c.product = ?", sanitizeSoftwareName(software)))
+	// 2 - Try to match product by sanitized name
+	queries = append(queries, cpeSearchQuery{
+		stm:  cpeSelectColumns + " WHERE product = ?",
+		args: []any{sanitizeSoftwareName(software)},
+	})
 
-	datasets := []*goqu.SelectDataset{search1, search2}
-
-	// 3 - Try Full text match (only if sanitized name has content)
+	// 3 - Try full-text match (only if sanitized name has content)
 	sanitizedName := sanitizeMatch(software.Name)
 	if strings.TrimSpace(sanitizedName) != "" {
-		search3 := dialect.From(goqu.I("cpe_2").As("c")).
-			Select("c.rowid", "c.product", "c.vendor", "c.deprecated", goqu.L("3 as weight")).
-			Join(
-				goqu.I("cpe_search").As("cs"),
-				goqu.On(goqu.I("cs.rowid").Eq(goqu.I("c.rowid"))),
-			).
-			Where(goqu.L("cs.title MATCH ?", sanitizedName))
-		datasets = append(datasets, search3)
+		queries = append(queries, cpeSearchQuery{
+			stm:  cpeSelectColumns + " JOIN cpe_search cs ON cs.rowid = c.rowid WHERE cs.title MATCH ?",
+			args: []any{sanitizedName},
+		})
 	}
 
 	// 4 - Try vendor/product from bundle identifier, like tld.vendor.product
 	bundleParts := strings.Split(software.BundleIdentifier, ".")
 	if len(bundleParts) == 3 {
-		search4 := dialect.From(goqu.I("cpe_2").As("c")).
-			Select("c.rowid", "c.product", "c.vendor", "c.deprecated", goqu.L("4 as weight")).
-			Where(
-				goqu.L("c.vendor = ?", strings.ToLower(bundleParts[1])), goqu.L("c.product = ?", strings.ToLower(bundleParts[2])),
-			)
-		datasets = append(datasets, search4)
+		queries = append(queries, cpeSearchQuery{
+			stm:  cpeSelectColumns + " WHERE vendor = ? AND product = ?",
+			args: []any{strings.ToLower(bundleParts[1]), strings.ToLower(bundleParts[2])},
+		})
 	}
 
-	var sqlParts []string
-	var args []interface{}
-	var stm string
+	return queries
+}
 
-	for _, d := range datasets {
-		s, a, err := d.ToSQL()
-		if err != nil {
-			return "", nil, fmt.Errorf("sql: %w", err)
+// cpeItemMatchesSoftware checks whether a CPE result's vendor/product terms all appear in the
+// software's name, vendor, and bundle identifier.
+func cpeItemMatchesSoftware(item *IndexedCPEItem, software *fleet.Software) bool {
+	sName := strings.ToLower(software.Name)
+	for sN := range strings.SplitSeq(item.Product, "_") {
+		if !strings.Contains(sName, sN) {
+			return false
 		}
-		sqlParts = append(sqlParts, s)
-		args = append(args, a...)
 	}
 
-	stm = strings.Join(sqlParts, " UNION ")
-	stm += "ORDER BY weight ASC"
+	sVendor := strings.ToLower(software.Vendor)
+	sBundle := strings.ToLower(software.BundleIdentifier)
+	for sV := range strings.SplitSeq(item.Vendor, "_") {
+		if sVendor != "" && !strings.Contains(sVendor, sV) {
+			return false
+		}
+		if sBundle != "" && !strings.Contains(sBundle, sV) {
+			return false
+		}
+	}
+	return true
+}
 
-	return stm, args, nil
+// resolveDeprecatedCPE follows the deprecation chain for the given CPE items to find a non-deprecated replacement.
+func resolveDeprecatedCPE(db *sqlx.DB, items []IndexedCPEItem, software *fleet.Software) (string, error) {
+	for _, item := range items {
+		deprecatedItem := item
+		for {
+			var deprecation IndexedCPEItem
+			err := db.Get(
+				&deprecation,
+				`SELECT rowid, product, vendor, deprecated FROM cpe_2
+				WHERE cpe23 IN (SELECT cpe23 FROM deprecated_by d WHERE d.cpe_id = ?)`,
+				deprecatedItem.ID,
+			)
+			if errors.Is(err, sql.ErrNoRows) {
+				break
+			}
+			if err != nil {
+				return "", fmt.Errorf("getting deprecation: %w", err)
+			}
+			if deprecation.Deprecated {
+				deprecatedItem = deprecation
+				continue
+			}
+			return deprecation.FmtStr(software), nil
+		}
+	}
+	return "", nil
 }
 
 // softwareTransformers provide logic for tweaking e.g. software versions to match what's in the NVD database. These
@@ -196,7 +238,7 @@ var (
 	minioAltDate         = regexp.MustCompile(`^\d{14}$`)
 	softwareTransformers = []struct {
 		matches func(*fleet.Software) bool
-		mutate  func(*fleet.Software, log.Logger)
+		mutate  func(context.Context, *fleet.Software, *slog.Logger)
 	}{
 		{
 			// JetBrains EAP version numbers aren't what are used in CPEs; this handles the translation for Mac versions.
@@ -207,17 +249,17 @@ var (
 				return s.BundleIdentifier != "" && strings.HasPrefix(s.BundleIdentifier, "com.jetbrains.") &&
 					strings.HasPrefix(s.Version, "EAP ") && strings.Contains(s.Version, "-")
 			},
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(ctx context.Context, s *fleet.Software, logger *slog.Logger) {
 				// 243 -> 2024.3
 				eapMajorVersion := strings.Split(strings.Split(s.Version, "-")[1], ".")[0]
 				yearBasedMajorVersion, err := strconv.Atoi("20" + eapMajorVersion[:2])
 				if err != nil {
-					level.Debug(logger).Log("msg", "failed to parse JetBrains EAP major version", "version", s.Version, "err", err)
+					logger.DebugContext(ctx, "failed to parse JetBrains EAP major version", "version", s.Version, "err", err)
 					return
 				}
 				yearBasedMinorVersion, err := strconv.Atoi(eapMajorVersion[2:])
 				if err != nil {
-					level.Debug(logger).Log("msg", "failed to parse JetBrains EAP minor version", "version", s.Version, "err", err)
+					logger.DebugContext(ctx, "failed to parse JetBrains EAP minor version", "version", s.Version, "err", err)
 					return
 				}
 
@@ -240,16 +282,16 @@ var (
 			matches: func(s *fleet.Software) bool {
 				return s.Source == "programs" && strings.HasPrefix(s.Name, "Python 3.")
 			},
-			mutate: func(s *fleet.Software, logger kitlog.Logger) {
+			mutate: func(ctx context.Context, s *fleet.Software, logger *slog.Logger) {
 				versionComponents := strings.Split(s.Version, ".")
 				// Python 3 versions on Windows should always look like 3.14.102.0; if they don't we
 				// should bail out to avoid bad indexing panics.
 				if len(versionComponents) < 4 {
-					level.Debug(logger).Log("msg", "expected 4 version components", "gotCount", len(versionComponents))
+					logger.DebugContext(ctx, "expected 4 version components", "gotCount", len(versionComponents))
 					return
 				}
 				if len(versionComponents[2]) < 3 {
-					level.Debug(logger).Log("msg", "got a patch version component with unexpected length", "gotPatchVersion", versionComponents[2])
+					logger.DebugContext(ctx, "got a patch version component with unexpected length", "gotPatchVersion", versionComponents[2])
 					return
 				}
 				patchVersion := versionComponents[2][0 : len(versionComponents[2])-3]
@@ -278,16 +320,16 @@ var (
 			matches: func(s *fleet.Software) bool {
 				return s.Name == "Cloudflare WARP" && s.Source == "programs"
 			},
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(ctx context.Context, s *fleet.Software, logger *slog.Logger) {
 				// Perform some sanity check on the version before mutating it.
 				parts := strings.Split(s.Version, ".")
 				if len(parts) <= 1 {
-					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version)
+					logger.DebugContext(ctx, "failed to parse software version", "name", s.Name, "version", s.Version)
 					return
 				}
 				_, err := strconv.Atoi(parts[0])
 				if err != nil {
-					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					logger.DebugContext(ctx, "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
 					return
 				}
 				// In case Cloudflare starts returning the full year.
@@ -301,7 +343,7 @@ var (
 			matches: func(s *fleet.Software) bool {
 				return s.Source == "apps" && (s.Name == "Microsoft Teams.app" || s.Name == "Microsoft Teams classic.app")
 			},
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(ctx context.Context, s *fleet.Software, logger *slog.Logger) {
 				if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
 					s.Version = fmt.Sprintf("%s.%s.00.%s", matches[1], matches[2], matches[3])
 				}
@@ -311,10 +353,10 @@ var (
 			matches: func(s *fleet.Software) bool {
 				return citrixName.Match([]byte(s.Name)) || s.Name == "Citrix Workspace.app"
 			},
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(ctx context.Context, s *fleet.Software, logger *slog.Logger) {
 				parts := strings.Split(s.Version, ".")
 				if len(parts) <= 1 {
-					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version)
+					logger.DebugContext(ctx, "failed to parse software version", "name", s.Name, "version", s.Version)
 					return
 				}
 
@@ -325,13 +367,13 @@ var (
 
 				part1, err := strconv.Atoi(parts[0])
 				if err != nil {
-					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					logger.DebugContext(ctx, "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
 					return
 				}
 
 				part2, err := strconv.Atoi(parts[1])
 				if err != nil {
-					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					logger.DebugContext(ctx, "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
 					return
 				}
 
@@ -347,7 +389,7 @@ var (
 			matches: func(s *fleet.Software) bool {
 				return s.Name == "minio" && strings.Contains(s.Version, "RELEASE.")
 			},
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(ctx context.Context, s *fleet.Software, logger *slog.Logger) {
 				// trim the "RELEASE." prefix from the version
 				s.Version = strings.TrimPrefix(s.Version, "RELEASE.")
 				// trim any unexpected trailing characters
@@ -361,10 +403,10 @@ var (
 			matches: func(s *fleet.Software) bool {
 				return s.Name == "minio" && minioAltDate.MatchString(s.Version)
 			},
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(ctx context.Context, s *fleet.Software, logger *slog.Logger) {
 				timestamp, err := time.Parse("20060102150405", s.Version)
 				if err != nil {
-					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					logger.DebugContext(ctx, "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
 					return
 				}
 				s.Version = timestamp.Format("2006-01-02T15-04-05Z")
@@ -376,7 +418,7 @@ var (
 			matches: func(s *fleet.Software) bool {
 				return strings.Contains(strings.ToLower(s.Name), "powershell")
 			},
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(ctx context.Context, s *fleet.Software, logger *slog.Logger) {
 				parts := strings.Split(s.Version, ".")
 				if len(parts) < 3 {
 					return
@@ -406,7 +448,7 @@ var (
 			matches: func(s *fleet.Software) bool {
 				return s.Name == "MacVim" && s.BundleIdentifier == "org.vim.MacVim" && s.Source == "apps"
 			},
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(ctx context.Context, s *fleet.Software, logger *slog.Logger) {
 				vimToMacVimMap := map[string]string{
 					// r182 series
 					"9.1.2068": "182.1", // r182.1 (prerelease)
@@ -427,12 +469,12 @@ var (
 				}
 
 				if macVimRelease, ok := vimToMacVimMap[s.Version]; ok {
-					level.Debug(logger).Log("msg", "converting MacVim Vim version to release number",
+					logger.DebugContext(ctx, "converting MacVim Vim version to release number",
 						"original_version", s.Version, "macvim_release", macVimRelease)
 					s.Version = macVimRelease
 				} else {
 					// For unknown versions, leave as-is to avoid false negatives
-					level.Debug(logger).Log("msg", "unknown MacVim Vim version, unable to convert to release number",
+					logger.DebugContext(ctx, "unknown MacVim Vim version, unable to convert to release number",
 						"version", s.Version)
 				}
 			},
@@ -444,7 +486,7 @@ var (
 			matches: func(s *fleet.Software) bool {
 				return s.Name == "imp" && s.Source == "homebrew_packages"
 			},
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(ctx context.Context, s *fleet.Software, logger *slog.Logger) {
 				s.Name = "integrative-modeling-platform"
 			},
 		},
@@ -455,7 +497,7 @@ var (
 			matches: func(s *fleet.Software) bool {
 				return s.BundleIdentifier == "com.ninxsoft.mist" && s.Source == "apps"
 			},
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(ctx context.Context, s *fleet.Software, logger *slog.Logger) {
 				s.Name = "ninxsoft-mist"
 			},
 		},
@@ -466,11 +508,11 @@ var (
 			matches: func(s *fleet.Software) bool {
 				return strings.HasPrefix(s.Name, "7-Zip") && s.Source == "programs"
 			},
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(ctx context.Context, s *fleet.Software, logger *slog.Logger) {
 				parts := strings.Split(s.Version, ".")
 				switch len(parts) {
 				case 0, 1:
-					level.Debug(logger).Log("msg", "unexpected 7-Zip version format", "source", "programs", "name", s.Name, "version", s.Version)
+					logger.DebugContext(ctx, "unexpected 7-Zip version format", "source", "programs", "name", s.Name, "version", s.Version)
 					return
 				case 2:
 					return // Already in the correct format
@@ -482,15 +524,15 @@ var (
 	}
 )
 
-func mutateSoftware(software *fleet.Software, logger log.Logger) {
+func mutateSoftware(ctx context.Context, software *fleet.Software, logger *slog.Logger) {
 	for _, transformer := range softwareTransformers {
 		if transformer.matches(software) {
 			defer func() {
 				if r := recover(); r != nil {
-					level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", software.Name, "softwareVersion", software.Version, "error", r)
+					logger.WarnContext(ctx, "panic during software mutation", "softwareName", software.Name, "softwareVersion", software.Version, "error", r)
 				}
 			}()
-			transformer.mutate(software, logger)
+			transformer.mutate(ctx, software, logger)
 			break
 		}
 	}
@@ -499,13 +541,13 @@ func mutateSoftware(software *fleet.Software, logger log.Logger) {
 // CPEFromSoftware attempts to find a matching cpe entry for the given software in the NVD CPE dictionary. `db` contains data from the NVD CPE dictionary
 // and is optimized for lookups, see `GenerateCPEDB`. `translations` are used to aid in cpe matching. When searching for cpes, we first check if it matches
 // any translations, and then lookup in the cpe database based on the title, product and vendor.
-func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, translations CPETranslations, reCache *regexpCache) (string, error) {
+func CPEFromSoftware(ctx context.Context, logger *slog.Logger, db *sqlx.DB, software *fleet.Software, translations CPETranslations, reCache *regexpCache) (string, error) {
 	if containsNonASCII(software.Name) {
-		level.Debug(logger).Log("msg", "skipping software with non-ascii characters", "software", software.Name, "version", software.Version, "source", software.Source)
+		logger.DebugContext(ctx, "skipping software with non-ascii characters", "software", software.Name, "version", software.Version, "source", software.Source)
 		return "", nil
 	}
 
-	mutateSoftware(software, logger) // tweak e.g. software versions prior to CPE matching if needed
+	mutateSoftware(ctx, software, logger) // tweak e.g. software versions prior to CPE matching if needed
 
 	translation, match, err := translations.Translate(reCache, software)
 	if err != nil {
@@ -514,7 +556,7 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 
 	if match {
 		if translation.Skip {
-			level.Debug(logger).Log("msg", "CPE match skipped", "software", software.Name, "version", software.Version, "source", software.Source)
+			logger.DebugContext(ctx, "CPE match skipped", "software", software.Name, "version", software.Version, "source", software.Source)
 			return "", nil
 		}
 
@@ -575,90 +617,31 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 			return result.FmtStr(software), nil
 		}
 	} else {
-		stm, args, err := cpeGeneralSearchQuery(software)
-		if err != nil {
-			return "", fmt.Errorf("getting cpes for: %s: %w", software.Name, err)
-		}
+		queries := cpeSearchQueries(software)
 
-		var results []IndexedCPEItem
-		var match *IndexedCPEItem
-
-		err = db.Select(&results, stm, args...)
-		if err == sql.ErrNoRows {
-			return "", nil
-		}
-
-		if err != nil {
-			return "", fmt.Errorf("getting cpes for: %s: %w", software.Name, err)
-		}
-
-		for i, item := range results {
-			hasAllTerms := true
-
-			sName := strings.ToLower(software.Name)
-			for _, sN := range strings.Split(item.Product, "_") {
-				hasAllTerms = hasAllTerms && strings.Contains(sName, sN)
+		for _, q := range queries {
+			var results []IndexedCPEItem
+			err := db.Select(&results, q.stm, q.args...)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return "", fmt.Errorf("getting cpes for: %s: %w", software.Name, err)
 			}
 
-			sVendor := strings.ToLower(software.Vendor)
-			sBundle := strings.ToLower(software.BundleIdentifier)
-			for _, sV := range strings.Split(item.Vendor, "_") {
-				if sVendor != "" {
-					hasAllTerms = hasAllTerms && strings.Contains(sVendor, sV)
+			for i := range results {
+				if !cpeItemMatchesSoftware(&results[i], software) {
+					continue
 				}
-
-				if sBundle != "" {
-					hasAllTerms = hasAllTerms && strings.Contains(sBundle, sV)
+				if !results[i].Deprecated {
+					return results[i].FmtStr(software), nil
 				}
-			}
-
-			if hasAllTerms {
-				match = &results[i]
-				break
-			}
-		}
-
-		if match != nil {
-			if !match.Deprecated {
-				return match.FmtStr(software), nil
-			}
-
-			// try to find a non-deprecated cpe by looking up deprecated_by
-			for _, item := range results {
-				deprecatedItem := item
-				for {
-					var deprecation IndexedCPEItem
-
-					err = db.Get(
-						&deprecation,
-						`
-						SELECT
-							rowid,
-							product,
-							vendor,
-							deprecated
-						FROM
-							cpe_2
-						WHERE
-							cpe23 IN (
-								SELECT cpe23 FROM deprecated_by d WHERE d.cpe_id = ?
-							)
-					`,
-						deprecatedItem.ID,
-					)
-					if err == sql.ErrNoRows {
-						break
-					}
-					if err != nil {
-						return "", fmt.Errorf("getting deprecation: %w", err)
-					}
-					if deprecation.Deprecated {
-						deprecatedItem = deprecation
-						continue
-					}
-
-					return deprecation.FmtStr(software), nil
+				// Match is deprecated; try to resolve via deprecation chain
+				cpe, err := resolveDeprecatedCPE(db, results, software)
+				if err != nil {
+					return "", err
 				}
+				if cpe != "" {
+					return cpe, nil
+				}
+				continue // deprecation unresolved for this result, try next result
 			}
 		}
 	}
@@ -669,7 +652,7 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 func consumeCPEBuffer(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	batch []fleet.SoftwareCPE,
 ) error {
 	var toDelete []fleet.SoftwareCPE
@@ -691,7 +674,7 @@ func consumeCPEBuffer(
 			return err
 		}
 		if int(upserted) != len(toUpsert) {
-			level.Debug(logger).Log("toUpsert", len(toUpsert), "upserted", upserted)
+			logger.DebugContext(ctx, "CPE upsert count mismatch", "toUpsert", len(toUpsert), "upserted", upserted)
 		}
 	}
 
@@ -701,7 +684,7 @@ func consumeCPEBuffer(
 			return err
 		}
 		if int(deleted) != len(toDelete) {
-			level.Debug(logger).Log("toDelete", len(toDelete), "deleted", deleted)
+			logger.DebugContext(ctx, "CPE delete count mismatch", "toDelete", len(toDelete), "deleted", deleted)
 		}
 	}
 
@@ -765,7 +748,7 @@ func TranslateSoftwareToCPE(
 	ctx context.Context,
 	ds fleet.Datastore,
 	vulnPath string,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) error {
 	// Skip software from sources for which we will be using OVAL or goval-dictionary for vulnerability detection.
 	nonOvalIterator, err := ds.AllSoftwareIterator(
@@ -818,12 +801,12 @@ func translateSoftwareToCPEWithIterator(
 	ctx context.Context,
 	ds fleet.Datastore,
 	vulnPath string,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	iterator fleet.SoftwareIterator,
 ) error {
 	dbPath := filepath.Join(vulnPath, cpeDBFilename)
 
-	db, err := sqliteDB(dbPath)
+	db, err := sqliteDBReadOnly(ctx, dbPath, logger)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "opening the cpe db")
 	}
@@ -832,7 +815,7 @@ func translateSoftwareToCPEWithIterator(
 	cpeTranslationsPath := filepath.Join(vulnPath, cpeTranslationsFilename)
 	cpeTranslations, err := loadCPETranslations(cpeTranslationsPath)
 	if err != nil {
-		level.Error(logger).Log("msg", "failed to load cpe translations", "err", err)
+		logger.ErrorContext(ctx, "failed to load cpe translations", "err", err)
 	}
 
 	reCache := newRegexpCache()
@@ -849,18 +832,16 @@ func translateSoftwareToCPEWithIterator(
 		// Skip software without version to avoid false positives in the CPE
 		// matching process.
 		if software.Version == "" {
-			level.Debug(logger).Log(
-				"msg", "skipping software without version",
+			logger.DebugContext(ctx, "skipping software without version",
 				"software", software.Name,
 				"source", software.Source,
 			)
 			// We want to continue here in case the software had an invalid CPE
 			// generated by a previous version of Fleet.
 		} else {
-			cpe, err = CPEFromSoftware(logger, db, software, cpeTranslations, reCache)
+			cpe, err = CPEFromSoftware(ctx, logger, db, software, cpeTranslations, reCache)
 			if err != nil {
-				level.Error(logger).Log(
-					"msg", "error translating to CPE, skipping",
+				logger.ErrorContext(ctx, "error translating to CPE, skipping",
 					"software", software.Name,
 					"version", software.Version,
 					"source", software.Source,

@@ -219,8 +219,8 @@ You can also get this list of MDM commands from the Fleet API with something lik
 ```
 
 <meta name="category" value="guides">
-<meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="authorFullName" value="Noah Talerman">
+<meta name="authorGitHubUsername" value="nonpunctual">
+<meta name="authorFullName" value="Brock Walters">
 <meta name="publishedOn" value="2024-06-12">
 <meta name="articleTitle" value="MDM commands">
 <meta name="description" value="Learn how to run custom MDM commands on hosts using Fleet.">

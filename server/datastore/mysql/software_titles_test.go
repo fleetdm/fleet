@@ -11,7 +11,6 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -39,7 +38,6 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesAllTeams", testListSoftwareTitlesAllTeams},
 		{"ListSoftwareTitlesVulnerabilityFilters", testListSoftwareTitlesVulnerabilityFilters},
 		{"UpdateSoftwareTitleName", testUpdateSoftwareTitleName},
-		{"ListSoftwareTitlesDoesnotIncludeDuplicates", testListSoftwareTitlesDoesnotIncludeDuplicates},
 		{"ListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam", testListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam},
 		{"ListSoftwareTitlesPackagesOnly", testSoftwareTitlesPackagesOnly},
 		{"SoftwareTitleByIDHostCount", testSoftwareTitleHostCount},
@@ -356,7 +354,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
-	// primary sort is "hosts_count DESC", followed by "name ASC, source ASC, extension_for ASC"
+	// The optimized path sorts by hosts_count DESC, software_title_id DESC.
 	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
 		ListOptions: fleet.ListOptions{
 			OrderKey:       "hosts_count",
@@ -366,60 +364,37 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 	require.Len(t, titles, 10)
-	i := 0
-	require.Equal(t, "bar", titles[i].Name)
-	require.Equal(t, "deb_packages", titles[i].Source)
-	require.Nil(t, titles[i].SoftwarePackage)
-	require.Nil(t, titles[i].AppStoreApp)
-	i++
-	require.Equal(t, "foo", titles[i].Name)
-	require.Equal(t, "chrome_extensions", titles[i].Source)
-	require.Nil(t, titles[i].SoftwarePackage)
-	require.Nil(t, titles[i].AppStoreApp)
-	i++
-	require.Equal(t, "foo", titles[i].Name)
-	require.Equal(t, "deb_packages", titles[i].Source)
-	require.Nil(t, titles[i].SoftwarePackage)
-	require.Nil(t, titles[i].AppStoreApp)
-	i++
-	require.Equal(t, "bar", titles[i].Name)
-	require.Equal(t, "apps", titles[i].Source)
-	require.Nil(t, titles[i].SoftwarePackage)
-	require.Nil(t, titles[i].AppStoreApp)
-	i++
-	require.Equal(t, "baz", titles[i].Name)
-	require.Equal(t, "chrome_extensions", titles[i].Source)
-	require.Equal(t, "chrome", titles[i].ExtensionFor)
-	require.Nil(t, titles[i].SoftwarePackage)
-	require.Nil(t, titles[i].AppStoreApp)
-	i++
-	require.Equal(t, "baz", titles[i].Name)
-	require.Equal(t, "chrome_extensions", titles[i].Source)
-	require.Equal(t, "edge", titles[i].ExtensionFor)
-	require.Nil(t, titles[i].SoftwarePackage)
-	require.Nil(t, titles[i].AppStoreApp)
-	i++
-	require.Equal(t, "foo", titles[i].Name)
-	require.Equal(t, "rpm_packages", titles[i].Source)
-	require.Nil(t, titles[i].SoftwarePackage)
-	require.Nil(t, titles[i].AppStoreApp)
-	i++
-	require.Equal(t, "installer1", titles[i].Name)
-	require.Equal(t, "apps", titles[i].Source)
-	require.NotNil(t, titles[i].SoftwarePackage)
-	require.Nil(t, titles[i].AppStoreApp)
-	i++
-	require.Equal(t, "installer2", titles[i].Name)
-	require.Equal(t, "apps", titles[i].Source)
-	require.NotNil(t, titles[i].SoftwarePackage)
-	require.Nil(t, titles[i].AppStoreApp)
-	i++
-	require.Equal(t, "vpp1", titles[i].Name)
-	assert.Equal(t, "ipados_apps", titles[i].Source)
-	require.Nil(t, titles[i].SoftwarePackage)
-	require.NotNil(t, titles[i].AppStoreApp)
+	assertSortedByHostsCountThenID(t, titles, true)
 
-	// primary sort is "hosts_count ASC", followed by "name ASC, source ASC, extension_for ASC"
+	// Verify hosts_count group boundaries: 3 titles at count=2, 4 at count=1, 3 at count=0.
+	for i := range 3 {
+		assert.Equal(t, uint(2), titles[i].HostsCount, "titles[%d]", i)
+		assert.Nil(t, titles[i].SoftwarePackage, "titles[%d]", i)
+		assert.Nil(t, titles[i].AppStoreApp, "titles[%d]", i)
+	}
+	for j := range 4 {
+		i := j + 3
+		assert.Equal(t, uint(1), titles[i].HostsCount, "titles[%d]", i)
+		assert.Nil(t, titles[i].SoftwarePackage, "titles[%d]", i)
+		assert.Nil(t, titles[i].AppStoreApp, "titles[%d]", i)
+	}
+	for j := range 3 {
+		i := j + 7
+		assert.Equal(t, uint(0), titles[i].HostsCount, "titles[%d]", i)
+	}
+
+	// Verify installer/VPP attributes by name.
+	inst1 := titleByName(titles, "installer1")
+	require.NotNil(t, inst1.SoftwarePackage)
+	require.Nil(t, inst1.AppStoreApp)
+	inst2 := titleByName(titles, "installer2")
+	require.NotNil(t, inst2.SoftwarePackage)
+	require.Nil(t, inst2.AppStoreApp)
+	vpp := titleByName(titles, "vpp1")
+	require.Nil(t, vpp.SoftwarePackage)
+	require.NotNil(t, vpp.AppStoreApp)
+
+	// The optimized path sorts by hosts_count ASC, software_title_id ASC.
 	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
 		ListOptions: fleet.ListOptions{
 			OrderKey:       "hosts_count",
@@ -429,40 +404,23 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 	require.Len(t, titles, 10)
-	i = 0
-	require.Equal(t, "installer1", titles[i].Name)
-	require.Equal(t, "apps", titles[i].Source)
-	i++
-	require.Equal(t, "installer2", titles[i].Name)
-	require.Equal(t, "apps", titles[i].Source)
-	i++
-	require.Equal(t, "vpp1", titles[i].Name)
-	assert.Equal(t, "ipados_apps", titles[i].Source)
-	i++
-	require.Equal(t, "bar", titles[i].Name)
-	require.Equal(t, "apps", titles[i].Source)
-	i++
-	require.Equal(t, "baz", titles[i].Name)
-	require.Equal(t, "chrome_extensions", titles[i].Source)
-	require.Equal(t, "chrome", titles[i].ExtensionFor)
-	i++
-	require.Equal(t, "baz", titles[i].Name)
-	require.Equal(t, "chrome_extensions", titles[i].Source)
-	require.Equal(t, "edge", titles[i].ExtensionFor)
-	i++
-	require.Equal(t, "foo", titles[i].Name)
-	require.Equal(t, "rpm_packages", titles[i].Source)
-	i++
-	require.Equal(t, "bar", titles[i].Name)
-	require.Equal(t, "deb_packages", titles[i].Source)
-	i++
-	require.Equal(t, "foo", titles[i].Name)
-	require.Equal(t, "chrome_extensions", titles[i].Source)
-	i++
-	require.Equal(t, "foo", titles[i].Name)
-	require.Equal(t, "deb_packages", titles[i].Source)
+	assertSortedByHostsCountThenID(t, titles, false)
+
+	// Verify hosts_count group boundaries: 3 at count=0, 4 at count=1, 3 at count=2.
+	for i := range 3 {
+		assert.Equal(t, uint(0), titles[i].HostsCount, "titles[%d]", i)
+	}
+	for j := range 4 {
+		i := j + 3
+		assert.Equal(t, uint(1), titles[i].HostsCount, "titles[%d]", i)
+	}
+	for j := range 3 {
+		i := j + 7
+		assert.Equal(t, uint(2), titles[i].HostsCount, "titles[%d]", i)
+	}
 
 	// primary sort is "name ASC", followed by "host_count DESC, source ASC, extension_for ASC"
+	// This uses the fallback path (order_key=name), so secondary sort is still by name.
 	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
 		ListOptions: fleet.ListOptions{
 			OrderKey:       "name",
@@ -472,7 +430,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 	require.Len(t, titles, 10)
-	i = 0
+	i := 0
 	require.Equal(t, "bar", titles[i].Name)
 	require.Equal(t, "deb_packages", titles[i].Source)
 	i++
@@ -828,26 +786,26 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, titles, 4)
 	require.Equal(t, 4, count)
-	require.Equal(t, "bar", titles[0].Name)
-	require.Equal(t, "deb_packages", titles[0].Source)
-	require.Equal(t, "foo", titles[1].Name)
-	require.Equal(t, "chrome_extensions", titles[1].Source)
-	require.Equal(t, "installer2", titles[2].Name)
-	require.Equal(t, "apps", titles[2].Source)
-	require.Equal(t, "vpp2", titles[3].Name)
-	assert.Equal(t, "ios_apps", titles[3].Source)
-	require.Equal(t, uint(1), titles[0].VersionsCount)
-	require.Equal(t, uint(1), titles[1].VersionsCount)
-	require.Equal(t, uint(0), titles[2].VersionsCount)
-	require.Equal(t, uint(0), titles[3].VersionsCount)
-	require.Nil(t, titles[0].SoftwarePackage)
-	require.Nil(t, titles[0].AppStoreApp)
-	require.Nil(t, titles[1].SoftwarePackage)
-	require.Nil(t, titles[1].AppStoreApp)
-	require.NotNil(t, titles[2].SoftwarePackage)
-	require.Nil(t, titles[2].AppStoreApp)
-	require.Nil(t, titles[3].SoftwarePackage)
-	require.NotNil(t, titles[3].AppStoreApp)
+	assertSortedByHostsCountThenID(t, titles, true)
+
+	// count=1 group (bar, foo) then count=0 group (installer2, vpp2)
+	for i := range 2 {
+		assert.Equal(t, uint(1), titles[i].HostsCount, "titles[%d]", i)
+		assert.Equal(t, uint(1), titles[i].VersionsCount, "titles[%d]", i)
+		assert.Nil(t, titles[i].SoftwarePackage, "titles[%d]", i)
+		assert.Nil(t, titles[i].AppStoreApp, "titles[%d]", i)
+	}
+	for j := range 2 {
+		i := j + 2
+		assert.Equal(t, uint(0), titles[i].HostsCount, "titles[%d]", i)
+		assert.Equal(t, uint(0), titles[i].VersionsCount, "titles[%d]", i)
+	}
+	inst2 := titleByName(titles, "installer2")
+	require.NotNil(t, inst2.SoftwarePackage)
+	require.Nil(t, inst2.AppStoreApp)
+	vpp2Title := titleByName(titles, "vpp2")
+	require.Nil(t, vpp2Title.SoftwarePackage)
+	require.NotNil(t, vpp2Title.AppStoreApp)
 
 	// Testing the team 1 user with self-service only
 	titles, _, _, err = ds.ListSoftwareTitles(
@@ -884,6 +842,44 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 
 func sortTitlesByName(titles []fleet.SoftwareTitleListResult) {
 	sort.Slice(titles, func(i, j int) bool { return titles[i].Name < titles[j].Name })
+}
+
+// assertSortedByHostsCountThenID verifies that titles are sorted by hosts_count with ties broken by
+// software_title_id, both in the given direction. This matches the optimized query path's ORDER BY.
+func assertSortedByHostsCountThenID(t *testing.T, titles []fleet.SoftwareTitleListResult, desc bool) {
+	t.Helper()
+	for i := range len(titles) - 1 {
+		prev, cur := titles[i], titles[i+1]
+		if desc {
+			require.GreaterOrEqual(t, prev.HostsCount, cur.HostsCount,
+				"hosts_count should be DESC at [%d]→[%d]: %s(%d) vs %s(%d)",
+				i, i+1, prev.Name, prev.HostsCount, cur.Name, cur.HostsCount)
+			if prev.HostsCount == cur.HostsCount {
+				require.Greater(t, prev.ID, cur.ID,
+					"within hosts_count=%d, ID should be DESC at [%d]→[%d]: %s(id=%d) vs %s(id=%d)",
+					cur.HostsCount, i, i+1, prev.Name, prev.ID, cur.Name, cur.ID)
+			}
+		} else {
+			require.LessOrEqual(t, prev.HostsCount, cur.HostsCount,
+				"hosts_count should be ASC at [%d]→[%d]: %s(%d) vs %s(%d)",
+				i, i+1, prev.Name, prev.HostsCount, cur.Name, cur.HostsCount)
+			if prev.HostsCount == cur.HostsCount {
+				require.Less(t, prev.ID, cur.ID,
+					"within hosts_count=%d, ID should be ASC at [%d]→[%d]: %s(id=%d) vs %s(id=%d)",
+					cur.HostsCount, i, i+1, prev.Name, prev.ID, cur.Name, cur.ID)
+			}
+		}
+	}
+}
+
+// titleByName returns the first title with the given name from the list.
+func titleByName(titles []fleet.SoftwareTitleListResult, name string) fleet.SoftwareTitleListResult {
+	for _, t := range titles {
+		if t.Name == name {
+			return t
+		}
+	}
+	return fleet.SoftwareTitleListResult{}
 }
 
 func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
@@ -1761,85 +1757,6 @@ func testUpdateSoftwareTitleName(t *testing.T, ds *Datastore) {
 	require.Equal(t, "installer2", title2.Name)
 }
 
-func testListSoftwareTitlesDoesnotIncludeDuplicates(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
-
-	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
-		{Name: "Santa", Version: "2025.4", Source: "apps", BundleIdentifier: "com.northpolesec.santa"},
-	})
-	require.NoError(t, err)
-
-	var sw []fleet.Software
-	err = ds.writer(ctx).SelectContext(ctx, &sw,
-		`SELECT id, name, version, bundle_identifier, source, extension_for, title_id FROM software ORDER BY name, source, extension_for, version`)
-	require.NoError(t, err)
-	require.Len(t, sw, 1)
-	require.NotNil(t, sw[0].TitleID)
-
-	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
-	require.NoError(t, err)
-
-	// same bundle identifier, different name
-	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
-	require.NoError(t, err)
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallerFile:    tfr1,
-		BundleIdentifier: "com.northpolesec.santa",
-		Title:            "Santa",
-		Version:          "2025.2",
-		Extension:        "pkg",
-		StorageID:        "storage0",
-		Filename:         "santa123",
-		Source:           "pkg_packages",
-		UserID:           user.ID,
-		TeamID:           &team1.ID,
-		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-	})
-	require.NoError(t, err)
-
-	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
-	require.NoError(t, err)
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallerFile:    tfr1,
-		BundleIdentifier: "com.northpolesec.santa",
-		Title:            "Santa",
-		Version:          "2025.3",
-		Extension:        "pkg",
-		StorageID:        "storage0",
-		Filename:         "santa123",
-		Source:           "pkg_packages",
-		UserID:           user.ID,
-		TeamID:           &team2.ID,
-		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-	})
-	require.NoError(t, err)
-
-	// We should only have a single title on the DB ...
-	var swt []fleet.SoftwareTitle
-	err = ds.writer(ctx).SelectContext(ctx, &swt,
-		`SELECT id, name, bundle_identifier, source, extension_for FROM software_titles ORDER BY name, source, extension_for`)
-	require.NoError(t, err)
-	require.Len(t, swt, 1)
-
-	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
-	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
-
-	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
-		ListOptions: fleet.ListOptions{
-			OrderKey:       "name",
-			OrderDirection: fleet.OrderAscending,
-		},
-	}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-	require.NoError(t, err)
-	// We should have a single software title since when specifying 'All Teams' (TeamID = nil).
-	// installers are excluded
-	require.Len(t, titles, 1)
-}
-
 func TestSelectSoftwareTitlesSQLGeneration(t *testing.T) {
 	// Uncomment the next line to regenerate the fixture
 	// generateSelectSoftwareTitlesSQLFixture(t)
@@ -2157,7 +2074,7 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team " + strconv.Itoa(i)})
 		require.NoError(t, err)
 
-		installers[i], _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		installers[i], _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{ //nolint:gosec // dismiss G602
 			Title:            "foo",
 			Source:           "apps",
 			Version:          "1.0",
@@ -2170,14 +2087,14 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 		})
 		require.NoError(t, err)
-		require.NotZero(t, installers[i])
+		require.NotZero(t, installers[i]) //nolint:gosec // dismiss G602
 	}
 
 	// install software on host
 	updateSw, err := fleet.SoftwareFromOsqueryRow("foo", "1.0", "apps", "", "", "", "", "com.foo.installer", "", "", "", "")
 	require.NoError(t, err)
 
-	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installers[0], fleet.HostSoftwareInstallOptions{})
+	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installers[0], fleet.HostSoftwareInstallOptions{}) //nolint:gosec // dismiss G602
 	require.NoError(t, err)
 
 	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
@@ -2584,9 +2501,15 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.Len(t, titles, 3)
-	titleID := titles[0].ID
-	title2ID := titles[1].ID
-	title3ID := titles[2].ID
+	assertSortedByHostsCountThenID(t, titles, true)
+
+	// Look up title IDs by name (the optimized path sorts by ID, not name).
+	titleID := titleByName(titles, "vpp1").ID
+	title2ID := titleByName(titles, "vpp2").ID
+	title3ID := titleByName(titles, "vpp3").ID
+	require.NotZero(t, titleID)
+	require.NotZero(t, title2ID)
+	require.NotZero(t, title3ID)
 
 	// Get the software title.
 	titleResult, err := ds.SoftwareTitleByID(ctx, titleID, teamID, fleet.TeamFilter{

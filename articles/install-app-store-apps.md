@@ -50,7 +50,7 @@ You can also manage which Google Play Store apps are available for self-service 
 
 3. Click the **Actions** button and select **Schedule auto updates**.
 
-4. In the modal dialog that opens, click **Enable auto updates** and configure an update window of at least one hour. You may also choose to limit which hosts receive auto-updates using the Target configuration (this configuration will also affect which hosts can install the app themselves via the self-service feature).
+4. In the modal dialog that opens, click **Enable auto updates** and configure an update window of at least one hour. You may also choose to limit which hosts receive auto-updates using the **Target** option (this configuration will also affect which end users can install the app themselves via the self-service feature).
 
 ## Install an app
 
@@ -62,7 +62,7 @@ Apps can be installed manually on each host's **Host details** page. For macOS a
 > 
 > To find the minimum OS version for the app, visit the [App Store](https://apps.apple.com/), find the app, scroll to the bottom, and look for **Compatibility** under **Information**.
 
-Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet.
+Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet. If the app is uninstalled by the end user, or when the host is unenrolled, the license won't be revoked. You can revoke the license by running [this script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/scripts/revoke-vpp-licenses.sh).
 
 > VPP apps on iOS/iPadOS hosts will be uninstalled when the host has MDM features turned off.
 

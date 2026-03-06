@@ -38,8 +38,9 @@ type EnterpriseDetails struct {
 }
 
 type EnrollmentToken struct {
-	EnrollmentToken string `json:"android_enrollment_token"`
-	EnrollmentURL   string `json:"android_enrollment_url"`
+	EnrollmentToken  string `json:"android_enrollment_token"`
+	EnrollmentURL    string `json:"android_enrollment_url"`
+	EnrollmentQRCode string `json:"android_enrollment_qr_code"`
 }
 
 type Device struct {

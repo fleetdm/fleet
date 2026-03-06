@@ -7,11 +7,7 @@
 
 ## External contributors
 
-Fleet does not require a CLA for external contributions. External contributors are encouraged to submit Pull Requests (PRs) following the instructions presented in this document.
-
-For significant changes, it is good to discuss the proposal with the Fleet team in an Issue or in #fleet on [osquery Slack](https://join.slack.com/t/osquery/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw) before commencing development. This helps make sure that your PR will be merged.
-
-Please keep in mind that any code merged to the Fleet repository becomes the responsibility of the Fleet team to maintain. Because of this, we are careful to make sure any contributions fit Fleet's vision, are well-tested, and are of high quality. We will work with contributors to make sure we meet the appropriate standards.
+Fleet does not require a CLA for external contributions. External contributors can submit pull requests (PRs) following the [pull requests instructions](#pull-requests). After you submit a PR, it goes through [Fleet's community PR process](https://fleetdm.com/handbook/engineering#review-a-community-pull-request).
 
 ## Fleet Device Management team members
 Fleet Device Management team members may not copy queries from external sources except when that content has an explicit license allowing such use or permission has been granted by the creator.
@@ -22,7 +18,7 @@ Each developer (internal or external) creates a fork of the Fleet repository, co
 
 GitHub Actions automatically runs testers and linters on each PR. Please make sure that these checks pass. Checks can be run locally as described in [Testing.md](https://fleetdm.com/docs/contributing/testing-and-local-development).
 
-Mark the Pull Request as a "Draft" for the features still in progress. This helps make it clear which PRs are ready for review and merge.
+Mark the PR as a "Draft" for the features still in progress. This helps make it clear which PRs are ready for review and merge.
 
 We ask internal contributors and reviewers to apply the appropriate Labels for PRs. This helps with project management.
 
