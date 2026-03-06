@@ -306,7 +306,9 @@ type GitOpsOptions struct {
 // GitOpsFromFile parses a GitOps yaml file.
 func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig, logFn Logf, opts ...GitOpsOptions) (*GitOps, error) {
 	var options GitOpsOptions
-	if len(opts) > 0 {
+	if len(opts) > 1 {
+		panic("too many options provided to GitOpsFromFile")
+	} else if len(opts) == 1 {
 		options = opts[0]
 	}
 	b, err := os.ReadFile(filePath)
