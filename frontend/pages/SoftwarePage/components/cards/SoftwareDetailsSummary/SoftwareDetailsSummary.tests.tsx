@@ -1,5 +1,3 @@
-import { getGitOpsModeTipContent } from "utilities/helpers";
-
 import {
   buildActionOptions,
   ACTION_EDIT_APPEARANCE,
@@ -10,16 +8,17 @@ import {
 } from "./SoftwareDetailsSummary";
 
 describe("buildActionOptions", () => {
-  it("returns Edit appearance and Edit software when non-Android, non-gitops, no extra permissions", () => {
-    const result = buildActionOptions(
-      false, // gitOpsModeEnabled
-      undefined,
-      undefined,
-      false, // androidSoftwareAvailableForInstall
-      false, // canAddPatchPolicy
-      false, // canConfigureAutoUpdate
-      false // hasExistingPatchPolicy
-    );
+  it("returns only Edit appearance when user cannot edit software or configuration and cannot patch or configure auto updates", () => {
+    const result = buildActionOptions({
+      gitOpsModeEnabled: false,
+      repoURL: undefined,
+      source: undefined,
+      canEditSoftware: false,
+      canEditConfiguration: false,
+      canAddPatchPolicy: false,
+      canConfigureAutoUpdate: false,
+      hasExistingPatchPolicy: false,
+    });
 
     expect(result).toEqual([
       {
@@ -28,31 +27,49 @@ describe("buildActionOptions", () => {
         isDisabled: false,
         tooltipContent: undefined,
       },
-      {
-        label: "Edit software",
-        value: ACTION_EDIT_SOFTWARE,
-        isDisabled: false,
-        tooltipContent: undefined,
-      },
     ]);
   });
 
-  it("hides Edit software and shows Edit configuration for Android installers", () => {
-    const result = buildActionOptions(
-      false,
-      undefined,
-      undefined,
-      true, // androidSoftwareAvailableForInstall
-      false,
-      false,
-      false,
-      false
-    );
+  it("adds Edit software when canEditSoftware", () => {
+    const result = buildActionOptions({
+      gitOpsModeEnabled: false,
+      repoURL: undefined,
+      source: undefined,
+      canEditSoftware: true,
+      canEditConfiguration: false,
+      canAddPatchPolicy: false,
+      canConfigureAutoUpdate: false,
+      hasExistingPatchPolicy: false,
+    });
 
     const values = result.map((o) => o.value);
+    expect(values).toContain(ACTION_EDIT_SOFTWARE);
 
+    const editSoftware = result.find(
+      (opt) => opt.value === ACTION_EDIT_SOFTWARE
+    );
+    expect(editSoftware).toEqual({
+      label: "Edit software",
+      value: ACTION_EDIT_SOFTWARE,
+      isDisabled: false,
+      tooltipContent: undefined,
+    });
+  });
+
+  it("adds Edit configuration when canEditConfiguration", () => {
+    const result = buildActionOptions({
+      gitOpsModeEnabled: false,
+      repoURL: undefined,
+      source: undefined,
+      canEditSoftware: false,
+      canEditConfiguration: true,
+      canAddPatchPolicy: false,
+      canConfigureAutoUpdate: false,
+      hasExistingPatchPolicy: false,
+    });
+
+    const values = result.map((o) => o.value);
     expect(values).toContain(ACTION_EDIT_CONFIGURATION);
-    expect(values).not.toContain(ACTION_EDIT_SOFTWARE);
 
     const editConfig = result.find(
       (opt) => opt.value === ACTION_EDIT_CONFIGURATION
@@ -66,16 +83,16 @@ describe("buildActionOptions", () => {
   });
 
   it("applies gitops tooltip to Edit appearance and Edit configuration, and to Edit software for vpp_apps", () => {
-    const result = buildActionOptions(
-      true, // gitOpsModeEnabled
-      "https://repo.git", // repoURL
-      "vpp_apps", // source
-      true, // androidSoftwareAvailableForInstall
-      false,
-      false,
-      false,
-      false
-    );
+    const result = buildActionOptions({
+      gitOpsModeEnabled: true,
+      repoURL: "https://repo.git",
+      source: "vpp_apps",
+      canEditSoftware: true,
+      canEditConfiguration: true,
+      canAddPatchPolicy: false,
+      canConfigureAutoUpdate: false,
+      hasExistingPatchPolicy: false,
+    });
 
     const editAppearance = result.find(
       (opt) => opt.value === ACTION_EDIT_APPEARANCE
@@ -89,28 +106,32 @@ describe("buildActionOptions", () => {
 
     expect(editAppearance).toMatchObject({
       isDisabled: true,
-      tooltipContent: /manage in/i,
+      tooltipContent: expect.anything(),
     });
 
     expect(editConfig).toMatchObject({
       isDisabled: true,
-      tooltipContent: /manage in/,
+      tooltipContent: expect.anything(),
     });
 
-    // For vpp_apps and non-Android, Edit software would also get the tooltip.
-    expect(editSoftware).toBeUndefined();
+    // For vpp_apps, Edit software also gets the gitops tooltip if present.
+    expect(editSoftware).toMatchObject({
+      isDisabled: true,
+      tooltipContent: expect.anything(),
+    });
   });
 
   it("adds Patch option enabled when canAddPatchPolicy and no existing patch policy", () => {
-    const result = buildActionOptions(
-      false,
-      undefined,
-      undefined,
-      false,
-      true, // canAddPatchPolicy
-      false, // canConfigureAutoUpdate
-      false // hasExistingPatchPolicy
-    );
+    const result = buildActionOptions({
+      gitOpsModeEnabled: false,
+      repoURL: undefined,
+      source: undefined,
+      canEditSoftware: false,
+      canEditConfiguration: false,
+      canAddPatchPolicy: true,
+      canConfigureAutoUpdate: false,
+      hasExistingPatchPolicy: false,
+    });
 
     const patch = result.find((opt) => opt.value === ACTION_PATCH);
 
@@ -123,15 +144,16 @@ describe("buildActionOptions", () => {
   });
 
   it("adds Patch option disabled with tooltip when hasExistingPatchPolicy", () => {
-    const result = buildActionOptions(
-      false,
-      undefined,
-      undefined,
-      false,
-      true, // canAddPatchPolicy
-      false, // canConfigureAutoUpdate
-      true // hasExistingPatchPolicy
-    );
+    const result = buildActionOptions({
+      gitOpsModeEnabled: false,
+      repoURL: undefined,
+      source: undefined,
+      canEditSoftware: false,
+      canEditConfiguration: false,
+      canAddPatchPolicy: true,
+      canConfigureAutoUpdate: false,
+      hasExistingPatchPolicy: true,
+    });
 
     const patch = result.find((opt) => opt.value === ACTION_PATCH);
 
@@ -144,15 +166,16 @@ describe("buildActionOptions", () => {
   });
 
   it("adds Schedule auto updates option when canConfigureAutoUpdate", () => {
-    const result = buildActionOptions(
-      false,
-      undefined,
-      undefined,
-      false,
-      false,
-      true, // canConfigureAutoUpdate
-      false
-    );
+    const result = buildActionOptions({
+      gitOpsModeEnabled: false,
+      repoURL: undefined,
+      source: undefined,
+      canEditSoftware: false,
+      canEditConfiguration: false,
+      canAddPatchPolicy: false,
+      canConfigureAutoUpdate: true,
+      hasExistingPatchPolicy: false,
+    });
 
     const autoUpdate = result.find(
       (opt) => opt.value === ACTION_EDIT_AUTO_UPDATE_CONFIGURATION

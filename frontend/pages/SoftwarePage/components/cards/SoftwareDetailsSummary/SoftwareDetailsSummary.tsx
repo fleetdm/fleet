@@ -39,17 +39,28 @@ export const ACTION_EDIT_CONFIGURATION = "edit_configuration";
 export const ACTION_PATCH = "patch";
 export const ACTION_EDIT_AUTO_UPDATE_CONFIGURATION =
   "edit_auto_update_configuration";
-export const buildActionOptions = (
-  gitOpsModeEnabled: boolean | undefined,
-  repoURL: string | undefined,
-  source: string | undefined,
-  canEditSoftware: boolean,
-  canEditConfiguration: boolean,
-  androidSoftwareAvailableForInstall: boolean,
-  canAddPatchPolicy: boolean,
-  canConfigureAutoUpdate: boolean,
-  hasExistingPatchPolicy = false
-): CustomOptionType[] => {
+
+export interface BuildActionOptionsArgs {
+  gitOpsModeEnabled?: boolean;
+  repoURL?: string;
+  source?: string;
+  canEditSoftware: boolean;
+  canEditConfiguration: boolean;
+  canAddPatchPolicy: boolean;
+  canConfigureAutoUpdate: boolean;
+  hasExistingPatchPolicy?: boolean;
+}
+
+export const buildActionOptions = ({
+  gitOpsModeEnabled,
+  repoURL,
+  source,
+  canEditSoftware,
+  canEditConfiguration,
+  canAddPatchPolicy,
+  canConfigureAutoUpdate,
+  hasExistingPatchPolicy = false,
+}: BuildActionOptionsArgs): CustomOptionType[] => {
   let disableEditAppearanceTooltipContent: TooltipContent | undefined;
   let disableEditSoftwareTooltipContent: TooltipContent | undefined;
   let disabledPatchPolicyTooltipContent: TooltipContent | undefined;
@@ -240,16 +251,16 @@ const SoftwareDetailsSummary = ({
     );
   };
 
-  const actionOptions = buildActionOptions(
+  const actionOptions = buildActionOptions({
     gitOpsModeEnabled,
     repoURL,
     source,
-    !!onClickEditSoftware,
-    !!onClickEditConfiguration,
-    !!onClickAddPatchPolicy,
-    !!onClickEditAutoUpdateConfig,
-    !!patchPolicyId
-  );
+    canEditSoftware: !!onClickEditSoftware,
+    canEditConfiguration: !!onClickEditConfiguration,
+    canAddPatchPolicy: !!onClickAddPatchPolicy,
+    canConfigureAutoUpdate: !!onClickEditAutoUpdateConfig,
+    hasExistingPatchPolicy: !!patchPolicyId,
+  });
 
   return (
     <>
