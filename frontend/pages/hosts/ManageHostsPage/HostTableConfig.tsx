@@ -67,14 +67,14 @@ const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
   const condensed =
     users.length === 4
       ? users
-          .slice(-4)
+        .slice(-4)
 
-          .map((u) => u.email)
-          .reverse()
+        .map((u) => u.email)
+        .reverse()
       : users
-          .slice(-3)
-          .map((u) => u.email)
-          .reverse() || [];
+        .slice(-3)
+        .map((u) => u.email)
+        .reverse() || [];
   return users.length > 4
     ? condensed.concat(`+${users.length - 3} more`) // TODO: confirm limit
     : condensed;
@@ -236,7 +236,17 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     id: "status",
     Cell: (cellProps: IHostTableStringCellProps) => {
       if (isMobilePlatform(cellProps.row.original.platform)) {
-        return NotSupported;
+        return (
+          <TooltipWrapper
+            tipContent="Only supported for macOS, Windows, Linux, and ChromeOS hosts."
+            underline={false}
+            showArrow
+            position="top"
+            tipOffset={10}
+          >
+            {NotSupported}
+          </TooltipWrapper>
+        );
       }
 
       // Show "---" for ABM devices with Pending enrollment status
@@ -267,7 +277,17 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     sortDescFirst: true,
     Cell: (cellProps: IIssuesCellProps) => {
       if (isMobilePlatform(cellProps.row.original.platform)) {
-        return NotSupported;
+        return (
+          <TooltipWrapper
+            tipContent="Only supported for macOS, Windows, Linux, and ChromeOS hosts."
+            underline={false}
+            showArrow
+            position="top"
+            tipOffset={10}
+          >
+            {NotSupported}
+          </TooltipWrapper>
+        );
       }
       return (
         <IssueCell
@@ -296,7 +316,17 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
         gigs_all_disk_space,
       } = cellProps.row.original;
       if (platform === "chrome") {
-        return NotSupported;
+        return (
+          <TooltipWrapper
+            tipContent="Only supported for macOS, Windows, Linux, iOS/iPadOS, and Android hosts."
+            underline={false}
+            showArrow
+            position="top"
+            tipOffset={10}
+          >
+            {NotSupported}
+          </TooltipWrapper>
+        );
       }
       return (
         <DiskSpaceIndicator
@@ -348,7 +378,17 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     id: "osquery_version",
     Cell: (cellProps: IHostTableStringCellProps) => {
       if (isMobilePlatform(cellProps.row.original.platform)) {
-        return NotSupported;
+        return (
+          <TooltipWrapper
+            tipContent="Only supported for macOS, Windows, Linux, and ChromeOS hosts."
+            underline={false}
+            showArrow
+            position="top"
+            tipOffset={10}
+          >
+            {NotSupported}
+          </TooltipWrapper>
+        );
       }
       return <TextCell value={cellProps.cell.value} />;
     },
@@ -394,7 +434,17 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     id: "primary_ip",
     Cell: (cellProps: IHostTableStringCellProps) => {
       if (isMobilePlatform(cellProps.row.original.platform)) {
-        return NotSupported;
+        return (
+          <TooltipWrapper
+            tipContent="Only supported for macOS, Windows, and Linux hosts."
+            underline={false}
+            showArrow
+            position="top"
+            tipOffset={10}
+          >
+            {NotSupported}
+          </TooltipWrapper>
+        );
       }
       return <TextCell value={cellProps.cell.value} />;
     },
@@ -445,7 +495,17 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     id: "mdm.server_url",
     Cell: (cellProps: IHostTableStringCellProps) => {
       if (cellProps.row.original.platform === "chrome") {
-        return NotSupported;
+        return (
+          <TooltipWrapper
+            tipContent="Only supported for macOS, Windows, Linux, iOS/iPadOS, and Android hosts."
+            underline={false}
+            showArrow
+            position="top"
+            tipOffset={10}
+          >
+            {NotSupported}
+          </TooltipWrapper>
+        );
       }
       if (cellProps.cell.value) {
         return <TooltipTruncatedTextCell value={cellProps.cell.value} />;
@@ -469,7 +529,17 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     id: "public_ip",
     Cell: (cellProps: IHostTableStringCellProps) => {
       if (isMobilePlatform(cellProps.row.original.platform)) {
-        return NotSupported;
+        return (
+          <TooltipWrapper
+            tipContent="Only supported for macOS, Windows, and Linux hosts."
+            underline={false}
+            showArrow
+            position="top"
+            tipOffset={10}
+          >
+            {NotSupported}
+          </TooltipWrapper>
+        );
       }
       return (
         <TextCell value={cellProps.cell.value ?? DEFAULT_EMPTY_CELL_VALUE} />
@@ -534,7 +604,17 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     id: "seen_time",
     Cell: (cellProps: IHostTableStringCellProps) => {
       if (isMobilePlatform(cellProps.row.original.platform)) {
-        return NotSupported;
+        return (
+          <TooltipWrapper
+            tipContent="Only supported for macOS, Windows, and Linux hosts."
+            underline={false}
+            showArrow
+            position="top"
+            tipOffset={10}
+          >
+            {NotSupported}
+          </TooltipWrapper>
+        );
       }
       return (
         <TextCell
@@ -568,7 +648,17 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
       const { platform, last_restarted_at } = cellProps.row.original;
 
       if (isMobilePlatform(platform) || platform === "chrome") {
-        return NotSupported;
+        return (
+          <TooltipWrapper
+            tipContent="Only supported for macOS, Windows, and Linux hosts."
+            underline={false}
+            showArrow
+            position="top"
+            tipOffset={10}
+          >
+            {NotSupported}
+          </TooltipWrapper>
+        );
       }
       return (
         <TextCell
@@ -591,7 +681,17 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
         cellProps.row.original.platform === "ios" ||
         cellProps.row.original.platform === "ipados"
       ) {
-        return NotSupported;
+        return (
+          <TooltipWrapper
+            tipContent="Only supported for macOS, Windows, and Linux hosts."
+            underline={false}
+            showArrow
+            position="top"
+            tipOffset={10}
+          >
+            {NotSupported}
+          </TooltipWrapper>
+        );
       }
       return <TextCell value={cellProps.cell.value} />;
     },
@@ -608,7 +708,17 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
         cellProps.row.original.platform === "ios" ||
         cellProps.row.original.platform === "ipados"
       ) {
-        return NotSupported;
+        return (
+          <TooltipWrapper
+            tipContent="Only supported for macOS, Windows, and Linux hosts."
+            underline={false}
+            showArrow
+            position="top"
+            tipOffset={10}
+          >
+            {NotSupported}
+          </TooltipWrapper>
+        );
       }
       return (
         <TextCell value={cellProps.cell.value} formatter={humanHostMemory} />
@@ -626,9 +736,18 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     accessor: "primary_mac",
     id: "primary_mac",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      // TODO(android): is iOS/iPadOS supported?
       if (isAndroid(cellProps.row.original.platform)) {
-        return NotSupported;
+        return (
+          <TooltipWrapper
+            tipContent="Only supported for macOS, Windows, Linux, iOS/iPadOS, and ChromeOS hosts."
+            underline={false}
+            showArrow
+            position="top"
+            tipOffset={10}
+          >
+            {NotSupported}
+          </TooltipWrapper>
+        );
       }
       return <TextCell value={cellProps.cell.value} />;
     },
@@ -644,14 +763,35 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     accessor: "hardware_serial",
     id: "hardware_serial",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      // TODO(android): is iOS/iPadOS supported?
       if (
-        isAndroid(cellProps.row.original.platform) ||
         isBYODAccountDrivenUserEnrollment(
           cellProps.row.original.mdm.enrollment_status
         )
       ) {
-        return NotSupported;
+        return (
+          <TooltipWrapper
+            tipContent="Only supported on company-owned iOS/iPadOS hosts and those enrolled with profile-based device enrollment."
+            underline={false}
+            showArrow
+            position="top"
+            tipOffset={10}
+          >
+            {NotSupported}
+          </TooltipWrapper>
+        );
+      }
+      if (isAndroid(cellProps.row.original.platform)) {
+        return (
+          <TooltipWrapper
+            tipContent="Only supported for company-owned (fully-managed) Android hosts."
+            underline={false}
+            showArrow
+            position="top"
+            tipOffset={10}
+          >
+            {NotSupported}
+          </TooltipWrapper>
+        );
       }
       return <TextCell value={cellProps.cell.value} />;
     },
