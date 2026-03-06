@@ -3873,9 +3873,9 @@ org_settings:
 	require.Len(t, labels, 1)
 }
 
-// TestOmittedTopLevelKeysTeam verifies that omitting top-level keys from a team
+// TestOmittedTopLevelKeysFleet verifies that omitting top-level keys from a fleet
 // gitops file clears the corresponding settings (e.g. policies, agent_options, settings).
-func (s *enterpriseIntegrationGitopsTestSuite) TestOmittedTopLevelKeysTeam() {
+func (s *enterpriseIntegrationGitopsTestSuite) TestOmittedTopLevelKeysFleet() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -3884,10 +3884,10 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestOmittedTopLevelKeysTeam() {
 	t.Setenv("FLEET_URL", s.Server.URL)
 	testing_utils.StartSoftwareInstallerServer(t)
 
-	teamName := "Test Omitted Keys " + uuid.NewString()
+	fleetName := "Test Omitted Keys " + uuid.NewString()
 
-	// Step 1: Apply a full team config with policies, agent_options, controls, features, reports, and software.
-	fullTeamConfig := fmt.Sprintf(`
+	// Step 1: Apply a full fleet config with policies, agent_options, controls, features, reports, and software.
+	fullFleetConfig := fmt.Sprintf(`
 name: %s
 settings:
   secrets:
@@ -3901,102 +3901,102 @@ agent_options:
 controls:
   enable_disk_encryption: true
 policies:
-  - name: Test Team Policy
+  - name: Test Fleet Policy
     query: SELECT 1;
 reports:
-  - name: Test Team Report
+  - name: Test Fleet Report
     query: SELECT 1;
     schedule: 1
     automations_enabled: false
 software:
   packages:
     - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
-`, teamName)
+`, fleetName)
 
-	fullTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	fullFleetFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = fullTeamFile.WriteString(fullTeamConfig)
+	_, err = fullFleetFile.WriteString(fullFleetConfig)
 	require.NoError(t, err)
-	require.NoError(t, fullTeamFile.Close())
+	require.NoError(t, fullFleetFile.Close())
 
 	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{
-		"gitops", "--config", fleetctlConfig.Name(), "-f", fullTeamFile.Name(),
+		"gitops", "--config", fleetctlConfig.Name(), "-f", fullFleetFile.Name(),
 	}))
 
 	// Verify policy, agent_options, controls, features, and reports were applied.
-	tm, err := s.DS.TeamByName(ctx, teamName)
+	fl, err := s.DS.TeamByName(ctx, fleetName)
 	require.NoError(t, err)
 
-	tmPols, err := s.DS.ListMergedTeamPolicies(ctx, tm.ID, fleet.ListOptions{})
+	flPols, err := s.DS.ListMergedTeamPolicies(ctx, fl.ID, fleet.ListOptions{})
 	require.NoError(t, err)
-	require.Len(t, tmPols, 1)
-	require.Equal(t, "Test Team Policy", tmPols[0].Name)
+	require.Len(t, flPols, 1)
+	require.Equal(t, "Test Fleet Policy", flPols[0].Name)
 
-	require.NotNil(t, tm.Config.AgentOptions)
-	require.Contains(t, string(*tm.Config.AgentOptions), "pack_delimiter")
-	require.True(t, tm.Config.MDM.EnableDiskEncryption)
-	require.False(t, tm.Config.Features.EnableHostUsers)
+	require.NotNil(t, fl.Config.AgentOptions)
+	require.Contains(t, string(*fl.Config.AgentOptions), "pack_delimiter")
+	require.True(t, fl.Config.MDM.EnableDiskEncryption)
+	require.False(t, fl.Config.Features.EnableHostUsers)
 
-	tmQueries, _, _, _, err := s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &tm.ID})
+	flQueries, _, _, _, err := s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &fl.ID})
 	require.NoError(t, err)
-	require.Len(t, tmQueries, 1)
-	require.Equal(t, "Test Team Report", tmQueries[0].Name)
+	require.Len(t, flQueries, 1)
+	require.Equal(t, "Test Fleet Report", flQueries[0].Name)
 
-	teamSecrets, err := s.DS.GetEnrollSecrets(ctx, &tm.ID)
+	flSecrets, err := s.DS.GetEnrollSecrets(ctx, &fl.ID)
 	require.NoError(t, err)
-	require.Len(t, teamSecrets, 1)
-	require.Equal(t, "foobar", teamSecrets[0].Secret)
+	require.Len(t, flSecrets, 1)
+	require.Equal(t, "foobar", flSecrets[0].Secret)
 
-	titles, _, _, err := s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: &tm.ID},
+	titles, _, _, err := s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: &fl.ID},
 		fleet.TeamFilter{User: test.UserAdmin})
 	require.NoError(t, err)
 	require.Len(t, titles, 1)
 
-	// Step 2: Apply a minimal team config that omits policies, agent_options, controls, reports, software, settings.
-	minimalTeamConfig := fmt.Sprintf(`
+	// Step 2: Apply a minimal fleet config that omits policies, agent_options, controls, reports, software, settings.
+	minimalFleetConfig := fmt.Sprintf(`
 name: %s
-`, teamName)
+`, fleetName)
 
-	minimalTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	minimalFleetFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = minimalTeamFile.WriteString(minimalTeamConfig)
+	_, err = minimalFleetFile.WriteString(minimalFleetConfig)
 	require.NoError(t, err)
-	require.NoError(t, minimalTeamFile.Close())
+	require.NoError(t, minimalFleetFile.Close())
 
 	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{
-		"gitops", "--config", fleetctlConfig.Name(), "-f", minimalTeamFile.Name(),
+		"gitops", "--config", fleetctlConfig.Name(), "-f", minimalFleetFile.Name(),
 	}))
 
 	// Verify policies were cleared.
-	tmPols, err = s.DS.ListMergedTeamPolicies(ctx, tm.ID, fleet.ListOptions{})
+	flPols, err = s.DS.ListMergedTeamPolicies(ctx, fl.ID, fleet.ListOptions{})
 	require.NoError(t, err)
-	require.Len(t, tmPols, 0)
+	require.Len(t, flPols, 0)
 
-	tm, err = s.DS.TeamByName(ctx, teamName)
+	fl, err = s.DS.TeamByName(ctx, fleetName)
 	require.NoError(t, err)
 
 	// Verify agent_options were cleared (set to null).
-	require.Nil(t, tm.Config.AgentOptions)
+	require.Nil(t, fl.Config.AgentOptions)
 
 	// Verify controls were cleared (disk encryption reverts to false).
-	require.False(t, tm.Config.MDM.EnableDiskEncryption)
+	require.False(t, fl.Config.MDM.EnableDiskEncryption)
 
 	// Verify features reverted to defaults (enable_host_users defaults to true).
-	require.True(t, tm.Config.Features.EnableHostUsers)
+	require.True(t, fl.Config.Features.EnableHostUsers)
 
 	// Verify reports were cleared.
-	tmQueries, _, _, _, err = s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &tm.ID})
+	flQueries, _, _, _, err = s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &fl.ID})
 	require.NoError(t, err)
-	require.Len(t, tmQueries, 0)
+	require.Len(t, flQueries, 0)
 
 	// Verify secrets are unchanged.
-	teamSecrets, err = s.DS.GetEnrollSecrets(ctx, &tm.ID)
+	flSecrets, err = s.DS.GetEnrollSecrets(ctx, &fl.ID)
 	require.NoError(t, err)
-	require.Len(t, teamSecrets, 1)
-	require.Equal(t, "foobar", teamSecrets[0].Secret)
+	require.Len(t, flSecrets, 1)
+	require.Equal(t, "foobar", flSecrets[0].Secret)
 
 	// Verify software was cleared.
-	titles, _, _, err = s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: &tm.ID},
+	titles, _, _, err = s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: &fl.ID},
 		fleet.TeamFilter{User: test.UserAdmin})
 	require.NoError(t, err)
 	require.Len(t, titles, 0)
