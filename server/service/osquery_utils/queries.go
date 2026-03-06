@@ -1148,8 +1148,7 @@ SELECT
   '' AS vendor,
   '' AS arch,
   installed_path AS installed_path
-FROM go_binaries
-WHERE version <> ''`,
+FROM go_binaries`,
 	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
 	Discovery: discoveryTable("go_binaries"),
 	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because

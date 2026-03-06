@@ -680,7 +680,6 @@ SELECT
   '' AS arch,
   installed_path AS installed_path
 FROM go_binaries
-WHERE version <> ''
 ```
 
 ## software_jetbrains_plugins
