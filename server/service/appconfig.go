@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/version"
@@ -1485,6 +1486,11 @@ func (svc *Service) validateMDM(
 	}
 	if err := mdm.IPadOSUpdates.Validate(); err != nil {
 		invalid.Append("ipados_updates", err.Error())
+	}
+
+	// always check whether specified versions are supported by Apple (even if they weren't updated)
+	for k, v := range apple_mdm.ValidateMDMSettingsAppleSupportedOSVersion(*mdm) {
+		invalid.Append(k, v.Error())
 	}
 
 	if err := mdm.MacOSSetup.Validate(); err != nil {

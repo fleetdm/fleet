@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/gdmf"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
@@ -1396,7 +1397,8 @@ func (pb *ProfileBimap) add(wantedProfile, currentProfile *fleet.MDMAppleProfile
 type NewActivityFunc = fleet.NewActivityFunc
 
 func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger *slog.Logger,
-	newActivityFn NewActivityFunc) error {
+	newActivityFn NewActivityFunc,
+) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching app config")
@@ -1510,7 +1512,8 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 // turnOffMDMIfAPNSFailed checks if the error is an APNSDeliveryError and turns off MDM for the failed devices.
 // Returns a boolean value to indicate whether or not MDM was turned off.
 func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, logger *slog.Logger, newActivityFn NewActivityFunc) (bool,
-	error) {
+	error,
+) {
 	var e *APNSDeliveryError
 	if !errors.As(err, &e) {
 		return false, nil
@@ -1603,4 +1606,45 @@ func IOSiPadOSRevive(ctx context.Context, ds fleet.Datastore, commander *MDMAppl
 		return ctxerr.Wrap(ctx, err, "sending push notifications")
 	}
 	return nil
+}
+
+func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](settings T) map[string]error {
+	var macOSUpdates, iOSUpdates, iPadOSUpdates fleet.AppleOSUpdateSettings
+	if m, ok := any(settings).(fleet.MDM); ok {
+		macOSUpdates = m.MacOSUpdates
+		iOSUpdates = m.IOSUpdates
+		iPadOSUpdates = m.IPadOSUpdates
+	} else if t, ok := any(settings).(fleet.TeamMDM); ok {
+		macOSUpdates = t.MacOSUpdates
+		iOSUpdates = t.IOSUpdates
+		iPadOSUpdates = t.IPadOSUpdates
+	} else {
+		return nil
+	}
+
+	errs := make(map[string]error, 3)
+	if macOSUpdates.MinimumVersion.Value != "" {
+		// TODO: Post-enrollment, admins have a much wider choice of versions that Apple supports. Do we
+		// want to allow admins to set macOS versions that aren't supported in DEP if they opt not to
+		// update new hosts? How do we want to address this nuance in docs/UI? What about iOS/iPadOS?
+		if err := gdmf.ValidateAppleSupportedOSVersion("macos", macOSUpdates.MinimumVersion.Value, macOSUpdates.UpdateNewHosts.Value); err != nil {
+			errs["mdm.macos_updates.minimum_version"] = errors.New(fleet.AppleOSVersionUnsupportedMessage)
+		}
+	}
+	if iOSUpdates.MinimumVersion.Value != "" {
+		// iOS always updates new hosts to latest if minimum version is set, so we need to pass true
+		// for the includeDEP parameter to validate against public asset sets
+		if err := gdmf.ValidateAppleSupportedOSVersion("ios", iOSUpdates.MinimumVersion.Value, true); err != nil {
+			errs["mdm.ios_updates.minimum_version"] = errors.New(fleet.AppleOSVersionUnsupportedMessage)
+		}
+	}
+	if iPadOSUpdates.MinimumVersion.Value != "" {
+		// iPadOS always updates new hosts to latest if minimum version is set, so we need to pass true
+		// for the includeDEP parameter to validate against public asset sets
+		if err := gdmf.ValidateAppleSupportedOSVersion("ipados", iPadOSUpdates.MinimumVersion.Value, true); err != nil {
+			errs["mdm.ipados_updates.minimum_version"] = errors.New(fleet.AppleOSVersionUnsupportedMessage)
+		}
+	}
+
+	return errs
 }
