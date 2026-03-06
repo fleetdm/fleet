@@ -1982,8 +1982,7 @@ func newRecoveryLockPasswordSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	rkpDS recoverykeypassword.Datastore,
-	commander *apple_mdm.MDMAppleCommander,
+	rkpService recoverykeypassword.Service,
 	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
@@ -1996,7 +1995,7 @@ func newRecoveryLockPasswordSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("reconcile_recovery_lock_passwords", func(ctx context.Context) error {
-			return recoverykeypassword.ReconcileRecoveryLockPasswords(ctx, rkpDS, commander, logger)
+			return rkpService.Reconcile(ctx)
 		}),
 	)
 

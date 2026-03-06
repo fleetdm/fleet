@@ -1046,8 +1046,8 @@ the way that the Fleet server works.
 			// Inject the activity bounded context into the main service
 			svc.SetActivityService(activitySvc)
 
-			// Bootstrap recovery key password module
-			rkpDatastore := rkp_bootstrap.New(dbConns, logger)
+			// rkpService will be initialized when MDM is configured (needs commander)
+			var rkpService recoverykeypassword.Service
 
 			// Perform a cleanup of cron_stats outside of the cronSchedules because the
 			// schedule package uses cron_stats entries to decide whether a schedule will
@@ -1298,8 +1298,7 @@ the way that the Fleet server works.
 				}
 
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-					return newRecoveryLockPasswordSchedule(ctx, instanceID, ds, rkpDatastore, commander, logger)
+					return newRecoveryLockPasswordSchedule(ctx, instanceID, ds, rkpService, logger)
 				}); err != nil {
 					initFatal(err, "failed to register recovery lock password schedule")
 				}
@@ -1466,6 +1465,10 @@ the way that the Fleet server works.
 
 			if len(config.Server.PrivateKey) > 0 {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+
+				// Bootstrap recovery key password module (needs commander)
+				rkpService = rkp_bootstrap.New(dbConns, commander, logger)
+
 				ddmService := service.NewMDMAppleDDMService(ds, logger)
 				vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
 				mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(
@@ -1480,7 +1483,7 @@ the way that the Fleet server works.
 
 				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay, svc.NewActivity))
 				mdmCheckinAndCommandService.RegisterResultsHandler(fleet.DeviceLocationCmdName, service.NewDeviceLocationResultsHandler(ds, commander, logger))
-				mdmCheckinAndCommandService.RegisterResultsHandler("VerifyRecoveryLock", recoverykeypassword.NewVerifyRecoveryLockResultsHandler(rkpDatastore, logger))
+				mdmCheckinAndCommandService.RegisterResultsHandler("VerifyRecoveryLock", rkpService.NewResultsHandler())
 
 				hasSCEPChallenge, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
 				if err != nil {

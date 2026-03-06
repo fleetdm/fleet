@@ -9,14 +9,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// MDMCommander defines the MDM operations needed by the recovery lock reconciler.
-type MDMCommander interface {
-	// EnqueueCommand enqueues a raw MDM command for the given host UUIDs.
-	EnqueueCommand(ctx context.Context, hostUUIDs []string, rawCommand string) error
-	// SendNotifications sends APNs push notifications to wake up devices.
-	SendNotifications(ctx context.Context, hostUUIDs []string) error
-}
-
 // ReconcileRecoveryLockPasswords is the main cron job function that manages recovery lock passwords.
 // It performs two tasks:
 // 1. Checks for acknowledged SetRecoveryLock commands and sends VerifyRecoveryLock commands
