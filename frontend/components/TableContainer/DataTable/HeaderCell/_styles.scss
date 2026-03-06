@@ -2,9 +2,10 @@
   display: flex;
   justify-content: flex-start;
   align-items: center;
+  font-size: $xx-small;
 
   .sort-arrows {
-    height: 14px;
+    height: 12px;
     padding-left: $pad-small;
     display: flex;
     flex-direction: column;
@@ -14,16 +15,16 @@
   .ascending-arrow {
     width: 0;
     height: 0;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-bottom: 6px solid $ui-fleet-black-25;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 5px solid $ui-fleet-black-25;
   }
   .descending-arrow {
     width: 0;
     height: 0;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-top: 6px solid $ui-fleet-black-25;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid $ui-fleet-black-25;
   }
 
   &.ascending {
