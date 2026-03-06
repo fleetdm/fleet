@@ -20,6 +20,7 @@ interface IHostActionsDropdownProps {
   doesStoreEncryptionKey?: boolean;
   isConnectedToFleetMdm?: boolean;
   hostPlatform?: string;
+  hostCpuType?: string;
   onSelect: (value: string) => void;
   hostScriptsEnabled: boolean | null;
   isRecoveryLockPasswordEnabled?: boolean;
@@ -35,6 +36,7 @@ const HostActionsDropdown = ({
   doesStoreEncryptionKey,
   isConnectedToFleetMdm,
   hostPlatform = "",
+  hostCpuType = "",
   hostScriptsEnabled = false,
   onSelect,
   isRecoveryLockPasswordEnabled = false,
@@ -69,6 +71,7 @@ const HostActionsDropdown = ({
 
   const options = generateHostActionOptions({
     hostPlatform,
+    hostCpuType,
     isPremiumTier,
     isGlobalAdmin,
     isGlobalMaintainer,

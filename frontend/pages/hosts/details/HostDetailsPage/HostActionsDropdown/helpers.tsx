@@ -78,6 +78,7 @@ const DEFAULT_OPTIONS = [
 
 interface IHostActionConfigOptions {
   hostPlatform: string;
+  hostCpuType: string;
   isPremiumTier: boolean;
   isGlobalAdmin: boolean;
   isGlobalMaintainer: boolean;
@@ -292,12 +293,17 @@ const canShowRecoveryLockPassword = (config: IHostActionConfigOptions) => {
     isPremiumTier,
     isConnectedToFleetMdm,
     hostPlatform,
+    hostCpuType,
     isRecoveryLockPasswordEnabled,
   } = config;
   if (!isPremiumTier) {
     return false;
   }
   if (hostPlatform !== "darwin") {
+    return false;
+  }
+  // permissive by default - only remove option if we know the host's cpu type and it is not arm64
+  if (hostCpuType !== "" && !hostCpuType.includes("arm64")) {
     return false;
   }
   if (!isConnectedToFleetMdm) {
