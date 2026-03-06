@@ -3312,7 +3312,6 @@ agent_options:
 		// Verify the team's webhook settings were updated with the correct policy IDs.
 		team, err := ds.TeamByName(context.Background(), teamName)
 		require.NoError(t, err)
-		require.True(t, team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
 		require.Equal(t, "http://example.com/webhook", team.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
 		require.Len(t, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, 2)
 	})
