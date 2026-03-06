@@ -4,9 +4,8 @@ A global technology company operates a large-scale platform where millions of pe
 
 To support its operations, the company manages more than 135,000 hosts across macOS, Windows, and Linux. As the platform grows, the team needs better visibility into its production infrastructure without introducing performance overhead.
 
----
 
-## **At a glance**
+## At a glance
 
 * **Industry:** Gaming and technology
 
@@ -16,9 +15,8 @@ To support its operations, the company manages more than 135,000 hosts across ma
 
 * **Previous challenge:** Limited visibility into Linux servers and containerized production environments
 
----
 
-## **The challenge: production infrastructure required deeper visibility**
+## The challenge
 
 The company already used tools like Jamf to manage corporate devices. However, those tools were not designed for the scale or performance requirements of production server environments.
 
@@ -28,9 +26,8 @@ Gathering detailed telemetry from production systems was difficult without intro
 
 They also wanted a system that could operate consistently across macOS, Windows, and Linux systems.
 
----
 
-## **The evaluation criteria**
+## The evaluation criteria
 
 During evaluation, Fleet needed to meet three key requirements:
 
@@ -45,9 +42,8 @@ During evaluation, Fleet needed to meet three key requirements:
 
 The team also prioritized a unified platform that could manage multiple operating systems through a single API.
 
----
 
-## **The solution: scalable telemetry across infrastructure**
+## The solution
 
 Fleet now provides a unified source of telemetry across the company’s infrastructure.
 
@@ -59,9 +55,8 @@ Fleet telemetry feeds directly into internal security and compliance systems. Vu
 
 The platform’s open-source model also aligns with the company’s engineering culture. Security teams can inspect the source code and collaborate directly with maintainers, ensuring the system operates transparently.
 
----
 
-## **A phased rollout across production infrastructure**
+## A phased rollout across production infrastructure
 
 Fleet adoption began with pilot deployments across selected infrastructure segments.
 
@@ -71,9 +66,8 @@ As integrations matured, Fleet scaled to handle telemetry from hundreds of thous
 
 The transition created minimal disruption for engineers, as Fleet was introduced as a natural extension of the existing infrastructure platform.
 
----
 
-## **The results: real-time answers across a massive fleet**
+## The results
 
 Fleet introduced near-instant visibility into infrastructure health and compliance.
 
@@ -83,9 +77,8 @@ The platform also helps unify telemetry across corporate endpoints and productio
 
 Operational complexity has also decreased. Fleet provides a scalable way to collect telemetry across a global infrastructure without introducing heavy agents or performance penalties.
 
----
 
-## **Why they recommend Fleet**
+## Why they recommend Fleet
 
 For organizations operating large-scale infrastructure, their recommendation centers on visibility and scale.
 
@@ -93,15 +86,11 @@ Fleet provides unified telemetry across endpoints, servers, and container enviro
 
 For organizations managing tens or hundreds of thousands of hosts, that level of observability becomes critical.
 
----
 
-## **About Fleet**
+## About Fleet
 
-Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations, Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.
+Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations, Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs. By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives. Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.
 
-By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.
-
-Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.
 <meta name="articleTitle" value="Gaming platform gains production visibility with Fleet">
 <meta name="authorFullName" value="Irena Reedy">
 <meta name="authorGitHubUsername" value="irenareedy">
