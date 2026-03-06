@@ -3216,6 +3216,112 @@ func TestGitOpsTeamWebhooks(t *testing.T) {
 	require.Equal(t, "http://coolwebhook.biz", team.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
 }
 
+func TestGitOpsWebhooksAndTicketsEnabled(t *testing.T) {
+	teamName := "TestWebhooksAndTicketsEnabled"
+
+	ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	// Create a team.
+	_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: teamName})
+	require.NoError(t, err)
+	require.NotNil(t, *savedTeams[teamName])
+
+	// Override ApplyPolicySpecs to track applied policies and assign IDs.
+	var appliedPolicies []*fleet.PolicySpec
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		appliedPolicies = append(appliedPolicies, specs...)
+		return nil
+	}
+
+	// Override ListTeamPolicies to return the applied policies with IDs.
+	ds.ListTeamPoliciesFunc = func(
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+		var result []*fleet.Policy
+		for i, spec := range appliedPolicies {
+			if spec.Team == teamName {
+				result = append(result, &fleet.Policy{
+					PolicyData: fleet.PolicyData{
+						ID:   uint(i + 1),
+						Name: spec.Name,
+					},
+				})
+			}
+		}
+		return result, nil, nil
+	}
+
+	t.Run("conflict with policy_ids", func(t *testing.T) {
+		appliedPolicies = nil
+
+		cfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = cfgFile.WriteString(fmt.Sprintf(`
+name: %s
+team_settings:
+  secrets:
+    - secret: "testSecret"
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: http://example.com/webhook
+      policy_ids:
+        - 999
+software:
+queries:
+policies:
+  - name: Test Policy
+    query: "SELECT 1"
+    webhooks_and_tickets_enabled: true
+agent_options:
+`, teamName))
+		require.NoError(t, err)
+
+		_, err = RunAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "cannot use both 'webhooks_and_tickets_enabled' on policies and 'policy_ids'")
+	})
+
+	t.Run("sets policy_ids from webhooks_and_tickets_enabled", func(t *testing.T) {
+		appliedPolicies = nil
+
+		cfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = cfgFile.WriteString(fmt.Sprintf(`
+name: %s
+team_settings:
+  secrets:
+    - secret: "testSecret"
+  webhook_settings:
+    failing_policies_webhook:
+      destination_url: http://example.com/webhook
+software:
+queries:
+policies:
+  - name: Webhook Policy 1
+    query: "SELECT 1"
+    webhooks_and_tickets_enabled: true
+  - name: Webhook Policy 2
+    query: "SELECT 2"
+    webhooks_and_tickets_enabled: true
+  - name: No Webhook Policy
+    query: "SELECT 3"
+agent_options:
+`, teamName))
+		require.NoError(t, err)
+
+		_, err = RunAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
+		require.NoError(t, err)
+
+		// Verify the team's webhook settings were updated with the correct policy IDs.
+		team, err := ds.TeamByName(context.Background(), teamName)
+		require.NoError(t, err)
+		require.True(t, team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
+		require.Equal(t, "http://example.com/webhook", team.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+		require.Len(t, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, 2)
+	})
+}
+
 func TestGitOpsFeatures(t *testing.T) {
 	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
 	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
