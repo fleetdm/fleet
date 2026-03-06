@@ -1,0 +1,8 @@
+{
+  "name": "AltTab",
+  "slug": "alt-tab/darwin",
+  "unique_identifier": "com.lwouis.alt-tab-macos",
+  "token": "alt-tab",
+  "installer_format": "zip",
+  "default_categories": ["Productivity"]
+}
