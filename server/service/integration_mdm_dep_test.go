@@ -1742,6 +1742,19 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runDEPSchedule()
 	require.Empty(t, profileAssignmentReqs)
+
+	// Last one with existing profile but profile has suddenly been removed, so will be assigned(see https://github.com/fleetdm/fleet/issues/39871)
+	devices = append(devices, devices[0])
+	// This will cause a base entry for the device then a modify entry where the profile gets removed which will trigger the update
+	devices[0].OpDate = time.Now().Add(-1 * time.Hour)
+	devices[1].OpDate = time.Now()
+	devices[1].ProfileStatus = "removed"
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runDEPSchedule()
+	require.Len(t, profileAssignmentReqs, 1)
+	require.Len(t, profileAssignmentReqs[0].Devices, 1)
+	assert.ElementsMatch(t, []string{devices[0].SerialNumber}, profileAssignmentReqs[0].Devices)
+	checkHostDEPAssignProfileResponses(profileAssignmentReqs[0].Devices, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
 }
 
 func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
