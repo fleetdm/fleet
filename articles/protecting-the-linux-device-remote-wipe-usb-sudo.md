@@ -1,4 +1,13 @@
-# Protecting the Linux device: remote wipe, USB & sudo  
+# Protecting the Linux device: remote wipe, USB and sudo
+
+### Links to article series:
+
+- Part 1: [Why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026)
+- Part 2: [Automated provisioning for Linux desktop in the enterprise](https://fleetdm.com/articles/automated-provisioning-for-linux-desktop-in-the-enterprise)
+- Part 3: [Security baselines for Linux: closing the gap on exemptions](https://fleetdm.com/articles/security-baselines-for-linux)
+- Part 4: [Unlocking Linux productivity: securing apps and updating certificates](https://fleetdm.com/articles/unlocking-linux-productivity-securing-apps-and-updating-certificates)
+- Part 5: Protecting the Linux device: remote wipe, USB and sudo
+- Part 6: [Owning your Linux destiny with open source](https://fleetdm.com/articles/owning-your-linux-destiny-with-open-source)
 
 Cloud security is important. But so is the data sitting on a local device. Developer workstations accumulate sensitive material in every corner of the filesystem: cached credentials in `~/.git-credentials`, SSH keys in `~/.ssh/`, API tokens in environment files, and proprietary source code in local repositories. If an attacker gains access to one of these machines, they inherit everything the developer could reach. The investment in cloud security is a given. So why is the physical security posture of Linux workstations so often treated as an afterthought?
 
@@ -80,4 +89,5 @@ The next article in this series will cover owning your destiny: the philosophy b
 <meta name="authorGitHubUsername" value="akuthiala">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-03-05">
-<meta name="description" value="Chapter 5 of Protecting Linux endpoints series">
+<meta name="description" value="Part 5 of 6 in the 'Protecting Linux endpoints with modern device management' article series.">
+
