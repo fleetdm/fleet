@@ -699,8 +699,11 @@ func MakeDecoder(
 					}
 				}
 
-				if errors.Is(err, io.ErrUnexpectedEOF) && limitedReader != nil && limitedReader.N == 0 && limitExhaustedBody(limitedReader) {
-					return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+				if errors.Is(err, io.ErrUnexpectedEOF) {
+					if limitedReader != nil && limitedReader.N == 0 && limitExhaustedBody(limitedReader) {
+						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+					}
+					return nil, BadRequestErr("json decoder error", err)
 				}
 				return nil, err
 			}

@@ -15951,9 +15951,9 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", withinLimitDist, http.StatusOK)
 
 	// A truncated body within the limit must NOT return 413 (same false-positive guard).
-	// The bodyDecoder path returns the raw io.ErrUnexpectedEOF which encodes as 500.
+	// io.ErrUnexpectedEOF from the bodyDecoder path is now wrapped as BadRequestErr → 400.
 	truncatedDist := fmt.Appendf(nil, `{"node_key":%q,"queries":{"q1":[`, *host.NodeKey) // missing closing
-	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", truncatedDist, http.StatusInternalServerError)
+	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", truncatedDist, http.StatusBadRequest)
 
 	// Verify that Osquery.MaxLogWriteBodySize and MaxDistributedWriteBodySize
 	// in the server config override the built-in defaults.
@@ -15968,6 +15968,7 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 			FleetConfig:         &cfg,
 			SkipCreateTestUsers: true,
 		})
+		s.T().Cleanup(customServer.Close)
 		ts := withServer{server: customServer}
 		ts.s = &s.Suite
 
