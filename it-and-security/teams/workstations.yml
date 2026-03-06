@@ -116,15 +116,12 @@ controls:
     - path: ../lib/macos/scripts/install-wine.sh
     - path: ../lib/macos/scripts/create-conditional-access-allow-file.sh
     - path: ../lib/macos/scripts/set-lock-screen-message.sh
-    - path: ../lib/macos/scripts/uninstall-clawbot-macos.sh
     - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
     - path: ../lib/windows/scripts/install-bitdefender.ps1
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
     - path: ../lib/windows/scripts/create-admin-user.ps1
-    - path: ../lib/windows/scripts/uninstall-clawbot.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
-    - path: ../lib/linux/scripts/uninstall-clawbot-linux.sh
     - path: ../lib/macos/scripts/uninstall-santa-extension.sh
     - path: ../lib/macos/scripts/install-macos-compatibility-extension.sh
     - path: ../lib/macos/scripts/install-nudge.sh
@@ -144,7 +141,6 @@ policies:
   - path: ../lib/macos/policies/company-portal-installed.yml
   - path: ../lib/macos/policies/entra-conditional-access-check.yml
   - path: ../lib/macos/policies/install-nudge.yml
-  - path: ../lib/macos/policies/clawbot-not-installed.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
@@ -152,11 +148,9 @@ policies:
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
-  - path: ../lib/windows/policies/clawbot-not-installed.yml
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
-  - path: ../lib/linux/policies/clawbot-not-installed.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
   - path: ../lib/macos/queries/collect-santa-denied-logs.yml
