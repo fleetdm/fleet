@@ -9,7 +9,6 @@ import React, { useContext } from "react";
 import { SingleValue } from "react-select-5";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import { TooltipContent } from "interfaces/dropdownOption";
-import { isFleetMaintainedPackageType } from "interfaces/package_type";
 
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
 import { getGitOpsModeTipContent } from "utilities/helpers";
@@ -34,13 +33,13 @@ import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRo
 import SoftwareIcon from "../../icons/SoftwareIcon";
 import OSIcon from "../../icons/OSIcon";
 
-const ACTION_EDIT_APPEARANCE = "edit_appearance";
-const ACTION_EDIT_SOFTWARE = "edit_software";
-const ACTION_EDIT_CONFIGURATION = "edit_configuration";
-const ACTION_PATCH = "patch";
-const ACTION_EDIT_AUTO_UPDATE_CONFIGURATION = "edit_auto_update_configuration";
-
-const buildActionOptions = (
+export const ACTION_EDIT_APPEARANCE = "edit_appearance";
+export const ACTION_EDIT_SOFTWARE = "edit_software";
+export const ACTION_EDIT_CONFIGURATION = "edit_configuration";
+export const ACTION_PATCH = "patch";
+export const ACTION_EDIT_AUTO_UPDATE_CONFIGURATION =
+  "edit_auto_update_configuration";
+export const buildActionOptions = (
   gitOpsModeEnabled: boolean | undefined,
   repoURL: string | undefined,
   source: string | undefined,
@@ -49,7 +48,7 @@ const buildActionOptions = (
   androidSoftwareAvailableForInstall: boolean,
   canAddPatchPolicy: boolean,
   canConfigureAutoUpdate: boolean,
-  patchPolicyId?: number
+  hasExistingPatchPolicy = false
 ): CustomOptionType[] => {
   let disableEditAppearanceTooltipContent: TooltipContent | undefined;
   let disableEditSoftwareTooltipContent: TooltipContent | undefined;
@@ -63,14 +62,13 @@ const buildActionOptions = (
     disableEditAppearanceTooltipContent = gitOpsModeTooltipContent;
     disabledEditConfigurationTooltipContent = gitOpsModeTooltipContent;
 
-    console.log("source", source);
     if (source === "vpp_apps") {
       disableEditSoftwareTooltipContent = gitOpsModeTooltipContent;
     }
   }
 
-  if (patchPolicyId) {
-    disabledPatchPolicyTooltipContent = "Patch policy already added.";
+  if (hasExistingPatchPolicy) {
+    disabledPatchPolicyTooltipContent = "Patch policy is already added.";
   }
 
   const options: CustomOptionType[] = [
@@ -250,7 +248,7 @@ const SoftwareDetailsSummary = ({
     !!onClickEditConfiguration,
     !!onClickAddPatchPolicy,
     !!onClickEditAutoUpdateConfig,
-    patchPolicyId
+    !!patchPolicyId
   );
 
   return (
