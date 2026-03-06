@@ -1,0 +1,286 @@
+package service
+
+import (
+	"context"
+	"log/slog"
+	"testing"
+	"time"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// testInstalledAppListResult implements InstalledApplicationListResult for testing.
+type testInstalledAppListResult struct {
+	raw           []byte
+	uuid          string
+	hostUUID      string
+	hostPlatform  string
+	availableApps []fleet.Software
+}
+
+func (t *testInstalledAppListResult) Raw() []byte                     { return t.raw }
+func (t *testInstalledAppListResult) UUID() string                    { return t.uuid }
+func (t *testInstalledAppListResult) HostUUID() string                { return t.hostUUID }
+func (t *testInstalledAppListResult) HostPlatform() string            { return t.hostPlatform }
+func (t *testInstalledAppListResult) AvailableApps() []fleet.Software { return t.availableApps }
+
+func TestInstalledApplicationListHandler(t *testing.T) {
+	ctx := context.Background()
+	logger := slog.Default()
+	verifyTimeout := 10 * time.Minute
+	verifyRequestDelay := 5 * time.Second
+
+	hostUUID := "host-uuid-1"
+	hostID := uint(42)
+	cmdUUID := fleet.VerifySoftwareInstallVPPPrefix + "test-cmd-uuid"
+	bundleID := "com.example.app"
+
+	ackTime := time.Now().Add(-1 * time.Minute)
+
+	newNoopActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+		return nil
+	}
+
+	// setupMockDS creates a mock datastore with common function stubs.
+	setupMockDS := func(t *testing.T) *mock.DataStore {
+		ds := new(mock.DataStore)
+		ds.GetUnverifiedInHouseAppInstallsForHostFunc = func(_ context.Context, _ string) ([]*fleet.HostVPPSoftwareInstall, error) {
+			return nil, nil
+		}
+		ds.IsAutoUpdateVPPInstallFunc = func(_ context.Context, _ string) (bool, error) {
+			return false, nil
+		}
+		ds.UpdateSetupExperienceStatusResultFunc = func(_ context.Context, _ *fleet.SetupExperienceStatusResult) error {
+			return nil
+		}
+		ds.MaybeUpdateSetupExperienceVPPStatusFunc = func(_ context.Context, _ string, _ string, _ fleet.SetupExperienceStatusResultStatus) (bool, error) {
+			return false, nil
+		}
+		ds.GetPastActivityDataForVPPAppInstallFunc = func(_ context.Context, _ *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+			return &fleet.User{}, &fleet.ActivityInstalledAppStoreApp{}, nil
+		}
+		ds.RemoveHostMDMCommandFunc = func(_ context.Context, _ fleet.HostMDMCommand) error {
+			return nil
+		}
+		ds.UpdateHostRefetchRequestedFunc = func(_ context.Context, _ uint, _ bool) error {
+			return nil
+		}
+		return ds
+	}
+
+	t.Run("app installed with matching version is verified", func(t *testing.T) {
+		ds := setupMockDS(t)
+
+		var verifiedCalled bool
+		ds.SetVPPInstallAsVerifiedFunc = func(_ context.Context, hID uint, installUUID string, verifyUUID string) error {
+			verifiedCalled = true
+			assert.Equal(t, hostID, hID)
+			assert.Equal(t, cmdUUID, installUUID)
+			return nil
+		}
+		ds.SetVPPInstallAsFailedFunc = func(_ context.Context, _ uint, _ string, _ string) error {
+			t.Fatal("fail should not be called")
+			return nil
+		}
+		ds.GetUnverifiedVPPInstallsForHostFunc = func(_ context.Context, _ string) ([]*fleet.HostVPPSoftwareInstall, error) {
+			return []*fleet.HostVPPSoftwareInstall{
+				{
+					InstallCommandUUID:  cmdUUID,
+					InstallCommandAckAt: &ackTime,
+					HostID:              hostID,
+					BundleIdentifier:    bundleID,
+					ExpectedVersion:     "1.0.0",
+				},
+			}, nil
+		}
+
+		handler := NewInstalledApplicationListResultsHandler(ds, nil, logger, verifyTimeout, verifyRequestDelay, newNoopActivityFn)
+
+		result := &testInstalledAppListResult{
+			uuid:         cmdUUID,
+			hostUUID:     hostUUID,
+			hostPlatform: "darwin",
+			availableApps: []fleet.Software{
+				{BundleIdentifier: bundleID, Version: "1.0.0", Installed: true},
+			},
+		}
+
+		err := handler(ctx, result)
+		require.NoError(t, err)
+		assert.True(t, verifiedCalled, "verify should have been called")
+	})
+
+	t.Run("app installed with different version is verified (bug fix)", func(t *testing.T) {
+		ds := setupMockDS(t)
+
+		var verifiedCalled bool
+		ds.SetVPPInstallAsVerifiedFunc = func(_ context.Context, hID uint, installUUID string, _ string) error {
+			verifiedCalled = true
+			assert.Equal(t, hostID, hID)
+			assert.Equal(t, cmdUUID, installUUID)
+			return nil
+		}
+		ds.SetVPPInstallAsFailedFunc = func(_ context.Context, _ uint, _ string, _ string) error {
+			t.Fatal("fail should not be called for version mismatch")
+			return nil
+		}
+		ds.GetUnverifiedVPPInstallsForHostFunc = func(_ context.Context, _ string) ([]*fleet.HostVPPSoftwareInstall, error) {
+			return []*fleet.HostVPPSoftwareInstall{
+				{
+					InstallCommandUUID:  cmdUUID,
+					InstallCommandAckAt: &ackTime,
+					HostID:              hostID,
+					BundleIdentifier:    bundleID,
+					ExpectedVersion:     "26.01.40",
+				},
+			}, nil
+		}
+
+		handler := NewInstalledApplicationListResultsHandler(ds, nil, logger, verifyTimeout, verifyRequestDelay, newNoopActivityFn)
+
+		result := &testInstalledAppListResult{
+			uuid:         cmdUUID,
+			hostUUID:     hostUUID,
+			hostPlatform: "darwin",
+			availableApps: []fleet.Software{
+				{BundleIdentifier: bundleID, Version: "24.10.50", Installed: true},
+			},
+		}
+
+		err := handler(ctx, result)
+		require.NoError(t, err)
+		assert.True(t, verifiedCalled, "verify should be called even with version mismatch")
+		// Key assertion: should NOT be polling (NewJob should not be called)
+		assert.False(t, ds.NewJobFuncInvoked, "should not queue a polling job when app is installed")
+	})
+
+	t.Run("app not installed within timeout continues polling", func(t *testing.T) {
+		ds := setupMockDS(t)
+
+		ds.SetVPPInstallAsVerifiedFunc = func(_ context.Context, _ uint, _ string, _ string) error {
+			t.Fatal("verify should not be called")
+			return nil
+		}
+		ds.SetVPPInstallAsFailedFunc = func(_ context.Context, _ uint, _ string, _ string) error {
+			t.Fatal("fail should not be called")
+			return nil
+		}
+		ds.GetUnverifiedVPPInstallsForHostFunc = func(_ context.Context, _ string) ([]*fleet.HostVPPSoftwareInstall, error) {
+			return []*fleet.HostVPPSoftwareInstall{
+				{
+					InstallCommandUUID:  cmdUUID,
+					InstallCommandAckAt: &ackTime, // 1 minute ago, within 10-minute timeout
+					HostID:              hostID,
+					BundleIdentifier:    bundleID,
+					ExpectedVersion:     "1.0.0",
+				},
+			}, nil
+		}
+		ds.NewJobFunc = func(_ context.Context, job *fleet.Job) (*fleet.Job, error) {
+			return job, nil
+		}
+
+		handler := NewInstalledApplicationListResultsHandler(ds, nil, logger, verifyTimeout, verifyRequestDelay, newNoopActivityFn)
+
+		// App not in the list at all
+		result := &testInstalledAppListResult{
+			uuid:          cmdUUID,
+			hostUUID:      hostUUID,
+			hostPlatform:  "darwin",
+			availableApps: []fleet.Software{},
+		}
+
+		err := handler(ctx, result)
+		require.NoError(t, err)
+		assert.True(t, ds.NewJobFuncInvoked, "should queue a polling job when app not yet installed")
+	})
+
+	t.Run("app not installed timeout exceeded is marked failed", func(t *testing.T) {
+		ds := setupMockDS(t)
+
+		expiredAckTime := time.Now().Add(-15 * time.Minute) // well past the 10-minute timeout
+
+		var failedCalled bool
+		ds.SetVPPInstallAsVerifiedFunc = func(_ context.Context, _ uint, _ string, _ string) error {
+			t.Fatal("verify should not be called")
+			return nil
+		}
+		ds.SetVPPInstallAsFailedFunc = func(_ context.Context, hID uint, installUUID string, _ string) error {
+			failedCalled = true
+			assert.Equal(t, hostID, hID)
+			assert.Equal(t, cmdUUID, installUUID)
+			return nil
+		}
+		ds.GetUnverifiedVPPInstallsForHostFunc = func(_ context.Context, _ string) ([]*fleet.HostVPPSoftwareInstall, error) {
+			return []*fleet.HostVPPSoftwareInstall{
+				{
+					InstallCommandUUID:  cmdUUID,
+					InstallCommandAckAt: &expiredAckTime,
+					HostID:              hostID,
+					BundleIdentifier:    bundleID,
+					ExpectedVersion:     "1.0.0",
+				},
+			}, nil
+		}
+
+		handler := NewInstalledApplicationListResultsHandler(ds, nil, logger, verifyTimeout, verifyRequestDelay, newNoopActivityFn)
+
+		result := &testInstalledAppListResult{
+			uuid:          cmdUUID,
+			hostUUID:      hostUUID,
+			hostPlatform:  "darwin",
+			availableApps: []fleet.Software{},
+		}
+
+		err := handler(ctx, result)
+		require.NoError(t, err)
+		assert.True(t, failedCalled, "fail should be called when timeout exceeded")
+	})
+
+	t.Run("app not reported in list continues polling", func(t *testing.T) {
+		ds := setupMockDS(t)
+
+		ds.SetVPPInstallAsVerifiedFunc = func(_ context.Context, _ uint, _ string, _ string) error {
+			t.Fatal("verify should not be called")
+			return nil
+		}
+		ds.SetVPPInstallAsFailedFunc = func(_ context.Context, _ uint, _ string, _ string) error {
+			t.Fatal("fail should not be called")
+			return nil
+		}
+		ds.GetUnverifiedVPPInstallsForHostFunc = func(_ context.Context, _ string) ([]*fleet.HostVPPSoftwareInstall, error) {
+			return []*fleet.HostVPPSoftwareInstall{
+				{
+					InstallCommandUUID:  cmdUUID,
+					InstallCommandAckAt: &ackTime,
+					HostID:              hostID,
+					BundleIdentifier:    bundleID,
+					ExpectedVersion:     "1.0.0",
+				},
+			}, nil
+		}
+		ds.NewJobFunc = func(_ context.Context, job *fleet.Job) (*fleet.Job, error) {
+			return job, nil
+		}
+
+		handler := NewInstalledApplicationListResultsHandler(ds, nil, logger, verifyTimeout, verifyRequestDelay, newNoopActivityFn)
+
+		// Different app is reported but not our expected one
+		result := &testInstalledAppListResult{
+			uuid:         cmdUUID,
+			hostUUID:     hostUUID,
+			hostPlatform: "darwin",
+			availableApps: []fleet.Software{
+				{BundleIdentifier: "com.other.app", Version: "2.0.0", Installed: true},
+			},
+		}
+
+		err := handler(ctx, result)
+		require.NoError(t, err)
+		assert.True(t, ds.NewJobFuncInvoked, "should queue a polling job when expected app not in list")
+	})
+}

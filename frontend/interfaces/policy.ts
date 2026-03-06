@@ -42,10 +42,10 @@ export interface IPolicy {
   team_id: number | null;
   created_at: string;
   updated_at: string;
+  // A critical policy cannot be "resolved later" if Okta conditional access is enabled for it
   critical: boolean;
   calendar_events_enabled: boolean;
   conditional_access_enabled: boolean;
-  conditional_access_bypass_enabled: boolean;
   install_software?: IPolicySoftwareToInstall;
   run_script?: Pick<IScript, "id" | "name">;
   labels_include_any?: ILabelPolicy[];
@@ -105,6 +105,7 @@ export interface ILoadTeamPolicyResponse {
 export interface IPolicyFormData {
   description?: string | number | boolean | undefined;
   resolution?: string | number | boolean | undefined;
+  // A critical policy cannot be "resolved later" if Okta conditional access is enabled for it
   critical?: boolean;
   platform?: CommaSeparatedPlatformString;
   name?: string | number | boolean | undefined;
@@ -113,7 +114,6 @@ export interface IPolicyFormData {
   id?: number;
   calendar_events_enabled?: boolean;
   conditional_access_enabled?: boolean;
-  conditional_access_bypass_enabled?: boolean;
   software_title_id?: number | null;
   // null for PATCH to unset - note asymmetry with GET/LIST - see IPolicy.run_script
   script_id?: number | null;

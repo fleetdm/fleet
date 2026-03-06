@@ -37,7 +37,7 @@ const policyCols = `
 	p.id, p.team_id, p.resolution, p.name, p.query, p.description,
 	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical,
 	p.calendar_events_enabled, p.software_installer_id, p.script_id,
-	p.vpp_apps_teams_id, p.conditional_access_enabled, p.conditional_access_bypass_enabled
+	p.vpp_apps_teams_id, p.conditional_access_enabled
 `
 
 const (
@@ -346,11 +346,6 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger *slog.Logger, p 
 		}
 	}
 
-	// Defaults to true if not present
-	if p.ConditionalAccessBypassEnabled == nil {
-		p.ConditionalAccessBypassEnabled = ptr.Bool(true)
-	}
-
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	p.Name = norm.NFC.String(p.Name)
 	updateStmt := `
@@ -358,16 +353,11 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger *slog.Logger, p 
 			SET name = ?, query = ?, description = ?, resolution = ?,
 			platforms = ?, critical = ?, calendar_events_enabled = ?,
 			software_installer_id = ?, script_id = ?, vpp_apps_teams_id = ?,
-			conditional_access_enabled = ?, conditional_access_bypass_enabled = ?,
-			checksum = ` + policiesChecksumComputedColumn() + `
-		WHERE id = ?
+			conditional_access_enabled = ?, checksum = ` + policiesChecksumComputedColumn() + `
+			WHERE id = ?
 	`
 	result, err := db.ExecContext(
-		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution,
-		p.Platform, p.Critical, p.CalendarEventsEnabled,
-		p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID,
-		p.ConditionalAccessEnabled, p.ConditionalAccessBypassEnabled,
-		p.ID,
+		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID, p.ConditionalAccessEnabled, p.ID,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
@@ -1071,22 +1061,17 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 		return nil, ctxerr.Wrap(ctx, err, "create team policy")
 	}
 
-	if args.ConditionalAccessBypassEnabled == nil {
-		args.ConditionalAccessBypassEnabled = ptr.Bool(true)
-	}
-
 	res, err := db.ExecContext(ctx,
 		fmt.Sprintf(
 			`INSERT INTO policies (
 				name, query, description, team_id, resolution, author_id,
 				platforms, critical, calendar_events_enabled, software_installer_id,
-				script_id, vpp_apps_teams_id, conditional_access_enabled, conditional_access_bypass_enabled, checksum
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
+				script_id, vpp_apps_teams_id, conditional_access_enabled, checksum
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
 			policiesChecksumComputedColumn(),
 		),
 		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
-		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID,
-		args.ConditionalAccessEnabled, args.ConditionalAccessBypassEnabled,
+		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID, args.ConditionalAccessEnabled,
 	)
 	switch {
 	case err == nil:
@@ -1337,9 +1322,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		    vpp_apps_teams_id,
 		    script_id,
 			conditional_access_enabled,
-			conditional_access_bypass_enabled,
 			checksum
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
@@ -1351,8 +1335,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			software_installer_id = VALUES(software_installer_id),
 			vpp_apps_teams_id = VALUES(vpp_apps_teams_id),
 			script_id = VALUES(script_id),
-			conditional_access_enabled = VALUES(conditional_access_enabled),
-			conditional_access_bypass_enabled = VALUES(conditional_access_bypass_enabled)
+			conditional_access_enabled = VALUES(conditional_access_enabled)
 		`, policiesChecksumComputedColumn(),
 		)
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -1372,16 +1355,11 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					scriptID = nil
 				}
 
-				if spec.ConditionalAccessBypassEnabled == nil {
-					spec.ConditionalAccessBypassEnabled = ptr.Bool(true)
-				}
-
 				res, err := tx.ExecContext(
 					ctx,
 					query,
 					spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamID, spec.Platform, spec.Critical,
 					spec.CalendarEventsEnabled, softwareInstallerID, vppAppsTeamsID, scriptID, spec.ConditionalAccessEnabled,
-					spec.ConditionalAccessBypassEnabled,
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
@@ -2341,18 +2319,38 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 		GROUP BY host_id
 	) pm ON h.id = pm.host_id
 	LEFT JOIN (
-		SELECT host_id, MIN(email) AS email
-		FROM host_emails
-		JOIN hosts ON host_emails.host_id=hosts.id
-		WHERE email LIKE CONCAT('%@', ?) AND team_id = ?
-		GROUP BY host_id
+		SELECT host_id, email
+		FROM (
+			SELECT
+				he.host_id,
+				he.email,
+				ROW_NUMBER() OVER (
+					PARTITION BY he.host_id
+					ORDER BY
+						CASE
+							WHEN he.source IN (?, ?) THEN 1  -- IdP sources (mdm_idp_accounts, idp) have priority 1
+							WHEN he.source = ? THEN 2         -- Google Chrome profiles have priority 2
+							ELSE 3                             -- Other sources have lower priority
+						END,
+						he.email  -- alphabetical tiebreaker within same priority
+				) AS rn
+			FROM host_emails he
+			JOIN hosts h_email ON he.host_id = h_email.id
+			WHERE he.email LIKE CONCAT('%@', ?) AND h_email.team_id = ?
+		) ranked_emails
+		WHERE rn = 1
 	) sh ON h.id = sh.host_id
 	LEFT JOIN host_display_names hdn ON h.id = hdn.host_id
 	LEFT JOIN host_calendar_events hce ON h.id = hce.host_id
 	WHERE h.team_id = ? AND ((pm.passing IS NOT NULL AND NOT pm.passing) OR (COALESCE(pm.passing, 1) AND hce.host_id IS NOT NULL))
 `
 
-	query, args, err := sqlx.In(query, policyIDs, domain, teamID, teamID)
+	query, args, err := sqlx.In(query,
+		policyIDs,
+		fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingIDP, // IdP sources
+		fleet.DeviceMappingGoogleChromeProfiles, // Chrome profiles
+		domain, teamID,                          // domain and team_id for WHERE clause
+		teamID) // h.team_id in main WHERE
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "build select get team hosts policy memberships query")
 	}

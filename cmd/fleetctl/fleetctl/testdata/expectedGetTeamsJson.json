@@ -27,6 +27,7 @@
           "custom_settings": null
         },
         "enable_disk_encryption": false,
+        "enable_recovery_lock_password": false,
         "ios_updates": {
           "deadline": null,
           "minimum_version": null,
@@ -44,6 +45,7 @@
           "bootstrap_package": null,
           "enable_end_user_authentication": false,
           "enable_release_device_manually": false,
+          "lock_end_user_info": false,
           "macos_setup_assistant": null,
           "manual_agent_install": null,
           "require_all_software_macos": false,
@@ -102,6 +104,7 @@
           "custom_settings": null
         },
         "enable_disk_encryption": false,
+        "enable_recovery_lock_password": false,
         "ios_updates": {
           "deadline": null,
           "minimum_version": null,
@@ -119,6 +122,7 @@
           "bootstrap_package": null,
           "enable_end_user_authentication": false,
           "enable_release_device_manually": false,
+          "lock_end_user_info": false,
           "macos_setup_assistant": null,
           "manual_agent_install": null,
           "require_all_software_macos": false,
@@ -198,6 +202,7 @@
           "custom_settings": null
         },
         "enable_disk_encryption": false,
+        "enable_recovery_lock_password": true,
         "ios_updates": {
           "deadline": "2022-11-15",
           "minimum_version": "17.5",
@@ -215,6 +220,7 @@
           "bootstrap_package": null,
           "enable_end_user_authentication": false,
           "enable_release_device_manually": false,
+          "lock_end_user_info": false,
           "macos_setup_assistant": null,
           "manual_agent_install": null,
           "require_all_software_macos": false,
@@ -288,6 +294,7 @@
           "custom_settings": null
         },
         "enable_disk_encryption": false,
+        "enable_recovery_lock_password": true,
         "ios_updates": {
           "deadline": "2022-11-15",
           "minimum_version": "17.5",
@@ -305,6 +312,7 @@
           "bootstrap_package": null,
           "enable_end_user_authentication": false,
           "enable_release_device_manually": false,
+          "lock_end_user_info": false,
           "macos_setup_assistant": null,
           "manual_agent_install": null,
           "require_all_software_macos": false,
