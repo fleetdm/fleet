@@ -214,7 +214,7 @@ const EditQueryPage = ({
     ) {
       // Reroute to query report page still maintains query params for live query purposes
       router.push(
-        getPathWithQueryParams(PATHS.QUERY_DETAILS(queryId), {
+        getPathWithQueryParams(PATHS.REPORT_DETAILS(queryId), {
           host_id: location.query.host_id,
           fleet_id: location.query.fleet_id,
         })
@@ -265,7 +265,7 @@ const EditQueryPage = ({
       try {
         const { query } = await queryAPI.create(formData);
         router.push(
-          getPathWithQueryParams(PATHS.QUERY_DETAILS(query.id), {
+          getPathWithQueryParams(PATHS.REPORT_DETAILS(query.id), {
             fleet_id: query.team_id,
             host_id: hostId,
           })
@@ -374,7 +374,7 @@ const EditQueryPage = ({
   // Returns to queries details page, manage queries page with filters, or default manage queries page
   const backPath = () => {
     if (queryId) {
-      return getPathWithQueryParams(PATHS.QUERY_DETAILS(queryId), {
+      return getPathWithQueryParams(PATHS.REPORT_DETAILS(queryId), {
         fleet_id: currentTeamId,
         host_id: hostId,
       });
@@ -386,7 +386,7 @@ const EditQueryPage = ({
 
     if (filteredQueriesPath) return filteredQueriesPath;
 
-    return getPathWithQueryParams(PATHS.MANAGE_QUERIES, {
+    return getPathWithQueryParams(PATHS.MANAGE_REPORTS, {
       fleet_id: currentTeamId,
     });
   };
