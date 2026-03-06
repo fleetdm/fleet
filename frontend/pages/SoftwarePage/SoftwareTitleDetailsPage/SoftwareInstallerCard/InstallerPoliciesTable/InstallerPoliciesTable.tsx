@@ -5,7 +5,6 @@ import { ISoftwareInstallPolicy } from "interfaces/software";
 
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import CustomLink from "components/CustomLink";
 import generateInstallerPoliciesTableConfig from "./InstallerPoliciesTableConfig";
 
 export const baseClass = "installer-policies-table";

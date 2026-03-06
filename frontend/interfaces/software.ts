@@ -77,6 +77,8 @@ export interface ISoftwareInstallPolicy {
 }
 
 export type SoftwareInstallPolicyType = Set<"dynamic" | "patch">;
+
+// Used to combine PatchPolicy with AutomaticInstallPolicy for the Software Details > Install Policy table
 export interface ISoftwareInstallerPolicyIncludeType
   extends ISoftwareInstallPolicy {
   type: SoftwareInstallPolicyType;

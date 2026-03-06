@@ -50,6 +50,7 @@ const generateInstallerPoliciesTableConfig = ({
               fleet_id: teamId,
             }
           )}
+          className="w400"
           suffix={
             // TODO: We're not using type
             <SoftwareInstallPolicyBadges

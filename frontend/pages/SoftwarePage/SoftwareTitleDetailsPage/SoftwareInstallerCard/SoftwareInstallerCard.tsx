@@ -17,6 +17,7 @@ import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 import {
   getSelfServiceTooltip,
   getAutoUpdatesTooltip,
+  mergePolicies,
 } from "pages/SoftwarePage/helpers";
 
 import Card from "components/Card";
@@ -270,6 +271,11 @@ const SoftwareInstallerCard = ({
     isGlobalTechnician ||
     isTeamTechnician;
 
+  const mergedPolicies = mergePolicies({
+    automaticInstallPolicies,
+    patchPolicy,
+  });
+
   return (
     <Card borderRadiusSize="xxlarge" className={baseClass}>
       <div className={`${baseClass}__installer-header`}>
@@ -347,12 +353,12 @@ const SoftwareInstallerCard = ({
           isLoading={isLoading}
         />
       </div>
-      {automaticInstallPolicies && (
+      {mergedPolicies && (
         <div className={`${baseClass}__installer-policies-table`}>
           <InstallerPoliciesTable
             teamId={teamId}
             isLoading={isLoading}
-            policies={automaticInstallPolicies}
+            policies={mergedPolicies}
           />
         </div>
       )}

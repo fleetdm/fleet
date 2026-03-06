@@ -28,6 +28,7 @@ export interface SoftwareInstallerMeta {
   isIosOrIpadosApp: boolean;
   sha256?: string;
   androidPlayStoreId?: string;
+  patchPolicy?: ISoftwarePackage["patch_policy"]; // Only available on FMA packages
   automaticInstallPolicies:
     | ISoftwarePackage["automatic_install_policies"]
     | IAppStoreApp["automatic_install_policies"];
