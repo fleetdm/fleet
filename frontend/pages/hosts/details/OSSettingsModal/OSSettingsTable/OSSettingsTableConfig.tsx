@@ -20,6 +20,7 @@ import OSSettingsErrorCell from "./OSSettingsErrorCell";
 
 import {
   generateLinuxDiskEncryptionSetting,
+  generateRecoveryLockPasswordSetting,
   generateWinDiskEncryptionSetting,
 } from "../../helpers";
 
@@ -148,7 +149,6 @@ const makeLinuxRows = ({ profiles, os_settings }: IHostMdmData) => {
     isLinuxDiskEncryptionStatus(os_settings.disk_encryption.status)
   ) {
     rows.push(
-      // TODO - do this kind of thing for recovery lock MDM command status
       generateLinuxDiskEncryptionSetting(
         os_settings.disk_encryption.status,
         os_settings.disk_encryption.detail
@@ -163,7 +163,11 @@ const makeLinuxRows = ({ profiles, os_settings }: IHostMdmData) => {
   return rows;
 };
 
-const makeDarwinRows = ({ profiles, macos_settings }: IHostMdmData) => {
+const makeDarwinRows = ({
+  profiles,
+  macos_settings,
+  os_settings,
+}: IHostMdmData) => {
   if (!profiles) {
     return null;
   }
@@ -179,6 +183,16 @@ const makeDarwinRows = ({ profiles, macos_settings }: IHostMdmData) => {
       }
       return p;
     });
+  }
+
+  if (os_settings?.recovery_lock_password?.status) {
+    rows = [
+      ...rows,
+      generateRecoveryLockPasswordSetting(
+        os_settings.recovery_lock_password.status,
+        os_settings.recovery_lock_password.detail
+      ),
+    ];
   }
 
   return rows;

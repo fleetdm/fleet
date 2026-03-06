@@ -47,7 +47,6 @@ import {
 import {
   isBYODAccountDrivenUserEnrollment,
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
-  FLEET_RECOVERY_LOCK_PASSWORD_DISPLAY_NAME,
 } from "interfaces/mdm";
 import { ICommand } from "interfaces/command";
 
@@ -988,9 +987,6 @@ const HostDetailsPage = ({
     const diskEncryptionProfile = host.mdm.profiles?.find(
       (p) => p.name === FLEET_FILEVAULT_PROFILE_DISPLAY_NAME
     );
-    const recoveryLockPasswordProfile = host.mdm.profiles?.find(
-      (p) => p.name === FLEET_RECOVERY_LOCK_PASSWORD_DISPLAY_NAME
-    );
 
     return (
       <HostActionsDropdown
@@ -1010,7 +1006,9 @@ const HostDetailsPage = ({
           mdmConfig?.enable_recovery_lock_password ?? false
         }
         diskEncryptionProfileStatus={diskEncryptionProfile?.status}
-        recoveryLockPasswordProfileStatus={recoveryLockPasswordProfile?.status}
+        recoveryLockPasswordProfileStatus={
+          host.mdm.os_settings?.recovery_lock_password?.status
+        }
       />
     );
   };

@@ -1,5 +1,9 @@
 /** Helpers used across the host details and my device pages and components. */
-import { HostMdmDeviceStatus, HostMdmPendingAction } from "interfaces/host";
+import {
+  HostMdmDeviceStatus,
+  HostMdmPendingAction,
+  RecoveryLockPasswordStatus,
+} from "interfaces/host";
 import {
   IHostMdmProfile,
   WindowsDiskEncryptionStatus,
@@ -57,10 +61,26 @@ export const generateLinuxDiskEncryptionSetting = (
   detail: string
 ): IHostMdmProfile => {
   return {
-    profile_uuid: "0", // This is the only type of profile that can have this value
+    profile_uuid: "disk_enc_dummy",
     platform: "linux",
     name: "Disk encryption",
     status: diskEncryptionStatus,
+    detail,
+    operation_type: null,
+    scope: null,
+    managed_local_account: null,
+  };
+};
+
+export const generateRecoveryLockPasswordSetting = (
+  status: RecoveryLockPasswordStatus,
+  detail: string
+): IHostMdmProfile => {
+  return {
+    profile_uuid: "rec_lock_dummy",
+    platform: "darwin",
+    name: "Recovery lock password",
+    status,
     detail,
     operation_type: null,
     scope: null,
