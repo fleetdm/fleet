@@ -345,7 +345,7 @@ func TestFilterWarnings(t *testing.T) {
 		multiError := &multierror.Error{}
 		multiError = multierror.Append(multiError,
 			&ParseUnknownKeyError{Filename: "test.yml", Field: "bad_key"},
-			fmt.Errorf("some other error"),
+			errors.New("some other error"),
 			&ParseUnknownKeyError{Filename: "test.yml", Field: "another_bad"},
 		)
 
@@ -377,8 +377,8 @@ func TestFilterWarnings(t *testing.T) {
 	t.Run("preserves all errors when none match", func(t *testing.T) {
 		multiError := &multierror.Error{}
 		multiError = multierror.Append(multiError,
-			fmt.Errorf("error one"),
-			fmt.Errorf("error two"),
+			errors.New("error one"),
+			errors.New("error two"),
 		)
 
 		result := filterWarnings(multiError, func(string, ...any) {}, reflect.TypeFor[*ParseUnknownKeyError]())
@@ -393,7 +393,7 @@ func TestFilterWarnings(t *testing.T) {
 		multiError = multierror.Append(multiError,
 			&ParseUnknownKeyError{Filename: "test.yml", Field: "bad"},
 			&ParseTypeError{Filename: "test.yml", Keys: []string{"controls"}},
-			fmt.Errorf("kept error"),
+			errors.New("kept error"),
 		)
 
 		result := filterWarnings(multiError, func(string, ...any) {},
