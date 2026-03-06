@@ -4,7 +4,7 @@ Use Fleet's best practice GitOps workflow to manage your computers as code. To l
 
 > When changing a team's name, you must first change it in the UI and then update your YAML. If you only update your YAML, the team will be deleted and the team's hosts will lose their settings. This happens because the hosts are transferred to "No team".
 
-Any settings not defined in your YAML files (including missing or misspelled keys) will be reset to the default values, which may include deleting assets such as software packages.
+Any settings not defined in your YAML files (including missing or misspelled keys) will be reset to the default values or deleted (e.g. software packages).
 
 The following are the required keys in the `default.yml` and any `teams/team-name.yml` files:
 
@@ -693,6 +693,8 @@ org_settings:
 The `host_expiry_settings` section lets you define if and when hosts should be automatically deleted from Fleet if they have not checked in.
 - `host_expiry_enabled` (default: `false`)
 - `host_expiry_window` if a host has not communicated with Fleet in the specified number of days, it will be removed. Must be > `0` when host expiry is enabled (default: `0`).
+
+If this setting is not defined in your YAML files, unlike all other settings, it will not get reset to the default values.
 
 Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
 
