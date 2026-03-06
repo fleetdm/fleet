@@ -1,0 +1,1 @@
+* Fixed report creation API returning zero timestamps for `created_at` and `updated_at` fields.

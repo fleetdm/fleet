@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/big"
 	"net"
 	"os"
@@ -22,9 +23,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -207,33 +208,33 @@ func TestHostSearchLike(t *testing.T) {
 
 	testCases := []struct {
 		inSQL     string
-		inParams  []interface{}
+		inParams  []any
 		match     string
 		columns   []string
 		outSQL    string
-		outParams []interface{}
+		outParams []any
 	}{
 		{
 			inSQL:     "SELECT * FROM HOSTS h WHERE TRUE",
-			inParams:  []interface{}{},
+			inParams:  []any{},
 			match:     "foobar",
 			columns:   []string{"hostname"},
-			outSQL:    "SELECT * FROM HOSTS h WHERE TRUE AND (hostname LIKE ?)",
-			outParams: []interface{}{"%foobar%"},
+			outSQL:    "SELECT * FROM HOSTS h WHERE TRUE AND (hostname LIKE ? OR ( EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?)))",
+			outParams: []any{"%foobar%", "%foobar%"},
 		},
 		{
 			inSQL:     "SELECT * FROM HOSTS h WHERE 1=1",
-			inParams:  []interface{}{1},
+			inParams:  []any{1},
 			match:     "a@b.c",
 			columns:   []string{"ipv4"},
 			outSQL:    "SELECT * FROM HOSTS h WHERE 1=1 AND (ipv4 LIKE ? OR ( EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?)))",
-			outParams: []interface{}{1, "%a@b.c%", "%a@b.c%"},
+			outParams: []any{1, "%a@b.c%", "%a@b.c%"},
 		},
 	}
 
 	for _, tt := range testCases {
 		t.Run("", func(t *testing.T) {
-			sql, params, _ := hostSearchLike(tt.inSQL, tt.inParams, tt.match, tt.columns...)
+			sql, params := hostSearchLike(tt.inSQL, tt.inParams, tt.match, tt.columns...)
 			assert.Equal(t, tt.outSQL, sql)
 			assert.Equal(t, tt.outParams, params)
 		})
@@ -247,7 +248,7 @@ func mockDatastore(t *testing.T) (sqlmock.Sqlmock, *Datastore) {
 	ds := &Datastore{
 		primary: dbmock,
 		replica: dbmock,
-		logger:  log.NewNopLogger(),
+		logger:  slog.New(slog.DiscardHandler),
 	}
 
 	return mock, ds
@@ -356,6 +357,63 @@ func TestWithRetryTxxCommitError(t *testing.T) {
 	}))
 
 	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestAppendListOptionsToSQLSecure(t *testing.T) {
+	// Test allowlist for mapping order keys to actual column names
+	testAllowlist := common_mysql.OrderKeyAllowlist{
+		"name": "name",
+	}
+
+	sql := "SELECT * FROM my_table"
+	opts := fleet.ListOptions{
+		OrderKey: "name",
+	}
+
+	actual, _, err := appendListOptionsToSQLSecure(sql, &opts, testAllowlist)
+	require.NoError(t, err)
+	expected := "SELECT * FROM my_table ORDER BY name ASC LIMIT 1000000"
+	assert.Equal(t, expected, actual)
+
+	sql = "SELECT * FROM my_table"
+	opts.OrderDirection = fleet.OrderDescending
+	actual, _, err = appendListOptionsToSQLSecure(sql, &opts, testAllowlist)
+	require.NoError(t, err)
+	expected = "SELECT * FROM my_table ORDER BY name DESC LIMIT 1000000"
+	assert.Equal(t, expected, actual)
+
+	opts = fleet.ListOptions{
+		PerPage: 10,
+	}
+
+	sql = "SELECT * FROM my_table"
+	actual, _, err = appendListOptionsToSQLSecure(sql, &opts, testAllowlist)
+	require.NoError(t, err)
+	expected = "SELECT * FROM my_table LIMIT 10"
+	assert.Equal(t, expected, actual)
+
+	sql = "SELECT * FROM my_table"
+	opts.Page = 2
+	actual, _, err = appendListOptionsToSQLSecure(sql, &opts, testAllowlist)
+	require.NoError(t, err)
+	expected = "SELECT * FROM my_table LIMIT 10 OFFSET 20"
+	assert.Equal(t, expected, actual)
+
+	opts = fleet.ListOptions{}
+	sql = "SELECT * FROM my_table"
+	actual, _, err = appendListOptionsToSQLSecure(sql, &opts, testAllowlist)
+	require.NoError(t, err)
+	expected = "SELECT * FROM my_table LIMIT 1000000"
+	assert.Equal(t, expected, actual)
+
+	// Test that invalid order key returns an error
+	opts = fleet.ListOptions{OrderKey: "invalid_column"}
+	sql = "SELECT * FROM my_table"
+	_, _, err = appendListOptionsToSQLSecure(sql, &opts, testAllowlist)
+	require.Error(t, err)
+	var invalidKeyErr common_mysql.InvalidOrderKeyError
+	require.ErrorAs(t, err, &invalidKeyErr)
+	require.Equal(t, "invalid_column", invalidKeyErr.Key)
 }
 
 func TestAppendListOptionsToSQL(t *testing.T) {
@@ -596,7 +654,7 @@ func TestWhereFilterHostsByTeams(t *testing.T) {
 	for _, tt := range testCases {
 		tt := tt
 		t.Run("", func(t *testing.T) {
-			ds := &Datastore{logger: log.NewNopLogger()}
+			ds := &Datastore{logger: slog.New(slog.DiscardHandler)}
 			sql := ds.whereFilterHostsByTeams(tt.filter, "hosts")
 			assert.Equal(t, tt.expected, sql)
 		})
@@ -631,7 +689,7 @@ func TestWhereOmitIDs(t *testing.T) {
 	for _, tt := range testCases {
 		tt := tt
 		t.Run("", func(t *testing.T) {
-			ds := &Datastore{logger: log.NewNopLogger()}
+			ds := &Datastore{logger: slog.New(slog.DiscardHandler)}
 			sql := ds.whereOmitIDs("id", tt.omits)
 			assert.Equal(t, tt.expected, sql)
 		})
@@ -755,7 +813,7 @@ func newDSWithConfig(t *testing.T, dbName string, config config.MysqlConfig) (*D
 	_, err = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s; CREATE DATABASE %s;", dbName, dbName))
 	require.NoError(t, err)
 
-	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1))
+	ds, err := New(config, clock.NewMockClock(), Logger(slog.New(slog.DiscardHandler)), LimitAttempts(1))
 	return ds, err
 }
 
@@ -875,7 +933,7 @@ func TestWhereFilterTeams(t *testing.T) {
 	for _, tt := range testCases {
 		tt := tt
 		t.Run("", func(t *testing.T) {
-			ds := &Datastore{logger: log.NewNopLogger()}
+			ds := &Datastore{logger: slog.New(slog.DiscardHandler)}
 			sql := ds.whereFilterTeams(tt.filter, "t")
 			assert.Equal(t, tt.expected, sql)
 		})
@@ -1261,7 +1319,7 @@ func TestWhereFilterTeamWithGlobalStats(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			ds := &Datastore{logger: log.NewNopLogger()}
+			ds := &Datastore{logger: slog.New(slog.DiscardHandler)}
 			sql := ds.whereFilterTeamWithGlobalStats(tt.filter, "hosts")
 			assert.Equal(t, tt.expected, sql)
 		})
@@ -1399,7 +1457,6 @@ func TestGetContextTryStmt(t *testing.T) {
 		stmt = ds.loadOrPrepareStmt(ctx, query)
 		require.NotNil(t, stmt)
 	})
-
 }
 
 // createTestDatabase creates a temporary test database with the given name and
@@ -1462,7 +1519,7 @@ func TestReplicaPasswordReadFromDisk(t *testing.T) {
 		Database:     dbName,
 	}
 
-	conns, err := NewDBConnections(primaryConfig, Replica(&replicaConfig), LimitAttempts(1), Logger(log.NewNopLogger()))
+	conns, err := NewDBConnections(primaryConfig, Replica(&replicaConfig), LimitAttempts(1), Logger(slog.New(slog.DiscardHandler)))
 	require.NoError(t, err, "replica connection should succeed when PasswordPath is used — "+
 		"if this fails with 'Access denied' the password read from disk was not preserved for the replica")
 	defer conns.Primary.Close()
@@ -1517,7 +1574,7 @@ func TestReplicaTLSConfigPreserved(t *testing.T) {
 	//
 	// Before the fix TLSConfig was empty for the replica's NewDB call, so the
 	// replica connected without TLS (no error) — meaning this assertion would fail.
-	_, err := NewDBConnections(primaryConfig, Replica(&replicaConfig), LimitAttempts(1), Logger(log.NewNopLogger()))
+	_, err := NewDBConnections(primaryConfig, Replica(&replicaConfig), LimitAttempts(1), Logger(slog.New(slog.DiscardHandler)))
 	require.Error(t, err, "replica connection should fail with a TLS error when TLSCA is set — "+
 		"if this succeeds, TLS was silently not applied to the replica")
 	require.Regexp(t, "(x509|tls|EOF)", err.Error())

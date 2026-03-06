@@ -8,7 +8,6 @@ import (
 	"os"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -19,11 +18,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	ds_mock "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
-	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
@@ -90,6 +87,11 @@ func (ds *AndroidDSWithMock) SetAndroidHostUnenrolled(ctx context.Context, hostI
 	return ds.Datastore.SetAndroidHostUnenrolled(ctx, hostID)
 }
 
+// noopNewActivity is a no-op activity creation function for tests that don't verify activity creation.
+func noopNewActivity(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+	return nil
+}
+
 type WithServer struct {
 	suite.Suite
 	Svc      android.Service
@@ -113,14 +115,11 @@ func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
 	ts.createCommonProxyMocks(t)
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	kitLogger := logging.NewLogger(logger)
-	activityModule := activities.NewActivityModule(&ts.DS.DataStore, kitLogger)
-	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, "test-private-key", ts.DS.Datastore, activityModule,
-		config.AndroidAgentConfig{})
+	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, "test-private-key", ts.DS.Datastore, noopNewActivity, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 	ts.Svc = svc
 
-	ts.Server = runServerForTests(t, kitLogger, &ts.FleetSvc, svc)
+	ts.Server = runServerForTests(t, logger, &ts.FleetSvc, svc)
 }
 
 func (ts *WithServer) CreateCommonDSMocks() {
@@ -156,9 +155,6 @@ func (ts *WithServer) CreateCommonDSMocks() {
 		return nil
 	}
 	ts.DS.BulkSetAndroidHostsUnenrolledFunc = func(ctx context.Context) error {
-		return nil
-	}
-	ts.DS.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
 		return nil
 	}
 }
@@ -209,7 +205,7 @@ func (m *mockService) NewActivity(ctx context.Context, user *fleet.User, details
 	return m.Called(ctx, user, details).Error(0)
 }
 
-func runServerForTests(t *testing.T, logger *logging.Logger, fleetSvc fleet.Service, androidSvc android.Service) *httptest.Server {
+func runServerForTests(t *testing.T, logger *slog.Logger, fleetSvc fleet.Service, androidSvc android.Service) *httptest.Server {
 	// androidErrorEncoder wraps EncodeError with nil domain encoder for android tests
 	androidErrorEncoder := func(ctx context.Context, err error, w http.ResponseWriter) {
 		endpointer.EncodeError(ctx, err, w, nil)
@@ -224,7 +220,7 @@ func runServerForTests(t *testing.T, logger *logging.Logger, fleetSvc fleet.Serv
 		kithttp.ServerErrorEncoder(androidErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			log.LogRequestEnd(logger.SlogLogger()),
+			log.LogRequestEnd(logger),
 		),
 	}
 

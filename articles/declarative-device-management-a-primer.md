@@ -129,6 +129,10 @@ For organizations looking to implement DDM with full transparency and no vendor 
 
 ## Frequently asked questions
 
+### Is it possible to deliver DDM configurations from Fleet if the Fleet server is hosted on-premise (on-prem)? 
+
+Yes! Some [device management solutions](https://www.jamf.com/blog/introducing-blueprints/) restrict delivery of DDM configurations to cloud instances only. Many device management solutions no longer offer or never have had an on-prem option. You can [deploy Fleet](https://fleetdm.com/docs/deploy/deploy-fleet) anywhere, or we can [host it for you](https://fleetdm.com/docs/get-started/faq#can-you-host-fleet-for-me). Fleet will support your on-prem installation and Fleet will always fully support Apple's MDM and DDM specifications. 
+
 ### What happens if DDM and legacy MDM profiles conflict?
 
 Apple handles this through precedence rules. When both a configuration profile and a DDM declaration contain the same setting, DDM takes precedence for software update configurations and app management specifically. For other settings, Apple merges conflicting policies and enforces the strictest configuration, similar to how traditional MDM handles multiple profiles with overlapping settings.

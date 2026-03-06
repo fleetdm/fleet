@@ -641,8 +641,9 @@ const PolicyForm = ({
           <TooltipWrapper
             tipContent={
               <p>
-                If automations are turned on, this
-                <br /> information is included.
+                If automations are turned on, this information is included. If
+                Okta conditional access is configured, end users can never
+                bypass critical policies.
               </p>
             }
           >
@@ -842,7 +843,7 @@ const PolicyForm = ({
               data-html
             >
               {disabledLiveQuery ? (
-                <>Live queries are disabled in organization settings</>
+                <>Live reports are disabled in organization settings</>
               ) : (
                 <>
                   Select the platforms this <br />

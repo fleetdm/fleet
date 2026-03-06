@@ -252,6 +252,12 @@ $max-width: 2560px;
   }
 }
 
+@mixin flex-column-32px-gap {
+  display: flex;
+  flex-direction: column;
+  gap: px-to-rem(32);
+}
+
 @mixin flex-column-24px-gap {
   display: flex;
   flex-direction: column;
@@ -549,19 +555,4 @@ $max-width: 2560px;
   background-size: 100% 150px; // Must do this or gradient can be different heights on different pages
   background-repeat: no-repeat;
   background-color: #fff; // area below gradient will just be white
-}
-
-@mixin content-wrapper {
-  .outer {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: $pad-large;
-  }
-  .inner {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: $pad-small;
-  }
 }

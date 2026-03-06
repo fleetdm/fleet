@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -32,7 +33,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	kitlog "github.com/go-kit/log"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -665,10 +665,6 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 
 		// for iDevices, fleetd is not installed so the rest of this test does not apply.
 		if opts.EnableReleaseManually {
-			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-				mysql.DumpTable(t, q, "jobs")
-				return nil
-			})
 			// get the worker's pending job from the future, there should not be any
 			// because it needs to be released manually
 			pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
@@ -1486,7 +1482,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	checkNoJobsPending()
 
 	// cooldown hosts are screened from update profile jobs that would assign profiles
-	_, err = worker.QueueMacosSetupAssistantJob(ctx, s.ds, kitlog.NewNopLogger(), worker.MacosSetupAssistantUpdateProfile, &dummyTeam.ID, eHost.HardwareSerial)
+	_, err = worker.QueueMacosSetupAssistantJob(ctx, s.ds, slog.New(slog.DiscardHandler), worker.MacosSetupAssistantUpdateProfile, &dummyTeam.ID, eHost.HardwareSerial)
 	require.NoError(t, err)
 	checkPendingMacOSSetupAssistantJob("update_profile", &dummyTeam.ID, []string{eHost.HardwareSerial}, 0)
 	s.runIntegrationsSchedule()
@@ -1495,7 +1491,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	checkNoJobsPending()
 
 	// cooldown hosts are screened from delete profile jobs that would assign profiles
-	_, err = worker.QueueMacosSetupAssistantJob(ctx, s.ds, kitlog.NewNopLogger(), worker.MacosSetupAssistantProfileDeleted, &dummyTeam.ID, eHost.HardwareSerial)
+	_, err = worker.QueueMacosSetupAssistantJob(ctx, s.ds, slog.New(slog.DiscardHandler), worker.MacosSetupAssistantProfileDeleted, &dummyTeam.ID, eHost.HardwareSerial)
 	require.NoError(t, err)
 	checkPendingMacOSSetupAssistantJob("profile_deleted", &dummyTeam.ID, []string{eHost.HardwareSerial}, 0)
 	s.runIntegrationsSchedule()
@@ -1742,6 +1738,19 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runDEPSchedule()
 	require.Empty(t, profileAssignmentReqs)
+
+	// Last one with existing profile but profile has suddenly been removed, so will be assigned(see https://github.com/fleetdm/fleet/issues/39871)
+	devices = append(devices, devices[0])
+	// This will cause a base entry for the device then a modify entry where the profile gets removed which will trigger the update
+	devices[0].OpDate = time.Now().Add(-1 * time.Hour)
+	devices[1].OpDate = time.Now()
+	devices[1].ProfileStatus = "removed"
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runDEPSchedule()
+	require.Len(t, profileAssignmentReqs, 1)
+	require.Len(t, profileAssignmentReqs[0].Devices, 1)
+	assert.ElementsMatch(t, []string{devices[0].SerialNumber}, profileAssignmentReqs[0].Devices)
+	checkHostDEPAssignProfileResponses(profileAssignmentReqs[0].Devices, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
 }
 
 func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {

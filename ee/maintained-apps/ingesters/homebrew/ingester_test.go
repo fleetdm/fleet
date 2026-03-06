@@ -3,6 +3,7 @@ package homebrew
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,7 +13,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -127,7 +127,7 @@ func TestIngestValidations(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.inputApp.Token, func(t *testing.T) {
 			i := &brewIngester{
-				logger:  log.NewNopLogger(),
+				logger:  slog.New(slog.DiscardHandler),
 				client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
 				baseURL: srv.URL + "/",
 			}

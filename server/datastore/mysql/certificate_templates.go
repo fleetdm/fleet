@@ -9,9 +9,16 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 )
+
+// certificateTemplateAllowedOrderKeys defines the allowed order keys for ListCertificateTemplates.
+// SECURITY: This prevents information disclosure via arbitrary column sorting.
+var certificateTemplateAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id": "certificate_templates.id",
+}
 
 const certificateTemplateResponseSql = `
 	SELECT
@@ -146,7 +153,10 @@ func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID
 		%s
 `, fromClause)
 
-	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, args, &opts)
+	stmtPaged, args, err := appendListOptionsWithCursorToSQLSecure(stmt, args, &opts, certificateTemplateAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 
 	var templates []*fleet.CertificateTemplateResponseSummary
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &templates, stmtPaged, args...); err != nil {

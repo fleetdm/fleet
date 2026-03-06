@@ -57,7 +57,7 @@ const ReportUpdatedCell = ({
                   >
                     {
                       <>
-                        Results from this query are not reported in Fleet.
+                        Results from this report are not reported in Fleet.
                         <br />
                         Data is being sent to your log destination.
                       </>
@@ -88,7 +88,7 @@ const ReportUpdatedCell = ({
                   backgroundColor={COLORS["tooltip-bg"]}
                   place="top"
                 >
-                  Fleet is collecting query results.
+                  Fleet is collecting report results.
                   <br />
                   Check back later.
                 </ReactTooltip>
@@ -118,7 +118,7 @@ const ReportUpdatedCell = ({
   const onClick = () => {
     hostId &&
       queryId &&
-      browserHistory.push(PATHS.HOST_QUERY_REPORT(hostId, queryId));
+      browserHistory.push(PATHS.HOST_REPORT_RESULTS(hostId, queryId));
   };
 
   return (

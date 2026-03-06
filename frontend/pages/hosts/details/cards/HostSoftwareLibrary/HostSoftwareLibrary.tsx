@@ -88,7 +88,7 @@ export const parseHostSoftwareLibraryQueryParams = (queryParams: {
   order_key?: string;
   order_direction?: "asc" | "desc";
   self_service?: string;
-  team_id?: string;
+  fleet_id?: string;
 }) => {
   const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
   const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
@@ -98,8 +98,8 @@ export const parseHostSoftwareLibraryQueryParams = (queryParams: {
     : DEFAULT_PAGE;
   const pageSize = DEFAULT_PAGE_SIZE;
   const selfService = queryParams?.self_service === "true";
-  const teamId = queryParams?.team_id
-    ? parseInt(queryParams.team_id, 10)
+  const teamId = queryParams?.fleet_id
+    ? parseInt(queryParams.fleet_id, 10)
     : undefined;
 
   return {
@@ -110,7 +110,7 @@ export const parseHostSoftwareLibraryQueryParams = (queryParams: {
     per_page: pageSize,
     available_for_install: true, // always true for host installers
     self_service: selfService,
-    team_id: teamId,
+    fleet_id: teamId,
   };
 };
 
@@ -369,23 +369,25 @@ const HostSoftwareLibrary = ({
 
   const onAddSoftware = useCallback(() => {
     // "Add Software" path dependent on host's platform
-    const addSoftwarePathForHostPlatform = () => {
-      if (isIPadOrIPhoneHost || isAndroidHost) {
-        return getPathWithQueryParams(PATHS.SOFTWARE_ADD_APP_STORE, {
-          platform: isAndroidHost ? "android" : "apple",
-        });
-      }
-      if (isMacOSHost || isWindowsHost) {
-        return PATHS.SOFTWARE_ADD_FLEET_MAINTAINED;
-      }
-      return PATHS.SOFTWARE_ADD_PACKAGE;
-    };
+    let path = "";
+    const params: {
+      fleet_id: number;
+      platform?: string;
+    } = { fleet_id: hostTeamId };
 
-    router.push(
-      getPathWithQueryParams(addSoftwarePathForHostPlatform(), {
-        team_id: hostTeamId,
-      })
-    );
+    switch (true) {
+      case isIPadOrIPhoneHost || isAndroidHost:
+        path = PATHS.SOFTWARE_ADD_APP_STORE;
+        params.platform = isAndroidHost ? "android" : "apple";
+        break;
+      case isMacOSHost || isWindowsHost:
+        path = PATHS.SOFTWARE_ADD_FLEET_MAINTAINED;
+        break;
+      default:
+        path = PATHS.SOFTWARE_ADD_PACKAGE;
+    }
+
+    router.push(getPathWithQueryParams(path, params));
   }, [
     hostTeamId,
     isIPadOrIPhoneHost,
@@ -610,7 +612,7 @@ const HostSoftwareLibrary = ({
         page={queryParams.page}
         pagePath={pathname}
         selfService={queryParams.self_service}
-        teamId={queryParams.team_id}
+        teamId={queryParams.fleet_id}
       />
     );
   };

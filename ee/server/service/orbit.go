@@ -8,7 +8,6 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 )
 
@@ -160,7 +159,7 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 			}
 			// If so, call the enqueue function with a flag to retain successful steps.
 			if requireAllSoftware {
-				level.Info(svc.logger).Log("msg", "re-enqueueing cancelled setup experience steps after a previous software install failure", "host_uuid", host.UUID)
+				svc.logger.InfoContext(ctx, "re-enqueueing cancelled setup experience steps after a previous software install failure", "host_uuid", host.UUID)
 				platform := host.PlatformLike
 				if platform == "" {
 					platform = host.Platform
@@ -219,9 +218,9 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		// otherwise the device is not released manually, proceed with automatic
 		// release
 		if forceRelease {
-			level.Warn(svc.logger).Log("msg", "force-releasing device, DEP enrollment commands, profiles, software installs and script execution may not have all completed", "host_uuid", host.UUID)
+			svc.logger.WarnContext(ctx, "force-releasing device, DEP enrollment commands, profiles, software installs and script execution may not have all completed", "host_uuid", host.UUID)
 		} else {
-			level.Info(svc.logger).Log("msg", "releasing device, all DEP enrollment commands, profiles, software installs and script execution have completed", "host_uuid", host.UUID)
+			svc.logger.InfoContext(ctx, "releasing device, all DEP enrollment commands, profiles, software installs and script execution have completed", "host_uuid", host.UUID)
 		}
 
 		// Host will be marked as no longer "awaiting configuration" in the command handler
@@ -250,7 +249,7 @@ func (svc *Service) failCancelledSetupExperienceInstalls(
 			continue
 		}
 		r.Status = fleet.SetupExperienceStatusFailure
-		level.Info(svc.logger).Log("msg", "marking setup experience software as failed due to cancellation", "host_uuid", hostUUID, "software_name", r.Name)
+		svc.logger.InfoContext(ctx, "marking setup experience software as failed due to cancellation", "host_uuid", hostUUID, "software_name", r.Name)
 		err := svc.ds.UpdateSetupExperienceStatusResult(ctx, r)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "failing cancelled setup experience software install")

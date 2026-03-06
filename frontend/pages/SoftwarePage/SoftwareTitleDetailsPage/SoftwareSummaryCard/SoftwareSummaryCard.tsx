@@ -81,7 +81,7 @@ const SoftwareSummaryCard = ({
             versions={softwareTitle.versions?.length ?? 0}
             hostCount={softwareTitle.hosts_count}
             countsUpdatedAt={softwareTitle.counts_updated_at}
-            queryParams={{ software_title_id: softwareId, team_id: teamId }}
+            queryParams={{ software_title_id: softwareId, fleet_id: teamId }}
             name={softwareTitle.name}
             source={softwareTitle.source}
             iconUrl={softwareTitle.icon_url}
@@ -112,12 +112,15 @@ const SoftwareSummaryCard = ({
     isIosOrIpadosApp,
     isFleetMaintainedApp,
     isAndroidPlayStoreApp,
+    isAndroidPlayStoreWebApp,
     canManageSoftware,
   } = meta;
 
   const canEditAppearance = canManageSoftware;
-  const canEditSoftware = canManageSoftware;
-  const canEditConfiguration = canManageSoftware && isAndroidPlayStoreApp;
+  const canEditSoftware = canManageSoftware && !isAndroidPlayStoreApp;
+  /** Permission to manage software + Google Playstore app that's not a web app */
+  const canEditConfiguration =
+    canManageSoftware && isAndroidPlayStoreApp && !isAndroidPlayStoreWebApp;
   /** Installer modals require a specific team; hidden from "All Teams" */
   const hasValidTeamId = typeof teamId === "number" && teamId >= 0;
   const softwareInstallerOnTeam = hasValidTeamId && softwareInstaller;
@@ -142,7 +145,7 @@ const SoftwareSummaryCard = ({
           countsUpdatedAt={softwareTitle.counts_updated_at}
           queryParams={{
             software_title_id: softwareId,
-            team_id: teamId,
+            fleet_id: teamId,
           }}
           name={softwareTitle.name}
           source={softwareTitle.source}

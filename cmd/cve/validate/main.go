@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,8 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed"
 	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 func main() {
@@ -23,21 +23,20 @@ func main() {
 	debug := flag.Bool("debug", false, "Sets debug mode")
 	flag.Parse()
 
-	logger := log.NewJSONLogger(os.Stdout)
+	logLevel := slog.LevelInfo
 	if *debug {
-		logger = level.NewFilter(logger, level.AllowDebug())
-	} else {
-		logger = level.NewFilter(logger, level.AllowInfo())
+		logLevel = slog.LevelDebug
 	}
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
 
 	vulnPath := *dbDir
 	checkNVDVulnerabilities(vulnPath, logger)
 	checkGovalDictionaryVulnerabilities(vulnPath)
 }
 
-func checkNVDVulnerabilities(vulnPath string, logger log.Logger) {
+func checkNVDVulnerabilities(vulnPath string, logger *slog.Logger) {
 	metaMap := make(map[string]fleet.CVEMeta)
-	if err := nvd.CVEMetaFromNVDFeedFiles(metaMap, vulnPath, logger); err != nil {
+	if err := nvd.CVEMetaFromNVDFeedFiles(context.Background(), metaMap, vulnPath, logger); err != nil {
 		panic(err)
 	}
 

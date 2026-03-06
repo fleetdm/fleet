@@ -7,10 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	mysql_testing_utils "github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
-	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -38,7 +36,7 @@ func SetupTestDB(t *testing.T, testNamePrefix string) *TestDB {
 
 	return &TestDB{
 		DB:     db,
-		Logger: slog.New(logging.DiscardHandler{}),
+		Logger: slog.New(slog.DiscardHandler),
 	}
 }
 
@@ -50,7 +48,7 @@ func (tdb *TestDB) Conns() *common_mysql.DBConnections {
 // TruncateTables clears the tables used by activity bounded context.
 func (tdb *TestDB) TruncateTables(t *testing.T) {
 	t.Helper()
-	mysql_testing_utils.TruncateTables(t, tdb.DB, kitlog.NewNopLogger(), nil, "host_activities", "activities", "hosts", "users")
+	mysql_testing_utils.TruncateTables(t, tdb.DB, tdb.Logger, nil, "host_activities", "activities", "hosts", "users")
 }
 
 // InsertUser creates a user in the database and returns the user ID.
@@ -66,7 +64,7 @@ func (tdb *TestDB) InsertUser(t *testing.T, name, email string) uint {
 
 	id, err := result.LastInsertId()
 	require.NoError(t, err)
-	return uint(id)
+	return uint(id) //nolint:gosec // dismiss G115
 }
 
 // InsertActivity creates an activity in the database and returns the activity ID.
@@ -106,7 +104,7 @@ func (tdb *TestDB) InsertActivityWithTime(t *testing.T, userID *uint, activityTy
 
 	id, err := result.LastInsertId()
 	require.NoError(t, err)
-	return uint(id)
+	return uint(id) //nolint:gosec // dismiss G115
 }
 
 // InsertHost creates a host in the database and returns the host ID.
@@ -122,7 +120,7 @@ func (tdb *TestDB) InsertHost(t *testing.T, hostname string, teamID *uint) uint 
 
 	id, err := result.LastInsertId()
 	require.NoError(t, err)
-	return uint(id)
+	return uint(id) //nolint:gosec // dismiss G115
 }
 
 // InsertHostActivity creates a link between a host and an activity in the host_activities junction table.

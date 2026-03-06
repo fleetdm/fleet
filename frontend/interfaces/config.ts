@@ -80,12 +80,14 @@ export interface IMdmConfig {
     enable_release_device_manually: boolean | null;
     manual_agent_install: boolean | null;
     require_all_software_macos: boolean | null;
+    lock_end_user_info: boolean | null;
   };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {
     deadline_days: number | null;
     grace_period_days: number | null;
   };
+  windows_entra_tenant_ids: string[] | null;
 }
 
 // Note: IDeviceGlobalConfig is misnamed on the backend because in some cases it returns team config

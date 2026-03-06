@@ -41,9 +41,17 @@ Engineering-initiated stories are types of user stories created by engineers to 
 
 It's important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users.
 
+Engineering-initiated stories are for work that no customer or stakeholder has directly asked for but that makes Fleet better. If any of the following apply, the issue should go through normal product prioritization instead of being labeled `~engineering-initiated`:
+
+- The work was motivated by a **customer report or request** (has a `customer-*` label).
+- The issue is a **bug or defect** (has a `~released bug` or `bug` label).
+- The issue is a **postmortem action item** (has a `~postmortem-action-item` label).
+
+These categories compete for priority in the normal product pipeline so that product and customer stakeholders have full visibility into the work being done on their behalf.
+
 1. Create a new engineering-initiated story using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=lukeheath&labels=story,~engineering-initiated&projects=&template=story.md&title=). Make sure the `~engineering-initiated` label is added, the `:product` label is removed, and the engineering output and architecture DRI (@lukeheath) is assigned.
 
-2. Remove the "Product" section and checklist from the issue description. 
+2. Remove the "Product" section and checklist from the issue description.
 
 3. Create the issue. The new user story will be automatically placed in the "New Requests" column of the [engineering GitHub board](https://github.com/orgs/fleetdm/projects/73). If you feel the issue is urgent, tag your EM or the engineering output and architecture DRI (@lukeheath) in a comment.
 
@@ -52,7 +60,7 @@ It's important to frame engineering-initiated user stories the same way we frame
 
 ### Draft an engineering-initiated story
 
-The engineering output and architecture DRI reviews and triages engineering-initiated stories weekly on the [Engineering board](https://github.com/orgs/fleetdm/projects/73) and selects stories to prioritize for drafting by adding the `:product` label, placing it in the "Ready" column, and assigning to the engineer listed as the product designer. 
+The engineering output and architecture DRI reviews and triages engineering-initiated stories weekly on the [Engineering board](https://github.com/orgs/fleetdm/projects/73) and selects stories to prioritize for drafting by adding the `:product` label, placing it in the "Ready" column, and assigning an engineer. 
 
 1. The assigned engineer is responsible for completing the user story drafting process by completing the specs and [defining done](https://fleetdm.com/handbook/company/product-groups#defining-done). Move the issue into "In progress" on the drafting board and populate all TODOs in the issue description, define implementation details, and draft the first version of the test plan.
 
@@ -105,58 +113,68 @@ If a community member opens an issue that we can't reproduce leave a comment ask
 If a community PR hasn't had any updates or response from the author after one week, convert the PR to draft and add a comment tagging the author to let them know they are welcome to push any updates and convert it back to non-draft. After one year, our bot will auto-close it with a comment if it doesn't get updated.
 
 
-### Schedule business hours on-call engineer workload
+### Schedule on-call engineer workload
 
-Engineering Managers are asked to be aware of the [business hours on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#business-hours-on-call-engineer) and reduce estimated capacity for each sprint accordingly. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
+Engineering Managers are asked to be aware of the [on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#on-call-engineer) and reduce estimated capacity for each sprint accordingly. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
 
-On-call engineers are available during the business hours of 9am - 6pm Pacific. The [on-call support SLA](https://fleetdm.com/handbook/company/product-groups#business-hours-on-call-responsibilities) requires a 1-hour response time during business hours to any `@oncall` mention.
+On-call engineers are available during the business hours of 9am - 5pm Central. The [on-call support SLA](https://fleetdm.com/handbook/company/product-groups#on-call-responsibilities) requires a 1-hour response time during business hours to any `@oncall` mention.
 
 
-#### Assume business hours on-call engineer alias
+#### Assume on-call engineer alias
 
 The on-call engineer is responsible for:
 
-- Knowing [the on-call rotation](https://fleetdm.com/handbook/company/product-groups#business-hours-on-call).
-- Performing the [business hours on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#business-hours-on-call-responsibilities).
+- Knowing [the on-call rotation](https://fleetdm.com/handbook/company/product-groups#on-call-engineer).
+- Performing the [on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#on-call-responsibilities).
 - [Escalating community questions and issues](https://fleetdm.com/handbook/company/product-groups#escalations).
 - Successfully [transferring the on-call persona to the next engineer](https://fleetdm.com/handbook/company/product-groups#changing-of-the-guard).
 
-To provide full-time focus to the role, the business hours on-call engineer is not expected to work on sprint issues during their on-call assignment.
+To provide full-time focus to the role, the on-call engineer is not expected to work on sprint issues during their on-call assignment.
 
 
-### Schedule after-hours incident on-call engineer workload
+### Schedule incident on-call engineer workload
 
-Engineering Managers are asked to be aware of the [after-hours incident on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#after-hours-incident-on-call-engineer) and plan estimated capacity for each sprint accordingly. While there are no incidents most weeks, when they occur the after-hours incident on-call responsibilities can sometimes take up a substantial portion of the engineer's time. A full sprint's capacity should be planned for the engineer, but one week of capacity should be non-urgent issues that can be delayed to the next sprint if necessary.
+Engineering Managers are asked to be aware of the [incident on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#incident-on-call-engineer) and plan estimated capacity for each sprint accordingly. While there are no incidents most weeks, when they occur the incident on-call responsibilities can sometimes take up a substantial portion of the engineer's time. A full sprint's capacity should be planned for the engineer, but one week of capacity should be non-urgent issues that can be delayed to the next sprint if necessary.
 
-After-hours incident on-call engineers are available outside the business hours of 9am - 6pm Pacific. The [on-call support SLA](https://fleetdm.com/handbook/company/product-groups#business-hours-on-call-responsibilities) requires a 1-hour response time outside business hours to any `@incident-oncall` mention. To assist with this SLA, all mentions will be triaged as incidents in incident.io.
+Incident on-call engineers are available 24/7 during their one-week shift. They respond only to P0 issues that have an [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md) filed. Notifications are sent via incident.io, triggered by creating an incident response issue.
 
-> If an after-hours incident occurs, the engineer's manager removes some or all of the week's planned capacity to provide time for incident response and recovery.
+> If an incident occurs after hours, the engineer's manager should arrange coverage during business hours to allow adequate time for recovery.
 
 
-#### Assume after hours on-call engineer alias
+#### Assume incident on-call engineer alias
 
-After-hours incident on-call engineer rotation, alias assignment, and incident notification are managed through incident.io and reported in the #help-incidents channel. 
+Incident on-call engineer rotation, alias assignment, and incident notification are managed through incident.io and reported in the #help-incidents channel.
 
-The on-call engineer is responsible for: 
+The incident on-call engineer is responsible for:
 
-- Knowing [the after-hours incidenton-call rotation](https://fleetdm.com/handbook/company/product-groups#after-hours-incident-on-call).
+- Knowing [the incident on-call rotation](https://fleetdm.com/handbook/company/product-groups#incident-on-call-engineer).
 - Completing the [incident.io on-call engineer onboarding steps](https://help.incident.io/articles/3472064049-get-started-as-an-on-call-responder) sent via email when invited to incident.io.
-- Confirming the app is configured to push notifications through Do Not Disturb.
-- Performing the [after-hours incident on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#after-hours-incident-on-call-responsibilities).
+- Confirming incident pages push through Do Not Disturb.
+- Performing the [incident on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#incident-on-call-responsibilities).
 
 
 ### Incident response process
 
-Fleet responds to all P0 incidents by initiating our incident response process: 
+All emergency issues designated `P0` require a new [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md). As soon as the issue is created, it will initiate our on-call incident notification process via incident.io.
 
-1. Create a new [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md) in our confidential repo. 
-2. Edit the issue template to reflect the details of the incident. 
-3. Assign to the on-call engineer that received the incident for initial triage, as well as the current infrastrucure on-call engineer. 
-4. Complete the steps listed based on the type of incident.
+Populate the title, then create the issue to immediately initiate the incident notification process. Edit the issue to add any additional context while awaiting response.
+
+#### Incident notification path
+
+```mermaid
+flowchart TD
+    A[Incident response issue created] --> B[Infrastructure on-call]
+    B --> C[Incident on-call]
+    C --> D[Engineering Managers]
+    D --> E[CTO]
+```
+
+Incident notifications are sent 24/7/365 via incident.io, triggered by creating an incident response issue. If a notification is unacknowledged after five minutes, it will automatically escalate in the notification path. The process will repeat up to ten times until the incident is acknowledged.
 
 Mitigating the outage may require writing and merging code. The current infrastructure on-call engineer is first line for all reviews and QA required to deploy a hot-fix. If additional code review or engineering support is needed, the responding engineer should escalate to their manager.
 
-> If outside of business hours, the responding engineer should notify their manager using incident.io to bypass Do Not Disturb mode.
+> If outside of business hours, the incident on-call engineer is responsible for stabilizing the issue well enough to pick it back up in the morning, and should file P1 issues for any immediate follow-up items. During business hours, the incident on-call engineer triages the incident and coordinates a response across engineering, QA, CS, and infrastructure until the incident has been resolved. 
+
 
 ### Participate in QA Day
 
@@ -231,7 +249,13 @@ Our goal is to keep these dependencies up-to-date with each release of Fleet. If
 
 If an announcement is found for either data source that may impact data feed availability, notify the current [on-call engineer](https://fleetdm.com/handbook/engineering#business-hours-oncall-engineer). Notify them that it is their responsibility to investigate and file a bug or take further action as necessary. 
 
-5. [Fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd) components
+5. Vulnerability OS coverage
+- Check whether any new major operating system versions have been released since the last check.
+- **Windows**: Verify that new Windows Server and Windows desktop versions are included in the [MSRC product mapping](https://github.com/fleetdm/fleet/blob/main/server/vulnerabilities/msrc/parsed/product.go).
+
+If a new OS version is missing, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=).
+
+6. [Fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd) components
 - Check for code changes to [Orbit](https://github.com/fleetdm/fleet/blob/main/orbit/) or [Desktop](https://github.com/fleetdm/fleet/tree/main/orbit/cmd/desktop) since the last `orbit-*` tag was published.
 - Check for code changes to the [fleetd-chrome extension](https://github.com/fleetdm/fleet/tree/main/ee/fleetd-chrome) since the last `fleetd-chrome-*` tag was published.
 

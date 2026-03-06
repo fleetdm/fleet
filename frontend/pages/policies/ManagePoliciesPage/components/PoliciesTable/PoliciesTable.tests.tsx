@@ -23,7 +23,7 @@ describe("Policies table", () => {
         policiesList={[]}
         isLoading={false}
         onDeletePoliciesClick={noop}
-        currentTeam={{ id: -1, name: "All teams" }}
+        currentTeam={{ id: -1, name: "All fleets" }}
         searchQuery=""
         page={0}
         onQueryChange={noop}
@@ -52,7 +52,7 @@ describe("Policies table", () => {
         policiesList={[]}
         isLoading={false}
         onDeletePoliciesClick={noop}
-        currentTeam={{ id: -1, name: "All teams" }}
+        currentTeam={{ id: -1, name: "All fleets" }}
         isPremiumTier
         searchQuery=""
         page={0}
@@ -63,7 +63,7 @@ describe("Policies table", () => {
     );
 
     expect(
-      screen.getByText("You don't have any policies that apply to all teams")
+      screen.getByText("You don't have any policies that apply to all fleets")
     ).toBeInTheDocument();
     expect(screen.queryByText("Name")).toBeNull();
     expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
@@ -95,7 +95,7 @@ describe("Policies table", () => {
     );
 
     expect(
-      screen.getByText("You don't have any policies that apply to this team")
+      screen.getByText("You don't have any policies that apply to this fleet")
     ).toBeInTheDocument();
     expect(screen.queryByText("Name")).toBeNull();
   });
@@ -115,7 +115,7 @@ describe("Policies table", () => {
         policiesList={[]}
         isLoading={false}
         onDeletePoliciesClick={noop}
-        currentTeam={{ id: -1, name: "All teams" }}
+        currentTeam={{ id: -1, name: "All fleets" }}
         isPremiumTier
         searchQuery="shouldn't match anything"
         page={0}
@@ -147,7 +147,7 @@ describe("Policies table", () => {
         policiesList={[testCriticalPolicy]}
         isLoading={false}
         onDeletePoliciesClick={noop}
-        currentTeam={{ id: -1, name: "All teams" }}
+        currentTeam={{ id: -1, name: "All fleets" }}
         isPremiumTier
         searchQuery=""
         page={0}
@@ -206,7 +206,7 @@ describe("Policies table", () => {
     });
   });
 
-  it("Does not render an inherited badge and tooltip for global policy on the All teams's policies page", () => {
+  it("Does not render an inherited badge and tooltip for global policy on the All fleets's policies page", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -223,7 +223,7 @@ describe("Policies table", () => {
         policiesList={[testGlobalPolicy]}
         isLoading={false}
         onDeletePoliciesClick={noop}
-        currentTeam={{ id: -1, name: "All teams" }}
+        currentTeam={{ id: -1, name: "All fleets" }}
         isPremiumTier
         searchQuery=""
         page={0}
