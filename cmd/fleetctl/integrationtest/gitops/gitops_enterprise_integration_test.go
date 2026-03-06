@@ -3772,6 +3772,7 @@ org_settings:
   org_info:
     org_name: Fleet
   secrets:
+    - secret: boofar
 agent_options:
   config:
     options:
@@ -3786,6 +3787,10 @@ reports:
     query: SELECT 1;
     schedule: 1
     automations_enabled: false
+labels:
+  - name: Test Global Label
+    label_membership_type: dynamic
+    query: SELECT 1
 `
 	fullFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -3812,14 +3817,22 @@ reports:
 	require.Len(t, queries, 1)
 	require.Equal(t, "Test Global Report", queries[0].Name)
 
-	// Step 2: Apply a minimal global config that omits policies, agent_options, controls, reports.
+	globalSecrets, err := s.DS.GetEnrollSecrets(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, globalSecrets, 1)
+	require.Equal(t, "boofar", globalSecrets[0].Secret)
+
+	labels, err := s.DS.LabelsByName(ctx, []string{"Test Global Label"}, fleet.TeamFilter{})
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+
+	// Step 2: Apply a minimal global config that omits policies, agent_options, controls, reports, labels.
 	const minimalGlobalConfig = `
 org_settings:
   server_settings:
     server_url: $FLEET_URL
   org_info:
     org_name: Fleet
-  secrets:
 `
 	minimalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -3847,6 +3860,17 @@ org_settings:
 	queries, _, _, _, err = s.DS.ListQueries(ctx, fleet.ListQueryOptions{})
 	require.NoError(t, err)
 	require.Len(t, queries, 0)
+
+	// Verify secrets are unchanged.
+	globalSecrets, err = s.DS.GetEnrollSecrets(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, globalSecrets, 1)
+	require.Equal(t, "boofar", globalSecrets[0].Secret)
+
+	// Verify labels are unchanged.
+	labels, err = s.DS.LabelsByName(ctx, []string{"Test Global Label"}, fleet.TeamFilter{})
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
 }
 
 // TestOmittedTopLevelKeysTeam verifies that omitting top-level keys from a team
@@ -3865,7 +3889,8 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestOmittedTopLevelKeysTeam() {
 	fullTeamConfig := fmt.Sprintf(`
 name: %s
 settings:
-  secrets: [{"secret":"enroll_secret"}]
+  secrets:
+    - secret: foobar
   features:
     enable_host_users: false
 agent_options:
@@ -3914,6 +3939,11 @@ software:
 	require.Len(t, tmQueries, 1)
 	require.Equal(t, "Test Team Report", tmQueries[0].Name)
 
+	teamSecrets, err := s.DS.GetEnrollSecrets(ctx, &tm.ID)
+	require.NoError(t, err)
+	require.Len(t, teamSecrets, 1)
+	require.Equal(t, "foobar", teamSecrets[0].Secret)
+
 	// Step 2: Apply a minimal team config that omits policies, agent_options, controls, reports, software, settings.
 	minimalTeamConfig := fmt.Sprintf(`
 name: %s
@@ -3950,4 +3980,10 @@ name: %s
 	tmQueries, _, _, _, err = s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &tm.ID})
 	require.NoError(t, err)
 	require.Len(t, tmQueries, 0)
+
+	// Verify secrets are unchanged.
+	teamSecrets, err = s.DS.GetEnrollSecrets(ctx, &tm.ID)
+	require.NoError(t, err)
+	require.Len(t, teamSecrets, 1)
+	require.Equal(t, "foobar", teamSecrets[0].Secret)
 }
