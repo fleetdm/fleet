@@ -2721,3 +2721,49 @@ software:
 		assert.True(t, result.Software.Packages[1].SelfService)
 	})
 }
+
+func TestParsePolicyInstallSoftware(t *testing.T) {
+	t.Parallel()
+
+	teamName := "test-team"
+
+	t.Run("wrapErrs prefixes errors", func(t *testing.T) {
+		t.Parallel()
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "my policy"},
+				InstallSoftware: &PolicyInstallSoftware{
+					// no package_path, app_store_id, or hash_sha256
+				},
+			},
+		}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil)
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), `failed to parse policy install_software "my policy"`)
+		assert.Contains(t, errs[0].Error(), "must include either")
+	})
+
+	t.Run("unknown key in package_path file", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		sha := "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+		content := fmt.Sprintf("hash_sha256: %s\nbad_field: oops\n", sha)
+		path := filepath.Join(dir, "pkg.yml")
+		require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec: fleet.PolicySpec{Name: "typo policy"},
+				InstallSoftware: &PolicyInstallSoftware{
+					PackagePath: path,
+				},
+			},
+		}
+		packages := []*fleet.SoftwarePackageSpec{{SHA256: sha}}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, packages, nil)
+		require.Len(t, errs, 1)
+		var unknownErr *ParseUnknownKeyError
+		require.ErrorAs(t, errs[0], &unknownErr)
+		assert.Equal(t, "bad_field", unknownErr.Field)
+	})
+}

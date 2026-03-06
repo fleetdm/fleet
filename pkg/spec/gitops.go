@@ -1390,37 +1390,43 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		return nil
 	}
 	errPrefix := fmt.Sprintf("failed to parse policy install_software %q: ", policy.Name)
+	wrapErr := func(err error) error {
+		return fmt.Errorf("%s: %w", errPrefix, err)
+	}
+	wrapErrs := func(err error) []error {
+		return []error{wrapErr(err)}
+	}
 	if policy.InstallSoftware != nil && (policy.InstallSoftware.PackagePath != "" || policy.InstallSoftware.AppStoreID != "") && teamName == nil {
-		return []error{fmt.Errorf("%sinstall_software can only be set on team policies", errPrefix)}
+		return wrapErrs(errors.New("install_software can only be set on team policies"))
 	}
 	if policy.InstallSoftware.PackagePath == "" && policy.InstallSoftware.AppStoreID == "" && policy.InstallSoftware.HashSHA256 == "" {
-		return []error{fmt.Errorf("%sinstall_software must include either a package_path, an app_store_id or a hash_sha256", errPrefix)}
+		return wrapErrs(errors.New("install_software must include either a package_path, an app_store_id or a hash_sha256"))
 	}
 	if policy.InstallSoftware.PackagePath != "" && policy.InstallSoftware.AppStoreID != "" {
-		return []error{fmt.Errorf("%sinstall_software must have only one of package_path or app_store_id", errPrefix)}
+		return wrapErrs(errors.New("install_software must have only one of package_path or app_store_id"))
 	}
 
 	var errs []error
 	if policy.InstallSoftware.PackagePath != "" {
 		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, policy.InstallSoftware.PackagePath))
 		if err != nil {
-			return []error{fmt.Errorf("%sfailed to read install_software.package_path file %q: %v", errPrefix, policy.InstallSoftware.PackagePath, err)}
+			return wrapErrs(fmt.Errorf("failed to read install_software.package_path file %q: %v", policy.InstallSoftware.PackagePath, err))
 		}
 		// Replace $var and ${var} with env values.
 		fileBytes, err = ExpandEnvBytes(fileBytes)
 		if err != nil {
-			return []error{fmt.Errorf("%sfailed to expand environment in file %q: %v", errPrefix, policy.InstallSoftware.PackagePath, err)}
+			return wrapErrs(fmt.Errorf("failed to expand environment in file %q: %v", policy.InstallSoftware.PackagePath, err))
 		}
 		var policyInstallSoftwareSpec fleet.SoftwarePackageSpec
 		if err := YamlUnmarshal(fileBytes, &policyInstallSoftwareSpec); err != nil {
 			// see if the issue is that a package path was passed in that references multiple packages
 			var multiplePackages []fleet.SoftwarePackageSpec
 			if err := YamlUnmarshal(fileBytes, &multiplePackages); err != nil || len(multiplePackages) == 0 {
-				return []error{fmt.Errorf("%sfile %q does not contain a valid software package definition", errPrefix, policy.InstallSoftware.PackagePath)}
+				return wrapErrs(fmt.Errorf("file %q does not contain a valid software package definition", policy.InstallSoftware.PackagePath))
 			}
 
 			if len(multiplePackages) > 1 {
-				return []error{fmt.Errorf("%sfile %q contains multiple packages, so cannot be used as a target for policy automation", errPrefix, policy.InstallSoftware.PackagePath)}
+				return wrapErrs(fmt.Errorf("file %q contains multiple packages, so cannot be used as a target for policy automation", policy.InstallSoftware.PackagePath))
 			}
 
 			errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), policy.InstallSoftware.PackagePath, []string{"software", "packages"})...)
@@ -1437,9 +1443,9 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		}
 		if !installerOnTeamFound {
 			if policyInstallSoftwareSpec.URL != "" {
-				errs = append(errs, fmt.Errorf("%sinstall_software.package_path URL %s not found on team: %s", errPrefix, policyInstallSoftwareSpec.URL, policy.InstallSoftware.PackagePath))
+				errs = append(errs, wrapErr(fmt.Errorf("install_software.package_path URL %s not found on team: %s", policyInstallSoftwareSpec.URL, policy.InstallSoftware.PackagePath)))
 			} else {
-				errs = append(errs, fmt.Errorf("%sinstall_software.package_path SHA256 %s not found on team: %s", errPrefix, policyInstallSoftwareSpec.SHA256, policy.InstallSoftware.PackagePath))
+				errs = append(errs, wrapErr(fmt.Errorf("install_software.package_path SHA256 %s not found on team: %s", policyInstallSoftwareSpec.SHA256, policy.InstallSoftware.PackagePath)))
 			}
 			return errs
 		}
@@ -1457,7 +1463,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 			}
 		}
 		if !appOnTeamFound {
-			errs = append(errs, fmt.Errorf("%sinstall_software.app_store_id %s not found on team %s", errPrefix, policy.InstallSoftware.AppStoreID, *teamName))
+			errs = append(errs, wrapErr(fmt.Errorf("install_software.app_store_id %s not found on team %s", policy.InstallSoftware.AppStoreID, *teamName)))
 		}
 	}
 
