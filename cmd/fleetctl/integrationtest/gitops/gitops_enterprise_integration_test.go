@@ -3753,3 +3753,251 @@ settings:
 	require.NotNil(t, tmPols[0].SoftwareInstallerID)
 	require.Equal(t, installer.InstallerID, *tmPols[0].SoftwareInstallerID)
 }
+
+// TestOmittedTopLevelKeysGlobal verifies that omitting top-level keys from a global
+// gitops file clears the corresponding settings (e.g. policies, agent_options).
+func (s *enterpriseIntegrationGitopsTestSuite) TestOmittedTopLevelKeysGlobal() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	// Step 1: Apply a full global config with policies, agent_options, controls, and reports.
+	const fullGlobalConfig = `
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: boofar
+agent_options:
+  config:
+    options:
+      pack_delimiter: /
+controls:
+  enable_disk_encryption: true
+policies:
+  - name: Test Global Policy
+    query: SELECT 1;
+reports:
+  - name: Test Global Report
+    query: SELECT 1;
+    schedule: 1
+    automations_enabled: false
+labels:
+  - name: Test Global Label
+    label_membership_type: dynamic
+    query: SELECT 1
+`
+	fullFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = fullFile.WriteString(fullGlobalConfig)
+	require.NoError(t, err)
+	require.NoError(t, fullFile.Close())
+
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fullFile.Name()}))
+
+	// Verify policy, agent_options, controls, and reports were applied.
+	policies, err := s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	require.Equal(t, "Test Global Policy", policies[0].Name)
+
+	appCfg, err := s.DS.AppConfig(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, appCfg.AgentOptions)
+	require.Contains(t, string(*appCfg.AgentOptions), "pack_delimiter")
+	require.True(t, appCfg.MDM.EnableDiskEncryption.Value)
+
+	queries, _, _, _, err := s.DS.ListQueries(ctx, fleet.ListQueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, queries, 1)
+	require.Equal(t, "Test Global Report", queries[0].Name)
+
+	globalSecrets, err := s.DS.GetEnrollSecrets(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, globalSecrets, 1)
+	require.Equal(t, "boofar", globalSecrets[0].Secret)
+
+	labels, err := s.DS.LabelsByName(ctx, []string{"Test Global Label"}, fleet.TeamFilter{})
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+
+	// Step 2: Apply a minimal global config that omits policies, agent_options, controls, reports, labels.
+	const minimalGlobalConfig = `
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+`
+	minimalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = minimalFile.WriteString(minimalGlobalConfig)
+	require.NoError(t, err)
+	require.NoError(t, minimalFile.Close())
+
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", minimalFile.Name()}))
+
+	// Verify policies were cleared.
+	policies, err = s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, policies, 0)
+
+	appCfg, err = s.DS.AppConfig(ctx)
+	require.NoError(t, err)
+
+	// Verify agent_options were cleared (set to null).
+	require.Nil(t, appCfg.AgentOptions)
+
+	// Verify controls were cleared (disk encryption reverts to false).
+	require.False(t, appCfg.MDM.EnableDiskEncryption.Value)
+
+	// Verify reports were cleared.
+	queries, _, _, _, err = s.DS.ListQueries(ctx, fleet.ListQueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, queries, 0)
+
+	// Verify secrets are unchanged.
+	globalSecrets, err = s.DS.GetEnrollSecrets(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, globalSecrets, 1)
+	require.Equal(t, "boofar", globalSecrets[0].Secret)
+
+	// Verify labels are unchanged.
+	labels, err = s.DS.LabelsByName(ctx, []string{"Test Global Label"}, fleet.TeamFilter{})
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+}
+
+// TestOmittedTopLevelKeysFleet verifies that omitting top-level keys from a fleet
+// gitops file clears the corresponding settings (e.g. policies, agent_options, settings).
+func (s *enterpriseIntegrationGitopsTestSuite) TestOmittedTopLevelKeysFleet() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	t.Setenv("FLEET_URL", s.Server.URL)
+	testing_utils.StartSoftwareInstallerServer(t)
+
+	fleetName := "Test Omitted Keys " + uuid.NewString()
+
+	// Step 1: Apply a full fleet config with policies, agent_options, controls, features, reports, and software.
+	fullFleetConfig := fmt.Sprintf(`
+name: %s
+settings:
+  secrets:
+    - secret: foobar
+  features:
+    enable_host_users: false
+agent_options:
+  config:
+    options:
+      pack_delimiter: /
+controls:
+  enable_disk_encryption: true
+policies:
+  - name: Test Fleet Policy
+    query: SELECT 1;
+reports:
+  - name: Test Fleet Report
+    query: SELECT 1;
+    schedule: 1
+    automations_enabled: false
+software:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
+`, fleetName)
+
+	fullFleetFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = fullFleetFile.WriteString(fullFleetConfig)
+	require.NoError(t, err)
+	require.NoError(t, fullFleetFile.Close())
+
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(), "-f", fullFleetFile.Name(),
+	}))
+
+	// Verify policy, agent_options, controls, features, and reports were applied.
+	fl, err := s.DS.TeamByName(ctx, fleetName)
+	require.NoError(t, err)
+
+	flPols, err := s.DS.ListMergedTeamPolicies(ctx, fl.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, flPols, 1)
+	require.Equal(t, "Test Fleet Policy", flPols[0].Name)
+
+	require.NotNil(t, fl.Config.AgentOptions)
+	require.Contains(t, string(*fl.Config.AgentOptions), "pack_delimiter")
+	require.True(t, fl.Config.MDM.EnableDiskEncryption)
+	require.False(t, fl.Config.Features.EnableHostUsers)
+
+	flQueries, _, _, _, err := s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &fl.ID})
+	require.NoError(t, err)
+	require.Len(t, flQueries, 1)
+	require.Equal(t, "Test Fleet Report", flQueries[0].Name)
+
+	flSecrets, err := s.DS.GetEnrollSecrets(ctx, &fl.ID)
+	require.NoError(t, err)
+	require.Len(t, flSecrets, 1)
+	require.Equal(t, "foobar", flSecrets[0].Secret)
+
+	titles, _, _, err := s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: &fl.ID},
+		fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+
+	// Step 2: Apply a minimal fleet config that omits policies, agent_options, controls, reports, software, settings.
+	minimalFleetConfig := fmt.Sprintf(`
+name: %s
+`, fleetName)
+
+	minimalFleetFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = minimalFleetFile.WriteString(minimalFleetConfig)
+	require.NoError(t, err)
+	require.NoError(t, minimalFleetFile.Close())
+
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(), "-f", minimalFleetFile.Name(),
+	}))
+
+	// Verify policies were cleared.
+	flPols, err = s.DS.ListMergedTeamPolicies(ctx, fl.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, flPols, 0)
+
+	fl, err = s.DS.TeamByName(ctx, fleetName)
+	require.NoError(t, err)
+
+	// Verify agent_options were cleared (set to null).
+	require.Nil(t, fl.Config.AgentOptions)
+
+	// Verify controls were cleared (disk encryption reverts to false).
+	require.False(t, fl.Config.MDM.EnableDiskEncryption)
+
+	// Verify features reverted to defaults (enable_host_users defaults to true).
+	require.True(t, fl.Config.Features.EnableHostUsers)
+
+	// Verify reports were cleared.
+	flQueries, _, _, _, err = s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &fl.ID})
+	require.NoError(t, err)
+	require.Len(t, flQueries, 0)
+
+	// Verify secrets are unchanged.
+	flSecrets, err = s.DS.GetEnrollSecrets(ctx, &fl.ID)
+	require.NoError(t, err)
+	require.Len(t, flSecrets, 1)
+	require.Equal(t, "foobar", flSecrets[0].Secret)
+
+	// Verify software was cleared.
+	titles, _, _, err = s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: &fl.ID},
+		fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	require.Len(t, titles, 0)
+}
