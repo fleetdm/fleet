@@ -1,5 +1,14 @@
 # Unlocking Linux productivity: securing apps and updating certificates
 
+### Links to article series:
+
+- Part 1: [Why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026)
+- Part 2: [Automated provisioning for Linux desktop in the enterprise](https://fleetdm.com/articles/automated-provisioning-for-linux-desktop-in-the-enterprise)
+- Part 3: [Security baselines for Linux: closing the gap on exemptions](https://fleetdm.com/articles/security-baselines-for-linux)
+- Part 4: Unlocking Linux productivity: securing apps and updating certificates
+- Part 5: [Protecting the Linux device: remote wipe, USB and sudo](https://fleetdm.com/articles/protecting-the-linux-device-remote-wipe-usb-sudo)
+- Part 6: [Owning your Linux destiny with open source](https://fleetdm.com/articles/owning-your-linux-destiny-with-open-source)
+
 Computers are not intrinsically productive or secure. Their value comes from trusted applications deployed on them and the certificates that underpin connectivity. With a hardened baseline and compliance policies in place, the next layer of enterprise Linux management addresses two challenges: fragmented software distribution and shrinking certificate lifetimes. Let's look at software inventory and patching, certificate lifecycle pressures, and practical approaches to managing both.
 
 ## The software distribution maze
@@ -56,5 +65,5 @@ The next article in this series will cover protecting the device itself: how rem
 <meta name="authorFullName" value="Ashish Kuthiala">  
 <meta name="authorGitHubUsername" value="akuthiala">  
 <meta name="category" value="articles">  
-<meta name="publishedOn" value="2026-03-05">  
-<meta name="description" value="Chapter 4 of Protecting Linux endpoints series">
+<meta name="publishedOn" value="2026-03-04">  
+<meta name="description" value="Part 4 of 6 in the 'Protecting Linux endpoints with modern device management' article series.">
