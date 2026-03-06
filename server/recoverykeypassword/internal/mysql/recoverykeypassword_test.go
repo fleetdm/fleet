@@ -28,7 +28,7 @@ func (env *testEnv) truncateTables(t *testing.T) {
 	mysql_testing_utils.TruncateTables(t, env.db, env.logger, nil,
 		"host_recovery_key_passwords", "host_operating_system", "operating_systems",
 		"hosts", "teams", "nano_enrollments", "nano_command_results", "nano_commands",
-		"app_config_json")
+		"nano_devices", "app_config_json")
 }
 
 func (env *testEnv) insertHost(t *testing.T, hostname string) uint {
@@ -101,8 +101,8 @@ func (env *testEnv) insertTeamWithRecoveryLock(t *testing.T, name string, enable
 	}
 
 	result, err := env.db.ExecContext(ctx, `
-		INSERT INTO teams (name, config, created_at, updated_at)
-		VALUES (?, ?, NOW(), NOW())
+		INSERT INTO teams (name, config, created_at)
+		VALUES (?, ?, NOW())
 	`, name, config)
 	require.NoError(t, err)
 
@@ -111,10 +111,26 @@ func (env *testEnv) insertTeamWithRecoveryLock(t *testing.T, name string, enable
 	return uint(id)
 }
 
+// insertNanoDevice inserts a nano_device record (required for nano_enrollments FK).
+func (env *testEnv) insertNanoDevice(t *testing.T, deviceID string) {
+	t.Helper()
+	ctx := t.Context()
+
+	_, err := env.db.ExecContext(ctx, `
+		INSERT INTO nano_devices (id, authenticate, authenticate_at, created_at, updated_at)
+		VALUES (?, '<?xml version="1.0"?><plist></plist>', NOW(), NOW(), NOW())
+	`, deviceID)
+	require.NoError(t, err)
+}
+
 // insertNanoEnrollment inserts a nano_enrollment record for MDM enrollment.
+// Also inserts the required nano_device record.
 func (env *testEnv) insertNanoEnrollment(t *testing.T, deviceID, enrollmentType string, enabled bool) {
 	t.Helper()
 	ctx := t.Context()
+
+	// Insert nano_device first (required by FK constraint)
+	env.insertNanoDevice(t, deviceID)
 
 	_, err := env.db.ExecContext(ctx, `
 		INSERT INTO nano_enrollments (id, device_id, user_id, type, topic, push_magic, token_hex, enabled, token_update_tally, last_seen_at, created_at, updated_at)
@@ -506,9 +522,10 @@ func testGetPendingRecoveryLockHostsAcknowledged(t *testing.T, env *testEnv) {
 	err = env.ds.SetRecoveryLockPending(ctx, hostID, "set-cmd-uuid-ack")
 	require.NoError(t, err)
 
-	// Insert command and result
+	// Insert enrollment, command and result
+	env.insertNanoEnrollment(t, "uuid-ack-1", "Device", true)
 	env.insertNanoCommand(t, "set-cmd-uuid-ack", "SetRecoveryLock")
-	env.insertNanoCommandResult(t, "set-cmd-uuid-ack", "uuid-ack-1", "Acknowledged", "")
+	env.insertNanoCommandResult(t, "set-cmd-uuid-ack", "uuid-ack-1", "Acknowledged", "<?xml version=\"1.0\"?><plist></plist>")
 
 	// Get pending hosts
 	hosts, err := env.ds.GetPendingRecoveryLockHosts(ctx)
@@ -530,9 +547,10 @@ func testGetPendingRecoveryLockHostsError(t *testing.T, env *testEnv) {
 	err = env.ds.SetRecoveryLockPending(ctx, hostID, "set-cmd-uuid-err")
 	require.NoError(t, err)
 
-	// Insert command and error result
+	// Insert enrollment, command and error result
+	env.insertNanoEnrollment(t, "uuid-err-1", "Device", true)
 	env.insertNanoCommand(t, "set-cmd-uuid-err", "SetRecoveryLock")
-	env.insertNanoCommandResult(t, "set-cmd-uuid-err", "uuid-err-1", "Error", "<plist><key>ErrorChain</key></plist>")
+	env.insertNanoCommandResult(t, "set-cmd-uuid-err", "uuid-err-1", "Error", "<?xml version=\"1.0\"?><plist><key>ErrorChain</key></plist>")
 
 	// Get pending hosts
 	hosts, err := env.ds.GetPendingRecoveryLockHosts(ctx)
@@ -589,6 +607,9 @@ func TestGetHostsForRecoveryLockAction(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			defer env.truncateTables(t)
+			// Ensure app_config_json has a row (required by CROSS JOIN in query).
+			// Individual tests can override this with their own settings.
+			env.setAppConfigRecoveryLock(t, false)
 			c.fn(t, env)
 		})
 	}
