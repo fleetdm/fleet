@@ -1308,9 +1308,9 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 2*time.Minute,
 		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
 	man.addConfigByteSize("osquery.max_log_write_body_size", "0",
-		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Values below 1MiB are raised to 1MiB.")
+		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Values below the server minimum request body size are raised to that minimum.")
 	man.addConfigByteSize("osquery.max_distributed_write_body_size", "0",
-		"Maximum body size for the osquery/distributed/write endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (5MiB). Values below 1MiB are raised to 1MiB.")
+		"Maximum body size for the osquery/distributed/write endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (5MiB). Values below the server minimum request body size are raised to that minimum.")
 
 	// Activities
 	man.addConfigBool("activity.enable_audit_log", false,

@@ -274,6 +274,32 @@ func TestMakeDecoderRequestDecoderFalsePositive(t *testing.T) {
 		require.True(t, errors.As(err, &ple), "body over limit must produce PayloadTooLargeError, got: %v", err)
 	})
 
+	t.Run("malformed JSON exactly at limit returns decode error, not 413", func(t *testing.T) {
+		// Build a body of exactly `limit` bytes that is malformed JSON (no closing
+		// brace). The LimitedReader is exhausted (N==0), but a peek at the
+		// underlying reader returns EOF — the body ended at the limit, it was not
+		// cut short. Must not produce PayloadTooLargeError.
+		prefix := `{"data":"`
+		body := strings.NewReader(prefix + strings.Repeat("x", limit-len(prefix))) // exactly limit bytes, no closing
+		r := httptest.NewRequest("POST", "/", body)
+		_, err := makeDecoder(limit)(context.Background(), r)
+		require.Error(t, err)
+		var ple platform_http.PayloadTooLargeError
+		require.False(t, errors.As(err, &ple), "malformed body exactly at limit must not produce PayloadTooLargeError")
+	})
+
+	t.Run("body over limit without Content-Length returns 413", func(t *testing.T) {
+		// Simulate a chunked request (no Content-Length) whose body exceeds the
+		// limit. The peek at the underlying reader finds more data → 413.
+		big := `{"data":"` + strings.Repeat("x", limit+10) + `"}`
+		r := httptest.NewRequest("POST", "/", strings.NewReader(big))
+		r.ContentLength = -1 // strip the Content-Length that httptest set
+		_, err := makeDecoder(limit)(context.Background(), r)
+		require.Error(t, err)
+		var ple platform_http.PayloadTooLargeError
+		require.True(t, errors.As(err, &ple), "over-limit body without Content-Length must produce PayloadTooLargeError, got: %v", err)
+	})
+
 	t.Run("valid body within limit is decoded successfully", func(t *testing.T) {
 		body := strings.NewReader(`{"data":"hello"}`)
 		r := httptest.NewRequest("POST", "/", body)
