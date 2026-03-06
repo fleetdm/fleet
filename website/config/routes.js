@@ -774,7 +774,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/fleet-desktop': (req, res) => { return res.redirect(301, '/guides/fleet-desktop'); },
   'GET /docs/using-fleet/enroll-hosts': (req, res) => { return res.redirect(301, '/guides/enroll-hosts'); },
   'GET /docs/using-fleet/manage-access': (req, res) => { return res.redirect(301, '/guides/role-based-access'); },
-  'GET /docs/using-fleet/segment-hosts': (req, res) => { return res.redirect(301, '/guides/teams'); },
+  'GET /docs/using-fleet/segment-hosts': (req, res) => { return res.redirect(301, '/guides/fleets'); },
   'GET /docs/using-fleet/supported-browsers': (req, res) => { return res.redirect(301, '/docs/get-started/faq'); },
   'GET /docs/using-fleet/supported-host-operating-systems': (req, res) => { return res.redirect(301, '/docs/get-started/faq'); },
   'GET /docs/using-fleet/gitops': (req, res) => { return res.redirect(301, '/docs/configuration/yaml-files'); },
@@ -892,7 +892,7 @@ module.exports.routes = {
   'GET /guides/install-vpp-apps-on-macos-using-fleet': '/guides/install-app-store-apps',
   'GET /announcements/scaling-agritech-with-lake-to-plate-visibility': '/case-study/agritech-producer',
   'GET /announcements/enterprise-AI-security-company': '/case-study/ai-security-company',
-  'GET /announcements/banking-as-a-service-platform':  '/case-study/banking-platform',
+  'GET /announcements/banking-as-a-service-platform': '/case-study/banking-platform',
   'GET /announcements/cannabis-technology-company': '/case-study/cannabis-technology-company',
   'GET /announcements/communications-services-sector-scaling-cross-platform-device-management-with-fleet': '/case-study/communications-platform',
   'GET /announcements/financial-services-platform': '/case-study/financial-services-platform',
@@ -1257,19 +1257,19 @@ module.exports.routes = {
   //  ╔═╗╔╗╔╔╦╗╦═╗╔═╗╦╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
   //  ╠═╣║║║ ║║╠╦╝║ ║║ ║║  ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
   //  ╩ ╩╝╚╝═╩╝╩╚═╚═╝╩═╩╝  ╩  ╩╚═╚═╝╩ ╚═ ╩   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
-  'POST /api/android/v1/signupUrls': { action: 'android-proxy/create-android-signup-url', csrf: false},
-  'POST /api/android/v1/enterprises': { action: 'android-proxy/create-android-enterprise', csrf: false},
-  'GET /api/android/v1/enterprises': { action: 'android-proxy/get-android-enterprises'},
-  'POST /api/android/v1/enterprises/:androidEnterpriseId/enrollmentTokens': { action: 'android-proxy/create-android-enrollment-token', csrf: false},
-  'PATCH /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId': { action: 'android-proxy/modify-android-policies', csrf: false},
-  'DELETE /api/android/v1/enterprises/:androidEnterpriseId': { action: 'android-proxy/delete-one-android-enterprise', csrf: false},
+  'POST /api/android/v1/signupUrls': { action: 'android-proxy/create-android-signup-url', csrf: false },
+  'POST /api/android/v1/enterprises': { action: 'android-proxy/create-android-enterprise', csrf: false },
+  'GET /api/android/v1/enterprises': { action: 'android-proxy/get-android-enterprises' },
+  'POST /api/android/v1/enterprises/:androidEnterpriseId/enrollmentTokens': { action: 'android-proxy/create-android-enrollment-token', csrf: false },
+  'PATCH /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId': { action: 'android-proxy/modify-android-policies', csrf: false },
+  'DELETE /api/android/v1/enterprises/:androidEnterpriseId': { action: 'android-proxy/delete-one-android-enterprise', csrf: false },
   'GET /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/get-android-device' },
   'GET /api/android/v1/enterprises/:androidEnterpriseId/devices': { action: 'android-proxy/get-android-devices' },
-  'DELETE /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/delete-android-device', csrf: false},
-  'PATCH /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/modify-android-device', csrf: false},
-  'GET /api/android/v1/enterprises/:androidEnterpriseId/applications/:applicationId': { action: 'android-proxy/get-enterprise-applications', skipAssets: false},
-  'POST /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId::googleAction': { action: 'android-proxy/modify-enterprise-app-policy', csrf: false, skipAssets: false},
-  'POST /api/android/v1/enterprises/:androidEnterpriseId/webApps': { action: 'android-proxy/create-enterprise-webapp', csrf: false, skipAssets: false},
+  'DELETE /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/delete-android-device', csrf: false },
+  'PATCH /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/modify-android-device', csrf: false },
+  'GET /api/android/v1/enterprises/:androidEnterpriseId/applications/:applicationId': { action: 'android-proxy/get-enterprise-applications', skipAssets: false },
+  'POST /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId::googleAction': { action: 'android-proxy/modify-enterprise-app-policy', csrf: false, skipAssets: false },
+  'POST /api/android/v1/enterprises/:androidEnterpriseId/webApps': { action: 'android-proxy/create-enterprise-webapp', csrf: false, skipAssets: false },
 
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗

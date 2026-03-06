@@ -320,7 +320,7 @@ A user story is considered ready for implementation once:
 
 Good user stories are short, with clear, unambiguous language.
 - What screen are they looking at?  (`As an observer on the host details page…`)
-- What do they want to do? (`As an observer on the host details page, I want to run a permitted query.`)
+- What do they want to do? (`As an observer on the host details page, I want to run a report.`)
 - Don't get hung up on the "so that I can ________" clause.  It is helpful, but optional.
 - Example: "As an admin I would like to be asked for confirmation before deleting a user so that I do not accidentally delete a user."
 
