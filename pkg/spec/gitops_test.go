@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -1709,7 +1710,7 @@ func TestContainsGlobMeta(t *testing.T) {
 	}
 }
 
-func TestResolveScriptPathsGlob(t *testing.T) {
+func TestExpandBaseItems(t *testing.T) {
 	t.Parallel()
 
 	// requireErrorContains is a helper that asserts at least one error contains substr.
@@ -1729,17 +1730,16 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 	t.Run("basic_glob", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.sh"), []byte("#!/bin/bash"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.sh"), []byte("#!/bin/bash"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "c.ps1"), []byte("# powershell"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.yml"), []byte(""), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.yml"), []byte(""), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "c.txt"), []byte(""), 0o644))
 
-		items := []BaseItem{{Paths: ptr.String("*.sh")}}
-		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		items := []BaseItem{{Paths: ptr.String("*.yml")}}
+		result, errs := expandBaseItems(items, dir, "test")
 		require.Empty(t, errs)
 		require.Len(t, result, 2)
-		assert.Equal(t, filepath.Join(dir, "a.sh"), *result[0].Path)
-		assert.Equal(t, filepath.Join(dir, "b.sh"), *result[1].Path)
-		// Paths field should not be set on expanded items
+		assert.Equal(t, filepath.Join(dir, "a.yml"), *result[0].Path)
+		assert.Equal(t, filepath.Join(dir, "b.yml"), *result[1].Path)
 		assert.Nil(t, result[0].Paths)
 		assert.Nil(t, result[1].Paths)
 	})
@@ -1749,62 +1749,73 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		dir := t.TempDir()
 		subdir := filepath.Join(dir, "sub")
 		require.NoError(t, os.MkdirAll(subdir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "top.sh"), []byte("#!/bin/bash"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(subdir, "nested.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "top.yml"), []byte(""), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(subdir, "nested.yml"), []byte(""), 0o644))
 
-		items := []BaseItem{{Paths: ptr.String("**/*.sh")}}
-		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		items := []BaseItem{{Paths: ptr.String("**/*.yml")}}
+		result, errs := expandBaseItems(items, dir, "test")
 		require.Empty(t, errs)
 		require.Len(t, result, 2)
-		// Results are sorted
-		assert.Equal(t, filepath.Join(subdir, "nested.sh"), *result[0].Path)
-		assert.Equal(t, filepath.Join(dir, "top.sh"), *result[1].Path)
+		assert.Equal(t, filepath.Join(subdir, "nested.yml"), *result[0].Path)
+		assert.Equal(t, filepath.Join(dir, "top.yml"), *result[1].Path)
 	})
 
 	t.Run("mixed_path_and_paths", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "single.sh"), []byte("#!/bin/bash"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "glob1.ps1"), []byte("# ps1"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "glob2.ps1"), []byte("# ps1"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "single.yml"), []byte(""), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "glob1.yaml"), []byte(""), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "glob2.yaml"), []byte(""), 0o644))
 
 		items := []BaseItem{
-			{Path: ptr.String("single.sh")},
-			{Paths: ptr.String("*.ps1")},
+			{Path: ptr.String("single.yml")},
+			{Paths: ptr.String("*.yaml")},
 		}
-		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		result, errs := expandBaseItems(items, dir, "test")
 		require.Empty(t, errs)
 		require.Len(t, result, 3)
-		assert.Equal(t, filepath.Join(dir, "single.sh"), *result[0].Path)
-		assert.Equal(t, filepath.Join(dir, "glob1.ps1"), *result[1].Path)
-		assert.Equal(t, filepath.Join(dir, "glob2.ps1"), *result[2].Path)
+		assert.Equal(t, filepath.Join(dir, "single.yml"), *result[0].Path)
+		assert.Equal(t, filepath.Join(dir, "glob1.yaml"), *result[1].Path)
+		assert.Equal(t, filepath.Join(dir, "glob2.yaml"), *result[2].Path)
 	})
 
 	t.Run("paths_without_glob_error", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{Paths: ptr.String("scripts/foo.sh")}}
-		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
+		items := []BaseItem{{Paths: ptr.String("foo.yml")}}
+		_, errs := expandBaseItems(items, "/tmp", "test")
 		requireErrorContains(t, errs, `does not contain glob characters`)
 	})
 
 	t.Run("path_with_glob_error", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{Path: ptr.String("scripts/*.sh")}}
-		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
+		items := []BaseItem{{Path: ptr.String("*.yml")}}
+		_, errs := expandBaseItems(items, "/tmp", "test")
 		requireErrorContains(t, errs, `contains glob characters`)
 	})
 
 	t.Run("both_path_and_paths_error", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{Path: ptr.String("foo.sh"), Paths: ptr.String("*.sh")}}
-		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
+		items := []BaseItem{{Path: ptr.String("foo.yml"), Paths: ptr.String("*.yml")}}
+		_, errs := expandBaseItems(items, "/tmp", "test")
 		requireErrorContains(t, errs, `cannot have both "path" and "paths"`)
 	})
 
-	t.Run("neither_path_nor_paths_error", func(t *testing.T) {
+	t.Run("inline_items_passed_through", func(t *testing.T) {
 		t.Parallel()
 		items := []BaseItem{{}}
-		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
+		result, errs := expandBaseItems(items, "/tmp", "test")
+		require.Empty(t, errs)
+		require.Len(t, result, 1)
+		assert.Nil(t, result[0].Path)
+		assert.Nil(t, result[0].Paths)
+	})
+
+	t.Run("require_file_reference_error", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{}}
+		_, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{
+			RequireFileReference: true,
+		})
 		requireErrorContains(t, errs, `no "path" or "paths" field`)
 	})
 
@@ -1815,12 +1826,12 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		logFn := func(format string, args ...any) {
 			warnings = append(warnings, fmt.Sprintf(format, args...))
 		}
-		items := []BaseItem{{Paths: ptr.String("*.sh")}}
-		result, errs := resolveScriptPaths(items, dir, logFn)
+		items := []BaseItem{{Paths: ptr.String("*.yml")}}
+		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{LogFn: logFn})
 		require.Empty(t, errs)
 		assert.Empty(t, result)
 		require.Len(t, warnings, 1)
-		assert.Contains(t, warnings[0], "matched no script")
+		assert.Contains(t, warnings[0], "matched no test")
 	})
 
 	t.Run("duplicate_basenames_error", func(t *testing.T) {
@@ -1830,12 +1841,14 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		sub2 := filepath.Join(dir, "sub2")
 		require.NoError(t, os.MkdirAll(sub1, 0o755))
 		require.NoError(t, os.MkdirAll(sub2, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(sub1, "dup.sh"), []byte("#!/bin/bash"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(sub2, "dup.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(sub1, "dup.yml"), []byte(""), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(sub2, "dup.yml"), []byte(""), 0o644))
 
-		items := []BaseItem{{Paths: ptr.String("**/*.sh")}}
-		_, errs := resolveScriptPaths(items, dir, nopLogf)
-		requireErrorContains(t, errs, "duplicate script basename")
+		items := []BaseItem{{Paths: ptr.String("**/*.yml")}}
+		_, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{
+			RequireUniqueBasenames: true,
+		})
+		requireErrorContains(t, errs, "duplicate test basename")
 	})
 
 	t.Run("duplicate_basenames_across_items_error", func(t *testing.T) {
@@ -1843,18 +1856,20 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		dir := t.TempDir()
 		sub := filepath.Join(dir, "sub")
 		require.NoError(t, os.MkdirAll(sub, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "script.sh"), []byte("#!/bin/bash"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(sub, "script.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "item.yml"), []byte(""), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(sub, "item.yml"), []byte(""), 0o644))
 
 		items := []BaseItem{
-			{Path: ptr.String("script.sh")},
-			{Paths: ptr.String("sub/*.sh")},
+			{Path: ptr.String("item.yml")},
+			{Paths: ptr.String("sub/*.yml")},
 		}
-		_, errs := resolveScriptPaths(items, dir, nopLogf)
-		requireErrorContains(t, errs, "duplicate script basename")
+		_, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{
+			RequireUniqueBasenames: true,
+		})
+		requireErrorContains(t, errs, "duplicate test basename")
 	})
 
-	t.Run("non_script_files_skipped_with_warning", func(t *testing.T) {
+	t.Run("allowed_extensions_filter", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "good.sh"), []byte("#!/bin/bash"), 0o644))
@@ -1867,39 +1882,207 @@ func TestResolveScriptPathsGlob(t *testing.T) {
 		}
 
 		items := []BaseItem{{Paths: ptr.String("*")}}
-		result, errs := resolveScriptPaths(items, dir, logFn)
+		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{
+			AllowedExtensions: map[string]bool{".sh": true},
+			LogFn:             logFn,
+		})
 		require.Empty(t, errs)
 		require.Len(t, result, 1)
 		assert.Equal(t, filepath.Join(dir, "good.sh"), *result[0].Path)
 		assert.Len(t, warnings, 2)
 	})
 
-	// Results are only sorted for the sake of tests,
-	// but having an explicit test protects against regression.
 	t.Run("results_sorted", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "z.sh"), []byte("#!/bin/bash"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.sh"), []byte("#!/bin/bash"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "m.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "z.yml"), []byte(""), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.yml"), []byte(""), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "m.yml"), []byte(""), 0o644))
 
-		items := []BaseItem{{Paths: ptr.String("*.sh")}}
-		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		items := []BaseItem{{Paths: ptr.String("*.yml")}}
+		result, errs := expandBaseItems(items, dir, "test")
 		require.Empty(t, errs)
 		require.Len(t, result, 3)
-		assert.Equal(t, filepath.Join(dir, "a.sh"), *result[0].Path)
-		assert.Equal(t, filepath.Join(dir, "m.sh"), *result[1].Path)
-		assert.Equal(t, filepath.Join(dir, "z.sh"), *result[2].Path)
+		assert.Equal(t, filepath.Join(dir, "a.yml"), *result[0].Path)
+		assert.Equal(t, filepath.Join(dir, "m.yml"), *result[1].Path)
+		assert.Equal(t, filepath.Join(dir, "z.yml"), *result[2].Path)
 	})
 
 	t.Run("multiple_errors_collected", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{}, {Path: ptr.String("scripts/*.sh")}, {Paths: ptr.String("noglob.sh")}}
-		_, errs := resolveScriptPaths(items, "", nil)
-		require.Len(t, errs, 3)
-		assert.Contains(t, errs[0].Error(), `no "path" or "paths"`)
-		assert.Contains(t, errs[1].Error(), `contains glob characters`)
-		assert.Contains(t, errs[2].Error(), `does not contain glob characters`)
+		items := []BaseItem{{Path: ptr.String("*.yml")}, {Paths: ptr.String("noglob.yml")}}
+		_, errs := expandBaseItems(items, "", "test")
+		require.Len(t, errs, 2)
+		assert.Contains(t, errs[0].Error(), `contains glob characters`)
+		assert.Contains(t, errs[1].Error(), `does not contain glob characters`)
+	})
+}
+
+func TestResolveScriptPaths(t *testing.T) {
+	t.Parallel()
+
+	t.Run("path_resolves", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "script.sh"), []byte("#!/bin/bash"), 0o644))
+
+		items := []BaseItem{{Path: ptr.String("script.sh")}}
+		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 1)
+		assert.Equal(t, filepath.Join(dir, "script.sh"), *result[0].Path)
+	})
+
+	t.Run("glob_expands", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.sh"), []byte("#!/bin/bash"), 0o644))
+
+		items := []BaseItem{{Paths: ptr.String("*.sh")}}
+		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 2)
+	})
+
+	t.Run("inline_not_allowed", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{}}
+		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
+		require.NotEmpty(t, errs)
+		assert.Contains(t, errs[0].Error(), `no "path" or "paths" field`)
+	})
+}
+
+func TestParseLabelsGlob(t *testing.T) {
+	t.Parallel()
+
+	t.Run("inline_and_path", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		// Write a label file referenced by path.
+		labelFile := filepath.Join(dir, "labels", "from-file.yml")
+		require.NoError(t, os.MkdirAll(filepath.Dir(labelFile), 0o755))
+		require.NoError(t, os.WriteFile(labelFile, []byte("- name: FileLabel\n  label_membership_type: manual\n"), 0o644))
+
+		top := map[string]json.RawMessage{
+			"labels": json.RawMessage(`[{"name": "InlineLabel", "label_membership_type": "manual"}, {"path": "labels/from-file.yml"}]`),
+		}
+		result := &GitOps{}
+		multiErr := parseLabels(top, result, dir, nopLogf, "test.yml", nil)
+		require.Nil(t, multiErr)
+		require.Len(t, result.Labels, 2)
+		assert.Equal(t, "InlineLabel", result.Labels[0].Name)
+		assert.Equal(t, "FileLabel", result.Labels[1].Name)
+	})
+
+	t.Run("glob_expands", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		labelsDir := filepath.Join(dir, "labels")
+		require.NoError(t, os.MkdirAll(labelsDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(labelsDir, "a.yml"), []byte("- name: LabelA\n  label_membership_type: manual\n"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(labelsDir, "b.yml"), []byte("- name: LabelB\n  label_membership_type: manual\n"), 0o644))
+
+		top := map[string]json.RawMessage{
+			"labels": json.RawMessage(`[{"paths": "labels/*.yml"}]`),
+		}
+		result := &GitOps{}
+		multiErr := parseLabels(top, result, dir, nopLogf, "test.yml", nil)
+		require.Nil(t, multiErr)
+		require.Len(t, result.Labels, 2)
+		assert.Equal(t, "LabelA", result.Labels[0].Name)
+		assert.Equal(t, "LabelB", result.Labels[1].Name)
+	})
+}
+
+func TestParsePoliciesGlob(t *testing.T) {
+	t.Parallel()
+
+	t.Run("inline_and_path", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		policyFile := filepath.Join(dir, "policies", "from-file.yml")
+		require.NoError(t, os.MkdirAll(filepath.Dir(policyFile), 0o755))
+		require.NoError(t, os.WriteFile(policyFile, []byte("- name: FilePolicy\n  query: SELECT 1;\n"), 0o644))
+
+		top := map[string]json.RawMessage{
+			"policies": json.RawMessage(`[{"name": "InlinePolicy", "query": "SELECT 1;"}, {"path": "policies/from-file.yml"}]`),
+		}
+		result := &GitOps{}
+		multiErr := parsePolicies(top, result, dir, nopLogf, "test.yml", nil)
+		require.Nil(t, multiErr)
+		require.Len(t, result.Policies, 2)
+		assert.Equal(t, "InlinePolicy", result.Policies[0].Name)
+		assert.Equal(t, "FilePolicy", result.Policies[1].Name)
+	})
+
+	t.Run("glob_expands", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		policiesDir := filepath.Join(dir, "policies")
+		require.NoError(t, os.MkdirAll(policiesDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(policiesDir, "a.yml"), []byte("- name: PolicyA\n  query: SELECT 1;\n"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(policiesDir, "b.yml"), []byte("- name: PolicyB\n  query: SELECT 1;\n"), 0o644))
+
+		top := map[string]json.RawMessage{
+			"policies": json.RawMessage(`[{"paths": "policies/*.yml"}]`),
+		}
+		result := &GitOps{}
+		multiErr := parsePolicies(top, result, dir, nopLogf, "test.yml", nil)
+		require.Nil(t, multiErr)
+		require.Len(t, result.Policies, 2)
+		assert.Equal(t, "PolicyA", result.Policies[0].Name)
+		assert.Equal(t, "PolicyB", result.Policies[1].Name)
+	})
+}
+
+func TestParseReportsGlob(t *testing.T) {
+	t.Parallel()
+
+	t.Run("inline_and_path", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		reportFile := filepath.Join(dir, "reports", "from-file.yml")
+		require.NoError(t, os.MkdirAll(filepath.Dir(reportFile), 0o755))
+		require.NoError(t, os.WriteFile(reportFile, []byte("- name: FileReport\n  query: SELECT 1;\n"), 0o644))
+
+		top := map[string]json.RawMessage{
+			"reports": json.RawMessage(`[{"name": "InlineReport", "query": "SELECT 1;"}, {"path": "reports/from-file.yml"}]`),
+		}
+		teamName := "TestTeam"
+		result := &GitOps{TeamName: &teamName}
+		multiErr := parseReports(top, result, dir, nopLogf, "test.yml", nil)
+		require.Nil(t, multiErr)
+		require.Len(t, result.Queries, 2)
+		assert.Equal(t, "InlineReport", result.Queries[0].Name)
+		assert.Equal(t, "FileReport", result.Queries[1].Name)
+	})
+
+	t.Run("glob_expands", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		reportsDir := filepath.Join(dir, "reports")
+		require.NoError(t, os.MkdirAll(reportsDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(reportsDir, "a.yml"), []byte("- name: ReportA\n  query: SELECT 1;\n"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(reportsDir, "b.yml"), []byte("- name: ReportB\n  query: SELECT 1;\n"), 0o644))
+
+		top := map[string]json.RawMessage{
+			"reports": json.RawMessage(`[{"paths": "reports/*.yml"}]`),
+		}
+		teamName := "TestTeam"
+		result := &GitOps{TeamName: &teamName}
+		multiErr := parseReports(top, result, dir, nopLogf, "test.yml", nil)
+		require.Nil(t, multiErr)
+		require.Len(t, result.Queries, 2)
+		assert.Equal(t, "ReportA", result.Queries[0].Name)
+		assert.Equal(t, "ReportB", result.Queries[1].Name)
 	})
 }
 
