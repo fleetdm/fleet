@@ -3,6 +3,7 @@ package msrc
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -12,9 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/io"
 	msrc "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
-	utils "github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 )
 
 const (
@@ -27,7 +26,7 @@ func Analyze(
 	os fleet.OperatingSystem,
 	vulnPath string,
 	collectVulns bool,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) ([]fleet.OSVulnerability, error) {
 	bulletin, err := loadBulletin(os, vulnPath)
 	if err != nil {
@@ -60,7 +59,7 @@ func Analyze(
 			continue
 		}
 		// Check if the OS is vulnerable to the vulnerability by referencing the OS kernel version
-		isVuln, riv := isOSVulnerable(os.KernelVersion, bulletin, v, matchingPIDs, cve, logger)
+		isVuln, riv := isOSVulnerable(ctx, os.KernelVersion, bulletin, v, matchingPIDs, cve, logger)
 		if isVuln {
 			found = append(found, fleet.OSVulnerability{
 				OSID:              os.ID,
@@ -123,12 +122,13 @@ func Analyze(
 // If the OS is vulnerable, the function returns the version in which the vulnerability
 // was resolved.
 func isOSVulnerable(
+	ctx context.Context,
 	osKernel string,
 	b *msrc.SecurityBulletin,
 	v msrc.Vulnerability,
 	matchingPIDs map[string]bool,
 	cve string,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) (isVulnerable bool, resolvedInVersion string) {
 	for KBID := range v.RemediatedBy {
 		fix := b.VendorFixes[KBID]
@@ -148,7 +148,7 @@ func isOSVulnerable(
 
 			fixedBuild, feedParts, err := getBuildNumber(build)
 			if err != nil {
-				level.Debug(logger).Log("msg", "invalid msrc feed version", "cve", cve, "err", err)
+				logger.DebugContext(ctx, "invalid msrc feed version", "cve", cve, "err", err)
 				continue
 			}
 

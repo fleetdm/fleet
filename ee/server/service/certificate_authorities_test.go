@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -15,11 +16,9 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
@@ -145,10 +144,6 @@ func setupMockCAServers(t *testing.T) (digicertServer, hydrantServer *httptest.S
 }
 
 func TestCreatingCertificateAuthorities(t *testing.T) {
-	// Enable dev mode so CheckURLForSSRF skips the private-IP blocklist for the duration of this test.
-	dev_mode.IsEnabled = true
-	t.Cleanup(func() { dev_mode.IsEnabled = false })
-
 	digicertServer, hydrantServer := setupMockCAServers(t)
 	digicertURL := digicertServer.URL
 	hydrantURL := hydrantServer.URL
@@ -205,7 +200,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.NoError(t, err)
 
 		svc := &Service{
-			logger:          logging.NewLogfmtLogger(os.Stdout),
+			logger:          slog.New(slog.NewTextHandler(os.Stdout, nil)),
 			ds:              ds,
 			authz:           authorizer,
 			digiCertService: digicert.NewService(),
@@ -539,7 +534,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 
 		createdCA, err := svc.NewCertificateAuthority(ctx, createDigicertRequest)
-		require.ErrorContains(t, err, "DigiCert URL is invalid")
+		require.ErrorContains(t, err, "Invalid DigiCert URL")
 		require.Len(t, createdCAs, 0)
 		require.Nil(t, createdCA)
 	})
@@ -680,7 +675,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 
 		createdCA, err := svc.NewCertificateAuthority(ctx, createHydrantRequest)
-		require.ErrorContains(t, err, "Hydrant URL is invalid")
+		require.ErrorContains(t, err, "Invalid Hydrant URL.")
 		require.Len(t, createdCAs, 0)
 		require.Nil(t, createdCA)
 	})
@@ -768,7 +763,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 
 		createdCA, err := svc.NewCertificateAuthority(ctx, createCustomSCEPRequest)
-		require.ErrorContains(t, err, "Custom SCEP Proxy URL is invalid")
+		require.ErrorContains(t, err, "Invalid SCEP URL.")
 		require.Len(t, createdCAs, 0)
 		require.Nil(t, createdCA)
 	})
@@ -824,7 +819,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 
 		createdCA, err := svc.NewCertificateAuthority(ctx, createNDESSCEPRequest)
-		require.ErrorContains(t, err, "NDES SCEP URL is invalid")
+		require.ErrorContains(t, err, "Invalid NDES SCEP URL.")
 		require.Len(t, createdCAs, 0)
 		require.Nil(t, createdCA)
 	})
@@ -984,7 +979,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 
 		createdCA, err := svc.NewCertificateAuthority(ctx, createSmallstepRequest)
-		require.ErrorContains(t, err, "Smallstep SCEP URL is invalid")
+		require.ErrorContains(t, err, "Invalid Smallstep SCEP URL.")
 		require.Len(t, createdCAs, 0)
 		require.Nil(t, createdCA)
 	})
@@ -1097,9 +1092,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 }
 
 func TestUpdatingCertificateAuthorities(t *testing.T) {
-	// Enable dev mode so CheckURLForSSRF skips the private-IP blocklist for the duration of this test.
-	dev_mode.IsEnabled = true
-	t.Cleanup(func() { dev_mode.IsEnabled = false })
+	t.Parallel()
 
 	digicertServer, hydrantServer := setupMockCAServers(t)
 	digicertURL := digicertServer.URL
@@ -1202,7 +1195,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 		require.NoError(t, err)
 
 		svc := &Service{
-			logger:          logging.NewLogfmtLogger(os.Stdout),
+			logger:          slog.New(slog.NewTextHandler(os.Stdout, nil)),
 			ds:              ds,
 			authz:           authorizer,
 			digiCertService: digicert.NewService(),
@@ -1367,7 +1360,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			}
 
 			err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
-			require.ErrorContains(t, err, "DigiCert URL is invalid")
+			require.EqualError(t, err, "validation failed: url Couldn't edit certificate authority. Invalid DigiCert URL. Please correct and try again.")
 		})
 
 		t.Run("Bad URL Path", func(t *testing.T) {
@@ -1509,7 +1502,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			}
 
 			err := svc.UpdateCertificateAuthority(ctx, hydrantID, payload)
-			require.ErrorContains(t, err, "Hydrant URL is invalid")
+			require.EqualError(t, err, "validation failed: url Couldn't edit certificate authority. Invalid Hydrant URL. Please correct and try again.")
 		})
 
 		t.Run("Bad URL", func(t *testing.T) {
@@ -1595,7 +1588,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			}
 
 			err := svc.UpdateCertificateAuthority(ctx, scepID, payload)
-			require.ErrorContains(t, err, "Custom SCEP Proxy URL is invalid")
+			require.EqualError(t, err, "validation failed: url Couldn't edit certificate authority. Invalid SCEP URL. Please correct and try again.")
 		})
 
 		t.Run("Requires challenge when updating URL", func(t *testing.T) {
@@ -1658,7 +1651,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			}
 
 			err := svc.UpdateCertificateAuthority(ctx, ndesID, payload)
-			require.ErrorContains(t, err, "NDES SCEP URL is invalid")
+			require.EqualError(t, err, "validation failed: url Couldn't edit certificate authority. Invalid NDES SCEP URL. Please correct and try again.")
 		})
 
 		t.Run("Bad SCEP URL", func(t *testing.T) {
@@ -1817,7 +1810,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			}
 
 			err := svc.UpdateCertificateAuthority(ctx, smallstepID, payload)
-			require.ErrorContains(t, err, "Smallstep SCEP URL is invalid")
+			require.EqualError(t, err, "validation failed: url Couldn't edit certificate authority. Invalid SCEP URL. Please correct and try again.")
 		})
 
 		t.Run("Invalid Challenge URL format", func(t *testing.T) {
@@ -1833,7 +1826,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			}
 
 			err := svc.UpdateCertificateAuthority(ctx, smallstepID, payload)
-			require.ErrorContains(t, err, "Challenge URL is invalid")
+			require.EqualError(t, err, "validation failed: url Couldn't edit certificate authority. Invalid Challenge URL. Please correct and try again.")
 		})
 
 		t.Run("Bad Smallstep SCEP URL", func(t *testing.T) {

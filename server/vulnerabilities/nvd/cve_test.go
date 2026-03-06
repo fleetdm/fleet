@@ -3,6 +3,7 @@ package nvd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,8 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -146,7 +145,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		// download the CVEs once for all sub-tests, and then disable syncing
 		tempDir = t.TempDir()
 		err := nettest.RunWithNetRetry(t, func() error {
-			return DownloadCVEFeed(tempDir, "", false, log.NewNopLogger())
+			return DownloadCVEFeed(tempDir, "", false, slog.New(slog.DiscardHandler))
 		})
 		require.NoError(t, err)
 	} else {
@@ -883,7 +882,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			return nil
 		}
 
-		_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewNopLogger(), false, time.Now().UTC().Add(-time.Hour))
+		_, err := TranslateCPEToCVE(ctx, ds, tempDir, slog.New(slog.DiscardHandler), false, time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
 
 		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
@@ -950,7 +949,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			return 0, nil
 		}
 
-		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, time.Now().Add(-time.Hour))
+		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, slog.New(slog.DiscardHandler), true, time.Now().Add(-time.Hour))
 		require.NoError(t, err)
 
 		byCPE := make(map[uint]int)
@@ -969,7 +968,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
 			return nil, nil
 		}
-		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, time.Now().UTC().Add(-time.Hour))
+		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, slog.New(slog.DiscardHandler), true, time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
 
 		// no recent vulnerability should be reported
@@ -991,7 +990,7 @@ func TestSyncsCVEFromURL(t *testing.T) {
 
 	tempDir := t.TempDir()
 	cveFeedPrefixURL := ts.URL + "/feeds/json/cve/1.1/"
-	err := DownloadCVEFeed(tempDir, cveFeedPrefixURL, false, log.NewNopLogger())
+	err := DownloadCVEFeed(tempDir, cveFeedPrefixURL, false, slog.New(slog.DiscardHandler))
 	require.Error(t, err)
 	require.Contains(t,
 		err.Error(),

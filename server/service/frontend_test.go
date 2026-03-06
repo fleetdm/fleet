@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,7 +21,7 @@ func TestServeFrontend(t *testing.T) {
 	if !hasBuildTag("full") {
 		t.Skip("This test requires running with -tags full")
 	}
-	logger := log.NewLogfmtLogger(os.Stdout)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	h := ServeFrontend("", false, logger)
 	ts := httptest.NewServer(h)
 	t.Cleanup(func() {
@@ -79,7 +79,7 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 			appCfg.MDM.EnabledAndConfigured = enabled
 			appCfg.MDM.AndroidEnabledAndConfigured = enabled
 
-			logger := log.NewLogfmtLogger(os.Stdout)
+			logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 			h := ServeEndUserEnrollOTA(svc, "", ds, logger)
 			ts := httptest.NewServer(h)
 			t.Cleanup(func() {

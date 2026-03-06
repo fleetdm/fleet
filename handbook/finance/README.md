@@ -275,7 +275,7 @@ Thanks,
 
 19. Click next to proceed to Step 3: Add buyers.
 
-20. Enter the customer's AWS account ID and click next to proceed to Step 4: Configurel egal terms and offer documents.
+20. Enter the customer's AWS account ID and click next to proceed to Step 4: Configure legal terms and offer documents.
 
 21. Select "custom legal terms" and upload the applicable terms. Note this could be two documents: an order form, and master subscription terms if separate from the order form.
 
@@ -284,7 +284,7 @@ Thanks,
 
 ### Obtain a copy of Fleet's W-9
 
-A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1bqGEl5w3En5wsgYotFD8RSYYjP6P1FDK/view?usp=sharing).
+A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1Gwd71dbo5mI_3CherBiiH9pZ3ANFMkfH/view?usp=sharing).
 
 
 ### Run US commission payroll

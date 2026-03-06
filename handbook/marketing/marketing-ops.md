@@ -103,10 +103,10 @@ For all unpaid, inbound traffic and brand-driven interest.
 
 | Source detail | Code | Campaign examples (always-on) |
 | :---- | :---- | :---- |
-| Organic search | OS | OS-Default |
-| Direct traffic | DT | DT-Default |
-| Web referral | WR | WR-Default |
-| Organic social | SOC | SOC-Default |
+| Organic search | OS | Default-OS |
+| Direct traffic | DT | Default-DT |
+| Web referral | WR | Default-WR |
+| Organic social | SOC | Default-SOC |
 
 
 #### 🗣️ Word-of-mouth
@@ -115,8 +115,8 @@ For all manually tracked, human-to-human recommendations.
 
 | Source detail | Code | Campaign examples |
 | :---- | :---- | :---- |
-| Customer referral | CR | CR-Default  |
-| Employee referral | ER | ER-Default  |
+| Customer referral | CR | Default-CR  |
+| Employee referral | ER | Default-ER  |
 | Analyst/influencer | AR | AR-gartner\_mention |
 
 
@@ -193,10 +193,10 @@ Discreet campaigns have a specific start, end, and budget (e.g., webinar, trade 
 #### Always-on campaigns
 
 These are generic "buckets" for continuous inbound channels that don't have a start/end date.  They are “Default” campaigns, since they do not have a start or stop date. Use the following naming convention when naming an "Always-on" campaign:
-- **Structure:** \[Code\]-Default  
+- **Structure:** Default-\[Code\]  
+  - **\[Name\]:** Default, Always\_On, or General.
   - **\[Code\]:** The 2-4 letter code.
-  - **\[Name\]:** Default, Always\_On, or General.  
-- **Full example:** OS-Default (for all Organic Search)
+- **Full example:** Default-OS (for all Organic Search)
 
 
 ## Unified campaign member status framework
@@ -273,7 +273,10 @@ All campaigns must utilize the following status values. Custom statuses outside 
 - **Registered:** Clicked a link and filled out the resulting form.  
 - **Engaged:** Replied to the email directly.
 
-
+#### Website Chat (Qualified)
+- **Interacted:** We chatted and learned about the prospect
+- **Engaged:** We chatted long enough to offer a meeting 
+- **Meeting Requested:** The prospect has booked a meeting
 
 ## 📧 Contact marketability & compliance
 

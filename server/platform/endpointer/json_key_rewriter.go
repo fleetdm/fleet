@@ -17,7 +17,7 @@ type AliasConflictError struct {
 }
 
 func (e *AliasConflictError) Error() string {
-	return fmt.Sprintf("Conflicting field names: cannot specify both %q (deprecated) and %q in the same request", e.Old, e.New)
+	return fmt.Sprintf("Conflicting field names: cannot specify both `%s` (deprecated) and `%s` in the same request", e.Old, e.New)
 }
 
 // AliasRule defines a key-rename rule: the deprecated (old) key name and its
@@ -119,9 +119,9 @@ func (r *JSONKeyRewriteReader) Read(p []byte) (int, error) {
 // decoded into a struct with `renameto` tags — the rewriter in MakeDecoder
 // won't have seen the inner fields, so this function can be called before the
 // deferred unmarshal.
-func RewriteDeprecatedKeys(data []byte, rules []AliasRule) ([]byte, error) {
+func RewriteDeprecatedKeys(data []byte, rules []AliasRule) ([]byte, map[string]string, error) {
 	if len(rules) == 0 || len(data) == 0 {
-		return data, nil
+		return data, nil, nil
 	}
 	oldIdx := make(map[string]AliasRule, len(rules))
 	newIdx := make(map[string]AliasRule, len(rules))
@@ -136,9 +136,13 @@ func RewriteDeprecatedKeys(data []byte, rules []AliasRule) ([]byte, error) {
 	}
 	var buf bytes.Buffer
 	if err := rw.rewrite(bytes.NewReader(data), &buf); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return buf.Bytes(), nil
+	deprecatedKeysMap := make(map[string]string, len(rw.usedDeprecated))
+	for k := range rw.usedDeprecated {
+		deprecatedKeysMap[k] = rw.oldKeyIndex[k].NewKey
+	}
+	return buf.Bytes(), deprecatedKeysMap, nil
 }
 
 // rewrite reads tokens from src, rewrites deprecated keys, checks for alias

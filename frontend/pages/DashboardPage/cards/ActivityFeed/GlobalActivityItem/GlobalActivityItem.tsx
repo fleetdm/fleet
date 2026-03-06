@@ -1,4 +1,4 @@
-import { capitalize, find, lowerCase, noop, trimEnd, upperFirst } from "lodash";
+import { capitalize, find, lowerCase, noop, trimEnd } from "lodash";
 import React from "react";
 
 import { ActivityType, IActivity } from "interfaces/activity";
@@ -802,8 +802,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        required end user authentication for macOS, iOS, iPadOS, and Android
-        hosts that automatically enroll to{" "}
+        required end user authentication for hosts that automatically enroll to{" "}
         {activity.details?.team_name ? (
           <>
             the <b>{activity.details.team_name}</b> fleet
@@ -819,8 +818,8 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        removed end user authentication requirement for macOS, iOS, iPadOS, and
-        Android hosts that automatically enroll to{" "}
+        removed end user authentication requirement for hosts that automatically
+        enroll to{" "}
         {activity.details?.team_name ? (
           <>
             the <b>{activity.details.team_name}</b> fleet
@@ -1479,7 +1478,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        created a query <b>{activity.details?.query_name}</b>
+        created a report <b>{activity.details?.query_name}</b>
         {teamText}.
       </>
     );
@@ -1501,7 +1500,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        edited the query <b>{activity.details?.query_name}</b>
+        edited the report <b>{activity.details?.query_name}</b>
         {teamText}.
       </>
     );
@@ -1523,7 +1522,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        deleted the query <b>{activity.details?.query_name}</b>
+        deleted the report <b>{activity.details?.query_name}</b>
         {teamText}.
       </>
     );

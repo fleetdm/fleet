@@ -68,6 +68,7 @@ locals {
     OTEL_EXPORTER_OTLP_ENDPOINT   = "https://otlp.signoz.dogfood.fleetdm.com"
     # FLEET_LOGGING_TRACING_ENABLED              = "true"
     # FLEET_LOGGING_TRACING_TYPE                 = "elasticapm"
+    FLEET_LOGGING_ENABLE_TOPICS                = "deprecated-field-names"
     FLEET_MYSQL_MAX_OPEN_CONNS                 = "10"
     FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS    = "10"
     FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
@@ -84,6 +85,7 @@ locals {
     FLEET_MYSQL_TLS_CA                  = local.cert_path
     FLEET_MYSQL_READ_REPLICA_TLS_CA     = local.cert_path
     FLEET_MYSQL_READ_REPLICA_TLS_CONFIG = "custom"
+    FLEET_ENABLE_LOG_TOPICS             = "deprecated-field-names"
   }
   entra_conditional_access_secrets = {
     # Entra Conditional Access Proxy API Key
@@ -153,6 +155,9 @@ module "main" {
     db_parameters = {
       # 8mb up from 262144 (256k) default
       sort_buffer_size = 8388608
+    }
+    db_cluster_parameters = {
+      require_secure_transport = "ON"
     }
     # VPN
     allowed_cidr_blocks     = ["10.255.1.0/24", "10.255.2.0/24", "10.255.3.0/24"]
@@ -512,7 +517,7 @@ module "osquery-carve" {
 }
 
 module "monitoring" {
-  source                 = "github.com/fleetdm/fleet-terraform//addons/monitoring?ref=tf-mod-addon-monitoring-v1.8.0"
+  source                 = "github.com/fleetdm/fleet-terraform//addons/monitoring?ref=tf-mod-addon-monitoring-v1.9.0"
   customer_prefix        = local.customer
   fleet_ecs_service_name = module.main.byo-vpc.byo-db.byo-ecs.service.name
   albs = [
@@ -549,6 +554,7 @@ module "monitoring" {
     mysql_database             = module.main.byo-vpc.rds.cluster_database_name
     mysql_user                 = module.main.byo-vpc.rds.cluster_master_username
     mysql_password_secret_name = "${local.customer}-database-password"
+    mysql_tls_config           = "true"
     rds_security_group_id      = module.main.byo-vpc.rds.security_group_id
     subnet_ids                 = module.main.vpc.private_subnets
     vpc_id                     = module.main.vpc.vpc_id

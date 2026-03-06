@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 	"github.com/tj/assert"
 )
@@ -20,7 +20,7 @@ import (
 func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	mapper := Mapper{}
 
 	appCfg := &fleet.AppConfig{

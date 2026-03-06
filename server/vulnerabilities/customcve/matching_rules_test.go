@@ -2,6 +2,7 @@ package customcve
 
 import (
 	"context"
+	"log/slog"
 	"sort"
 	"testing"
 	"time"
@@ -9,7 +10,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -353,7 +353,7 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 		}
 
 		ctx := context.Background()
-		vulns, err := CheckCustomVulnerabilities(ctx, ds, log.NewNopLogger(), time.Now().UTC().Add(-time.Hour))
+		vulns, err := CheckCustomVulnerabilities(ctx, ds, slog.New(slog.DiscardHandler), time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
 		require.Len(t, vulns, 35)
 		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
@@ -583,7 +583,7 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 		}
 
 		ctx := t.Context()
-		vulns, err := CheckCustomVulnerabilities(ctx, ds, log.NewNopLogger(), time.Now().UTC().Add(-time.Hour))
+		vulns, err := CheckCustomVulnerabilities(ctx, ds, slog.New(slog.DiscardHandler), time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
 		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
 		require.Len(t, vulns, 0)

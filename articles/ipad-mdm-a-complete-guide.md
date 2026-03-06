@@ -180,5 +180,5 @@ Fleet is an open-source MDM that supports iPad deployments alongside your other 
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-01-11">
+<meta name="publishedOn" value="2026-01-13">
 <meta name="description" value="A complete guide to iPad MDM, covering deployment models, enrollment methods, and the features organizations use to manage iPads securely at scale.">

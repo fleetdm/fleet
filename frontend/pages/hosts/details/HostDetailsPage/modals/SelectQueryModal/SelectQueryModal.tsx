@@ -74,7 +74,7 @@ const SelectQueryModal = ({
   const onQueryHostCustom = () => {
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
     router.push(
-      getPathWithQueryParams(PATHS.NEW_QUERY, {
+      getPathWithQueryParams(PATHS.NEW_REPORT, {
         host_id: hostId,
         fleet_id: currentTeamId,
       })
@@ -84,7 +84,7 @@ const SelectQueryModal = ({
   const onQueryHostSaved = (selectedQuery: ISchedulableQuery) => {
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
     router.push(
-      getPathWithQueryParams(PATHS.EDIT_QUERY(selectedQuery.id), {
+      getPathWithQueryParams(PATHS.EDIT_REPORT(selectedQuery.id), {
         host_id: hostId,
         fleet_id: currentTeamId,
       })

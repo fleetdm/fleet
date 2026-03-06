@@ -7,17 +7,17 @@ type MaintainedApp struct {
 	ID                    uint     `json:"id" db:"id"`
 	Name                  string   `json:"name" db:"name"`
 	Slug                  string   `json:"slug" db:"slug"`
-	Version               string   `json:"version,omitempty"`
+	Version               string   `json:"version,omitempty" db:"version"`
 	Platform              string   `json:"platform" db:"platform"`
 	TitleID               *uint    `json:"software_title_id" db:"software_title_id"`
-	InstallerURL          string   `json:"url,omitempty"`
-	SHA256                string   `json:"-"`
+	InstallerURL          string   `json:"url,omitempty" db:"url"`
+	SHA256                string   `json:"-" db:"storage_id"`
 	UniqueIdentifier      string   `json:"-" db:"unique_identifier"`
-	InstallScript         string   `json:"install_script,omitempty"`
-	UninstallScript       string   `json:"uninstall_script,omitempty"`
-	AutomaticInstallQuery string   `json:"-"`
+	InstallScript         string   `json:"install_script,omitempty" db:"install_script"`
+	UninstallScript       string   `json:"uninstall_script,omitempty" db:"uninstall_script"`
+	AutomaticInstallQuery string   `json:"-" db:"pre_install_query"`
 	Categories            []string `json:"categories"`
-	UpgradeCode           string   `json:"upgrade_code,omitempty"`
+	UpgradeCode           string   `json:"upgrade_code,omitempty" db:"upgrade_code"`
 }
 
 func (s *MaintainedApp) Source() string {
