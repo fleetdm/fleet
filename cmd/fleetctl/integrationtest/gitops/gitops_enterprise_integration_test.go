@@ -3861,21 +3861,6 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestOmittedTopLevelKeysTeam() {
 
 	teamName := "Test Omitted Keys " + uuid.NewString()
 
-	// We need a global file for the gitops run.
-	const globalConfig = `
-org_settings:
-  server_settings:
-    server_url: $FLEET_URL
-  org_info:
-    org_name: Fleet
-  secrets:
-`
-	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-	require.NoError(t, err)
-	_, err = globalFile.WriteString(globalConfig)
-	require.NoError(t, err)
-	require.NoError(t, globalFile.Close())
-
 	// Step 1: Apply a full team config with policies, agent_options, controls, features, and reports.
 	fullTeamConfig := fmt.Sprintf(`
 name: %s
@@ -3907,7 +3892,7 @@ software:
 	require.NoError(t, fullTeamFile.Close())
 
 	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{
-		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", fullTeamFile.Name(),
+		"gitops", "--config", fleetctlConfig.Name(), "-f", fullTeamFile.Name(),
 	}))
 
 	// Verify policy, agent_options, controls, features, and reports were applied.
@@ -3941,7 +3926,7 @@ name: %s
 	require.NoError(t, minimalTeamFile.Close())
 
 	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{
-		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", minimalTeamFile.Name(),
+		"gitops", "--config", fleetctlConfig.Name(), "-f", minimalTeamFile.Name(),
 	}))
 
 	// Verify policies were cleared.
