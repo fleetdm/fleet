@@ -1,0 +1,397 @@
+# ISO 42001 - AI Discovery & Inventory queries
+# These queries support AI Management System (AIMS) asset inventory requirements
+# by discovering and cataloging AI applications, models, and services across endpoints.
+
+- name: ISO 42001 - AI browser extensions (all platforms)
+  description: >-
+    Discovers AI-related browser extensions in Chrome and Firefox including
+    Copilot, Gemini, ChatGPT, Claude, and other AI assistant extensions.
+    Supports ISO 42001 requirements for cataloging AI touchpoints.
+  query: |
+    SELECT
+      ce.name,
+      ce.identifier,
+      ce.version,
+      ce.description,
+      ce.path,
+      u.username,
+      'chrome_extension' AS browser
+    FROM users u
+    CROSS JOIN chrome_extensions ce USING (uid)
+    WHERE ce.name LIKE '%Copilot%'
+      OR ce.name LIKE '%Gemini%'
+      OR ce.name LIKE '%ChatGPT%'
+      OR ce.name LIKE '%Claude%'
+      OR ce.name LIKE '%Perplexity%'
+      OR ce.name LIKE '%Codeium%'
+      OR ce.name LIKE '%Tabnine%'
+      OR ce.name LIKE '%AI%Assistant%'
+      OR ce.name LIKE '%Bard%'
+      OR ce.name LIKE '%Monica%'
+      OR ce.name LIKE '%Merlin%'
+      OR ce.name LIKE '%Jasper%'
+      OR ce.name LIKE '%Grammarly%'
+      OR ce.identifier IN (
+        'ghbmnnjooekpmoecnnnilnnbdlolhkhi',
+        'jjkchpdmjjdmalgembblgafllbpcjlei',
+        'liecbddmkiiihnedobmlmillhodjkdmb',
+        'obnaaalnokmchdoagnhmjjhmeibcimak'
+      )
+    UNION ALL
+    SELECT
+      fe.name,
+      fe.identifier,
+      fe.version,
+      fe.description,
+      fe.path,
+      u.username,
+      'firefox_addon' AS browser
+    FROM users u
+    CROSS JOIN firefox_addons fe USING (uid)
+    WHERE fe.name LIKE '%Copilot%'
+      OR fe.name LIKE '%Gemini%'
+      OR fe.name LIKE '%ChatGPT%'
+      OR fe.name LIKE '%Claude%'
+      OR fe.name LIKE '%Perplexity%'
+      OR fe.name LIKE '%Codeium%'
+      OR fe.name LIKE '%Grammarly%';
+  platform: darwin,linux,windows
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot
+
+- name: ISO 42001 - AI CLI tools installed
+  description: >-
+    Checks for AI command-line tools such as ollama, llama.cpp, github-copilot-cli,
+    aichat, and similar tools in common binary paths. Supports ISO 42001 AI asset
+    inventory for developer tooling.
+  query: |
+    SELECT
+      path,
+      filename,
+      size,
+      datetime(mtime, 'unixepoch') AS modified,
+      'cli_tool' AS discovery_source
+    FROM file
+    WHERE (
+      path LIKE '/usr/local/bin/ollama'
+      OR path LIKE '/usr/bin/ollama'
+      OR path LIKE '/opt/homebrew/bin/ollama'
+      OR path LIKE '/usr/local/bin/llama-cli'
+      OR path LIKE '/usr/local/bin/llama-server'
+      OR path LIKE '/usr/local/bin/aichat'
+      OR path LIKE '/opt/homebrew/bin/aichat'
+      OR path LIKE '/usr/local/bin/github-copilot-cli'
+      OR path LIKE '/opt/homebrew/bin/llama-cli'
+      OR path LIKE '/opt/homebrew/bin/llama-server'
+      OR path LIKE 'C:\Users\%%\AppData\Local\Programs\Ollama\ollama.exe'
+      OR path LIKE 'C:\Program Files\Ollama\ollama.exe'
+      OR path LIKE '/home/%%/.local/bin/ollama'
+    );
+  platform: darwin,linux,windows
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot
+
+- name: ISO 42001 - AI Python packages (pip)
+  description: >-
+    Queries for installed AI/ML Python packages including openai, anthropic,
+    transformers, langchain, torch, tensorflow, and other AI frameworks.
+    Supports ISO 42001 inventory of AI development dependencies.
+  query: |
+    SELECT
+      name,
+      version,
+      author,
+      path AS install_path,
+      'python_package' AS discovery_source
+    FROM python_packages
+    WHERE name IN (
+      'openai',
+      'anthropic',
+      'transformers',
+      'langchain',
+      'langchain-core',
+      'langchain-community',
+      'langchain-openai',
+      'langgraph',
+      'torch',
+      'torchvision',
+      'tensorflow',
+      'keras',
+      'scikit-learn',
+      'xgboost',
+      'lightgbm',
+      'huggingface-hub',
+      'diffusers',
+      'accelerate',
+      'bitsandbytes',
+      'auto-gptq',
+      'vllm',
+      'llama-cpp-python',
+      'guidance',
+      'autogen',
+      'crewai',
+      'chromadb',
+      'pinecone-client',
+      'weaviate-client',
+      'faiss-cpu',
+      'sentence-transformers',
+      'ollama',
+      'google-generativeai',
+      'cohere',
+      'replicate',
+      'together'
+    );
+  platform: darwin,linux,windows
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot
+
+- name: ISO 42001 - Running AI processes
+  description: >-
+    Detects currently running AI-related processes including Ollama, LM Studio,
+    llama.cpp server, vLLM, and other local AI inference engines. Supports
+    ISO 42001 real-time AI usage monitoring.
+  query: |
+    SELECT
+      p.pid,
+      p.name,
+      p.path,
+      p.cmdline,
+      p.cwd,
+      u.username,
+      ROUND(p.resident_size / 1048576.0, 2) AS memory_mb,
+      p.start_time,
+      'running_process' AS discovery_source
+    FROM processes p
+    LEFT JOIN users u ON p.uid = u.uid
+    WHERE p.name LIKE '%ollama%'
+      OR p.name LIKE '%llama%server%'
+      OR p.name LIKE '%llama%cli%'
+      OR p.name LIKE '%llamacpp%'
+      OR p.name LIKE '%lmstudio%'
+      OR p.name LIKE 'LM Studio%'
+      OR p.name LIKE '%gpt4all%'
+      OR p.name LIKE '%vllm%'
+      OR p.name LIKE '%text-generation%'
+      OR p.name LIKE '%localai%'
+      OR p.name LIKE '%koboldcpp%'
+      OR p.name LIKE '%jan%'
+      OR p.cmdline LIKE '%ollama serve%'
+      OR p.cmdline LIKE '%llama-server%'
+      OR p.cmdline LIKE '%llama.cpp%'
+      OR p.cmdline LIKE '%text-generation-launcher%'
+      OR p.cmdline LIKE '%vllm.entrypoints%'
+      OR p.cmdline LIKE '%koboldcpp%';
+  platform: darwin,linux,windows
+  interval: 3600
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot
+
+- name: ISO 42001 - AI model files on disk
+  description: >-
+    Searches for common AI model file types (.gguf, .ggml, .safetensors, .pt,
+    .onnx) in standard locations such as ~/.ollama, ~/models, and HuggingFace
+    cache. Supports ISO 42001 AI asset inventory for locally stored models.
+  query: |
+    SELECT
+      path,
+      filename,
+      size,
+      ROUND(CAST(size AS REAL) / 1073741824, 2) AS size_gb,
+      datetime(mtime, 'unixepoch') AS modified,
+      'model_file' AS discovery_source
+    FROM file
+    WHERE (
+      path LIKE '/Users/%%/.ollama/models/%%'
+      OR path LIKE '/Users/%%/models/%%'
+      OR path LIKE '/Users/%%/.cache/huggingface/%%'
+      OR path LIKE '/Users/%%/.cache/lm-studio/%%'
+      OR path LIKE '/Users/%%/Library/Application Support/nomic.ai/%%'
+      OR path LIKE '/home/%%/.ollama/models/%%'
+      OR path LIKE '/home/%%/models/%%'
+      OR path LIKE '/home/%%/.cache/huggingface/%%'
+      OR path LIKE '/home/%%/.cache/lm-studio/%%'
+      OR path LIKE '/home/%%/.local/share/nomic.ai/%%'
+      OR path LIKE 'C:\Users\%%\.ollama\models\%%'
+      OR path LIKE 'C:\Users\%%\models\%%'
+      OR path LIKE 'C:\Users\%%\.cache\huggingface\%%'
+      OR path LIKE 'C:\Users\%%\.cache\lm-studio\%%'
+      OR path LIKE 'C:\Users\%%\AppData\Local\nomic.ai\%%'
+    )
+    AND (
+      filename LIKE '%.gguf'
+      OR filename LIKE '%.ggml'
+      OR filename LIKE '%.safetensors'
+      OR filename LIKE '%.pt'
+      OR filename LIKE '%.pth'
+      OR filename LIKE '%.onnx'
+      OR filename LIKE '%.bin'
+      OR filename = 'manifest'
+    );
+  platform: darwin,linux,windows
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot
+
+- name: ISO 42001 - AI-related Docker containers
+  description: >-
+    Queries docker_containers for AI-related container images including Ollama,
+    LocalAI, text-generation-webui, vLLM, and other AI inference containers.
+    Supports ISO 42001 containerized AI workload inventory.
+  query: |
+    SELECT
+      dc.id,
+      dc.name,
+      dc.image,
+      dc.status,
+      dc.started_at,
+      dc.finished_at,
+      'docker_container' AS discovery_source
+    FROM docker_containers dc
+    WHERE dc.image LIKE '%ollama%'
+      OR dc.image LIKE '%localai%'
+      OR dc.image LIKE '%text-generation-webui%'
+      OR dc.image LIKE '%vllm%'
+      OR dc.image LIKE '%llama%cpp%'
+      OR dc.image LIKE '%tgi%'
+      OR dc.image LIKE '%koboldcpp%'
+      OR dc.image LIKE '%open-webui%'
+      OR dc.image LIKE '%chatbot-ui%'
+      OR dc.image LIKE '%langchain%'
+      OR dc.image LIKE '%flowise%'
+      OR dc.image LIKE '%langflow%'
+      OR dc.image LIKE '%chroma%'
+      OR dc.image LIKE '%milvus%'
+      OR dc.image LIKE '%weaviate%'
+      OR dc.image LIKE '%qdrant%'
+      OR dc.name LIKE '%ollama%'
+      OR dc.name LIKE '%ai%'
+      OR dc.name LIKE '%llm%';
+  platform: darwin,linux,windows
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot
+
+- name: ISO 42001 - AI VS Code extensions
+  description: >-
+    Discovers AI-related VS Code extensions including GitHub Copilot, Codeium,
+    Tabnine, Continue, and other AI coding assistants by inspecting the VS Code
+    extensions directory. Supports ISO 42001 AI tooling inventory for developers.
+  query: |
+    SELECT
+      f.path,
+      f.filename,
+      f.size,
+      datetime(f.mtime, 'unixepoch') AS modified,
+      'vscode_extension' AS discovery_source
+    FROM file f
+    WHERE (
+      f.path LIKE '/Users/%%/.vscode/extensions/github.copilot-%'
+      OR f.path LIKE '/Users/%%/.vscode/extensions/github.copilot-chat-%'
+      OR f.path LIKE '/Users/%%/.vscode/extensions/codeium.codeium-%'
+      OR f.path LIKE '/Users/%%/.vscode/extensions/tabnine.tabnine-%'
+      OR f.path LIKE '/Users/%%/.vscode/extensions/continue.continue-%'
+      OR f.path LIKE '/Users/%%/.vscode/extensions/sourcegraph.cody-%'
+      OR f.path LIKE '/Users/%%/.vscode/extensions/amazonwebservices.aws-toolkit-%'
+      OR f.path LIKE '/Users/%%/.vscode/extensions/saoudrizwan.claude-dev-%'
+      OR f.path LIKE '/Users/%%/.vscode/extensions/supermaven.supermaven-%'
+      OR f.path LIKE '/home/%%/.vscode/extensions/github.copilot-%'
+      OR f.path LIKE '/home/%%/.vscode/extensions/github.copilot-chat-%'
+      OR f.path LIKE '/home/%%/.vscode/extensions/codeium.codeium-%'
+      OR f.path LIKE '/home/%%/.vscode/extensions/tabnine.tabnine-%'
+      OR f.path LIKE '/home/%%/.vscode/extensions/continue.continue-%'
+      OR f.path LIKE '/home/%%/.vscode/extensions/sourcegraph.cody-%'
+      OR f.path LIKE '/home/%%/.vscode/extensions/amazonwebservices.aws-toolkit-%'
+      OR f.path LIKE '/home/%%/.vscode/extensions/saoudrizwan.claude-dev-%'
+      OR f.path LIKE '/home/%%/.vscode/extensions/supermaven.supermaven-%'
+      OR f.path LIKE 'C:\Users\%%\.vscode\extensions\github.copilot-%'
+      OR f.path LIKE 'C:\Users\%%\.vscode\extensions\github.copilot-chat-%'
+      OR f.path LIKE 'C:\Users\%%\.vscode\extensions\codeium.codeium-%'
+      OR f.path LIKE 'C:\Users\%%\.vscode\extensions\tabnine.tabnine-%'
+      OR f.path LIKE 'C:\Users\%%\.vscode\extensions\continue.continue-%'
+      OR f.path LIKE 'C:\Users\%%\.vscode\extensions\sourcegraph.cody-%'
+      OR f.path LIKE 'C:\Users\%%\.vscode\extensions\amazonwebservices.aws-toolkit-%'
+      OR f.path LIKE 'C:\Users\%%\.vscode\extensions\saoudrizwan.claude-dev-%'
+      OR f.path LIKE 'C:\Users\%%\.vscode\extensions\supermaven.supermaven-%'
+    )
+    AND f.filename = 'package.json';
+  platform: darwin,linux,windows
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot
+
+- name: ISO 42001 - AI network connections
+  description: >-
+    Detects active network connections to known AI service endpoints including
+    api.openai.com, api.anthropic.com, generativelanguage.googleapis.com, and
+    other AI API providers. Supports ISO 42001 AI data flow monitoring.
+  query: |
+    SELECT DISTINCT
+      p.name AS process_name,
+      p.path AS process_path,
+      p.cmdline,
+      pos.remote_address,
+      pos.remote_port,
+      pos.local_port,
+      pos.protocol,
+      u.username,
+      'network_connection' AS discovery_source
+    FROM process_open_sockets pos
+    JOIN processes p ON pos.pid = p.pid
+    LEFT JOIN users u ON p.uid = u.uid
+    WHERE pos.remote_port IN (443, 80)
+      AND pos.remote_address != ''
+      AND pos.remote_address != '0.0.0.0'
+      AND pos.remote_address != '::'
+      AND (
+        pos.remote_address IN (
+          SELECT DISTINCT host
+          FROM etc_hosts
+          WHERE hostnames LIKE '%openai%'
+            OR hostnames LIKE '%anthropic%'
+            OR hostnames LIKE '%googleapis%'
+        )
+      )
+    LIMIT 100;
+  platform: darwin,linux,windows
+  interval: 3600
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot
+
+- name: ISO 42001 - Ollama models inventory
+  description: >-
+    Lists Ollama models by inspecting the Ollama models manifest directory.
+    Provides a detailed inventory of locally available LLM models managed by
+    Ollama. Supports ISO 42001 AI model registry requirements.
+  query: |
+    SELECT
+      f.path,
+      f.filename AS model_manifest,
+      f.size,
+      datetime(f.mtime, 'unixepoch') AS last_modified,
+      datetime(f.ctime, 'unixepoch') AS created,
+      REPLACE(REPLACE(f.path, '/Users/', ''), '/home/', '') AS model_info,
+      'ollama_model' AS discovery_source
+    FROM file f
+    WHERE (
+      f.path LIKE '/Users/%%/.ollama/models/manifests/registry.ollama.ai/%%'
+      OR f.path LIKE '/home/%%/.ollama/models/manifests/registry.ollama.ai/%%'
+      OR f.path LIKE '/usr/share/ollama/.ollama/models/manifests/registry.ollama.ai/%%'
+      OR f.path LIKE 'C:\Users\%%\.ollama\models\manifests\registry.ollama.ai\%%'
+    )
+    AND f.type = 'regular';
+  platform: darwin,linux,windows
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot

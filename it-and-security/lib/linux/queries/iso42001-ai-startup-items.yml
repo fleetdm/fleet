@@ -1,0 +1,26 @@
+# ISO 42001 - AI startup items (Linux)
+- name: ISO 42001 - AI startup items (Linux)
+  description: >-
+    Detects AI applications configured to start at boot on Linux by checking
+    systemd units for AI-related services. Supports ISO 42001 persistent AI
+    deployment tracking.
+  query: |
+    SELECT
+      id AS name,
+      description AS identifier,
+      fragment_path AS executable,
+      CASE WHEN active_state = 'active' THEN '1' ELSE '0' END AS run_at_load,
+      'systemd' AS startup_type
+    FROM systemd_units
+    WHERE id LIKE '%ollama%'
+      OR id LIKE '%lmstudio%'
+      OR id LIKE '%localai%'
+      OR id LIKE '%vllm%'
+      OR id LIKE '%text-generation%'
+      OR description LIKE '%ollama%'
+      OR description LIKE '%AI%inference%';
+  platform: linux
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot

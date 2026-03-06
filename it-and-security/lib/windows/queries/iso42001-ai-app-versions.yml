@@ -1,0 +1,47 @@
+# ISO 42001 - AI application versions (Windows)
+- name: ISO 42001 - AI application versions (Windows)
+  description: >-
+    Comprehensive version inventory of all discovered AI tools on Windows across
+    installed programs, Python packages, and browser extensions. Provides a
+    unified view for ISO 42001 AI asset version management.
+  query: |
+    SELECT
+      'installed_app' AS source_type,
+      name,
+      version,
+      install_location AS path
+    FROM programs
+    WHERE name LIKE '%Claude%'
+      OR name LIKE '%Copilot%'
+      OR name LIKE '%Gemini%'
+      OR name LIKE '%ChatGPT%'
+      OR name LIKE '%Ollama%'
+      OR name LIKE '%LM Studio%'
+      OR name LIKE '%GPT4All%'
+    UNION ALL
+    SELECT
+      'python_package' AS source_type,
+      name,
+      version,
+      path
+    FROM python_packages
+    WHERE name IN ('openai', 'anthropic', 'transformers', 'langchain', 'torch', 'tensorflow')
+    UNION ALL
+    SELECT
+      'chrome_extension' AS source_type,
+      ce.name,
+      ce.version,
+      ce.path
+    FROM users u CROSS JOIN chrome_extensions ce USING (uid)
+    WHERE ce.name LIKE '%Copilot%'
+      OR ce.name LIKE '%Gemini%'
+      OR ce.name LIKE '%ChatGPT%'
+      OR ce.name LIKE '%Claude%'
+      OR ce.name LIKE '%Codeium%'
+      OR ce.name LIKE '%Tabnine%'
+      OR ce.name LIKE '%Grammarly%';
+  platform: windows
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot

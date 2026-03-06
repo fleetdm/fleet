@@ -1,0 +1,28 @@
+# ISO 42001 - AI applications installed (Windows)
+- name: ISO 42001 - AI applications installed (Windows)
+  description: >-
+    Discovers installed AI desktop applications including Claude, GitHub Copilot,
+    Gemini, ChatGPT, Ollama, LM Studio, and other AI tools on Windows using the
+    programs table. Supports ISO 42001 Annex A control for AI asset inventory.
+  query: |
+    SELECT
+      name,
+      version,
+      source AS identifier,
+      install_location AS install_path,
+      'installed_app' AS discovery_source
+    FROM programs
+    WHERE name LIKE '%Claude%'
+      OR name LIKE '%Copilot%'
+      OR name LIKE '%Gemini%'
+      OR name LIKE '%ChatGPT%'
+      OR name LIKE '%Ollama%'
+      OR name LIKE '%LM Studio%'
+      OR name LIKE '%GPT4All%'
+      OR name LIKE '%Jan%AI%'
+      OR name LIKE '%Open Interpreter%';
+  platform: windows
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot

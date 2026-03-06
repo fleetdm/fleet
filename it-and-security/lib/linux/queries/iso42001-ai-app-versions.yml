@@ -1,0 +1,59 @@
+# ISO 42001 - AI application versions (Linux)
+- name: ISO 42001 - AI application versions (Linux)
+  description: >-
+    Comprehensive version inventory of all discovered AI tools on Linux across
+    installed packages, Python packages, and browser extensions. Provides a
+    unified view for ISO 42001 AI asset version management.
+  query: |
+    SELECT
+      'installed_app' AS source_type,
+      name,
+      version,
+      '' AS path
+    FROM deb_packages
+    WHERE name LIKE '%claude%'
+      OR name LIKE '%copilot%'
+      OR name LIKE '%ollama%'
+      OR name LIKE '%lm-studio%'
+      OR name LIKE '%lmstudio%'
+      OR name LIKE '%gpt4all%'
+    UNION ALL
+    SELECT
+      'installed_app' AS source_type,
+      name,
+      version,
+      '' AS path
+    FROM rpm_packages
+    WHERE name LIKE '%claude%'
+      OR name LIKE '%copilot%'
+      OR name LIKE '%ollama%'
+      OR name LIKE '%lm-studio%'
+      OR name LIKE '%lmstudio%'
+      OR name LIKE '%gpt4all%'
+    UNION ALL
+    SELECT
+      'python_package' AS source_type,
+      name,
+      version,
+      path
+    FROM python_packages
+    WHERE name IN ('openai', 'anthropic', 'transformers', 'langchain', 'torch', 'tensorflow')
+    UNION ALL
+    SELECT
+      'chrome_extension' AS source_type,
+      ce.name,
+      ce.version,
+      ce.path
+    FROM users u CROSS JOIN chrome_extensions ce USING (uid)
+    WHERE ce.name LIKE '%Copilot%'
+      OR ce.name LIKE '%Gemini%'
+      OR ce.name LIKE '%ChatGPT%'
+      OR ce.name LIKE '%Claude%'
+      OR ce.name LIKE '%Codeium%'
+      OR ce.name LIKE '%Tabnine%'
+      OR ce.name LIKE '%Grammarly%';
+  platform: linux
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot

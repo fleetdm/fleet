@@ -1,0 +1,34 @@
+# ISO 42001 - AI applications installed (macOS)
+- name: ISO 42001 - AI applications installed (macOS)
+  description: >-
+    Discovers installed AI desktop applications including Claude, GitHub Copilot,
+    Gemini, ChatGPT, Ollama, LM Studio, and other AI tools on macOS using the
+    apps table. Supports ISO 42001 Annex A control for AI asset inventory.
+  query: |
+    SELECT
+      name,
+      bundle_short_version AS version,
+      bundle_identifier AS identifier,
+      path AS install_path,
+      'installed_app' AS discovery_source
+    FROM apps
+    WHERE name LIKE '%Claude%'
+      OR name LIKE '%Copilot%'
+      OR name LIKE '%Gemini%'
+      OR name LIKE '%ChatGPT%'
+      OR name LIKE '%Ollama%'
+      OR name LIKE '%LM Studio%'
+      OR name LIKE '%GPT4All%'
+      OR name LIKE '%Jan%AI%'
+      OR name LIKE '%Open Interpreter%'
+      OR name LIKE '%Msty%'
+      OR bundle_identifier LIKE 'com.anthropic%'
+      OR bundle_identifier LIKE 'com.openai%'
+      OR bundle_identifier LIKE '%github.copilot%'
+      OR bundle_identifier LIKE 'com.lmstudio%'
+      OR bundle_identifier LIKE 'com.ollama%';
+  platform: darwin
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot
