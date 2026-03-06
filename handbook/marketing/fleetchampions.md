@@ -63,7 +63,7 @@ Spontaneous, nice things that customers say about Fleet in:
   productCategories: [Device management]
 ```
 
-4. ADd the quote in the `quote` field and fill in all infomration. All fields are required.
+4. Add the quote in the `quote` field and fill in all information. All fields are *required*.
 
 5. The `productCategories` field should only be populated with one of the following:
 
