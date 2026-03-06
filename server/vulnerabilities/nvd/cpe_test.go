@@ -2467,3 +2467,83 @@ func TestMutateSoftware(t *testing.T) {
 		})
 	}
 }
+
+func TestCitrixWorkspaceLTSR(t *testing.T) {
+	item := &IndexedCPEItem{
+		Product: "workspace",
+		Vendor:  "citrix",
+	}
+
+	for _, tc := range []struct {
+		name     string
+		software fleet.Software
+		wantCPE  string
+	}{
+		{
+			name: "Citrix Workspace 2203 LTSR on Windows",
+			software: fleet.Software{
+				Name:    "Citrix Workspace 2203",
+				Version: "22.3.1.41",
+				Source:  "programs",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			wantCPE: "cpe:2.3:a:citrix:workspace:2203.1.41:*:*:*:ltsr:windows:*:*",
+		},
+		{
+			name: "Citrix Workspace 2402 LTSR on Windows",
+			software: fleet.Software{
+				Name:    "Citrix Workspace 2402",
+				Version: "24.2.0.65",
+				Source:  "programs",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			wantCPE: "cpe:2.3:a:citrix:workspace:2402.0.65:*:*:*:ltsr:windows:*:*",
+		},
+		{
+			name: "Citrix Workspace non-LTSR on Windows",
+			software: fleet.Software{
+				Name:    "Citrix Workspace 2309",
+				Version: "23.9.1.104",
+				Source:  "programs",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			wantCPE: "cpe:2.3:a:citrix:workspace:2309.1.104:*:*:*:*:windows:*:*",
+		},
+		{
+			name: "Citrix Workspace LTSR version on Mac (not programs source)",
+			software: fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "24.2.0.65",
+				Source:  "apps",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			wantCPE: "cpe:2.3:a:citrix:workspace:2402.0.65:*:*:*:*:macos:*:*",
+		},
+		{
+			name: "Citrix Workspace 1912 LTSR on Windows",
+			software: fleet.Software{
+				Name:    "Citrix Workspace 1912",
+				Version: "19.12.0.5",
+				Source:  "programs",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			wantCPE: "cpe:2.3:a:citrix:workspace:1912.0.5:*:*:*:ltsr:windows:*:*",
+		},
+		{
+			name: "Citrix Workspace 2507.1 LTSR on Windows",
+			software: fleet.Software{
+				Name:    "Citrix Workspace 2507",
+				Version: "25.7.1.50",
+				Source:  "programs",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			wantCPE: "cpe:2.3:a:citrix:workspace:2507.1.50:*:*:*:ltsr:windows:*:*",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mutateSoftware(t.Context(), &tc.software, slog.New(slog.DiscardHandler))
+			got := item.FmtStr(&tc.software)
+			require.Equal(t, tc.wantCPE, got)
+		})
+	}
+}
