@@ -543,7 +543,6 @@ const SelectTargets = ({
   const shouldDisableForObserver = (teamId: number): boolean => {
     if (isLivePolicy) return true;
     if (!isObserverCanRunQuery) return true;
-    if (queryTeamId != null && queryTeamId !== teamId) return true;
     return false;
   };
 

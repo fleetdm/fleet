@@ -2277,6 +2277,56 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	hits, err = ds.SearchHosts(context.Background(), filter, "a@b.c")
 	require.NoError(t, err)
 	assert.Len(t, hits, 1)
+
+	// Observer should find their team's host even when 10+ hosts on
+	// inaccessible teams match the same search term and have higher IDs (which would
+	// have crowded the inner query's LIMIT 10 before the team filter was applied there).
+	team3, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team3-inaccessible"})
+	require.NoError(t, err)
+	// Create the accessible host first so it gets a lower ID.
+	accessibleHost, err := ds.NewHost(context.Background(), &fleet.Host{
+		OsqueryHostID:   ptr.String("accessible-searchme"),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("accessible-key-searchme"),
+		UUID:            "accessible-uuid-searchme",
+		Hostname:        "searchme-accessible.local",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team2.ID, []uint{accessibleHost.ID})))
+	// Then create 10 inaccessible hosts (higher IDs). Without the inner query team
+	// filter, ORDER BY id DESC LIMIT 10 would return only these hosts, crowding out the
+	// accessible one.
+	var inaccessibleHosts []*fleet.Host
+	for i := range 10 {
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
+			OsqueryHostID:   ptr.String(fmt.Sprintf("inaccessible-%d", i)),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String(fmt.Sprintf("inaccessible-key-%d", i)),
+			UUID:            fmt.Sprintf("inaccessible-uuid-%d", i),
+			Hostname:        fmt.Sprintf("searchme-%d.local", i),
+		})
+		require.NoError(t, err)
+		require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team3.ID, []uint{h.ID})))
+		inaccessibleHosts = append(inaccessibleHosts, h)
+	}
+	// Confirm all inaccessible hosts have higher IDs than the accessible host.
+	for _, h := range inaccessibleHosts {
+		assert.Greater(t, h.ID, accessibleHost.ID)
+	}
+	// Observer on team2 with IncludeObserver: searching for "searchme" should still
+	// find the team2 host even though the 10 team3 hosts have higher IDs.
+	observerOnTeam2 := &fleet.User{Teams: []fleet.UserTeam{{Team: *team2, Role: fleet.RoleObserver}}}
+	filter = fleet.TeamFilter{User: observerOnTeam2, IncludeObserver: true}
+	hits, err = ds.SearchHosts(context.Background(), filter, "searchme")
+	require.NoError(t, err)
+	require.Len(t, hits, 1)
+	assert.Equal(t, accessibleHost.ID, hits[0].ID)
 }
 
 func testSearchHostsWildCards(t *testing.T, ds *Datastore) {

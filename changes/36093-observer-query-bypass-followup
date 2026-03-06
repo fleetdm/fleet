@@ -1,0 +1,2 @@
+* Fixed observer users being incorrectly blocked from targeting teams they observe when the query has `observer_can_run` enabled.
+* Fixed host search in live queries returning no results for observer users when many hosts on inaccessible teams matched the search term before accessible ones.
