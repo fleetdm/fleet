@@ -1,0 +1,13 @@
+- name: macOS - Screen lock enabled (ISO 27001 A.9)
+  query: |
+    SELECT 1 WHERE
+      EXISTS (SELECT 1 FROM managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'idleTime' AND CAST(value AS INTEGER) <= 300)
+      OR EXISTS (SELECT 1 FROM managed_policies WHERE domain = 'com.apple.configuration.passcode.settings' AND name = 'MaximumInactivityInMinutes' AND CAST(value AS INTEGER) <= 15);
+  critical: false
+  description: |-
+    Verifies that a screen lock policy is enforced on this Mac, requiring the screen to lock after a period of inactivity. This supports ISO 27001 Annex A.9 (Access Control).
+  resolution: |-
+    Screen lock should be automatically enforced by Fleet via the Passcode Settings declaration profile. If you are failing this policy, ensure the MDM profile is installed: System Settings > Profiles. 
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: darwin

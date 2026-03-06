@@ -1,0 +1,14 @@
+- name: Linux - Firewall enabled (ISO 27001 A.13)
+  query: |
+    SELECT 1 WHERE
+      EXISTS (SELECT 1 FROM iptables WHERE chain = 'INPUT' AND policy = 'DROP')
+      OR EXISTS (SELECT 1 FROM iptables WHERE chain = 'INPUT' AND policy = 'REJECT')
+      OR EXISTS (SELECT 1 FROM deb_packages WHERE name = 'ufw' AND status = 'install ok installed');
+  critical: false
+  description: |-
+    Verifies that a firewall (iptables or ufw) is active on this Linux device. This supports ISO 27001 Annex A.13 (Communications Security).
+  resolution: |-
+    Enable the firewall on your Linux device. For Ubuntu/Debian: run 'sudo ufw enable'. For other distributions, configure iptables or your distribution's firewall tool.
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: linux

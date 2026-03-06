@@ -1,0 +1,14 @@
+- name: macOS - Automatic updates enabled (ISO 27001 A.12)
+  query: |
+    SELECT 1 FROM managed_policies
+    WHERE domain = 'com.apple.SoftwareUpdate'
+      AND name = 'AutomaticCheckEnabled'
+      AND value = '1';
+  critical: false
+  description: |-
+    Verifies that automatic software update checking is enabled on this Mac via MDM. This supports ISO 27001 Annex A.12 (Operations Security).
+  resolution: |-
+    Automatic updates should be enforced by Fleet via MDM configuration profiles. If you are failing this policy, enable automatic updates: System Settings > General > Software Update > Automatic Updates.
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: darwin

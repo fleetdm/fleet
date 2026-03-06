@@ -1,0 +1,15 @@
+- name: Windows - Automatic updates enabled (ISO 27001 A.12)
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM registry
+      WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU\NoAutoUpdate'
+        AND data = '1'
+    );
+  critical: false
+  description: |-
+    Verifies that Windows automatic updates have not been disabled via policy. This supports ISO 27001 Annex A.12 (Operations Security).
+  resolution: |-
+    Automatic updates should be enforced by Fleet via MDM. If you are failing this policy, ensure automatic updates are enabled: Settings > Windows Update > Advanced options.
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: windows

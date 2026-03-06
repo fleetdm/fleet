@@ -1,0 +1,13 @@
+- name: Linux - Screen lock enabled (ISO 27001 A.9)
+  query: |
+    SELECT 1 WHERE
+      EXISTS (SELECT 1 FROM dconf WHERE key = '/org/gnome/desktop/session/idle-delay' AND CAST(value AS INTEGER) > 0 AND CAST(value AS INTEGER) <= 900)
+      OR EXISTS (SELECT 1 FROM dconf WHERE key = '/org/gnome/desktop/screensaver/lock-enabled' AND value = 'true');
+  critical: false
+  description: |-
+    Verifies that a screen lock is configured on this Linux device, requiring the screen to lock after a period of inactivity. This supports ISO 27001 Annex A.9 (Access Control).
+  resolution: |-
+    Configure your desktop environment to lock the screen after inactivity. For GNOME: Settings > Privacy > Screen Lock, and set a timeout of 15 minutes or less.
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: linux
