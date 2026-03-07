@@ -37,7 +37,7 @@ Each setting becomes a SyncML `<Replace>` block:
 
 Before running the converter:
 
-- **PowerShell 5.1 or later** — Built into Windows 10/11 by default.
+- **PowerShell 5.1 or later** — Built into Windows 10 or 11 by default.
 - **Windows system enrolled in Intune** — The converter queries the CSP NodeCache registry, which only exists on devices that have received policies from Intune. You must run it on a managed Windows host.
 - **Administrative rights** — Recommended for full registry access. Some lookups may fail or fall back to defaults without elevation.
 - **`resolver-map.json`** — The companion file that ships with the tool. Place it at `C:\CSPConverter\resolver-map.json` (the default location) or pass the path explicitly with `-ResolverMapPath`.
@@ -51,7 +51,7 @@ Get the latest version from GitHub:
 
 Place both files in the same directory on your Windows host.
 
-## Step 1: Export your Intune policy
+### Step 1: Export your Intune policy
 
 1. Open the [Microsoft Intune Admin Center](https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/configuration).
 2. Navigate to **Devices** > **Configuration**.
@@ -59,7 +59,7 @@ Place both files in the same directory on your Windows host.
 4. Click the three-dot menu (**...**) and select **Export JSON**.
 5. Save the file to your Windows host.
 
-## Step 2: Run the converter
+### Step 2: Run the converter
 
 Open PowerShell as Administrator on your Intune-enrolled Windows host and run:
 
@@ -101,7 +101,7 @@ Open PowerShell as Administrator on your Intune-enrolled Windows host and run:
 | `DryRun` | Analyze only, no files created | `$false` |
 | `MergeXml` | Merge all policies into one XML file | `$false` |
 
-## Step 3: Review the results
+### Step 3: Review the results
 
 ### Console summary
 
@@ -142,7 +142,7 @@ Review `Not Found` and `Skipped` rows carefully — these are the policies that 
 
 Individual XML files are saved to `C:\CSPConverter\Output\` by default. Each file is named after the sanitized `NodeUri` path. If you used `-MergeXml`, you'll find a single `MergedPolicies.xml` instead.
 
-## Step 4: Upload to Fleet
+### Step 4: Upload to Fleet
 
 1. Review each output XML file. Verify the `<LocURI>` and `<Data>` values look correct for your environment.
 2. In Fleet, navigate to **Controls** > **OS settings** > **Custom settings**.
