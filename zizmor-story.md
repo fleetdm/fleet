@@ -83,7 +83,7 @@ Nearly every `actions/checkout` usage omits `persist-credentials: false`, meanin
 - [ ] Once shipped, dogfooding issue has been filed
 
 ### Engineering
-- [ ] Add a new CI workflow (e.g., `.github/workflows/zizmor.yml`) that runs `zizmor` on PRs that modify `.github/workflows/**` or `.github/actions/**`
+- [ ] Add a new CI workflow (e.g., `.github/workflows/zizmor.yml`) that runs `zizmor` (with online audits enabled, using `GITHUB_TOKEN`) on PRs that modify `.github/workflows/**` or `.github/actions/**`
 - [ ] Fix all **error**-level template-injection findings (87) by moving `${{ }}` expressions to `env:` blocks
 - [ ] Fix all **error**-level unpinned-uses findings (36) by pinning actions to full commit SHAs
 - [ ] Fix all **error**-level unpinned-images findings (33) by pinning container images to digests
@@ -112,12 +112,12 @@ Nearly every `actions/checkout` usage omits `persist-credentials: false`, meanin
 
 - [ ] Verify `zizmor` CI workflow triggers on PRs that modify `.github/workflows/**` or `.github/actions/**`
 - [ ] Verify `zizmor` CI workflow does NOT trigger on PRs that only modify non-workflow files
-- [ ] Run `zizmor --no-online-audits .` locally and confirm zero error-level findings after fixes
-- [ ] Run `zizmor --no-online-audits .` locally and confirm zero warning-level findings after fixes
+- [ ] Run `zizmor .` locally and confirm zero error-level findings after fixes
+- [ ] Run `zizmor .` locally and confirm zero warning-level findings after fixes
 - [ ] Spot-check that fixed workflows still function correctly (e.g., code signing, deploys, goreleaser)
 
 ### Testing notes
-zizmor can be installed via `pip install zizmor` and run with `zizmor --no-online-audits .` from the repo root. Use `--format json` for machine-readable output.
+zizmor can be installed via `pip install zizmor` and run with `zizmor .` from the repo root (online audits require a `GITHUB_TOKEN`; use `--no-online-audits` to skip them locally if needed). Use `--format json` for machine-readable output.
 
 ### Confirmation
 
