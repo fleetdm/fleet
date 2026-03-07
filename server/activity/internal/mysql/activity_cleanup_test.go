@@ -86,7 +86,7 @@ func testCleanupExpiredActivitiesBasic(t *testing.T, env *testEnv) {
 
 	// Verify host_activities link still exists for the preserved activity.
 	var hostActivityCount int
-	err = env.DB.GetContext(ctx, &hostActivityCount, "SELECT COUNT(*) FROM host_activities WHERE activity_id = ?", expiredWithHost)
+	err = env.DB.GetContext(ctx, &hostActivityCount, "SELECT COUNT(*) FROM activity_host_past WHERE activity_id = ?", expiredWithHost)
 	require.NoError(t, err)
 	assert.Equal(t, 1, hostActivityCount)
 }
@@ -107,7 +107,7 @@ func testCleanupHostActivities(t *testing.T, env *testEnv) {
 	require.NoError(t, env.ds.CleanupHostActivities(ctx, []uint{}))
 	require.NoError(t, env.ds.CleanupHostActivities(ctx, nil))
 	var count int
-	err := env.DB.GetContext(ctx, &count, "SELECT COUNT(*) FROM host_activities")
+	err := env.DB.GetContext(ctx, &count, "SELECT COUNT(*) FROM activity_host_past")
 	require.NoError(t, err)
 	assert.Equal(t, 2, count, "no-op should not remove any join table rows")
 
@@ -116,12 +116,12 @@ func testCleanupHostActivities(t *testing.T, env *testEnv) {
 	require.NoError(t, err)
 
 	// hostA's join table row is gone.
-	err = env.DB.GetContext(ctx, &count, "SELECT COUNT(*) FROM host_activities WHERE host_id = ?", hostA)
+	err = env.DB.GetContext(ctx, &count, "SELECT COUNT(*) FROM activity_host_past WHERE host_id = ?", hostA)
 	require.NoError(t, err)
 	assert.Equal(t, 0, count)
 
 	// hostB's join table row is still present.
-	err = env.DB.GetContext(ctx, &count, "SELECT COUNT(*) FROM host_activities WHERE host_id = ?", hostB)
+	err = env.DB.GetContext(ctx, &count, "SELECT COUNT(*) FROM activity_host_past WHERE host_id = ?", hostB)
 	require.NoError(t, err)
 	assert.Equal(t, 1, count)
 
