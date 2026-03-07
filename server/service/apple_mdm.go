@@ -3898,6 +3898,13 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		if err := svc.runCommandHandlers(r.Context, "VerifyRecoveryLock", res); err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "VerifyRecoveryLock: calling handlers")
 		}
+
+	case "SetRecoveryLock":
+		// Handle SetRecoveryLock command results - send VerifyRecoveryLock on success
+		res := NewRecoveryLockResult(cmdResult)
+		if err := svc.runCommandHandlers(r.Context, "SetRecoveryLock", res); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "SetRecoveryLock: calling handlers")
+		}
 	}
 
 	return nil, nil
@@ -7336,6 +7343,90 @@ func (r *recoveryLockResult) HostUUID() string { return r.cmdResult.Identifier()
 // NewRecoveryLockResult wraps an mdm.CommandResults to implement fleet.MDMCommandResults
 func NewRecoveryLockResult(cmdResult *mdm.CommandResults) fleet.MDMCommandResults {
 	return &recoveryLockResult{cmdResult: cmdResult}
+}
+
+// RecoveryLockVerifier defines the methods needed for verifying recovery lock passwords.
+type RecoveryLockVerifier interface {
+	VerifyRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error
+}
+
+// NewSetRecoveryLockResultsHandler processes SetRecoveryLock command results.
+// When a SetRecoveryLock command is acknowledged, it sends a VerifyRecoveryLock
+// command to verify the password was set correctly, and updates the status to "verifying".
+// On error, it marks the recovery lock as failed.
+func NewSetRecoveryLockResultsHandler(
+	ds fleet.Datastore,
+	commander RecoveryLockVerifier,
+	logger *slog.Logger,
+) fleet.MDMCommandResultsHandler {
+	return func(ctx context.Context, results fleet.MDMCommandResults) error {
+		// Get the underlying result to access status and error chain
+		rlResult, ok := results.(*recoveryLockResult)
+		if !ok {
+			return ctxerr.New(ctx, "SetRecoveryLock handler: unexpected results type")
+		}
+
+		hostUUID := results.HostUUID()
+		status := rlResult.cmdResult.Status
+
+		logger.DebugContext(ctx, "SetRecoveryLock command result received",
+			"host_uuid", hostUUID,
+			"command_uuid", results.UUID(),
+			"status", status,
+		)
+
+		host, err := ds.HostByIdentifier(ctx, hostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: get host by identifier")
+		}
+
+		switch status {
+		case fleet.MDMAppleStatusAcknowledged:
+			// Get the stored password to send VerifyRecoveryLock
+			rkp, err := ds.GetHostRecoveryLockPassword(ctx, host.ID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: get host recovery lock password")
+			}
+			if rkp == nil {
+				return ctxerr.New(ctx, "SetRecoveryLock handler: no recovery lock password found for host")
+			}
+
+			// Generate verification command UUID with prefix
+			verifyCmdUUID := fleet.VerifyRecoveryLockCommandPrefix + uuid.NewString()
+
+			// Send VerifyRecoveryLock command
+			if err := commander.VerifyRecoveryLock(ctx, []string{hostUUID}, verifyCmdUUID, rkp.Password); err != nil {
+				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: send VerifyRecoveryLock command")
+			}
+
+			// Update status to verifying with the verify command UUID
+			if err := ds.SetRecoveryLockVerifying(ctx, host.ID, verifyCmdUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock verifying")
+			}
+
+			logger.InfoContext(ctx, "SetRecoveryLock acknowledged, sent VerifyRecoveryLock",
+				"host_id", host.ID,
+				"host_uuid", hostUUID,
+				"verify_command_uuid", verifyCmdUUID,
+			)
+
+		case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
+			errorMsg := apple_mdm.FmtErrorChain(rlResult.cmdResult.ErrorChain)
+			if errorMsg == "" {
+				errorMsg = "SetRecoveryLock command failed"
+			}
+			if err := ds.SetRecoveryLockFailed(ctx, host.ID, errorMsg); err != nil {
+				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock failed")
+			}
+			logger.WarnContext(ctx, "SetRecoveryLock command failed",
+				"host_id", host.ID,
+				"host_uuid", hostUUID,
+				"error", errorMsg,
+			)
+		}
+
+		return nil
+	}
 }
 
 // verifyRecoveryLockResponse represents the MDM response for VerifyRecoveryLock command.

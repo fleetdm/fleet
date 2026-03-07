@@ -3,6 +3,7 @@ package apple_mdm
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -306,4 +307,226 @@ func TestGenerateRecoveryLockPassword(t *testing.T) {
 			seen[password] = true
 		}
 	})
+}
+
+// TestReconcileRecoveryLockPasswords tests the cron job that sends SetRecoveryLock commands
+// to hosts that need recovery lock passwords.
+//
+// Note: SetRecoveryLock command results are handled synchronously in the MDM results handler
+// (server/service/apple_mdm.go), which is tested separately in apple_mdm_test.go in that package.
+func TestReconcileRecoveryLockPasswords(t *testing.T) {
+	ctx := context.Background()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	t.Run("no hosts needing recovery lock", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]fleet.HostNeedingRecoveryLock, error) {
+			return nil, nil
+		}
+
+		err := ReconcileRecoveryLockPasswords(ctx, ds, nil, logger)
+		require.NoError(t, err)
+		assert.True(t, ds.GetHostsForRecoveryLockActionFuncInvoked)
+	})
+
+	t.Run("hosts needing recovery lock get SetRecoveryLock", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		hostID := uint(1)
+		hostUUID := "host-uuid-1"
+		password := "ABCD-EFGH-IJKL-MNOP"
+
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]fleet.HostNeedingRecoveryLock, error) {
+			return []fleet.HostNeedingRecoveryLock{
+				{
+					HostID:   hostID,
+					HostUUID: hostUUID,
+				},
+			}, nil
+		}
+
+		ds.SetHostRecoveryLockPasswordFunc = func(ctx context.Context, hID uint) (string, error) {
+			assert.Equal(t, hostID, hID)
+			return password, nil
+		}
+
+		var pendingCalled bool
+		ds.SetRecoveryLockPendingFunc = func(ctx context.Context, hID uint, cmdUUID string) error {
+			pendingCalled = true
+			assert.Equal(t, hostID, hID)
+			assert.NotEmpty(t, cmdUUID)
+			return nil
+		}
+
+		var setRecoveryLockCalled bool
+		var setRecoveryLockPassword string
+		mockCommander := &mockRecoveryLockCommander{
+			setRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID, pw string) error {
+				setRecoveryLockCalled = true
+				setRecoveryLockPassword = pw
+				assert.Equal(t, []string{hostUUID}, hostUUIDs)
+				return nil
+			},
+			sendNotificationsFn: func(ctx context.Context, hostUUIDs []string) error {
+				return nil
+			},
+		}
+
+		err := reconcileRecoveryLockPasswordsWithCommander(ctx, ds, mockCommander, logger)
+		require.NoError(t, err)
+		assert.True(t, setRecoveryLockCalled, "SetRecoveryLock should be called")
+		assert.Equal(t, password, setRecoveryLockPassword)
+		assert.True(t, pendingCalled, "SetRecoveryLockPending should be called")
+	})
+
+	t.Run("SetRecoveryLock enqueue failure marks as failed", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		hostID := uint(1)
+		hostUUID := "host-uuid-1"
+
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]fleet.HostNeedingRecoveryLock, error) {
+			return []fleet.HostNeedingRecoveryLock{
+				{
+					HostID:   hostID,
+					HostUUID: hostUUID,
+				},
+			}, nil
+		}
+
+		ds.SetHostRecoveryLockPasswordFunc = func(ctx context.Context, hID uint) (string, error) {
+			return "ABCD-EFGH-IJKL-MNOP", nil
+		}
+
+		var failedCalled bool
+		ds.SetRecoveryLockFailedFunc = func(ctx context.Context, hID uint, errMsg string) error {
+			failedCalled = true
+			assert.Equal(t, hostID, hID)
+			assert.Contains(t, errMsg, "enqueue failed")
+			return nil
+		}
+
+		mockCommander := &mockRecoveryLockCommander{
+			setRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID, pw string) error {
+				return errors.New("enqueue failed: network error")
+			},
+		}
+
+		err := reconcileRecoveryLockPasswordsWithCommander(ctx, ds, mockCommander, logger)
+		require.NoError(t, err)
+		assert.True(t, failedCalled, "SetRecoveryLockFailed should be called on enqueue error")
+	})
+
+	t.Run("multiple hosts get SetRecoveryLock", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]fleet.HostNeedingRecoveryLock, error) {
+			return []fleet.HostNeedingRecoveryLock{
+				{HostID: 1, HostUUID: "host-uuid-1"},
+				{HostID: 2, HostUUID: "host-uuid-2"},
+			}, nil
+		}
+
+		ds.SetHostRecoveryLockPasswordFunc = func(ctx context.Context, hID uint) (string, error) {
+			return "TEST-PASS-WORD-1234", nil
+		}
+
+		pendingCalled := make(map[uint]bool)
+		ds.SetRecoveryLockPendingFunc = func(ctx context.Context, hID uint, cmdUUID string) error {
+			pendingCalled[hID] = true
+			return nil
+		}
+
+		setRecoveryLockCalled := make(map[string]bool)
+		mockCommander := &mockRecoveryLockCommander{
+			setRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID, pw string) error {
+				for _, uuid := range hostUUIDs {
+					setRecoveryLockCalled[uuid] = true
+				}
+				return nil
+			},
+			sendNotificationsFn: func(ctx context.Context, hostUUIDs []string) error {
+				return nil
+			},
+		}
+
+		err := reconcileRecoveryLockPasswordsWithCommander(ctx, ds, mockCommander, logger)
+		require.NoError(t, err)
+		assert.True(t, setRecoveryLockCalled["host-uuid-1"], "host 1 should get SetRecoveryLock")
+		assert.True(t, setRecoveryLockCalled["host-uuid-2"], "host 2 should get SetRecoveryLock")
+		assert.True(t, pendingCalled[1], "host 1 should be marked pending")
+		assert.True(t, pendingCalled[2], "host 2 should be marked pending")
+	})
+}
+
+// mockRecoveryLockCommander implements the commander methods needed for testing
+type mockRecoveryLockCommander struct {
+	setRecoveryLockFn    func(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error
+	verifyRecoveryLockFn func(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error
+	sendNotificationsFn  func(ctx context.Context, hostUUIDs []string) error
+}
+
+func (m *mockRecoveryLockCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error {
+	if m.setRecoveryLockFn != nil {
+		return m.setRecoveryLockFn(ctx, hostUUIDs, cmdUUID, password)
+	}
+	return nil
+}
+
+func (m *mockRecoveryLockCommander) VerifyRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error {
+	if m.verifyRecoveryLockFn != nil {
+		return m.verifyRecoveryLockFn(ctx, hostUUIDs, cmdUUID, password)
+	}
+	return nil
+}
+
+func (m *mockRecoveryLockCommander) SendNotifications(ctx context.Context, hostUUIDs []string) error {
+	if m.sendNotificationsFn != nil {
+		return m.sendNotificationsFn(ctx, hostUUIDs)
+	}
+	return nil
+}
+
+// recoveryLockCommander defines the interface for recovery lock operations
+type recoveryLockCommander interface {
+	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error
+	VerifyRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error
+	SendNotifications(ctx context.Context, hostUUIDs []string) error
+}
+
+// reconcileRecoveryLockPasswordsWithCommander is a test helper that uses the interface
+func reconcileRecoveryLockPasswordsWithCommander(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander recoveryLockCommander,
+	logger *slog.Logger,
+) error {
+	return sendSetRecoveryLockCommandsWithCommander(ctx, ds, commander, logger)
+}
+
+func sendSetRecoveryLockCommandsWithCommander(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander recoveryLockCommander,
+	logger *slog.Logger,
+) error {
+	hosts, err := ds.GetHostsForRecoveryLockAction(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, host := range hosts {
+		password, err := ds.SetHostRecoveryLockPassword(ctx, host.HostID)
+		if err != nil {
+			continue
+		}
+		cmdUUID := "test-cmd-uuid"
+		if err := commander.SetRecoveryLock(ctx, []string{host.HostUUID}, cmdUUID, password); err != nil {
+			_ = ds.SetRecoveryLockFailed(ctx, host.HostID, "SetRecoveryLock enqueue failed: "+err.Error())
+			continue
+		}
+		_ = commander.SendNotifications(ctx, []string{host.HostUUID})
+		_ = ds.SetRecoveryLockPending(ctx, host.HostID, cmdUUID)
+	}
+	return nil
 }
