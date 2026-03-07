@@ -62,29 +62,28 @@ Place both files in the same directory on your Windows host.
 ### Step 2: Run the converter
 
 Open PowerShell as Administrator on your Intune-enrolled Windows host and run:
-
 ```powershell
 .\Convert-IntuneToFleetCSP.ps1 -JsonPath "C:\Path\To\YourPolicy.json"
 ```
 
 ### Common usage patterns
 
-**Basic conversion (individual XML files per policy):**
+Basic conversion (individual XML files per policy):
 ```powershell
 .\Convert-IntuneToFleetCSP.ps1 -JsonPath "MyFirewallPolicy.json"
 ```
 
-**Create a single merged XML file:**
+Create a single merged XML file:
 ```powershell
 .\Convert-IntuneToFleetCSP.ps1 -JsonPath "MyPolicy.json" -MergeXml -OutputPath "C:\Fleet\CSPs"
 ```
 
-**Dry run — analyze without creating files:**
+Dry run — analyze without creating files:
 ```powershell
 .\Convert-IntuneToFleetCSP.ps1 -JsonPath "MyPolicy.json" -DryRun
 ```
 
-**Debug mode — verbose output for troubleshooting:**
+Debug mode — verbose output for troubleshooting:
 ```powershell
 .\Convert-IntuneToFleetCSP.ps1 -JsonPath "MyPolicy.json" -DebugMode
 ```
