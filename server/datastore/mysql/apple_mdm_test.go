@@ -110,6 +110,13 @@ func TestMDMApple(t *testing.T) {
 		{"DeviceLocation", testDeviceLocation},
 		{"TestGetDEPAssignProfileExpiredCooldowns", testGetDEPAssignProfileExpiredCooldowns},
 		{"DeleteMDMAppleDeclarationByNameCancelsInstalls", testDeleteMDMAppleDeclarationByNameCancelsInstalls},
+		{"RecoveryLockPasswordSetAndGet", testRecoveryLockPasswordSetAndGet},
+		{"RecoveryLockPasswordGetNotFound", testRecoveryLockPasswordGetNotFound},
+		{"RecoveryLockPasswordSetOverwrite", testRecoveryLockPasswordSetOverwrite},
+		{"RecoveryLockPasswordUpdatedAtChanges", testRecoveryLockPasswordUpdatedAtChanges},
+		{"RecoveryLockStatusMethods", testRecoveryLockStatusMethods},
+		{"GetPendingRecoveryLockHosts", testGetPendingRecoveryLockHosts},
+		{"GetHostsForRecoveryLockAction", testGetHostsForRecoveryLockAction},
 	}
 
 	for _, c := range cases {
@@ -9917,4 +9924,437 @@ func testDeleteMDMAppleDeclarationByNameCancelsInstalls(t *testing.T, ds *Datast
 		require.NoError(t, err)
 		runTest(t, &team.ID)
 	})
+}
+
+func testRecoveryLockPasswordSetAndGet(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "test-host-1", "1.2.3.4", "h1key", "h1uuid", time.Now())
+
+	// Set password
+	password, err := ds.SetHostRecoveryLockPassword(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotEmpty(t, password)
+
+	// Get password and verify it matches
+	result, err := ds.GetHostRecoveryLockPassword(ctx, host.ID)
+	require.NoError(t, err)
+	assert.Equal(t, password, result.Password)
+	assert.False(t, result.UpdatedAt.IsZero())
+}
+
+func testRecoveryLockPasswordGetNotFound(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Try to get password for non-existent host
+	_, err := ds.GetHostRecoveryLockPassword(ctx, 99999)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+}
+
+func testRecoveryLockPasswordSetOverwrite(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "test-host-2", "1.2.3.5", "h2key", "h2uuid", time.Now())
+
+	// Set password first time
+	password1, err := ds.SetHostRecoveryLockPassword(ctx, host.ID)
+	require.NoError(t, err)
+
+	// Set password second time (should overwrite)
+	password2, err := ds.SetHostRecoveryLockPassword(ctx, host.ID)
+	require.NoError(t, err)
+
+	// Passwords should be different (randomly generated)
+	assert.NotEqual(t, password1, password2)
+
+	// Verify only the new password is stored
+	result, err := ds.GetHostRecoveryLockPassword(ctx, host.ID)
+	require.NoError(t, err)
+	assert.Equal(t, password2, result.Password)
+}
+
+func testRecoveryLockPasswordUpdatedAtChanges(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "test-host-3", "1.2.3.6", "h3key", "h3uuid", time.Now())
+
+	// Set password first time
+	_, err := ds.SetHostRecoveryLockPassword(ctx, host.ID)
+	require.NoError(t, err)
+
+	result1, err := ds.GetHostRecoveryLockPassword(ctx, host.ID)
+	require.NoError(t, err)
+
+	// Wait a bit to ensure timestamp changes
+	time.Sleep(10 * time.Millisecond)
+
+	// Set password second time
+	_, err = ds.SetHostRecoveryLockPassword(ctx, host.ID)
+	require.NoError(t, err)
+
+	result2, err := ds.GetHostRecoveryLockPassword(ctx, host.ID)
+	require.NoError(t, err)
+
+	// updated_at should have changed
+	assert.True(t, result2.UpdatedAt.After(result1.UpdatedAt), "updated_at should increase after overwrite")
+}
+
+func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("SetRecoveryLockPending", func(t *testing.T) {
+		host := test.NewHost(t, ds, "pending-host", "1.2.3.7", "pendingkey", "pendinguuid", time.Now())
+
+		// Set password first (creates the record)
+		_, err := ds.SetHostRecoveryLockPassword(ctx, host.ID)
+		require.NoError(t, err)
+
+		// Set pending status
+		err = ds.SetRecoveryLockPending(ctx, host.ID, "test-set-uuid-123")
+		require.NoError(t, err)
+
+		// Verify status
+		var status string
+		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_id = ?", host.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "pending", status)
+	})
+
+	t.Run("SetRecoveryLockVerifying", func(t *testing.T) {
+		host := test.NewHost(t, ds, "verifying-host", "1.2.3.8", "verifyingkey", "verifyinguuid", time.Now())
+
+		// Set password first (creates the record)
+		_, err := ds.SetHostRecoveryLockPassword(ctx, host.ID)
+		require.NoError(t, err)
+
+		// Set verifying status
+		err = ds.SetRecoveryLockVerifying(ctx, host.ID, "test-verify-uuid-456")
+		require.NoError(t, err)
+
+		// Verify status and verify_command_uuid
+		var status, verifyUUID string
+		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_id = ?", host.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "verifying", status)
+
+		err = ds.writer(ctx).GetContext(ctx, &verifyUUID, "SELECT verify_command_uuid FROM host_recovery_key_passwords WHERE host_id = ?", host.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "test-verify-uuid-456", verifyUUID)
+	})
+
+	t.Run("SetRecoveryLockVerified", func(t *testing.T) {
+		host := test.NewHost(t, ds, "verified-host", "1.2.3.9", "verifiedkey", "verifieduuid", time.Now())
+
+		// Set password first (creates the record)
+		_, err := ds.SetHostRecoveryLockPassword(ctx, host.ID)
+		require.NoError(t, err)
+
+		// Set verified status
+		err = ds.SetRecoveryLockVerified(ctx, host.ID)
+		require.NoError(t, err)
+
+		// Verify status
+		var status string
+		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_id = ?", host.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "verified", status)
+	})
+
+	t.Run("SetRecoveryLockFailed", func(t *testing.T) {
+		host := test.NewHost(t, ds, "failed-host", "1.2.3.10", "failedkey", "faileduuid", time.Now())
+
+		// Set password first (creates the record)
+		_, err := ds.SetHostRecoveryLockPassword(ctx, host.ID)
+		require.NoError(t, err)
+
+		// Set failed status
+		err = ds.SetRecoveryLockFailed(ctx, host.ID, "test error message")
+		require.NoError(t, err)
+
+		// Verify status and error message
+		var status, errorMsg string
+		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_id = ?", host.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "failed", status)
+
+		err = ds.writer(ctx).GetContext(ctx, &errorMsg, "SELECT error_message FROM host_recovery_key_passwords WHERE host_id = ?", host.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "test error message", errorMsg)
+	})
+
+	t.Run("GetHostIDByVerifyRecoveryLockCommandUUID", func(t *testing.T) {
+		host := test.NewHost(t, ds, "verify-cmd-host", "1.2.3.11", "verifycmdkey", "verifycmduuid", time.Now())
+
+		// Set password first (creates the record)
+		_, err := ds.SetHostRecoveryLockPassword(ctx, host.ID)
+		require.NoError(t, err)
+
+		// Set verifying status with a command UUID
+		err = ds.SetRecoveryLockVerifying(ctx, host.ID, "unique-verify-cmd-uuid")
+		require.NoError(t, err)
+
+		// Get host ID by command UUID
+		foundHostID, err := ds.GetHostIDByVerifyRecoveryLockCommandUUID(ctx, "unique-verify-cmd-uuid")
+		require.NoError(t, err)
+		assert.Equal(t, host.ID, foundHostID)
+
+		// Test not found
+		_, err = ds.GetHostIDByVerifyRecoveryLockCommandUUID(ctx, "non-existent-uuid")
+		require.Error(t, err)
+		assert.True(t, fleet.IsNotFound(err))
+	})
+}
+
+func testGetPendingRecoveryLockHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Initially no pending hosts
+	hosts, err := ds.GetPendingRecoveryLockHosts(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, hosts)
+
+	// Create a host with pending status but no command result yet
+	hostNoResult := test.NewHost(t, ds, "pending-no-result", "1.2.4.1", "pnrkey", "pnruuid", time.Now(), test.WithPlatform("darwin"))
+	_, err = ds.SetHostRecoveryLockPassword(ctx, hostNoResult.ID)
+	require.NoError(t, err)
+	err = ds.SetRecoveryLockPending(ctx, hostNoResult.ID, "set-cmd-uuid-1")
+	require.NoError(t, err)
+
+	// Should find the pending host with empty status
+	hosts, err = ds.GetPendingRecoveryLockHosts(ctx)
+	require.NoError(t, err)
+	found := findPendingHost(hosts, hostNoResult.ID)
+	require.NotNil(t, found, "host should be in pending list")
+	assert.Equal(t, hostNoResult.UUID, found.HostUUID)
+	assert.Equal(t, "set-cmd-uuid-1", found.SetCommandUUID)
+	assert.Empty(t, found.SetCommandStatus)
+
+	// Create host with acknowledged result
+	hostAck := test.NewHost(t, ds, "pending-ack", "1.2.4.2", "packkey", "packuuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, hostAck, false)
+	_, err = ds.SetHostRecoveryLockPassword(ctx, hostAck.ID)
+	require.NoError(t, err)
+	err = ds.SetRecoveryLockPending(ctx, hostAck.ID, "set-cmd-uuid-ack")
+	require.NoError(t, err)
+	insertNanoCommand(t, ds, "set-cmd-uuid-ack", "SetRecoveryLock")
+	insertNanoCommandResult(t, ds, "set-cmd-uuid-ack", hostAck.UUID, "Acknowledged", "<?xml version=\"1.0\"?><plist></plist>")
+
+	hosts, err = ds.GetPendingRecoveryLockHosts(ctx)
+	require.NoError(t, err)
+	found = findPendingHost(hosts, hostAck.ID)
+	require.NotNil(t, found, "acknowledged host should be in pending list")
+	assert.Equal(t, "Acknowledged", found.SetCommandStatus)
+
+	// Create host with error result
+	hostErr := test.NewHost(t, ds, "pending-err", "1.2.4.3", "perrkey", "perruuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, hostErr, false)
+	_, err = ds.SetHostRecoveryLockPassword(ctx, hostErr.ID)
+	require.NoError(t, err)
+	err = ds.SetRecoveryLockPending(ctx, hostErr.ID, "set-cmd-uuid-err")
+	require.NoError(t, err)
+	insertNanoCommand(t, ds, "set-cmd-uuid-err", "SetRecoveryLock")
+	insertNanoCommandResult(t, ds, "set-cmd-uuid-err", hostErr.UUID, "Error", "<?xml version=\"1.0\"?><plist><key>ErrorChain</key></plist>")
+
+	hosts, err = ds.GetPendingRecoveryLockHosts(ctx)
+	require.NoError(t, err)
+	found = findPendingHost(hosts, hostErr.ID)
+	require.NotNil(t, found, "error host should be in pending list")
+	assert.Equal(t, "Error", found.SetCommandStatus)
+	assert.Contains(t, found.SetCommandErrorInfo, "ErrorChain")
+}
+
+func findPendingHost(hosts []fleet.HostPendingRecoveryLock, hostID uint) *fleet.HostPendingRecoveryLock {
+	for _, h := range hosts {
+		if h.HostID == hostID {
+			return &h
+		}
+	}
+	return nil
+}
+
+func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Helper to create a team with recovery lock setting
+	createTeamWithRecoveryLock := func(name string, enabled bool) *fleet.Team {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: name})
+		require.NoError(t, err)
+
+		team.Config.MDM.EnableRecoveryLockPassword = enabled
+		team, err = ds.SaveTeam(ctx, team)
+		require.NoError(t, err)
+		return team
+	}
+
+	// Helper to set app config recovery lock setting
+	setAppConfigRecoveryLock := func(enabled bool) {
+		ac, err := ds.AppConfig(ctx)
+		require.NoError(t, err)
+		ac.MDM.EnableRecoveryLockPassword = optjson.SetBool(enabled)
+		err = ds.SaveAppConfig(ctx, ac)
+		require.NoError(t, err)
+	}
+
+	// Helper to set host OS version
+	setHostOS := func(hostID uint, osName, osVersion string) {
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+			INSERT INTO operating_systems (name, version, arch, kernel_version, platform, display_version)
+			VALUES (?, ?, 'x86_64', '', 'darwin', '')
+			ON DUPLICATE KEY UPDATE id=id`, osName, osVersion)
+		require.NoError(t, err)
+
+		var osID uint
+		err = ds.writer(ctx).GetContext(ctx, &osID, `SELECT id FROM operating_systems WHERE name = ? AND version = ?`, osName, osVersion)
+		require.NoError(t, err)
+
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+			INSERT INTO host_operating_system (host_id, os_id) VALUES (?, ?)
+			ON DUPLICATE KEY UPDATE os_id = ?`, hostID, osID, osID)
+		require.NoError(t, err)
+	}
+
+	// Helper to check if host is in the eligible list
+	hostInList := func(hosts []fleet.HostNeedingRecoveryLock, hostID uint) bool {
+		for _, h := range hosts {
+			if h.HostID == hostID {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Initially no eligible hosts
+	hosts, err := ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, hosts)
+
+	// Create eligible macOS 15.7 host in team with recovery lock enabled
+	team15 := createTeamWithRecoveryLock("team-macos15", true)
+	hostMacOS15 := test.NewHost(t, ds, "macos15-host", "1.2.5.1", "m15key", "m15uuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(team15.ID))
+	setHostOS(hostMacOS15.ID, "macOS", "15.7")
+	nanoEnroll(t, ds, hostMacOS15, false)
+
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.True(t, hostInList(hosts, hostMacOS15.ID), "macOS 15.7 host should be eligible")
+
+	// Create eligible macOS 11.5 host (minimum supported version)
+	team115 := createTeamWithRecoveryLock("team-macos11-5", true)
+	hostMacOS115 := test.NewHost(t, ds, "macos11-5-host", "1.2.5.2", "m115key", "m115uuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(team115.ID))
+	setHostOS(hostMacOS115.ID, "macOS", "11.5")
+	nanoEnroll(t, ds, hostMacOS115, false)
+
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.True(t, hostInList(hosts, hostMacOS115.ID), "macOS 11.5 host should be eligible")
+
+	// Create ineligible macOS 11.4 host (below minimum)
+	team114 := createTeamWithRecoveryLock("team-macos11-4", true)
+	hostMacOS114 := test.NewHost(t, ds, "macos11-4-host", "1.2.5.3", "m114key", "m114uuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(team114.ID))
+	setHostOS(hostMacOS114.ID, "macOS", "11.4")
+	nanoEnroll(t, ds, hostMacOS114, false)
+
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.False(t, hostInList(hosts, hostMacOS114.ID), "macOS 11.4 host should NOT be eligible (below minimum)")
+
+	// Create host in team with recovery lock DISABLED
+	teamDisabled := createTeamWithRecoveryLock("team-disabled", false)
+	hostDisabled := test.NewHost(t, ds, "disabled-team-host", "1.2.5.4", "dtkey", "dtuuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(teamDisabled.ID))
+	setHostOS(hostDisabled.ID, "macOS", "15.7")
+	nanoEnroll(t, ds, hostDisabled, false)
+
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.False(t, hostInList(hosts, hostDisabled.ID), "host in disabled team should NOT be eligible")
+
+	// Create host without MDM enrollment
+	teamNotEnrolled := createTeamWithRecoveryLock("team-not-enrolled", true)
+	hostNotEnrolled := test.NewHost(t, ds, "not-enrolled-host", "1.2.5.5", "nekey", "neuuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(teamNotEnrolled.ID))
+	setHostOS(hostNotEnrolled.ID, "macOS", "15.7")
+	// No nano enrollment
+
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.False(t, hostInList(hosts, hostNotEnrolled.ID), "non-enrolled host should NOT be eligible")
+
+	// Create Windows host (not darwin)
+	teamNotDarwin := createTeamWithRecoveryLock("team-not-darwin", true)
+	hostWindows := test.NewHost(t, ds, "windows-host", "1.2.5.6", "wkey", "wuuid", time.Now(),
+		test.WithPlatform("windows"), test.WithTeamID(teamNotDarwin.ID))
+	nanoEnroll(t, ds, hostWindows, false)
+
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.False(t, hostInList(hosts, hostWindows.ID), "Windows host should NOT be eligible")
+
+	// Create host with pending status (already has SetRecoveryLock in progress)
+	teamPending := createTeamWithRecoveryLock("team-pending", true)
+	hostPending := test.NewHost(t, ds, "pending-host2", "1.2.5.7", "pkey2", "puuid2", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(teamPending.ID))
+	setHostOS(hostPending.ID, "macOS", "15.7")
+	nanoEnroll(t, ds, hostPending, false)
+	_, err = ds.SetHostRecoveryLockPassword(ctx, hostPending.ID)
+	require.NoError(t, err)
+	err = ds.SetRecoveryLockPending(ctx, hostPending.ID, "set-cmd-uuid-pending")
+	require.NoError(t, err)
+
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.False(t, hostInList(hosts, hostPending.ID), "pending host should NOT be eligible")
+
+	// Create host with verified status (already has recovery lock set)
+	teamVerified := createTeamWithRecoveryLock("team-verified", true)
+	hostVerified := test.NewHost(t, ds, "verified-host2", "1.2.5.8", "vkey2", "vuuid2", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(teamVerified.ID))
+	setHostOS(hostVerified.ID, "macOS", "15.7")
+	nanoEnroll(t, ds, hostVerified, false)
+	_, err = ds.SetHostRecoveryLockPassword(ctx, hostVerified.ID)
+	require.NoError(t, err)
+	err = ds.SetRecoveryLockVerified(ctx, hostVerified.ID)
+	require.NoError(t, err)
+
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.False(t, hostInList(hosts, hostVerified.ID), "verified host should NOT be eligible")
+
+	// Test no-team host with app config recovery lock enabled
+	setAppConfigRecoveryLock(true)
+	hostNoTeam := test.NewHost(t, ds, "no-team-host", "1.2.5.9", "ntkey", "ntuuid", time.Now(),
+		test.WithPlatform("darwin"))
+	setHostOS(hostNoTeam.ID, "macOS", "15.7")
+	nanoEnroll(t, ds, hostNoTeam, false)
+
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.True(t, hostInList(hosts, hostNoTeam.ID), "no-team host should be eligible when app config enabled")
+
+	// Clean up - disable app config recovery lock
+	setAppConfigRecoveryLock(false)
+
+	// Now the no-team host should not be eligible
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.False(t, hostInList(hosts, hostNoTeam.ID), "no-team host should NOT be eligible when app config disabled")
+}
+
+// insertNanoCommand inserts a nano_command record for testing.
+func insertNanoCommand(t *testing.T, ds *Datastore, commandUUID, requestType string) {
+	_, err := ds.writer(t.Context()).Exec(`
+		INSERT INTO nano_commands (command_uuid, request_type, command, created_at, updated_at)
+		VALUES (?, ?, '<?xml version="1.0"?><plist></plist>', NOW(), NOW())
+	`, commandUUID, requestType)
+	require.NoError(t, err)
+}
+
+// insertNanoCommandResult inserts a nano_command_results record for testing.
+func insertNanoCommandResult(t *testing.T, ds *Datastore, commandUUID, deviceID, status, result string) {
+	_, err := ds.writer(t.Context()).Exec(`
+		INSERT INTO nano_command_results (command_uuid, id, status, result, not_now_at, created_at, updated_at)
+		VALUES (?, ?, ?, ?, NULL, NOW(), NOW())
+	`, commandUUID, deviceID, status, result)
+	require.NoError(t, err)
 }
