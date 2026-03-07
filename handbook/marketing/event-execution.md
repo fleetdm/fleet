@@ -1,8 +1,87 @@
-# **Event execution process**
+
+# Fleet events
+We sponsor and participate in events so that we can support, connect, engage, and grow the Fleet community. We need to be thoughtful about what events we sponsor or host, and we need to be disciplined in how we run events so we can be efficient and effective.
+
+There are three phases to running an event at FleetDM,
+- **Phase 1:** Propose, review and approve new events
+- **Phase 2:** Manage and and execute approved events
+- **Phase 3:** Event postgame
+
+#### Phase 1 Propose, review and approve new events
+**Objective:**  To ensure that the organization is aligned with the investment of time and resources to execute an event
+This process is managed through Fleet Issues and is summarized in a detailed tracking spreadsheet.
+
+See the section "Settle event strategy" below for the process.
+
+##### Settle event strategy (approve proposed events)
+
+Anyone at Fleet can propose a future event.
+Fleet's [Head of DemandGen](https://fleetdm.com/handbook/marketing#team) serves as the project manager for managing the event approval process. Events are settled in advance to provide ample time for strategy and planning. This includes any event that Fleet pays to attend or sponsor. 
+
+- Field/sales events and GitOps workshops are settled 1 sprint in advance.
+- Conferences are settled 1 quarter in advance. 
+
+Once events have been settled for a particular time frame, i.e, decided in a previous event strategy session, Fleet does not make changes except in extreme circumstances.
+
+1. Add all upcoming proposed in issues using the template (Propose an event: EVENT_NAME - CITY - YYYY-MM-DD). Approval is tracked and recorded in the ["🫧 Proposed events (not yet settled)" tab](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1411322737#gid=1411322737) of the 🎪 Events spreadsheet (confidential doc). 
+2. Proposed events will include the following information:
+  - Event Priority (Scale 1 - 10) where 1 is a top priority
+  - Event Name
+  - Event Location
+  - Event DRI
+  - Event Dates
+  - Type of Event
+  - Theme
+  - Event Registration
+  - Who from Fleet will attend?
+  - Which talk proposal will Fleet submit?
+  - Estimated budget, including sponsorship or airfare, and lodging for attendees.
+2. Set up and attend a 30m meeting with the CMO, Head of Demand Generation, or Manager of Training and Enablement.
+  - First, during this meeting, Marketing will decide which field/sales events and GitOps workshops Fleet will execute in the **following sprint**.
+  - Next, Marketing will decide which conferences in the **following quarter** the company will invest time or money into. 
+3. After the meeting, the Content Specialist will communicate the settled events by
+  - Moving all settled events to the "All 🎪 Official (planned & settled events)" tab of the 🎪 Events spreadsheet (confidential doc).
+  - Using the following template, post a message in the [#oooh-events Slack channel](https://fleetdm.slack.com/archives/C054TGK0H7X).
+
+```
+:fleet-swan: Hi all!
+Here are the [upcoming settled events](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=692710204#gid=692710204) where you can find :fleet:Fleet!
+```
+
+4. Close all proposed event issues that weren't able to be prioritized with a comment explaining why.
+
+#### Phase 2 Manage and and execute approved events
+**Objective** To efficiently plan, organize,track and complete the tasks in order to execute an event. This covers everything from once an event is approved to when the event is finished.  From detail planning to promotion, staff assignments to logistics, events can be complicated projects that need focused attention.
+
+Event execution needs to plan and track the detail decisions supporting:
+
+1. **All Event Logistics.** (Location, Venue, Start and End Date/Time, Event Website, Shipping, Staff schedules, costs, and more)
+2. **Speaking sessions:** (Location, time, talk metadata(title, abstract, etc), av requirements, and more)
+3. **Event Pre Promotion:** (landing page, blog, social, email, customers, prospects, etc)
+4. **Lead capture plans and process:** (scanning process, qualifying questions)
+5. **Booth:** Design, messaging, staffing hours and assignments, attire, swag, power, etc.)
+6. **Key vendor relationships:** (Event Organizer, booth builder, site logisitcs, scanning tech, av tech)
+
+This will be managed in a structure central document for each event so that attendees and organizers have a central place to find information and collaborate. 
+
+[Planning Doc/Tracking Template](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.uych0uenb12p#heading=h.qhf7mkrao68w0
+
+#### Phase 3 Event postgame
+**Objective** To consistently wrap up an event, gather lessons learned, and ensure the organization follows through with our new relationships.  
+
+After the event there are three important activites that need to be completed.
+
+1. **Update CRM:** The CRM is our single source of truth about our relationships. So, it is critical that all the information from what happened at the event is promptly updated in the CRM.
+2. **Follow up:** When we make new friends and connections at an event, we must be prompt in follow through and connecting with them after the event. The CRM is the main way to prompt the right person at Fleet to reach back out and follow up.
+3. **Post Mortem:** Learn and improve from the previous event. (gather feedback, review lessons learned, and update processes and strategy)
+
+(Template details TBD)
+
+## **Event execution process**
 
 This page outlines the execution process for Fleet events. It builds upon our general event strategy and goals outlined in the [Fleet events](https://fleetdm.com/handbook/marketing#fleet-events) section of the handbook.
 
-## **Tools and single source of truth**
+### **Tools and single source of truth**
 
 To keep event planning organized, we separate event information from actionable tasks:
 
@@ -11,7 +90,7 @@ To keep event planning organized, we separate event information from actionable 
 
 All child tasks in GitHub (e.g., draft and finalize talk title/abstract, design booth, order swag, ship booth kit, promote event) should reference back to the event overview document.
 
-## **GitHub labels**
+### **GitHub labels**
 
 We use GitHub labels to organize the difference between overall event issues and detailed execution tasks, allowing us to filter and track between overview issues only, and specific events only.  The color coding will help us to visually tell the difference between events.  Note the specific event labels have 6 possible colors defined. These should get re-used, as events are completed.
 
@@ -28,25 +107,28 @@ We use GitHub labels to organize the difference between overall event issues and
 | **:mktg-event:YYMM-eventname-city** | Salmon | \#FA8072 | 5th color custom lable for specific events |
 | **:mktg-event:YYMM-eventname-city** | Brick | \#B91C1C | 6th color custom lable for specific events |
 
-## **Event plans**
+### **Event plans**
 
 We utilize two general event plans, which act as templates depending on the scale and type of the event:
 
 1. **Conference:** Used for large conferences and events where we have a booth, speaking slots, lead scanning, and other major logistical needs.  
 2. **Workshop/Happy hour:** Used for our GitOps workshop series (which often includes happy hours). This smaller template can be used for the full workshop or for bespoke, standalone happy hours.
 
-## **Execution process**
+
+
+
+### **Execution process**
 
 Once an event is approved, a Marketing directly responsible individual (DRI) is assigned. From there, the process is divided between the Marketing DRI and the Onsite DRI.
 
-### **Marketing DRI responsibilities**
+#### **Marketing DRI responsibilities**
 
 * Create the event overview planning doc.  
 * Create the parent and child execution issues in GitHub.  
 * Assign the execution issues to themselves or the Onsite DRI for parts of the plan. (In many cases, a workshop has been planned locally by the Account Executive; this is where specific issues would be assigned out).  
 * Ensure leads are uploaded and properly accounted for in Salesforce (SFDC) post-event.
 
-### **Onsite DRI responsibilities**
+#### **Onsite DRI responsibilities**
 
 * Manage the details of the facility.  
 * Set up and configure the booth, swag, and lead capture tools.  
@@ -55,15 +137,15 @@ Once an event is approved, a Marketing directly responsible individual (DRI) is 
 * Pack up the event kit and ship it back.  
 * Coordinate with the Marketing DRI to get leads uploaded and processed.
 
-## **Definition of done**
+### **Definition of done**
 
 An event's execution is not complete until the **Definition of Done** is met: the Event Overview Doc must be fully updated with post-event outcomes, notes, and final details.
 
-## **How to automate event creation**
+### **How to automate event creation**
 
 Since the tracking process uses github issues and subissues to track tasks, it can be tedious to create the structure for a new event. Here are the steps to automate the creation of the event execution issues in github.
 
-### Setup
+#### Setup
 We will use a local script that executes commands on the local GitHub command line interface (CLI).  In order to get started you need to have the GitHub CLI installed.
 
 1. **Install Homebrew.**  *Homebrew is a package installer and the simplest way to get the GitHub CLI installed.*.  
@@ -82,7 +164,7 @@ We will use a local script that executes commands on the local GitHub command li
 TODO - add a test set up section where a user has a simple issue script they test
 
 
-### Event Template Process and Script
+#### Event Template Process and Script
 Creating a new event group is now simple.
 1. copy the script below and save as **NewEvent.sh**
 2. Edit the script.

@@ -162,7 +162,7 @@ const SaveAsNewQueryModal = ({
       setIsSaving(false);
       renderFlash("success", `Successfully added report ${newQuery.name}.`);
       router.push(
-        getPathWithQueryParams(PATHS.QUERY_DETAILS(newQuery.id), {
+        getPathWithQueryParams(PATHS.REPORT_DETAILS(newQuery.id), {
           fleet_id: newQuery.team_id,
           host_id: hostId,
         })
