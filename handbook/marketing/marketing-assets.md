@@ -64,6 +64,28 @@ If you find a piece of collateral that is duplicate to one listed below, please 
 | | [EV manufacturer brings Linux workstations under centralized management with Fleet](https://fleetdm.com/case-study/ev-manufacturer) | How an EV manufacturer uses Fleet to manage Linux workstations with centralized visibility and automated remediation. | |
 
 
+### Comparisons
+
+| Date updated | Asset | Description | Author |
+| ------------ | ----- | ----------- | ------ |
+| 2024-02-01 | [A comparative look at VMware Workspace ONE and Fleet Device Management](https://fleetdm.com/announcements/a-comparative-look-at-vmware-workspace-one-and-fleet) | | JD Strong |
+
+### Thought leadership
+
+| Date updated | Asset | Description | Author |
+| ------------ | ----- | ----------- | ------ |
+| 2026-01-23 | [Redefining endpoint management at scale: Fleet's momentum in the 2026 Gartner reports](https://fleetdm.com/announcements/redefining-endpoint-management-at-scale) | Fleet's open approach to device management is validated in Gartner's 2026 reports, highlighting GitOps, scale, transparency, and real-time data. | Ashish Kuthiala |
+| 2025-11-27 | [A new chapter for device management](https://fleetdm.com/announcements/a-new-chapter-for-device-management) | Jamf's acquisition marks a shift in device management. Fleet provides an open, cross-platform alternative for IT and security teams. | Ashish Kuthiala |
+| 2025-06-11 | [MDM just got better: Apple's biggest IT updates at WWDC25](https://fleetdm.com/announcements/mdm-just-got-better-apples-biggest-it-updates-at-wwdc25) | Key WWDC25 updates for Apple IT — and how Fleet supports them today. | Adam Baali |
+| 2024-11-14 | [Fleet reimagines observability with DevOps teams at Roblox, Atlassian, Dropbox](https://fleetdm.com/announcements/fleet-reimagines-observability-with-devops-teams) | Fleet speeds up compliance audits and enables next-gen intrusion detection in large production infrastructures. | Mike McNeil |
+| 2024-08-27 | [Debunk the cross-platform myth](https://fleetdm.com/announcements/debunk-the-cross-platform-myth) | Debunk the cross-platform myth with MDM. | Mike McNeil |
+| 2024-07-25 | [Enhancing K-12 cybersecurity with FCC funds and Fleet](https://fleetdm.com/announcements/enhancing-k-12-cybersecurity-with-fcc-funds-and-fleet) | | Alex Mitchell |
+| 2024-05-24 | [Endpoint management's crucial role in healthcare](https://fleetdm.com/announcements/endpoint-managements-crucial-role-in-healthcare) | Discover how robust endpoint management is essential for securing healthcare data, ensuring compliance, and building patient trust. | Alex Mitchell |
+| 2024-03-01 | [The device security tightrope: balancing cost and protection in K-12 schools](https://fleetdm.com/announcements/the-device-security-tightrope-balancing-cost-and-protection-in-k-12-schools) | | Keith Barnes |
+| 2024-02-09 | [Government agencies need to ditch the MDM thicket: multiple solutions cost you more than you think](https://fleetdm.com/announcements/government-agencies-need-to-ditch-the-mdm-thicket) | | Keith Barnes |
+| 2023-07-06 | [Embracing the future: Declarative Device Management](https://fleetdm.com/announcements/embracing-the-future-declarative-device-management) | Explore the transformative impact of Declarative Device Management (DDM), Fleet, and osquery for MacAdmins. | JD Strong |
+
+
 ### Other
 
 | Date updated | Asset | Description | Author |
@@ -289,6 +311,26 @@ If you find a piece of collateral that is duplicate to one listed below, please 
 | 2020-03-17 | [Generate process trees with osquery](https://fleetdm.com/guides/generate-process-trees-with-osquery) |  | Zach Wasserman |
 | 2017-11-18 | [Deploy Fleet on Kubernetes](https://fleetdm.com/guides/deploy-fleet-on-kubernetes) | Learn how to deploy Fleet on Kubernetes | Mike Arpaia |
 | 2017-09-22 | [Deploy Fleet on CentOS](https://fleetdm.com/guides/deploy-fleet-on-centos) | A guide to deploy Fleet on CentOS. | Mike Arpaia |
+
+### Announcements
+
+| Date updated | Asset | Description | Author |
+| ------------ | ----- | ----------- | ------ |
+| 2025-09-15 | [Fleet supports Apple's latest operating systems: macOS Tahoe 26, iOS 26, and iPadOS 26](https://fleetdm.com/announcements/fleet-supports-apples-latest-operating-systems-macos-tahoe-26) | Fleet is pleased to announce full support for macOS Tahoe 26, iOS 26, and iPadOS 26. | Andrey Kizimenko |
+| 2025-07-10 | [Secureframe adopts Fleet as its default agent for security compliance](https://fleetdm.com/announcements/secureframe-adopts-fleet-as-its-default-agent) | | Mike McNeil |
+| 2024-09-27 | [Fleet supports Apple's latest operating systems: macOS 15 Sequoia, iOS 18, and iPadOS 18](https://fleetdm.com/announcements/fleet-supports-apples-latest-operating-systems-macos-15-sequoia) | Fleet is pleased to announce full support for macOS 15 Sequoia, iOS 18, and iPadOS 18. | JD Strong |
+| 2024-09-26 | [Fleet now supports iOS and iPadOS, software deployment, and automated patch management](https://fleetdm.com/announcements/fleet-now-supports-ios-and-ipados) | Fleet announces support for iOS and iPadOS, software deployment, and automated patch management. | Andrew Baker |
+| 2024-04-30 | [Fleet in your calendar: introducing maintenance windows](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows) | Like any good colleague, when Fleet needs some of your time, it puts it on your calendar. | JD Strong |
+| 2024-04-23 | [Enhancing Fleet's vulnerability management with VulnCheck integration](https://fleetdm.com/announcements/enhancing-fleets-vulnerability-management-with-vulncheck-integration) | | JD Strong |
+| 2024-01-24 | [Fleet introduces Windows MDM](https://fleetdm.com/announcements/fleet-introduces-windows-mdm) | | JD Strong |
+| 2023-11-28 | [NVD API 2.0: An important update for Fleet users](https://fleetdm.com/announcements/nvd-api-2-0-an-important-update-for-fleet-users) | | JD Strong |
+| 2023-10-17 | [Introducing cross-platform script execution](https://fleetdm.com/announcements/introducing-cross-platform-script-execution) | | JD Strong |
+| 2023-06-13 | [Fleet enhances device management with ChromeOS support](https://fleetdm.com/announcements/fleet-enhances-device-management-with-chromeos-support) | Fleet has expanded support to include ChromeOS and ChromeOS Flex! | JD Strong |
+| 2023-01-09 | [Keep Fleet running smoothly on AWS with the new Terraform module](https://fleetdm.com/announcements/keep-fleet-running-smoothly-on-aws-with-the-new-terraform-module) | | Zachary Winnerman |
+| 2022-08-24 | [Introducing Sandbox, the fastest way to play with Fleet](https://fleetdm.com/announcements/introducing-sandbox-the-fastest-way-to-play-with-fleet) | | Chris McGillicuddy |
+| 2022-08-18 | [Introducing Orbit, your Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager) | | Mo Zhu |
+| 2022-08-02 | [Fleet Desktop says "Hello, world!"](https://fleetdm.com/announcements/fleet-desktop-says-hello-world) | | Mo Zhu |
+
 
 ### Roadmap previews
 | Date updated | Asset | Description | Author |
