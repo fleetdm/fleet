@@ -276,6 +276,13 @@ software:
       setup_experience: true
       categories:
         - Security
+    - path: ../lib/windows/software/okta-verify.yml # Okta Verify for Windows (x86)
+      self_service: true
+      setup_experience: true
+      categories:
+        - Security
+      labels_include_any:
+        - "x86-based Windows hosts"
   app_store_apps:
     - app_store_id: "361285480" # Keynote
       display_name: "Keynote"
