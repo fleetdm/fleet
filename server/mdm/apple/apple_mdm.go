@@ -3,6 +3,7 @@ package apple_mdm
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1824,4 +1825,34 @@ func processHostForSetRecoveryLock(
 	)
 
 	return nil
+}
+
+// RecoveryLockPasswordCharset excludes confusing characters (0/O, 1/I/l)
+const RecoveryLockPasswordCharset = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+
+// GenerateRecoveryLockPassword generates a password in format: 5ADZ-HTZ8-LJJ4-B2F8-JWH3-YPBT
+// (6 groups of 4 alphanumeric characters separated by dashes)
+func GenerateRecoveryLockPassword() (string, error) {
+	const (
+		groupCount = 6
+		groupLen   = 4
+	)
+
+	groups := make([]string, groupCount)
+	charsetLen := len(RecoveryLockPasswordCharset)
+
+	for i := range groupCount {
+		randBytes := make([]byte, groupLen)
+		if _, err := rand.Read(randBytes); err != nil {
+			return "", fmt.Errorf("generating random bytes: %w", err)
+		}
+
+		group := make([]byte, groupLen)
+		for j := range groupLen {
+			group[j] = RecoveryLockPasswordCharset[int(randBytes[j])%charsetLen]
+		}
+		groups[i] = string(group)
+	}
+
+	return strings.Join(groups, "-"), nil
 }
