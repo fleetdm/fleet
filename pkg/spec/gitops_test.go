@@ -1971,7 +1971,7 @@ func TestParseLabelsGlob(t *testing.T) {
 		}
 		result := &GitOps{}
 		multiErr := parseLabels(top, result, dir, nopLogf, "test.yml", nil)
-		require.Nil(t, multiErr)
+		require.Nil(t, multiErr.ErrorOrNil())
 		require.Len(t, result.Labels, 2)
 		assert.Equal(t, "InlineLabel", result.Labels[0].Name)
 		assert.Equal(t, "FileLabel", result.Labels[1].Name)
@@ -1991,7 +1991,7 @@ func TestParseLabelsGlob(t *testing.T) {
 		}
 		result := &GitOps{}
 		multiErr := parseLabels(top, result, dir, nopLogf, "test.yml", nil)
-		require.Nil(t, multiErr)
+		require.Nil(t, multiErr.ErrorOrNil())
 		require.Len(t, result.Labels, 2)
 		assert.Equal(t, "LabelA", result.Labels[0].Name)
 		assert.Equal(t, "LabelB", result.Labels[1].Name)
@@ -2014,7 +2014,7 @@ func TestParsePoliciesGlob(t *testing.T) {
 		}
 		result := &GitOps{}
 		multiErr := parsePolicies(top, result, dir, nopLogf, "test.yml", nil)
-		require.Nil(t, multiErr)
+		require.Nil(t, multiErr.ErrorOrNil())
 		require.Len(t, result.Policies, 2)
 		assert.Equal(t, "InlinePolicy", result.Policies[0].Name)
 		assert.Equal(t, "FilePolicy", result.Policies[1].Name)
@@ -2034,7 +2034,7 @@ func TestParsePoliciesGlob(t *testing.T) {
 		}
 		result := &GitOps{}
 		multiErr := parsePolicies(top, result, dir, nopLogf, "test.yml", nil)
-		require.Nil(t, multiErr)
+		require.Nil(t, multiErr.ErrorOrNil())
 		require.Len(t, result.Policies, 2)
 		assert.Equal(t, "PolicyA", result.Policies[0].Name)
 		assert.Equal(t, "PolicyB", result.Policies[1].Name)
@@ -2058,7 +2058,7 @@ func TestParseReportsGlob(t *testing.T) {
 		teamName := "TestTeam"
 		result := &GitOps{TeamName: &teamName}
 		multiErr := parseReports(top, result, dir, nopLogf, "test.yml", nil)
-		require.Nil(t, multiErr)
+		require.Nil(t, multiErr.ErrorOrNil())
 		require.Len(t, result.Queries, 2)
 		assert.Equal(t, "InlineReport", result.Queries[0].Name)
 		assert.Equal(t, "FileReport", result.Queries[1].Name)
@@ -2079,7 +2079,7 @@ func TestParseReportsGlob(t *testing.T) {
 		teamName := "TestTeam"
 		result := &GitOps{TeamName: &teamName}
 		multiErr := parseReports(top, result, dir, nopLogf, "test.yml", nil)
-		require.Nil(t, multiErr)
+		require.Nil(t, multiErr.ErrorOrNil())
 		require.Len(t, result.Queries, 2)
 		assert.Equal(t, "ReportA", result.Queries[0].Name)
 		assert.Equal(t, "ReportB", result.Queries[1].Name)
