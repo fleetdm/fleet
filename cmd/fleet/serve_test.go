@@ -559,6 +559,12 @@ func TestScanVulnerabilities(t *testing.T) {
 	ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, src fleet.VulnerabilitySource, t time.Time) error {
 		return nil
 	}
+	ds.DeleteOrphanedSoftwareVulnerabilitiesFunc = func(ctx context.Context) error {
+		return nil
+	}
+	ds.DeleteOrphanedOSVulnerabilitiesFunc = func(ctx context.Context) error {
+		return nil
+	}
 
 	ds.ListCVEsFunc = func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
 		published := time.Date(2022, time.October, 26, 14, 15, 0, 0, time.UTC)
@@ -739,6 +745,12 @@ func TestScanVulnerabilitiesFreeTier(t *testing.T) {
 		return []fleet.OperatingSystem{}, nil
 	}
 	ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, src fleet.VulnerabilitySource, t time.Time) error {
+		return nil
+	}
+	ds.DeleteOrphanedSoftwareVulnerabilitiesFunc = func(ctx context.Context) error {
+		return nil
+	}
+	ds.DeleteOrphanedOSVulnerabilitiesFunc = func(ctx context.Context) error {
 		return nil
 	}
 	ds.ListCVEsFunc = func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
