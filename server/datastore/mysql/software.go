@@ -2464,6 +2464,17 @@ func (ds *Datastore) DeleteOutOfDateVulnerabilities(ctx context.Context, source 
 	return nil
 }
 
+func (ds *Datastore) DeleteOrphanedSoftwareVulnerabilities(ctx context.Context) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx, `
+		DELETE sc FROM software_cve sc
+		LEFT JOIN host_software hs ON hs.software_id = sc.software_id
+		WHERE hs.host_id IS NULL
+	`); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting orphaned software vulnerabilities")
+	}
+	return nil
+}
+
 func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, includeCVEScores bool, tmFilter *fleet.TeamFilter) (*fleet.Software, error) {
 	q := dialect.From(goqu.I("software").As("s")).
 		Select(

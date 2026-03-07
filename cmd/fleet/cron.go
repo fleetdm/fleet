@@ -199,6 +199,14 @@ func scanVulnerabilities(
 
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 
+	// Clean up orphaned vulnerabilities (software/OS no longer associated with any host).
+	if err := ds.DeleteOrphanedSoftwareVulnerabilities(ctx); err != nil {
+		errHandler(ctx, logger, "deleting orphaned software vulnerabilities", err)
+	}
+	if err := ds.DeleteOrphanedOSVulnerabilities(ctx); err != nil {
+		errHandler(ctx, logger, "deleting orphaned OS vulnerabilities", err)
+	}
+
 	// If no automations enabled, then there is nothing else to do...
 	if vulnAutomationEnabled == "" {
 		return nil
