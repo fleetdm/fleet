@@ -3785,7 +3785,6 @@ policies:
 reports:
   - name: Test Global Report
     query: SELECT 1;
-    schedule: 1
     automations_enabled: false
 labels:
   - name: Test Global Label
@@ -3906,7 +3905,6 @@ policies:
 reports:
   - name: Test Fleet Report
     query: SELECT 1;
-    schedule: 1
     automations_enabled: false
 software:
   packages:
