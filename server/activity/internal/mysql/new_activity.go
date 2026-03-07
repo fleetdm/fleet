@@ -80,7 +80,7 @@ func (ds *Datastore) NewActivity(
 			return ctxerr.Wrap(ctx, err, "new activity")
 		}
 
-		// Insert into host_activities table if the activity is associated with hosts.
+		// Insert into activity_host_past table if the activity is associated with hosts.
 		// This supposes a reasonable amount of hosts per activity, to revisit if we
 		// get in the 10K+.
 		if ah, ok := activity.(types.ActivityHosts); ok {

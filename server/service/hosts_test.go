@@ -1525,8 +1525,16 @@ func TestCleanupExpiredHostsActivities(t *testing.T) {
 	defer ds.Close()
 	activitySvc := mysql.NewTestActivityService(t, ds)
 
-	svc, ctx := newTestService(t, ds, nil, nil)
-	svc.SetActivityService(activitySvc)
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+	// Use the mock with delegation so we can track CleanupHostActivities calls.
+	var cleanedHostIDs []uint
+	opts.ActivityMock.Delegate = activitySvc
+	opts.ActivityMock.CleanupHostActivitiesFunc = func(ctx context.Context, hostIDs []uint) error {
+		cleanedHostIDs = append(cleanedHostIDs, hostIDs...)
+		return activitySvc.CleanupHostActivities(ctx, hostIDs)
+	}
 
 	// Set global host expiry
 	const globalExpiryWindow = 10
@@ -1682,6 +1690,10 @@ func TestCleanupExpiredHostsActivities(t *testing.T) {
 			t.Fatalf("Unexpected host ID in activities: %d", ha.hostID)
 		}
 	}
+
+	// Verify CleanupHostActivities was called with all expired host IDs.
+	require.True(t, opts.ActivityMock.CleanupHostActivitiesFuncInvoked)
+	require.ElementsMatch(t, []uint{host1.ID, host2.ID, host3.ID, host4.ID, host5.ID}, cleanedHostIDs)
 }
 
 func TestAddHostsToTeamByFilter(t *testing.T) {

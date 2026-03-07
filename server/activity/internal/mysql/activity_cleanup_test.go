@@ -84,7 +84,7 @@ func testCleanupExpiredActivitiesBasic(t *testing.T, env *testEnv) {
 	assert.Contains(t, activityIDs, expiredWithHost, "expired host-linked activity should be preserved")
 	assert.Contains(t, activityIDs, recentNoHost, "recent activity should be preserved")
 
-	// Verify host_activities link still exists for the preserved activity.
+	// Verify activity_host_past link still exists for the preserved activity.
 	var hostActivityCount int
 	err = env.DB.GetContext(ctx, &hostActivityCount, "SELECT COUNT(*) FROM activity_host_past WHERE activity_id = ?", expiredWithHost)
 	require.NoError(t, err)

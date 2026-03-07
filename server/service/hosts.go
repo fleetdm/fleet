@@ -1131,6 +1131,16 @@ func (svc *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHos
 		return nil, err
 	}
 
+	if len(hostDetails) > 0 {
+		hostIDs := make([]uint, 0, len(hostDetails))
+		for _, h := range hostDetails {
+			hostIDs = append(hostIDs, h.ID)
+		}
+		if err := svc.activitySvc.CleanupHostActivities(ctx, hostIDs); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "cleanup host activities after expired host deletion")
+		}
+	}
+
 	// Create activities for each deleted host
 	for _, hostDetail := range hostDetails {
 		if err := svc.NewActivity(

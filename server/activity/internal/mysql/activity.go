@@ -226,7 +226,7 @@ func (ds *Datastore) CleanupExpiredActivities(ctx context.Context, maxCount int,
 	return nil
 }
 
-// CleanupHostActivities removes host_activities rows for the given host IDs.
+// CleanupHostActivities removes activity_host_past rows for the given host IDs.
 func (ds *Datastore) CleanupHostActivities(ctx context.Context, hostIDs []uint) error {
 	ctx, span := tracer.Start(ctx, "activity.mysql.CleanupHostActivities")
 	defer span.End()
@@ -237,10 +237,10 @@ func (ds *Datastore) CleanupHostActivities(ctx context.Context, hostIDs []uint) 
 
 	stmt, args, err := sqlx.In(`DELETE FROM activity_host_past WHERE host_id IN (?)`, hostIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "build host_activities IN query")
+		return ctxerr.Wrap(ctx, err, "build activity_host_past IN query")
 	}
 	if _, err := ds.primary.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete host_activities for deleted hosts")
+		return ctxerr.Wrap(ctx, err, "delete activity_host_past for deleted hosts")
 	}
 	return nil
 }
