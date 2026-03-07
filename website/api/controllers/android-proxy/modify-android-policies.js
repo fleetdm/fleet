@@ -80,6 +80,8 @@ module.exports = {
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Policies.html#patch
       let patchPoliciesResponse = await androidmanagement.enterprises.policies.patch({
         name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
+        // Note: Typically, we use defined inputs instead of accessing req.body directly. We forward req.body here to prevent previously set values from being overwritten by undefined values.
+        // This behavior should not be repeated in future Android proxy endpoints.
         requestBody: this.req.body,
         updateMask: this.req.param('updateMask') // Pass the update mask to avoid overwriting applications
       });
