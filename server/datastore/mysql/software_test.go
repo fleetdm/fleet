@@ -71,6 +71,7 @@ func TestSoftware(t *testing.T) {
 		{"AllSoftwareIteratorForCustomLinuxImages", testSoftwareIteratorForLinuxKernelCustomImages},
 		{"UpsertSoftwareCPEs", testUpsertSoftwareCPEs},
 		{"DeleteOutOfDateVulnerabilities", testDeleteOutOfDateVulnerabilities},
+		{"DeleteOrphanedSoftwareVulnerabilities", testDeleteOrphanedSoftwareVulnerabilities},
 		{"DeleteSoftwareCPEs", testDeleteSoftwareCPEs},
 		{"SoftwareByIDNoDuplicatedVulns", testSoftwareByIDNoDuplicatedVulns},
 		{"SoftwareByIDIncludesCVEPublishedDate", testSoftwareByIDIncludesCVEPublishedDate},
@@ -3326,6 +3327,72 @@ func testDeleteOutOfDateVulnerabilities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(storedSoftware.Vulnerabilities))
 	require.Equal(t, "CVE-2023-001", storedSoftware.Vulnerabilities[0].CVE)
+}
+
+func testDeleteOrphanedSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	hostWithSoftware := test.NewHost(t, ds, "host_with_sw", "", "hwskey", "hwsuuid", time.Now())
+	hostToRemove := test.NewHost(t, ds, "host_to_remove", "", "htrkey", "htruuid", time.Now())
+
+	sharedSoftware := []fleet.Software{
+		{Name: "shared_app", Version: "1.0", Source: "apps"},
+	}
+	orphanSoftware := []fleet.Software{
+		{Name: "orphan_app", Version: "2.0", Source: "apps"},
+	}
+
+	_, err := ds.UpdateHostSoftware(ctx, hostWithSoftware.ID, sharedSoftware)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, hostToRemove.ID, orphanSoftware)
+	require.NoError(t, err)
+
+	require.NoError(t, ds.LoadHostSoftware(ctx, hostWithSoftware, false))
+	require.NoError(t, ds.LoadHostSoftware(ctx, hostToRemove, false))
+
+	sharedSoftwareID := hostWithSoftware.Software[0].ID
+	orphanSoftwareID := hostToRemove.Software[0].ID
+
+	// Insert vulnerabilities for both software items.
+	inserted, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: sharedSoftwareID, CVE: "CVE-2024-001",
+	}, fleet.UbuntuOVALSource)
+	require.NoError(t, err)
+	require.True(t, inserted)
+
+	inserted, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: orphanSoftwareID, CVE: "CVE-2024-002",
+	}, fleet.UbuntuOVALSource)
+	require.NoError(t, err)
+	require.True(t, inserted)
+
+	// Remove the host, making orphanSoftware's host_software entry disappear.
+	err = ds.DeleteHost(ctx, hostToRemove.ID)
+	require.NoError(t, err)
+
+	// Verify both vulns still exist before cleanup.
+	storedShared, err := ds.SoftwareByID(ctx, sharedSoftwareID, nil, false, nil)
+	require.NoError(t, err)
+	require.Len(t, storedShared.Vulnerabilities, 1)
+
+	storedOrphan, err := ds.SoftwareByID(ctx, orphanSoftwareID, nil, false, nil)
+	require.NoError(t, err)
+	require.Len(t, storedOrphan.Vulnerabilities, 1)
+
+	// Run orphan cleanup.
+	err = ds.DeleteOrphanedSoftwareVulnerabilities(ctx)
+	require.NoError(t, err)
+
+	// The vulnerability for shared software (still has a host) should remain.
+	storedShared, err = ds.SoftwareByID(ctx, sharedSoftwareID, nil, false, nil)
+	require.NoError(t, err)
+	require.Len(t, storedShared.Vulnerabilities, 1)
+	require.Equal(t, "CVE-2024-001", storedShared.Vulnerabilities[0].CVE)
+
+	// The vulnerability for orphan software (no hosts) should be deleted.
+	storedOrphan, err = ds.SoftwareByID(ctx, orphanSoftwareID, nil, false, nil)
+	require.NoError(t, err)
+	require.Empty(t, storedOrphan.Vulnerabilities)
 }
 
 func testDeleteSoftwareCPEs(t *testing.T, ds *Datastore) {
