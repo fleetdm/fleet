@@ -26,6 +26,9 @@ type MockActivityService struct {
 	NewActivityFuncInvoked bool
 	Delegate               activity_api.NewActivityService
 
+	CleanupHostActivitiesFunc        func(ctx context.Context, hostIDs []uint) error
+	CleanupHostActivitiesFuncInvoked bool
+
 	mu sync.Mutex
 }
 
@@ -48,6 +51,12 @@ func (m *MockActivityService) NewActivity(ctx context.Context, user *activity_ap
 	return fn(ctx, user, activity)
 }
 
-func (m *MockActivityService) CleanupHostActivities(_ context.Context, _ []uint) error {
+func (m *MockActivityService) CleanupHostActivities(ctx context.Context, hostIDs []uint) error {
+	m.mu.Lock()
+	m.CleanupHostActivitiesFuncInvoked = true
+	m.mu.Unlock()
+	if m.CleanupHostActivitiesFunc != nil {
+		return m.CleanupHostActivitiesFunc(ctx, hostIDs)
+	}
 	return nil
 }
