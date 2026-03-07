@@ -585,7 +585,11 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 		}
 
 		if err := svc.activitySvc.CleanupHostActivities(ctx, hostIDs); err != nil {
-			return ctxerr.Wrap(ctx, err, "cleanup host activities after bulk delete")
+			// Log and continue; hosts are already deleted, so aborting would be worse
+			// than leaving orphaned activity_host_past rows.
+			err = ctxerr.Wrap(ctx, err, "cleanup host activities after bulk delete")
+			svc.logger.ErrorContext(ctx, "failed to cleanup host activities", "err", err)
+			ctxerr.Handle(ctx, err)
 		}
 
 		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, svc.NewActivity)
@@ -1092,7 +1096,11 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	}
 
 	if err := svc.activitySvc.CleanupHostActivities(ctx, []uint{id}); err != nil {
-		return ctxerr.Wrap(ctx, err, "cleanup host activities after delete")
+		// Log and continue — host is already deleted, so aborting would be worse
+		// than leaving orphaned activity_host_past rows.
+		err = ctxerr.Wrap(ctx, err, "cleanup host activities after delete")
+		svc.logger.ErrorContext(ctx, "failed to cleanup host activities", "err", err)
+		ctxerr.Handle(ctx, err)
 	}
 
 	// Create activity for host deletion
@@ -1137,7 +1145,9 @@ func (svc *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHos
 			hostIDs = append(hostIDs, h.ID)
 		}
 		if err := svc.activitySvc.CleanupHostActivities(ctx, hostIDs); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "cleanup host activities after expired host deletion")
+			err = ctxerr.Wrap(ctx, err, "cleanup host activities after expired host deletion")
+			svc.logger.ErrorContext(ctx, "failed to cleanup host activities", "err", err)
+			ctxerr.Handle(ctx, err)
 		}
 	}
 
