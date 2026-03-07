@@ -1487,6 +1487,45 @@ type Datastore interface {
 	// to any team).
 	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
 
+	///////////////////////////////////////////////////////////////////////////////
+	// Apple MDM Recovery Lock Password
+
+	// SetHostRecoveryLockPassword generates a new recovery lock password,
+	// encrypts it, and stores it for the given host. Returns the plaintext password.
+	SetHostRecoveryLockPassword(ctx context.Context, hostID uint) (string, error)
+
+	// GetHostRecoveryLockPassword retrieves and decrypts the recovery lock password
+	// for the given host.
+	GetHostRecoveryLockPassword(ctx context.Context, hostID uint) (*HostRecoveryLockPassword, error)
+
+	// GetHostsForRecoveryLockAction returns hosts that need recovery lock password action:
+	// - Teams with enable_recovery_lock_password = true
+	// - macOS 11.5+, MDM enrolled
+	// - No password saved
+	GetHostsForRecoveryLockAction(ctx context.Context) ([]HostNeedingRecoveryLock, error)
+
+	// SetRecoveryLockPending sets the recovery lock status to pending with the given set command UUID.
+	// This is called when a SetRecoveryLock command is enqueued.
+	SetRecoveryLockPending(ctx context.Context, hostID uint, setCommandUUID string) error
+
+	// SetRecoveryLockVerifying marks the SetRecoveryLock command as acknowledged and updates
+	// status to verifying with the given verify command UUID.
+	SetRecoveryLockVerifying(ctx context.Context, hostID uint, verifyCommandUUID string) error
+
+	// SetRecoveryLockVerified marks the recovery lock as verified (both commands succeeded).
+	SetRecoveryLockVerified(ctx context.Context, hostID uint) error
+
+	// SetRecoveryLockFailed marks the recovery lock as failed with the given error message.
+	SetRecoveryLockFailed(ctx context.Context, hostID uint, errorMsg string) error
+
+	// GetHostIDByVerifyRecoveryLockCommandUUID returns the host ID associated with a VerifyRecoveryLock command UUID.
+	GetHostIDByVerifyRecoveryLockCommandUUID(ctx context.Context, verifyCommandUUID string) (uint, error)
+
+	// GetPendingRecoveryLockHosts returns hosts with status='pending' along with
+	// the SetRecoveryLock the command result status.
+	// This is used by the cron job to check for acknowledged or failed Set commands.
+	GetPendingRecoveryLockHosts(ctx context.Context) ([]HostPendingRecoveryLock, error)
+
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
 	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage, pkgStore MDMBootstrapPackageStore) error

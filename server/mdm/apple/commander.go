@@ -562,6 +562,50 @@ func (svc *MDMAppleCommander) BulkDeleteHostUserCommandsWithoutResults(ctx conte
 	return svc.storage.BulkDeleteHostUserCommandsWithoutResults(ctx, commandToIDs)
 }
 
+// SetRecoveryLock sends the SetRecoveryLock MDM command to set or change the recovery lock password.
+// See https://developer.apple.com/documentation/devicemanagement/set_recovery_lock
+func (svc *MDMAppleCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string, newPassword string) error {
+	cmdPayload := commandPayload{
+		CommandUUID: cmdUUID,
+		Command: map[string]any{
+			"RequestType": "SetRecoveryLock",
+			"NewPassword": newPassword,
+		},
+	}
+	rawBytes, err := plist.MarshalIndent(cmdPayload, "    ")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshalling SetRecoveryLock payload")
+	}
+
+	if err := svc.EnqueueCommand(ctx, hostUUIDs, string(rawBytes)); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing SetRecoveryLock command")
+	}
+
+	return nil
+}
+
+// VerifyRecoveryLock sends the VerifyRecoveryLock MDM command to verify the recovery lock password.
+// See https://developer.apple.com/documentation/devicemanagement/verifyrecoverylockcommand
+func (svc *MDMAppleCommander) VerifyRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string, password string) error {
+	cmdPayload := commandPayload{
+		CommandUUID: cmdUUID,
+		Command: map[string]any{
+			"RequestType": "VerifyRecoveryLock",
+			"Password":    password,
+		},
+	}
+	rawBytes, err := plist.MarshalIndent(cmdPayload, "    ")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshalling VerifyRecoveryLock payload")
+	}
+
+	if err := svc.EnqueueCommand(ctx, hostUUIDs, string(rawBytes)); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing VerifyRecoveryLock command")
+	}
+
+	return nil
+}
+
 // APNSDeliveryError records an error and the associated host UUIDs in which it
 // occurred.
 type APNSDeliveryError struct {

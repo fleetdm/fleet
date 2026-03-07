@@ -27,6 +27,8 @@ type MDMAppleCommandIssuer interface {
 	EraseDevice(ctx context.Context, host *Host, uuid string) error
 	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
 	DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error
+	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string, newPassword string) error
+	VerifyRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string, password string) error
 }
 
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
@@ -1130,4 +1132,28 @@ type HostLocationData struct {
 	HostID    uint    `db:"host_id"`
 	Latitude  float64 `db:"latitude"`
 	Longitude float64 `db:"longitude"`
+}
+
+// VerifyRecoveryLockCommandPrefix is the prefix used for VerifyRecoveryLock MDM command UUIDs.
+const VerifyRecoveryLockCommandPrefix = "VERIFY-RECOVERY-LOCK-"
+
+// HostRecoveryLockPassword represents a recovery lock password for a host.
+type HostRecoveryLockPassword struct {
+	Password  string
+	UpdatedAt time.Time
+}
+
+// HostNeedingRecoveryLock represents a host that needs a recovery lock password.
+type HostNeedingRecoveryLock struct {
+	HostID   uint
+	HostUUID string
+}
+
+// HostPendingRecoveryLock represents a host with a pending SetRecoveryLock command.
+type HostPendingRecoveryLock struct {
+	HostID              uint
+	HostUUID            string
+	SetCommandUUID      string
+	SetCommandStatus    string // "Acknowledged", "Error", "CommandFormatError", or empty if no result yet
+	SetCommandErrorInfo string // Error details if status is Error
 }

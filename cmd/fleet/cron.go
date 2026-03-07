@@ -32,7 +32,6 @@ import (
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/policies"
-	"github.com/fleetdm/fleet/v4/server/recoverykeypassword"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
@@ -1982,7 +1981,7 @@ func newRecoveryLockPasswordSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	rkpService recoverykeypassword.Service,
+	commander *apple_mdm.MDMAppleCommander,
 	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
@@ -1995,7 +1994,7 @@ func newRecoveryLockPasswordSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("reconcile_recovery_lock_passwords", func(ctx context.Context) error {
-			return rkpService.Reconcile(ctx)
+			return apple_mdm.ReconcileRecoveryLockPasswords(ctx, ds, commander, logger)
 		}),
 	)
 
