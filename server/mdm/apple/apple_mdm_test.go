@@ -459,23 +459,17 @@ func TestReconcileRecoveryLockPasswords(t *testing.T) {
 	})
 }
 
-// mockRecoveryLockCommander implements the commander methods needed for testing
+// mockRecoveryLockCommander implements the commander methods needed for testing.
+// Only SetRecoveryLock and SendNotifications are needed by the cron job.
+// VerifyRecoveryLock is sent by the result handler, not the cron.
 type mockRecoveryLockCommander struct {
-	setRecoveryLockFn    func(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error
-	verifyRecoveryLockFn func(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error
-	sendNotificationsFn  func(ctx context.Context, hostUUIDs []string) error
+	setRecoveryLockFn   func(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error
+	sendNotificationsFn func(ctx context.Context, hostUUIDs []string) error
 }
 
 func (m *mockRecoveryLockCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error {
 	if m.setRecoveryLockFn != nil {
 		return m.setRecoveryLockFn(ctx, hostUUIDs, cmdUUID, password)
-	}
-	return nil
-}
-
-func (m *mockRecoveryLockCommander) VerifyRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error {
-	if m.verifyRecoveryLockFn != nil {
-		return m.verifyRecoveryLockFn(ctx, hostUUIDs, cmdUUID, password)
 	}
 	return nil
 }
@@ -487,10 +481,9 @@ func (m *mockRecoveryLockCommander) SendNotifications(ctx context.Context, hostU
 	return nil
 }
 
-// recoveryLockCommander defines the interface for recovery lock operations
+// recoveryLockCommander defines the interface for recovery lock operations used by the cron job.
 type recoveryLockCommander interface {
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error
-	VerifyRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error
 	SendNotifications(ctx context.Context, hostUUIDs []string) error
 }
 
