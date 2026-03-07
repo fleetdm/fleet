@@ -86,4 +86,6 @@ type Datastore interface {
 	// CleanupExpiredActivities deletes up to maxCount activities older than expiryWindowDays
 	// that are not linked to any host. Host-linked activities are preserved.
 	CleanupExpiredActivities(ctx context.Context, maxCount int, expiryWindowDays int) error
+	// CleanupHostActivities removes host_activities rows for the given host IDs.
+	CleanupHostActivities(ctx context.Context, hostIDs []uint) error
 }

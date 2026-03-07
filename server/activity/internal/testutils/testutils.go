@@ -123,7 +123,7 @@ func (tdb *TestDB) InsertHost(t *testing.T, hostname string, teamID *uint) uint 
 	return uint(id) //nolint:gosec // dismiss G115
 }
 
-// InsertHostActivity creates a link between a host and an activity in the host_activities junction table.
+// InsertHostActivity creates a link between a host and an activity in the host_activities join table.
 func (tdb *TestDB) InsertHostActivity(t *testing.T, hostID, activityID uint) {
 	t.Helper()
 	ctx := t.Context()

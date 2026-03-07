@@ -226,6 +226,25 @@ func (ds *Datastore) CleanupExpiredActivities(ctx context.Context, maxCount int,
 	return nil
 }
 
+// CleanupHostActivities removes host_activities rows for the given host IDs.
+func (ds *Datastore) CleanupHostActivities(ctx context.Context, hostIDs []uint) error {
+	ctx, span := tracer.Start(ctx, "activity.mysql.CleanupHostActivities")
+	defer span.End()
+
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	stmt, args, err := sqlx.In(`DELETE FROM host_activities WHERE host_id IN (?)`, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build host_activities IN query")
+	}
+	if _, err := ds.primary.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host_activities for deleted hosts")
+	}
+	return nil
+}
+
 // fetchActivityDetails fetches details for activities in a separate query
 // to avoid MySQL sort buffer issues with large JSON entries.
 func (ds *Datastore) fetchActivityDetails(ctx context.Context, activities []*api.Activity) error {

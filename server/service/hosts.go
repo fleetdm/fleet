@@ -584,6 +584,10 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 			return err
 		}
 
+		if err := svc.activitySvc.CleanupHostActivities(ctx, hostIDs); err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup host activities after bulk delete")
+		}
+
 		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, svc.NewActivity)
 		lifecycleErrs := []error{}
 		serialsWithErrs := []string{}
@@ -1085,6 +1089,10 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 
 	if err := svc.ds.DeleteHost(ctx, id); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete host")
+	}
+
+	if err := svc.activitySvc.CleanupHostActivities(ctx, []uint{id}); err != nil {
+		return ctxerr.Wrap(ctx, err, "cleanup host activities after delete")
 	}
 
 	// Create activity for host deletion
