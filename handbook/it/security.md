@@ -930,7 +930,7 @@ Users must not use the company's cloud resources to:
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @sampfluger88 | 2024-03-14   |
+| @allenhouchins | 2024-03-14   |
 
 Fleet requires all team members to comply with the following acceptable use requirements and procedures:
 
@@ -967,7 +967,7 @@ When in doubt, **ASK!** (in [#g-security](https://fleetdm.slack.com/archives/C03
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @sampfluger88 | 2024-03-14      |
+| @allenhouchins | 2024-03-14      |
 
 Fleet requires all workforce members to comply with the following acceptable use requirements and procedures, such that:
 
@@ -1045,7 +1045,7 @@ Fleet policy requires that:
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @sampfluger88 | 2024-03-14       |
+| @allenhouchins | 2024-03-14       |
 
 You can't protect what you can't see. Therefore, Fleet must maintain an accurate and up-to-date inventory of its physical and digital assets.
 
@@ -1086,7 +1086,7 @@ For new employees who have not received a company laptop or in cases where a com
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @sampfluger88 | 2024-03-14       |
+| @allenhouchins | 2024-03-14       |
 
 The Fleet business continuity and disaster recovery plan establishes procedures to recover Fleet following a disruption resulting from a disaster. 
 
