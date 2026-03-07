@@ -83,7 +83,7 @@ func testListActivitiesStreamed(t *testing.T, env *testEnv) {
 	ctx := t.Context()
 	userID := env.InsertUser(t, "testuser", "test@example.com")
 
-	var activityIDs []uint //nolint:nilaway // always populated by the loop below
+	activityIDs := make([]uint, 0, 3)
 	for i := range 3 {
 		id := env.InsertActivity(t, ptr.Uint(userID), "test_activity", map[string]any{"detail": i})
 		activityIDs = append(activityIDs, id)
