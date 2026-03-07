@@ -565,7 +565,6 @@ func TestScanVulnerabilities(t *testing.T) {
 	ds.DeleteOrphanedOSVulnerabilitiesFunc = func(ctx context.Context) error {
 		return nil
 	}
-
 	ds.ListCVEsFunc = func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
 		published := time.Date(2022, time.October, 26, 14, 15, 0, 0, time.UTC)
 

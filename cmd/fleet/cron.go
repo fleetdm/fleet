@@ -200,6 +200,9 @@ func scanVulnerabilities(
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 
 	// Clean up orphaned vulnerabilities (software/OS no longer associated with any host).
+	// This runs here (not in cleanups_then_aggregation) to stay in series with the scanners
+	// that write to the same tables, avoiding cross-schedule lock contention. The LEFT JOIN
+	// queries are index-backed on both sides, so execution time is fast for low orphan counts.
 	if err := ds.DeleteOrphanedSoftwareVulnerabilities(ctx); err != nil {
 		errHandler(ctx, logger, "deleting orphaned software vulnerabilities", err)
 	}
