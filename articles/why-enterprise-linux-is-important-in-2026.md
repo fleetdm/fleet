@@ -29,11 +29,11 @@ This level of Linux desktop OS adoption validates years of improvement and refin
 
 ### Windows 10 end-of-life
 
-In October 2025, Windows 10 reached official “end-of-life”. EOL means Microsoft stops providing standard support and security fixes. Organizations can pay for extended support until 2028, however, they can also reevaluate their device deployment strategy by offering Linux desktop OS as a replacement. Reports of increased Linux desktop market share and social media buzz around replacing Windows with Linux desktop prove this is occuring. 
+In October 2025, Windows 10 reached official “end-of-life”. EOL means Microsoft stops providing standard support and security fixes. Organizations can pay for extended support until 2028, however, they can also reevaluate their device deployment strategy by offering Linux desktop OS as a replacement. Reports of increased Linux desktop market share and [social media buzz around replacing Windows](https://www.notebookcheck.net/I-dumped-Windows-11-for-Linux-and-you-should-too.1190961.0.html) with Linux desktop prove this is occuring. 
 
 ### SaaS and web-based workflows
 
-Over the past decade, enterprise software has steadily moved to the cloud. Core business applications are increasingly delivered via “Software-as-a-Service” (SaaS). SaaS reduces dependence on locally installed Windows or macOS software. For developers and engineers, this shift is even more pronounced. Many essential tools are now browser-based or cloud-native. The software compatibility barriers that once blocked Linux desktop adoption are lower than ever.
+Over the past decade, enterprise software has moved to the cloud. Core business applications are increasingly delivered via “Software-as-a-Service” (SaaS). SaaS reduces dependence on locally installed Windows or macOS software. For developers and engineers, this shift is even more pronounced. Many essential tools are now browser-based or cloud-native. The software compatibility barriers that once blocked Linux desktop adoption are lower than ever.
 
 ### Cloud-native development
 
@@ -41,7 +41,7 @@ Modern software is commonly deployed on AWS, Azure, or Google Cloud, running in 
 
 ### Security and trust
 
-The rise in supply-chain attacks and large-scale malware campaigns has sharpened the focus on device visibility and threat detection. Organizations and governments increasingly recognize that, for sensitive deployments, open-source systems can offer a higher level of trust provided they are properly audited and managed.
+The rise in supply-chain attacks and large-scale malware campaigns has sharpened the focus on device visibility and threat detection. Organizations and governments increasingly recognize that, for sensitive deployments, open-source systems can offer a higher level of trust provided devices are properly audited and managed.
 
 ## Linux at work
 
@@ -65,9 +65,9 @@ Most organizations handle these challenges on macOS and Windows by using platfor
 
 ## The market is catching up
 
-The market for device management solutions focused on macOS and Windows is enormous. Organizations spend billions of dollars every year to secure these computers. An entire universe of solutions exists, ranging from patch management, device management, remote control, endpoint protection and more. All have focused on Windows and macOS because that’s what the enterprise was demanding. Now, the market is demanding more.
+The market for device management solutions focused on macOS and Windows is enormous. Organizations spend billions of dollars every year to secure these computers. An entire universe of solutions exists, ranging from patch management, device management, remote control, endpoint protection and more. The focus was on Windows and macOS because that’s what was demanded. Now, buyers are demanding more.
 
-The market for enterprise Linux management tools has historically been small. This has meant a lack of options. Fleet is a modern, cross-platform device management solution based on open-source technology that provides full management coverage for Linux devices. In 2026, it’s time to get serious about managing Linux. [Fleet](https://fleetdm.com/linux-management) can help.
+The market for enterprise Linux management tools has historically been small. This has meant a lack of options. Fleet is a modern, multi-platform device management solution based on open-source technology that provides [full management coverage for Linux devices](https://fleetdm.com/linux-management). In 2026, it’s time to get serious about managing Linux. Contact [Fleet](https://fleetdm.com/contact) today to learn more. 
 
 The [next article](https://fleetdm.com/articles/automated-provisioning-for-linux-desktop-in-the-enterprise) in this series will cover the value proposition and importance of automating Linux endpoint provisioning. 
 
