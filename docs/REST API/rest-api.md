@@ -9895,8 +9895,7 @@ Get a list of all software.
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         }
       ],
-      "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9",
-      "binary_sha256": "b0b1730ecbc7ff4505142c49f1295e6eda6bcaed7e2c68c5be91b5a11001f024"
+      "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9"
     },
     {
       "id": 22,
@@ -9930,8 +9929,7 @@ Get a list of all software.
           "vulnerabilities": ["CVE-2023-0987", "CVE-2023-5673", "CVE-2023-1334"]
         },
       ],
-      "hash_sha256": "ca30af561de15bb26186efcbcc59f3936c67d81e071e96fa8afa1e867a67a04f",
-      "binary_sha256": "7afc9d01a62f03a2de9637936d4afe68090d2de18d03f29c88cfb0b1ba63587f"
+      "hash_sha256": "ca30af561de15bb26186efcbcc59f3936c67d81e071e96fa8afa1e867a67a04f"
     },
     {
       "id": 32,
@@ -10209,7 +10207,6 @@ Returns information about the specified software. By default, `versions` are sor
       "team_id": 3,
       "uploaded_at": "2024-04-01T14:22:58Z",
       "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-      "binary_sha256": "7afc9d01a62f03a2de9637936d4afe68090d2de18d03f29c88cfb0b1ba63587f",
       "install_script": "sudo installer -pkg '$INSTALLER_PATH' -target /",
       "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
@@ -10398,7 +10395,6 @@ Returns information about the specified software. By default, `versions` are sor
       "categories": null,
       "uploaded_at": "2025-08-15T00:55:03.96954Z",
       "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9",
-      "binary_sha256": "7afc9d01a62f03a2de9637936d4afe68090d2de18d03f29c88cfb0b1ba63587f",
       "title_id": 12,
       "team_id": 3,
       "status": {
@@ -10669,7 +10665,6 @@ labels_exclude_any="QA"
     "team_id": 3,
     "uploaded_at": "2024-04-01T14:22:58Z",
     "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    "binary_sha256": "7afc9d01a62f03a2de9637936d4afe68090d2de18d03f29c88cfb0b1ba63587f",
     "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
     "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
     "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
@@ -10755,7 +10750,6 @@ post_install_script="sudo /Applications/Falcon.app/Contents/Resources/falconctl 
     "team_id": 3,
     "uploaded_at": "2024-04-01T14:22:58Z",
     "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    "binary_sha256": "7afc9d01a62f03a2de9637936d4afe68090d2de18d03f29c88cfb0b1ba63587f",
     "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
     "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
     "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
