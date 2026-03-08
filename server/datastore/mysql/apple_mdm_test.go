@@ -10297,21 +10297,3 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.False(t, hostInList(hosts, hostNoTeam.ID), "no-team host should NOT be eligible when app config disabled")
 }
-
-// insertNanoCommand inserts a nano_command record for testing.
-func insertNanoCommand(t *testing.T, ds *Datastore, commandUUID, requestType string) {
-	_, err := ds.writer(t.Context()).Exec(`
-		INSERT INTO nano_commands (command_uuid, request_type, command, created_at, updated_at)
-		VALUES (?, ?, '<?xml version="1.0"?><plist></plist>', NOW(), NOW())
-	`, commandUUID, requestType)
-	require.NoError(t, err)
-}
-
-// insertNanoCommandResult inserts a nano_command_results record for testing.
-func insertNanoCommandResult(t *testing.T, ds *Datastore, commandUUID, deviceID, status, result string) {
-	_, err := ds.writer(t.Context()).Exec(`
-		INSERT INTO nano_command_results (command_uuid, id, status, result, not_now_at, created_at, updated_at)
-		VALUES (?, ?, ?, ?, NULL, NOW(), NOW())
-	`, commandUUID, deviceID, status, result)
-	require.NoError(t, err)
-}

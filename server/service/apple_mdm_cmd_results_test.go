@@ -289,7 +289,7 @@ func TestInstalledApplicationListHandler(t *testing.T) {
 
 // mockRecoveryLockVerifier implements RecoveryLockVerifier for testing.
 type mockRecoveryLockVerifier struct {
-	verifyRecoveryLockFn func(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error
+	verifyRecoveryLockFn    func(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error
 	verifyRecoveryLockCalls []struct {
 		hostUUIDs []string
 		cmdUUID   string
