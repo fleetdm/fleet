@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/scim2/filter-parser/v2"
 )
 
@@ -43,16 +42,16 @@ const (
 )
 
 type UserHandler struct {
-	ds             fleet.Datastore
-	activityModule activities.ActivityModule
-	logger         *slog.Logger
+	ds          fleet.Datastore
+	newActivity fleet.NewActivityFunc
+	logger      *slog.Logger
 }
 
 // Compile-time check
 var _ scim.ResourceHandler = &UserHandler{}
 
-func NewUserHandler(ds fleet.Datastore, activityModule activities.ActivityModule, logger *slog.Logger) scim.ResourceHandler {
-	return &UserHandler{ds: ds, activityModule: activityModule, logger: logger}
+func NewUserHandler(ds fleet.Datastore, newActivity fleet.NewActivityFunc, logger *slog.Logger) scim.ResourceHandler {
+	return &UserHandler{ds: ds, newActivity: newActivity, logger: logger}
 }
 
 func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes) (scim.Resource, error) {
@@ -620,7 +619,7 @@ func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fle
 		return ctxerr.Wrap(ctx, err, "delete fleet user")
 	}
 
-	if err := u.activityModule.NewActivity(
+	if err := u.newActivity(
 		ctx,
 		nil,
 		fleet.ActivityTypeDeletedUser{

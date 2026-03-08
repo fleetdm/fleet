@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -69,6 +70,12 @@ func gitOpsFromString(t *testing.T, s string) (*GitOps, error) {
 }
 
 func nopLogf(_ string, _ ...interface{}) {
+}
+
+func premiumAppConfig() *fleet.EnrichedAppConfig {
+	ac := &fleet.EnrichedAppConfig{}
+	ac.License = &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	return ac
 }
 
 func TestValidGitOpsYaml(t *testing.T) {
@@ -285,6 +292,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "windows_settings not found")
 				_, ok = gitops.Controls.EnableDiskEncryption.(bool)
 				assert.True(t, ok, "enable_disk_encryption not found")
+				_, ok = gitops.Controls.EnableRecoveryLockPassword.(bool)
+				assert.True(t, ok, "enable_recovery_lock_password not found")
 				_, ok = gitops.Controls.MacOSMigration.(map[string]interface{})
 				assert.True(t, ok, "macos_migration not found")
 				assert.NotNil(t, gitops.Controls.MacOSSetup, "macos_setup not found")
@@ -435,7 +444,7 @@ reports:
   logging: snapshot
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "duplicate query names")
+	assert.ErrorContains(t, err, "duplicate report names")
 }
 
 func TestUnicodeQueryNames(t *testing.T) {
@@ -453,7 +462,7 @@ reports:
   logging: snapshot
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "query name must be in ASCII")
+	assert.ErrorContains(t, err, "`name` must be in ASCII")
 }
 
 func TestUnicodeTeamName(t *testing.T) {
@@ -722,11 +731,13 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					_, err = GitOpsFromFile(unassignedPath5, unassignedBasePath5, nil, nopLogf)
 					assert.ErrorContains(t, err, "unsupported settings option 'features' in unassigned.yml")
 
-					// Missing secrets
+					// Missing secrets -- should be a no-op (existing secrets preserved)
 					config = getConfig([]string{"settings"})
 					config += "settings:\n"
-					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "'settings.secrets' is required")
+					result, err := gitOpsFromString(t, config)
+					assert.NoError(t, err)
+					_, hasSecrets := result.TeamSettings["secrets"]
+					assert.False(t, hasSecrets, "secrets should not be set when omitted from config")
 				} else {
 					// 'software' is not allowed in global config
 					config := getConfig(nil)
@@ -767,11 +778,25 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "must have a 'secret' key")
 
-					// Missing secrets
+					// Invalid secrets 3 (using wrong type in one key)
+					config = getConfig([]string{"org_settings"})
+					config += "org_settings:\n  secrets: \n    - secret: some secret\n    - secret: 123\n"
+					_, err = gitOpsFromString(t, config)
+					assert.ErrorContains(t, err, "each item in 'secrets' must have a 'secret' key")
+
+					// Missing secrets -- should be a no-op (existing secrets preserved)
 					config = getConfig([]string{"org_settings"})
 					config += "org_settings:\n"
+					result, err := gitOpsFromString(t, config)
+					assert.NoError(t, err)
+					_, hasSecrets := result.OrgSettings["secrets"]
+					assert.False(t, hasSecrets, "secrets should not be set when omitted from config")
+
+					// Empty secrets (valid, will remove all secrets)
+					config = getConfig([]string{"org_settings"})
+					config += "org_settings:\n  secrets: \n"
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "'org_settings.secrets' is required")
+					assert.NoError(t, err)
 
 					// Bad label spec (float instead of string in hosts)
 					config = getConfig([]string{"labels"})
@@ -856,17 +881,17 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				_, err = gitOpsFromString(t, config)
 				assert.ErrorContains(t, err, "expected type spec.Query but got number")
 
-				// Query name missing
+				// Report name missing
 				config = getConfig([]string{"reports"})
 				config += "reports:\n  - query: SELECT 1;\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "name is required")
+				assert.ErrorContains(t, err, "`name` is required")
 
-				// Query SQL query missing
+				// Report SQL missing
 				config = getConfig([]string{"reports"})
 				config += "reports:\n  - name: Test Query\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "query is required")
+				assert.ErrorContains(t, err, "`query` is required")
 			},
 		)
 	}
@@ -1662,5 +1687,1081 @@ policies: []
 		assert.NoError(t, err)
 		assert.NotNil(t, gitops)
 		assert.NotNil(t, gitops.TeamSettings["webhook_settings"])
+	})
+}
+
+func TestContainsGlobMeta(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"./scripts/foo.sh", false},
+		{"./scripts/*.sh", true},
+		{"./scripts/**/*.sh", true},
+		{"./scripts/[abc].sh", true},
+		{"./scripts/{a,b}.sh", true},
+		{"./scripts/foo?.sh", true},
+		{"", false},
+	}
+	for _, tt := range tests {
+		assert.Equal(t, tt.want, containsGlobMeta(tt.input), "containsGlobMeta(%q)", tt.input)
+	}
+}
+
+func TestResolveScriptPathsGlob(t *testing.T) {
+	t.Parallel()
+
+	// requireErrorContains is a helper that asserts at least one error contains substr.
+	requireErrorContains := func(t *testing.T, errs []error, substr string) {
+		t.Helper()
+		require.NotEmpty(t, errs, "expected errors but got none")
+		var found bool
+		for _, err := range errs {
+			if strings.Contains(err.Error(), substr) {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "expected an error containing %q, got: %v", substr, errs)
+	}
+
+	t.Run("basic_glob", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "c.ps1"), []byte("# powershell"), 0o644))
+
+		items := []BaseItem{{Paths: ptr.String("*.sh")}}
+		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 2)
+		assert.Equal(t, filepath.Join(dir, "a.sh"), *result[0].Path)
+		assert.Equal(t, filepath.Join(dir, "b.sh"), *result[1].Path)
+		// Paths field should not be set on expanded items
+		assert.Nil(t, result[0].Paths)
+		assert.Nil(t, result[1].Paths)
+	})
+
+	t.Run("recursive_glob", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		subdir := filepath.Join(dir, "sub")
+		require.NoError(t, os.MkdirAll(subdir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "top.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(subdir, "nested.sh"), []byte("#!/bin/bash"), 0o644))
+
+		items := []BaseItem{{Paths: ptr.String("**/*.sh")}}
+		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 2)
+		// Results are sorted
+		assert.Equal(t, filepath.Join(subdir, "nested.sh"), *result[0].Path)
+		assert.Equal(t, filepath.Join(dir, "top.sh"), *result[1].Path)
+	})
+
+	t.Run("mixed_path_and_paths", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "single.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "glob1.ps1"), []byte("# ps1"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "glob2.ps1"), []byte("# ps1"), 0o644))
+
+		items := []BaseItem{
+			{Path: ptr.String("single.sh")},
+			{Paths: ptr.String("*.ps1")},
+		}
+		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 3)
+		assert.Equal(t, filepath.Join(dir, "single.sh"), *result[0].Path)
+		assert.Equal(t, filepath.Join(dir, "glob1.ps1"), *result[1].Path)
+		assert.Equal(t, filepath.Join(dir, "glob2.ps1"), *result[2].Path)
+	})
+
+	t.Run("paths_without_glob_error", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{Paths: ptr.String("scripts/foo.sh")}}
+		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
+		requireErrorContains(t, errs, `does not contain glob characters`)
+	})
+
+	t.Run("path_with_glob_error", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{Path: ptr.String("scripts/*.sh")}}
+		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
+		requireErrorContains(t, errs, `contains glob characters`)
+	})
+
+	t.Run("both_path_and_paths_error", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{Path: ptr.String("foo.sh"), Paths: ptr.String("*.sh")}}
+		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
+		requireErrorContains(t, errs, `cannot have both "path" and "paths"`)
+	})
+
+	t.Run("neither_path_nor_paths_error", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{}}
+		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
+		requireErrorContains(t, errs, `no "path" or "paths" field`)
+	})
+
+	t.Run("no_matches_warning", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		var warnings []string
+		logFn := func(format string, args ...any) {
+			warnings = append(warnings, fmt.Sprintf(format, args...))
+		}
+		items := []BaseItem{{Paths: ptr.String("*.sh")}}
+		result, errs := resolveScriptPaths(items, dir, logFn)
+		require.Empty(t, errs)
+		assert.Empty(t, result)
+		require.Len(t, warnings, 1)
+		assert.Contains(t, warnings[0], "matched no script")
+	})
+
+	t.Run("duplicate_basenames_error", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		sub1 := filepath.Join(dir, "sub1")
+		sub2 := filepath.Join(dir, "sub2")
+		require.NoError(t, os.MkdirAll(sub1, 0o755))
+		require.NoError(t, os.MkdirAll(sub2, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(sub1, "dup.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(sub2, "dup.sh"), []byte("#!/bin/bash"), 0o644))
+
+		items := []BaseItem{{Paths: ptr.String("**/*.sh")}}
+		_, errs := resolveScriptPaths(items, dir, nopLogf)
+		requireErrorContains(t, errs, "duplicate script basename")
+	})
+
+	t.Run("duplicate_basenames_across_items_error", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		sub := filepath.Join(dir, "sub")
+		require.NoError(t, os.MkdirAll(sub, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "script.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(sub, "script.sh"), []byte("#!/bin/bash"), 0o644))
+
+		items := []BaseItem{
+			{Path: ptr.String("script.sh")},
+			{Paths: ptr.String("sub/*.sh")},
+		}
+		_, errs := resolveScriptPaths(items, dir, nopLogf)
+		requireErrorContains(t, errs, "duplicate script basename")
+	})
+
+	t.Run("non_script_files_skipped_with_warning", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "good.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "bad.txt"), []byte("text"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "bad.py"), []byte("python"), 0o644))
+
+		var warnings []string
+		logFn := func(format string, args ...any) {
+			warnings = append(warnings, fmt.Sprintf(format, args...))
+		}
+
+		items := []BaseItem{{Paths: ptr.String("*")}}
+		result, errs := resolveScriptPaths(items, dir, logFn)
+		require.Empty(t, errs)
+		require.Len(t, result, 1)
+		assert.Equal(t, filepath.Join(dir, "good.sh"), *result[0].Path)
+		assert.Len(t, warnings, 2)
+	})
+
+	// Results are only sorted for the sake of tests,
+	// but having an explicit test protects against regression.
+	t.Run("results_sorted", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "z.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "m.sh"), []byte("#!/bin/bash"), 0o644))
+
+		items := []BaseItem{{Paths: ptr.String("*.sh")}}
+		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 3)
+		assert.Equal(t, filepath.Join(dir, "a.sh"), *result[0].Path)
+		assert.Equal(t, filepath.Join(dir, "m.sh"), *result[1].Path)
+		assert.Equal(t, filepath.Join(dir, "z.sh"), *result[2].Path)
+	})
+
+	t.Run("multiple_errors_collected", func(t *testing.T) {
+		t.Parallel()
+		items := []BaseItem{{}, {Path: ptr.String("scripts/*.sh")}, {Paths: ptr.String("noglob.sh")}}
+		_, errs := resolveScriptPaths(items, "", nil)
+		require.Len(t, errs, 3)
+		assert.Contains(t, errs[0].Error(), `no "path" or "paths"`)
+		assert.Contains(t, errs[1].Error(), `contains glob characters`)
+		assert.Contains(t, errs[2].Error(), `does not contain glob characters`)
+	})
+}
+
+func TestGitOpsGlobScripts(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	scriptsDir := filepath.Join(dir, "scripts")
+	require.NoError(t, os.MkdirAll(scriptsDir, 0o755))
+	scriptsSubDir := filepath.Join(scriptsDir, "sub")
+	require.NoError(t, os.MkdirAll(scriptsSubDir, 0o755))
+
+	// Create script files
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "alpha.sh"), []byte("#!/bin/bash\necho alpha"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "beta.sh"), []byte("#!/bin/bash\necho beta"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsDir, "gamma.ps1"), []byte("Write-Host gamma"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(scriptsSubDir, "delta.sh"), []byte("nada"), 0o644))
+
+	// Write a gitops YAML file that uses paths: glob
+	config := getGlobalConfig([]string{"controls"})
+	config += `controls:
+  scripts:
+    - paths: scripts/*.sh
+    - path: scripts/gamma.ps1
+`
+	yamlPath := filepath.Join(dir, "gitops.yml")
+	require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+	result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+	require.NoError(t, err)
+	require.Len(t, result.Controls.Scripts, 3)
+
+	// Glob results come first (sorted), then the explicit path
+	assert.Equal(t, filepath.Join(scriptsDir, "alpha.sh"), *result.Controls.Scripts[0].Path)
+	assert.Equal(t, filepath.Join(scriptsDir, "beta.sh"), *result.Controls.Scripts[1].Path)
+	assert.Equal(t, filepath.Join(scriptsDir, "gamma.ps1"), *result.Controls.Scripts[2].Path)
+}
+
+func TestUnknownKeyDetection(t *testing.T) {
+	t.Parallel()
+
+	t.Run("unknown key in controls", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+agent_options:
+controls:
+  macos_updates:
+    minimum_version: "14.0"
+    deadline: "2024-01-01"
+  unknown_control_field: true
+reports:
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_control_field")
+	})
+
+	t.Run("unknown key in controls macos_updates (any-field)", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+agent_options:
+controls:
+  macos_updates:
+    minimum_version: "14.0"
+    deadlinee: "2024-01-01"
+reports:
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "deadlinee")
+		assert.Contains(t, err.Error(), `did you mean "deadline"?`)
+		assert.Contains(t, err.Error(), "controls.macos_updates")
+	})
+
+	t.Run("unknown key in query entry", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+agent_options:
+controls:
+reports:
+  - name: test_query
+    query: SELECT 1;
+    unknown_query_field: true
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_query_field")
+	})
+
+	t.Run("unknown key in policy entry", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+agent_options:
+controls:
+reports:
+policies:
+  - name: test_policy
+    query: SELECT 1;
+    unknown_policy_field: true
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_policy_field")
+	})
+
+	t.Run("unknown key in label entry", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+agent_options:
+controls:
+labels:
+  - name: test_label
+    query: SELECT 1
+    label_membership_type: dynamic
+    unknown_label_field: true
+reports:
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_label_field")
+	})
+
+	t.Run("unknown key in software section", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+agent_options:
+controls:
+reports:
+policies:
+software:
+  unknown_software_field: true
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_software_field")
+	})
+
+	t.Run("multiple unknown keys reported at once", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+agent_options:
+controls:
+  bad_control_key: true
+reports:
+  - name: test_query
+    query: SELECT 1;
+    bad_query_key: true
+policies:
+  - name: test_policy
+    query: SELECT 1;
+    bad_policy_key: true
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "bad_control_key")
+		assert.Contains(t, err.Error(), "bad_query_key")
+		assert.Contains(t, err.Error(), "bad_policy_key")
+	})
+
+	t.Run("multiple unknown keys within a single section", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+agent_options:
+controls:
+  macos_updates:
+    minimum_version: "14.0"
+    deadlinee: "2024-01-01"
+    update_new_hostss: true
+  bad_control_key: true
+reports:
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "deadlinee")
+		assert.Contains(t, err.Error(), "update_new_hostss")
+		assert.Contains(t, err.Error(), "bad_control_key")
+	})
+
+	t.Run("valid config no unknown key errors", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+agent_options:
+controls:
+  macos_updates:
+    minimum_version: "14.0"
+    deadline: "2024-01-01"
+reports:
+  - name: test_query
+    query: SELECT 1;
+    interval: 3600
+policies:
+  - name: test_policy
+    query: SELECT 1;
+    description: A test policy
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+	})
+
+	t.Run("allow-unknown-keys option logs instead of erroring", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+agent_options:
+controls:
+  unknown_control_field: true
+reports:
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		var logMessages []string
+		sawExpectErrorMsg := false
+		logFn := func(format string, a ...any) {
+			msg := fmt.Sprintf(format, a...)
+			if strings.Contains(msg, "unknown_control_field") {
+				sawExpectErrorMsg = true
+			}
+			logMessages = append(logMessages, msg)
+		}
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), logFn, GitOpsOptions{AllowUnknownKeys: true})
+		require.NoError(t, err)
+		// Should have logged a warning about the unknown key
+		require.NotEmpty(t, logMessages)
+		assert.True(t, sawExpectErrorMsg, "expected warning about unknown_control_field in log messages: %v", logMessages)
+	})
+
+	t.Run("unknown key in controls on no-team path", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: No team
+controls:
+  unknown_control_field: true
+policies:
+`
+		path, basePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_control_field")
+	})
+
+	t.Run("unknown key in software package via path", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: pkg.yml
+`
+		path, basePath := createTempFile(t, "", config)
+		pkgYAML := `
+url: https://example.com/pkg.pkg
+hash_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+unknown_pkg_field: bad
+`
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "pkg.yml"), []byte(pkgYAML), 0o644))
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_pkg_field")
+	})
+
+	t.Run("unknown key in software package array via path", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: pkgs.yml
+`
+		path, basePath := createTempFile(t, "", config)
+		pkgYAML := `
+- url: https://example.com/pkg.pkg
+  hash_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  unknown_array_field: bad
+`
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "pkgs.yml"), []byte(pkgYAML), 0o644))
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_array_field")
+	})
+
+	t.Run("unknown key in policy install_software package_path", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig([]string{"policies", "software"})
+		config += `
+software:
+  packages:
+    - url: https://example.com/pkg.pkg
+      hash_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+policies:
+  - name: Test policy
+    query: SELECT 1;
+    install_software:
+      package_path: pkg.yml
+`
+		path, basePath := createTempFile(t, "", config)
+		pkgYAML := `
+url: https://example.com/pkg.pkg
+hash_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+unknown_policy_pkg_field: bad
+`
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "pkg.yml"), []byte(pkgYAML), 0o644))
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_policy_pkg_field")
+	})
+}
+
+// TestControlsNewKeyNames verifies that the new multi-platform key names
+// (apple_settings, setup_experience, configuration_profiles, apple_setup_assistant)
+// are accepted in controls parsing and produce the same result as the old names.
+func TestControlsNewKeyNames(t *testing.T) {
+	t.Parallel()
+
+	// Test with inline controls using new key names
+	t.Run("inline_new_names", func(t *testing.T) {
+		t.Parallel()
+
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "windows-screenlock.xml"), []byte("<xml/>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "collect-fleetd-logs.sh"), []byte("#!/bin/bash"), 0o644))
+
+		config := `
+controls:
+  apple_settings:
+    configuration_profiles:
+      - path: ./lib/macos-password.mobileconfig
+  windows_settings:
+    configuration_profiles:
+      - path: ./lib/windows-screenlock.xml
+  scripts:
+    - path: ./lib/collect-fleetd-logs.sh
+  enable_disk_encryption: true
+  setup_experience:
+    bootstrap_package: null
+    enable_end_user_authentication: false
+    apple_setup_assistant: null
+  macos_updates:
+    deadline: null
+    minimum_version: null
+  windows_enabled_and_configured: true
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: Test Org
+  secrets:
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		gitops, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+
+		// Verify controls parsed correctly with new key names
+		macSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
+		require.True(t, ok, "macos_settings (via apple_settings) not parsed")
+		require.Len(t, macSettings.CustomSettings, 1)
+
+		winSettings, ok := gitops.Controls.WindowsSettings.(fleet.WindowsSettings)
+		require.True(t, ok, "windows_settings not parsed")
+		require.True(t, winSettings.CustomSettings.Valid)
+		require.Len(t, winSettings.CustomSettings.Value, 1)
+
+		require.NotNil(t, gitops.Controls.MacOSSetup, "macos_setup (via setup_experience) not parsed")
+
+		diskEnc, ok := gitops.Controls.EnableDiskEncryption.(bool)
+		require.True(t, ok)
+		require.True(t, diskEnc)
+	})
+
+	// Test with external controls file using new key names
+	t.Run("external_file_new_names", func(t *testing.T) {
+		t.Parallel()
+
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "windows-screenlock.xml"), []byte("<xml/>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "collect-fleetd-logs.sh"), []byte("#!/bin/bash"), 0o644))
+
+		controlsYAML := `
+apple_settings:
+  configuration_profiles:
+    - path: ./lib/macos-password.mobileconfig
+windows_settings:
+  configuration_profiles:
+    - path: ./lib/windows-screenlock.xml
+scripts:
+  - path: ./lib/collect-fleetd-logs.sh
+enable_disk_encryption: true
+setup_experience:
+  bootstrap_package: null
+  enable_end_user_authentication: false
+  apple_setup_assistant: null
+macos_updates:
+  deadline: null
+  minimum_version: null
+windows_enabled_and_configured: true
+`
+		controlsPath := filepath.Join(dir, "controls.yml")
+		require.NoError(t, os.WriteFile(controlsPath, []byte(controlsYAML), 0o644))
+
+		config := `
+controls:
+  path: ./controls.yml
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: Test Org
+  secrets:
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		gitops, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+
+		// Verify controls parsed correctly from external file with new key names
+		macSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
+		require.True(t, ok, "macos_settings (via apple_settings in external file) not parsed")
+		require.Len(t, macSettings.CustomSettings, 1)
+
+		winSettings, ok := gitops.Controls.WindowsSettings.(fleet.WindowsSettings)
+		require.True(t, ok, "windows_settings not parsed")
+		require.True(t, winSettings.CustomSettings.Valid)
+		require.Len(t, winSettings.CustomSettings.Value, 1)
+
+		require.NotNil(t, gitops.Controls.MacOSSetup, "macos_setup (via setup_experience in external file) not parsed")
+	})
+
+	// Test that duplicate settings with old and new key names produce an error
+	t.Run("duplicate_old_and_new_keys_error_apple_settings", func(t *testing.T) {
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:		
+controls:
+  apple_settings:
+    configuration_profiles:
+      - path: ./lib/macos-password.mobileconfig
+  macos_settings:
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "apple_settings")
+		require.Contains(t, err.Error(), "`macos_settings` (deprecated)")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_apple_custom_settings", func(t *testing.T) {
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:		
+controls:
+  apple_settings:
+    configuration_profiles:
+      - path: ./lib/macos-password.mobileconfig
+    custom_settings:
+      - path: ./lib/macos-password.mobileconfig
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "configuration_profiles")
+		require.Contains(t, err.Error(), "`custom_settings` (deprecated)")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_windows_custom_settings", func(t *testing.T) {
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:		
+controls:
+  windows_settings:
+    configuration_profiles:
+      - path: ./lib/foo
+    custom_settings:
+      - path: ./lib/bar
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "configuration_profiles")
+		require.Contains(t, err.Error(), "`custom_settings` (deprecated)")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_android_custom_settings", func(t *testing.T) {
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:		
+controls:
+  android_settings:
+    configuration_profiles:
+      - path: ./lib/foo
+    custom_settings:
+      - path: ./lib/bar
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "configuration_profiles")
+		require.Contains(t, err.Error(), "`custom_settings` (deprecated)")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_setup_experience", func(t *testing.T) {
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:		
+controls:
+  setup_experience:
+  macos_setup:    
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "setup_experience")
+		require.Contains(t, err.Error(), "`macos_setup` (deprecated)")
+	})
+
+	t.Run("duplicate_keys_external_file", func(t *testing.T) {
+		t.Parallel()
+
+		dir := t.TempDir()
+		profileDir := filepath.Join(dir, "lib")
+		require.NoError(t, os.Mkdir(profileDir, 0o755))
+
+		controlsYAML := `
+apple_settings:
+macos_settings:
+`
+		controlsPath := filepath.Join(dir, "controls.yml")
+		require.NoError(t, os.WriteFile(controlsPath, []byte(controlsYAML), 0o644))
+
+		config := `
+controls:
+  path: ./controls.yml
+reports:
+policies:
+agent_options:
+org_settings:
+  secrets:
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "apple_settings")
+		require.Contains(t, err.Error(), "`macos_settings` (deprecated)")
+	})
+}
+
+func TestSoftwarePackagesScriptPath(t *testing.T) {
+	t.Parallel()
+	appConfig := &fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+
+	t.Run("valid_sh_script_path", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/install-app.sh
+      categories:
+        - Utilities
+      self_service: true
+`
+		path, basePath := createTempFile(t, "", config)
+
+		err := file.Copy(
+			filepath.Join("testdata", "software", "install-app.sh"),
+			filepath.Join(basePath, "software", "install-app.sh"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		assert.True(t, strings.HasSuffix(result.Software.Packages[0].InstallScript.Path, "install-app.sh"))
+		assert.Equal(t, []string{"Utilities"}, result.Software.Packages[0].Categories)
+		assert.True(t, result.Software.Packages[0].SelfService)
+		assert.Empty(t, result.Software.Packages[0].URL)
+		assert.Empty(t, result.Software.Packages[0].SHA256)
+	})
+
+	t.Run("valid_ps1_script_path", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/install-app.ps1
+      self_service: false
+`
+		path, basePath := createTempFile(t, "", config)
+
+		// Copy the test script file
+		err := file.Copy(
+			filepath.Join("testdata", "software", "install-app.ps1"),
+			filepath.Join(basePath, "software", "install-app.ps1"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		assert.True(t, strings.HasSuffix(result.Software.Packages[0].InstallScript.Path, "install-app.ps1"))
+	})
+
+	t.Run("invalid_extension_error", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/install-app.txt
+`
+		path, basePath := createTempFile(t, "", config)
+
+		// Create a .txt file
+		err := os.MkdirAll(filepath.Join(basePath, "software"), 0o755)
+		require.NoError(t, err)
+		err = os.WriteFile(filepath.Join(basePath, "software", "install-app.txt"), []byte("test"), 0o644)
+		require.NoError(t, err)
+
+		_, err = GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		assert.ErrorContains(t, err, "unsupported extension")
+		assert.ErrorContains(t, err, "only .yml, .yaml, .sh, or .ps1 files are supported")
+	})
+
+	t.Run("script_with_team_options", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/install-app.sh
+      categories:
+        - Browsers
+        - Productivity
+      self_service: true
+      setup_experience: true
+      labels_include_any:
+        - include_label
+`
+		path, basePath := createTempFile(t, "", config)
+
+		err := file.Copy(
+			filepath.Join("testdata", "software", "install-app.sh"),
+			filepath.Join(basePath, "software", "install-app.sh"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		pkg := result.Software.Packages[0]
+		assert.Equal(t, []string{"Browsers", "Productivity"}, pkg.Categories)
+		assert.True(t, pkg.SelfService)
+		assert.True(t, pkg.InstallDuringSetup.Value)
+		assert.Equal(t, []string{"include_label"}, pkg.LabelsIncludeAny)
+	})
+
+	t.Run("mixed_yaml_and_script_paths", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/single-package.yml
+    - path: software/install-app.sh
+      self_service: true
+`
+		path, basePath := createTempFile(t, "", config)
+
+		err := file.Copy(
+			filepath.Join("testdata", "software", "single-package.yml"),
+			filepath.Join(basePath, "software", "single-package.yml"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+		err = file.Copy(
+			filepath.Join("testdata", "software", "install-app.sh"),
+			filepath.Join(basePath, "software", "install-app.sh"),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 2)
+		assert.NotEmpty(t, result.Software.Packages[0].SHA256)
+		assert.True(t, strings.HasSuffix(result.Software.Packages[1].InstallScript.Path, "install-app.sh"))
+		assert.True(t, result.Software.Packages[1].SelfService)
+	})
+}
+
+func TestParsePolicyInstallSoftware(t *testing.T) {
+	t.Parallel()
+
+	teamName := "test-team"
+
+	t.Run("wrapErrs prefixes errors", func(t *testing.T) {
+		t.Parallel()
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "my policy"},
+				InstallSoftware: &PolicyInstallSoftware{
+					// no package_path, app_store_id, or hash_sha256
+				},
+			},
+		}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil)
+		require.Len(t, errs, 1)
+		assert.Equal(t, errs[0].Error(), `failed to parse policy install_software "my policy": install_software must include either a package_path, an app_store_id or a hash_sha256`)
+	})
+
+	t.Run("unknown key in package_path file", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		sha := "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+		content := fmt.Sprintf("hash_sha256: %s\nbad_field: oops\n", sha)
+		path := filepath.Join(dir, "pkg.yml")
+		require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec: fleet.PolicySpec{Name: "typo policy"},
+				InstallSoftware: &PolicyInstallSoftware{
+					PackagePath: path,
+				},
+			},
+		}
+		packages := []*fleet.SoftwarePackageSpec{{SHA256: sha}}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, packages, nil)
+		require.Len(t, errs, 1)
+		var unknownErr *ParseUnknownKeyError
+		require.ErrorAs(t, errs[0], &unknownErr)
+		assert.Equal(t, "bad_field", unknownErr.Field)
 	})
 }

@@ -607,6 +607,7 @@ func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fl
 		return "", ctxerr.Wrap(ctx, err, "creating request")
 	}
 	req.SetBasicAuth(ca.Username, ca.Password)
+	req.Header.Set("Content-Type", "application/json")
 	startRequestTime := time.Now()
 	resp, err := client.Do(req)
 	endRequestTime := time.Now()
