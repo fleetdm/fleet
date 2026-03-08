@@ -10173,7 +10173,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	hostARM := test.NewHost(t, ds, "arm-host", "1.2.5.1", "armkey", "armuuid", time.Now(),
 		test.WithPlatform("darwin"), test.WithTeamID(teamARM.ID))
 	setHostCPUType(hostARM.ID, "arm64")
-	nanoEnroll(t, ds, hostARM, false)
+	nanoEnrollAndSetHostMDMData(t, ds, hostARM, false)
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
@@ -10184,7 +10184,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	hostIntel := test.NewHost(t, ds, "intel-host", "1.2.5.2", "intelkey", "inteluuid", time.Now(),
 		test.WithPlatform("darwin"), test.WithTeamID(teamIntel.ID))
 	setHostCPUType(hostIntel.ID, "x86_64")
-	nanoEnroll(t, ds, hostIntel, false)
+	nanoEnrollAndSetHostMDMData(t, ds, hostIntel, false)
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
@@ -10195,7 +10195,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	hostDisabled := test.NewHost(t, ds, "disabled-team-host", "1.2.5.4", "dtkey", "dtuuid", time.Now(),
 		test.WithPlatform("darwin"), test.WithTeamID(teamDisabled.ID))
 	setHostCPUType(hostDisabled.ID, "arm64e")
-	nanoEnroll(t, ds, hostDisabled, false)
+	nanoEnrollAndSetHostMDMData(t, ds, hostDisabled, false)
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
@@ -10216,7 +10216,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	teamNotDarwin := createTeamWithRecoveryLock("team-not-darwin", true)
 	hostWindows := test.NewHost(t, ds, "windows-host", "1.2.5.6", "wkey", "wuuid", time.Now(),
 		test.WithPlatform("windows"), test.WithTeamID(teamNotDarwin.ID))
-	nanoEnroll(t, ds, hostWindows, false)
+	nanoEnrollAndSetHostMDMData(t, ds, hostWindows, false)
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
@@ -10227,7 +10227,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	hostPending := test.NewHost(t, ds, "pending-host2", "1.2.5.7", "pkey2", "puuid2", time.Now(),
 		test.WithPlatform("darwin"), test.WithTeamID(teamPending.ID))
 	setHostCPUType(hostPending.ID, "arm64e")
-	nanoEnroll(t, ds, hostPending, false)
+	nanoEnrollAndSetHostMDMData(t, ds, hostPending, false)
 	pendingPW, err := apple_mdm.GenerateRecoveryLockPassword()
 	require.NoError(t, err)
 	err = ds.SetHostsRecoveryLockPasswords(ctx, map[uint]string{hostPending.ID: pendingPW})
@@ -10244,7 +10244,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	hostVerified := test.NewHost(t, ds, "verified-host2", "1.2.5.8", "vkey2", "vuuid2", time.Now(),
 		test.WithPlatform("darwin"), test.WithTeamID(teamVerified.ID))
 	setHostCPUType(hostVerified.ID, "arm64e")
-	nanoEnroll(t, ds, hostVerified, false)
+	nanoEnrollAndSetHostMDMData(t, ds, hostVerified, false)
 	verifiedPW, err := apple_mdm.GenerateRecoveryLockPassword()
 	require.NoError(t, err)
 	err = ds.SetHostsRecoveryLockPasswords(ctx, map[uint]string{hostVerified.ID: verifiedPW})
@@ -10261,7 +10261,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	hostNoTeam := test.NewHost(t, ds, "no-team-host", "1.2.5.9", "ntkey", "ntuuid", time.Now(),
 		test.WithPlatform("darwin"))
 	setHostCPUType(hostNoTeam.ID, "arm64e")
-	nanoEnroll(t, ds, hostNoTeam, false)
+	nanoEnrollAndSetHostMDMData(t, ds, hostNoTeam, false)
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
@@ -10274,4 +10274,19 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
 	assert.False(t, hostInList(hosts, hostNoTeam.ID), "no-team host should NOT be eligible when app config disabled")
+
+	// Create host with nano enrollment but MDM turned off (host_mdm.enrolled = 0)
+	// This tests that hosts are properly excluded after MDMTurnOff is called
+	teamUnenrolled := createTeamWithRecoveryLock("team-unenrolled", true)
+	hostUnenrolled := test.NewHost(t, ds, "unenrolled-host", "1.2.5.10", "uekey", "ueuuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(teamUnenrolled.ID))
+	setHostCPUType(hostUnenrolled.ID, "arm64e")
+	nanoEnroll(t, ds, hostUnenrolled, false)
+	// Set host_mdm with enrolled = false (simulates MDM turn off)
+	err = ds.SetOrUpdateMDMData(ctx, hostUnenrolled.ID, false, false, "", false, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
+
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.False(t, hostInList(hosts, hostUnenrolled.ID), "host with MDM turned off should NOT be eligible")
 }

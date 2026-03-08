@@ -7315,6 +7315,7 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]fleet
 		SELECT h.id, h.uuid
 		FROM hosts h
 		JOIN nano_enrollments ne ON ne.device_id = h.uuid
+		JOIN host_mdm hm ON hm.host_id = h.id
 		LEFT JOIN teams t ON t.id = h.team_id
 		CROSS JOIN app_config_json ac
 		LEFT JOIN host_recovery_key_passwords rkp ON rkp.host_id = h.id
@@ -7322,6 +7323,7 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]fleet
 		  AND h.cpu_type LIKE '%arm%'
 		  AND ne.enabled = 1
 		  AND ne.type IN ('Device', 'User Enrollment (Device)')
+		  AND hm.enrolled = 1
 		  AND (
 		      -- Team hosts: check team config
 		      (h.team_id IS NOT NULL AND JSON_EXTRACT(t.config, '$.mdm.enable_recovery_lock_password') = true)
