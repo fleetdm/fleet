@@ -1044,7 +1044,6 @@ the way that the Fleet server works.
 			// Inject the activity bounded context into the main service
 			svc.SetActivityService(activitySvc)
 
-
 			// Perform a cleanup of cron_stats outside of the cronSchedules because the
 			// schedule package uses cron_stats entries to decide whether a schedule will
 			// run or not (see https://github.com/fleetdm/fleet/issues/9486).
@@ -1462,7 +1461,6 @@ the way that the Fleet server works.
 
 			if len(config.Server.PrivateKey) > 0 {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-
 				ddmService := service.NewMDMAppleDDMService(ds, logger)
 				vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
 				mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(
@@ -1477,6 +1475,7 @@ the way that the Fleet server works.
 
 				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay, svc.NewActivity))
 				mdmCheckinAndCommandService.RegisterResultsHandler(fleet.DeviceLocationCmdName, service.NewDeviceLocationResultsHandler(ds, commander, logger))
+				mdmCheckinAndCommandService.RegisterResultsHandler("SetRecoveryLock", service.NewSetRecoveryLockResultsHandler(ds, commander, logger))
 				mdmCheckinAndCommandService.RegisterResultsHandler("VerifyRecoveryLock", service.NewVerifyRecoveryLockResultsHandler(ds, logger))
 
 				hasSCEPChallenge, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})

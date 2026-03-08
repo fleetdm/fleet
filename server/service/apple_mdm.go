@@ -3887,23 +3887,16 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			}
 		}
 
-	case "VerifyRecoveryLock":
-		// Handle VerifyRecoveryLock command results for recovery key password verification
-		svc.logger.DebugContext(r.Context, "VerifyRecoveryLock result received",
-			"host_uuid", cmdResult.Identifier(),
-			"command_uuid", cmdResult.CommandUUID,
-			"status", cmdResult.Status,
-		)
-		res := NewRecoveryLockResult(cmdResult)
-		if err := svc.runCommandHandlers(r.Context, "VerifyRecoveryLock", res); err != nil {
-			return nil, ctxerr.Wrap(r.Context, err, "VerifyRecoveryLock: calling handlers")
-		}
-
 	case "SetRecoveryLock":
-		// Handle SetRecoveryLock command results - send VerifyRecoveryLock on success
 		res := NewRecoveryLockResult(cmdResult)
 		if err := svc.runCommandHandlers(r.Context, "SetRecoveryLock", res); err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "SetRecoveryLock: calling handlers")
+		}
+
+	case "VerifyRecoveryLock":
+		res := NewRecoveryLockResult(cmdResult)
+		if err := svc.runCommandHandlers(r.Context, "VerifyRecoveryLock", res); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "VerifyRecoveryLock: calling handlers")
 		}
 	}
 
