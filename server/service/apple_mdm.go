@@ -5221,6 +5221,7 @@ func ReconcileAppleProfiles(
 	}
 	// We need to delete commands from the nano queue so they don't get sent to device.
 	if len(commandUUIDToHostIDsCleanupMap) > 0 {
+		level.Info(logger).Log("msg", "ReconcileAppleProfiles cleaning up nano commands without results", "count", len(commandUUIDToHostIDsCleanupMap))
 		if err := commander.BulkDeleteHostUserCommandsWithoutResults(ctx, commandUUIDToHostIDsCleanupMap); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting nano commands without results")
 		}
@@ -5253,6 +5254,8 @@ func ReconcileAppleProfiles(
 	}
 	profileContents, err := ds.GetMDMAppleProfilesContents(ctx, profileUUIDs)
 	if err != nil {
+		level.Error(logger).Log("err", "ReconcileAppleProfiles error fetching profile contents", "details", err)
+
 		return ctxerr.Wrap(ctx, err, "get profile contents")
 	}
 
