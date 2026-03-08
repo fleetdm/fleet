@@ -70,6 +70,8 @@ If you find a piece of collateral that is duplicate to one listed below, please 
 | ------------ | ----- | ----------- | ------ |
 | 2026-02-26 | [Fleet vs. Jamf vs. Intune: Comparing fleet management software](https://fleetdm.com/articles/fleet-management-software) | Compare the Fleet, Jamf Pro, and Microsoft Intune product offerings. | Brock Walters |
 | 2024-02-01 | [A comparative look at VMware Workspace ONE and Fleet Device Management](https://fleetdm.com/announcements/a-comparative-look-at-vmware-workspace-one-and-fleet) | | JD Strong |
+| 2026-01-10 | [Fleet vs. Jamf](https://fleetdm.com/compare/jamf) | Compare the Fleet and Jamf Pro product offerings. | Brock Walters |
+
 
 ### Thought leadership
 
