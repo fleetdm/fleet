@@ -1615,7 +1615,7 @@ type RecoveryLockCommander interface {
 // SendRecoveryLockCommands is the cron job function that sends SetRecoveryLock MDM commands
 // to hosts that need a recovery lock password.
 //
-// Note: SetRecoveryLock command results are handled synchronously in the MDM results handler
+// Note: SetRecoveryLock command results are handled in the MDM results handler
 // (server/service/apple_mdm.go), which sends VerifyRecoveryLock immediately upon acknowledgment.
 func SendRecoveryLockCommands(
 	ctx context.Context,
@@ -1644,59 +1644,69 @@ func sendRecoveryLockCommandsWithCommander(
 
 	logger.InfoContext(ctx, "sending SetRecoveryLock commands", "count", len(hosts))
 
+	// Generate passwords for all hosts
+	passwords := make(map[uint]string, len(hosts))
 	for _, host := range hosts {
-		if err := processHostForSetRecoveryLock(ctx, ds, commander, logger, host); err != nil {
-			// Log error but continue with other hosts
-			logger.ErrorContext(ctx, "failed to process host for SetRecoveryLock",
+		pw, err := GenerateRecoveryLockPassword()
+		if err != nil {
+			logger.ErrorContext(ctx, "failed to generate recovery lock password",
 				"host_id", host.HostID,
 				"host_uuid", host.HostUUID,
 				"error", err,
 			)
 			continue
 		}
+		passwords[host.HostID] = pw
 	}
 
-	return nil
-}
-
-func processHostForSetRecoveryLock(
-	ctx context.Context,
-	ds fleet.Datastore,
-	commander RecoveryLockCommander,
-	logger *slog.Logger,
-	host fleet.HostNeedingRecoveryLock,
-) error {
-	// Generate and store password (this creates/updates the record)
-	password, err := ds.SetHostRecoveryLockPassword(ctx, host.HostID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "set host recovery lock password")
+	// Bulk insert all passwords
+	if err := ds.SetHostsRecoveryLockPasswords(ctx, passwords); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set recovery lock passwords")
 	}
 
-	// Generate command UUID
-	cmdUUID := uuid.NewString()
+	// Send commands for each host
+	for _, host := range hosts {
+		password, ok := passwords[host.HostID]
+		if !ok {
+			// Password generation failed for this host, skip
+			continue
+		}
 
-	// Send SetRecoveryLock command (includes APNs push via EnqueueCommand)
-	if err := commander.SetRecoveryLock(ctx, []string{host.HostUUID}, cmdUUID, password); err != nil {
-		if markErr := ds.SetRecoveryLockFailed(ctx, host.HostID, "SetRecoveryLock enqueue failed: "+err.Error()); markErr != nil {
-			logger.ErrorContext(ctx, "failed to mark recovery lock as failed after enqueue error",
+		cmdUUID := uuid.NewString()
+
+		// Send SetRecoveryLock command
+		if err := commander.SetRecoveryLock(ctx, []string{host.HostUUID}, cmdUUID, password); err != nil {
+			if markErr := ds.SetRecoveryLockFailed(ctx, host.HostID, "SetRecoveryLock enqueue failed: "+err.Error()); markErr != nil {
+				logger.ErrorContext(ctx, "failed to mark recovery lock as failed after enqueue error",
+					"host_id", host.HostID,
+					"host_uuid", host.HostUUID,
+					"error", markErr,
+				)
+			}
+			logger.ErrorContext(ctx, "failed to send SetRecoveryLock command",
 				"host_id", host.HostID,
 				"host_uuid", host.HostUUID,
-				"error", markErr,
+				"error", err,
 			)
+			continue
 		}
-		return ctxerr.Wrap(ctx, err, "send SetRecoveryLock command")
-	}
 
-	// Update status to pending with the command UUID
-	if err := ds.SetRecoveryLockPending(ctx, host.HostID, cmdUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "set recovery lock pending")
-	}
+		// Update status to pending with the command UUID
+		if err := ds.SetRecoveryLockPending(ctx, host.HostID, cmdUUID); err != nil {
+			logger.ErrorContext(ctx, "failed to set recovery lock pending",
+				"host_id", host.HostID,
+				"host_uuid", host.HostUUID,
+				"error", err,
+			)
+			continue
+		}
 
-	logger.DebugContext(ctx, "sent SetRecoveryLock command",
-		"host_id", host.HostID,
-		"host_uuid", host.HostUUID,
-		"command_uuid", cmdUUID,
-	)
+		logger.DebugContext(ctx, "sent SetRecoveryLock command",
+			"host_id", host.HostID,
+			"host_uuid", host.HostUUID,
+			"command_uuid", cmdUUID,
+		)
+	}
 
 	return nil
 }

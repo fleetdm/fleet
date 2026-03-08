@@ -342,15 +342,14 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 
 		hostID := uint(1)
 		hostUUID := "host-uuid-1"
-		password := "ABCD-EFGH-IJKL-MNOP"
-
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]fleet.HostNeedingRecoveryLock, error) {
 			return []fleet.HostNeedingRecoveryLock{{HostID: hostID, HostUUID: hostUUID}}, nil
 		}
 
-		ds.SetHostRecoveryLockPasswordFunc = func(ctx context.Context, hID uint) (string, error) {
-			assert.Equal(t, hostID, hID)
-			return password, nil
+		var storedPasswords map[uint]string
+		ds.SetHostsRecoveryLockPasswordsFunc = func(ctx context.Context, passwords map[uint]string) error {
+			storedPasswords = passwords
+			return nil
 		}
 
 		var pendingHostID uint
@@ -374,7 +373,8 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 
 		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
 		require.NoError(t, err)
-		assert.Equal(t, password, sentPassword, "should send generated password")
+		require.Contains(t, storedPasswords, hostID, "password should be stored for host")
+		assert.Equal(t, storedPasswords[hostID], sentPassword, "should send stored password")
 		assert.Equal(t, hostID, pendingHostID, "should mark correct host as pending")
 		assert.Equal(t, sentCmdUUID, pendingCmdUUID, "pending status should use same command UUID")
 	})
@@ -388,8 +388,8 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			return []fleet.HostNeedingRecoveryLock{{HostID: hostID, HostUUID: "host-uuid-1"}}, nil
 		}
 
-		ds.SetHostRecoveryLockPasswordFunc = func(ctx context.Context, hID uint) (string, error) {
-			return "ABCD-EFGH-IJKL-MNOP", nil
+		ds.SetHostsRecoveryLockPasswordsFunc = func(ctx context.Context, passwords map[uint]string) error {
+			return nil
 		}
 
 		var failedHostID uint

@@ -9929,10 +9929,12 @@ func testRecoveryLockPasswordSetAndGet(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "test-host-1", "1.2.3.4", "h1key", "h1uuid", time.Now())
 
-	// Set password
-	password, err := ds.SetHostRecoveryLockPassword(ctx, host.ID)
+	// Generate and set password
+	password, err := apple_mdm.GenerateRecoveryLockPassword()
 	require.NoError(t, err)
-	require.NotEmpty(t, password)
+
+	err = ds.SetHostsRecoveryLockPasswords(ctx, map[uint]string{host.ID: password})
+	require.NoError(t, err)
 
 	// Get password and verify it matches
 	result, err := ds.GetHostRecoveryLockPassword(ctx, host.ID)
@@ -9955,11 +9957,15 @@ func testRecoveryLockPasswordSetOverwrite(t *testing.T, ds *Datastore) {
 	host := test.NewHost(t, ds, "test-host-2", "1.2.3.5", "h2key", "h2uuid", time.Now())
 
 	// Set password first time
-	password1, err := ds.SetHostRecoveryLockPassword(ctx, host.ID)
+	password1, err := apple_mdm.GenerateRecoveryLockPassword()
+	require.NoError(t, err)
+	err = ds.SetHostsRecoveryLockPasswords(ctx, map[uint]string{host.ID: password1})
 	require.NoError(t, err)
 
 	// Set password second time (should overwrite)
-	password2, err := ds.SetHostRecoveryLockPassword(ctx, host.ID)
+	password2, err := apple_mdm.GenerateRecoveryLockPassword()
+	require.NoError(t, err)
+	err = ds.SetHostsRecoveryLockPasswords(ctx, map[uint]string{host.ID: password2})
 	require.NoError(t, err)
 
 	// Passwords should be different (randomly generated)
@@ -9976,7 +9982,9 @@ func testRecoveryLockPasswordUpdatedAtChanges(t *testing.T, ds *Datastore) {
 	host := test.NewHost(t, ds, "test-host-3", "1.2.3.6", "h3key", "h3uuid", time.Now())
 
 	// Set password first time
-	_, err := ds.SetHostRecoveryLockPassword(ctx, host.ID)
+	password1, err := apple_mdm.GenerateRecoveryLockPassword()
+	require.NoError(t, err)
+	err = ds.SetHostsRecoveryLockPasswords(ctx, map[uint]string{host.ID: password1})
 	require.NoError(t, err)
 
 	result1, err := ds.GetHostRecoveryLockPassword(ctx, host.ID)
@@ -9986,7 +9994,9 @@ func testRecoveryLockPasswordUpdatedAtChanges(t *testing.T, ds *Datastore) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Set password second time
-	_, err = ds.SetHostRecoveryLockPassword(ctx, host.ID)
+	password2, err := apple_mdm.GenerateRecoveryLockPassword()
+	require.NoError(t, err)
+	err = ds.SetHostsRecoveryLockPasswords(ctx, map[uint]string{host.ID: password2})
 	require.NoError(t, err)
 
 	result2, err := ds.GetHostRecoveryLockPassword(ctx, host.ID)
@@ -9999,15 +10009,21 @@ func testRecoveryLockPasswordUpdatedAtChanges(t *testing.T, ds *Datastore) {
 func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	t.Run("SetRecoveryLockPending", func(t *testing.T) {
-		host := test.NewHost(t, ds, "pending-host", "1.2.3.7", "pendingkey", "pendinguuid", time.Now())
-
-		// Set password first (creates the record)
-		_, err := ds.SetHostRecoveryLockPassword(ctx, host.ID)
+	// Helper to create a host with a recovery lock password
+	setupHost := func(t *testing.T, name, ip, key, uuid string) *fleet.Host {
+		host := test.NewHost(t, ds, name, ip, key, uuid, time.Now())
+		pw, err := apple_mdm.GenerateRecoveryLockPassword()
 		require.NoError(t, err)
+		err = ds.SetHostsRecoveryLockPasswords(ctx, map[uint]string{host.ID: pw})
+		require.NoError(t, err)
+		return host
+	}
+
+	t.Run("SetRecoveryLockPending", func(t *testing.T) {
+		host := setupHost(t, "pending-host", "1.2.3.7", "pendingkey", "pendinguuid")
 
 		// Set pending status
-		err = ds.SetRecoveryLockPending(ctx, host.ID, "test-set-uuid-123")
+		err := ds.SetRecoveryLockPending(ctx, host.ID, "test-set-uuid-123")
 		require.NoError(t, err)
 
 		// Verify status
@@ -10018,14 +10034,10 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("SetRecoveryLockVerifying", func(t *testing.T) {
-		host := test.NewHost(t, ds, "verifying-host", "1.2.3.8", "verifyingkey", "verifyinguuid", time.Now())
-
-		// Set password first (creates the record)
-		_, err := ds.SetHostRecoveryLockPassword(ctx, host.ID)
-		require.NoError(t, err)
+		host := setupHost(t, "verifying-host", "1.2.3.8", "verifyingkey", "verifyinguuid")
 
 		// Set verifying status
-		err = ds.SetRecoveryLockVerifying(ctx, host.ID, "test-verify-uuid-456")
+		err := ds.SetRecoveryLockVerifying(ctx, host.ID, "test-verify-uuid-456")
 		require.NoError(t, err)
 
 		// Verify status and verify_command_uuid
@@ -10040,14 +10052,10 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("SetRecoveryLockVerified", func(t *testing.T) {
-		host := test.NewHost(t, ds, "verified-host", "1.2.3.9", "verifiedkey", "verifieduuid", time.Now())
-
-		// Set password first (creates the record)
-		_, err := ds.SetHostRecoveryLockPassword(ctx, host.ID)
-		require.NoError(t, err)
+		host := setupHost(t, "verified-host", "1.2.3.9", "verifiedkey", "verifieduuid")
 
 		// Set verified status
-		err = ds.SetRecoveryLockVerified(ctx, host.ID)
+		err := ds.SetRecoveryLockVerified(ctx, host.ID)
 		require.NoError(t, err)
 
 		// Verify status
@@ -10058,14 +10066,10 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("SetRecoveryLockFailed", func(t *testing.T) {
-		host := test.NewHost(t, ds, "failed-host", "1.2.3.10", "failedkey", "faileduuid", time.Now())
-
-		// Set password first (creates the record)
-		_, err := ds.SetHostRecoveryLockPassword(ctx, host.ID)
-		require.NoError(t, err)
+		host := setupHost(t, "failed-host", "1.2.3.10", "failedkey", "faileduuid")
 
 		// Set failed status
-		err = ds.SetRecoveryLockFailed(ctx, host.ID, "test error message")
+		err := ds.SetRecoveryLockFailed(ctx, host.ID, "test error message")
 		require.NoError(t, err)
 
 		// Verify status and error message
@@ -10080,14 +10084,10 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("GetHostIDByVerifyRecoveryLockCommandUUID", func(t *testing.T) {
-		host := test.NewHost(t, ds, "verify-cmd-host", "1.2.3.11", "verifycmdkey", "verifycmduuid", time.Now())
-
-		// Set password first (creates the record)
-		_, err := ds.SetHostRecoveryLockPassword(ctx, host.ID)
-		require.NoError(t, err)
+		host := setupHost(t, "verify-cmd-host", "1.2.3.11", "verifycmdkey", "verifycmduuid")
 
 		// Set verifying status with a command UUID
-		err = ds.SetRecoveryLockVerifying(ctx, host.ID, "unique-verify-cmd-uuid")
+		err := ds.SetRecoveryLockVerifying(ctx, host.ID, "unique-verify-cmd-uuid")
 		require.NoError(t, err)
 
 		// Get host ID by command UUID
@@ -10206,7 +10206,9 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 		test.WithPlatform("darwin"), test.WithTeamID(teamPending.ID))
 	setHostCPUType(hostPending.ID, "arm64e")
 	nanoEnroll(t, ds, hostPending, false)
-	_, err = ds.SetHostRecoveryLockPassword(ctx, hostPending.ID)
+	pendingPW, err := apple_mdm.GenerateRecoveryLockPassword()
+	require.NoError(t, err)
+	err = ds.SetHostsRecoveryLockPasswords(ctx, map[uint]string{hostPending.ID: pendingPW})
 	require.NoError(t, err)
 	err = ds.SetRecoveryLockPending(ctx, hostPending.ID, "set-cmd-uuid-pending")
 	require.NoError(t, err)
@@ -10221,7 +10223,9 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 		test.WithPlatform("darwin"), test.WithTeamID(teamVerified.ID))
 	setHostCPUType(hostVerified.ID, "arm64e")
 	nanoEnroll(t, ds, hostVerified, false)
-	_, err = ds.SetHostRecoveryLockPassword(ctx, hostVerified.ID)
+	verifiedPW, err := apple_mdm.GenerateRecoveryLockPassword()
+	require.NoError(t, err)
+	err = ds.SetHostsRecoveryLockPasswords(ctx, map[uint]string{hostVerified.ID: verifiedPW})
 	require.NoError(t, err)
 	err = ds.SetRecoveryLockVerified(ctx, hostVerified.ID)
 	require.NoError(t, err)

@@ -1019,7 +1019,7 @@ type GetMDMIdPAccountsByHostUUIDsFunc func(ctx context.Context, hostUUIDs []stri
 
 type GetMDMAppleFileVaultSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error)
 
-type SetHostRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) (string, error)
+type SetHostsRecoveryLockPasswordsFunc func(ctx context.Context, passwords map[uint]string) error
 
 type GetHostRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) (*fleet.HostRecoveryLockPassword, error)
 
@@ -1034,8 +1034,6 @@ type SetRecoveryLockVerifiedFunc func(ctx context.Context, hostID uint) error
 type SetRecoveryLockFailedFunc func(ctx context.Context, hostID uint, errorMsg string) error
 
 type GetHostIDByVerifyRecoveryLockCommandUUIDFunc func(ctx context.Context, verifyCommandUUID string) (uint, error)
-
-type GetPendingRecoveryLockHostsFunc func(ctx context.Context) ([]fleet.HostPendingRecoveryLock, error)
 
 type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error
 
@@ -3298,8 +3296,8 @@ type DataStore struct {
 	GetMDMAppleFileVaultSummaryFunc        GetMDMAppleFileVaultSummaryFunc
 	GetMDMAppleFileVaultSummaryFuncInvoked bool
 
-	SetHostRecoveryLockPasswordFunc        SetHostRecoveryLockPasswordFunc
-	SetHostRecoveryLockPasswordFuncInvoked bool
+	SetHostsRecoveryLockPasswordsFunc        SetHostsRecoveryLockPasswordsFunc
+	SetHostsRecoveryLockPasswordsFuncInvoked bool
 
 	GetHostRecoveryLockPasswordFunc        GetHostRecoveryLockPasswordFunc
 	GetHostRecoveryLockPasswordFuncInvoked bool
@@ -3321,9 +3319,6 @@ type DataStore struct {
 
 	GetHostIDByVerifyRecoveryLockCommandUUIDFunc        GetHostIDByVerifyRecoveryLockCommandUUIDFunc
 	GetHostIDByVerifyRecoveryLockCommandUUIDFuncInvoked bool
-
-	GetPendingRecoveryLockHostsFunc        GetPendingRecoveryLockHostsFunc
-	GetPendingRecoveryLockHostsFuncInvoked bool
 
 	InsertMDMAppleBootstrapPackageFunc        InsertMDMAppleBootstrapPackageFunc
 	InsertMDMAppleBootstrapPackageFuncInvoked bool
@@ -7963,11 +7958,11 @@ func (s *DataStore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uin
 	return s.GetMDMAppleFileVaultSummaryFunc(ctx, teamID)
 }
 
-func (s *DataStore) SetHostRecoveryLockPassword(ctx context.Context, hostID uint) (string, error) {
+func (s *DataStore) SetHostsRecoveryLockPasswords(ctx context.Context, passwords map[uint]string) error {
 	s.mu.Lock()
-	s.SetHostRecoveryLockPasswordFuncInvoked = true
+	s.SetHostsRecoveryLockPasswordsFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetHostRecoveryLockPasswordFunc(ctx, hostID)
+	return s.SetHostsRecoveryLockPasswordsFunc(ctx, passwords)
 }
 
 func (s *DataStore) GetHostRecoveryLockPassword(ctx context.Context, hostID uint) (*fleet.HostRecoveryLockPassword, error) {
@@ -8017,13 +8012,6 @@ func (s *DataStore) GetHostIDByVerifyRecoveryLockCommandUUID(ctx context.Context
 	s.GetHostIDByVerifyRecoveryLockCommandUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostIDByVerifyRecoveryLockCommandUUIDFunc(ctx, verifyCommandUUID)
-}
-
-func (s *DataStore) GetPendingRecoveryLockHosts(ctx context.Context) ([]fleet.HostPendingRecoveryLock, error) {
-	s.mu.Lock()
-	s.GetPendingRecoveryLockHostsFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetPendingRecoveryLockHostsFunc(ctx)
 }
 
 func (s *DataStore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {

@@ -7243,31 +7243,39 @@ func (ds *Datastore) DeleteHostLocationData(ctx context.Context, hostID uint) er
 ///////////////////////////////////////////////////////////////////////////////
 // Apple MDM Recovery Lock Password
 
-func (ds *Datastore) SetHostRecoveryLockPassword(ctx context.Context, hostID uint) (string, error) {
-	pw, err := apple_mdm.GenerateRecoveryLockPassword()
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "generating recovery lock password")
+func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, passwords map[uint]string) error {
+	if len(passwords) == 0 {
+		return nil
 	}
 
-	encrypted, err := encrypt([]byte(pw), ds.serverPrivateKey)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "encrypting recovery lock password")
+	// Build values for bulk insert
+	var args []any
+	for hostID, plaintext := range passwords {
+		encrypted, err := encrypt([]byte(plaintext), ds.serverPrivateKey)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "encrypting recovery lock password")
+		}
+		args = append(args, hostID, encrypted, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall)
 	}
 
-	const stmt = `
+	stmt := `
 		INSERT INTO host_recovery_key_passwords (host_id, encrypted_password, status, operation_type)
-		VALUES (?, ?, ?, ?)
+		VALUES %s
 		ON DUPLICATE KEY UPDATE
 			encrypted_password = VALUES(encrypted_password),
 			status = VALUES(status),
 			operation_type = VALUES(operation_type)
 	`
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, encrypted, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "storing recovery lock password")
+	placeholders := strings.Repeat("(?, ?, ?, ?),", len(passwords))
+	placeholders = placeholders[:len(placeholders)-1] // remove trailing comma
+	stmt = fmt.Sprintf(stmt, placeholders)
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "storing recovery lock passwords")
 	}
 
-	return pw, nil
+	return nil
 }
 
 func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostID uint) (*fleet.HostRecoveryLockPassword, error) {
