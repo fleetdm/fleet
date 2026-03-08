@@ -123,7 +123,7 @@ WHERE NOT EXISTS (
 
 Save this as `okta-device-access-scep.mobileconfig`.
 
-**[View example SCEP profile →](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/okta-device-access-scep-example.mobileconfig)**
+**[View example dynamic SCEP profile →](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/okta-device-access-scep-dynamic-example.mobileconfig)**
 
 ---
 
@@ -176,6 +176,8 @@ WHERE NOT EXISTS (
     AND CAST((not_valid_after - strftime('%s', 'now')) / 86400 AS INTEGER) >= 0
 );
 ```
+
+**[View example static SCEP profile →](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/okta-device-access-scep-example.mobileconfig)**
 
 ---
 
