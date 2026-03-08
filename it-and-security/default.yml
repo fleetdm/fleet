@@ -1,6 +1,8 @@
 agent_options:
   path: ./lib/all/agent-options/agent-options.yml
 org_settings:
+  conditional_access:
+    bypass_disabled: true
   features:
     enable_host_users: true
     enable_software_inventory: true
