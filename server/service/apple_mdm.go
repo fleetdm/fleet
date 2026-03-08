@@ -3888,13 +3888,21 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		}
 
 	case fleet.SetRecoveryLockCmdName:
-		res := NewRecoveryLockResult(cmdResult)
+		host, err := svc.ds.HostByIdentifier(r.Context, cmdResult.Identifier())
+		if err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "SetRecoveryLock: get host by identifier")
+		}
+		res := NewRecoveryLockResult(cmdResult, host)
 		if err := svc.runCommandHandlers(r.Context, fleet.SetRecoveryLockCmdName, res); err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "SetRecoveryLock: calling handlers")
 		}
 
 	case fleet.VerifyRecoveryLockCmdName:
-		res := NewRecoveryLockResult(cmdResult)
+		host, err := svc.ds.HostByIdentifier(r.Context, cmdResult.Identifier())
+		if err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "VerifyRecoveryLock: get host by identifier")
+		}
+		res := NewRecoveryLockResult(cmdResult, host)
 		if err := svc.runCommandHandlers(r.Context, fleet.VerifyRecoveryLockCmdName, res); err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "VerifyRecoveryLock: calling handlers")
 		}
@@ -7327,15 +7335,17 @@ func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, dep
 // recoveryLockResult wraps mdm.CommandResults to implement fleet.MDMCommandResults
 type recoveryLockResult struct {
 	cmdResult *mdm.CommandResults
+	host      *fleet.Host
 }
 
-func (r *recoveryLockResult) Raw() []byte      { return r.cmdResult.Raw }
-func (r *recoveryLockResult) UUID() string     { return r.cmdResult.CommandUUID }
-func (r *recoveryLockResult) HostUUID() string { return r.cmdResult.Identifier() }
+func (r *recoveryLockResult) Raw() []byte       { return r.cmdResult.Raw }
+func (r *recoveryLockResult) UUID() string      { return r.cmdResult.CommandUUID }
+func (r *recoveryLockResult) HostUUID() string  { return r.cmdResult.Identifier() }
+func (r *recoveryLockResult) Host() *fleet.Host { return r.host }
 
 // NewRecoveryLockResult wraps an mdm.CommandResults to implement fleet.MDMCommandResults
-func NewRecoveryLockResult(cmdResult *mdm.CommandResults) fleet.MDMCommandResults {
-	return &recoveryLockResult{cmdResult: cmdResult}
+func NewRecoveryLockResult(cmdResult *mdm.CommandResults, host *fleet.Host) fleet.MDMCommandResults {
+	return &recoveryLockResult{cmdResult: cmdResult, host: host}
 }
 
 // RecoveryLockVerifier defines the methods needed for verifying recovery lock passwords.
@@ -7353,25 +7363,21 @@ func NewSetRecoveryLockResultsHandler(
 	logger *slog.Logger,
 ) fleet.MDMCommandResultsHandler {
 	return func(ctx context.Context, results fleet.MDMCommandResults) error {
-		// Get the underlying result to access status and error chain
+		// Get the underlying result to access status, error chain, and host
 		rlResult, ok := results.(*recoveryLockResult)
 		if !ok {
 			return ctxerr.New(ctx, "SetRecoveryLock handler: unexpected results type")
 		}
 
-		hostUUID := results.HostUUID()
+		host := rlResult.Host()
 		status := rlResult.cmdResult.Status
 
 		logger.DebugContext(ctx, "SetRecoveryLock command result received",
-			"host_uuid", hostUUID,
+			"host_id", host.ID,
+			"host_uuid", host.UUID,
 			"command_uuid", results.UUID(),
 			"status", status,
 		)
-
-		host, err := ds.HostByIdentifier(ctx, hostUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: get host by identifier")
-		}
 
 		switch status {
 		case fleet.MDMAppleStatusAcknowledged:
@@ -7388,18 +7394,18 @@ func NewSetRecoveryLockResultsHandler(
 			verifyCmdUUID := fleet.VerifyRecoveryLockCommandPrefix + uuid.NewString()
 
 			// Send VerifyRecoveryLock command
-			if err := commander.VerifyRecoveryLock(ctx, []string{hostUUID}, verifyCmdUUID, rkp.Password); err != nil {
+			if err := commander.VerifyRecoveryLock(ctx, []string{host.UUID}, verifyCmdUUID, rkp.Password); err != nil {
 				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: send VerifyRecoveryLock command")
 			}
 
-			// Update status to verifying with the verify command UUID
-			if err := ds.SetRecoveryLockVerifying(ctx, host.ID, verifyCmdUUID); err != nil {
+			// Update status to verifying
+			if err := ds.SetRecoveryLockVerifying(ctx, host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock verifying")
 			}
 
 			logger.InfoContext(ctx, "SetRecoveryLock acknowledged, sent VerifyRecoveryLock",
 				"host_id", host.ID,
-				"host_uuid", hostUUID,
+				"host_uuid", host.UUID,
 				"verify_command_uuid", verifyCmdUUID,
 			)
 
@@ -7413,7 +7419,7 @@ func NewSetRecoveryLockResultsHandler(
 			}
 			logger.WarnContext(ctx, "SetRecoveryLock command failed",
 				"host_id", host.ID,
-				"host_uuid", hostUUID,
+				"host_uuid", host.UUID,
 				"error", errorMsg,
 			)
 		}
@@ -7443,26 +7449,18 @@ func NewVerifyRecoveryLockResultsHandler(
 			return nil
 		}
 
-		// Get host ID from command UUID
-		hostID, err := ds.GetHostIDByVerifyRecoveryLockCommandUUID(ctx, results.UUID())
-		if err != nil {
-			if fleet.IsNotFound(err) {
-				// Not a VerifyRecoveryLock command from our cron job, skip
-				return nil
-			}
-			return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock handler: get host id by verify command uuid")
-		}
-
-		// Get the underlying result to access status and error chain
+		// Get the underlying result to access status, error chain, and host
 		rlResult, ok := results.(*recoveryLockResult)
 		if !ok {
 			return ctxerr.New(ctx, "VerifyRecoveryLock handler: unexpected results type")
 		}
 
+		host := rlResult.Host()
 		status := rlResult.cmdResult.Status
+
 		logger.DebugContext(ctx, "VerifyRecoveryLock command result received",
-			"host_id", hostID,
-			"host_uuid", results.HostUUID(),
+			"host_id", host.ID,
+			"host_uuid", host.UUID,
 			"command_uuid", results.UUID(),
 			"status", status,
 		)
@@ -7477,24 +7475,24 @@ func NewVerifyRecoveryLockResultsHandler(
 
 			if response.PasswordVerified {
 				// Password verified successfully
-				if err := ds.SetRecoveryLockVerified(ctx, hostID); err != nil {
+				if err := ds.SetRecoveryLockVerified(ctx, host.ID); err != nil {
 					return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock handler: set recovery lock verified")
 				}
 
 				logger.InfoContext(ctx, "VerifyRecoveryLock acknowledged, password verified",
-					"host_id", hostID,
-					"host_uuid", results.HostUUID(),
+					"host_id", host.ID,
+					"host_uuid", host.UUID,
 					"command_uuid", results.UUID(),
 				)
 			} else {
 				// Password verification failed - password doesn't match
-				if err := ds.SetRecoveryLockFailed(ctx, hostID, "password verification failed: password does not match"); err != nil {
+				if err := ds.SetRecoveryLockFailed(ctx, host.ID, "password verification failed: password does not match"); err != nil {
 					return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock handler: set recovery lock failed")
 				}
 
 				logger.WarnContext(ctx, "VerifyRecoveryLock acknowledged but password verification failed",
-					"host_id", hostID,
-					"host_uuid", results.HostUUID(),
+					"host_id", host.ID,
+					"host_uuid", host.UUID,
 					"command_uuid", results.UUID(),
 				)
 			}
@@ -7502,21 +7500,21 @@ func NewVerifyRecoveryLockResultsHandler(
 		case fleet.MDMAppleStatusNotNow:
 			// Device is busy, will retry later. Leave status as verifying.
 			logger.DebugContext(ctx, "VerifyRecoveryLock returned NotNow, device will retry",
-				"host_id", hostID,
-				"host_uuid", results.HostUUID(),
+				"host_id", host.ID,
+				"host_uuid", host.UUID,
 				"command_uuid", results.UUID(),
 			)
 
 		case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
 			// Command error
 			errorMsg := apple_mdm.FmtErrorChain(rlResult.cmdResult.ErrorChain)
-			if err := ds.SetRecoveryLockFailed(ctx, hostID, errorMsg); err != nil {
+			if err := ds.SetRecoveryLockFailed(ctx, host.ID, errorMsg); err != nil {
 				return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock handler: set recovery lock failed")
 			}
 
 			logger.WarnContext(ctx, "VerifyRecoveryLock command failed",
-				"host_id", hostID,
-				"host_uuid", results.HostUUID(),
+				"host_id", host.ID,
+				"host_uuid", host.UUID,
 				"command_uuid", results.UUID(),
 			)
 		}

@@ -353,20 +353,16 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		}
 
 		var pendingHostID uint
-		var pendingCmdUUID string
-		ds.SetRecoveryLockPendingFunc = func(ctx context.Context, hID uint, cmdUUID string) error {
+		ds.SetRecoveryLockPendingFunc = func(ctx context.Context, hID uint) error {
 			pendingHostID = hID
-			pendingCmdUUID = cmdUUID
 			return nil
 		}
 
 		var sentPassword string
-		var sentCmdUUID string
 		mockCommander := &mockRecoveryLockCommander{
 			setRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID, pw string) error {
 				assert.Equal(t, []string{hostUUID}, hostUUIDs)
 				sentPassword = pw
-				sentCmdUUID = cmdUUID
 				return nil
 			},
 		}
@@ -376,7 +372,6 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		require.Contains(t, storedPasswords, hostID, "password should be stored for host")
 		assert.Equal(t, storedPasswords[hostID], sentPassword, "should send stored password")
 		assert.Equal(t, hostID, pendingHostID, "should mark correct host as pending")
-		assert.Equal(t, sentCmdUUID, pendingCmdUUID, "pending status should use same command UUID")
 	})
 
 	t.Run("SetRecoveryLock failure marks host as failed", func(t *testing.T) {

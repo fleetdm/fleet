@@ -10067,7 +10067,7 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		host := setupHost(t, "pending-host", "1.2.3.7", "pendingkey", "pendinguuid")
 
 		// Set pending status
-		err := ds.SetRecoveryLockPending(ctx, host.ID, "test-set-uuid-123")
+		err := ds.SetRecoveryLockPending(ctx, host.ID)
 		require.NoError(t, err)
 
 		// Verify status
@@ -10081,18 +10081,14 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		host := setupHost(t, "verifying-host", "1.2.3.8", "verifyingkey", "verifyinguuid")
 
 		// Set verifying status
-		err := ds.SetRecoveryLockVerifying(ctx, host.ID, "test-verify-uuid-456")
+		err := ds.SetRecoveryLockVerifying(ctx, host.ID)
 		require.NoError(t, err)
 
-		// Verify status and verify_command_uuid
-		var status, verifyUUID string
+		// Verify status
+		var status string
 		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_id = ?", host.ID)
 		require.NoError(t, err)
 		assert.Equal(t, string(fleet.MDMDeliveryVerifying), status)
-
-		err = ds.writer(ctx).GetContext(ctx, &verifyUUID, "SELECT verify_command_uuid FROM host_recovery_key_passwords WHERE host_id = ?", host.ID)
-		require.NoError(t, err)
-		assert.Equal(t, "test-verify-uuid-456", verifyUUID)
 	})
 
 	t.Run("SetRecoveryLockVerified", func(t *testing.T) {
@@ -10125,24 +10121,6 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		err = ds.writer(ctx).GetContext(ctx, &errorMsg, "SELECT error_message FROM host_recovery_key_passwords WHERE host_id = ?", host.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "test error message", errorMsg)
-	})
-
-	t.Run("GetHostIDByVerifyRecoveryLockCommandUUID", func(t *testing.T) {
-		host := setupHost(t, "verify-cmd-host", "1.2.3.11", "verifycmdkey", "verifycmduuid")
-
-		// Set verifying status with a command UUID
-		err := ds.SetRecoveryLockVerifying(ctx, host.ID, "unique-verify-cmd-uuid")
-		require.NoError(t, err)
-
-		// Get host ID by command UUID
-		foundHostID, err := ds.GetHostIDByVerifyRecoveryLockCommandUUID(ctx, "unique-verify-cmd-uuid")
-		require.NoError(t, err)
-		assert.Equal(t, host.ID, foundHostID)
-
-		// Test not found
-		_, err = ds.GetHostIDByVerifyRecoveryLockCommandUUID(ctx, "non-existent-uuid")
-		require.Error(t, err)
-		assert.True(t, fleet.IsNotFound(err))
 	})
 }
 
@@ -10254,7 +10232,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	err = ds.SetHostsRecoveryLockPasswords(ctx, map[uint]string{hostPending.ID: pendingPW})
 	require.NoError(t, err)
-	err = ds.SetRecoveryLockPending(ctx, hostPending.ID, "set-cmd-uuid-pending")
+	err = ds.SetRecoveryLockPending(ctx, hostPending.ID)
 	require.NoError(t, err)
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)

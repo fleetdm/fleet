@@ -322,19 +322,15 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 		ds := new(mock.DataStore)
 		commander := &mockRecoveryLockVerifier{}
 
-		ds.HostByIdentifierFunc = func(_ context.Context, identifier string) (*fleet.Host, error) {
-			return &fleet.Host{ID: hostID, UUID: hostUUID}, nil
-		}
+		host := &fleet.Host{ID: hostID, UUID: hostUUID}
 		ds.GetHostRecoveryLockPasswordFunc = func(_ context.Context, hID uint) (*fleet.HostRecoveryLockPassword, error) {
 			assert.Equal(t, hostID, hID)
 			return &fleet.HostRecoveryLockPassword{Password: password}, nil
 		}
 		var verifyingCalled bool
-		var capturedVerifyUUID string
-		ds.SetRecoveryLockVerifyingFunc = func(_ context.Context, hID uint, verifyCmdUUID string) error {
+		ds.SetRecoveryLockVerifyingFunc = func(_ context.Context, hID uint) error {
 			verifyingCalled = true
 			assert.Equal(t, hostID, hID)
-			capturedVerifyUUID = verifyCmdUUID
 			return nil
 		}
 
@@ -345,7 +341,7 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			CommandUUID: cmdUUID,
 			Status:      fleet.MDMAppleStatusAcknowledged,
 			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
-		})
+		}, host)
 
 		err := handler(ctx, result)
 		require.NoError(t, err)
@@ -358,16 +354,13 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 
 		// Verify status was set to verifying
 		assert.True(t, verifyingCalled)
-		assert.True(t, strings.HasPrefix(capturedVerifyUUID, fleet.VerifyRecoveryLockCommandPrefix))
 	})
 
 	t.Run("error status sets failed", func(t *testing.T) {
 		ds := new(mock.DataStore)
 		commander := &mockRecoveryLockVerifier{}
 
-		ds.HostByIdentifierFunc = func(_ context.Context, identifier string) (*fleet.Host, error) {
-			return &fleet.Host{ID: hostID, UUID: hostUUID}, nil
-		}
+		host := &fleet.Host{ID: hostID, UUID: hostUUID}
 		var failedCalled bool
 		var capturedError string
 		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hID uint, errorMsg string) error {
@@ -385,7 +378,7 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			Status:      fleet.MDMAppleStatusError,
 			ErrorChain:  []mdm.ErrorChain{{ErrorCode: 12345, ErrorDomain: "test", LocalizedDescription: "Test error"}},
 			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
-		})
+		}, host)
 
 		err := handler(ctx, result)
 		require.NoError(t, err)
@@ -400,9 +393,7 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 		ds := new(mock.DataStore)
 		commander := &mockRecoveryLockVerifier{}
 
-		ds.HostByIdentifierFunc = func(_ context.Context, identifier string) (*fleet.Host, error) {
-			return &fleet.Host{ID: hostID, UUID: hostUUID}, nil
-		}
+		host := &fleet.Host{ID: hostID, UUID: hostUUID}
 		var capturedError string
 		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hID uint, errorMsg string) error {
 			capturedError = errorMsg
@@ -416,7 +407,7 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			CommandUUID: cmdUUID,
 			Status:      fleet.MDMAppleStatusCommandFormatError,
 			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
-		})
+		}, host)
 
 		err := handler(ctx, result)
 		require.NoError(t, err)
@@ -435,11 +426,8 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 
 	t.Run("acknowledged with password verified sets verified", func(t *testing.T) {
 		ds := new(mock.DataStore)
+		host := &fleet.Host{ID: hostID, UUID: hostUUID}
 
-		ds.GetHostIDByVerifyRecoveryLockCommandUUIDFunc = func(_ context.Context, verifyCmdUUID string) (uint, error) {
-			assert.Equal(t, cmdUUID, verifyCmdUUID)
-			return hostID, nil
-		}
 		var verifiedCalled bool
 		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, hID uint) error {
 			verifiedCalled = true
@@ -461,11 +449,11 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		result := NewRecoveryLockResult(&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: cmdUUID,
 			Status:      fleet.MDMAppleStatusAcknowledged,
 			Raw:         rawPlist,
-		})
-		result.(*recoveryLockResult).cmdResult.UDID = hostUUID
+		}, host)
 
 		err = handler(ctx, result)
 		require.NoError(t, err)
@@ -474,10 +462,8 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 
 	t.Run("acknowledged with password not verified sets failed", func(t *testing.T) {
 		ds := new(mock.DataStore)
+		host := &fleet.Host{ID: hostID, UUID: hostUUID}
 
-		ds.GetHostIDByVerifyRecoveryLockCommandUUIDFunc = func(_ context.Context, _ string) (uint, error) {
-			return hostID, nil
-		}
 		var failedCalled bool
 		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hID uint, errorMsg string) error {
 			failedCalled = true
@@ -500,11 +486,11 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		result := NewRecoveryLockResult(&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: cmdUUID,
 			Status:      fleet.MDMAppleStatusAcknowledged,
 			Raw:         rawPlist,
-		})
-		result.(*recoveryLockResult).cmdResult.UDID = hostUUID
+		}, host)
 
 		err = handler(ctx, result)
 		require.NoError(t, err)
@@ -513,10 +499,8 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 
 	t.Run("error status sets failed", func(t *testing.T) {
 		ds := new(mock.DataStore)
+		host := &fleet.Host{ID: hostID, UUID: hostUUID}
 
-		ds.GetHostIDByVerifyRecoveryLockCommandUUIDFunc = func(_ context.Context, _ string) (uint, error) {
-			return hostID, nil
-		}
 		var failedCalled bool
 		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hID uint, errorMsg string) error {
 			failedCalled = true
@@ -526,12 +510,12 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 		handler := NewVerifyRecoveryLockResultsHandler(ds, logger)
 
 		result := NewRecoveryLockResult(&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: cmdUUID,
 			Status:      fleet.MDMAppleStatusError,
 			ErrorChain:  []mdm.ErrorChain{{ErrorCode: 12345, ErrorDomain: "test", LocalizedDescription: "Verification error"}},
 			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
-		})
-		result.(*recoveryLockResult).cmdResult.UDID = hostUUID
+		}, host)
 
 		err := handler(ctx, result)
 		require.NoError(t, err)
@@ -540,42 +524,23 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 
 	t.Run("skips commands without verify prefix", func(t *testing.T) {
 		ds := new(mock.DataStore)
+		host := &fleet.Host{ID: hostID, UUID: hostUUID}
 
-		// This should not be called
-		ds.GetHostIDByVerifyRecoveryLockCommandUUIDFunc = func(_ context.Context, _ string) (uint, error) {
+		// SetRecoveryLockVerifiedFunc should not be called
+		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, hID uint) error {
 			t.Fatal("should not be called")
-			return 0, nil
+			return nil
 		}
 
 		handler := NewVerifyRecoveryLockResultsHandler(ds, logger)
 
-		// Command UUID without the prefix
+		// Command UUID without the prefix - should be skipped
 		result := NewRecoveryLockResult(&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: "not-a-verify-command",
 			Status:      fleet.MDMAppleStatusAcknowledged,
 			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
-		})
-		result.(*recoveryLockResult).cmdResult.UDID = hostUUID
-
-		err := handler(ctx, result)
-		require.NoError(t, err)
-	})
-
-	t.Run("skips commands with not found error", func(t *testing.T) {
-		ds := new(mock.DataStore)
-
-		ds.GetHostIDByVerifyRecoveryLockCommandUUIDFunc = func(_ context.Context, _ string) (uint, error) {
-			return 0, &notFoundError{}
-		}
-
-		handler := NewVerifyRecoveryLockResultsHandler(ds, logger)
-
-		result := NewRecoveryLockResult(&mdm.CommandResults{
-			CommandUUID: cmdUUID,
-			Status:      fleet.MDMAppleStatusAcknowledged,
-			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
-		})
-		result.(*recoveryLockResult).cmdResult.UDID = hostUUID
+		}, host)
 
 		err := handler(ctx, result)
 		require.NoError(t, err)

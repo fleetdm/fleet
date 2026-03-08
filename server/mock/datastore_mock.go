@@ -1025,15 +1025,13 @@ type GetHostRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) (*fl
 
 type GetHostsForRecoveryLockActionFunc func(ctx context.Context) ([]fleet.HostNeedingRecoveryLock, error)
 
-type SetRecoveryLockPendingFunc func(ctx context.Context, hostID uint, setCommandUUID string) error
+type SetRecoveryLockPendingFunc func(ctx context.Context, hostID uint) error
 
-type SetRecoveryLockVerifyingFunc func(ctx context.Context, hostID uint, verifyCommandUUID string) error
+type SetRecoveryLockVerifyingFunc func(ctx context.Context, hostID uint) error
 
 type SetRecoveryLockVerifiedFunc func(ctx context.Context, hostID uint) error
 
 type SetRecoveryLockFailedFunc func(ctx context.Context, hostID uint, errorMsg string) error
-
-type GetHostIDByVerifyRecoveryLockCommandUUIDFunc func(ctx context.Context, verifyCommandUUID string) (uint, error)
 
 type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error
 
@@ -3316,9 +3314,6 @@ type DataStore struct {
 
 	SetRecoveryLockFailedFunc        SetRecoveryLockFailedFunc
 	SetRecoveryLockFailedFuncInvoked bool
-
-	GetHostIDByVerifyRecoveryLockCommandUUIDFunc        GetHostIDByVerifyRecoveryLockCommandUUIDFunc
-	GetHostIDByVerifyRecoveryLockCommandUUIDFuncInvoked bool
 
 	InsertMDMAppleBootstrapPackageFunc        InsertMDMAppleBootstrapPackageFunc
 	InsertMDMAppleBootstrapPackageFuncInvoked bool
@@ -7979,18 +7974,18 @@ func (s *DataStore) GetHostsForRecoveryLockAction(ctx context.Context) ([]fleet.
 	return s.GetHostsForRecoveryLockActionFunc(ctx)
 }
 
-func (s *DataStore) SetRecoveryLockPending(ctx context.Context, hostID uint, setCommandUUID string) error {
+func (s *DataStore) SetRecoveryLockPending(ctx context.Context, hostID uint) error {
 	s.mu.Lock()
 	s.SetRecoveryLockPendingFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetRecoveryLockPendingFunc(ctx, hostID, setCommandUUID)
+	return s.SetRecoveryLockPendingFunc(ctx, hostID)
 }
 
-func (s *DataStore) SetRecoveryLockVerifying(ctx context.Context, hostID uint, verifyCommandUUID string) error {
+func (s *DataStore) SetRecoveryLockVerifying(ctx context.Context, hostID uint) error {
 	s.mu.Lock()
 	s.SetRecoveryLockVerifyingFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetRecoveryLockVerifyingFunc(ctx, hostID, verifyCommandUUID)
+	return s.SetRecoveryLockVerifyingFunc(ctx, hostID)
 }
 
 func (s *DataStore) SetRecoveryLockVerified(ctx context.Context, hostID uint) error {
@@ -8005,13 +8000,6 @@ func (s *DataStore) SetRecoveryLockFailed(ctx context.Context, hostID uint, erro
 	s.SetRecoveryLockFailedFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetRecoveryLockFailedFunc(ctx, hostID, errorMsg)
-}
-
-func (s *DataStore) GetHostIDByVerifyRecoveryLockCommandUUID(ctx context.Context, verifyCommandUUID string) (uint, error) {
-	s.mu.Lock()
-	s.GetHostIDByVerifyRecoveryLockCommandUUIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetHostIDByVerifyRecoveryLockCommandUUIDFunc(ctx, verifyCommandUUID)
 }
 
 func (s *DataStore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {

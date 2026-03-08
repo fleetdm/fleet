@@ -1504,22 +1504,19 @@ type Datastore interface {
 	// - No password saved
 	GetHostsForRecoveryLockAction(ctx context.Context) ([]HostNeedingRecoveryLock, error)
 
-	// SetRecoveryLockPending sets the recovery lock status to pending with the given set command UUID.
+	// SetRecoveryLockPending sets the recovery lock status to pending.
 	// This is called when a SetRecoveryLock command is enqueued.
-	SetRecoveryLockPending(ctx context.Context, hostID uint, setCommandUUID string) error
+	SetRecoveryLockPending(ctx context.Context, hostID uint) error
 
 	// SetRecoveryLockVerifying marks the SetRecoveryLock command as acknowledged and updates
-	// status to verifying with the given verify command UUID.
-	SetRecoveryLockVerifying(ctx context.Context, hostID uint, verifyCommandUUID string) error
+	// status to verifying.
+	SetRecoveryLockVerifying(ctx context.Context, hostID uint) error
 
 	// SetRecoveryLockVerified marks the recovery lock as verified (both commands succeeded).
 	SetRecoveryLockVerified(ctx context.Context, hostID uint) error
 
 	// SetRecoveryLockFailed marks the recovery lock as failed with the given error message.
 	SetRecoveryLockFailed(ctx context.Context, hostID uint, errorMsg string) error
-
-	// GetHostIDByVerifyRecoveryLockCommandUUID returns the host ID associated with a VerifyRecoveryLock command UUID.
-	GetHostIDByVerifyRecoveryLockCommandUUID(ctx context.Context, verifyCommandUUID string) (uint, error)
 
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).

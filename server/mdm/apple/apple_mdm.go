@@ -1691,8 +1691,8 @@ func sendRecoveryLockCommandsWithCommander(
 			continue
 		}
 
-		// Update status to pending with the command UUID
-		if err := ds.SetRecoveryLockPending(ctx, host.HostID, cmdUUID); err != nil {
+		// Update status to pending
+		if err := ds.SetRecoveryLockPending(ctx, host.HostID); err != nil {
 			logger.ErrorContext(ctx, "failed to set recovery lock pending",
 				"host_id", host.HostID,
 				"host_uuid", host.HostUUID,
@@ -1704,7 +1704,6 @@ func sendRecoveryLockCommandsWithCommander(
 		logger.DebugContext(ctx, "sent SetRecoveryLock command",
 			"host_id", host.HostID,
 			"host_uuid", host.HostUUID,
-			"command_uuid", cmdUUID,
 		)
 	}
 

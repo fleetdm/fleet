@@ -7353,34 +7353,29 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]fleet
 	return hosts, nil
 }
 
-func (ds *Datastore) SetRecoveryLockPending(ctx context.Context, hostID uint, setCommandUUID string) error {
+func (ds *Datastore) SetRecoveryLockPending(ctx context.Context, hostID uint) error {
 	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
 		SET status = '%s',
-		    set_command_uuid = ?,
-		    verify_command_uuid = NULL,
-		    set_command_ack_at = NULL,
 		    error_message = NULL
 		WHERE host_id = ?
 	`, fleet.MDMDeliveryPending)
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, setCommandUUID, hostID); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "set recovery lock pending")
 	}
 
 	return nil
 }
 
-func (ds *Datastore) SetRecoveryLockVerifying(ctx context.Context, hostID uint, verifyCommandUUID string) error {
+func (ds *Datastore) SetRecoveryLockVerifying(ctx context.Context, hostID uint) error {
 	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
-		SET status = '%s',
-		    verify_command_uuid = ?,
-		    set_command_ack_at = CURRENT_TIMESTAMP(6)
+		SET status = '%s'
 		WHERE host_id = ?
 	`, fleet.MDMDeliveryVerifying)
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, verifyCommandUUID, hostID); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "set recovery lock verifying")
 	}
 
@@ -7415,19 +7410,4 @@ func (ds *Datastore) SetRecoveryLockFailed(ctx context.Context, hostID uint, err
 	}
 
 	return nil
-}
-
-func (ds *Datastore) GetHostIDByVerifyRecoveryLockCommandUUID(ctx context.Context, verifyCommandUUID string) (uint, error) {
-	const stmt = `SELECT host_id FROM host_recovery_key_passwords WHERE verify_command_uuid = ?`
-
-	var hostID uint
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostID, stmt, verifyCommandUUID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return 0, ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
-				WithMessage(fmt.Sprintf("for verify_command_uuid %s", verifyCommandUUID)))
-		}
-		return 0, ctxerr.Wrap(ctx, err, "get host id by verify command uuid")
-	}
-
-	return hostID, nil
 }
