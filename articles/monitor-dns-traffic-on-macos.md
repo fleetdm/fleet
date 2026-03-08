@@ -80,7 +80,7 @@ A TLS-intercepting proxy with a trusted root CA deployed to endpoints can decryp
 
 ## Audit DNS configuration across your fleet with osquery
 
-If you use Fleet or osquery, you can audit DNS resolver configuration across your devices. This is useful for verifying that your mitigations are actually in place.
+If you use Fleet or `osquery`, you can audit DNS resolver configurations across your devices. This is useful for verifying that your mitigations are actually in place.
 
 ### Check configured DNS resolvers
 
@@ -103,7 +103,7 @@ JOIN processes p ON p.pid = pos.pid
 WHERE pos.remote_port = 853;
 ```
 
-### Check for DNS settings MDM profiles
+### Check for MDM profiles with DNS settings
 
 If your organization deploys DNS configuration via MDM, you can verify the profile is installed:
 
@@ -111,9 +111,9 @@ If your organization deploys DNS configuration via MDM, you can verify the profi
 SELECT * FROM managed_policies WHERE domain = 'com.apple.dnsSettings.managed';
 ```
 
-### The gap
+### The visibility gap
 
-osquery can tell you *which* DNS servers are configured, but it can't tell you *whether* `mDNSResponder` is using cleartext or encrypted DNS for its queries. There's no table that exposes the active DNS protocol. This is why preventing the upgrade in the first place, by pointing devices to resolvers that don't support DoH/DoT, is more reliable than trying to detect it after the fact.
+`osquery` can tell you *which* DNS servers are configured, but it can't tell you *whether* `mDNSResponder` is using cleartext or encrypted DNS for its queries. There's no table that exposes the active DNS protocol. This is why preventing the upgrade in the first place, by pointing devices to resolvers that don't support DoH/DoT, is more reliable than trying to detect it after the fact.
 
 ## Summary
 
