@@ -1,0 +1,11 @@
+- name: macOS - No Clawbot or moltbot malware detected
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('clawbot', 'moltbot')) AND NOT EXISTS (SELECT 1 FROM file WHERE path IN ('/usr/local/bin/clawbot', '/usr/local/bin/moltbot', '/tmp/clawbot', '/tmp/moltbot', '/Applications/Clawbot.app', '/Applications/Moltbot.app')) AND NOT EXISTS (SELECT 1 FROM launchd WHERE LOWER(name) LIKE '%clawbot%' OR LOWER(name) LIKE '%moltbot%') AND NOT EXISTS (SELECT 1 FROM file WHERE path IN ('/Library/LaunchAgents/com.clawbot.plist', '/Library/LaunchDaemons/com.clawbot.plist', '/Library/LaunchAgents/com.moltbot.plist', '/Library/LaunchDaemons/com.moltbot.plist'));
+  critical: true
+  description: This policy checks for the presence of Clawbot or moltbot malware by looking for running processes, binaries on disk, application bundles, and LaunchAgent/LaunchDaemon persistence mechanisms.
+  resolution: |-
+    The remediation script will automatically block and remove the Clawbot/moltbot malware using Santa. Click Refetch after remediation completes to verify the policy passes.
+
+    If the issue persists, please reach out in #help-it.
+  run_script:
+    path: ../scripts/block-clawbot-moltbot.sh
+  platform: darwin
