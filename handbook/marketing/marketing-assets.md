@@ -31,41 +31,39 @@ If you find a piece of collateral that is duplicate to one listed below, please 
 
 ## Fleet champion stories
 
-> Note: Champion story links are not yet published on the live page. Links will be added once stories are live.
-
 | <nobr>Date</nobr> | Story | Industry | Mac | Windows | Linux | Android | Author |
 |------|-------|----------|-----|---------|-------|---------|--------|
-| <nobr>2026&#8209;02&#8209;23</nobr> | Agritech producer replaces manual tracking across 273 devices | Agriculture / AgriTech | ✓ | ✓ | ✓ | | Irena Reedy |
-| <nobr>2026&#8209;02&#8209;22</nobr> | Workspace software company consolidates Kandji and Intune across 1,465 devices | Software / SaaS | ✓ | ✓ | | | Irena Reedy |
-| <nobr>2026&#8209;02&#8209;22</nobr> | Robotics company unifies Mac, Windows, Linux, and Android devices | Robotics / Hardware | ✓ | ✓ | ✓ | ✓ | Irena Reedy |
-| <nobr>2026&#8209;02&#8209;22</nobr> | Open-source organization manages 1,556 devices with real-time compliance | Open Source / Nonprofit | ✓ | ✓ | ✓ | | Irena Reedy |
-| <nobr>2026&#8209;02&#8209;22</nobr> | Journalism nonprofit manages Mac and Linux devices with GitOps | Media / Journalism | ✓ | | ✓ | | Irena Reedy |
-| <nobr>2026&#8209;02&#8209;22</nobr> | IT service provider scales to 8,000+ devices with GitOps | IT Services / MSP | ✓ | ✓ | ✓ | | Irena Reedy |
-| <nobr>2026&#8209;02&#8209;22</nobr> | IT platform provider automates patching across thousands of Mac, Windows, and Linux devices | IT Services / MSP | ✓ | ✓ | ✓ | | Irena Reedy |
-| <nobr>2026&#8209;02&#8209;22</nobr> | Gaming technology company runs GitOps-driven device management on-prem | Gaming / Entertainment | ✓ | ✓ | ✓ | | Irena Reedy |
-| <nobr>2026&#8209;02&#8209;22</nobr> | Financial technology company manages 15,000 devices with GitOps | Financial Services / FinTech | ✓ | ✓ | ✓ | | Irena Reedy |
-| <nobr>2026&#8209;02&#8209;22</nobr> | Financial services platform manages 6,000+ hosts with continuous compliance visibility | Financial Services / FinTech | ✓ | ✓ | ✓ | | Irena Reedy |
-| <nobr>2026&#8209;02&#8209;22</nobr> | Enforcing security policies in minutes across a regulated healthcare environment | Healthcare / MedTech | ✓ | ✓ | ✓ | | Irena Reedy |
-| <nobr>2026&#8209;02&#8209;22</nobr> | Cannabis technology company consolidates Jamf and Intune with Fleet | Cannabis / Retail Tech | ✓ | ✓ | | | Irena Reedy |
-| <nobr>2026&#8209;02&#8209;22</nobr> | Banking platform guarantees script execution and audit-ready compliance | Financial Services / Banking | ✓ | ✓ | | | Irena Reedy |
-| <nobr>2026&#8209;02&#8209;22</nobr> | AI security company runs live queries to verify CVEs in seconds | Cybersecurity / AI | | | ✓ | | Irena Reedy |
-| <nobr>2026&#8209;02&#8209;20</nobr> | Communications platform unifies device management across 3,000 devices | Communications / SaaS | ✓ | ✓ | ✓ | | Irena Reedy |
-| <nobr>2025&#8209;12&#8209;11</nobr> | Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually | Financial Services / FinTech | ✓ | | | | Fleetdm |
-| <nobr>2025&#8209;12&#8209;11</nobr> | Foursquare cut costs and gained 114% ROI with Fleet | Software / SaaS | ✓ | ✓ | ✓ | | Fleetdm |
-| <nobr>2025&#8209;12&#8209;11</nobr> | Faire secures Macs with CIS benchmarks and Fleet | E-Commerce / Retail | ✓ | | | | Fleetdm |
-| <nobr>2025&#8209;10&#8209;07</nobr> | Establishing visibility in a distributed hybrid environment | Cybersecurity / AI | ✓ | ✓ | ✓ | | Irena Reedy |
-| <nobr>2025&#8209;01&#8209;29</nobr> | Fastly gains visibility into all endpoints and critical infrastructure worldwide | Networking / CDN | ✓ | ✓ | ✓ | | Fleetdm |
-| <nobr>2024&#8209;12&#8209;23</nobr> | Leading interactive entertainment company adopts Fleet for MDM | Gaming / Entertainment | ✓ | ✓ | | | Andrew Baker |
-| <nobr>2024&#8209;12&#8209;20</nobr> | Cloud-based data leader chooses Fleet for orchestration | Software / SaaS | ✓ | ✓ | ✓ | | Andrew Baker |
-| <nobr>2024&#8209;12&#8209;19</nobr> | American financial services company migrates to Fleet for MDM and next-gen change management | Financial Services / Banking | ✓ | ✓ | | | Andrew Baker |
-| <nobr>2024&#8209;12&#8209;17</nobr> | How a global workforce management company achieved compliance and clarity with Fleet | HR / Workforce Tech | ✓ | ✓ | ✓ | | Harrison Ravazzolo |
-| <nobr>2024&#8209;12&#8209;16</nobr> | Global social media platform migrates to Fleet | Social Media / Consumer Tech | ✓ | ✓ | ✓ | | Andrew Baker |
-| <nobr>2024&#8209;12&#8209;12</nobr> | Vehicle manufacturer transitions to Fleet for endpoint security | Automotive / Manufacturing | ✓ | ✓ | ✓ | | Andrew Baker |
-| <nobr>2024&#8209;12&#8209;11</nobr> | Large gaming company enhances server observability with Fleet | Gaming / Entertainment | | | ✓ | | Andrew Baker |
-| <nobr>2024&#8209;12&#8209;10</nobr> | Worldwide security and authentication platform chooses Fleet for Linux management | Cybersecurity / Identity | | | ✓ | | Andrew Baker |
-| <nobr>2024&#8209;06&#8209;01</nobr> | Global collaboration platform consolidates device management with Fleet | Software / SaaS | ✓ | ✓ | ✓ | | Fleetdm |
-| <nobr>2024&#8209;06&#8209;01</nobr> | Digital bank strengthens security and compliance with Fleet | Financial Services / Banking | ✓ | ✓ | ✓ | | Fleetdm |
-| <nobr>2024&#8209;06&#8209;01</nobr> | EV manufacturer brings Linux workstations under centralized management with Fleet | Automotive / Manufacturing | | | ✓ | | Fleetdm |
+| <nobr>2026&#8209;02&#8209;23</nobr> | [Agritech producer replaces manual tracking across 273 devices](https://fleetdm.com/case-study/agritech-producer) | Agriculture / AgriTech | ✓ | ✓ | ✓ | | Irena Reedy |
+| <nobr>2026&#8209;02&#8209;22</nobr> | [Workspace software company consolidates Kandji and Intune across 1,465 devices](https://fleetdm.com/case-study/workspace-software-company) | Software / SaaS | ✓ | ✓ | | | Irena Reedy |
+| <nobr>2026&#8209;02&#8209;22</nobr> | [Robotics company unifies Mac, Windows, Linux, and Android devices](https://fleetdm.com/case-study/robotics-company) | Robotics / Hardware | ✓ | ✓ | ✓ | ✓ | Irena Reedy |
+| <nobr>2026&#8209;02&#8209;22</nobr> | [Open-source organization manages 1,556 devices with real-time compliance](https://fleetdm.com/case-study/open-source-organization) | Open Source / Nonprofit | ✓ | ✓ | ✓ | | Irena Reedy |
+| <nobr>2026&#8209;02&#8209;22</nobr> | [Journalism nonprofit manages Mac and Linux devices with GitOps](https://fleetdm.com/case-study/journalism-nonprofit) | Media / Journalism | ✓ | | ✓ | | Irena Reedy |
+| <nobr>2026&#8209;02&#8209;22</nobr> | [IT service provider scales to 8,000+ devices with GitOps](https://fleetdm.com/case-study/it-service-provider) | IT Services / MSP | ✓ | ✓ | ✓ | | Irena Reedy |
+| <nobr>2026&#8209;02&#8209;22</nobr> | [IT platform provider automates patching across thousands of Mac, Windows, and Linux devices](https://fleetdm.com/case-study/it-platform-provider) | IT Services / MSP | ✓ | ✓ | ✓ | | Irena Reedy |
+| <nobr>2026&#8209;02&#8209;22</nobr> | [Gaming technology company runs GitOps-driven device management on-prem](https://fleetdm.com/case-study/gaming-technology-company) | Gaming / Entertainment | ✓ | ✓ | ✓ | | Irena Reedy |
+| <nobr>2026&#8209;02&#8209;22</nobr> | [Financial technology company manages 15,000 devices with GitOps](https://fleetdm.com/case-study/financial-technology-company) | Financial Services / FinTech | ✓ | ✓ | ✓ | | Irena Reedy |
+| <nobr>2026&#8209;02&#8209;22</nobr> | [Financial services platform manages 6,000+ hosts with continuous compliance visibility](https://fleetdm.com/case-study/financial-services-platform) | Financial Services / FinTech | ✓ | ✓ | ✓ | | Irena Reedy |
+| <nobr>2026&#8209;02&#8209;22</nobr> | [Enforcing security policies in minutes across a regulated healthcare environment](https://fleetdm.com/case-study/healthcare-technology-organization) | Healthcare / MedTech | ✓ | ✓ | ✓ | | Irena Reedy |
+| <nobr>2026&#8209;02&#8209;22</nobr> | [Cannabis technology company consolidates Jamf and Intune with Fleet](https://fleetdm.com/case-study/cannabis-technology-company) | Cannabis / Retail Tech | ✓ | ✓ | | | Irena Reedy |
+| <nobr>2026&#8209;02&#8209;22</nobr> | [Banking platform guarantees script execution and audit-ready compliance](https://fleetdm.com/case-study/banking-platform) | Financial Services / Banking | ✓ | ✓ | | | Irena Reedy |
+| <nobr>2026&#8209;02&#8209;22</nobr> | [AI security company runs live queries to verify CVEs in seconds](https://fleetdm.com/case-study/ai-security-company) | Cybersecurity / AI | | | ✓ | | Irena Reedy |
+| <nobr>2026&#8209;02&#8209;20</nobr> | [Communications platform unifies device management across 3,000 devices](https://fleetdm.com/case-study/communications-platform) | Communications / SaaS | ✓ | ✓ | ✓ | | Irena Reedy |
+| <nobr>2025&#8209;12&#8209;11</nobr> | [Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually](https://fleetdm.com/case-study/stripe) | Financial Services / FinTech | ✓ | | | | Fleetdm |
+| <nobr>2025&#8209;12&#8209;11</nobr> | [Foursquare cut costs and gained 114% ROI with Fleet](https://fleetdm.com/case-study/foursquare) | Software / SaaS | ✓ | ✓ | ✓ | | Fleetdm |
+| <nobr>2025&#8209;12&#8209;11</nobr> | [Faire secures Macs with CIS benchmarks and Fleet](https://fleetdm.com/case-study/faire) | E-Commerce / Retail | ✓ | | | | Fleetdm |
+| <nobr>2025&#8209;10&#8209;07</nobr> | [Establishing visibility in a distributed hybrid environment](https://fleetdm.com/case-study/global-saas-company) | Cybersecurity / AI | ✓ | ✓ | ✓ | | Irena Reedy |
+| <nobr>2025&#8209;01&#8209;29</nobr> | [Fastly gains visibility into all endpoints and critical infrastructure worldwide](https://fleetdm.com/case-study/fastly) | Networking / CDN | ✓ | ✓ | ✓ | | Fleetdm |
+| <nobr>2024&#8209;12&#8209;23</nobr> | [Leading interactive entertainment company adopts Fleet for MDM](https://fleetdm.com/case-study/interactive-entertainment-company) | Gaming / Entertainment | ✓ | ✓ | | | Andrew Baker |
+| <nobr>2024&#8209;12&#8209;20</nobr> | [Cloud-based data leader chooses Fleet for orchestration](https://fleetdm.com/case-study/cloud-data-platform) | Software / SaaS | ✓ | ✓ | ✓ | | Andrew Baker |
+| <nobr>2024&#8209;12&#8209;19</nobr> | [American financial services company migrates to Fleet for MDM and next-gen change management](https://fleetdm.com/case-study/financial-services-company) | Financial Services / Banking | ✓ | ✓ | | | Andrew Baker |
+| <nobr>2024&#8209;12&#8209;17</nobr> | [How a global workforce management company achieved compliance and clarity with Fleet](https://fleetdm.com/case-study/global-workforce-management-company) | HR / Workforce Tech | ✓ | ✓ | ✓ | | Harrison Ravazzolo |
+| <nobr>2024&#8209;12&#8209;16</nobr> | [Global social media platform migrates to Fleet](https://fleetdm.com/case-study/global-social-media-platform) | Social Media / Consumer Tech | ✓ | ✓ | ✓ | | Andrew Baker |
+| <nobr>2024&#8209;12&#8209;12</nobr> | [Vehicle manufacturer transitions to Fleet for endpoint security](https://fleetdm.com/case-study/electric-vehicle-manufacturer) | Automotive / Manufacturing | ✓ | ✓ | ✓ | | Andrew Baker |
+| <nobr>2024&#8209;12&#8209;11</nobr> | [Large gaming company enhances server observability with Fleet](https://fleetdm.com/case-study/online-gaming-platform) | Gaming / Entertainment | | | ✓ | | Andrew Baker |
+| <nobr>2024&#8209;12&#8209;10</nobr> | [Worldwide security and authentication platform chooses Fleet for Linux management](https://fleetdm.com/case-study/worldwide-security-and-authentication-platform) | Cybersecurity / Identity | | | ✓ | | Andrew Baker |
+| <nobr>2024&#8209;06&#8209;01</nobr> | [Global collaboration platform consolidates device management with Fleet](https://fleetdm.com/case-study/collaboration-platform) | Software / SaaS | ✓ | ✓ | ✓ | | Fleetdm |
+| <nobr>2024&#8209;06&#8209;01</nobr> | [Digital bank strengthens security and compliance with Fleet](https://fleetdm.com/case-study/digital-bank) | Financial Services / Banking | ✓ | ✓ | ✓ | | Fleetdm |
+| <nobr>2024&#8209;06&#8209;01</nobr> | [EV manufacturer brings Linux workstations under centralized management with Fleet](https://fleetdm.com/case-study/ev-manufacturer) | Automotive / Manufacturing | | | ✓ | | Fleetdm |
 
 ---
 
