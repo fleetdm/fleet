@@ -9,7 +9,9 @@ org_settings:
   host_expiry_settings:
     host_expiry_enabled: false
   integrations:
-    google_calendar: []
+    google_calendar:
+      - api_key_json: $DOGFOOD_CALENDAR_API_KEY
+        domain: fleetdm.com
     jira: []
     zendesk: []
   mdm:
@@ -21,14 +23,14 @@ org_settings:
       metadata_url: ""
     end_user_license_agreement: ../it-and-security/lib/macos/misc/eula.pdf
     apple_business_manager:
-    - organization_name: Fleet Device Management Inc.
-      macos_team: "💻 Workstations" 
-      ios_team: "📱🏢 Employee-issued mobile devices"
-      ipados_team: "📱🏢 Employee-issued mobile devices"
-    - organization_name: Mactivate LLC
-      macos_team: "🧪 Testing & QA" 
-      ios_team: "🧪 Testing & QA"
-      ipados_team: "🧪 Testing & QA"
+      - organization_name: Fleet Device Management Inc.
+        macos_team: "💻 Workstations"
+        ios_team: "📱🏢 Employee-issued mobile devices"
+        ipados_team: "📱🏢 Employee-issued mobile devices"
+      - organization_name: Mactivate LLC
+        macos_team: "🧪 Testing & QA"
+        ios_team: "🧪 Testing & QA"
+        ipados_team: "🧪 Testing & QA"
     volume_purchasing_program:
       - location: Fleet Device Management Inc.
         teams:
