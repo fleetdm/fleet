@@ -5,9 +5,7 @@ team_settings:
       destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
       enable_failing_policies_webhook: true
       host_batch_size: 0
-      policy_ids:
-        - 14946
-        - 15329
+      policy_ids: []
   features:
     enable_host_users: true
     enable_software_inventory: true
@@ -136,20 +134,25 @@ policies:
   - path: ../lib/macos/policies/update-1password.yml
   - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
   - path: ../lib/macos/policies/disk-encryption-check.yml
+  - path: ../lib/macos/policies/disk-space-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
   - path: ../lib/macos/policies/install-macos-compatibility-extension.yml
   - path: ../lib/macos/policies/company-portal-installed.yml
   - path: ../lib/macos/policies/entra-conditional-access-check.yml
   - path: ../lib/macos/policies/install-nudge.yml
+  - path: ../lib/macos/policies/update-claude.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
   - path: ../lib/windows/policies/disk-encryption-check.yml
+  - path: ../lib/windows/policies/disk-space-check.yml
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
+  - path: ../lib/windows/policies/update-claude.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
+  - path: ../lib/linux/policies/disk-space-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
@@ -327,14 +330,17 @@ software:
       setup_experience: true
       categories:
         - Security
-    # Windows apps
-    - slug: okta-verify/windows # Okta Verify for Windows
+    - slug: claude/darwin # Claude for macOS
       self_service: true
-      setup_experience: true
+      categories:
+        - Productivity
+    # Windows apps
+    - slug: claude/windows # Claude for Windows
+      self_service: true
       labels_include_any:
         - "x86-based Windows hosts"
       categories:
-        - Security
+        - Productivity
     - slug: slack/windows # Slack for Windows
       self_service: true
       setup_experience: true

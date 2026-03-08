@@ -63,17 +63,9 @@ Spontaneous, nice things that customers say about Fleet in:
   productCategories: [Device management]
 ```
 
-4. Fill in all the fields with the quote and other relevant information. The following fields are required and must be populated:
+4. Add the quote in the `quote` field and fill in all information. All fields are *required*.
 
-```
-quote: required
-quoteAuthorName: required
-quoteAuthorJobTitle: required
-quoteLinkUrl: required
-quoteAuthorProfileImageFilename: required
-```
-
-5. The other fields are not required, but the `productCategories` field should only be populated with one of the following:
+5. The `productCategories` field should only be populated with one of the following:
 
 ```
 Observability
