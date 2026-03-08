@@ -5295,6 +5295,7 @@ func ReconcileAppleProfiles(
 
 	execCmd := func(profUUID string, target *cmdTarget, op fleet.MDMOperationType) {
 		defer wgProd.Done()
+		level.Info(logger).Log("msg", "ReconcileAppleProfiles execcmd starting", "operation", op, "profile_uuid", profUUID, "command_uuid", target.cmdUUID, "enrollment_id_count", len(target.enrollmentIDs))
 
 		var err error
 		switch op {
@@ -5316,6 +5317,7 @@ func ReconcileAppleProfiles(
 			level.Error(logger).Log("err", fmt.Sprintf("enqueue command to %s profiles", op), "details", err)
 			ch <- remoteResult{err, target.cmdUUID}
 		}
+		level.Info(logger).Log("msg", "ReconcileAppleProfiles execcmd completing", "profile_uuid", profUUID, "command_uuid", target.cmdUUID, "enrollment_id_count", len(target.enrollmentIDs))
 	}
 	level.Info(logger).Log("msg", "ReconcileAppleProfiles launching goroutines to send commands", "install_target_count", len(installTargets), "remove_target_count", len(removeTargets))
 	for profUUID, target := range installTargets {
