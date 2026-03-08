@@ -58,14 +58,15 @@ func TestCPEFromSoftware(t *testing.T) {
 
 	// Does not error on names that sanitize to FTS5 reserved keywords (AND, OR, NOT).
 	// These names are composed of special characters surrounding a keyword, so after
-	// sanitizeMatch strips non-alphanumeric chars, only the keyword remains.
+	// sanitizeMatch strips non-alphanumeric chars and quotes each token, the keyword
+	// becomes a quoted literal instead of an FTS5 operator.
 	ftsKeywordNames := []string{
-		"_OR_",       // sanitizes to " OR "
-		"(AND)",      // sanitizes to " AND "
-		"[NOT]",      // sanitizes to " NOT "
-		"--OR--",     // sanitizes to " OR "
-		"OR - Debug", // sanitizes to "OR Debug" (OR at start)
-		"foo - OR",   // sanitizes to "foo OR" (OR at end)
+		"_OR_",       // sanitizes to `"OR"`
+		"(AND)",      // sanitizes to `"AND"`
+		"[NOT]",      // sanitizes to `"NOT"`
+		"--OR--",     // sanitizes to `"OR"`
+		"OR - Debug", // sanitizes to `"OR" "Debug"`
+		"foo - OR",   // sanitizes to `"foo" "OR"`
 	}
 	for _, name := range ftsKeywordNames {
 		_, err = CPEFromSoftware(
