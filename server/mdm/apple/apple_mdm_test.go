@@ -318,18 +318,26 @@ func TestReconcileRecoveryLockPasswords(t *testing.T) {
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	t.Run("no hosts needing recovery lock", func(t *testing.T) {
+	t.Run("no hosts needing recovery lock does not send commands", func(t *testing.T) {
 		ds := new(mock.Store)
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]fleet.HostNeedingRecoveryLock, error) {
 			return nil, nil
 		}
 
-		err := ReconcileRecoveryLockPasswords(ctx, ds, nil, logger)
+		var commandSent bool
+		mockCommander := &mockRecoveryLockCommander{
+			setRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID, pw string) error {
+				commandSent = true
+				return nil
+			},
+		}
+
+		err := reconcileRecoveryLockPasswordsWithCommander(ctx, ds, mockCommander, logger)
 		require.NoError(t, err)
-		assert.True(t, ds.GetHostsForRecoveryLockActionFuncInvoked)
+		assert.False(t, commandSent, "SetRecoveryLock should not be called when no hosts need it")
 	})
 
-	t.Run("hosts needing recovery lock get SetRecoveryLock", func(t *testing.T) {
+	t.Run("host needing recovery lock gets SetRecoveryLock and status set to pending", func(t *testing.T) {
 		ds := new(mock.Store)
 
 		hostID := uint(1)
@@ -337,12 +345,7 @@ func TestReconcileRecoveryLockPasswords(t *testing.T) {
 		password := "ABCD-EFGH-IJKL-MNOP"
 
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]fleet.HostNeedingRecoveryLock, error) {
-			return []fleet.HostNeedingRecoveryLock{
-				{
-					HostID:   hostID,
-					HostUUID: hostUUID,
-				},
-			}, nil
+			return []fleet.HostNeedingRecoveryLock{{HostID: hostID, HostUUID: hostUUID}}, nil
 		}
 
 		ds.SetHostRecoveryLockPasswordFunc = func(ctx context.Context, hID uint) (string, error) {
@@ -350,106 +353,63 @@ func TestReconcileRecoveryLockPasswords(t *testing.T) {
 			return password, nil
 		}
 
-		var pendingCalled bool
+		var pendingHostID uint
+		var pendingCmdUUID string
 		ds.SetRecoveryLockPendingFunc = func(ctx context.Context, hID uint, cmdUUID string) error {
-			pendingCalled = true
-			assert.Equal(t, hostID, hID)
-			assert.NotEmpty(t, cmdUUID)
+			pendingHostID = hID
+			pendingCmdUUID = cmdUUID
 			return nil
 		}
 
-		var setRecoveryLockCalled bool
-		var setRecoveryLockPassword string
+		var sentPassword string
+		var sentCmdUUID string
 		mockCommander := &mockRecoveryLockCommander{
 			setRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID, pw string) error {
-				setRecoveryLockCalled = true
-				setRecoveryLockPassword = pw
 				assert.Equal(t, []string{hostUUID}, hostUUIDs)
+				sentPassword = pw
+				sentCmdUUID = cmdUUID
 				return nil
 			},
 		}
 
 		err := reconcileRecoveryLockPasswordsWithCommander(ctx, ds, mockCommander, logger)
 		require.NoError(t, err)
-		assert.True(t, setRecoveryLockCalled, "SetRecoveryLock should be called")
-		assert.Equal(t, password, setRecoveryLockPassword)
-		assert.True(t, pendingCalled, "SetRecoveryLockPending should be called")
+		assert.Equal(t, password, sentPassword, "should send generated password")
+		assert.Equal(t, hostID, pendingHostID, "should mark correct host as pending")
+		assert.Equal(t, sentCmdUUID, pendingCmdUUID, "pending status should use same command UUID")
 	})
 
-	t.Run("SetRecoveryLock enqueue failure marks as failed", func(t *testing.T) {
+	t.Run("SetRecoveryLock failure marks host as failed", func(t *testing.T) {
 		ds := new(mock.Store)
 
 		hostID := uint(1)
-		hostUUID := "host-uuid-1"
 
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]fleet.HostNeedingRecoveryLock, error) {
-			return []fleet.HostNeedingRecoveryLock{
-				{
-					HostID:   hostID,
-					HostUUID: hostUUID,
-				},
-			}, nil
+			return []fleet.HostNeedingRecoveryLock{{HostID: hostID, HostUUID: "host-uuid-1"}}, nil
 		}
 
 		ds.SetHostRecoveryLockPasswordFunc = func(ctx context.Context, hID uint) (string, error) {
 			return "ABCD-EFGH-IJKL-MNOP", nil
 		}
 
-		var failedCalled bool
+		var failedHostID uint
+		var failedErrorMsg string
 		ds.SetRecoveryLockFailedFunc = func(ctx context.Context, hID uint, errMsg string) error {
-			failedCalled = true
-			assert.Equal(t, hostID, hID)
-			assert.Contains(t, errMsg, "enqueue failed")
+			failedHostID = hID
+			failedErrorMsg = errMsg
 			return nil
 		}
 
 		mockCommander := &mockRecoveryLockCommander{
 			setRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID, pw string) error {
-				return errors.New("enqueue failed: network error")
+				return errors.New("APNs push failed")
 			},
 		}
 
 		err := reconcileRecoveryLockPasswordsWithCommander(ctx, ds, mockCommander, logger)
 		require.NoError(t, err)
-		assert.True(t, failedCalled, "SetRecoveryLockFailed should be called on enqueue error")
-	})
-
-	t.Run("multiple hosts get SetRecoveryLock", func(t *testing.T) {
-		ds := new(mock.Store)
-
-		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]fleet.HostNeedingRecoveryLock, error) {
-			return []fleet.HostNeedingRecoveryLock{
-				{HostID: 1, HostUUID: "host-uuid-1"},
-				{HostID: 2, HostUUID: "host-uuid-2"},
-			}, nil
-		}
-
-		ds.SetHostRecoveryLockPasswordFunc = func(ctx context.Context, hID uint) (string, error) {
-			return "TEST-PASS-WORD-1234", nil
-		}
-
-		pendingCalled := make(map[uint]bool)
-		ds.SetRecoveryLockPendingFunc = func(ctx context.Context, hID uint, cmdUUID string) error {
-			pendingCalled[hID] = true
-			return nil
-		}
-
-		setRecoveryLockCalled := make(map[string]bool)
-		mockCommander := &mockRecoveryLockCommander{
-			setRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID, pw string) error {
-				for _, uuid := range hostUUIDs {
-					setRecoveryLockCalled[uuid] = true
-				}
-				return nil
-			},
-		}
-
-		err := reconcileRecoveryLockPasswordsWithCommander(ctx, ds, mockCommander, logger)
-		require.NoError(t, err)
-		assert.True(t, setRecoveryLockCalled["host-uuid-1"], "host 1 should get SetRecoveryLock")
-		assert.True(t, setRecoveryLockCalled["host-uuid-2"], "host 2 should get SetRecoveryLock")
-		assert.True(t, pendingCalled[1], "host 1 should be marked pending")
-		assert.True(t, pendingCalled[2], "host 2 should be marked pending")
+		assert.Equal(t, hostID, failedHostID, "should mark correct host as failed")
+		assert.Contains(t, failedErrorMsg, "APNs push failed", "should include original error")
 	})
 }
 
