@@ -1644,7 +1644,7 @@ func sendRecoveryLockCommandsWithCommander(
 
 	logger.InfoContext(ctx, "sending SetRecoveryLock commands", "count", len(hosts))
 
-	// Generate passwords for all hosts
+	// Generate passwords for all hosts upfront
 	passwords := make(map[uint]string, len(hosts))
 	for _, host := range hosts {
 		pw, err := GenerateRecoveryLockPassword()
@@ -1659,12 +1659,10 @@ func sendRecoveryLockCommandsWithCommander(
 		passwords[host.HostID] = pw
 	}
 
-	// Bulk insert all passwords
-	if err := ds.SetHostsRecoveryLockPasswords(ctx, passwords); err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set recovery lock passwords")
-	}
-
-	// Send commands for each host
+	// Enqueue commands for all hosts, tracking which succeed.
+	// We only persist passwords AFTER successful enqueue to avoid creating rows
+	// that would prevent retries if a crash occurs before enqueue completes.
+	successfulPasswords := make(map[uint]string, len(passwords))
 	for _, host := range hosts {
 		password, ok := passwords[host.HostID]
 		if !ok {
@@ -1674,37 +1672,28 @@ func sendRecoveryLockCommandsWithCommander(
 
 		cmdUUID := uuid.NewString()
 
-		// Send SetRecoveryLock command
 		if err := commander.SetRecoveryLock(ctx, []string{host.HostUUID}, cmdUUID, password); err != nil {
-			if markErr := ds.SetRecoveryLockFailed(ctx, host.HostID, "SetRecoveryLock enqueue failed: "+err.Error()); markErr != nil {
-				logger.ErrorContext(ctx, "failed to mark recovery lock as failed after enqueue error",
-					"host_id", host.HostID,
-					"host_uuid", host.HostUUID,
-					"error", markErr,
-				)
-			}
 			logger.ErrorContext(ctx, "failed to send SetRecoveryLock command",
 				"host_id", host.HostID,
 				"host_uuid", host.HostUUID,
 				"error", err,
 			)
+			// Don't include in successful passwords - host will be retried on next run
 			continue
 		}
 
-		// Update status to pending
-		if err := ds.SetRecoveryLockPending(ctx, host.HostID); err != nil {
-			logger.ErrorContext(ctx, "failed to set recovery lock pending",
-				"host_id", host.HostID,
-				"host_uuid", host.HostUUID,
-				"error", err,
-			)
-			continue
-		}
-
+		successfulPasswords[host.HostID] = password
 		logger.DebugContext(ctx, "sent SetRecoveryLock command",
 			"host_id", host.HostID,
 			"host_uuid", host.HostUUID,
 		)
+	}
+
+	// Bulk insert passwords only for hosts where enqueue succeeded
+	if len(successfulPasswords) > 0 {
+		if err := ds.SetHostsRecoveryLockPasswords(ctx, successfulPasswords); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set recovery lock passwords")
+		}
 	}
 
 	return nil
