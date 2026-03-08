@@ -7299,7 +7299,7 @@ func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostID uin
 func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]fleet.HostNeedingRecoveryLock, error) {
 	// Query hosts that:
 	// - Have enable_recovery_lock_password = true (from team config or appconfig for no-team hosts)
-	// - Are macOS 11.5+ (version check via operating_systems table)
+	// - Are Apple Silicon (ARM CPU)
 	// - Are MDM enrolled (enabled = 1 and device enrollment type)
 	// - Have no recovery lock password record yet
 	// Note: hosts with existing records (pending, verifying, verified, failed) are NOT included
@@ -7307,12 +7307,11 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]fleet
 		SELECT h.id, h.uuid
 		FROM hosts h
 		JOIN nano_enrollments ne ON ne.device_id = h.uuid
-		JOIN host_operating_system hos ON hos.host_id = h.id
-		JOIN operating_systems os ON os.id = hos.os_id
 		LEFT JOIN teams t ON t.id = h.team_id
 		CROSS JOIN app_config_json ac
 		LEFT JOIN host_recovery_key_passwords rkp ON rkp.host_id = h.id
-		WHERE os.platform = 'darwin'
+		WHERE h.platform = 'darwin'
+		  AND h.cpu_type LIKE '%arm%'
 		  AND ne.enabled = 1
 		  AND ne.type IN ('Device', 'User Enrollment (Device)')
 		  AND (
@@ -7321,14 +7320,6 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]fleet
 		      OR
 		      -- No-team hosts: check appconfig
 		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.enable_recovery_lock_password') = true)
-		  )
-		  AND (
-		      -- macOS 11.5+ version check (os.version is e.g., "15.7", "11.5.2")
-		      CAST(SUBSTRING_INDEX(os.version, '.', 1) AS UNSIGNED) > 11
-		      OR (
-		          CAST(SUBSTRING_INDEX(os.version, '.', 1) AS UNSIGNED) = 11
-		          AND CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(os.version, '.', 2), '.', -1) AS UNSIGNED) >= 5
-		      )
 		  )
 		  AND rkp.host_id IS NULL
 		LIMIT 500

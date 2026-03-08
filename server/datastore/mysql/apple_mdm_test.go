@@ -10193,21 +10193,9 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	}
 
-	// Helper to set host OS version
-	setHostOS := func(hostID uint, osName, osVersion string) {
-		_, err := ds.writer(ctx).ExecContext(ctx, `
-			INSERT INTO operating_systems (name, version, arch, kernel_version, platform, display_version)
-			VALUES (?, ?, 'x86_64', '', 'darwin', '')
-			ON DUPLICATE KEY UPDATE id=id`, osName, osVersion)
-		require.NoError(t, err)
-
-		var osID uint
-		err = ds.writer(ctx).GetContext(ctx, &osID, `SELECT id FROM operating_systems WHERE name = ? AND version = ?`, osName, osVersion)
-		require.NoError(t, err)
-
-		_, err = ds.writer(ctx).ExecContext(ctx, `
-			INSERT INTO host_operating_system (host_id, os_id) VALUES (?, ?)
-			ON DUPLICATE KEY UPDATE os_id = ?`, hostID, osID, osID)
+	// Helper to set host CPU type
+	setHostCPUType := func(hostID uint, cpuType string) {
+		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET cpu_type = ? WHERE id = ?`, cpuType, hostID)
 		require.NoError(t, err)
 	}
 
@@ -10226,44 +10214,33 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Empty(t, hosts)
 
-	// Create eligible macOS 15.7 host in team with recovery lock enabled
-	team15 := createTeamWithRecoveryLock("team-macos15", true)
-	hostMacOS15 := test.NewHost(t, ds, "macos15-host", "1.2.5.1", "m15key", "m15uuid", time.Now(),
-		test.WithPlatform("darwin"), test.WithTeamID(team15.ID))
-	setHostOS(hostMacOS15.ID, "macOS", "15.7")
-	nanoEnroll(t, ds, hostMacOS15, false)
+	// Create eligible Apple Silicon host in team with recovery lock enabled
+	teamARM := createTeamWithRecoveryLock("team-arm", true)
+	hostARM := test.NewHost(t, ds, "arm-host", "1.2.5.1", "armkey", "armuuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(teamARM.ID))
+	setHostCPUType(hostARM.ID, "arm64")
+	nanoEnroll(t, ds, hostARM, false)
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
-	assert.True(t, hostInList(hosts, hostMacOS15.ID), "macOS 15.7 host should be eligible")
+	assert.True(t, hostInList(hosts, hostARM.ID), "Apple Silicon (ARM) host should be eligible")
 
-	// Create eligible macOS 11.5 host (minimum supported version)
-	team115 := createTeamWithRecoveryLock("team-macos11-5", true)
-	hostMacOS115 := test.NewHost(t, ds, "macos11-5-host", "1.2.5.2", "m115key", "m115uuid", time.Now(),
-		test.WithPlatform("darwin"), test.WithTeamID(team115.ID))
-	setHostOS(hostMacOS115.ID, "macOS", "11.5")
-	nanoEnroll(t, ds, hostMacOS115, false)
-
-	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
-	require.NoError(t, err)
-	assert.True(t, hostInList(hosts, hostMacOS115.ID), "macOS 11.5 host should be eligible")
-
-	// Create ineligible macOS 11.4 host (below minimum)
-	team114 := createTeamWithRecoveryLock("team-macos11-4", true)
-	hostMacOS114 := test.NewHost(t, ds, "macos11-4-host", "1.2.5.3", "m114key", "m114uuid", time.Now(),
-		test.WithPlatform("darwin"), test.WithTeamID(team114.ID))
-	setHostOS(hostMacOS114.ID, "macOS", "11.4")
-	nanoEnroll(t, ds, hostMacOS114, false)
+	// Create ineligible Intel host
+	teamIntel := createTeamWithRecoveryLock("team-intel", true)
+	hostIntel := test.NewHost(t, ds, "intel-host", "1.2.5.2", "intelkey", "inteluuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(teamIntel.ID))
+	setHostCPUType(hostIntel.ID, "x86_64")
+	nanoEnroll(t, ds, hostIntel, false)
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
-	assert.False(t, hostInList(hosts, hostMacOS114.ID), "macOS 11.4 host should NOT be eligible (below minimum)")
+	assert.False(t, hostInList(hosts, hostIntel.ID), "Intel host should NOT be eligible")
 
 	// Create host in team with recovery lock DISABLED
 	teamDisabled := createTeamWithRecoveryLock("team-disabled", false)
 	hostDisabled := test.NewHost(t, ds, "disabled-team-host", "1.2.5.4", "dtkey", "dtuuid", time.Now(),
 		test.WithPlatform("darwin"), test.WithTeamID(teamDisabled.ID))
-	setHostOS(hostDisabled.ID, "macOS", "15.7")
+	setHostCPUType(hostDisabled.ID, "arm64e")
 	nanoEnroll(t, ds, hostDisabled, false)
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
@@ -10274,7 +10251,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	teamNotEnrolled := createTeamWithRecoveryLock("team-not-enrolled", true)
 	hostNotEnrolled := test.NewHost(t, ds, "not-enrolled-host", "1.2.5.5", "nekey", "neuuid", time.Now(),
 		test.WithPlatform("darwin"), test.WithTeamID(teamNotEnrolled.ID))
-	setHostOS(hostNotEnrolled.ID, "macOS", "15.7")
+	setHostCPUType(hostNotEnrolled.ID, "arm64e")
 	// No nano enrollment
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
@@ -10295,7 +10272,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	teamPending := createTeamWithRecoveryLock("team-pending", true)
 	hostPending := test.NewHost(t, ds, "pending-host2", "1.2.5.7", "pkey2", "puuid2", time.Now(),
 		test.WithPlatform("darwin"), test.WithTeamID(teamPending.ID))
-	setHostOS(hostPending.ID, "macOS", "15.7")
+	setHostCPUType(hostPending.ID, "arm64e")
 	nanoEnroll(t, ds, hostPending, false)
 	_, err = ds.SetHostRecoveryLockPassword(ctx, hostPending.ID)
 	require.NoError(t, err)
@@ -10310,7 +10287,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	teamVerified := createTeamWithRecoveryLock("team-verified", true)
 	hostVerified := test.NewHost(t, ds, "verified-host2", "1.2.5.8", "vkey2", "vuuid2", time.Now(),
 		test.WithPlatform("darwin"), test.WithTeamID(teamVerified.ID))
-	setHostOS(hostVerified.ID, "macOS", "15.7")
+	setHostCPUType(hostVerified.ID, "arm64e")
 	nanoEnroll(t, ds, hostVerified, false)
 	_, err = ds.SetHostRecoveryLockPassword(ctx, hostVerified.ID)
 	require.NoError(t, err)
@@ -10325,7 +10302,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	setAppConfigRecoveryLock(true)
 	hostNoTeam := test.NewHost(t, ds, "no-team-host", "1.2.5.9", "ntkey", "ntuuid", time.Now(),
 		test.WithPlatform("darwin"))
-	setHostOS(hostNoTeam.ID, "macOS", "15.7")
+	setHostCPUType(hostNoTeam.ID, "arm64e")
 	nanoEnroll(t, ds, hostNoTeam, false)
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
