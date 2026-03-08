@@ -1123,9 +1123,11 @@ type AppleMDMVPPInstaller interface {
 }
 
 const (
-	DeviceLocationCmdName  = "DeviceLocation"
-	EnableLostModeCmdName  = "EnableLostMode"
-	DisableLostModeCmdName = "DisableLostMode"
+	DeviceLocationCmdName     = "DeviceLocation"
+	EnableLostModeCmdName     = "EnableLostMode"
+	DisableLostModeCmdName    = "DisableLostMode"
+	SetRecoveryLockCmdName    = "SetRecoveryLock"
+	VerifyRecoveryLockCmdName = "VerifyRecoveryLock"
 )
 
 type HostLocationData struct {

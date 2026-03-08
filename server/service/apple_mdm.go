@@ -3887,15 +3887,15 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			}
 		}
 
-	case "SetRecoveryLock":
+	case fleet.SetRecoveryLockCmdName:
 		res := NewRecoveryLockResult(cmdResult)
-		if err := svc.runCommandHandlers(r.Context, "SetRecoveryLock", res); err != nil {
+		if err := svc.runCommandHandlers(r.Context, fleet.SetRecoveryLockCmdName, res); err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "SetRecoveryLock: calling handlers")
 		}
 
-	case "VerifyRecoveryLock":
+	case fleet.VerifyRecoveryLockCmdName:
 		res := NewRecoveryLockResult(cmdResult)
-		if err := svc.runCommandHandlers(r.Context, "VerifyRecoveryLock", res); err != nil {
+		if err := svc.runCommandHandlers(r.Context, fleet.VerifyRecoveryLockCmdName, res); err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "VerifyRecoveryLock: calling handlers")
 		}
 	}
