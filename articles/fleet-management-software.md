@@ -1,7 +1,5 @@
 # Fleet vs. Jamf vs. Microsoft Intune: How to choose the right fleet management software
 
-Managing a fleet of corporate devices means juggling inventory, configuration, security, and compliance across potentially thousands of endpoints. The tools IT teams use for this vary dramatically in platform coverage, deployment flexibility, and what's included versus sold separately.
-
 This guide compares Fleet, Jamf Pro, and Microsoft Intune as device management software options, covering platform support, security capabilities, and automation features.
 
 ## Overview

@@ -23,6 +23,9 @@ controls:
     - certificate_authority_name: DIGIDOO
       name: my_certypoo
       subject_name: CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
+  apple_settings:
+    configuration_profiles:
+    - path: "../lib/team-a-👍/profiles/team-macos-mobileconfig-profile.mobileconfig"
   enable_disk_encryption: true
   enable_recovery_lock_password: false
   ios_updates:
@@ -33,9 +36,6 @@ controls:
     deadline: "2022-12-31"
     minimum_version: "98.2"
     update_new_hosts:
-  macos_settings:
-    custom_settings:
-    - path: "../lib/team-a-👍/profiles/team-macos-mobileconfig-profile.mobileconfig"
   macos_updates:
     deadline: "2020-12-31"
     minimum_version: "95.1"
@@ -51,7 +51,6 @@ labels:
 name: "Team A 👍"
 policies:
 - calendar_events_enabled: false
-  conditional_access_bypass_enabled: true
   conditional_access_enabled: true
   critical: false
   description: This is a team policy

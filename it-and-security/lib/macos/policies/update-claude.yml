@@ -1,0 +1,6 @@
+- name: macOS - Claude up to date
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.anthropic.claudefordesktop' AND version_compare(bundle_short_version, '1.1.4328') < 0);
+  critical: false
+  description: The host may have an outdated version of Claude, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Claude's built-in update functionality. You can also delete Claude if you are no longer using it."
+  platform: darwin
