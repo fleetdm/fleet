@@ -115,7 +115,6 @@ func TestMDMApple(t *testing.T) {
 		{"RecoveryLockPasswordSetOverwrite", testRecoveryLockPasswordSetOverwrite},
 		{"RecoveryLockPasswordUpdatedAtChanges", testRecoveryLockPasswordUpdatedAtChanges},
 		{"RecoveryLockStatusMethods", testRecoveryLockStatusMethods},
-		{"GetPendingRecoveryLockHosts", testGetPendingRecoveryLockHosts},
 		{"GetHostsForRecoveryLockAction", testGetHostsForRecoveryLockAction},
 	}
 
@@ -10101,73 +10100,6 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		require.Error(t, err)
 		assert.True(t, fleet.IsNotFound(err))
 	})
-}
-
-func testGetPendingRecoveryLockHosts(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-
-	// Initially no pending hosts
-	hosts, err := ds.GetPendingRecoveryLockHosts(ctx)
-	require.NoError(t, err)
-	assert.Empty(t, hosts)
-
-	// Create a host with pending status but no command result yet
-	hostNoResult := test.NewHost(t, ds, "pending-no-result", "1.2.4.1", "pnrkey", "pnruuid", time.Now(), test.WithPlatform("darwin"))
-	_, err = ds.SetHostRecoveryLockPassword(ctx, hostNoResult.ID)
-	require.NoError(t, err)
-	err = ds.SetRecoveryLockPending(ctx, hostNoResult.ID, "set-cmd-uuid-1")
-	require.NoError(t, err)
-
-	// Should find the pending host with empty status
-	hosts, err = ds.GetPendingRecoveryLockHosts(ctx)
-	require.NoError(t, err)
-	found := findPendingHost(hosts, hostNoResult.ID)
-	require.NotNil(t, found, "host should be in pending list")
-	assert.Equal(t, hostNoResult.UUID, found.HostUUID)
-	assert.Equal(t, "set-cmd-uuid-1", found.SetCommandUUID)
-	assert.Empty(t, found.SetCommandStatus)
-
-	// Create host with acknowledged result
-	hostAck := test.NewHost(t, ds, "pending-ack", "1.2.4.2", "packkey", "packuuid", time.Now(), test.WithPlatform("darwin"))
-	nanoEnroll(t, ds, hostAck, false)
-	_, err = ds.SetHostRecoveryLockPassword(ctx, hostAck.ID)
-	require.NoError(t, err)
-	err = ds.SetRecoveryLockPending(ctx, hostAck.ID, "set-cmd-uuid-ack")
-	require.NoError(t, err)
-	insertNanoCommand(t, ds, "set-cmd-uuid-ack", "SetRecoveryLock")
-	insertNanoCommandResult(t, ds, "set-cmd-uuid-ack", hostAck.UUID, "Acknowledged", "<?xml version=\"1.0\"?><plist></plist>")
-
-	hosts, err = ds.GetPendingRecoveryLockHosts(ctx)
-	require.NoError(t, err)
-	found = findPendingHost(hosts, hostAck.ID)
-	require.NotNil(t, found, "acknowledged host should be in pending list")
-	assert.Equal(t, "Acknowledged", found.SetCommandStatus)
-
-	// Create host with error result
-	hostErr := test.NewHost(t, ds, "pending-err", "1.2.4.3", "perrkey", "perruuid", time.Now(), test.WithPlatform("darwin"))
-	nanoEnroll(t, ds, hostErr, false)
-	_, err = ds.SetHostRecoveryLockPassword(ctx, hostErr.ID)
-	require.NoError(t, err)
-	err = ds.SetRecoveryLockPending(ctx, hostErr.ID, "set-cmd-uuid-err")
-	require.NoError(t, err)
-	insertNanoCommand(t, ds, "set-cmd-uuid-err", "SetRecoveryLock")
-	insertNanoCommandResult(t, ds, "set-cmd-uuid-err", hostErr.UUID, "Error", "<?xml version=\"1.0\"?><plist><key>ErrorChain</key></plist>")
-
-	hosts, err = ds.GetPendingRecoveryLockHosts(ctx)
-	require.NoError(t, err)
-	found = findPendingHost(hosts, hostErr.ID)
-	require.NotNil(t, found, "error host should be in pending list")
-	assert.Equal(t, "Error", found.SetCommandStatus)
-	assert.Contains(t, found.SetCommandErrorInfo, "ErrorChain")
-}
-
-func findPendingHost(hosts []fleet.HostPendingRecoveryLock, hostID uint) *fleet.HostPendingRecoveryLock {
-	for _, h := range hosts {
-		if h.HostID == hostID {
-			return &h
-		}
-	}
-	return nil
 }
 
 func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {

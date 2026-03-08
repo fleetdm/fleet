@@ -1521,11 +1521,6 @@ type Datastore interface {
 	// GetHostIDByVerifyRecoveryLockCommandUUID returns the host ID associated with a VerifyRecoveryLock command UUID.
 	GetHostIDByVerifyRecoveryLockCommandUUID(ctx context.Context, verifyCommandUUID string) (uint, error)
 
-	// GetPendingRecoveryLockHosts returns hosts with status='pending' along with
-	// the SetRecoveryLock the command result status.
-	// This is used by the cron job to check for acknowledged or failed Set commands.
-	GetPendingRecoveryLockHosts(ctx context.Context) ([]HostPendingRecoveryLock, error)
-
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
 	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage, pkgStore MDMBootstrapPackageStore) error
