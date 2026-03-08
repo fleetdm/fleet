@@ -7346,15 +7346,15 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]fleet
 }
 
 func (ds *Datastore) SetRecoveryLockPending(ctx context.Context, hostID uint, setCommandUUID string) error {
-	const stmt = `
+	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
-		SET status = 'pending',
+		SET status = '%s',
 		    set_command_uuid = ?,
 		    verify_command_uuid = NULL,
 		    set_command_ack_at = NULL,
 		    error_message = NULL
 		WHERE host_id = ?
-	`
+	`, fleet.MDMDeliveryPending)
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, setCommandUUID, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "set recovery lock pending")
@@ -7364,13 +7364,13 @@ func (ds *Datastore) SetRecoveryLockPending(ctx context.Context, hostID uint, se
 }
 
 func (ds *Datastore) SetRecoveryLockVerifying(ctx context.Context, hostID uint, verifyCommandUUID string) error {
-	const stmt = `
+	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
-		SET status = 'verifying',
+		SET status = '%s',
 		    verify_command_uuid = ?,
 		    set_command_ack_at = CURRENT_TIMESTAMP(6)
 		WHERE host_id = ?
-	`
+	`, fleet.MDMDeliveryVerifying)
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, verifyCommandUUID, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "set recovery lock verifying")
@@ -7380,12 +7380,12 @@ func (ds *Datastore) SetRecoveryLockVerifying(ctx context.Context, hostID uint, 
 }
 
 func (ds *Datastore) SetRecoveryLockVerified(ctx context.Context, hostID uint) error {
-	const stmt = `
+	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
-		SET status = 'verified',
+		SET status = '%s',
 		    error_message = NULL
 		WHERE host_id = ?
-	`
+	`, fleet.MDMDeliveryVerified)
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "set recovery lock verified")
@@ -7395,12 +7395,12 @@ func (ds *Datastore) SetRecoveryLockVerified(ctx context.Context, hostID uint) e
 }
 
 func (ds *Datastore) SetRecoveryLockFailed(ctx context.Context, hostID uint, errorMsg string) error {
-	const stmt = `
+	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
-		SET status = 'failed',
+		SET status = '%s',
 		    error_message = ?
 		WHERE host_id = ?
-	`
+	`, fleet.MDMDeliveryFailed)
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, errorMsg, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "set recovery lock failed")
@@ -7425,7 +7425,7 @@ func (ds *Datastore) GetHostIDByVerifyRecoveryLockCommandUUID(ctx context.Contex
 }
 
 func (ds *Datastore) GetPendingRecoveryLockHosts(ctx context.Context) ([]fleet.HostPendingRecoveryLock, error) {
-	const stmt = `
+	stmt := fmt.Sprintf(`
 		SELECT
 			rkp.host_id,
 			h.uuid AS host_uuid,
@@ -7435,8 +7435,8 @@ func (ds *Datastore) GetPendingRecoveryLockHosts(ctx context.Context) ([]fleet.H
 		FROM host_recovery_key_passwords rkp
 		JOIN hosts h ON h.id = rkp.host_id
 		LEFT JOIN nano_command_results ncr ON ncr.command_uuid = rkp.set_command_uuid AND ncr.id = h.uuid
-		WHERE rkp.status = 'pending'
-	`
+		WHERE rkp.status = '%s'
+	`, fleet.MDMDeliveryPending)
 
 	var results []struct {
 		HostID              uint   `db:"host_id"`

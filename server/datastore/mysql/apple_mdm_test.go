@@ -10015,7 +10015,7 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		var status string
 		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_id = ?", host.ID)
 		require.NoError(t, err)
-		assert.Equal(t, "pending", status)
+		assert.Equal(t, string(fleet.MDMDeliveryPending), status)
 	})
 
 	t.Run("SetRecoveryLockVerifying", func(t *testing.T) {
@@ -10033,7 +10033,7 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		var status, verifyUUID string
 		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_id = ?", host.ID)
 		require.NoError(t, err)
-		assert.Equal(t, "verifying", status)
+		assert.Equal(t, string(fleet.MDMDeliveryVerifying), status)
 
 		err = ds.writer(ctx).GetContext(ctx, &verifyUUID, "SELECT verify_command_uuid FROM host_recovery_key_passwords WHERE host_id = ?", host.ID)
 		require.NoError(t, err)
@@ -10055,7 +10055,7 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		var status string
 		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_id = ?", host.ID)
 		require.NoError(t, err)
-		assert.Equal(t, "verified", status)
+		assert.Equal(t, string(fleet.MDMDeliveryVerified), status)
 	})
 
 	t.Run("SetRecoveryLockFailed", func(t *testing.T) {
@@ -10073,7 +10073,7 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		var status, errorMsg string
 		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_id = ?", host.ID)
 		require.NoError(t, err)
-		assert.Equal(t, "failed", status)
+		assert.Equal(t, string(fleet.MDMDeliveryFailed), status)
 
 		err = ds.writer(ctx).GetContext(ctx, &errorMsg, "SELECT error_message FROM host_recovery_key_passwords WHERE host_id = ?", host.ID)
 		require.NoError(t, err)
