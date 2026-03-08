@@ -7443,7 +7443,7 @@ func NewVerifyRecoveryLockResultsHandler(
 	logger *slog.Logger,
 ) fleet.MDMCommandResultsHandler {
 	return func(ctx context.Context, results fleet.MDMCommandResults) error {
-		// Check if this is a verification command from our cron job (by prefix)
+		// Check if this is a verification command from fleet, not from fleetctl
 		if !strings.HasPrefix(results.UUID(), fleet.VerifyRecoveryLockCommandPrefix) {
 			// Not a VerifyRecoveryLock command from our cron job, skip
 			return nil
