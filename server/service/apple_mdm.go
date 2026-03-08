@@ -4841,6 +4841,7 @@ func ReconcileAppleDeclarations(
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 ) error {
+	level.Info(logger).Log("msg", "ReconcileAppleDeclarations starting")
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("reading app config: %w", err)
@@ -4855,12 +4856,15 @@ func ReconcileAppleDeclarations(
 		return ctxerr.Wrap(ctx, err, "updating host declaration state")
 	}
 
+	level.Info(logger).Log("msg", "ReconcileAppleDeclarations fetched changed hosts")
+
 	// Find any hosts that requested a resync. This is used to cover special cases where we're not
 	// 100% certain of the declarations on the device.
 	resyncHosts, err := ds.MDMAppleHostDeclarationsGetAndClearResync(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting and clearing resync hosts")
 	}
+	level.Info(logger).Log("msg", "ReconcileAppleDeclarations fetched resync hosts", "resync_host_count", len(resyncHosts))
 	if len(resyncHosts) > 0 {
 		changedHosts = append(changedHosts, resyncHosts...)
 		// Deduplicate changedHosts
@@ -4911,6 +4915,7 @@ func ReconcileAppleProfiles(
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 ) error {
+	level.Info(logger).Log("msg", "ReconcileAppleProfiles starting")
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("reading app config: %w", err)
@@ -4934,16 +4939,20 @@ func ReconcileAppleProfiles(
 	if block == nil || block.Type != "CERTIFICATE" {
 		return ctxerr.Wrap(ctx, err, "failed to decode PEM block from SCEP certificate")
 	}
+	level.Info(logger).Log("msg", "ReconcileAppleProfiles loaded assets")
 
 	if err := ensureFleetProfiles(ctx, ds, logger, block.Bytes); err != nil {
 		logger.Log("err", "unable to ensure a fleetd configuration profiles are in place", "details", err)
 	}
+
+	level.Info(logger).Log("msg", "ReconcileAppleProfiles ensured fleet profiles exist for all teams")
 
 	// retrieve the profiles to install/remove.
 	toInstall, toRemove, err := ds.ListMDMAppleProfilesToInstallAndRemove(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting profiles to install and remove")
 	}
+	level.Info(logger).Log("msg", "ReconcileAppleProfiles retrieved profiles to install and remove", "to_install_count", len(toInstall), "to_remove_count", len(toRemove))
 
 	// Exclude macOS only profiles from iPhones/iPads.
 	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
@@ -5130,6 +5139,8 @@ func ReconcileAppleProfiles(
 		hostProfilesToInstallMap[hostProfileUUID{HostUUID: p.HostUUID, ProfileUUID: p.ProfileUUID}] = hostProfile
 	}
 
+	level.Info(logger).Log("msg", "ReconcileAppleProfiles processed install targets")
+
 	for _, p := range toRemove {
 		// Exclude profiles that are also marked for installation.
 		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
@@ -5192,6 +5203,8 @@ func ReconcileAppleProfiles(
 		})
 	}
 
+	level.Info(logger).Log("msg", "ReconcileAppleProfiles processed remove targets")
+
 	// delete all profiles that have a matching identifier to be installed.
 	// This is to prevent sending both a `RemoveProfile` and an
 	// `InstallProfile` for the same identifier, which can cause race
@@ -5208,6 +5221,7 @@ func ReconcileAppleProfiles(
 	}
 	// We need to delete commands from the nano queue so they don't get sent to device.
 	if len(commandUUIDToHostIDsCleanupMap) > 0 {
+		level.Info(logger).Log("msg", "ReconcileAppleProfiles cleaning up nano commands without results", "count", len(commandUUIDToHostIDsCleanupMap))
 		if err := commander.BulkDeleteHostUserCommandsWithoutResults(ctx, commandUUIDToHostIDsCleanupMap); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting nano commands without results")
 		}
@@ -5215,6 +5229,8 @@ func ReconcileAppleProfiles(
 	if err := ds.BulkDeleteMDMAppleHostsConfigProfiles(ctx, hostProfilesToCleanup); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
 	}
+
+	level.Info(logger).Log("msg", "ReconcileAppleProfiles cleaned up profiles")
 
 	// FIXME: How does this impact variable profiles? This happens before pre-processing, doesn't
 	// this potentially race with the command uuid and variable substitution?
@@ -5229,6 +5245,8 @@ func ReconcileAppleProfiles(
 		return ctxerr.Wrap(ctx, err, "updating host profiles")
 	}
 
+	level.Info(logger).Log("msg", "ReconcileAppleProfiles upserted host profiles")
+
 	// Grab the contents of all the profiles we need to install
 	profileUUIDs := make([]string, 0, len(toGetContents))
 	for pUUID := range toGetContents {
@@ -5236,6 +5254,8 @@ func ReconcileAppleProfiles(
 	}
 	profileContents, err := ds.GetMDMAppleProfilesContents(ctx, profileUUIDs)
 	if err != nil {
+		level.Error(logger).Log("err", "ReconcileAppleProfiles error fetching profile contents", "details", err)
+
 		return ctxerr.Wrap(ctx, err, "get profile contents")
 	}
 
@@ -5243,6 +5263,8 @@ func ReconcileAppleProfiles(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
 	}
+
+	level.Info(logger).Log("msg", "ReconcileAppleProfiles fetched profile contents and grouped CAs")
 
 	// Insert variables into profile contents of install targets. Variables may be host-specific.
 	err = preprocessProfileContents(ctx, appConfig, ds,
@@ -5253,11 +5275,14 @@ func ReconcileAppleProfiles(
 		return err
 	}
 
+	level.Info(logger).Log("msg", "ReconcileAppleProfiles preprocessed profile contents")
+
 	// Find the profiles containing secret variables.
 	profilesWithSecrets, err := findProfilesWithSecrets(logger, installTargets, profileContents)
 	if err != nil {
 		return err
 	}
+	level.Info(logger).Log("msg", "ReconcileAppleProfiles found profiles with secrets", "count", len(profilesWithSecrets))
 
 	type remoteResult struct {
 		Err     error
@@ -5270,6 +5295,7 @@ func ReconcileAppleProfiles(
 
 	execCmd := func(profUUID string, target *cmdTarget, op fleet.MDMOperationType) {
 		defer wgProd.Done()
+		level.Info(logger).Log("msg", "ReconcileAppleProfiles execcmd starting", "operation", op, "profile_uuid", profUUID, "command_uuid", target.cmdUUID, "enrollment_id_count", len(target.enrollmentIDs))
 
 		var err error
 		switch op {
@@ -5291,7 +5317,9 @@ func ReconcileAppleProfiles(
 			level.Error(logger).Log("err", fmt.Sprintf("enqueue command to %s profiles", op), "details", err)
 			ch <- remoteResult{err, target.cmdUUID}
 		}
+		level.Info(logger).Log("msg", "ReconcileAppleProfiles execcmd completing", "profile_uuid", profUUID, "command_uuid", target.cmdUUID, "enrollment_id_count", len(target.enrollmentIDs))
 	}
+	level.Info(logger).Log("msg", "ReconcileAppleProfiles launching goroutines to send commands", "install_target_count", len(installTargets), "remove_target_count", len(removeTargets))
 	for profUUID, target := range installTargets {
 		wgProd.Add(1)
 		go execCmd(profUUID, target, fleet.MDMOperationTypeInstall)
@@ -5300,6 +5328,7 @@ func ReconcileAppleProfiles(
 		wgProd.Add(1)
 		go execCmd(profUUID, target, fleet.MDMOperationTypeRemove)
 	}
+	level.Info(logger).Log("msg", "ReconcileAppleProfiles launched goroutines to send commands", "install_target_count", len(installTargets), "remove_target_count", len(removeTargets))
 
 	// index the host profiles by cmdUUID, for ease of error processing in the
 	// consumer goroutine below.
@@ -5331,13 +5360,18 @@ func ReconcileAppleProfiles(
 		}
 	}()
 
+	level.Info(logger).Log("msg", "ReconcileAppleProfiles launched consumer goroutine")
 	wgProd.Wait()
+	level.Info(logger).Log("msg", "ReconcileAppleProfiles all producer goroutines finished")
 	close(ch) // done sending at this point, this triggers end of for loop in consumer
 	wgCons.Wait()
+	level.Info(logger).Log("msg", "ReconcileAppleProfiles consumer goroutine finished")
 
 	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, failed); err != nil {
 		return ctxerr.Wrap(ctx, err, "reverting status of failed profiles")
 	}
+
+	level.Info(logger).Log("msg", "ReconcileAppleProfiles reverted status of failed profiles", "failed_count", len(failed))
 
 	return nil
 }
