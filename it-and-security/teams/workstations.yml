@@ -5,9 +5,7 @@ team_settings:
       destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
       enable_failing_policies_webhook: true
       host_batch_size: 0
-      policy_ids:
-        - 14946
-        - 15329
+      policy_ids: []
   features:
     enable_host_users: true
     enable_software_inventory: true
@@ -76,8 +74,6 @@ controls:
         labels_include_any:
           - "Department: Information Technology"
       - path: ../lib/macos/configuration-profiles/okta-verify-settings.mobileconfig
-        labels_include_any:
-          - "Department: Information Technology"
       - path: ../lib/macos/configuration-profiles/1password-managed-settings.mobileconfig
         labels_include_any:
           - "Macs with 1Password installed"
@@ -138,6 +134,7 @@ policies:
   - path: ../lib/macos/policies/update-1password.yml
   - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
   - path: ../lib/macos/policies/disk-encryption-check.yml
+  - path: ../lib/macos/policies/disk-space-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
   - path: ../lib/macos/policies/install-macos-compatibility-extension.yml
   - path: ../lib/macos/policies/company-portal-installed.yml
@@ -147,15 +144,18 @@ policies:
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
   - path: ../lib/windows/policies/disk-encryption-check.yml
+  - path: ../lib/windows/policies/disk-space-check.yml
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
+  - path: ../lib/linux/policies/disk-space-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
   - path: ../lib/macos/queries/collect-santa-denied-logs.yml
+  - path: ../lib/all/queries/dex-queries.yml
 software:
   packages:
     # macOS apps
@@ -166,10 +166,14 @@ software:
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
       self_service: true
       setup_experience: true
+      categories:
+        - Security
     - path: ../lib/macos/software/santa.yml # Santa for macOS
       self_service: true
       labels_include_any:
         - Santa test devices
+      categories:
+        - Security
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
       self_service: true
       setup_experience: true
@@ -180,14 +184,22 @@ software:
       self_service: true
       labels_include_any:
         - "Keynote 14 installed"
+      categories:
+        - Productivity
     - path: ../lib/macos/software/company-portal.yml # Company Portal for macOS
       self_service: true
       labels_include_any:
         - "Conditional access test group"
+      categories:
+        - Security
     - path: ../lib/macos/software/nudge.yml # Nudge for macOS
       self_service: false
+      categories:
+        - Utilities
     - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
       self_service: false
+      categories:
+        - Utilities
     - path: ../lib/macos/software/fleet-desktop.yml # Fleet Desktop for macOS
       self_service: true
       categories:
@@ -263,11 +275,15 @@ software:
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
       self_service: true
       setup_experience: true
+      categories:
+        - Security
   app_store_apps:
     - app_store_id: "361285480" # Keynote
       display_name: "Keynote"
       platform: darwin
       self_service: true
+      categories:
+        - Productivity
   fleet_maintained_apps:
     # macOS apps
     - slug: slack/darwin # Slack for macOS
@@ -285,22 +301,33 @@ software:
       self_service: true
       labels_include_any:
         - Apple Silicon macOS hosts
+      categories:
+        - Browsers
     - slug: docker-desktop/darwin # Docker for macOS (ARM)
       self_service: true
       labels_include_any:
         - Apple Silicon macOS hosts
+      categories:
+        - Developer tools
     - slug: microsoft-edge/darwin # Microsoft Edge for macOS
       self_service: true
+      categories:
+        - Browsers
     - slug: visual-studio-code/darwin # Microsoft Visual Studio for macOS (ARM)
       self_service: true
       labels_include_any:
         - Apple Silicon macOS hosts
+      categories:
+        - Developer tools
     - slug: microsoft-teams/darwin # Microsoft Teams for macOS
       self_service: true
+      categories:
+        - Communication
     - slug: okta-verify/darwin # Okta Verify for macOS
       self_service: true
-      labels_include_any:
-        - "Department: Information Technology"
+      setup_experience: true
+      categories:
+        - Security
     # Windows apps
     - slug: slack/windows # Slack for Windows
       self_service: true
@@ -319,5 +346,9 @@ software:
         - "x86-based Windows hosts"
     - slug: brave-browser/windows # Brave for Windows
       self_service: true
+      categories:
+        - Browsers
     - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
       self_service: true
+      categories:
+        - Developer tools

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
@@ -116,10 +117,11 @@ func TestUploadSoftwareTitleIcon(t *testing.T) {
 	ds := new(mock.Store)
 
 	mockIconStore := s3.SetupTestSoftwareTitleIconStore(t, "software-title-icons-unit-test", "icon-store-prefix")
-	svc, _ := newTestService(t, ds, nil, nil, &TestServerOpts{
+	opts := &TestServerOpts{
 		License:                &fleet.LicenseInfo{Tier: fleet.TierPremium},
 		SoftwareTitleIconStore: mockIconStore,
-	})
+	}
+	svc, _ := newTestService(t, ds, nil, nil, opts)
 	defer func() {
 		_, err := mockIconStore.Cleanup(ctx, []string{}, time.Now().Add(time.Hour))
 		require.NoError(t, err)
@@ -128,8 +130,8 @@ func TestUploadSoftwareTitleIcon(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	var capturedActivities []fleet.ActivityDetails
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, detailsBytes []byte, timestamp time.Time) error {
+	var capturedActivities []activity_api.ActivityDetails
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
 		capturedActivities = append(capturedActivities, activity)
 		return nil
 	}
@@ -143,7 +145,7 @@ func TestUploadSoftwareTitleIcon(t *testing.T) {
 		{
 			name: "upload icon title with no software installer, vpp app, or in-house app",
 			before: func() {
-				capturedActivities = make([]fleet.ActivityDetails, 0)
+				capturedActivities = make([]activity_api.ActivityDetails, 0)
 				ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, includeUnpublished bool) (*fleet.SoftwareInstaller, error) {
 					return nil, ctxerr.Wrap(ctx, &common_mysql.NotFoundError{ResourceType: "SoftwareInstaller"}, "get software installer")
 				}
@@ -175,7 +177,7 @@ func TestUploadSoftwareTitleIcon(t *testing.T) {
 		{
 			name: "upload icon for software installer",
 			before: func() {
-				capturedActivities = make([]fleet.ActivityDetails, 0)
+				capturedActivities = make([]activity_api.ActivityDetails, 0)
 				ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, includeUnpublished bool) (*fleet.SoftwareInstaller, error) {
 					return &fleet.SoftwareInstaller{
 						TitleID: ptr.Uint(1),
@@ -225,7 +227,7 @@ func TestUploadSoftwareTitleIcon(t *testing.T) {
 		{
 			name: "upload icon for vpp app",
 			before: func() {
-				capturedActivities = make([]fleet.ActivityDetails, 0)
+				capturedActivities = make([]activity_api.ActivityDetails, 0)
 				ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, includeUnpublished bool) (*fleet.SoftwareInstaller, error) {
 					return nil, ctxerr.Wrap(ctx, &common_mysql.NotFoundError{ResourceType: "SoftwareInstaller"}, "get software installer")
 				}
@@ -279,7 +281,7 @@ func TestUploadSoftwareTitleIcon(t *testing.T) {
 		{
 			name: "upload icon for in-house app",
 			before: func() {
-				capturedActivities = make([]fleet.ActivityDetails, 0)
+				capturedActivities = make([]activity_api.ActivityDetails, 0)
 				ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
 					return &fleet.SoftwareInstaller{
 						TitleID: ptr.Uint(1),
@@ -340,14 +342,15 @@ func TestDeleteSoftwareTitleIcon(t *testing.T) {
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
 	ds := new(mock.Store)
-	svc, _ := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+	deleteOpts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+	svc, _ := newTestService(t, ds, nil, nil, deleteOpts)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
-	var capturedActivities []fleet.ActivityDetails
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, detailsBytes []byte, timestamp time.Time) error {
+	var capturedActivities []activity_api.ActivityDetails
+	deleteOpts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
 		capturedActivities = append(capturedActivities, activity)
 		return nil
 	}
@@ -360,7 +363,7 @@ func TestDeleteSoftwareTitleIcon(t *testing.T) {
 		{
 			"Delete existing icon for software installer",
 			func() {
-				capturedActivities = make([]fleet.ActivityDetails, 0)
+				capturedActivities = make([]activity_api.ActivityDetails, 0)
 				ds.ActivityDetailsForSoftwareTitleIconFunc = func(ctx context.Context, teamID uint, titleID uint) (fleet.DetailsForSoftwareIconActivity, error) {
 					return fleet.DetailsForSoftwareIconActivity{
 						SoftwareInstallerID: ptr.Uint(1),
@@ -406,7 +409,7 @@ func TestDeleteSoftwareTitleIcon(t *testing.T) {
 		{
 			"Delete existing icon for vpp app",
 			func() {
-				capturedActivities = make([]fleet.ActivityDetails, 0)
+				capturedActivities = make([]activity_api.ActivityDetails, 0)
 				ds.ActivityDetailsForSoftwareTitleIconFunc = func(ctx context.Context, teamID uint, titleID uint) (fleet.DetailsForSoftwareIconActivity, error) {
 					platform := fleet.MacOSPlatform
 					return fleet.DetailsForSoftwareIconActivity{
@@ -454,7 +457,7 @@ func TestDeleteSoftwareTitleIcon(t *testing.T) {
 		{
 			"Delete an already deleted icon",
 			func() {
-				capturedActivities = make([]fleet.ActivityDetails, 0)
+				capturedActivities = make([]activity_api.ActivityDetails, 0)
 				ds.ActivityDetailsForSoftwareTitleIconFunc = func(ctx context.Context, teamID uint, titleID uint) (fleet.DetailsForSoftwareIconActivity, error) {
 					return fleet.DetailsForSoftwareIconActivity{}, nil
 				}

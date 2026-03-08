@@ -14,6 +14,8 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
+const AndroidWebAppPrefix = "com.google.enterprise.webapp"
+
 // MDMAndroidConfigProfile represents an Android MDM profile in Fleet. This does not map
 // directly to a specific policy in the Android API, rather the policy applied is the
 // result of combining all applicable profiles.
@@ -21,7 +23,7 @@ type MDMAndroidConfigProfile struct {
 	// ProfileUUID is the unique identifier of the configuration profile in
 	// Fleet. For Android profiles, it is the letter "g" followed by a uuid.
 	ProfileUUID      string                      `db:"profile_uuid" json:"profile_uuid"`
-	TeamID           *uint                       `db:"team_id" json:"team_id"`
+	TeamID           *uint                       `db:"team_id" json:"team_id" renameto:"fleet_id"`
 	Name             string                      `db:"name" json:"name"`
 	RawJSON          []byte                      `db:"raw_json" json:"-"`
 	AutoIncrement    int64                       `db:"auto_increment" json:"auto_increment"`

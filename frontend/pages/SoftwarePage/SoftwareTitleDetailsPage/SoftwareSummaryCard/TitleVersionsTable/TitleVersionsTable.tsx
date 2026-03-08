@@ -100,7 +100,7 @@ const TitleVersionsTable = ({
 
       const softwareVersionDetailsPath = getPathWithQueryParams(
         PATHS.SOFTWARE_VERSION_DETAILS(softwareVersionId.toString()),
-        { team_id: teamIdForApi }
+        { fleet_id: teamIdForApi }
       );
 
       router.push(softwareVersionDetailsPath);

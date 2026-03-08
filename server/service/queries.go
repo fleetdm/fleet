@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -24,7 +23,7 @@ type getQueryRequest struct {
 }
 
 type getQueryResponse struct {
-	Query *fleet.Query `json:"query,omitempty"`
+	Query *fleet.Query `json:"query,omitempty" renameto:"report"`
 	Err   error        `json:"error,omitempty"`
 }
 
@@ -59,16 +58,16 @@ func (svc *Service) GetQuery(ctx context.Context, id uint) (*fleet.Query, error)
 type listQueriesRequest struct {
 	ListOptions fleet.ListOptions `url:"list_options"`
 	// TeamID url argument set to 0 means global.
-	TeamID         uint `query:"team_id,optional"`
+	TeamID         uint `query:"team_id,optional" renameto:"fleet_id"`
 	MergeInherited bool `query:"merge_inherited,optional"`
 	// only return queries targeted to run on this platform
 	Platform string `query:"platform,optional"`
 }
 
 type listQueriesResponse struct {
-	Queries             []fleet.Query             `json:"queries"`
+	Queries             []fleet.Query             `json:"queries" renameto:"reports"`
 	Count               int                       `json:"count"`
-	InheritedQueryCount int                       `json:"inherited_query_count"`
+	InheritedQueryCount int                       `json:"inherited_query_count" renameto:"inherited_report_count"`
 	Meta                *fleet.PaginationMetadata `json:"meta"`
 	Err                 error                     `json:"error,omitempty"`
 }
@@ -155,11 +154,11 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 
 type getQueryReportRequest struct {
 	ID     uint  `url:"id"`
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type getQueryReportResponse struct {
-	QueryID       uint                       `json:"query_id"`
+	QueryID       uint                       `json:"query_id" renameto:"report_id"`
 	Results       []fleet.HostQueryResultRow `json:"results"`
 	ReportClipped bool                       `json:"report_clipped"`
 	Err           error                      `json:"error,omitempty"`
@@ -251,7 +250,7 @@ type createQueryRequest struct {
 }
 
 type createQueryResponse struct {
-	Query *fleet.Query `json:"query,omitempty"`
+	Query *fleet.Query `json:"query,omitempty" renameto:"report"`
 	Err   error        `json:"error,omitempty"`
 }
 
@@ -384,7 +383,7 @@ type modifyQueryRequest struct {
 }
 
 type modifyQueryResponse struct {
-	Query *fleet.Query `json:"query,omitempty"`
+	Query *fleet.Query `json:"query,omitempty" renameto:"report"`
 	Err   error        `json:"error,omitempty"`
 }
 
@@ -497,7 +496,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		if err != nil {
 			// Log the error but don't fail the request; this will get cleaned up
 			// in the "query_results_cleanup" job.
-			level.Error(svc.logger).Log("msg", "failed to set query results count", "err", err, "query_id", query.ID)
+			svc.logger.ErrorContext(ctx, "failed to set query results count", "err", err, "query_id", query.ID)
 		}
 	}
 
@@ -551,7 +550,7 @@ func comparePlatforms(platform1, platform2 string) bool {
 type deleteQueryRequest struct {
 	Name string `url:"name"`
 	// TeamID if not set is assumed to be 0 (global).
-	TeamID uint `url:"team_id,optional"`
+	TeamID uint `url:"fleet_id,optional"`
 }
 
 type deleteQueryResponse struct {
@@ -593,7 +592,7 @@ func (svc *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) 
 		if err = svc.liveQueryStore.DeleteQueryResultsCount(query.ID); err != nil {
 			// Log the error but don't fail the request; this will get cleaned up
 			// in the "query_results_cleanup" job.
-			level.Error(svc.logger).Log("msg", "failed to delete query results count", "err", err, "query_id", query.ID)
+			svc.logger.ErrorContext(ctx, "failed to delete query results count", "err", err, "query_id", query.ID)
 		}
 	}
 
@@ -671,7 +670,7 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 		if err = svc.liveQueryStore.DeleteQueryResultsCount(query.ID); err != nil {
 			// Log the error but don't fail the request; this will get cleaned up
 			// in the "query_results_cleanup" job.
-			level.Error(svc.logger).Log("msg", "failed to delete query results count", "err", err, "query_id", query.ID)
+			svc.logger.ErrorContext(ctx, "failed to delete query results count", "err", err, "query_id", query.ID)
 		}
 	}
 
@@ -767,7 +766,7 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 			if err = svc.liveQueryStore.DeleteQueryResultsCount(id); err != nil {
 				// Log the error but don't fail the request; this will get cleaned up
 				// in the "query_results_cleanup" job.
-				level.Error(svc.logger).Log("msg", "failed to delete query results count", "err", err, "query_id", id)
+				svc.logger.ErrorContext(ctx, "failed to delete query results count", "err", err, "query_id", id)
 			}
 		}
 	}
@@ -871,7 +870,7 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 			if err = svc.liveQueryStore.SetQueryResultsCount(queryID, 0); err != nil {
 				// Log the error but don't fail the request; this will get cleaned up
 				// in the "query_results_cleanup" job.
-				level.Error(svc.logger).Log("msg", "failed to set query results count", "err", err, "query_id", queryID)
+				svc.logger.ErrorContext(ctx, "failed to set query results count", "err", err, "query_id", queryID)
 			}
 		}
 	}
@@ -950,7 +949,7 @@ type getQuerySpecsResponse struct {
 }
 
 type getQuerySpecsRequest struct {
-	TeamID uint `url:"team_id,optional"`
+	TeamID uint `url:"fleet_id,optional"`
 }
 
 func (r getQuerySpecsResponse) Error() error { return r.Err }
@@ -1027,7 +1026,7 @@ type getQuerySpecResponse struct {
 
 type getQuerySpecRequest struct {
 	Name   string `url:"name"`
-	TeamID uint   `query:"team_id,optional"`
+	TeamID uint   `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 func (r getQuerySpecResponse) Error() error { return r.Err }

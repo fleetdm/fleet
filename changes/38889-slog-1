@@ -1,1 +1,1 @@
-Added Go slog logging infrastructure in preparation for migrating from go-kit/log to slog.
+Added Go slog logging infrastructure and migrated a portion of the code from go-kit/log to slog.

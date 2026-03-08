@@ -269,7 +269,7 @@
             </p>
           </li>
         </ol>
-        <p>Already finished? Refresh the page to enroll another device.</p>
+        <p>QR code invalid? Refresh the page.</p>
       </section>
     </template>
 
@@ -563,7 +563,6 @@
         let url = `${ANDROID_GET_TOKEN_URL}?enroll_secret=${encodeURIComponent(
           enrollSecret
         )}`;
-         debugger;
 
         if (fullyManaged) {
           url = url.concat("&fully_managed=true");

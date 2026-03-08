@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 
 import { IHostSoftware } from "interfaces/software";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
@@ -57,7 +58,10 @@ const InventoryVersionsModal = ({
 
   return (
     <Modal
-      title={hostSoftware.name}
+      title={getDisplayedSoftwareName(
+        hostSoftware.name,
+        hostSoftware.display_name
+      )}
       className={baseClass}
       onExit={onExit}
       width="large"

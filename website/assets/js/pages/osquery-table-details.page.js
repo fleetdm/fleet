@@ -43,6 +43,7 @@ parasails.registerPage('osquery-table-details', {
     // Note: we do not personalize the selected platform on this page based on the user's
     // current OS because the default table that the /tables url redirects to does not support windows.
     window.addEventListener('scroll', this.handleScrollingPlatformFilters);
+    this.handleScrollingPlatformFilters();
   },
   mounted: async function() {
 

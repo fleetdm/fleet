@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"html/template"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"slices"
@@ -22,7 +23,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/sso"
-	"github.com/go-kit/log/level"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -118,7 +118,7 @@ func (svc *Service) DeleteSession(ctx context.Context, id uint) error {
 
 type loginResponse struct {
 	User           *fleet.User          `json:"user,omitempty"`
-	AvailableTeams []*fleet.TeamSummary `json:"available_teams"`
+	AvailableTeams []*fleet.TeamSummary `json:"available_teams" renameto:"available_fleets"`
 	Token          string               `json:"token,omitempty"`
 	Err            error                `json:"error,omitempty"`
 }
@@ -181,7 +181,7 @@ func (svc *Service) Login(ctx context.Context, email, password string, supportsE
 		"op", "login",
 		"email", email,
 		"public_ip", publicip.FromContext(ctx),
-	), level.Info)
+	), slog.LevelInfo)
 
 	// If there is an error, sleep until the request has taken at least 1
 	// second. This means that generally a login failure for any reason will
@@ -331,7 +331,7 @@ func (svc *Service) Logout(ctx context.Context) error {
 	// skipauth: Any user can always log out of their own session.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(ctx, level.Info)
+	logging.WithLevel(ctx, slog.LevelInfo)
 
 	return svc.DestroySession(ctx)
 }
@@ -441,7 +441,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessio
 	// initiate SSO.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
+	logging.WithLevel(logging.WithNoUser(ctx), slog.LevelInfo)
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -572,6 +572,7 @@ func decodeCallbackRequest(ctx context.Context, r *http.Request) (
 
 type callbackSSOResponse struct {
 	content string
+	token   string
 	Err     error `json:"error,omitempty"`
 }
 
@@ -582,6 +583,14 @@ func (r callbackSSOResponse) Html() string { return r.content }
 
 func (r callbackSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
 	deleteSSOCookie(w)
+	if r.token != "" {
+		http.SetCookie(w, &http.Cookie{
+			Name:   "__Host-token",
+			Value:  r.token,
+			Path:   "/",
+			Secure: cookieSecure,
+		})
+	}
 }
 
 func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
@@ -596,7 +605,7 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 			}); err != nil {
 				logging.WithLevel(logging.WithExtras(logging.WithNoUser(ctx),
 					"msg", "failed to generate failed login activity",
-				), level.Info)
+				), slog.LevelInfo)
 			}
 
 			var ssoErr *ssoError
@@ -616,7 +625,6 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 		relayStateLoadPage := ` <html>
      <script type='text/javascript'>
      var redirectURL = {{ .RedirectURL }};
-     window.localStorage.setItem('FLEET::auth_token', '{{ .Token }}');
      window.location = redirectURL;
      </script>
      <body>
@@ -634,6 +642,7 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 			return nil, err
 		}
 		resp.content = writer.String()
+		resp.token = session.Token
 		return resp, nil
 	}
 }
@@ -670,7 +679,7 @@ func (svc *Service) InitSSOCallback(
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
+	logging.WithLevel(logging.WithNoUser(ctx), slog.LevelInfo)
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -797,7 +806,7 @@ func (svc *Service) SSOSettings(ctx context.Context) (*fleet.SessionSSOSettings,
 	// that they have the necessary information to initiate SSO).
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
+	logging.WithLevel(logging.WithNoUser(ctx), slog.LevelInfo)
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {

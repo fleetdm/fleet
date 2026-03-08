@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "13.3",
+      "version": "13.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.panic.Nova';"
       },
-      "installer_url": "https://panic.com/download/nova/Nova%2013.3.zip",
+      "installer_url": "https://panic.com/download/nova/Nova%2013.4.zip",
       "install_script_ref": "7ba9cafd",
       "uninstall_script_ref": "62c03a11",
-      "sha256": "13f154ed44f15a55013de18072196c16c6673fbb38cd14a143c7dab55af575af",
+      "sha256": "728e933f0f64f7547c2bd057f6bda74d056953a9272c9f9382a71af5e50e25b3",
       "default_categories": [
         "Developer tools"
       ]

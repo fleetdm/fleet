@@ -215,7 +215,8 @@ export interface IHostResponse {
   host: IHost;
 }
 
-export interface IDeviceUserResponse {
+// Device User Page
+export interface IDUPDetails {
   host: IHostDevice;
   license: ILicense;
   org_logo_url: string;

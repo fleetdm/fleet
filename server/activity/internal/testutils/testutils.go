@@ -3,12 +3,12 @@ package testutils
 
 import (
 	"encoding/json"
+	"log/slog"
 	"testing"
 	"time"
 
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	mysql_testing_utils "github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
-	"github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -16,7 +16,7 @@ import (
 // TestDB holds the database connection for tests.
 type TestDB struct {
 	DB     *sqlx.DB
-	Logger log.Logger
+	Logger *slog.Logger
 }
 
 // SetupTestDB creates a test database with the Fleet schema loaded.
@@ -36,7 +36,7 @@ func SetupTestDB(t *testing.T, testNamePrefix string) *TestDB {
 
 	return &TestDB{
 		DB:     db,
-		Logger: log.NewNopLogger(),
+		Logger: slog.New(slog.DiscardHandler),
 	}
 }
 
@@ -64,7 +64,7 @@ func (tdb *TestDB) InsertUser(t *testing.T, name, email string) uint {
 
 	id, err := result.LastInsertId()
 	require.NoError(t, err)
-	return uint(id)
+	return uint(id) //nolint:gosec // dismiss G115
 }
 
 // InsertActivity creates an activity in the database and returns the activity ID.
@@ -104,7 +104,7 @@ func (tdb *TestDB) InsertActivityWithTime(t *testing.T, userID *uint, activityTy
 
 	id, err := result.LastInsertId()
 	require.NoError(t, err)
-	return uint(id)
+	return uint(id) //nolint:gosec // dismiss G115
 }
 
 // InsertHost creates a host in the database and returns the host ID.
@@ -120,7 +120,7 @@ func (tdb *TestDB) InsertHost(t *testing.T, hostname string, teamID *uint) uint 
 
 	id, err := result.LastInsertId()
 	require.NoError(t, err)
-	return uint(id)
+	return uint(id) //nolint:gosec // dismiss G115
 }
 
 // InsertHostActivity creates a link between a host and an activity in the host_activities junction table.

@@ -98,7 +98,7 @@ const SoftwareVulnerabilitiesTable = ({
       const softwareVulnerabilityDetailsPath = getPathWithQueryParams(
         PATHS.SOFTWARE_VULNERABILITY_DETAILS(cveName),
         {
-          team_id: teamIdForApi,
+          fleet_id: teamIdForApi,
         }
       );
 

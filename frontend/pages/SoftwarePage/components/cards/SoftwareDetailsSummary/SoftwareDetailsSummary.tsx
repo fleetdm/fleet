@@ -12,6 +12,8 @@ import { TooltipContent } from "interfaces/dropdownOption";
 
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
 import { getGitOpsModeTipContent } from "utilities/helpers";
+import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
+
 import paths from "router/paths";
 import {
   NO_VERSION_OR_HOST_DATA_SOURCES,
@@ -26,7 +28,6 @@ import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CustomLink from "components/CustomLink";
-import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 
 import SoftwareIcon from "../../icons/SoftwareIcon";
@@ -41,7 +42,8 @@ const buildActionOptions = (
   gitOpsModeEnabled: boolean | undefined,
   repoURL: string | undefined,
   source: string | undefined,
-  androidSoftwareAvailableForInstall: boolean,
+  canEditSoftware: boolean,
+  canEditConfiguration: boolean,
   canConfigureAutoUpdate: boolean
 ): CustomOptionType[] => {
   let disableEditAppearanceTooltipContent: TooltipContent | undefined;
@@ -69,8 +71,8 @@ const buildActionOptions = (
     },
   ];
 
-  // Hides edit software option only for Android installers, as they are currently non-editable
-  if (!androidSoftwareAvailableForInstall) {
+  // Hides edit software option only for Android installers (Playstore and Web apps), as they are currently non-editable
+  if (canEditSoftware) {
     options.push({
       label: "Edit software",
       value: ACTION_EDIT_SOFTWARE,
@@ -79,8 +81,8 @@ const buildActionOptions = (
     });
   }
 
-  // Show edit configuration option only for Android installers
-  if (androidSoftwareAvailableForInstall) {
+  // Show edit configuration option only for Android installers that are not web apps
+  if (canEditConfiguration) {
     options.push({
       label: "Edit configuration",
       value: ACTION_EDIT_CONFIGURATION,
@@ -215,6 +217,7 @@ const SoftwareDetailsSummary = ({
     gitOpsModeEnabled,
     repoURL,
     source,
+    !!onClickEditSoftware,
     !!onClickEditConfiguration,
     !!onClickEditAutoUpdateConfig
   );

@@ -81,6 +81,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
   max_cvss_score?: string;
   self_service?: string;
   category_id?: string;
+  fleet_id?: string;
 }) => {
   const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
   const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
@@ -96,6 +97,9 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     ? parseInt(queryParams.category_id, 10)
     : undefined;
   const selfService = queryParams?.self_service === "true";
+  const teamId = queryParams?.fleet_id
+    ? parseInt(queryParams.fleet_id, 10)
+    : undefined;
 
   return {
     page,
@@ -110,6 +114,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     exploit: softwareVulnFilters.exploit,
     available_for_install: false, // always false for host software
     category_id: categoryId,
+    fleet_id: teamId,
   };
 };
 
@@ -228,6 +233,7 @@ const HostSoftware = ({
       orderKey: queryParams.order_key,
       perPage: queryParams.per_page,
       page: 0, // resets page index
+      fleet_id: queryParams.fleet_id,
       ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
     };
 
@@ -304,6 +310,7 @@ const HostSoftware = ({
               min_cvss_score: queryParams.min_cvss_score,
               max_cvss_score: queryParams.max_cvss_score,
             })}
+            teamId={queryParams.fleet_id}
             onAddFiltersClick={toggleSoftwareFiltersModal}
             // for my device software details modal toggling
             isMyDevicePage={isMyDevicePage}

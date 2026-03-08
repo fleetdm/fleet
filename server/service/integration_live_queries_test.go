@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"net/http"
 	"os"
@@ -19,7 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/google/uuid"
@@ -59,9 +59,9 @@ func (s *liveQueriesTestSuite) SetupSuite() {
 	lq := live_query_mock.New(s.T())
 	s.lq = lq
 
-	opts := &TestServerOpts{Lq: lq, Rs: rs}
+	opts := &TestServerOpts{Lq: lq, Rs: rs, DBConns: s.dbConns}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		opts.Logger = logging.NewNopLogger()
+		opts.Logger = slog.New(slog.DiscardHandler)
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, opts)
 	s.server = server
@@ -772,7 +772,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsToCreateCampaign() {
 	require.Len(t, liveQueryResp.Results, 1)
 	assert.Equal(t, 0, liveQueryResp.Summary.RespondedHostCount)
 	require.NotNil(t, liveQueryResp.Results[0].Error)
-	assert.Contains(t, *liveQueryResp.Results[0].Error, "Query 999 was not found in the datastore")
+	assert.Contains(t, *liveQueryResp.Results[0].Error, "Report 999 was not found in the datastore")
 
 	oneLiveQueryRequest := runOneLiveQueryRequest{
 		HostIDs: []uint{888},

@@ -71,9 +71,9 @@ integrations:
       url: https://some-zendesk-url.com
 mdm:
   apple_business_manager:
-    - ios_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
-      ipados_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
-      macos_team: "\U0001F4BB Workstations"
+    - ios_fleet: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
+      ipados_fleet: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
+      macos_fleet: "\U0001F4BB Workstations"
       organization_name: Fleet Device Management Inc.
   apple_server_url: http://some-apple-server-url.com
   end_user_authentication:
@@ -85,7 +85,7 @@ mdm:
   end_user_license_agreement: ./lib/eula/test.pdf
   volume_purchasing_program:
     - location: Fleet Device Management Inc.
-      teams:
+      fleets:
         - "\U0001F4BB Workstations"
         - "\U0001F4BB\U0001F423 Workstations (canary)"
         - "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
@@ -105,9 +105,9 @@ server_settings:
     - 3
   deferred_save_host: false
   enable_analytics: true
-  live_query_disabled: false
-  query_report_cap: 1
-  query_reports_disabled: false
+  live_reporting_disabled: false
+  report_cap: 1
+  discard_reports_data: false
   scripts_disabled: false
   server_url: https://dogfood.fleetdm.com
 sso_settings:

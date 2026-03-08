@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"testing"
@@ -16,7 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -242,7 +242,9 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeAddedCertificate{}.ActivityName(),
 		fmt.Sprintf(
-			`{"team_id": %d, "team_name": %q, "name": %q}`,
+			`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q, "name": %q}`,
+			teamID,
+			teamName,
 			teamID,
 			teamName,
 			certTemplateName,
@@ -309,7 +311,9 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDeletedCertificate{}.ActivityName(),
 		fmt.Sprintf(
-			`{"team_id": %d, "team_name": %q, "name": %q}`,
+			`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q, "name": %q}`,
+			teamID,
+			teamName,
 			teamID,
 			teamName,
 			certTemplateName,
@@ -431,7 +435,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 	// Step: Queue and run the Android setup experience worker job
 	// Note: Pending certificate templates were created above (simulating pubsub). The worker will deliver them.
 	enterpriseName := "enterprises/" + enterpriseID
-	err = worker.QueueRunAndroidSetupExperience(ctx, s.ds, log.NewNopLogger(), host.UUID, &teamID, enterpriseName)
+	err = worker.QueueRunAndroidSetupExperience(ctx, s.ds, slog.New(slog.DiscardHandler), host.UUID, &teamID, enterpriseName)
 	require.NoError(t, err)
 	s.runWorker()
 
@@ -533,7 +537,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable()
 	// Step: Queue and run the Android setup experience worker job
 	// Note: Pending certificate templates were created above (simulating pubsub). The worker will deliver them.
 	enterpriseName := "enterprises/" + enterpriseID
-	err = worker.QueueRunAndroidSetupExperience(ctx, s.ds, log.NewNopLogger(), host.UUID, nil, enterpriseName)
+	err = worker.QueueRunAndroidSetupExperience(ctx, s.ds, slog.New(slog.DiscardHandler), host.UUID, nil, enterpriseName)
 	require.NoError(t, err)
 	s.runWorker()
 
@@ -1122,15 +1126,16 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
 			shouldRenew:   false,
 			description:   "30-day cert expiring in 16 days should NOT renew (outside 15-day threshold)",
 		},
-		// Edge case: exactly at boundary (validity = 31 days, so > 30, uses 30-day threshold)
-		// SQL uses strict less-than: not_valid_after < NOW() + 30 days
-		// So expiring in exactly 30 days is NOT renewed (30 < 30 is false)
+		// Edge case: validity = 31 days (> 30), so uses 30-day threshold.
+		// Exact boundary (expiresInDays == 30) is tested in the unit test where we can pass a fixed
+		// reference time. Here we use 31 days to avoid flakiness from clock skew between test setup
+		// and the renewal job execution.
 		{
-			name:          "boundary_31d_expires_30d",
+			name:          "boundary_31d_expires_31d",
 			validityDays:  31,
-			expiresInDays: 30,
+			expiresInDays: 31,
 			shouldRenew:   false,
-			description:   "31-day cert expiring in exactly 30 days should NOT renew (at boundary, not within)",
+			description:   "31-day cert expiring in 31 days should NOT renew (outside 30-day threshold)",
 		},
 	}
 

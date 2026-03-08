@@ -44,7 +44,7 @@ const InstallerActionCell = ({
   const onClick = () => {
     const path = getPathWithQueryParams(
       PATHS.SOFTWARE_FLEET_MAINTAINED_DETAILS(id),
-      { team_id: teamId }
+      { fleet_id: teamId }
     );
     if (router && path) {
       router?.push(path);

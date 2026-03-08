@@ -36,7 +36,6 @@ func TestListActivities(t *testing.T) {
 		{"MatchQuery", testListActivitiesMatchQuery},
 		{"Ordering", testListActivitiesOrdering},
 		{"CursorPagination", testListActivitiesCursorPagination},
-		{"HostOnlyExcluded", testListActivitiesHostOnlyExcluded},
 		{"HostPastActivities", testListHostPastActivities},
 		{"MarkActivitiesAsStreamed", testMarkActivitiesAsStreamed},
 	}
@@ -307,25 +306,6 @@ func testListActivitiesCursorPagination(t *testing.T, env *testEnv) {
 	for _, a := range activities {
 		assert.Greater(t, a.ID, lastID)
 	}
-}
-
-func testListActivitiesHostOnlyExcluded(t *testing.T, env *testEnv) {
-	ctx := t.Context()
-	userID := env.InsertUser(t, "testuser", "test@example.com")
-
-	env.InsertActivity(t, ptr.Uint(userID), "regular_activity", map[string]any{})
-
-	// Create host-only activity directly (should be excluded)
-	_, err := env.DB.ExecContext(ctx, `
-		INSERT INTO activities (user_id, user_name, user_email, activity_type, details, created_at, host_only, streamed)
-		VALUES (?, 'testuser', 'test@example.com', 'host_only_activity', '{}', NOW(), true, false)
-	`, userID)
-	require.NoError(t, err)
-
-	activities, _, err := env.ds.ListActivities(ctx, listOpts())
-	require.NoError(t, err)
-	assert.Len(t, activities, 1)
-	assert.Equal(t, "regular_activity", activities[0].Type)
 }
 
 // Test helpers for building ListOptions

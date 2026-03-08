@@ -84,6 +84,7 @@ jobs:
           DOGFOOD_OKTA_CA_CERTIFICATE: ${{ secrets.DOGFOOD_OKTA_CA_CERTIFICATE }}
           DOGFOOD_OKTA_ANDROID_MANAGEMENT_HINT: ${{ secrets.DOGFOOD_OKTA_ANDROID_MANAGEMENT_HINT }}
           DOGFOOD_OKTA_IOS_MANAGEMENT_HINT: ${{ secrets.DOGFOOD_OKTA_IOS_MANAGEMENT_HINT }}
+          DOGFOOD_OKTA_VERIFY_WINDOWS_URL: ${{ secrets.DOGFOOD_OKTA_VERIFY_WINDOWS_URL }}
 
       - name: Notify on Gitops failure
         if: failure() && github.ref_name == 'main'

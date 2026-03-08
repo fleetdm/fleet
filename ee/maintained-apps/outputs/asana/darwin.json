@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2.5.1",
+      "version": "2.6.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.asana';"
       },
-      "installer_url": "https://desktop-downloads.asana.com/darwin_arm64/prod/v2.5.1/Asana-darwin-arm64-2.5.1.zip",
+      "installer_url": "https://desktop-downloads.asana.com/darwin_arm64/prod/v2.6.0/Asana-darwin-arm64-2.6.0.zip",
       "install_script_ref": "6a866252",
       "uninstall_script_ref": "c5ed2570",
-      "sha256": "fc2ebd6d4f1aa489dc3fe5ba70d0d30a7bbf0c0e8905d64d06508b63c00c282d",
+      "sha256": "086f0dd28a291f1d7affbe99d725eee799951c25917cd7ff5a021e1a7c4210da",
       "default_categories": [
         "Productivity"
       ]

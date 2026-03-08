@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
@@ -28,7 +29,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/go-github/v37/github"
 	"github.com/mitchellh/go-ps"
 	"github.com/rs/zerolog"
@@ -373,9 +373,9 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			fmt.Println("Loading starter library...")
 
-			logger := kitlog.NewNopLogger()
+			logger := slog.New(slog.DiscardHandler)
 			if c.Bool(debugFlagName) {
-				logger = kitlog.NewLogfmtLogger(os.Stderr)
+				logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 			}
 
 			if err := service.ApplyStarterLibrary(

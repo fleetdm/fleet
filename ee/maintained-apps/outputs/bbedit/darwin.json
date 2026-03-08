@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "15.5.4",
+      "version": "15.5.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.barebones.bbedit';"
       },
-      "installer_url": "https://s3.amazonaws.com/BBSW-download/BBEdit_15.5.4.dmg",
+      "installer_url": "https://s3.amazonaws.com/BBSW-download/BBEdit_15.5.5.dmg",
       "install_script_ref": "fedc2153",
       "uninstall_script_ref": "9fac6e2d",
-      "sha256": "18c3e09d3d782fb6d343c5e552557cb32aeca56d66cd4b3ccb2aabd78f0d2eaf",
+      "sha256": "0ecac68f689df5751fde7e79b34387a099d7e00418e40aa23fdb24697cac8219",
       "default_categories": [
         "Developer tools"
       ]

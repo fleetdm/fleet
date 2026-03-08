@@ -16,7 +16,9 @@ parasails.registerPage('query-library', {
     if(bowser.windows){
       this.selectedPlatform = 'windows';
     }
+    // Add a scroll event listener to shift the platform filters upwards when the header is hidden.
     window.addEventListener('scroll', this.handleScrollingPlatformFilters);
+    this.handleScrollingPlatformFilters();
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗

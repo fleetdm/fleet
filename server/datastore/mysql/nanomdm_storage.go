@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -18,10 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
-	nanomdm_log "github.com/micromdm/nanolib/log"
 )
 
 // lockConflictError indicates a lock command already exists for the host
@@ -34,6 +32,10 @@ func (e lockConflictError) Error() string {
 }
 
 func (e lockConflictError) IsConflict() bool {
+	return true
+}
+
+func (e lockConflictError) IsClientError() bool {
 	return true
 }
 
@@ -53,25 +55,8 @@ type NanoMDMStorage struct {
 	*nanomdm_mysql.MySQLStorage
 
 	db     *sqlx.DB
-	logger log.Logger
+	logger *slog.Logger
 	ds     fleet.Datastore
-}
-
-type nanoMDMLogAdapter struct {
-	logger log.Logger
-}
-
-func (l nanoMDMLogAdapter) Info(args ...interface{}) {
-	level.Info(l.logger).Log(args...)
-}
-
-func (l nanoMDMLogAdapter) Debug(args ...interface{}) {
-	level.Debug(l.logger).Log(args...)
-}
-
-func (l nanoMDMLogAdapter) With(args ...interface{}) nanomdm_log.Logger {
-	wl := log.With(l.logger, args...)
-	return nanoMDMLogAdapter{logger: wl}
 }
 
 // NewMDMAppleMDMStorage returns a MySQL nanomdm storage that uses the Datastore
@@ -79,7 +64,7 @@ func (l nanoMDMLogAdapter) With(args ...interface{}) nanomdm_log.Logger {
 func (ds *Datastore) NewMDMAppleMDMStorage() (*NanoMDMStorage, error) {
 	s, err := nanomdm_mysql.New(
 		nanomdm_mysql.WithDB(ds.primary.DB),
-		nanomdm_mysql.WithLogger(nanoMDMLogAdapter{logger: ds.logger}),
+		nanomdm_mysql.WithLogger(ds.logger),
 		nanomdm_mysql.WithReaderFunc(ds.reader),
 	)
 	if err != nil {
@@ -99,7 +84,7 @@ func (ds *Datastore) NewMDMAppleMDMStorage() (*NanoMDMStorage, error) {
 func (ds *Datastore) NewTestMDMAppleMDMStorage(asyncCap int, asyncInterval time.Duration) (*NanoMDMStorage, error) {
 	s, err := nanomdm_mysql.New(
 		nanomdm_mysql.WithDB(ds.primary.DB),
-		nanomdm_mysql.WithLogger(nanoMDMLogAdapter{logger: ds.logger}),
+		nanomdm_mysql.WithLogger(ds.logger),
 		nanomdm_mysql.WithReaderFunc(ds.reader),
 		nanomdm_mysql.WithAsyncLastSeen(asyncCap, asyncInterval),
 	)

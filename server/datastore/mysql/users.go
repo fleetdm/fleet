@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -133,6 +134,17 @@ func (ds *Datastore) HasUsers(ctx context.Context) (bool, error) {
 	return id > 0, nil
 }
 
+// userAllowedOrderKeys defines the allowed order keys for ListUsers.
+// SECURITY: This prevents information disclosure via arbitrary column sorting.
+// Sensitive columns like 'password' and 'salt' are intentionally excluded.
+var userAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"name":       "name",
+	"email":      "email",
+	"created_at": "created_at",
+	"updated_at": "updated_at",
+	"id":         "id",
+}
+
 // ListUsers lists all users with team ID, limit, sort and offset passed in with
 // UserListOptions.
 func (ds *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
@@ -147,7 +159,11 @@ func (ds *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) (
 	}
 
 	sqlStatement, params = searchLike(sqlStatement, params, opt.MatchQuery, userSearchColumns...)
-	sqlStatement, params = appendListOptionsWithCursorToSQL(sqlStatement, params, &opt.ListOptions)
+	var err error
+	sqlStatement, params, err = appendListOptionsWithCursorToSQLSecure(sqlStatement, params, &opt.ListOptions, userAllowedOrderKeys)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 	users := []*fleet.User{}
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &users, sqlStatement, params...); err != nil {

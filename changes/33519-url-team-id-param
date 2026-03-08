@@ -1,0 +1,1 @@
+- Fleet UI: Host details page includes team_id param in URL to allow retaining team on refresh

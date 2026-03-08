@@ -56,7 +56,7 @@ const EmptyHostQueries = ({ hostPlatform }: EmptyHostQueriesProps) => {
   if (action) {
     return (
       <div>
-        <p className="empty-header">Queries not supported for this host</p>
+        <p className="empty-header">Reports not supported for this host</p>
         <p>
           Interested in {action}?{" "}
           <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
@@ -67,8 +67,8 @@ const EmptyHostQueries = ({ hostPlatform }: EmptyHostQueriesProps) => {
 
   return (
     <div>
-      <p className="empty-header">No queries</p>
-      <p>Add a query to view custom vitals.</p>
+      <p className="empty-header">No reports</p>
+      <p>Add a report to view custom vitals.</p>
     </div>
   );
 };
@@ -89,7 +89,7 @@ const HostQueries = ({
       if (!hostId || !queryId || !should_link_to_hqr || queryReportsDisabled) {
         return;
       }
-      router.push(`${PATHS.HOST_QUERY_REPORT(hostId, queryId)}`);
+      router.push(`${PATHS.HOST_REPORT_RESULTS(hostId, queryId)}`);
     },
     [hostId, queryReportsDisabled, router]
   );
@@ -118,7 +118,7 @@ const HostQueries = ({
         columnConfigs={columnConfigs}
         data={tableData}
         onQueryChange={() => null}
-        resultsTitle="queries"
+        resultsTitle="reports"
         defaultSortHeader="query_name"
         defaultSortDirection="asc"
         showMarkAllPages={false}
@@ -138,11 +138,11 @@ const HostQueries = ({
   return (
     <Card className={baseClass} borderRadiusSize="xxlarge" paddingSize="xlarge">
       <div className={`${baseClass}__header`}>
-        <CardHeader header="Queries" />
+        <CardHeader header="Reports" />
         {canAddQuery && (
           <Button variant="inverse" onClick={onClickAddQuery} size="small">
             <Icon name="plus" />
-            Add query
+            Add report
           </Button>
         )}
       </div>

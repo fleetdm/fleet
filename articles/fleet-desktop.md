@@ -1,15 +1,17 @@
 # Fleet Desktop
 
-Fleet Desktop is a menu bar icon available on macOS, Windows, and Linux that gives your end users visibility into the security posture of their machine. This unlocks two key benefits:
+Fleet Desktop is a self-service portal for your end users. It shows up in the menu bar on macOS and system tray on Windows/Linux.
 
-* Self-remediation: end users can see which policies they are failing and resolution steps, reducing the need for IT and security teams to intervene
+Fleet Desktop unlocks two key benefits:
+
+* Self-remediation: end users can see which policies they are failing and resolution steps, reducing the need for IT and security teams to intervene. Available in Fleet Premium.
 * Scope transparency: end users can see what the Fleet agent can do on their machines, eliminating ambiguity between end users and their IT and security teams
-
-> Self-remediation is only available for users with Fleet Premium
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/cI2vDG3PbVo" allowfullscreen></iframe>
 </div>
+
+If your end users have a hard time finding Fleet Desktop in the macOS menu bar, you can deploy [this Fleet Desktop app](https://github.com/allenhouchins/fleet-desktop/releases).
 
 ## Install Fleet Desktop
 For information on how to install Fleet Desktop, visit: [Adding Hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#fleet-desktop).
