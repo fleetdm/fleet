@@ -87,6 +87,7 @@ controls:
       - path: ../lib/macos/configuration-profiles/microsoft-autoupdate-settings.mobileconfig
         labels_include_any:
           - "Microsoft AutoUpdate installed"
+      - path: ../lib/macos/configuration-profiles/firefox-dns-over-https.mobileconfig
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
@@ -103,6 +104,7 @@ controls:
       - path: ../lib/windows/configuration-profiles/Disable OneDrive.xml
       - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
       - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
+      - path: ../lib/windows/configuration-profiles/Firefox DNS over HTTPS.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2

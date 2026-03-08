@@ -1,0 +1,24 @@
+<Replace>
+  <!-- Enable DNS over HTTPS in Firefox -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Firefox~Policy~firefox~DNSOverHTTPS/DNSOverHTTPS_Enabled</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Enable DNS over HTTPS fallback in Firefox -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Firefox~Policy~firefox~DNSOverHTTPS/DNSOverHTTPS_Fallback</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
