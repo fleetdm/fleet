@@ -111,6 +111,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestGetDEPAssignProfileExpiredCooldowns", testGetDEPAssignProfileExpiredCooldowns},
 		{"DeleteMDMAppleDeclarationByNameCancelsInstalls", testDeleteMDMAppleDeclarationByNameCancelsInstalls},
 		{"RecoveryLockPasswordSetAndGet", testRecoveryLockPasswordSetAndGet},
+		{"RecoveryLockPasswordBulkSet", testRecoveryLockPasswordBulkSet},
 		{"RecoveryLockPasswordGetNotFound", testRecoveryLockPasswordGetNotFound},
 		{"RecoveryLockPasswordSetOverwrite", testRecoveryLockPasswordSetOverwrite},
 		{"RecoveryLockPasswordUpdatedAtChanges", testRecoveryLockPasswordUpdatedAtChanges},
@@ -9941,6 +9942,49 @@ func testRecoveryLockPasswordSetAndGet(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, password, result.Password)
 	assert.False(t, result.UpdatedAt.IsZero())
+}
+
+func testRecoveryLockPasswordBulkSet(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create multiple hosts
+	host1 := test.NewHost(t, ds, "bulk-host-1", "1.2.3.10", "bulk1key", "bulk1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "bulk-host-2", "1.2.3.11", "bulk2key", "bulk2uuid", time.Now())
+	host3 := test.NewHost(t, ds, "bulk-host-3", "1.2.3.12", "bulk3key", "bulk3uuid", time.Now())
+
+	// Generate passwords for all hosts
+	pw1, err := apple_mdm.GenerateRecoveryLockPassword()
+	require.NoError(t, err)
+	pw2, err := apple_mdm.GenerateRecoveryLockPassword()
+	require.NoError(t, err)
+	pw3, err := apple_mdm.GenerateRecoveryLockPassword()
+	require.NoError(t, err)
+
+	// Bulk set passwords
+	err = ds.SetHostsRecoveryLockPasswords(ctx, map[uint]string{
+		host1.ID: pw1,
+		host2.ID: pw2,
+		host3.ID: pw3,
+	})
+	require.NoError(t, err)
+
+	// Verify all passwords are stored correctly
+	result1, err := ds.GetHostRecoveryLockPassword(ctx, host1.ID)
+	require.NoError(t, err)
+	assert.Equal(t, pw1, result1.Password)
+
+	result2, err := ds.GetHostRecoveryLockPassword(ctx, host2.ID)
+	require.NoError(t, err)
+	assert.Equal(t, pw2, result2.Password)
+
+	result3, err := ds.GetHostRecoveryLockPassword(ctx, host3.ID)
+	require.NoError(t, err)
+	assert.Equal(t, pw3, result3.Password)
+
+	// Verify all passwords are different
+	assert.NotEqual(t, pw1, pw2)
+	assert.NotEqual(t, pw2, pw3)
+	assert.NotEqual(t, pw1, pw3)
 }
 
 func testRecoveryLockPasswordGetNotFound(t *testing.T, ds *Datastore) {
