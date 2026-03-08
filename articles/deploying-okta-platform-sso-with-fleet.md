@@ -47,7 +47,81 @@ Next, download Okta Verify for macOS from the Admin Console (**Settings** → **
 
 **Note:** If you have devices running macOS 14 Sonoma or later, you must configure Device Access SCEP certificates before proceeding with Platform SSO deployment.
 
-### Generate SCEP URL and Secret Key
+Fleet supports **dynamic SCEP** for Okta certificate delivery. This is the recommended approach: Fleet manages one-time SCEP challenges on your behalf, so certificates are deployed securely without embedding static secrets in profiles and without manual redeployment at renewal time.
+
+### Option 1: Dynamic SCEP via Fleet (Recommended)
+
+Dynamic SCEP uses Fleet as a SCEP proxy. Fleet fetches a fresh one-time challenge from Okta each time a certificate is requested, so there's no static secret to rotate or embed in a profile.
+
+#### Step 1: Generate your Okta Dynamic SCEP URL and Challenge URL
+
+1. In the Okta Admin Console, go to **Security** → **Device integrations**
+2. Click the **Device Access** tab (not Endpoint management)
+3. Click **Add platform**
+4. Select **Desktop (Windows and macOS only)**, then click **Next**
+5. On the Add device management platform page, select:
+   - **Certificate authority:** Use Okta as certificate authority
+   - **SCEP URL challenge type:** Dynamic SCEP URL
+6. Click **Generate**
+7. **Important:** Copy and save both the **SCEP URL** and the **Challenge URL** - you'll configure these in Fleet
+
+> The **Challenge URL** is what Okta calls the admin endpoint. Fleet will use this URL to fetch one-time challenges automatically.
+
+#### Step 2: Configure Fleet's Dynamic SCEP integration
+
+In Fleet, go to **Settings** → **Integrations** → **Certificate authorities** and add a new **Dynamic SCEP - Okta CA** integration with:
+
+- **SCEP URL:** The SCEP URL from Okta (step 7 above)
+- **Admin URL:** The Challenge URL from Okta (step 7 above)
+- **Username / Password:** Credentials authorized to request SCEP challenges from your Okta org
+
+Alternatively, configure via GitOps in your `org_settings`:
+
+```yaml
+integrations:
+  certificate_authorities:
+    ndes_scep_proxy:
+      url: https://your-okta-org.okta.com/api/v1/device/scep
+      admin_url: https://your-okta-org.okta.com/api/v1/device/scep/admin
+      username: your-admin-username
+      password: your-admin-password
+```
+
+#### Step 3: Create SCEP Certificate Profile in Fleet
+
+Create a SCEP configuration profile that uses Fleet's dynamic variables. Open [iMazing Profile Editor](https://imazing.com/profile-editor), create a new profile, and add a **SCEP** payload:
+
+##### Under the General tab:
+- **Name:** Okta Device Access SCEP
+- **Identifier**: Enter a unique string (e.g. "com.okta.device.access.53D4F816-6B96-400A-81A4-2C141E582D54")
+- **UUID**: Make sure that this field is populated.
+
+##### Under SCEP:
+- **URL:** `$FLEET_VAR_NDES_SCEP_PROXY_URL`
+- **Challenge:** `$FLEET_VAR_NDES_SCEP_CHALLENGE`
+- **Subject:** `CN=managementAttestation %HardwareUUID%`
+- **Key Size:** 2048
+- **Key Usage:** Signing
+- **Key is Extractable:** Unchecked
+- **Allow All Apps Access:** Checked
+
+Fleet automatically replaces `$FLEET_VAR_NDES_SCEP_PROXY_URL` and `$FLEET_VAR_NDES_SCEP_CHALLENGE` with fresh values each time the profile is delivered to a host. This means:
+
+- No static SCEP secret is stored in the profile
+- Certificate renewal is handled automatically — Fleet re-issues the challenge when the profile is redeployed at renewal time
+- No manual certificate redeployment required as long as Fleet manages the profile lifecycle
+
+Save this as `okta-device-access-scep.mobileconfig`.
+
+**[View example SCEP profile →](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/okta-device-access-scep-example.mobileconfig)**
+
+---
+
+### Option 2: Static SCEP URL (Legacy)
+
+If you prefer to use Okta's static SCEP challenge directly without Fleet's dynamic proxy, follow these steps instead.
+
+#### Generate SCEP URL and Secret Key
 
 1. In the Okta Admin Console, go to **Security** → **Device integrations**
 2. Click the **Device Access** tab (not Endpoint management)
@@ -57,21 +131,18 @@ Next, download Okta Verify for macOS from the Admin Console (**Settings** → **
    - **Certificate authority:** Use Okta as certificate authority
    - **SCEP URL challenge type:** Static SCEP URL
 6. Click **Generate**
-7. **Important:** Copy and save both the SCEP URL and secret key - you'll need these for Fleet configuration
-8. Click **Save**
+7. **Important:** Copy and save both the SCEP URL and secret key - you'll need these for your profile
 
-### Create SCEP Certificate Profile in Fleet
-
-Now create a SCEP certificate profile to deploy via Fleet:
+#### Create SCEP Certificate Profile in Fleet
 
 On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). Create a new profile and add a **SCEP** payload with these settings:
 
-#### Under the General tab:
+##### Under the General tab:
 - **Name:** Okta Device Access SCEP
 - **Identifier**: Enter a unique string (e.g. "com.okta.device.access.53D4F816-6B96-400A-81A4-2C141E582D54")
 - **UUID**: Make sure that this field is populated.
 
-#### Under SCEP
+##### Under SCEP:
 - **URL:** The SCEP URL from Okta (step 7 above)
 - **Challenge:** The secret key from Okta (step 7 above)
 - **Subject:** `CN=managementAttestation %HardwareUUID%`
@@ -81,15 +152,15 @@ On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). 
 - **Allow All Apps Access:** Checked
 - **Certificate Expiration Notification**: Set to 14 days before expiration.
 
-***NOTE:*** Okta currently doesn't support automatic certificate renewal. This means you will need to redeploy the configuration profile prior to expiration.
+***NOTE:*** Okta's static SCEP challenge does not support automatic certificate renewal. You will need to redeploy the configuration profile prior to expiration.
 Use the following policy to help find devices with certificates expiring:
 
 ```sql
 -- Returns 1 if all Okta certs are valid for >14 days (PASSING)
 -- Returns 0 if any Okta certs expire within 14 days (FAILING)
-SELECT 1 
+SELECT 1
 WHERE NOT EXISTS (
-  SELECT 1 
+  SELECT 1
   FROM certificates
   WHERE issuer LIKE '%/DC=com/DC=okta%'
     AND CAST((not_valid_after - strftime('%s', 'now')) / 86400 AS INTEGER) <= 14
@@ -97,9 +168,7 @@ WHERE NOT EXISTS (
 );
 ```
 
-Save this as `okta-device-access-scep.mobileconfig`.
-
-**[View example SCEP profile →](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/okta-device-access-scep-example.mobileconfig)**
+---
 
 ## Install Okta Verify via Fleet
 
@@ -135,7 +204,7 @@ Create a new profile and add an **Extensible Single Sign-On** payload.
 - **Extension Identifier:** `com.okta.mobile.auth-service-extension`
 - **Type:** Redirect
 - **Team Identifier:** `B7F62B65BN`
-- **URLs:** 
+- **URLs:**
   - `https://yourdomain.okta.com/device-access/api/v1/nonce`
   - `https://yourdomain.okta.com/oauth2/v1/token`
 - **Authentication Method:** Password
@@ -179,7 +248,7 @@ Save as `okta-sso-extension.mobileconfig`.
 You need to create managed app configuration profiles for two preference domains:
 
 #### com.okta.mobile Configuration
-Create a new profile and select the `Okta Verify` Application Domain: 
+Create a new profile and select the `Okta Verify` Application Domain:
 - **Preference Domain:** `com.okta.mobile`
 - **Settings:**
   - **Okta Org Url:** `https://yourdomain.okta.com`
