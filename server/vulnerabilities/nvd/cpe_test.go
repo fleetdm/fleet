@@ -55,6 +55,25 @@ func TestCPEFromSoftware(t *testing.T) {
 	_, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{Name: "[", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil,
 		reCache)
 	require.NoError(t, err)
+
+	// Does not error on names that sanitize to FTS5 reserved keywords (AND, OR, NOT).
+	// These names are composed of special characters surrounding a keyword, so after
+	// sanitizeMatch strips non-alphanumeric chars, only the keyword remains.
+	ftsKeywordNames := []string{
+		"_OR_",       // sanitizes to " OR "
+		"(AND)",      // sanitizes to " AND "
+		"[NOT]",      // sanitizes to " NOT "
+		"--OR--",     // sanitizes to " OR "
+		"OR - Debug", // sanitizes to "OR Debug" (OR at start)
+		"foo - OR",   // sanitizes to "foo OR" (OR at end)
+	}
+	for _, name := range ftsKeywordNames {
+		_, err = CPEFromSoftware(
+			t.Context(), slog.New(slog.DiscardHandler), db,
+			&fleet.Software{Name: name, Version: "1.0", Source: "programs"}, nil, reCache,
+		)
+		require.NoError(t, err, "software name %q should not cause FTS5 syntax error", name)
+	}
 }
 
 func TestCPETranslations(t *testing.T) {
