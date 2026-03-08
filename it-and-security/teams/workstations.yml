@@ -124,6 +124,7 @@ controls:
     - path: ../lib/macos/scripts/install-macos-compatibility-extension.sh
     - path: ../lib/macos/scripts/install-nudge.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
+    - path: ../lib/macos/scripts/block-clawbot-moltbot.sh
 policies:
   # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
@@ -140,6 +141,7 @@ policies:
   - path: ../lib/macos/policies/company-portal-installed.yml
   - path: ../lib/macos/policies/entra-conditional-access-check.yml
   - path: ../lib/macos/policies/install-nudge.yml
+  - path: ../lib/macos/policies/clawbot-moltbot-check.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
