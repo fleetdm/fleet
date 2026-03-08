@@ -1612,21 +1612,21 @@ type RecoveryLockCommander interface {
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error
 }
 
-// ReconcileRecoveryLockPasswords is the cron job function that manages recovery lock passwords.
-// It sends SetRecoveryLock commands to hosts that need a recovery lock password.
+// SendRecoveryLockCommands is the cron job function that sends SetRecoveryLock MDM commands
+// to hosts that need a recovery lock password.
 //
 // Note: SetRecoveryLock command results are handled synchronously in the MDM results handler
 // (server/service/apple_mdm.go), which sends VerifyRecoveryLock immediately upon acknowledgment.
-func ReconcileRecoveryLockPasswords(
+func SendRecoveryLockCommands(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *MDMAppleCommander,
 	logger *slog.Logger,
 ) error {
-	return reconcileRecoveryLockPasswordsWithCommander(ctx, ds, commander, logger)
+	return sendRecoveryLockCommandsWithCommander(ctx, ds, commander, logger)
 }
 
-func reconcileRecoveryLockPasswordsWithCommander(
+func sendRecoveryLockCommandsWithCommander(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander RecoveryLockCommander,

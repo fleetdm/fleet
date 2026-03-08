@@ -309,12 +309,12 @@ func TestGenerateRecoveryLockPassword(t *testing.T) {
 	})
 }
 
-// TestReconcileRecoveryLockPasswords tests the cron job that sends SetRecoveryLock commands
+// TestSendRecoveryLockCommands tests the cron job that sends SetRecoveryLock commands
 // to hosts that need recovery lock passwords.
 //
 // Note: SetRecoveryLock command results are handled synchronously in the MDM results handler
-// (server/service/apple_mdm.go), which is tested separately in apple_mdm_test.go in that package.
-func TestReconcileRecoveryLockPasswords(t *testing.T) {
+// (server/service/apple_mdm.go), which is tested separately in apple_mdm_cmd_results_test.go.
+func TestSendRecoveryLockCommands(t *testing.T) {
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
@@ -332,7 +332,7 @@ func TestReconcileRecoveryLockPasswords(t *testing.T) {
 			},
 		}
 
-		err := reconcileRecoveryLockPasswordsWithCommander(ctx, ds, mockCommander, logger)
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
 		require.NoError(t, err)
 		assert.False(t, commandSent, "SetRecoveryLock should not be called when no hosts need it")
 	})
@@ -372,7 +372,7 @@ func TestReconcileRecoveryLockPasswords(t *testing.T) {
 			},
 		}
 
-		err := reconcileRecoveryLockPasswordsWithCommander(ctx, ds, mockCommander, logger)
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
 		require.NoError(t, err)
 		assert.Equal(t, password, sentPassword, "should send generated password")
 		assert.Equal(t, hostID, pendingHostID, "should mark correct host as pending")
@@ -406,7 +406,7 @@ func TestReconcileRecoveryLockPasswords(t *testing.T) {
 			},
 		}
 
-		err := reconcileRecoveryLockPasswordsWithCommander(ctx, ds, mockCommander, logger)
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
 		require.NoError(t, err)
 		assert.Equal(t, hostID, failedHostID, "should mark correct host as failed")
 		assert.Contains(t, failedErrorMsg, "APNs push failed", "should include original error")

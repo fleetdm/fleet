@@ -49,9 +49,9 @@ const (
 	// CronQueryResultsCleanup deletes excess query result rows that exceed the maximum allowed per query.
 	// Runs every 1 minute.
 	CronQueryResultsCleanup CronScheduleName = "query_results_cleanup"
-	// CronRecoveryLockPassword manages recovery lock passwords for macOS devices.
+	// CronSendRecoveryLockCommands sends SetRecoveryLock MDM commands to macOS devices.
 	// Runs every 5 minutes.
-	CronRecoveryLockPassword CronScheduleName = "recovery_lock_password"
+	CronSendRecoveryLockCommands CronScheduleName = "send_recovery_lock_commands"
 )
 
 type CronSchedulesService interface {
