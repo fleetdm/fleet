@@ -1,0 +1,9 @@
+- name: Windows - Sufficient disk space available
+  query: SELECT 1 WHERE (SELECT CAST(SUM(free_space) AS REAL) / SUM(size) FROM logical_drives WHERE file_system = 'NTFS') > 0.10;
+  critical: false
+  description: This policy checks if more than 10% of disk space is available across NTFS drives. Devices with 10% or less available disk space will fail this policy.
+  resolution: |-
+    Free up disk space by removing unnecessary files, emptying the Recycle Bin, or uninstalling unused applications. You can also use Disk Cleanup to remove temporary files.
+
+    If the issue persists, please reach out in #help-dogfooding.
+  platform: windows
