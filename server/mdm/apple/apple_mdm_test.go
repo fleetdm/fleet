@@ -367,9 +367,6 @@ func TestReconcileRecoveryLockPasswords(t *testing.T) {
 				assert.Equal(t, []string{hostUUID}, hostUUIDs)
 				return nil
 			},
-			sendNotificationsFn: func(ctx context.Context, hostUUIDs []string) error {
-				return nil
-			},
 		}
 
 		err := reconcileRecoveryLockPasswordsWithCommander(ctx, ds, mockCommander, logger)
@@ -445,9 +442,6 @@ func TestReconcileRecoveryLockPasswords(t *testing.T) {
 				}
 				return nil
 			},
-			sendNotificationsFn: func(ctx context.Context, hostUUIDs []string) error {
-				return nil
-			},
 		}
 
 		err := reconcileRecoveryLockPasswordsWithCommander(ctx, ds, mockCommander, logger)
@@ -459,67 +453,14 @@ func TestReconcileRecoveryLockPasswords(t *testing.T) {
 	})
 }
 
-// mockRecoveryLockCommander implements the commander methods needed for testing.
-// Only SetRecoveryLock and SendNotifications are needed by the cron job.
-// VerifyRecoveryLock is sent by the result handler, not the cron.
+// mockRecoveryLockCommander implements RecoveryLockCommander for testing.
 type mockRecoveryLockCommander struct {
-	setRecoveryLockFn   func(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error
-	sendNotificationsFn func(ctx context.Context, hostUUIDs []string) error
+	setRecoveryLockFn func(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error
 }
 
 func (m *mockRecoveryLockCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error {
 	if m.setRecoveryLockFn != nil {
 		return m.setRecoveryLockFn(ctx, hostUUIDs, cmdUUID, password)
-	}
-	return nil
-}
-
-func (m *mockRecoveryLockCommander) SendNotifications(ctx context.Context, hostUUIDs []string) error {
-	if m.sendNotificationsFn != nil {
-		return m.sendNotificationsFn(ctx, hostUUIDs)
-	}
-	return nil
-}
-
-// recoveryLockCommander defines the interface for recovery lock operations used by the cron job.
-type recoveryLockCommander interface {
-	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error
-	SendNotifications(ctx context.Context, hostUUIDs []string) error
-}
-
-// reconcileRecoveryLockPasswordsWithCommander is a test helper that uses the interface
-func reconcileRecoveryLockPasswordsWithCommander(
-	ctx context.Context,
-	ds fleet.Datastore,
-	commander recoveryLockCommander,
-	logger *slog.Logger,
-) error {
-	return sendSetRecoveryLockCommandsWithCommander(ctx, ds, commander, logger)
-}
-
-func sendSetRecoveryLockCommandsWithCommander(
-	ctx context.Context,
-	ds fleet.Datastore,
-	commander recoveryLockCommander,
-	logger *slog.Logger,
-) error {
-	hosts, err := ds.GetHostsForRecoveryLockAction(ctx)
-	if err != nil {
-		return err
-	}
-
-	for _, host := range hosts {
-		password, err := ds.SetHostRecoveryLockPassword(ctx, host.HostID)
-		if err != nil {
-			continue
-		}
-		cmdUUID := "test-cmd-uuid"
-		if err := commander.SetRecoveryLock(ctx, []string{host.HostUUID}, cmdUUID, password); err != nil {
-			_ = ds.SetRecoveryLockFailed(ctx, host.HostID, "SetRecoveryLock enqueue failed: "+err.Error())
-			continue
-		}
-		_ = commander.SendNotifications(ctx, []string{host.HostUUID})
-		_ = ds.SetRecoveryLockPending(ctx, host.HostID, cmdUUID)
 	}
 	return nil
 }

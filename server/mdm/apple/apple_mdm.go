@@ -1606,6 +1606,12 @@ func IOSiPadOSRevive(ctx context.Context, ds fleet.Datastore, commander *MDMAppl
 	return nil
 }
 
+// RecoveryLockCommander defines the interface for sending recovery lock commands.
+// This interface is implemented by MDMAppleCommander and allows for testing.
+type RecoveryLockCommander interface {
+	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error
+}
+
 // ReconcileRecoveryLockPasswords is the cron job function that manages recovery lock passwords.
 // It sends SetRecoveryLock commands to hosts that need a recovery lock password.
 //
@@ -1615,6 +1621,15 @@ func ReconcileRecoveryLockPasswords(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *MDMAppleCommander,
+	logger *slog.Logger,
+) error {
+	return reconcileRecoveryLockPasswordsWithCommander(ctx, ds, commander, logger)
+}
+
+func reconcileRecoveryLockPasswordsWithCommander(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander RecoveryLockCommander,
 	logger *slog.Logger,
 ) error {
 	hosts, err := ds.GetHostsForRecoveryLockAction(ctx)
@@ -1647,7 +1662,7 @@ func ReconcileRecoveryLockPasswords(
 func processHostForSetRecoveryLock(
 	ctx context.Context,
 	ds fleet.Datastore,
-	commander *MDMAppleCommander,
+	commander RecoveryLockCommander,
 	logger *slog.Logger,
 	host fleet.HostNeedingRecoveryLock,
 ) error {
@@ -1660,7 +1675,7 @@ func processHostForSetRecoveryLock(
 	// Generate command UUID
 	cmdUUID := uuid.NewString()
 
-	// Send SetRecoveryLock command
+	// Send SetRecoveryLock command (includes APNs push via EnqueueCommand)
 	if err := commander.SetRecoveryLock(ctx, []string{host.HostUUID}, cmdUUID, password); err != nil {
 		if markErr := ds.SetRecoveryLockFailed(ctx, host.HostID, "SetRecoveryLock enqueue failed: "+err.Error()); markErr != nil {
 			logger.ErrorContext(ctx, "failed to mark recovery lock as failed after enqueue error",
@@ -1670,16 +1685,6 @@ func processHostForSetRecoveryLock(
 			)
 		}
 		return ctxerr.Wrap(ctx, err, "send SetRecoveryLock command")
-	}
-
-	// Send APNs push notification to wake up the device
-	if err := commander.SendNotifications(ctx, []string{host.HostUUID}); err != nil {
-		logger.WarnContext(ctx, "failed to send APNs notification for SetRecoveryLock",
-			"host_id", host.HostID,
-			"host_uuid", host.HostUUID,
-			"error", err,
-		)
-		// Continue anyway - the device will eventually check in
 	}
 
 	// Update status to pending with the command UUID
