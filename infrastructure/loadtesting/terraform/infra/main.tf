@@ -145,9 +145,6 @@ module "loadtest" {
       enable_bucket_versioning           = true
       expire_noncurrent_versions         = true
       noncurrent_version_expiration_days = 30
-      tags = {
-        backup = "true"
-      }
     }
     volumes = [
       {
