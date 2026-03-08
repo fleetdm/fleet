@@ -1500,19 +1500,17 @@ type Datastore interface {
 
 	// GetHostsForRecoveryLockAction returns hosts that need recovery lock password action:
 	// - Teams with enable_recovery_lock_password = true
-	// - macOS 11.5+, MDM enrolled
+	// - macOS Apple Silicon hosts that are MDM enrolled
 	// - No password saved
 	GetHostsForRecoveryLockAction(ctx context.Context) ([]HostNeedingRecoveryLock, error)
 
 	// SetRecoveryLockPending sets the recovery lock status to pending.
-	// This is called when a SetRecoveryLock command is enqueued.
 	SetRecoveryLockPending(ctx context.Context, hostID uint) error
 
-	// SetRecoveryLockVerifying marks the SetRecoveryLock command as acknowledged and updates
-	// status to verifying.
+	// SetRecoveryLockVerifying sets the recovery lock status to verifying.
 	SetRecoveryLockVerifying(ctx context.Context, hostID uint) error
 
-	// SetRecoveryLockVerified marks the recovery lock as verified (both commands succeeded).
+	// SetRecoveryLockVerified marks the recovery lock as verified.
 	SetRecoveryLockVerified(ctx context.Context, hostID uint) error
 
 	// SetRecoveryLockFailed marks the recovery lock as failed with the given error message.

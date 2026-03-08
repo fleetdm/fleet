@@ -1150,12 +1150,3 @@ type HostNeedingRecoveryLock struct {
 	HostID   uint
 	HostUUID string
 }
-
-// HostPendingRecoveryLock represents a host with a pending SetRecoveryLock command.
-type HostPendingRecoveryLock struct {
-	HostID              uint
-	HostUUID            string
-	SetCommandUUID      string
-	SetCommandStatus    string // "Acknowledged", "Error", "CommandFormatError", or empty if no result yet
-	SetCommandErrorInfo string // Error details if status is Error
-}
