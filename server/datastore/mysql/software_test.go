@@ -5376,9 +5376,23 @@ func testListLinuxHostSoftware(t *testing.T, ds *Datastore) {
 
 			_, err = q.ExecContext(ctx, `
 							INSERT INTO software_installers
-								(team_id, global_or_team_id, title_id, filename, extension, version, install_script_content_id, uninstall_script_content_id, storage_id, platform, self_service, package_ids)
+								(
+									team_id,
+									global_or_team_id,
+									title_id,
+									filename,
+									extension,
+									version,
+									install_script_content_id,
+									uninstall_script_content_id,
+									storage_id,
+									platform,
+									self_service,
+									package_ids,
+									is_active
+								)
 							VALUES
-								(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+								(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
 				nil, 0, titleID, installer.Filename, installer.Extension, "2.0.0",
 				scriptContentID, scriptContentID,
 				[]byte("test"), "linux", true, "[]")
