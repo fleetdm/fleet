@@ -3278,9 +3278,6 @@ software:
 			expectedIDs = append(expectedIDs, uint(p.ID))
 		}
 	}
-
-	// Policies are assigned IDs 1, 2, 3 sequentially. Only the first two have
-	// webhooks_and_tickets_enabled, so only their IDs should be in the list.
 	require.ElementsMatch(t, expectedIDs, (*appConfig).WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 }
 
@@ -3432,9 +3429,6 @@ agent_options:
 				expectedIDs = append(expectedIDs, uint(p.ID))
 			}
 		}
-
-		// Policies are assigned IDs 1, 2, 3 sequentially. Only the first two have
-		// webhooks_and_tickets_enabled, so only their IDs should be in the list.
 		require.ElementsMatch(t, expectedIDs, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 	})
 }
