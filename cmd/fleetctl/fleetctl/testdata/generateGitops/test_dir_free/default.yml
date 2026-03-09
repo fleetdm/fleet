@@ -189,6 +189,7 @@ policies:
   platform: darwin
   query: SELECT * FROM global_policy WHERE id = 1
   resolution: Do a global thing
+  webhooks_and_tickets_enabled: false
 reports:
 - automations_enabled: true
   description: This is a global query
