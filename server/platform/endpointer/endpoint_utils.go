@@ -373,6 +373,23 @@ type requestValidator interface {
 // query parameter decoding logic.
 //
 // If adding a new way to parse/decode the requset, make sure to wrap the body in a limited reader with the maxRequestBodySize
+
+// limitExhaustedBody returns true when the LimitedReader was the cause of an
+// unexpected EOF — i.e. the underlying body actually had more data beyond the
+// limit. It does this by attempting a single-byte read from the underlying
+// reader (limitedReader.R) which bypasses the limit wrapper. A successful read
+// means the body exceeded the limit; an immediate EOF means the body ended
+// exactly at the limit (malformed JSON, not an oversized payload).
+//
+// This is used to avoid false-positive PayloadTooLargeError responses for
+// bodies whose JSON is malformed and happen to be exactly maxRequestBodySize
+// bytes long.
+func limitExhaustedBody(limitedReader *io.LimitedReader) bool {
+	var peek [1]byte
+	n, _ := limitedReader.R.Read(peek[:])
+	return n > 0
+}
+
 func MakeDecoder(
 	iface interface{},
 	jsonUnmarshal func(body io.Reader, req any) error,
@@ -389,8 +406,9 @@ func MakeDecoder(
 	}
 	if rd, ok := iface.(RequestDecoder); ok {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
+			var limitedReader *io.LimitedReader
 			if maxRequestBodySize != -1 {
-				limitedReader := io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
+				limitedReader = io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
 
 				r.Body = &LimitedReadCloser{
 					LimitedReader: limitedReader,
@@ -398,7 +416,7 @@ func MakeDecoder(
 				}
 			}
 			ret, err := rd.DecodeRequest(ctx, r)
-			if err != nil && errors.Is(err, io.ErrUnexpectedEOF) {
+			if err != nil && errors.Is(err, io.ErrUnexpectedEOF) && limitedReader != nil && limitedReader.N == 0 && limitExhaustedBody(limitedReader) {
 				return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
 			}
 			return ret, err
@@ -414,8 +432,9 @@ func MakeDecoder(
 		v := reflect.New(t)
 		nilBody := false
 
+		var limitedReader *io.LimitedReader
 		if maxRequestBodySize != -1 {
-			limitedReader := io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
+			limitedReader = io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
 
 			r.Body = &LimitedReadCloser{
 				LimitedReader: limitedReader,
@@ -441,7 +460,7 @@ func MakeDecoder(
 				req := v.Interface()
 				err := jsonUnmarshal(body, req)
 				if err != nil {
-					if errors.Is(err, io.ErrUnexpectedEOF) {
+					if errors.Is(err, io.ErrUnexpectedEOF) && limitedReader != nil && limitedReader.N == 0 && limitExhaustedBody(limitedReader) {
 						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
 					}
 
@@ -503,7 +522,10 @@ func MakeDecoder(
 			err := decodeBody(ctx, r, v, body)
 			if err != nil {
 				if errors.Is(err, io.ErrUnexpectedEOF) {
-					return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+					if limitedReader != nil && limitedReader.N == 0 && limitExhaustedBody(limitedReader) {
+						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+					}
+					return nil, BadRequestErr("json decoder error", err)
 				}
 				return nil, err
 			}

@@ -1259,6 +1259,30 @@ The minimum time difference between the software's "last opened at" timestamp re
     min_software_last_opened_at_diff: 4h
   ```
 
+### osquery_max_log_write_body_size
+
+Maximum HTTP request body size accepted by the `osquery/log` endpoint. Increase this if osquery agents are submitting log batches that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
+
+- Default value: `10MiB`
+- Environment variable: `FLEET_OSQUERY_MAX_LOG_WRITE_BODY_SIZE`
+- Config file format:
+  ```yaml
+  osquery:
+    max_log_write_body_size: 20MiB
+  ```
+
+### osquery_max_distributed_write_body_size
+
+Maximum HTTP request body size accepted by the `osquery/distributed/write` endpoint. Increase this if osquery agents are submitting distributed query results that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
+
+- Default value: `5MiB`
+- Environment variable: `FLEET_OSQUERY_MAX_DISTRIBUTED_WRITE_BODY_SIZE`
+- Config file format:
+  ```yaml
+  osquery:
+    max_distributed_write_body_size: 10MiB
+  ```
+
 ## External activity audit logging
 
 > Available in Fleet Premium. Activity information is available for all Fleet Free and Fleet Premium instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
