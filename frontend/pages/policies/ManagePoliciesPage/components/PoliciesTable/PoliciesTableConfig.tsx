@@ -17,12 +17,12 @@ import sortUtils from "utilities/sort";
 import { DEFAULT_EMPTY_CELL_VALUE, PolicyResponse } from "utilities/constants";
 
 import PillBadge from "components/PillBadge";
+import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
 import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { getAutomationTypesString } from "../../helpers";
 import PassingColumnHeader from "../PassingColumnHeader";
-import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
 
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
