@@ -287,7 +287,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 
 	// Set up mock activity service for unit tests. When DBConns is provided,
 	// RunServerForTestsWithServiceWithDS will overwrite this with the real bounded context.
-	activityMock := &fleet_mock.MockNewActivityService{
+	activityMock := &fleet_mock.MockActivityService{
 		NewActivityFunc: func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
 			return nil
 		},
@@ -440,7 +440,7 @@ type TestServerOpts struct {
 
 	// ActivityMock is populated automatically by newTestServiceWithConfig.
 	// After setup, tests can use it to intercept or assert on activity creation.
-	ActivityMock *fleet_mock.MockNewActivityService
+	ActivityMock *fleet_mock.MockActivityService
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {

@@ -1333,9 +1333,9 @@ func TestDeleteHost(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()
 
-	svc, ctx := newTestService(t, ds, nil, nil)
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
 
-	// Create a user for the deletion (needed for activity creation)
 	user := &fleet.User{
 		Name:       "Test User",
 		Email:      "testuser@example.com",
@@ -1347,16 +1347,52 @@ func TestDeleteHost(t *testing.T) {
 	require.NoError(t, err)
 
 	mockClock := clock.NewMockClock()
-	host := test.NewHost(t, ds, "foo", "192.168.1.10", "1", "1", mockClock.Now())
-	assert.NotZero(t, host.ID)
 
-	err = svc.DeleteHost(test.UserContext(ctx, user), host.ID)
-	assert.Nil(t, err)
+	t.Run("single", func(t *testing.T) {
+		var cleanedHostIDs []uint
+		opts.ActivityMock.CleanupHostActivitiesFuncInvoked = false
+		opts.ActivityMock.CleanupHostActivitiesFunc = func(_ context.Context, hostIDs []uint) error {
+			cleanedHostIDs = append(cleanedHostIDs, hostIDs...)
+			return nil
+		}
 
-	filter := fleet.TeamFilter{User: user}
-	hosts, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{})
-	assert.Nil(t, err)
-	assert.Len(t, hosts, 0)
+		host := test.NewHost(t, ds, "foo", "192.168.1.10", "1", "1", mockClock.Now())
+		require.NotZero(t, host.ID)
+
+		err := svc.DeleteHost(test.UserContext(ctx, user), host.ID)
+		require.NoError(t, err)
+
+		filter := fleet.TeamFilter{User: user}
+		hosts, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{})
+		require.NoError(t, err)
+		require.Empty(t, hosts)
+
+		require.True(t, opts.ActivityMock.CleanupHostActivitiesFuncInvoked)
+		require.Equal(t, []uint{host.ID}, cleanedHostIDs)
+	})
+
+	t.Run("bulk", func(t *testing.T) {
+		var cleanedHostIDs []uint
+		opts.ActivityMock.CleanupHostActivitiesFuncInvoked = false
+		opts.ActivityMock.CleanupHostActivitiesFunc = func(_ context.Context, hostIDs []uint) error {
+			cleanedHostIDs = append(cleanedHostIDs, hostIDs...)
+			return nil
+		}
+
+		hostA := test.NewHost(t, ds, "hostA", "192.168.1.11", "2", "2", mockClock.Now())
+		hostB := test.NewHost(t, ds, "hostB", "192.168.1.12", "3", "3", mockClock.Now())
+
+		err := svc.DeleteHosts(test.UserContext(ctx, user), []uint{hostA.ID, hostB.ID}, nil)
+		require.NoError(t, err)
+
+		filter := fleet.TeamFilter{User: user}
+		hosts, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{})
+		require.NoError(t, err)
+		require.Empty(t, hosts)
+
+		require.True(t, opts.ActivityMock.CleanupHostActivitiesFuncInvoked)
+		require.ElementsMatch(t, []uint{hostA.ID, hostB.ID}, cleanedHostIDs)
+	})
 }
 
 func TestDeleteHostCreatesActivity(t *testing.T) {
@@ -1489,8 +1525,16 @@ func TestCleanupExpiredHostsActivities(t *testing.T) {
 	defer ds.Close()
 	activitySvc := mysql.NewTestActivityService(t, ds)
 
-	svc, ctx := newTestService(t, ds, nil, nil)
-	svc.SetActivityService(activitySvc)
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+	// Use the mock with delegation so we can track CleanupHostActivities calls.
+	var cleanedHostIDs []uint
+	opts.ActivityMock.Delegate = activitySvc
+	opts.ActivityMock.CleanupHostActivitiesFunc = func(ctx context.Context, hostIDs []uint) error {
+		cleanedHostIDs = append(cleanedHostIDs, hostIDs...)
+		return activitySvc.CleanupHostActivities(ctx, hostIDs)
+	}
 
 	// Set global host expiry
 	const globalExpiryWindow = 10
@@ -1646,6 +1690,10 @@ func TestCleanupExpiredHostsActivities(t *testing.T) {
 			t.Fatalf("Unexpected host ID in activities: %d", ha.hostID)
 		}
 	}
+
+	// Verify CleanupHostActivities was called with all expired host IDs.
+	require.True(t, opts.ActivityMock.CleanupHostActivitiesFuncInvoked)
+	require.ElementsMatch(t, []uint{host1.ID, host2.ID, host3.ID, host4.ID, host5.ID}, cleanedHostIDs)
 }
 
 func TestAddHostsToTeamByFilter(t *testing.T) {

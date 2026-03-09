@@ -2,10 +2,33 @@
 # Fleet events
 We sponsor and participate in events so that we can support, connect, engage, and grow the Fleet community. We need to be thoughtful about what events we sponsor or host, and we need to be disciplined in how we run events so we can be efficient and effective.
 
+## How to propose an event:  
+It's simple Open an issue: **[Propose an event](https://github.com/fleetdm/confidential/issues/new?template=propose-an-event.md)**
+
+
+## Current Events
+
+
+| QTR | Event Name | Date | Location |
+| :---- | :---- | :---- | :---- |
+| Q1 | [GitOps Workshop](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.kgy1oagh9dvl) | 2026-03-12 | Chicago |
+| Q1 | * **[Gartner Digital Workspace](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.tvvzxp6efa6s)** | 2026-03-23 | San Diego |
+| Q2 | [GitOps Workshop](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.9bojminke8bt) | 2026-04-07 | Minneapolis |
+| Q2 | [HappyHour-Apple](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.2lh2oum4rxur) | 2026-04-TBD | Austin |
+| Q2 | * **[MACAd-UK](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.u1lwe72sguc3)** | 2026-04-21 | Brighton, UK |
+| Q2 | * **[MacAdmins Europe](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.qg7ymw2g9ui8)** | 2026-04-30 | Leiden, Netherlands |
+| Q2 | * **[MacDevOpsYVR](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.afz38t4pwdka)** | 2026-06-25 | Montreal |
+| Q2 | * **[PSU MacAdmin](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.yibj67h9z2xz)** | 2026-07-07 | PennState |
+| Q3 | * **[JNUC 2026 Gurrilla](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.tk8t9mud265j)** | 2026-09-23 | Kansas City |
+| Q4 | * **[MacSysAdmin](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.tk8t9mud265j)** |2026-09-29 | XX |
+
+
+## Event Process
 There are three phases to running an event at FleetDM,
 - **Phase 1:** Propose, review and approve new events
 - **Phase 2:** Manage and and execute approved events
 - **Phase 3:** Event postgame
+
 
 #### Phase 1 Propose, review and approve new events
 **Objective:**  To ensure that the organization is aligned with the investment of time and resources to execute an event
@@ -43,11 +66,6 @@ Once events have been settled for a particular time frame, i.e, decided in a pre
   - Moving all settled events to the "All 🎪 Official (planned & settled events)" tab of the 🎪 Events spreadsheet (confidential doc).
   - Using the following template, post a message in the [#oooh-events Slack channel](https://fleetdm.slack.com/archives/C054TGK0H7X).
 
-```
-:fleet-swan: Hi all!
-Here are the [upcoming settled events](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=692710204#gid=692710204) where you can find :fleet:Fleet!
-```
-
 4. Close all proposed event issues that weren't able to be prioritized with a comment explaining why.
 
 #### Phase 2 Manage and and execute approved events
@@ -75,7 +93,6 @@ After the event there are three important activites that need to be completed.
 2. **Follow up:** When we make new friends and connections at an event, we must be prompt in follow through and connecting with them after the event. The CRM is the main way to prompt the right person at Fleet to reach back out and follow up.
 3. **Post Mortem:** Learn and improve from the previous event. (gather feedback, review lessons learned, and update processes and strategy)
 
-(Template details TBD)
 
 ## **Event execution process**
 
@@ -113,8 +130,6 @@ We utilize two general event plans, which act as templates depending on the scal
 
 1. **Conference:** Used for large conferences and events where we have a booth, speaking slots, lead scanning, and other major logistical needs.  
 2. **Workshop/Happy hour:** Used for our GitOps workshop series (which often includes happy hours). This smaller template can be used for the full workshop or for bespoke, standalone happy hours.
-
-
 
 
 ### **Execution process**
