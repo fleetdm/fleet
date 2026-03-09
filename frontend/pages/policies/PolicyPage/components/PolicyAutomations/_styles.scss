@@ -41,7 +41,15 @@
     }
   }
 
+  &__row-icon {
+    margin-right: $pad-small;
+    vertical-align: middle;
+    color: $ui-fleet-black-50;
+  }
+
   &__row-name {
+    display: flex;
+    align-items: center;
     font-size: $x-small;
     color: $core-fleet-black;
 

@@ -769,6 +769,7 @@ const PolicyForm = ({
   const renderEditablePolicyForm = () => {
     // Save disabled for no platforms selected, query name blank on existing query, or sql errors
     const disableSaveFormErrors =
+      isAddingAutomation ||
       (isExistingPolicy && !isPatchPolicy && !isAnyPlatformSelected) ||
       (lastEditedQueryName === "" && !!lastEditedQueryId) ||
       (selectedTargetType === "Custom" &&
@@ -891,6 +892,7 @@ const PolicyForm = ({
               <Button
                 onClick={goToSelectTargets}
                 disabled={
+                  isAddingAutomation ||
                   (isExistingPolicy && !isAnyPlatformSelected) ||
                   disabledLiveQuery
                 }
