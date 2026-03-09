@@ -327,7 +327,7 @@ MDM server: https://valid.com/mdm/apple/mdm
 	}
 }
 
-func TestIsDEPCapable(t *testing.T) {
+func TestParseMDMEnrollmentStatus(t *testing.T) {
 	cases := []struct {
 		cmdOut  *string
 		cmdErr  error
@@ -354,7 +354,7 @@ func TestIsDEPCapable(t *testing.T) {
 			return []byte(*c.cmdOut), nil
 		}
 
-		got, err := IsDEPCapable()
+		got, err := ParseMDMEnrollmentStatus()
 		if c.wantErr {
 			require.Error(t, err)
 		} else {

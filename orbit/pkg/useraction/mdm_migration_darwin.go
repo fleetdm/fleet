@@ -406,14 +406,9 @@ func (m *swiftDialogMDMMigrator) waitForUnenrollment(isADEMigration bool) error 
 
 func (m *swiftDialogMDMMigrator) renderMigration() error {
 	log.Debug().Msg("checking current enrollment status")
-	isCurrentlyManuallyEnrolled, err := profiles.IsManuallyEnrolledInMDM()
+	enrolledViaDEP, err := profiles.ParseMDMEnrollmentStatus()
 	if err != nil {
 		return err
-	}
-
-	isDEPCapable, err := profiles.IsDEPCapable()
-	if err != nil {
-		return fmt.Errorf("checking if device is DEP capable: %w", err)
 	}
 
 	// Check what kind of migration was in progress, if any.
@@ -423,10 +418,10 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 		return fmt.Errorf("getting migration type: %w", err)
 	}
 
-	isManualMigration := isCurrentlyManuallyEnrolled || previousMigrationType == constant.MDMMigrationTypeManual || !isDEPCapable
+	isManualMigration := !enrolledViaDEP || previousMigrationType == constant.MDMMigrationTypeManual
 	isADEMigration := previousMigrationType == constant.MDMMigrationTypeADE
 
-	log.Debug().Bool("isManualMigration", isManualMigration).Bool("isADEMigration", isADEMigration).Bool("isCurrentlyManuallyEnrolled", isCurrentlyManuallyEnrolled).Bool("isDEPCapable", isDEPCapable).Str("previousMigrationType", previousMigrationType).Msg("props after assigning")
+	log.Debug().Bool("isManualMigration", isManualMigration).Bool("isADEMigration", isADEMigration).Bool("enrolledViaDEP", enrolledViaDEP).Str("previousMigrationType", previousMigrationType).Msg("props after assigning")
 
 	vers, err := m.getMacOSMajorVersion()
 	if err != nil {
