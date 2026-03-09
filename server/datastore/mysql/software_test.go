@@ -11576,7 +11576,7 @@ func testListHostSoftwarePaginationWithMultipleInstallers(t *testing.T, ds *Data
 					 install_script_content_id, uninstall_script_content_id, storage_id, platform, self_service, package_ids)
 				VALUES (NULL, 0, ?, ?, 'pkg', ?, ?, ?, ?, 'darwin', 0, '[]')`,
 				titleID, fmt.Sprintf("installer-%s.pkg", version), version,
-				installScriptID, uninstallScriptID, []byte(fmt.Sprintf("storage-%s", version)),
+				installScriptID, uninstallScriptID, fmt.Appendf(nil, "storage-%s", version),
 			); err != nil {
 				return err
 			}
