@@ -12,9 +12,20 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// yamlToRawJSON converts a YAML string into the map[string]json.RawMessage that parse functions expect.
+func yamlToRawJSON(t *testing.T, yamlStr string) map[string]json.RawMessage {
+	t.Helper()
+	j, err := yaml.YAMLToJSON([]byte(yamlStr))
+	require.NoError(t, err)
+	var top map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(j, &top))
+	return top
+}
 
 var topLevelOptions = map[string]string{
 	"controls":      "controls:",
@@ -1967,9 +1978,12 @@ func TestParseLabelsGlob(t *testing.T) {
 		require.NoError(t, os.MkdirAll(filepath.Dir(labelFile), 0o755))
 		require.NoError(t, os.WriteFile(labelFile, []byte("- name: FileLabel\n  label_membership_type: manual\n"), 0o644))
 
-		top := map[string]json.RawMessage{
-			"labels": json.RawMessage(`[{"name": "InlineLabel", "label_membership_type": "manual"}, {"path": "labels/from-file.yml"}]`),
-		}
+		top := yamlToRawJSON(t, `
+labels:
+  - name: InlineLabel
+    label_membership_type: manual
+  - path: labels/from-file.yml
+`)
 		result := &GitOps{}
 		multiErr := parseLabels(top, result, dir, nopLogf, "test.yml", nil)
 		require.Nil(t, multiErr.ErrorOrNil())
@@ -1987,9 +2001,10 @@ func TestParseLabelsGlob(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(labelsDir, "a.yml"), []byte("- name: LabelA\n  label_membership_type: manual\n"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(labelsDir, "b.yml"), []byte("- name: LabelB\n  label_membership_type: manual\n"), 0o644))
 
-		top := map[string]json.RawMessage{
-			"labels": json.RawMessage(`[{"paths": "labels/*.yml"}]`),
-		}
+		top := yamlToRawJSON(t, `
+labels:
+  - paths: "labels/*.yml"
+`)
 		result := &GitOps{}
 		multiErr := parseLabels(top, result, dir, nopLogf, "test.yml", nil)
 		require.Nil(t, multiErr.ErrorOrNil())
@@ -2010,9 +2025,12 @@ func TestParsePoliciesGlob(t *testing.T) {
 		require.NoError(t, os.MkdirAll(filepath.Dir(policyFile), 0o755))
 		require.NoError(t, os.WriteFile(policyFile, []byte("- name: FilePolicy\n  query: SELECT 1;\n"), 0o644))
 
-		top := map[string]json.RawMessage{
-			"policies": json.RawMessage(`[{"name": "InlinePolicy", "query": "SELECT 1;"}, {"path": "policies/from-file.yml"}]`),
-		}
+		top := yamlToRawJSON(t, `
+policies:
+  - name: InlinePolicy
+    query: SELECT 1;
+  - path: policies/from-file.yml
+`)
 		result := &GitOps{}
 		multiErr := parsePolicies(top, result, dir, nopLogf, "test.yml", nil)
 		require.Nil(t, multiErr.ErrorOrNil())
@@ -2030,9 +2048,10 @@ func TestParsePoliciesGlob(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(policiesDir, "a.yml"), []byte("- name: PolicyA\n  query: SELECT 1;\n"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(policiesDir, "b.yml"), []byte("- name: PolicyB\n  query: SELECT 1;\n"), 0o644))
 
-		top := map[string]json.RawMessage{
-			"policies": json.RawMessage(`[{"paths": "policies/*.yml"}]`),
-		}
+		top := yamlToRawJSON(t, `
+policies:
+  - paths: "policies/*.yml"
+`)
 		result := &GitOps{}
 		multiErr := parsePolicies(top, result, dir, nopLogf, "test.yml", nil)
 		require.Nil(t, multiErr.ErrorOrNil())
@@ -2053,9 +2072,12 @@ func TestParseReportsGlob(t *testing.T) {
 		require.NoError(t, os.MkdirAll(filepath.Dir(reportFile), 0o755))
 		require.NoError(t, os.WriteFile(reportFile, []byte("- name: FileReport\n  query: SELECT 1;\n"), 0o644))
 
-		top := map[string]json.RawMessage{
-			"reports": json.RawMessage(`[{"name": "InlineReport", "query": "SELECT 1;"}, {"path": "reports/from-file.yml"}]`),
-		}
+		top := yamlToRawJSON(t, `
+reports:
+  - name: InlineReport
+    query: SELECT 1;
+  - path: reports/from-file.yml
+`)
 		teamName := "TestTeam"
 		result := &GitOps{TeamName: &teamName}
 		multiErr := parseReports(top, result, dir, nopLogf, "test.yml", nil)
@@ -2074,9 +2096,10 @@ func TestParseReportsGlob(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(reportsDir, "a.yml"), []byte("- name: ReportA\n  query: SELECT 1;\n"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(reportsDir, "b.yml"), []byte("- name: ReportB\n  query: SELECT 1;\n"), 0o644))
 
-		top := map[string]json.RawMessage{
-			"reports": json.RawMessage(`[{"paths": "reports/*.yml"}]`),
-		}
+		top := yamlToRawJSON(t, `
+reports:
+  - paths: "reports/*.yml"
+`)
 		teamName := "TestTeam"
 		result := &GitOps{TeamName: &teamName}
 		multiErr := parseReports(top, result, dir, nopLogf, "test.yml", nil)
