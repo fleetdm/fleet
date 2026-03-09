@@ -17425,7 +17425,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&activityCount,
-			`SELECT count(1) FROM activities`,
+			`SELECT count(1) FROM activity_past`,
 		)
 	})
 	// host2Team1 posts the installation result for ruby.deb (first attempt).
@@ -17451,7 +17451,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&activityNewCount,
-			`SELECT count(1) FROM activities`,
+			`SELECT count(1) FROM activity_past`,
 		)
 	})
 	require.Equal(t, activityCount, activityNewCount, "no new activity should be created for first failed install attempts")
@@ -17598,7 +17598,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &count, `
 				SELECT COUNT(*)
-				FROM activities
+				FROM activity_past
 				WHERE JSON_EXTRACT(details, '$.host_id') = ? AND JSON_EXTRACT(details, '$.policy_id') = ?
 			`, host.ID, policy.ID)
 		})
@@ -17892,7 +17892,7 @@ func (s *integrationEnterpriseTestSuite) TestNonPolicySoftwareInstallRetries() {
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &count, `
 				SELECT COUNT(*)
-				FROM activities
+				FROM activity_past
 				WHERE activity_type = 'installed_software'
 					AND JSON_EXTRACT(details, '$.host_id') = ?
 					AND JSON_EXTRACT(details, '$.status') = 'failed_install'
@@ -18955,7 +18955,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &count, `
 				SELECT COUNT(*)
-				FROM activities
+				FROM activity_past
 				WHERE JSON_EXTRACT(details, '$.host_id') = ? AND JSON_EXTRACT(details, '$.policy_id') = ?
 			`, host.ID, policy.ID)
 		})

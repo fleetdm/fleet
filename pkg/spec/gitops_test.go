@@ -72,6 +72,12 @@ func gitOpsFromString(t *testing.T, s string) (*GitOps, error) {
 func nopLogf(_ string, _ ...interface{}) {
 }
 
+func premiumAppConfig() *fleet.EnrichedAppConfig {
+	ac := &fleet.EnrichedAppConfig{}
+	ac.License = &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	return ac
+}
+
 func TestValidGitOpsYaml(t *testing.T) {
 	t.Parallel()
 	tests := map[string]struct {
@@ -600,10 +606,10 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "must have a 'secret' key")
 
-					// Missing settings (formerly settings).
+					// Missing settings is now allowed (defaults to null, clearing team settings).
 					config = getConfig([]string{"settings"})
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "'settings' is required when 'name' is provided")
+					assert.NoError(t, err)
 
 					// settings is now allowed on "no-team.yml" for webhook settings
 					config = getConfig([]string{"name", "settings"}) // Exclude settings with secrets
@@ -907,17 +913,22 @@ func TestTopLevelGitOpsValidation(t *testing.T) {
 			shouldPass:    true,
 			isTeam:        true,
 		},
-		"missing_all": {
+		// Top-level keys besides "name" and "org_settings" are now optional.
+		// A file must have either "name" (team) or "org_settings" (global).
+		"missing_all_global": {
 			optsToExclude: []string{"controls", "reports", "policies", "agent_options", "org_settings"},
 		},
 		"missing_reports": {
 			optsToExclude: []string{"reports"},
+			shouldPass:    true,
 		},
 		"missing_policies": {
 			optsToExclude: []string{"policies"},
+			shouldPass:    true,
 		},
 		"missing_agent_options": {
 			optsToExclude: []string{"agent_options"},
+			shouldPass:    true,
 		},
 		"missing_org_settings": {
 			optsToExclude: []string{"org_settings"},
@@ -928,6 +939,7 @@ func TestTopLevelGitOpsValidation(t *testing.T) {
 		},
 		"missing_settings": {
 			optsToExclude: []string{"settings"},
+			shouldPass:    true,
 			isTeam:        true,
 		},
 	}
@@ -1932,6 +1944,327 @@ func TestGitOpsGlobScripts(t *testing.T) {
 	assert.Equal(t, filepath.Join(scriptsDir, "gamma.ps1"), *result.Controls.Scripts[2].Path)
 }
 
+func TestUnknownKeyDetection(t *testing.T) {
+	t.Parallel()
+
+	t.Run("unknown key in controls", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+agent_options:
+controls:
+  macos_updates:
+    minimum_version: "14.0"
+    deadline: "2024-01-01"
+  unknown_control_field: true
+reports:
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_control_field")
+	})
+
+	t.Run("unknown key in controls macos_updates (any-field)", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+agent_options:
+controls:
+  macos_updates:
+    minimum_version: "14.0"
+    deadlinee: "2024-01-01"
+reports:
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "deadlinee")
+		assert.Contains(t, err.Error(), `did you mean "deadline"?`)
+		assert.Contains(t, err.Error(), "controls.macos_updates")
+	})
+
+	t.Run("unknown key in query entry", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+agent_options:
+controls:
+reports:
+  - name: test_query
+    query: SELECT 1;
+    unknown_query_field: true
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_query_field")
+	})
+
+	t.Run("unknown key in policy entry", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+agent_options:
+controls:
+reports:
+policies:
+  - name: test_policy
+    query: SELECT 1;
+    unknown_policy_field: true
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_policy_field")
+	})
+
+	t.Run("unknown key in label entry", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+agent_options:
+controls:
+labels:
+  - name: test_label
+    query: SELECT 1
+    label_membership_type: dynamic
+    unknown_label_field: true
+reports:
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_label_field")
+	})
+
+	t.Run("unknown key in software section", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+agent_options:
+controls:
+reports:
+policies:
+software:
+  unknown_software_field: true
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_software_field")
+	})
+
+	t.Run("multiple unknown keys reported at once", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+agent_options:
+controls:
+  bad_control_key: true
+reports:
+  - name: test_query
+    query: SELECT 1;
+    bad_query_key: true
+policies:
+  - name: test_policy
+    query: SELECT 1;
+    bad_policy_key: true
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "bad_control_key")
+		assert.Contains(t, err.Error(), "bad_query_key")
+		assert.Contains(t, err.Error(), "bad_policy_key")
+	})
+
+	t.Run("multiple unknown keys within a single section", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+agent_options:
+controls:
+  macos_updates:
+    minimum_version: "14.0"
+    deadlinee: "2024-01-01"
+    update_new_hostss: true
+  bad_control_key: true
+reports:
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "deadlinee")
+		assert.Contains(t, err.Error(), "update_new_hostss")
+		assert.Contains(t, err.Error(), "bad_control_key")
+	})
+
+	t.Run("valid config no unknown key errors", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+agent_options:
+controls:
+  macos_updates:
+    minimum_version: "14.0"
+    deadline: "2024-01-01"
+reports:
+  - name: test_query
+    query: SELECT 1;
+    interval: 3600
+policies:
+  - name: test_policy
+    query: SELECT 1;
+    description: A test policy
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+	})
+
+	t.Run("allow-unknown-keys option logs instead of erroring", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+agent_options:
+controls:
+  unknown_control_field: true
+reports:
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		var logMessages []string
+		sawExpectErrorMsg := false
+		logFn := func(format string, a ...any) {
+			msg := fmt.Sprintf(format, a...)
+			if strings.Contains(msg, "unknown_control_field") {
+				sawExpectErrorMsg = true
+			}
+			logMessages = append(logMessages, msg)
+		}
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), logFn, GitOpsOptions{AllowUnknownKeys: true})
+		require.NoError(t, err)
+		// Should have logged a warning about the unknown key
+		require.NotEmpty(t, logMessages)
+		assert.True(t, sawExpectErrorMsg, "expected warning about unknown_control_field in log messages: %v", logMessages)
+	})
+
+	t.Run("unknown key in controls on no-team path", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: No team
+controls:
+  unknown_control_field: true
+policies:
+`
+		path, basePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_control_field")
+	})
+
+	t.Run("unknown key in software package via path", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: pkg.yml
+`
+		path, basePath := createTempFile(t, "", config)
+		pkgYAML := `
+url: https://example.com/pkg.pkg
+hash_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+unknown_pkg_field: bad
+`
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "pkg.yml"), []byte(pkgYAML), 0o644))
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_pkg_field")
+	})
+
+	t.Run("unknown key in software package array via path", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: pkgs.yml
+`
+		path, basePath := createTempFile(t, "", config)
+		pkgYAML := `
+- url: https://example.com/pkg.pkg
+  hash_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  unknown_array_field: bad
+`
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "pkgs.yml"), []byte(pkgYAML), 0o644))
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_array_field")
+	})
+
+	t.Run("unknown key in policy install_software package_path", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig([]string{"policies", "software"})
+		config += `
+software:
+  packages:
+    - url: https://example.com/pkg.pkg
+      hash_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+policies:
+  - name: Test policy
+    query: SELECT 1;
+    install_software:
+      package_path: pkg.yml
+`
+		path, basePath := createTempFile(t, "", config)
+		pkgYAML := `
+url: https://example.com/pkg.pkg
+hash_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+unknown_policy_pkg_field: bad
+`
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "pkg.yml"), []byte(pkgYAML), 0o644))
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_policy_pkg_field")
+	})
+}
+
 // TestControlsNewKeyNames verifies that the new multi-platform key names
 // (apple_settings, setup_experience, configuration_profiles, apple_setup_assistant)
 // are accepted in controls parsing and produce the same result as the old names.
@@ -2391,5 +2724,50 @@ software:
 		assert.NotEmpty(t, result.Software.Packages[0].SHA256)
 		assert.True(t, strings.HasSuffix(result.Software.Packages[1].InstallScript.Path, "install-app.sh"))
 		assert.True(t, result.Software.Packages[1].SelfService)
+	})
+}
+
+func TestParsePolicyInstallSoftware(t *testing.T) {
+	t.Parallel()
+
+	teamName := "test-team"
+
+	t.Run("wrapErrs prefixes errors", func(t *testing.T) {
+		t.Parallel()
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "my policy"},
+				InstallSoftware: &PolicyInstallSoftware{
+					// no package_path, app_store_id, or hash_sha256
+				},
+			},
+		}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil)
+		require.Len(t, errs, 1)
+		assert.Equal(t, errs[0].Error(), `failed to parse policy install_software "my policy": install_software must include either a package_path, an app_store_id or a hash_sha256`)
+	})
+
+	t.Run("unknown key in package_path file", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		sha := "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+		content := fmt.Sprintf("hash_sha256: %s\nbad_field: oops\n", sha)
+		path := filepath.Join(dir, "pkg.yml")
+		require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec: fleet.PolicySpec{Name: "typo policy"},
+				InstallSoftware: &PolicyInstallSoftware{
+					PackagePath: path,
+				},
+			},
+		}
+		packages := []*fleet.SoftwarePackageSpec{{SHA256: sha}}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, packages, nil)
+		require.Len(t, errs, 1)
+		var unknownErr *ParseUnknownKeyError
+		require.ErrorAs(t, errs[0], &unknownErr)
+		assert.Equal(t, "bad_field", unknownErr.Field)
 	})
 }

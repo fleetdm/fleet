@@ -83,14 +83,14 @@ func testListActivitiesStreamed(t *testing.T, env *testEnv) {
 	ctx := t.Context()
 	userID := env.InsertUser(t, "testuser", "test@example.com")
 
-	var activityIDs []uint
+	activityIDs := make([]uint, 0, 3)
 	for i := range 3 {
 		id := env.InsertActivity(t, ptr.Uint(userID), "test_activity", map[string]any{"detail": i})
 		activityIDs = append(activityIDs, id)
 	}
 
 	// Mark first activity as streamed
-	_, err := env.DB.ExecContext(ctx, "UPDATE activities SET streamed = true WHERE id = ?", activityIDs[0])
+	_, err := env.DB.ExecContext(ctx, "UPDATE activity_past SET streamed = true WHERE id = ?", activityIDs[0])
 	require.NoError(t, err)
 
 	cases := []struct {
