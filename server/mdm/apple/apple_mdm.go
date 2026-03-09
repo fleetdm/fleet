@@ -1609,7 +1609,7 @@ func IOSiPadOSRevive(ctx context.Context, ds fleet.Datastore, commander *MDMAppl
 // RecoveryLockCommander defines the interface for sending recovery lock commands.
 // This interface is implemented by MDMAppleCommander and allows for testing.
 type RecoveryLockCommander interface {
-	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error
+	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 }
 
 // SendRecoveryLockCommands is the cron job function that sends SetRecoveryLock MDM commands
@@ -1644,7 +1644,9 @@ func sendRecoveryLockCommandsWithCommander(
 
 	logger.InfoContext(ctx, "sending SetRecoveryLock commands", "count", len(hosts))
 
-	// Generate passwords for all hosts upfront
+	// Generate and store passwords for all hosts upfront.
+	// Passwords must be stored BEFORE enqueuing commands because they are injected
+	// at delivery time by ExpandHostSecrets (which looks up by host/enrollment ID).
 	passwords := make(map[uint]string, len(hosts))
 	for _, host := range hosts {
 		pw, err := GenerateRecoveryLockPassword()
@@ -1659,42 +1661,57 @@ func sendRecoveryLockCommandsWithCommander(
 		passwords[host.HostID] = pw
 	}
 
-	// Enqueue commands for all hosts, tracking which succeed.
-	// We only persist passwords AFTER successful enqueue to avoid creating rows
-	// that would prevent retries if a crash occurs before enqueue completes.
-	successfulPasswords := make(map[uint]string, len(passwords))
-	for _, host := range hosts {
-		password, ok := passwords[host.HostID]
-		if !ok {
-			// Password generation failed for this host, skip
-			continue
-		}
-
-		cmdUUID := uuid.NewString()
-
-		if err := commander.SetRecoveryLock(ctx, []string{host.HostUUID}, cmdUUID, password); err != nil {
-			logger.ErrorContext(ctx, "failed to send SetRecoveryLock command",
-				"host_id", host.HostID,
-				"host_uuid", host.HostUUID,
-				"error", err,
-			)
-			// Don't include in successful passwords - host will be retried on next run
-			continue
-		}
-
-		successfulPasswords[host.HostID] = password
-		logger.DebugContext(ctx, "sent SetRecoveryLock command",
-			"host_id", host.HostID,
-			"host_uuid", host.HostUUID,
-		)
-	}
-
-	// Bulk insert passwords only for hosts where enqueue succeeded
-	if len(successfulPasswords) > 0 {
-		if err := ds.SetHostsRecoveryLockPasswords(ctx, successfulPasswords); err != nil {
+	// Store passwords first so they're available when commands are delivered
+	if len(passwords) > 0 {
+		if err := ds.SetHostsRecoveryLockPasswords(ctx, passwords); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set recovery lock passwords")
 		}
 	}
+
+	// Collect host UUIDs for hosts that have passwords stored.
+	// The password is not in the command - a placeholder is used that will be
+	// expanded at delivery time by ExpandHostSecrets.
+	hostUUIDs := make([]string, 0, len(passwords))
+	for _, host := range hosts {
+		if _, ok := passwords[host.HostID]; !ok {
+			// Password generation failed for this host, skip
+			continue
+		}
+		hostUUIDs = append(hostUUIDs, host.HostUUID)
+	}
+
+	if len(hostUUIDs) == 0 {
+		return nil
+	}
+
+	// Enqueue a single command for all hosts. Each host gets their own queue entry
+	// pointing to the same command, and ExpandHostSecrets injects the per-host
+	// password at delivery time.
+	cmdUUID := uuid.NewString()
+	if err := commander.SetRecoveryLock(ctx, hostUUIDs, cmdUUID); err != nil {
+		logger.ErrorContext(ctx, "failed to send SetRecoveryLock commands",
+			"host_count", len(hostUUIDs),
+			"error", err,
+		)
+		// Commands failed but passwords are stored with NULL status - will be retried on next cron run
+		return ctxerr.Wrap(ctx, err, "enqueue SetRecoveryLock commands")
+	}
+
+	// Mark hosts as pending now that commands are enqueued.
+	// This prevents them from being picked up again on the next cron run.
+	if err := ds.SetRecoveryLockPendingByHostUUIDs(ctx, hostUUIDs); err != nil {
+		// Log but don't fail - commands are already enqueued and will be processed.
+		// Worst case: host gets picked up again and a new command is sent (idempotent).
+		logger.ErrorContext(ctx, "failed to set recovery lock pending status",
+			"host_count", len(hostUUIDs),
+			"error", err,
+		)
+	}
+
+	logger.InfoContext(ctx, "sent SetRecoveryLock commands",
+		"host_count", len(hostUUIDs),
+		"command_uuid", cmdUUID,
+	)
 
 	return nil
 }

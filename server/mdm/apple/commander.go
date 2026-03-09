@@ -562,14 +562,19 @@ func (svc *MDMAppleCommander) BulkDeleteHostUserCommandsWithoutResults(ctx conte
 	return svc.storage.BulkDeleteHostUserCommandsWithoutResults(ctx, commandToIDs)
 }
 
-// SetRecoveryLock sends the SetRecoveryLock MDM command to set or change the recovery lock password.
+// SetRecoveryLock sends the SetRecoveryLock MDM command to set the recovery lock password.
+// The password is not included in the command - instead, a placeholder is used that will be
+// expanded at delivery time by looking up the password from host_recovery_key_passwords.
+// The password must be stored (via SetHostsRecoveryLockPasswords) BEFORE calling this method.
 // See https://developer.apple.com/documentation/devicemanagement/set_recovery_lock
-func (svc *MDMAppleCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string, newPassword string) error {
+func (svc *MDMAppleCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+	// Use the host secret placeholder - the actual password will be injected at delivery time
+	// by ExpandHostSecrets, which looks up the password from host_recovery_key_passwords.
 	cmdPayload := commandPayload{
 		CommandUUID: cmdUUID,
 		Command: map[string]any{
 			"RequestType": "SetRecoveryLock",
-			"NewPassword": newPassword,
+			"NewPassword": "$" + fleet.HostSecretPrefix + fleet.HostSecretRecoveryLockPassword,
 		},
 	}
 	rawBytes, err := plist.MarshalIndent(cmdPayload, "    ")

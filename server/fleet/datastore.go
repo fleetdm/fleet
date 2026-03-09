@@ -1507,6 +1507,10 @@ type Datastore interface {
 	// SetRecoveryLockPending sets the recovery lock status to pending.
 	SetRecoveryLockPending(ctx context.Context, hostID uint) error
 
+	// SetRecoveryLockPendingByHostUUIDs sets the recovery lock status to pending for hosts
+	// identified by their UUIDs. This is called after successfully enqueuing SetRecoveryLock commands.
+	SetRecoveryLockPendingByHostUUIDs(ctx context.Context, hostUUIDs []string) error
+
 	// SetRecoveryLockVerifying sets the recovery lock status to verifying.
 	SetRecoveryLockVerifying(ctx context.Context, hostID uint) error
 
@@ -1515,6 +1519,8 @@ type Datastore interface {
 
 	// SetRecoveryLockFailed marks the recovery lock as failed with the given error message.
 	SetRecoveryLockFailed(ctx context.Context, hostID uint, errorMsg string) error
+	// SetRecoveryLockFailedByEnrollmentID marks the recovery lock as failed using the enrollment ID (UDID).
+	SetRecoveryLockFailedByEnrollmentID(ctx context.Context, enrollmentID string, errorMsg string) error
 
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
@@ -2430,6 +2436,11 @@ type Datastore interface {
 	// ExpandEmbeddedSecretsAndUpdatedAt is like ExpandEmbeddedSecrets but also
 	// returns the latest updated_at time of the secrets used in the expansion.
 	ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, document string) (string, *time.Time, error)
+
+	// ExpandHostSecrets expands host-scoped secrets ($FLEET_HOST_SECRET_*) in the document.
+	// The enrollmentID (typically UDID) is used to look up host-specific secrets
+	// like recovery lock passwords.
+	ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Android

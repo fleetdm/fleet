@@ -14,7 +14,7 @@ func Up_20260304160000(tx *sql.Tx) error {
 		CREATE TABLE host_recovery_key_passwords (
 			host_id int unsigned NOT NULL,
 			encrypted_password BLOB NOT NULL,
-			status VARCHAR(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+			status VARCHAR(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 			operation_type VARCHAR(20) COLLATE utf8mb4_unicode_ci NOT NULL,
 			error_message TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 			created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),

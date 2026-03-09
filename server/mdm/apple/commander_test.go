@@ -584,14 +584,14 @@ func TestMDMAppleCommanderSetRecoveryLock(t *testing.T) {
 
 	hostUUIDs := []string{"host-uuid-1"}
 	cmdUUID := uuid.New().String()
-	password := "TEST-PASS-1234"
 
 	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 		require.NotNil(t, cmd)
 		require.Equal(t, "SetRecoveryLock", cmd.Command.Command.RequestType)
 		require.Contains(t, string(cmd.Raw), cmdUUID)
 		require.Contains(t, string(cmd.Raw), "SetRecoveryLock")
-		require.Contains(t, string(cmd.Raw), password)
+		// Should contain the placeholder, not the actual password
+		require.Contains(t, string(cmd.Raw), "$"+fleet.HostSecretPrefix+fleet.HostSecretRecoveryLockPassword)
 		require.Contains(t, string(cmd.Raw), "<key>NewPassword</key>")
 		return nil, nil
 	}
@@ -618,7 +618,7 @@ func TestMDMAppleCommanderSetRecoveryLock(t *testing.T) {
 		return false, nil
 	}
 
-	err := cmdr.SetRecoveryLock(ctx, hostUUIDs, cmdUUID, password)
+	err := cmdr.SetRecoveryLock(ctx, hostUUIDs, cmdUUID)
 	require.NoError(t, err)
 	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)

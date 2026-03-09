@@ -7,6 +7,17 @@ import (
 
 const ServerSecretPrefix = "FLEET_SECRET_"
 
+// HostSecretPrefix is used for host-scoped secrets that are looked up by
+// enrollment ID rather than by name. These are expanded at command delivery time.
+const HostSecretPrefix = "FLEET_HOST_SECRET_" //nolint:gosec // G101: this is a prefix constant, not a credential
+
+// Host secret types
+const (
+	// HostSecretRecoveryLockPassword is the host secret type for macOS recovery lock passwords.
+	// The password is stored encrypted in host_recovery_key_passwords and injected at delivery time.
+	HostSecretRecoveryLockPassword = "RECOVERY_LOCK_PASSWORD"
+)
+
 type MissingSecretsError struct {
 	MissingSecrets []string
 }

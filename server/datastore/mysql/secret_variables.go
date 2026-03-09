@@ -436,3 +436,84 @@ func (ds *Datastore) ValidateEmbeddedSecrets(ctx context.Context, documents []st
 
 	return nil
 }
+
+// ExpandHostSecrets expands host-scoped secrets ($FLEET_HOST_SECRET_*) in the document.
+// The enrollmentID (typically UDID) is used to look up the host and retrieve host-specific secrets.
+func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error) {
+	// Check for host secret placeholders
+	hostSecrets := fleet.ContainsPrefixVars(document, fleet.HostSecretPrefix)
+	if len(hostSecrets) == 0 {
+		return document, nil
+	}
+
+	// Map enrollment ID to host ID
+	hostID, err := ds.getHostIDByEnrollmentID(ctx, enrollmentID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting host ID for enrollment")
+	}
+
+	// Build a map of secret type -> value
+	secretValues := make(map[string]string)
+	for _, secretType := range hostSecrets {
+		switch secretType {
+		case fleet.HostSecretRecoveryLockPassword:
+			password, err := ds.getHostRecoveryLockPasswordDecrypted(ctx, hostID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "getting recovery lock password for host %d", hostID)
+			}
+			secretValues[secretType] = password
+		default:
+			return "", ctxerr.Errorf(ctx, "unknown host secret type: %s", secretType)
+		}
+	}
+
+	// Expand the placeholders
+	expanded := fleet.MaybeExpand(document, func(s string, startPos, endPos int) (string, bool) {
+		if !strings.HasPrefix(s, fleet.HostSecretPrefix) {
+			return "", false
+		}
+		secretType := strings.TrimPrefix(s, fleet.HostSecretPrefix)
+		val, ok := secretValues[secretType]
+		return val, ok
+	})
+
+	return expanded, nil
+}
+
+// getHostIDByEnrollmentID maps an enrollment ID (typically UDID) to a host ID.
+func (ds *Datastore) getHostIDByEnrollmentID(ctx context.Context, enrollmentID string) (uint, error) {
+	var hostID uint
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hostID,
+		`SELECT id FROM hosts WHERE uuid = ?`, enrollmentID)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "getting host ID by enrollment ID")
+	}
+	return hostID, nil
+}
+
+// getHostRecoveryLockPasswordDecrypted retrieves and decrypts the recovery lock password for a host.
+func (ds *Datastore) getHostRecoveryLockPasswordDecrypted(ctx context.Context, hostID uint) (string, error) {
+	var encryptedPassword []byte
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &encryptedPassword,
+		`SELECT encrypted_password FROM host_recovery_key_passwords WHERE host_id = ?`, hostID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting encrypted recovery lock password")
+	}
+
+	password, err := decrypt(encryptedPassword, ds.serverPrivateKey)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "decrypting recovery lock password")
+	}
+
+	return string(password), nil
+}
+
+// SetRecoveryLockFailedByEnrollmentID marks a host's recovery lock as failed using the enrollment ID.
+// This is used when secret expansion fails during command delivery.
+func (ds *Datastore) SetRecoveryLockFailedByEnrollmentID(ctx context.Context, enrollmentID string, errorMsg string) error {
+	hostID, err := ds.getHostIDByEnrollmentID(ctx, enrollmentID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting host ID for enrollment")
+	}
+	return ds.SetRecoveryLockFailed(ctx, hostID, errorMsg)
+}

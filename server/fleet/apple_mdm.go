@@ -27,7 +27,7 @@ type MDMAppleCommandIssuer interface {
 	EraseDevice(ctx context.Context, host *Host, uuid string) error
 	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
 	DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error
-	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string, newPassword string) error
+	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	VerifyRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string, password string) error
 }
 

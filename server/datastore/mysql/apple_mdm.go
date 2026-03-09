@@ -7248,14 +7248,16 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 		return nil
 	}
 
-	// Build values for bulk insert
+	// Build values for bulk insert.
+	// Status is NULL initially (command not yet enqueued). It will be set to 'pending'
+	// after successful enqueue by SetRecoveryLockPendingByHostUUIDs.
 	var args []any
 	for hostID, plaintext := range passwords {
 		encrypted, err := encrypt([]byte(plaintext), ds.serverPrivateKey)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "encrypting recovery lock password")
 		}
-		args = append(args, hostID, encrypted, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall)
+		args = append(args, hostID, encrypted, fleet.MDMOperationTypeInstall)
 	}
 
 	stmt := `
@@ -7263,11 +7265,12 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
 			encrypted_password = VALUES(encrypted_password),
-			status = VALUES(status),
-			operation_type = VALUES(operation_type)
+			status = NULL,
+			operation_type = VALUES(operation_type),
+			error_message = NULL
 	`
 
-	placeholders := strings.Repeat("(?, ?, ?, ?),", len(passwords))
+	placeholders := strings.Repeat("(?, ?, NULL, ?),", len(passwords))
 	placeholders = placeholders[:len(placeholders)-1] // remove trailing comma
 	stmt = fmt.Sprintf(stmt, placeholders)
 
@@ -7309,8 +7312,8 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]fleet
 	// - Have enable_recovery_lock_password = true (from team config or appconfig for no-team hosts)
 	// - Are Apple Silicon (ARM CPU)
 	// - Are MDM enrolled (enabled = 1 and device enrollment type)
-	// - Have no recovery lock password record yet
-	// Note: hosts with existing records (pending, verifying, verified, failed) are NOT included
+	// - Have no recovery lock password record OR have a password with NULL status (command not yet enqueued)
+	// Note: hosts with status pending, verifying, verified, or failed are NOT included
 	const stmt = `
 		SELECT h.id, h.uuid
 		FROM hosts h
@@ -7331,7 +7334,7 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]fleet
 		      -- No-team hosts: check appconfig
 		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.enable_recovery_lock_password') = true)
 		  )
-		  AND rkp.host_id IS NULL
+		  AND (rkp.host_id IS NULL OR rkp.status IS NULL)
 		LIMIT 500
 	`
 
@@ -7365,6 +7368,31 @@ func (ds *Datastore) SetRecoveryLockPending(ctx context.Context, hostID uint) er
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "set recovery lock pending")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) SetRecoveryLockPendingByHostUUIDs(ctx context.Context, hostUUIDs []string) error {
+	if len(hostUUIDs) == 0 {
+		return nil
+	}
+
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords rkp
+		INNER JOIN hosts h ON h.id = rkp.host_id
+		SET rkp.status = '%s',
+		    rkp.error_message = NULL
+		WHERE h.uuid IN (?)
+	`, fleet.MDMDeliveryPending)
+
+	query, args, err := sqlx.In(stmt, hostUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build query for set recovery lock pending by host UUIDs")
+	}
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "set recovery lock pending by host UUIDs")
 	}
 
 	return nil

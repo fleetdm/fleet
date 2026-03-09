@@ -348,3 +348,13 @@ func (s *MySQLStorage) ExpandEmbeddedSecrets(ctx context.Context, document strin
 	s.logger.ErrorContext(ctx, "MySQLStorage.ExpandEmbeddedSecrets not implemented")
 	return document, nil
 }
+
+func (s *MySQLStorage) ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error) {
+	s.logger.ErrorContext(ctx, "MySQLStorage.ExpandHostSecrets not implemented")
+	return document, nil
+}
+
+func (s *MySQLStorage) SetRecoveryLockFailedByEnrollmentID(ctx context.Context, enrollmentID string, errorMsg string) error {
+	s.logger.ErrorContext(ctx, "MySQLStorage.SetRecoveryLockFailedByEnrollmentID not implemented")
+	return nil
+}
