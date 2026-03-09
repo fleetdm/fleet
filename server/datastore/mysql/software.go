@@ -5407,11 +5407,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			LEFT JOIN
 				software_installers ON software_titles.id = software_installers.title_id
 				AND software_installers.global_or_team_id = :global_or_team_id
+				AND software_installers.is_active = true
 			LEFT JOIN
 				software ON software_titles.id = software.title_id ` + installedSoftwareJoinsCondition + `
 			WHERE
 				software_titles.id IN (?)
-				AND software_installers.is_active = true
 			%s
 			` + softwareOnlySelfServiceClause + `
 			-- GROUP by for software
