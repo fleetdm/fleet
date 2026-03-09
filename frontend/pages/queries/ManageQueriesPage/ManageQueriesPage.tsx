@@ -341,7 +341,7 @@ const ManageQueriesPage = ({
         setIsUpdatingAutomations(false);
       }
     },
-    [renderFlash, refetchQueries, toggleManageAutomationsModal],
+    [renderFlash, refetchQueries, toggleManageAutomationsModal]
   );
 
   const renderModals = () => {
