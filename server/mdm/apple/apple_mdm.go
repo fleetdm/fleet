@@ -1649,22 +1649,10 @@ func sendRecoveryLockCommandsWithCommander(
 	// at delivery time by ExpandHostSecrets (which looks up by host UUID).
 	passwords := make([]fleet.HostRecoveryLockPasswordPayload, 0, len(hosts))
 	for _, hostUUID := range hosts {
-		pw, err := GenerateRecoveryLockPassword()
-		if err != nil {
-			logger.ErrorContext(ctx, "failed to generate recovery lock password",
-				"host_uuid", hostUUID,
-				"error", err,
-			)
-			continue
-		}
 		passwords = append(passwords, fleet.HostRecoveryLockPasswordPayload{
 			HostUUID: hostUUID,
-			Password: pw,
+			Password: GenerateRecoveryLockPassword(),
 		})
-	}
-
-	if len(passwords) == 0 {
-		return nil
 	}
 
 	// Store passwords first so they're available when commands are delivered
@@ -1721,7 +1709,7 @@ const RecoveryLockPasswordCharset = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 
 // GenerateRecoveryLockPassword generates a password in format: 5ADZ-HTZ8-LJJ4-B2F8-JWH3-YPBT
 // (6 groups of 4 alphanumeric characters separated by dashes)
-func GenerateRecoveryLockPassword() (string, error) {
+func GenerateRecoveryLockPassword() string {
 	const (
 		groupCount = 6
 		groupLen   = 4
@@ -1732,9 +1720,7 @@ func GenerateRecoveryLockPassword() (string, error) {
 
 	for i := range groupCount {
 		randBytes := make([]byte, groupLen)
-		if _, err := rand.Read(randBytes); err != nil {
-			return "", fmt.Errorf("generating random bytes: %w", err)
-		}
+		_, _ = rand.Read(randBytes) // rand.Read never returns an error; it panics on failure
 
 		group := make([]byte, groupLen)
 		for j := range groupLen {
@@ -1743,5 +1729,5 @@ func GenerateRecoveryLockPassword() (string, error) {
 		groups[i] = string(group)
 	}
 
-	return strings.Join(groups, "-"), nil
+	return strings.Join(groups, "-")
 }
