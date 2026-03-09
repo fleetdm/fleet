@@ -245,17 +245,20 @@ type SoftwarePackage struct {
 // SupportsFileInclude is implemented by types that embed BaseItem and can
 // reference external files via path/paths fields.
 type SupportsFileInclude interface {
-	FileInclude(v ...BaseItem) BaseItem
+	GetBaseItem() BaseItem
+	SetBaseItem(v BaseItem)
 }
 
-// FileInclude gets or sets the BaseItem. Called with no arguments it returns
-// the current value; called with one argument it sets the value first.
+// GetBaseItem returns the current BaseItem value.
 // Types that embed BaseItem inherit this method via promotion.
-func (b *BaseItem) FileInclude(v ...BaseItem) BaseItem {
-	if len(v) > 0 {
-		*b = v[0]
-	}
+func (b *BaseItem) GetBaseItem() BaseItem {
 	return *b
+}
+
+// SetBaseItem sets the BaseItem value.
+// Types that embed BaseItem inherit this method via promotion.
+func (b *BaseItem) SetBaseItem(v BaseItem) {
+	*b = v
 }
 
 func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePackageSpec) (fleet.SoftwarePackageSpec, error) {
@@ -1115,7 +1118,7 @@ func expandBaseItems[T any, PT interface {
 	seenBasenames := make(map[string]string) // basename -> source (path or pattern)
 
 	for _, entity := range inputEntities {
-		baseItem := PT(&entity).FileInclude()
+		baseItem := PT(&entity).GetBaseItem()
 		hasPath := baseItem.Path != nil
 		hasPaths := baseItem.Paths != nil
 
@@ -1146,7 +1149,7 @@ func expandBaseItems[T any, PT interface {
 				}
 				seenBasenames[base] = *baseItem.Path
 			}
-			PT(&entity).FileInclude(BaseItem{Path: &resolved})
+			PT(&entity).SetBaseItem(BaseItem{Path: &resolved})
 			result = append(result, entity)
 		// Glob -- expand and add files to result.
 		case hasPaths:
@@ -1174,7 +1177,7 @@ func expandBaseItems[T any, PT interface {
 					seenBasenames[base] = *baseItem.Paths
 				}
 				var newItem T
-				PT(&newItem).FileInclude(BaseItem{Path: &p})
+				PT(&newItem).SetBaseItem(BaseItem{Path: &p})
 				result = append(result, newItem)
 			}
 		}
