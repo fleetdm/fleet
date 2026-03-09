@@ -1,5 +1,5 @@
 name: 📱🔐 Personal mobile devices
-team_settings:
+settings:
   features:
   host_expiry_settings:
     host_expiry_enabled: false
@@ -18,10 +18,10 @@ controls:
     deadline: "2025-06-01"
     minimum_version: "18.5"
   macos_settings:
-    custom_settings:
+    configuration_profiles:
       - path: ../lib/ios/declaration-profiles/Passcode settings.json
       - path: ../lib/ios/configuration-profiles/self-service.mobileconfig
-  macos_setup:
+  setup_experience:
     enable_end_user_authentication: true
   scripts:
 policies:

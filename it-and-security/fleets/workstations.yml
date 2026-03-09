@@ -1,5 +1,5 @@
 name: $DOGFOOD_APPLE_BM_DEFAULT_TEAM
-team_settings:
+settings:
   webhook_settings:
     failing_policies_webhook:
       destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
@@ -42,8 +42,8 @@ agent_options:
     desktop: stable
 controls:
   enable_disk_encryption: true
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: ../lib/macos/configuration-profiles/date-time.mobileconfig
       - path: ../lib/macos/configuration-profiles/automatic-app-store-updates.mobileconfig
       - path: ../lib/macos/configuration-profiles/chrome-enrollment.mobileconfig
@@ -87,10 +87,10 @@ controls:
       - path: ../lib/macos/configuration-profiles/microsoft-autoupdate-settings.mobileconfig
         labels_include_any:
           - "Microsoft AutoUpdate installed"
-  macos_setup:
+  setup_experience:
     bootstrap_package: ""
     enable_end_user_authentication: true
-    macos_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
+    apple_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
   macos_updates:
     deadline:
     minimum_version:

@@ -1,5 +1,5 @@
 name: "☁️ IT servers"
-team_settings:
+settings:
   features:
     enable_host_users: true
     enable_software_inventory: true
@@ -13,11 +13,11 @@ agent_options:
 controls:
   enable_disk_encryption: false
   macos_settings:
-    custom_settings:
-  macos_setup:
+    configuration_profiles:
+  setup_experience:
     bootstrap_package: null
     enable_end_user_authentication: false
-    macos_setup_assistant: null
+    apple_setup_assistant: null
   macos_updates:
     deadline: null
     minimum_version: null
