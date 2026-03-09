@@ -22,6 +22,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { getAutomationTypesString } from "../../helpers";
 import PassingColumnHeader from "../PassingColumnHeader";
+import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
 
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
@@ -117,8 +118,9 @@ const generateTableHeaders = (
             value={cellProps.cell.value}
             suffix={
               <>
-                {/* TODO: Replace with <PillBadge /> component once available */}
-                {type === "patch" && <span className="patch-badge">Patch</span>}
+                {type === "patch" && (
+                  <PillBadge text="Patch" tipContent={PATCH_TOOLTIP_CONTENT} />
+                )}
                 {isPremiumTier && critical && (
                   <div className="critical-badge">
                     <span
