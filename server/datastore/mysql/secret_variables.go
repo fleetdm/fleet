@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -481,6 +482,10 @@ func (ds *Datastore) getHostRecoveryLockPasswordDecrypted(ctx context.Context, h
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &encryptedPassword,
 		`SELECT encrypted_password FROM host_recovery_key_passwords WHERE host_uuid = ?`, hostUUID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
+				WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+		}
 		return "", ctxerr.Wrap(ctx, err, "getting encrypted recovery lock password")
 	}
 

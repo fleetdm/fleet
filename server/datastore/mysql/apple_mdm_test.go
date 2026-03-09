@@ -10135,7 +10135,7 @@ func testRecoveryLockPasswordUpdatedAtChanges(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Wait a bit to ensure timestamp changes
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(1 * time.Second)
 
 	// Set password second time
 	password2 := apple_mdm.GenerateRecoveryLockPassword()
