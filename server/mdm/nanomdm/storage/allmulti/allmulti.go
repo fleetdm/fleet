@@ -110,7 +110,7 @@ func (ms *MultiAllStorage) ExpandHostSecrets(ctx context.Context, document strin
 	return document, nil
 }
 
-func (ms *MultiAllStorage) SetRecoveryLockFailedByEnrollmentID(ctx context.Context, enrollmentID string, errorMsg string) error {
+func (ms *MultiAllStorage) SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error {
 	// NOT IMPLEMENTED
 	return nil
 }

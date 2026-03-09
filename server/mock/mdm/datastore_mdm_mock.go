@@ -39,7 +39,7 @@ type ExpandEmbeddedSecretsFunc func(ctx context.Context, document string) (strin
 
 type ExpandHostSecretsFunc func(ctx context.Context, document string, enrollmentID string) (string, error)
 
-type SetRecoveryLockFailedByEnrollmentIDFunc func(ctx context.Context, enrollmentID string, errorMsg string) error
+type SetRecoveryLockFailedFunc func(ctx context.Context, hostUUID string, errorMsg string) error
 
 type RetrievePushInfoFunc func(ctx context.Context, ids []string) (map[string]*mdm.Push, error)
 
@@ -114,8 +114,8 @@ type MDMAppleStore struct {
 	ExpandHostSecretsFunc        ExpandHostSecretsFunc
 	ExpandHostSecretsFuncInvoked bool
 
-	SetRecoveryLockFailedByEnrollmentIDFunc        SetRecoveryLockFailedByEnrollmentIDFunc
-	SetRecoveryLockFailedByEnrollmentIDFuncInvoked bool
+	SetRecoveryLockFailedFunc        SetRecoveryLockFailedFunc
+	SetRecoveryLockFailedFuncInvoked bool
 
 	RetrievePushInfoFunc        RetrievePushInfoFunc
 	RetrievePushInfoFuncInvoked bool
@@ -258,11 +258,11 @@ func (fs *MDMAppleStore) ExpandHostSecrets(ctx context.Context, document string,
 	return fs.ExpandHostSecretsFunc(ctx, document, enrollmentID)
 }
 
-func (fs *MDMAppleStore) SetRecoveryLockFailedByEnrollmentID(ctx context.Context, enrollmentID string, errorMsg string) error {
+func (fs *MDMAppleStore) SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error {
 	fs.mu.Lock()
-	fs.SetRecoveryLockFailedByEnrollmentIDFuncInvoked = true
+	fs.SetRecoveryLockFailedFuncInvoked = true
 	fs.mu.Unlock()
-	return fs.SetRecoveryLockFailedByEnrollmentIDFunc(ctx, enrollmentID, errorMsg)
+	return fs.SetRecoveryLockFailedFunc(ctx, hostUUID, errorMsg)
 }
 
 func (fs *MDMAppleStore) RetrievePushInfo(ctx context.Context, ids []string) (map[string]*mdm.Push, error) {

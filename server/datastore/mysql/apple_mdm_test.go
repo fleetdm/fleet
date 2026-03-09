@@ -9934,11 +9934,11 @@ func testRecoveryLockPasswordSetAndGet(t *testing.T, ds *Datastore) {
 	password, err := apple_mdm.GenerateRecoveryLockPassword()
 	require.NoError(t, err)
 
-	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostID: host.ID, HostUUID: host.UUID, Password: password}})
+	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: password}})
 	require.NoError(t, err)
 
 	// Get password and verify it matches
-	result, err := ds.GetHostRecoveryLockPassword(ctx, host.ID)
+	result, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
 	require.NoError(t, err)
 	assert.Equal(t, password, result.Password)
 	assert.False(t, result.UpdatedAt.IsZero())
@@ -9962,22 +9962,22 @@ func testRecoveryLockPasswordBulkSet(t *testing.T, ds *Datastore) {
 
 	// Bulk set passwords
 	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{
-		{HostID: host1.ID, HostUUID: host1.UUID, Password: pw1},
-		{HostID: host2.ID, HostUUID: host2.UUID, Password: pw2},
-		{HostID: host3.ID, HostUUID: host3.UUID, Password: pw3},
+		{HostUUID: host1.UUID, Password: pw1},
+		{HostUUID: host2.UUID, Password: pw2},
+		{HostUUID: host3.UUID, Password: pw3},
 	})
 	require.NoError(t, err)
 
 	// Verify all passwords are stored correctly
-	result1, err := ds.GetHostRecoveryLockPassword(ctx, host1.ID)
+	result1, err := ds.GetHostRecoveryLockPassword(ctx, host1.UUID)
 	require.NoError(t, err)
 	assert.Equal(t, pw1, result1.Password)
 
-	result2, err := ds.GetHostRecoveryLockPassword(ctx, host2.ID)
+	result2, err := ds.GetHostRecoveryLockPassword(ctx, host2.UUID)
 	require.NoError(t, err)
 	assert.Equal(t, pw2, result2.Password)
 
-	result3, err := ds.GetHostRecoveryLockPassword(ctx, host3.ID)
+	result3, err := ds.GetHostRecoveryLockPassword(ctx, host3.UUID)
 	require.NoError(t, err)
 	assert.Equal(t, pw3, result3.Password)
 
@@ -9991,7 +9991,7 @@ func testRecoveryLockPasswordGetNotFound(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	// Try to get password for non-existent host
-	_, err := ds.GetHostRecoveryLockPassword(ctx, 99999)
+	_, err := ds.GetHostRecoveryLockPassword(ctx, "non-existent-uuid")
 	require.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
 }
@@ -10003,20 +10003,20 @@ func testRecoveryLockPasswordSetOverwrite(t *testing.T, ds *Datastore) {
 	// Set password first time
 	password1, err := apple_mdm.GenerateRecoveryLockPassword()
 	require.NoError(t, err)
-	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostID: host.ID, HostUUID: host.UUID, Password: password1}})
+	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: password1}})
 	require.NoError(t, err)
 
 	// Set password second time (should overwrite)
 	password2, err := apple_mdm.GenerateRecoveryLockPassword()
 	require.NoError(t, err)
-	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostID: host.ID, HostUUID: host.UUID, Password: password2}})
+	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: password2}})
 	require.NoError(t, err)
 
 	// Passwords should be different (randomly generated)
 	assert.NotEqual(t, password1, password2)
 
 	// Verify only the new password is stored
-	result, err := ds.GetHostRecoveryLockPassword(ctx, host.ID)
+	result, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
 	require.NoError(t, err)
 	assert.Equal(t, password2, result.Password)
 }
@@ -10028,10 +10028,10 @@ func testRecoveryLockPasswordUpdatedAtChanges(t *testing.T, ds *Datastore) {
 	// Set password first time
 	password1, err := apple_mdm.GenerateRecoveryLockPassword()
 	require.NoError(t, err)
-	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostID: host.ID, HostUUID: host.UUID, Password: password1}})
+	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: password1}})
 	require.NoError(t, err)
 
-	result1, err := ds.GetHostRecoveryLockPassword(ctx, host.ID)
+	result1, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
 	require.NoError(t, err)
 
 	// Wait a bit to ensure timestamp changes
@@ -10040,10 +10040,10 @@ func testRecoveryLockPasswordUpdatedAtChanges(t *testing.T, ds *Datastore) {
 	// Set password second time
 	password2, err := apple_mdm.GenerateRecoveryLockPassword()
 	require.NoError(t, err)
-	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostID: host.ID, HostUUID: host.UUID, Password: password2}})
+	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: password2}})
 	require.NoError(t, err)
 
-	result2, err := ds.GetHostRecoveryLockPassword(ctx, host.ID)
+	result2, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
 	require.NoError(t, err)
 
 	// updated_at should have changed
@@ -10058,7 +10058,7 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		host := test.NewHost(t, ds, name, ip, key, uuid, time.Now())
 		pw, err := apple_mdm.GenerateRecoveryLockPassword()
 		require.NoError(t, err)
-		err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostID: host.ID, HostUUID: host.UUID, Password: pw}})
+		err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
 		require.NoError(t, err)
 		return host
 	}
@@ -10067,7 +10067,7 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		host := setupHost(t, "pending-host", "1.2.3.7", "pendingkey", "pendinguuid")
 
 		// Set pending status
-		err := ds.SetRecoveryLockPending(ctx, host.ID)
+		err := ds.SetRecoveryLockPending(ctx, host.UUID)
 		require.NoError(t, err)
 
 		// Verify status
@@ -10081,7 +10081,7 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		host := setupHost(t, "verifying-host", "1.2.3.8", "verifyingkey", "verifyinguuid")
 
 		// Set verifying status
-		err := ds.SetRecoveryLockVerifying(ctx, host.ID)
+		err := ds.SetRecoveryLockVerifying(ctx, host.UUID)
 		require.NoError(t, err)
 
 		// Verify status
@@ -10095,7 +10095,7 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		host := setupHost(t, "verified-host", "1.2.3.9", "verifiedkey", "verifieduuid")
 
 		// Set verified status
-		err := ds.SetRecoveryLockVerified(ctx, host.ID)
+		err := ds.SetRecoveryLockVerified(ctx, host.UUID)
 		require.NoError(t, err)
 
 		// Verify status
@@ -10109,7 +10109,7 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		host := setupHost(t, "failed-host", "1.2.3.10", "failedkey", "faileduuid")
 
 		// Set failed status
-		err := ds.SetRecoveryLockFailed(ctx, host.ID, "test error message")
+		err := ds.SetRecoveryLockFailed(ctx, host.UUID, "test error message")
 		require.NoError(t, err)
 
 		// Verify status and error message
@@ -10230,9 +10230,9 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	nanoEnrollAndSetHostMDMData(t, ds, hostPending, false)
 	pendingPW, err := apple_mdm.GenerateRecoveryLockPassword()
 	require.NoError(t, err)
-	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostID: hostPending.ID, HostUUID: hostPending.UUID, Password: pendingPW}})
+	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: hostPending.UUID, Password: pendingPW}})
 	require.NoError(t, err)
-	err = ds.SetRecoveryLockPending(ctx, hostPending.ID)
+	err = ds.SetRecoveryLockPending(ctx, hostPending.UUID)
 	require.NoError(t, err)
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
@@ -10247,9 +10247,9 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	nanoEnrollAndSetHostMDMData(t, ds, hostVerified, false)
 	verifiedPW, err := apple_mdm.GenerateRecoveryLockPassword()
 	require.NoError(t, err)
-	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostID: hostVerified.ID, HostUUID: hostVerified.UUID, Password: verifiedPW}})
+	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: hostVerified.UUID, Password: verifiedPW}})
 	require.NoError(t, err)
-	err = ds.SetRecoveryLockVerified(ctx, hostVerified.ID)
+	err = ds.SetRecoveryLockVerified(ctx, hostVerified.UUID)
 	require.NoError(t, err)
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)

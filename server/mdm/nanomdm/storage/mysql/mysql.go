@@ -354,7 +354,7 @@ func (s *MySQLStorage) ExpandHostSecrets(ctx context.Context, document string, e
 	return document, nil
 }
 
-func (s *MySQLStorage) SetRecoveryLockFailedByEnrollmentID(ctx context.Context, enrollmentID string, errorMsg string) error {
-	s.logger.ErrorContext(ctx, "MySQLStorage.SetRecoveryLockFailedByEnrollmentID not implemented")
+func (s *MySQLStorage) SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error {
+	s.logger.ErrorContext(ctx, "MySQLStorage.SetRecoveryLockFailed not implemented")
 	return nil
 }

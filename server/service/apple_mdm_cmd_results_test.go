@@ -323,14 +323,14 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 		commander := &mockRecoveryLockVerifier{}
 
 		host := &fleet.Host{ID: hostID, UUID: hostUUID}
-		ds.GetHostRecoveryLockPasswordFunc = func(_ context.Context, hID uint) (*fleet.HostRecoveryLockPassword, error) {
-			assert.Equal(t, hostID, hID)
+		ds.GetHostRecoveryLockPasswordFunc = func(_ context.Context, hUUID string) (*fleet.HostRecoveryLockPassword, error) {
+			assert.Equal(t, hostUUID, hUUID)
 			return &fleet.HostRecoveryLockPassword{Password: password}, nil
 		}
 		var verifyingCalled bool
-		ds.SetRecoveryLockVerifyingFunc = func(_ context.Context, hID uint) error {
+		ds.SetRecoveryLockVerifyingFunc = func(_ context.Context, hUUID string) error {
 			verifyingCalled = true
-			assert.Equal(t, hostID, hID)
+			assert.Equal(t, hostUUID, hUUID)
 			return nil
 		}
 
@@ -363,9 +363,9 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 		host := &fleet.Host{ID: hostID, UUID: hostUUID}
 		var failedCalled bool
 		var capturedError string
-		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hID uint, errorMsg string) error {
+		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
 			failedCalled = true
-			assert.Equal(t, hostID, hID)
+			assert.Equal(t, hostUUID, hUUID)
 			capturedError = errorMsg
 			return nil
 		}
@@ -395,7 +395,7 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 
 		host := &fleet.Host{ID: hostID, UUID: hostUUID}
 		var capturedError string
-		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hID uint, errorMsg string) error {
+		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
 			capturedError = errorMsg
 			return nil
 		}
@@ -429,9 +429,9 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 		host := &fleet.Host{ID: hostID, UUID: hostUUID}
 
 		var verifiedCalled bool
-		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, hID uint) error {
+		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, hUUID string) error {
 			verifiedCalled = true
-			assert.Equal(t, hostID, hID)
+			assert.Equal(t, hostUUID, hUUID)
 			return nil
 		}
 
@@ -465,9 +465,9 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 		host := &fleet.Host{ID: hostID, UUID: hostUUID}
 
 		var failedCalled bool
-		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hID uint, errorMsg string) error {
+		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
 			failedCalled = true
-			assert.Equal(t, hostID, hID)
+			assert.Equal(t, hostUUID, hUUID)
 			assert.Contains(t, errorMsg, "password does not match")
 			return nil
 		}
@@ -502,7 +502,7 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 		host := &fleet.Host{ID: hostID, UUID: hostUUID}
 
 		var failedCalled bool
-		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hID uint, errorMsg string) error {
+		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
 			failedCalled = true
 			return nil
 		}
@@ -527,7 +527,7 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 		host := &fleet.Host{ID: hostID, UUID: hostUUID}
 
 		// SetRecoveryLockVerifiedFunc should not be called
-		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, hID uint) error {
+		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, hUUID string) error {
 			t.Fatal("should not be called")
 			return nil
 		}

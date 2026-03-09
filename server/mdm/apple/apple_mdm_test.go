@@ -371,7 +371,6 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		require.NoError(t, err)
 		// Password should be stored BEFORE command is sent
 		require.Len(t, storedPasswords, 1, "password should be stored for host before command is sent")
-		assert.Equal(t, hostID, storedPasswords[0].HostID)
 		assert.Equal(t, hostUUID, storedPasswords[0].HostUUID)
 		assert.NotEmpty(t, storedPasswords[0].Password)
 		assert.NotEmpty(t, sentCmdUUID, "command UUID should have been sent")

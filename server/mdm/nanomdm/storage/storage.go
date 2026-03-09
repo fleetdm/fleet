@@ -43,11 +43,12 @@ type SecretStore interface {
 	// ExpandEmbeddedSecrets expands named secrets ($FLEET_SECRET_*) in the document.
 	ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error)
 	// ExpandHostSecrets expands host-scoped secrets ($FLEET_HOST_SECRET_*) in the document.
-	// The enrollmentID is used to look up host-specific secrets like recovery lock passwords.
+	// The enrollmentID (host UUID) is used to look up host-specific secrets like recovery lock passwords.
 	ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error)
-	// SetRecoveryLockFailedByEnrollmentID marks a host's recovery lock as failed.
+	// SetRecoveryLockFailed marks a host's recovery lock as failed.
+	// The hostUUID is the same as the enrollment ID (UDID).
 	// Used when secret expansion fails and we need to update the host status.
-	SetRecoveryLockFailedByEnrollmentID(ctx context.Context, enrollmentID string, errorMsg string) error
+	SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error
 }
 
 // ServiceStore stores & retrieves both command and check-in data.

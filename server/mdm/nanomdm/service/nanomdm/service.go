@@ -306,9 +306,9 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 			logger.Info("level", "error", "msg", "storing failed command result", "err", storeErr)
 		}
 		// For SetRecoveryLock commands, also mark the host's recovery lock status as failed
-		// so it's not stuck in pending
+		// so it's not stuck in pending. r.ID is the enrollment ID (host UUID).
 		if cmd.Command.Command.RequestType == "SetRecoveryLock" {
-			if storeErr := s.store.SetRecoveryLockFailedByEnrollmentID(r.Context, r.ID, errorMsg); storeErr != nil {
+			if storeErr := s.store.SetRecoveryLockFailed(r.Context, r.ID, errorMsg); storeErr != nil {
 				logger.Info("level", "error", "msg", "setting recovery lock failed", "err", storeErr)
 			}
 		}

@@ -297,8 +297,8 @@ func (s *NanoMDMStorage) ExpandHostSecrets(ctx context.Context, document string,
 	return s.ds.ExpandHostSecrets(ctx, document, enrollmentID)
 }
 
-func (s *NanoMDMStorage) SetRecoveryLockFailedByEnrollmentID(ctx context.Context, enrollmentID string, errorMsg string) error {
-	return s.ds.SetRecoveryLockFailedByEnrollmentID(ctx, enrollmentID, errorMsg)
+func (s *NanoMDMStorage) SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error {
+	return s.ds.SetRecoveryLockFailed(ctx, hostUUID, errorMsg)
 }
 
 // ClearQueue in NanoMDMStorage overrides the implementation in

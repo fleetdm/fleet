@@ -7382,7 +7382,7 @@ func NewSetRecoveryLockResultsHandler(
 		switch status {
 		case fleet.MDMAppleStatusAcknowledged:
 			// Get the stored password to send VerifyRecoveryLock
-			rkp, err := ds.GetHostRecoveryLockPassword(ctx, host.ID)
+			rkp, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: get host recovery lock password")
 			}
@@ -7399,7 +7399,7 @@ func NewSetRecoveryLockResultsHandler(
 			}
 
 			// Update status to verifying
-			if err := ds.SetRecoveryLockVerifying(ctx, host.ID); err != nil {
+			if err := ds.SetRecoveryLockVerifying(ctx, host.UUID); err != nil {
 				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock verifying")
 			}
 
@@ -7414,7 +7414,7 @@ func NewSetRecoveryLockResultsHandler(
 			if errorMsg == "" {
 				errorMsg = "SetRecoveryLock command failed"
 			}
-			if err := ds.SetRecoveryLockFailed(ctx, host.ID, errorMsg); err != nil {
+			if err := ds.SetRecoveryLockFailed(ctx, host.UUID, errorMsg); err != nil {
 				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock failed")
 			}
 			logger.WarnContext(ctx, "SetRecoveryLock command failed",
@@ -7475,7 +7475,7 @@ func NewVerifyRecoveryLockResultsHandler(
 
 			if response.PasswordVerified {
 				// Password verified successfully
-				if err := ds.SetRecoveryLockVerified(ctx, host.ID); err != nil {
+				if err := ds.SetRecoveryLockVerified(ctx, host.UUID); err != nil {
 					return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock handler: set recovery lock verified")
 				}
 
@@ -7486,7 +7486,7 @@ func NewVerifyRecoveryLockResultsHandler(
 				)
 			} else {
 				// Password verification failed - password doesn't match
-				if err := ds.SetRecoveryLockFailed(ctx, host.ID, "password verification failed: password does not match"); err != nil {
+				if err := ds.SetRecoveryLockFailed(ctx, host.UUID, "password verification failed: password does not match"); err != nil {
 					return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock handler: set recovery lock failed")
 				}
 
@@ -7508,7 +7508,7 @@ func NewVerifyRecoveryLockResultsHandler(
 		case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
 			// Command error
 			errorMsg := apple_mdm.FmtErrorChain(rlResult.cmdResult.ErrorChain)
-			if err := ds.SetRecoveryLockFailed(ctx, host.ID, errorMsg); err != nil {
+			if err := ds.SetRecoveryLockFailed(ctx, host.UUID, errorMsg); err != nil {
 				return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock handler: set recovery lock failed")
 			}
 

@@ -7257,21 +7257,20 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "encrypting recovery lock password")
 		}
-		args = append(args, p.HostID, p.HostUUID, encrypted, fleet.MDMOperationTypeInstall)
+		args = append(args, p.HostUUID, encrypted, fleet.MDMOperationTypeInstall)
 	}
 
 	stmt := `
-		INSERT INTO host_recovery_key_passwords (host_id, host_uuid, encrypted_password, status, operation_type)
+		INSERT INTO host_recovery_key_passwords (host_uuid, encrypted_password, status, operation_type)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
 			encrypted_password = VALUES(encrypted_password),
-			host_uuid = VALUES(host_uuid),
 			status = NULL,
 			operation_type = VALUES(operation_type),
 			error_message = NULL
 	`
 
-	placeholders := strings.Repeat("(?, ?, ?, NULL, ?),", len(passwords))
+	placeholders := strings.Repeat("(?, ?, NULL, ?),", len(passwords))
 	placeholders = placeholders[:len(placeholders)-1] // remove trailing comma
 	stmt = fmt.Sprintf(stmt, placeholders)
 
@@ -7282,17 +7281,17 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 	return nil
 }
 
-func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostID uint) (*fleet.HostRecoveryLockPassword, error) {
-	const stmt = `SELECT encrypted_password, updated_at FROM host_recovery_key_passwords WHERE host_id = ?`
+func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
+	const stmt = `SELECT encrypted_password, updated_at FROM host_recovery_key_passwords WHERE host_uuid = ?`
 
 	var row struct {
 		EncryptedPassword []byte    `db:"encrypted_password"`
 		UpdatedAt         time.Time `db:"updated_at"`
 	}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
-				WithMessage(fmt.Sprintf("for host %d", hostID)))
+				WithMessage(fmt.Sprintf("for host %s", hostUUID)))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting recovery lock password")
 	}
@@ -7322,7 +7321,7 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]fleet
 		JOIN host_mdm hm ON hm.host_id = h.id
 		LEFT JOIN teams t ON t.id = h.team_id
 		CROSS JOIN app_config_json ac
-		LEFT JOIN host_recovery_key_passwords rkp ON rkp.host_id = h.id
+		LEFT JOIN host_recovery_key_passwords rkp ON rkp.host_uuid = h.uuid
 		WHERE h.platform = 'darwin'
 		  AND h.cpu_type LIKE '%arm%'
 		  AND ne.enabled = 1
@@ -7335,7 +7334,7 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]fleet
 		      -- No-team hosts: check appconfig
 		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.enable_recovery_lock_password') = true)
 		  )
-		  AND (rkp.host_id IS NULL OR rkp.status IS NULL)
+		  AND (rkp.host_uuid IS NULL OR rkp.status IS NULL)
 		LIMIT 500
 	`
 
@@ -7359,15 +7358,15 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]fleet
 	return hosts, nil
 }
 
-func (ds *Datastore) SetRecoveryLockPending(ctx context.Context, hostID uint) error {
+func (ds *Datastore) SetRecoveryLockPending(ctx context.Context, hostUUID string) error {
 	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
 		SET status = '%s',
 		    error_message = NULL
-		WHERE host_id = ?
+		WHERE host_uuid = ?
 	`, fleet.MDMDeliveryPending)
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "set recovery lock pending")
 	}
 
@@ -7398,44 +7397,44 @@ func (ds *Datastore) SetRecoveryLockPendingByHostUUIDs(ctx context.Context, host
 	return nil
 }
 
-func (ds *Datastore) SetRecoveryLockVerifying(ctx context.Context, hostID uint) error {
+func (ds *Datastore) SetRecoveryLockVerifying(ctx context.Context, hostUUID string) error {
 	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
 		SET status = '%s'
-		WHERE host_id = ?
+		WHERE host_uuid = ?
 	`, fleet.MDMDeliveryVerifying)
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "set recovery lock verifying")
 	}
 
 	return nil
 }
 
-func (ds *Datastore) SetRecoveryLockVerified(ctx context.Context, hostID uint) error {
+func (ds *Datastore) SetRecoveryLockVerified(ctx context.Context, hostUUID string) error {
 	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
 		SET status = '%s',
 		    error_message = NULL
-		WHERE host_id = ?
+		WHERE host_uuid = ?
 	`, fleet.MDMDeliveryVerified)
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "set recovery lock verified")
 	}
 
 	return nil
 }
 
-func (ds *Datastore) SetRecoveryLockFailed(ctx context.Context, hostID uint, errorMsg string) error {
+func (ds *Datastore) SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error {
 	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
 		SET status = '%s',
 		    error_message = ?
-		WHERE host_id = ?
+		WHERE host_uuid = ?
 	`, fleet.MDMDeliveryFailed)
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, errorMsg, hostID); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, errorMsg, hostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "set recovery lock failed")
 	}
 

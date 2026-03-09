@@ -1494,8 +1494,8 @@ type Datastore interface {
 	SetHostsRecoveryLockPasswords(ctx context.Context, passwords []HostRecoveryLockPasswordPayload) error
 
 	// GetHostRecoveryLockPassword retrieves and decrypts the recovery lock password
-	// for the given host.
-	GetHostRecoveryLockPassword(ctx context.Context, hostID uint) (*HostRecoveryLockPassword, error)
+	// for the given host UUID.
+	GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*HostRecoveryLockPassword, error)
 
 	// GetHostsForRecoveryLockAction returns hosts that need recovery lock password action:
 	// - Teams with enable_recovery_lock_password = true
@@ -1503,23 +1503,21 @@ type Datastore interface {
 	// - No password saved
 	GetHostsForRecoveryLockAction(ctx context.Context) ([]HostNeedingRecoveryLock, error)
 
-	// SetRecoveryLockPending sets the recovery lock status to pending.
-	SetRecoveryLockPending(ctx context.Context, hostID uint) error
+	// SetRecoveryLockPending sets the recovery lock status to pending for a single host.
+	SetRecoveryLockPending(ctx context.Context, hostUUID string) error
 
-	// SetRecoveryLockPendingByHostUUIDs sets the recovery lock status to pending for hosts
-	// identified by their UUIDs. This is called after successfully enqueuing SetRecoveryLock commands.
+	// SetRecoveryLockPendingByHostUUIDs sets the recovery lock status to pending for multiple hosts.
+	// This is called after successfully enqueuing SetRecoveryLock commands.
 	SetRecoveryLockPendingByHostUUIDs(ctx context.Context, hostUUIDs []string) error
 
 	// SetRecoveryLockVerifying sets the recovery lock status to verifying.
-	SetRecoveryLockVerifying(ctx context.Context, hostID uint) error
+	SetRecoveryLockVerifying(ctx context.Context, hostUUID string) error
 
 	// SetRecoveryLockVerified marks the recovery lock as verified.
-	SetRecoveryLockVerified(ctx context.Context, hostID uint) error
+	SetRecoveryLockVerified(ctx context.Context, hostUUID string) error
 
 	// SetRecoveryLockFailed marks the recovery lock as failed with the given error message.
-	SetRecoveryLockFailed(ctx context.Context, hostID uint, errorMsg string) error
-	// SetRecoveryLockFailedByEnrollmentID marks the recovery lock as failed using the enrollment ID (UDID).
-	SetRecoveryLockFailedByEnrollmentID(ctx context.Context, enrollmentID string, errorMsg string) error
+	SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error
 
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).

@@ -1659,7 +1659,6 @@ func sendRecoveryLockCommandsWithCommander(
 			continue
 		}
 		passwords = append(passwords, fleet.HostRecoveryLockPasswordPayload{
-			HostID:   host.HostID,
 			HostUUID: host.HostUUID,
 			Password: pw,
 		})
