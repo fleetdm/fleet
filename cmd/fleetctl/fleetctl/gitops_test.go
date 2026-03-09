@@ -3284,7 +3284,7 @@ func TestGitOpsFleetFailingPoliciesWebhookPolicyIDs(t *testing.T) {
 	// Create a fleet.
 	_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: fleetName})
 	require.NoError(t, err)
-	require.NotNil(t, *savedFleets[fleetName])
+	require.Contains(t, savedFleets, fleetName)
 
 	cfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -3325,7 +3325,7 @@ func TestGitOpsFleetWebhooksAndTicketsEnabled(t *testing.T) {
 	// Create a fleet.
 	_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: fleetName})
 	require.NoError(t, err)
-	require.NotNil(t, *savedFleets[fleetName])
+	require.Contains(t, savedFleets, fleetName)
 
 	// Override ApplyPolicySpecs to track applied policies and assign IDs.
 	var appliedPolicies []*fleet.PolicySpec
