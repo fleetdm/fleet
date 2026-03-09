@@ -26,6 +26,32 @@
   }
 }
 
+.patch-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: $bold;
+  line-height: 18px;
+  border-radius: 4px;
+  background-color: $ui-fleet-black-10;
+  color: $core-fleet-black;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.automations-cell {
+  display: block;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &--none {
+    color: $ui-fleet-black-50;
+  }
+}
+
 .no-team-policy {
   border: 1px solid #e2e4ea;
   box-sizing: border-box;

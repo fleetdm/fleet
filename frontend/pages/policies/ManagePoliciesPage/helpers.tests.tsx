@@ -1,7 +1,9 @@
 import React from "react";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import {
   getInstallSoftwareErrorMessage,
   getRunScriptErrorMessage,
+  getAutomationTypesString,
 } from "./helpers";
 import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
 import { IPolicyRunScriptFormData } from "./components/PolicyRunScriptModal/PolicyRunScriptModal";
@@ -29,6 +31,7 @@ describe("getInstallSoftwareErrorMessage", () => {
       calendar_events_enabled: false,
       conditional_access_enabled: false,
       conditional_access_bypass_enabled: true,
+      type: "dynamic",
     },
     {
       swIdToInstall: 456,
@@ -51,6 +54,7 @@ describe("getInstallSoftwareErrorMessage", () => {
       calendar_events_enabled: false,
       conditional_access_enabled: false,
       conditional_access_bypass_enabled: true,
+      type: "dynamic",
     },
   ];
 
@@ -163,6 +167,7 @@ describe("getRunScriptErrorMessage", () => {
       calendar_events_enabled: false,
       conditional_access_enabled: false,
       conditional_access_bypass_enabled: true,
+      type: "dynamic",
     },
     {
       scriptIdToRun: 456,
@@ -185,6 +190,7 @@ describe("getRunScriptErrorMessage", () => {
       calendar_events_enabled: false,
       conditional_access_enabled: false,
       conditional_access_bypass_enabled: true,
+      type: "dynamic",
     },
   ];
 
@@ -270,5 +276,66 @@ describe("getRunScriptErrorMessage", () => {
     expect(resultString).toBe(
       "Could not update policy. Error with team ID 789"
     );
+  });
+});
+
+describe("getAutomationTypesString", () => {
+  const basePolicy = {
+    calendar_events_enabled: false,
+    conditional_access_enabled: false,
+  };
+
+  it("returns DEFAULT_EMPTY_CELL_VALUE when no automations are enabled", () => {
+    expect(getAutomationTypesString(basePolicy)).toBe(DEFAULT_EMPTY_CELL_VALUE);
+  });
+
+  it("returns 'Software' when only install_software is present", () => {
+    expect(
+      getAutomationTypesString({
+        ...basePolicy,
+        install_software: { software_title_id: 1 },
+      })
+    ).toBe("Software");
+  });
+
+  it("returns 'Script' when only run_script is present", () => {
+    expect(
+      getAutomationTypesString({
+        ...basePolicy,
+        run_script: { id: 1 },
+      })
+    ).toBe("Script");
+  });
+
+  it("returns types in correct order with sentence case: Software, script, calendar, conditional access, other", () => {
+    expect(
+      getAutomationTypesString({
+        install_software: { software_title_id: 1 },
+        run_script: { id: 1 },
+        calendar_events_enabled: true,
+        conditional_access_enabled: true,
+        webhook: "On",
+      })
+    ).toBe("Software, script, calendar, conditional access, other");
+  });
+
+  it("returns 'Software, calendar' for software + calendar", () => {
+    expect(
+      getAutomationTypesString({
+        ...basePolicy,
+        install_software: { software_title_id: 1 },
+        calendar_events_enabled: true,
+      })
+    ).toBe("Software, calendar");
+  });
+
+  it("does not include Other when webhook is Off", () => {
+    expect(
+      getAutomationTypesString({
+        ...basePolicy,
+        install_software: { software_title_id: 1 },
+        webhook: "Off",
+      })
+    ).toBe("Software");
   });
 });

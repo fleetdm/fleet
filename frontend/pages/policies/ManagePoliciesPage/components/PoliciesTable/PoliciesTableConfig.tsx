@@ -14,12 +14,13 @@ import PATHS from "router/paths";
 
 import { getPathWithQueryParams } from "utilities/url";
 import sortUtils from "utilities/sort";
-import { PolicyResponse } from "utilities/constants";
+import { DEFAULT_EMPTY_CELL_VALUE, PolicyResponse } from "utilities/constants";
 
 import InheritedBadge from "components/InheritedBadge";
 import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
+import { getAutomationTypesString } from "../../helpers";
 import PassingColumnHeader from "../PassingColumnHeader";
 
 interface IGetToggleAllRowsSelectedProps {
@@ -108,7 +109,7 @@ const generateTableHeaders = (
       ),
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => {
-        const { critical, id, team_id } = cellProps.row.original;
+        const { critical, id, team_id, type } = cellProps.row.original;
         return (
           <LinkCell
             className="w250"
@@ -116,6 +117,8 @@ const generateTableHeaders = (
             value={cellProps.cell.value}
             suffix={
               <>
+                {/* TODO: Replace with <PillBadge /> component once available */}
+                {type === "patch" && <span className="patch-badge">Patch</span>}
                 {isPremiumTier && critical && (
                   <div className="critical-badge">
                     <span
@@ -154,6 +157,27 @@ const generateTableHeaders = (
         );
       },
       sortType: "caseInsensitive",
+    },
+    {
+      title: "Automations",
+      Header: "Automations",
+      accessor: "automations",
+      disableSortBy: true,
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        const policy = cellProps.row.original;
+        const automationsText = getAutomationTypesString(policy);
+        const isNone = automationsText === DEFAULT_EMPTY_CELL_VALUE;
+        return (
+          <span
+            className={`automations-cell${
+              isNone ? " automations-cell--none" : ""
+            }`}
+            title={isNone ? undefined : automationsText}
+          >
+            {automationsText}
+          </span>
+        );
+      },
     },
     {
       title: "Pass",
