@@ -3216,24 +3216,20 @@ func TestGitOpsGlobalWebhooksAndTicketsEnabled(t *testing.T) {
 	ds, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 
 	// Track applied policies and return them with IDs.
-	var appliedPolicies []*fleet.PolicySpec
+	var appliedPolicies []*fleet.Policy
 	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
-		appliedPolicies = append(appliedPolicies, specs...)
+		for i, spec := range specs {
+			appliedPolicies = append(appliedPolicies, &fleet.Policy{
+				PolicyData: fleet.PolicyData{
+					ID:   uint(i + 1),
+					Name: spec.Name,
+				},
+			})
+		}
 		return nil
 	}
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
-		var result []*fleet.Policy
-		for i, spec := range appliedPolicies {
-			if spec.Team == "" {
-				result = append(result, &fleet.Policy{
-					PolicyData: fleet.PolicyData{
-						ID:   uint(i + 1),
-						Name: spec.Name,
-					},
-				})
-			}
-		}
-		return result, nil
+		return appliedPolicies, nil
 	}
 
 	cfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -3273,7 +3269,19 @@ software:
 
 	require.True(t, (*appConfig).WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.Equal(t, "http://example.com/global-webhook", (*appConfig).WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-	require.Len(t, (*appConfig).WebhookSettings.FailingPoliciesWebhook.PolicyIDs, 2)
+
+	// Get the IDs of the policies with webhooks_and_tickets_enabled.
+	policiesWithWebhooksEnabled := []string{"Global Webhook Policy 1", "Global Webhook Policy 2"}
+	expectedIDs := make([]uint, 0)
+	for _, p := range appliedPolicies {
+		if slices.Contains(policiesWithWebhooksEnabled, p.Name) {
+			expectedIDs = append(expectedIDs, uint(p.ID))
+		}
+	}
+
+	// Policies are assigned IDs 1, 2, 3 sequentially. Only the first two have
+	// webhooks_and_tickets_enabled, so only their IDs should be in the list.
+	require.ElementsMatch(t, expectedIDs, (*appConfig).WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 }
 
 func TestGitOpsFleetFailingPoliciesWebhookPolicyIDs(t *testing.T) {
@@ -3314,6 +3322,7 @@ agent_options:
 	require.NoError(t, err)
 	require.True(t, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.Equal(t, "http://example.com/webhook", savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	// Note -- this codepath doesn't actually verify that the policy's with the specified IDs exist, it just saves the IDs from the config.
 	require.Equal(t, []uint{1, 2}, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 }
 
@@ -3328,9 +3337,16 @@ func TestGitOpsFleetWebhooksAndTicketsEnabled(t *testing.T) {
 	require.Contains(t, savedFleets, fleetName)
 
 	// Override ApplyPolicySpecs to track applied policies and assign IDs.
-	var appliedPolicies []*fleet.PolicySpec
+	var appliedPolicies []*fleet.Policy
 	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
-		appliedPolicies = append(appliedPolicies, specs...)
+		for i, spec := range specs {
+			appliedPolicies = append(appliedPolicies, &fleet.Policy{
+				PolicyData: fleet.PolicyData{
+					ID:   uint(i + 1),
+					Name: spec.Name,
+				},
+			})
+		}
 		return nil
 	}
 
@@ -3338,18 +3354,7 @@ func TestGitOpsFleetWebhooksAndTicketsEnabled(t *testing.T) {
 	ds.ListTeamPoliciesFunc = func(
 		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
 	) (fleetPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
-		var result []*fleet.Policy
-		for i, spec := range appliedPolicies {
-			if spec.Team == fleetName {
-				result = append(result, &fleet.Policy{
-					PolicyData: fleet.PolicyData{
-						ID:   uint(i + 1),
-						Name: spec.Name,
-					},
-				})
-			}
-		}
-		return result, nil, nil
+		return appliedPolicies, nil, nil
 	}
 
 	t.Run("conflict with policy_ids", func(t *testing.T) {
@@ -3418,7 +3423,19 @@ agent_options:
 		savedFleet, err := ds.TeamByName(context.Background(), fleetName)
 		require.NoError(t, err)
 		require.Equal(t, "http://example.com/webhook", savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-		require.Len(t, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, 2)
+
+		// Get the IDs of the policies with webhooks_and_tickets_enabled.
+		policiesWithWebhooksEnabled := []string{"Webhook Policy 1", "Webhook Policy 2"}
+		expectedIDs := make([]uint, 0)
+		for _, p := range appliedPolicies {
+			if slices.Contains(policiesWithWebhooksEnabled, p.Name) {
+				expectedIDs = append(expectedIDs, uint(p.ID))
+			}
+		}
+
+		// Policies are assigned IDs 1, 2, 3 sequentially. Only the first two have
+		// webhooks_and_tickets_enabled, so only their IDs should be in the list.
+		require.ElementsMatch(t, expectedIDs, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 	})
 }
 
