@@ -978,6 +978,7 @@ CREATE TABLE `host_orbit_info` (
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `host_recovery_key_passwords` (
   `host_id` int unsigned NOT NULL,
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `encrypted_password` blob NOT NULL,
   `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `operation_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -985,6 +986,7 @@ CREATE TABLE `host_recovery_key_passwords` (
   `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`host_id`),
+  UNIQUE KEY `idx_host_recovery_key_passwords_host_uuid` (`host_uuid`),
   KEY `status` (`status`),
   KEY `operation_type` (`operation_type`),
   CONSTRAINT `host_recovery_key_passwords_ibfk_1` FOREIGN KEY (`status`) REFERENCES `mdm_delivery_status` (`status`) ON UPDATE CASCADE,

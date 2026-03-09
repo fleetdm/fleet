@@ -13,6 +13,7 @@ func Up_20260304160000(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 		CREATE TABLE host_recovery_key_passwords (
 			host_id int unsigned NOT NULL,
+			host_uuid varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 			encrypted_password BLOB NOT NULL,
 			status VARCHAR(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 			operation_type VARCHAR(20) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -20,6 +21,7 @@ func Up_20260304160000(tx *sql.Tx) error {
 			created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 			updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 			PRIMARY KEY (host_id),
+			UNIQUE KEY idx_host_recovery_key_passwords_host_uuid (host_uuid),
 			KEY status (status),
 			KEY operation_type (operation_type),
 			CONSTRAINT host_recovery_key_passwords_ibfk_1 FOREIGN KEY (status) REFERENCES mdm_delivery_status (status) ON UPDATE CASCADE,

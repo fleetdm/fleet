@@ -1491,8 +1491,7 @@ type Datastore interface {
 	// Apple MDM Recovery Lock Password
 
 	// SetHostsRecoveryLockPasswords encrypts and stores recovery lock passwords for the given hosts.
-	// The passwords map keys are host IDs and values are plaintext passwords.
-	SetHostsRecoveryLockPasswords(ctx context.Context, passwords map[uint]string) error
+	SetHostsRecoveryLockPasswords(ctx context.Context, passwords []HostRecoveryLockPasswordPayload) error
 
 	// GetHostRecoveryLockPassword retrieves and decrypts the recovery lock password
 	// for the given host.

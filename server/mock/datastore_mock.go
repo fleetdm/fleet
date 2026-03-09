@@ -1019,7 +1019,7 @@ type GetMDMIdPAccountsByHostUUIDsFunc func(ctx context.Context, hostUUIDs []stri
 
 type GetMDMAppleFileVaultSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error)
 
-type SetHostsRecoveryLockPasswordsFunc func(ctx context.Context, passwords map[uint]string) error
+type SetHostsRecoveryLockPasswordsFunc func(ctx context.Context, passwords []fleet.HostRecoveryLockPasswordPayload) error
 
 type GetHostRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) (*fleet.HostRecoveryLockPassword, error)
 
@@ -7968,7 +7968,7 @@ func (s *DataStore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uin
 	return s.GetMDMAppleFileVaultSummaryFunc(ctx, teamID)
 }
 
-func (s *DataStore) SetHostsRecoveryLockPasswords(ctx context.Context, passwords map[uint]string) error {
+func (s *DataStore) SetHostsRecoveryLockPasswords(ctx context.Context, passwords []fleet.HostRecoveryLockPasswordPayload) error {
 	s.mu.Lock()
 	s.SetHostsRecoveryLockPasswordsFuncInvoked = true
 	s.mu.Unlock()

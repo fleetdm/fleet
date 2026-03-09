@@ -7243,7 +7243,7 @@ func (ds *Datastore) DeleteHostLocationData(ctx context.Context, hostID uint) er
 ///////////////////////////////////////////////////////////////////////////////
 // Apple MDM Recovery Lock Password
 
-func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, passwords map[uint]string) error {
+func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, passwords []fleet.HostRecoveryLockPasswordPayload) error {
 	if len(passwords) == 0 {
 		return nil
 	}
@@ -7252,25 +7252,26 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 	// Status is NULL initially (command not yet enqueued). It will be set to 'pending'
 	// after successful enqueue by SetRecoveryLockPendingByHostUUIDs.
 	var args []any
-	for hostID, plaintext := range passwords {
-		encrypted, err := encrypt([]byte(plaintext), ds.serverPrivateKey)
+	for _, p := range passwords {
+		encrypted, err := encrypt([]byte(p.Password), ds.serverPrivateKey)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "encrypting recovery lock password")
 		}
-		args = append(args, hostID, encrypted, fleet.MDMOperationTypeInstall)
+		args = append(args, p.HostID, p.HostUUID, encrypted, fleet.MDMOperationTypeInstall)
 	}
 
 	stmt := `
-		INSERT INTO host_recovery_key_passwords (host_id, encrypted_password, status, operation_type)
+		INSERT INTO host_recovery_key_passwords (host_id, host_uuid, encrypted_password, status, operation_type)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
 			encrypted_password = VALUES(encrypted_password),
+			host_uuid = VALUES(host_uuid),
 			status = NULL,
 			operation_type = VALUES(operation_type),
 			error_message = NULL
 	`
 
-	placeholders := strings.Repeat("(?, ?, NULL, ?),", len(passwords))
+	placeholders := strings.Repeat("(?, ?, ?, NULL, ?),", len(passwords))
 	placeholders = placeholders[:len(placeholders)-1] // remove trailing comma
 	stmt = fmt.Sprintf(stmt, placeholders)
 
@@ -7379,11 +7380,10 @@ func (ds *Datastore) SetRecoveryLockPendingByHostUUIDs(ctx context.Context, host
 	}
 
 	stmt := fmt.Sprintf(`
-		UPDATE host_recovery_key_passwords rkp
-		INNER JOIN hosts h ON h.id = rkp.host_id
-		SET rkp.status = '%s',
-		    rkp.error_message = NULL
-		WHERE h.uuid IN (?)
+		UPDATE host_recovery_key_passwords
+		SET status = '%s',
+		    error_message = NULL
+		WHERE host_uuid IN (?)
 	`, fleet.MDMDeliveryPending)
 
 	query, args, err := sqlx.In(stmt, hostUUIDs)

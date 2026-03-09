@@ -346,8 +346,8 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			return []fleet.HostNeedingRecoveryLock{{HostID: hostID, HostUUID: hostUUID}}, nil
 		}
 
-		var storedPasswords map[uint]string
-		ds.SetHostsRecoveryLockPasswordsFunc = func(ctx context.Context, passwords map[uint]string) error {
+		var storedPasswords []fleet.HostRecoveryLockPasswordPayload
+		ds.SetHostsRecoveryLockPasswordsFunc = func(ctx context.Context, passwords []fleet.HostRecoveryLockPasswordPayload) error {
 			storedPasswords = passwords
 			return nil
 		}
@@ -370,7 +370,10 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
 		require.NoError(t, err)
 		// Password should be stored BEFORE command is sent
-		require.Contains(t, storedPasswords, hostID, "password should be stored for host before command is sent")
+		require.Len(t, storedPasswords, 1, "password should be stored for host before command is sent")
+		assert.Equal(t, hostID, storedPasswords[0].HostID)
+		assert.Equal(t, hostUUID, storedPasswords[0].HostUUID)
+		assert.NotEmpty(t, storedPasswords[0].Password)
 		assert.NotEmpty(t, sentCmdUUID, "command UUID should have been sent")
 		// Status should be set to pending AFTER successful enqueue
 		assert.Equal(t, []string{hostUUID}, pendingHostUUIDs, "status should be set to pending after successful enqueue")
@@ -386,7 +389,7 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		}
 
 		var passwordStored bool
-		ds.SetHostsRecoveryLockPasswordsFunc = func(ctx context.Context, passwords map[uint]string) error {
+		ds.SetHostsRecoveryLockPasswordsFunc = func(ctx context.Context, passwords []fleet.HostRecoveryLockPasswordPayload) error {
 			passwordStored = true
 			return nil
 		}

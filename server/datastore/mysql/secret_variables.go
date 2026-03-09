@@ -510,10 +510,18 @@ func (ds *Datastore) getHostRecoveryLockPasswordDecrypted(ctx context.Context, h
 
 // SetRecoveryLockFailedByEnrollmentID marks a host's recovery lock as failed using the enrollment ID.
 // This is used when secret expansion fails during command delivery.
+// The enrollment ID is the host's UUID (UDID), which we store directly in host_recovery_key_passwords.
 func (ds *Datastore) SetRecoveryLockFailedByEnrollmentID(ctx context.Context, enrollmentID string, errorMsg string) error {
-	hostID, err := ds.getHostIDByEnrollmentID(ctx, enrollmentID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting host ID for enrollment")
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET status = '%s',
+		    error_message = ?
+		WHERE host_uuid = ?
+	`, fleet.MDMDeliveryFailed)
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, errorMsg, enrollmentID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set recovery lock failed by enrollment ID")
 	}
-	return ds.SetRecoveryLockFailed(ctx, hostID, errorMsg)
+
+	return nil
 }

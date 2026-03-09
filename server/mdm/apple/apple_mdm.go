@@ -1644,10 +1644,10 @@ func sendRecoveryLockCommandsWithCommander(
 
 	logger.InfoContext(ctx, "sending SetRecoveryLock commands", "count", len(hosts))
 
-	// Generate and store passwords for all hosts upfront.
+	// Generate passwords for all hosts upfront.
 	// Passwords must be stored BEFORE enqueuing commands because they are injected
-	// at delivery time by ExpandHostSecrets (which looks up by host/enrollment ID).
-	passwords := make(map[uint]string, len(hosts))
+	// at delivery time by ExpandHostSecrets (which looks up by host UUID).
+	passwords := make([]fleet.HostRecoveryLockPasswordPayload, 0, len(hosts))
 	for _, host := range hosts {
 		pw, err := GenerateRecoveryLockPassword()
 		if err != nil {
@@ -1658,26 +1658,28 @@ func sendRecoveryLockCommandsWithCommander(
 			)
 			continue
 		}
-		passwords[host.HostID] = pw
+		passwords = append(passwords, fleet.HostRecoveryLockPasswordPayload{
+			HostID:   host.HostID,
+			HostUUID: host.HostUUID,
+			Password: pw,
+		})
+	}
+
+	if len(passwords) == 0 {
+		return nil
 	}
 
 	// Store passwords first so they're available when commands are delivered
-	if len(passwords) > 0 {
-		if err := ds.SetHostsRecoveryLockPasswords(ctx, passwords); err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set recovery lock passwords")
-		}
+	if err := ds.SetHostsRecoveryLockPasswords(ctx, passwords); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set recovery lock passwords")
 	}
 
-	// Collect host UUIDs for hosts that have passwords stored.
+	// Collect host UUIDs for enqueue.
 	// The password is not in the command - a placeholder is used that will be
 	// expanded at delivery time by ExpandHostSecrets.
 	hostUUIDs := make([]string, 0, len(passwords))
-	for _, host := range hosts {
-		if _, ok := passwords[host.HostID]; !ok {
-			// Password generation failed for this host, skip
-			continue
-		}
-		hostUUIDs = append(hostUUIDs, host.HostUUID)
+	for _, p := range passwords {
+		hostUUIDs = append(hostUUIDs, p.HostUUID)
 	}
 
 	if len(hostUUIDs) == 0 {
