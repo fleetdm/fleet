@@ -1347,14 +1347,13 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				// Validate unknown keys in path-referenced policies file.
 				multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[[]Policy](), *item.Path, []string{"policies"})...)
 				for _, pp := range pathPolicies {
-					pp := pp
 					if pp != nil {
 						if pp.Path != nil {
 							multiError = multierror.Append(
 								multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pp.Path, *item.Path),
 							)
 						} else {
-							if err := parsePolicyInstallSoftware(filepath.Dir(*item.Path), result.TeamName, pp, result.Software.Packages, result.Software.AppStoreApps); err != nil {
+							if errs := parsePolicyInstallSoftware(filepath.Dir(*item.Path), result.TeamName, pp, result.Software.Packages, result.Software.AppStoreApps); errs != nil {
 								multiError = multierror.Append(multiError, errs...)
 								continue
 							}
