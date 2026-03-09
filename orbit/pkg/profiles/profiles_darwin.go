@@ -147,7 +147,7 @@ func ParseMDMEnrollmentStatus() (enrolledViaDEP bool, err error) {
 	// If the host is not enrolled into an MDM, the last line is omitted,
 	// so we need to check that:
 	//
-	// 1. We've got three rows
+	// 1. We've got two rows
 	// 2. The first row contains "Yes" or "No"
 	lines := bytes.Split(bytes.TrimSpace(out), []byte("\n"))
 	if len(lines) < 2 {

@@ -351,7 +351,7 @@ func TestParseMDMEnrollmentStatus(t *testing.T) {
 
 			var buf bytes.Buffer
 			buf.WriteString(*c.cmdOut)
-			return []byte(*c.cmdOut), nil
+			return buf.Bytes(), nil
 		}
 
 		got, err := ParseMDMEnrollmentStatus()
