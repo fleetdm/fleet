@@ -1866,7 +1866,8 @@ func TestExpandBaseItems(t *testing.T) {
 		_, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{
 			RequireUniqueBasenames: true,
 		})
-		requireErrorContains(t, errs, "duplicate test basename")
+		requireErrorContains(t, errs, `duplicate test basename "item.yml"`)
+		requireErrorContains(t, errs, `sub/*.yml`)
 	})
 
 	t.Run("allowed_extensions_filter", func(t *testing.T) {
