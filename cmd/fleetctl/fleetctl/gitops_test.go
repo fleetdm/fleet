@@ -3457,6 +3457,10 @@ func TestGitOpsMDMAuthSettings(t *testing.T) {
 		return nil
 	}
 
+	ds.TeamIDsWithSetupExperienceIdPEnabledFunc = func(ctx context.Context) ([]uint, error) {
+		return nil, nil
+	}
+
 	// Do a GitOps run with no mdm end user auth settings.
 	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
 	require.NoError(t, err)
