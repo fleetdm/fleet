@@ -2957,7 +2957,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 	// and update the failing policies webhook settings with the policy_ids list.
 	if len(policyNamesWithWebhooks) > 0 {
 		if dryRun {
-			logFn("[+] would've enabled webhooks/tickets for %s\n",
+			logFn("[+] would've enabled failed policy reporting for %s\n",
 				numberWithPluralization(len(policyNamesWithWebhooks), "policy", "policies"))
 		} else {
 			// Re-fetch policies to get IDs (policies were just applied above).
@@ -3002,7 +3002,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 					return fmt.Errorf("error updating failing policies webhook: %w", err)
 				}
 			}
-			logFn("[+] enabled webhooks/tickets for %s\n",
+			logFn("[+] enabled failed policy reporting for %s\n",
 				numberWithPluralization(len(resolvedIDs), "policy", "policies"))
 		}
 	}
