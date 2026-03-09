@@ -367,15 +367,14 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 
 		{
 			PolicyData: fleet.PolicyData{
-				ID:                             2,
-				Name:                           "Team patch policy",
-				Query:                          "SELECT * FROM team_policy WHERE id = 1",
-				Resolution:                     ptr.String("Do a team thing"),
-				Description:                    "This is a team patch policy",
-				Platform:                       "linux,windows",
-				ConditionalAccessEnabled:       true,
-				ConditionalAccessBypassEnabled: ptr.Bool(false),
-				Type:                           fleet.PolicyTypePatch,
+				ID:                       2,
+				Name:                     "Team patch policy",
+				Query:                    "SELECT * FROM team_policy WHERE id = 1",
+				Resolution:               ptr.String("Do a team thing"),
+				Description:              "This is a team patch policy",
+				Platform:                 "linux,windows",
+				ConditionalAccessEnabled: true,
+				Type:                     fleet.PolicyTypePatch,
 			},
 			PatchSoftware: &fleet.PolicySoftwareTitle{
 				SoftwareTitleID: 8,
