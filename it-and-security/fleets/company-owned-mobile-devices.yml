@@ -27,7 +27,7 @@ controls:
     enable_end_user_authentication: true
   scripts:
 policies:
-queries:
+reports:
 software:
   app_store_apps:
     # iOS apps

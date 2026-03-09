@@ -28,5 +28,5 @@ controls:
     grace_period_days: null
   scripts:
 policies:
-queries:
+reports:
 software:

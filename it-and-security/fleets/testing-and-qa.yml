@@ -48,7 +48,7 @@ policies:
   - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
   # Linux policies
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
-queries:
+reports:
 software:
   packages:
     # Linux apps
