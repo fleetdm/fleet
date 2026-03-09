@@ -1,0 +1,62 @@
+.policy-automations {
+  margin-top: $pad-medium;
+
+  &__cta-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: $pad-medium;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: 8px;
+    margin-bottom: $pad-medium;
+  }
+
+  &__cta-label {
+    font-size: $small;
+    font-weight: $bold;
+    color: $core-fleet-black;
+  }
+
+  &__list {
+    margin-top: $pad-small;
+  }
+
+  &__list-header {
+    font-size: $xx-small;
+    font-weight: $bold;
+    text-transform: uppercase;
+    color: $ui-fleet-black-50;
+    margin-bottom: $pad-small;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: $pad-small 0;
+    border-bottom: 1px solid $ui-fleet-black-10;
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  &__row-name {
+    font-size: $x-small;
+    color: $core-fleet-black;
+
+    a {
+      color: $core-vibrant-blue;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  &__row-type {
+    font-size: $x-small;
+    color: $ui-fleet-black-50;
+  }
+}
