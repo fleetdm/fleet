@@ -32,7 +32,7 @@ func (c *Client) TriggerCronSchedule(name string) error {
 		if err != nil {
 			return err
 		}
-		return notFoundErr{msg: msg}
+		return &notFoundErr{msg: msg}
 	default:
 		return c.parseResponse(verb, path, response, nil)
 	}

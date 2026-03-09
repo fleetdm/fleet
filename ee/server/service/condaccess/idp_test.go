@@ -672,12 +672,12 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			wantStatusCode: http.StatusInternalServerError,
 		},
 		{
-			name:        "allows device with bypass when all failing policies have per-policy bypass enabled",
+			name:        "allows device with bypass when no failing policies are critical",
 			hostID:      456,
 			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
 			caPolicyIDs: []uint{10, 20},
 			hostPolicies: []*fleet.HostPolicy{
-				{PolicyData: fleet.PolicyData{ID: 10, ConditionalAccessBypassEnabled: ptr.Bool(true)}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
 				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
 			},
 			deviceToken:    "abc123",
@@ -687,12 +687,12 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			wantStatusCode: http.StatusOK,
 		},
 		{
-			name:        "redirects device without bypass when all failing policies have per-policy bypass enabled",
+			name:        "redirects device without bypass when no failing policies are critical but no bypass available",
 			hostID:      456,
 			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
 			caPolicyIDs: []uint{10, 20},
 			hostPolicies: []*fleet.HostPolicy{
-				{PolicyData: fleet.PolicyData{ID: 10, ConditionalAccessBypassEnabled: ptr.Bool(true)}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
 				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
 			},
 			deviceToken:    "abc123",
@@ -700,12 +700,12 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			wantLocation:   "https://example.com/device/abc123/policies",
 		},
 		{
-			name:        "redirects when bypass check fails and all failing policies have per-policy bypass enabled",
+			name:        "redirects when bypass check fails and no failing policies are critical",
 			hostID:      456,
 			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
 			caPolicyIDs: []uint{10, 20},
 			hostPolicies: []*fleet.HostPolicy{
-				{PolicyData: fleet.PolicyData{ID: 10, ConditionalAccessBypassEnabled: ptr.Bool(true)}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
 				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
 			},
 			deviceToken:    "abc123",
@@ -714,14 +714,13 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			wantLocation:   "https://example.com/device/abc123/policies",
 		},
 		{
-			name:        "skips bypass check when any failing policy lacks per-policy bypass",
+			name:        "skips bypass check when any failing policy is critical",
 			hostID:      456,
 			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
 			caPolicyIDs: []uint{10, 20},
 			hostPolicies: []*fleet.HostPolicy{
-				{PolicyData: fleet.PolicyData{ID: 10, ConditionalAccessBypassEnabled: ptr.Bool(true)}, Response: "fail"},
-				// no per-policy bypass, shouldn't be possible since column is not nullable
-				{PolicyData: fleet.PolicyData{ID: 20}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 20, Critical: true}, Response: "fail"},
 			},
 			deviceToken:           "abc123",
 			bypassTime:            &now,
@@ -730,12 +729,12 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			wantLocation:          "https://example.com/device/abc123/policies",
 		},
 		{
-			name:        "skips bypass check when failing policy has per-policy bypass explicitly disabled",
+			name:        "skips bypass check when failing policy is critical",
 			hostID:      456,
 			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
 			caPolicyIDs: []uint{10},
 			hostPolicies: []*fleet.HostPolicy{
-				{PolicyData: fleet.PolicyData{ID: 10, ConditionalAccessBypassEnabled: ptr.Bool(false)}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 10, Critical: true}, Response: "fail"},
 			},
 			deviceToken:           "abc123",
 			bypassTime:            &now,
@@ -744,13 +743,13 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			wantLocation:          "https://example.com/device/abc123/policies",
 		},
 		{
-			name:        "allows bypass when multiple failing policies all have per-policy bypass enabled",
+			name:        "allows bypass when multiple failing policies are not critical",
 			hostID:      456,
 			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
 			caPolicyIDs: []uint{10, 20, 30},
 			hostPolicies: []*fleet.HostPolicy{
-				{PolicyData: fleet.PolicyData{ID: 10, ConditionalAccessBypassEnabled: ptr.Bool(true)}, Response: "fail"},
-				{PolicyData: fleet.PolicyData{ID: 20, ConditionalAccessBypassEnabled: ptr.Bool(true)}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 20}, Response: "fail"},
 				{PolicyData: fleet.PolicyData{ID: 30}, Response: "pass"},
 			},
 			deviceToken:    "abc123",
@@ -760,13 +759,13 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			wantStatusCode: http.StatusOK,
 		},
 		{
-			name:        "skips bypass when one of multiple failing policies has per-policy bypass disabled",
+			name:        "skips bypass when one of multiple failing policies is critical",
 			hostID:      456,
 			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
 			caPolicyIDs: []uint{10, 20, 30},
 			hostPolicies: []*fleet.HostPolicy{
-				{PolicyData: fleet.PolicyData{ID: 10, ConditionalAccessBypassEnabled: ptr.Bool(true)}, Response: "fail"},
-				{PolicyData: fleet.PolicyData{ID: 20, ConditionalAccessBypassEnabled: ptr.Bool(false)}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 20, Critical: true}, Response: "fail"},
 				{PolicyData: fleet.PolicyData{ID: 30}, Response: "pass"},
 			},
 			deviceToken:           "abc123",
