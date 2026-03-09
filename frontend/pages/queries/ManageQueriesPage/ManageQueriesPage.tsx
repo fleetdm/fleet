@@ -101,6 +101,7 @@ const ManageQueriesPage = ({
   } = useContext(AppContext);
   const { setLastEditedQueryBody, setSelectedQueryTargetsByType } = useContext(
     QueryContext);
+    
   const { setResetSelectedRows } = useContext(TableContext);
   const { renderFlash } = useContext(NotificationContext);
 
