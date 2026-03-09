@@ -175,8 +175,8 @@ func extractUUIDFromCert(crt *x509.Certificate) string {
 	for _, uri := range crt.URIs {
 		uriStr := uri.String()
 		for _, prefix := range knownURIPrefixes {
-			if strings.HasPrefix(uriStr, prefix) {
-				return strings.TrimPrefix(uriStr, prefix)
+			if after, ok := strings.CutPrefix(uriStr, prefix); ok {
+				return after
 			}
 		}
 	}
