@@ -278,10 +278,10 @@ type GitOpsOrgSettings struct {
 	CertificateAuthorities any `json:"certificate_authorities"`
 }
 
-// GitOpsTeamSettings defines the valid keys for the top-level `settings:` section (team-level).
+// GitOpsFleetSettings defines the valid keys for the top-level `settings:` section (team-level).
 // It embeds fleet.TeamConfig for all standard settings and adds gitops-only keys
 // that are extracted before the config is sent to the server API.
-type GitOpsTeamSettings struct {
+type GitOpsFleetSettings struct {
 	fleet.TeamConfig
 	Secrets any `json:"secrets"`
 }
@@ -618,7 +618,7 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, file
 			multiError = validateTeamWebhookSettings(result.TeamSettings, multiError)
 		}
 		// Validate unknown keys in team settings section.
-		multiError = multierror.Append(multiError, validateYAMLKeys(raw, reflect.TypeFor[GitOpsTeamSettings](), settingsFilePath, []string{"settings"})...)
+		multiError = multierror.Append(multiError, validateYAMLKeys(raw, reflect.TypeFor[GitOpsFleetSettings](), settingsFilePath, []string{"settings"})...)
 	}
 	return multiError
 }
