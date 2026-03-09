@@ -5383,7 +5383,10 @@ func ReconcileAppleProfiles(
 
 	level.Info(logger).Log("msg", "ReconcileAppleProfiles sending notifications", "enrollment_id_count", len(enrollmentIDs))
 	if len(enrollmentIDs) > 0 {
-		commander.SendNotifications(ctx, enrollmentIDs)
+		err = commander.SendNotifications(ctx, enrollmentIDs)
+		if err != nil {
+			level.Info(logger).Log("msg", "failed to send APNs notification to some hosts after reconciling profiles, but commands were enqueued successfully", "error", err)
+		}
 	}
 
 	level.Info(logger).Log("msg", "ReconcileAppleProfiles reverted status of failed profiles", "failed_count", len(failed))
