@@ -5691,15 +5691,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
 		}
 
-		fmt.Printf("stmt: %v\n", stmt)
-
-		fmt.Printf("hostSoftwareList: %+v\n", len(hostSoftwareList))
-
-		for _, v := range hostSoftwareList {
-			fmt.Printf("v.Name: %v\n", v.Name)
-
-		}
-
 		// collect install paths by software.id
 		installedPaths, err := ds.getHostSoftwareInstalledPaths(ctx, host.ID)
 		if err != nil {
