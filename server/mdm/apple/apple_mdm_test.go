@@ -415,6 +415,44 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		// Status should be cleared to allow retry on next cron run
 		assert.Equal(t, []string{hostUUID}, clearedHostUUIDs, "pending status should be cleared on enqueue failure")
 	})
+
+	t.Run("APNs delivery failure does not clear pending status", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		hostUUID := "host-uuid-1"
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+			return []string{hostUUID}, nil
+		}
+
+		// Track call order to verify ClearRecoveryLockPendingStatus is NOT called
+		var callOrder []string
+		ds.SetHostsRecoveryLockPasswordsFunc = func(ctx context.Context, passwords []fleet.HostRecoveryLockPasswordPayload) error {
+			callOrder = append(callOrder, "SetHostsRecoveryLockPasswords")
+			return nil
+		}
+
+		ds.ClearRecoveryLockPendingStatusFunc = func(ctx context.Context, hostUUIDs []string) error {
+			callOrder = append(callOrder, "ClearRecoveryLockPendingStatus")
+			return nil
+		}
+
+		mockCommander := &mockRecoveryLockCommander{
+			setRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+				callOrder = append(callOrder, "SetRecoveryLock")
+				// Return APNs delivery error - command was persisted but push failed
+				return &APNSDeliveryError{errorsByUUID: map[string]error{hostUUID: errors.New("push failed")}}
+			},
+		}
+
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
+		// Should NOT return error - command was persisted, just push failed
+		require.NoError(t, err)
+
+		// Verify ClearRecoveryLockPendingStatus was NOT called (status should stay pending)
+		// Command is queued and will be delivered when device checks in
+		require.Equal(t, []string{"SetHostsRecoveryLockPasswords", "SetRecoveryLock"}, callOrder,
+			"ClearRecoveryLockPendingStatus should NOT be called when APNs push fails (command is already queued)")
+	})
 }
 
 // mockRecoveryLockCommander implements RecoveryLockCommander for testing.

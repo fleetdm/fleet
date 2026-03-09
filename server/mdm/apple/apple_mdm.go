@@ -1675,12 +1675,28 @@ func sendRecoveryLockCommandsWithCommander(
 	// password at delivery time.
 	cmdUUID := uuid.NewString()
 	if err := commander.SetRecoveryLock(ctx, hostUUIDs, cmdUUID); err != nil {
-		logger.ErrorContext(ctx, "failed to send SetRecoveryLock commands",
+		// Check if this is an APNs delivery error (command was persisted but push failed).
+		// In this case, the command is already queued and will be delivered when the device
+		// checks in, so we should NOT clear the pending status (which would cause duplicates).
+		var apnsErr *APNSDeliveryError
+		if errors.As(err, &apnsErr) {
+			// Command was persisted but push notification failed - log warning but don't fail.
+			// The command will be delivered when the device next checks in.
+			logger.WarnContext(ctx, "SetRecoveryLock commands enqueued but APNs push failed",
+				"host_count", len(hostUUIDs),
+				"command_uuid", cmdUUID,
+				"error", err,
+			)
+			// Don't clear pending status - command is queued and will be processed
+			return nil
+		}
+
+		// Persistence failed - reset status to NULL so hosts will be picked up again on next cron run.
+		// The password is already stored, but a new one will be generated on retry (overwrites old).
+		logger.ErrorContext(ctx, "failed to enqueue SetRecoveryLock commands",
 			"host_count", len(hostUUIDs),
 			"error", err,
 		)
-		// Enqueue failed - reset status to NULL so hosts will be picked up again on next cron run.
-		// The password is already stored, but a new one will be generated on retry (overwrites old).
 		if clearErr := ds.ClearRecoveryLockPendingStatus(ctx, hostUUIDs); clearErr != nil {
 			logger.ErrorContext(ctx, "failed to clear recovery lock pending status after enqueue failure",
 				"host_count", len(hostUUIDs),
