@@ -7,24 +7,29 @@ const baseClass = "delete-query-modal";
 
 interface IDeleteQueryModalProps {
   isUpdatingQueries: boolean;
+  selectedQueryIds: number[];
   onCancel: () => void;
   onSubmit: () => void;
 }
 
 const DeleteQueryModal = ({
   isUpdatingQueries,
+  selectedQueryIds,
   onCancel,
   onSubmit,
 }: IDeleteQueryModalProps): JSX.Element => {
+  const queryCount = selectedQueryIds.length;
   return (
     <Modal
-      title="Delete report"
+      title={`Delete ${queryCount === 1 ? "report" : "reports"}`}
       onExit={onCancel}
       onEnter={onSubmit}
       className={baseClass}
     >
       <div className={baseClass}>
-        Are you sure you want to delete the selected reports?
+        {`Are you sure you want to delete the selected ${
+          queryCount === 1 ? "report" : "reports"
+        }?`}
         <div className="modal-cta-wrap">
           <Button
             type="button"
