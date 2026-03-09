@@ -164,7 +164,6 @@ org_settings:
       destination_url: https://some-failing-policies-webhook-url.com
       enable_failing_policies_webhook: true
       host_batch_size: 2
-      policy_ids:
     host_status_webhook:
       days_count: 5
       destination_url: https://some-host-status-webhook-url.com
