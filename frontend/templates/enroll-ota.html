@@ -792,6 +792,14 @@
 
         // handle rendering for ios and ipad
         if (platform === "ios" || platform === "ipad") {
+          if (!MAC_MDM_ENABLED) {
+            const description = `To enroll your ${
+              platform === "ios" ? "iPhone" : "iPad"
+            } please contact your IT admin.`;
+            renderError("Apple MDM is turned off.", description);
+            return;
+          }
+
           // Check if user is NOT in Safari - redirect them to Safari
           if (!isSafariBrowser()) {
             renderContent("open-in-safari-template");
@@ -802,13 +810,6 @@
             return;
           }
 
-          if (!MAC_MDM_ENABLED) {
-            const description = `To enroll your ${
-              platform === "ios" ? "iPhone" : "iPad"
-            } please contact your IT admin.`;
-            renderError("Apple MDM is turned off.", description);
-            return;
-          }
           renderContent(templateId);
           setIosIpadContent(platform);
         }
