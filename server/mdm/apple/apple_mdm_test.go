@@ -334,7 +334,7 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		assert.False(t, commandSent, "SetRecoveryLock should not be called when no hosts need it")
 	})
 
-	t.Run("host needing recovery lock gets SetRecoveryLock and password stored", func(t *testing.T) {
+	t.Run("host needing recovery lock gets SetRecoveryLock and password stored with pending status", func(t *testing.T) {
 		ds := new(mock.Store)
 
 		hostUUID := "host-uuid-1"
@@ -345,12 +345,6 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		var storedPasswords []fleet.HostRecoveryLockPasswordPayload
 		ds.SetHostsRecoveryLockPasswordsFunc = func(ctx context.Context, passwords []fleet.HostRecoveryLockPasswordPayload) error {
 			storedPasswords = passwords
-			return nil
-		}
-
-		var pendingHostUUIDs []string
-		ds.SetRecoveryLockPendingByHostUUIDsFunc = func(ctx context.Context, hostUUIDs []string) error {
-			pendingHostUUIDs = hostUUIDs
 			return nil
 		}
 
@@ -365,25 +359,30 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 
 		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
 		require.NoError(t, err)
-		// Password should be stored BEFORE command is sent
+		// Password should be stored with pending status atomically BEFORE command is sent
 		require.Len(t, storedPasswords, 1, "password should be stored for host before command is sent")
 		assert.Equal(t, hostUUID, storedPasswords[0].HostUUID)
 		assert.NotEmpty(t, storedPasswords[0].Password)
 		assert.NotEmpty(t, sentCmdUUID, "command UUID should have been sent")
-		// Status should be set to pending AFTER successful enqueue
-		assert.Equal(t, []string{hostUUID}, pendingHostUUIDs, "status should be set to pending after successful enqueue")
 	})
 
-	t.Run("SetRecoveryLock failure returns error but password is stored", func(t *testing.T) {
+	t.Run("SetRecoveryLock failure clears pending status to allow retry", func(t *testing.T) {
 		ds := new(mock.Store)
 
+		hostUUID := "host-uuid-1"
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
-			return []string{"host-uuid-1"}, nil
+			return []string{hostUUID}, nil
 		}
 
 		var passwordStored bool
 		ds.SetHostsRecoveryLockPasswordsFunc = func(ctx context.Context, passwords []fleet.HostRecoveryLockPasswordPayload) error {
 			passwordStored = true
+			return nil
+		}
+
+		var clearedHostUUIDs []string
+		ds.ClearRecoveryLockPendingStatusFunc = func(ctx context.Context, hostUUIDs []string) error {
+			clearedHostUUIDs = hostUUIDs
 			return nil
 		}
 
@@ -396,8 +395,10 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "APNs push failed")
-		// Password is stored BEFORE enqueue attempt
+		// Password is stored with pending status BEFORE enqueue attempt
 		assert.True(t, passwordStored, "password should be stored before command is sent")
+		// Status should be cleared to allow retry on next cron run
+		assert.Equal(t, []string{hostUUID}, clearedHostUUIDs, "pending status should be cleared on enqueue failure")
 	})
 }
 

@@ -1655,7 +1655,9 @@ func sendRecoveryLockCommandsWithCommander(
 		})
 	}
 
-	// Store passwords first so they're available when commands are delivered
+	// Store passwords with status='pending' atomically. This prevents the host from
+	// being picked up again by the next cron run while we're enqueuing the command.
+	// If enqueue fails, we reset the status to NULL so the host can be retried.
 	if err := ds.SetHostsRecoveryLockPasswords(ctx, passwords); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set recovery lock passwords")
 	}
@@ -1668,10 +1670,6 @@ func sendRecoveryLockCommandsWithCommander(
 		hostUUIDs = append(hostUUIDs, p.HostUUID)
 	}
 
-	if len(hostUUIDs) == 0 {
-		return nil
-	}
-
 	// Enqueue a single command for all hosts. Each host gets their own queue entry
 	// pointing to the same command, and ExpandHostSecrets injects the per-host
 	// password at delivery time.
@@ -1681,19 +1679,15 @@ func sendRecoveryLockCommandsWithCommander(
 			"host_count", len(hostUUIDs),
 			"error", err,
 		)
-		// Commands failed but passwords are stored with NULL status - will be retried on next cron run
+		// Enqueue failed - reset status to NULL so hosts will be picked up again on next cron run.
+		// The password is already stored, but a new one will be generated on retry (overwrites old).
+		if clearErr := ds.ClearRecoveryLockPendingStatus(ctx, hostUUIDs); clearErr != nil {
+			logger.ErrorContext(ctx, "failed to clear recovery lock pending status after enqueue failure",
+				"host_count", len(hostUUIDs),
+				"error", clearErr,
+			)
+		}
 		return ctxerr.Wrap(ctx, err, "enqueue SetRecoveryLock commands")
-	}
-
-	// Mark hosts as pending now that commands are enqueued.
-	// This prevents them from being picked up again on the next cron run.
-	if err := ds.SetRecoveryLockPendingByHostUUIDs(ctx, hostUUIDs); err != nil {
-		// Log but don't fail - commands are already enqueued and will be processed.
-		// Worst case: host gets picked up again and a new command is sent (idempotent).
-		logger.ErrorContext(ctx, "failed to set recovery lock pending status",
-			"host_count", len(hostUUIDs),
-			"error", err,
-		)
 	}
 
 	logger.InfoContext(ctx, "sent SetRecoveryLock commands",

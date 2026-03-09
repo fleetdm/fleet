@@ -1033,6 +1033,8 @@ type SetRecoveryLockVerifiedFunc func(ctx context.Context, hostUUID string) erro
 
 type SetRecoveryLockFailedFunc func(ctx context.Context, hostUUID string, errorMsg string) error
 
+type ClearRecoveryLockPendingStatusFunc func(ctx context.Context, hostUUIDs []string) error
+
 type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error
 
 type CopyDefaultMDMAppleBootstrapPackageFunc func(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error
@@ -3316,6 +3318,9 @@ type DataStore struct {
 
 	SetRecoveryLockFailedFunc        SetRecoveryLockFailedFunc
 	SetRecoveryLockFailedFuncInvoked bool
+
+	ClearRecoveryLockPendingStatusFunc        ClearRecoveryLockPendingStatusFunc
+	ClearRecoveryLockPendingStatusFuncInvoked bool
 
 	InsertMDMAppleBootstrapPackageFunc        InsertMDMAppleBootstrapPackageFunc
 	InsertMDMAppleBootstrapPackageFuncInvoked bool
@@ -8005,6 +8010,13 @@ func (s *DataStore) SetRecoveryLockFailed(ctx context.Context, hostUUID string, 
 	s.SetRecoveryLockFailedFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetRecoveryLockFailedFunc(ctx, hostUUID, errorMsg)
+}
+
+func (s *DataStore) ClearRecoveryLockPendingStatus(ctx context.Context, hostUUIDs []string) error {
+	s.mu.Lock()
+	s.ClearRecoveryLockPendingStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearRecoveryLockPendingStatusFunc(ctx, hostUUIDs)
 }
 
 func (s *DataStore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {

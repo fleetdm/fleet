@@ -7249,15 +7249,16 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 	}
 
 	// Build values for bulk insert.
-	// Status is NULL initially (command not yet enqueued). It will be set to 'pending'
-	// after successful enqueue by SetRecoveryLockPendingByHostUUIDs.
+	// Status is set to 'pending' immediately to prevent the host from being picked up
+	// again by the next cron run while the command is being enqueued. If enqueue fails,
+	// ClearRecoveryLockPendingStatus should be called to reset the status to NULL.
 	var args []any
 	for _, p := range passwords {
 		encrypted, err := encrypt([]byte(p.Password), ds.serverPrivateKey)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "encrypting recovery lock password")
 		}
-		args = append(args, p.HostUUID, encrypted, fleet.MDMOperationTypeInstall)
+		args = append(args, p.HostUUID, encrypted, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall)
 	}
 
 	stmt := `
@@ -7265,12 +7266,12 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
 			encrypted_password = VALUES(encrypted_password),
-			status = NULL,
+			status = VALUES(status),
 			operation_type = VALUES(operation_type),
 			error_message = NULL
 	`
 
-	placeholders := strings.Repeat("(?, ?, NULL, ?),", len(passwords))
+	placeholders := strings.Repeat("(?, ?, ?, ?),", len(passwords))
 	placeholders = placeholders[:len(placeholders)-1] // remove trailing comma
 	stmt = fmt.Sprintf(stmt, placeholders)
 
@@ -7410,6 +7411,33 @@ func (ds *Datastore) SetRecoveryLockFailed(ctx context.Context, hostUUID string,
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, errorMsg, hostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "set recovery lock failed")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) ClearRecoveryLockPendingStatus(ctx context.Context, hostUUIDs []string) error {
+	if len(hostUUIDs) == 0 {
+		return nil
+	}
+
+	// Reset status to NULL for hosts that failed to have their commands enqueued.
+	// This allows them to be picked up again on the next cron run.
+	// Only clears status if it's currently 'pending' to avoid overwriting other statuses.
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET status = NULL
+		WHERE host_uuid IN (?)
+		  AND status = '%s'
+	`, fleet.MDMDeliveryPending)
+
+	query, args, err := sqlx.In(stmt, hostUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build query for clear recovery lock pending status")
+	}
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear recovery lock pending status")
 	}
 
 	return nil

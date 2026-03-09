@@ -1516,6 +1516,11 @@ type Datastore interface {
 	// SetRecoveryLockFailed marks the recovery lock as failed with the given error message.
 	SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error
 
+	// ClearRecoveryLockPendingStatus resets the recovery lock status to NULL for hosts
+	// that failed to have their SetRecoveryLock commands enqueued. This allows them to
+	// be picked up again on the next cron run.
+	ClearRecoveryLockPendingStatus(ctx context.Context, hostUUIDs []string) error
+
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
 	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage, pkgStore MDMBootstrapPackageStore) error

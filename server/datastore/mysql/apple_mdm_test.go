@@ -10152,8 +10152,9 @@ func testRecoveryLockPasswordUpdatedAtChanges(t *testing.T, ds *Datastore) {
 func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	// Helper to create a host with a recovery lock password
+	// Helper to create a host with a recovery lock password (status is set to 'pending' atomically)
 	setupHost := func(t *testing.T, name, ip, key, uuid string) *fleet.Host {
+		t.Helper()
 		host := test.NewHost(t, ds, name, ip, key, uuid, time.Now())
 		pw := apple_mdm.GenerateRecoveryLockPassword()
 		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
@@ -10161,11 +10162,25 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		return host
 	}
 
+	t.Run("SetHostsRecoveryLockPasswords sets pending status atomically", func(t *testing.T) {
+		host := setupHost(t, "atomic-pending-host", "1.2.3.6", "atomickey", "atomicuuid")
+
+		// Verify status is pending immediately after storing password
+		var status string
+		err := ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_uuid = ?", host.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, string(fleet.MDMDeliveryPending), status)
+	})
+
 	t.Run("SetRecoveryLockPending", func(t *testing.T) {
 		host := setupHost(t, "pending-host", "1.2.3.7", "pendingkey", "pendinguuid")
 
+		// Clear status first to test SetRecoveryLockPending
+		err := ds.ClearRecoveryLockPendingStatus(ctx, []string{host.UUID})
+		require.NoError(t, err)
+
 		// Set pending status
-		err := ds.SetRecoveryLockPending(ctx, host.UUID)
+		err = ds.SetRecoveryLockPending(ctx, host.UUID)
 		require.NoError(t, err)
 
 		// Verify status
@@ -10205,6 +10220,43 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		err = ds.writer(ctx).GetContext(ctx, &errorMsg, "SELECT error_message FROM host_recovery_key_passwords WHERE host_uuid = ?", host.UUID)
 		require.NoError(t, err)
 		assert.Equal(t, "test error message", errorMsg)
+	})
+
+	t.Run("ClearRecoveryLockPendingStatus", func(t *testing.T) {
+		host := setupHost(t, "clear-pending-host", "1.2.3.11", "clearkey", "clearuuid")
+
+		// Verify status is pending
+		var status sql.NullString
+		err := ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_uuid = ?", host.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, string(fleet.MDMDeliveryPending), status.String)
+
+		// Clear pending status
+		err = ds.ClearRecoveryLockPendingStatus(ctx, []string{host.UUID})
+		require.NoError(t, err)
+
+		// Verify status is now NULL
+		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_uuid = ?", host.UUID)
+		require.NoError(t, err)
+		assert.False(t, status.Valid, "status should be NULL after clearing")
+	})
+
+	t.Run("ClearRecoveryLockPendingStatus only clears pending", func(t *testing.T) {
+		host := setupHost(t, "no-clear-verified-host", "1.2.3.12", "ncvkey", "ncvuuid")
+
+		// Set to verified
+		err := ds.SetRecoveryLockVerified(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Try to clear - should not affect verified status
+		err = ds.ClearRecoveryLockPendingStatus(ctx, []string{host.UUID})
+		require.NoError(t, err)
+
+		// Verify status is still verified
+		var status string
+		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_uuid = ?", host.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, string(fleet.MDMDeliveryVerified), status)
 	})
 }
 
@@ -10297,6 +10349,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	assert.False(t, slices.Contains(hosts, hostWindows.UUID), "Windows host should NOT be eligible")
 
 	// Create host with pending status (already has SetRecoveryLock in progress)
+	// Note: SetHostsRecoveryLockPasswords now sets status to 'pending' atomically
 	teamPending := createTeamWithRecoveryLock("team-pending", true)
 	hostPending := test.NewHost(t, ds, "pending-host2", "1.2.5.7", "pkey2", "puuid2", time.Now(),
 		test.WithPlatform("darwin"), test.WithTeamID(teamPending.ID))
@@ -10305,8 +10358,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	pendingPW := apple_mdm.GenerateRecoveryLockPassword()
 	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: hostPending.UUID, Password: pendingPW}})
 	require.NoError(t, err)
-	err = ds.SetRecoveryLockPending(ctx, hostPending.UUID)
-	require.NoError(t, err)
+	// Status is already 'pending' from SetHostsRecoveryLockPasswords - no need to call SetRecoveryLockPending
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
