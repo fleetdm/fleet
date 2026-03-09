@@ -7314,7 +7314,7 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]strin
 	// - Are Apple Silicon (ARM CPU)
 	// - Are MDM enrolled (enabled = 1 and device enrollment type)
 	// - Have no recovery lock password record OR have a password with NULL status (command not yet enqueued)
-	// Note: hosts with status pending, verifying, verified, or failed are NOT included
+	// Note: hosts with status pending, verified, or failed are NOT included
 	const stmt = `
 		SELECT h.uuid
 		FROM hosts h
@@ -7345,45 +7345,6 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]strin
 	}
 
 	return hostUUIDs, nil
-}
-
-func (ds *Datastore) SetRecoveryLockPending(ctx context.Context, hostUUID string) error {
-	stmt := fmt.Sprintf(`
-		UPDATE host_recovery_key_passwords
-		SET status = '%s',
-		    error_message = NULL
-		WHERE host_uuid = ?
-	`, fleet.MDMDeliveryPending)
-
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "set recovery lock pending")
-	}
-
-	return nil
-}
-
-func (ds *Datastore) SetRecoveryLockPendingByHostUUIDs(ctx context.Context, hostUUIDs []string) error {
-	if len(hostUUIDs) == 0 {
-		return nil
-	}
-
-	stmt := fmt.Sprintf(`
-		UPDATE host_recovery_key_passwords
-		SET status = '%s',
-		    error_message = NULL
-		WHERE host_uuid IN (?)
-	`, fleet.MDMDeliveryPending)
-
-	query, args, err := sqlx.In(stmt, hostUUIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "build query for set recovery lock pending by host UUIDs")
-	}
-
-	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "set recovery lock pending by host UUIDs")
-	}
-
-	return nil
 }
 
 func (ds *Datastore) SetRecoveryLockVerified(ctx context.Context, hostUUID string) error {

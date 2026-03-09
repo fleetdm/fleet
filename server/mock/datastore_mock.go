@@ -1025,10 +1025,6 @@ type GetHostRecoveryLockPasswordFunc func(ctx context.Context, hostUUID string) 
 
 type GetHostsForRecoveryLockActionFunc func(ctx context.Context) ([]string, error)
 
-type SetRecoveryLockPendingFunc func(ctx context.Context, hostUUID string) error
-
-type SetRecoveryLockPendingByHostUUIDsFunc func(ctx context.Context, hostUUIDs []string) error
-
 type SetRecoveryLockVerifiedFunc func(ctx context.Context, hostUUID string) error
 
 type SetRecoveryLockFailedFunc func(ctx context.Context, hostUUID string, errorMsg string) error
@@ -3306,12 +3302,6 @@ type DataStore struct {
 
 	GetHostsForRecoveryLockActionFunc        GetHostsForRecoveryLockActionFunc
 	GetHostsForRecoveryLockActionFuncInvoked bool
-
-	SetRecoveryLockPendingFunc        SetRecoveryLockPendingFunc
-	SetRecoveryLockPendingFuncInvoked bool
-
-	SetRecoveryLockPendingByHostUUIDsFunc        SetRecoveryLockPendingByHostUUIDsFunc
-	SetRecoveryLockPendingByHostUUIDsFuncInvoked bool
 
 	SetRecoveryLockVerifiedFunc        SetRecoveryLockVerifiedFunc
 	SetRecoveryLockVerifiedFuncInvoked bool
@@ -7982,20 +7972,6 @@ func (s *DataStore) GetHostsForRecoveryLockAction(ctx context.Context) ([]string
 	s.GetHostsForRecoveryLockActionFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostsForRecoveryLockActionFunc(ctx)
-}
-
-func (s *DataStore) SetRecoveryLockPending(ctx context.Context, hostUUID string) error {
-	s.mu.Lock()
-	s.SetRecoveryLockPendingFuncInvoked = true
-	s.mu.Unlock()
-	return s.SetRecoveryLockPendingFunc(ctx, hostUUID)
-}
-
-func (s *DataStore) SetRecoveryLockPendingByHostUUIDs(ctx context.Context, hostUUIDs []string) error {
-	s.mu.Lock()
-	s.SetRecoveryLockPendingByHostUUIDsFuncInvoked = true
-	s.mu.Unlock()
-	return s.SetRecoveryLockPendingByHostUUIDsFunc(ctx, hostUUIDs)
 }
 
 func (s *DataStore) SetRecoveryLockVerified(ctx context.Context, hostUUID string) error {

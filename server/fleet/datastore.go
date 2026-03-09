@@ -1503,13 +1503,6 @@ type Datastore interface {
 	// - No password saved or status is NULL (ready for command)
 	GetHostsForRecoveryLockAction(ctx context.Context) ([]string, error)
 
-	// SetRecoveryLockPending sets the recovery lock status to pending for a single host.
-	SetRecoveryLockPending(ctx context.Context, hostUUID string) error
-
-	// SetRecoveryLockPendingByHostUUIDs sets the recovery lock status to pending for multiple hosts.
-	// This is called after successfully enqueuing SetRecoveryLock commands.
-	SetRecoveryLockPendingByHostUUIDs(ctx context.Context, hostUUIDs []string) error
-
 	// SetRecoveryLockVerified marks the recovery lock as verified.
 	SetRecoveryLockVerified(ctx context.Context, hostUUID string) error
 
