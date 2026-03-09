@@ -201,6 +201,25 @@ This will generate a `tar.gz` file with:
 - A file containing a set of all the errors that happened in the server during the interval of time defined by the [logging_error_retention_period](https://fleetdm.com/docs/deploying/configuration#logging-error-retention-period) configuration.
 - Files containing database-specific information.
 
+### Deprecation warnings
+
+In the v4.82.0 version of `fleetctl`, several commands and options (like `fleetctl get queries`) were deprecated in favor of newer names (like `fleetctl get reports`). Starting in v4.83.0, you will begin to see warnings whenever deprecated command or option names are used. You can enable these warnings in v4.82.0 to get a head start on updating your files. To do so, either set the `FLEET_ENABLE_LOG_TOPICS` environment variable to `deprecated-field-names`, or use the `--enable_log_topics=deprecated-field-names` option in your commands.  For example:
+
+```
+> FLEET_ENABLE_LOG_TOPICS=deprecated-field-names fleetctl get queries
+```
+
+```
+> export FLEET_ENABLE_LOG_TOPICS=deprecated-field-names 
+> fleetctl get queries
+```
+
+```
+> fleetctl get queries --enable_log_topics=deprecated-field-names
+```
+
+Once the warnings become enabled by default (in v4.83.0), you can use the `FLEET_DISABLE_LOG_TOPICS` environment variable or `--enable_log_topics` command-line option to disable them.
+
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
