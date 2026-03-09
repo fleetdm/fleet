@@ -27,8 +27,8 @@ const OS_SETTINGS_NAV_ITEMS: ISideNavItem<IOSSettingsCardProps>[] = [
     Card: DiskEncryption,
   },
   {
-    title: "Custom settings",
-    urlSection: "custom-settings",
+    title: "Configuration profiles",
+    urlSection: "configuration-profiles",
     path: PATHS.CONTROLS_CUSTOM_SETTINGS,
     Card: CustomSettings,
   },
