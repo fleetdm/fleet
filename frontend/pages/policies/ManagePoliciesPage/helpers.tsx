@@ -1,5 +1,7 @@
 import React from "react";
 
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+
 import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
 import { IPolicyRunScriptFormData } from "./components/PolicyRunScriptModal/PolicyRunScriptModal";
 
@@ -94,7 +96,7 @@ export const getAutomationTypesString = (policy: {
     types.push("Other");
   }
 
-  if (types.length === 0) return "---";
+  if (types.length === 0) return DEFAULT_EMPTY_CELL_VALUE;
   // Lowercase all types after the first to match sentence-case display
   return types.map((t, i) => (i === 0 ? t : t.toLowerCase())).join(", ");
 };

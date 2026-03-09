@@ -14,7 +14,7 @@ import PATHS from "router/paths";
 
 import { getPathWithQueryParams } from "utilities/url";
 import sortUtils from "utilities/sort";
-import { PolicyResponse } from "utilities/constants";
+import { DEFAULT_EMPTY_CELL_VALUE, PolicyResponse } from "utilities/constants";
 
 import InheritedBadge from "components/InheritedBadge";
 import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
@@ -165,7 +165,7 @@ const generateTableHeaders = (
       Cell: (cellProps: ICellProps): JSX.Element => {
         const policy = cellProps.row.original;
         const automationsText = getAutomationTypesString(policy);
-        const isNone = automationsText === "---";
+        const isNone = automationsText === DEFAULT_EMPTY_CELL_VALUE;
         return (
           <span
             className={`automations-cell${

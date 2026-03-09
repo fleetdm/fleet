@@ -1,4 +1,5 @@
 import React from "react";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import {
   getInstallSoftwareErrorMessage,
   getRunScriptErrorMessage,
@@ -284,8 +285,8 @@ describe("getAutomationTypesString", () => {
     conditional_access_enabled: false,
   };
 
-  it("returns '---' when no automations are enabled", () => {
-    expect(getAutomationTypesString(basePolicy)).toBe("---");
+  it("returns DEFAULT_EMPTY_CELL_VALUE when no automations are enabled", () => {
+    expect(getAutomationTypesString(basePolicy)).toBe(DEFAULT_EMPTY_CELL_VALUE);
   });
 
   it("returns 'Software' when only install_software is present", () => {
