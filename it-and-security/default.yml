@@ -1,6 +1,8 @@
-org_settings:
 agent_options:
   path: ./lib/all/agent-options/agent-options.yml
+org_settings:
+  conditional_access:
+    bypass_disabled: true
   features:
     enable_host_users: true
     enable_software_inventory: true
@@ -9,7 +11,9 @@ agent_options:
   host_expiry_settings:
     host_expiry_enabled: false
   integrations:
-    google_calendar: []
+    google_calendar:
+      - api_key_json: $DOGFOOD_CALENDAR_API_KEY
+        domain: fleetdm.com
     jira: []
     zendesk: []
   mdm:
@@ -21,14 +25,14 @@ agent_options:
       metadata_url: ""
     end_user_license_agreement: ../it-and-security/lib/macos/misc/eula.pdf
     apple_business_manager:
-    - organization_name: Fleet Device Management Inc.
-      macos_fleet: "💻 Workstations" 
-      ios_fleet: "📱🏢 Employee-issued mobile devices"
-      ipados_fleet: "📱🏢 Employee-issued mobile devices"
-    - organization_name: Mactivate LLC
-      macos_fleet: "🧪 Testing & QA" 
-      ios_fleet: "🧪 Testing & QA"
-      ipados_fleet: "🧪 Testing & QA"
+      - organization_name: Fleet Device Management Inc.
+        macos_fleet: "💻 Workstations"
+        ios_fleet: "📱🏢 Employee-issued mobile devices"
+        ipados_fleet: "📱🏢 Employee-issued mobile devices"
+      - organization_name: Mactivate LLC
+        macos_fleet: "🧪 Testing & QA"
+        ios_fleet: "🧪 Testing & QA"
+        ipados_fleet: "🧪 Testing & QA"
     volume_purchasing_program:
       - location: Fleet Device Management Inc.
         fleets:
@@ -86,6 +90,7 @@ reports:
   - path: ./lib/all/reports/collect-known-vulnerable-chrome-extensions.yml
   - path: ./lib/macos/reports/detect-apns-certificate.yml
   - path: ./lib/macos/reports/collect-macos-compatibility-data.yml
+  - path: ./lib/macos/reports/collect-xprotect-reports.yml
 controls:
   enable_disk_encryption: true
   macos_migration:
@@ -107,7 +112,6 @@ labels:
   - path: ./lib/all/labels/macos-compatibility-extension-installed.yml
   - path: ./lib/all/labels/team-g-mdm.yml
   - path: ./lib/all/labels/team-g-software.yml
-  - path: ./lib/all/labels/conditional-access-test-group.yml
   - path: ./lib/all/labels/nudge-test-devices.yml
   - path: ./lib/all/labels/macs-with-microsoft-autoupdate-installed.yml
   - path: ./lib/all/labels/department-information-technology.yml

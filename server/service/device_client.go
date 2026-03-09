@@ -171,7 +171,7 @@ func (dc *DeviceClient) CheckToken(token string) error {
 	verb, path := "HEAD", "/api/latest/fleet/device/%s/ping"
 	err := dc.request(verb, path, token, "", nil, nil)
 
-	if errors.As(err, &notFoundErr{}) {
+	if isNotFoundErr(err) {
 		// notFound is ok, it means an old server without the auth ping endpoint,
 		// so we fall back to previously-used endpoint
 		_, err = dc.DesktopSummary(token)
@@ -184,7 +184,7 @@ func (dc *DeviceClient) Ping() error {
 	verb, path := "HEAD", "/api/fleet/device/ping"
 	err := dc.request(verb, path, "-", "", nil, nil)
 
-	if err == nil || errors.Is(err, notFoundErr{}) {
+	if err == nil || isNotFoundErr(err) {
 		// notFound is ok, it means an old server without the ping endpoint +
 		// capabilities header
 		return nil
@@ -215,7 +215,7 @@ func (dc *DeviceClient) DesktopSummary(token string) (*fleetDesktopResponse, err
 		return &r, nil
 	}
 
-	if errors.Is(err, notFoundErr{}) {
+	if isNotFoundErr(err) {
 		policies, err := dc.getListDevicePolicies(token)
 		if err != nil {
 			return nil, err

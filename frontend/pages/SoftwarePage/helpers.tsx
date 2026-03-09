@@ -289,3 +289,7 @@ export const getDisplayedSoftwareName = (
   // This should not happen
   return "Software";
 };
+
+export const isAndroidWebApp = (androidPlayStoreId?: string) =>
+  !!androidPlayStoreId &&
+  androidPlayStoreId.startsWith("com.google.enterprise.webapp");

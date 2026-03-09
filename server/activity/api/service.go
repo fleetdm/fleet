@@ -9,4 +9,6 @@ type Service interface {
 	ListHostPastActivitiesService
 	StreamActivitiesService
 	NewActivityService
+	CleanupExpiredActivitiesService
+	CleanupHostActivitiesService
 }

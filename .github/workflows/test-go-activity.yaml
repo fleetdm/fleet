@@ -50,7 +50,7 @@ jobs:
   test-go-activity:
     strategy:
       matrix:
-        mysql: ["mysql:8.0.36", "mysql:9.5.0"]
+        mysql: ["mysql:8.0.44", "mysql:9.5.0"]
     uses: ./.github/workflows/test-go-suite.yaml
     with:
       suite: activity
@@ -68,7 +68,7 @@ jobs:
     if: github.event_name == 'schedule'
     strategy:
       matrix:
-        mysql: ["mysql:8.0.32", "mysql:8.4.7"]
+        mysql: ["mysql:8.0.39", "mysql:8.4.8"]
     uses: ./.github/workflows/test-go-suite.yaml
     with:
       suite: activity
@@ -124,10 +124,10 @@ jobs:
         run: |
           failed_tests=""
           status_count=0
-          # Find all status files (they are in directories like 'activity-mysql8.0.36-status/status')
+          # Find all status files (they are in directories like 'activity-mysql8.0.44-status/status')
           for status_file in $(find ./ -type f -name 'status'); do
             status_count=$((status_count + 1))
-            # Extract test name from parent directory (e.g., 'activity-mysql8.0.36-status')
+            # Extract test name from parent directory (e.g., 'activity-mysql8.0.44-status')
             test_dir=$(basename $(dirname "$status_file"))
             # Remove '-status' suffix to get the test name
             test_name="${test_dir%-status}"

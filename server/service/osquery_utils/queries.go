@@ -1338,44 +1338,6 @@ FROM chrome_extensions`,
 // Software queries expect specific columns to be present.  Reference the
 // software_{macos|windows|linux} queries for the expected columns.
 var SoftwareOverrideQueries = map[string]DetailQuery{
-	// windows_jetbrains uses the version contained in the product-info.json file as exe installers
-	// provide an unconvertible build number in the programs table not used in vulnerability matching.
-	"windows_jetbrains": {
-		Description: "A software override query to use the version from the product-info.json file for JetBrains programs on Windows.",
-		Query: `
-		SELECT
-		p.name AS name,
-
-		COALESCE(
-			trim(json_extract(fc.contents, '$.version'), '"'),
-			p.version
-		) AS version,
-
-		'' AS extension_id,
-		'' AS extension_for,
-		'programs' AS source,
-		p.publisher AS vendor,
-		p.install_location AS installed_path,
-		p.upgrade_code AS upgrade_code
-
-		FROM programs p
-		LEFT JOIN file_contents fc
-		ON fc.path = CASE
-			WHEN p.install_location IS NULL OR p.install_location = ''
-			THEN NULL
-			ELSE rtrim(p.install_location, '\') || '\product-info.json'
-		END
-
-		WHERE p.publisher LIKE '%JetBrains%'
-		AND p.name NOT LIKE '%Toolbox%'
-`,
-		Platforms:        []string{"windows"},
-		DirectIngestFunc: directIngestSoftware,
-		Discovery:        discoveryTable("file_contents"),
-		SoftwareOverrideMatch: func(row map[string]string) bool {
-			return strings.Contains(row["vendor"], "JetBrains") && !strings.Contains(row["name"], "Toolbox")
-		},
-	},
 	// windows_acrobat_dc checks the Windows registry to determine if "DC" should be appended to the Adobe Acrobat
 	// product name. While Adobe recently rebranded the free version to "Adobe Acrobat (64-bit)" — matching
 	// the naming convention of the paid product — our vulnerability detection engine requires the "DC" postfix for accurate
@@ -2140,7 +2102,10 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 var (
 	dcvVersionFormat         = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
 	tunnelblickVersionFormat = regexp.MustCompile(`^(.+?)\s*\(build\s+\d+\)$`)
-	basicAppSanitizers       = []struct {
+	// jetbrainsNameVersion extracts version from JetBrains product names like "GoLand 2025.3.3"
+	// or "IntelliJ IDEA 2025.3.1.1" (supports 3 or 4 part versions)
+	jetbrainsNameVersion = regexp.MustCompile(`\s(\d{4}\.\d+\.\d+(?:\.\d+)?)$`)
+	basicAppSanitizers   = []struct {
 		matchBundleIdentifier string
 		matchName             string
 		mutate                func(*fleet.Software, *slog.Logger)
@@ -2242,19 +2207,48 @@ var (
 		},
 		// end of #34159 cleanup in basic matchers
 	}
-	customAppSanitizers = []struct {
+	customSanitizers = []struct {
 		matches func(*fleet.Software) bool
 		mutate  func(*fleet.Software, *slog.Logger)
 	}{
 		{
 			matches: func(s *fleet.Software) bool { // #34159
-				return strings.HasPrefix(s.Name, "TNMS ") &&
+				return s.Source == "apps" &&
+					strings.HasPrefix(s.Name, "TNMS ") &&
 					strings.HasPrefix(s.BundleIdentifier, "TNMS_") &&
 					strings.Replace(s.BundleIdentifier, "_", " ", 1) == s.Name
 			},
 			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				s.Name = "TNMS"
 				s.Version = strings.Replace(s.BundleIdentifier, "TNMS_", "", 1)
+			},
+		},
+		{
+			// JetBrains products on Windows report build numbers (e.g., "253.31033.139")
+			// instead of marketing versions. This sanitizer extracts the version from
+			// the product name (e.g., "GoLand 2025.3.3" -> "2025.3.3").
+			// Excludes JetBrains Toolbox which reports the correct version.
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "programs" &&
+					strings.Contains(strings.ToLower(s.Vendor), "jetbrains") &&
+					!strings.Contains(s.Name, "Toolbox") &&
+					jetbrainsNameVersion.MatchString(s.Name)
+			},
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				if matches := jetbrainsNameVersion.FindStringSubmatch(s.Name); len(matches) == 2 {
+					s.Version = matches[1]
+				}
+			},
+		},
+		{
+			// For RHEL kernels, join version and release to match OVAL format.
+			// See server/vulnerabilities/goval_dictionary/database.Eval
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "rpm_packages" && s.Name == rpmKernelName && s.Release != ""
+			},
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				s.Version = fmt.Sprintf("%s-%s", s.Version, s.Release)
+				s.Release = "" // Clear release to avoid issues with vulnerability matching
 			},
 		},
 	}
@@ -2264,9 +2258,11 @@ var (
 //
 // Some fields are reported with known incorrect values and we need to fix them before using them.
 func MutateSoftwareOnIngestion(ctx context.Context, s *fleet.Software, logger *slog.Logger) {
-	// all of our current on-ingest mutations use this table,
-	// so might as well let other stuff go faster and save some redundant checks inside the matchers
-	if s != nil && s.Source == "apps" {
+	if s == nil {
+		return
+	}
+	// basicAppSanitizers only apply to macOS apps
+	if s.Source == "apps" {
 		for _, sanitizer := range basicAppSanitizers {
 			if (sanitizer.matchBundleIdentifier != "" || sanitizer.matchName != "") &&
 				(sanitizer.matchBundleIdentifier == "" || sanitizer.matchBundleIdentifier == s.BundleIdentifier) &&
@@ -2280,24 +2276,18 @@ func MutateSoftwareOnIngestion(ctx context.Context, s *fleet.Software, logger *s
 				break
 			}
 		}
-		for _, sanitizer := range customAppSanitizers {
-			if sanitizer.matches(s) {
-				defer func() {
-					if r := recover(); r != nil {
-						logger.WarnContext(ctx, "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
-					}
-				}()
-				sanitizer.mutate(s, logger)
-				break
-			}
-		}
 	}
 
-	// For RHEL kernels, join version and release to match OVAL format.
-	// See server/vulnerabilities/goval_dictionary/database.Eval
-	if s != nil && s.Source == "rpm_packages" && s.Name == rpmKernelName && s.Release != "" {
-		s.Version = fmt.Sprintf("%s-%s", s.Version, s.Release)
-		s.Release = "" // Clear release to avoid issues with vulnerability matching
+	for _, sanitizer := range customSanitizers {
+		if sanitizer.matches(s) {
+			defer func() {
+				if r := recover(); r != nil {
+					logger.WarnContext(ctx, "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
+				}
+			}()
+			sanitizer.mutate(s, logger)
+			break
+		}
 	}
 }
 

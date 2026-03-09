@@ -53,6 +53,7 @@
     font-size: 14px;
     [purpose='breadcrumbs'] {
       margin-right: 24px;
+      max-width: 690px;
     }
     [purpose='search'] {
       // Note: We're using classes here to override the default Docsearch styles;
@@ -145,9 +146,9 @@
 
     [purpose='breadcrumbs-category'] {
       color: #8B8FA2;
-      text-transform: capitalize;
       margin-right: 8px;
       text-decoration: none;
+      white-space: nowrap;
       &:hover {
         color: #192147;
         text-decoration: none;
