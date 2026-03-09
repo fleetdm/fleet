@@ -158,6 +158,45 @@ func IsManuallyEnrolledInMDM() (bool, error) {
 	return true, nil
 }
 
+// IsDEPCapable runs the `profiles` command to check if the device is DEP capable.
+// Which is determined by the output and looking at the `Enrolled via DEP` field.
+// If true, even if not MDM enrolled currently this method returns true.
+func IsDEPCapable() (bool, error) {
+	out, err := getMDMInfoFromProfilesCmd()
+	if err != nil {
+		return false, fmt.Errorf("calling /usr/bin/profiles: %w", err)
+	}
+
+	// The output of the command is in the form:
+	//
+	// ```
+	// Enrolled via DEP: No
+	// MDM enrollment: Yes (User Approved)
+	// MDM server: https://test.example.com/mdm/apple/mdm
+	// ```
+	// OR
+	// ```
+	// Enrolled via DEP: No
+	// MDM enrollment: No
+	// ```
+	//
+	// If the host is not enrolled into an MDM, the last line is ommitted,
+	// so we need to check that:
+	//
+	// 1. We've got at least two rows
+	// 2. Whether the first line contains "Yes" or "No"
+	lines := bytes.Split(bytes.TrimSpace(out), []byte("\n"))
+	if len(lines) < 2 {
+		return false, fmt.Errorf("Got %d lines of output, when expected at least 2 or more", len(lines))
+	}
+
+	if strings.Contains(string(lines[0]), "Yes") {
+		return true, nil
+	}
+
+	return false, nil
+}
+
 // getMDMInfoFromProfilesCmd is declared as a variable so it can be overwritten by tests.
 var getMDMInfoFromProfilesCmd = func() ([]byte, error) {
 	cmd := exec.Command("/usr/bin/profiles", "status", "-type", "enrollment")

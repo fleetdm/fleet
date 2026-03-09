@@ -411,6 +411,11 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 		return err
 	}
 
+	isDEPCapable, err := profiles.IsDEPCapable()
+	if err != nil {
+		return fmt.Errorf("checking if device is DEP capable: %w", err)
+	}
+
 	// Check what kind of migration was in progress, if any.
 	previousMigrationType, err := m.mrw.GetMigrationType()
 	if err != nil {
@@ -418,10 +423,10 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 		return fmt.Errorf("getting migration type: %w", err)
 	}
 
-	isManualMigration := isCurrentlyManuallyEnrolled || previousMigrationType == constant.MDMMigrationTypeManual
+	isManualMigration := isCurrentlyManuallyEnrolled || previousMigrationType == constant.MDMMigrationTypeManual || !isDEPCapable
 	isADEMigration := previousMigrationType == constant.MDMMigrationTypeADE
 
-	log.Debug().Bool("isManualMigration", isManualMigration).Bool("isADEMigration", isADEMigration).Bool("isCurrentlyManuallyEnrolled", isCurrentlyManuallyEnrolled).Str("previousMigrationType", previousMigrationType).Msg("props after assigning")
+	log.Debug().Bool("isManualMigration", isManualMigration).Bool("isADEMigration", isADEMigration).Bool("isCurrentlyManuallyEnrolled", isCurrentlyManuallyEnrolled).Bool("isDEPCapable", isDEPCapable).Str("previousMigrationType", previousMigrationType).Msg("props after assigning")
 
 	vers, err := m.getMacOSMajorVersion()
 	if err != nil {
@@ -465,7 +470,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 
 		if !m.props.IsUnmanaged {
 			// show the loading spinner
-			m.renderLoadingSpinner(isPreSonoma, isCurrentlyManuallyEnrolled)
+			m.renderLoadingSpinner(isPreSonoma, isManualMigration)
 
 			// send the API call
 			if notifyErr := m.handler.NotifyRemote(); notifyErr != nil {
@@ -498,7 +503,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			switch {
 			case isPreSonoma:
 				if err := m.mrw.SetMigrationFile(constant.MDMMigrationTypePreSonoma); err != nil {
-					log.Error().Str("migration_type", constant.MDMMigrationTypeADE).Err(err).Msg("set migration file")
+					log.Error().Str("migration_type", constant.MDMMigrationTypePreSonoma).Err(err).Msg("set migration file")
 				}
 
 				log.Info().Msg("showing instructions after pre-sonoma unenrollment")

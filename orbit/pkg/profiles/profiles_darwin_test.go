@@ -327,6 +327,43 @@ MDM server: https://valid.com/mdm/apple/mdm
 	}
 }
 
+func TestIsDEPCapable(t *testing.T) {
+	cases := []struct {
+		cmdOut  *string
+		cmdErr  error
+		want    bool
+		wantErr bool
+	}{
+		{nil, errors.New("test error"), false, true},
+		{ptr.String(""), nil, false, true},
+		{ptr.String("Enrolled via DEP: No\nMDM Enrollment: No"), nil, false, false},
+		{ptr.String("Enrolled via DEP: Yes\nMDM Enrollment: No"), nil, true, false},
+		{ptr.String("Enrolled via DEP: No\nMDM Enrollment: Yes (User Approved)"), nil, false, false},
+	}
+
+	origCmd := getMDMInfoFromProfilesCmd
+	t.Cleanup(func() { getMDMInfoFromProfilesCmd = origCmd })
+	for _, c := range cases {
+		getMDMInfoFromProfilesCmd = func() ([]byte, error) {
+			if c.cmdOut == nil {
+				return nil, c.cmdErr
+			}
+
+			var buf bytes.Buffer
+			buf.WriteString(*c.cmdOut)
+			return []byte(*c.cmdOut), nil
+		}
+
+		got, err := IsDEPCapable()
+		if c.wantErr {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+		}
+		require.Equal(t, c.want, got)
+	}
+}
+
 func TestCheckAssignedEnrollmentProfile(t *testing.T) {
 	fleetURL := "https://valid.com"
 	cases := []struct {
