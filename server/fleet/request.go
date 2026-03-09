@@ -15,7 +15,9 @@ const (
 	MaxEULASize              int64 = 25 * units.MiB
 	MaxMDMCommandSize        int64 = 2 * units.MiB
 	// MaxMultiScriptQuerySize, sets a max size for payloads that take multiple scripts and SQL queries.
-	MaxMultiScriptQuerySize        int64 = 5 * units.MiB
-	MaxMicrosoftMDMSize            int64 = 2 * units.MiB
-	MaxOsqueryDistributedWriteSize int64 = 5 * units.MiB
+	MaxMultiScriptQuerySize int64 = 5 * units.MiB
+	MaxMicrosoftMDMSize     int64 = 2 * units.MiB
+
+	DefaultMaxOsqueryDistributedWriteSize int64 = 5 * units.MiB
+	DefaultMaxOsqueryLogWriteSize         int64 = 10 * units.MiB
 )
