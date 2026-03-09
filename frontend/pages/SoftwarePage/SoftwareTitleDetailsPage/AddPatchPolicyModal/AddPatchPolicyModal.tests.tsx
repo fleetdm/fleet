@@ -1,14 +1,25 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 
 import { noop } from "lodash";
 
+import { createCustomRenderer } from "test/test-utils";
 import AddPatchPolicyModal from "./AddPatchPolicyModal";
 
-const renderModal = (
-  props: Partial<React.ComponentProps<typeof AddPatchPolicyModal>> = {}
-) => {
-  return render(
+const renderModal = (props: { gitOpsModeEnabled?: boolean } = {}) => {
+  const customRender = createCustomRenderer({
+    context: {
+      app: {
+        config: {
+          gitops: {
+            gitops_mode_enabled: props.gitOpsModeEnabled ?? false,
+          },
+        },
+      },
+    },
+  });
+
+  return customRender(
     <AddPatchPolicyModal
       softwareId={1}
       teamId={1}
@@ -24,13 +35,11 @@ describe("AddPatchPolicyModal", () => {
     jest.resetAllMocks();
   });
 
-  it("renders GitOps banner when gitOpsModeEnabled is true", () => {
-    renderModal({ gitOpsModeEnabled: true });
+  it("renders add button as disabled when gitOpsModeEnabled is true", async () => {
+    const { user } = renderModal({ gitOpsModeEnabled: true });
 
-    expect(
-      screen.getByText(
-        "You are currently in GitOps mode. If the package is defined in GitOps, it will reappear when GitOps runs."
-      )
-    ).toBeVisible();
+    const addButton = screen.getByRole("button", { name: "Add" });
+    expect(addButton).toBeDisabled();
+    await user.hover(addButton);
   });
 });

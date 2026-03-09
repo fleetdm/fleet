@@ -1,3 +1,4 @@
+o;
 /**
  * TODO: Major restructure of directories
  * 1. Create /software parent directory similar to /hosts, /queries, /policies...

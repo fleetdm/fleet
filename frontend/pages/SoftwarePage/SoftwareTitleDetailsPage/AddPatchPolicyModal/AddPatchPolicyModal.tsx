@@ -7,6 +7,7 @@ import { getErrorReason } from "interfaces/errors";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "add-patch-policy-modal";
 
@@ -17,7 +18,6 @@ interface IAddPatchPolicyModal {
   teamId: number;
   onExit: () => void;
   onSuccess: () => void;
-  gitOpsModeEnabled?: boolean;
 }
 
 const AddPatchPolicyModal = ({
@@ -25,7 +25,6 @@ const AddPatchPolicyModal = ({
   teamId,
   onExit,
   onSuccess,
-  gitOpsModeEnabled,
 }: IAddPatchPolicyModal) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isAddingPatchPolicy, setIsAddingPatchPolicy] = useState(false);
@@ -67,10 +66,17 @@ const AddPatchPolicyModal = ({
           .
         </p>
         <div className="modal-cta-wrap">
-          {/* TODO: Disable here in gitops mode? */}
-          <Button onClick={onAddPatchPolicy} isLoading={isAddingPatchPolicy}>
-            Add
-          </Button>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <Button
+                onClick={onAddPatchPolicy}
+                isLoading={isAddingPatchPolicy}
+                disabled={disableChildren}
+              >
+                Add
+              </Button>
+            )}
+          />
           <Button variant="inverse" onClick={onExit}>
             Cancel
           </Button>
