@@ -211,6 +211,13 @@ type OsqueryConfig struct {
 	AsyncHostRedisPopCount           int           `yaml:"async_host_redis_pop_count"`
 	AsyncHostRedisScanKeysCount      int           `yaml:"async_host_redis_scan_keys_count"`
 	MinSoftwareLastOpenedAtDiff      time.Duration `yaml:"min_software_last_opened_at_diff"`
+
+	// MaxLogWriteBodySize overrides the default body size limit for the
+	// osquery/log endpoint. A value of 0 means use the built-in default.
+	MaxLogWriteBodySize int64 `yaml:"max_log_write_body_size"`
+	// MaxDistributedWriteBodySize overrides the default body size limit for the
+	// osquery/distributed/write endpoint. A value of 0 means use the built-in default.
+	MaxDistributedWriteBodySize int64 `yaml:"max_distributed_write_body_size"`
 }
 
 // AsyncTaskName is the type of names that identify tasks supporting
@@ -1302,6 +1309,10 @@ func (man Manager) addConfigs() {
 		"Batch size to scan redis keys in async collection")
 	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 1*time.Hour,
 		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
+	man.addConfigByteSize("osquery.max_log_write_body_size", "0",
+		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Values below the server minimum request body size are raised to that minimum.")
+	man.addConfigByteSize("osquery.max_distributed_write_body_size", "0",
+		"Maximum body size for the osquery/distributed/write endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (5MiB). Values below the server minimum request body size are raised to that minimum.")
 
 	// Activities
 	man.addConfigBool("activity.enable_audit_log", false,
@@ -1745,6 +1756,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			AsyncHostRedisPopCount:           man.getConfigInt("osquery.async_host_redis_pop_count"),
 			AsyncHostRedisScanKeysCount:      man.getConfigInt("osquery.async_host_redis_scan_keys_count"),
 			MinSoftwareLastOpenedAtDiff:      man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
+			MaxLogWriteBodySize:              man.getConfigByteSize("osquery.max_log_write_body_size"),
+			MaxDistributedWriteBodySize:      man.getConfigByteSize("osquery.max_distributed_write_body_size"),
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: man.getConfigBool("activity.enable_audit_log"),
