@@ -18,10 +18,10 @@ controls:
     deadline: "2025-06-01"
     minimum_version: "18.5"
   macos_settings:
-    configuration_profiles:
+    custom_settings:
       - path: ../lib/ios/declaration-profiles/Passcode settings.json
       - path: ../lib/ios/configuration-profiles/self-service.mobileconfig
-  setup_experience:
+  macos_setup:
     enable_end_user_authentication: true
   scripts:
 policies:

@@ -27,10 +27,10 @@ agent_options:
     orbit: edge
     desktop: edge
 controls:
-  setup_experience:
+  macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
-    apple_setup_assistant: 
+    macos_setup_assistant: 
   macos_updates:
     deadline:
     minimum_version:

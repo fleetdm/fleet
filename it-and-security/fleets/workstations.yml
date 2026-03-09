@@ -42,8 +42,8 @@ agent_options:
     desktop: stable
 controls:
   enable_disk_encryption: true
-  apple_settings:
-    configuration_profiles:
+  macos_settings:
+    custom_settings:
       - path: ../lib/macos/configuration-profiles/date-time.mobileconfig
       - path: ../lib/macos/configuration-profiles/automatic-app-store-updates.mobileconfig
       - path: ../lib/macos/configuration-profiles/chrome-enrollment.mobileconfig
@@ -87,10 +87,10 @@ controls:
       - path: ../lib/macos/configuration-profiles/microsoft-autoupdate-settings.mobileconfig
         labels_include_any:
           - "Microsoft AutoUpdate installed"
-  setup_experience:
+  macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
-    apple_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
+    macos_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
   macos_updates:
     deadline:
     minimum_version:
