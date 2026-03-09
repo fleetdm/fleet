@@ -108,6 +108,9 @@ var anyFieldTypes = map[reflect.Type]map[string]reflect.Type{
 		"windows_settings": reflect.TypeFor[fleet.WindowsSettings](),
 		"android_settings": reflect.TypeFor[fleet.AndroidSettings](),
 	},
+	reflect.TypeFor[GitOpsOrgSettings](): {
+		"certificate_authorities": reflect.TypeFor[fleet.GroupedCertificateAuthorities](),
+	},
 }
 
 // suggestKey returns the closest known key name if one is within a reasonable

@@ -308,6 +308,26 @@ func TestAnyFieldTypeRegistry(t *testing.T) {
 		assert.Contains(t, overrides, "windows_settings")
 		assert.Contains(t, overrides, "android_settings")
 	})
+
+	t.Run("org_settings certificate_authorities any-field recursion", func(t *testing.T) {
+		data := map[string]any{
+			"certificate_authorities": map[string]any{
+				"ndes_scep_proxy": map[string]any{},
+				"digicert":        []any{},
+				"unknown_ca_type": "bad",
+			},
+		}
+		errs := validateUnknownKeys(data, reflect.TypeFor[GitOpsOrgSettings](), []string{"org_settings"}, "test.yml")
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), "unknown_ca_type")
+		assert.Contains(t, errs[0].Error(), "org_settings.certificate_authorities")
+	})
+
+	t.Run("org_settings registered types present", func(t *testing.T) {
+		overrides, ok := anyFieldTypes[reflect.TypeFor[GitOpsOrgSettings]()]
+		require.True(t, ok)
+		assert.Contains(t, overrides, "certificate_authorities")
+	})
 }
 
 func TestValidateRawKeys(t *testing.T) {

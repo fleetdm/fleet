@@ -2238,6 +2238,230 @@ software:
 		assert.Contains(t, err.Error(), "unknown_array_field")
 	})
 
+	t.Run("unknown key in org_settings", func(t *testing.T) {
+		t.Parallel()
+		config := `
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+  unknown_org_field: true
+  secrets:
+controls:
+agent_options:
+reports:
+policies:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_org_field")
+	})
+
+	t.Run("unknown nested key in org_settings", func(t *testing.T) {
+		t.Parallel()
+		config := `
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+    unknown_server_field: true
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+  secrets:
+controls:
+agent_options:
+reports:
+policies:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_server_field")
+		assert.Contains(t, err.Error(), "org_settings.server_settings")
+	})
+
+	t.Run("unknown key in org_settings with typo suggestion", func(t *testing.T) {
+		t.Parallel()
+		config := `
+org_settings:
+  server_settigns:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+  secrets:
+controls:
+agent_options:
+reports:
+policies:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "server_settigns")
+		assert.Contains(t, err.Error(), `did you mean "server_settings"?`)
+	})
+
+	t.Run("unknown key in team settings", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+  unknown_team_field: true
+agent_options:
+controls:
+reports:
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_team_field")
+	})
+
+	t.Run("unknown nested key in team settings webhook_settings", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+  webhook_settings:
+    unknown_webhook_field: true
+agent_options:
+controls:
+reports:
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_webhook_field")
+		assert.Contains(t, err.Error(), "settings.webhook_settings")
+	})
+
+	t.Run("valid org_settings keys no errors", func(t *testing.T) {
+		t.Parallel()
+		config := `
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+  host_expiry_settings:
+    host_expiry_enabled: false
+  features:
+    enable_host_users: true
+  fleet_desktop:
+    transparency_url: https://example.com
+  vulnerability_settings:
+    databases_path: ""
+  webhook_settings:
+    host_status_webhook:
+      enable_host_status_webhook: false
+  integrations:
+    jira: []
+    zendesk: []
+  mdm:
+    macos_updates:
+      minimum_version: ""
+      deadline: ""
+  secrets:
+controls:
+agent_options:
+reports:
+policies:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
+		require.NoError(t, err)
+	})
+
+	t.Run("valid team settings keys no errors", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  secrets:
+  host_expiry_settings:
+    host_expiry_enabled: false
+  features:
+    enable_host_users: true
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: false
+  integrations:
+    google_calendar:
+  mdm:
+    enable_disk_encryption: false
+agent_options:
+controls:
+reports:
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+	})
+
+	t.Run("unknown key in org_settings via path", func(t *testing.T) {
+		t.Parallel()
+		config := `
+org_settings:
+  path: org_settings.yml
+controls:
+agent_options:
+reports:
+policies:
+`
+		path, basePath := createTempFile(t, "", config)
+		orgSettingsYAML := `
+server_settings:
+  server_url: https://fleet.example.com
+org_info:
+  contact_url: https://example.com/contact
+  org_name: Test Org
+unknown_org_path_field: true
+secrets:
+`
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "org_settings.yml"), []byte(orgSettingsYAML), 0o644))
+		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_org_path_field")
+		assert.Contains(t, err.Error(), "org_settings.yml")
+	})
+
+	t.Run("unknown key in team settings via path", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: TeamName
+settings:
+  path: team_settings.yml
+agent_options:
+controls:
+reports:
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		teamSettingsYAML := `
+secrets:
+unknown_team_path_field: true
+`
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "team_settings.yml"), []byte(teamSettingsYAML), 0o644))
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_team_path_field")
+		assert.Contains(t, err.Error(), "team_settings.yml")
+	})
+
 	t.Run("unknown key in policy install_software package_path", func(t *testing.T) {
 		t.Parallel()
 		config := getTeamConfig([]string{"policies", "software"})

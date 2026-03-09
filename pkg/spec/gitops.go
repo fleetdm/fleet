@@ -269,6 +269,23 @@ type Software struct {
 	FleetMaintainedApps []fleet.MaintainedAppSpec   `json:"fleet_maintained_apps"`
 }
 
+// GitOpsOrgSettings defines the valid keys for the top-level `org_settings:` section.
+// It embeds fleet.AppConfig for all standard settings and adds gitops-only keys
+// that are extracted before the config is sent to the server API.
+type GitOpsOrgSettings struct {
+	fleet.AppConfig
+	Secrets                any `json:"secrets"`
+	CertificateAuthorities any `json:"certificate_authorities"`
+}
+
+// GitOpsTeamSettings defines the valid keys for the top-level `settings:` section (team-level).
+// It embeds fleet.TeamConfig for all standard settings and adds gitops-only keys
+// that are extracted before the config is sent to the server API.
+type GitOpsTeamSettings struct {
+	fleet.TeamConfig
+	Secrets any `json:"secrets"`
+}
+
 type GitOps struct {
 	TeamID       *uint
 	TeamName     *string
@@ -499,7 +516,9 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"org_settings"}, err))
 	}
 	noError := true
+	settingsFilePath := filePath
 	if orgSettingsTop.Path != nil {
+		settingsFilePath = *orgSettingsTop.Path
 		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *orgSettingsTop.Path))
 		if err != nil {
 			noError = false
@@ -540,6 +559,8 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 		} else {
 			multiError = parseSecrets(result, multiError)
 		}
+		// Validate unknown keys in org_settings section.
+		multiError = multierror.Append(multiError, validateYAMLKeys(raw, reflect.TypeFor[GitOpsOrgSettings](), settingsFilePath, []string{"org_settings"})...)
 		// TODO: Validate that integrations.(jira|zendesk)[].api_token is not empty or fleet.MaskedPassword
 	}
 	return multiError
@@ -551,7 +572,9 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, file
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"settings"}, err))
 	}
 	noError := true
+	settingsFilePath := filePath
 	if teamSettingsTop.Path != nil {
+		settingsFilePath = *teamSettingsTop.Path
 		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *teamSettingsTop.Path))
 		if err != nil {
 			noError = false
@@ -594,6 +617,8 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, file
 			// Validate webhook settings for regular teams
 			multiError = validateTeamWebhookSettings(result.TeamSettings, multiError)
 		}
+		// Validate unknown keys in team settings section.
+		multiError = multierror.Append(multiError, validateYAMLKeys(raw, reflect.TypeFor[GitOpsTeamSettings](), settingsFilePath, []string{"settings"})...)
 	}
 	return multiError
 }
