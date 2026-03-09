@@ -7397,20 +7397,6 @@ func (ds *Datastore) SetRecoveryLockPendingByHostUUIDs(ctx context.Context, host
 	return nil
 }
 
-func (ds *Datastore) SetRecoveryLockVerifying(ctx context.Context, hostUUID string) error {
-	stmt := fmt.Sprintf(`
-		UPDATE host_recovery_key_passwords
-		SET status = '%s'
-		WHERE host_uuid = ?
-	`, fleet.MDMDeliveryVerifying)
-
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "set recovery lock verifying")
-	}
-
-	return nil
-}
-
 func (ds *Datastore) SetRecoveryLockVerified(ctx context.Context, hostUUID string) error {
 	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords

@@ -589,28 +589,6 @@ func (svc *MDMAppleCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []s
 	return nil
 }
 
-// VerifyRecoveryLock sends the VerifyRecoveryLock MDM command to verify the recovery lock password.
-// See https://developer.apple.com/documentation/devicemanagement/verifyrecoverylockcommand
-func (svc *MDMAppleCommander) VerifyRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string, password string) error {
-	cmdPayload := commandPayload{
-		CommandUUID: cmdUUID,
-		Command: map[string]any{
-			"RequestType": "VerifyRecoveryLock",
-			"Password":    password,
-		},
-	}
-	rawBytes, err := plist.MarshalIndent(cmdPayload, "    ")
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "marshalling VerifyRecoveryLock payload")
-	}
-
-	if err := svc.EnqueueCommand(ctx, hostUUIDs, string(rawBytes)); err != nil {
-		return ctxerr.Wrap(ctx, err, "enqueuing VerifyRecoveryLock command")
-	}
-
-	return nil
-}
-
 // APNSDeliveryError records an error and the associated host UUIDs in which it
 // occurred.
 type APNSDeliveryError struct {

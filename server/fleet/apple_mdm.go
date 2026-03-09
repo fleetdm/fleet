@@ -28,7 +28,6 @@ type MDMAppleCommandIssuer interface {
 	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
 	DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
-	VerifyRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string, password string) error
 }
 
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
@@ -1123,11 +1122,10 @@ type AppleMDMVPPInstaller interface {
 }
 
 const (
-	DeviceLocationCmdName     = "DeviceLocation"
-	EnableLostModeCmdName     = "EnableLostMode"
-	DisableLostModeCmdName    = "DisableLostMode"
-	SetRecoveryLockCmdName    = "SetRecoveryLock"
-	VerifyRecoveryLockCmdName = "VerifyRecoveryLock"
+	DeviceLocationCmdName  = "DeviceLocation"
+	EnableLostModeCmdName  = "EnableLostMode"
+	DisableLostModeCmdName = "DisableLostMode"
+	SetRecoveryLockCmdName = "SetRecoveryLock"
 )
 
 type HostLocationData struct {
@@ -1135,9 +1133,6 @@ type HostLocationData struct {
 	Latitude  float64 `db:"latitude"`
 	Longitude float64 `db:"longitude"`
 }
-
-// VerifyRecoveryLockCommandPrefix is the prefix used for VerifyRecoveryLock MDM command UUIDs.
-const VerifyRecoveryLockCommandPrefix = "VERIFY-RECOVERY-LOCK-"
 
 // HostRecoveryLockPassword represents a recovery lock password for a host.
 type HostRecoveryLockPassword struct {

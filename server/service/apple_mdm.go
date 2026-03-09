@@ -3896,16 +3896,6 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		if err := svc.runCommandHandlers(r.Context, fleet.SetRecoveryLockCmdName, res); err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "SetRecoveryLock: calling handlers")
 		}
-
-	case fleet.VerifyRecoveryLockCmdName:
-		host, err := svc.ds.HostByIdentifier(r.Context, cmdResult.Identifier())
-		if err != nil {
-			return nil, ctxerr.Wrap(r.Context, err, "VerifyRecoveryLock: get host by identifier")
-		}
-		res := NewRecoveryLockResult(cmdResult, host)
-		if err := svc.runCommandHandlers(r.Context, fleet.VerifyRecoveryLockCmdName, res); err != nil {
-			return nil, ctxerr.Wrap(r.Context, err, "VerifyRecoveryLock: calling handlers")
-		}
 	}
 
 	return nil, nil
@@ -7348,18 +7338,11 @@ func NewRecoveryLockResult(cmdResult *mdm.CommandResults, host *fleet.Host) flee
 	return &recoveryLockResult{cmdResult: cmdResult, host: host}
 }
 
-// RecoveryLockVerifier defines the methods needed for verifying recovery lock passwords.
-type RecoveryLockVerifier interface {
-	VerifyRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID, password string) error
-}
-
 // NewSetRecoveryLockResultsHandler processes SetRecoveryLock command results.
-// When a SetRecoveryLock command is acknowledged, it sends a VerifyRecoveryLock
-// command to verify the password was set correctly, and updates the status to "verifying".
+// When a SetRecoveryLock command is acknowledged, it marks the recovery lock as verified.
 // On error, it marks the recovery lock as failed.
 func NewSetRecoveryLockResultsHandler(
 	ds fleet.Datastore,
-	commander RecoveryLockVerifier,
 	logger *slog.Logger,
 ) fleet.MDMCommandResultsHandler {
 	return func(ctx context.Context, results fleet.MDMCommandResults) error {
@@ -7381,32 +7364,14 @@ func NewSetRecoveryLockResultsHandler(
 
 		switch status {
 		case fleet.MDMAppleStatusAcknowledged:
-			// Get the stored password to send VerifyRecoveryLock
-			rkp, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: get host recovery lock password")
-			}
-			if rkp == nil {
-				return ctxerr.New(ctx, "SetRecoveryLock handler: no recovery lock password found for host")
+			// ACK means the password was successfully applied - mark as verified
+			if err := ds.SetRecoveryLockVerified(ctx, host.UUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock verified")
 			}
 
-			// Generate verification command UUID with prefix
-			verifyCmdUUID := fleet.VerifyRecoveryLockCommandPrefix + uuid.NewString()
-
-			// Send VerifyRecoveryLock command
-			if err := commander.VerifyRecoveryLock(ctx, []string{host.UUID}, verifyCmdUUID, rkp.Password); err != nil {
-				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: send VerifyRecoveryLock command")
-			}
-
-			// Update status to verifying
-			if err := ds.SetRecoveryLockVerifying(ctx, host.UUID); err != nil {
-				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock verifying")
-			}
-
-			logger.InfoContext(ctx, "SetRecoveryLock acknowledged, sent VerifyRecoveryLock",
+			logger.InfoContext(ctx, "SetRecoveryLock acknowledged, marked verified",
 				"host_id", host.ID,
 				"host_uuid", host.UUID,
-				"verify_command_uuid", verifyCmdUUID,
 			)
 
 		case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
@@ -7421,101 +7386,6 @@ func NewSetRecoveryLockResultsHandler(
 				"host_id", host.ID,
 				"host_uuid", host.UUID,
 				"error", errorMsg,
-			)
-		}
-
-		return nil
-	}
-}
-
-// verifyRecoveryLockResponse represents the MDM response for VerifyRecoveryLock command.
-type verifyRecoveryLockResponse struct {
-	Status           string `plist:"Status"`
-	PasswordVerified bool   `plist:"PasswordVerified"`
-}
-
-// NewVerifyRecoveryLockResultsHandler processes VerifyRecoveryLock command results.
-// When a VerifyRecoveryLock command is acknowledged with PasswordVerified=true,
-// it marks the recovery lock as verified. If PasswordVerified=false, it marks as failed.
-// NotNow status is ignored (device will retry).
-func NewVerifyRecoveryLockResultsHandler(
-	ds fleet.Datastore,
-	logger *slog.Logger,
-) fleet.MDMCommandResultsHandler {
-	return func(ctx context.Context, results fleet.MDMCommandResults) error {
-		// Check if this is a verification command from fleet, not from fleetctl
-		if !strings.HasPrefix(results.UUID(), fleet.VerifyRecoveryLockCommandPrefix) {
-			// Not a VerifyRecoveryLock command from our cron job, skip
-			return nil
-		}
-
-		// Get the underlying result to access status, error chain, and host
-		rlResult, ok := results.(*recoveryLockResult)
-		if !ok {
-			return ctxerr.New(ctx, "VerifyRecoveryLock handler: unexpected results type")
-		}
-
-		host := rlResult.Host()
-		status := rlResult.cmdResult.Status
-
-		logger.DebugContext(ctx, "VerifyRecoveryLock command result received",
-			"host_id", host.ID,
-			"host_uuid", host.UUID,
-			"command_uuid", results.UUID(),
-			"status", status,
-		)
-
-		switch status {
-		case fleet.MDMAppleStatusAcknowledged:
-			// Parse the response to check PasswordVerified field
-			var response verifyRecoveryLockResponse
-			if err := plist.Unmarshal(rlResult.cmdResult.Raw, &response); err != nil {
-				return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock handler: unmarshal response")
-			}
-
-			if response.PasswordVerified {
-				// Password verified successfully
-				if err := ds.SetRecoveryLockVerified(ctx, host.UUID); err != nil {
-					return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock handler: set recovery lock verified")
-				}
-
-				logger.InfoContext(ctx, "VerifyRecoveryLock acknowledged, password verified",
-					"host_id", host.ID,
-					"host_uuid", host.UUID,
-					"command_uuid", results.UUID(),
-				)
-			} else {
-				// Password verification failed - password doesn't match
-				if err := ds.SetRecoveryLockFailed(ctx, host.UUID, "password verification failed: password does not match"); err != nil {
-					return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock handler: set recovery lock failed")
-				}
-
-				logger.WarnContext(ctx, "VerifyRecoveryLock acknowledged but password verification failed",
-					"host_id", host.ID,
-					"host_uuid", host.UUID,
-					"command_uuid", results.UUID(),
-				)
-			}
-
-		case fleet.MDMAppleStatusNotNow:
-			// Device is busy, will retry later. Leave status as verifying.
-			logger.DebugContext(ctx, "VerifyRecoveryLock returned NotNow, device will retry",
-				"host_id", host.ID,
-				"host_uuid", host.UUID,
-				"command_uuid", results.UUID(),
-			)
-
-		case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
-			// Command error
-			errorMsg := apple_mdm.FmtErrorChain(rlResult.cmdResult.ErrorChain)
-			if err := ds.SetRecoveryLockFailed(ctx, host.UUID, errorMsg); err != nil {
-				return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock handler: set recovery lock failed")
-			}
-
-			logger.WarnContext(ctx, "VerifyRecoveryLock command failed",
-				"host_id", host.ID,
-				"host_uuid", host.UUID,
-				"command_uuid", results.UUID(),
 			)
 		}
 

@@ -1510,9 +1510,6 @@ type Datastore interface {
 	// This is called after successfully enqueuing SetRecoveryLock commands.
 	SetRecoveryLockPendingByHostUUIDs(ctx context.Context, hostUUIDs []string) error
 
-	// SetRecoveryLockVerifying sets the recovery lock status to verifying.
-	SetRecoveryLockVerifying(ctx context.Context, hostUUID string) error
-
 	// SetRecoveryLockVerified marks the recovery lock as verified.
 	SetRecoveryLockVerified(ctx context.Context, hostUUID string) error
 

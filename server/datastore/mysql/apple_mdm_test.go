@@ -10077,20 +10077,6 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		assert.Equal(t, string(fleet.MDMDeliveryPending), status)
 	})
 
-	t.Run("SetRecoveryLockVerifying", func(t *testing.T) {
-		host := setupHost(t, "verifying-host", "1.2.3.8", "verifyingkey", "verifyinguuid")
-
-		// Set verifying status
-		err := ds.SetRecoveryLockVerifying(ctx, host.UUID)
-		require.NoError(t, err)
-
-		// Verify status
-		var status string
-		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_id = ?", host.ID)
-		require.NoError(t, err)
-		assert.Equal(t, string(fleet.MDMDeliveryVerifying), status)
-	})
-
 	t.Run("SetRecoveryLockVerified", func(t *testing.T) {
 		host := setupHost(t, "verified-host", "1.2.3.9", "verifiedkey", "verifieduuid")
 
