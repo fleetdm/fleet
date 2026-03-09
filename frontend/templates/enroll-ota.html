@@ -51,6 +51,8 @@
         font-size: 14px;
         line-height: 21px;
         text-align: center;
+        border: none;
+        cursor: pointer;
       }
 
       header {
@@ -61,14 +63,14 @@
       p {
         font-size: 14px;
       }
-    
+
       a {
         color: #515774;
         text-decoration: none;
         font-weight: 600;
         border-bottom: 1px solid #e2e4ea;
       }
-      
+
       ol {
         display: flex;
         flex-direction: column;
@@ -87,6 +89,13 @@
 
       .android-content {
         margin-top: 48px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+      }
+
+      .switch-browser-content {
         display: flex;
         flex-direction: column;
         align-items: flex-start;
@@ -234,9 +243,27 @@
                   href="https://support.google.com/android/answer/6088915?hl=en"
                 >
                   factory reset it
-                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="0.5" y="0.5" width="8" height="8" rx="2" stroke="#515774"/>
-                    <path d="M3.49992 2.83325H6.16659M6.16659 2.83325V5.49992M6.16659 2.83325L2.83325 6.16659" stroke="#515774" stroke-linecap="round" stroke-linejoin="round"/>
+                  <svg
+                    width="9"
+                    height="9"
+                    viewBox="0 0 9 9"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <rect
+                      x="0.5"
+                      y="0.5"
+                      width="8"
+                      height="8"
+                      rx="2"
+                      stroke="#515774"
+                    />
+                    <path
+                      d="M3.49992 2.83325H6.16659M6.16659 2.83325V5.49992M6.16659 2.83325L2.83325 6.16659"
+                      stroke="#515774"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
                   </svg>
                 </a>
               </span>
@@ -310,7 +337,7 @@
               <span>3.</span>
               <span>
                 Tap <b>Install</b>. You'll see a few warnings, which is
-                expected. jk Tap <b>Install</b> again when prompted.
+                expected. Tap <b>Install</b> again when prompted.
               </span>
             </p>
             <div class="install-profile-container">
@@ -391,6 +418,24 @@
       </div>
     </template>
 
+    <!-- Open in Safari content (iOS/iPadOS only) -->
+    <template id="open-in-safari-template">
+      <section class="device-instructions-content">
+        <h1>Please open in Safari</h1>
+        <div class="switch-browser-content">
+          <p>
+            To enroll your device, this page needs to be opened in
+            <b>Safari</b>.
+          </p>
+          <button class="enroll-link open-safari-btn">Open in Safari</button>
+          <p class="safari-fallback-msg" style="display: none">
+            URL copied to clipboard. Please open <b>Safari</b> and paste the
+            URL.
+          </p>
+        </div>
+      </section>
+    </template>
+
     <!-- Error content -->
     <template id="error-template">
       <h1 class="error-header">
@@ -466,6 +511,67 @@
           default:
             return "unsupported";
         }
+      };
+
+      // Detects if the browser is Safari on iOS/iPadOS
+      // Other browsers on iOS: CriOS (Chrome), FxiOS (Firefox), EdgiOS (Edge), OPiOS or OPT (Opera)
+      // Brave (Brave)
+      const isSafariBrowser = () => {
+        const ua = navigator.userAgent;
+        return (
+          /Safari/i.test(ua) &&
+          !/CriOS/i.test(ua) &&
+          !/FxiOS/i.test(ua) &&
+          !/EdgiOS/i.test(ua) &&
+          !/OPiOS/i.test(ua) &&
+          !/OPT/i.test(ua) &&
+          !/Brave/i.test(ua)
+        );
+      };
+
+      // Attempts to open the current URL in Safari, falls back to clipboard copy
+      const openInSafari = async () => {
+        const currentUrl = window.location.href;
+        const safariUrl = currentUrl.replace(
+          /^https?:\/\//,
+          "x-safari-https://"
+        );
+
+        // Track if the page loses focus (indicates Safari opened)
+        let didNavigate = false;
+        const handleBlur = () => {
+          didNavigate = true;
+        };
+        window.addEventListener("blur", handleBlur);
+
+        // Try to open Safari via URL scheme
+        window.location.href = safariUrl;
+
+        // Wait a moment to see if navigation occurred
+        setTimeout(async () => {
+          window.removeEventListener("blur", handleBlur);
+
+          if (!didNavigate) {
+            // URL scheme didn't work, fall back to clipboard
+            try {
+              await navigator.clipboard.writeText(currentUrl);
+              const fallbackMsg = document.querySelector(
+                ".safari-fallback-msg"
+              );
+              const openBtn = document.querySelector(".open-safari-btn");
+              if (fallbackMsg) {
+                fallbackMsg.style.display = "block";
+              }
+              if (openBtn) {
+                openBtn.textContent = "URL Copied";
+                openBtn.disabled = true;
+                openBtn.style.backgroundColor = "#6A6A6A";
+              }
+            } catch (err) {
+              console.error("Failed to copy URL to clipboard", err);
+            }
+          }
+        }, 500);
       };
 
       /**
@@ -688,6 +794,16 @@
 
         // handle rendering for ios and ipad
         if (platform === "ios" || platform === "ipad") {
+          // Check if user is NOT in Safari - redirect them to Safari
+          if (!isSafariBrowser()) {
+            renderContent("open-in-safari-template");
+            const openBtn = document.querySelector(".open-safari-btn");
+            if (openBtn) {
+              openBtn.addEventListener("click", openInSafari);
+            }
+            return;
+          }
+
           if (!MAC_MDM_ENABLED) {
             const description = `To enroll your ${
               platform === "ios" ? "iPhone" : "iPad"
