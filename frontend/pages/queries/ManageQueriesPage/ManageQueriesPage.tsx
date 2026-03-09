@@ -334,7 +334,7 @@ const ManageQueriesPage = ({
       } catch (errorResponse) {
         renderFlash(
           "error",
-          `There was an error updating your report automations. Please try again later.`,
+          `There was an error updating your report automations. Please try again later.`
         );
       } finally {
         toggleManageAutomationsModal();
