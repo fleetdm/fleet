@@ -45,12 +45,16 @@ func NewMDMAppleCommander(mdmStorage fleet.MDMAppleStore, mdmPushService nanomdm
 
 // InstallProfile sends the homonymous MDM command to the given hosts, it also
 // takes care of the base64 encoding of the provided profile bytes.
-func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error {
+func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string, notify bool) error {
 	raw, err := svc.SignAndEncodeInstallProfile(ctx, profile, uuid)
 	if err != nil {
 		return err
 	}
-	err = svc.EnqueueCommand(ctx, hostUUIDs, raw)
+	if notify {
+		err = svc.EnqueueCommand(ctx, hostUUIDs, raw)
+	} else {
+		err = svc.EnqueueCommandWithoutNotification(ctx, hostUUIDs, raw)
+	}
 	return ctxerr.Wrap(ctx, err, "commander install profile")
 }
 
@@ -80,7 +84,7 @@ func (svc *MDMAppleCommander) SignAndEncodeInstallProfile(ctx context.Context, p
 }
 
 // RemoveProfile sends the homonymous MDM command to the given hosts.
-func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []string, profileIdentifier string, uuid string) error {
+func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []string, profileIdentifier string, uuid string, notify bool) error {
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -96,7 +100,12 @@ func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []str
 	</dict>
 </dict>
 </plist>`, uuid, profileIdentifier)
-	err := svc.EnqueueCommand(ctx, hostUUIDs, raw)
+	var err error
+	if notify {
+		err = svc.EnqueueCommand(ctx, hostUUIDs, raw)
+	} else {
+		err = svc.EnqueueCommandWithoutNotification(ctx, hostUUIDs, raw)
+	}
 	return ctxerr.Wrap(ctx, err, "commander remove profile")
 }
 
@@ -507,6 +516,26 @@ func (svc *MDMAppleCommander) EnqueueCommand(ctx context.Context, hostUUIDs []st
 	return svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeNone)
 }
 
+func (svc *MDMAppleCommander) EnqueueCommandWithoutNotification(ctx context.Context, hostUUIDs []string, rawCommand string) error {
+	cmd, err := mdm.DecodeCommand([]byte(rawCommand))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding command")
+	}
+
+	return svc.enqueue(ctx, hostUUIDs, cmd, mdm.CommandSubtypeNone)
+}
+
+func (svc *MDMAppleCommander) enqueue(ctx context.Context, hostUUIDs []string, cmd *mdm.Command,
+	subtype mdm.CommandSubtype,
+) error {
+	if _, err := svc.storage.EnqueueCommand(ctx, hostUUIDs,
+		&mdm.CommandWithSubtype{Command: *cmd, Subtype: subtype}); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing command")
+	}
+
+	return nil
+}
+
 func (svc *MDMAppleCommander) enqueueAndNotify(ctx context.Context, hostUUIDs []string, cmd *mdm.Command,
 	subtype mdm.CommandSubtype,
 ) error {
@@ -524,7 +553,7 @@ func (svc *MDMAppleCommander) enqueueAndNotify(ctx context.Context, hostUUIDs []
 // EnqueueCommandInstallProfileWithSecrets is a special case of EnqueueCommand that does not expand secret variables.
 // Secret variables are expanded when the command is sent to the device, and secrets are never stored in the database unencrypted.
 func (svc *MDMAppleCommander) EnqueueCommandInstallProfileWithSecrets(ctx context.Context, hostUUIDs []string,
-	rawCommand mobileconfig.Mobileconfig, commandUUID string,
+	rawCommand mobileconfig.Mobileconfig, commandUUID string, notify bool,
 ) error {
 	cmd := &mdm.Command{
 		CommandUUID: commandUUID,
@@ -532,7 +561,11 @@ func (svc *MDMAppleCommander) EnqueueCommandInstallProfileWithSecrets(ctx contex
 	}
 	cmd.Command.RequestType = "InstallProfile"
 
-	return svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeProfileWithSecrets)
+	if notify {
+		return svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeProfileWithSecrets)
+	}
+
+	return svc.enqueue(ctx, hostUUIDs, cmd, mdm.CommandSubtypeProfileWithSecrets)
 }
 
 func (svc *MDMAppleCommander) SendNotifications(ctx context.Context, hostUUIDs []string) error {
