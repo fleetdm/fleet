@@ -309,7 +309,7 @@ const ManageQueriesPage = ({
       );
       // Query ids removed to turn off automations
       const turnOffAutomations = previousAutomatedQueryIds.filter(
-        (id) => !newAutomatedQueryIds.includes(id),
+        (id) => !newAutomatedQueryIds.includes(id)
       );
 
       // Update query automations using queries/{id} manage_automations parameter
