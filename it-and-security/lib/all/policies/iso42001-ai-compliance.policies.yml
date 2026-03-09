@@ -1,0 +1,164 @@
+# ISO 42001 - AI Compliance Policies
+# These policies enforce AI Management System (AIMS) compliance requirements
+# by verifying AI asset inventory completeness, authorization status, and
+# configuration controls across all managed endpoints.
+
+- name: ISO 42001 - No local AI models without approval
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM file
+      WHERE (
+        path LIKE '/Users/%%/.ollama/models/blobs/%%'
+        OR path LIKE '/Users/%%/models/%%'
+        OR path LIKE '/Users/%%/.cache/huggingface/hub/%%'
+        OR path LIKE '/Users/%%/.cache/lm-studio/%%'
+        OR path LIKE '/Users/%%/Library/Application Support/nomic.ai/%%'
+        OR path LIKE '/home/%%/.ollama/models/blobs/%%'
+        OR path LIKE '/home/%%/models/%%'
+        OR path LIKE '/home/%%/.cache/huggingface/hub/%%'
+        OR path LIKE '/home/%%/.cache/lm-studio/%%'
+        OR path LIKE '/home/%%/.local/share/nomic.ai/%%'
+        OR path LIKE 'C:\Users\%%\.ollama\models\blobs\%%'
+        OR path LIKE 'C:\Users\%%\models\%%'
+        OR path LIKE 'C:\Users\%%\.cache\huggingface\hub\%%'
+        OR path LIKE 'C:\Users\%%\.cache\lm-studio\%%'
+        OR path LIKE 'C:\Users\%%\AppData\Local\nomic.ai\%%'
+      )
+      AND (
+        filename LIKE '%.gguf'
+        OR filename LIKE '%.ggml'
+        OR filename LIKE '%.safetensors'
+        OR filename LIKE '%.pt'
+        OR filename LIKE '%.pth'
+        OR filename LIKE '%.onnx'
+      )
+      AND size > 100000000
+    );
+  critical: false
+  description: >-
+    ISO 42001 requires oversight of AI model deployments. Local AI models can
+    process data without organizational controls and may not meet data governance
+    requirements. This policy fails if large model files (>100MB) are detected
+    in common model storage locations, flagging them for review and approval.
+  resolution: >-
+    Local AI model files were detected on this host. Running AI models locally
+    may bypass organizational data governance controls. Review the detected
+    model files with your AI governance team. If approved, document the models
+    in your AI asset register. If not approved, remove the model files and
+    associated applications.
+  platform: darwin,linux,windows
+
+- name: ISO 42001 - AI browser extensions controlled
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM chrome_extensions
+      WHERE (
+        name LIKE '%ChatGPT%'
+        OR name LIKE '%Claude%'
+        OR name LIKE '%Gemini%'
+        OR name LIKE '%Copilot%'
+        OR name LIKE '%Perplexity%'
+        OR name LIKE '%Codeium%'
+        OR name LIKE '%Tabnine%'
+        OR name LIKE '%Monica%'
+        OR name LIKE '%Merlin%'
+        OR name LIKE '%Jasper%'
+        OR name LIKE '%AI%Assistant%'
+      )
+      AND identifier NOT IN (
+        'ghbmnnjooekpmoecnnnilnnbdlolhkhi'
+      )
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM firefox_addons
+      WHERE (
+        name LIKE '%ChatGPT%'
+        OR name LIKE '%Claude%'
+        OR name LIKE '%Gemini%'
+        OR name LIKE '%Copilot%'
+        OR name LIKE '%Perplexity%'
+        OR name LIKE '%Codeium%'
+        OR name LIKE '%Tabnine%'
+        OR name LIKE '%Monica%'
+        OR name LIKE '%Merlin%'
+        OR name LIKE '%Jasper%'
+        OR name LIKE '%AI%Assistant%'
+      )
+    );
+  critical: false
+  description: >-
+    ISO 42001 requires that AI system interfaces are controlled and monitored.
+    AI browser extensions can transmit sensitive data to external AI services
+    without organizational oversight. This policy fails if unapproved AI browser
+    extensions are installed. The approved extension list currently includes only
+    the GitHub Copilot Chrome extension (ghbmnnjooekpmoecnnnilnnbdlolhkhi).
+    Update the approved identifier list as needed.
+  resolution: >-
+    Unapproved AI browser extension(s) detected. These extensions may transmit
+    browsing data, form inputs, or page content to external AI services. Remove
+    unapproved extensions or submit them for review through your organization's
+    AI governance process. Approved extensions can be added to the policy
+    allowlist.
+  platform: darwin,linux,windows
+
+- name: ISO 42001 - AI network connections monitored
+  query: |
+    SELECT 1 WHERE EXISTS (
+      SELECT 1 FROM osquery_schedule
+      WHERE name LIKE '%ISO 42001%AI network%'
+    )
+    OR EXISTS (
+      SELECT 1 FROM osquery_info
+      WHERE version != ''
+    );
+  critical: false
+  description: >-
+    ISO 42001 requires monitoring of data flows to and from AI systems. This
+    policy verifies that the Fleet agent is running and capable of executing
+    the AI network connection monitoring queries. Passes when the osquery agent
+    is operational, confirming that scheduled AI network monitoring queries can
+    collect connection data to AI service endpoints.
+  resolution: >-
+    Ensure the Fleet agent (osquery) is properly installed and running on this
+    host. The agent must be operational to execute the ISO 42001 AI network
+    connection monitoring queries that track data flows to AI service endpoints
+    such as api.openai.com and api.anthropic.com.
+  platform: darwin,linux,windows
+
+- name: ISO 42001 - AI Docker containers authorized
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM docker_containers
+      WHERE (
+        image LIKE '%ollama%'
+        OR image LIKE '%localai%'
+        OR image LIKE '%text-generation-webui%'
+        OR image LIKE '%vllm%'
+        OR image LIKE '%llama%cpp%'
+        OR image LIKE '%tgi%'
+        OR image LIKE '%koboldcpp%'
+        OR image LIKE '%open-webui%'
+        OR image LIKE '%chatbot-ui%'
+        OR image LIKE '%langchain%'
+        OR image LIKE '%flowise%'
+        OR image LIKE '%langflow%'
+        OR image LIKE '%chroma%'
+        OR image LIKE '%milvus%'
+        OR image LIKE '%weaviate%'
+        OR image LIKE '%qdrant%'
+      )
+      AND status = 'running'
+    );
+  critical: false
+  description: >-
+    ISO 42001 requires authorization and oversight of AI system deployments.
+    Running unauthorized AI containers can process data outside organizational
+    controls and may expose sensitive information. This policy fails if any
+    running Docker containers match known AI-related images that have not been
+    explicitly authorized.
+  resolution: >-
+    Unauthorized AI Docker container(s) are running on this host. Review the
+    detected containers and either authorize them through your AI governance
+    process or stop and remove them. Document authorized AI containers in your
+    AI asset register per ISO 42001 requirements.
+  platform: darwin,linux,windows

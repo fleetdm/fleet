@@ -1,0 +1,43 @@
+# ISO 42001 - AI applications installed (Linux)
+- name: ISO 42001 - AI applications installed (Linux)
+  description: >-
+    Discovers installed AI desktop applications including Claude, GitHub Copilot,
+    Ollama, LM Studio, and other AI tools on Linux using the deb_packages and
+    rpm_packages tables. Supports ISO 42001 Annex A control for AI asset inventory.
+  query: |
+    SELECT
+      name,
+      version,
+      source AS identifier,
+      '' AS install_path,
+      'installed_app' AS discovery_source
+    FROM deb_packages
+    WHERE name LIKE '%claude%'
+      OR name LIKE '%copilot%'
+      OR name LIKE '%ollama%'
+      OR name LIKE '%lm-studio%'
+      OR name LIKE '%lmstudio%'
+      OR name LIKE '%gpt4all%'
+      OR name LIKE '%chatgpt%'
+      OR name LIKE '%gemini%'
+    UNION ALL
+    SELECT
+      name,
+      version,
+      release AS identifier,
+      '' AS install_path,
+      'installed_app' AS discovery_source
+    FROM rpm_packages
+    WHERE name LIKE '%claude%'
+      OR name LIKE '%copilot%'
+      OR name LIKE '%ollama%'
+      OR name LIKE '%lm-studio%'
+      OR name LIKE '%lmstudio%'
+      OR name LIKE '%gpt4all%'
+      OR name LIKE '%chatgpt%'
+      OR name LIKE '%gemini%';
+  platform: linux
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot

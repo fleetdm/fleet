@@ -1,0 +1,39 @@
+# ISO 42001 - AI applications are up-to-date (Linux)
+- name: ISO 42001 - AI applications are up-to-date (Linux)
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM deb_packages
+      WHERE name LIKE '%ollama%'
+        AND version_compare(version, '0.6.0') < 0
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM rpm_packages
+      WHERE name LIKE '%ollama%'
+        AND version_compare(version, '0.6.0') < 0
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM python_packages
+      WHERE name = 'openai'
+        AND version_compare(version, '1.0.0') < 0
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM python_packages
+      WHERE name = 'anthropic'
+        AND version_compare(version, '0.30.0') < 0
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM python_packages
+      WHERE name = 'langchain'
+        AND version_compare(version, '0.2.0') < 0
+    );
+  critical: false
+  description: >-
+    ISO 42001 requires that AI systems are maintained and kept up-to-date to
+    mitigate known vulnerabilities. This policy checks that known AI applications
+    on Linux meet minimum approved version thresholds.
+  resolution: >-
+    One or more AI applications on this host are below the minimum approved
+    version. Update the affected AI tools to their latest approved versions.
+    Check with your IT team for approved update procedures and version
+    requirements.
+  platform: linux

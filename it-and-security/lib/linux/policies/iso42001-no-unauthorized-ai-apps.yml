@@ -1,0 +1,41 @@
+# ISO 42001 - No unauthorized AI applications (Linux)
+- name: ISO 42001 - No unauthorized AI applications (Linux)
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM deb_packages
+      WHERE (
+        name LIKE '%claude%'
+        OR name LIKE '%copilot%'
+        OR name LIKE '%ollama%'
+        OR name LIKE '%lm-studio%'
+        OR name LIKE '%lmstudio%'
+        OR name LIKE '%gpt4all%'
+        OR name LIKE '%open-interpreter%'
+      )
+      AND name NOT LIKE '%copilot%'
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM rpm_packages
+      WHERE (
+        name LIKE '%claude%'
+        OR name LIKE '%copilot%'
+        OR name LIKE '%ollama%'
+        OR name LIKE '%lm-studio%'
+        OR name LIKE '%lmstudio%'
+        OR name LIKE '%gpt4all%'
+        OR name LIKE '%open-interpreter%'
+      )
+      AND name NOT LIKE '%copilot%'
+    );
+  critical: false
+  description: >-
+    ISO 42001 requires that only approved AI applications are deployed within
+    the organization. This policy checks for AI packages outside the approved
+    list (currently only GitHub Copilot is approved) on Linux. Fails if any
+    unauthorized AI packages are detected.
+  resolution: >-
+    Unauthorized AI application(s) detected on this host. Review the installed
+    AI packages and either add them to the approved list in this policy or
+    remove them from the device. Consult your organization's AI usage policy
+    and the ISO 42001 AI risk assessment for guidance.
+  platform: linux

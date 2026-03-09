@@ -1,0 +1,34 @@
+# ISO 42001 - AI applications are up-to-date (macOS)
+- name: ISO 42001 - AI applications are up-to-date (macOS)
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM apps
+      WHERE bundle_identifier LIKE 'com.ollama%'
+        AND version_compare(bundle_short_version, '0.6.0') < 0
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM python_packages
+      WHERE name = 'openai'
+        AND version_compare(version, '1.0.0') < 0
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM python_packages
+      WHERE name = 'anthropic'
+        AND version_compare(version, '0.30.0') < 0
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM python_packages
+      WHERE name = 'langchain'
+        AND version_compare(version, '0.2.0') < 0
+    );
+  critical: false
+  description: >-
+    ISO 42001 requires that AI systems are maintained and kept up-to-date to
+    mitigate known vulnerabilities. This policy checks that known AI applications
+    on macOS meet minimum approved version thresholds.
+  resolution: >-
+    One or more AI applications on this host are below the minimum approved
+    version. Update the affected AI tools to their latest approved versions.
+    Check with your IT team for approved update procedures and version
+    requirements.
+  platform: darwin

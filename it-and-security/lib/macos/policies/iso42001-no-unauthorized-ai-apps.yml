@@ -1,0 +1,36 @@
+# ISO 42001 - No unauthorized AI applications (macOS)
+- name: ISO 42001 - No unauthorized AI applications (macOS)
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM apps
+      WHERE (
+        name LIKE '%Claude%'
+        OR name LIKE '%Copilot%'
+        OR name LIKE '%Gemini%'
+        OR name LIKE '%ChatGPT%'
+        OR name LIKE '%Ollama%'
+        OR name LIKE '%LM Studio%'
+        OR name LIKE '%GPT4All%'
+        OR name LIKE '%Open Interpreter%'
+        OR name LIKE '%Jan%AI%'
+        OR name LIKE '%Msty%'
+        OR bundle_identifier LIKE 'com.anthropic%'
+        OR bundle_identifier LIKE 'com.openai%'
+        OR bundle_identifier LIKE '%github.copilot%'
+        OR bundle_identifier LIKE 'com.lmstudio%'
+        OR bundle_identifier LIKE 'com.ollama%'
+      )
+      AND name NOT LIKE '%GitHub Copilot%'
+    );
+  critical: false
+  description: >-
+    ISO 42001 requires that only approved AI applications are deployed within
+    the organization. This policy checks for AI applications outside the
+    approved list (currently only GitHub Copilot is approved) on macOS. Fails
+    if any unauthorized AI desktop applications are detected.
+  resolution: >-
+    Unauthorized AI application(s) detected on this host. Review the installed
+    AI applications and either add them to the approved list in this policy or
+    remove them from the device. Consult your organization's AI usage policy
+    and the ISO 42001 AI risk assessment for guidance.
+  platform: darwin

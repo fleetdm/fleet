@@ -1,0 +1,44 @@
+# ISO 42001 - AI applications inventory exists (Linux)
+- name: ISO 42001 - AI applications inventory exists (Linux)
+  query: |
+    SELECT 1 WHERE EXISTS (
+      SELECT 1 FROM deb_packages
+      WHERE name LIKE '%claude%'
+        OR name LIKE '%copilot%'
+        OR name LIKE '%ollama%'
+        OR name LIKE '%lm-studio%'
+        OR name LIKE '%lmstudio%'
+        OR name LIKE '%gpt4all%'
+    )
+    OR EXISTS (
+      SELECT 1 FROM rpm_packages
+      WHERE name LIKE '%claude%'
+        OR name LIKE '%copilot%'
+        OR name LIKE '%ollama%'
+        OR name LIKE '%lm-studio%'
+        OR name LIKE '%lmstudio%'
+        OR name LIKE '%gpt4all%'
+    )
+    OR EXISTS (
+      SELECT 1 FROM python_packages
+      WHERE name IN ('openai', 'anthropic', 'transformers', 'langchain', 'torch', 'tensorflow')
+    )
+    OR EXISTS (
+      SELECT 1 FROM chrome_extensions
+      WHERE name LIKE '%Copilot%'
+        OR name LIKE '%Gemini%'
+        OR name LIKE '%ChatGPT%'
+        OR name LIKE '%Claude%'
+    );
+  critical: false
+  description: >-
+    ISO 42001 Annex A requires organizations to maintain an inventory of AI
+    systems and components. This policy verifies that AI discovery data is
+    being collected from the Linux endpoint. Passes if any AI applications,
+    packages, or extensions are detected.
+  resolution: >-
+    This host has no detected AI applications, which may indicate the discovery
+    queries are not running or no AI tools are installed. Verify that the
+    ISO 42001 AI inventory queries are scheduled and collecting data. If no AI
+    tools are expected on this host, this failure can be acknowledged.
+  platform: linux

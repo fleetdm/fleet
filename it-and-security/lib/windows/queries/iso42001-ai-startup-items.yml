@@ -1,0 +1,26 @@
+# ISO 42001 - AI startup items (Windows)
+- name: ISO 42001 - AI startup items (Windows)
+  description: >-
+    Detects AI applications configured to start at boot on Windows by checking
+    scheduled tasks for AI-related entries. Supports ISO 42001 persistent AI
+    deployment tracking.
+  query: |
+    SELECT
+      st.name,
+      st.path AS identifier,
+      st.action AS executable,
+      CASE WHEN st.enabled = 1 THEN '1' ELSE '0' END AS run_at_load,
+      'scheduled_task' AS startup_type
+    FROM scheduled_tasks st
+    WHERE st.name LIKE '%Ollama%'
+      OR st.name LIKE '%LMStudio%'
+      OR st.name LIKE '%Copilot%'
+      OR st.name LIKE '%ChatGPT%'
+      OR st.name LIKE '%Claude%'
+      OR st.action LIKE '%ollama%'
+      OR st.action LIKE '%lmstudio%';
+  platform: windows
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot
