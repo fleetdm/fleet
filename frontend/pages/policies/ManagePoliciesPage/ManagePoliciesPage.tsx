@@ -1127,7 +1127,7 @@ const ManagePolicyPage = ({
     } else if (teamIdForApi === API_NO_TEAM_ID) {
       disabledCalendarTooltipContent = (
         <>
-          Select a team to manage
+          Select a fleet to manage
           <br />
           calendar events.
         </>
