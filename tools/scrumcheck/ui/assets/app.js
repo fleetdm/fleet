@@ -447,6 +447,7 @@
           '<span class="pill">Awaiting QA violations: ' + escHTML(state.TotalAwaiting) + '</span>' +
           '<span class="pill">Stale Awaiting QA items: ' + escHTML(state.TotalStale) + '</span>' +
           '<span class="pill">Missing milestones (selected projects): ' + escHTML(state.TotalNoMilestone) + '</span>' +
+          '<span class="pill">Product board milestone violations: ' + escHTML(state.TotalProductBoardMilestone) + '</span>' +
           '<span class="pill">Missing sprint (selected projects): ' + escHTML(state.TotalNoSprint) + '</span>' +
           '<span class="pill">Missing assignee (selected projects): ' + escHTML(state.TotalMissingAssignee) + '</span>' +
           '<span class="pill">Assigned to me (selected projects): ' + escHTML(state.TotalAssignedToMe) + '</span>' +
@@ -576,6 +577,40 @@
         setTabClean('drafting', total === 0);
       }
 
+      // Render product-board milestone violations from state.
+      function renderProductBoardMilestoneFromState(state) {
+        const root = document.getElementById('product-board-milestone-content');
+        if (!root) return;
+        const items = Array.isArray(state.ProductBoardMilestones) ? state.ProductBoardMilestones : [];
+        if (items.length === 0) {
+          root.innerHTML = '<p class="empty">🟢 No product-board milestone violations.</p>';
+          setTabClean('product-board-milestone', true);
+          return;
+        }
+
+        const showActions = Boolean(bridgeSession);
+        const itemsHTML = items.map((it) => {
+          const actions = showActions
+            ? '<div class="actions"><button class="fix-btn remove-product-milestone-btn" data-repo="' + escHTML(it.Repo) + '" data-issue="' + escHTML(it.Number) + '">Remove Milestone</button></div>'
+            : '';
+          return '<article class="item">' +
+            '<div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div>' +
+            '<div>' + renderSafeExternalLink(it.URL) + '</div>' +
+            '<ul>' +
+              '<li>Status: ' + escHTML(it.Status || '(unset)') + '</li>' +
+              '<li>Project: ' + escHTML(it.ProjectNum || 67) + '</li>' +
+              '<li>Repository: ' + escHTML(it.Repo || '(unknown)') + '</li>' +
+              '<li>Milestone: ' + escHTML(it.Milestone || '(empty)') + '</li>' +
+              '<li>Assignees: ' + escHTML(listOrEmpty(it.Assignees, '(none)')) + '</li>' +
+              '<li>Labels: ' + escHTML(listOrEmpty(it.Labels, '(none)')) + '</li>' +
+            '</ul>' +
+            actions +
+          '</article>';
+        }).join('');
+        root.innerHTML = '<div class="project"><h3>Project 67</h3>' + itemsHTML + '</div>';
+        setTabClean('product-board-milestone', false);
+      }
+
       function renderAssigneeSection(rootID, tabKey, projects, showMineBadge) {
         const root = document.getElementById(rootID);
         if (!root) return;
@@ -677,6 +712,7 @@
         renderMilestoneFromState(state);
         installMilestoneFiltering();
         renderDraftingFromState(state);
+        renderProductBoardMilestoneFromState(state);
         renderAssigneeSection('missing-assignee-content', 'missing-assignee', state.MissingAssignee, false);
         renderAssigneeSection('assigned-to-me-content', 'assigned-to-me', state.AssignedToMe, true);
         installAssigneeFiltering();
@@ -876,6 +912,38 @@
         }
       }
 
+      async function removeProductMilestoneButton(btn) {
+        const repo = btn.dataset.repo || '';
+        const issue = btn.dataset.issue || '';
+        if (!repo || !issue) return false;
+
+        const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
+        if (!bridgeURL || !bridgeSession) {
+          window.alert('Bridge unavailable. Re-run scrumcheck and keep terminal open.');
+          return false;
+        }
+
+        const endpoint = bridgeURL + '/api/remove-milestone';
+        setButtonWorking(btn, 'Removing...');
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: bridgeJSONHeaders(),
+            body: JSON.stringify({ repo: repo, issue: issue }),
+          });
+          if (!res.ok) {
+            const body = await res.text();
+            throw new Error('Bridge error ' + res.status + ': ' + body);
+          }
+          setButtonDone(btn, 'Done');
+          return true;
+        } catch (err) {
+          window.alert('Could not remove milestone. ' + err);
+          setButtonFailed(btn);
+          return false;
+        }
+      }
+
       async function applySprintButton(btn) {
         const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
         if (!bridgeURL || !bridgeSession) {
@@ -931,6 +999,12 @@
         const draftingBtn = event.target.closest('.apply-drafting-check-btn');
         if (draftingBtn) {
           await applyDraftingCheckButton(draftingBtn);
+          return;
+        }
+
+        const removeMilestoneBtn = event.target.closest('.remove-product-milestone-btn');
+        if (removeMilestoneBtn) {
+          await removeProductMilestoneButton(removeMilestoneBtn);
           return;
         }
 
@@ -1084,7 +1158,7 @@
               bridgeStream.close();
               bridgeStream = null;
             }
-            document.querySelectorAll('.apply-milestone-btn, .apply-milestone-column-btn, .apply-drafting-check-btn, .apply-sprint-btn, .apply-sprint-column-btn, .apply-assignee-btn, .apply-assignee-column-btn, .apply-release-project-btn').forEach((el) => {
+            document.querySelectorAll('.apply-milestone-btn, .apply-milestone-column-btn, .apply-drafting-check-btn, .remove-product-milestone-btn, .apply-sprint-btn, .apply-sprint-column-btn, .apply-assignee-btn, .apply-assignee-column-btn, .apply-release-project-btn').forEach((el) => {
               el.disabled = true;
             });
             setButtonDone(closeSessionButton, 'Done');

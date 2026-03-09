@@ -407,7 +407,7 @@ func newSprintStubClient(t *testing.T, now time.Time) *githubv4.Client {
 						"node": map[string]any{
 							"items": map[string]any{
 								"nodes": []map[string]any{
-									issueNode(4242, "Needs sprint", "https://github.com/fleetdm/fleet/issues/4242", "Waiting", "body", nil, now, nil),
+									issueNode(4242, "Needs sprint", "https://github.com/fleetdm/fleet/issues/4242", "Waiting", "body", nil, now, nil, ""),
 									{
 										"id":        "ITEM_DONE",
 										"updatedAt": now.Format(time.RFC3339),
@@ -574,7 +574,7 @@ func TestFetchUnreleasedIssuesByGroupAndFetchAllItemsPaging(t *testing.T) {
 						"node": map[string]any{
 							"items": map[string]any{
 								"nodes": []map[string]any{
-									issueNode(5001, "Page1", "https://github.com/fleetdm/fleet/issues/5001", "Waiting", "b", nil, time.Now().UTC(), nil),
+									issueNode(5001, "Page1", "https://github.com/fleetdm/fleet/issues/5001", "Waiting", "b", nil, time.Now().UTC(), nil, ""),
 								},
 								"pageInfo": map[string]any{"hasNextPage": true, "endCursor": "CUR_1"},
 							},
@@ -587,7 +587,7 @@ func TestFetchUnreleasedIssuesByGroupAndFetchAllItemsPaging(t *testing.T) {
 					"node": map[string]any{
 						"items": map[string]any{
 							"nodes": []map[string]any{
-								issueNode(5002, "Page2", "https://github.com/fleetdm/fleet/issues/5002", "Waiting", "b", nil, time.Now().UTC(), nil),
+								issueNode(5002, "Page2", "https://github.com/fleetdm/fleet/issues/5002", "Waiting", "b", nil, time.Now().UTC(), nil, ""),
 							},
 							"pageInfo": map[string]any{"hasNextPage": false, "endCursor": ""},
 						},

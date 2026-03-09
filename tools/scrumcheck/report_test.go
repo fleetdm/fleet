@@ -41,6 +41,13 @@ func TestBuildHTMLReportDataIncludesAllSelectedProjects(t *testing.T) {
 				Status:    "ready to estimate",
 			}},
 		},
+		[]ProductBoardMilestoneViolation{{
+			Item:       draftingItem,
+			ProjectNum: 67,
+			RepoOwner:  "fleetdm",
+			RepoName:   "fleet",
+			Milestone:  "4.90.0",
+		}},
 		[]MissingMilestoneIssue{{
 			Item:       inReviewItem,
 			ProjectNum: 71,
@@ -111,9 +118,10 @@ func TestBuildHTMLReportDataIncludesAllSelectedProjects(t *testing.T) {
 	if len(data.MissingAssignee) != 2 {
 		t.Fatalf("expected 2 assignee project sections, got %d", len(data.MissingAssignee))
 	}
-	if data.TotalNoMilestone != 1 || data.TotalNoSprint != 1 || data.TotalMissingAssignee != 1 || data.TotalAssignedToMe != 0 || data.TotalRelease != 1 || data.TotalUnassignedUnreleased != 1 {
+	if data.TotalProductBoardMilestone != 1 || data.TotalNoMilestone != 1 || data.TotalNoSprint != 1 || data.TotalMissingAssignee != 1 || data.TotalAssignedToMe != 0 || data.TotalRelease != 1 || data.TotalUnassignedUnreleased != 1 {
 		t.Fatalf(
-			"unexpected totals: milestone=%d sprint=%d missing-assignee=%d assigned-to-me=%d release=%d unassigned-unreleased=%d",
+			"unexpected totals: product-board-milestone=%d milestone=%d sprint=%d missing-assignee=%d assigned-to-me=%d release=%d unassigned-unreleased=%d",
+			data.TotalProductBoardMilestone,
 			data.TotalNoMilestone,
 			data.TotalNoSprint,
 			data.TotalMissingAssignee,
@@ -146,6 +154,7 @@ func TestBuildHTMLReportDataAssignedToMeIsSeparateAndFails(t *testing.T) {
 		map[int][]StaleAwaitingViolation{71: {}},
 		21,
 		map[string][]DraftingCheckViolation{},
+		nil,
 		nil,
 		nil,
 		[]MissingAssigneeIssue{{
@@ -210,6 +219,7 @@ func TestBuildHTMLReportDataMissingSprintExcludesReadyForRelease(t *testing.T) {
 		map[int][]StaleAwaitingViolation{71: {}},
 		21,
 		map[string][]DraftingCheckViolation{},
+		nil,
 		nil,
 		[]MissingSprintViolation{{
 			ProjectNum:    71,

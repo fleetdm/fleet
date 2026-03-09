@@ -75,6 +75,14 @@ type DraftingCheckViolation struct {
 	Status    string
 }
 
+type ProductBoardMilestoneViolation struct {
+	Item       Item
+	ProjectNum int
+	RepoOwner  string
+	RepoName   string
+	Milestone  string
+}
+
 type StaleAwaitingViolation struct {
 	Item        Item
 	StaleDays   int

@@ -24,6 +24,7 @@ const (
 	phaseAwaitingQAStale
 	phaseAwaitingQAGate
 	phaseDraftingGate
+	phaseProductBoardMilestone
 	phaseMissingAssignee
 	phaseAssignedToMe
 	phaseUnassignedUnreleased
@@ -127,6 +128,7 @@ func run() int {
 		"Awaiting QA stale watchdog",
 		"Awaiting QA gate",
 		"Drafting estimation gate",
+		"Item on Product board has a Milestone",
 		"Missing assignee",
 		"Assigned to me",
 		"Unassigned unreleased bugs",
@@ -139,6 +141,7 @@ func run() int {
 	projectNums = uniqueInts(projectNums)
 	labelFilter := compileLabelFilter(labels)
 	groupLabels := orderedGroupLabels(labels)
+	groupLabelFilter := compileLabelFilter(groupLabels)
 	// Check phases run in a fixed order so tracker output is deterministic and
 	// easy to compare between runs.
 
@@ -188,6 +191,16 @@ func run() int {
 	byStatus := groupViolationsByStatus(badDrafting)
 	tracker.phaseDone(phaseDraftingGate, phaseSummaryKV(
 		fmt.Sprintf("drafting violations=%d", len(badDrafting)),
+		shortDuration(time.Since(start)),
+	))
+
+	tracker.phaseStart(phaseProductBoardMilestone)
+	// Product board milestone gate checks project 67 for group-labeled items
+	// that still have a milestone set.
+	start = time.Now()
+	productBoardMilestones := runProductBoardMilestoneCheck(ctx, client, *org, *limit, groupLabelFilter)
+	tracker.phaseDone(phaseProductBoardMilestone, phaseSummaryKV(
+		fmt.Sprintf("violations=%d", len(productBoardMilestones)),
 		shortDuration(time.Since(start)),
 	))
 
@@ -270,7 +283,7 @@ func run() int {
 	tracker.phaseStart(phaseUIAssembly)
 	// Build mutation allowlists from findings before exposing bridge actions.
 	start = time.Now()
-	policy := buildBridgePolicy(badDrafting, missingMilestones, missingSprints, missingAssignees, releaseLabelIssues)
+	policy := buildBridgePolicy(badDrafting, productBoardMilestones, missingMilestones, missingSprints, missingAssignees, releaseLabelIssues)
 	// Start local loopback bridge used by browser UI and action endpoints.
 	bridge, err := startUIBridgeFn(token, time.Duration(*bridgeIdleMinutes)*time.Minute, tracker.bridgeSignal, policy)
 	if err != nil {
@@ -293,6 +306,7 @@ func run() int {
 		staleByProject,
 		*staleDays,
 		byStatus,
+		productBoardMilestones,
 		missingMilestones,
 		missingSprints,
 		missingAssignees,
@@ -333,6 +347,7 @@ func run() int {
 			staleByProject,
 			*staleDays,
 			byStatus,
+			productBoardMilestones,
 			missingMilestones,
 			missingSprints,
 			missingAssignees,
@@ -359,6 +374,7 @@ func run() int {
 			staleByProject,
 			*staleDays,
 			byStatus,
+			productBoardMilestones,
 			missingMilestones,
 			missingSprints,
 			missingAssignees,
@@ -385,6 +401,7 @@ func run() int {
 			staleByProject,
 			*staleDays,
 			byStatus,
+			productBoardMilestones,
 			missingMilestones,
 			fresh,
 			missingAssignees,
@@ -400,7 +417,7 @@ func run() int {
 		).MissingSprint
 		// Sprint apply allowlist must be rebuilt from fresh findings so UI actions
 		// cannot target stale item IDs.
-		refreshedPolicy := buildBridgePolicy(nil, nil, fresh, nil, nil)
+		refreshedPolicy := buildBridgePolicy(nil, nil, nil, fresh, nil, nil)
 		return report, refreshedPolicy.SprintsByItemID, nil
 	})
 	bridge.setRefreshAllState(func(ctx context.Context) (HTMLReportData, bridgePolicy, error) {
@@ -421,6 +438,7 @@ func run() int {
 			labelFilter,
 		)
 		refDrafting := runDraftingCheck(refreshCtx, client, *org, *limit, labelFilter)
+		refProductBoardMilestones := runProductBoardMilestoneCheck(refreshCtx, client, *org, *limit, groupLabelFilter)
 		refByStatus := groupViolationsByStatus(refDrafting)
 		refMissingMilestones := runMissingMilestoneChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter)
 		refMissingSprints := runMissingSprintChecks(refreshCtx, client, *org, projectNums, *limit, labelFilter)
@@ -439,6 +457,7 @@ func run() int {
 			refStaleByProject,
 			*staleDays,
 			refByStatus,
+			refProductBoardMilestones,
 			refMissingMilestones,
 			refMissingSprints,
 			refMissingAssignees,
@@ -452,7 +471,7 @@ func run() int {
 			bridgeBaseURL,
 			bridgeSessionToken,
 		)
-		refPolicy := buildBridgePolicy(refDrafting, refMissingMilestones, refMissingSprints, refMissingAssignees, refReleaseIssues)
+		refPolicy := buildBridgePolicy(refDrafting, refProductBoardMilestones, refMissingMilestones, refMissingSprints, refMissingAssignees, refReleaseIssues)
 		return refData, refPolicy, nil
 	})
 

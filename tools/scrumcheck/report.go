@@ -51,6 +51,18 @@ type DraftingStatusReport struct {
 	Items  []ReportItem
 }
 
+type ProductBoardMilestoneReportItem struct {
+	ProjectNum int
+	Number     int
+	Title      string
+	URL        string
+	Repo       string
+	Milestone  string
+	Status     string
+	Assignees  []string
+	Labels     []string
+}
+
 type MissingMilestoneReportItem struct {
 	ProjectNum  int
 	Number      int
@@ -182,48 +194,51 @@ type MilestoneSuggestion struct {
 }
 
 type HTMLReportData struct {
-	GeneratedAt               string
-	Org                       string
-	BridgeEnabled             bool
-	BridgeBaseURL             string
-	BridgeSessionToken        string
-	AwaitingSections          []AwaitingProjectReport
-	StaleSections             []StaleAwaitingProjectReport
-	StaleThreshold            int
-	DraftingSections          []DraftingStatusReport
-	MissingMilestone          []MissingMilestoneProjectReport
-	MissingSprint             []MissingSprintProjectReport
-	MissingAssignee           []MissingAssigneeProjectReport
-	AssignedToMe              []MissingAssigneeProjectReport
-	ReleaseLabel              []ReleaseLabelProjectReport
-	ReleaseStoryTODO          []ReleaseStoryTODOProjectReport
-	GenericQueries            []GenericQueryReport
-	UnassignedUnreleased      []UnassignedUnreleasedProjectReport
-	TotalAwaiting             int
-	TotalStale                int
-	TotalDrafting             int
-	TotalNoMilestone          int
-	TotalNoSprint             int
-	TotalMissingAssignee      int
-	TotalAssignedToMe         int
-	TotalRelease              int
-	TotalReleaseStoryTODO     int
-	TotalGenericQueries       int
-	TotalUnassignedUnreleased int
-	TotalTrackedUnreleased    int
-	TimestampCheck            TimestampCheckResult
-	AwaitingClean             bool
-	StaleClean                bool
-	DraftingClean             bool
-	TimestampClean            bool
-	MilestoneClean            bool
-	SprintClean               bool
-	MissingAssigneeClean      bool
-	AssignedToMeClean         bool
-	ReleaseClean              bool
-	ReleaseStoryTODOClean     bool
-	GenericQueriesClean       bool
-	UnassignedUnreleasedClean bool
+	GeneratedAt                string
+	Org                        string
+	BridgeEnabled              bool
+	BridgeBaseURL              string
+	BridgeSessionToken         string
+	AwaitingSections           []AwaitingProjectReport
+	StaleSections              []StaleAwaitingProjectReport
+	StaleThreshold             int
+	DraftingSections           []DraftingStatusReport
+	ProductBoardMilestones     []ProductBoardMilestoneReportItem
+	MissingMilestone           []MissingMilestoneProjectReport
+	MissingSprint              []MissingSprintProjectReport
+	MissingAssignee            []MissingAssigneeProjectReport
+	AssignedToMe               []MissingAssigneeProjectReport
+	ReleaseLabel               []ReleaseLabelProjectReport
+	ReleaseStoryTODO           []ReleaseStoryTODOProjectReport
+	GenericQueries             []GenericQueryReport
+	UnassignedUnreleased       []UnassignedUnreleasedProjectReport
+	TotalAwaiting              int
+	TotalStale                 int
+	TotalDrafting              int
+	TotalProductBoardMilestone int
+	TotalNoMilestone           int
+	TotalNoSprint              int
+	TotalMissingAssignee       int
+	TotalAssignedToMe          int
+	TotalRelease               int
+	TotalReleaseStoryTODO      int
+	TotalGenericQueries        int
+	TotalUnassignedUnreleased  int
+	TotalTrackedUnreleased     int
+	TimestampCheck             TimestampCheckResult
+	AwaitingClean              bool
+	StaleClean                 bool
+	DraftingClean              bool
+	ProductBoardMilestoneClean bool
+	TimestampClean             bool
+	MilestoneClean             bool
+	SprintClean                bool
+	MissingAssigneeClean       bool
+	AssignedToMeClean          bool
+	ReleaseClean               bool
+	ReleaseStoryTODOClean      bool
+	GenericQueriesClean        bool
+	UnassignedUnreleasedClean  bool
 }
 
 // buildHTMLReportData transforms raw check outputs into the fully grouped
@@ -235,6 +250,7 @@ func buildHTMLReportData(
 	staleByProject map[int][]StaleAwaitingViolation,
 	staleDays int,
 	byStatus map[string][]DraftingCheckViolation,
+	productBoardMilestones []ProductBoardMilestoneViolation,
 	missingMilestones []MissingMilestoneIssue,
 	missingSprints []MissingSprintViolation,
 	missingAssignees []MissingAssigneeIssue,
@@ -352,6 +368,24 @@ func buildHTMLReportData(
 			fmt.Sprintf("These items are in %q but still have checklist items not checked.", display),
 		)
 	}
+
+	productBoardMilestoneItems := make([]ProductBoardMilestoneReportItem, 0, len(productBoardMilestones))
+	totalProductBoardMilestone := 0
+	for _, v := range productBoardMilestones {
+		repo := v.RepoOwner + "/" + v.RepoName
+		productBoardMilestoneItems = append(productBoardMilestoneItems, ProductBoardMilestoneReportItem{
+			ProjectNum: v.ProjectNum,
+			Number:     getNumber(v.Item),
+			Title:      getTitle(v.Item),
+			URL:        getURL(v.Item),
+			Repo:       repo,
+			Milestone:  v.Milestone,
+			Status:     itemStatus(v.Item),
+			Assignees:  issueAssignees(v.Item),
+			Labels:     issueLabels(v.Item),
+		})
+	}
+	totalProductBoardMilestone = len(productBoardMilestoneItems)
 
 	groupedMilestoneByProject := make(map[int]map[string][]MissingMilestoneReportItem)
 	for _, p := range projectNums {
@@ -706,48 +740,51 @@ func buildHTMLReportData(
 	}
 
 	return HTMLReportData{
-		GeneratedAt:               time.Now().Format(time.RFC1123),
-		Org:                       org,
-		BridgeEnabled:             bridgeEnabled,
-		BridgeBaseURL:             bridgeBaseURL,
-		BridgeSessionToken:        bridgeSessionToken,
-		AwaitingSections:          sections,
-		StaleSections:             staleSections,
-		StaleThreshold:            staleDays,
-		DraftingSections:          drafting,
-		MissingMilestone:          milestoneProjects,
-		MissingSprint:             sprintProjects,
-		MissingAssignee:           missingAssigneeProjects,
-		AssignedToMe:              assignedToMeProjects,
-		ReleaseLabel:              releaseProjects,
-		ReleaseStoryTODO:          releaseStoryTODOProjects,
-		GenericQueries:            genericQueryReports,
-		UnassignedUnreleased:      unassignedProjects,
-		TotalAwaiting:             totalAwaiting,
-		TotalStale:                totalStale,
-		TotalDrafting:             totalDrafting,
-		TotalNoMilestone:          totalNoMilestone,
-		TotalNoSprint:             totalNoSprint,
-		TotalMissingAssignee:      totalMissingAssignee,
-		TotalAssignedToMe:         totalAssignedToMe,
-		TotalRelease:              totalRelease,
-		TotalReleaseStoryTODO:     totalReleaseStoryTODO,
-		TotalGenericQueries:       totalGenericQueries,
-		TotalUnassignedUnreleased: totalUnassignedUnreleased,
-		TotalTrackedUnreleased:    totalTrackedUnreleased,
-		TimestampCheck:            timestampCheck,
-		AwaitingClean:             totalAwaiting == 0,
-		StaleClean:                totalStale == 0,
-		DraftingClean:             totalDrafting == 0,
-		TimestampClean:            timestampCheck.Error == "" && timestampCheck.OK,
-		MilestoneClean:            totalNoMilestone == 0,
-		SprintClean:               totalNoSprint == 0,
-		MissingAssigneeClean:      totalMissingAssignee == 0,
-		AssignedToMeClean:         totalAssignedToMe == 0,
-		ReleaseClean:              totalRelease == 0,
-		ReleaseStoryTODOClean:     totalReleaseStoryTODO == 0,
-		GenericQueriesClean:       totalGenericQueries == 0,
-		UnassignedUnreleasedClean: totalUnassignedUnreleased == 0,
+		GeneratedAt:                time.Now().Format(time.RFC1123),
+		Org:                        org,
+		BridgeEnabled:              bridgeEnabled,
+		BridgeBaseURL:              bridgeBaseURL,
+		BridgeSessionToken:         bridgeSessionToken,
+		AwaitingSections:           sections,
+		StaleSections:              staleSections,
+		StaleThreshold:             staleDays,
+		DraftingSections:           drafting,
+		ProductBoardMilestones:     productBoardMilestoneItems,
+		MissingMilestone:           milestoneProjects,
+		MissingSprint:              sprintProjects,
+		MissingAssignee:            missingAssigneeProjects,
+		AssignedToMe:               assignedToMeProjects,
+		ReleaseLabel:               releaseProjects,
+		ReleaseStoryTODO:           releaseStoryTODOProjects,
+		GenericQueries:             genericQueryReports,
+		UnassignedUnreleased:       unassignedProjects,
+		TotalAwaiting:              totalAwaiting,
+		TotalStale:                 totalStale,
+		TotalDrafting:              totalDrafting,
+		TotalProductBoardMilestone: totalProductBoardMilestone,
+		TotalNoMilestone:           totalNoMilestone,
+		TotalNoSprint:              totalNoSprint,
+		TotalMissingAssignee:       totalMissingAssignee,
+		TotalAssignedToMe:          totalAssignedToMe,
+		TotalRelease:               totalRelease,
+		TotalReleaseStoryTODO:      totalReleaseStoryTODO,
+		TotalGenericQueries:        totalGenericQueries,
+		TotalUnassignedUnreleased:  totalUnassignedUnreleased,
+		TotalTrackedUnreleased:     totalTrackedUnreleased,
+		TimestampCheck:             timestampCheck,
+		AwaitingClean:              totalAwaiting == 0,
+		StaleClean:                 totalStale == 0,
+		DraftingClean:              totalDrafting == 0,
+		ProductBoardMilestoneClean: totalProductBoardMilestone == 0,
+		TimestampClean:             timestampCheck.Error == "" && timestampCheck.OK,
+		MilestoneClean:             totalNoMilestone == 0,
+		SprintClean:                totalNoSprint == 0,
+		MissingAssigneeClean:       totalMissingAssignee == 0,
+		AssignedToMeClean:          totalAssignedToMe == 0,
+		ReleaseClean:               totalRelease == 0,
+		ReleaseStoryTODOClean:      totalReleaseStoryTODO == 0,
+		GenericQueriesClean:        totalGenericQueries == 0,
+		UnassignedUnreleasedClean:  totalUnassignedUnreleased == 0,
 	}
 }
 

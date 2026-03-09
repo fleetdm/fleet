@@ -40,7 +40,7 @@ func TestFetchProjectIDAndFetchItems(t *testing.T) {
 						"node": map[string]any{
 							"items": map[string]any{
 								"nodes": []map[string]any{
-									issueNode(1234, "Issue", "https://github.com/fleetdm/fleet/issues/1234", "Waiting", "body", nil, time.Now().UTC(), nil),
+									issueNode(1234, "Issue", "https://github.com/fleetdm/fleet/issues/1234", "Waiting", "body", nil, time.Now().UTC(), nil, ""),
 								},
 							},
 						},

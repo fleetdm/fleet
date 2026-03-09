@@ -46,6 +46,7 @@ type uiBridge struct {
 	reason string
 
 	allowChecklist       map[string]map[string]bool
+	allowClearMilestone  map[string]bool
 	allowMilestones      map[string]map[int]bool
 	allowAssignees       map[string]map[string]bool
 	allowSprints         map[string]sprintApplyTarget
@@ -82,21 +83,22 @@ func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string)
 	}
 
 	b := &uiBridge{
-		baseURL:         "http://" + ln.Addr().String(),
-		origin:          "http://" + ln.Addr().String(),
-		session:         session,
-		token:           token,
-		idleTimeout:     idleTimeout,
-		onEvent:         onEvent,
-		listener:        ln,
-		done:            make(chan struct{}),
-		reason:          "bridge closed",
-		allowChecklist:  policy.ChecklistByIssue,
-		allowMilestones: policy.MilestonesByIssue,
-		allowAssignees:  policy.AssigneesByIssue,
-		allowSprints:    policy.SprintsByItemID,
-		allowRelease:    policy.ReleaseByIssue,
-		sseSubscribers:  make(map[chan string]struct{}),
+		baseURL:             "http://" + ln.Addr().String(),
+		origin:              "http://" + ln.Addr().String(),
+		session:             session,
+		token:               token,
+		idleTimeout:         idleTimeout,
+		onEvent:             onEvent,
+		listener:            ln,
+		done:                make(chan struct{}),
+		reason:              "bridge closed",
+		allowChecklist:      policy.ChecklistByIssue,
+		allowClearMilestone: policy.ClearMilestoneByIssue,
+		allowMilestones:     policy.MilestonesByIssue,
+		allowAssignees:      policy.AssigneesByIssue,
+		allowSprints:        policy.SprintsByItemID,
+		allowRelease:        policy.ReleaseByIssue,
+		sseSubscribers:      make(map[chan string]struct{}),
 	}
 
 	// Router contains the app shell, state/read APIs, mutation APIs, and
@@ -113,6 +115,7 @@ func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string)
 	mux.HandleFunc("/api/check/state", b.handleStateCheck)
 	mux.HandleFunc("/api/state", b.handleStateCheck)
 	mux.HandleFunc("/api/apply-milestone", b.handleApplyMilestone)
+	mux.HandleFunc("/api/remove-milestone", b.handleRemoveMilestone)
 	mux.HandleFunc("/api/apply-checklist", b.handleApplyChecklist)
 	mux.HandleFunc("/api/apply-sprint", b.handleApplySprint)
 	mux.HandleFunc("/api/add-assignee", b.handleAddAssignee)
@@ -250,6 +253,7 @@ func (b *uiBridge) refreshAllIfRequested(ctx context.Context, refresh bool) erro
 	b.releaseStoryTODO = data.ReleaseStoryTODO
 	b.missingSprint = data.MissingSprint
 	b.allowChecklist = policy.ChecklistByIssue
+	b.allowClearMilestone = policy.ClearMilestoneByIssue
 	b.allowMilestones = policy.MilestonesByIssue
 	b.allowAssignees = policy.AssigneesByIssue
 	b.allowSprints = policy.SprintsByItemID
@@ -758,6 +762,53 @@ func (b *uiBridge) handleApplyMilestone(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+// handleRemoveMilestone validates and clears milestone on an issue.
+func (b *uiBridge) handleRemoveMilestone(w http.ResponseWriter, r *http.Request) {
+	if !b.prepareRequest(w, r) {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBridgeBodyBytes)
+	var req struct {
+		Repo  string `json:"repo"`
+		Issue string `json:"issue"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	if req.Repo == "" || req.Issue == "" {
+		http.Error(w, "repo and issue are required", http.StatusBadRequest)
+		return
+	}
+	if !isValidRepoSlug(req.Repo) {
+		http.Error(w, "invalid repo slug", http.StatusBadRequest)
+		return
+	}
+
+	issueNum, err := strconv.Atoi(req.Issue)
+	if err != nil || issueNum <= 0 {
+		http.Error(w, "invalid issue number", http.StatusBadRequest)
+		return
+	}
+	if !b.isAllowedClearMilestone(req.Repo, issueNum) {
+		http.Error(w, "operation not allowed for this issue", http.StatusForbidden)
+		return
+	}
+
+	start := time.Now()
+	caller := callerAddr(r)
+	b.signalBridgeOp(caller, "remove-milestone", "start", "working", req.Repo, issueNum, "")
+	endpoint := fmt.Sprintf("https://api.github.com/repos/%s/issues/%d", req.Repo, issueNum)
+	payload := map[string]any{"milestone": nil}
+	if err := b.githubJSON(r.Context(), http.MethodPatch, endpoint, payload, nil); err != nil {
+		b.signalBridgeOp(caller, "remove-milestone", "done", "error", req.Repo, issueNum, shortDuration(time.Since(start)))
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	b.signalBridgeOp(caller, "remove-milestone", "done", "ok", req.Repo, issueNum, shortDuration(time.Since(start)))
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
 // handleApplyChecklist validates and applies checklist text mutations.
 func (b *uiBridge) handleApplyChecklist(w http.ResponseWriter, r *http.Request) {
 	if !b.prepareRequest(w, r) {
@@ -1119,6 +1170,14 @@ func isValidRepoSlug(value string) bool {
 // issueKey builds a stable key for repo+issue identity checks.
 func issueKey(repo string, issue int) string {
 	return strings.ToLower(strings.TrimSpace(repo)) + "#" + strconv.Itoa(issue)
+}
+
+// isAllowedClearMilestone verifies milestone-clear writes are allowed.
+func (b *uiBridge) isAllowedClearMilestone(repo string, issue int) bool {
+	key := issueKey(repo, issue)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.allowClearMilestone[key]
 }
 
 // isAllowedMilestone verifies milestone writes are allowed for the issue.

@@ -84,16 +84,17 @@ func graphNodesForProjectID(id string) []map[string]any {
 	switch id {
 	case "P67":
 		return []map[string]any{
-			issueNode(7001, "Drafting issue", "https://github.com/fleetdm/fleet/issues/7001", "Ready to estimate", "- [ ] check one", []string{"bug"}, time.Now().UTC(), nil),
+			issueNode(7001, "Drafting issue", "https://github.com/fleetdm/fleet/issues/7001", "Ready to estimate", "- [ ] check one", []string{"bug"}, time.Now().UTC(), nil, ""),
+			issueNode(7002, "Product board milestone issue", "https://github.com/fleetdm/fleet/issues/7002", "In review", "body", []string{"g-orchestration"}, time.Now().UTC(), nil, "4.90.0"),
 		}
 	case "P71":
 		return []map[string]any{
-			issueNode(7101, "Awaiting stale", "https://github.com/fleetdm/fleet/issues/7101", "✔️Awaiting QA", "- [ ] "+checkText, []string{":product"}, time.Now().UTC().Add(-72*time.Hour), nil),
-			issueNode(7102, "Unreleased unassigned", "https://github.com/fleetdm/fleet/issues/7102", "🦃 In review", "bug body", []string{"g-orchestration", "~unreleased bug", ":release"}, time.Now().UTC(), nil),
+			issueNode(7101, "Awaiting stale", "https://github.com/fleetdm/fleet/issues/7101", "✔️Awaiting QA", "- [ ] "+checkText, []string{":product"}, time.Now().UTC().Add(-72*time.Hour), nil, ""),
+			issueNode(7102, "Unreleased unassigned", "https://github.com/fleetdm/fleet/issues/7102", "🦃 In review", "bug body", []string{"g-orchestration", "~unreleased bug", ":release"}, time.Now().UTC(), nil, ""),
 		}
 	case "P97":
 		return []map[string]any{
-			issueNode(9701, "Done item", "https://github.com/fleetdm/fleet/issues/9701", "Done", "- [ ] x", []string{"x"}, time.Now().UTC(), nil),
+			issueNode(9701, "Done item", "https://github.com/fleetdm/fleet/issues/9701", "Done", "- [ ] x", []string{"x"}, time.Now().UTC(), nil, ""),
 		}
 	default:
 		return nil
@@ -101,7 +102,7 @@ func graphNodesForProjectID(id string) []map[string]any {
 }
 
 // issueNode builds one GraphQL-compatible issue item payload for test fixtures.
-func issueNode(number int, title, u, status, body string, labels []string, updated time.Time, assignees []string) map[string]any {
+func issueNode(number int, title, u, status, body string, labels []string, updated time.Time, assignees []string, milestone string) map[string]any {
 	labelNodes := make([]map[string]any, 0, len(labels))
 	for _, l := range labels {
 		labelNodes = append(labelNodes, map[string]any{"name": l})
@@ -118,7 +119,7 @@ func issueNode(number int, title, u, status, body string, labels []string, updat
 			"title":     title,
 			"body":      body,
 			"url":       u,
-			"milestone": map[string]any{"title": ""},
+			"milestone": map[string]any{"title": milestone},
 			"labels":    map[string]any{"nodes": labelNodes},
 			"assignees": map[string]any{"nodes": assigneeNodes},
 		},
@@ -163,6 +164,11 @@ func TestGraphQLFlowHelpersAndChecks(t *testing.T) {
 	drafting := runDraftingCheck(ctx, client, "fleetdm", 20, nil)
 	if len(drafting) != 1 {
 		t.Fatalf("drafting len=%d want=1", len(drafting))
+	}
+
+	productMilestones := runProductBoardMilestoneCheck(ctx, client, "fleetdm", 20, compileLabelFilter([]string{"g-orchestration"}))
+	if len(productMilestones) != 1 {
+		t.Fatalf("productBoardMilestones len=%d want=1", len(productMilestones))
 	}
 
 	release := runReleaseLabelChecks(ctx, client, "fleetdm", []int{67, 71, 97}, 20)

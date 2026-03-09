@@ -61,6 +61,9 @@
         <button class="menu-btn" data-tab="drafting" role="tab">
           <span class="status-dot {{if .DraftingClean}}ok{{end}}"></span>🧭 Drafting estimation gate
         </button>
+        <button class="menu-btn" data-tab="product-board-milestone" role="tab">
+          <span class="status-dot {{if .ProductBoardMilestoneClean}}ok{{end}}"></span>🚫 Item on Product board has a Milestone
+        </button>
         <button class="menu-btn" data-tab="missing-assignee" role="tab">
           <span class="status-dot {{if .MissingAssigneeClean}}ok{{end}}"></span>👤 Missing assignee
         </button>
@@ -149,6 +152,17 @@
         <p class="subtle">Items in estimation statuses with unchecked checklist items.</p>
         <div id="drafting-content">
           <p class="empty">🛰️ Loading drafting data from bridge…</p>
+        </div>
+      </section>
+
+      <section id="tab-product-board-milestone" class="panel" role="tabpanel">
+        <div class="column-head">
+          <h2>🚫 Item on Product board has a Milestone (project 67)</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="product-board-milestone">Refresh</button>
+        </div>
+        <p class="subtle">If item has one of the provided group labels and a milestone is set, remove the milestone.</p>
+        <div id="product-board-milestone-content">
+          <p class="empty">🛰️ Loading Product board milestone data from bridge…</p>
         </div>
       </section>
 

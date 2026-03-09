@@ -18,6 +18,14 @@ func TestBuildBridgePolicy(t *testing.T) {
 			Unchecked: []string{"check one", "check two"},
 		},
 	}
+	productMilestones := []ProductBoardMilestoneViolation{
+		{
+			Item:      testIssueItem(40008, "https://github.com/fleetdm/fleet/issues/40008"),
+			RepoOwner: "fleetdm",
+			RepoName:  "fleet",
+			Milestone: "4.99.0",
+		},
+	}
 	missing := []MissingMilestoneIssue{
 		{
 			Item:      testIssueItem(40007, "https://github.com/fleetdm/fleet/issues/40007"),
@@ -58,14 +66,18 @@ func TestBuildBridgePolicy(t *testing.T) {
 		},
 	}
 
-	p := buildBridgePolicy(drafting, missing, missingSprints, missingAssignees, releaseIssues)
+	p := buildBridgePolicy(drafting, productMilestones, missing, missingSprints, missingAssignees, releaseIssues)
 	key := issueKey("fleetdm/fleet", 40007)
+	productKey := issueKey("fleetdm/fleet", 40008)
 
 	if !p.ChecklistByIssue[key]["check one"] || !p.ChecklistByIssue[key]["check two"] {
 		t.Fatalf("expected checklist allowlist entries for %s", key)
 	}
 	if !p.MilestonesByIssue[key][101] || !p.MilestonesByIssue[key][102] {
 		t.Fatalf("expected milestone allowlist entries for %s", key)
+	}
+	if !p.ClearMilestoneByIssue[productKey] {
+		t.Fatalf("expected clear-milestone allowlist entry for %s", productKey)
 	}
 	if !p.AssigneesByIssue[key]["alice"] || !p.AssigneesByIssue[key]["bob"] {
 		t.Fatalf("expected assignee allowlist entries for %s", key)
@@ -98,6 +110,9 @@ func TestBridgeAllowlistChecks(t *testing.T) {
 		allowMilestones: map[string]map[int]bool{
 			issueKey("fleetdm/fleet", 123): {55: true},
 		},
+		allowClearMilestone: map[string]bool{
+			issueKey("fleetdm/fleet", 123): true,
+		},
 		allowAssignees: map[string]map[string]bool{
 			issueKey("fleetdm/fleet", 123): {"alice": true},
 		},
@@ -117,6 +132,12 @@ func TestBridgeAllowlistChecks(t *testing.T) {
 	}
 	if !b.isAllowedMilestone("fleetdm/fleet", 123, 55) {
 		t.Fatal("expected milestone to be allowed")
+	}
+	if !b.isAllowedClearMilestone("fleetdm/fleet", 123) {
+		t.Fatal("expected clear milestone to be allowed")
+	}
+	if b.isAllowedClearMilestone("fleetdm/fleet", 124) {
+		t.Fatal("unexpected clear milestone allow")
 	}
 	if b.isAllowedMilestone("fleetdm/fleet", 123, 99) {
 		t.Fatal("unexpected milestone allow")

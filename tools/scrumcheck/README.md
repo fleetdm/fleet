@@ -16,6 +16,7 @@ This tool helps us keep the scrum process healthy and actionable.
 - Awaiting QA stale watchdog
 - Awaiting QA gate
 - Drafting estimation gate
+- Item on Product board has a Milestone
 - Missing assignee
 - Assigned to me
 - Unassigned unreleased bugs

@@ -6,11 +6,12 @@ import (
 )
 
 type bridgePolicy struct {
-	ChecklistByIssue  map[string]map[string]bool
-	MilestonesByIssue map[string]map[int]bool
-	AssigneesByIssue  map[string]map[string]bool
-	SprintsByItemID   map[string]sprintApplyTarget
-	ReleaseByIssue    map[string]releaseLabelTarget
+	ChecklistByIssue      map[string]map[string]bool
+	ClearMilestoneByIssue map[string]bool
+	MilestonesByIssue     map[string]map[int]bool
+	AssigneesByIssue      map[string]map[string]bool
+	SprintsByItemID       map[string]sprintApplyTarget
+	ReleaseByIssue        map[string]releaseLabelTarget
 }
 
 type sprintApplyTarget struct {
@@ -29,17 +30,19 @@ type releaseLabelTarget struct {
 // to items/options that were surfaced by the report.
 func buildBridgePolicy(
 	drafting []DraftingCheckViolation,
+	productBoardMilestones []ProductBoardMilestoneViolation,
 	missing []MissingMilestoneIssue,
 	missingSprints []MissingSprintViolation,
 	missingAssignees []MissingAssigneeIssue,
 	releaseIssues []ReleaseLabelIssue,
 ) bridgePolicy {
 	p := bridgePolicy{
-		ChecklistByIssue:  make(map[string]map[string]bool),
-		MilestonesByIssue: make(map[string]map[int]bool),
-		AssigneesByIssue:  make(map[string]map[string]bool),
-		SprintsByItemID:   make(map[string]sprintApplyTarget),
-		ReleaseByIssue:    make(map[string]releaseLabelTarget),
+		ChecklistByIssue:      make(map[string]map[string]bool),
+		ClearMilestoneByIssue: make(map[string]bool),
+		MilestonesByIssue:     make(map[string]map[int]bool),
+		AssigneesByIssue:      make(map[string]map[string]bool),
+		SprintsByItemID:       make(map[string]sprintApplyTarget),
+		ReleaseByIssue:        make(map[string]releaseLabelTarget),
 	}
 
 	// Checklist policy: each issue key maps to the specific unchecked checklist
@@ -59,6 +62,13 @@ func buildBridgePolicy(
 			}
 			p.ChecklistByIssue[key][text] = true
 		}
+	}
+
+	// Product-board milestone policy: issues surfaced by this check are allowed
+	// to clear their milestone via the bridge.
+	for _, v := range productBoardMilestones {
+		key := issueKey(v.RepoOwner+"/"+v.RepoName, getNumber(v.Item))
+		p.ClearMilestoneByIssue[key] = true
 	}
 
 	// Milestone policy: each issue key maps to the allowed milestone numbers

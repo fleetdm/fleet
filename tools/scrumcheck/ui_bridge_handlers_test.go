@@ -18,6 +18,9 @@ func newTestBridge() *uiBridge {
 		allowMilestones: map[string]map[int]bool{
 			issueKey("fleetdm/fleet", 1): {10: true},
 		},
+		allowClearMilestone: map[string]bool{
+			issueKey("fleetdm/fleet", 1): true,
+		},
 		allowChecklist: map[string]map[string]bool{
 			issueKey("fleetdm/fleet", 1): {"check one": true},
 		},
@@ -143,6 +146,30 @@ func TestHandleApplyMilestoneValidation(t *testing.T) {
 
 	rr = httptest.NewRecorder()
 	b.handleApplyMilestone(rr, postReq("/api/apply-milestone", `{"repo":"fleetdm/fleet","issue":"2","milestone_number":10}`))
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusForbidden)
+	}
+}
+
+// TestHandleRemoveMilestoneValidation verifies milestone-clear mutation guardrails.
+func TestHandleRemoveMilestoneValidation(t *testing.T) {
+	t.Parallel()
+	b := newTestBridge()
+
+	rr := httptest.NewRecorder()
+	b.handleRemoveMilestone(rr, postReq("/api/remove-milestone", `{"repo":"bad/slug/extra","issue":"1"}`))
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusBadRequest)
+	}
+
+	rr = httptest.NewRecorder()
+	b.handleRemoveMilestone(rr, postReq("/api/remove-milestone", `{"repo":"fleetdm/fleet","issue":"abc"}`))
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusBadRequest)
+	}
+
+	rr = httptest.NewRecorder()
+	b.handleRemoveMilestone(rr, postReq("/api/remove-milestone", `{"repo":"fleetdm/fleet","issue":"2"}`))
 	if rr.Code != http.StatusForbidden {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusForbidden)
 	}
