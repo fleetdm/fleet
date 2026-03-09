@@ -312,7 +312,7 @@ func gitopsCommand() *cli.Command {
 					}
 				}
 
-				// Targeting queries agaisnt labels is a Premium feature only
+				// Targeting queries against labels is a Premium feature only
 				if !appConfig.License.IsPremium() {
 					for _, query := range config.Queries {
 						if len(query.LabelsIncludeAny) > 0 {
