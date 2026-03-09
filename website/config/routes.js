@@ -1322,6 +1322,7 @@ module.exports.routes = {
   'POST /api/v1/deliver-application-submission': { action: 'deliver-application-submission' },
   'POST /api/v1/deliver-gitops-request': { action: 'deliver-gitops-workshop-request' },
   'POST /api/v1/admin/reset-one-fleet-premium-local-trial': { action: 'admin/reset-one-fleet-premium-local-trial' },
+  'POST /api/v1/deliver-whitepaper-download-request': { action: 'deliver-whitepaper-download-request' },
 
 
   //  ╔╦╗╦╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
