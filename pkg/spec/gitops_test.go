@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
@@ -2734,12 +2735,14 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 
 	t.Run("wrapErrs prefixes errors", func(t *testing.T) {
 		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{}
+
 		policy := &Policy{
 			GitOpsPolicySpec: GitOpsPolicySpec{
 				PolicySpec:      fleet.PolicySpec{Name: "my policy"},
-				InstallSoftware: &PolicyInstallSoftware{
-					// no package_path, app_store_id, or hash_sha256
-				},
+				InstallSoftware: installSoftware, // no package_path, app_store_id, or hash_sha256
 			},
 		}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil)
@@ -2755,12 +2758,13 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		path := filepath.Join(dir, "pkg.yml")
 		require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
 
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{PackagePath: path}
+
 		policy := &Policy{
 			GitOpsPolicySpec: GitOpsPolicySpec{
-				PolicySpec: fleet.PolicySpec{Name: "typo policy"},
-				InstallSoftware: &PolicyInstallSoftware{
-					PackagePath: path,
-				},
+				PolicySpec:      fleet.PolicySpec{Name: "typo policy"},
+				InstallSoftware: installSoftware,
 			},
 		}
 		packages := []*fleet.SoftwarePackageSpec{{SHA256: sha}}
