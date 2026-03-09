@@ -1102,16 +1102,7 @@ func expandGlobPattern(pattern string, baseDir string, entityType string, opts G
 func expandBaseItems[T any, PT interface {
 	*T
 	SupportsFileInclude
-}](inputEntities []T, baseDir string, entityType string, o ...GlobExpandOptions) ([]T, []error) {
-	var opts GlobExpandOptions
-	if len(o) > 1 {
-		panic("too many GlobExpandOptions arguments")
-	}
-	if len(o) == 1 {
-		opts = o[0]
-	} else {
-		opts = GlobExpandOptions{}
-	}
+}](inputEntities []T, baseDir string, entityType string, opts GlobExpandOptions) ([]T, []error) {
 	opts.setDefaults()
 	var result []T
 	var errs []error

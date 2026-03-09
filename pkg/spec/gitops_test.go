@@ -1735,7 +1735,7 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "c.txt"), []byte(""), 0o644))
 
 		items := []BaseItem{{Paths: ptr.String("*.yml")}}
-		result, errs := expandBaseItems(items, dir, "test")
+		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
 		require.Empty(t, errs)
 		require.Len(t, result, 2)
 		assert.Equal(t, filepath.Join(dir, "a.yml"), *result[0].Path)
@@ -1753,7 +1753,7 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(subdir, "nested.yml"), []byte(""), 0o644))
 
 		items := []BaseItem{{Paths: ptr.String("**/*.yml")}}
-		result, errs := expandBaseItems(items, dir, "test")
+		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
 		require.Empty(t, errs)
 		require.Len(t, result, 2)
 		assert.Equal(t, filepath.Join(subdir, "nested.yml"), *result[0].Path)
@@ -1771,7 +1771,7 @@ func TestExpandBaseItems(t *testing.T) {
 			{Path: ptr.String("single.yml")},
 			{Paths: ptr.String("*.yaml")},
 		}
-		result, errs := expandBaseItems(items, dir, "test")
+		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
 		require.Empty(t, errs)
 		require.Len(t, result, 3)
 		assert.Equal(t, filepath.Join(dir, "single.yml"), *result[0].Path)
@@ -1782,28 +1782,28 @@ func TestExpandBaseItems(t *testing.T) {
 	t.Run("paths_without_glob_error", func(t *testing.T) {
 		t.Parallel()
 		items := []BaseItem{{Paths: ptr.String("foo.yml")}}
-		_, errs := expandBaseItems(items, "/tmp", "test")
+		_, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{})
 		requireErrorContains(t, errs, `does not contain glob characters`)
 	})
 
 	t.Run("path_with_glob_error", func(t *testing.T) {
 		t.Parallel()
 		items := []BaseItem{{Path: ptr.String("*.yml")}}
-		_, errs := expandBaseItems(items, "/tmp", "test")
+		_, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{})
 		requireErrorContains(t, errs, `contains glob characters`)
 	})
 
 	t.Run("both_path_and_paths_error", func(t *testing.T) {
 		t.Parallel()
 		items := []BaseItem{{Path: ptr.String("foo.yml"), Paths: ptr.String("*.yml")}}
-		_, errs := expandBaseItems(items, "/tmp", "test")
+		_, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{})
 		requireErrorContains(t, errs, `cannot have both "path" and "paths"`)
 	})
 
 	t.Run("inline_items_passed_through", func(t *testing.T) {
 		t.Parallel()
 		items := []BaseItem{{}}
-		result, errs := expandBaseItems(items, "/tmp", "test")
+		result, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{})
 		require.Empty(t, errs)
 		require.Len(t, result, 1)
 		assert.Nil(t, result[0].Path)
@@ -1901,7 +1901,7 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "m.yml"), []byte(""), 0o644))
 
 		items := []BaseItem{{Paths: ptr.String("*.yml")}}
-		result, errs := expandBaseItems(items, dir, "test")
+		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
 		require.Empty(t, errs)
 		require.Len(t, result, 3)
 		assert.Equal(t, filepath.Join(dir, "a.yml"), *result[0].Path)
@@ -1912,7 +1912,7 @@ func TestExpandBaseItems(t *testing.T) {
 	t.Run("multiple_errors_collected", func(t *testing.T) {
 		t.Parallel()
 		items := []BaseItem{{Path: ptr.String("*.yml")}, {Paths: ptr.String("noglob.yml")}}
-		_, errs := expandBaseItems(items, "", "test")
+		_, errs := expandBaseItems(items, "", "test", GlobExpandOptions{})
 		require.Len(t, errs, 2)
 		assert.Contains(t, errs[0].Error(), `contains glob characters`)
 		assert.Contains(t, errs[1].Error(), `does not contain glob characters`)
