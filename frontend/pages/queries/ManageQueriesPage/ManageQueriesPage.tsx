@@ -242,7 +242,7 @@ const ManageQueriesPage = ({
         "error",
         `There was an error deleting your ${
           bulk ? "reports" : "report"
-        }. Please try again later.`,
+        }. Please try again later.`
       );
     } finally {
       toggleDeleteQueryModal();
