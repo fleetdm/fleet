@@ -5207,6 +5207,18 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		}`), http.StatusOK, &acResp)
 		require.NotEmpty(t, acResp.MDM.EndUserAuthentication)
 
+		// can't clear IdP settings while end user authentication is enabled
+		acResp = appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "",
+					"idp_name": "",
+					"metadata_url": ""
+				}
+			}
+		}`), http.StatusUnprocessableEntity, &acResp)
+
 		// ok to disable end user authentication without a configured IdP
 		acResp = appConfigResponse{}
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
