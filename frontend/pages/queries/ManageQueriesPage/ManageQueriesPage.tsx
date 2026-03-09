@@ -205,7 +205,7 @@ const ManageQueriesPage = ({
       toggleDeleteQueryModal();
       setSelectedQueryIds(selectedTableQueryIds);
     },
-    [toggleDeleteQueryModal, setSelectedQueryIds],
+    [toggleDeleteQueryModal, setSelectedQueryIds]
   );
 
   const toggleManageAutomationsModal = useCallback(() => {
