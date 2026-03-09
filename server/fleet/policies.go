@@ -56,11 +56,6 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool
-	// ConditionalAccessBypassEnabled indicates if a conditional access policy can be one-time
-	// bypased by end users.
-	//
-	// Only applies to team policies.
-	ConditionalAccessBypassEnabled *bool
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
@@ -99,9 +94,6 @@ type NewTeamPolicyPayload struct {
 	LabelsExcludeAny []string
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	ConditionalAccessEnabled bool
-	// ConditionalAccessBypassEnabled indicates if a conditional access policy can be one-time
-	// bypassed by the end user
-	ConditionalAccessBypassEnabled *bool
 }
 
 var (
@@ -211,11 +203,6 @@ type ModifyPolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled *bool `json:"conditional_access_enabled" premium:"true"`
-	// ConditionalAccessBypassEnabled indicates if a conditional access policy can be one-time
-	// bypased by end users.
-	//
-	// Only applies to team policies.
-	ConditionalAccessBypassEnabled *bool `json:"conditional_access_bypass_enabled" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.
@@ -285,11 +272,6 @@ type PolicyData struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool `json:"conditional_access_enabled" db:"conditional_access_enabled"`
-	// ConditionalAccessBypassEnabled indicates if a conditional access policy can be one-time
-	// bypased by end users.
-	//
-	// Only applies to team policies.
-	ConditionalAccessBypassEnabled *bool `json:"conditional_access_bypass_enabled" db:"conditional_access_bypass_enabled"`
 
 	UpdateCreateTimestamps
 }
@@ -407,11 +389,6 @@ type PolicySpec struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
-	// ConditionalAccessBypassEnabled indicates if a conditional access policy can be one-time
-	// bypased by end users.
-	//
-	// Only applies to team policies.
-	ConditionalAccessBypassEnabled *bool `json:"conditional_access_bypass_enabled"`
 }
 
 // PolicySoftwareTitle contains software title data for policies.

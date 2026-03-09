@@ -1,0 +1,6 @@
+- name: Windows - Claude up to date
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Claude' AND version_compare(version, '1.1.4088') < 0);
+  critical: false
+  description: The host may have an outdated version of Claude, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Claude's built-in update functionality. You can also uninstall Claude if you are no longer using it."
+  platform: windows
