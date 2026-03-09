@@ -162,7 +162,7 @@ const ManageQueriesPage = ({
       refetchOnWindowFocus: false,
       enabled: isRouteOk,
       staleTime: 5000,
-    },
+    }
   );
 
   // Enhance the queries from the response when they are changed.
