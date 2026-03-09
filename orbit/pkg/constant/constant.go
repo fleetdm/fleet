@@ -86,4 +86,9 @@ const (
 	FleetHTTPSignatureTPMKeyFileName = "host_identity_tpm.pem"
 	// FleetHTTPSignatureTPMKeyBackupFileName is the filename for the backup of the TPM key during renewal
 	FleetHTTPSignatureTPMKeyBackupFileName = "host_identity_tpm.old.pem"
+
+	// ConditionalAccessCertFileName is the filename for the conditional access client certificate.
+	ConditionalAccessCertFileName = "conditional_access.crt"
+	// ConditionalAccessKeyFileName is the filename for the conditional access private key.
+	ConditionalAccessKeyFileName = "conditional_access.key"
 )

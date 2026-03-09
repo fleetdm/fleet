@@ -1229,6 +1229,15 @@ func main() {
 				windowsMDMBitlockerCommandFrequency, orbitClient, comWorker))
 		case "linux":
 			orbitClient.RegisterConfigReceiver(luks.New(orbitClient))
+			orbitClient.RegisterConfigReceiver(update.NewConditionalAccessRunner(
+				c.String("root-dir"),
+				fleetURL,
+				enrollSecret,
+				orbitHostInfo.HardwareUUID,
+				c.String("fleet-certificate"),
+				c.Bool("insecure"),
+				log.Logger,
+			))
 		}
 
 		flagUpdateReceiver := update.NewFlagReceiver(orbitClient.TriggerOrbitRestart, update.FlagUpdateOptions{
