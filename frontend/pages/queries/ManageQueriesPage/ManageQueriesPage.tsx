@@ -322,8 +322,8 @@ const ManageQueriesPage = ({
       );
       turnOffAutomations.map((id) =>
         updateAutomatedQueries.push(
-          queriesAPI.update(id, { automations_enabled: false }),
-        ),
+          queriesAPI.update(id, { automations_enabled: false })
+        )
       );
 
       try {
