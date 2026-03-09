@@ -23,9 +23,13 @@ func runProductBoardMilestoneCheck(
 
 	projectID := fetchProjectID(ctx, client, org, draftingProjectNum)
 	items := fetchItems(ctx, client, projectID, limit)
+	statusNeedles := strings.Split(productBoardMilestoneStatusNeedle, ",")
 	out := make([]ProductBoardMilestoneViolation, 0)
 	for _, it := range items {
 		if it.Content.Issue.Number == 0 {
+			continue
+		}
+		if _, ok := matchedStatus(it, statusNeedles); !ok {
 			continue
 		}
 		if !matchesLabelFilter(it, groupLabelFilter) {

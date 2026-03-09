@@ -85,7 +85,8 @@ func graphNodesForProjectID(id string) []map[string]any {
 	case "P67":
 		return []map[string]any{
 			issueNode(7001, "Drafting issue", "https://github.com/fleetdm/fleet/issues/7001", "Ready to estimate", "- [ ] check one", []string{"bug"}, time.Now().UTC(), nil, ""),
-			issueNode(7002, "Product board milestone issue", "https://github.com/fleetdm/fleet/issues/7002", "In review", "body", []string{"g-orchestration"}, time.Now().UTC(), nil, "4.90.0"),
+			issueNode(7002, "Product board milestone issue", "https://github.com/fleetdm/fleet/issues/7002", "Ready to spec", "body", []string{"g-orchestration"}, time.Now().UTC(), nil, "4.90.0"),
+			issueNode(7003, "Product board wrong status", "https://github.com/fleetdm/fleet/issues/7003", "In review", "body", []string{"g-orchestration"}, time.Now().UTC(), nil, "4.91.0"),
 		}
 	case "P71":
 		return []map[string]any{

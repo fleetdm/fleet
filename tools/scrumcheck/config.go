@@ -11,8 +11,9 @@ const (
 	checkText        = "Engineer: Added comment to user story confirming successful completion of test plan."
 
 	// Drafting board (Project 67) check:
-	draftingProjectNum   = 67
-	draftingStatusNeedle = "Ready to estimate,Estimated"
+	draftingProjectNum                = 67
+	draftingStatusNeedle              = "Ready to estimate,Estimated"
+	productBoardMilestoneStatusNeedle = "Ready to spec,Ready to estimate,Estimated"
 
 	defaultStaleDays         = 25
 	defaultBridgeIdleMinutes = 10
