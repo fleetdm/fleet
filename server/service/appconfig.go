@@ -1522,19 +1522,21 @@ func (svc *Service) validateMDM(
 	}
 
 	// MacOSSetup validation
-	if mdm.MacOSSetup.EnableEndUserAuthentication {
-		if mdm.EndUserAuthentication.IsEmpty() {
-			if !oldMdm.EndUserAuthentication.IsEmpty() {
-				// IdP is being cleared while EUA is still enabled.
-				invalid.Append("end_user_authentication",
-					`End user authentication is enabled. Please disable end user authentication in Controls > Setup experience and try again`)
-			} else {
-				// TODO: update this error message to include steps to resolve the issue once docs for IdP
-				// config are available
-				invalid.Append("macos_setup.enable_end_user_authentication",
-					`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`)
-			}
+	if mdm.EndUserAuthentication.IsEmpty() && !oldMdm.EndUserAuthentication.IsEmpty() {
+		// IdP is being cleared: block if any team has EUA enabled.
+		teamIDs, err := svc.ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking teams with EUA enabled")
 		}
+		if len(teamIDs) > 0 {
+			invalid.Append("end_user_authentication",
+				`End user authentication is enabled. Please disable end user authentication in Controls > Setup experience and try again`)
+		}
+	} else if mdm.MacOSSetup.EnableEndUserAuthentication && mdm.EndUserAuthentication.IsEmpty() {
+		// TODO: update this error message to include steps to resolve the issue once docs for IdP
+		// config are available
+		invalid.Append("macos_setup.enable_end_user_authentication",
+			`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`)
 	}
 
 	if mdm.MacOSSetup.LockEndUserInfo.Value && !mdm.MacOSSetup.EnableEndUserAuthentication {

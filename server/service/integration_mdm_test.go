@@ -5193,6 +5193,8 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 	t.Run("ValidateEnableEndUserAuthentication", func(t *testing.T) {
 		// ensure the test is setup correctly
 		var acResp appConfigResponse
+		var errResp validationErrResp
+		var teamResp teamResponse
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
 				"end_user_authentication": {
@@ -5207,8 +5209,8 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		}`), http.StatusOK, &acResp)
 		require.NotEmpty(t, acResp.MDM.EndUserAuthentication)
 
-		// can't clear IdP settings while end user authentication is enabled
-		acResp = appConfigResponse{}
+		// can't clear IdP settings while end user authentication is enabled (global)
+		errResp = validationErrResp{}
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
 				"end_user_authentication": {
@@ -5217,23 +5219,91 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 					"metadata_url": ""
 				}
 			}
-		}`), http.StatusUnprocessableEntity, &acResp)
+		}`), http.StatusUnprocessableEntity, &errResp)
+		require.Len(t, errResp.Errors, 1)
+		require.Equal(t, errResp.Errors[0].Reason, "End user authentication is enabled. Please disable end user authentication in Controls > Setup experience and try again")
 
-		// ok to disable end user authentication without a configured IdP
+		//  disable end user authentication before clearing IdP settings
 		acResp = appConfigResponse{}
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
-				"end_user_authentication": {
-					"entity_id": "",
-					"idp_name": "",
-					"metadata_url": ""
-				},
 				"macos_setup": {
 					"enable_end_user_authentication": false
 				}
 			}
 		}`), http.StatusOK, &acResp)
 		require.Equal(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication, false)
+		acResp = appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "",
+					"idp_name": "",
+					"metadata_url": ""
+				}
+			}
+		}`), http.StatusOK, &acResp)
+		require.True(t, acResp.MDM.EndUserAuthentication.IsEmpty())
+
+		// can't clear IdP settings while end user authentication is enabled on a team
+		// 1. configure IdP globally
+		acResp = appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "https://localhost:8080",
+					"idp_name": "SimpleSAML",
+					"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+				}
+			}
+		}`), http.StatusOK, &acResp)
+		require.NotEmpty(t, acResp.MDM.EndUserAuthentication)
+		require.False(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+
+		// 2. enable EUA on a team
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
+			"name": %q,
+			"mdm": {
+				"macos_setup": {
+					"enable_end_user_authentication": true
+				}
+			}
+		}`, tm.Name)), http.StatusOK, &teamResp)
+		require.True(t, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+
+		// 3. clearing IdP while team EUA is enabled should fail
+		errResp = validationErrResp{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "",
+					"idp_name": "",
+					"metadata_url": ""
+				}
+			}
+		}`), http.StatusUnprocessableEntity, &errResp)
+		require.Len(t, errResp.Errors, 1)
+		require.Equal(t, errResp.Errors[0].Reason, "End user authentication is enabled. Please disable end user authentication in Controls > Setup experience and try again")
+
+		// 4. disable team EUA, then clear IdP
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
+			"name": %q,
+			"mdm": {
+				"macos_setup": {
+					"enable_end_user_authentication": false
+				}
+			}
+		}`, tm.Name)), http.StatusOK, &teamResp)
+		acResp = appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "",
+					"idp_name": "",
+					"metadata_url": ""
+				}
+			}
+		}`), http.StatusOK, &acResp)
 		require.True(t, acResp.MDM.EndUserAuthentication.IsEmpty())
 
 		// can't enable end user authentication without a configured IdP
@@ -5255,7 +5325,6 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 			fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusUnprocessableEntity)
 
 		// can't enable end user authentication on team config without a configured IdP already on app config
-		var teamResp teamResponse
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
 			"name": %q,
 			"mdm": {
