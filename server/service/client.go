@@ -2994,7 +2994,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				} else if config.TeamID != nil {
 					patchTeamID = *config.TeamID
 				}
-				var resp interface{}
+				var resp any
 				if err := c.authenticatedRequest(
 					fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{FailingPoliciesWebhook: fpw}},
 					"PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", patchTeamID), &resp,
