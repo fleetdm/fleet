@@ -9,7 +9,7 @@ module.exports = {
   inputs: {
     slug: {
       type: 'string',
-      description: 'The slug of the comparison page that will be displayed to the user',
+      description: 'The slug of the whitepaper article that will be displayed to the user',
       required: true,
     }
   },
@@ -46,9 +46,11 @@ module.exports = {
 
     let pageTitleForMeta;
     let pageDescriptionForMeta;
+
     if(thisPage.meta.articleTitle) {
       pageTitleForMeta = thisPage.meta.articleTitle;
     }
+
     if(thisPage.meta.description) {
       pageDescriptionForMeta = thisPage.meta.description;
     }
