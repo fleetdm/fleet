@@ -1086,6 +1086,7 @@ const ManagePolicyPage = ({
           page={page}
           onQueryChange={onQueryChange}
           customControl={renderAutomationFilter}
+          isFiltered={!!automationFilter}
         />
       );
     }
@@ -1126,6 +1127,7 @@ const ManagePolicyPage = ({
           page={page}
           onQueryChange={onQueryChange}
           customControl={renderAutomationFilter}
+          isFiltered={!!automationFilter}
         />
       </div>
     );
