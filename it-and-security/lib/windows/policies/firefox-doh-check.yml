@@ -1,0 +1,29 @@
+- name: Windows - Firefox DNS over HTTPS (DoH) enabled
+  query: |
+    SELECT 1 WHERE EXISTS (
+      SELECT 1 FROM file
+      WHERE path = 'C:\Program Files\Mozilla Firefox\distribution\policies.json'
+      OR path = 'C:\Program Files (x86)\Mozilla Firefox\distribution\policies.json'
+    )
+    AND EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE (path = 'C:\Program Files\Mozilla Firefox\distribution\policies.json'
+        OR path = 'C:\Program Files (x86)\Mozilla Firefox\distribution\policies.json')
+      AND line LIKE '%"Enabled": true%'
+    )
+    AND EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE (path = 'C:\Program Files\Mozilla Firefox\distribution\policies.json'
+        OR path = 'C:\Program Files (x86)\Mozilla Firefox\distribution\policies.json')
+      AND line LIKE '%"Fallback": true%'
+    )
+    AND EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE (path = 'C:\Program Files\Mozilla Firefox\distribution\policies.json'
+        OR path = 'C:\Program Files (x86)\Mozilla Firefox\distribution\policies.json')
+      AND line LIKE '%"Locked": true%'
+    );
+  critical: false
+  description: "Checks that the Firefox enterprise policies.json file is deployed with DNS over HTTPS (DoH) enabled, fallback allowed, and the setting locked. Failing this policy means the policies.json file is missing or does not contain the correct DoH configuration."
+  resolution: "Run the deploy-firefox-doh-policy script from Fleet to create or update the policies.json file in the Firefox installation directory. If Firefox is not installed, this policy can be ignored."
+  platform: windows
