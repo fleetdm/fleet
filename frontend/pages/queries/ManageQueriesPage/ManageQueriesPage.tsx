@@ -233,7 +233,7 @@ const ManageQueriesPage = ({
       }
       renderFlash(
         "success",
-        `Successfully deleted ${bulk ? "reports" : "report"}.`,
+        `Successfully deleted ${bulk ? "reports" : "report"}.`
       );
       setResetSelectedRows(true);
       refetchQueries();
