@@ -24,6 +24,9 @@ var (
 
 	//go:embed testdata/app_sso_platform_state_empty_kerberos_status.txt
 	noKerberosStatus string
+
+	//go:embed testdata/app_sso_platform_state_configured_not_registered.txt
+	configuredNotRegistered string
 )
 
 func TestParseAppSSOPlatformCommandOutput(t *testing.T) {
@@ -35,13 +38,15 @@ func TestParseAppSSOPlatformCommandOutput(t *testing.T) {
 	require.Equal(t, "com.microsoft.CompanyPortalMac.ssoextension", data.extensionIdentifier)
 	require.Equal(t, "KERBEROS.MICROSOFTONLINE.COM", data.realm)
 	require.Equal(t, "foobar@contoso.onmicrosoft.com", data.userPrincipalName)
+	require.True(t, data.registrationCompleted)
+	require.Equal(t, "POLoginTypeUserSecureEnclaveKey (2)", data.loginType)
 
-	// Empty, Platform SSO not set yet.
+	// Platform SSO not set yet.
 	data, err = parseAppSSOPlatformCommandOutput([]byte(empty), "com.microsoft.CompanyPortalMac.ssoextension", "KERBEROS.MICROSOFTONLINE.COM")
 	require.NoError(t, err)
 	require.Nil(t, data)
 
-	// No, kerberos status - this could happen if user removes the SSO account via Company portal
+	// No kerberos status - this could happen if user removes the SSO account via Company portal
 	data, err = parseAppSSOPlatformCommandOutput([]byte(noKerberosStatus), "com.microsoft.CompanyPortalMac.ssoextension", "KERBEROS.MICROSOFTONLINE.COM")
 	require.NoError(t, err)
 	require.Nil(t, data)
@@ -59,11 +64,24 @@ func TestParseAppSSOPlatformCommandOutput(t *testing.T) {
 	require.Equal(t, "com.microsoft.CompanyPortalMac.ssoextension", data.extensionIdentifier)
 	require.Equal(t, "FOOBAR.OTHER.COM", data.realm)
 	require.Equal(t, "", data.userPrincipalName)
+	require.Equal(t, "POLoginTypeUserSecureEnclaveKey (2)", data.loginType)
 
 	// None matches.
 	data, err = parseAppSSOPlatformCommandOutput([]byte(sample1), "com.microsoft.Other.other", "FOOBAR.OTHER.COM")
 	require.NoError(t, err)
 	require.Nil(t, data)
+
+	// Platform SSO is configured (device configuration present) but registration not completed and user configuration is null.
+	// This can happen when the configuration profile is deployed but the user hasn't registered with SSO yet.
+	data, err = parseAppSSOPlatformCommandOutput([]byte(configuredNotRegistered), "com.microsoft.CompanyPortalMac.ssoextension", "KERBEROS.MICROSOFTONLINE.COM")
+	require.NoError(t, err)
+	require.NotNil(t, data)
+	require.Equal(t, "", data.deviceID)
+	require.Equal(t, "com.microsoft.CompanyPortalMac.ssoextension", data.extensionIdentifier)
+	require.Equal(t, "KERBEROS.MICROSOFTONLINE.COM", data.realm)
+	require.Equal(t, "", data.userPrincipalName)
+	require.False(t, data.registrationCompleted)
+	require.Equal(t, "POLoginTypeUserSecureEnclaveKey (2)", data.loginType)
 
 	// Platform SSO extension identifier matches, but user is not registered yet (null).
 	// Can happen if Platform SSO configuration profile was deployed and this is a workstation with two users,
@@ -75,6 +93,7 @@ func TestParseAppSSOPlatformCommandOutput(t *testing.T) {
 	require.Equal(t, "com.microsoft.CompanyPortalMac.ssoextension", data.extensionIdentifier)
 	require.Equal(t, "KERBEROS.MICROSOFTONLINE.COM", data.realm)
 	require.Equal(t, "", data.userPrincipalName)
+	require.Equal(t, "POLoginTypeUserSecureEnclaveKey (2)", data.loginType)
 }
 
 func TestGenerateErrors(t *testing.T) {

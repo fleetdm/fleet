@@ -68,6 +68,10 @@ func (m *mockDatastore) CleanupExpiredActivities(ctx context.Context, maxCount i
 	return nil
 }
 
+func (m *mockDatastore) CleanupHostActivities(ctx context.Context, hostIDs []uint) error {
+	return nil
+}
+
 type mockUserProvider struct {
 	users         []*activity.User
 	listUsersErr  error
@@ -522,6 +526,10 @@ func (m *mockStreamingDatastore) NewActivity(ctx context.Context, user *api.User
 }
 
 func (m *mockStreamingDatastore) CleanupExpiredActivities(ctx context.Context, maxCount int, expiryWindowDays int) error {
+	panic("not implemented")
+}
+
+func (m *mockStreamingDatastore) CleanupHostActivities(ctx context.Context, hostIDs []uint) error {
 	panic("not implemented")
 }
 

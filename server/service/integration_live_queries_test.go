@@ -276,7 +276,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 					s.ds, func(q sqlx.ExtContext) error {
 						return sqlx.GetContext(
 							context.Background(), q, &details,
-							`SELECT details FROM activities WHERE activity_type = 'live_query' ORDER BY id DESC LIMIT 1`,
+							`SELECT details FROM activity_past WHERE activity_type = 'live_query' ORDER BY id DESC LIMIT 1`,
 						)
 					},
 				)

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260304183158(t *testing.T) {
+func TestUp_20260309150424(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	teamID := execNoErrLastID(t, db, `INSERT INTO teams (name) VALUES (?)`, "Test Team")

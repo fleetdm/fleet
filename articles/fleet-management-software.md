@@ -1,22 +1,20 @@
 # Fleet vs. Jamf vs. Microsoft Intune: How to choose the right fleet management software
 
-Managing a fleet of corporate devices means juggling inventory, configuration, security, and compliance across potentially thousands of endpoints. The tools IT teams use for this vary dramatically in platform coverage, deployment flexibility, and what's included versus sold separately.
-
 This guide compares Fleet, Jamf Pro, and Microsoft Intune as device management software options, covering platform support, security capabilities, and automation features.
 
 ## Overview
 
 ### Fleet
 
-Fleet is a multi-platform device management solution built on top of osquery for data collection. Fleet provides the following capabilities from a single console:
+Fleet is a [multi-platform device management](https://fleetdm.com/device-management) solution built on top of osquery for data collection. Fleet provides the following capabilities from a single console:
 
 * Supports macOS, iOS, iPadOS, Windows, Linux, ChromeOS, and Android devices  
 * Device data is returned in near real-time  
 * API-first, GitOps-native design  
 * Can be deployed on-prem, in almost any cloud-hosting platform (Amazon Web Services (AWS), Google Cloud (GCP), Render, Digital Ocean, Proxmox, etc.) on Docker, Kubernetes, or natively on almost any server hardware  
-* Also available as a fully-hosted, cloud-managed SaaS offering on Fleet's own AWS infrastructure
+* Available as a fully-hosted, cloud-managed SaaS offering on Fleet's own AWS infrastructure
 
-By integrating Fleet with a git repository management solution like GitHub or GitLab, the fleetctl command line (CLI) binary is capable of running as part of a continuous integration (CI/CD) and delivery pipeline for complete, declarative control of the Fleet UI. Managing devices enrolled into Fleet, along with security controls and software with infrastructure-as-code techniques is extremely powerful and straightforward to set up.
+By integrating Fleet with a git repository management solution like GitHub or GitLab, the [`fleetctl`](https://fleetdm.com/guides/fleetctl#basic-article) command line binary (CLI) is capable of running as part of a continuous integration (CI / CD) and delivery pipeline for complete, declarative control of the Fleet UI. Managing devices enrolled into Fleet, along with security controls and software via infrastructure-as-code techniques is extremely powerful and straightforward to set up.
 
 ### Jamf Pro
 
@@ -59,15 +57,15 @@ Fleet, Jamf, and Intune all handle core device management functions: enrollment,
 
 ### Enrollment and provisioning
 
-All three solutions support zero-touch deployment for the platforms they support. Apple devices enroll through Apple Business Manager. Windows devices use Windows Autopilot. All three can configure supervised settings that prevent users from removing management profiles.
+All three solutions support zero-touch deployment for the platforms they support. Apple devices enroll through Apple Business Manager. In Fleet and Intune, Windows devices use Windows Autopilot. All three solutions can configure settings that prevent end users from tampering with management profiles.
 
-Jamf Pro's PreStage enrollment configures Apple device onboarding, including signed package deployment during setup. Intune's Autopilot configures Windows device onboarding with comparable automation. Fleet supports both Apple Business Manager and Windows Autopilot, providing consistent zero-touch enrollment across a mixed device fleet.
+Jamf Pro's PreStage enrollment configures Apple device onboarding, including signed package deployment during setup. Intune's Autopilot configures Windows device onboarding with comparable automation. Intune also support Apple's Automated Device Enollemnt (ADE) via ABM. Fleet supports both Apple Business Manager and Windows Autopilot, providing consistent zero-touch enrollment across a mixed device fleet.
 
 ### Configuration management
 
-Jamf Pro uses Smart Groups and Static Groups to scope Configuration Profiles and policies. It uses extension attributes to collect custom inventory data. Intune uses device groups and user groups for policy assignment, with conditional access policies tied to Microsoft Entra ID. Configuration profiles work differently across Windows and macOS, with more mature controls on Windows.
+Jamf Pro uses Smart Groups and Static Groups to scope Configuration Profiles and Policies to devices. Policy automation is coupled tightly to group membership. Jamf uses built-in criteria and customizable extension attributes to collect inventory data and for scope targeting. Intune uses device groups and user groups for policy assignment, with conditional access policies tied to Microsoft Entra ID. Configuration profiles work differently across Windows and macOS on Intune, with more mature, native controls for Windows.
 
-Fleet uses Teams and Labels for scoping across all platforms. A label can be as simple as a manual tag or as sophisticated as a live osquery result. Devices dynamically match labels as their state changes, keeping policy assignments current without manual intervention. The same scoping model works identically whether targeting macOS, Windows, or Linux devices. When using Fleet with GitOps, configurations are version-controlled and auditable, with changes tracked through pull requests rather than GUI edits that lack audit trails.
+Fleet uses Fleets and Labels for scoping across all platforms. A Label can be as simple as a manual tag or as sophisticated as a live osquery result or group membership from an integrated IdP. Devices dynamically match Labels as their state changes, keeping Policy assignments current without manual intervention. The same scope targeting model works across macOS, Windows, or Linux devices. When using Fleet with GitOps, all Fleet console configurations can be version-controlled and auditable, with changes tracked through pull requests rather than GUI edits that lack audit trails.
 
 Fleet supports Declarative Device Management (DDM) natively for Apple devices. Jamf Pro supports DDM, but availability of specific DDM-powered workflows can vary by hosting tier and subscription. Intune supports Apple DDM for software update policies and is moving Apple update management toward DDM.
 
@@ -77,19 +75,19 @@ All three solutions deploy applications and handle operating system updates.
 
 Jamf Pro offers App Installers (Jamf App Catalog) for third-party macOS apps, custom package uploads, and Apps and Books (VPP) for iOS/iPadOS app distribution. OS updates can be enforced through MDM commands.
 
-Intune deploys Windows applications through the Company Portal and manages Microsoft Store apps. macOS app deployment exists but with fewer options than Windows. Windows Update for Business handles OS patching.
+Intune deploys Windows applications through the Company Portal and manages Microsoft Store apps - macOS app deployment exists but with fewer options than for Windows. Windows Update for Business handles OS patching.
 
-Fleet provides Fleet-maintained apps and custom installer package installer uploads. Software deployment works consistently across macOS, Windows, and Linux. OS update enforcement uses the same policy model regardless of platform.
+Fleet provides Fleet-maintained apps and custom installer package installer uploads. Software deployment works consistently across macOS, Windows, and Linux. OS update enforcement uses similar features across all supported platforms.
 
 ### Security and compliance
 
-Jamf Pro manages FileVault encryption, Gatekeeper, and Apple security baselines. Advanced capabilities require purchasing Jamf Protect separately for EDR and threat detection.
+Jamf Pro manages FileVault encryption, Gatekeeper, and Apple security baselines. Advanced security capabilities require purchasing Jamf Protect separately for EDR and threat detection.
 
 Intune integrates with Microsoft Defender for endpoint protection, conditional access, and compliance policies. The full security stack requires Microsoft Defender licensing beyond base Intune.
 
 Fleet includes security capabilities in the base product. Vulnerability detection pulls data from the National Vulnerability Database (NVD) to enable EPSS scoring, and the Known Exploited Vulnerabilities (KEV) catalog. File integrity monitoring and YARA-based threat detection are built in to osquery. CIS benchmark queries are publicly available and easily uploaded. SIEM integration for shipping log data is standard.
 
-Fleet can deliver an arbitrary MDM command to a managed device without limitations. Custom MDM commands are not available in Jamf or Intune. MDM commands are limited to what’s made available via the Jamf Pro or Intune GUI.
+Fleet can also deliver arbitrary MDM commands to a managed device without limitations. Custom MDM commands are not available in Jamf or Intune. MDM commands are limited to what’s made available via the Jamf Pro or Intune GUI.
 
 ## Single-platform vs. multi-platform fleet management
 
@@ -97,7 +95,7 @@ Jamf Pro is Apple-first. Jamf's broader portfolio includes Android enrollment, b
 
 Intune covers Windows, macOS, iOS, iPadOS, Android, Linux, and ChromeOS, but Windows management is emphasized. macOS management capabilities are less mature than Windows equivalents, and Linux/ChromeOS support has platform-specific limitations.
 
-Fleet manages macOS, iOS, iPadOS, Windows, Linux, ChromeOS, and Android with consistent capabilities across platforms. The same queries work everywhere. The same policies apply regardless of operating system. IT teams learn one console for the entire device fleet rather than context-switching between tools.
+Fleet manages macOS, iOS, iPadOS, Windows, Linux, ChromeOS, and Android with consistent capabilities across platforms. The same queries work everywhere. Policies apply regardless of operating system. IT teams learn one console for the entire device fleet rather than context-switching between tools.
 
 Many organizations manage more than one operating system. Separate tools for each platform means separate training, separate policies, separate compliance evidence. Fleet provides device management that works across every platform from a single console, with security features included rather than requiring additional purchases.
 
@@ -105,11 +103,11 @@ Many organizations manage more than one operating system. Separate tools for eac
 
 ### What is device management software for IT teams?
 
-Device management solutions (i.e., device management software) centralizes reporting, inventory collection, configuration, security, and compliance for devices that are owned and managed by organizations. IT teams use device management solutions to manage laptops, desktops, servers and mobile devices.
+Device management solutions (i.e., device management software) combine reporting, inventory collection, configuration, security, and compliance for devices that are owned and managed by organizations. IT teams use device management solutions to manage laptops, desktops, servers and mobile devices.
 
 ### Can one device management solution handle Mac, Windows, and Linux devices?
 
-Fleet and Intune manage macOS, Windows, Linux, iOS, iPadOS, ChromeOS, and Android from the same console. Jamf Pro is Apple-first with Android support, but Windows and Linux require additional tools. Intune supports multiple platforms but with uneven feature depth across operating systems.
+Fleet and Intune manage macOS, Windows, Linux, iOS, iPadOS, ChromeOS, and Android from the same console. Jamf Pro is Apple-first with Android support via Jamf for Mobile, but does not support Windows or Linux. Intune supports multiple platforms but with uneven feature depth across operating systems.
 
 ### What factors matter most when comparing fleet management software?
 
