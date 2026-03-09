@@ -85,6 +85,64 @@ func TestUncheckedChecklistItems(t *testing.T) {
 	}
 }
 
+func TestUncheckedChecklistItems_ReproChecklistOrGate(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		body string
+		want []string
+	}{
+		{
+			name: "both unchecked remains violation",
+			body: `
+- [ ] Have been confirmed to consistently lead to reproduction in multiple Fleet instances.
+- [ ] Describe the workflow that led to the error, but have not yet been reproduced in multiple Fleet instances.
+`,
+			want: []string{
+				"Have been confirmed to consistently lead to reproduction in multiple Fleet instances.",
+				"Describe the workflow that led to the error, but have not yet been reproduced in multiple Fleet instances.",
+			},
+		},
+		{
+			name: "confirmed checked suppresses workflow unchecked",
+			body: `
+- [x] Have been confirmed to consistently lead to reproduction in multiple Fleet instances.
+- [ ] Describe the workflow that led to the error, but have not yet been reproduced in multiple Fleet instances.
+`,
+			want: []string{},
+		},
+		{
+			name: "workflow checked suppresses confirmed unchecked",
+			body: `
+- [ ] Have been confirmed to consistently lead to reproduction in multiple Fleet instances.
+- [X] Describe the workflow that led to the error, but have not yet been reproduced in multiple Fleet instances.
+`,
+			want: []string{},
+		},
+		{
+			name: "either checked still keeps other unchecked items",
+			body: `
+- [x] Have been confirmed to consistently lead to reproduction in multiple Fleet instances.
+- [ ] Describe the workflow that led to the error, but have not yet been reproduced in multiple Fleet instances.
+- [ ] another actionable task
+`,
+			want: []string{"another actionable task"},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := uncheckedChecklistItems(tc.body)
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("uncheckedChecklistItems() = %#v, want %#v", got, tc.want)
+			}
+		})
+	}
+}
+
 // TestNormalizeStatusName verifies status normalization removes emoji/symbol
 // prefixes and normalizes casing/whitespace.
 func TestNormalizeStatusName(t *testing.T) {

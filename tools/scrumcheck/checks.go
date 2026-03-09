@@ -7,6 +7,11 @@ import (
 	"unicode/utf8"
 )
 
+const (
+	reproConfirmedChecklistText = "Have been confirmed to consistently lead to reproduction in multiple Fleet instances."
+	reproWorkflowChecklistText  = "Describe the workflow that led to the error, but have not yet been reproduced in multiple Fleet instances."
+)
+
 // inAwaitingQA returns true when an item's status field is set to the
 // configured Awaiting QA column name.
 func inAwaitingQA(it Item) bool {
@@ -107,34 +112,81 @@ func uncheckedChecklistItems(body string) []string {
 
 	lines := strings.Split(body, "\n")
 	out := make([]string, 0)
+	hasReproConfirmedChecked := false
+	hasReproWorkflowChecked := false
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		// Switch handles the supported unchecked-checklist syntaxes line-by-line:
-		// - "- [ ] text"
-		// - "* [ ] text"
-		// - "[ ] text"
-		// Each case extracts normalized text and applies ignore-prefix filtering.
-		// Non-matching lines (including checked items like [x]) fall through and
-		// are skipped, so only still-unchecked tasks are returned.
-		switch {
-		case strings.HasPrefix(trimmed, "- [ ] "):
-			text := strings.TrimSpace(strings.TrimPrefix(trimmed, "- [ ] "))
-			if !shouldIgnoreDraftingChecklistItem(text) {
-				out = append(out, text)
+		checked, text, ok := parseChecklistLine(trimmed)
+		if !ok {
+			continue
+		}
+
+		switch normalizeChecklistItemText(text) {
+		case normalizeChecklistItemText(reproConfirmedChecklistText):
+			if checked {
+				hasReproConfirmedChecked = true
 			}
-		case strings.HasPrefix(trimmed, "* [ ] "):
-			text := strings.TrimSpace(strings.TrimPrefix(trimmed, "* [ ] "))
-			if !shouldIgnoreDraftingChecklistItem(text) {
-				out = append(out, text)
-			}
-		case strings.HasPrefix(trimmed, "[ ] "):
-			text := strings.TrimSpace(strings.TrimPrefix(trimmed, "[ ] "))
-			if !shouldIgnoreDraftingChecklistItem(text) {
-				out = append(out, text)
+		case normalizeChecklistItemText(reproWorkflowChecklistText):
+			if checked {
+				hasReproWorkflowChecked = true
 			}
 		}
+
+		if checked {
+			continue
+		}
+		if shouldIgnoreDraftingChecklistItem(text) {
+			continue
+		}
+		out = append(out, text)
+	}
+
+	// The two reproduction checklist options are an OR gate:
+	// if either is checked, an unchecked sibling should not count as a violation.
+	if hasReproConfirmedChecked || hasReproWorkflowChecked {
+		filtered := make([]string, 0, len(out))
+		for _, text := range out {
+			norm := normalizeChecklistItemText(text)
+			if norm == normalizeChecklistItemText(reproConfirmedChecklistText) ||
+				norm == normalizeChecklistItemText(reproWorkflowChecklistText) {
+				continue
+			}
+			filtered = append(filtered, text)
+		}
+		return filtered
 	}
 	return out
+}
+
+// parseChecklistLine parses common markdown checklist forms and reports whether
+// the item is checked, with extracted item text.
+func parseChecklistLine(line string) (checked bool, text string, ok bool) {
+	prefixes := []struct {
+		prefix  string
+		checked bool
+	}{
+		{prefix: "- [ ] ", checked: false},
+		{prefix: "* [ ] ", checked: false},
+		{prefix: "[ ] ", checked: false},
+		{prefix: "- [x] ", checked: true},
+		{prefix: "- [X] ", checked: true},
+		{prefix: "* [x] ", checked: true},
+		{prefix: "* [X] ", checked: true},
+		{prefix: "[x] ", checked: true},
+		{prefix: "[X] ", checked: true},
+	}
+	for _, p := range prefixes {
+		if strings.HasPrefix(line, p.prefix) {
+			return p.checked, strings.TrimSpace(strings.TrimPrefix(line, p.prefix)), true
+		}
+	}
+	return false, "", false
+}
+
+func normalizeChecklistItemText(text string) string {
+	out := strings.ToLower(strings.TrimSpace(text))
+	out = strings.TrimRight(out, ".")
+	return strings.TrimSpace(out)
 }
 
 // shouldIgnoreDraftingChecklistItem reports whether a checklist line should be
