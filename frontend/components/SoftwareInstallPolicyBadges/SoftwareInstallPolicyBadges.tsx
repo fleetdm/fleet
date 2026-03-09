@@ -8,21 +8,19 @@ import PillBadge from "components/PillBadge";
 
 const baseClass = "software-install-policy-badges";
 
+export const PATCH_TOOLTIP_CONTENT = (
+  <>
+    Hosts will fail this policy if they&apos;re <br />
+    running an older version.
+  </>
+);
 interface IPatchBadgesProps {
   policyType?: SoftwareInstallPolicyTypeSet;
 }
 
 const SoftwareInstallPolicyBadges = ({ policyType }: IPatchBadgesProps) => {
   const renderPatchBadge = () => (
-    <PillBadge
-      text="Patch"
-      tipContent={
-        <>
-          Hosts will fail this policy if they&apos;re <br />
-          running an older version.
-        </>
-      }
-    />
+    <PillBadge text="Patch" tipContent={PATCH_TOOLTIP_CONTENT} />
   );
 
   const renderAutomaticInstallBadge = () => (

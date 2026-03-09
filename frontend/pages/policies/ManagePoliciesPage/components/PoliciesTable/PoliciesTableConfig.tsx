@@ -17,6 +17,7 @@ import sortUtils from "utilities/sort";
 import { DEFAULT_EMPTY_CELL_VALUE, PolicyResponse } from "utilities/constants";
 
 import PillBadge from "components/PillBadge";
+import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
 import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
@@ -117,8 +118,9 @@ const generateTableHeaders = (
             value={cellProps.cell.value}
             suffix={
               <>
-                {/* TODO: Replace with <PillBadge /> component once available */}
-                {type === "patch" && <span className="patch-badge">Patch</span>}
+                {type === "patch" && (
+                  <PillBadge text="Patch" tipContent={PATCH_TOOLTIP_CONTENT} />
+                )}
                 {isPremiumTier && critical && (
                   <div className="critical-badge">
                     <span
