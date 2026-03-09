@@ -11,6 +11,7 @@ Fleet 4.82.0 is now available. See the complete [changelog](https://github.com/f
 - Fleets and reports rename
 - New technician role for helpdesk teams
 - Self-service scripts on macOS
+- Fully-managed Android
 
 ### Fleets and reports rename
 
@@ -36,7 +37,7 @@ This makes it easier for IT admins to deliver quick fixes and utility scripts.
 
 GitHub issue: [#33951](https://github.com/fleetdm/fleet/issues/33951)
 
-### Manage fully-managed Android hosts
+### Fully-managed Android
 
 Fleet now supports managing company-owned Android hosts in fully-managed mode. This allows IT teams to apply stricter controls and use Android management features that aren’t available on BYOD Android hosts (work profiles). Learn how to [enroll Android hosts](https://fleetdm.com/guides/enroll-hosts).
 
