@@ -3275,7 +3275,7 @@ software:
 	expectedIDs := make([]uint, 0)
 	for _, p := range appliedPolicies {
 		if slices.Contains(policiesWithWebhooksEnabled, p.Name) {
-			expectedIDs = append(expectedIDs, uint(p.ID))
+			expectedIDs = append(expectedIDs, p.ID)
 		}
 	}
 	require.ElementsMatch(t, expectedIDs, (*appConfig).WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
@@ -3426,7 +3426,7 @@ agent_options:
 		expectedIDs := make([]uint, 0)
 		for _, p := range appliedPolicies {
 			if slices.Contains(policiesWithWebhooksEnabled, p.Name) {
-				expectedIDs = append(expectedIDs, uint(p.ID))
+				expectedIDs = append(expectedIDs, p.ID)
 			}
 		}
 		require.ElementsMatch(t, expectedIDs, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)

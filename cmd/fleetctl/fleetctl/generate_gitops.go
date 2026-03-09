@@ -756,11 +756,11 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 		jsonFieldName(t, "OrgInfo"):            cmd.AppConfig.OrgInfo,
 		jsonFieldName(t, "ServerSettings"):     cmd.AppConfig.ServerSettings,
 		jsonFieldName(t, "WebhookSettings"): map[string]any{
-			"activities_webhook":      cmd.AppConfig.WebhookSettings.ActivitiesWebhook,
-			"host_status_webhook":     cmd.AppConfig.WebhookSettings.HostStatusWebhook,
+			"activities_webhook":       cmd.AppConfig.WebhookSettings.ActivitiesWebhook,
+			"host_status_webhook":      cmd.AppConfig.WebhookSettings.HostStatusWebhook,
 			"failing_policies_webhook": failingPoliciesWebhookWithoutPolicyIDs(cmd.AppConfig.WebhookSettings.FailingPoliciesWebhook),
-			"vulnerabilities_webhook": cmd.AppConfig.WebhookSettings.VulnerabilitiesWebhook,
-			"interval":               cmd.AppConfig.WebhookSettings.Interval,
+			"vulnerabilities_webhook":  cmd.AppConfig.WebhookSettings.VulnerabilitiesWebhook,
+			"interval":                 cmd.AppConfig.WebhookSettings.Interval,
 		},
 	}
 
@@ -1122,7 +1122,7 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 
 	// For regular teams, include all settings
 	webhookSettings := map[string]any{
-		"host_status_webhook":    team.Config.WebhookSettings.HostStatusWebhook,
+		"host_status_webhook":      team.Config.WebhookSettings.HostStatusWebhook,
 		"failing_policies_webhook": failingPoliciesWebhookWithoutPolicyIDs(team.Config.WebhookSettings.FailingPoliciesWebhook),
 	}
 	teamSettings = map[string]interface{}{
