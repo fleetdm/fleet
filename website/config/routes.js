@@ -604,6 +604,17 @@ module.exports.routes = {
     }
   },
 
+  'GET /whitepapers/:slug': {
+    action: 'articles/view-basic-whitepaper'
+  },
+
+  'GET /whitepapers': {
+    action: 'articles/view-articles',
+    locals: {
+      currentSection: 'more',
+    }
+  },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝

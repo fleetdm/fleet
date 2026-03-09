@@ -1,0 +1,58 @@
+<div id="basic-whitepaper" v-cloak>
+  <div purpose="page-container" class="container-fluid">
+    <div purpose="article-and-sidebar" class="d-flex flex-lg-row-reverse flex-column justify-content-lg-between">
+      <div purpose="article-title-and-author" class="d-lg-none d-block">
+        <div purpose="article-title">
+          <h4>Whitepaper</h4>
+          <h1><%=thisPage.meta.articleTitle %></h1>
+        </div>
+      </div>
+
+      <div purpose="sidebar-container">
+        <div purpose="right-sidebar" class="d-flex flex-column">
+
+
+          <div purpose="docs-links" class="order-3">
+            <a purpose="sidebar-link" href="/docs"><img alt="Docs" src="/images/icon-docs-16x16@2x.png"> Docs</a>
+            <a purpose="sidebar-link" href="/docs/rest-api"><img alt="REST API" src="/images/icon-api-16x16@2x.png"> REST API</a>
+            <a purpose="sidebar-link" href="/guides"><img alt="Guides" src="/images/icon-guides-16x16@2x.png"> Guides</a>
+            <a purpose="sidebar-link" href="/contact"><img alt="Get a demo" src="/images/icon-contact-16x16@2x.png">Get a demo</a>
+
+          </div>
+
+        </div>
+      </div>
+      <div purpose="article-container">
+        <div purpose="article-title-and-author" class="d-none d-lg-block">
+          <div purpose="article-title">
+            <h4>Whitepaper</h4>
+            <h1><%=thisPage.meta.articleTitle %></h1>
+          </div>
+        </div>
+        <div purpose="article-content" parasails-has-no-page-script>
+          <%- partial(path.relative(path.dirname(__filename), path.resolve( sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, thisPage.htmlId)))) %>
+          <div purpose="about-fleet-section">
+            <h3>About Fleet</h3>
+
+            <p>Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations, Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.</p>
+
+            <p>By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.</p>
+
+            <p>Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.</p>
+          </div>
+          <div purpose="social-share-and-edit-buttons">
+            <div purpose="social-share-buttons" class="d-flex flex-row">
+              <a :href="`https://news.ycombinator.com/submitlink?u=https://fleetdm.com${encodeURIComponent(thisPage.url)}&t=${encodeURIComponent(thisPage.meta.articleTitle)}`"><img src="/images/social-share-icon-hacker-news-20x20@2x.png" alt="Share this article on Hacker News"></a>
+              <a :href="`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://fleetdm.com'+thisPage.url)}`"><img src="/images/social-share-icon-linkedin-20x20@2x.png" alt="Share this article on LinkedIn"></a>
+              <a :href="`https://twitter.com/intent/tweet?url=${encodeURIComponent('https://fleetdm.com'+thisPage.url)}`"><img src="/images/social-share-icon-twitter-20x20@2x.png" alt="Share this article on Twitter"></a>
+            </div>
+            <div purpose="edit-link">
+              <a purpose="sidebar-link" :href="'https://github.com/fleetdm/fleet/edit/main/articles/'+thisPage.sectionRelativeRepoPath"> <img src="/images/icon-edit-16x16@2x.png" alt="Suggest an edit">Suggest an edit</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
