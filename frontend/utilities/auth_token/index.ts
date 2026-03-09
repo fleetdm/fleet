@@ -5,7 +5,11 @@
 import Cookie from "js-cookie";
 
 const save = (token: string): void => {
-  Cookie.set("__Host-token", token, { secure: true, sameSite: "lax" });
+  Cookie.set("__Host-token", token, {
+    secure: true,
+    sameSite: "lax",
+    expires: 365,
+  });
 };
 
 const get = (): string | null => {
@@ -15,7 +19,11 @@ const get = (): string | null => {
 const remove = (): void => {
   // NOTE: the entire cookie including the name and values must be provided
   // to correctly remove. That is why we include the options here as well.
-  Cookie.remove("__Host-token", { secure: true, sameSite: "lax" });
+  Cookie.remove("__Host-token", {
+    secure: true,
+    sameSite: "lax",
+    expires: 365,
+  });
 };
 
 export default {
