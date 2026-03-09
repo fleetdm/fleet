@@ -4353,12 +4353,26 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			}
 			res, err := q.ExecContext(ctx, `
 						INSERT INTO software_installers
-							(team_id, global_or_team_id, title_id, filename, extension, version, install_script_content_id, uninstall_script_content_id, storage_id, platform, self_service, package_ids)
+							(
+								team_id,
+								global_or_team_id,
+								title_id,
+								filename,
+								extension,
+								version,
+								install_script_content_id,
+								uninstall_script_content_id,
+								storage_id,
+								platform,
+								self_service,
+								package_ids,
+								is_active
+							)
 						VALUES
-							(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+							(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				teamID, globalOrTeamID, titleID, fmt.Sprintf("installer-%d.pkg", i), "pkg", fmt.Sprintf("v%d.0.0", i), scriptContentID,
 				uninstallScriptContentID,
-				[]byte("test"), "darwin", i < 2, "[]")
+				[]byte("test"), "darwin", i < 2, "[]", true)
 			if err != nil {
 				return err
 			}
@@ -5225,12 +5239,26 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		uninstallScriptContentID, _ := resUninstall.LastInsertId()
 		res, err = q.ExecContext(ctx, `
 							INSERT INTO software_installers
-								(team_id, global_or_team_id, title_id, filename, extension, version, install_script_content_id, uninstall_script_content_id, storage_id, platform, self_service, package_ids)
+								(
+									team_id,
+									global_or_team_id,
+									title_id,
+									filename,
+									extension,
+									version,
+									install_script_content_id,
+									uninstall_script_content_id,
+									storage_id,
+									platform,
+									self_service,
+									package_ids,
+									is_active
+								)
 							VALUES
-								(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+								(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			darwinHost.TeamID, 0, softwareAlreadyInstalled.TitleID, "DummyApp.pkg", "pkg", "2.0.0",
 			scriptContentID, uninstallScriptContentID,
-			[]byte("test"), "darwin", true, "[]")
+			[]byte("test"), "darwin", true, "[]", true)
 		if err != nil {
 			return err
 		}
