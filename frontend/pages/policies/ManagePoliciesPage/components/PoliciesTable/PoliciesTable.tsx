@@ -37,6 +37,7 @@ interface IPoliciesTableProps {
   sortDirection?: "asc" | "desc";
   page: number;
   count: number;
+  customControl?: () => JSX.Element | null;
 }
 
 const PoliciesTable = ({
@@ -55,6 +56,7 @@ const PoliciesTable = ({
   sortDirection,
   page,
   count,
+  customControl,
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
@@ -150,6 +152,7 @@ const PoliciesTable = ({
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search by name"
         searchable={searchable}
+        customControl={customControl}
       />
     </div>
   );

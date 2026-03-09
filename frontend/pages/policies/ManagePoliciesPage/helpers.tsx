@@ -96,7 +96,5 @@ export const getAutomationTypesString = (policy: {
 
   if (types.length === 0) return "---";
   // Lowercase all types after the first to match sentence-case display
-  return types
-    .map((t, i) => (i === 0 ? t : t.toLowerCase()))
-    .join(", ");
+  return types.map((t, i) => (i === 0 ? t : t.toLowerCase())).join(", ");
 };

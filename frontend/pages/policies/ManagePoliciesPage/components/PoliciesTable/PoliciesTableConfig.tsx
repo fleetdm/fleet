@@ -117,9 +117,7 @@ const generateTableHeaders = (
             value={cellProps.cell.value}
             suffix={
               <>
-                {type === "patch" && (
-                  <span className="patch-badge">Patch</span>
-                )}
+                {type === "patch" && <span className="patch-badge">Patch</span>}
                 {isPremiumTier && critical && (
                   <div className="critical-badge">
                     <span
@@ -170,7 +168,9 @@ const generateTableHeaders = (
         const isNone = automationsText === "---";
         return (
           <span
-            className={`automations-cell${isNone ? " automations-cell--none" : ""}`}
+            className={`automations-cell${
+              isNone ? " automations-cell--none" : ""
+            }`}
             title={isNone ? undefined : automationsText}
           >
             {automationsText}

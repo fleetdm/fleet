@@ -205,9 +205,7 @@ const ManagePolicyPage = ({
   const [sortDirection, setSortDirection] = useState<
     "asc" | "desc" | undefined
   >(initialSortDirection);
-  const [automationFilter, setAutomationFilter] = useState<string | null>(
-    null
-  );
+  const [automationFilter, setAutomationFilter] = useState<string | null>(null);
 
   useEffect(() => {
     setLastEditedQueryPlatform(null);
@@ -1032,6 +1030,23 @@ const ManagePolicyPage = ({
     { label: "Other", value: "other_workflows" },
   ];
 
+  const renderAutomationFilter = isPremiumTier
+    ? () => (
+        <DropdownWrapper
+          className={`${baseClass}__filter-automation-dropdown`}
+          name="filter-by-automation"
+          onChange={(val: SingleValue<CustomOptionType>) => {
+            setAutomationFilter(
+              val?.value && val.value !== "all" ? val.value : null
+            );
+          }}
+          placeholder="Filter by automation"
+          options={automationFilterOptions}
+          variant="table-filter"
+        />
+      )
+    : undefined;
+
   const renderMainTable = () => {
     if (!isRouteOk || (isPremiumTier && !userTeams)) {
       return <Spinner />;
@@ -1070,6 +1085,7 @@ const ManagePolicyPage = ({
           sortDirection={sortDirection}
           page={page}
           onQueryChange={onQueryChange}
+          customControl={renderAutomationFilter}
         />
       );
     }
@@ -1078,9 +1094,7 @@ const ManagePolicyPage = ({
     if (teamPoliciesError) {
       return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
     }
-    const filteredTeamPolicies = filterPoliciesByAutomation(
-      teamPolicies || []
-    );
+    const filteredTeamPolicies = filterPoliciesByAutomation(teamPolicies || []);
     const filteredTeamCount = automationFilter
       ? filteredTeamPolicies.length
       : teamPoliciesCountMergeInherited || 0;
@@ -1111,6 +1125,7 @@ const ManagePolicyPage = ({
           sortDirection={sortDirection}
           page={page}
           onQueryChange={onQueryChange}
+          customControl={renderAutomationFilter}
         />
       </div>
     );
@@ -1332,22 +1347,6 @@ const ManagePolicyPage = ({
           </div>
           <PageDescription content={"Detect device health issues."} />
         </div>
-        {isPremiumTier && (
-          <div className={`${baseClass}__filter-automation-wrapper`}>
-            <DropdownWrapper
-              className={`${baseClass}__filter-automation-dropdown`}
-              name="filter-by-automation"
-              onChange={(val: SingleValue<CustomOptionType>) => {
-                setAutomationFilter(
-                  val?.value && val.value !== "all" ? val.value : null
-                );
-              }}
-              placeholder="Filter by automation"
-              options={automationFilterOptions}
-              variant="table-filter"
-            />
-          </div>
-        )}
         {renderMainTable()}
         {automationsConfig && showOtherWorkflowsModal && (
           <OtherWorkflowsModal
