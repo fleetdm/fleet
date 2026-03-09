@@ -74,14 +74,18 @@ export interface ISoftwarePatchPolicy {
 export type SoftwareInstallPolicyType = "dynamic" | "patch";
 export type SoftwareInstallPolicyTypeSet = Set<SoftwareInstallPolicyType>;
 
-// A policy type returned from the API is set to dynamic if only auto install, and patch if it's both, this doesn't include patch alone
+// A policy type returned from the API is set to:
+// 1. dynamic if only auto install, and
+// 2.patch if it's both auto install and patch policy
+// This doesn't include patch alone, as policies set to patch only are under ISoftwarePackage.patch_policy
 export interface ISoftwareInstallPolicy {
   id: number;
   name: string;
   type: SoftwareInstallPolicyType;
 }
 
-// A policy type in the UI uses a Set because a policy shown can be both dynamic AND/OR patch
+// A policy type in the UI uses a Set because a policy in
+// Software Details > Policy can be both dynamic AND/OR patch
 export interface ISoftwareInstallPolicyUI {
   id: number;
   name: string;
