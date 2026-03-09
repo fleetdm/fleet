@@ -1,9 +1,6 @@
 import React from "react";
 
-import {
-  ISoftwareInstallerPolicyIncludeType,
-  ISoftwareInstallPolicy,
-} from "interfaces/software";
+import { ISoftwareInstallPolicyUI } from "interfaces/software";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -19,7 +16,7 @@ interface ICellProps {
     value: string;
   };
   row: {
-    original: ISoftwareInstallerPolicyIncludeType;
+    original: ISoftwareInstallPolicyUI;
   };
   column: {
     isSortedDesc: boolean;

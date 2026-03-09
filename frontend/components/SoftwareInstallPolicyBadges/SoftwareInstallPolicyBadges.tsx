@@ -3,13 +3,13 @@ import React from "react";
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 
-import { SoftwareInstallPolicyType } from "interfaces/software";
+import { SoftwareInstallPolicyTypeSet } from "interfaces/software";
 import PillBadge from "components/PillBadge";
 
 const baseClass = "software-install-policy-badges";
 
 interface IPatchBadgesProps {
-  policyType?: SoftwareInstallPolicyType;
+  policyType?: SoftwareInstallPolicyTypeSet;
 }
 
 const SoftwareInstallPolicyBadges = ({ policyType }: IPatchBadgesProps) => {

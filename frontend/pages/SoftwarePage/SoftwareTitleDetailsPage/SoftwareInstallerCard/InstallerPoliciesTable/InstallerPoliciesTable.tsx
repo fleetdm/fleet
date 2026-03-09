@@ -1,7 +1,7 @@
 import React, { useCallback } from "react";
 import classnames from "classnames";
 
-import { ISoftwareInstallPolicy } from "interfaces/software";
+import { ISoftwareInstallPolicyUI } from "interfaces/software";
 
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
@@ -13,7 +13,7 @@ interface IInstallerPoliciesTable {
   className?: string;
   teamId?: number;
   isLoading?: boolean;
-  policies?: ISoftwareInstallPolicy[] | null;
+  policies?: ISoftwareInstallPolicyUI[] | null;
 }
 const InstallerPoliciesTable = ({
   className,

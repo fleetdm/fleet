@@ -1,4 +1,3 @@
-o;
 /**
  * TODO: Major restructure of directories
  * 1. Create /software parent directory similar to /hosts, /queries, /policies...
@@ -16,9 +15,9 @@ import {
   ISoftwarePackage,
   IAppStoreApp,
   ISoftwareTitle,
-  ISoftwareInstallerPolicyIncludeType,
+  ISoftwareInstallPolicyUI,
   ISoftwareInstallPolicy,
-  SoftwareInstallPolicyType,
+  SoftwareInstallPolicyTypeSet,
 } from "interfaces/software";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
@@ -305,18 +304,18 @@ export interface MergePoliciesParams {
   patchPolicy: ISoftwarePackage["patch_policy"] | null | undefined;
 }
 
-// const mergePolicies(params: MergePoliciesParams): ISoftwareInstallerPolicyIncludeType[] = function (...) { ... }
+// const mergePolicies(params: MergePoliciesParams): ISoftwareInstallerPolicyUI[] = function (...) { ... }
 export const mergePolicies = ({
   automaticInstallPolicies,
   patchPolicy,
-}: MergePoliciesParams): ISoftwareInstallerPolicyIncludeType[] => {
+}: MergePoliciesParams): ISoftwareInstallPolicyUI[] => {
   // Map keyed by policy id so we can merge dynamic and patch info for the same id.
-  const byId = new Map<number, ISoftwareInstallerPolicyIncludeType>();
+  const byId = new Map<number, ISoftwareInstallPolicyUI>();
 
   // 1. Seed the map with automatic install ("dynamic") policies.
   (automaticInstallPolicies ?? []).forEach((installPolicy) => {
     // Type Set with "dynamic" for automatic install policies
-    const type: SoftwareInstallPolicyType = new Set(["dynamic"]);
+    const type: SoftwareInstallPolicyTypeSet = new Set(["dynamic"]);
     byId.set(installPolicy.id, {
       ...installPolicy,
       type,
@@ -334,7 +333,7 @@ export const mergePolicies = ({
     } else {
       // If there is no dynamic policy with this id, create a new entry that
       // has only "patch" in the Set.
-      const type: SoftwareInstallPolicyType = new Set(["patch"]);
+      const type: SoftwareInstallPolicyTypeSet = new Set(["patch"]);
       byId.set(patchPolicy.id, {
         ...((patchPolicy as unknown) as ISoftwareInstallPolicy),
         type,

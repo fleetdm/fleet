@@ -1,11 +1,11 @@
 import React from "react";
 import { screen, render, waitFor } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
-import { ISoftwareInstallerPolicyUI } from "interfaces/software";
+import { ISoftwareInstallPolicyUI } from "interfaces/software";
 import InstallerPoliciesTable from "./InstallerPoliciesTable";
 
 describe("InstallerPoliciesTable", () => {
-  const policies: ISoftwareInstallerPolicyUI[] = [
+  const policies: ISoftwareInstallPolicyUI[] = [
     { id: 1, name: "No Gatekeeper", type: new Set(["dynamic"]) },
     { id: 2, name: "Outdated Gatekeeper", type: new Set(["patch"]) },
   ];
