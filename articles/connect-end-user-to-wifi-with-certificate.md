@@ -30,7 +30,6 @@ We'll deploy a certificate with a dynamic SCEP challenge. To deploy certificates
 - **Dynamic SCEP URL** and verify that **Generic** is selected.
 4. Select **Generate**.
 5. Copy the **Password** because you'll need it later and then select **Save**.
-
   
 ### Step 2: Connect Fleet to Okta's CA
 
