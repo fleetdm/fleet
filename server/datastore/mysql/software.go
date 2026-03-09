@@ -5411,6 +5411,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				software ON software_titles.id = software.title_id ` + installedSoftwareJoinsCondition + `
 			WHERE
 				software_titles.id IN (?)
+				AND software_installers.is_active = true
 			%s
 			` + softwareOnlySelfServiceClause + `
 			-- GROUP by for software
@@ -5688,6 +5689,15 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
+		}
+
+		fmt.Printf("stmt: %v\n", stmt)
+
+		fmt.Printf("hostSoftwareList: %+v\n", len(hostSoftwareList))
+
+		for _, v := range hostSoftwareList {
+			fmt.Printf("v.Name: %v\n", v.Name)
+
 		}
 
 		// collect install paths by software.id
