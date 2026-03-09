@@ -186,7 +186,7 @@ const ManageQueriesPage = ({
     (teamId: number) => {
       handleTeamChange(teamId);
     },
-    [handleTeamChange],
+    [handleTeamChange]
   );
 
   const onCreateQueryClick = useCallback(() => {
