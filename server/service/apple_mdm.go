@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -2217,7 +2218,7 @@ func (svc *Service) enqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 	}
 
 	cmdUUID := uuid.New().String()
-	err = svc.mdmAppleCommander.RemoveProfile(ctx, []string{nanoEnroll.ID}, apple_mdm.FleetPayloadIdentifier, cmdUUID)
+	err = svc.mdmAppleCommander.RemoveProfile(ctx, []string{nanoEnroll.ID}, apple_mdm.FleetPayloadIdentifier, cmdUUID, true)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing mdm apple remove profile command")
 	}
@@ -5301,12 +5302,12 @@ func ReconcileAppleProfiles(
 		switch op {
 		case fleet.MDMOperationTypeInstall:
 			if _, ok := profilesWithSecrets[profUUID]; ok {
-				err = commander.EnqueueCommandInstallProfileWithSecrets(ctx, target.enrollmentIDs, profileContents[profUUID], target.cmdUUID)
+				err = commander.EnqueueCommandInstallProfileWithSecrets(ctx, target.enrollmentIDs, profileContents[profUUID], target.cmdUUID, false)
 			} else {
-				err = commander.InstallProfile(ctx, target.enrollmentIDs, profileContents[profUUID], target.cmdUUID)
+				err = commander.InstallProfile(ctx, target.enrollmentIDs, profileContents[profUUID], target.cmdUUID, false)
 			}
 		case fleet.MDMOperationTypeRemove:
-			err = commander.RemoveProfile(ctx, target.enrollmentIDs, target.profIdent, target.cmdUUID)
+			err = commander.RemoveProfile(ctx, target.enrollmentIDs, target.profIdent, target.cmdUUID, false)
 		}
 
 		var e *apple_mdm.APNSDeliveryError
@@ -5320,12 +5321,19 @@ func ReconcileAppleProfiles(
 		level.Info(logger).Log("msg", "ReconcileAppleProfiles execcmd completing", "profile_uuid", profUUID, "command_uuid", target.cmdUUID, "enrollment_id_count", len(target.enrollmentIDs))
 	}
 	level.Info(logger).Log("msg", "ReconcileAppleProfiles launching goroutines to send commands", "install_target_count", len(installTargets), "remove_target_count", len(removeTargets))
+	enrollmentIDsForNotifications := make(map[string]bool)
 	for profUUID, target := range installTargets {
 		wgProd.Add(1)
+		for _, enrollmentID := range target.enrollmentIDs {
+			enrollmentIDsForNotifications[enrollmentID] = true
+		}
 		go execCmd(profUUID, target, fleet.MDMOperationTypeInstall)
 	}
 	for profUUID, target := range removeTargets {
 		wgProd.Add(1)
+		for _, enrollmentID := range target.enrollmentIDs {
+			enrollmentIDsForNotifications[enrollmentID] = true
+		}
 		go execCmd(profUUID, target, fleet.MDMOperationTypeRemove)
 	}
 	level.Info(logger).Log("msg", "ReconcileAppleProfiles launched goroutines to send commands", "install_target_count", len(installTargets), "remove_target_count", len(removeTargets))
@@ -5369,6 +5377,13 @@ func ReconcileAppleProfiles(
 
 	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, failed); err != nil {
 		return ctxerr.Wrap(ctx, err, "reverting status of failed profiles")
+	}
+
+	enrollmentIDs := slices.Collect(maps.Keys(enrollmentIDsForNotifications))
+
+	level.Info(logger).Log("msg", "ReconcileAppleProfiles sending notifications", "enrollment_id_count", len(enrollmentIDs))
+	if len(enrollmentIDs) > 0 {
+		commander.SendNotifications(ctx, enrollmentIDs)
 	}
 
 	level.Info(logger).Log("msg", "ReconcileAppleProfiles reverted status of failed profiles", "failed_count", len(failed))
@@ -6355,7 +6370,7 @@ func renewSCEPWithProfile(
 		uuids = append(uuids, assoc.HostUUID)
 	}
 
-	if err := commander.InstallProfile(ctx, uuids, profile, cmdUUID); err != nil {
+	if err := commander.InstallProfile(ctx, uuids, profile, cmdUUID, true); err != nil {
 		return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", uuids)
 	}
 

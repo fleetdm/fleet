@@ -104,7 +104,7 @@ func TestMDMAppleCommander(t *testing.T) {
 	}
 
 	cmdUUID := uuid.New().String()
-	err := cmdr.InstallProfile(ctx, hostUUIDs, mc, cmdUUID)
+	err := cmdr.InstallProfile(ctx, hostUUIDs, mc, cmdUUID, true)
 	require.NoError(t, err)
 	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
 	mdmStorage.EnqueueCommandFuncInvoked = false
@@ -118,7 +118,7 @@ func TestMDMAppleCommander(t *testing.T) {
 		return nil, nil
 	}
 	cmdUUID = uuid.New().String()
-	err = cmdr.RemoveProfile(ctx, hostUUIDs, payloadIdentifier, cmdUUID)
+	err = cmdr.RemoveProfile(ctx, hostUUIDs, payloadIdentifier, cmdUUID, true)
 	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
 	mdmStorage.EnqueueCommandFuncInvoked = false
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
