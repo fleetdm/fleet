@@ -44,7 +44,7 @@ func makeSelfSignedCert(t *testing.T, notAfter time.Time) *x509.Certificate {
 func writeCertToDisk(t *testing.T, dir string, cert *x509.Certificate) {
 	t.Helper()
 	certPath := filepath.Join(dir, constant.ConditionalAccessCertFileName)
-	f, err := os.OpenFile(certPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
+	f, err := os.OpenFile(certPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o600)
 	require.NoError(t, err)
 	defer f.Close()
 	require.NoError(t, pem.Encode(f, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
