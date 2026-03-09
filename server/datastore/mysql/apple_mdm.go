@@ -7307,7 +7307,7 @@ func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID s
 	}, nil
 }
 
-func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]fleet.HostNeedingRecoveryLock, error) {
+func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]string, error) {
 	// Query hosts that:
 	// - Have enable_recovery_lock_password = true (from team config or appconfig for no-team hosts)
 	// - Are Apple Silicon (ARM CPU)
@@ -7315,7 +7315,7 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]fleet
 	// - Have no recovery lock password record OR have a password with NULL status (command not yet enqueued)
 	// Note: hosts with status pending, verifying, verified, or failed are NOT included
 	const stmt = `
-		SELECT h.id, h.uuid
+		SELECT h.uuid
 		FROM hosts h
 		JOIN nano_enrollments ne ON ne.device_id = h.uuid
 		JOIN host_mdm hm ON hm.host_id = h.id
@@ -7338,24 +7338,12 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]fleet
 		LIMIT 500
 	`
 
-	var results []struct {
-		HostID   uint   `db:"id"`
-		HostUUID string `db:"uuid"`
-	}
-
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt); err != nil {
+	var hostUUIDs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get hosts for recovery lock action")
 	}
 
-	hosts := make([]fleet.HostNeedingRecoveryLock, len(results))
-	for i, r := range results {
-		hosts[i] = fleet.HostNeedingRecoveryLock{
-			HostID:   r.HostID,
-			HostUUID: r.HostUUID,
-		}
-	}
-
-	return hosts, nil
+	return hostUUIDs, nil
 }
 
 func (ds *Datastore) SetRecoveryLockPending(ctx context.Context, hostUUID string) error {

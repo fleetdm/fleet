@@ -1023,7 +1023,7 @@ type SetHostsRecoveryLockPasswordsFunc func(ctx context.Context, passwords []fle
 
 type GetHostRecoveryLockPasswordFunc func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error)
 
-type GetHostsForRecoveryLockActionFunc func(ctx context.Context) ([]fleet.HostNeedingRecoveryLock, error)
+type GetHostsForRecoveryLockActionFunc func(ctx context.Context) ([]string, error)
 
 type SetRecoveryLockPendingFunc func(ctx context.Context, hostUUID string) error
 
@@ -7972,7 +7972,7 @@ func (s *DataStore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID st
 	return s.GetHostRecoveryLockPasswordFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) GetHostsForRecoveryLockAction(ctx context.Context) ([]fleet.HostNeedingRecoveryLock, error) {
+func (s *DataStore) GetHostsForRecoveryLockAction(ctx context.Context) ([]string, error) {
 	s.mu.Lock()
 	s.GetHostsForRecoveryLockActionFuncInvoked = true
 	s.mu.Unlock()

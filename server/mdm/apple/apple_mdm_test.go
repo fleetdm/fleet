@@ -320,7 +320,7 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 
 	t.Run("no hosts needing recovery lock does not send commands", func(t *testing.T) {
 		ds := new(mock.Store)
-		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]fleet.HostNeedingRecoveryLock, error) {
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
 			return nil, nil
 		}
 
@@ -340,10 +340,9 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 	t.Run("host needing recovery lock gets SetRecoveryLock and password stored", func(t *testing.T) {
 		ds := new(mock.Store)
 
-		hostID := uint(1)
 		hostUUID := "host-uuid-1"
-		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]fleet.HostNeedingRecoveryLock, error) {
-			return []fleet.HostNeedingRecoveryLock{{HostID: hostID, HostUUID: hostUUID}}, nil
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+			return []string{hostUUID}, nil
 		}
 
 		var storedPasswords []fleet.HostRecoveryLockPasswordPayload
@@ -381,10 +380,8 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 	t.Run("SetRecoveryLock failure returns error but password is stored", func(t *testing.T) {
 		ds := new(mock.Store)
 
-		hostID := uint(1)
-
-		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]fleet.HostNeedingRecoveryLock, error) {
-			return []fleet.HostNeedingRecoveryLock{{HostID: hostID, HostUUID: "host-uuid-1"}}, nil
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+			return []string{"host-uuid-1"}, nil
 		}
 
 		var passwordStored bool

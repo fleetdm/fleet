@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -10072,7 +10073,7 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 
 		// Verify status
 		var status string
-		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_id = ?", host.ID)
+		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_uuid = ?", host.UUID)
 		require.NoError(t, err)
 		assert.Equal(t, string(fleet.MDMDeliveryPending), status)
 	})
@@ -10086,7 +10087,7 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 
 		// Verify status
 		var status string
-		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_id = ?", host.ID)
+		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_uuid = ?", host.UUID)
 		require.NoError(t, err)
 		assert.Equal(t, string(fleet.MDMDeliveryVerified), status)
 	})
@@ -10100,11 +10101,11 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 
 		// Verify status and error message
 		var status, errorMsg string
-		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_id = ?", host.ID)
+		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_uuid = ?", host.UUID)
 		require.NoError(t, err)
 		assert.Equal(t, string(fleet.MDMDeliveryFailed), status)
 
-		err = ds.writer(ctx).GetContext(ctx, &errorMsg, "SELECT error_message FROM host_recovery_key_passwords WHERE host_id = ?", host.ID)
+		err = ds.writer(ctx).GetContext(ctx, &errorMsg, "SELECT error_message FROM host_recovery_key_passwords WHERE host_uuid = ?", host.UUID)
 		require.NoError(t, err)
 		assert.Equal(t, "test error message", errorMsg)
 	})
@@ -10140,13 +10141,8 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	}
 
 	// Helper to check if host is in the eligible list
-	hostInList := func(hosts []fleet.HostNeedingRecoveryLock, hostID uint) bool {
-		for _, h := range hosts {
-			if h.HostID == hostID {
-				return true
-			}
-		}
-		return false
+	hostInList := func(hostUUIDs []string, hostUUID string) bool {
+		return slices.Contains(hostUUIDs, hostUUID)
 	}
 
 	// Initially no eligible hosts
@@ -10163,7 +10159,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
-	assert.True(t, hostInList(hosts, hostARM.ID), "Apple Silicon (ARM) host should be eligible")
+	assert.True(t, hostInList(hosts, hostARM.UUID), "Apple Silicon (ARM) host should be eligible")
 
 	// Create ineligible Intel host
 	teamIntel := createTeamWithRecoveryLock("team-intel", true)
@@ -10174,7 +10170,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
-	assert.False(t, hostInList(hosts, hostIntel.ID), "Intel host should NOT be eligible")
+	assert.False(t, hostInList(hosts, hostIntel.UUID), "Intel host should NOT be eligible")
 
 	// Create host in team with recovery lock DISABLED
 	teamDisabled := createTeamWithRecoveryLock("team-disabled", false)
@@ -10185,7 +10181,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
-	assert.False(t, hostInList(hosts, hostDisabled.ID), "host in disabled team should NOT be eligible")
+	assert.False(t, hostInList(hosts, hostDisabled.UUID), "host in disabled team should NOT be eligible")
 
 	// Create host without MDM enrollment
 	teamNotEnrolled := createTeamWithRecoveryLock("team-not-enrolled", true)
@@ -10196,7 +10192,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
-	assert.False(t, hostInList(hosts, hostNotEnrolled.ID), "non-enrolled host should NOT be eligible")
+	assert.False(t, hostInList(hosts, hostNotEnrolled.UUID), "non-enrolled host should NOT be eligible")
 
 	// Create Windows host (not darwin)
 	teamNotDarwin := createTeamWithRecoveryLock("team-not-darwin", true)
@@ -10206,7 +10202,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
-	assert.False(t, hostInList(hosts, hostWindows.ID), "Windows host should NOT be eligible")
+	assert.False(t, hostInList(hosts, hostWindows.UUID), "Windows host should NOT be eligible")
 
 	// Create host with pending status (already has SetRecoveryLock in progress)
 	teamPending := createTeamWithRecoveryLock("team-pending", true)
@@ -10223,7 +10219,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
-	assert.False(t, hostInList(hosts, hostPending.ID), "pending host should NOT be eligible")
+	assert.False(t, hostInList(hosts, hostPending.UUID), "pending host should NOT be eligible")
 
 	// Create host with verified status (already has recovery lock set)
 	teamVerified := createTeamWithRecoveryLock("team-verified", true)
@@ -10240,7 +10236,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
-	assert.False(t, hostInList(hosts, hostVerified.ID), "verified host should NOT be eligible")
+	assert.False(t, hostInList(hosts, hostVerified.UUID), "verified host should NOT be eligible")
 
 	// Test no-team host with app config recovery lock enabled
 	setAppConfigRecoveryLock(true)
@@ -10251,7 +10247,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
-	assert.True(t, hostInList(hosts, hostNoTeam.ID), "no-team host should be eligible when app config enabled")
+	assert.True(t, hostInList(hosts, hostNoTeam.UUID), "no-team host should be eligible when app config enabled")
 
 	// Clean up - disable app config recovery lock
 	setAppConfigRecoveryLock(false)
@@ -10259,7 +10255,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	// Now the no-team host should not be eligible
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
-	assert.False(t, hostInList(hosts, hostNoTeam.ID), "no-team host should NOT be eligible when app config disabled")
+	assert.False(t, hostInList(hosts, hostNoTeam.UUID), "no-team host should NOT be eligible when app config disabled")
 
 	// Create host with nano enrollment but MDM turned off (host_mdm.enrolled = 0)
 	// This tests that hosts are properly excluded after MDMTurnOff is called
@@ -10274,5 +10270,5 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
-	assert.False(t, hostInList(hosts, hostUnenrolled.ID), "host with MDM turned off should NOT be eligible")
+	assert.False(t, hostInList(hosts, hostUnenrolled.UUID), "host with MDM turned off should NOT be eligible")
 }

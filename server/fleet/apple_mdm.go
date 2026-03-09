@@ -1140,12 +1140,6 @@ type HostRecoveryLockPassword struct {
 	UpdatedAt time.Time
 }
 
-// HostNeedingRecoveryLock represents a host that needs a recovery lock password.
-type HostNeedingRecoveryLock struct {
-	HostID   uint
-	HostUUID string
-}
-
 // HostRecoveryLockPasswordPayload contains the data needed to store a recovery lock password.
 type HostRecoveryLockPasswordPayload struct {
 	HostUUID string

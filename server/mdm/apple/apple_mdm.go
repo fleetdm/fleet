@@ -1648,18 +1648,17 @@ func sendRecoveryLockCommandsWithCommander(
 	// Passwords must be stored BEFORE enqueuing commands because they are injected
 	// at delivery time by ExpandHostSecrets (which looks up by host UUID).
 	passwords := make([]fleet.HostRecoveryLockPasswordPayload, 0, len(hosts))
-	for _, host := range hosts {
+	for _, hostUUID := range hosts {
 		pw, err := GenerateRecoveryLockPassword()
 		if err != nil {
 			logger.ErrorContext(ctx, "failed to generate recovery lock password",
-				"host_id", host.HostID,
-				"host_uuid", host.HostUUID,
+				"host_uuid", hostUUID,
 				"error", err,
 			)
 			continue
 		}
 		passwords = append(passwords, fleet.HostRecoveryLockPasswordPayload{
-			HostUUID: host.HostUUID,
+			HostUUID: hostUUID,
 			Password: pw,
 		})
 	}
