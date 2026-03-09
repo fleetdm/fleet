@@ -1608,7 +1608,7 @@ func IOSiPadOSRevive(ctx context.Context, ds fleet.Datastore, commander *MDMAppl
 	return nil
 }
 
-func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](settings T) map[string]error {
+func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](settings T, excludeNonPublicAssetSets bool) map[string]error {
 	var macOSUpdates, iOSUpdates, iPadOSUpdates fleet.AppleOSUpdateSettings
 	if m, ok := any(settings).(fleet.MDM); ok {
 		macOSUpdates = m.MacOSUpdates
@@ -1622,26 +1622,34 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 		return nil
 	}
 
+	if macOSUpdates.MinimumVersion.Value == "" && iOSUpdates.MinimumVersion.Value == "" && iPadOSUpdates.MinimumVersion.Value == "" {
+		return nil
+	}
+
+	am, err := gdmf.GetAssetMetadata()
+	if err != nil {
+		return map[string]error{"mdm": fmt.Errorf("fetching Apple asset metadata: %w", err)}
+	} else if am == nil {
+		// this should never happen, but just in case, return an error indicating that the metadata is not available instead of panicking with a nil pointer dereference
+		return map[string]error{"mdm": errors.New("Apple asset metadata is not available")}
+	}
+
 	errs := make(map[string]error, 3)
 	if macOSUpdates.MinimumVersion.Value != "" {
-		// TODO: Post-enrollment, admins have a much wider choice of versions that Apple supports. Do we
-		// want to allow admins to set macOS versions that aren't supported in DEP if they opt not to
-		// update new hosts? How do we want to address this nuance in docs/UI? What about iOS/iPadOS?
-		if err := gdmf.ValidateAppleSupportedOSVersion("macos", macOSUpdates.MinimumVersion.Value, macOSUpdates.UpdateNewHosts.Value); err != nil {
+		if ok := am.IsSupportedMacOSVersion(macOSUpdates.MinimumVersion.Value, excludeNonPublicAssetSets); !ok {
 			errs["mdm.macos_updates.minimum_version"] = errors.New(fleet.AppleOSVersionUnsupportedMessage)
 		}
 	}
 	if iOSUpdates.MinimumVersion.Value != "" {
-		// iOS always updates new hosts to latest if minimum version is set, so we need to pass true
-		// for the includeDEP parameter to validate against public asset sets
-		if err := gdmf.ValidateAppleSupportedOSVersion("ios", iOSUpdates.MinimumVersion.Value, true); err != nil {
+		// NOTE: iPod generally falls in the category of iOS in Fleet, but we're only validating against iPhone here
+		// because we assume Apple will eventually remove iPod versions from the Apple Software Lookup Service
+		// and we want to avoid breaking workflows for users in that event
+		if ok := am.IsSupportedIOSVersion(iOSUpdates.MinimumVersion.Value, "iphone", excludeNonPublicAssetSets); !ok {
 			errs["mdm.ios_updates.minimum_version"] = errors.New(fleet.AppleOSVersionUnsupportedMessage)
 		}
 	}
 	if iPadOSUpdates.MinimumVersion.Value != "" {
-		// iPadOS always updates new hosts to latest if minimum version is set, so we need to pass true
-		// for the includeDEP parameter to validate against public asset sets
-		if err := gdmf.ValidateAppleSupportedOSVersion("ipados", iPadOSUpdates.MinimumVersion.Value, true); err != nil {
+		if ok := am.IsSupportedIOSVersion(iPadOSUpdates.MinimumVersion.Value, "ipad", excludeNonPublicAssetSets); !ok {
 			errs["mdm.ipados_updates.minimum_version"] = errors.New(fleet.AppleOSVersionUnsupportedMessage)
 		}
 	}

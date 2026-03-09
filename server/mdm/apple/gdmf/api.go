@@ -67,9 +67,54 @@ type AssetMetadata struct {
 	// PublicRapidSecurityResponses interface{} `json:"PublicRapidSecurityResponses"` // Fleet doesn't support PublicRapidSecurityResponses yet
 }
 
+// IsSupportedMacOSVersion checks if the given macOS version is supported by Apple. The
+// excludeNonPublicAssetSets parameter controls whether to check against the full asset set or just
+// the public asset set, which is relevant for DEP enrollment where only public versions are valid.
+func (a AssetMetadata) IsSupportedMacOSVersion(version string, excludeNonPublicAssetSets bool) bool {
+	as := a.AssetSets.MacOS
+	if excludeNonPublicAssetSets {
+		as = a.PublicAssetSets.MacOS
+	}
+
+	for _, s := range as {
+		if s.ProductVersion == version {
+			return true // version is supported
+		}
+	}
+
+	return false // version is not supported
+}
+
+// IsSupportedIOSVersion checks if the given iOS version is supported by Apple for the given device
+// prefix (e.g. "iPhone", "iPad"). If devicePrefix is empty, it checks if the version is supported
+// for any iOS device (which includes things like iPod, Apple Watch, and Apple TV). The
+// excludeNonPublicAssetSets parameter controls whether to check against the full asset set or just
+// the public asset set, which is relevant for DEP enrollment where only public versions are valid.
+func (a AssetMetadata) IsSupportedIOSVersion(version string, devicePrefix string, excludeNonPublicAssetSets bool) bool {
+	as := a.AssetSets.IOS
+	if excludeNonPublicAssetSets {
+		as = a.PublicAssetSets.IOS
+	}
+
+	for _, s := range as {
+		if s.ProductVersion == version {
+			if devicePrefix == "" {
+				return true // version is supported for iOS with any device prefix
+			}
+			for _, d := range s.SupportedDevices {
+				if strings.HasPrefix(strings.ToLower(d), strings.ToLower(devicePrefix)) {
+					return true // version is supported for device with the given prefix
+				}
+			}
+		}
+	}
+
+	return false // version is not supported
+}
+
 // GetLatestOSVersion returns the latest OS version for the given device. The device is matched
-// against the Apple Software Update Lookup Service[1][2] to find the latest version. If no matching
-// asset is found, an error is returned.
+// against the Apple Software Update Lookup Service[1][2] to find the latest version in the
+// PublicAssetSets. If no matching asset is found, an error is returned.
 // [1]: http://gdmf.apple.com/v2/pmv
 // [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
 func GetLatestOSVersion(device fleet.MDMAppleMachineInfo) (*Asset, error) {
@@ -105,40 +150,6 @@ func GetLatestOSVersion(device fleet.MDMAppleMachineInfo) (*Asset, error) {
 		return nil, fmt.Errorf("no matching asset found for device %s", device.Product)
 	}
 	return &assetSet[latestIdx], nil
-}
-
-func ValidateAppleSupportedOSVersion(platform string, version string, includeDEP bool) error {
-	am, err := GetAssetMetadata()
-	if err != nil {
-		return fmt.Errorf("retrieving asset metadata: %w", err)
-	}
-	// TODO: Post-enrollment, admins have a much wider choice of versions that Apple supports. Do we
-	// want to allow admins to set macOS versions that aren't supported in DEP if they opt not to
-	// update new hosts? How do we want to address this nuance in docs/UI? What about iOS/iPadOS?
-	// We probably shouldn't let Fleet-specific business rules bleed into this package so we'll
-	// need to address this at the caller level via the includeDEP parameter.
-	as := am.AssetSets
-	if includeDEP {
-		as = am.PublicAssetSets
-	}
-
-	var assetSet []Asset
-	switch strings.ToLower(platform) {
-	case "macos", "darwin":
-		assetSet = as.MacOS
-	case "ios", "ipados", "iphone", "ipad", "ipod":
-		assetSet = as.IOS
-	default:
-		return fmt.Errorf("unrecognized platform: %s", platform)
-	}
-
-	for _, s := range assetSet {
-		if s.ProductVersion == version {
-			return nil // version is supported
-		}
-	}
-
-	return fmt.Errorf("version %s is not supported for platform %s (including DEP: %t)", version, platform, includeDEP)
 }
 
 // client is a package-level client (similar to http.DefaultClient) so it can
