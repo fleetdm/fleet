@@ -79,6 +79,7 @@ func TestSoftware(t *testing.T) {
 		{"InsertHostSoftwareInstalledPaths", testInsertHostSoftwareInstalledPaths},
 		{"VerifySoftwareChecksum", testVerifySoftwareChecksum},
 		{"ListHostSoftware", testListHostSoftware},
+		{"ListHostSoftwarePaginationWithMultipleInstallers", testListHostSoftwarePaginationWithMultipleInstallers},
 		{"ListLinuxHostSoftware", testListLinuxHostSoftware},
 		{"ListIOSHostSoftware", testListIOSHostSoftware},
 		{"ListHostSoftwareWithVPPApps", testListHostSoftwareWithVPPApps},
@@ -11507,6 +11508,100 @@ func testListHostSoftwareShPackageForDarwin(t *testing.T, ds *Datastore) {
 	}
 	require.False(t, foundSh, ".sh package should NOT be visible to windows host")
 	require.False(t, foundDeb, ".deb package should NOT be visible to windows host")
+}
+
+// testListHostSoftwarePaginationWithMultipleInstallers verifies that pagination metadata
+// (HasNextResults, TotalResults) is correct when a software title has multiple installers
+// (different versions). The UNION data query LEFT JOINs software_installers and groups by
+// installer ID, so multiple installers for the same title produce multiple rows. Without the
+// fix, the row-count heuristic for HasNextResults would report false prematurely because
+// post-query deduplication shrinks the result set below perPage.
+// See https://github.com/fleetdm/fleet/issues/41233
+func testListHostSoftwarePaginationWithMultipleInstallers(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "pag-host", "", "pagkey", "paguuid", time.Now(), test.WithPlatform("darwin"))
+
+	// Install 10 software titles on the host with perPage=5, giving 2 pages.
+	const totalTitles = 10
+	software := make([]fleet.Software, totalTitles)
+	for i := range software {
+		software[i] = fleet.Software{
+			Name:    fmt.Sprintf("pagsw-%02d", i),
+			Version: "1.0.0",
+			Source:  "apps",
+		}
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	// Give the last title on page 0 (pagsw-04, the 5th item when ordered by name)
+	// two installers (different versions).
+	//
+	// The data query produces these raw rows for page 0 (LIMIT 6, OFFSET 0):
+	//   pagsw-00 (1 row), pagsw-01 (1 row), pagsw-02 (1 row), pagsw-03 (1 row),
+	//   pagsw-04 installer-v1 (1 row), pagsw-04 installer-v2 (1 row)
+	// = 6 raw rows → 5 unique titles after dedup.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		insertScript := func(script string) (int64, error) {
+			res, err := q.ExecContext(ctx,
+				`INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(MD5(?)), ?)`, script, script,
+			)
+			if err != nil {
+				return 0, err
+			}
+			return res.LastInsertId()
+		}
+		installScriptID, err := insertScript("echo install")
+		if err != nil {
+			return err
+		}
+		uninstallScriptID, err := insertScript("echo uninstall")
+		if err != nil {
+			return err
+		}
+
+		var titleID uint
+		if err := sqlx.GetContext(ctx, q, &titleID,
+			`SELECT id FROM software_titles WHERE name = 'pagsw-04' AND source = 'apps'`,
+		); err != nil {
+			return err
+		}
+
+		for _, version := range []string{"1.0.0", "2.0.0"} {
+			if _, err := q.ExecContext(ctx, `
+				INSERT INTO software_installers
+					(team_id, global_or_team_id, title_id, filename, extension, version,
+					 install_script_content_id, uninstall_script_content_id, storage_id, platform, self_service, package_ids)
+				VALUES (NULL, 0, ?, ?, 'pkg', ?, ?, ?, ?, 'darwin', 0, '[]')`,
+				titleID, fmt.Sprintf("installer-%s.pkg", version), version,
+				installScriptID, uninstallScriptID, fmt.Appendf(nil, "storage-%s", version),
+			); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	const perPage = 5
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{
+			PerPage:         perPage,
+			IncludeMetadata: true,
+			OrderKey:        "name",
+		},
+	}
+
+	// Page 0: 5 unique titles, HasNextResults must be true (there are 10 total).
+	opts.ListOptions.Page = 0
+	sw, meta, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, perPage, "page 0 should have %d items", perPage)
+	require.NotNil(t, meta)
+	assert.Equal(t, uint(totalTitles), meta.TotalResults, "total results should reflect unique titles, not duplicated rows")
+	assert.True(t, meta.HasNextResults, "page 0 of %d items with perPage=%d should have next results", totalTitles, perPage)
+	assert.False(t, meta.HasPreviousResults)
 }
 
 // TestUniqueSoftwareTitleStrNormalization tests that UniqueSoftwareTitleStr
