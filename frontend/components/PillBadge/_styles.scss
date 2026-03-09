@@ -1,8 +1,14 @@
-.inherited-badge {
+.pill-badge {
   &__element-text {
+    display: flex;
+    height: 16px;
+    padding: 0 4px;
+    justify-content: center;
+    align-items: center;
+    gap: $pad-small;
     font-weight: $bold;
     font-size: $xxx-small;
-    color: $core-fleet-black;
+    color: $ui-fleet-black-75;
     line-height: 15px;
     border-radius: $border-radius;
     background: $ui-fleet-black-10;

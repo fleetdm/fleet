@@ -67,6 +67,8 @@ export default {
       software_title_id,
       labels_include_any,
       labels_exclude_any,
+      type,
+      patch_software_title_id,
       // note absence of automations-related fields, which are only set by the UI via update
     } = data;
     const { TEAMS } = endpoints;
@@ -82,6 +84,8 @@ export default {
       software_title_id,
       labels_include_any,
       labels_exclude_any,
+      type,
+      patch_software_title_id,
     });
   },
   // TODO - response type Promise<IPolicy>

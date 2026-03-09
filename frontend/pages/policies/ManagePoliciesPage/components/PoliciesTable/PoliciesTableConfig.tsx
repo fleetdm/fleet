@@ -16,7 +16,7 @@ import { getPathWithQueryParams } from "utilities/url";
 import sortUtils from "utilities/sort";
 import { DEFAULT_EMPTY_CELL_VALUE, PolicyResponse } from "utilities/constants";
 
-import InheritedBadge from "components/InheritedBadge";
+import PillBadge from "components/PillBadge";
 import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
@@ -146,7 +146,10 @@ const generateTableHeaders = (
                   </div>
                 )}
                 {viewingTeamPolicies && team_id === null && (
-                  <InheritedBadge tooltipContent="This policy runs on all hosts." />
+                  <PillBadge
+                    text="Inherited"
+                    tipContent="This policy runs on all hosts."
+                  />
                 )}
               </>
             }

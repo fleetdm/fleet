@@ -121,6 +121,10 @@ export interface IPolicyFormData {
   script_id?: number | null;
   labels_include_any?: string[];
   labels_exclude_any?: string[];
+  /** Required for creating patch policy */
+  type?: "dynamic" | "patch";
+  /** Required for creating patch policy */
+  patch_software_title_id?: number;
 }
 
 export interface IPolicyNew {
