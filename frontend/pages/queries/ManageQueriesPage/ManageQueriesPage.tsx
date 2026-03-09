@@ -122,8 +122,8 @@ const ManageQueriesPage = ({
 
   const [selectedQueryIds, setSelectedQueryIds] = useState<number[]>([]);
   const [showDeleteQueryModal, setShowDeleteQueryModal] = useState(false);
-  const [showManageAutomationsModal, setShowManageAutomationsModal] =
-    useState(false);
+  const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
+    false);
   const [showPreviewDataModal, setShowPreviewDataModal] = useState(false);
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
