@@ -317,8 +317,8 @@ const ManageQueriesPage = ({
       const updateAutomatedQueries: Promise<any>[] = [];
       turnOnAutomations.map((id) =>
         updateAutomatedQueries.push(
-          queriesAPI.update(id, { automations_enabled: true }),
-        ),
+          queriesAPI.update(id, { automations_enabled: true })
+        )
       );
       turnOffAutomations.map((id) =>
         updateAutomatedQueries.push(
