@@ -617,23 +617,29 @@ func setOrUpdateSoftwareInstallerLabelsDB(ctx context.Context, tx sqlx.ExtContex
 
 	// insert new labels
 	if len(labelIds) > 0 {
-		var exclude bool
+		var exclude, requireAll bool
 		switch labels.LabelScope {
 		case fleet.LabelScopeIncludeAny:
 			exclude = false
+			requireAll = false
 		case fleet.LabelScopeExcludeAny:
 			exclude = true
+			requireAll = false
+		case fleet.LabelScopeIncludeAll:
+			exclude = false
+			requireAll = true
 		default:
 			// this should never happen
 			return ctxerr.New(ctx, "invalid label scope")
 		}
 
-		stmt := `INSERT INTO %[1]s_labels (%[1]s_id, label_id, exclude) VALUES %s ON DUPLICATE KEY UPDATE exclude = VALUES(exclude)`
+		stmt := `INSERT INTO %[1]s_labels (%[1]s_id, label_id, exclude, require_all) VALUES %s 
+							ON DUPLICATE KEY UPDATE exclude = VALUES(exclude), require_all = VALUES(require_all)`
 		var placeholders string
 		var insertArgs []interface{}
 		for _, lid := range labelIds {
-			placeholders += "(?, ?, ?),"
-			insertArgs = append(insertArgs, installerID, lid, exclude)
+			placeholders += "(?, ?, ?, ?),"
+			insertArgs = append(insertArgs, installerID, lid, exclude, requireAll)
 		}
 		placeholders = strings.TrimSuffix(placeholders, ",")
 

@@ -123,6 +123,8 @@ type SoftwareInstaller struct {
 	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
 	// LabelsExcludeAny is the list of "exclude any" labels for this software installer (if not nil).
 	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
+	// LabelsIncludeAll is the list of "include all" labels for this software installer (if not nil).
+	LabelsIncludeAll []SoftwareScopeLabel `json:"labels_include_all" db:"labels_include_all"`
 	// Source is the osquery source for this software.
 	Source string `json:"-" db:"source"`
 	// Categories is the list of categories to which this software belongs: e.g. "Productivity",
