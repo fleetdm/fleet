@@ -66,9 +66,30 @@ export interface ISoftwareTitleVersion {
   hosts_count?: number;
 }
 
+export interface ISoftwarePatchPolicy {
+  id: number;
+  name: string;
+}
+
+export type SoftwareInstallPolicyType = "dynamic" | "patch";
+export type SoftwareInstallPolicyTypeSet = Set<SoftwareInstallPolicyType>;
+
+// A policy type returned from the API is set to:
+// 1. dynamic if only auto install, and
+// 2.patch if it's both auto install and patch policy
+// This doesn't include patch alone, as policies set to patch only are under ISoftwarePackage.patch_policy
 export interface ISoftwareInstallPolicy {
   id: number;
   name: string;
+  type: SoftwareInstallPolicyType;
+}
+
+// A policy type in the UI uses a Set because a policy in
+// Software Details > Policy can be both dynamic AND/OR patch
+export interface ISoftwareInstallPolicyUI {
+  id: number;
+  name: string;
+  type: SoftwareInstallPolicyTypeSet;
 }
 
 // Match allowedCategories in cmd/maintained-apps/main.go
@@ -117,6 +138,7 @@ export interface ISoftwarePackage {
   self_service: boolean;
   icon_url: string | null;
   status: ISoftwarePackageStatus;
+  patch_policy?: ISoftwarePatchPolicy | null;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   install_during_setup?: boolean;
   labels_include_any: ILabelSoftwareTitle[] | null;
