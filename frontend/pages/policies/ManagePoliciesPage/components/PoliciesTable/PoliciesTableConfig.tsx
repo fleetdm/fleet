@@ -117,6 +117,7 @@ const generateTableHeaders = (
             value={cellProps.cell.value}
             suffix={
               <>
+                {/* TODO: Replace with <PillBadge /> component once available */}
                 {type === "patch" && <span className="patch-badge">Patch</span>}
                 {isPremiumTier && critical && (
                   <div className="critical-badge">

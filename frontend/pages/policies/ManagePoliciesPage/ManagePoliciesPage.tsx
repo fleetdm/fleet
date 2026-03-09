@@ -999,6 +999,8 @@ const ManagePolicyPage = ({
     );
   };
 
+  // TODO: Replace client-side filtering with BE query param (e.g. automation_type)
+  // to support server-side pagination correctly.
   const filterPoliciesByAutomation = (
     policies: IPolicyStats[]
   ): IPolicyStats[] => {
