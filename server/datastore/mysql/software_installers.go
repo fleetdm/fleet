@@ -1120,10 +1120,13 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 	var activateAffectedHostIDs []uint
 
 	// check if there is a patch policy that uses this title
-	policyStmt := `SELECT 1 FROM policies p JOIN software_installers si ON si.title_id = p.patch_software_title_id AND si.global_or_team_id = p.team_id WHERE si.id = ?`
 	var policyExists bool
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &policyExists, policyStmt, id)
-	if err != nil && err != sql.ErrNoRows {
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &policyExists, `SELECT EXISTS (
+		SELECT 1 FROM policies p
+		JOIN software_installers si ON si.title_id = p.patch_software_title_id AND si.global_or_team_id = p.team_id
+		WHERE si.id = ?
+	)`, id)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "checking if patch policy exists for software installer")
 	}
 	if policyExists {

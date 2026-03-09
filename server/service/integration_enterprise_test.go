@@ -26641,7 +26641,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		// can delete installer successfully
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", strconv.Itoa(int(teamID))) //nolint:gosec // dismiss G115
 
-		// Test 2: Update the fleet maintained app installer so that its no longer a fleet maintained app
+		// Test 2: Updating an FMA installer with a new file fails
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 		updateInstallerFMAID(fmaID, teamID, titleID)
 
