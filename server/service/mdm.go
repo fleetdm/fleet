@@ -2329,7 +2329,11 @@ func (svc *Service) authorizeBatchProfiles(ctx context.Context, tmID *uint, tmNa
 		}
 	}
 
-	if err := svc.authz.AuthorizeForDryRun(ctx, &fleet.MDMConfigProfileAuthz{TeamID: tmID}, dryRun); err != nil {
+	action := fleet.ActionWrite
+	if dryRun {
+		action = fleet.ActionValidate
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: tmID}, action); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err)
 	}
 

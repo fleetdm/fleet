@@ -38,7 +38,11 @@ maintainer := "maintainer"
 observer := "observer"
 observer_plus := "observer_plus"
 gitops := "gitops"
+gitops_validator := "gitops_validator"
 technician := "technician"
+
+# Dry-run validation action
+validate := "validate"
 
 # Default deny
 default allow = false
@@ -1280,4 +1284,114 @@ allow {
   object.type == "certificate_template"
   team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
   action == [read, write][_]
+}
+
+##
+# Dry-run validation (validate action)
+#
+# These rules grant the "validate" action to roles that can perform dry-run
+# gitops operations. Both gitops and gitops_validator roles are granted
+# validate on all gitops-relevant resources.
+##
+
+# Global admins, gitops and gitops_validator can validate global config.
+allow {
+  object.type == "app_config"
+  subject.global_role == [admin, gitops, gitops_validator][_]
+  action == validate
+}
+
+# Global admins, gitops and gitops_validator can validate teams.
+allow {
+  object.type == "team"
+  subject.global_role == [admin, gitops, gitops_validator][_]
+  action == validate
+}
+
+# Team admins, gitops and gitops_validator can validate their teams.
+allow {
+  object.type == "team"
+  team_role(subject, object.id) == [admin, gitops, gitops_validator][_]
+  action == validate
+}
+
+# Global admins, gitops and gitops_validator can validate global enroll secrets.
+allow {
+  object.type == "enroll_secret"
+  object.is_global_secret
+  subject.global_role == [admin, gitops, gitops_validator][_]
+  action == validate
+}
+
+# Global admins and maintainers can validate enroll secrets.
+allow {
+  object.type == "enroll_secret"
+  subject.global_role == [admin, maintainer][_]
+  action == validate
+}
+
+# Team admins and maintainers can validate enroll secrets for appropriate teams.
+allow {
+  object.type == "enroll_secret"
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == validate
+}
+
+# Global admins, gitops and gitops_validator can validate certificate authorities.
+allow {
+  object.type == "certificate_authority"
+  subject.global_role == [admin, gitops, gitops_validator][_]
+  action == validate
+}
+
+# Global admins, maintainers, gitops and gitops_validator can validate MDM config profiles.
+allow {
+  object.type == "mdm_config_profile"
+  subject.global_role == [admin, maintainer, gitops, gitops_validator][_]
+  action == validate
+}
+
+# Team admins, maintainers, gitops and gitops_validator can validate MDM config profiles on their teams.
+allow {
+  object.type == "mdm_config_profile"
+  object.team_id != 0
+  team_role(subject, object.team_id) == [admin, maintainer, gitops, gitops_validator][_]
+  action == validate
+}
+
+# Global admins, maintainers, gitops and gitops_validator can validate scripts.
+allow {
+  object.type == "script"
+  subject.global_role == [admin, maintainer, gitops, gitops_validator][_]
+  action == validate
+}
+
+# Team admins, maintainers, gitops and gitops_validator can validate scripts for their teams.
+allow {
+  object.type == "script"
+  not is_null(object.team_id)
+  team_role(subject, object.team_id) == [admin, maintainer, gitops, gitops_validator][_]
+  action == validate
+}
+
+# Global admins, maintainers, gitops and gitops_validator can validate software.
+allow {
+  object.type == "installable_entity"
+  subject.global_role == [admin, maintainer, gitops, gitops_validator][_]
+  action == validate
+}
+
+# Team admins, maintainers, gitops and gitops_validator can validate software in their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "installable_entity"
+  team_role(subject, object.team_id) == [admin, maintainer, gitops, gitops_validator][_]
+  action == validate
+}
+
+# Global admins, maintainers, gitops and gitops_validator can validate secret variables.
+allow {
+  object.type == "secret_variable"
+  subject.global_role == [admin, maintainer, gitops, gitops_validator][_]
+  action == validate
 }

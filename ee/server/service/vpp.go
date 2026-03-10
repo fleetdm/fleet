@@ -79,7 +79,11 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		manualAgentInstall = ac.MDM.MacOSSetup.ManualAgentInstall.Value
 	}
 
-	if err := svc.authz.AuthorizeForDryRun(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, dryRun); err != nil {
+	action := fleet.ActionWrite
+	if dryRun {
+		action = fleet.ActionValidate
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, action); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 

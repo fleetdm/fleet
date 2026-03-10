@@ -1993,7 +1993,11 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		teamID = &tm.ID
 	}
 
-	if err := svc.authz.AuthorizeForDryRun(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, dryRun); err != nil {
+	action := fleet.ActionWrite
+	if dryRun {
+		action = fleet.ActionValidate
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, action); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
@@ -2746,8 +2750,12 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 	// but adding it here so we don't need to worry about a special case endpoint.
 	//
 	// We use fleet.ActionWrite because this method is the counterpart of the POST
-	// /api/latest/fleet/software/batch. For dry runs, we fall back to ActionRead.
-	if err := svc.authz.AuthorizeForDryRun(ctx, &fleet.SoftwareInstaller{TeamID: ptrTeamID}, dryRun); err != nil {
+	// /api/latest/fleet/software/batch. For dry runs, we use ActionValidate.
+	action := fleet.ActionWrite
+	if dryRun {
+		action = fleet.ActionValidate
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: ptrTeamID}, action); err != nil {
 		return "", "", nil, ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 

@@ -132,28 +132,6 @@ func (a *Authorizer) Authorize(ctx context.Context, object, action interface{}) 
 	return nil
 }
 
-// AuthorizeForDryRun attempts ActionWrite authorization first. If dryRun is true
-// and the write check fails, it falls back to ActionRead. This allows both
-// write-capable users (e.g. gitops, which has write-only permissions on many
-// resources) and read-capable users to perform dry-run operations, while still
-// requiring write permission for real applies.
-func (a *Authorizer) AuthorizeForDryRun(ctx context.Context, object interface{}, dryRun bool) error {
-	err := a.Authorize(ctx, object, fleet.ActionWrite)
-	if err == nil {
-		return nil
-	}
-	if !dryRun {
-		return err
-	}
-	// During dry run, also accept read-only access.
-	readErr := a.Authorize(ctx, object, fleet.ActionRead)
-	if readErr == nil {
-		return nil
-	}
-	// Return the original write error for better error messages.
-	return err
-}
-
 // ExtraAuthzer is the interface to implement extra fields for the policy.
 type ExtraAuthzer interface {
 	// ExtraAuthz returns the extra key/value pairs for the type.
