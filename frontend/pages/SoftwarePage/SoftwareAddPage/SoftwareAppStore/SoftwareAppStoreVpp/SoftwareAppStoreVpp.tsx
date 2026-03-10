@@ -1,6 +1,6 @@
 import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { AxiosError } from "axios";
 import PATHS from "router/paths";
 
@@ -90,6 +90,7 @@ const SoftwareAppStoreVpp = ({
 }: ISoftwareAppStoreProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier } = useContext(AppContext);
+  const queryClient = useQueryClient();
 
   const [isLoading, setIsLoading] = useState(false);
   const [
@@ -181,6 +182,10 @@ const SoftwareAppStoreVpp = ({
         </>,
         { persistOnPageChange: true }
       );
+
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-titles" }],
+      });
 
       router.push(
         getPathWithQueryParams(
