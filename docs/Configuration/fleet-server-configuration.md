@@ -3341,7 +3341,7 @@ Specifies the original enrollment profile from the previous MDM, used by Fleet f
 The enrollment profile must be base64-encoded. This is only supported as an environment variable. 
 
 - Environment variable: `FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE`
-- Note: If you are experiencing systems failing SCEP renewal, please [contact us](https://fleetdm.com/support).
+- Note: If you are experiencing systems failing SCEP renewal, please [contact us](mailto: support@fleetdm.com).
 
 ## Conditional access
 
