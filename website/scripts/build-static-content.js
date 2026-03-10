@@ -407,7 +407,7 @@ module.exports = {
               let mdString = await sails.helpers.fs.read(pageSourcePath);
 
               // Look for non example @fleetdm.com email addresses in the Markdown string, if any are found, throw an error.
-              if(mdString.match(/\b(?!support@fleetdm\.com\b)[A-Z0-9._%+-]+@fleetdm\.com\b/gi)) {
+              if(mdString.match(/[A-Z0-9._%+-]+@fleetdm\.com/gi)) {
                 throw new Error(`A Markdown file (${pageSourcePath}) contains a @fleetdm.com email address. To resolve this error, remove the email address in that file or change it to be an @example.com email address and try running this script again.`);
               }
               // Look for multi-line HTML comments starting after lists without a blank newline. (The opening comment block is parsed as part of the list item preceeding it, and the closing block will be parsed as a paragraph)
