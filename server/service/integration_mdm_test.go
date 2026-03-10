@@ -13266,6 +13266,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		require.NotNil(t, getSWTitle.SoftwareTitle.AppStoreApp)
 		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.AdamID, includeAnyApp.AdamID)
 		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsExcludeAny)
+		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAll)
 		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAny, []fleet.SoftwareScopeLabel{{LabelName: l1.Name, LabelID: l1.ID}})
 
 		// Add an app with exclude_any labels
@@ -13299,6 +13300,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		require.NotNil(t, getSWTitle.SoftwareTitle.AppStoreApp)
 		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.AdamID, excludeAnyApp.AdamID)
 		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAny)
+		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAll)
 		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsExcludeAny, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}})
 		require.True(t, getSWTitle.SoftwareTitle.AppStoreApp.SelfService)
 
@@ -13352,6 +13354,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		require.Equal(t, updateAppResp.AppStoreApp.AdamID, excludeAnyApp.AdamID)
 		require.Equal(t, updateAppResp.AppStoreApp.LabelsIncludeAny, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}})
 		require.Empty(t, updateAppResp.AppStoreApp.LabelsExcludeAny)
+		require.Empty(t, updateAppResp.AppStoreApp.LabelsIncludeAll)
 		require.False(t, updateAppResp.AppStoreApp.SelfService)
 		require.Equal(t, fleet.MacOSPlatform, updateAppResp.AppStoreApp.Platform)
 
@@ -13367,6 +13370,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.AdamID, excludeAnyApp.AdamID)
 		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAny, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}})
 		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsExcludeAny)
+		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAll)
 		require.False(t, getSWTitle.SoftwareTitle.AppStoreApp.SelfService)
 
 		// Attempt an install on the host. This should fail because the host doesn't have the label

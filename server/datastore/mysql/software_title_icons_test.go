@@ -480,6 +480,7 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			require.Nil(t, activity.Platform)
 			require.Nil(t, activity.LabelsExcludeAny)
 			require.Nil(t, activity.LabelsIncludeAny)
+			require.Nil(t, activity.LabelsIncludeAll)
 		}},
 		{"in house app", func(ds *Datastore) {
 			user := test.NewUser(t, ds, "user1", "user1@example.com", false)

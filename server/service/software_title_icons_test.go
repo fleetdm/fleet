@@ -379,6 +379,7 @@ func TestDeleteSoftwareTitleIcon(t *testing.T) {
 						Platform:            nil,
 						LabelsIncludeAny:    nil,
 						LabelsExcludeAny:    nil,
+						LabelsIncludeAll:    nil,
 					}, nil
 				}
 				ds.DeleteSoftwareTitleIconFunc = func(ctx context.Context, teamID uint, titleID uint) error {
@@ -427,6 +428,7 @@ func TestDeleteSoftwareTitleIcon(t *testing.T) {
 						Platform:            &platform,
 						LabelsIncludeAny:    nil,
 						LabelsExcludeAny:    nil,
+						LabelsIncludeAll:    nil,
 					}, nil
 				}
 				ds.DeleteSoftwareTitleIconFunc = func(ctx context.Context, teamID uint, titleID uint) error {
