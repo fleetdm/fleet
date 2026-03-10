@@ -95,7 +95,7 @@
   startedOn: "2026-03-09"
   frequency: "Weekly"
   description: "Check the #general Slack channel for all new customers who have joined Fleet"
-  moreInfoUrl: "https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000003TSGv2AO/view"
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing/fleetchampions"
   dri: "irenareedy"
 -
   task: "Populate Fleet Champions Community speadsheet"
@@ -109,13 +109,13 @@
   startedOn: "2026-03-09"
   frequency: "Weekly"
   description: "Every Monday, make sure Fleet Champions Community spreadsheet is filled out and up to date."
-  moreInfoUrl: "https://docs.google.com/spreadsheets/d/1fMs7qeZ9Rme1yf9_n8GxfEPzrAxPcvB5yk0w78VY_0A/edit?gid=1407640772#gid=1407640772"
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing/fleetchampions"
   dri: "irenareedy"
 -
   task: "Follw up on Gartner Peer Review with customers"
   startedOn: "2026-03-09"
   frequency: "Weekly"
-  description: "Every week, touch base with customers and/or CMS to make sure they are working on ."
+  description: "Every week, touch base with customers and/or CMS to make sure they are working on."
   moreInfoUrl: "https://www.printful.com/dashboard/default/orders"
   dri: "irenareedy"
 -
