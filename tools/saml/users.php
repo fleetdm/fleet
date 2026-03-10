@@ -38,6 +38,7 @@ $config = array(
             'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name' => array('SSO User 4'),
             'email' => 'sso_user_4_team_maintainer@example.com',
             'FLEET_JIT_USER_ROLE_FLEET_1' => 'maintainer',
+            'FLEET_JIT_USER_ROLE_TEAM_2' => 'observer',
         ),
         // sso_user_5_team_admin has FLEET_JIT_USER_ROLE_FLEET_1 attribute to be added as admin
         // of team with ID 1, its login will fail if team with ID 1 doesn't exist.
@@ -48,7 +49,7 @@ $config = array(
             'eduPersonAffiliation' => array('group1'),
             'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name' => array('SSO User 5'),
             'email' => 'sso_user_5_team_admin@example.com',
-            'FLEET_JIT_USER_ROLE_FLEET_1' => 'admin',
+            'FLEET_JIT_USER_ROLE_TEAM_1' => 'admin',
             'FLEET_JIT_USER_ROLE_GLOBAL' => 'null',
             'FLEET_JIT_USER_ROLE_FLEET_2' => 'null',
         ),
