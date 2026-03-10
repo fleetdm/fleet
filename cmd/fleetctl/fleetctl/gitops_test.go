@@ -3442,6 +3442,58 @@ agent_options:
 		}
 		require.ElementsMatch(t, expectedIDs, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 	})
+
+	t.Run("does not re-fetch policies when all already exist", func(t *testing.T) {
+		// Pre-populate appliedPolicies to simulate policies that already exist.
+		appliedPolicies = []*fleet.Policy{
+			{PolicyData: fleet.PolicyData{ID: 10, Name: "Existing Policy 1"}},
+			{PolicyData: fleet.PolicyData{ID: 20, Name: "Existing Policy 2"}},
+		}
+
+		// Track how many times ListTeamPolicies is called.
+		listTeamPoliciesCalls := 0
+		ds.ListTeamPoliciesFunc = func(
+			ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+		) ([]*fleet.Policy, []*fleet.Policy, error) {
+			listTeamPoliciesCalls++
+			return appliedPolicies, nil, nil
+		}
+
+		cfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = cfgFile.WriteString(fmt.Sprintf(`
+name: %s
+settings:
+  secrets:
+    - secret: "testSecret"
+  webhook_settings:
+    failing_policies_webhook:
+      destination_url: http://example.com/webhook
+software:
+queries:
+policies:
+  - name: Existing Policy 1
+    query: "SELECT 1"
+    webhooks_and_tickets_enabled: true
+  - name: Existing Policy 2
+    query: "SELECT 2"
+    webhooks_and_tickets_enabled: true
+agent_options:
+`, fleetName))
+		require.NoError(t, err)
+
+		_, err = RunAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
+		require.NoError(t, err)
+
+		// GetPolicies should only be called once (the initial fetch to diff
+		// existing vs. desired policies), not a second time to resolve IDs,
+		// since all policies already existed.
+		require.Equal(t, 1, listTeamPoliciesCalls)
+
+		savedFleet, err := ds.TeamByName(context.Background(), fleetName)
+		require.NoError(t, err)
+		require.ElementsMatch(t, []uint{10, 20}, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	})
 }
 
 func TestGitOpsFeatures(t *testing.T) {
