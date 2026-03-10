@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -38,6 +39,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesAllTeams", testListSoftwareTitlesAllTeams},
 		{"ListSoftwareTitlesVulnerabilityFilters", testListSoftwareTitlesVulnerabilityFilters},
 		{"UpdateSoftwareTitleName", testUpdateSoftwareTitleName},
+		{"ListSoftwareTitlesDoesnotIncludeDuplicates", testListSoftwareTitlesDoesnotIncludeDuplicates},
 		{"ListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam", testListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam},
 		{"ListSoftwareTitlesPackagesOnly", testSoftwareTitlesPackagesOnly},
 		{"SoftwareTitleByIDHostCount", testSoftwareTitleHostCount},
@@ -1757,6 +1759,85 @@ func testUpdateSoftwareTitleName(t *testing.T, ds *Datastore) {
 	title2, err := ds.SoftwareTitleByID(ctx, installer2, &tm.ID, fleet.TeamFilter{User: user1})
 	require.NoError(t, err)
 	require.Equal(t, "installer2", title2.Name)
+}
+
+func testListSoftwareTitlesDoesnotIncludeDuplicates(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Santa", Version: "2025.4", Source: "apps", BundleIdentifier: "com.northpolesec.santa"},
+	})
+	require.NoError(t, err)
+
+	var sw []fleet.Software
+	err = ds.writer(ctx).SelectContext(ctx, &sw,
+		`SELECT id, name, version, bundle_identifier, source, extension_for, title_id FROM software ORDER BY name, source, extension_for, version`)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.NotNil(t, sw[0].TitleID)
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+
+	// same bundle identifier, different name
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		BundleIdentifier: "com.northpolesec.santa",
+		Title:            "Santa",
+		Version:          "2025.2",
+		Extension:        "pkg",
+		StorageID:        "storage0",
+		Filename:         "santa123",
+		Source:           "pkg_packages",
+		UserID:           user.ID,
+		TeamID:           &team1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		BundleIdentifier: "com.northpolesec.santa",
+		Title:            "Santa",
+		Version:          "2025.3",
+		Extension:        "pkg",
+		StorageID:        "storage0",
+		Filename:         "santa123",
+		Source:           "pkg_packages",
+		UserID:           user.ID,
+		TeamID:           &team2.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// We should only have a single title on the DB ...
+	var swt []fleet.SoftwareTitle
+	err = ds.writer(ctx).SelectContext(ctx, &swt,
+		`SELECT id, name, bundle_identifier, source, extension_for FROM software_titles ORDER BY name, source, extension_for`)
+	require.NoError(t, err)
+	require.Len(t, swt, 1)
+
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{
+			OrderKey:       "name",
+			OrderDirection: fleet.OrderAscending,
+		},
+	}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	require.NoError(t, err)
+	// We should have a single software title since when specifying 'All Teams' (TeamID = nil).
+	// installers are excluded
+	require.Len(t, titles, 1)
 }
 
 func TestSelectSoftwareTitlesSQLGeneration(t *testing.T) {
