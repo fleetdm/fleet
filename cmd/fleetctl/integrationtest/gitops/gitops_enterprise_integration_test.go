@@ -3825,8 +3825,9 @@ labels:
 	require.NoError(t, err)
 	require.Len(t, labels, 1)
 
-	// Step 2: Apply a minimal global config that omits policies, agent_options, controls, reports, labels.
+	// Step 2: Apply a minimal global config that omits policies, agent_options, reports, labels.
 	const minimalGlobalConfig = `
+controls:
 org_settings:
   server_settings:
     server_url: $FLEET_URL
