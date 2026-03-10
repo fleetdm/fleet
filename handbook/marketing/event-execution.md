@@ -136,8 +136,6 @@ We utilize two general event plans, which act as templates depending on the scal
 1. **Conference:** Used for large conferences and events where we have a booth, speaking slots, lead scanning, and other major logistical needs.  
 2. **Workshop/Happy hour:** Used for our GitOps workshop series (which often includes happy hours). This smaller template can be used for the full workshop or for bespoke, standalone happy hours.
 
-***
-
 ### **Execution process**
 
 Once an event is approved, a Marketing directly responsible individual (DRI) is assigned. From there, the process is divided between the Marketing DRI and the Onsite DRI.
