@@ -295,6 +295,8 @@ type UpdateSoftwareNameFunc func(ctx context.Context, titleID uint, name string)
 
 type ListHostCertificatesFunc func(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificatePayload, *fleet.PaginationMetadata, error)
 
+type GetHostRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) (*fleet.HostRecoveryLockPassword, error)
+
 type NewAppConfigFunc func(ctx context.Context, p fleet.AppConfig) (info *fleet.AppConfig, err error)
 
 type AppConfigObfuscatedFunc func(ctx context.Context) (info *fleet.AppConfig, err error)
@@ -1301,6 +1303,9 @@ type Service struct {
 
 	ListHostCertificatesFunc        ListHostCertificatesFunc
 	ListHostCertificatesFuncInvoked bool
+
+	GetHostRecoveryLockPasswordFunc        GetHostRecoveryLockPasswordFunc
+	GetHostRecoveryLockPasswordFuncInvoked bool
 
 	NewAppConfigFunc        NewAppConfigFunc
 	NewAppConfigFuncInvoked bool
@@ -3157,6 +3162,13 @@ func (s *Service) ListHostCertificates(ctx context.Context, hostID uint, opts fl
 	s.ListHostCertificatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostCertificatesFunc(ctx, hostID, opts)
+}
+
+func (s *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint) (*fleet.HostRecoveryLockPassword, error) {
+	s.mu.Lock()
+	s.GetHostRecoveryLockPasswordFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostRecoveryLockPasswordFunc(ctx, hostID)
 }
 
 func (s *Service) NewAppConfig(ctx context.Context, p fleet.AppConfig) (info *fleet.AppConfig, err error) {
