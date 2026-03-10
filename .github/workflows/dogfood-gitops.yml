@@ -47,11 +47,6 @@ jobs:
           repository: fleetdm/fleet-gitops
           ref: main
           path: fleet-gitops
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
-        with:
-          detached: true
-          limit-access-to-actor: false
       - name: Apply latest configuration to Fleet
         uses: ./fleet-gitops/.github/gitops-action-rc
         with:

@@ -6,7 +6,6 @@ settings:
       enable_failing_policies_webhook: true
       host_batch_size: 0
       policy_ids:
-        - 38244 # Linux - Sufficient disk space available
         - 38230 # macOS - Sufficient disk space available
         - 38239 # Windows - Sufficient disk space available
   features:
