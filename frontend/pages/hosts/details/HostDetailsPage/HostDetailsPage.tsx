@@ -773,6 +773,13 @@ const HostDetailsPage = ({
     [host?.id]
   );
 
+  const rotateRecoveryLockPassword = useCallback((): Promise<void> => {
+    if (!host?.id) {
+      return new Promise(() => undefined);
+    }
+    return hostAPI.rotateRecoveryLockPassword(host.id);
+  }, [host?.id]);
+
   const onChangeActivityTab = (tabIndex: number) => {
     setActiveActivityTab(tabIndex === 0 ? "past" : "upcoming");
     setActivityPage(0);
@@ -1565,10 +1572,17 @@ const HostDetailsPage = ({
           {showOSSettingsModal && (
             <OSSettingsModal
               canResendProfiles={canResendProfiles}
+              canRotateRecoveryLockPassword={
+                isGlobalAdmin ||
+                isGlobalMaintainer ||
+                isHostTeamAdmin ||
+                isHostTeamMaintainer
+              }
               platform={host.platform}
               hostMDMData={host.mdm}
               onClose={toggleOSSettingsModal}
               resendRequest={resendProfile}
+              rotateRecoveryLockPassword={rotateRecoveryLockPassword}
               onProfileResent={refetchHostDetails}
             />
           )}
@@ -1591,6 +1605,12 @@ const HostDetailsPage = ({
           {showRecoveryLockPasswordModal && host && (
             <RecoveryLockPasswordModal
               hostId={host.id}
+              canRotatePassword={
+                isGlobalAdmin ||
+                isGlobalMaintainer ||
+                isHostTeamAdmin ||
+                isHostTeamMaintainer
+              }
               onCancel={() => setShowRecoveryLockPasswordModal(false)}
             />
           )}
