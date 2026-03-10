@@ -81,23 +81,23 @@ Organizations that want transparency into how their MDM works can benefit from F
 
 ## FAQ
 
-### What's the main difference between an open-source device management tool and a proprietary one?
+#### What's the main difference between an open-source device management tool and a proprietary one?
 
 Open-source tools like Fleet provide full transparency into the codebase, allowing teams to audit security practices, customize functionality, and avoid vendor lock-in. Proprietary tools like Workspace ONE keep their source code private. [Try Fleet for free](https://fleetdm.com/try) to see the difference.
 
-### How does Fleet manage Apple devices?
+#### How does Fleet manage Apple devices?
 
 Fleet provides full Apple device management including MDM enrollment, configuration profiles, and software deployment for macOS, iOS, and iPadOS. Fleet supports Apple Business Manager integration for zero-touch deployment, and manages Apple devices alongside Windows, Linux, ChromeOS, and Android endpoints from a single console.
 
-### How does device reporting speed affect IT and security operations?
+#### How does device reporting speed affect IT and security operations?
 
 Fleet delivers device state updates in under 30 seconds, enabling security teams to respond to incidents with accurate, current information. Traditional MDM tools may have longer polling intervals, meaning device state information could be minutes or hours old when action is needed. Fleet's osquery foundation enables on-demand querying of any enrolled device.
 
-### How do these MDM providers compare in their capabilities?
+#### How do these MDM providers compare in their capabilities?
 
 Fleet and Workspace ONE each provide MDM enrollment, configuration management, and software deployment capabilities. Fleet and Workspace ONE both support multi-platform device management. Fleet differentiates through its open-source foundation, integration with git repositories for GitOps workflows, and device reporting in under 30 seconds. [Schedule a demo](https://fleetdm.com/contact) to compare capabilities for specific requirements.
 
-### How does MDM migration work when switching MDM providers?
+#### How does MDM migration work when switching MDM providers?
 
 Fleet supports MDM migration without requiring device wipes, allowing organizations to transition devices from an existing MDM with minimal disruption. The migration process preserves device enrollment and user data while transferring management to Fleet. Organizations can migrate gradually, running Fleet alongside an existing tool during the transition period.
 
