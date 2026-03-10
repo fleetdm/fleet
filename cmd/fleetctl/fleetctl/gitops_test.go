@@ -1503,7 +1503,8 @@ policies:
 agent_options:
 name: ${TEST_TEAM_NAME}
 team_settings:
-  secrets: [{"secret":"${TEST_SECRET}"}]
+  secrets:
+   - secret: ${TEST_SECRET}
 software:
 `,
 	)
@@ -1811,7 +1812,8 @@ org_settings:
     - location: Foobar
       teams:
       - "${TEST_TEAM_NAME}"
-  secrets: [{"secret":"globalSecret"}]
+  secrets:
+    - secret: globalSecret
 software:
 `,
 	)
@@ -1828,7 +1830,8 @@ policies:
 agent_options:
 name: ${TEST_TEAM_NAME}
 team_settings:
-  secrets: [{"secret":"${TEST_SECRET}"}]
+  secrets:
+    - secret: ${TEST_SECRET}
 software:
   app_store_apps:
     - app_store_id: '1'
@@ -1846,7 +1849,9 @@ policies:
 agent_options:
 name: ${TEST_TEAM_NAME}
 team_settings:
-  secrets: [{"secret":"${TEST_SECRET}"},{"secret":"globalSecret"}]
+  secrets:
+    - secret: ${TEST_SECRET}
+    - secret: globalSecret
 software:
 `,
 	)
@@ -2171,7 +2176,8 @@ org_settings:
     org_logo_url: ""
     org_logo_url_light_background: ""
     org_name: %s
-  secrets: [{"secret":"globalSecret"}]
+  secrets:
+    - secret: globalSecret
 software:
   packages:
     - url: https://example.com
@@ -2344,7 +2350,8 @@ policies:
 agent_options:
 name: %s
 team_settings:
-  secrets: [{"secret":"%s"}]
+  secrets:
+    - secret: %s
 software:
 `, teamName, secret),
 	)
@@ -2369,7 +2376,8 @@ org_settings:
     org_logo_url: ""
     org_logo_url_light_background: ""
     org_name: %s
-  secrets: [{"secret":"globalSecret"}]
+  secrets:
+    - secret: globalSecret
 software:
 `, fleetServerURL, orgName),
 	)
@@ -2393,7 +2401,8 @@ org_settings:
     org_logo_url: ""
     org_logo_url_light_background: ""
     org_name: %s
-  secrets: [{"secret":"globalSecret"}]
+  secrets:
+    - secret: globalSecret
 `, fleetServerURL, orgName),
 	)
 	require.NoError(t, err)
@@ -2420,7 +2429,8 @@ org_settings:
     org_logo_url: ""
     org_logo_url_light_background: ""
     org_name: %s
-  secrets: [{"secret":"globalSecret"}]
+  secrets:
+    - secret: globalSecret
 software:
 `, fleetServerURL, orgName),
 	)
@@ -3255,7 +3265,8 @@ org_settings:
     org_logo_url: ""
     org_logo_url_light_background: ""
     org_name: GitOps Test
-  secrets: [{"secret":"globalSecret"}]
+  secrets:
+    - secret: globalSecret
   webhook_settings:
     failing_policies_webhook:
       enable_failing_policies_webhook: true
@@ -3319,7 +3330,7 @@ agent_options:
 	require.NoError(t, err)
 	require.True(t, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.Equal(t, "http://example.com/webhook", savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-	// Note -- this codepath doesn't actually verify that the policy's with the specified IDs exist, it just saves the IDs from the config.
+	// Note -- this codepath doesn't actually verify that the policies with the specified IDs exist, it just saves the IDs from the config.
 	require.Equal(t, []uint{1, 2}, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 }
 
@@ -3472,7 +3483,8 @@ org_settings:
     org_logo_url: ""
     org_logo_url_light_background: ""
     org_name: %s
-  secrets: [{"secret":"globalSecret"}]
+  secrets:
+    - secret: globalSecret
 software:
 `, fleetServerURL, orgName),
 	)

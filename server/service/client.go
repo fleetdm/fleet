@@ -2960,19 +2960,32 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			logFn("[+] would've enabled failed policy reporting for %s\n",
 				numberWithPluralization(len(policyNamesWithWebhooks), "policy", "policies"))
 		} else {
-			// Re-fetch policies to get IDs (policies were just applied above).
-			allPolicies, err := c.GetPolicies(teamID)
-			if err != nil {
-				return fmt.Errorf("error getting policies to resolve webhooks_and_tickets_enabled: %w", err)
-			}
+			// Resolve policy names to IDs. First try using the policies we already
+			// fetched earlier; only re-fetch if some names are missing (i.e.,
+			// newly created policies whose IDs we don't have yet).
 			policyNameSet := make(map[string]bool, len(policyNamesWithWebhooks))
 			for _, name := range policyNamesWithWebhooks {
 				policyNameSet[name] = true
 			}
 			var resolvedIDs []uint
-			for _, p := range allPolicies {
+			for _, p := range policies {
 				if policyNameSet[p.Name] {
 					resolvedIDs = append(resolvedIDs, p.ID)
+					delete(policyNameSet, p.Name)
+				}
+			}
+			// If we have names left that couldn't resolve, re-fetch all the policies
+			// to get the IDs for the newly created ones.
+			if len(policyNameSet) > 0 {
+				// Some policies were newly created; re-fetch to get their IDs.
+				allPolicies, err := c.GetPolicies(teamID)
+				if err != nil {
+					return fmt.Errorf("error getting policies to resolve webhooks_and_tickets_enabled: %w", err)
+				}
+				for _, p := range allPolicies {
+					if policyNameSet[p.Name] {
+						resolvedIDs = append(resolvedIDs, p.ID)
+					}
 				}
 			}
 

@@ -1459,11 +1459,7 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			jsonFieldName(t, "ConditionalAccessEnabled"): policy.ConditionalAccessEnabled,
 		}
 		// This is derived from the failing_policies_webhook.policy_ids field, which is being deprecated.
-		if failingPolicyIDs[policy.ID] {
-			policySpec["webhooks_and_tickets_enabled"] = true
-		} else {
-			policySpec["webhooks_and_tickets_enabled"] = false
-		}
+		policySpec["webhooks_and_tickets_enabled"] = failingPolicyIDs[policy.ID]
 		// Handle software automation.
 		if policy.InstallSoftware != nil {
 			if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {
