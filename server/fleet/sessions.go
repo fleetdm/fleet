@@ -122,7 +122,7 @@ const (
 //     for setting role for a team with ID <TEAM_ID>.
 //
 // For both attributes currently supported values are `admin`, `maintainer`, `observer`,
-// `observer_plus` and `null`. A `null` value is used to ignore the attribute.
+// `observer_plus`, `technician` and `null`. A `null` value is used to ignore the attribute.
 func RolesFromSSOAttributes(attributes []SAMLAttribute) (SSORolesInfo, error) {
 	ssoRolesInfo := SSORolesInfo{}
 	for _, attribute := range attributes {
@@ -175,6 +175,7 @@ func parseRole(values []SAMLAttributeValue) (string, error) {
 		value != RoleMaintainer &&
 		value != RoleObserver &&
 		value != RoleObserverPlus &&
+		value != RoleTechnician &&
 		value != ssoAttrNullRoleValue {
 		return "", fmt.Errorf("invalid role: %s", value)
 	}
