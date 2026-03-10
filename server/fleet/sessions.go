@@ -112,14 +112,15 @@ func (s SSORolesInfo) IsSet() bool {
 
 const (
 	globalUserRoleSSOAttrName     = "FLEET_JIT_USER_ROLE_GLOBAL"
-	teamUserRoleSSOAttrNamePrefix = "FLEET_JIT_USER_ROLE_TEAM_"
+	teamUserRoleSSOAttrNamePrefix    = "FLEET_JIT_USER_ROLE_TEAM_"
+	teamUserRoleSSOAttrNamePrefixV2 = "FLEET_JIT_USER_ROLE_FLEET_"
 	ssoAttrNullRoleValue          = "null"
 )
 
 // RolesFromSSOAttributes loads Global and Team roles from SAML custom attributes.
 //   - Custom attribute `FLEET_JIT_USER_ROLE_GLOBAL` is used for setting global role.
-//   - Custom attributes of the form `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>` are used
-//     for setting role for a team with ID <TEAM_ID>.
+//   - Custom attributes of the form `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>` or
+//     `FLEET_JIT_USER_ROLE_FLEET_<TEAM_ID>` are used for setting role for a team with ID <TEAM_ID>.
 //
 // For both attributes currently supported values are `admin`, `maintainer`, `observer`,
 // `observer_plus`, `technician` and `null`. A `null` value is used to ignore the attribute.
@@ -137,8 +138,10 @@ func RolesFromSSOAttributes(attributes []SAMLAttribute) (SSORolesInfo, error) {
 				continue
 			}
 			ssoRolesInfo.Global = ptr.String(role)
-		case strings.HasPrefix(attribute.Name, teamUserRoleSSOAttrNamePrefix):
+		case strings.HasPrefix(attribute.Name, teamUserRoleSSOAttrNamePrefix),
+			strings.HasPrefix(attribute.Name, teamUserRoleSSOAttrNamePrefixV2):
 			teamIDSuffix := strings.TrimPrefix(attribute.Name, teamUserRoleSSOAttrNamePrefix)
+			teamIDSuffix = strings.TrimPrefix(teamIDSuffix, teamUserRoleSSOAttrNamePrefixV2)
 			teamID, err := strconv.ParseUint(teamIDSuffix, 10, 32)
 			if err != nil {
 				return SSORolesInfo{}, fmt.Errorf("parse team ID: %w", err)
