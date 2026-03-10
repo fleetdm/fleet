@@ -117,43 +117,53 @@ jobs:
               return; // this is "all 4.x versions" so it's released
             }
 
-            // Fetch most recent 100 releases and tags from the repo
-            const { data: allReleases } = await github.rest.repos.listReleases({
-              owner: "fleetdm",
-              repo: "fleet",
-              per_page: 100,
-              page: 1
-            });
+            // Determine what we need to fetch based on versions present
+            const needsFleetReleases = versionsToCheck.some(v => v.type === 'fleet');
+            const needsOrbitTags = versionsToCheck.some(v => v.type === 'orbit');
 
-            // Also fetch tags to get orbit/fleetd versions
-            const { data: allTags } = await github.rest.repos.listTags({
-              owner: "fleetdm",
-              repo: "fleet",
-              per_page: 100,
-              page: 1
-            });
+            // Fetch Fleet releases only if we have a Fleet version to check
+            let releasedFleetVersions = [];
+            if (needsFleetReleases) {
+              const { data: allReleases } = await github.rest.repos.listReleases({
+                owner: "fleetdm",
+                repo: "fleet",
+                per_page: 100,
+                page: 1
+              });
 
-            // Extract version numbers from Fleet releases
-            // Fleet releases are tagged as "fleet-v4.X.X" or similar
-            const releasedFleetVersions = allReleases
-              .map(release => {
-                // Try to extract from name
-                const nameMatch = release.name?.match(/(\d+\.\d+\.\d+)/);
-                if (nameMatch) return nameMatch[1];
+              // Extract version numbers from Fleet releases
+              // Fleet releases are tagged as "fleet-v4.X.X" or similar
+              releasedFleetVersions = allReleases
+                .map(release => {
+                  // Try to extract from name
+                  const nameMatch = release.name?.match(/(\d+\.\d+\.\d+)/);
+                  if (nameMatch) return nameMatch[1];
 
-                return null;
-              })
-              .filter(v => v !== null);
+                  return null;
+                })
+                .filter(v => v !== null);
+            }
 
-            // Extract orbit/fleetd versions from tags
-            // Orbit tags are like "orbit-v1.X.X"
-            const releasedOrbitVersions = allTags
-              .filter(tag => tag.name.match(/^orbit-v\d+\.\d+\.\d+$/))
-              .map(tag => {
-                const match = tag.name.match(/^orbit-v(\d+\.\d+\.\d+)$/);
-                return match ? match[1] : null;
-              })
-              .filter(v => v !== null);
+            // Fetch tags only if we have an orbit/fleetd version to check
+            let releasedOrbitVersions = [];
+            if (needsOrbitTags) {
+              const { data: allTags } = await github.rest.repos.listTags({
+                owner: "fleetdm",
+                repo: "fleet",
+                per_page: 100,
+                page: 1
+              });
+
+              // Extract orbit/fleetd versions from tags
+              // Orbit tags are like "orbit-v1.X.X"
+              releasedOrbitVersions = allTags
+                .filter(tag => tag.name.match(/^orbit-v\d+\.\d+\.\d+$/))
+                .map(tag => {
+                  const match = tag.name.match(/^orbit-v(\d+\.\d+\.\d+)$/);
+                  return match ? match[1] : null;
+                })
+                .filter(v => v !== null);
+            }
 
             // Normalize version for comparison
             // Remove common prefixes/suffixes and extract core version number
