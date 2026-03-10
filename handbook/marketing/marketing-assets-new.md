@@ -1,6 +1,4 @@
-# Marketing Assets NEW
-
-This is an alternative page to test a new layout to make it easier to find content by role.
+# Marketing Assets
 
 This is the single source of truth for all marketing assets created or co-created by the marketing team. Any collateral listed on this page should be treated as the latest and most updated collateral.
 
@@ -20,6 +18,7 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 |-------|--------|----------|--------------|
 | [Leave Behind Deck](https://docs.google.com/presentation/d/1Wxb4IedJ0cEXJQwvKCdYf8OatXk4sG1QTkiNLB3h11E/edit) | Slides | Presentation tool for internal teams to present Fleet's value. | <nobr>Feb&#8209;18&#8209;2026</nobr> |
 | [Additional slides for pitch deck](https://docs.google.com/presentation/d/1l6eh1ow4Izi9lv-IrrYV1UjNT4VKbfk5lJHDJUgnDVM/edit) | Slides | Customizable slides for tailored prospect presentations. | <nobr>Feb&#8209;18&#8209;2026</nobr> |
+| [Gartner IT Symposium 2025 Prresentation - How Open Device Management Accelerates Next-Gen IT Operations and Efficiency](https://drive.google.com/file/d/1HK1QXA2kOCeOoOG1E0-tk7-xwBhQ2QMa/view) | — | Outcomes and value achieved via GitOps. (by Allen Houchins) | <nobr>Oct&#8209;21&#8209;2024</nobr> |
 | [Fleet in 3 Minutes (VIDEO)](https://www.youtube.com/watch?v=q1Tm3IBcx24) | Video | A short 3-minute demo of how Fleet works. | <nobr>May&#8209;13&#8209;2026</nobr> |
 
 ### One-pagers & brochures
@@ -36,8 +35,9 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 
 | Asset | Audience | Use case | <nobr>Date updated</nobr> |
 |-------|----------|----------|--------------|
-| [Fleet pain points guide](https://docs.google.com/document/d/1FQn0E5U0hqFyk4krYjsXF3yEEfDiuGgzmdBqQJhI3jo/edit?tab=t.0) | Fleet sales and channel teams | Typical pain points Fleet solves and how to uncover them | <nobr>Jan&#8209;18&#8209;2026</nobr> |
-| [Fleet ideal customer profile and persona guide](https://docs.google.com/document/d/1DLLO-x-I79QgYQaicsZJ5-thQpBY71GaUWCNNShl3uc/edit?tab=t.0) | Fleet sales and channel teams | Typical Fleet buyer profiles | <nobr>Jan&#8209;18&#8209;2026</nobr> |
+| [Fleet pain points guide](https://docs.google.com/document/d/1FQn0E5U0hqFyk4krYjsXF3yEEfDiuGgzmdBqQJhI3jo/edit?tab=t.0) | Fleet sales and channel teams | Typical pain points Fleet solves and how to uncover them | <nobr>Mar&#8209;06&#8209;2026</nobr> |
+| [Fleet ideal customer profile and persona guide](https://docs.google.com/document/d/1ffsPCS6KGrHQFF7EgRLz1z2mOvtZwMSGyfDezOuOUwc/edit?tab=t.0) | Fleet sales and channel teams | Typical Fleet buyer profiles | <nobr>Jan&#8209;18&#8209;2026</nobr> |
+| [Product Roadmap](https://docs.google.com/document/d/16si8Nkh0F25opUMpZYm6XwU8LEhGd7H4eOzPKFz8jGw/edit) | — | Future development vision for open roadmap conversations. | <nobr>Jan&#8209;20&#8209;2021</nobr> |
 
 
 ### Competitive & ROI
@@ -46,13 +46,11 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 |-------|------------|----------|--------------|
 | [Fleet vs. Jamf vs. Intune: Comparing fleet management software](https://fleetdm.com/articles/fleet-management-software) | Jamf / Intune | Full feature comparison across all three platforms. | <nobr>Feb&#8209;26&#8209;2026</nobr> |
 | [Fleet vs. Jamf](https://fleetdm.com/compare/jamf) | Jamf | Direct comparison of Fleet and Jamf Pro product offerings. | <nobr>Jan&#8209;10&#8209;2026</nobr> |
-| [A comparative look at VMware Workspace ONE and Fleet](https://fleetdm.com/announcements/a-comparative-look-at-vmware-workspace-one-and-fleet) | Workspace ONE | Side-by-side comparison with VMware Workspace ONE. | <nobr>Feb&#8209;01&#8209;2024</nobr> |
-| [Battle card — Workspace ONE](https://docs.google.com/document/d/1dV9zooPnCnHa0UfZqXKWAi6Zmye2jfqRIr_UnX70Sq4/edit) | Workspace ONE | Strategic talking points for VMware competitive scenarios. | <nobr>Sep&#8209;12&#8209;2023</nobr> |
 | [Jamf vs. Fleet terminology](https://docs.google.com/document/d/1RKojfpUMUiITPce5O7znYmxdQR9U6f5sVnVzQpPpp8Y/edit) | Jamf | Concept mapping between Jamf and Fleet for migration conversations. | <nobr>Sep&#8209;09&#8209;2025</nobr> |
 | [Death to Extension Attributes](https://github.com/allenhouchins/death-to-extension-attributes) | Jamf | Compares Fleet queries to Jamf extension attributes for technical audiences. | <nobr>Jun&#8209;15&#8209;2023</nobr> |
+| [A comparative look at VMware Workspace ONE and Fleet](https://fleetdm.com/announcements/a-comparative-look-at-vmware-workspace-one-and-fleet) | Workspace ONE | Side-by-side comparison with VMware Workspace ONE. | <nobr>Feb&#8209;01&#8209;2024</nobr> |
+| [Battle card — Workspace ONE](https://docs.google.com/document/d/1dV9zooPnCnHa0UfZqXKWAi6Zmye2jfqRIr_UnX70Sq4/edit) | Workspace ONE | Strategic talking points for VMware competitive scenarios. | <nobr>Sep&#8209;12&#8209;2023</nobr> |
 | [ROI Spreadsheet](https://docs.google.com/spreadsheets/d/14Cfj77ynOB6z4pmb9DD7HNRGo0kcKJuEIifgnz-YO50/edit) | — | Financial value justification and ROI calculator for deals. | <nobr>Aug&#8209;14&#8209;2023</nobr> |
-| [Product Roadmap](https://docs.google.com/document/d/16si8Nkh0F25opUMpZYm6XwU8LEhGd7H4eOzPKFz8jGw/edit) | — | Future development vision for open roadmap conversations. | <nobr>Jan&#8209;20&#8209;2021</nobr> |
-| [Gartner IT Symposium Summary](https://drive.google.com/file/d/1HK1QXA2kOCeOoOG1E0-tk7-xwBhQ2QMa/view) | — | Executive summary of outcomes and value achieved via GitOps. | <nobr>Oct&#8209;21&#8209;2024</nobr> |
 
 ---
 
