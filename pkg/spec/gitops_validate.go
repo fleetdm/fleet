@@ -55,8 +55,7 @@ func knownJSONKeys(t reflect.Type) map[string]fieldInfo {
 	// If the type (or pointer to it) implements ValidKeysProvider, use those
 	// keys instead of reflecting on struct fields. This handles types with
 	// custom JSON marshaling (e.g. GoogleCalendarApiKey).
-	pt := reflect.PointerTo(t)
-	if pt.Implements(validKeysProviderType) || t.Implements(validKeysProviderType) {
+	if reflect.PointerTo(t).Implements(validKeysProviderType) || t.Implements(validKeysProviderType) {
 		provider := reflect.New(t).Interface().(ValidKeysProvider)
 		for _, name := range provider.ValidKeys() {
 			keys[name] = fieldInfo{
