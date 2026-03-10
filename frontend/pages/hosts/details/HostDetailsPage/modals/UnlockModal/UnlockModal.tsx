@@ -132,10 +132,10 @@ const UnlockModal = ({
   return (
     <Modal className={baseClass} title="Unlock" onExit={onClose}>
       <div className={`${baseClass}__modal-content`}>
-          {renderModalContent()}
-        </div>
+        {renderModalContent()}
+      </div>
 
-        <div className="modal-cta-wrap">{renderModalButtons()}</div>
+      <div className="modal-cta-wrap">{renderModalButtons()}</div>
     </Modal>
   );
 };

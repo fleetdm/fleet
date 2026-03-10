@@ -57,45 +57,45 @@ const DeleteHostModal = ({
   return (
     <Modal title="Delete" onExit={onCancel} className={baseClass}>
       <p>
-          This will remove the record of <b>{hostText()}</b> and associated data
-          such as unlock PINs and disk encryption keys.
+        This will remove the record of <b>{hostText()}</b> and associated data
+        such as unlock PINs and disk encryption keys.
+      </p>
+      {hasManyHosts && (
+        <p>
+          When deleting a large volume of hosts, it may take some time for this
+          change to be reflected in the UI.
         </p>
-        {hasManyHosts && (
-          <p>
-            When deleting a large volume of hosts, it may take some time for
-            this change to be reflected in the UI.
-          </p>
-        )}
-        <ul>
-          <li>
-            macOS, Windows, or Linux hosts will re-appear unless Fleet&apos;s
-            agent is uninstalled.{" "}
-            <CustomLink
-              text="Uninstall Fleet's agent"
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/uninstall-fleetd`}
-              newTab
-            />
-          </li>
-          <li>
-            iOS, iPadOS, and Android hosts will re-appear unless MDM is turned
-            off. For iOS and iPadOS it may take up to an hour and for Android it
-            may take up to 24 hours to re-appear.
-          </li>
-        </ul>
-        <div className="modal-cta-wrap">
-          <Button
-            type="button"
-            onClick={onSubmit}
-            variant="alert"
-            className="delete-loading"
-            isLoading={isUpdating}
-          >
-            Delete
-          </Button>
-          <Button onClick={onCancel} variant="inverse-alert">
-            Cancel
-          </Button>
-        </div>
+      )}
+      <ul>
+        <li>
+          macOS, Windows, or Linux hosts will re-appear unless Fleet&apos;s
+          agent is uninstalled.{" "}
+          <CustomLink
+            text="Uninstall Fleet's agent"
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/uninstall-fleetd`}
+            newTab
+          />
+        </li>
+        <li>
+          iOS, iPadOS, and Android hosts will re-appear unless MDM is turned
+          off. For iOS and iPadOS it may take up to an hour and for Android it
+          may take up to 24 hours to re-appear.
+        </li>
+      </ul>
+      <div className="modal-cta-wrap">
+        <Button
+          type="button"
+          onClick={onSubmit}
+          variant="alert"
+          className="delete-loading"
+          isLoading={isUpdating}
+        >
+          Delete
+        </Button>
+        <Button onClick={onCancel} variant="inverse-alert">
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

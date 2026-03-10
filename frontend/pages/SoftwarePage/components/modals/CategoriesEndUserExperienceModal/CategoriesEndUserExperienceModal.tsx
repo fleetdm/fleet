@@ -143,31 +143,31 @@ const CategoriesEndUserExperienceModal = ({
   return (
     <Modal title="End user experience" onExit={onCancel} className={baseClass}>
       <span>What end users see:</span>
-        <SelfServicePreview
-          isIosOrIpadosApp={isIosOrIpadosApp}
-          contactUrl={config?.org_info.contact_url || ""}
-          name={name}
-          displayName={displayName || name}
-          versionLabel={mobileVersion || "Version (unknown)"}
-          renderIcon={() => (
-            <SoftwareIcon
-              name={name}
-              source={source}
-              url={iconUrl ?? undefined}
-            />
-          )}
-          renderTable={() => (
-            <BasicSoftwareTable
-              name={name}
-              displayName={displayName}
-              source={source}
-              iconUrl={iconUrl}
-            />
-          )}
-        />
-        <div className="modal-cta-wrap">
-          <Button onClick={onCancel}>Done</Button>
-        </div>
+      <SelfServicePreview
+        isIosOrIpadosApp={isIosOrIpadosApp}
+        contactUrl={config?.org_info.contact_url || ""}
+        name={name}
+        displayName={displayName || name}
+        versionLabel={mobileVersion || "Version (unknown)"}
+        renderIcon={() => (
+          <SoftwareIcon
+            name={name}
+            source={source}
+            url={iconUrl ?? undefined}
+          />
+        )}
+        renderTable={() => (
+          <BasicSoftwareTable
+            name={name}
+            displayName={displayName}
+            source={source}
+            iconUrl={iconUrl}
+          />
+        )}
+      />
+      <div className="modal-cta-wrap">
+        <Button onClick={onCancel}>Done</Button>
+      </div>
     </Modal>
   );
 };
