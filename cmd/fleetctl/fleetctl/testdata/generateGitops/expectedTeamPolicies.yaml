@@ -7,3 +7,4 @@
   resolution: Do a team thing
   run_script:
     path: /path/to/script1.sh
+  webhooks_and_tickets_enabled: false
