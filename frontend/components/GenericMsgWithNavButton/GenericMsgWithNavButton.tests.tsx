@@ -18,7 +18,9 @@ describe("GenericMsgWithNavButton", () => {
       />
     );
 
-    expect(screen.getByText("Manage your hosts")).toBeInTheDocument();
+    expect(
+      screen.getByText("Additional configuration required")
+    ).toBeInTheDocument();
     expect(
       screen.getByText(
         "MDM must be turned on to change settings on your hosts."
