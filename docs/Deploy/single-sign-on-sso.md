@@ -202,7 +202,7 @@ Fleet will attempt to parse SAML custom attributes with the following format:
 - `FLEET_JIT_USER_ROLE_GLOBAL`: Specifies the global role to use when creating the user.
 - `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>`: Specifies team role for team with ID `<TEAM_ID>` to use when creating the user.
 
-Currently supported values for the above attributes are: `admin`, `maintainer`, `observer`, `observer_plus` and `null`.
+Currently supported values for the above attributes are: `admin`, `maintainer`, `observer`, `observer_plus`, `technician` and `null`.
 A role attribute with value `null` will be ignored by Fleet. (This is to support limitations on some IdPs which do not allow you to choose what keys are sent to Fleet when creating a new user.)
 SAML supports multi-valued attributes, Fleet will always use the last value.
 
