@@ -337,6 +337,23 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	assert.Equal(t, calendarWebhookUrl, team.Config.Integrations.GoogleCalendar.WebhookURL)
 	assert.True(t, team.Config.Integrations.GoogleCalendar.Enable)
 
+	// dry-run with invalid EUA=disabled and lock_end_user_info=enabled
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamNameDecomposed,
+				"mdm": map[string]any{
+					"macos_setup": map[string]any{
+						"lock_end_user_info": true,
+					},
+				},
+			},
+		},
+	}
+	res := s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't enable macos_setup.lock_end_user_info because macos_setup.enable_end_user_authentication is not enabled")
+
 	// dry-run with invalid windows updates
 	teamSpecs = map[string]any{
 		"specs": []any{
@@ -351,8 +368,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	res := s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
-	errMsg := extractServerErrorText(res.Body)
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "deadline_days must be an integer between 0 and 30")
 
 	// apply valid windows updates settings
