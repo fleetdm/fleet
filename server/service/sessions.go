@@ -164,7 +164,7 @@ func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) 
 	// Calculate token expiration time if session duration is configured
 	var tokenExpiresAt *time.Time
 	if sessionDuration := svc.GetSessionDuration(ctx); sessionDuration > 0 {
-		expiresAt := time.Now().Add(sessionDuration)
+		expiresAt := time.Now().Add(sessionDuration).UTC()
 		tokenExpiresAt = &expiresAt
 	}
 
@@ -303,7 +303,7 @@ func sessionCreateEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	// Calculate token expiration time if session duration is configured
 	var tokenExpiresAt *time.Time
 	if sessionDuration := svc.GetSessionDuration(ctx); sessionDuration > 0 {
-		expiresAt := time.Now().Add(sessionDuration)
+		expiresAt := time.Now().Add(sessionDuration).UTC()
 		tokenExpiresAt = &expiresAt
 	}
 
