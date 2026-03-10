@@ -2644,15 +2644,18 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 		// We must ensure that software is not in host_software table before deleting it.
 		// This prevents a race condition where a host just added the software, but it is not part of software_host_counts yet.
 		// When a host adds software, software table and host_software table are updated in the same transaction.
-		cleanupSoftwareStmt = `
-      DELETE s
+		selectOrphanSoftwareIDsStmt = `
+      SELECT s.id
       FROM software s
       LEFT JOIN software_host_counts shc
       ON s.id = shc.software_id
       WHERE
         shc.software_id IS NULL AND
         NOT EXISTS (SELECT 1 FROM host_software hsw WHERE hsw.software_id = s.id)
-	  `
+      LIMIT ?
+    `
+
+		cleanupSoftwareBatchSize = 200
 	)
 
 	// Create a fresh swap table to populate with new counts. If a previous run left a partial swap table, drop it first.
@@ -2763,9 +2766,29 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 		return err
 	}
 
-	// Remove any unused software (those not in host_software).
-	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupSoftwareStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete unused software")
+	// Remove any unused software (those not in host_software) in small batches to
+	// reduce lock contention with concurrent host_software writes.
+	for {
+		var orphanIDs []uint
+		if err := sqlx.SelectContext(ctx, db, &orphanIDs, selectOrphanSoftwareIDsStmt, cleanupSoftwareBatchSize); err != nil {
+			return ctxerr.Wrap(ctx, err, "select orphaned software IDs")
+		}
+		if len(orphanIDs) == 0 {
+			break
+		}
+
+		deleteStmt, args, err := sqlx.In("DELETE FROM software WHERE id IN (?)", orphanIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build delete orphaned software statement")
+		}
+		deleteStmt = ds.writer(ctx).Rebind(deleteStmt)
+		if _, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete orphaned software batch")
+		}
+
+		if len(orphanIDs) < cleanupSoftwareBatchSize {
+			break
+		}
 	}
 	return nil
 }
