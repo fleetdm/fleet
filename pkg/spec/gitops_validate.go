@@ -19,6 +19,14 @@ type fieldInfo struct {
 	typ      reflect.Type
 }
 
+// ValidKeysProvider is implemented by types with custom JSON marshaling
+// that want to declare valid keys for gitops unknown-key validation.
+type ValidKeysProvider interface {
+	ValidKeys() []string
+}
+
+var validKeysProviderType = reflect.TypeFor[ValidKeysProvider]()
+
 var (
 	knownKeysCache   = make(map[reflect.Type]map[string]fieldInfo)
 	knownKeysCacheMu sync.Mutex
@@ -26,6 +34,7 @@ var (
 
 // knownJSONKeys extracts the set of valid JSON field names from a struct type,
 // including fields from embedded structs. Results are cached per type.
+// For types implementing ValidKeysProvider, the declared keys are used instead.
 func knownJSONKeys(t reflect.Type) map[string]fieldInfo {
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
@@ -42,7 +51,23 @@ func knownJSONKeys(t reflect.Type) map[string]fieldInfo {
 	}
 
 	keys := make(map[string]fieldInfo)
-	collectFields(t, keys)
+
+	// If the type (or pointer to it) implements ValidKeysProvider, use those
+	// keys instead of reflecting on struct fields. This handles types with
+	// custom JSON marshaling (e.g. GoogleCalendarApiKey).
+	pt := reflect.PointerTo(t)
+	if pt.Implements(validKeysProviderType) || t.Implements(validKeysProviderType) {
+		provider := reflect.New(t).Interface().(ValidKeysProvider)
+		for _, name := range provider.ValidKeys() {
+			keys[name] = fieldInfo{
+				jsonName: name,
+				typ:      reflect.TypeFor[any](),
+			}
+		}
+	} else {
+		collectFields(t, keys)
+	}
+
 	knownKeysCache[t] = keys
 	return keys
 }

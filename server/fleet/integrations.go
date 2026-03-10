@@ -384,10 +384,10 @@ func makeTestZendeskRequest(ctx context.Context, intg *ZendeskIntegration) error
 	return nil
 }
 
-const (
-	GoogleCalendarEmail      = "client_email"
-	GoogleCalendarPrivateKey = "private_key"
-)
+var keyNames = map[string]string{
+	"GoogleCalendarEmail":      "client_email",
+	"GoogleCalendarPrivateKey": "private_key",
+}
 
 // GoogleCalendarApiKey is a custom type for the Google Calendar API key JSON.
 // It handles JSON marshaling/unmarshaling with support for masking sensitive data.
@@ -398,6 +398,17 @@ type GoogleCalendarApiKey struct {
 	Values map[string]string
 	// masked indicates if this key should be serialized as masked
 	masked bool
+}
+
+// ValidKeys returns the set of accepted JSON keys for this type.
+// This is used by gitops validation to check for unknown keys in types
+// with custom JSON marshaling.
+func (GoogleCalendarApiKey) ValidKeys() []string {
+	keys := make([]string, 0, len(keyNames))
+	for _, v := range keyNames {
+		keys = append(keys, v)
+	}
+	return keys
 }
 
 // MarshalJSON implements json.Marshaler. When masked, returns "********".
@@ -551,33 +562,33 @@ func ValidateGoogleCalendarIntegrations(intgs []*GoogleCalendarIntegration, inva
 		invalid.Append("integrations.google_calendar", "integrating with >1 Google Workspace service account is not yet supported.")
 	}
 	for _, intg := range intgs {
-		if email, ok := intg.ApiKey.Values[GoogleCalendarEmail]; !ok {
+		if email, ok := intg.ApiKey.Values[keyNames["GoogleCalendarEmail"]]; !ok {
 			invalid.Append(
-				fmt.Sprintf("integrations.google_calendar.api_key_json.%s", GoogleCalendarEmail),
-				fmt.Sprintf("%s is required", GoogleCalendarEmail),
+				fmt.Sprintf("integrations.google_calendar.api_key_json.%s", keyNames["GoogleCalendarEmail"]),
+				fmt.Sprintf("%s is required", keyNames["GoogleCalendarEmail"]),
 			)
 		} else {
 			email = strings.TrimSpace(email)
-			intg.ApiKey.Values[GoogleCalendarEmail] = email
+			intg.ApiKey.Values[keyNames["GoogleCalendarEmail"]] = email
 			if email == "" {
 				invalid.Append(
-					fmt.Sprintf("integrations.google_calendar.api_key_json.%s", GoogleCalendarEmail),
-					fmt.Sprintf("%s cannot be blank", GoogleCalendarEmail),
+					fmt.Sprintf("integrations.google_calendar.api_key_json.%s", keyNames["GoogleCalendarEmail"]),
+					fmt.Sprintf("%s cannot be blank", keyNames["GoogleCalendarEmail"]),
 				)
 			}
 		}
-		if privateKey, ok := intg.ApiKey.Values["private_key"]; !ok {
+		if privateKey, ok := intg.ApiKey.Values[keyNames["GoogleCalendarPrivateKey"]]; !ok {
 			invalid.Append(
-				fmt.Sprintf("integrations.google_calendar.api_key_json.%s", GoogleCalendarPrivateKey),
-				fmt.Sprintf("%s is required", GoogleCalendarPrivateKey),
+				fmt.Sprintf("integrations.google_calendar.api_key_json.%s", keyNames["GoogleCalendarPrivateKey"]),
+				fmt.Sprintf("%s is required", keyNames["GoogleCalendarPrivateKey"]),
 			)
 		} else {
 			privateKey = strings.TrimSpace(privateKey)
-			intg.ApiKey.Values[GoogleCalendarPrivateKey] = privateKey
+			intg.ApiKey.Values[keyNames["GoogleCalendarPrivateKey"]] = privateKey
 			if privateKey == "" {
 				invalid.Append(
-					fmt.Sprintf("integrations.google_calendar.api_key_json.%s", GoogleCalendarPrivateKey),
-					fmt.Sprintf("%s cannot be blank", GoogleCalendarPrivateKey),
+					fmt.Sprintf("integrations.google_calendar.api_key_json.%s", keyNames["GoogleCalendarPrivateKey"]),
+					fmt.Sprintf("%s cannot be blank", keyNames["GoogleCalendarPrivateKey"]),
 				)
 			}
 		}
