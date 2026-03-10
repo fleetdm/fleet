@@ -1032,7 +1032,7 @@ func (cmd *GenerateGitopsCommand) generateEULA() (string, error) {
 }
 
 func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interface{}, error) {
-	t := reflect.TypeOf(spec.GitOpsMDM{})
+	t := reflect.TypeFor[spec.GitOpsMDM]()
 	result := map[string]interface{}{
 		jsonFieldName(t, "AppleServerURL"):        mdm.AppleServerURL,
 		jsonFieldName(t, "EndUserAuthentication"): mdm.EndUserAuthentication,
