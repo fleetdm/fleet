@@ -138,7 +138,7 @@ func TestValidateUnknownKeys(t *testing.T) {
 					"domain": "example.com",
 					"api_key_json": map[string]any{
 						"client_email": "test@example.com",
-						"private_key":  "-----BEGIN RSA PRIVATE KEY-----",
+						"private_key":  "some value",
 					},
 				},
 			},
@@ -154,7 +154,7 @@ func TestValidateUnknownKeys(t *testing.T) {
 					"domain": "example.com",
 					"api_key_json": map[string]any{
 						"client_email": "test@example.com",
-						"private_key":  "-----BEGIN RSA PRIVATE KEY-----",
+						"private_key":  "nothing to see here",
 						"bad_field":    "unknown",
 					},
 				},
