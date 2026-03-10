@@ -64,8 +64,8 @@ ADE automatically supervises devices during enrollment, unlocking security restr
 This supervised mode provides security features that work together to prevent unauthorized access and data loss:
 
 * Automatic device supervision for advanced management controls  
-* Mandatory MDM enrollment that users cannot  or remove  
-* Activation Lock  codes for organizational device recovery  
+* Mandatory MDM enrollment that users cannot remove  
+* Activation Lock bypass codes for organizational device recovery  
 * Factory reset protection that maintains management through re-enrollment  
 * Device identity certificates for secure MDM authentication
 
