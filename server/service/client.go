@@ -2991,7 +2991,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				var patchTeamID uint
 				if config.IsNoTeam() {
 					patchTeamID = 0
-				} else if config.TeamID != nil {
+				} else {
 					patchTeamID = *config.TeamID
 				}
 				var resp any
