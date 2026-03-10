@@ -50,7 +50,7 @@ Fleet’s API also enables custom automation. Security teams use it to run autom
 The open-source nature of Fleet was also important. Being able to inspect and extend the platform allows the company to adapt the system to its complex infrastructure.
 
 
-## **Careful rollout across 140,000 hosts**
+### Careful rollout across 140,000 hosts
 
 Deploying and upgrading a platform across a fleet of this size requires careful coordination.
 
