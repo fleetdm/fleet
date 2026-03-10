@@ -26,6 +26,7 @@ import {
 } from "pages/SoftwarePage/helpers";
 
 import { generateFormValidation, getUniqueAppId } from "./helpers";
+import SoftwareDeploySlider from "../SoftwareDeploySelector";
 
 const baseClass = "software-vpp-form";
 
@@ -296,6 +297,12 @@ const SoftwareVppForm = ({
       );
     }
 
+    // Hides deploy slider until app is selected
+    // Hides deploy slider for iOS/iPadOS apps
+    const showDeploySoftwareSlider =
+      !!formData.selectedApp &&
+      !isIpadOrIphoneSoftware(formData.selectedApp.platform);
+
     // Add VPP form
     // 4.83+ has no additional options to select beyond the app
     if (vppApps) {
@@ -311,6 +318,16 @@ const SoftwareVppForm = ({
             apps, head to{" "}
             <CustomLink url="https://business.apple.com" text="ABM" newTab />
           </div>
+          {showDeploySoftwareSlider && (
+            <SoftwareDeploySlider
+              deploySoftware={formData.automaticInstall}
+              onToggleDeploySoftware={onToggleAutomaticInstall}
+              platform={formData.selectedApp?.platform}
+              isExePackage={false}
+              isTarballPackage={false}
+              isScriptPackage={false}
+            />
+          )}
         </div>
       );
     }

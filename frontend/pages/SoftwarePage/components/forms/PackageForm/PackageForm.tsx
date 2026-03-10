@@ -27,7 +27,6 @@ import {
   getTargetType,
 } from "pages/SoftwarePage/helpers";
 import TargetLabelSelector from "components/TargetLabelSelector";
-import Card from "components/Card";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
@@ -37,6 +36,7 @@ import {
   sortByVersionLatestFirst,
 } from "./helpers";
 import PackageVersionSelector from "../PackageVersionSelector";
+import SoftwareDeploySlider from "../SoftwareDeploySelector";
 
 export const baseClass = "package-form";
 
@@ -366,6 +366,27 @@ const PackageForm = ({
   const showAdvancedOptions =
     formData.software && !isScriptPackage && !isIpaPackage;
 
+  const showDeploySoftwareSlider =
+    !gitOpsModeEnabled &&
+    !isEditingSoftware &&
+    !isIpaPackage &&
+    !isExePackage &&
+    !isTarballPackage &&
+    !isScriptPackage;
+
+  // 4.83+ Show deploy slider on add if the package type supports it.
+  // Hide from gitOps mode
+  const renderSoftwareDeploySlider = () => (
+    <SoftwareDeploySlider
+      deploySoftware={formData.automaticInstall}
+      onToggleDeploySoftware={onToggleAutomaticInstall}
+      isExePackage={false}
+      isTarballPackage={false}
+      isScriptPackage={false}
+      disableOptions={!formData.software} // Disable until app is selected
+    />
+  );
+
   // GitOps mode hides SoftwareOptionsSelector and TargetLabelSelector
   // 4.83 Removed option/targets from Add page
   const showOptionsTargetsSelectors = !gitOpsModeEnabled && isEditingSoftware;
@@ -462,6 +483,7 @@ const PackageForm = ({
               : "form"
           }
         >
+          {showDeploySoftwareSlider && renderSoftwareDeploySlider()}
           {showOptionsTargetsSelectors && (
             <div className={`${baseClass}__form-frame`}>
               {renderSoftwareOptionsSelector()}
