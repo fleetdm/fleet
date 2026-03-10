@@ -472,6 +472,13 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			payloadForNewInstallerFile = nil
 			payload.InstallerFile = nil
 		}
+
+		if existingInstaller.FleetMaintainedAppID != nil {
+			return nil, &fleet.BadRequestError{
+				Message:     "Couldn't update. The package can't be changed for Fleet-maintained apps.",
+				InternalErr: ctxerr.Wrap(ctx, err, "installer file changed for fleet maintained app installer"),
+			}
+		}
 	}
 
 	if payload.InstallerFile == nil { // fill in existing existingInstaller data to payload

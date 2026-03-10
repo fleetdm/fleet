@@ -6052,8 +6052,8 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 	expected := map[uint]fleet.AutomaticInstallPolicy{
-		policy3.ID: {ID: policy3.ID, Name: policy3.Name, TitleID: *installer3.TitleID},
-		policy4.ID: {ID: policy4.ID, Name: policy4.Name, TitleID: *installer4.TitleID},
+		policy3.ID: {ID: policy3.ID, Name: policy3.Name, TitleID: *installer3.TitleID, Type: fleet.PolicyTypeDynamic},
+		policy4.ID: {ID: policy4.ID, Name: policy4.Name, TitleID: *installer4.TitleID, Type: fleet.PolicyTypeDynamic},
 	}
 
 	for _, got := range policies {
@@ -7107,7 +7107,7 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 		PostInstallScript: "world",
 		StorageID:         "storage1",
 		Filename:          "maintained1",
-		Title:             "maintained1",
+		Title:             "Maintained1",
 		Version:           "1.0",
 		Source:            "apps",
 		Platform:          "darwin",
@@ -7157,4 +7157,56 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 		Platform: "darwin",
 	})
 	require.NoError(t, err)
+
+	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{p1.ID})
+	require.NoError(t, err)
+
+	// everything automatically generated
+	p3, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Type:                 fleet.PolicyTypePatch,
+		PatchSoftwareTitleID: &titleID,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "macOS - Maintained1 up to date", p3.Name)
+	require.Equal(t, "Outdated software might introduce security vulnerabilities or compatibility issues.", p3.Description)
+	require.Equal(t, "Install the latest version from self-service.", *p3.Resolution)
+	require.Equal(t, "darwin", p3.Platform)
+	require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') >= 0;", p3.Query)
+
+	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{p3.ID})
+	require.NoError(t, err)
+
+	// some fields should not be overwritten
+	p4, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:                 "name",
+		Description:          "description",
+		Resolution:           "resolution",
+		Type:                 fleet.PolicyTypePatch,
+		PatchSoftwareTitleID: &titleID,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "name", p4.Name)
+	require.Equal(t, "description", p4.Description)
+	require.Equal(t, "resolution", *p4.Resolution)
+	require.Equal(t, "darwin", p4.Platform)
+	require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') >= 0;", p4.Query)
+
+	// test GetPatchPolicy
+	data, err := ds.GetPatchPolicy(ctx, &team1.ID, titleID)
+	require.NoError(t, err)
+	require.Equal(t, p4.ID, data.ID)
+	require.Equal(t, p4.Name, data.Name)
+
+	payload2 := &fleet.UploadSoftwareInstallerPayload{
+		Filename:        "bar",
+		Title:           "bar",
+		UserID:          user1.ID,
+		TeamID:          &team1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	}
+	_, titleID2, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), payload2)
+	require.NoError(t, err)
+
+	_, err = ds.GetPatchPolicy(ctx, &team1.ID, titleID2)
+	require.True(t, fleet.IsNotFound(err))
 }

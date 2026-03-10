@@ -1092,7 +1092,6 @@ const HostDetailsPage = ({
       })
     );
   };
-
   const navigateToSoftwareTab = (i: number): void => {
     const navPath = hostSoftwareSubNav[i].pathname;
     router.push(

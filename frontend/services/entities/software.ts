@@ -9,7 +9,7 @@ import {
   encodeScriptBase64,
   SCRIPTS_ENCODED_HEADER,
 } from "utilities/scripts_encoding";
-import {
+import software, {
   ISoftwareResponse,
   ISoftwareCountResponse,
   ISoftwareVersion,

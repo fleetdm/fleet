@@ -133,9 +133,6 @@ func (p PolicyPayload) Verify() error {
 		if p.QueryID != nil {
 			return errPolicyPatchAndQuerySet
 		}
-		if err := verifyPolicyName(p.Name); err != nil {
-			return err
-		}
 		if !emptyString(p.Query) {
 			return errPolicyPatchAndQuerySet
 		}

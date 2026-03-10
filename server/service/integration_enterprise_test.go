@@ -26256,6 +26256,42 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Team 1" + t.Name()})
 	require.NoError(t, err)
 
+	// mock an installer being uploaded through FMA
+	updateInstallerFMAID := func(fmaID, teamID, titleID uint) {
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err = q.ExecContext(ctx, `UPDATE software_installers SET fleet_maintained_app_id = ? WHERE global_or_team_id = ? AND title_id = ?`, fmaID, teamID, titleID)
+			require.NoError(t, err)
+			return nil
+		})
+	}
+
+	// resetFMAState resets an fmaTestState to the given version and installer bytes.
+	resetFMAState := func(state *fmaTestState, version string, installerBytes []byte) {
+		state.version = version
+		state.installerBytes = installerBytes
+		state.ComputeSHA(installerBytes)
+	}
+
+	checkPolicy := func(policy *fleet.Policy, name, version string, titleID uint) {
+		require.NotNil(t, policy.PatchSoftware)
+		require.Equal(t, titleID, policy.PatchSoftware.SoftwareTitleID)
+		require.Equal(t, fleet.PolicyTypePatch, policy.Type)
+		require.Equal(t, fmt.Sprintf(`SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND version_compare(bundle_short_version, '%s') >= 0;`, version), policy.Query)
+		require.Equal(t, name, policy.Name)
+	}
+
+	createHostPolicyResults := func(host *fleet.Host, policy *fleet.Policy) {
+		distributedResp := submitDistributedQueryResultsResponse{}
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+			host,
+			map[uint]*bool{
+				policy.ID: ptr.Bool(false),
+			},
+		), http.StatusOK, &distributedResp)
+		err = s.ds.UpdateHostPolicyCounts(ctx)
+		require.NoError(t, err)
+	}
+
 	t.Run("no_team_patch_policy", func(t *testing.T) {
 		// add a regular "No team" policy
 		tpParams := teamPolicyRequest{
@@ -26286,12 +26322,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			TeamID:        nil,
 		}
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
-
-		var titleID uint
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(context.Background(), q, &titleID, `SELECT title_id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, 0, payload.Filename)
-		})
-		require.NotZero(t, titleID)
+		titleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
 
 		// try to add a patch policy that matches to an installer, but not an FMA
 		params = map[string]any{
@@ -26322,15 +26353,15 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		// add the same patch policy, but this time it belongs to an FMA
 		policyResp := teamPolicyResponse{}
 		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", teamPolicyRequest{
-			Name:                 "test-4",
+			Name:                 "",
 			Query:                "",
-			Description:          "um",
+			Description:          "",
 			Type:                 ptr.String("patch"),
 			PatchSoftwareTitleID: &titleID,
 		}, http.StatusOK, &policyResp)
-		require.Equal(t, policyResp.Policy.Name, "macOS - DummyApp up to date")
-		require.Equal(t, policyResp.Policy.Description, "Outdated software might introduce security vulnerabilities or compatibility issues.")
-		require.Equal(t, *policyResp.Policy.Resolution, "Install the latest version from self-service.")
+		require.Equal(t, "macOS - DummyApp up to date", policyResp.Policy.Name)
+		require.Equal(t, "Outdated software might introduce security vulnerabilities or compatibility issues.", policyResp.Policy.Description)
+		require.Equal(t, "Install the latest version from self-service.", *policyResp.Policy.Resolution)
 		require.Contains(t, policyResp.Policy.Query, "SELECT 1 FROM apps WHERE bundle_identifier =")
 		require.NotNil(t, policyResp.Policy.PatchSoftware)
 		require.Equal(t, titleID, policyResp.Policy.PatchSoftware.SoftwareTitleID)
@@ -26417,8 +26448,76 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Empty(t, getPolicyResp.Policy.PatchSoftwareTitleID)
 	})
 
+	t.Run("patch_policy_lifecycle", func(t *testing.T) {
+		// Test 1: delete software installer when there is an associatd patch policy
+
+		resp := teamResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
+			TeamPayload: fleet.TeamPayload{Name: ptr.String("team_1")},
+		}, http.StatusOK, &resp)
+		teamID := resp.Team.ID
+
+		// upload a software installer
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "some install script",
+			Filename:      "dummy_installer.pkg",
+			TeamID:        &teamID,
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+		titleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
+		fmaID := getFleetMaintainedAppID(t, s.ds, "dummy/darwin")
+
+		// add a fleet maintained app and associate the installer with it
+		updateInstallerFMAID(fmaID, teamID, titleID)
+
+		// add a patch policy
+		policyResp := teamPolicyResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", teamID), teamPolicyRequest{
+			Type:                 ptr.String("patch"),
+			PatchSoftwareTitleID: &titleID,
+		}, http.StatusOK, &policyResp)
+
+		// attempt to delete installer
+		res := s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusConflict, "team_id", strconv.Itoa(int(teamID))) //nolint:gosec // dismiss G115
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `Couldn’t delete. This software has a patch policy. Please remove the patch policy and try again.`)
+		res.Body.Close()
+
+		// remove patch policy and delete installer
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/delete", teamID), deleteTeamPoliciesRequest{
+			TeamID: teamID,
+			IDs:    []uint{policyResp.Policy.ID}}, http.StatusOK, &deleteTeamPoliciesResponse{})
+
+		// can delete installer successfully
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", strconv.Itoa(int(teamID))) //nolint:gosec // dismiss G115
+
+		// Test 2: Updating an FMA installer with a new file fails
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+		updateInstallerFMAID(fmaID, teamID, titleID)
+
+		dummyBytes, err := os.ReadFile("testdata/software-installers/dummy_installer.pkg")
+		require.NoError(t, err)
+		body, headers := generateMultipartRequest(t, "software", "dummy_installer.pkg", dummyBytes, s.token, map[string][]string{"team_id": {strconv.Itoa(int(teamID))}}) //nolint:gosec // dismiss G115
+		res = s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusBadRequest, headers)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `Couldn't update. The package can't be changed for Fleet-maintained apps.`)
+		res.Body.Close()
+	})
+
 	t.Run("batch team patch policy", func(t *testing.T) {
-		startFMAServers(t, s.ds)
+		// initialize FMA server
+		states := make(map[string]*fmaTestState, 1)
+		states["/zoom/windows.json"] = &fmaTestState{
+			version:        "1.0",
+			installerBytes: []byte("xyz"),
+			installerPath:  "/zoom.msi",
+		}
+		startFMAServers(t, s.ds, states)
+
+		// Add some hosts
+		teamHosts := s.createHosts(t, "windows", "windows")
+		require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{teamHosts[0].ID})))
+		require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{teamHosts[1].ID})))
 
 		getActiveTitleForTeam := func(teamID uint, titleName string) fleet.SoftwareTitleListResult {
 			var resp listSoftwareTitlesResponse
@@ -26464,9 +26563,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		var listPolResp = listTeamPoliciesResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
-		require.NotNil(t, listPolResp.Policies[0].PatchSoftware)
-		require.Equal(t, title.ID, listPolResp.Policies[0].PatchSoftware.SoftwareTitleID)
-		require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
+		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
 
 		// now enable automation on the policy
 		spec = &fleet.PolicySpec{
@@ -26489,9 +26586,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		listPolResp = listTeamPoliciesResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
-		require.NotNil(t, listPolResp.Policies[0].PatchSoftware)
-		require.Equal(t, title.ID, listPolResp.Policies[0].PatchSoftware.SoftwareTitleID)
-		require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
+		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
 		// This is only set if the automation is enable
 		require.Equal(t, title.ID, listPolResp.Policies[0].InstallSoftware.SoftwareTitleID)
 
@@ -26515,9 +26610,71 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		listPolResp = listTeamPoliciesResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
-		require.NotNil(t, listPolResp.Policies[0].PatchSoftware)
-		require.Equal(t, title.ID, listPolResp.Policies[0].PatchSoftware.SoftwareTitleID)
-		require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
+		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
 		require.Nil(t, listPolResp.Policies[0].InstallSoftware)
+
+		// check policy membership
+		createHostPolicyResults(teamHosts[0], listPolResp.Policies[0])
+		listPolResp.Policies[0], err = s.ds.Policy(ctx, listPolResp.Policies[0].ID)
+		require.NoError(t, err)
+		require.Equal(t, uint(1), listPolResp.Policies[0].FailingHostCount)
+
+		// Test 2: FMA Version is updated (query should use new version)
+		resetFMAState(states["/zoom/windows.json"], "1.2", []byte("abc"))
+
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}}, TeamName: team.Name},
+			http.StatusAccepted, &resp,
+			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+
+		applyResp = applyPolicySpecsResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/spec/policies",
+			applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
+			http.StatusOK, &applyResp,
+		)
+		title = getActiveTitleForTeam(team.ID, "zoom")
+
+		listPolResp = listTeamPoliciesResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		require.Len(t, listPolResp.Policies, 1)
+		checkPolicy(listPolResp.Policies[0], spec.Name, "1.2", title.ID)
+
+		// check policy membership
+		listPolResp.Policies[0], err = s.ds.Policy(ctx, listPolResp.Policies[0].ID)
+		require.NoError(t, err)
+		require.Equal(t, uint(0), listPolResp.Policies[0].FailingHostCount)
+
+		// Test 3: FMA Version is pinned back after update? (query should use old version)
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
+				{Slug: ptr.String("zoom/windows"), SelfService: true, RollbackVersion: "1.0"},
+			}, TeamName: team.Name},
+			http.StatusAccepted, &resp,
+			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+
+		applyResp = applyPolicySpecsResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/spec/policies",
+			applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
+			http.StatusOK, &applyResp,
+		)
+		title = getActiveTitleForTeam(team.ID, "zoom")
+
+		listPolResp = listTeamPoliciesResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		require.Len(t, listPolResp.Policies, 1)
+		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
+
 	})
+}
+
+func getFleetMaintainedAppID(t *testing.T, ds *mysql.Datastore, slug string) uint {
+	var id uint
+	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &id, `SELECT id FROM fleet_maintained_apps WHERE slug = ?`, slug)
+	})
+	return id
 }

@@ -1024,21 +1024,22 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 		args.Type = fleet.PolicyTypeDynamic
 	}
 	if args.Type == fleet.PolicyTypePatch {
-		installer, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &teamID, *args.PatchSoftwareTitleID, false)
+		generated, err := ds.generatePatchPolicy(ctx, teamID, *args.PatchSoftwareTitleID)
 		if err != nil {
-			return nil, err
+			return nil, ctxerr.Wrap(ctx, err, "generating patch policy fields")
 		}
-		if installer.FleetMaintainedAppID == nil {
-			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for team ID %d", *args.PatchSoftwareTitleID, teamID),
-			})
+
+		if args.Name == "" {
+			args.Name = generated.Name
 		}
-		generated := generatePatchPolicy(installer)
-		args.Name = generated.Name
-		args.Query = generated.Query
+		if args.Description == "" {
+			args.Description = generated.Description
+		}
+		if args.Resolution == "" {
+			args.Resolution = generated.Resolution
+		}
 		args.Platform = generated.Platform
-		args.Description = generated.Description
-		args.Resolution = generated.Resolution
+		args.Query = generated.Query
 	}
 
 	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
@@ -1409,6 +1410,25 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				}
 
 				fmaTitleID := fmaTitleIDs[teamNameToID[spec.Team]][spec.FleetMaintainedAppSlug]
+
+				// generate new up-to-date query and other fields for patch policy
+				if spec.Type == fleet.PolicyTypePatch {
+					patch, err := ds.generatePatchPolicy(ctx, ptr.ValOrZero(teamID), *fmaTitleID)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "generating patch policy fields")
+					}
+					if spec.Name == "" {
+						spec.Name = patch.Name
+					}
+					if spec.Description == "" {
+						spec.Description = patch.Description
+					}
+					if spec.Resolution == "" {
+						spec.Resolution = patch.Resolution
+					}
+					spec.Platform = patch.Platform
+					spec.Query = patch.Query
+				}
 
 				res, err := tx.ExecContext(
 					ctx,
@@ -2439,7 +2459,8 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 	SELECT
 		p.id AS id,
 		p.name AS name,
-		COALESCE(si.title_id, va.title_id) AS software_title_id
+		COALESCE(si.title_id, va.title_id) AS software_title_id,
+		p.type AS type
 	FROM policies p
 	LEFT JOIN software_installers si ON p.software_installer_id = si.id
 	LEFT JOIN vpp_apps_teams vat ON p.vpp_apps_teams_id = vat.id
@@ -2479,7 +2500,17 @@ type patchPolicy struct {
 	Resolution  string
 }
 
-func generatePatchPolicy(installer *fleet.SoftwareInstaller) *patchPolicy {
+func (ds *Datastore) generatePatchPolicy(ctx context.Context, teamID uint, titleID uint) (*patchPolicy, error) {
+	installer, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &teamID, titleID, false)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting software installer")
+	}
+	if installer.FleetMaintainedAppID == nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for team ID %d", titleID, teamID),
+		})
+	}
+
 	var policy patchPolicy
 	switch {
 	case installer.Platform == string(fleet.MacOSPlatform):
@@ -2504,5 +2535,20 @@ func generatePatchPolicy(installer *fleet.SoftwareInstaller) *patchPolicy {
 	policy.Description = "Outdated software might introduce security vulnerabilities or compatibility issues."
 	policy.Resolution = "Install the latest version from self-service."
 
-	return &policy
+	return &policy, nil
+}
+
+func (ds *Datastore) GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*fleet.PatchPolicyData, error) {
+	query := `SELECT id, name FROM policies WHERE team_id = ? AND patch_software_title_id = ?`
+	var policy fleet.PatchPolicyData
+
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &policy, query, ptr.ValOrZero(teamID), titleID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("PatchPolicy"), "get patch policy")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get patch policy")
+	}
+
+	return &policy, nil
 }
