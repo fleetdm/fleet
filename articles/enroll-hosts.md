@@ -149,7 +149,7 @@ In the Google Admin console:
 
 4. Select **Actions > Delete** to delete the host from Fleet. Deleting the host will cancel any pending commands, script runs, or software installs.
 
-> If an end user wants to switch their workstation's operating system (e.g., Windows to Linux), delete the host from Fleet before they switch. Then, re-enroll the host.
+> Delete the host from Fleet before re-enrolling it. This prevents pending activity (like scripts or software installs) from running on the re-enrolled host and avoids showing the original host’s vitals.
 
 ## Debugging
 
@@ -158,6 +158,7 @@ If you're running into issues when enrolling hosts, the best practice is to look
 
 ## Advanced
 
+- [Switch a workstation's operating system](#switch-a-workstations-operating-system)
 - [Supported osquery versions](#supported-osquery-versions)
 - [Best practice for dual-boot workstations](#best-practice-for-dual-boot-workstations)
 - [Fleet agent (fleetd) components](#fleetd-components)
@@ -172,6 +173,10 @@ If you're running into issues when enrolling hosts, the best practice is to look
 - [Config-less fleetd agent deployment](#config-less-fleetd-agent-deployment)
 - [Experimental features](#experimental-features)
 - [macOS Migration Assistant](#macos-migration-assistant)
+
+### Switch a workstation's operating system
+
+If an end user wants to switch their workstation's operating system (e.g., Windows to Linux), delete the host from Fleet before they switch. Then, re-enroll the host.
 
 ### Supported osquery versions
 
