@@ -353,13 +353,13 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			name: "v2-prefix-all-teams",
 			attributes: []SAMLAttribute{
 				{
-					Name: teamUserRoleSSOAttrNamePrefixV2 + "1",
+					Name: "FLEET_JIT_USER_ROLE_FLEET_1",
 					Values: []SAMLAttributeValue{
 						{Value: "observer"},
 					},
 				},
 				{
-					Name: teamUserRoleSSOAttrNamePrefixV2 + "2",
+					Name: "FLEET_JIT_USER_ROLE_FLEET_2",
 					Values: []SAMLAttributeValue{
 						{Value: "admin"},
 					},
@@ -390,7 +390,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 					},
 				},
 				{
-					Name: teamUserRoleSSOAttrNamePrefixV2 + "5",
+					Name: "FLEET_JIT_USER_ROLE_FLEET_5",
 					Values: []SAMLAttributeValue{
 						{Value: "observer"},
 					},
@@ -403,7 +403,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			name: "v2-prefix-invalid-team-id",
 			attributes: []SAMLAttribute{
 				{
-					Name: teamUserRoleSSOAttrNamePrefixV2 + "foo",
+					Name: "FLEET_JIT_USER_ROLE_FLEET_foo",
 					Values: []SAMLAttributeValue{
 						{Value: "observer"},
 					},
@@ -416,7 +416,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			name: "v2-prefix-null-value-ignored",
 			attributes: []SAMLAttribute{
 				{
-					Name: teamUserRoleSSOAttrNamePrefixV2 + "1",
+					Name: "FLEET_JIT_USER_ROLE_FLEET_1",
 					Values: []SAMLAttributeValue{
 						{Value: "null"},
 					},
@@ -429,7 +429,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			name: "v2-prefix-team-technician",
 			attributes: []SAMLAttribute{
 				{
-					Name: teamUserRoleSSOAttrNamePrefixV2 + "3",
+					Name: "FLEET_JIT_USER_ROLE_FLEET_3",
 					Values: []SAMLAttributeValue{
 						{Value: "technician"},
 					},
@@ -455,7 +455,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 					},
 				},
 				{
-					Name: teamUserRoleSSOAttrNamePrefixV2 + "2",
+					Name: "FLEET_JIT_USER_ROLE_FLEET_2",
 					Values: []SAMLAttributeValue{
 						{Value: "admin"},
 					},

@@ -32,7 +32,7 @@ $config = array(
         ),
         // sso_user_4_team_maintainer has FLEET_JIT_USER_ROLE_FLEET_1 attribute to be added as maintainer
         // of team with ID 1, its login will fail if team with ID 1 doesn't exist.
-        // It also uses the newer attribute name to add the user to fleet #2 as an observer.
+        // It also uses the *older* attribute name to add the user to fleet #2 as an observer.
         'sso_user_4_team_maintainer:user123#' => array(
             'uid' => array('4'),
             'eduPersonAffiliation' => array('group1'),
@@ -41,7 +41,7 @@ $config = array(
             'FLEET_JIT_USER_ROLE_FLEET_1' => 'maintainer',
             'FLEET_JIT_USER_ROLE_TEAM_2' => 'observer',
         ),
-        // sso_user_5_team_admin has FLEET_JIT_USER_ROLE_FLEET_1 attribute to be added as admin
+        // sso_user_5_team_admin has FLEET_JIT_USER_ROLE_TEAM_1 attribute to be added as admin
         // of team with ID 1, its login will fail if team with ID 1 doesn't exist.
         // It also sets FLEET_JIT_USER_ROLE_GLOBAL and FLEET_JIT_USER_ROLE_FLEET_2 to `null` which means
         // Fleet will ignore such fields.
