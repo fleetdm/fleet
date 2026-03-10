@@ -574,9 +574,9 @@ const DataTable = ({
     // table is client-side paginated with more than 1 page of rows
     ((isClientSidePagination && (canNextPage || canPreviousPage)) ||
       // table's pagination is externally controlled
-      renderPagination ||
+      renderPagination?.() != null ||
       // there is help text and at least 1 row of data
-      (renderTableHelpText && !!rows?.length));
+      (renderTableHelpText?.() != null && !!rows?.length));
 
   return (
     <div className={baseClass}>
