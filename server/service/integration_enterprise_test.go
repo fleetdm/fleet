@@ -4852,7 +4852,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	// auto-incremented and other tests cause it to be different than what we need (ID=1).
 	var execErr error
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, execErr = db.ExecContext(context.Background(), `INSERT INTO teams (id, name) VALUES (1, 'Foobar') ON DUPLICATE KEY UPDATE name = VALUES(name);`)
+		_, execErr = db.ExecContext(context.Background(), `INSERT INTO teams (id, name) VALUES (1, 'Foobar'), (2, 'Hollatchaboi') ON DUPLICATE KEY UPDATE name = VALUES(name);`)
 		return execErr
 	})
 	require.NoError(t, execErr)
