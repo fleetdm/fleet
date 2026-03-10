@@ -312,9 +312,6 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 			ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
 				return nil
 			}
-			ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
-				return &fleet.TeamLite{}, nil
-			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
 			globalFile := "../../fleetctl/testdata/gitops/global_config_no_paths.yml"
@@ -449,9 +446,6 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 			}
 			ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
 				return nil
-			}
-			ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
-				return &fleet.TeamLite{}, nil
 			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
@@ -683,9 +677,6 @@ func TestGitOpsTeamVPPAndApp(t *testing.T) {
 	}
 	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
 		return nil
-	}
-	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
-		return &fleet.TeamLite{}, nil
 	}
 
 	buf, err := fleetctl.RunAppNoChecks([]string{
@@ -1002,9 +993,6 @@ software:
 
 			ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
 				return nil, nil
-			}
-			ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
-				return &fleet.TeamLite{}, nil
 			}
 
 			args := []string{"gitops"}
