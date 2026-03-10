@@ -27,7 +27,6 @@
 - Moved the copy button for text areas out of the text area itself and in line with its label.
 - Fixed some styling issues for the UI when no enroll secret is present on a fleet.
 - Left-aligned "Critical" checkbox in Save policy form.
-- Fixed query results cleanup cron failing with "too many placeholders" error by filtering to only saved queries and batching the SQL IN clause.
 - Fixed matching logic on App component for pages titles.
 - Fixed issue where the status name was wrapping at smaller viewport witdths on the mdm card on the Dashboard page.
 - Disallowed editing Fleet-maintained app in the UI while GitOps mode is enabled.
