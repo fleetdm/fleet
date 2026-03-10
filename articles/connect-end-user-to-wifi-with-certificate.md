@@ -853,8 +853,6 @@ Custom SCEP proxy:
 
 An example CAThumprint looks like this: `2133EC6A3CFB8418837BB395188D1A62CA2B96A6`
 
-Steps to get CAThumbrint from your SCEP server:
-
 1. In your browser, open the following URL to download a certificate: https://<your-scep-server-url>/scep?operation=GetCACert
 2. Run the following command to get the SHA1 Thumbprint:
     1. **Terminal (macOS)** -> `openssl x509 -inform DER -in /path/to/downloaded-cert.cer -noout -fingerprint -sha1 | sed 's/sha1 Fingerprint=//; s/://g`
