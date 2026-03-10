@@ -1,13 +1,14 @@
-name: $DOGFOOD_APPLE_BM_DEFAULT_TEAM
-team_settings:
+name: "💻 Workstations"
+settings:
   webhook_settings:
     failing_policies_webhook:
       destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
       enable_failing_policies_webhook: true
       host_batch_size: 0
       policy_ids:
-        - 14946
-        - 15329
+        - 38244 # Linux - Sufficient disk space available
+        - 38230 # macOS - Sufficient disk space available
+        - 38239 # Windows - Sufficient disk space available
   features:
     enable_host_users: true
     enable_software_inventory: true
@@ -46,9 +47,6 @@ controls:
       - path: ../lib/macos/configuration-profiles/date-time.mobileconfig
       - path: ../lib/macos/configuration-profiles/automatic-app-store-updates.mobileconfig
       - path: ../lib/macos/configuration-profiles/chrome-enrollment.mobileconfig
-      - path: ../lib/macos/configuration-profiles/company-portal-sso-extension.mobileconfig
-        labels_include_any:
-          - "Conditional access test group"
       - path: ../lib/macos/configuration-profiles/disable-bluetooth-file-sharing.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-content-caching.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-guest-account.mobileconfig
@@ -56,8 +54,6 @@ controls:
       - path: ../lib/macos/configuration-profiles/disable-internet-sharing.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-media-sharing.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-safari-safefiles.mobileconfig
-      # - path: ../lib/macos/configuration-profiles/enable-doh.mobileconfig
-      # Commenting out until I understand why we have this and if there's a better multi-platform solution
       - path: ../lib/macos/configuration-profiles/enable-firewall-logging.mobileconfig
       - path: ../lib/macos/configuration-profiles/enable-gatekeeper.mobileconfig
       - path: ../lib/macos/configuration-profiles/enforce-library-validation.mobileconfig
@@ -114,7 +110,6 @@ controls:
     - path: ../lib/macos/scripts/remove-old-nudge.sh
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
     - path: ../lib/macos/scripts/install-wine.sh
-    - path: ../lib/macos/scripts/create-conditional-access-allow-file.sh
     - path: ../lib/macos/scripts/set-lock-screen-message.sh
     - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
@@ -136,25 +131,28 @@ policies:
   - path: ../lib/macos/policies/update-1password.yml
   - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
   - path: ../lib/macos/policies/disk-encryption-check.yml
+  - path: ../lib/macos/policies/disk-space-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
   - path: ../lib/macos/policies/install-macos-compatibility-extension.yml
-  - path: ../lib/macos/policies/company-portal-installed.yml
-  - path: ../lib/macos/policies/entra-conditional-access-check.yml
   - path: ../lib/macos/policies/install-nudge.yml
+  - path: ../lib/macos/policies/update-claude.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
   - path: ../lib/windows/policies/disk-encryption-check.yml
+  - path: ../lib/windows/policies/disk-space-check.yml
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
+  - path: ../lib/windows/policies/update-claude.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
+  - path: ../lib/linux/policies/disk-space-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
-queries:
-  - path: ../lib/macos/queries/detect-apple-intelligence.yml
-  - path: ../lib/macos/queries/collect-santa-denied-logs.yml
-  - path: ../lib/all/queries/dex-queries.yml
+reports:
+  - path: ../lib/macos/reports/detect-apple-intelligence.yml
+  - path: ../lib/macos/reports/collect-santa-denied-logs.yml
+  - path: ../lib/all/reports/dex-queries.yml
 software:
   packages:
     # macOS apps
@@ -185,12 +183,6 @@ software:
         - "Keynote 14 installed"
       categories:
         - Productivity
-    - path: ../lib/macos/software/company-portal.yml # Company Portal for macOS
-      self_service: true
-      labels_include_any:
-        - "Conditional access test group"
-      categories:
-        - Security
     - path: ../lib/macos/software/nudge.yml # Nudge for macOS
       self_service: false
       categories:
@@ -276,6 +268,13 @@ software:
       setup_experience: true
       categories:
         - Security
+    - path: ../lib/windows/software/okta-verify.yml # Okta Verify for Windows (x86)
+      self_service: true
+      setup_experience: true
+      categories:
+        - Security
+      labels_include_any:
+        - "x86-based Windows hosts"
   app_store_apps:
     - app_store_id: "361285480" # Keynote
       display_name: "Keynote"
@@ -327,14 +326,17 @@ software:
       setup_experience: true
       categories:
         - Security
-    # Windows apps
-    - slug: okta-verify/windows # Okta Verify for Windows
+    - slug: claude/darwin # Claude for macOS
       self_service: true
-      setup_experience: true
+      categories:
+        - Productivity
+    # Windows apps
+    - slug: claude/windows # Claude for Windows
+      self_service: true
       labels_include_any:
         - "x86-based Windows hosts"
       categories:
-        - Security
+        - Productivity
     - slug: slack/windows # Slack for Windows
       self_service: true
       setup_experience: true

@@ -812,13 +812,13 @@ func clearLockWipeForCanceledActivity(ctx context.Context, tx sqlx.ExtContext, h
 		const findActStmt = `SELECT
 				id
 			FROM
-				activities
-				INNER JOIN host_activities ON (host_activities.activity_id = activities.id)
+				activity_past
+				INNER JOIN activity_host_past ON (activity_host_past.activity_id = activity_past.id)
 			WHERE
-				host_activities.host_id = ? AND
-				activities.activity_type = ?
+				activity_host_past.host_id = ? AND
+				activity_past.activity_type = ?
 			ORDER BY
-				activities.created_at DESC
+				activity_past.created_at DESC
 			LIMIT 1
 `
 		var activityID uint
@@ -830,7 +830,7 @@ func clearLockWipeForCanceledActivity(ctx context.Context, tx sqlx.ExtContext, h
 			return ctxerr.Wrap(ctx, err, "find past activity for lock/wipe")
 		}
 
-		const delStmt = `DELETE FROM activities WHERE id = ?`
+		const delStmt = `DELETE FROM activity_past WHERE id = ?`
 		if _, err := tx.ExecContext(ctx, delStmt, activityID); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete past activity for lock/wipe")
 		}
