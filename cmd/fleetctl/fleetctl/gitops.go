@@ -31,6 +31,7 @@ func gitopsCommand() *cli.Command {
 		flFilenames             cli.StringSlice
 		flDryRun                bool
 		flDeleteOtherTeams      bool
+		flAllowUnknownKeys      bool
 		flConcurrentIconUploads int
 		flConcurrentIconUpdates int
 	)
@@ -58,6 +59,12 @@ func gitopsCommand() *cli.Command {
 				EnvVars:     []string{"DRY_RUN"},
 				Destination: &flDryRun,
 				Usage:       "Do not apply the file(s), just validate",
+			},
+			&cli.BoolFlag{
+				Name:        "allow-unknown-keys",
+				EnvVars:     []string{"ALLOW_UNKNOWN_KEYS"},
+				Destination: &flAllowUnknownKeys,
+				Usage:       "Log unknown keys as warnings instead of failing with errors",
 			},
 			&cli.IntFlag{
 				Name:        "icons-concurrent-uploads",
@@ -91,6 +98,8 @@ func gitopsCommand() *cli.Command {
 
 			logDeprecatedFlagName(c, "delete-other-teams", "delete-other-fleets")
 			logDeprecatedEnvVar(c, "DELETE_OTHER_TEAMS", "DELETE_OTHER_FLEETS")
+
+			gitOpsOpts := spec.GitOpsOptions{AllowUnknownKeys: flAllowUnknownKeys}
 
 			logf := func(format string, a ...interface{}) {
 				_, _ = fmt.Fprintf(c.App.Writer, format, a...)
@@ -135,7 +144,7 @@ func gitopsCommand() *cli.Command {
 			}
 
 			// We need the controls from no-team.yml to apply them when applying the global app config.
-			noTeamControls, noTeamPresent, noTeamFilename, err := extractControlsForNoTeam(flFilenames, appConfig)
+			noTeamControls, noTeamPresent, noTeamFilename, err := extractControlsForNoTeam(flFilenames, appConfig, gitOpsOpts)
 			if err != nil {
 				return fmt.Errorf("extracting controls from %s: %w", noTeamFilename, err)
 			}
@@ -220,7 +229,7 @@ func gitopsCommand() *cli.Command {
 
 			for _, flFilename := range flFilenames.Value() {
 				baseDir := filepath.Dir(flFilename)
-				config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, logf)
+				config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, logf, gitOpsOpts)
 				if err != nil {
 					return err
 				}
@@ -300,6 +309,15 @@ func gitopsCommand() *cli.Command {
 					}
 					if !config.Controls.Set() {
 						config.Controls = noTeamControls
+					}
+				}
+
+				// Targeting queries against labels is a Premium feature only
+				if !appConfig.License.IsPremium() {
+					for _, query := range config.Queries {
+						if len(query.LabelsIncludeAny) > 0 {
+							return fmt.Errorf("report %q uses 'labels_include_any', which is only available in Fleet Premium", query.Name)
+						}
 					}
 				}
 
@@ -466,6 +484,7 @@ func gitopsCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
+
 				assumptions, err := fleetClient.DoGitOps(
 					c.Context,
 					config,
@@ -820,7 +839,7 @@ func getCustomSettings(osSettings interface{}) ([]fleet.MDMProfileSpec, bool) {
 	return nil, false
 }
 
-func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.EnrichedAppConfig) (spec.GitOpsControls, bool, string, error) {
+func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.EnrichedAppConfig, gitOpsOpts spec.GitOpsOptions) (spec.GitOpsControls, bool, string, error) {
 	for _, flFilename := range flFilenames.Value() {
 		fileName := filepath.Base(flFilename)
 		if fileName == "no-team.yml" || fileName == "unassigned.yml" {
@@ -829,7 +848,7 @@ func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.Enri
 				break
 			}
 			baseDir := filepath.Dir(flFilename)
-			config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, func(format string, a ...interface{}) {})
+			config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, func(format string, a ...any) {}, gitOpsOpts)
 			if err != nil {
 				return spec.GitOpsControls{}, false, fileName, err
 			}

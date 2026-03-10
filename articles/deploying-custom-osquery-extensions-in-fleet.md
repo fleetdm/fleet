@@ -3,7 +3,7 @@
 ### Links to article series:
 
 - Part 1: Deploying custom osquery extensions in Fleet
-- Part 2: [Deploying custom osquery extensions in Fleet: A step-by-step guide](https://fleetdm.com/guides/deploying-custom-osquery-extensions-in-fleet-step-by-step-guide)
+- Part 2: [Deploying custom osquery extensions in Fleet: A step-by-step guide](https://fleetdm.com/guides/deploying-custom-osquery-extensions-in-fleet-a-step-by-step-guide)
 
 One of the advantages of adopting open-source solutions is their extensibility. Another is the ability to customize them to meet your exact requirements. When it comes to Fleet and `osquery`, this flexibility becomes particularly powerful when deploying custom extensions across your infrastructure.
 
@@ -43,7 +43,7 @@ While TUF servers provide enterprise-grade extension management, direct deployme
 
 This approach exemplifies the flexibility that makes open source solutions so powerful — giving you the freedom to implement the deployment strategy that best fits your organization's needs and constraints. [Talk to Fleet](https://fleetdm.com/contact) to learn more!
 
-To get the step-by-step guide for devlievering custom osquery extensions with example custom extensions from Fleet's internal deployment, see the [next article](https://fleetdm.com/guides/deploying-custom-osquery-extensions-in-fleet-step-by-step-guide) in this series.
+To get the step-by-step guide for devlievering custom osquery extensions with example custom extensions from Fleet's internal deployment, see the [next article](https://fleetdm.com/guides/deploying-custom-osquery-extensions-in-fleet-a-step-by-step-guide) in this series.
 
 About the author: Allen Houchins is Head of IT & Solutions Consulting at Fleet Device Management.
 

@@ -392,7 +392,7 @@ const UserForm = ({
           catches up or&nbsp;
           <Link
             className={`${baseClass}__create-team-link`}
-            to={PATHS.ADMIN_TEAMS}
+            to={PATHS.ADMIN_FLEETS}
           >
             create a fleet
           </Link>

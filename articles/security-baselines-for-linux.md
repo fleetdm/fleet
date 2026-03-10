@@ -1,5 +1,16 @@
 # Security baselines for Linux: closing the gap on exemptions
 
+### Links to article series:
+
+- Part 1: [Why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026)
+- Part 2: [Automated provisioning for Linux desktop in the enterprise](https://fleetdm.com/articles/automated-provisioning-for-linux-desktop-in-the-enterprise)
+- Part 3: Security baselines for Linux: closing the gap on exemptions
+- Part 4: [Unlocking Linux productivity: securing apps and updating certificates](https://fleetdm.com/articles/unlocking-linux-productivity-securing-apps-and-updating-certificates)
+- Part 5: [Protecting the Linux device: remote wipe, USB and sudo](https://fleetdm.com/articles/protecting-the-linux-device-remote-wipe-usb-sudo)
+- Part 6: [Owning your Linux destiny with open source](https://fleetdm.com/articles/owning-your-linux-destiny-with-open-source)
+
+-----
+
 In the modern enterprise, Linux is no longer confined to the server room. It is increasingly the workstation of choice for scientists, engineers and developers. These contributors power innovation, and their endpoints often host an organization’s most valuable assets: source code repositories, confidential architecture plans, sensitive internal roadmaps and product designs. 
 
 The investment in Mobile Device Management (MDM) solutions for Mac and Windows is a given, a foundational layer of corporate security. So why is the security posture of Linux often relegated to a secondary, "special case" status?
@@ -58,9 +69,11 @@ For many organizations, security standards are not optional. They are mandatory 
 
 The message is clear: if your enterprise leverages Linux workstations, they must be secured with the same rigor and established standards as your Macs and Windows devices. You do not need to re-invent security best practices. By adopting recognized security baselines like the readily available guidance offered by CIS Benchmarks for Red Hat, Ubuntu, Debian, and others you can immediately elevate your security posture. Implementing this strategy is the critical next step in ensuring that your most powerful workstations serve as a secure, foundational element of employee productivity, not a looming threat to enterprise security.
 
+The [next article](https://fleetdm.com/articles/unlocking-linux-productivity-securing-apps-and-updating-certificates) in this series will cover application deployment and certificate management on Linux desktop.
+
 <meta name="articleTitle" value="Security baselines for Linux: closing the gap on exemptions">  
 <meta name="authorFullName" value="Ashish Kuthiala">  
 <meta name="authorGitHubUsername" value="akuthiala">  
 <meta name="category" value="articles">  
 <meta name="publishedOn" value="2026-02-23">  
-<meta name="description" value="Chapter 3 of Protecting Linux endpoints series">
+<meta name="description" value="Part 3 of 6 in the 'Protecting Linux endpoints with modern device management' article series.">

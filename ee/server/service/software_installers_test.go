@@ -565,7 +565,6 @@ func TestGetInHouseAppManifest(t *testing.T) {
 	manifest, err = svc.GetInHouseAppManifest(ctx, 1, nil)
 	require.NoError(t, err)
 	require.Contains(t, string(manifest), signerURL)
-
 }
 
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {
@@ -878,4 +877,23 @@ func TestInstallShScriptOnWindowsFails(t *testing.T) {
 	require.ErrorAs(t, err, &bre, "error should be BadRequestError")
 	require.NotNil(t, bre)
 	require.Contains(t, bre.Message, "can be installed only on linux hosts")
+}
+
+func TestSelfServiceInstallSoftwareTitleFailsOnPersonallyEnrolledDevices(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	for _, platform := range []string{"ios", "ipados"} {
+		fakeHost := &fleet.Host{
+			Platform: platform,
+			MDM: fleet.MDMHostData{
+				EnrollmentStatus: ptr.String(string(fleet.MDMEnrollStatusPersonal)),
+			},
+		}
+
+		err := svc.SelfServiceInstallSoftwareTitle(t.Context(), fakeHost, 1)
+		require.Error(t, err, "expected error when installing on personally enrolled device for platform %s", platform)
+		require.ErrorContains(t, err, "Couldn't install. Currently, software install isn't supported on personal (BYOD) iOS and iPadOS hosts.", "error message should indicate personally enrolled devices aren't supported for platform %s", platform)
+	}
 }

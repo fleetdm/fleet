@@ -2760,6 +2760,11 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 }
 
 func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
+	if fleet.IsAppleMobilePlatform(host.Platform) &&
+		host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == string(fleet.MDMEnrollStatusPersonal) {
+		return fleet.NewUserMessageError(errors.New(fleet.InstallSoftwarePersonalAppleDeviceErrMsg), http.StatusUnprocessableEntity)
+	}
+
 	installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
 	if err != nil {
 		if !fleet.IsNotFound(err) {

@@ -1725,7 +1725,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 	t := s.T()
 	// Clear out all activities to other test leaking activities into this one.
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(context.Background(), `DELETE FROM activities`)
+		_, err := q.ExecContext(context.Background(), `DELETE FROM activity_past`)
 		return err
 	})
 
