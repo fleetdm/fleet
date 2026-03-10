@@ -130,6 +130,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	PostInstallScript	fle
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	UninstallScript	fleet.TeamSpecSoftwareAsset
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	LabelsIncludeAny	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	LabelsExcludeAny	[]string
+github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	LabelsIncludeAll	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	Categories	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	InstallDuringSetup	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	Icon	fleet.TeamSpecSoftwareAsset
@@ -141,6 +142,7 @@ github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	AppStoreID	string
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	SelfService	bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	LabelsIncludeAny	[]string
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	LabelsExcludeAny	[]string
+github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	LabelsIncludeAll	[]string
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Categories	[]string
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	InstallDuringSetup	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Icon	fleet.TeamSpecSoftwareAsset
