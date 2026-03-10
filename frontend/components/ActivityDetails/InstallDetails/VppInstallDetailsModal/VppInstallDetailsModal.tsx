@@ -336,9 +336,27 @@ export const VppInstallDetailsModal = ({
     }
   );
 
+  const hasInstalledVersions =
+    (vppCommandResult?.results_metadata?.software_installed as boolean) ??
+    !!hostSoftware?.installed_versions?.length;
   // Fallback to "installed" if no status is provided
   const displayStatus = fleetInstallStatus ?? "installed";
-  const iconName = INSTALL_DETAILS_STATUS_ICONS[displayStatus];
+
+  // Treat failed_install / failed_uninstall with installed versions as installed
+  const isActuallyInstalled =
+    hasInstalledVersions &&
+    ["failed_install", "failed_uninstall"].includes(displayStatus || "");
+
+  const commandUpdatedAt = vppCommandResult?.updated_at;
+
+  // Handles the case where software is installed manually by the user and not through Fleet
+  const isInstalledManual = displayStatus === "installed" && !commandUpdatedAt; // using same condition as in getStatusMessage
+
+  // Use success icon when we show “is installed”
+  const iconName =
+    isActuallyInstalled || isInstalledManual
+      ? "success"
+      : INSTALL_DETAILS_STATUS_ICONS[displayStatus];
 
   // Handles "pending" value prior to 4.57 AND never shows error state on pending_install
   // as some cases have command results not available for pending_installs
@@ -416,10 +434,6 @@ export const VppInstallDetailsModal = ({
       </>
     );
   };
-
-  const hasInstalledVersions =
-    (vppCommandResult?.results_metadata?.software_installed as boolean) ??
-    !!hostSoftware?.installed_versions?.length;
 
   // Hide failed details if host shows installed versions (4.82 #31663)
   // NOTE: Currently no uninstall VPP but added for symmetry with SoftwareInstallDetailsModal
