@@ -11646,6 +11646,25 @@ func testListHostSoftwarePaginationWithMultipleInstallers(t *testing.T, ds *Data
 	assert.Equal(t, uint(totalTitles), meta.TotalResults, "total results should reflect unique titles, not duplicated rows")
 	assert.True(t, meta.HasNextResults, "page 0 of %d items with perPage=%d should have next results", totalTitles, perPage)
 	assert.False(t, meta.HasPreviousResults)
+
+	page0IDs := make(map[uint]struct{}, len(sw))
+	for _, s := range sw {
+		page0IDs[s.ID] = struct{}{}
+	}
+
+	// Page 1: should also contain perPage unique titles with no overlap from page 0.
+	opts.ListOptions.Page = 1
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, perPage, "page 1 should have %d items", perPage)
+	require.NotNil(t, meta)
+	assert.Equal(t, uint(totalTitles), meta.TotalResults)
+	assert.False(t, meta.HasNextResults)
+	assert.True(t, meta.HasPreviousResults)
+	for _, s := range sw {
+		_, overlapped := page0IDs[s.ID]
+		require.False(t, overlapped, "title %d appeared in both page 0 and page 1", s.ID)
+	}
 }
 
 // TestUniqueSoftwareTitleStrNormalization tests that UniqueSoftwareTitleStr

@@ -5684,10 +5684,52 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			`)
 		}
 		stmt = fmt.Sprintf(stmt, replacements...)
-		stmt = fmt.Sprintf("SELECT * FROM (%s) AS combined_results", stmt)
-		stmt, _ = appendListOptionsToSQL(stmt, &opts.ListOptions)
 
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
+		type hostSoftwareTitleIDRow struct {
+			ID uint `db:"id"`
+		}
+		idStmt := fmt.Sprintf("SELECT DISTINCT id, name FROM (%s) AS combined_results", countStmt)
+		idListOptions := opts.ListOptions
+		idListOptions.IncludeMetadata = false
+		idStmt, _ = appendListOptionsToSQL(idStmt, &idListOptions)
+
+		var pagedTitleIDRows []hostSoftwareTitleIDRow
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &pagedTitleIDRows, idStmt, args...); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "list paged host software title ids")
+		}
+		if len(pagedTitleIDRows) == 0 {
+			var metaData *fleet.PaginationMetadata
+			if opts.ListOptions.IncludeMetadata {
+				metaData = &fleet.PaginationMetadata{
+					HasPreviousResults: opts.ListOptions.Page > 0,
+					TotalResults:       titleCount,
+					HasNextResults:     false,
+				}
+			}
+			return []*fleet.HostSoftwareWithInstaller{}, metaData, nil
+		}
+
+		pagedTitleIDs := make([]uint, 0, len(pagedTitleIDRows))
+		for _, row := range pagedTitleIDRows {
+			pagedTitleIDs = append(pagedTitleIDs, row.ID)
+		}
+
+		stmt = fmt.Sprintf("SELECT * FROM (%s) AS combined_results WHERE id IN (?)", stmt)
+		stmt, titleIDArgs, err := sqlx.In(stmt, pagedTitleIDs)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "expand IN query for paged host software title ids")
+		}
+		allArgs := append([]any{}, args...)
+		allArgs = append(allArgs, titleIDArgs...)
+
+		fieldPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(pagedTitleIDs)), ",")
+		stmt += fmt.Sprintf(" ORDER BY FIELD(id, %s)", fieldPlaceholders)
+		for _, id := range pagedTitleIDs {
+			allArgs = append(allArgs, id)
+		}
+
+		stmt = ds.reader(ctx).Rebind(stmt)
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, allArgs...); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
 		}
 
