@@ -69,6 +69,15 @@ describe("SoftwareOptionsSelector", () => {
     expect(automaticInstallSwitch.disabled).toBe(true);
   });
 
+  it("shows tooltip affordance for disabled automatic install on iOS", () => {
+    renderComponent({ platform: "ios" });
+
+    const automaticInstallLabel = screen.getByText("Automatic install");
+    expect(
+      automaticInstallLabel.closest(".component__tooltip-wrapper")
+    ).toBeInTheDocument();
+  });
+
   it("enables self-service and disables automatic install sliders for iPadOS", () => {
     renderComponent({ platform: "ipados" });
 

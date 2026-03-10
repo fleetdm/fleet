@@ -121,13 +121,18 @@ const SoftwareOptionsSelector = ({
     isTarballPackage ||
     isScriptPackage;
 
-  /** Tooltip only shows when enabled or for exe/tar.gz/sh/ps1 packages */
-  const showAutomaticInstallTooltip =
-    !isAutomaticInstallDisabled ||
-    isExePackage ||
-    isTarballPackage ||
-    isScriptPackage;
+  /** Tooltip should also show when disabled so users can understand why. */
+  const showAutomaticInstallTooltip = true;
   const getAutomaticInstallTooltip = (): JSX.Element => {
+    if (isPlatformIosOrIpados) {
+      return (
+        <>
+          Automatic install for iOS and iPadOS is coming soon. Today, you can
+          manually install from the <b>Host details</b> page for each host.
+        </>
+      );
+    }
+
     if (isExePackage || isTarballPackage) {
       return (
         <>
