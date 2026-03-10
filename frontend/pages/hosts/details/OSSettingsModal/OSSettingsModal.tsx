@@ -52,19 +52,17 @@ const OSSettingsModal = ({
       className={baseClass}
       width="xlarge"
     >
-      <>
-        <OSSettingsTable
-          canResendProfiles={canResendProfiles}
-          canRotateRecoveryLockPassword={canRotateRecoveryLockPassword}
-          tableData={memoizedTableData ?? []}
-          resendRequest={resendRequest}
-          rotateRecoveryLockPassword={rotateRecoveryLockPassword}
-          onProfileResent={onProfileResent}
-        />
-        <div className="modal-cta-wrap">
-          <Button onClick={onClose}>Done</Button>
-        </div>
-      </>
+      <OSSettingsTable
+        canResendProfiles={canResendProfiles}
+        canRotateRecoveryLockPassword={canRotateRecoveryLockPassword}
+        tableData={memoizedTableData ?? []}
+        resendRequest={resendRequest}
+        rotateRecoveryLockPassword={rotateRecoveryLockPassword}
+        onProfileResent={onProfileResent}
+      />
+      <div className="modal-cta-wrap">
+        <Button onClick={onClose}>Done</Button>
+      </div>
     </Modal>
   );
 };
