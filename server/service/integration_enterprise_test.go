@@ -13467,6 +13467,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	meta, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, *packages[0].TitleID, false)
 	require.NoError(t, err)
 	require.Empty(t, meta.LabelsExcludeAny)
+	require.Empty(t, meta.LabelsIncludeAll)
 	require.Len(t, meta.LabelsIncludeAny, 1)
 	require.Equal(t, lblA.ID, meta.LabelsIncludeAny[0].LabelID)
 	require.Equal(t, lblA.Name, meta.LabelsIncludeAny[0].LabelName)
@@ -13546,6 +13547,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, *packages[0].TitleID, false)
 	require.NoError(t, err)
 	require.Empty(t, meta.LabelsExcludeAny)
+	require.Empty(t, meta.LabelsIncludeAll)
 	require.Len(t, meta.LabelsIncludeAny, 1)
 	require.Equal(t, lblA.ID, meta.LabelsIncludeAny[0].LabelID)
 	require.Equal(t, lblA.Name, meta.LabelsIncludeAny[0].LabelName)
@@ -19797,6 +19799,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	swTitle = titleResp.SoftwareTitle
 	require.NotNil(t, swTitle.SoftwarePackage)
 	require.Empty(t, swTitle.SoftwarePackage.LabelsExcludeAny)
+	require.Empty(t, swTitle.SoftwarePackage.LabelsIncludeAll)
 	require.Len(t, swTitle.SoftwarePackage.LabelsIncludeAny, 2)
 	gotNames := make(map[string]bool)
 	for _, lbl := range swTitle.SoftwarePackage.LabelsIncludeAny {

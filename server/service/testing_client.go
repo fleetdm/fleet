@@ -852,6 +852,11 @@ func (ts *withServer) updateSoftwareInstaller(
 			require.NoError(t, w.WriteField("labels_exclude_any", l))
 		}
 	}
+	if payload.LabelsIncludeAll != nil {
+		for _, l := range payload.LabelsIncludeAll {
+			require.NoError(t, w.WriteField("labels_include_all", l))
+		}
+	}
 	if payload.Categories != nil {
 		for _, c := range payload.Categories {
 			require.NoError(t, w.WriteField("categories", c))
