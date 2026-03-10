@@ -2687,9 +2687,7 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 
 	if !dryRun {
 		logFn("[+] applying webhook settings for unassigned hosts\n")
-		// Apply the webhook settings to team ID 0 using the PATCH endpoint
-		var teamResp interface{}
-		err := c.authenticatedRequest(teamPayload, "PATCH", "/api/latest/fleet/teams/0", &teamResp)
+		err := c.PatchTeam(0, teamPayload)
 		if err != nil {
 			return fmt.Errorf("applying webhook settings for unassigned hosts: %w", err)
 		}
@@ -2754,12 +2752,17 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		}
 	}
 
-	// If any policies use webhooks_and_tickets_enabled, check for conflict with policy_ids in webhook settings.
-	if len(policyNamesWithWebhooks) > 0 {
-		if fpw := extractFailingPoliciesWebhookFromConfig(config); len(fpw.PolicyIDs) > 0 {
+	// Get failing policies webhook settings to check for conflicts with policies that have webhooks_and_tickets_enabled.
+	fpw := extractFailingPoliciesWebhookFromConfig(config)
+
+	if len(fpw.PolicyIDs) > 0 {
+		if len(policyNamesWithWebhooks) > 0 {
 			return errors.New(
 				"cannot use both 'webhooks_and_tickets_enabled' on policies and 'policy_ids' in failing_policies_webhook settings; please use one or the other",
 			)
+		} else {
+			// Log a deprecation warning.
+			logFn("[!] WARNING: using 'policy_ids' in failing_policies_webhook settings is deprecated; please use 'webhooks_and_tickets_enabled: true' on individual policies instead\n")
 		}
 	}
 
@@ -2990,7 +2993,6 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			}
 
 			// Extract the existing webhook config and set the resolved policy IDs.
-			fpw := extractFailingPoliciesWebhookFromConfig(config)
 			fpw.PolicyIDs = resolvedIDs
 
 			// Re-apply the webhook settings with the resolved policy IDs.
@@ -3007,11 +3009,9 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				} else {
 					patchTeamID = *config.TeamID
 				}
-				var resp any
-				if err := c.authenticatedRequest(
-					fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{FailingPoliciesWebhook: fpw}},
-					"PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", patchTeamID), &resp,
-				); err != nil {
+				if err := c.PatchTeam(patchTeamID, fleet.TeamPayload{
+					WebhookSettings: &fleet.TeamWebhookSettings{FailingPoliciesWebhook: fpw},
+				}); err != nil {
 					return fmt.Errorf("error updating failing policies webhook: %w", err)
 				}
 			}
