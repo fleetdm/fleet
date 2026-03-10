@@ -68,14 +68,14 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
           <span>2.</span>
           <span>
             <span>
-              Sign in to{“ “}
+              Sign in to{" "}
               <CustomLink
                 newTab
-                text=”Apple Business Manager”
-                url=”https://business.apple.com”
+                text="Apple Business Manager"
+                url="https://business.apple.com"
               />
               <br />
-              If your organization doesn&apos;t have an account, select{“ “}
+              If your organization doesn&apos;t have an account, select{" "}
               <b>Enroll now</b>.
             </span>
           </span>
@@ -95,7 +95,7 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
         </li>
         <li>
           <span>5.</span>
-          <span>Enter a name for the server such as “Fleet”.</span>
+          <span>Enter a name for the server such as "Fleet".</span>
         </li>
         <li>
           <span>6.</span>
@@ -107,7 +107,7 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
         <li>
           <span>7.</span>
           <span>
-            In the <b>Default Device Assignment</b> section, select{“ “}
+            In the <b>Default Device Assignment</b> section, select{" "}
             <b>Change</b>, then assign the newly created server as the default
             for your Macs, iPhones, and iPads. Then select <b>Done</b>.
           </span>
@@ -115,7 +115,7 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
         <li>
           <span>8.</span>
           <span>
-            Select newly created server in the sidebar, then select{“ “}
+            Select newly created server in the sidebar, then select{" "}
             <b>Download MDM Server Token</b> on the top.
           </span>
         </li>
@@ -126,17 +126,17 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
       </ol>
       <FileUploader
         className={`${baseClass}__file-uploader ${
-          isUploading ? `${baseClass}__file-uploader--loading` : “”
+          isUploading ? `${baseClass}__file-uploader--loading` : ""
         }`}
-        accept=”.p7m”
-        message=”ABM token (.p7m)”
-        graphicName=”file-p7m”
-        buttonType=”brand-inverse-icon”
-        buttonMessage={isUploading ? “Uploading...” : “Upload”}
+        accept=".p7m"
+        message="ABM token (.p7m)"
+        graphicName="file-p7m"
+        buttonType="brand-inverse-icon"
+        buttonMessage={isUploading ? "Uploading..." : "Upload"}
         fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
         onFileUpload={onSelectFile}
       />
-      <div className=”modal-cta-wrap”>
+      <div className="modal-cta-wrap">
         <Button
           onClick={uploadAbmToken}
           isLoading={isUploading}
