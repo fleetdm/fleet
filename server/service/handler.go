@@ -921,11 +921,19 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		POST("/api/osquery/config", getClientConfigEndpoint, getClientConfigRequest{})
 	he.WithAltPaths("/api/v1/osquery/distributed/read").
 		POST("/api/osquery/distributed/read", getDistributedQueriesEndpoint, getDistributedQueriesRequest{})
-	he.WithRequestBodySizeLimit(fleet.MaxOsqueryDistributedWriteSize).WithAltPaths("/api/v1/osquery/distributed/write").
+	distWriteLimit := config.Osquery.MaxDistributedWriteBodySize
+	if distWriteLimit == 0 {
+		distWriteLimit = fleet.DefaultMaxOsqueryDistributedWriteSize
+	}
+	he.WithRequestBodySizeLimit(distWriteLimit).WithAltPaths("/api/v1/osquery/distributed/write").
 		POST("/api/osquery/distributed/write", submitDistributedQueryResultsEndpoint, submitDistributedQueryResultsRequestShim{})
 	he.WithAltPaths("/api/v1/osquery/carve/begin").
 		POST("/api/osquery/carve/begin", carveBeginEndpoint, carveBeginRequest{})
-	he.WithAltPaths("/api/v1/osquery/log").
+	logWriteLimit := config.Osquery.MaxLogWriteBodySize
+	if logWriteLimit == 0 {
+		logWriteLimit = fleet.DefaultMaxOsqueryLogWriteSize
+	}
+	he.WithRequestBodySizeLimit(logWriteLimit).WithAltPaths("/api/v1/osquery/log").
 		POST("/api/osquery/log", submitLogsEndpoint, submitLogsRequest{})
 	he.WithAltPaths("/api/v1/osquery/yara/{name}").
 		POST("/api/osquery/yara/{name}", getYaraEndpoint, getYaraRequest{})
