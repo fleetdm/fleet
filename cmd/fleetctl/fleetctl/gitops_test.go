@@ -218,6 +218,7 @@ queries:
 policies:
 agent_options:
 labels:
+controls:
 org_settings:
   server_settings:
     server_url: https://example.com
@@ -1637,7 +1638,8 @@ policies:
 agent_options:
 name: ${TEST_TEAM_NAME}
 team_settings:
-  secrets: [{"secret":"${TEST_SECRET}"}]
+  secrets:
+   - secret: ${TEST_SECRET}
 software:
 `,
 	)
@@ -1945,7 +1947,8 @@ org_settings:
     - location: Foobar
       teams:
       - "${TEST_TEAM_NAME}"
-  secrets: [{"secret":"globalSecret"}]
+  secrets:
+    - secret: globalSecret
 software:
 `,
 	)
@@ -1962,7 +1965,8 @@ policies:
 agent_options:
 name: ${TEST_TEAM_NAME}
 team_settings:
-  secrets: [{"secret":"${TEST_SECRET}"}]
+  secrets:
+    - secret: ${TEST_SECRET}
 software:
   app_store_apps:
     - app_store_id: '1'
@@ -1980,7 +1984,9 @@ policies:
 agent_options:
 name: ${TEST_TEAM_NAME}
 team_settings:
-  secrets: [{"secret":"${TEST_SECRET}"},{"secret":"globalSecret"}]
+  secrets:
+    - secret: ${TEST_SECRET}
+    - secret: globalSecret
 software:
 `,
 	)
@@ -2305,7 +2311,8 @@ org_settings:
     org_logo_url: ""
     org_logo_url_light_background: ""
     org_name: %s
-  secrets: [{"secret":"globalSecret"}]
+  secrets:
+    - secret: globalSecret
 software:
   packages:
     - url: https://example.com
@@ -2396,7 +2403,7 @@ software:
 		assert.True(t, strings.Contains(err.Error(), "calendar events are not supported on policies included in `no-team.yml`: \"Foobar\""), err.Error())
 	})
 
-	t.Run("global and no-team.yml DO NOT define controls -- controls is now optional", func(t *testing.T) {
+	t.Run("global and no-team.yml DO NOT define controls -- should fail", func(t *testing.T) {
 		globalFileWithoutControlsAndSoftwareKeys := createGlobalFileWithoutControlsAndSoftwareKeys(t, fleetServerURL, orgName)
 
 		noTeamFilePathWithoutControls := filepath.Join(t.TempDir(), "no-team.yml")
@@ -2409,16 +2416,94 @@ software:
 `)
 		require.NoError(t, err)
 
-		// Dry run, controls is now optional so this should succeed.
-		_ = RunAppForTest(t, []string{
+		// Dry run.
+		_, err = RunAppNoChecks([]string{
 			"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFileBasic.Name(), "-f",
 			noTeamFileWithoutControls.Name(), "--dry-run",
 		})
+		require.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "must be set on global config or no-team.yml"), err.Error())
+
 		// Real run
-		_ = RunAppForTest(t, []string{
+		_, err = RunAppNoChecks([]string{
 			"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFileBasic.Name(), "-f",
 			noTeamFileWithoutControls.Name(),
 		})
+		require.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "must be set on global config or no-team.yml"), err.Error())
+	})
+
+	t.Run("global DOES NOT define controls -- should fail", func(t *testing.T) {
+		globalFileWithoutControlsAndSoftwareKeys := createGlobalFileWithoutControlsAndSoftwareKeys(t, fleetServerURL, orgName)
+
+		// Dry run.
+		_, err = RunAppNoChecks([]string{
+			"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "--dry-run",
+		})
+		require.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "must be set on global config, no-team.yml or unassigned.yml"), err.Error())
+
+		// Real run
+		_, err = RunAppNoChecks([]string{
+			"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(),
+		})
+		require.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "must be set on global config, no-team.yml or unassigned.yml"), err.Error())
+	})
+
+	t.Run("no-team provided without global -- should fail", func(t *testing.T) {
+		noTeamFilePathWithoutControls := filepath.Join(t.TempDir(), "no-team.yml")
+		noTeamFileWithoutControls, err := os.Create(noTeamFilePathWithoutControls)
+		require.NoError(t, err)
+		_, err = noTeamFileWithoutControls.WriteString(`
+policies:
+name: No team
+software:
+`)
+		require.NoError(t, err)
+
+		// Dry run.
+		_, err = RunAppNoChecks([]string{
+			"gitops", "-f", teamFileBasic.Name(), "-f",
+			noTeamFileWithoutControls.Name(), "--dry-run",
+		})
+		require.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "global config must be provided alongside no-team.yml"), err.Error())
+
+		_, err = RunAppNoChecks([]string{
+			"gitops", "-f", teamFileBasic.Name(), "-f",
+			noTeamFileWithoutControls.Name(),
+		})
+		require.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "global config must be provided alongside no-team.yml"), err.Error())
+	})
+
+	t.Run("unassigned provided without global -- should fail", func(t *testing.T) {
+		noTeamFilePathWithoutControls := filepath.Join(t.TempDir(), "unassigned.yml")
+		noTeamFileWithoutControls, err := os.Create(noTeamFilePathWithoutControls)
+		require.NoError(t, err)
+		_, err = noTeamFileWithoutControls.WriteString(`
+policies:
+name: Unassigned
+software:
+`)
+		require.NoError(t, err)
+
+		// Dry run
+		_, err = RunAppNoChecks([]string{
+			"gitops", "-f", teamFileBasic.Name(), "-f",
+			noTeamFileWithoutControls.Name(), "--dry-run",
+		})
+		require.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "global config must be provided alongside unassigned.yml"), err.Error())
+
+		// Real run
+		_, err = RunAppNoChecks([]string{
+			"gitops", "-f", teamFileBasic.Name(), "-f",
+			noTeamFileWithoutControls.Name(),
+		})
+		require.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "global config must be provided alongside unassigned.yml"), err.Error())
 	})
 
 	t.Run("controls only defined in no-team.yml", func(t *testing.T) {
@@ -2478,7 +2563,8 @@ policies:
 agent_options:
 name: %s
 team_settings:
-  secrets: [{"secret":"%s"}]
+  secrets:
+    - secret: %s
 software:
 `, teamName, secret),
 	)
@@ -2503,7 +2589,8 @@ org_settings:
     org_logo_url: ""
     org_logo_url_light_background: ""
     org_name: %s
-  secrets: [{"secret":"globalSecret"}]
+  secrets:
+    - secret: globalSecret
 software:
 `, fleetServerURL, orgName),
 	)
@@ -2527,7 +2614,8 @@ org_settings:
     org_logo_url: ""
     org_logo_url_light_background: ""
     org_name: %s
-  secrets: [{"secret":"globalSecret"}]
+  secrets:
+    - secret: globalSecret
 `, fleetServerURL, orgName),
 	)
 	require.NoError(t, err)
@@ -2554,7 +2642,8 @@ org_settings:
     org_logo_url: ""
     org_logo_url_light_background: ""
     org_name: %s
-  secrets: [{"secret":"globalSecret"}]
+  secrets:
+    - secret: globalSecret
 software:
 `, fleetServerURL, orgName),
 	)
@@ -3346,6 +3435,280 @@ func TestGitOpsTeamWebhooks(t *testing.T) {
 	require.Equal(t, "http://coolwebhook.biz", team.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
 }
 
+func TestGitOpsGlobalWebhooksAndTicketsEnabled(t *testing.T) {
+	ds, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	// Track applied policies and return them with IDs.
+	var appliedPolicies []*fleet.Policy
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		for i, spec := range specs {
+			appliedPolicies = append(appliedPolicies, &fleet.Policy{
+				PolicyData: fleet.PolicyData{
+					ID:   uint(i + 1),
+					Name: spec.Name,
+				},
+			})
+		}
+		return nil
+	}
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+		return appliedPolicies, nil
+	}
+
+	cfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = cfgFile.WriteString(fmt.Sprintf(`
+controls:
+queries:
+policies:
+  - name: Global Webhook Policy 1
+    query: "SELECT 1"
+    webhooks_and_tickets_enabled: true
+  - name: Global Webhook Policy 2
+    query: "SELECT 2"
+    webhooks_and_tickets_enabled: true
+  - name: Global No Webhook Policy
+    query: "SELECT 3"
+agent_options:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: GitOps Test
+  secrets:
+    - secret: globalSecret
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: http://example.com/global-webhook
+software:
+`, fleetServerURL))
+	require.NoError(t, err)
+
+	_, err = RunAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
+	require.NoError(t, err)
+
+	require.True(t, (*appConfig).WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Equal(t, "http://example.com/global-webhook", (*appConfig).WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+
+	// Get the IDs of the policies with webhooks_and_tickets_enabled.
+	policiesWithWebhooksEnabled := []string{"Global Webhook Policy 1", "Global Webhook Policy 2"}
+	expectedIDs := make([]uint, 0)
+	for _, p := range appliedPolicies {
+		if slices.Contains(policiesWithWebhooksEnabled, p.Name) {
+			expectedIDs = append(expectedIDs, p.ID)
+		}
+	}
+	require.ElementsMatch(t, expectedIDs, (*appConfig).WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+}
+
+func TestGitOpsFleetFailingPoliciesWebhookPolicyIDs(t *testing.T) {
+	fleetName := "TestFailingPoliciesPolicyIDs"
+
+	ds, _, savedFleets := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	// Create a fleet.
+	_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: fleetName})
+	require.NoError(t, err)
+	require.Contains(t, savedFleets, fleetName)
+
+	cfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = cfgFile.WriteString(fmt.Sprintf(`
+name: %s
+settings:
+  secrets:
+    - secret: "testSecret"
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: http://example.com/webhook
+      policy_ids:
+        - 1
+        - 2
+software:
+queries:
+policies:
+agent_options:
+`, fleetName))
+	require.NoError(t, err)
+
+	_, err = RunAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
+	require.NoError(t, err)
+
+	savedFleet, err := ds.TeamByName(context.Background(), fleetName)
+	require.NoError(t, err)
+	require.True(t, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Equal(t, "http://example.com/webhook", savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	// Note -- this codepath doesn't actually verify that the policies with the specified IDs exist, it just saves the IDs from the config.
+	require.Equal(t, []uint{1, 2}, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+}
+
+func TestGitOpsFleetWebhooksAndTicketsEnabled(t *testing.T) {
+	fleetName := "TestWebhooksAndTicketsEnabled"
+
+	ds, _, savedFleets := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	// Create a fleet.
+	_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: fleetName})
+	require.NoError(t, err)
+	require.Contains(t, savedFleets, fleetName)
+
+	// Override ApplyPolicySpecs to track applied policies and assign IDs.
+	var appliedPolicies []*fleet.Policy
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		for i, spec := range specs {
+			appliedPolicies = append(appliedPolicies, &fleet.Policy{
+				PolicyData: fleet.PolicyData{
+					ID:   uint(i + 1),
+					Name: spec.Name,
+				},
+			})
+		}
+		return nil
+	}
+
+	// Override ListTeamPolicies to return the applied policies with IDs.
+	ds.ListTeamPoliciesFunc = func(
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+	) (fleetPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+		return appliedPolicies, nil, nil
+	}
+
+	t.Run("conflict with policy_ids", func(t *testing.T) {
+		appliedPolicies = nil
+
+		cfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = cfgFile.WriteString(fmt.Sprintf(`
+name: %s
+settings:
+  secrets:
+    - secret: "testSecret"
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: http://example.com/webhook
+      policy_ids:
+        - 999
+software:
+queries:
+policies:
+  - name: Test Policy
+    query: "SELECT 1"
+    webhooks_and_tickets_enabled: true
+agent_options:
+`, fleetName))
+		require.NoError(t, err)
+
+		_, err = RunAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "cannot use both 'webhooks_and_tickets_enabled' on policies and 'policy_ids'")
+	})
+
+	t.Run("sets policy_ids from webhooks_and_tickets_enabled", func(t *testing.T) {
+		appliedPolicies = nil
+
+		cfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = cfgFile.WriteString(fmt.Sprintf(`
+name: %s
+settings:
+  secrets:
+    - secret: "testSecret"
+  webhook_settings:
+    failing_policies_webhook:
+      destination_url: http://example.com/webhook
+software:
+queries:
+policies:
+  - name: Webhook Policy 1
+    query: "SELECT 1"
+    webhooks_and_tickets_enabled: true
+  - name: Webhook Policy 2
+    query: "SELECT 2"
+    webhooks_and_tickets_enabled: true
+  - name: No Webhook Policy
+    query: "SELECT 3"
+agent_options:
+`, fleetName))
+		require.NoError(t, err)
+
+		_, err = RunAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
+		require.NoError(t, err)
+
+		// Verify the fleet's webhook settings were updated with the correct policy IDs.
+		savedFleet, err := ds.TeamByName(context.Background(), fleetName)
+		require.NoError(t, err)
+		require.Equal(t, "http://example.com/webhook", savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+
+		// Get the IDs of the policies with webhooks_and_tickets_enabled.
+		policiesWithWebhooksEnabled := []string{"Webhook Policy 1", "Webhook Policy 2"}
+		expectedIDs := make([]uint, 0)
+		for _, p := range appliedPolicies {
+			if slices.Contains(policiesWithWebhooksEnabled, p.Name) {
+				expectedIDs = append(expectedIDs, p.ID)
+			}
+		}
+		require.ElementsMatch(t, expectedIDs, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	})
+
+	t.Run("does not re-fetch policies when all already exist", func(t *testing.T) {
+		// Pre-populate appliedPolicies to simulate policies that already exist.
+		appliedPolicies = []*fleet.Policy{
+			{PolicyData: fleet.PolicyData{ID: 10, Name: "Existing Policy 1"}},
+			{PolicyData: fleet.PolicyData{ID: 20, Name: "Existing Policy 2"}},
+		}
+
+		// Track how many times ListTeamPolicies is called.
+		listTeamPoliciesCalls := 0
+		ds.ListTeamPoliciesFunc = func(
+			ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+		) ([]*fleet.Policy, []*fleet.Policy, error) {
+			listTeamPoliciesCalls++
+			return appliedPolicies, nil, nil
+		}
+
+		cfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = cfgFile.WriteString(fmt.Sprintf(`
+name: %s
+settings:
+  secrets:
+    - secret: "testSecret"
+  webhook_settings:
+    failing_policies_webhook:
+      destination_url: http://example.com/webhook
+software:
+queries:
+policies:
+  - name: Existing Policy 1
+    query: "SELECT 1"
+    webhooks_and_tickets_enabled: true
+  - name: Existing Policy 2
+    query: "SELECT 2"
+    webhooks_and_tickets_enabled: true
+agent_options:
+`, fleetName))
+		require.NoError(t, err)
+
+		_, err = RunAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
+		require.NoError(t, err)
+
+		// GetPolicies should only be called once (the initial fetch to diff
+		// existing vs. desired policies), not a second time to resolve IDs,
+		// since all policies already existed.
+		require.Equal(t, 1, listTeamPoliciesCalls)
+
+		savedFleet, err := ds.TeamByName(context.Background(), fleetName)
+		require.NoError(t, err)
+		require.ElementsMatch(t, []uint{10, 20}, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	})
+}
+
 func TestGitOpsFeatures(t *testing.T) {
 	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
 	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
@@ -3385,7 +3748,8 @@ org_settings:
     org_logo_url: ""
     org_logo_url_light_background: ""
     org_name: %s
-  secrets: [{"secret":"globalSecret"}]
+  secrets:
+    - secret: globalSecret
 software:
 `, fleetServerURL, orgName),
 	)
@@ -3589,6 +3953,10 @@ func TestGitOpsMDMAuthSettings(t *testing.T) {
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		appConfig = *config
 		return nil
+	}
+
+	ds.TeamIDsWithSetupExperienceIdPEnabledFunc = func(ctx context.Context) ([]uint, error) {
+		return nil, nil
 	}
 
 	// Do a GitOps run with no mdm end user auth settings.

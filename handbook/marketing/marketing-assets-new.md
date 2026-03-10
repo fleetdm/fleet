@@ -16,7 +16,7 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 
 | Asset | Format | Use case | <nobr>Date updated</nobr> |
 |-------|--------|----------|--------------|
-| [Leave Behind Deck](https://docs.google.com/presentation/d/1Wxb4IedJ0cEXJQwvKCdYf8OatXk4sG1QTkiNLB3h11E/edit) | Slides | Presentation tool for internal teams to present Fleet's value. | <nobr>Feb&#8209;18&#8209;2026</nobr> |
+| [Leave Behind Deck](https://docs.google.com/presentation/d/1VgZ1jMS57O4__E7ay6YsvVP2IKVKYGSTcy5LSbwKrjs/edit?slide=id.g3ce70b0aaf8_0_149#slide=id.g3ce70b0aaf8_0_149) | Slides | Presentation tool for internal teams to present Fleet's value. | <nobr>Feb&#8209;18&#8209;2026</nobr> |
 | [Additional slides for pitch deck](https://docs.google.com/presentation/d/1l6eh1ow4Izi9lv-IrrYV1UjNT4VKbfk5lJHDJUgnDVM/edit) | Slides | Customizable slides for tailored prospect presentations. | <nobr>Feb&#8209;18&#8209;2026</nobr> |
 | [Gartner IT Symposium 2025 Prresentation - How Open Device Management Accelerates Next-Gen IT Operations and Efficiency](https://drive.google.com/file/d/1HK1QXA2kOCeOoOG1E0-tk7-xwBhQ2QMa/view) | — | Outcomes and value achieved via GitOps. (by Allen Houchins) | <nobr>Oct&#8209;21&#8209;2024</nobr> |
 | [Fleet in 3 Minutes (VIDEO)](https://www.youtube.com/watch?v=q1Tm3IBcx24) | Video | A short 3-minute demo of how Fleet works. | <nobr>May&#8209;13&#8209;2026</nobr> |

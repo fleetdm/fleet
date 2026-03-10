@@ -1,7 +1,3 @@
-# Fleet vs. Jamf vs. Microsoft Intune: How to choose the right fleet management software
-
-This guide compares Fleet, Jamf Pro, and Microsoft Intune as device management software options, covering platform support, security capabilities, and automation features.
-
 ## Overview
 
 ### Fleet
@@ -124,6 +120,10 @@ Timelines depends on fleet size and configuration complexity. Fleet supports zer
 <meta name="articleTitle" value="Fleet vs. Jamf vs. Intune: Comparing fleet management software">
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
-<meta name="category" value="articles">
+<meta name="category" value="comparison">
 <meta name="publishedOn" value="2026-02-26">
 <meta name="description" value="Compare the Fleet, Jamf Pro, and Microsoft Intune product offerings.">
+
+<meta name="articleSubtitle" value="How to choose the right fleet management software">
+<meta name="articleSlugInCategory" value="fleet-vs-jamf-vs-intune"> 
+<meta name="introductionTextBlockOne" value="This guide compares Fleet, Jamf Pro, and Microsoft Intune as device management software options, covering platform support, security capabilities, and automation features."> 

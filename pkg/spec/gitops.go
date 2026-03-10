@@ -215,6 +215,10 @@ type GitOpsPolicySpec struct {
 	// RunScriptName is populated after confirming the script exists on both the file system
 	// and in the controls scripts list for the same team
 	RunScriptName *string `json:"-"`
+	// WebhooksAndTicketsEnabled indicates whether failing policy webhooks/tickets
+	// should be enabled for this policy. This is a gitops-only convenience that
+	// translates to adding the policy's ID to the failing_policies_webhook.policy_ids list.
+	WebhooksAndTicketsEnabled bool `json:"webhooks_and_tickets_enabled"`
 }
 
 type PolicyRunScript struct {
@@ -430,6 +434,11 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		// "labels" is a special case where omitting is a no-op, rather than a directive to clear settings.
 		// settings keys were handled above.
 		if topKey == "name" || topKey == "labels" || topKey == "settings" || topKey == "org_settings" {
+			continue
+		}
+		// "controls" can be set on _either_ global or "no team" file, and we can't say which it is if both
+		// files aren't supplied, so play it safe and require it to be set on one or the other.
+		if (result.IsNoTeam() || result.IsGlobal()) && topKey == "controls" {
 			continue
 		}
 		// "agent_options" and "reports" are not supported in no-team/unassigned files.
