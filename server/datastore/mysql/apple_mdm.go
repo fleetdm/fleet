@@ -3555,8 +3555,8 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 }
 
 // sqlCaseMDMAppleStatus returns a SQL snippet that can be used to determine the status of a host
-// based on the status of its profiles, declarations, filevault status, and recovery lock status. It should be used in
-// conjunction with sqlJoinMDMAppleProfilesStatus, sqlJoinMDMAppleDeclarationsStatus, and sqlJoinRecoveryLockStatus. It assumes the
+// based on the status of its profiles and declarations and filevault status. It should be used in
+// conjunction with sqlJoinMDMAppleProfilesStatus and sqlJoinMDMAppleDeclarationsStatus. It assumes the
 // hosts table to be aliased as 'h' and the host_disk_encryption_keys table to be aliased as 'hdek'.
 func sqlCaseMDMAppleStatus() string {
 	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
@@ -3570,12 +3570,10 @@ func sqlCaseMDMAppleStatus() string {
 	return `
 	CASE WHEN (prof_failed
 		OR decl_failed
-		OR fv_failed
-		OR rl_failed) THEN
+		OR fv_failed) THEN
 		` + failed + `
 	WHEN (prof_pending
 		OR decl_pending
-		OR rl_pending
 		-- special case for filevault, it's pending if the profile is
 		-- pending OR the profile is verified or verifying but we still
 		-- don't have an encryption key.
@@ -3586,7 +3584,6 @@ func sqlCaseMDMAppleStatus() string {
 		` + pending + `
 	WHEN (prof_verifying
 		OR decl_verifying
-		OR rl_verifying
 		-- special case when fv profile is verifying, and we already have an encryption key, in any state, we treat as verifying
 		OR(fv_verifying
 			AND hdek.base64_encrypted IS NOT NULL AND (hdek.decryptable IS NULL OR hdek.decryptable = 1))
@@ -3596,7 +3593,6 @@ func sqlCaseMDMAppleStatus() string {
 		` + verifying + `
 	WHEN (prof_verified
 		OR decl_verified
-		OR rl_verified
 		OR(fv_verified
 			AND hdek.base64_encrypted IS NOT NULL AND hdek.decryptable = 1)) THEN
 		` + verified + `
@@ -3638,33 +3634,6 @@ func sqlJoinMDMAppleProfilesStatus() string {
 			host_mdm_apple_profiles
 		GROUP BY
 			host_uuid) hmap ON h.uuid = hmap.host_uuid
-`
-}
-
-// sqlJoinRecoveryLockStatus returns a SQL snippet that can be used to join the host_recovery_key_passwords
-// table to the hosts table. For each host, it derives a boolean value for each status category.
-// The value will be 1 if the host has recovery lock in the given status. The snippet assumes the hosts
-// table to be aliased as 'h'. Recovery lock is only applicable to macOS hosts.
-func sqlJoinRecoveryLockStatus() string {
-	var (
-		failed    = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
-		pending   = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
-		verifying = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
-		verified  = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
-	)
-	return `
-	LEFT JOIN (
-		-- recovery lock statuses grouped by host uuid
-		SELECT
-			host_uuid,
-			MAX(IF(status = ` + pending + `, 1, 0)) AS rl_pending,
-			MAX(IF(status = ` + failed + `, 1, 0)) AS rl_failed,
-			MAX(IF(status = ` + verifying + `, 1, 0)) AS rl_verifying,
-			MAX(IF(status = ` + verified + `, 1, 0)) AS rl_verified
-		FROM
-			host_recovery_key_passwords
-		GROUP BY
-			host_uuid) hrlp ON h.uuid = hrlp.host_uuid
 `
 }
 
@@ -3710,7 +3679,6 @@ FROM
 	hosts h
 	%s
 	%s
-	%s
 	LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
 WHERE
 	platform IN('darwin', 'ios', 'ipados') AND %s
@@ -3722,7 +3690,7 @@ GROUP BY
 		teamFilter = fmt.Sprintf("team_id = %d", *teamID)
 	}
 
-	stmt = fmt.Sprintf(stmt, sqlCaseMDMAppleStatus(), sqlJoinMDMAppleProfilesStatus(), sqlJoinMDMAppleDeclarationsStatus(), sqlJoinRecoveryLockStatus(), teamFilter)
+	stmt = fmt.Sprintf(stmt, sqlCaseMDMAppleStatus(), sqlJoinMDMAppleProfilesStatus(), sqlJoinMDMAppleDeclarationsStatus(), teamFilter)
 
 	var dest []struct {
 		Count  uint   `db:"count"`
@@ -7337,26 +7305,6 @@ func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID s
 	return &fleet.HostRecoveryLockPassword{
 		Password:  string(decrypted),
 		UpdatedAt: row.UpdatedAt,
-	}, nil
-}
-
-func (ds *Datastore) GetHostRecoveryLockPasswordStatus(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
-	const stmt = `SELECT status, COALESCE(error_message, '') AS detail FROM host_recovery_key_passwords WHERE host_uuid = ?`
-
-	var row struct {
-		Status *fleet.MDMDeliveryStatus `db:"status"`
-		Detail string                   `db:"detail"`
-	}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
-		return nil, ctxerr.Wrap(ctx, err, "getting recovery lock password status")
-	}
-
-	return &fleet.HostMDMRecoveryLockPassword{
-		Status: row.Status,
-		Detail: row.Detail,
 	}, nil
 }
 

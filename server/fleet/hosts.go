@@ -593,18 +593,12 @@ type MDMHostData struct {
 }
 
 type HostMDMOSSettings struct {
-	DiskEncryption       HostMDMDiskEncryption       `json:"disk_encryption" db:"-" csv:"-"`
-	RecoveryLockPassword HostMDMRecoveryLockPassword `json:"recovery_lock_password" db:"-" csv:"-"`
+	DiskEncryption HostMDMDiskEncryption `json:"disk_encryption" db:"-" csv:"-"`
 }
 
 type HostMDMDiskEncryption struct {
 	Status *DiskEncryptionStatus `json:"status" db:"-" csv:"-"`
 	Detail string                `json:"detail" db:"-" csv:"-"`
-}
-
-type HostMDMRecoveryLockPassword struct {
-	Status *MDMDeliveryStatus `json:"status" db:"-" csv:"-"`
-	Detail string             `json:"detail" db:"-" csv:"-"`
 }
 
 type DiskEncryptionStatus string
