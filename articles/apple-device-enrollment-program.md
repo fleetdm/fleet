@@ -64,12 +64,12 @@ ADE automatically supervises devices during enrollment, unlocking security restr
 This supervised mode provides security features that work together to prevent unauthorized access and data loss:
 
 * Automatic device supervision for advanced management controls  
-* Mandatory MDM enrollment that users cannot bypass or remove  
-* Activation Lock bypass codes for organizational device recovery  
+* Mandatory MDM enrollment that users cannot  or remove  
+* Activation Lock  codes for organizational device recovery  
 * Factory reset protection that maintains management through re-enrollment  
 * Device identity certificates for secure MDM authentication
 
-Activation Lock and certificate management need additional planning during deployment. Activation Lock ties devices to user Apple IDs to prevent theft but creates complications when employees leave without disabling Find My. Through ABM, ADE provides organizational bypass codes that let MDM administrators clear device activation without needing the original user's Apple ID credentials.
+Activation Lock and certificate management need additional planning during deployment. Activation Lock ties devices to user Apple IDs to prevent theft but creates complications when employees leave without disabling Find My. Through ABM, ADE provides organizational  codes that let MDM administrators clear device activation without needing the original user's Apple ID credentials.
 
 Certificate management requires ongoing attention because the Apple Push Notification certificate expires annually. Organizations must use the same Apple ID for renewal that was used during initial certificate creation. When certificates expire, devices and management servers lose the ability to authenticate with each other until someone completes the renewal process.
 
@@ -79,7 +79,7 @@ ADE is an enrollment mechanism configured through ABM, not a complete management
 
 When evaluating MDM vendors for ADE compatibility, you need to verify several technical requirements. Check that the platform supports Apple Push Notification certificate management with annual renewal processes, offers Setup Assistant customization options that let you control the enrollment experience, and can handle multiple MDM servers if your organization needs different management systems for different regions or business units.
 
-When migrating from one management service to another, if your devices are on older versions of Apple operating systems they may need to be completely erased to re-enroll. To bypaass this problem, admins should ensure all devices are on the latest Apple OS version. [Managed Device Migration](https://support.apple.com/guide/deployment/migrate-managed-devices-dep4acb2aa44/web) announced at [WWDC 2025](https://fleetdm.com/announcements/mdm-just-got-better) allows computers and mobile devices to be migrated without erasing simply by moving device records from one virtual MDM server to another in Apple Business manager. Limited tests of migration behavior on test devices before comitting to your entire fleet will determine if updates are needed.
+When migrating from one management service to another, if your devices are on older versions of Apple operating systems they may need to be completely erased to re-enroll. If possible, admins should ensure all devices are on the latest Apple OS version. [Managed Device Migration](https://support.apple.com/guide/deployment/migrate-managed-devices-dep4acb2aa44/web) announced at [WWDC 2025](https://fleetdm.com/announcements/mdm-just-got-better) allows computers and mobile devices to be migrated without erasing simply by moving device records from one virtual MDM server to another in Apple Business manager. Limited tests of migration behavior on test devices before comitting to your entire fleet will determine if OS updates are needed.
 
 Cross-platform capabilities also matter if you manage more than just Apple devices. Organizations with mixed device environments benefit from MDM platforms that handle Mac, Windows, and [Linux](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-linux-devices-into-fleet) from a single console rather than juggling separate management tools. [Fleet](http://fleetdm.com) supports ADE enrollment for Mac, iPhone, and iPad devices while also managing Windows and Linux endpoints. Its open-source model provides complete code transparency so you can verify exactly how devices are managed, and self-hosting options let you maintain full control over where device data lives.
 
