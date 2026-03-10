@@ -1,3 +1,19 @@
+## Orbit 1.53.0 (Mar 03, 2026)
+
+* Improved GUI user detection in orbit to use the correct active GUI session when starting Fleet Desktop.
+
+* Fixed a COM deadlock on Windows that could cause orbit to become unresponsive during BitLocker encryption enforcement. BitLocker operations now run on a dedicated COM thread instead of sharing the global comshim singleton with other subsystems.
+
+* Fixed the "app_sso_platform" table to return empty result set if Kerberos status is not available.
+
+* Fixed icon size on KDE environments.
+
+* Fixed old escrow method on macOS to use environment variables on the TCL script.
+
+* Improved detection of `DISPLAY` variable in X11 sessions.
+
+* Added a system tray title to Fleet Desktop to make sure that the system tray ID is static, not dynamic.
+
 ## Orbit 1.52.1 (Feb 20, 2026)
 
 * Fixed panic in `orbit` when auto-updates are disabled.

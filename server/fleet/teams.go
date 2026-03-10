@@ -58,7 +58,8 @@ type TeamPayload struct {
 // need to be able which part of the MDM config was provided in the request,
 // so the fields are pointers to structs.
 type TeamPayloadMDM struct {
-	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
+	EnableDiskEncryption       optjson.Bool `json:"enable_disk_encryption"`
+	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
 	// RequireBitLockerPIN indicates whether BitLocker PIN is required for Windows devices
 	// in order for Fleet to consider them compliant.
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
@@ -297,14 +298,15 @@ func (spec TeamSpecAppStoreApp) ResolvePaths(baseDir string) TeamSpecAppStoreApp
 }
 
 type TeamMDM struct {
-	EnableDiskEncryption bool                  `json:"enable_disk_encryption"`
-	RequireBitLockerPIN  bool                  `json:"windows_require_bitlocker_pin"`
-	MacOSUpdates         AppleOSUpdateSettings `json:"macos_updates"`
-	IOSUpdates           AppleOSUpdateSettings `json:"ios_updates"`
-	IPadOSUpdates        AppleOSUpdateSettings `json:"ipados_updates"`
-	WindowsUpdates       WindowsUpdates        `json:"windows_updates"`
-	MacOSSettings        MacOSSettings         `json:"macos_settings"`
-	MacOSSetup           MacOSSetup            `json:"macos_setup"`
+	EnableDiskEncryption       bool                  `json:"enable_disk_encryption"`
+	EnableRecoveryLockPassword bool                  `json:"enable_recovery_lock_password"`
+	RequireBitLockerPIN        bool                  `json:"windows_require_bitlocker_pin"`
+	MacOSUpdates               AppleOSUpdateSettings `json:"macos_updates"`
+	IOSUpdates                 AppleOSUpdateSettings `json:"ios_updates"`
+	IPadOSUpdates              AppleOSUpdateSettings `json:"ipados_updates"`
+	WindowsUpdates             WindowsUpdates        `json:"windows_updates"`
+	MacOSSettings              MacOSSettings         `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSetup                 MacOSSetup            `json:"macos_setup" renameto:"setup_experience"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
@@ -369,7 +371,8 @@ func (t *TeamMDM) Copy() *TeamMDM {
 }
 
 type TeamSpecMDM struct {
-	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
+	EnableDiskEncryption       optjson.Bool `json:"enable_disk_encryption"`
+	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
 	// RequireBitLockerPIN indicates whether BitLocker PIN is required for Windows devices
 	// in order for Fleet to consider them compliant.
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
@@ -388,8 +391,8 @@ type TeamSpecMDM struct {
 	// custom_settings key is specified but empty, then we need to clear the
 	// value, but if it isn't provided, we need to leave the existing value
 	// unmodified.
-	MacOSSettings map[string]interface{} `json:"macos_settings"`
-	MacOSSetup    MacOSSetup             `json:"macos_setup"`
+	MacOSSettings map[string]any `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSetup    MacOSSetup     `json:"macos_setup" renameto:"setup_experience"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
@@ -710,6 +713,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	delete(mdmSpec.MacOSSettings, "enable_disk_encryption")
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
+	mdmSpec.EnableRecoveryLockPassword = optjson.SetBool(t.Config.MDM.EnableRecoveryLockPassword)
 	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
 	mdmSpec.AndroidSettings = t.Config.MDM.AndroidSettings
 

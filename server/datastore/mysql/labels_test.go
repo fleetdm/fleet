@@ -805,7 +805,7 @@ func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 	err := ds.ApplyLabelSpecs(context.Background(), expectedSpecs)
 	require.Nil(t, err)
 
-	expectedSpecs[4].Hosts = []string{"1", "2", "3", "4"}
+	expectedSpecs[4].Hosts = []string{"1", "2", "3", "4"} //nolint:gosec // dismiss G602
 	return expectedSpecs
 }
 

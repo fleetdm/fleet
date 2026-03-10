@@ -8702,7 +8702,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 
 	activitySvc := NewTestActivityService(t, ds)
 	apiUser := &activity_api.User{ID: user1.ID, Name: user1.Name, Email: user1.Email}
-	err = activitySvc.NewActivity( // automatically creates the host_activities entry
+	err = activitySvc.NewActivity( // automatically creates the activity_host_past entry
 		ctx,
 		apiUser,
 		activity,
@@ -8894,6 +8894,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	err = ds.ConditionalAccessBypassDevice(ctx, host.ID)
+	require.NoError(t, err)
+
+	err = ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.

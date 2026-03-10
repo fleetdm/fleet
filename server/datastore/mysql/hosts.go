@@ -589,7 +589,6 @@ var hostRefs = []string{
 	"host_disk_encryption_keys",
 	"host_software_installed_paths",
 	"query_results",
-	"host_activities",
 	"host_mdm_actions",
 	"host_calendar_events",
 	"upcoming_activities",
@@ -609,6 +608,7 @@ var hostRefs = []string{
 	"host_in_house_software_installs",
 	"host_vpp_software_installs",
 	"host_last_known_locations",
+	"host_issues",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -3613,7 +3613,7 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 		// We log to help troubleshooting in case this happens.
 		ds.logger.ErrorContext(ctx, "unrecognized platform", "hostID", host.ID, "platform", host.Platform)
 	}
-	query := `SELECT p.id, p.team_id, p.resolution, p.name, p.query, p.description, p.author_id, p.platforms, p.critical, p.created_at, p.updated_at, p.conditional_access_enabled, p.conditional_access_bypass_enabled,
+	query := `SELECT p.id, p.team_id, p.resolution, p.name, p.query, p.description, p.author_id, p.platforms, p.critical, p.created_at, p.updated_at, p.conditional_access_enabled,
 		COALESCE(u.name, '<deleted>') AS author_name,
 		COALESCE(u.email, '') AS author_email,
 		CASE

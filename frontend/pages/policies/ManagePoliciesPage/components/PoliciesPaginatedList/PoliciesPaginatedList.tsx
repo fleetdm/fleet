@@ -45,6 +45,7 @@ interface IPoliciesPaginatedListProps {
     item: IFormPolicy,
     onChange: (item: IFormPolicy) => void
   ) => ReactElement | false | null | undefined;
+  renderItemLabel?: (item: IFormPolicy) => ReactElement | null;
   onToggleItem: (item: IFormPolicy) => IFormPolicy;
   /** A function defining the conditions under which to disable a policy. */
   getPolicyDisabled?: (policy: IFormPolicy) => boolean;
@@ -64,6 +65,7 @@ function PoliciesPaginatedList(
   {
     isSelected,
     renderItemRow,
+    renderItemLabel,
     onToggleItem,
     getPolicyDisabled,
     getPolicyTooltipContent,
@@ -238,6 +240,7 @@ function PoliciesPaginatedList(
           isItemDisabled={getPolicyDisabled}
           getItemTooltipContent={getPolicyTooltipContent}
           onClickRow={onToggleItem}
+          renderItemLabel={renderItemLabel}
           renderItemRow={renderItemRow}
           pageSize={DEFAULT_PAGE_SIZE}
           onUpdate={onUpdate}

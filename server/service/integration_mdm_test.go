@@ -83,7 +83,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
-	activitiesmod "github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -221,15 +220,17 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		wlog = slog.New(slog.DiscardHandler)
 	}
 
-	activityModule := activitiesmod.NewActivityModule()
 	androidMockClient := &android_mock.Client{}
 	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error {
 		return nil
 	}
-	androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, "test-private-key", s.ds, activityModule, config.AndroidAgentConfig{
-		Package:       "com.fleetdm.agent",
-		SigningSHA256: "abc123def456",
-	})
+	androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, "test-private-key", s.ds,
+		func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			return s.fleetSvc.NewActivity(ctx, user, activity)
+		}, config.AndroidAgentConfig{
+			Package:       "com.fleetdm.agent",
+			SigningSHA256: "abc123def456",
+		})
 	if err != nil {
 		panic(err)
 	}
@@ -320,7 +321,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		BootstrapPackageStore:  bootstrapPackageStore,
 		androidMockClient:      androidMockClient,
 		androidModule:          androidSvc,
-		ActivityModule:         activityModule,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
@@ -1725,7 +1725,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 	t := s.T()
 	// Clear out all activities to other test leaking activities into this one.
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(context.Background(), `DELETE FROM activities`)
+		_, err := q.ExecContext(context.Background(), `DELETE FROM activity_past`)
 		return err
 	})
 
@@ -2947,6 +2947,62 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
 }
 
+func (s *integrationMDMTestSuite) TestAppConfigMDMRecoveryLockPassword() {
+	t := s.T()
+
+	// by default, recovery lock password is disabled
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.EnableRecoveryLockPassword.Value)
+
+	// enable recovery lock password
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_recovery_lock_password": true }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableRecoveryLockPassword.Value)
+	enabledActID := s.lastActivityMatches(fleet.ActivityTypeEnabledRecoveryLockPassword{}.ActivityName(),
+		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+
+	// check that it's returned by GET /config
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableRecoveryLockPassword.Value)
+
+	// patch without specifying recovery lock password should not alter it
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"org_info": { "org_name": "test-org" }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableRecoveryLockPassword.Value)
+	// verify no new recovery lock password activity was created
+	s.lastActivityMatches(fleet.ActivityTypeEnabledRecoveryLockPassword{}.ActivityName(),
+		``, enabledActID)
+
+	// patch with same value should not create new activity
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_recovery_lock_password": true }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableRecoveryLockPassword.Value)
+	s.lastActivityMatches(fleet.ActivityTypeEnabledRecoveryLockPassword{}.ActivityName(),
+		``, enabledActID)
+
+	// disable recovery lock password
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_recovery_lock_password": false }
+  }`), http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.EnableRecoveryLockPassword.Value)
+	s.lastActivityMatches(fleet.ActivityTypeDisabledRecoveryLockPassword{}.ActivityName(),
+		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+
+	// check that it's returned by GET /config
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.EnableRecoveryLockPassword.Value)
+}
+
 func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	t := s.T()
 	ctx := context.Background()
@@ -3292,6 +3348,112 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
+}
+
+func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
+	t := s.T()
+
+	// create a team
+	teamName := t.Name()
+	team := &fleet.Team{
+		Name:        teamName,
+		Description: "team for testing recovery lock password",
+	}
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	require.NotZero(t, createTeamResp.Team.ID)
+	team = createTeamResp.Team
+
+	// enable recovery lock password via modify team endpoint
+	var modResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			EnableRecoveryLockPassword: optjson.SetBool(true),
+		},
+	}, http.StatusOK, &modResp)
+	require.True(t, modResp.Team.Config.MDM.EnableRecoveryLockPassword)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledRecoveryLockPassword{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
+
+	// check it's returned by GET
+	teamResp := getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
+
+	// patch with same value should not create new activity
+	lastActID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledRecoveryLockPassword{}.ActivityName(),
+		``, 0)
+	modResp = teamResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			EnableRecoveryLockPassword: optjson.SetBool(true),
+		},
+	}, http.StatusOK, &modResp)
+	require.True(t, modResp.Team.Config.MDM.EnableRecoveryLockPassword)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledRecoveryLockPassword{}.ActivityName(),
+		``, lastActID)
+
+	// disable recovery lock password
+	modResp = teamResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			EnableRecoveryLockPassword: optjson.SetBool(false),
+		},
+	}, http.StatusOK, &modResp)
+	require.False(t, modResp.Team.Config.MDM.EnableRecoveryLockPassword)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledRecoveryLockPassword{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
+
+	// check it's returned by GET
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.False(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
+
+	// test via apply team specs
+	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			EnableRecoveryLockPassword: optjson.SetBool(true),
+		},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	// check it's enabled
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
+
+	// apply with recovery lock password disabled
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			EnableRecoveryLockPassword: optjson.SetBool(false),
+		},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	// check it's disabled
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.False(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
+
+	// create a new team via spec with recovery lock password enabled
+	newTeamName := teamName + "2"
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: newTeamName,
+		MDM: fleet.TeamSpecMDM{
+			EnableRecoveryLockPassword: optjson.SetBool(true),
+		},
+	}}}
+	var specResp applyTeamSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+	newTeamID := specResp.TeamIDsByName[newTeamName]
+	require.NotZero(t, newTeamID)
+
+	// check the new team has recovery lock password enabled
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", newTeamID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
 }
 
 func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
@@ -4130,7 +4292,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	var summaryResp getMDMAppleBootstrapPackageSummaryResponse
 	s.DoJSON("GET", "/api/latest/fleet/bootstrap/summary", nil, http.StatusOK, &summaryResp)
 	// We don't count the "skipped" device as it is pending migration and will not install the bootstrap package
-	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(noTeamDevices) - 1)}, summaryResp.MDMAppleBootstrapPackageSummary)
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(noTeamDevices) - 1)}, summaryResp.MDMAppleBootstrapPackageSummary) //nolint:gosec // dismiss G115
 
 	var lhr listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &lhr, "team_id", "0", "bootstrap_package", "pending")
@@ -4162,7 +4324,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 	summaryResp = getMDMAppleBootstrapPackageSummaryResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/bootstrap/summary?team_id=%d", team.ID), nil, http.StatusOK, &summaryResp)
-	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(teamDevices) - 1)}, summaryResp.MDMAppleBootstrapPackageSummary)
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(teamDevices) - 1)}, summaryResp.MDMAppleBootstrapPackageSummary) //nolint:gosec // dismiss G115
 
 	mockErrorChain := []mdm.ErrorChain{
 		{ErrorCode: 12021, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "Unknown command", USEnglishDescription: "Unknown command"},
@@ -10330,6 +10492,14 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 				},
 				// disk encryption does not require mdm enabled and configured
 				http.StatusOK,
+			},
+			{
+				"enable recovery lock password",
+				&fleet.TeamSpecMDM{
+					EnableRecoveryLockPassword: optjson.SetBool(true),
+				},
+				// recovery lock password requires mdm enabled and configured
+				http.StatusUnprocessableEntity,
 			},
 			// Ian - this test still passes, that is, returns 4xx – perhaps related to one of the endpoints we still need to update
 			{

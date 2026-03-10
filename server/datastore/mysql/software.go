@@ -5407,6 +5407,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			LEFT JOIN
 				software_installers ON software_titles.id = software_installers.title_id
 				AND software_installers.global_or_team_id = :global_or_team_id
+				AND software_installers.is_active = true
 			LEFT JOIN
 				software ON software_titles.id = software.title_id ` + installedSoftwareJoinsCondition + `
 			WHERE
@@ -5549,7 +5550,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			ctx,
 			ds.reader(ctx),
 			&titleCount,
-			fmt.Sprintf("SELECT COUNT(id) FROM (%s) AS combined_results", countStmt),
+			fmt.Sprintf("SELECT COUNT(DISTINCT id) FROM (%s) AS combined_results", countStmt),
 			args...,
 		); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "get host software count")
@@ -6067,10 +6068,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		metaData = &fleet.PaginationMetadata{
 			HasPreviousResults: opts.ListOptions.Page > 0,
 			TotalResults:       titleCount,
+			HasNextResults:     titleCount > (opts.ListOptions.Page+1)*perPage,
 		}
 		if len(hostSoftwareList) > int(perPage) { //nolint:gosec // dismiss G115
-			metaData.HasNextResults = true
-			hostSoftwareList = hostSoftwareList[:len(hostSoftwareList)-1]
+			hostSoftwareList = hostSoftwareList[:perPage]
 		}
 	}
 
@@ -6385,6 +6386,32 @@ func (ds *Datastore) GetSoftwareCategoryIDs(ctx context.Context, names []string)
 	}
 
 	return ids, nil
+}
+
+// GetSoftwareCategoryNameToIDMap returns a map of software category names to their IDs for the given names.
+// Only categories that exist in the database are included in the map.
+func (ds *Datastore) GetSoftwareCategoryNameToIDMap(ctx context.Context, names []string) (map[string]uint, error) {
+	if len(names) == 0 {
+		return map[string]uint{}, nil
+	}
+
+	stmt := `SELECT id, name FROM software_categories WHERE name IN (?)`
+	stmt, args, err := sqlx.In(stmt, names)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "sqlx.In for get software category name to id map")
+	}
+
+	var categories []fleet.SoftwareCategory
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &categories, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get software category name to id map")
+	}
+
+	result := make(map[string]uint, len(categories))
+	for _, cat := range categories {
+		result[cat.Name] = cat.ID
+	}
+
+	return result, nil
 }
 
 func (ds *Datastore) GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, teamID *uint) (map[uint][]string, error) {

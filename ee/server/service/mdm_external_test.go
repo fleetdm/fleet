@@ -104,7 +104,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		panic(err)
 	}
 	// Using a noop activity service since this test does not currently verify activity creation.
-	freeSvc.SetActivityService(&mock.MockNewActivityService{
+	freeSvc.SetActivityService(&mock.MockActivityService{
 		NewActivityFunc: mock.NoopNewActivityFunc,
 	})
 	svc, err := eeservice.NewService(
@@ -390,7 +390,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			}
 			asst := setupAsstByTeam[tmID]
 			if asst == nil {
-				return nil, eeservice.NotFoundError{}
+				return nil, &eeservice.NotFoundError{}
 			}
 			return asst, nil
 		}
