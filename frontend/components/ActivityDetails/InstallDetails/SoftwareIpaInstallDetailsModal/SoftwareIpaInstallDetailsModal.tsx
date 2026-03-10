@@ -292,7 +292,13 @@ export const SoftwareIpaInstallDetailsModal = ({
 
   // Fallback to "installed" if no status is provided
   const displayStatus = fleetInstallStatus ?? "installed";
-  const iconName = INSTALL_DETAILS_STATUS_ICONS[displayStatus];
+  const hasInstalledVersions = !!hostSoftware?.installed_versions?.length;
+  const effectiveDisplayStatus =
+    hasInstalledVersions &&
+    ["failed_install", "failed_uninstall"].includes(displayStatus)
+      ? "installed"
+      : displayStatus;
+  const iconName = INSTALL_DETAILS_STATUS_ICONS[effectiveDisplayStatus];
 
   // Handles "pending" value prior to 4.57 AND never shows error state on pending_install
   // as some cases have command results not available for pending_installs
@@ -313,8 +319,6 @@ export const SoftwareIpaInstallDetailsModal = ({
   const excludeVersions = ["pending_install", "pending"].includes(
     swInstallResult?.status || ""
   );
-
-  const hasInstalledVersions = !!hostSoftware?.installed_versions?.length;
 
   // Hide failed details if host shows installed versions (4.82 #31663)
   // Note: Currently no uninstall IPA but added for symmetry with SoftwareInstallDetailsModal
