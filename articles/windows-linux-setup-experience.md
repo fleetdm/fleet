@@ -41,7 +41,7 @@ Fleet automatically opens the default web browser to show end users software ins
 
 The browser can be closed, and the installation will continue in the background. End users can return to the setup experience page by clicking **My Device** from Fleet Desktop.  Once all steps have completed, the **My Device** page will show the host information as usual.
 
-For Linux, Fleet automatically installs on compatible platforms. This means `.deb` packages are only installed on Ubuntu and Debian Linux hosts. `.rpm` packges are only installed on Fedora, Amazon Linux, and Red Hat Enterprise Linux (RHEL).
+For Linux, Fleet automatically installs on compatible platforms. This means `.deb` packages are only installed on Ubuntu and Debian Linux hosts. `.rpm` packages are only installed on Fedora, Amazon Linux, and Red Hat Enterprise Linux (RHEL).
 
 If software installs fail, Fleet automatically retries. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience#end-user-authentication).
 
