@@ -776,7 +776,7 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter, serveCSP bool) string {
 		// TODO Is https OK for img-src? We allow customers to upload their own images and we have to reach out to gravatar for them.
 		// TODO: Fix unsafe-inline style-src
 		// NB: If default-src ever changes from 'none' make sure to add object-src 'none'
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; base-uri 'self'; connect-src 'self' www.gravatar.com ws: wss:; img-src 'self' www.gravatar.com data: https:; style-src 'self' 'nonce-"+nonce+"'; font-src 'self'; script-src 'self'")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; base-uri 'self'; connect-src 'self' www.gravatar.com ws: wss:; img-src 'self' www.gravatar.com data: https:; style-src 'self' 'nonce-"+nonce+"'; font-src 'self'; script-src 'self' 'nonce-"+nonce+"'")
 	}
 	return nonce
 }
