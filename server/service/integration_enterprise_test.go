@@ -15930,7 +15930,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 
 // 1. host reports software
 // 2. reconciler runs, creates title
-// 3. installer is uploaded, creates a new software title
+// 3. installer is uploaded, matches existing software title
 func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 	t := s.T()
 	ctx := context.Background()
@@ -15958,9 +15958,8 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
 		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
 		{Name: "bar", Version: "0.0.4", Source: "apps"},
-		// note: the source is not "apps". Homebrew packages do not report bundle_identifier
-		// so it is possible to add a pkg installer with the same name
-		{Name: "DummyApp", Version: "1.0.0", Source: "homebrew"},
+		// note: the source is not "apps"
+		{Name: "DummyApp", Version: "1.0.0", Source: "homebrew", BundleIdentifier: "com.example.dummy"},
 	}
 	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -15993,7 +15992,6 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 		Filename:      "dummy_installer.pkg",
 		TeamID:        &team.ID,
 	}
-
 	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 	resp = listSoftwareTitlesResponse{}
@@ -16003,22 +16001,21 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 		http.StatusOK, &resp,
 		"team_id", fmt.Sprintf("%d", team.ID),
 	)
-	require.Len(t, resp.SoftwareTitles, 4)
+	require.Len(t, resp.SoftwareTitles, 3)
 	require.ElementsMatch(
 		t,
-		[]any{[]string{"foo", "homebrew"}, []string{"bar", "apps"}, []string{"DummyApp", "homebrew"}, []string{"DummyApp", "apps"}},
-		[]any{
-			[]string{resp.SoftwareTitles[0].Name, resp.SoftwareTitles[0].Source},
-			[]string{resp.SoftwareTitles[1].Name, resp.SoftwareTitles[1].Source},
-			[]string{resp.SoftwareTitles[2].Name, resp.SoftwareTitles[2].Source},
-			[]string{resp.SoftwareTitles[3].Name, resp.SoftwareTitles[3].Source},
+		[]string{"foo", "bar", "DummyApp"},
+		[]string{
+			resp.SoftwareTitles[0].Name,
+			resp.SoftwareTitles[1].Name,
+			resp.SoftwareTitles[2].Name,
 		},
 	)
 }
 
 // 1. host reports software
-// 2. installer is uploaded, creates new software title
-// 3. reconciler runs, no changes
+// 2. installer is uploaded, matches existing software
+// 2. reconciler runs, matches existing software title
 func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 	t := s.T()
 	ctx := context.Background()
@@ -16046,9 +16043,8 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
 		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
 		{Name: "bar", Version: "0.0.4", Source: "apps"},
-		// note: the source is not "apps". Homebrew packages do not report bundle_identifier
-		// so it is possible to add a pkg installer with the same name
-		{Name: "DummyApp", Version: "1.0.0", Source: "homebrew"},
+		// note: the source is not "apps"
+		{Name: "DummyApp", Version: "1.0.0", Source: "homebrew", BundleIdentifier: "com.example.dummy"},
 	}
 	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -16076,6 +16072,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 		[]string{"DummyApp"},
 		[]string{resp.SoftwareTitles[0].Name},
 	)
+
 	hostsCountTs := time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
@@ -16086,15 +16083,14 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 		http.StatusOK, &resp,
 		"team_id", fmt.Sprintf("%d", team.ID),
 	)
-	require.Len(t, resp.SoftwareTitles, 4)
+	require.Len(t, resp.SoftwareTitles, 3)
 	require.ElementsMatch(
 		t,
-		[]string{"foo", "bar", "DummyApp", "DummyApp"},
+		[]string{"foo", "bar", "DummyApp"},
 		[]string{
 			resp.SoftwareTitles[0].Name,
 			resp.SoftwareTitles[1].Name,
 			resp.SoftwareTitles[2].Name,
-			resp.SoftwareTitles[3].Name,
 		},
 	)
 }

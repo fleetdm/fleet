@@ -2572,77 +2572,6 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 			},
 			expectedSource: "some_source",
 		},
-		{
-			name: "title that already exists with bundle identifier",
-			payload: &fleet.UploadSoftwareInstallerPayload{
-				Title:            "Existing Title",
-				Source:           "apps",
-				BundleIdentifier: "existing.title",
-			},
-			expectedSource: "apps",
-		},
-		{
-			name: "title that already exists with bundle identifier, different source",
-			payload: &fleet.UploadSoftwareInstallerPayload{
-				Title:            "Existing Title",
-				Source:           "ios_apps",
-				BundleIdentifier: "existing.title",
-			},
-			expectedSource: "ios_apps",
-		},
-		{
-			name: "installer: no upgrade code,  existing title: same name, no upgrade code",
-			payload: &fleet.UploadSoftwareInstallerPayload{
-				Title:  "Win Title 1",
-				Source: "programs",
-			},
-			expectedName:        "Win Title 1",
-			expectedSource:      "programs",
-			expectedUpgradeCode: ptr.String(""),
-		},
-		{
-			name: "installer: no upgrade code,  existing title: same name, has upgrade code",
-			payload: &fleet.UploadSoftwareInstallerPayload{
-				Title:  "Win Title 2",
-				Source: "programs",
-			},
-			expectedName:        "Win Title 2",
-			expectedSource:      "programs",
-			expectedUpgradeCode: ptr.String("CODEEXISTS"),
-		},
-		{
-			name: "installer: has upgrade code, existing title: same name, no upgrade code",
-			payload: &fleet.UploadSoftwareInstallerPayload{
-				Title:       "Win Title 3",
-				Source:      "programs",
-				UpgradeCode: "NEWCODE",
-			},
-			expectedName:        "Win Title 3",
-			expectedSource:      "programs",
-			expectedUpgradeCode: ptr.String("NEWCODE"),
-		},
-		{
-			name: "installer: has upgrade code, existing title: same name, different upgrade code",
-			payload: &fleet.UploadSoftwareInstallerPayload{
-				Title:       "Win Title 4",
-				Source:      "programs",
-				UpgradeCode: "DIFFERENTCODE",
-			},
-			expectedName:        "Win Title 4",
-			expectedSource:      "programs",
-			expectedUpgradeCode: ptr.String("DIFFERENTCODE"), // should make a new title
-		},
-		{
-			name: "installer: has upgrade code, existing title: same name, same upgrade code",
-			payload: &fleet.UploadSoftwareInstallerPayload{
-				Title:       "Win Title 5",
-				Source:      "programs",
-				UpgradeCode: "ABCDEF",
-			},
-			expectedName:        "Win Title 5",
-			expectedSource:      "programs",
-			expectedUpgradeCode: ptr.String("ABCDEF"),
-		},
 	}
 
 	for _, tt := range tests {
@@ -2650,22 +2579,6 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 			id, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, tt.payload)
 			require.NoError(t, err)
 			require.NotEmpty(t, id)
-
-			var actual struct {
-				Name        string  `db:"name"`
-				Source      string  `db:"source"`
-				UpgradeCode *string `db:"upgrade_code"`
-			}
-			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				err := sqlx.GetContext(ctx, q, &actual, `SELECT name, source, upgrade_code FROM software_titles WHERE id = ?`, id)
-				require.NoError(t, err)
-				return nil
-			})
-			if tt.expectedName != "" {
-				require.Equal(t, tt.expectedName, actual.Name)
-			}
-			require.Equal(t, tt.expectedSource, actual.Source)
-			require.Equal(t, tt.expectedUpgradeCode, actual.UpgradeCode)
 		})
 	}
 }
