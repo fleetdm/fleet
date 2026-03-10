@@ -13,6 +13,10 @@ import (
 // The key must be 32 bytes for AES-256.
 // Returns [nonce || ciphertext].
 func EncryptAESGCM(plainText []byte, key string) ([]byte, error) {
+	if len(key) != 32 {
+		return nil, fmt.Errorf("invalid key size: got %d bytes, AES-256 requires exactly 32 bytes", len(key))
+	}
+
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
 		return nil, fmt.Errorf("create cipher: %w", err)
@@ -34,6 +38,10 @@ func EncryptAESGCM(plainText []byte, key string) ([]byte, error) {
 // DecryptAESGCM decrypts ciphertext that was encrypted with EncryptAESGCM.
 // The key must be the same 32-byte key used for encryption.
 func DecryptAESGCM(encrypted []byte, key string) ([]byte, error) {
+	if len(key) != 32 {
+		return nil, fmt.Errorf("invalid key size: got %d bytes, AES-256 requires exactly 32 bytes", len(key))
+	}
+
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
 		return nil, fmt.Errorf("create cipher: %w", err)
