@@ -1052,7 +1052,7 @@ LIMIT 1`,
 		case !l.Exclude && !l.RequireAll:
 			inclAny = append(inclAny, l)
 		default:
-			// TODO(mna): log error, should never happen
+			ds.logger.WarnContext(ctx, "software installer has an unsupported label scope", "installer_id", dest.InstallerID, "invalid_label", fmt.Sprintf("%#v", l))
 		}
 	}
 

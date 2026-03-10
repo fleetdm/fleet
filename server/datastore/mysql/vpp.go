@@ -72,7 +72,7 @@ WHERE
 		case !l.Exclude && !l.RequireAll:
 			inclAny = append(inclAny, l)
 		default:
-			// TODO(mna): log error, should never happen
+			ds.logger.WarnContext(ctx, "vpp app has an unsupported label scope", "vpp_apps_teams_id", app.VPPAppsTeamsID, "invalid_label", fmt.Sprintf("%#v", l))
 		}
 	}
 
@@ -366,7 +366,7 @@ func (ds *Datastore) getExistingLabels(ctx context.Context, vppAppTeamID uint) (
 		case !l.Exclude && !l.RequireAll:
 			inclAny = append(inclAny, l)
 		default:
-			// TODO(mna): log error, should never happen
+			ds.logger.WarnContext(ctx, "vpp app has an unsupported existing label scope", "vpp_apps_teams_id", vppAppTeamID, "invalid_label", fmt.Sprintf("%#v", l))
 		}
 	}
 
