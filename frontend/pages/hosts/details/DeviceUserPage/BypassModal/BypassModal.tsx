@@ -13,8 +13,7 @@ interface IBypassModal {
 const BypassModal = ({ onCancel, onResolveLater, isLoading }: IBypassModal) => {
   return (
     <Modal onExit={onCancel} title="Resolve later">
-      <>
-        <p>
+      <p>
           This will allow you to log in with Okta once.
           <br />
           <br />
@@ -31,7 +30,6 @@ const BypassModal = ({ onCancel, onResolveLater, isLoading }: IBypassModal) => {
             Resolve later
           </Button>
         </div>
-      </>
     </Modal>
   );
 };

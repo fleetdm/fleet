@@ -56,8 +56,7 @@ const ViewYamlModal = ({
 
   return (
     <Modal className={baseClass} title="YAML" onExit={onExit}>
-      <>
-        {repositoryUrl && (
+      {repositoryUrl && (
           <p>
             Manage in <CustomLink url={repositoryUrl} text="YAML" newTab />.
           </p>
@@ -90,7 +89,6 @@ const ViewYamlModal = ({
         <div className="modal-cta-wrap">
           <Button onClick={onExit}>Done</Button>
         </div>
-      </>
     </Modal>
   );
 };

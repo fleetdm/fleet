@@ -208,8 +208,7 @@ const EditAutoUpdateConfigModal = ({
 
   return (
     <Modal className={baseClass} title="Schedule auto updates" onExit={onExit}>
-      <>
-        <div className={formClassNames}>
+      <div className={formClassNames}>
           <div className={`${formClass}__form-frame`}>
             <Card paddingSize="medium" borderRadiusSize="medium">
               <div className={`${formClass}__auto-update-config`}>
@@ -327,7 +326,6 @@ const EditAutoUpdateConfigModal = ({
             </>
           }
         />
-      </>
     </Modal>
   );
 };

@@ -144,8 +144,7 @@ const EditConfigurationModal = ({
 
   return (
     <Modal className={baseClass} title="Edit configuration" onExit={onExit}>
-      <>
-        <InstallerDetailsWidget
+      <InstallerDetailsWidget
           softwareName={softwareInstaller.name}
           androidPlayStoreId={softwareInstaller.app_store_id}
           customDetails="Android"
@@ -166,7 +165,6 @@ const EditConfigurationModal = ({
             </Button>
           }
         />
-      </>
     </Modal>
   );
 };

@@ -142,8 +142,7 @@ const CategoriesEndUserExperienceModal = ({
   const { config } = useContext(AppContext);
   return (
     <Modal title="End user experience" onExit={onCancel} className={baseClass}>
-      <>
-        <span>What end users see:</span>
+      <span>What end users see:</span>
         <SelfServicePreview
           isIosOrIpadosApp={isIosOrIpadosApp}
           contactUrl={config?.org_info.contact_url || ""}
@@ -169,7 +168,6 @@ const CategoriesEndUserExperienceModal = ({
         <div className="modal-cta-wrap">
           <Button onClick={onCancel}>Done</Button>
         </div>
-      </>
     </Modal>
   );
 };

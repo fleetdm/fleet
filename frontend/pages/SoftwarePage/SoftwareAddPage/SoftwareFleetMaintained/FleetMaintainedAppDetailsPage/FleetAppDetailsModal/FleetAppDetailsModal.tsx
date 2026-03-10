@@ -87,8 +87,7 @@ const FleetAppDetailsModal = ({
 
   return (
     <Modal className={baseClass} title="Software details" onExit={onCancel}>
-      <>
-        <div className={`${baseClass}__modal-content`}>
+      <div className={`${baseClass}__modal-content`}>
           <DataSet title="Name" value={name} />
           <DataSet title="Version" value={versionElement} />
           {slug && (
@@ -135,7 +134,6 @@ const FleetAppDetailsModal = ({
         <div className="modal-cta-wrap">
           <Button onClick={onCancel}>Done</Button>
         </div>
-      </>
     </Modal>
   );
 };

@@ -56,8 +56,7 @@ const DeleteHostModal = ({
 
   return (
     <Modal title="Delete" onExit={onCancel} className={baseClass}>
-      <>
-        <p>
+      <p>
           This will remove the record of <b>{hostText()}</b> and associated data
           such as unlock PINs and disk encryption keys.
         </p>
@@ -97,7 +96,6 @@ const DeleteHostModal = ({
             Cancel
           </Button>
         </div>
-      </>
     </Modal>
   );
 };

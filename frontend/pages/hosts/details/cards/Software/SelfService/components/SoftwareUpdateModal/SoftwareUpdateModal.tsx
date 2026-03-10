@@ -111,8 +111,7 @@ const SoftwareUpdateModal = ({
 
   return (
     <Modal title="Update details" className={baseClass} onExit={onExit}>
-      <>
-        <div className={`${baseClass}__modal-content`}>
+      <div className={`${baseClass}__modal-content`}>
           <StatusMessage
             hostDisplayName={hostDisplayName}
             isDeviceUser={isDeviceUser}
@@ -141,7 +140,6 @@ const SoftwareUpdateModal = ({
             )
           }
         />
-      </>
     </Modal>
   );
 };

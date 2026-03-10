@@ -80,8 +80,7 @@ const CertificateDetailsModal = ({
 
   return (
     <Modal className={baseClass} title="Certificate details" onExit={onExit}>
-      <>
-        <div className={`${baseClass}__content`}>
+      <div className={`${baseClass}__content`}>
           {showSubjectSection && (
             <div className={`${baseClass}__section`}>
               <h3>Subject name</h3>
@@ -258,7 +257,6 @@ const CertificateDetailsModal = ({
         <div className="modal-cta-wrap">
           <Button onClick={onExit}>Done</Button>
         </div>
-      </>
     </Modal>
   );
 };

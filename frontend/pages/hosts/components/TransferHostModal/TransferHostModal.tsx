@@ -76,8 +76,7 @@ const TransferHostModal = ({
 
   return (
     <Modal onExit={onCancel} title="Transfer" className={baseClass}>
-      <>
-        <form className={`${baseClass}__form`}>
+      <form className={`${baseClass}__form`}>
           <Dropdown
             wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
             label={`Transfer ${multipleHosts ? "selected hosts" : "host"} to:`}
@@ -114,7 +113,6 @@ const TransferHostModal = ({
             </Button>
           </div>
         </form>
-      </>
     </Modal>
   );
 };

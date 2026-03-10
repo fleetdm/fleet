@@ -47,8 +47,7 @@ const WipeModal = ({
 
   return (
     <Modal className={baseClass} title="Wipe" onExit={onClose}>
-      <>
-        <div className={`${baseClass}__modal-content`}>
+      <div className={`${baseClass}__modal-content`}>
           <p>All content will be erased on this host.</p>
           {isWindowsHost && (
             <p>
@@ -85,7 +84,6 @@ const WipeModal = ({
             Cancel
           </Button>
         </div>
-      </>
     </Modal>
   );
 };

@@ -24,8 +24,7 @@ const ExampleWebhookUrlPayloadModal = ({
 }: IExampleWebhookUrlPayloadModalProps) => {
   return (
     <Modal title="Example payload" onExit={onCancel} className={baseClass}>
-      <>
-        <p>
+      <p>
           An example request sent to your configured <b>Webhook URL</b>.
         </p>
         <pre className={`${baseClass}__endpoint-preview`}>
@@ -43,7 +42,6 @@ const ExampleWebhookUrlPayloadModal = ({
         <div className="modal-cta-wrap">
           <Button onClick={onCancel}>Done</Button>
         </div>
-      </>
     </Modal>
   );
 };

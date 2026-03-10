@@ -212,8 +212,7 @@ const AddProfileModal = ({
 
   return (
     <Modal title="Add profile" onExit={onDone}>
-      <>
-        {isPremiumTier && isLoadingLabels && <Spinner />}
+      {isPremiumTier && isLoadingLabels && <Spinner />}
         {isPremiumTier && !isLoadingLabels && isErrorLabels && <DataError />}
         {(!isPremiumTier || (!isLoadingLabels && !isErrorLabels)) && (
           <div className={`${baseClass}__modal-content-wrap`}>
@@ -255,7 +254,6 @@ const AddProfileModal = ({
             </div>
           </div>
         )}
-      </>
     </Modal>
   );
 };

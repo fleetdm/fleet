@@ -40,8 +40,7 @@ const DeleteCertificateModal = ({
 
   return (
     <Modal className={baseClass} title="Delete certificate" onExit={onExit}>
-      <>
-        <p>
+      <p>
           This action will remove the <b>{name}</b> certificate from all hosts
           assigned to this fleet.
         </p>
@@ -58,7 +57,6 @@ const DeleteCertificateModal = ({
             Cancel
           </Button>
         </div>
-      </>
     </Modal>
   );
 };

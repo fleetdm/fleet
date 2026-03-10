@@ -39,8 +39,7 @@ const TurnOffAndroidMdmModal = ({
 
   return (
     <Modal title="Turn off Android MDM" className={baseClass} onExit={onExit}>
-      <>
-        <p>
+      <p>
           If you want to use MDM features again, you&apos;ll have to reconnect
           Android Enterprise.
         </p>
@@ -65,7 +64,6 @@ const TurnOffAndroidMdmModal = ({
             Cancel
           </Button>
         </div>
-      </>
     </Modal>
   );
 };

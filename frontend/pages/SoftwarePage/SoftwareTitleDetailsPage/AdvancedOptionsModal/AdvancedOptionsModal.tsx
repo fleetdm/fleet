@@ -23,8 +23,7 @@ const AdvancedOptionsModal = ({
 }: IAdvancedOptionsModalProps) => {
   return (
     <Modal className={baseClass} title="Advanced options" onExit={onExit}>
-      <>
-        <p>
+      <p>
           Advanced options are read-only. To change options, delete software and
           add again.
         </p>
@@ -79,7 +78,6 @@ const AdvancedOptionsModal = ({
         <div className="modal-cta-wrap">
           <Button onClick={onExit}>Done</Button>
         </div>
-      </>
     </Modal>
   );
 };

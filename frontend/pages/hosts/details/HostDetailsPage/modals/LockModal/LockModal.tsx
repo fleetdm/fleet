@@ -119,8 +119,7 @@ const LockModal = ({
 
   return (
     <Modal className={baseClass} title="Lock" onExit={onClose}>
-      <>
-        <div className={`${baseClass}__modal-content`}>
+      <div className={`${baseClass}__modal-content`}>
           <div className={`${baseClass}__description`}>
             {renderDescription()}
           </div>
@@ -154,7 +153,6 @@ const LockModal = ({
             Cancel
           </Button>
         </div>
-      </>
     </Modal>
   );
 };
