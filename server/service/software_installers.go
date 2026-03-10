@@ -368,8 +368,8 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	}
 
 	// decode labels
-	var inclAny, exclAny []string
-	var existsInclAny, existsExclAny bool
+	var inclAny, exclAny, inclAll []string
+	var existsInclAny, existsExclAny, existsInclAll bool
 
 	inclAny, existsInclAny = r.MultipartForm.Value[string(fleet.LabelsIncludeAny)]
 	switch {
@@ -389,6 +389,16 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.LabelsExcludeAny = []string{}
 	default:
 		decoded.LabelsExcludeAny = exclAny
+	}
+
+	inclAll, existsInclAll = r.MultipartForm.Value[string(fleet.LabelsIncludeAll)]
+	switch {
+	case !existsInclAll:
+		decoded.LabelsIncludeAll = nil
+	case len(inclAll) == 1 && inclAll[0] == "":
+		decoded.LabelsIncludeAll = []string{}
+	default:
+		decoded.LabelsIncludeAll = inclAll
 	}
 
 	val, ok = r.MultipartForm.Value["automatic_install"]
