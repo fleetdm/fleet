@@ -1,19 +1,19 @@
-name: 'Apply latest configuration to dogfood with GitOps'
+name: "Apply latest configuration to dogfood with GitOps"
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'it-and-security/**'
-      - '.github/workflows/dogfood-gitops.yml'
+      - "it-and-security/**"
+      - ".github/workflows/dogfood-gitops.yml"
   pull_request:
     paths:
-      - 'it-and-security/**'
-      - '.github/workflows/dogfood-gitops.yml'
+      - "it-and-security/**"
+      - ".github/workflows/dogfood-gitops.yml"
   workflow_dispatch: # allows manual triggering
   schedule:
-  - cron: '0 6 * * *' # Nightly 6AM UTC
+    - cron: "0 6 * * *" # Nightly 6AM UTC
 
 # Prevent concurrent runs of this workflow, but allow all runs to finish.
 concurrency:
@@ -49,10 +49,11 @@ jobs:
           path: fleet-gitops
 
       - name: Apply latest configuration to Fleet
-        uses: ./fleet-gitops/.github/gitops-action
+        uses: ./fleet-gitops/.github/gitops-action-rc
         with:
           working-directory: ${{ github.workspace }}/fleet-gitops
           dry-run-only: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
+          fleet-branch: rc-minor-fleet-v4.82.0
         env:
           FLEET_GITOPS_DIR: ${{ github.workspace }}/it-and-security
           FLEET_URL: https://dogfood.fleetdm.com

@@ -312,6 +312,15 @@ func gitopsCommand() *cli.Command {
 					}
 				}
 
+				// Targeting queries against labels is a Premium feature only
+				if !appConfig.License.IsPremium() {
+					for _, query := range config.Queries {
+						if len(query.LabelsIncludeAny) > 0 {
+							return fmt.Errorf("report %q uses 'labels_include_any', which is only available in Fleet Premium", query.Name)
+						}
+					}
+				}
+
 				// Gather stats on where labels are used in this gitops config,
 				// so we can bail if any of the referenced labels don't exist
 				// after this run (either because they'd be deleted, never existed
@@ -475,6 +484,7 @@ func gitopsCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
+
 				assumptions, err := fleetClient.DoGitOps(
 					c.Context,
 					config,
