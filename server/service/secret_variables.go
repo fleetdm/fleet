@@ -20,7 +20,7 @@ const (
 //////////////////////////////////////////////////////////////////////////////////
 
 type createSecretVariablesRequest struct {
-	DryRun          bool                   `json:"dry_run"`
+	DryRun          bool                   `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	SecretVariables []fleet.SecretVariable `json:"secrets"`
 }
 
