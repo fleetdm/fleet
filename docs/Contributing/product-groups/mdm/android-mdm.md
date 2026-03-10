@@ -13,11 +13,22 @@ You can also setup a local proxy or use the Google API directly.
 
 > Android MDM can't be turned on with localhost server URL (e.g. https://localhost:8412), so your server can receive `STATUS_REPORT` via PubSub notifications. Use ngrok or a similar solution to expose your local server to the public internet.
 
+## Setup a Google project and service account
+
+> Instead of creating your own, you can use the shared Android DEV Google cloud project. The credentials for the Android DEV google cloud project can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=lsq2qqbfjlrh6eyby2tr2qc7nu&h=fleetdevicemanagement.1password.com).
+
+Create a Google service account with the following Roles
+- Android Management User
+- Pub/Sub Admin
+
+To do so:
+* Follow instructions at https://developers.google.com/android/management/service-account to create the project and service account
+* Follow instructions at https://developers.google.com/android/management/notifications to create pub/sub notifications
+* Troubleshooting: watch the video of Gabe and Victor discussion post-standup: https://us-65885.app.gong.io/call?id=4731209913082368849 (starting at the 12:50 timestamp)
+
 ## Run an Android MDM environment with a local proxy
 
 If you're hosting your own Fleet website instance, you need to set the following in `website/config/custom.js`:
-
-> The credentials for the Android DEV google cloud project can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=lsq2qqbfjlrh6eyby2tr2qc7nu&h=fleetdevicemanagement.1password.com).
 
 ```javascript
   // Android proxy
@@ -37,8 +48,6 @@ Then, launch the website and your Fleet server.
 ## Run an Android MDM environment connected directly to Google
 
 Set the following env vars:
-
-> The credentials for the Android DEV google cloud project can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=lsq2qqbfjlrh6eyby2tr2qc7nu&h=fleetdevicemanagement.1password.com).
 
 ```bash
 export FLEET_DEV_ANDROID_GOOGLE_CLIENT=1
