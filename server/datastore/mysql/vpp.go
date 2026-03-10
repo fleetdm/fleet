@@ -2334,7 +2334,6 @@ WHERE
 }
 
 func (ds *Datastore) GetAndroidAppsInScopeForHost(ctx context.Context, hostID uint) (applicationIDs []string, err error) {
-	// TODO(mna): support include all
 	stmt := `
 SELECT
 	installable_id
@@ -2362,9 +2361,8 @@ FROM (
 			vpp_app_team_labels vatl
 			LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
 			JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
-		LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
-		AND lm.host_id = ?
-		WHERE vatl.exclude = 0 AND vpp_apps_teams.platform = 'android'
+			LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id AND lm.host_id = ?
+		WHERE vatl.exclude = 0 AND vatl.require_all = 0 AND vpp_apps_teams.platform = 'android'
 		GROUP BY installable_id
 		HAVING
 			count_installer_labels > 0
@@ -2397,17 +2395,36 @@ FROM (
 			vpp_apps_teams.adam_id AS installable_id
 		FROM
 			vpp_app_team_labels vatl
-		LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
-		JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
-		LEFT OUTER JOIN labels lbl ON lbl.id = vatl.label_id
-		LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
-			AND lm.host_id = ?
-		WHERE vatl.exclude = 1 AND vpp_apps_teams.platform = 'android'
+			LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
+			JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
+			LEFT OUTER JOIN labels lbl ON lbl.id = vatl.label_id
+			LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id AND lm.host_id = ?
+		WHERE vatl.exclude = 1 AND vatl.require_all = 0 AND vpp_apps_teams.platform = 'android'
 		GROUP BY installable_id
 		HAVING
 			count_installer_labels > 0
 			AND count_installer_labels = count_host_updated_after_labels
-			AND count_host_labels = 0) t;
+			AND count_host_labels = 0
+
+		UNION
+
+		-- include all
+		SELECT
+			COUNT(*) AS count_installer_labels,
+			COUNT(lm.label_id) AS count_host_labels,
+			0 AS count_host_updated_after_labels,
+			vpp_apps_teams.adam_id AS installable_id
+		FROM
+			vpp_app_team_labels vatl
+			LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
+			JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
+			LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id AND lm.host_id = ?
+		WHERE vatl.exclude = 0 AND vatl.require_all = 1 AND vpp_apps_teams.platform = 'android'
+		GROUP BY installable_id
+		HAVING
+			count_installer_labels > 0
+			AND count_host_labels = count_installer_labels
+		) t
 	`
 
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &applicationIDs, stmt, hostID, hostID, hostID, hostID, hostID, hostID)
