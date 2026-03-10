@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 
 import PATHS from "router/paths";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -41,6 +41,7 @@ const SoftwareCustomPackage = ({
 }: ISoftwarePackageProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier, config } = useContext(AppContext);
+  const queryClient = useQueryClient();
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -142,6 +143,10 @@ const SoftwareCustomPackage = ({
           </>
         );
       }
+
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-titles" }],
+      });
 
       const newQueryParams: QueryParams = {
         fleet_id: currentTeamId,
