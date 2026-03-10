@@ -13443,7 +13443,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 		{URL: rubyURL, LabelsIncludeAny: []string{lblA.Name}, LabelsExcludeAny: []string{lblB.Name}},
 	}
 	res := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(res.Body), `Only one of "labels_include_any" or "labels_exclude_any" can be included.`)
+	require.Contains(t, extractServerErrorText(res.Body), `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`)
 
 	// providing a non-existing label results in an error
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{
@@ -19822,7 +19822,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	req.LabelsExcludeAny = []string{lbl1.Name}
 	addMAResp = addFleetMaintainedAppResponse{}
 	r = s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(r.Body), `Only one of "labels_include_any" or "labels_exclude_any" can be included`)
+	require.Contains(t, extractServerErrorText(r.Body), `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included`)
 }
 
 func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {

@@ -13249,7 +13249,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			LabelsExcludeAny: []string{l2.Name},
 		}
 		res := s.Do("POST", "/api/latest/fleet/software/app_store_apps", addAppReq, http.StatusBadRequest)
-		require.Contains(t, extractServerErrorText(res.Body), `Only one of "labels_include_any" or "labels_exclude_any" can be included`)
+		require.Contains(t, extractServerErrorText(res.Body), `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included`)
 
 		// Now add it for real
 		addAppReq.LabelsExcludeAny = []string{}
@@ -13335,7 +13335,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		updateAppReq.LabelsIncludeAny = []string{l1.Name}
 		updateAppReq.LabelsExcludeAny = []string{l1.Name}
 		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), updateAppReq, http.StatusBadRequest)
-		require.Contains(t, extractServerErrorText(res.Body), `Only one of "labels_include_any" or "labels_exclude_any" can be included.`)
+		require.Contains(t, extractServerErrorText(res.Body), `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`)
 
 		// Attempt to update with a non-existent label. Should fail.
 		updateAppReq.LabelsExcludeAny = []string{}

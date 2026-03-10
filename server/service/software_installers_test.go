@@ -312,7 +312,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				nil,
 				nil,
 				"",
-				`Only one of "labels_include_any" or "labels_exclude_any" can be included.`,
+				`Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`,
 			},
 			{
 				"non-existent label",
