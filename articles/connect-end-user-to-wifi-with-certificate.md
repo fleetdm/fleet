@@ -554,7 +554,7 @@ How does this work? Fleet installs the "Fleet" Android app on each host. Every 1
 <details>
 <summary>Windows configuration profile</summary>
 
-All options in the example profile are required. To get the [CAThumbprint of your SCEP server] follow [these steps](#how-to-get-the-cathumbprint-for-windows-scep-profiles).
+All options in the example profile are required. To get the CAThumbprint of your SCEP server follow [these steps](#how-to-get-the-cathumbprint-for-windows-scep-profiles).
 
 You can add any other options listed under Device/SCEP in the [Microsoft documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp).
 
