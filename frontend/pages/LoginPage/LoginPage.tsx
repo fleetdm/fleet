@@ -120,9 +120,12 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
 
       try {
         const response = await sessionsAPI.login(formData);
-        const { user, available_teams, token } = response;
+        const { user, available_teams, token, token_expires_at } = response;
 
-        authToken.save(token);
+        const expiresAt = token_expires_at
+          ? new Date(token_expires_at)
+          : undefined;
+        authToken.save(token, expiresAt);
 
         setCurrentUser(user);
         setAvailableTeams(user, available_teams);
