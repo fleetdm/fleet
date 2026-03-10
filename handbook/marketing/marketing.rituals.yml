@@ -119,3 +119,10 @@
   moreInfoUrl: "https://www.printful.com/dashboard/default/orders"
   dri: "irenareedy"
 -
+  task: "Save spontaneous customer testimonials"
+  startedOn: "2026-03-09"
+  frequency: "Weekly"
+  description: "Every week, go through Fleet's tagged posts on LinkedIn and through the Slack channels and add them to the testimonial.yml file. Ensure it's commented out & has all required fields in testimonial.yml file. Assign PR to website team."
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing/marketing-assets-new"
+  dri: "irenareedy"
+-
