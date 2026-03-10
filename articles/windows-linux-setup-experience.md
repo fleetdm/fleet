@@ -22,7 +22,9 @@ Below is the end user experience for Linux. Check out the separate video for [Wi
 
 ### End user experience
 
-Fleet automatically opens the default web browser and directs the end user to log in before the setup process can continue. On Windows, if the user authenticates while enrolling through **Settings > Access work or school**, authentication will not be required during the setup experience.
+Fleet automatically opens the default web browser and directs the end user to log in before the setup process can continue. 
+
+If the end user enrolls through **Settings > Access work or school**, Fleet's authentication window will be skipped because the user already authenticated.
 
 Learn how to enforce authentication in the [setup experience guide](https://fleetdm.com/guides/setup-experience#end-user-authentication).
 
