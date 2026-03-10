@@ -102,7 +102,8 @@ const NDESForm = ({
         helpText={
           <>
             For NDES, the password required to log in to the{" "}
-            <b>Network Device Enrollment Service</b> page. Okta generates this for you.
+            <b>Network Device Enrollment Service</b> page. Okta generates this for 
+            you.
           </>
         }
       />
