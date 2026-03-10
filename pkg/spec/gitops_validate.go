@@ -190,7 +190,7 @@ func validateMapKeys(data map[string]any, targetType reflect.Type, path []string
 	known := knownJSONKeys(targetType)
 	if len(known) == 0 {
 		// No JSON-tagged fields: either not a struct or a struct with custom
-		// serialization (e.g. GoogleCalendarApiKey). Skip validation.
+		// serialization. Skip validation since we don't know the expected keys.
 		return nil
 	}
 
