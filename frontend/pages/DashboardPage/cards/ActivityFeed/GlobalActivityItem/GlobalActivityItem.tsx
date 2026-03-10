@@ -78,7 +78,6 @@ const getProfileMessageSuffix = (
 };
 
 const getHostTeamAssignmentSuffix = (teamName?: string | null) => {
-const getHostTeamAssignmentSuffix = (teamName?: string | null) => {
   return teamName ? (
     <>
       {" "}
