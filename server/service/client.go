@@ -2760,10 +2760,9 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			return errors.New(
 				"cannot use both 'webhooks_and_tickets_enabled' on policies and 'policy_ids' in failing_policies_webhook settings; please use one or the other",
 			)
-		} else {
-			// Log a deprecation warning.
-			logFn("[!] WARNING: using 'policy_ids' in failing_policies_webhook settings is deprecated; please use 'webhooks_and_tickets_enabled: true' on individual policies instead\n")
 		}
+		// Log a deprecation warning.
+		logFn("[!] WARNING: using 'policy_ids' in failing_policies_webhook settings is deprecated; please use 'webhooks_and_tickets_enabled: true' on individual policies instead\n")
 	}
 
 	var teamID *uint // Global policies (nil)
