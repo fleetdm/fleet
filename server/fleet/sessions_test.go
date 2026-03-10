@@ -314,6 +314,65 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			},
 			shouldFail: true,
 		},
+		{
+			name: "global-technician",
+			attributes: []SAMLAttribute{
+				{
+					Name: globalUserRoleSSOAttrName,
+					Values: []SAMLAttributeValue{
+						{Value: "technician"},
+					},
+				},
+			},
+			shouldFail: false,
+			expectedSSORolesInfo: SSORolesInfo{
+				Global: ptr.String("technician"),
+			},
+		},
+		{
+			name: "team-technician",
+			attributes: []SAMLAttribute{
+				{
+					Name: teamUserRoleSSOAttrNamePrefix + "3",
+					Values: []SAMLAttributeValue{
+						{Value: "technician"},
+					},
+				},
+			},
+			shouldFail: false,
+			expectedSSORolesInfo: SSORolesInfo{
+				Teams: []TeamRole{
+					{
+						ID:   3,
+						Role: "technician",
+					},
+				},
+			},
+		},
+		{
+			name: "global-gitops-not-supported-for-jit",
+			attributes: []SAMLAttribute{
+				{
+					Name: globalUserRoleSSOAttrName,
+					Values: []SAMLAttributeValue{
+						{Value: "gitops"},
+					},
+				},
+			},
+			shouldFail: true,
+		},
+		{
+			name: "team-gitops-not-supported-for-jit",
+			attributes: []SAMLAttribute{
+				{
+					Name: teamUserRoleSSOAttrNamePrefix + "1",
+					Values: []SAMLAttributeValue{
+						{Value: "gitops"},
+					},
+				},
+			},
+			shouldFail: true,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ssoRolesInfo, err := RolesFromSSOAttributes(tc.attributes)
