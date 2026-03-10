@@ -339,6 +339,8 @@ func TestParseMDMEnrollmentStatus(t *testing.T) {
 		{ptr.String("Enrolled via DEP: No\nMDM Enrollment: No"), nil, false, false},
 		{ptr.String("Enrolled via DEP: Yes\nMDM Enrollment: No"), nil, true, false},
 		{ptr.String("Enrolled via DEP: No\nMDM Enrollment: Yes (User Approved)"), nil, false, false},
+		{ptr.String("Enrolled via DEP: No\nMDM Enrollment: Yes (User Approved)\nMDM Server: https://mdm.example.com"), nil, false, false},
+		{ptr.String("Enrolled via DEP: Yes\nMDM Enrollment: Yes\nMDM Server: https://mdm.example.com"), nil, true, false},
 	}
 
 	origCmd := getMDMInfoFromProfilesCmd
