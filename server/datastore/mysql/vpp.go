@@ -2334,6 +2334,7 @@ WHERE
 }
 
 func (ds *Datastore) GetAndroidAppsInScopeForHost(ctx context.Context, hostID uint) (applicationIDs []string, err error) {
+	// TODO(mna): support include all
 	stmt := `
 SELECT
 	installable_id

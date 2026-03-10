@@ -2357,18 +2357,21 @@ INSERT INTO
 	software_installer_labels (
 		software_installer_id,
 		label_id,
-		exclude
+		exclude,
+		require_all
 	)
 VALUES
 	%s
 ON DUPLICATE KEY UPDATE
-	exclude = VALUES(exclude)
+	exclude = VALUES(exclude),
+	require_all = VALUES(require_all)
 `
 
 	const loadExistingInstallerLabels = `
 SELECT
 	label_id,
-	exclude
+	exclude,
+	require_all
 FROM
 	software_installer_labels
 WHERE
@@ -2911,13 +2914,15 @@ WHERE
 				}
 
 				excludeLabels := installer.ValidatedLabels.LabelScope == fleet.LabelScopeExcludeAny
+				requireAllLabels := installer.ValidatedLabels.LabelScope == fleet.LabelScopeIncludeAll
 				if len(existing) > 0 && !existing[0].IsMetadataModified {
 					// load the remaining labels for that installer, so that we can detect
 					// if any label changed (if the counts differ, then labels did change,
-					// otherwise if the exclude bool changed, the target did change).
+					// otherwise if the exclude/require all bool changed, the target did change).
 					var existingLabels []struct {
-						LabelID uint `db:"label_id"`
-						Exclude bool `db:"exclude"`
+						LabelID    uint `db:"label_id"`
+						Exclude    bool `db:"exclude"`
+						RequireAll bool `db:"require_all"`
 					}
 					if err := sqlx.SelectContext(ctx, tx, &existingLabels, loadExistingInstallerLabels, installerID); err != nil {
 						return ctxerr.Wrapf(ctx, err, "load existing labels for installer with name %q", installer.Filename)
@@ -2926,8 +2931,8 @@ WHERE
 					if len(existingLabels) != len(labelIDs) {
 						existing[0].IsMetadataModified = true
 					}
-					if len(existingLabels) > 0 && existingLabels[0].Exclude != excludeLabels {
-						// same labels are provided, but the include <-> exclude changed
+					if len(existingLabels) > 0 && (existingLabels[0].Exclude != excludeLabels || existingLabels[0].RequireAll != requireAllLabels) {
+						// same labels are provided, but the include <-> exclude or require all changed
 						existing[0].IsMetadataModified = true
 					}
 				}
@@ -2935,9 +2940,9 @@ WHERE
 				// upsert the new labels now that obsolete ones have been deleted
 				var upsertLabelArgs []any
 				for _, lblID := range labelIDs {
-					upsertLabelArgs = append(upsertLabelArgs, installerID, lblID, excludeLabels)
+					upsertLabelArgs = append(upsertLabelArgs, installerID, lblID, excludeLabels, requireAllLabels)
 				}
-				upsertLabelValues := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(installer.ValidatedLabels.ByName)), ",")
+				upsertLabelValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(installer.ValidatedLabels.ByName)), ",")
 
 				_, err = tx.ExecContext(ctx, fmt.Sprintf(upsertInstallerLabels, upsertLabelValues), upsertLabelArgs...)
 				if err != nil {

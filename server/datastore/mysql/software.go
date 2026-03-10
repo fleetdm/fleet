@@ -3455,6 +3455,7 @@ func filterSoftwareInstallersByLabel(
 	if len(softwareInstallersIDsToCheck) > 0 {
 		globalOrTeamID := ptr.ValOrZero(host.TeamID)
 
+		// TODO(mna): support include all
 		labelSqlFilter := `
 			WITH no_labels AS (
 				SELECT
@@ -3609,6 +3610,7 @@ func filterVPPAppsByLabel(
 			globalOrTeamID = *host.TeamID
 		}
 
+		// TODO(mna): support include all
 		labelSqlFilter := `
 			WITH no_labels AS (
 				SELECT
@@ -3763,6 +3765,7 @@ func filterInHouseAppsByLabel(
 		globalOrTeamID = *host.TeamID
 	}
 
+	// TODO(mna): support include all
 	labelSQLFilter := `
 			WITH no_labels AS (
 				SELECT
@@ -4716,6 +4719,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				-- label membership check
 				(
 					-- do the label membership check for software installers and VPP apps and in-house apps
+					-- TODO(mna) support include all
 						EXISTS (
 
 						SELECT 1 FROM (
