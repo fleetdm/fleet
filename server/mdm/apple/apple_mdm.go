@@ -102,7 +102,7 @@ func (d *DEPService) getDefaultProfile() *godep.Profile {
 		AutoAdvanceSetup: false,
 		IsMultiUser:      false,
 		IsMandatory:      false,
-		IsMDMRemovable:   false,
+		IsMDMRemovable:   true,
 		Language:         "en",
 		OrgMagic:         "1",
 		SkipSetupItems: []string{
