@@ -284,7 +284,7 @@ type GitOpsOrgSettings struct {
 	CertificateAuthorities any `json:"certificate_authorities"`
 }
 
-// GitOpsFleetSettings defines the valid keys for the top-level `settings:` section (team-level).
+// GitOpsFleetSettings defines the valid keys for the top-level `settings:` section (fleet-level).
 // It embeds fleet.TeamConfig for all standard settings and adds gitops-only keys
 // that are extracted before the config is sent to the server API.
 type GitOpsFleetSettings struct {
