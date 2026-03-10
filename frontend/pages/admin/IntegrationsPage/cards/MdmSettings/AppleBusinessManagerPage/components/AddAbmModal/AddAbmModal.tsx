@@ -95,7 +95,7 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
         </li>
         <li>
           <span>5.</span>
-          <span>Enter a name for the server such as "Fleet".</span>
+          <span>Enter a name for the server such as &quot;Fleet&quot;.</span>
         </li>
         <li>
           <span>6.</span>
