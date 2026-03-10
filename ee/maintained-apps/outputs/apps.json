@@ -219,6 +219,13 @@
       "description": "AWS Client VPN is a managed client-based VPN service to securely access AWS resources."
     },
     {
+      "name": "Backblaze",
+      "slug": "backblaze/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.backblaze.bzbmenu",
+      "description": "Backblaze is a data backup and storage service."
+    },
+    {
       "name": "balenaEtcher",
       "slug": "balenaetcher/darwin",
       "platform": "darwin",
