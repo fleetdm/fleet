@@ -184,30 +184,13 @@ const SoftwareOptionsSelector = ({
     ) : null;
   };
 
-  const selfServiceLabel = () => {
-    return !isSelfServiceDisabled ? (
-      <TooltipWrapper
-        tipContent={getSelfServiceTooltip(
-          isPlatformIosOrIpados,
-          isPlatformAndroid
-        )}
-      >
-        <span>Self-service</span>
-      </TooltipWrapper>
-    ) : (
-      "Self-service"
-    );
-  };
+  const selfServiceLabelTooltip = !isSelfServiceDisabled
+    ? getSelfServiceTooltip(isPlatformIosOrIpados, isPlatformAndroid)
+    : undefined;
 
-  const automaticInstallLabel = () => {
-    return showAutomaticInstallTooltip ? (
-      <TooltipWrapper tipContent={getAutomaticInstallTooltip()}>
-        <span>Automatic install</span>
-      </TooltipWrapper>
-    ) : (
-      "Automatic install"
-    );
-  };
+  const automaticInstallLabelTooltip = showAutomaticInstallTooltip
+    ? getAutomaticInstallTooltip()
+    : undefined;
 
   return (
     <div className={`form-field ${classNames}`}>
@@ -217,8 +200,9 @@ const SoftwareOptionsSelector = ({
         <Slider
           value={formData.selfService}
           onChange={onToggleSelfService}
-          inactiveText={selfServiceLabel()}
-          activeText={selfServiceLabel()}
+          inactiveText="Self-service"
+          activeText="Self-service"
+          labelTooltip={selfServiceLabelTooltip}
           className={`${baseClass}__self-service-slider`}
           disabled={isSelfServiceDisabled}
         />
@@ -235,9 +219,10 @@ const SoftwareOptionsSelector = ({
         <Slider
           value={formData.automaticInstall}
           onChange={onToggleAutomaticInstall}
-          activeText={automaticInstallLabel()}
-          inactiveText={automaticInstallLabel()}
+          activeText="Automatic install"
+          inactiveText="Automatic install"
           className={`${baseClass}__automatic-install-slider`}
+          labelTooltip={automaticInstallLabelTooltip}
           disabled={isAutomaticInstallDisabled}
         />
       )}
