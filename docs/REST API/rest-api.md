@@ -17,7 +17,7 @@
 - [Sessions](#sessions)
 - [Software](#software)
 - [Targets](#targets)
-- [Teams](#teams)
+- [Fleets](#fleets)
 - [Translator](#translator)
 - [Users](#users)
 - [Custom variables](#custom-variables)
@@ -102,7 +102,8 @@ Authenticates the user with the specified credentials. Use the token returned fr
     "sso_enabled": false,
     "mfa_enabled": false,
     "global_role": "admin",
-    "teams": []
+    "teams": [],
+    "fleets": []
   },
   "token": "{your token}"
 }
@@ -326,7 +327,8 @@ Retrieves the user data for the authenticated user.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "teams": []
+    "teams": [],
+    "fleets": []
   },
   "available_teams" : [
     {
@@ -335,6 +337,13 @@ Retrieves the user data for the authenticated user.
       "description": "Employee workstations"
     }
   ],
+    "available_fleets" : [
+    {
+      "id": 1,
+      "name": "Workstations",
+      "description": "Employee workstations"
+    }
+  ]
 }
 ```
 
@@ -375,7 +384,8 @@ Resets the password of the authenticated user. Requires that `force_password_res
     "gravatar_url": "",
     "sso_enabled": false,
     "global_role": "admin",
-    "teams": []
+    "teams": [],
+    "fleets": []
   }
 }
 ```
