@@ -4369,10 +4369,10 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 								is_active
 							)
 						VALUES
-							(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+							(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
 				teamID, globalOrTeamID, titleID, fmt.Sprintf("installer-%d.pkg", i), "pkg", fmt.Sprintf("v%d.0.0", i), scriptContentID,
 				uninstallScriptContentID,
-				[]byte("test"), "darwin", i < 2, "[]", true)
+				[]byte("test"), "darwin", i < 2, "[]")
 			if err != nil {
 				return err
 			}
@@ -5255,10 +5255,10 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 									is_active
 								)
 							VALUES
-								(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+								(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
 			darwinHost.TeamID, 0, softwareAlreadyInstalled.TitleID, "DummyApp.pkg", "pkg", "2.0.0",
 			scriptContentID, uninstallScriptContentID,
-			[]byte("test"), "darwin", true, "[]", true)
+			[]byte("test"), "darwin", true, "[]")
 		if err != nil {
 			return err
 		}
