@@ -3,6 +3,8 @@ import { render, screen } from "@testing-library/react";
 
 import { createMockHostMdmProfile } from "__mocks__/hostMock";
 
+import { REC_LOCK_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
+
 import OSSettingsErrorCell from "./OSSettingsErrorCell";
 
 const noop = () => new Promise<void>(() => undefined);
@@ -180,13 +182,13 @@ describe("OSSettingsErrorCell", () => {
     expect(screen.getByText("Profile GUID")).toBeInTheDocument();
   });
 
-  it("renders a rotate button when canRotateRecoveryLockPassword is true and profile is verified", () => {
+  it("renders a rotate button when canRotateRecoveryLockPassword is true and password status is verified", () => {
     render(
       <OSSettingsErrorCell
         canResendProfiles={false}
         canRotateRecoveryLockPassword
         profile={createMockHostMdmProfile({
-          profile_uuid: "rec_lock_dummy",
+          profile_uuid: REC_LOCK_SYNTHETIC_PROFILE_UUID,
           status: "verified",
         })}
         resendRequest={noop}
@@ -197,13 +199,13 @@ describe("OSSettingsErrorCell", () => {
     expect(screen.getByRole("button", { name: "Rotate" })).toBeInTheDocument();
   });
 
-  it("renders a rotate button when canRotateRecoveryLockPassword is true and profile is failed", () => {
+  it("renders a rotate button when canRotateRecoveryLockPassword is true and password status is failed", () => {
     render(
       <OSSettingsErrorCell
         canResendProfiles={false}
         canRotateRecoveryLockPassword
         profile={createMockHostMdmProfile({
-          profile_uuid: "rec_lock_dummy",
+          profile_uuid: REC_LOCK_SYNTHETIC_PROFILE_UUID,
           status: "failed",
         })}
         resendRequest={noop}
@@ -220,7 +222,7 @@ describe("OSSettingsErrorCell", () => {
         canResendProfiles={false}
         canRotateRecoveryLockPassword={false}
         profile={createMockHostMdmProfile({
-          profile_uuid: "rec_lock_dummy",
+          profile_uuid: REC_LOCK_SYNTHETIC_PROFILE_UUID,
           status: "verified",
         })}
         resendRequest={noop}
@@ -233,13 +235,13 @@ describe("OSSettingsErrorCell", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("does not render a rotate button when status is pending", () => {
+  it("does not render a rotate button when password status is pending", () => {
     render(
       <OSSettingsErrorCell
         canResendProfiles={false}
         canRotateRecoveryLockPassword
         profile={createMockHostMdmProfile({
-          profile_uuid: "rec_lock_dummy",
+          profile_uuid: REC_LOCK_SYNTHETIC_PROFILE_UUID,
           status: "pending",
         })}
         resendRequest={noop}

@@ -22,6 +22,7 @@ import {
   generateLinuxDiskEncryptionSetting,
   generateRecoveryLockPasswordSetting,
   generateWinDiskEncryptionSetting,
+  REC_LOCK_SYNTHETIC_PROFILE_UUID,
 } from "../../helpers";
 
 export interface IHostMdmProfileWithAddedStatus
@@ -98,7 +99,8 @@ const generateTableConfig = (
         const isWindowsProfile = platform === "windows";
 
         const isRecoveryLockRow =
-          cellProps.row.original.profile_uuid === "rec_lock_dummy";
+          cellProps.row.original.profile_uuid ===
+          REC_LOCK_SYNTHETIC_PROFILE_UUID;
 
         return (
           <OSSettingsErrorCell
