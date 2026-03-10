@@ -199,6 +199,16 @@ func collectAllSyncMLItems(cmd *fleet.SyncMLCmd) []fleet.CmdItem {
 	return items
 }
 
+// containsFleetVar checks if s contains the given Fleet variable in either $FLEET_VAR_ or ${FLEET_VAR_} form.
+func containsFleetVar(s string, v fleet.FleetVarName) bool {
+	return strings.Contains(s, v.WithPrefix()) || strings.Contains(s, v.WithBraces())
+}
+
+// isFleetVar checks if s is exactly the given Fleet variable in either $FLEET_VAR_ or ${FLEET_VAR_} form.
+func isFleetVar(s string, v fleet.FleetVarName) bool {
+	return s == v.WithPrefix() || s == v.WithBraces()
+}
+
 func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESVarsFound) error {
 	if ndesVars == nil {
 		return nil
@@ -218,37 +228,61 @@ func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESV
 		}
 
 		for _, cmd := range collectAllSyncMLItems(cmdMsg) {
-			if cmd.Target == nil || cmd.Data == nil {
+			if cmd.Target == nil {
 				continue
 			}
 
-			if strings.HasSuffix(*cmd.Target, "/Install/Challenge") {
-				challengeVar := fleet.FleetVarNDESSCEPChallenge.WithPrefix()
-				challengeVarBraces := fleet.FleetVarNDESSCEPChallenge.WithBraces()
-				if cmd.Data.Content != challengeVar && cmd.Data.Content != challengeVarBraces {
-					return &fleet.BadRequestError{
-						Message: fmt.Sprintf("Variable %q must be in the SCEP certificate's \"Challenge\" field.", challengeVar),
-					}
+			dataContent := ""
+			if cmd.Data != nil {
+				dataContent = cmd.Data.Content
+			}
+
+			isChallenge := strings.HasSuffix(*cmd.Target, "/Install/Challenge")
+			isServerURL := strings.HasSuffix(*cmd.Target, "/Install/ServerURL")
+			isSubjectName := strings.HasSuffix(*cmd.Target, "/Install/SubjectName")
+
+			// Verify that each NDES variable appears ONLY in its expected field.
+			// This prevents the one-time challenge or proxy URL from being placed in an unexpected field
+			// where it could be exfiltrated, since variable replacement is a global string substitution.
+			if !isChallenge && containsFleetVar(dataContent, fleet.FleetVarNDESSCEPChallenge) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf(
+						"Variable %q must only be in the SCEP certificate's \"Challenge\" field.", fleet.FleetVarNDESSCEPChallenge.WithPrefix()),
+				}
+			}
+			if !isServerURL && containsFleetVar(dataContent, fleet.FleetVarNDESSCEPProxyURL) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf(
+						"Variable %q must only be in the SCEP certificate's \"ServerURL\" field.", fleet.FleetVarNDESSCEPProxyURL.WithPrefix()),
 				}
 			}
 
-			if strings.HasSuffix(*cmd.Target, "/Install/ServerURL") {
-				urlVar := fleet.FleetVarNDESSCEPProxyURL.WithPrefix()
-				urlVarBraces := fleet.FleetVarNDESSCEPProxyURL.WithBraces()
-				if cmd.Data.Content != urlVar && cmd.Data.Content != urlVarBraces {
-					return &fleet.BadRequestError{
-						Message: fmt.Sprintf("Variable %q must be in the SCEP certificate's \"ServerURL\" field.", urlVar),
-					}
+			// Variables must not appear in LocURI target paths.
+			if containsFleetVar(*cmd.Target, fleet.FleetVarNDESSCEPChallenge) ||
+				containsFleetVar(*cmd.Target, fleet.FleetVarNDESSCEPProxyURL) {
+				return &fleet.BadRequestError{
+					Message: "NDES Fleet variables must not appear in LocURI target paths.",
 				}
 			}
 
-			if strings.HasSuffix(*cmd.Target, "/Install/SubjectName") {
-				renewalVar := fleet.FleetVarSCEPRenewalID.WithPrefix()
-				renewalVarBraces := fleet.FleetVarSCEPRenewalID.WithBraces()
-				if !strings.Contains(cmd.Data.Content, "OU="+renewalVar) && !strings.Contains(cmd.Data.Content, "OU="+renewalVarBraces) {
-					return &fleet.BadRequestError{
-						Message: fmt.Sprintf("SubjectName item must contain the %s variable in the OU field", renewalVar),
-					}
+			// Verify the expected fields contain the correct variables.
+			if isChallenge && !isFleetVar(dataContent, fleet.FleetVarNDESSCEPChallenge) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf(
+						"Variable %q must be in the SCEP certificate's \"Challenge\" field.", fleet.FleetVarNDESSCEPChallenge.WithPrefix()),
+				}
+			}
+			if isServerURL && !isFleetVar(dataContent, fleet.FleetVarNDESSCEPProxyURL) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf(
+						"Variable %q must be in the SCEP certificate's \"ServerURL\" field.", fleet.FleetVarNDESSCEPProxyURL.WithPrefix()),
+				}
+			}
+			if isSubjectName &&
+				!strings.Contains(dataContent, "OU="+fleet.FleetVarSCEPRenewalID.WithPrefix()) &&
+				!strings.Contains(dataContent, "OU="+fleet.FleetVarSCEPRenewalID.WithBraces()) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf("SubjectName item must contain the %s variable in the OU field", fleet.FleetVarSCEPRenewalID.WithPrefix()),
 				}
 			}
 		}

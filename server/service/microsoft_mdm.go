@@ -2523,6 +2523,8 @@ func (svc *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 	return ps, nil
 }
 
+// ndesChallengeErrorToDetail translates NDES-specific error types into user-friendly messages
+// for profile failure details. Used by both Apple and Windows NDES profile processing.
 func ndesChallengeErrorToDetail(err error) string {
 	varName := fleet.FleetVarNDESSCEPChallenge.WithPrefix()
 	switch {
