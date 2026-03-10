@@ -287,9 +287,10 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 	}
 
 	// Expand host-scoped secrets for SetRecoveryLock commands.
-	// The enrollment ID (typically UDID) is used to look up host-specific secrets.
+	// SetRecoveryLock is device-only, so UDID is always present and matches host UUID.
 	if cmd.Command.Command.RequestType == fleet.SetRecoveryLockCmdName {
-		hostExpanded, err := s.store.ExpandHostSecrets(r.Context, string(cmd.Raw), r.ID)
+		hostUUID := results.UDID
+		hostExpanded, err := s.store.ExpandHostSecrets(r.Context, string(cmd.Raw), hostUUID)
 		if err != nil {
 			errorMsg := fmt.Sprintf("failed to expand host secrets: %v", err)
 			logger.Info("level", "error", "msg", "expanding host secrets", "err", err)
@@ -308,8 +309,7 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 				logger.Info("level", "error", "msg", "storing failed command result", "err", storeErr)
 			}
 			// Mark the host's recovery lock status as failed so it's not stuck in pending.
-			// r.ID is the enrollment ID (host UUID).
-			if storeErr := s.store.SetRecoveryLockFailed(r.Context, r.ID, errorMsg); storeErr != nil {
+			if storeErr := s.store.SetRecoveryLockFailed(r.Context, hostUUID, errorMsg); storeErr != nil {
 				logger.Info("level", "error", "msg", "setting recovery lock failed", "err", storeErr)
 			}
 			return nil, nil
