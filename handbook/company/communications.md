@@ -775,6 +775,7 @@ In this meeting, we'll [use this agenda](https://docs.google.com/document/d/1_gA
   - The "office" (#g-, #general).
   - The walkie talkies (DMs).
   - The watering hole (#oooh-, #random, #news, #help-).
+  - Add a profile photo in Slack.
 
 
 #### Contributor experience training
