@@ -66,8 +66,8 @@ func (c *Client) ApplyTeams(specs []json.RawMessage, opts fleet.ApplyTeamSpecOpt
 	return responseBody.TeamIDsByName, nil
 }
 
-// PatchTeam sends a partial update to the specified team.
-func (c *Client) PatchTeam(teamID uint, payload fleet.TeamPayload) error {
+// PatchFleet sends a partial update to the specified team.
+func (c *Client) PatchFleet(teamID uint, payload fleet.TeamPayload) error {
 	verb, path := "PATCH", "/api/latest/fleet/teams/"+strconv.FormatUint(uint64(teamID), 10)
 	var resp teamResponse
 	return c.authenticatedRequest(payload, verb, path, &resp)

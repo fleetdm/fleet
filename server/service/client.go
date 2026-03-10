@@ -2687,7 +2687,7 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 
 	if !dryRun {
 		logFn("[+] applying webhook settings for unassigned hosts\n")
-		err := c.PatchTeam(0, teamPayload)
+		err := c.PatchFleet(0, teamPayload)
 		if err != nil {
 			return fmt.Errorf("applying webhook settings for unassigned hosts: %w", err)
 		}
@@ -3009,7 +3009,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				} else {
 					patchTeamID = *config.TeamID
 				}
-				if err := c.PatchTeam(patchTeamID, fleet.TeamPayload{
+				if err := c.PatchFleet(patchTeamID, fleet.TeamPayload{
 					WebhookSettings: &fleet.TeamWebhookSettings{FailingPoliciesWebhook: fpw},
 				}); err != nil {
 					return fmt.Errorf("error updating failing policies webhook: %w", err)
