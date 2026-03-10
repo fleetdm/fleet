@@ -43,6 +43,9 @@ func (ds *Datastore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (
 			user.Active,
 		)
 		if err != nil {
+			if IsDuplicate(err) {
+				return ctxerr.Wrap(ctx, alreadyExists("ScimUser", user.UserName), "insert scim user")
+			}
 			return ctxerr.Wrap(ctx, err, "insert scim user")
 		}
 
