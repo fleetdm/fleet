@@ -1,5 +1,5 @@
 import React from "react";
-import { screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
 import SoftwareOptionsSelector from "./SoftwareOptionsSelector";
@@ -154,5 +154,26 @@ describe("SoftwareOptionsSelector", () => {
     renderComponent({ isEditingSoftware: true });
 
     expect(screen.queryByText("Automatic install")).not.toBeInTheDocument();
+  });
+
+  it("shows automatic install tooltip copy for disabled script packages", async () => {
+    const { user } = renderComponent({ isScriptPackage: true });
+
+    const tooltipAnchor = document.querySelector(
+      ".software-options-selector__automatic-install-slider .component__tooltip-wrapper__element"
+    ) as HTMLElement;
+
+    await user.hover(tooltipAnchor);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Fleet can't create a policy to detect existing installations of", {
+          exact: false,
+        })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("script-only packages.", { exact: false })
+      ).toBeInTheDocument();
+    });
   });
 });
