@@ -298,12 +298,13 @@ func gitopsCommand() *cli.Command {
 				isGlobalConfig := configFile.IsGlobalConfig
 
 				if isGlobalConfig {
+					controlsNoTeamFilename := controlsSourceFilename(noTeamFilename)
 					if noTeamControls.Set() && config.Controls.Set() {
-						return fmt.Errorf("'controls' cannot be set on both global config and on %s", noTeamFilename)
+						return fmt.Errorf("'controls' cannot be set on both global config and on %s", controlsNoTeamFilename)
 					}
 					if !noTeamControls.Defined && !config.Controls.Defined {
 						if appConfig.License.IsPremium() {
-							return fmt.Errorf("'controls' must be set on global config or %s", noTeamFilename)
+							return fmt.Errorf("'controls' must be set on global config or %s", controlsNoTeamFilename)
 						}
 						return errors.New("'controls' must be set on global config")
 					}
@@ -837,6 +838,13 @@ func getCustomSettings(osSettings interface{}) ([]fleet.MDMProfileSpec, bool) {
 		return settingsMap.GetMDMProfileSpecs(), true
 	}
 	return nil, false
+}
+
+func controlsSourceFilename(noTeamFilename string) string {
+	if noTeamFilename == "" {
+		return "unassigned.yml"
+	}
+	return noTeamFilename
 }
 
 func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.EnrichedAppConfig, gitOpsOpts spec.GitOpsOptions) (spec.GitOpsControls, bool, string, error) {

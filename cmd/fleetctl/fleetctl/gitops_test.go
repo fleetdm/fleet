@@ -4840,6 +4840,17 @@ software:
 	})
 }
 
+func TestControlsSourceFilename(t *testing.T) {
+	t.Run("defaults to unassigned when no no-team file is provided", func(t *testing.T) {
+		require.Equal(t, "unassigned.yml", controlsSourceFilename(""))
+	})
+
+	t.Run("keeps explicit no-team/unassigned filename", func(t *testing.T) {
+		require.Equal(t, "no-team.yml", controlsSourceFilename("no-team.yml"))
+		require.Equal(t, "unassigned.yml", controlsSourceFilename("unassigned.yml"))
+	})
+}
+
 func TestComputeLabelChanges(t *testing.T) {
 	testCases := []struct {
 		name            string
