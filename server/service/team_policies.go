@@ -20,23 +20,22 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type teamPolicyRequest struct {
-	TeamID                         uint     `url:"fleet_id"`
-	QueryID                        *uint    `json:"query_id" renameto:"report_id"`
-	Query                          string   `json:"query"`
-	Name                           string   `json:"name"`
-	Description                    string   `json:"description"`
-	Resolution                     string   `json:"resolution"`
-	Platform                       string   `json:"platform"`
-	Critical                       bool     `json:"critical" premium:"true"`
-	CalendarEventsEnabled          bool     `json:"calendar_events_enabled"`
-	SoftwareTitleID                *uint    `json:"software_title_id"`
-	ScriptID                       *uint    `json:"script_id"`
-	LabelsIncludeAny               []string `json:"labels_include_any"`
-	LabelsExcludeAny               []string `json:"labels_exclude_any"`
-	ConditionalAccessEnabled       bool     `json:"conditional_access_enabled"`
-	ConditionalAccessBypassEnabled *bool    `json:"conditional_access_bypass_enabled"`
-	Type                           *string  `json:"type"`
-	PatchSoftwareTitleID           *uint    `json:"patch_software_title_id"`
+	TeamID                   uint     `url:"fleet_id"`
+	QueryID                  *uint    `json:"query_id" renameto:"report_id"`
+	Query                    string   `json:"query"`
+	Name                     string   `json:"name"`
+	Description              string   `json:"description"`
+	Resolution               string   `json:"resolution"`
+	Platform                 string   `json:"platform"`
+	Critical                 bool     `json:"critical" premium:"true"`
+	CalendarEventsEnabled    bool     `json:"calendar_events_enabled"`
+	SoftwareTitleID          *uint    `json:"software_title_id"`
+	ScriptID                 *uint    `json:"script_id"`
+	LabelsIncludeAny         []string `json:"labels_include_any"`
+	LabelsExcludeAny         []string `json:"labels_exclude_any"`
+	ConditionalAccessEnabled bool     `json:"conditional_access_enabled"`
+	Type                     *string  `json:"type"`
+	PatchSoftwareTitleID     *uint    `json:"patch_software_title_id"`
 }
 
 type teamPolicyResponse struct {
@@ -49,22 +48,21 @@ func (r teamPolicyResponse) Error() error { return r.Err }
 func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*teamPolicyRequest)
 	resp, err := svc.NewTeamPolicy(ctx, req.TeamID, fleet.NewTeamPolicyPayload{
-		QueryID:                        req.QueryID,
-		Name:                           req.Name,
-		Query:                          req.Query,
-		Description:                    req.Description,
-		Resolution:                     req.Resolution,
-		Platform:                       req.Platform,
-		Critical:                       req.Critical,
-		CalendarEventsEnabled:          req.CalendarEventsEnabled,
-		SoftwareTitleID:                req.SoftwareTitleID,
-		ScriptID:                       req.ScriptID,
-		LabelsIncludeAny:               req.LabelsIncludeAny,
-		LabelsExcludeAny:               req.LabelsExcludeAny,
-		ConditionalAccessEnabled:       req.ConditionalAccessEnabled,
-		ConditionalAccessBypassEnabled: req.ConditionalAccessBypassEnabled,
-		Type:                           req.Type,
-		PatchSoftwareTitleID:           req.PatchSoftwareTitleID,
+		QueryID:                  req.QueryID,
+		Name:                     req.Name,
+		Query:                    req.Query,
+		Description:              req.Description,
+		Resolution:               req.Resolution,
+		Platform:                 req.Platform,
+		Critical:                 req.Critical,
+		CalendarEventsEnabled:    req.CalendarEventsEnabled,
+		SoftwareTitleID:          req.SoftwareTitleID,
+		ScriptID:                 req.ScriptID,
+		LabelsIncludeAny:         req.LabelsIncludeAny,
+		LabelsExcludeAny:         req.LabelsExcludeAny,
+		ConditionalAccessEnabled: req.ConditionalAccessEnabled,
+		Type:                     req.Type,
+		PatchSoftwareTitleID:     req.PatchSoftwareTitleID,
 	})
 	if err != nil {
 		return teamPolicyResponse{Err: err}, nil
@@ -225,25 +223,23 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 	if err != nil {
 		return fleet.PolicyPayload{}, err
 	}
-
 	return fleet.PolicyPayload{
-		QueryID:                        p.QueryID,
-		Name:                           p.Name,
-		Query:                          p.Query,
-		Critical:                       p.Critical,
-		Description:                    p.Description,
-		Resolution:                     p.Resolution,
-		Platform:                       p.Platform,
-		CalendarEventsEnabled:          p.CalendarEventsEnabled,
-		SoftwareInstallerID:            softwareInstallerID,
-		VPPAppsTeamsID:                 vppAppsTeamsID,
-		ScriptID:                       p.ScriptID,
-		LabelsIncludeAny:               p.LabelsIncludeAny,
-		LabelsExcludeAny:               p.LabelsExcludeAny,
-		ConditionalAccessEnabled:       p.ConditionalAccessEnabled,
-		ConditionalAccessBypassEnabled: p.ConditionalAccessBypassEnabled,
-		Type:                           policyType,
-		PatchSoftwareTitleID:           p.PatchSoftwareTitleID,
+		QueryID:                  p.QueryID,
+		Name:                     p.Name,
+		Query:                    p.Query,
+		Critical:                 p.Critical,
+		Description:              p.Description,
+		Resolution:               p.Resolution,
+		Platform:                 p.Platform,
+		CalendarEventsEnabled:    p.CalendarEventsEnabled,
+		SoftwareInstallerID:      softwareInstallerID,
+		VPPAppsTeamsID:           vppAppsTeamsID,
+		ScriptID:                 p.ScriptID,
+		LabelsIncludeAny:         p.LabelsIncludeAny,
+		LabelsExcludeAny:         p.LabelsExcludeAny,
+		ConditionalAccessEnabled: p.ConditionalAccessEnabled,
+		Type:                     policyType,
+		PatchSoftwareTitleID:     p.PatchSoftwareTitleID,
 	}, nil
 }
 
@@ -661,9 +657,6 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	}
 	if p.ConditionalAccessEnabled != nil {
 		policy.ConditionalAccessEnabled = *p.ConditionalAccessEnabled
-	}
-	if p.ConditionalAccessBypassEnabled != nil {
-		policy.ConditionalAccessBypassEnabled = p.ConditionalAccessBypassEnabled
 	}
 	if removeStats {
 		policy.FailingHostCount = 0

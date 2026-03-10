@@ -457,10 +457,10 @@ func TestModifyUserEmail(t *testing.T) {
 		return user, nil
 	}
 	ms.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
-		return nil, notFoundErr{}
+		return nil, &notFoundErr{}
 	}
 	ms.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
-		return nil, notFoundErr{}
+		return nil, &notFoundErr{}
 	}
 	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
@@ -574,7 +574,7 @@ func TestMFAHandling(t *testing.T) {
 
 	payload.SSOEnabled = nil
 	ms.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
-		return nil, notFoundErr{}
+		return nil, &notFoundErr{}
 	}
 	_, _, err = svc.CreateUser(ctx, payload)
 	require.ErrorContains(t, err, "mail")
@@ -690,10 +690,10 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 		return nil
 	}
 	ms.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
-		return nil, notFoundErr{}
+		return nil, &notFoundErr{}
 	}
 	ms.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
-		return nil, notFoundErr{}
+		return nil, &notFoundErr{}
 	}
 	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return user, nil

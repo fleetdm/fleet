@@ -68,6 +68,14 @@ $config = array(
             'eduPersonAffiliation' => array('group1'),
             'email' => 'sso_user_no_displayname@example.com',
         ),
+        // sso_user_8_global_technician has FLEET_JIT_USER_ROLE_GLOBAL attribute to be added as global technician.
+        'sso_user_8_global_technician:user123#' => array(
+            'uid' => array('8'),
+            'eduPersonAffiliation' => array('group1'),
+            'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name' => array('SSO User 8'),
+            'email' => 'sso_user_8_global_technician@example.com',
+            'FLEET_JIT_USER_ROLE_GLOBAL' => 'technician',
+        ),
     ),
 
 );
