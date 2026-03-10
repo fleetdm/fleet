@@ -5,7 +5,7 @@ We sponsor and participate in events so that we can support, connect, engage, an
 ## How to propose an event:  
 It's simple Open an issue: **[Propose an event](https://github.com/fleetdm/confidential/issues/new?template=propose-an-event.md)**
 
----
+
 ## Current Events
 
 
@@ -123,9 +123,6 @@ We use GitHub labels to organize the difference between overall event issues and
 | **:mktg-event:YYMM-eventname-city** | Terracotta | \#C2410C | 4th color custom lable for specific events |
 | **:mktg-event:YYMM-eventname-city** | Salmon | \#FA8072 | 5th color custom lable for specific events |
 | **:mktg-event:YYMM-eventname-city** | Brick | \#B91C1C | 6th color custom lable for specific events |
-
-
-____
 
 
 
@@ -775,7 +772,6 @@ create_sub_issue "6. Post-Mortem & Follow-Up"
 echo "Done."
 ```
 
----
 ## **Connecting Eventbrite Registrations to Salesforce Campaigns (Event ID Key)**
 
 #### **Purpose**
@@ -797,8 +793,6 @@ This creates a clean 1:1 relationship:
 * **Easy to operationalize:** Simple to document and enforce as a process.  
 * **Scalable to other platforms:** The same pattern could be extended to Lu.ma later using a platform-specific ID or key (if we ever want to use Lu.ma)
 
-___
-
 ### **Data Model (Salesforce)**
 
 #### **Campaign Fields**
@@ -811,7 +805,6 @@ Add the following field to **Campaign**:
 
 The composite key pattern lets us use one matching field across platforms and avoid collisions if we ever want to use [Lu.ma](http://Lu.ma) or others.
 
-___
 
 ### **Operational Workflow**
 
@@ -858,16 +851,12 @@ To keep the system clean and prevent broken mappings:
 * **Uniqueness guardrails:** Prevent multiple Campaigns from sharing the same Event Key (via process, reporting, or validation rules).  
 * **Monitoring:** Have a Clay/Salesforce report for “registrations received with no matching Campaign” to catch missing IDs early.
 
-___
-
 ### **(FUTURE) Extending This to Lu.ma (Future)**
 If we adopt Lu.ma later, we can follow the same model:
 
 * Store Lu.ma’s stable event identifier (ID or slug) on the Salesforce Campaign.  
 * Use `Event Key` to map inbound registrations to the correct Campaign.  
 * No attendee-visible fields required.
-
-___
 
 ### **Summary**
 
