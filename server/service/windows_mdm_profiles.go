@@ -183,6 +183,22 @@ func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInf
 	return foundVars, nil
 }
 
+// collectAllSyncMLItems returns all CmdItems from a SyncMLCmd, including items from nested
+// commands within Atomic blocks (ReplaceCommands, AddCommands, ExecCommands).
+func collectAllSyncMLItems(cmd *fleet.SyncMLCmd) []fleet.CmdItem {
+	items := cmd.Items
+	for _, nested := range cmd.ReplaceCommands {
+		items = append(items, nested.Items...)
+	}
+	for _, nested := range cmd.AddCommands {
+		items = append(items, nested.Items...)
+	}
+	for _, nested := range cmd.ExecCommands {
+		items = append(items, nested.Items...)
+	}
+	return items
+}
+
 func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESVarsFound) error {
 	if ndesVars == nil {
 		return nil
@@ -201,7 +217,7 @@ func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESV
 			break
 		}
 
-		for _, cmd := range cmdMsg.Items {
+		for _, cmd := range collectAllSyncMLItems(cmdMsg) {
 			if cmd.Target == nil || cmd.Data == nil {
 				continue
 			}
@@ -230,7 +246,9 @@ func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESV
 				renewalVar := fleet.FleetVarSCEPRenewalID.WithPrefix()
 				renewalVarBraces := fleet.FleetVarSCEPRenewalID.WithBraces()
 				if !strings.Contains(cmd.Data.Content, "OU="+renewalVar) && !strings.Contains(cmd.Data.Content, "OU="+renewalVarBraces) {
-					return fmt.Errorf("SubjectName item must contain the %s variable in the OU field", renewalVar)
+					return &fleet.BadRequestError{
+						Message: fmt.Sprintf("SubjectName item must contain the %s variable in the OU field", renewalVar),
+					}
 				}
 			}
 		}
@@ -257,9 +275,7 @@ func additionalCustomSCEPValidationForWindowsProfiles(contents string, customSCE
 			break
 		}
 
-		// cmdMsg represents a top-level command (<Replace>...</Replace>)
-		// so we look through all items, often there is only one item per command.
-		for _, cmd := range cmdMsg.Items {
+		for _, cmd := range collectAllSyncMLItems(cmdMsg) {
 			if cmd.Target == nil {
 				continue
 			}
