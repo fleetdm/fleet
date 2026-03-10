@@ -401,6 +401,7 @@ func TestDeleteSoftwareTitleIcon(t *testing.T) {
 					SoftwareIconURL:  ptr.String(""),
 					LabelsIncludeAny: nil,
 					LabelsExcludeAny: nil,
+					LabelsIncludeAll: nil,
 					SoftwareTitleID:  1,
 				}
 				require.Equal(t, expectedActivity, capturedActivity)
@@ -450,6 +451,7 @@ func TestDeleteSoftwareTitleIcon(t *testing.T) {
 					SoftwareIconURL:  ptr.String("fleetdm.com/icon.png"), // note this is supposed to be the vpp_apps.icon_url
 					LabelsIncludeAny: nil,
 					LabelsExcludeAny: nil,
+					LabelsIncludeAll: nil,
 				}
 				require.Equal(t, expectedActivity, capturedActivity)
 			},

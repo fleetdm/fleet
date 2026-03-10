@@ -818,8 +818,8 @@ func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) Soft
 }
 
 func (spec SoftwarePackageSpec) IncludesFieldsDisallowedInPackageFile() bool {
-	return len(spec.LabelsExcludeAny) > 0 || len(spec.LabelsIncludeAny) > 0 || len(spec.Categories) > 0 ||
-		spec.SelfService || spec.InstallDuringSetup.Valid
+	return len(spec.LabelsExcludeAny) > 0 || len(spec.LabelsIncludeAny) > 0 || len(spec.LabelsIncludeAll) > 0 ||
+		len(spec.Categories) > 0 || spec.SelfService || spec.InstallDuringSetup.Valid
 }
 
 func resolveApplyRelativePath(baseDir string, path string) string {
@@ -840,6 +840,7 @@ type MaintainedAppSpec struct {
 	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
 	LabelsIncludeAny   []string              `json:"labels_include_any"`
 	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
+	LabelsIncludeAll   []string              `json:"labels_include_all"`
 	Categories         []string              `json:"categories"`
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
@@ -856,6 +857,7 @@ func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
 		SelfService:        spec.SelfService,
 		LabelsIncludeAny:   spec.LabelsIncludeAny,
 		LabelsExcludeAny:   spec.LabelsExcludeAny,
+		LabelsIncludeAll:   spec.LabelsIncludeAll,
 		InstallDuringSetup: spec.InstallDuringSetup,
 		Icon:               spec.Icon,
 		Categories:         spec.Categories,

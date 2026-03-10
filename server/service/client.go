@@ -898,6 +898,7 @@ func (c *Client) ApplyGroup(
 					InstallDuringSetup:  installDuringSetup,
 					LabelsExcludeAny:    app.LabelsExcludeAny,
 					LabelsIncludeAny:    app.LabelsIncludeAny,
+					LabelsIncludeAll:    app.LabelsIncludeAll,
 					Categories:          app.Categories,
 					DisplayName:         app.DisplayName,
 					IconPath:            app.Icon.Path,

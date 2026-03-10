@@ -229,6 +229,7 @@ func generateEditActivityForSoftwareTitleIcon(ctx context.Context, svc *Service,
 			SoftwareIconURL:  &iconUrl,
 			LabelsIncludeAny: activityDetailsForSoftwareTitleIcon.LabelsIncludeAny,
 			LabelsExcludeAny: activityDetailsForSoftwareTitleIcon.LabelsExcludeAny,
+			LabelsIncludeAll: activityDetailsForSoftwareTitleIcon.LabelsIncludeAll,
 			SoftwareTitleID:  activityDetailsForSoftwareTitleIcon.SoftwareTitleID,
 		}); err != nil {
 			return ctxerr.Wrap(ctx, err, "creating activity for software title icon")
@@ -247,6 +248,7 @@ func generateEditActivityForSoftwareTitleIcon(ctx context.Context, svc *Service,
 			SoftwareIconURL:  &iconUrl,
 			LabelsIncludeAny: activityDetailsForSoftwareTitleIcon.LabelsIncludeAny,
 			LabelsExcludeAny: activityDetailsForSoftwareTitleIcon.LabelsExcludeAny,
+			LabelsIncludeAll: activityDetailsForSoftwareTitleIcon.LabelsIncludeAll,
 			SoftwareTitleID:  activityDetailsForSoftwareTitleIcon.SoftwareTitleID,
 		}); err != nil {
 			return ctxerr.Wrap(ctx, err, "creating activity for software title icon")
