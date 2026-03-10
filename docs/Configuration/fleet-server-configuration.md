@@ -1295,6 +1295,30 @@ The minimum time difference between the software's "last opened at" timestamp re
     min_software_last_opened_at_diff: 4h
   ```
 
+### osquery_max_log_write_body_size
+
+Maximum HTTP request body size accepted by the `osquery/log` endpoint. Increase this if osquery agents are submitting log batches that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
+
+- Default value: `10MiB`
+- Environment variable: `FLEET_OSQUERY_MAX_LOG_WRITE_BODY_SIZE`
+- Config file format:
+  ```yaml
+  osquery:
+    max_log_write_body_size: 20MiB
+  ```
+
+### osquery_max_distributed_write_body_size
+
+Maximum HTTP request body size accepted by the `osquery/distributed/write` endpoint. Increase this if osquery agents are submitting distributed query results that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
+
+- Default value: `5MiB`
+- Environment variable: `FLEET_OSQUERY_MAX_DISTRIBUTED_WRITE_BODY_SIZE`
+- Config file format:
+  ```yaml
+  osquery:
+    max_distributed_write_body_size: 10MiB
+  ```
+
 ## External activity audit logging
 
 > Available in Fleet Premium. Activity information is available for all Fleet Free and Fleet Premium instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
@@ -3301,7 +3325,7 @@ If you have an [Apple Developer account that is enabled as an MDM vendor](https:
   mdm:
     apple_vpp_app_metadata_api_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
   ```
-  
+
 ### fleet_allow_bootstrap_package_during_migration
 
 When set to `1` or `true`, this environment variable enables Fleet to install bootstrap packages on hosts during MDM migration enrollments (i.e. non-DEP enrollments). By default, bootstrap packages are only installed for DEP-enrolled hosts. Setting this variable restores the previous behavior, ensuring all new enrollments receive the bootstrap package.
@@ -3309,6 +3333,15 @@ When set to `1` or `true`, this environment variable enables Fleet to install bo
 This is only supported as an environment variable.
 
 - Environment variable: `FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION`
+
+### silent_migration_enrollment_profile
+
+Specifies the original enrollment profile from the previous MDM, used by Fleet for migrated Apple hosts during SCEP certificate renewal. This profile ensures that migrated hosts can renew their SCEP certificates without requiring re-enrollment or user interaction, enabling seamless MDM migration. Required when migrating hosts from another MDM to Fleet to maintain uninterrupted certificate management.
+
+The enrollment profile must be base64-encoded. This is only supported as an environment variable. 
+
+- Environment variable: `FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE`
+- Note: If you are experiencing systems failing SCEP renewal, please [contact us](mailto: support@fleetdm.com).
 
 ## Conditional access
 

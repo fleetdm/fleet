@@ -76,6 +76,9 @@ func NewProductFromFullName(fullName string) Product {
 	// We need this to match the product with a host's OS, so we'll add them here.
 	versionString := ""
 	switch {
+	case strings.Contains(fullName, "Windows Server 2025"):
+		versionString = "24H2"
+
 	case strings.Contains(fullName, "Windows Server 2022"):
 		versionString = "21H2"
 
@@ -196,6 +199,8 @@ func (p Product) Name() string {
 		return "Windows Server 2019"
 	case strings.Contains(val, "Windows Server 2022"):
 		return "Windows Server 2022"
+	case strings.Contains(val, "Windows Server 2025"):
+		return "Windows Server 2025"
 	case strings.Contains(val, "Windows Server,"):
 		return "Windows Server"
 

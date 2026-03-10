@@ -1,7 +1,7 @@
 import React, { useContext, useState } from "react";
 import { AxiosResponse } from "axios";
 import { Location } from "history";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
 import { useErrorHandler } from "react-error-boundary";
 
@@ -138,6 +138,7 @@ const FleetMaintainedAppDetailsPage = ({
   }
 
   const { renderFlash } = useContext(NotificationContext);
+  const queryClient = useQueryClient();
 
   const handlePageError = useErrorHandler();
   const { isPremiumTier } = useContext(AppContext);
@@ -223,6 +224,13 @@ const FleetMaintainedAppDetailsPage = ({
       } = await softwareAPI.addFleetMaintainedApp(parseInt(teamId, 10), {
         ...formData,
         appId,
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-titles" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "fleet-maintained-apps" }],
       });
 
       router.push(

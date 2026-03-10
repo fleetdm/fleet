@@ -33,10 +33,73 @@
 4. Publish case study
 
 ## Process to publish an anonymous case study
-1. Interview customer
-2. Write draft case study
-3. Get approved by customer
-4. Publish case study
+1.
+Follow this process to publish a case study without identifying the customer. Anonymous case studies help share real outcomes while protecting the customer’s identity.
+
+## Process
+
+1. **Gather customer information using Momentum**
+
+   Run the following prompt in Momentum through the company's #acc Slack channel:
+
+   > “@ Momentum based on all the previous call recordings and meeting notes, answer what's possible from this list of questions to the best of your ability:.”
+
+   Include these questions:
+
+   - What’s your company’s name? 
+   - What industry does your company operate in? Approximately how many endpoints (Mac, Windows, Linux, etc.) do you currently manage? 
+   - What was the primary frustration or limitation with your previous tool (e.g., Jamf, Intune, Kandji) that led you to look for a change? 
+   - Before Fleet, were there "blind spots" in your infrastructure (like Linux servers or remote laptops) that you couldn't see or manage effectively? 
+   - What were the top 3 requirements Fleet had to meet during your evaluation (e.g., On-premise hosting, GitOps workflows, osquery integration)? 
+   - How does Fleet’s open-source nature or transparency impact your confidence in the security of your device management stack? Fleet emphasizes "transparency" for end-users. 
+   - How has this affected the trust or relationship between your IT team and your employees? 
+   - How long did it take to migrate your fleet? What was the impact on your end-users during that transition? 
+   - Can you estimate the savings in licensing costs or the percentage reduction since consolidating to Fleet? 
+   - Can you share a specific example of something you’ve automated with Fleet’s API that was difficult before? 
+   - How has real-time visibility changed your response time to new vulnerabilities or compliance audits? 
+   - If you were speaking to a CIO at a peer company, what is the single biggest reason you would tell them to switch to Fleet? 
+   - How does having Fleet in place allow your team to be more effective moving forward? 
+   - How important was it to manage macOS, Windows, and Linux from a single binary/API rather than maintaining three separate silos? 
+   - Fleet allows you to stream telemetry directly to your own data tools. 
+   - How has having direct/instant access to your device data changed how your security team monitors for threats? 
+   - Did the choice between Fleet Cloud and self-hosting influence your decision, and why was that control important for your compliance or security needs?
+
+2. **Review the responses**
+
+   Confirm which questions Momentum answered.
+
+   Document any questions that were not answered.
+
+3. **Schedule a review call with the CSM**
+
+   Schedule a 30 minute call with the customer success manager (CSM) who owns the account.
+
+4. **Validate the information**
+
+   Review the answers with the CSM.
+
+   Confirm the information is accurate and safe to publish anonymously.
+
+5. **Write the case study**
+
+   Create the case study using the validated answers.
+
+   Remove any information that could identify the customer, including:
+
+   - Company name  
+   - Unique internal tools or processes  
+   - Specific geographic identifiers  
+   - Any other identifiable details
+
+6. **Publish the case study**
+
+   Add the case study to the website.
+
+   Use the **customer code name** listed in the **Fleet Champions Community spreadsheet**. This spreadsheet is the source of truth.
+
+7. **Add the case study to the customers page**
+
+   After publishing the case study, add a tile for it on the **Customers** page.
 
 ## Process to publish customer testimonials on the website
 Spontaneous, nice things that customers say about Fleet in:
@@ -93,7 +156,45 @@ Device management
 1. <To be described>
 
 ## Process to publish quote on peer review site such as Gartner Peer Review or G2
-1. <To be described>
+Follow this process to collect a quote on a peer review site such as Gartner Peer Insights or G2. These reviews help potential customers hear directly from other IT teams using Fleet.
+
+### Process
+
+1. **Coordinate with the CSM**
+
+   Reach out to the customer success manager (CSM) who owns the account.
+
+   Ask them to schedule a 30 minute meeting with the customer.
+
+   The meeting should include the Content Specialist and the CMO if they have not yet met the customer.
+
+2. **Introduce the purpose of the meeting**
+
+   During the meeting, spend the first 5–10 minutes introducing the goal.
+
+   Explain what the Fleet Champions Community is and how customer feedback helps others evaluating device management tools.
+
+3. **Explain the peer review program**
+
+   Show the slide that explains peer reviews.
+
+   Explain that the goal is to collect honest feedback from real Fleet users on trusted review platforms.
+
+4. **Encourage multiple reviewers**
+
+   Let the customer know that more than one person from their company can submit a review.
+
+   Explain that completing the review typically takes less than 5–10 minutes.
+
+5. **Share the review link**
+
+   Send the Endpoint Management Tool review link during the meeting:
+
+   https://gtnr.io/BZYrTASKq
+
+   Make sure the customer uses the Endpoint Management Tool link, not the vulnerability assessment link.
+
+   After the meeting, send the same link again in a direct follow-up message to the person you spoke with.
 
 ## Process to request C-Level meeting with customer
 1. <To be described>
