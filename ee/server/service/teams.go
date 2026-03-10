@@ -993,7 +993,7 @@ func setAuthCheckedOnPreAuthErr(ctx context.Context) {
 	}
 }
 
-func (svc *Service) checkAuthorizationForTeams(ctx context.Context, specs []*fleet.TeamSpec) error {
+func (svc *Service) checkAuthorizationForTeams(ctx context.Context, specs []*fleet.TeamSpec, dryRun bool) error {
 	for _, spec := range specs {
 		var team *fleet.Team
 		var err error
@@ -1010,7 +1010,7 @@ func (svc *Service) checkAuthorizationForTeams(ctx context.Context, specs []*fle
 			if err != nil {
 				if fleet.IsNotFound(err) {
 					// Can the user create a new team?
-					if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
+					if err := svc.authz.AuthorizeForDryRun(ctx, &fleet.Team{}, dryRun); err != nil {
 						return err
 					}
 					continue
@@ -1023,7 +1023,7 @@ func (svc *Service) checkAuthorizationForTeams(ctx context.Context, specs []*fle
 		}
 
 		// can the user modify each team it's trying to modify
-		if err := svc.authz.Authorize(ctx, team, fleet.ActionWrite); err != nil {
+		if err := svc.authz.AuthorizeForDryRun(ctx, team, dryRun); err != nil {
 			return err
 		}
 	}
@@ -1039,7 +1039,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		return map[string]uint{}, nil
 	}
 
-	if err := svc.checkAuthorizationForTeams(ctx, specs); err != nil {
+	if err := svc.checkAuthorizationForTeams(ctx, specs, applyOpts.DryRun); err != nil {
 		return nil, err
 	}
 

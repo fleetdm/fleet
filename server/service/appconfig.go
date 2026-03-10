@@ -311,7 +311,7 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fleet.ApplySpecOptions) (*fleet.AppConfig, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.AuthorizeForDryRun(ctx, &fleet.AppConfig{}, applyOpts.DryRun); err != nil {
 		return nil, err
 	}
 
@@ -1871,7 +1871,7 @@ func applyEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc
 }
 
 func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.EnrollSecretSpec, applyOpts fleet.ApplySpecOptions) error {
-	if err := svc.authz.Authorize(ctx, &fleet.EnrollSecret{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.AuthorizeForDryRun(ctx, &fleet.EnrollSecret{}, applyOpts.DryRun); err != nil {
 		return err
 	}
 	if len(spec.Secrets) > fleet.MaxEnrollSecretsCount {

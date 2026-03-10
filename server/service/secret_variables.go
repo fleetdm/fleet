@@ -38,7 +38,7 @@ func createSecretVariablesEndpoint(ctx context.Context, request interface{}, svc
 
 func (svc *Service) CreateSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable, dryRun bool) error {
 	// Do authorization check first so that we don't have to worry about it later in the flow.
-	if err := svc.authz.Authorize(ctx, &fleet.SecretVariable{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.AuthorizeForDryRun(ctx, &fleet.SecretVariable{}, dryRun); err != nil {
 		return err
 	}
 

@@ -1992,7 +1992,7 @@ func (svc *Service) BatchSetMDMProfiles(
 	noCache bool,
 ) error {
 	var err error
-	if tmID, tmName, err = svc.authorizeBatchProfiles(ctx, tmID, tmName); err != nil {
+	if tmID, tmName, err = svc.authorizeBatchProfiles(ctx, tmID, tmName, dryRun); err != nil {
 		return err
 	}
 
@@ -2297,7 +2297,7 @@ func fmtDuplicateNameErrMsg(name string) string {
 	return fmt.Sprintf(SameProfileNameErrorMsg, name)
 }
 
-func (svc *Service) authorizeBatchProfiles(ctx context.Context, tmID *uint, tmName *string) (*uint, *string, error) {
+func (svc *Service) authorizeBatchProfiles(ctx context.Context, tmID *uint, tmName *string, dryRun bool) (*uint, *string, error) {
 	if tmID != nil && tmName != nil {
 		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
 		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
@@ -2329,7 +2329,7 @@ func (svc *Service) authorizeBatchProfiles(ctx context.Context, tmID *uint, tmNa
 		}
 	}
 
-	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: tmID}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.AuthorizeForDryRun(ctx, &fleet.MDMConfigProfileAuthz{TeamID: tmID}, dryRun); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err)
 	}
 
