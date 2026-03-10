@@ -2763,10 +2763,10 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 
 // cleanupUnusedSoftware deletes orphaned software rows (not referenced by any host) in batches.
 func (ds *Datastore) cleanupUnusedSoftware(ctx context.Context) error {
-	// findUnusedSoftwareStmt finds software rows that are not referenced by any host and have no entry in software_host_counts.
-	// We must ensure that software is not in the host_software table before deleting it.
-	// This prevents a race condition where a host just added the software, but it is not part of software_host_counts yet.
-	// When a host adds software, the software table and host_software table are updated in the same transaction.
+	// findUnusedSoftwareStmt finds software rows not referenced by any host and absent from software_host_counts.
+	// The NOT EXISTS check on host_software reduces (but does not fully prevent) the chance of deleting software that
+	// is mid-ingestion (inserted into software but not yet linked in host_software). In the unlikely event this happens,
+	// the next hourly ingestion cycle will re-create and re-link the software entry.
 	const findUnusedSoftwareStmt = `
 		SELECT s.id
 		FROM software s
