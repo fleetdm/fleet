@@ -43,6 +43,16 @@ func TestMicrosoftVersionFromReleaseNotes(t *testing.T) {
 		assert.Equal(t, "16.98.3", result.Version)
 	})
 
+	t.Run("fallback to version prefix when build not in release notes", func(t *testing.T) {
+		app := &maintained_apps.FMAManifestApp{
+			UniqueIdentifier: "microsoft-outlook/darwin",
+			Version:          "16.98.25069999",
+		}
+		result, err := MicrosoftVersionFromReleaseNotes(app)
+		assert.NoError(t, err)
+		assert.Equal(t, "16.98.3", result.Version)
+	})
+
 	t.Run("version not found", func(t *testing.T) {
 		app := &maintained_apps.FMAManifestApp{
 			UniqueIdentifier: "microsoft-excel/darwin",

@@ -42,5 +42,17 @@ func MicrosoftVersionFromReleaseNotes(app *maintained_apps.FMAManifestApp) (*mai
 		}
 	}
 
+	// Fallback: if no exact build match is found, use the base version prefix.
+	// This handles the case where Microsoft publishes a build that isn't yet
+	// documented in the release notes. The base version (e.g. "16.106") is
+	// still the correct prefix that osquery will report via CFBundleShortVersionString.
+	for _, relNote := range releaseNotesCache {
+		shortVersion := relNote.ShortVersionFormat()
+		if strings.HasPrefix(shortVersion, version) {
+			app.Version = shortVersion
+			return app, nil
+		}
+	}
+
 	return app, fmt.Errorf("no matching version found in release notes for %s", homebrewVersion)
 }
