@@ -166,17 +166,10 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 					message: fmt.Sprintf("NDES is not configured. Fleet couldn't populate %s.", fleet.FleetVarNDESSCEPChallenge.WithPrefix()),
 				}
 			}
-			if deps.GetNDESSCEPChallenge == nil {
-				return profileContents, ctxerr.New(deps.Context, "NDES challenge retrieval function not configured")
-			}
 			deps.Logger.DebugContext(deps.Context, "fetching NDES challenge", "host_uuid", params.HostUUID, "profile_uuid", params.ProfileUUID)
 			challenge, err := deps.GetNDESSCEPChallenge(deps.Context, *deps.NDESConfig)
 			if err != nil {
-				detail := fmt.Sprintf("Fleet couldn't populate %s. %s", fleet.FleetVarNDESSCEPChallenge.WithPrefix(), err.Error())
-				if deps.NDESChallengeErrorToDetail != nil {
-					detail = deps.NDESChallengeErrorToDetail(err)
-				}
-				return profileContents, &MicrosoftProfileProcessingError{message: detail}
+				return profileContents, &MicrosoftProfileProcessingError{message: deps.NDESChallengeErrorToDetail(err)}
 			}
 			payload := &fleet.MDMManagedCertificate{
 				HostUUID:             params.HostUUID,

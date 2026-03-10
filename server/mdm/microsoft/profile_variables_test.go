@@ -87,19 +87,23 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 	getNDESChallengeFail := func(_ context.Context, _ fleet.NDESSCEPProxyCA) (string, error) {
 		return "", fmt.Errorf("ndes server error")
 	}
+	defaultNDESErrorToDetail := func(err error) string {
+		return fmt.Sprintf("Fleet couldn't populate %s. %s", fleet.FleetVarNDESSCEPChallenge.WithPrefix(), err.Error())
+	}
 
 	tests := []struct {
-		name                 string
-		hostUUID             string
-		profileContents      string
-		expectedContents     string
-		expectError          bool
-		processingError      string                                                          // if set then we expect the error to be of type MicrosoftProfileProcessingError with this message
-		setup                func()                                                          // Used for setting up datastore mocks.
-		expect               func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) // Add more params as they need validation.
-		freeTier             bool
-		withNDESConfig       *fleet.NDESSCEPProxyCA
-		getNDESChallengeFunc func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error)
+		name                       string
+		hostUUID                   string
+		profileContents            string
+		expectedContents           string
+		expectError                bool
+		processingError            string                                                          // if set then we expect the error to be of type MicrosoftProfileProcessingError with this message
+		setup                      func()                                                          // Used for setting up datastore mocks.
+		expect                     func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) // Add more params as they need validation.
+		freeTier                   bool
+		withNDESConfig             *fleet.NDESSCEPProxyCA
+		getNDESChallengeFunc       func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error)
+		ndesChallengeErrorToDetail func(err error) string
 	}{
 		{
 			name:             "no fleet variables",
@@ -302,10 +306,11 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			},
 		},
 		{
-			name:                 "ndes challenge and proxy url replaced",
-			hostUUID:             "ndes-host-uuid",
-			withNDESConfig:       ndesConfig,
-			getNDESChallengeFunc: getNDESChallengeSuccess,
+			name:                       "ndes challenge and proxy url replaced",
+			hostUUID:                   "ndes-host-uuid",
+			withNDESConfig:             ndesConfig,
+			getNDESChallengeFunc:       getNDESChallengeSuccess,
+			ndesChallengeErrorToDetail: defaultNDESErrorToDetail,
 			profileContents: `<Add><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/Challenge</LocURI></Target>` +
 				`<Data>$FLEET_VAR_NDES_SCEP_CHALLENGE</Data></Item></Add>` +
 				`<Add><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/ServerURL</LocURI></Target>` +
@@ -333,10 +338,45 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			},
 		},
 		{
-			name:                 "ndes challenge fetch fails",
-			hostUUID:             "ndes-fail-host",
-			withNDESConfig:       ndesConfig,
-			getNDESChallengeFunc: getNDESChallengeFail,
+			name:                       "ndes challenge and proxy url replaced in atomic profile",
+			hostUUID:                   "ndes-atomic-host",
+			withNDESConfig:             ndesConfig,
+			getNDESChallengeFunc:       getNDESChallengeSuccess,
+			ndesChallengeErrorToDetail: defaultNDESErrorToDetail,
+			profileContents: `<Atomic>` +
+				`<Add><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/Challenge</LocURI></Target>` +
+				`<Data>$FLEET_VAR_NDES_SCEP_CHALLENGE</Data></Item></Add>` +
+				`<Add><CmdID>2</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/ServerURL</LocURI></Target>` +
+				`<Data>$FLEET_VAR_NDES_SCEP_PROXY_URL</Data></Item></Add>` +
+				`</Atomic>`,
+			expectedContents: `<Atomic>` +
+				`<Add><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/Challenge</LocURI></Target>` +
+				`<Data>ndes-test-challenge</Data></Item></Add>` +
+				`<Add><CmdID>2</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/ServerURL</LocURI></Target>` +
+				`<Data>https://test-fleet.com/mdm/scep/proxy/ndes-atomic-host%2C` + profileUUID + `%2CNDES</Data></Item></Add>` +
+				`</Atomic>`,
+			setup: func() {
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					return &fleet.AppConfig{
+						ServerSettings: fleet.ServerSettings{
+							ServerURL: "https://test-fleet.com",
+						},
+					}, nil
+				}
+			},
+			expect: func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) {
+				require.Len(t, managedCerts, 1)
+				require.Equal(t, "NDES", managedCerts[0].CAName)
+				require.Equal(t, fleet.CAConfigNDES, managedCerts[0].Type)
+				require.Equal(t, "ndes-atomic-host", managedCerts[0].HostUUID)
+			},
+		},
+		{
+			name:                       "ndes challenge fetch fails",
+			hostUUID:                   "ndes-fail-host",
+			withNDESConfig:             ndesConfig,
+			getNDESChallengeFunc:       getNDESChallengeFail,
+			ndesChallengeErrorToDetail: defaultNDESErrorToDetail,
 			profileContents: `<Add><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/Challenge</LocURI></Target>` +
 				`<Data>$FLEET_VAR_NDES_SCEP_CHALLENGE</Data></Item></Add>`,
 			expectError:     true,
@@ -392,6 +432,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 				ManagedCertificatePayloads: managedCertificates,
 				NDESConfig:                 tt.withNDESConfig,
 				GetNDESSCEPChallenge:       tt.getNDESChallengeFunc,
+				NDESChallengeErrorToDetail: tt.ndesChallengeErrorToDetail,
 			}
 
 			result, err := PreprocessWindowsProfileContentsForDeployment(deps, ProfilePreprocessParams{
