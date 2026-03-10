@@ -36,7 +36,8 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 
 | Asset | Audience | Use case | <nobr>Date updated</nobr> |
 |-------|----------|----------|--------------|
-| [Fleet Ideal Customer Profile and Persona Guide](https://docs.google.com/document/d/1DLLO-x-I79QgYQaicsZJ5-thQpBY71GaUWCNNShl3uc/edit?tab=t.0) | All | Fleet ICP and persona guide | <nobr>Jan&#8209;18&#8209;2026</nobr> |
+| [Fleet pain points guide](https://docs.google.com/document/d/1FQn0E5U0hqFyk4krYjsXF3yEEfDiuGgzmdBqQJhI3jo/edit?tab=t.0) | Fleet sales and channel teams | Typical pain points Fleet solves and how to uncover them | <nobr>Jan&#8209;18&#8209;2026</nobr> |
+| [Fleet ideal customer profile and persona guide](https://docs.google.com/document/d/1DLLO-x-I79QgYQaicsZJ5-thQpBY71GaUWCNNShl3uc/edit?tab=t.0) | Fleet sales and channel teams | Typical Fleet buyer profiles | <nobr>Jan&#8209;18&#8209;2026</nobr> |
 
 
 ### Competitive & ROI
