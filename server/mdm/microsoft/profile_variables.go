@@ -4,12 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/variables"
 )
 
@@ -37,6 +41,9 @@ type ProfilePreprocessDependencies struct {
 	AppConfig                  *fleet.AppConfig
 	CustomSCEPCAs              map[string]*fleet.CustomSCEPProxyCA
 	ManagedCertificatePayloads *[]*fleet.MDMManagedCertificate
+	NDESConfig                 *fleet.NDESSCEPProxyCA
+	GetNDESSCEPChallenge       func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error)
+	NDESChallengeErrorToDetail func(err error) string
 }
 
 type ProfilePreprocessParams struct {
@@ -56,6 +63,8 @@ type ProfilePreprocessParams struct {
 //   - $FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID or ${FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID}: Replaced with the profile UUID for SCEP certificate
 //   - $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME> or ${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>}: Replaced with the challenge for the specified custom SCEP CA
 //   - $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME> or ${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>}: Replaced with the proxy URL for the specified custom SCEP CA
+//   - $FLEET_VAR_NDES_SCEP_CHALLENGE or ${FLEET_VAR_NDES_SCEP_CHALLENGE}: Replaced with the one-time NDES challenge password
+//   - $FLEET_VAR_NDES_SCEP_PROXY_URL or ${FLEET_VAR_NDES_SCEP_PROXY_URL}: Replaced with the Fleet SCEP proxy URL for NDES
 //
 // Why we don't use Go templates here:
 //  1. Error handling: Go templates don't provide fine-grained error handling for individual variable
@@ -150,9 +159,40 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 			result = replacedContents
 
 			*deps.ManagedCertificatePayloads = append(*deps.ManagedCertificatePayloads, managedCertificate)
-		}
 
-		// Add other Fleet variables here as they are implemented, identify if it can be skipped for verification.
+		case fleetVar == string(fleet.FleetVarNDESSCEPChallenge):
+			if deps.NDESConfig == nil {
+				return profileContents, &MicrosoftProfileProcessingError{
+					message: fmt.Sprintf("NDES is not configured. Fleet couldn't populate %s.", fleet.FleetVarNDESSCEPChallenge.WithPrefix()),
+				}
+			}
+			if deps.GetNDESSCEPChallenge == nil {
+				return profileContents, ctxerr.New(deps.Context, "NDES challenge retrieval function not configured")
+			}
+			deps.Logger.DebugContext(deps.Context, "fetching NDES challenge", "host_uuid", params.HostUUID, "profile_uuid", params.ProfileUUID)
+			challenge, err := deps.GetNDESSCEPChallenge(deps.Context, *deps.NDESConfig)
+			if err != nil {
+				detail := fmt.Sprintf("Fleet couldn't populate %s. %s", fleet.FleetVarNDESSCEPChallenge.WithPrefix(), err.Error())
+				if deps.NDESChallengeErrorToDetail != nil {
+					detail = deps.NDESChallengeErrorToDetail(err)
+				}
+				return profileContents, &MicrosoftProfileProcessingError{message: detail}
+			}
+			payload := &fleet.MDMManagedCertificate{
+				HostUUID:             params.HostUUID,
+				ProfileUUID:          params.ProfileUUID,
+				ChallengeRetrievedAt: ptr.Time(time.Now()),
+				Type:                 fleet.CAConfigNDES,
+				CAName:               "NDES",
+			}
+			*deps.ManagedCertificatePayloads = append(*deps.ManagedCertificatePayloads, payload)
+			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarNDESSCEPChallengeRegexp, result, challenge)
+
+		case fleetVar == string(fleet.FleetVarNDESSCEPProxyURL):
+			proxyURL := fmt.Sprintf("%s%s%s", deps.AppConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
+				url.PathEscape(fmt.Sprintf("%s,%s,NDES", params.HostUUID, params.ProfileUUID)))
+			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarNDESSCEPProxyURLRegexp, result, proxyURL)
+		}
 	}
 
 	return result, nil

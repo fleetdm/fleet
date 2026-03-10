@@ -149,6 +149,8 @@ var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
 	fleet.FleetVarHostEndUserIDPDepartment,
 	fleet.FleetVarHostEndUserIDPGroups,
 	fleet.FleetVarHostPlatform,
+	fleet.FleetVarNDESSCEPChallenge,
+	fleet.FleetVarNDESSCEPProxyURL,
 }
 
 func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) ([]string, error) {
@@ -171,7 +173,7 @@ func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInf
 		}
 	}
 
-	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs, nil, additionalCustomSCEPValidationForWindowsProfiles, nil, nil)
+	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs, nil, additionalCustomSCEPValidationForWindowsProfiles, additionalNDESValidationForWindowsProfiles, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -179,6 +181,62 @@ func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInf
 	// Do additional validation that both custom SCEP URL and challenge vars are provided and not using different CA names etc.
 
 	return foundVars, nil
+}
+
+func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESVarsFound) error {
+	if ndesVars == nil {
+		return nil
+	}
+
+	var cmdMsg *fleet.SyncMLCmd
+	dec := xml.NewDecoder(bytes.NewReader(bytes.TrimSpace([]byte(contents))))
+	for {
+		if err := dec.Decode(&cmdMsg); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return fmt.Errorf("The payload isn't valid XML: %w", err)
+		}
+		if cmdMsg == nil {
+			break
+		}
+
+		for _, cmd := range cmdMsg.Items {
+			if cmd.Target == nil || cmd.Data == nil {
+				continue
+			}
+
+			if strings.HasSuffix(*cmd.Target, "/Install/Challenge") {
+				challengeVar := fleet.FleetVarNDESSCEPChallenge.WithPrefix()
+				challengeVarBraces := fleet.FleetVarNDESSCEPChallenge.WithBraces()
+				if cmd.Data.Content != challengeVar && cmd.Data.Content != challengeVarBraces {
+					return &fleet.BadRequestError{
+						Message: fmt.Sprintf("Variable %q must be in the SCEP certificate's \"Challenge\" field.", challengeVar),
+					}
+				}
+			}
+
+			if strings.HasSuffix(*cmd.Target, "/Install/ServerURL") {
+				urlVar := fleet.FleetVarNDESSCEPProxyURL.WithPrefix()
+				urlVarBraces := fleet.FleetVarNDESSCEPProxyURL.WithBraces()
+				if cmd.Data.Content != urlVar && cmd.Data.Content != urlVarBraces {
+					return &fleet.BadRequestError{
+						Message: fmt.Sprintf("Variable %q must be in the SCEP certificate's \"ServerURL\" field.", urlVar),
+					}
+				}
+			}
+
+			if strings.HasSuffix(*cmd.Target, "/Install/SubjectName") {
+				renewalVar := fleet.FleetVarSCEPRenewalID.WithPrefix()
+				renewalVarBraces := fleet.FleetVarSCEPRenewalID.WithBraces()
+				if !strings.Contains(cmd.Data.Content, "OU="+renewalVar) && !strings.Contains(cmd.Data.Content, "OU="+renewalVarBraces) {
+					return fmt.Errorf("SubjectName item must contain the %s variable in the OU field", renewalVar)
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func additionalCustomSCEPValidationForWindowsProfiles(contents string, customSCEPVars *CustomSCEPVarsFound) error {
