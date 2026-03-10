@@ -69,7 +69,7 @@ This supervised mode provides security features that work together to prevent un
 * Factory reset protection that maintains management through re-enrollment  
 * Device identity certificates for secure MDM authentication
 
-Activation Lock and certificate management need additional planning during deployment. Activation Lock ties devices to user Apple IDs to prevent theft but creates complications when employees leave without disabling Find My. Through ABM, ADE provides organizational  codes that let MDM administrators clear device activation without needing the original user's Apple ID credentials.
+Activation Lock and certificate management need additional planning during deployment. Activation Lock ties devices to user Apple IDs to prevent theft but creates complications when employees leave without disabling Find My. Through ABM, ADE provides bypass codes that let MDM administrators clear device activation without needing the original user's Apple ID credentials.
 
 Certificate management requires ongoing attention because the Apple Push Notification certificate expires annually. Organizations must use the same Apple ID for renewal that was used during initial certificate creation. When certificates expire, devices and management servers lose the ability to authenticate with each other until someone completes the renewal process.
 
