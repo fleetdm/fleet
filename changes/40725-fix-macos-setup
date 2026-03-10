@@ -1,0 +1,1 @@
+* Fixed a bug where macOS systems previous enrolled in fleet wouldn't always go through setup experience after a wipe
