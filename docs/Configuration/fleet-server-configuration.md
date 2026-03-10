@@ -610,7 +610,7 @@ The address to serve the Fleet webserver.
 
 The TLS cert to use when terminating TLS.
 
-See [TLS certificate considerations](https://fleetdm.com/docs/deploying/introduction#tls-certificate) for more information about certificates and Fleet.
+See [TLS certificate considerations](https:///docs/deploying/introduction#tls-certificate) for more information about certificates and Fleet.
 
 - Default value: `./tools/osquery/fleet.crt`
 - Environment variable: `FLEET_SERVER_CERT`
@@ -634,7 +634,7 @@ The TLS key to use when terminating TLS.
 
 ### server_default_max_request_body_size
 
-The max request body size, in a human readable format (size + unit), for endpoints that don't implement a higher size. If an endpoint has a default limit of 3MB for instance, and this value is set to 5MB, that endpoint will have its maximum request size increased to 5MB as well. To see which endpoints have a higher size than the default, check out the [API reference docs](https://fleetdm.com/docs/rest-api/rest-api).
+The max request body size, in a human readable format (size + unit), for endpoints that don't implement a higher size. If an endpoint has a default limit of 3MB for instance, and this value is set to 5MB, that endpoint will have its maximum request size increased to 5MB as well. To see which endpoints have a higher size than the default, check out the [API reference docs](https:///docs/rest-api/rest-api).
 
 - Default value: 1MiB
 - Environment variable: `FLEET_SERVER_DEFAULT_MAX_REQUEST_BODY_SIZE`
@@ -972,7 +972,7 @@ The license key provided to Fleet customers which provides access to Fleet Premi
     key: foobar
   ```
 
-> Wondering where to get a license key?  You can [grab a license](https://fleetdm.com/new-license) or if you have questions, [schedule a demo](https://fleetdm.com/contact).
+> Wondering where to get a license key?  You can [grab a license](https:///new-license) or if you have questions, [schedule a demo](https://fleetdm.com/contact).
 
 ## Session
 
@@ -3341,7 +3341,7 @@ Specifies the original enrollment profile from the previous MDM, used by Fleet f
 The enrollment profile must be base64-encoded. This is only supported as an environment variable. 
 
 - Environment variable: `FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE`
-- Note: If you are experiencing systems failing SCEP renewal, please [contact us](mailto: support@fleetdm.com).
+- Note: If you are experiencing systems failing SCEP renewal, please contact Fleet support.
 
 ## Conditional access
 
