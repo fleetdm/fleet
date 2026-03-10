@@ -1194,7 +1194,7 @@ settings:
 	// Test dry-run first
 	output := fleetctl.RunAppForTest(t,
 		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"})
-	s.assertDryRunOutput(t, output)
+	s.assertDryRunOutputWithDeprecation(t, output, true)
 
 	// Check that webhook settings are mentioned in the output
 	require.Contains(t, output, "would've applied webhook settings for unassigned hosts")
@@ -1202,7 +1202,7 @@ settings:
 	// Apply the configuration (non-dry-run)
 	output = fleetctl.RunAppForTest(t,
 		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath})
-	s.assertRealRunOutput(t, output)
+	s.assertRealRunOutputWithDeprecation(t, output, true)
 
 	// Verify the output mentions webhook settings were applied
 	require.Contains(t, output, "applying webhook settings for unassigned hosts")
