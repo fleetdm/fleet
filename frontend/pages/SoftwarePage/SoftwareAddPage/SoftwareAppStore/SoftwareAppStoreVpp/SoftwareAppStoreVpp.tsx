@@ -186,6 +186,9 @@ const SoftwareAppStoreVpp = ({
       queryClient.invalidateQueries({
         queryKey: [{ scope: "software-titles" }],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["vppSoftware", currentTeamId],
+      });
 
       router.push(
         getPathWithQueryParams(

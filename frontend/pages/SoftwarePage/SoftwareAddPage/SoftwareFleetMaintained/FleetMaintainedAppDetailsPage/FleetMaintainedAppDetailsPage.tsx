@@ -229,6 +229,9 @@ const FleetMaintainedAppDetailsPage = ({
       queryClient.invalidateQueries({
         queryKey: [{ scope: "software-titles" }],
       });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "fleet-maintained-apps" }],
+      });
 
       router.push(
         getPathWithQueryParams(
