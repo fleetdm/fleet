@@ -609,7 +609,7 @@ allow {
 }
 
 # Team admin, maintainer, technician, observer_plus, and observer running an observers_can_run query that belongs to their team must have the targets
-# filtered to only teams they have any role on (observers may target any team they observe, not just the query's team).
+# filtered to only teams that they observe. Observers may only target the query's own team; admin/maintainer/etc. may target any team they have such a role on.
 allow {
   object.type == "targeted_query"
   object.observer_can_run == true
@@ -619,7 +619,7 @@ allow {
   team_role(subject, object.team_id) == [admin, maintainer, technician, observer_plus, observer][_]
 
   not is_null(object.host_targets.teams)
-  ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin, maintainer, technician, observer_plus, observer][_] }
+  ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin, maintainer, technician, observer_plus][_] } | { tmid | tmid := object.host_targets.teams[_]; tmid == object.team_id; team_role(subject, tmid) == observer }
   count(ok_teams) == count(object.host_targets.teams)
 }
 

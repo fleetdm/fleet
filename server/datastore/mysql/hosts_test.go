@@ -2327,6 +2327,18 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, hits, 1)
 	assert.Equal(t, accessibleHost.ID, hits[0].ID)
+
+	// ObserverTeamID scoping: observer on BOTH team2 and team3 but ObserverTeamID=team2
+	// should only return team2 hosts, not team3 hosts.
+	observerOnBothTeams := &fleet.User{Teams: []fleet.UserTeam{
+		{Team: *team2, Role: fleet.RoleObserver},
+		{Team: *team3, Role: fleet.RoleObserver},
+	}}
+	filter = fleet.TeamFilter{User: observerOnBothTeams, IncludeObserver: true, ObserverTeamID: &team2.ID}
+	hits, err = ds.SearchHosts(context.Background(), filter, "searchme")
+	require.NoError(t, err)
+	require.Len(t, hits, 1)
+	assert.Equal(t, accessibleHost.ID, hits[0].ID)
 }
 
 func testSearchHostsWildCards(t *testing.T, ds *Datastore) {

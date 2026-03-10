@@ -649,6 +649,47 @@ func TestWhereFilterHostsByTeams(t *testing.T) {
 			},
 			expected: "hosts.team_id = 2",
 		},
+
+		// ObserverTeamID: restricts observer access to a specific team (e.g. the live query's own team)
+		{
+			// Global observer with ObserverTeamID set: only that team's hosts
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				IncludeObserver: true,
+				ObserverTeamID:  ptr.Uint(1),
+			},
+			expected: "hosts.team_id = 1",
+		},
+		{
+			// Observer on two teams with ObserverTeamID set: only the specified team
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 2}},
+					},
+				},
+				IncludeObserver: true,
+				ObserverTeamID:  ptr.Uint(1),
+			},
+			expected: "hosts.team_id IN (1)",
+		},
+		{
+			// Admin on team 3 + observer on teams 1 and 2 with ObserverTeamID=1:
+			// admin access to team 3 is unaffected; observer access limited to team 1 only
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 2}},
+						{Role: fleet.RoleAdmin, Team: fleet.Team{ID: 3}},
+					},
+				},
+				IncludeObserver: true,
+				ObserverTeamID:  ptr.Uint(1),
+			},
+			expected: "hosts.team_id IN (1,3)",
+		},
 	}
 
 	for _, tt := range testCases {
