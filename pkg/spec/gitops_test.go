@@ -2372,6 +2372,7 @@ org_settings:
     macos_updates:
       minimum_version: ""
       deadline: ""
+    end_user_license_agreement: ""
   secrets:
 controls:
 agent_options:

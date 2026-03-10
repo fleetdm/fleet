@@ -1031,16 +1031,8 @@ func (cmd *GenerateGitopsCommand) generateEULA() (string, error) {
 	return path, nil
 }
 
-// This struct is used to represent the MDM configuration that is used with GitOps.
-// It includes an additonal end user license agreement (EULA) field, which is
-// not present in the fleet.MDM struct.
-type gitopsMDM struct {
-	fleet.MDM
-	EndUserLicenseAgreement string `json:"end_user_license_agreement,omitempty"`
-}
-
 func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interface{}, error) {
-	t := reflect.TypeOf(gitopsMDM{})
+	t := reflect.TypeOf(spec.GitOpsMDM{})
 	result := map[string]interface{}{
 		jsonFieldName(t, "AppleServerURL"):        mdm.AppleServerURL,
 		jsonFieldName(t, "EndUserAuthentication"): mdm.EndUserAuthentication,

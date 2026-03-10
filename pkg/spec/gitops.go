@@ -269,6 +269,12 @@ type Software struct {
 	FleetMaintainedApps []fleet.MaintainedAppSpec   `json:"fleet_maintained_apps"`
 }
 
+// GitOpsMDM extends fleet.MDM with gitops-only fields that are not part of the server type.
+type GitOpsMDM struct {
+	fleet.MDM
+	EndUserLicenseAgreement any `json:"end_user_license_agreement,omitempty"`
+}
+
 // GitOpsOrgSettings defines the valid keys for the top-level `org_settings:` section.
 // It embeds fleet.AppConfig for all standard settings and adds gitops-only keys
 // that are extracted before the config is sent to the server API.

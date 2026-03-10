@@ -129,6 +129,24 @@ func TestValidateUnknownKeys(t *testing.T) {
 		assert.Len(t, errs, 2)
 	})
 
+	t.Run("struct with custom marshaling skips validation", func(t *testing.T) {
+		// GoogleCalendarApiKey has custom JSON marshal/unmarshal and no JSON-tagged fields.
+		// Its keys (client_email, private_key, etc.) should not be flagged as unknown.
+		data := map[string]any{
+			"google_calendar": []any{
+				map[string]any{
+					"domain": "example.com",
+					"api_key_json": map[string]any{
+						"client_email": "test@example.com",
+						"private_key":  "-----BEGIN RSA PRIVATE KEY-----",
+					},
+				},
+			},
+		}
+		errs := validateUnknownKeys(data, reflect.TypeFor[fleet.Integrations](), []string{"org_settings", "integrations"}, "test.yml")
+		assert.Empty(t, errs)
+	})
+
 	t.Run("scalar data no errors", func(t *testing.T) {
 		errs := validateUnknownKeys("just a string", reflect.TypeFor[fleet.QuerySpec](), nil, "test.yml")
 		assert.Empty(t, errs)
