@@ -337,7 +337,7 @@ func TestAddFleetMaintainedApp(t *testing.T) {
 	authCtx := authz_ctx.AuthorizationContext{}
 	ctx := authz_ctx.NewContext(context.Background(), &authCtx)
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-	_, err = svc.AddFleetMaintainedApp(ctx, nil, 1, "", "", "", "", false, false, nil, nil)
+	_, err = svc.AddFleetMaintainedApp(ctx, nil, 1, "", "", "", "", false, false, nil, nil, nil)
 	require.ErrorContains(t, err, "forced error to short-circuit storage and activity creation")
 
 	require.True(t, ds.MatchOrCreateSoftwareInstallerFuncInvoked)
@@ -417,7 +417,7 @@ func TestExtractMaintainedAppVersionWhenLatest(t *testing.T) {
 	authCtx := authz_ctx.AuthorizationContext{}
 	ctx := authz_ctx.NewContext(context.Background(), &authCtx)
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-	_, err = svc.AddFleetMaintainedApp(ctx, nil, 1, "", "", "", "", false, false, nil, nil)
+	_, err = svc.AddFleetMaintainedApp(ctx, nil, 1, "", "", "", "", false, false, nil, nil, nil)
 	require.ErrorContains(t, err, "forced error to short-circuit storage and activity creation")
 
 	require.True(t, ds.MatchOrCreateSoftwareInstallerFuncInvoked)

@@ -128,7 +128,7 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	// now that the payload has been updated with any patches, we can set the
 	// final fields of the activity
 	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromSoftwareScopeLabels(
-		existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny)
+		existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny, existingInstaller.LabelsIncludeAll)
 	if payload.ValidatedLabels != nil {
 		actLabelsInclAny, actLabelsExclAny, actLabelsInclAll = activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
 	}

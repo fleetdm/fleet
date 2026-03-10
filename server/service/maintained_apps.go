@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 )
 
 type addFleetMaintainedAppRequest struct {
@@ -20,6 +20,7 @@ type addFleetMaintainedAppRequest struct {
 	UninstallScript   string   `json:"uninstall_script"`
 	LabelsIncludeAny  []string `json:"labels_include_any"`
 	LabelsExcludeAny  []string `json:"labels_exclude_any"`
+	LabelsIncludeAll  []string `json:"labels_include_all"`
 	AutomaticInstall  bool     `json:"automatic_install"`
 	Categories        []string `json:"categories"`
 }
@@ -82,6 +83,7 @@ func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc
 		req.AutomaticInstall,
 		req.LabelsIncludeAny,
 		req.LabelsExcludeAny,
+		req.LabelsIncludeAll,
 	)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {

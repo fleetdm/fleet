@@ -26,7 +26,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	appID uint,
 	installScript, preInstallQuery, postInstallScript, uninstallScript string,
 	selfService bool, automaticInstall bool,
-	labelsIncludeAny, labelsExcludeAny []string,
+	labelsIncludeAny, labelsExcludeAny, labelsIncludeAll []string,
 ) (titleID uint, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return 0, err
@@ -38,7 +38,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 
 	// validate labels before we do anything else
-	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, labelsIncludeAny, labelsExcludeAny)
+	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, labelsIncludeAny, labelsExcludeAny, labelsIncludeAll)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "validating software labels")
 	}
