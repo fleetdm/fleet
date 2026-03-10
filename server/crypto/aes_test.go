@@ -144,8 +144,14 @@ func TestEncryptAESGCM_UniqueNonces(t *testing.T) {
 	key := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	plaintext := []byte("same message")
 
-	encrypted1, _ := EncryptAESGCM(plaintext, key)
-	encrypted2, _ := EncryptAESGCM(plaintext, key)
+	encrypted1, err := EncryptAESGCM(plaintext, key)
+	if err != nil {
+		t.Fatalf("first EncryptAESGCM() error = %v", err)
+	}
+	encrypted2, err := EncryptAESGCM(plaintext, key)
+	if err != nil {
+		t.Fatalf("second EncryptAESGCM() error = %v", err)
+	}
 
 	// Same plaintext should produce different ciphertext due to random nonce
 	if bytes.Equal(encrypted1, encrypted2) {
