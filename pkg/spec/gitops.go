@@ -432,6 +432,11 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		if topKey == "name" || topKey == "labels" || topKey == "settings" || topKey == "org_settings" {
 			continue
 		}
+		// "controls" can be set on _either_ global or "no team" file, and we can't say which it is if both
+		// files aren't supplied, so play it safe and require it to be set on one or the other.
+		if (result.IsNoTeam() || result.IsGlobal()) && topKey == "controls" {
+			continue
+		}
 		// "agent_options" and "reports" are not supported in no-team/unassigned files.
 		if result.IsNoTeam() && (topKey == "agent_options" || topKey == "reports") {
 			continue
