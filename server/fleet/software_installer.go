@@ -608,6 +608,7 @@ type UpdateSoftwareInstallerPayload struct {
 	UpgradeCode       string
 	LabelsIncludeAny  []string // names of "include any" labels
 	LabelsExcludeAny  []string // names of "exclude any" labels
+	LabelsIncludeAll  []string // names of "include all" labels
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
 	// can be nil if the labels have not been validated or if the labels are not being updated.
 	ValidatedLabels *LabelIdentsWithScope
