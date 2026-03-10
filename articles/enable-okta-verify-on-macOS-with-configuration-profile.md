@@ -16,8 +16,8 @@ By following these steps, you can automate the deployment of Okta Verify across 
 
 Okta Verify can be installed:
 
-* As a Volume Purchasing Program (VPP) application, follow [these steps to install VPP apps](https://fleetdm.com/guides/install-app-store-apps).
-* As a *.pkg *file download the [installer from Okta](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/ov-install-options-macos.htm) and [deploy the installer using Fleet](https://fleetdm.com/guides/deploy-security-agents).
+* As a Volume Purchasing Program (VPP) application. Follow [these steps to install VPP apps](https://fleetdm.com/guides/install-app-store-apps).
+* As a package (.pkg) downloaded [from Okta](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/ov-install-options-macos.htm). [Deploy the installer using Fleet](https://fleetdm.com/guides/deploy-security-agents).
 
 After installing Okta Verify on the host, the device will be registered in Okta.
 
@@ -25,7 +25,7 @@ After installing Okta Verify on the host, the device will be registered in Okta.
 
 The next step to ensure Okta detects the device as managed is to issue a SCEP certificate.
 
-* Follow the instructions on the Okta documentation to [configure a certificate authority](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/configure-ca-main.htm) using a **static** SCEP challenge.
+* Follow the instructions on the Okta documentation to [configure a certificate authority](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/configure-ca-main.htm) using a **static** SCEP challenge. If you're using a dynamic challenge, follow this [separate guide](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#okta).
 * In your text editor, copy and paste the following configuration profile and edit the relevant values:
     * `[REPLACE_WITH_CHALLENGE] `with the SCEP challenge you generated in the previous step.
     * `[REPLACE_WITH_URL]`with the URL to your SCEP server.

@@ -194,7 +194,7 @@ func TestMFA(t *testing.T) {
 		if token == mfaToken {
 			return session, mfaUser, nil
 		}
-		return nil, nil, notFoundErr{}
+		return nil, nil, &notFoundErr{}
 	}
 	resp, err := sessionCreateEndpoint(ctx, &sessionCreateRequest{Token: "foo"}, svc)
 	require.NoError(t, err)
@@ -449,6 +449,71 @@ func TestGetSSOUser(t *testing.T) {
 
 	_, err = svc.GetSSOUser(ctx, auth)
 	require.Error(t, err)
+
+	// (5) Test JIT provisioning with global technician role.
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			SSOSettings: &fleet.SSOSettings{
+				EnableSSO:             true,
+				EnableSSOIdPLogin:     true,
+				EnableJITProvisioning: true,
+			},
+		}, nil
+	}
+
+	newUser = nil
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		return nil, newNotFoundError()
+	}
+	ds.NewUserFuncInvoked = false
+
+	auth.assertionAttributes = []fleet.SAMLAttribute{
+		{
+			Name: "FLEET_JIT_USER_ROLE_GLOBAL",
+			Values: []fleet.SAMLAttributeValue{
+				{Value: "technician"},
+			},
+		},
+	}
+
+	_, err = svc.GetSSOUser(ctx, auth)
+	require.NoError(t, err)
+
+	require.NotNil(t, newUser)
+	require.NotNil(t, newUser.GlobalRole)
+	require.Equal(t, fleet.RoleTechnician, *newUser.GlobalRole)
+	require.Empty(t, newUser.Teams)
+
+	// (6) Test JIT provisioning with team technician role.
+
+	newUser = nil
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		return nil, newNotFoundError()
+	}
+	ds.NewUserFuncInvoked = false
+
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: tid}, nil
+	}
+
+	auth.assertionAttributes = []fleet.SAMLAttribute{
+		{
+			Name: "FLEET_JIT_USER_ROLE_TEAM_1",
+			Values: []fleet.SAMLAttributeValue{
+				{Value: "technician"},
+			},
+		},
+	}
+
+	_, err = svc.GetSSOUser(ctx, auth)
+	require.NoError(t, err)
+
+	require.NotNil(t, newUser)
+	require.Nil(t, newUser.GlobalRole)
+	require.Len(t, newUser.Teams, 1)
+	require.Equal(t, uint(1), newUser.Teams[0].ID)
+	require.Equal(t, fleet.RoleTechnician, newUser.Teams[0].Role)
 }
 
 func TestInitiateSSOWithSSOServerURL(t *testing.T) {

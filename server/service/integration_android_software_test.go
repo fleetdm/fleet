@@ -821,7 +821,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 		// Get initial count of edited setup experience activities
 		var initialCount int
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			err := sqlx.GetContext(ctx, q, &initialCount, `SELECT COUNT(id) FROM activities WHERE activity_type = 'edited_setup_experience_software'`)
+			err := sqlx.GetContext(ctx, q, &initialCount, `SELECT COUNT(id) FROM activity_past WHERE activity_type = 'edited_setup_experience_software'`)
 			require.NoError(t, err)
 			return nil
 		})
@@ -884,7 +884,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 		)
 		var count int
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			err := sqlx.GetContext(ctx, q, &count, `SELECT COUNT(id) FROM activities WHERE activity_type = 'edited_setup_experience_software'`)
+			err := sqlx.GetContext(ctx, q, &count, `SELECT COUNT(id) FROM activity_past WHERE activity_type = 'edited_setup_experience_software'`)
 			require.NoError(t, err)
 			return nil
 		})

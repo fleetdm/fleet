@@ -78,6 +78,7 @@ const getProfileMessageSuffix = (
 };
 
 const getHostTeamAssignmentSuffix = (teamName?: string | null) => {
+const getHostTeamAssignmentSuffix = (teamName?: string | null) => {
   return teamName ? (
     <>
       {" "}
@@ -1513,7 +1514,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        created a query <b>{activity.details?.query_name}</b>
+        created a report <b>{activity.details?.query_name}</b>
         {teamText}.
       </>
     );
@@ -1535,7 +1536,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        edited the query <b>{activity.details?.query_name}</b>
+        edited the report <b>{activity.details?.query_name}</b>
         {teamText}.
       </>
     );
@@ -1557,7 +1558,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        deleted the query <b>{activity.details?.query_name}</b>
+        deleted the report <b>{activity.details?.query_name}</b>
         {teamText}.
       </>
     );
