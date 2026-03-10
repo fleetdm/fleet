@@ -2279,8 +2279,7 @@ policies:
 		path, basePath := createTempFile(t, "", config)
 		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "unknown_server_field")
-		assert.Contains(t, err.Error(), "org_settings.server_settings")
+		assert.Contains(t, err.Error(), `unknown key "org_settings.server_settings.unknown_server_field"`)
 	})
 
 	t.Run("unknown key in org_settings with typo suggestion", func(t *testing.T) {
@@ -2301,7 +2300,7 @@ policies:
 		path, basePath := createTempFile(t, "", config)
 		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "server_settigns")
+		assert.Contains(t, err.Error(), "org_settings.server_settigns")
 		assert.Contains(t, err.Error(), `did you mean "server_settings"?`)
 	})
 
@@ -2341,8 +2340,7 @@ software:
 		path, basePath := createTempFile(t, "", config)
 		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "unknown_webhook_field")
-		assert.Contains(t, err.Error(), "settings.webhook_settings")
+		assert.Contains(t, err.Error(), `unknown key "settings.webhook_settings.unknown_webhook_field"`)
 	})
 
 	t.Run("valid org_settings keys no errors", func(t *testing.T) {
@@ -2435,8 +2433,7 @@ secrets:
 		require.NoError(t, os.WriteFile(filepath.Join(basePath, "org_settings.yml"), []byte(orgSettingsYAML), 0o644))
 		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "unknown_org_path_field")
-		assert.Contains(t, err.Error(), "org_settings.yml")
+		assert.Contains(t, err.Error(), `unknown key "org_settings.unknown_org_path_field" in "org_settings.yml"`)
 	})
 
 	t.Run("unknown key in fleet settings via path", func(t *testing.T) {
@@ -2459,8 +2456,7 @@ unknown_fleet_path_field: true
 		require.NoError(t, os.WriteFile(filepath.Join(basePath, "fleet_settings.yml"), []byte(fleetSettingsYAML), 0o644))
 		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "unknown_fleet_path_field")
-		assert.Contains(t, err.Error(), "fleet_settings.yml")
+		assert.Contains(t, err.Error(), `unknown key "settings.unknown_fleet_path_field" in "fleet_settings.yml"`)
 	})
 
 	t.Run("unknown key in policy install_software package_path", func(t *testing.T) {
