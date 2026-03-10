@@ -211,20 +211,32 @@ WHERE
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get in house app labels")
 	}
-	var exclAny, inclAny []fleet.SoftwareScopeLabel
+	var exclAny, inclAny, inclAll []fleet.SoftwareScopeLabel
 	for _, l := range labels {
-		if l.Exclude {
+		switch {
+		case l.Exclude && !l.RequireAll:
 			exclAny = append(exclAny, l)
-		} else {
+		case !l.Exclude && l.RequireAll:
+			inclAll = append(inclAll, l)
+		case !l.Exclude && !l.RequireAll:
 			inclAny = append(inclAny, l)
+		default:
+			// TODO(mna): log error, should never happen
 		}
 	}
 
-	if len(inclAny) > 0 && len(exclAny) > 0 {
-		ds.logger.WarnContext(ctx, "in house app has both include and exclude labels", "installer_id", dest.InstallerID, "include", fmt.Sprintf("%v", inclAny), "exclude", fmt.Sprintf("%v", exclAny))
+	var count int
+	for _, set := range [][]fleet.SoftwareScopeLabel{exclAny, inclAny, inclAll} {
+		if len(set) > 0 {
+			count++
+		}
+	}
+	if count > 1 {
+		ds.logger.WarnContext(ctx, "in house app has more than one scope of labels", "installer_id", dest.InstallerID, "include_any", fmt.Sprintf("%v", inclAny), "exclude_any", fmt.Sprintf("%v", exclAny), "include_all", fmt.Sprintf("%v", inclAll))
 	}
 	dest.LabelsExcludeAny = exclAny
 	dest.LabelsIncludeAny = inclAny
+	dest.LabelsIncludeAll = inclAll
 
 	categoryMap, err := ds.GetCategoriesForSoftwareTitles(ctx, []uint{titleID}, teamID)
 	if err != nil {

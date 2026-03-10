@@ -62,21 +62,32 @@ WHERE
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get vpp app labels")
 	}
-	var exclAny, inclAny []fleet.SoftwareScopeLabel
+	var exclAny, inclAny, inclAll []fleet.SoftwareScopeLabel
 	for _, l := range labels {
-		if l.Exclude {
+		switch {
+		case l.Exclude && !l.RequireAll:
 			exclAny = append(exclAny, l)
-		} else {
+		case !l.Exclude && l.RequireAll:
+			inclAll = append(inclAll, l)
+		case !l.Exclude && !l.RequireAll:
 			inclAny = append(inclAny, l)
+		default:
+			// TODO(mna): log error, should never happen
 		}
 	}
 
-	if len(inclAny) > 0 && len(exclAny) > 0 {
-		// there's a bug somewhere
-		ds.logger.WarnContext(ctx, "vpp app has both include and exclude labels", "vpp_apps_teams_id", app.VPPAppsTeamsID, "include", fmt.Sprintf("%v", inclAny), "exclude", fmt.Sprintf("%v", exclAny))
+	var count int
+	for _, set := range [][]fleet.SoftwareScopeLabel{exclAny, inclAny, inclAll} {
+		if len(set) > 0 {
+			count++
+		}
+	}
+	if count > 1 {
+		ds.logger.WarnContext(ctx, "vpp app has more than one scope of labels", "vpp_apps_teams_id", app.VPPAppsTeamsID, "include_any", fmt.Sprintf("%v", inclAny), "exclude_any", fmt.Sprintf("%v", exclAny), "include_all", fmt.Sprintf("%v", inclAll))
 	}
 	app.LabelsExcludeAny = exclAny
 	app.LabelsIncludeAny = inclAny
+	app.LabelsIncludeAll = inclAll
 
 	categories, err := ds.getCategoriesForVPPApp(ctx, app.VPPAppsTeamsID)
 	if err != nil {
@@ -146,7 +157,8 @@ SELECT
 	label_id,
 	exclude,
 	l.name AS label_name,
-	va.title_id AS title_id
+	va.title_id AS title_id,
+	require_all
 FROM
 	vpp_app_team_labels vatl
 	JOIN vpp_apps_teams vat ON vat.id = vatl.vpp_app_team_id
@@ -344,18 +356,29 @@ func (ds *Datastore) getExistingLabels(ctx context.Context, vppAppTeamID uint) (
 	}
 
 	var labels fleet.LabelIdentsWithScope
-	var exclAny, inclAny []fleet.SoftwareScopeLabel
+	var exclAny, inclAny, inclAll []fleet.SoftwareScopeLabel
 	for _, l := range existingLabels {
-		if l.Exclude {
+		switch {
+		case l.Exclude && !l.RequireAll:
 			exclAny = append(exclAny, l)
-		} else {
+		case !l.Exclude && l.RequireAll:
+			inclAll = append(inclAll, l)
+		case !l.Exclude && !l.RequireAll:
 			inclAny = append(inclAny, l)
+		default:
+			// TODO(mna): log error, should never happen
 		}
 	}
 
-	if len(inclAny) > 0 && len(exclAny) > 0 {
+	var count int
+	for _, set := range [][]fleet.SoftwareScopeLabel{exclAny, inclAny, inclAll} {
+		if len(set) > 0 {
+			count++
+		}
+	}
+	if count > 1 {
 		// there's a bug somewhere
-		return nil, ctxerr.New(ctx, "found both include and exclude labels on a vpp app")
+		return nil, ctxerr.New(ctx, "found labels for more than one scope on a vpp app")
 	}
 
 	switch {
@@ -374,6 +397,15 @@ func (ds *Datastore) getExistingLabels(ctx context.Context, vppAppTeamID uint) (
 			labels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
 		}
 		return &labels, nil
+
+	case len(inclAll) > 0:
+		labels.LabelScope = fleet.LabelScopeIncludeAll
+		labels.ByName = make(map[string]fleet.LabelIdent, len(inclAll))
+		for _, l := range inclAll {
+			labels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
+		}
+		return &labels, nil
+
 	default:
 		return nil, nil
 	}

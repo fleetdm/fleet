@@ -12060,6 +12060,7 @@ func checkSoftwareInstaller(t *testing.T, ds *mysql.Datastore, payload *fleet.Up
 		byName[l.LabelName] = struct{}{}
 		require.Equal(t, *meta2.TitleID, l.TitleID)
 		require.False(t, l.Exclude)
+		require.False(t, l.RequireAll)
 	}
 	require.Len(t, byName, len(payload.LabelsIncludeAny))
 	for _, l := range payload.LabelsIncludeAny {
@@ -12074,6 +12075,7 @@ func checkSoftwareInstaller(t *testing.T, ds *mysql.Datastore, payload *fleet.Up
 		byName[l.LabelName] = struct{}{}
 		require.Equal(t, *meta2.TitleID, l.TitleID)
 		require.True(t, l.Exclude)
+		require.False(t, l.RequireAll)
 	}
 	require.Len(t, byName, len(payload.LabelsExcludeAny))
 	for _, l := range payload.LabelsExcludeAny {

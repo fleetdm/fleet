@@ -633,7 +633,7 @@ func setOrUpdateSoftwareInstallerLabelsDB(ctx context.Context, tx sqlx.ExtContex
 			return ctxerr.New(ctx, "invalid label scope")
 		}
 
-		stmt := `INSERT INTO %[1]s_labels (%[1]s_id, label_id, exclude, require_all) VALUES %s 
+		stmt := `INSERT INTO %[1]s_labels (%[1]s_id, label_id, exclude, require_all) VALUES %s
 							ON DUPLICATE KEY UPDATE exclude = VALUES(exclude), require_all = VALUES(require_all)`
 		var placeholders string
 		var insertArgs []interface{}
@@ -1042,21 +1042,32 @@ LIMIT 1`,
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get software installer labels")
 	}
-	var exclAny, inclAny []fleet.SoftwareScopeLabel
+	var exclAny, inclAny, inclAll []fleet.SoftwareScopeLabel
 	for _, l := range labels {
-		if l.Exclude {
+		switch {
+		case l.Exclude && !l.RequireAll:
 			exclAny = append(exclAny, l)
-		} else {
+		case !l.Exclude && l.RequireAll:
+			inclAll = append(inclAll, l)
+		case !l.Exclude && !l.RequireAll:
 			inclAny = append(inclAny, l)
+		default:
+			// TODO(mna): log error, should never happen
 		}
 	}
 
-	if len(inclAny) > 0 && len(exclAny) > 0 {
-		// there's a bug somewhere
-		ds.logger.WarnContext(ctx, "software installer has both include and exclude labels", "installer_id", dest.InstallerID, "include", fmt.Sprintf("%v", inclAny), "exclude", fmt.Sprintf("%v", exclAny))
+	var count int
+	for _, set := range [][]fleet.SoftwareScopeLabel{exclAny, inclAny, inclAll} {
+		if len(set) > 0 {
+			count++
+		}
+	}
+	if count > 1 {
+		ds.logger.WarnContext(ctx, "software installer has more than one scope of labels", "installer_id", dest.InstallerID, "include_any", fmt.Sprintf("%v", inclAny), "exclude_any", fmt.Sprintf("%v", exclAny), "include_all", fmt.Sprintf("%v", inclAll))
 	}
 	dest.LabelsExcludeAny = exclAny
 	dest.LabelsIncludeAny = inclAny
+	dest.LabelsIncludeAll = inclAll
 
 	categoryMap, err := ds.GetCategoriesForSoftwareTitles(ctx, []uint{titleID}, teamID)
 	if err != nil {
@@ -1099,7 +1110,8 @@ SELECT
 	label_id,
 	exclude,
 	l.name as label_name,
-	si.title_id
+	si.title_id,
+	require_all
 FROM
 	%[1]s_labels sil
 	JOIN %[1]ss si ON si.id = sil.%[1]s_id

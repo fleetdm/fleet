@@ -1083,10 +1083,11 @@ func NewTempFileReader(from io.Reader, tempDirFn func() string) (*TempFileReader
 // NOTE: depending on how/where this struct is used, fields MAY BE
 // UNRELIABLE insofar as they represent default, empty values.
 type SoftwareScopeLabel struct {
-	LabelName string `db:"label_name" json:"name"`
-	LabelID   uint   `db:"label_id" json:"id"` // label id in database, which may be the empty value in some cases where id is not known in advance (e.g., if labels are created during gitops processing)
-	Exclude   bool   `db:"exclude" json:"-"`   // not rendered in JSON, used when processing LabelsIncludeAny and LabelsExcludeAny on parent title (may be the empty value in some cases)
-	TitleID   uint   `db:"title_id" json:"-"`  // not rendered in JSON, used to store the associated title ID (may be the empty value in some cases)
+	LabelName  string `db:"label_name" json:"name"`
+	LabelID    uint   `db:"label_id" json:"id"`   // label id in database, which may be the empty value in some cases where id is not known in advance (e.g., if labels are created during gitops processing)
+	Exclude    bool   `db:"exclude" json:"-"`     // not rendered in JSON, used when processing LabelsIncludeAll, LabelsIncludeAny and LabelsExcludeAny on parent title (may be the empty value in some cases)
+	TitleID    uint   `db:"title_id" json:"-"`    // not rendered in JSON, used to store the associated title ID (may be the empty value in some cases)
+	RequireAll bool   `db:"require_all" json:"-"` // not rendered in JSON, used when processing LabelsIncludeAll, LabelsIncludeAny and LabelsExcludeAny on parent title (may be the empty value in some cases)
 }
 
 // Max total attempts (including initial) for a non-policy software install.
