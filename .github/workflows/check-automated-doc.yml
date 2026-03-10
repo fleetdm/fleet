@@ -48,7 +48,7 @@ jobs:
         run: |
           make generate-doc
           if [[ $(git diff) ]]; then
-            echo "❌ fail: uncommited changes"
+            echo "❌ fail: uncommitted changes"
             echo "please run 'make generate-doc' and commit the changes"
             git --no-pager diff
             exit 1
@@ -60,7 +60,7 @@ jobs:
           npm install
           ./node_modules/sails/bin/sails.js run generate-merged-schema
           if [[ $(git diff) ]]; then
-            echo "❌ fail: uncommited changes"
+            echo "❌ fail: uncommitted changes"
             echo "please run 'cd website && npm install && ./node_modules/sails/bin/sails.js run generate-merged-schema' and commit the changes"
             git --no-pager diff
             exit 1
@@ -70,7 +70,7 @@ jobs:
         run: |
           make vex-report
           if [[ $(git diff) ]]; then
-            echo "❌ fail: uncommited changes"
+            echo "❌ fail: uncommitted changes"
             echo "please run 'make vex-report' and commit the changes"
             git --no-pager diff
             exit 1

@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"time"
@@ -10,8 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -285,25 +284,38 @@ func (ds *Datastore) listVulnsWithoutCVSS(ctx context.Context, linuxTeamFilter s
 }
 
 func (ds *Datastore) InsertOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error) {
-	var args []interface{}
-
 	if len(vulnerabilities) == 0 {
 		return 0, nil
 	}
 
-	values := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(vulnerabilities)), ",")
-	sql := fmt.Sprintf(`INSERT IGNORE INTO operating_system_vulnerabilities (operating_system_id, cve, source, resolved_in_version) VALUES %s`, values)
+	var totalAffected int64
+	err := common_mysql.BatchProcessSimple(vulnerabilities, vulnBatchSize, func(batch []fleet.OSVulnerability) error {
+		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(batch)), ",")
+		stmt := fmt.Sprintf(`
+			INSERT INTO operating_system_vulnerabilities (operating_system_id, cve, source, resolved_in_version)
+			VALUES %s
+			ON DUPLICATE KEY UPDATE
+				source = VALUES(source),
+				resolved_in_version = VALUES(resolved_in_version),
+				updated_at = NOW()
+		`, values)
 
-	for _, v := range vulnerabilities {
-		args = append(args, v.OSID, v.CVE, source, v.ResolvedInVersion)
-	}
-	res, err := ds.writer(ctx).ExecContext(ctx, sql, args...)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "insert operating system vulnerabilities")
-	}
-	count, _ := res.RowsAffected()
+		var args []any
+		for _, v := range batch {
+			args = append(args, v.OSID, v.CVE, source, v.ResolvedInVersion)
+		}
 
-	return count, nil
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "batch insert operating system vulnerabilities")
+		}
+
+		affected, _ := res.RowsAffected()
+		totalAffected += affected
+		return nil
+	})
+
+	return totalAffected, err
 }
 
 func (ds *Datastore) InsertOSVulnerability(ctx context.Context, v fleet.OSVulnerability, s fleet.VulnerabilitySource) (bool, error) {
@@ -589,19 +601,19 @@ type vulnResult struct {
 // deduplicates CVEs across all kernels for each unique name+version combination.
 // Each os_version_id maps to a unique name+version (e.g., "Ubuntu 22.04.1 LTS")
 func processLinuxVulnResults(
+	ctx context.Context,
 	results []vulnResult,
 	osVersionIDToKeyMap map[uint]string,
 	totalCountByOSVersionID map[uint]uint, // Output: tracks total counts per os_version_id
 	vulnsByKey map[string][]fleet.CVE, // Output: CVEs grouped by "name-version" key
 	cveSet map[string]struct{}, // Output: global set of all CVEs for CVSS fetching
-	logger log.Logger,
+	logger *slog.Logger,
 ) {
 	for _, r := range results {
 		key := osVersionIDToKeyMap[r.OSVersionID]
 		if key == "" {
 			// Skip results with missing os_version_id mapping to avoid creating empty string keys
-			level.Error(logger).Log(
-				"msg", "missing os_version_id mapping in processLinuxVulnResults",
+			logger.ErrorContext(ctx, "missing os_version_id mapping in processLinuxVulnResults",
 				"os_version_id", r.OSVersionID,
 				"cve", r.CVE,
 			)
@@ -1010,6 +1022,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 	// Process kernel vulnerability results (Linux)
 	// Use optimized Linux-specific processing (no deduplication overhead)
 	processLinuxVulnResults(
+		ctx,
 		kernelVulnResults,
 		linuxOSVersionMap,
 		totalCountByOSVersionID,

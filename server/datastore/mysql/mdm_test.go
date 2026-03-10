@@ -2461,13 +2461,13 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	// it got deleted and re-inserted from the team's profiles, so this is reflected in
 	// the host's profiles list.
 	newTm1DarwinProfiles = []*fleet.MDMAppleConfigProfile{
-		tm1DarwinProfiles[0],
+		tm1DarwinProfiles[0], //nolint:gosec // dismiss G602
 		configProfileForTest(t, "T1.2a", "T1.2a", "e"),
 		configProfileForTest(t, "T1.3a", "T1.3a", "f"),
 	}
 	newTm1WindowsProfiles = []*fleet.MDMWindowsConfigProfile{
 		windowsConfigProfileForTest(t, "T1.1w", "T1.1"),
-		tm1WindowsProfiles[1],
+		tm1WindowsProfiles[1], //nolint:gosec // dismiss G602
 		windowsConfigProfileForTest(t, "T1.3w", "T1.3"),
 	}
 

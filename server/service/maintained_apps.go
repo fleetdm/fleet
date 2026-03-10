@@ -11,7 +11,7 @@ import (
 )
 
 type addFleetMaintainedAppRequest struct {
-	TeamID            *uint    `json:"team_id"`
+	TeamID            *uint    `json:"team_id" renameto:"fleet_id"`
 	AppID             uint     `json:"fleet_maintained_app_id"`
 	InstallScript     string   `json:"install_script"`
 	PreInstallQuery   string   `json:"pre_install_query"`
@@ -103,7 +103,7 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, _ *uint, _ uint, 
 
 type listFleetMaintainedAppsRequest struct {
 	fleet.ListOptions
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type listFleetMaintainedAppsResponse struct {
@@ -140,7 +140,7 @@ func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, o
 
 type getFleetMaintainedAppRequest struct {
 	AppID  uint  `url:"app_id"`
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type getFleetMaintainedAppResponse struct {

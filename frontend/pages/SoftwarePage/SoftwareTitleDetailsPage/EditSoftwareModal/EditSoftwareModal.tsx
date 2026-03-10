@@ -353,6 +353,7 @@ const EditSoftwareModal = ({
           labels={labels || []}
           className={formClassNames}
           isEditingSoftware
+          isFleetMaintainedApp={isFleetMaintainedApp}
           onCancel={onExit}
           onSubmit={onClickSavePackage}
           onClickPreviewEndUserExperience={togglePreviewEndUserExperienceModal}

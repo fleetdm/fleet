@@ -17,4 +17,7 @@ const (
 	// MaxMultiScriptQuerySize, sets a max size for payloads that take multiple scripts and SQL queries.
 	MaxMultiScriptQuerySize int64 = 5 * units.MiB
 	MaxMicrosoftMDMSize     int64 = 2 * units.MiB
+
+	DefaultMaxOsqueryDistributedWriteSize int64 = 5 * units.MiB
+	DefaultMaxOsqueryLogWriteSize         int64 = 10 * units.MiB
 )

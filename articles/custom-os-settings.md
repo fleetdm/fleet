@@ -6,7 +6,7 @@ In Fleet you can enforce OS settings like security restrictions, screen lock, Wi
 
 For macOS, iOS, and iPadOS hosts, Fleet recommends the [iMazing Profile Creator](https://imazing.com/profile-editor) tool for creating and exporting macOS configuration profiles. Fleet signs these profiles for you. If you have self-signed profiles, run this command to unsign them: `/usr/bin/security cms -D -i  /path/to/profile/profile.mobileconfig | xmllint --format -`
 
-For Windows hosts, copy this [Windows configuration profile template](https://fleetdm.com/example-windows-profile) and update the profile using any [configuration service providers (CSPs)](https://fleetdm.com/guides/creating-windows-csps) from [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/).
+For Windows hosts, copy this [Windows configuration profile template](https://fleetdm.com/example-windows-profile) and update the profile using any [configuration service providers (CSPs)](https://fleetdm.com/guides/creating-windows-csps) from [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/). For local testing on Windows, [SyncMLViewer](https://github.com/okieselbach/SyncMLViewer/releases) is a useful GUI tool for inspecting MDM traffic.
 
 For Android hosts, copy this [Android configuration profile template](https://fleetdm.com/learn-more-about/example-android-profile) and update the profile using the options available in [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#resource:-policy). To learn how, watch [this video](https://youtu.be/Jk4Zcb2sR1w).
 
@@ -77,7 +77,9 @@ If you want to make sure the profile stays device-scoped, update `PayloadScope` 
 
 In the Fleet UI, head to the **Controls > OS settings** tab.
 
-In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, click each status to view a list of hosts.
+To see the status of a specific setting, hover over the setting's row in the **Custom settings** table and select the information (**i**) icon.
+
+Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 seconds for the profile's status to update to "Pending."
 
 ### Verified
 
@@ -107,10 +109,9 @@ Hosts that are running MDM commands or will run MDM commands to apply OS setting
 
 Hosts that failed to apply OS settings. For Windows profiles, status codes are listed in [Microsoft's OMA DM docs](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
 
-In the list of hosts, click on an individual host and click the **OS settings** item to see the status for a specific setting.
+macOS, iOS, or iPadOS hosts may display OS settings as "Failed" even when MDM is turned off. This can happen if MDM was previously enabled and the enrollment profile was deleted while the host was offline. Because Fleet never received [confirmation](https://developer.apple.com/documentation/devicemanagement/check-out) that the enrollment profile was removed, it continues sending MDM commands and checking their status, which always fails. 
 
-Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 seconds for the
-profile's status to update to "Pending."
+To resolve this issue, turn MDM back on, then select **Actions > Turn off MDM** while the host is online.
 
 ### Special Windows behavior
 

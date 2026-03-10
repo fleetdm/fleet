@@ -1,7 +1,7 @@
 /** software/titles/:id */
 
 import React, { useCallback, useContext, useState } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
@@ -56,6 +56,7 @@ const SoftwareTitleDetailsPage = ({
     config,
   } = useContext(AppContext);
   const handlePageError = useErrorHandler();
+  const queryClient = useQueryClient();
 
   // TODO: handle non integer values
   const softwareId = parseInt(routeParams.id, 10);
@@ -113,6 +114,8 @@ const SoftwareTitleDetailsPage = ({
   };
 
   const onDeleteInstaller = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: [{ scope: "software-titles" }] });
+
     if (softwareTitle?.versions?.length) {
       refetchSoftwareTitle();
       return;
@@ -121,10 +124,10 @@ const SoftwareTitleDetailsPage = ({
     // redirect to software titles page if no versions are available
     router.push(
       getPathWithQueryParams(paths.SOFTWARE_TITLES, {
-        team_id: teamIdForApi,
+        fleet_id: teamIdForApi,
       })
     );
-  }, [refetchSoftwareTitle, router, softwareTitle, teamIdForApi]);
+  }, [queryClient, refetchSoftwareTitle, router, softwareTitle, teamIdForApi]);
 
   const onTeamChange = useCallback(
     (teamId: number) => {

@@ -6,14 +6,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel"
 )
@@ -25,11 +24,11 @@ var tracer = otel.Tracer("github.com/fleetdm/fleet/v4/server/activity/internal/m
 type Datastore struct {
 	primary *sqlx.DB
 	replica *sqlx.DB
-	logger  kitlog.Logger
+	logger  *slog.Logger
 }
 
 // NewDatastore creates a new MySQL datastore for activities.
-func NewDatastore(conns *platform_mysql.DBConnections, logger kitlog.Logger) *Datastore {
+func NewDatastore(conns *platform_mysql.DBConnections, logger *slog.Logger) *Datastore {
 	return &Datastore{primary: conns.Primary, replica: conns.Replica, logger: logger}
 }
 
@@ -55,7 +54,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt types.ListOptions) 
 			a.streamed,
 			a.user_email,
 			a.fleet_initiated
-		FROM activities a
+		FROM activity_past a
 		WHERE a.host_only = false`
 
 	var args []any
@@ -142,7 +141,7 @@ func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs [
 	ctx, span := tracer.Start(ctx, "activity.mysql.MarkActivitiesAsStreamed")
 	defer span.End()
 
-	stmt := `UPDATE activities SET streamed = true WHERE id IN (?);`
+	stmt := `UPDATE activity_past SET streamed = true WHERE id IN (?);`
 	query, args, err := sqlx.In(stmt, activityIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "sqlx.In mark activities as streamed")
@@ -169,8 +168,8 @@ func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, op
 		a.user_id as user_id,
 		a.fleet_initiated as fleet_initiated
 	FROM
-		host_activities ha
-		JOIN activities a
+		activity_host_past ha
+		JOIN activity_past a
 			ON ha.activity_id = a.id
 	WHERE
 		ha.host_id = ?`
@@ -196,6 +195,56 @@ func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, op
 	return activities, metaData, nil
 }
 
+// CleanupExpiredActivities deletes up to maxCount activities older than expiryWindowDays
+// that are not linked to any host. Host-linked activities are preserved.
+func (ds *Datastore) CleanupExpiredActivities(ctx context.Context, maxCount int, expiryWindowDays int) error {
+	ctx, span := tracer.Start(ctx, "activity.mysql.CleanupExpiredActivities")
+	defer span.End()
+
+	const selectQuery = `
+		SELECT a.id FROM activity_past a
+		LEFT JOIN activity_host_past ha ON (a.id=ha.activity_id)
+		WHERE ha.activity_id IS NULL AND a.created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
+		ORDER BY a.id ASC
+		LIMIT ?`
+
+	var activityIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.primary, &activityIDs, selectQuery, expiryWindowDays, maxCount); err != nil {
+		return ctxerr.Wrap(ctx, err, "select expired activities for deletion")
+	}
+	if len(activityIDs) == 0 {
+		return nil
+	}
+
+	deleteQuery, args, err := sqlx.In(`DELETE FROM activity_past WHERE id IN (?)`, activityIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build expired activities IN query")
+	}
+	if _, err := ds.primary.ExecContext(ctx, deleteQuery, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete expired activities")
+	}
+	return nil
+}
+
+// CleanupHostActivities removes activity_host_past rows for the given host IDs.
+func (ds *Datastore) CleanupHostActivities(ctx context.Context, hostIDs []uint) error {
+	ctx, span := tracer.Start(ctx, "activity.mysql.CleanupHostActivities")
+	defer span.End()
+
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	stmt, args, err := sqlx.In(`DELETE FROM activity_host_past WHERE host_id IN (?)`, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build activity_host_past IN query")
+	}
+	if _, err := ds.primary.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete activity_host_past for deleted hosts")
+	}
+	return nil
+}
+
 // fetchActivityDetails fetches details for activities in a separate query
 // to avoid MySQL sort buffer issues with large JSON entries.
 func (ds *Datastore) fetchActivityDetails(ctx context.Context, activities []*api.Activity) error {
@@ -204,7 +253,7 @@ func (ds *Datastore) fetchActivityDetails(ctx context.Context, activities []*api
 		ids = append(ids, a.ID)
 	}
 
-	detailsStmt, detailsArgs, err := sqlx.In("SELECT id, details FROM activities WHERE id IN (?)", ids)
+	detailsStmt, detailsArgs, err := sqlx.In("SELECT id, details FROM activity_past WHERE id IN (?)", ids)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bind activity IDs for details")
 	}
@@ -228,7 +277,7 @@ func (ds *Datastore) fetchActivityDetails(ctx context.Context, activities []*api
 	for _, a := range activities {
 		det, ok := detailsLookup[a.ID]
 		if !ok {
-			level.Warn(ds.logger).Log("msg", "Activity details not found", "activity_id", a.ID)
+			ds.logger.WarnContext(ctx, "Activity details not found", "activity_id", a.ID)
 			continue
 		}
 		a.Details = det

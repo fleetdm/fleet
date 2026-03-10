@@ -25,6 +25,11 @@ module.exports = {
     projects_v2_item: { type: {} }, //eslint-disable-line camelcase
   },
 
+  exits: {
+    success: {description: 'A GitHub event was successfully received.'},
+    unexpectedBotSignature: {description: 'The provided botSignature was incorrect', responseType: 'unauthorized' },
+  },
+
 
   fn: async function ({botSignature, action, sender, repository, changes, issue, comment, pull_request: pr, label, release, projects_v2_item: projectsV2Item}) {
 
@@ -84,7 +89,6 @@ module.exports = {
       'AnthonySnyder8',
       'jahzielv',
       'getvictor',
-      'phtardif1',
       'pintomi1989',
       'nonpunctual',
       'dantecatalfamo',
@@ -111,7 +115,6 @@ module.exports = {
       'cdcme',
       'kevinmalkin12',
       'karmine05',
-      'ericswenson0',
       'kitzy',
       'Seedity',
       'NickBlee',
@@ -141,7 +144,7 @@ module.exports = {
       throw new Error('No GitHub bot webhook secret configured!  (Please set `sails.config.custom.githubBotWebhookSecret`.)');
     }//•
     if (sails.config.custom.githubBotWebhookSecret !== botSignature) {
-      throw new Error('Received unexpected GitHub webhook request with botSignature set to: '+botSignature);
+      throw 'unexpectedBotSignature';
     }//•
 
     if (!sails.config.custom.githubAccessToken) {

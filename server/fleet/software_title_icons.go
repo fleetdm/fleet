@@ -26,7 +26,7 @@ type SoftwareTitleIcon struct {
 	// can properly check team ownership (rego marshals the struct to JSON to pass it to
 	// the rego policies script). This struct is never marshalled directly to JSON in
 	// API responses at this time so it doesn't affect anything else.
-	TeamID          uint   `db:"team_id" json:"team_id"`
+	TeamID          uint   `db:"team_id" json:"team_id"` // TODO -- rename to `fleet_id` when authz code switches to using `fleet_id` instead of `team_id`
 	SoftwareTitleID uint   `db:"software_title_id"`
 	StorageID       string `db:"storage_id"`
 	Filename        string `db:"filename"`

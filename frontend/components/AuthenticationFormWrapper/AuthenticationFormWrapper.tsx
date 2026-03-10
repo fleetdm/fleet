@@ -44,7 +44,11 @@ const AuthenticationFormWrapper = ({
       </nav>
       {breadcrumbs}
       <div className={classNames}>
-        <Card className={`${baseClass}__card`} paddingSize="xxlarge">
+        <Card
+          className={`${baseClass}__card`}
+          borderRadiusSize="xxlarge"
+          paddingSize="xlarge"
+        >
           {(header || headerCta) && (
             <div className={`${baseClass}__header-container`}>
               {header && <CardHeader header={header} />}

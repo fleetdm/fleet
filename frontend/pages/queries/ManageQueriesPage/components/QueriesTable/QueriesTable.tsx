@@ -41,7 +41,7 @@ export interface IQueriesTableProps {
     query?: string;
     order_key?: string;
     order_direction?: "asc" | "desc";
-    team_id?: string;
+    fleet_id?: string;
   };
   currentTeamId?: number;
   isPremiumTier?: boolean;
@@ -152,10 +152,10 @@ const QueriesTable = ({
       ) {
         newQueryParams.page = "0";
       }
-      newQueryParams.team_id = queryParams?.team_id;
+      newQueryParams.fleet_id = queryParams?.fleet_id;
 
       const locationPath = getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_QUERIES,
+        pathPrefix: PATHS.MANAGE_REPORTS,
         queryParams: { ...queryParams, ...newQueryParams },
       });
 
@@ -173,7 +173,7 @@ const QueriesTable = ({
 
   const emptyParams: IEmptyTableProps = {
     graphicName: "empty-queries",
-    header: "You don't have any queries",
+    header: "You don't have any reports",
   };
 
   if (isPremiumTier && !config?.partnerships?.enable_primo) {
@@ -182,20 +182,20 @@ const QueriesTable = ({
       currentTeamId === null ||
       currentTeamId === APP_CONTEXT_ALL_TEAMS_ID
     ) {
-      emptyParams.header += " that apply to all teams";
+      emptyParams.header += " that apply to all fleets";
     } else {
-      emptyParams.header += " that apply to this team";
+      emptyParams.header += " that apply to this fleet";
     }
   }
 
   if (searchQuery || curTargetedPlatformFilter !== "all") {
     delete emptyParams.graphicName;
-    emptyParams.header = "No matching queries";
-    emptyParams.info = "No queries match the current filters.";
+    emptyParams.header = "No matching reports";
+    emptyParams.info = "No reports match the current filters.";
   } else if (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) {
     emptyParams.additionalInfo = (
       <>
-        Create a new query, or{" "}
+        Create a new report, or{" "}
         <CustomLink
           url="https://fleetdm.com/docs/using-fleet/standard-query-library"
           text="import Fleet's standard query library"
@@ -209,7 +209,7 @@ const QueriesTable = ({
     (selectedTargetedPlatform: SingleValue<CustomOptionType>) => {
       router?.push(
         getNextLocationPath({
-          pathPrefix: PATHS.MANAGE_QUERIES,
+          pathPrefix: PATHS.MANAGE_REPORTS,
           queryParams: {
             ...queryParams,
             page: 0,
@@ -229,8 +229,8 @@ const QueriesTable = ({
   const handleRowSelect = (row: IRowProps) => {
     if (row.original.id) {
       router?.push(
-        getPathWithQueryParams(PATHS.QUERY_DETAILS(row.original.id), {
-          team_id: currentTeamId,
+        getPathWithQueryParams(PATHS.REPORT_DETAILS(row.original.id), {
+          fleet_id: currentTeamId,
         })
       );
     }
@@ -269,7 +269,7 @@ const QueriesTable = ({
     columnConfigs && (
       <div className={`${baseClass}`}>
         <TableContainer
-          resultsTitle="queries"
+          resultsTitle="reports"
           columnConfigs={columnConfigs}
           data={queries}
           // won't ever actually be loading, see render condition above
@@ -282,7 +282,7 @@ const QueriesTable = ({
           showMarkAllPages={false}
           isAllPagesSelected={false}
           primarySelectAction={{
-            name: "delete query",
+            name: "delete report",
             buttonText: "Delete",
             iconSvg: "trash",
             variant: "inverse",
@@ -291,7 +291,7 @@ const QueriesTable = ({
           emptyComponent={() => EmptyTable(emptyParams)}
           renderCount={() =>
             ((totalQueriesCount || searchQuery) && (
-              <TableCount name="queries" count={totalQueriesCount} />
+              <TableCount name="reports" count={totalQueriesCount} />
             )) ||
             null
           }

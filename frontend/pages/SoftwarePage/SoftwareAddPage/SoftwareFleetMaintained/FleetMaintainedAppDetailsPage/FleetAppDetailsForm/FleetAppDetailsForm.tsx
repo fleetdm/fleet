@@ -33,7 +33,7 @@ export const softwareAlreadyAddedTipContent = (
     ? getPathWithQueryParams(
         paths.SOFTWARE_TITLE_DETAILS(softwareTitleId.toString()),
         {
-          team_id: teamId,
+          fleet_id: teamId,
         }
       )
     : "";
@@ -145,14 +145,17 @@ const FleetAppDetailsForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
-  const onToggleSelfServiceCheckbox = (value: boolean) => {
-    const newData = { ...formData, selfService: value };
+  const onToggleSelfService = () => {
+    const newData = { ...formData, selfService: !formData.selfService };
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
   };
 
-  const onToggleAutomaticInstallCheckbox = (value: boolean) => {
-    const newData = { ...formData, automaticInstall: value };
+  const onToggleAutomaticInstall = () => {
+    const newData = {
+      ...formData,
+      automaticInstall: !formData.automaticInstall,
+    };
     setFormData(newData);
   };
 
@@ -226,8 +229,8 @@ const FleetAppDetailsForm = ({
         <Card paddingSize="medium" borderRadiusSize="large">
           <SoftwareOptionsSelector
             formData={formData}
-            onToggleAutomaticInstall={onToggleAutomaticInstallCheckbox}
-            onToggleSelfService={onToggleSelfServiceCheckbox}
+            onToggleAutomaticInstall={onToggleAutomaticInstall}
+            onToggleSelfService={onToggleSelfService}
             onSelectCategory={onSelectCategory}
             disableOptions={isSoftwareAlreadyAdded}
             onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}

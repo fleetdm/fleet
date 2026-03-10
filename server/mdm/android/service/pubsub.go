@@ -175,7 +175,7 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 			}
 			for i, act := range acts {
 				user := users[i]
-				if err := svc.activityModule.NewActivity(ctx, user, act); err != nil {
+				if err := svc.newActivity(ctx, user, act); err != nil {
 					return ctxerr.Wrap(ctx, err, "create failed app install activity")
 				}
 			}
@@ -187,7 +187,7 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 			// Emit system activity: mdm_unenrolled. For Android BYOD, InstalledFromDEP is always false.
 			// Use the computed display name from the device payload as lite host may not include it.
 			displayName := svc.getComputerName(&device)
-			_ = svc.activityModule.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+			_ = svc.newActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
 				HostSerial:       "",
 				HostDisplayName:  displayName,
 				InstalledFromDEP: false,
@@ -308,13 +308,13 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 			}
 			for i, act := range acts {
 				user := users[i]
-				if err := svc.activityModule.NewActivity(ctx, user, act); err != nil {
+				if err := svc.newActivity(ctx, user, act); err != nil {
 					return ctxerr.Wrap(ctx, err, "create failed app install activity")
 				}
 			}
 
 			displayName := svc.getComputerName(&device)
-			_ = svc.activityModule.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+			_ = svc.newActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
 				HostSerial:       "",
 				HostDisplayName:  displayName,
 				InstalledFromDEP: false,
@@ -899,7 +899,7 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 			return false
 		}
 		act.FromSetupExperience = true // currently, all Android app installs are from setup experience
-		if err := svc.activityModule.NewActivity(ctx, user, act); err != nil {
+		if err := svc.newActivity(ctx, user, act); err != nil {
 			svc.logger.ErrorContext(ctx, "error creating past activity for installed software", "err", err, "host_uuid", hostUUID)
 			return true
 		}

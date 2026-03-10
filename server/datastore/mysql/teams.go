@@ -94,7 +94,7 @@ func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint, withExtras boo
 
 	if err := sqlx.GetContext(ctx, q, team, stmt, tid); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("Team").WithID(tid))
+			return nil, ctxerr.Wrap(ctx, notFound("Fleet").WithID(tid))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "select team")
 	}
@@ -219,7 +219,7 @@ func (ds *Datastore) TeamByName(ctx context.Context, name string) (*fleet.Team, 
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), team, stmt, nameUnicode); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("Team").WithName(nameUnicode))
+			return nil, ctxerr.Wrap(ctx, notFound("Fleet").WithName(nameUnicode))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "select team")
 	}
@@ -253,7 +253,7 @@ func (ds *Datastore) TeamByFilename(ctx context.Context, filename string) (*flee
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), team, stmt, filename); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.Wrap(ctx, notFound("Team").WithMessage("filename not found"))
+			return nil, ctxerr.Wrap(ctx, notFound("Fleet").WithMessage("filename not found"))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "select team")
 	}

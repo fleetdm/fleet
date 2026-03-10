@@ -394,7 +394,7 @@ const ConditionalAccess = () => {
         }
       >
         {oktaConfigured ? (
-          <>
+          <span>
             <TooltipWrapper
               tipContent={
                 <>
@@ -405,7 +405,7 @@ const ConditionalAccess = () => {
               Okta
             </TooltipWrapper>{" "}
             conditional access connected.
-          </>
+          </span>
         ) : (
           "Connect Okta to enable conditional access."
         )}
@@ -463,7 +463,7 @@ const ConditionalAccess = () => {
     let entraContent: React.ReactNode;
     if (entraIsConfigured) {
       entraContent = (
-        <>
+        <span>
           <TooltipWrapper
             tipContent={
               <>
@@ -474,7 +474,7 @@ const ConditionalAccess = () => {
             Microsoft Entra
           </TooltipWrapper>{" "}
           conditional access connected.
-        </>
+        </span>
       );
     } else if (entraIsAwaitingOAuth) {
       entraContent =
@@ -551,15 +551,15 @@ const ConditionalAccess = () => {
               <TooltipWrapper
                 tipContent={
                   <>
-                    When enabled, disables the per-policy setting to allow
-                    bypassing Okta conditional access.{" "}
+                    Disables bypassing Okta conditional access for non-critical
+                    policies.{" "}
                     <em>
                       (Default: <strong>Off</strong>)
                     </em>
                     <br />
                     <br />
                     Bypassing is valid for a single login attempt and is tracked
-                    in audit logs.
+                    in audit logs. Critical policies can never be bypassed.
                   </>
                 }
                 showArrow={false}
