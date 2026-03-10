@@ -3,6 +3,4 @@
   critical: false
   description: The host may have an outdated version of Firefox, potentially risking security vulnerabilities or compatibility issues.
   resolution: Download the latest version from self-service or check for updates using Firefox's built-in update functionality. You can also delete Firefox if you are no longer using it.
-  install_software:
-    package_path: ../software/mozilla-firefox.yml
   platform: darwin

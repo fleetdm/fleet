@@ -393,15 +393,17 @@ If the candidate passes all of these steps, then continue with scheduling a CEO 
 
 ### Perform an incident postmortem
 
-Conduct a postmortem meetings for every service or feature outage and every critical bug, whether it's a customer's environment or on fleetdm.com.
+Conduct a postmortem for every service or feature outage and every critical bug, whether in a customer's environment or on fleetdm.com.
 
-1. Copy this [postmortem template](https://docs.google.com/document/d/1Ajp2LfIclWfr4Bm77lnUggkYNQyfjePiWSnBv1b1nwM/edit?usp=sharing) document and pre-populate where possible.
+1. Copy this [postmortem template](https://docs.google.com/document/d/1Ajp2LfIclWfr4Bm77lnUggkYNQyfjePiWSnBv1b1nwM/edit?usp=sharing) document and pre-populate where possible to make the best use of time.
 2. Invite stakeholders. Typically the EM, PM, QA, and engineers involved. If a customer incident, include the CSM.
-3. Follow and populate document topic by topic. Determine the root cause (why it happened), as well as why our controls did not catch it before release.
-4. Assign each action item an owner that who is responsible for creating a Github issue promptly and working with with the relevant PM/EM to prioritize.
+3. Follow and populate the document topic by topic. Determine the root cause (why it happened), as well as why our controls did not catch it before release.
+4. Assign each action item an owner who is responsible for creating an [engineering-initiated story](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story) promptly, labeled `~postmortem-action-item`, and working with their EM to prioritize
+5. Share the completed postmortem with [Customer Success](https://fleetdm.com/handbook/customer-success) so they can share it with the affected customer if requested. All postmortems should be written in a state that they can be shared directly with affected customers.
 
 [Example finished document](https://docs.google.com/document/d/1J35KUdhEaayE8Xoytxf6aVVoCXHwk2IPGk2rXHJgRNk/edit?usp=sharing)
 
+> It is the EM of the affected product group's responsibility to conduct the postmortem and make sure action items are prioritized promptly.
 
 ### Maintain TUF repo for secure agent updates
 
