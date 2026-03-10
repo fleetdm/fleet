@@ -16,12 +16,21 @@ module.exports = {
 
 
   exits: {
-    success: {description: 'A users whitepaper download request was successfully submitted.'}
+    success: {description: 'A users whitepaper download request was successfully submitted.'},
+    invalidEmailDomain: {
+      description: 'This email address is on a denylist of domains and was not delivered.',
+      responseType: 'badRequest'
+    },
+
   },
 
 
   fn: async function ({firstName, lastName, emailAddress, whitepaperName}) {
 
+    let emailDomain = emailAddress.split('@')[1];
+    if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain.toLowerCase())){
+      throw 'invalidEmailDomain';
+    }
 
     // If the submitter has a marketing attribution cookie, send the details when creating/updating a contact/account/historical record.
     let attributionCookieOrUndefined = this.req.cookies.marketingAttribution;
@@ -47,7 +56,7 @@ module.exports = {
         salesforceAccountId: recordIds.salesforceAccountId,
         salesforceContactId: recordIds.salesforceContactId,
         eventType: 'Intent signal',
-        intentSignal: 'Submitted a form to download a whitepaper',
+        intentSignal: 'Requested whitepaper download',
         eventContent: whitepaperName,
       }).intercept((err)=>{
         return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
