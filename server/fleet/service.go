@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
 )
@@ -241,6 +240,8 @@ type Service interface {
 	// SSOSettings returns non-sensitive single sign on information used before authentication
 	SSOSettings(ctx context.Context) (*SessionSSOSettings, error)
 	Login(ctx context.Context, email, password string, supportsEmailVerification bool) (user *User, session *Session, err error)
+	// GetSessionDuration returns the configured session duration
+	GetSessionDuration(ctx context.Context) time.Duration
 	Logout(ctx context.Context) (err error)
 	CompleteMFA(ctx context.Context, token string) (*Session, *User, error)
 	DestroySession(ctx context.Context) (err error)
@@ -642,9 +643,9 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
 
-	// SetActivityService sets the activity bounded context service for creating activities.
+	// SetActivityService sets the activity bounded context service for write operations.
 	// This should be called after service creation to inject the activity service dependency.
-	SetActivityService(activitySvc api.NewActivityService)
+	SetActivityService(activitySvc ActivityWriteService)
 
 	// NewActivity creates the given activity on the datastore.
 	//

@@ -449,6 +449,15 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			MacOSSetup:                 cmd.AppConfig.MDM.MacOSSetup,
 		}
 
+		// Collect failing policy IDs from webhook settings so we can output
+		// webhooks_and_tickets_enabled per-policy instead of policy_ids in settings.
+		var failingPolicyIDs map[uint]bool
+		if team == nil {
+			failingPolicyIDs = policyIDSliceToSet(cmd.AppConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+		} else {
+			failingPolicyIDs = policyIDSliceToSet(team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+		}
+
 		if team == nil {
 			// Generate org settings, agent options and labels for the global config.
 			orgSettings, err := cmd.generateOrgSettings()
@@ -520,7 +529,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 
 		// Generate policies.
-		policies, err := cmd.generatePolicies(teamToProcess.ID, teamFileName)
+		policies, err := cmd.generatePolicies(teamToProcess.ID, teamFileName, failingPolicyIDs)
 		if err != nil {
 			teamName := "global"
 			if team != nil {
@@ -740,13 +749,19 @@ func generateProfileFilename(profile *fleet.MDMConfigProfilePayload, profileCont
 
 func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]interface{}, err error) {
 	t := reflect.TypeOf(fleet.EnrichedAppConfig{})
+
+	webhookSettings, err := webhookSettingsWithoutPolicyIDs(cmd.AppConfig.WebhookSettings)
+	if err != nil {
+		return nil, err
+	}
+
 	orgSettings = map[string]interface{}{
 		jsonFieldName(t, "Features"):           cmd.AppConfig.Features,
 		jsonFieldName(t, "FleetDesktop"):       cmd.AppConfig.FleetDesktop,
 		jsonFieldName(t, "HostExpirySettings"): cmd.AppConfig.HostExpirySettings,
 		jsonFieldName(t, "OrgInfo"):            cmd.AppConfig.OrgInfo,
 		jsonFieldName(t, "ServerSettings"):     cmd.AppConfig.ServerSettings,
-		jsonFieldName(t, "WebhookSettings"):    cmd.AppConfig.WebhookSettings,
+		jsonFieldName(t, "WebhookSettings"):    webhookSettings,
 	}
 
 	integrations, err := cmd.generateIntegrations("default.yml", &GlobalOrTeamIntegrations{GlobalIntegrations: &cmd.AppConfig.Integrations})
@@ -1095,12 +1110,18 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 	// For "No Team" (team ID 0), only include webhook settings
 	// Note: Jira/Zendesk integrations are not supported at the team level (including No Team)
 	// See https://github.com/fleetdm/fleet/issues/20287
+	webhookSettings, err := webhookSettingsWithoutPolicyIDs(team.Config.WebhookSettings)
+	if err != nil {
+		return nil, err
+	}
+
 	if team.ID == 0 {
-		webhookSettings := map[string]any{
-			"failing_policies_webhook": team.Config.WebhookSettings.FailingPoliciesWebhook,
-		}
+		// Only include failing_policies_webhook for "No Team".
+		fpw := webhookSettings["failing_policies_webhook"]
 		teamSettings = map[string]any{
-			jsonFieldName(t, "WebhookSettings"): webhookSettings,
+			jsonFieldName(t, "WebhookSettings"): map[string]any{
+				"failing_policies_webhook": fpw,
+			},
 		}
 		return teamSettings, nil
 	}
@@ -1109,7 +1130,7 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 	teamSettings = map[string]interface{}{
 		jsonFieldName(t, "Features"):           team.Config.Features,
 		jsonFieldName(t, "HostExpirySettings"): team.Config.HostExpirySettings,
-		jsonFieldName(t, "WebhookSettings"):    team.Config.WebhookSettings,
+		jsonFieldName(t, "WebhookSettings"):    webhookSettings,
 	}
 	integrations, err := cmd.generateIntegrations(filePath, &GlobalOrTeamIntegrations{TeamIntegrations: &team.Config.Integrations})
 	if err != nil {
@@ -1415,7 +1436,7 @@ func (cmd *GenerateGitopsCommand) generateScripts(teamId *uint, teamName string)
 	return scriptSlice, nil
 }
 
-func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string) ([]map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string, failingPolicyIDs map[uint]bool) ([]map[string]any, error) {
 	policies, err := cmd.Client.GetPolicies(teamId)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting policies: %s\n", err)
@@ -1437,6 +1458,8 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			jsonFieldName(t, "CalendarEventsEnabled"):    policy.CalendarEventsEnabled,
 			jsonFieldName(t, "ConditionalAccessEnabled"): policy.ConditionalAccessEnabled,
 		}
+		// This is derived from the failing_policies_webhook.policy_ids field, which is being deprecated.
+		policySpec["webhooks_and_tickets_enabled"] = failingPolicyIDs[policy.ID]
 		// Handle software automation.
 		if policy.InstallSoftware != nil {
 			if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {
@@ -1479,6 +1502,34 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 		result[i] = policySpec
 	}
 	return result, nil
+}
+
+func policyIDSliceToSet(ids []uint) map[uint]bool {
+	m := make(map[uint]bool, len(ids))
+	for _, id := range ids {
+		m[id] = true
+	}
+	return m
+}
+
+// webhookSettingsWithoutPolicyIDs serializes the given webhook settings struct
+// to a map and removes the failing_policies_webhook.policy_ids key (since
+// those are now represented as webhooks_and_tickets_enabled on individual
+// policies).
+// TODO - remove this in Fleet 5 when we remove support for policy_ids under failing_policies_webhook.
+func webhookSettingsWithoutPolicyIDs(webhookSettings any) (map[string]any, error) {
+	b, err := json.Marshal(webhookSettings)
+	if err != nil {
+		return nil, fmt.Errorf("marshal webhook settings: %w", err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		return nil, fmt.Errorf("unmarshal webhook settings: %w", err)
+	}
+	if fpw, ok := m["failing_policies_webhook"].(map[string]any); ok {
+		delete(fpw, "policy_ids")
+	}
+	return m, nil
 }
 
 func (cmd *GenerateGitopsCommand) generateQueries(teamId *uint) ([]map[string]interface{}, error) {

@@ -58,6 +58,7 @@ policies:
   platform: linux,windows
   query: SELECT * FROM team_policy WHERE id = 1
   resolution: Do a team thing
+  webhooks_and_tickets_enabled: true
 reports:
 - automations_enabled: true
   description: This is a team query
@@ -88,10 +89,6 @@ settings:
       destination_url: https://some-team-failing_policies-webhook.com
       enable_failing_policies_webhook: false
       host_batch_size: 4
-      policy_ids:
-      - 1
-      - 2
-      - 3
     host_status_webhook:
       days_count: 3
       destination_url: https://some-team-host-status-webhook.com
