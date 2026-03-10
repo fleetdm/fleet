@@ -644,6 +644,21 @@ The max request body size, in a human readable format (size + unit), for endpoin
     default_max_request_body_size: 2MB
   ```
 
+### server_endpoint_request_size_overrides
+
+Per-endpoint max request body size overrides using human-readable sizes (e.g. 50mb). The highest value between default_max_request_body_size and a matching override is used.
+
+- Default value: None
+- Environment variable: `FLEET_SERVER_ENDPOINT_REQUEST_SIZE_OVERRIDES`
+- Environment variable format: `[{"endpoint": "/api/_version_/fleet/software/titles/{title_id:[0-9]+}/available_for_install", "max_request_size": "50mb"}]`
+- Config file format:
+  ```yaml
+  server:
+  endpoint_request_size_overrides:
+    - endpoint: "/api/_version_/fleet/software/titles/{title_id:[0-9]+}/available_for_install"
+      max_request_size: "50mb"
+  ```
+
 ### server_tls
 
 Whether or not the server should be served over TLS.
