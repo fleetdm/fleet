@@ -218,6 +218,7 @@ queries:
 policies:
 agent_options:
 labels:
+controls:
 org_settings:
   server_settings:
     server_url: https://example.com
@@ -2396,7 +2397,7 @@ software:
 		assert.True(t, strings.Contains(err.Error(), "calendar events are not supported on policies included in `no-team.yml`: \"Foobar\""), err.Error())
 	})
 
-	t.Run("global and no-team.yml DO NOT define controls -- controls is now optional", func(t *testing.T) {
+	t.Run("global and no-team.yml DO NOT define controls -- should fail", func(t *testing.T) {
 		globalFileWithoutControlsAndSoftwareKeys := createGlobalFileWithoutControlsAndSoftwareKeys(t, fleetServerURL, orgName)
 
 		noTeamFilePathWithoutControls := filepath.Join(t.TempDir(), "no-team.yml")
@@ -2410,15 +2411,38 @@ software:
 		require.NoError(t, err)
 
 		// Dry run, controls is now optional so this should succeed.
-		_ = RunAppForTest(t, []string{
+		_, err = RunAppNoChecks([]string{
 			"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFileBasic.Name(), "-f",
 			noTeamFileWithoutControls.Name(), "--dry-run",
 		})
+		require.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "must be set on global config or no-team.yml"), err.Error())
+
 		// Real run
-		_ = RunAppForTest(t, []string{
+		_, err = RunAppNoChecks([]string{
 			"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFileBasic.Name(), "-f",
 			noTeamFileWithoutControls.Name(),
 		})
+		require.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "must be set on global config or no-team.yml"), err.Error())
+	})
+
+	t.Run("global DOES NOT define controls -- should fail", func(t *testing.T) {
+		globalFileWithoutControlsAndSoftwareKeys := createGlobalFileWithoutControlsAndSoftwareKeys(t, fleetServerURL, orgName)
+
+		// Dry run, controls is now optional so this should succeed.
+		_, err = RunAppNoChecks([]string{
+			"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "--dry-run",
+		})
+		require.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "must be set on global config, no-team.yml or unassigned.yml"), err.Error())
+
+		// Real run
+		_, err = RunAppNoChecks([]string{
+			"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(),
+		})
+		require.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "must be set on global config, no-team.yml or unassigned.yml"), err.Error())
 	})
 
 	t.Run("controls only defined in no-team.yml", func(t *testing.T) {
