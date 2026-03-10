@@ -43,7 +43,7 @@ Organizations have two primary methods for enrolling Apple devices into MDM syst
 | **MDM profile removal** | Delivers an immutable, non-removable MDM enrollment profile for management | Depending on the enrollment workflow, users may be able to  remove management |
 | **Device supervision** | Automatic supervision | Requires Apple Configurator |
 | **Purchase requirements** | Must buy through authorized seller | Any device source works |
-| **Existing device support** | Requires erase or Apple Configurator | Can work without device wipe |
+| **Existing device support** | Requires erase or Apple Configurator prior to macOS 26 & iOS / iPadOS 26 | Most BYOD enrollments and manual enrollments allow removal without erase to protect user data |
 
 ADE makes sense for new device purchases going directly to employees, organizations prioritizing security and compliance, remote workforces where IT can't physically configure devices, and large-scale deployments processing many devices annually.
 
