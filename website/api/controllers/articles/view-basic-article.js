@@ -37,7 +37,7 @@ module.exports = {
     let thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: this.req.path });
     if (!thisPage) {// If there's no EXACTLY matching content page, try a revised version of the URL suffix that's lowercase, with all slashes deduped, and any leading or trailing slash removed (leading slashes are only possible if this is a regex, rather than "/*" route)
       let revisedPageUrlSuffix = pageUrlSuffix.toLowerCase().replace(/\/+/g, '/').replace(/^\/+/,'').replace(/\/+$/,'');
-      thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: '/' + revisedPageUrlSuffix });
+      thisPage = _.find(sails.config.builtStaticContent.markdownPages, (page)=>{return _.endsWith(page.url, revisedPageUrlSuffix); });
       if (thisPage) {// If we matched a page with the revised suffix, then redirect to that rather than rendering it, so the URL gets cleaned up.
         throw {redirect: thisPage.url};
       } else {// If no page could be found even with the revised suffix, then throw a 404 error.

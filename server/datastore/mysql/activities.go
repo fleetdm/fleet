@@ -297,35 +297,10 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	return activities, metaData, nil
 }
 
-func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, maxCount int, expiredWindowDays int) error {
-	const selectActivitiesQuery = `
-		SELECT a.id FROM activities a
-		LEFT JOIN host_activities ha ON (a.id=ha.activity_id)
-		WHERE ha.activity_id IS NULL AND a.created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
-		ORDER BY a.id ASC
-		LIMIT ?;`
-	var activityIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &activityIDs, selectActivitiesQuery, expiredWindowDays, maxCount); err != nil {
-		return ctxerr.Wrap(ctx, err, "select activities for deletion")
-	}
-	if len(activityIDs) > 0 {
-		deleteActivitiesQuery, args, err := sqlx.In(`DELETE FROM activities WHERE id IN (?);`, activityIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build activities IN query")
-		}
-		if _, err := ds.writer(ctx).ExecContext(ctx, deleteActivitiesQuery, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete expired activities")
-		}
-	}
-
-	// `activities` and `queries` are not tied because the activity itself holds
-	// the query SQL so they don't need to be executed on the same transaction.
-	//
+func (ds *Datastore) CleanupExpiredLiveQueries(ctx context.Context, expiredWindowDays int) error {
 	// All expired live queries are deleted in batch sizes of
 	// `deleteIDsBatchSize` to ensure the table size is kept in check
-	// with high volumes of live queries (zero-trust workflows). This differs
-	// from the `activities` cleanup which uses maxCount as a limit to the
-	// number of activities to delete.
+	// with high volumes of live queries (zero-trust workflows).
 
 	const selectUnsavedQueryIDs = `
 		SELECT id
@@ -837,13 +812,13 @@ func clearLockWipeForCanceledActivity(ctx context.Context, tx sqlx.ExtContext, h
 		const findActStmt = `SELECT
 				id
 			FROM
-				activities
-				INNER JOIN host_activities ON (host_activities.activity_id = activities.id)
+				activity_past
+				INNER JOIN activity_host_past ON (activity_host_past.activity_id = activity_past.id)
 			WHERE
-				host_activities.host_id = ? AND
-				activities.activity_type = ?
+				activity_host_past.host_id = ? AND
+				activity_past.activity_type = ?
 			ORDER BY
-				activities.created_at DESC
+				activity_past.created_at DESC
 			LIMIT 1
 `
 		var activityID uint
@@ -855,7 +830,7 @@ func clearLockWipeForCanceledActivity(ctx context.Context, tx sqlx.ExtContext, h
 			return ctxerr.Wrap(ctx, err, "find past activity for lock/wipe")
 		}
 
-		const delStmt = `DELETE FROM activities WHERE id = ?`
+		const delStmt = `DELETE FROM activity_past WHERE id = ?`
 		if _, err := tx.ExecContext(ctx, delStmt, activityID); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete past activity for lock/wipe")
 		}

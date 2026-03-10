@@ -961,7 +961,7 @@ const HostDetailsPage = ({
 
   const onClickAddQuery = () => {
     router.push(
-      getPathWithQueryParams(PATHS.NEW_QUERY, {
+      getPathWithQueryParams(PATHS.NEW_REPORT, {
         fleet_id: currentTeam?.id || location.query.fleet_id,
         host_id: hostIdFromURL,
       })

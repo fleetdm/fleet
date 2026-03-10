@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
 )
@@ -642,9 +641,9 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
 
-	// SetActivityService sets the activity bounded context service for creating activities.
+	// SetActivityService sets the activity bounded context service for write operations.
 	// This should be called after service creation to inject the activity service dependency.
-	SetActivityService(activitySvc api.NewActivityService)
+	SetActivityService(activitySvc ActivityWriteService)
 
 	// NewActivity creates the given activity on the datastore.
 	//
@@ -865,6 +864,8 @@ type Service interface {
 	GetVPPTokens(ctx context.Context) ([]*VPPTokenDB, error)
 	DeleteVPPToken(ctx context.Context, tokenID uint) error
 
+	CreateAndroidWebApp(ctx context.Context, title, startURL string, icon io.Reader) (string, error)
+
 	BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []VPPBatchPayload, dryRun bool) ([]VPPAppResponse, error)
 
 	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
@@ -1037,6 +1038,11 @@ type Service interface {
 	// Windows MDM. If an error is returned, authorization is skipped so the
 	// error can be raised to the user.
 	VerifyMDMWindowsConfigured(ctx context.Context) error
+
+	// VerifyMDMAndroidConfigured verifies that the server is configured for
+	// Android MDM. If an error is returned, authorization is skipped so the
+	// error can be raised to the user.
+	VerifyMDMAndroidConfigured(ctx context.Context) error
 
 	// VerifyAnyMDMConfigured verifies that the server is configured for any MDM
 	// (Apple, Windows, or Android). If an error is returned, authorization is

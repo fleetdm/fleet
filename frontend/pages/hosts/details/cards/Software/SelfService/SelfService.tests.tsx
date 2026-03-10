@@ -46,6 +46,7 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
   refetchHostDetails: noop,
   isHostDetailsPolling: false,
   hostDisplayName: DEFAULT_HOST_HOSTNAME,
+  mdmEnrollmentStatus: "Off",
 };
 
 describe("SelfService", () => {
@@ -273,5 +274,26 @@ describe("SelfService", () => {
     expect(screen.getByRole("button", { name: "Reinstall" })).toBeDisabled(); // TODO: Should this say "Reinstall"?
     const moreDropdown = getMoreDropdown();
     expect(moreDropdown).toBeDisabled();
+  });
+
+  it("renders self service unsupported message for BYOD Account-Driven User Enrollment on mobile view", () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    render(
+      <SelfService
+        {...TEST_PROPS}
+        isMobileView
+        mdmEnrollmentStatus="On (personal)"
+      />
+    );
+
+    expect(
+      screen.getByText(/Self-service isn't supported/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Self-service is currently not supported on personal iOS and iPadOS devices/i
+      )
+    ).toBeInTheDocument();
   });
 });

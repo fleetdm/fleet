@@ -211,6 +211,13 @@ type OsqueryConfig struct {
 	AsyncHostRedisPopCount           int           `yaml:"async_host_redis_pop_count"`
 	AsyncHostRedisScanKeysCount      int           `yaml:"async_host_redis_scan_keys_count"`
 	MinSoftwareLastOpenedAtDiff      time.Duration `yaml:"min_software_last_opened_at_diff"`
+
+	// MaxLogWriteBodySize overrides the default body size limit for the
+	// osquery/log endpoint. A value of 0 means use the built-in default.
+	MaxLogWriteBodySize int64 `yaml:"max_log_write_body_size"`
+	// MaxDistributedWriteBodySize overrides the default body size limit for the
+	// osquery/distributed/write endpoint. A value of 0 means use the built-in default.
+	MaxDistributedWriteBodySize int64 `yaml:"max_distributed_write_body_size"`
 }
 
 // AsyncTaskName is the type of names that identify tasks supporting
@@ -772,9 +779,6 @@ type MDMConfig struct {
 	// AppleSCEPSignerValidityDays are the days signed client certificates will
 	// be valid.
 	AppleSCEPSignerValidityDays int `yaml:"apple_scep_signer_validity_days"`
-	// AppleSCEPSignerAllowRenewalDays are the allowable renewal days for
-	// certificates.
-	AppleSCEPSignerAllowRenewalDays int `yaml:"apple_scep_signer_allow_renewal_days"`
 	// AppleConnectJWT is the Apple Connect JWT used to access VPP app metadata.
 	// If supplied, Fleet will contact the Apple API directly rather than checking the Fleet proxy
 	AppleConnectJWT string `yaml:"apple_vpp_app_metadata_api_bearer_token"`
@@ -1301,8 +1305,12 @@ func (man Manager) addConfigs() {
 		"Batch size to pop items from redis in async collection")
 	man.addConfigInt("osquery.async_host_redis_scan_keys_count", 1000,
 		"Batch size to scan redis keys in async collection")
-	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 1*time.Hour,
+	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 2*time.Minute,
 		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
+	man.addConfigByteSize("osquery.max_log_write_body_size", "0",
+		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Values below the server minimum request body size are raised to that minimum.")
+	man.addConfigByteSize("osquery.max_distributed_write_body_size", "0",
+		"Maximum body size for the osquery/distributed/write endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (5MiB). Values below the server minimum request body size are raised to that minimum.")
 
 	// Activities
 	man.addConfigBool("activity.enable_audit_log", false,
@@ -1578,7 +1586,6 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple_bm_key_bytes", "", "Apple Business Manager PEM-encoded private key bytes")
 	man.addConfigBool("mdm.apple_enable", false, "Enable MDM Apple functionality")
 	man.addConfigInt("mdm.apple_scep_signer_validity_days", 365, "Days signed client certificates will be valid")
-	man.addConfigInt("mdm.apple_scep_signer_allow_renewal_days", 14, "Allowable renewal days for client certificates")
 	man.addConfigString("mdm.apple_vpp_app_metadata_api_bearer_token", "", "Apple Connect JWT, used for accessing VPP app metadata directly from Apple")
 	man.addConfigString("mdm.apple_scep_challenge", "", "SCEP static challenge for enrollment")
 	man.addConfigDuration("mdm.apple_dep_sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
@@ -1747,6 +1754,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			AsyncHostRedisPopCount:           man.getConfigInt("osquery.async_host_redis_pop_count"),
 			AsyncHostRedisScanKeysCount:      man.getConfigInt("osquery.async_host_redis_scan_keys_count"),
 			MinSoftwareLastOpenedAtDiff:      man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
+			MaxLogWriteBodySize:              man.getConfigByteSize("osquery.max_log_write_body_size"),
+			MaxDistributedWriteBodySize:      man.getConfigByteSize("osquery.max_distributed_write_body_size"),
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: man.getConfigBool("activity.enable_audit_log"),
@@ -1903,7 +1912,6 @@ func (man Manager) LoadConfig() FleetConfig {
 			AppleEnable:                       man.getConfigBool("mdm.apple_enable"),
 			AppleSCEPSignerValidityDays:       man.getConfigInt("mdm.apple_scep_signer_validity_days"),
 			AppleConnectJWT:                   man.getConfigString("mdm.apple_vpp_app_metadata_api_bearer_token"),
-			AppleSCEPSignerAllowRenewalDays:   man.getConfigInt("mdm.apple_scep_signer_allow_renewal_days"),
 			AppleSCEPChallenge:                man.getConfigString("mdm.apple_scep_challenge"),
 			AppleDEPSyncPeriodicity:           man.getConfigDuration("mdm.apple_dep_sync_periodicity"),
 			WindowsWSTEPIdentityCert:          man.getConfigString("mdm.windows_wstep_identity_cert"),

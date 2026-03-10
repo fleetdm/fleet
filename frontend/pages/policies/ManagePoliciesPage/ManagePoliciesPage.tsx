@@ -789,8 +789,6 @@ const ManagePolicyPage = ({
       const policyPromises = changedPolicies.map((changedPolicy) => {
         return teamPoliciesAPI.update(changedPolicy.id, {
           conditional_access_enabled: changedPolicy.conditional_access_enabled,
-          conditional_access_bypass_enabled:
-            changedPolicy.conditional_access_bypass_enabled,
           team_id: teamIdForApi,
         });
       });
@@ -1127,7 +1125,7 @@ const ManagePolicyPage = ({
     } else if (teamIdForApi === API_NO_TEAM_ID) {
       disabledCalendarTooltipContent = (
         <>
-          Select a team to manage
+          Select a fleet to manage
           <br />
           calendar events.
         </>

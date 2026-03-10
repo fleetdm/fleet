@@ -25,5 +25,13 @@ columns:
     type: text
     required: false
     description: User principal name of the user that logged in via Platform SSO.
+  - name: registration_completed
+    type: integer
+    required: false
+    description: Whether Platform SSO registration is completed (0 = false, 1 = true).
+  - name: login_type
+    type: text
+    required: false
+    description: Login type extracted from device configuration (e.g. "POLoginTypeUserSecureEnclaveKey (2)").
 notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 evented: false
