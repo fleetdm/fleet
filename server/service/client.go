@@ -1279,6 +1279,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			InstallDuringSetup: installDuringSetup,
 			LabelsIncludeAny:   si.LabelsIncludeAny,
 			LabelsExcludeAny:   si.LabelsExcludeAny,
+			LabelsIncludeAll:   si.LabelsIncludeAll,
 			SHA256:             sha256Value,
 			Categories:         si.Categories,
 			DisplayName:        si.DisplayName,

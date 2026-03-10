@@ -524,6 +524,7 @@ type UploadSoftwareInstallerPayload struct {
 	InstallDuringSetup *bool    // keep saved value if nil, otherwise set as indicated
 	LabelsIncludeAny   []string // names of "include any" labels
 	LabelsExcludeAny   []string // names of "exclude any" labels
+	LabelsIncludeAll   []string // names of "include all" labels
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
 	// is nil if the labels have not been validated.
 	ValidatedLabels       *LabelIdentsWithScope
@@ -783,6 +784,7 @@ type SoftwarePackageSpec struct {
 	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
 	LabelsIncludeAny   []string              `json:"labels_include_any"`
 	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
+	LabelsIncludeAll   []string              `json:"labels_include_all"`
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
 

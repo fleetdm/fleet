@@ -35,6 +35,7 @@ type uploadSoftwareInstallerRequest struct {
 	UninstallScript   string
 	LabelsIncludeAny  []string
 	LabelsExcludeAny  []string
+	LabelsIncludeAll  []string
 	AutomaticInstall  bool
 }
 
@@ -434,6 +435,7 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		UninstallScript:   req.UninstallScript,
 		LabelsIncludeAny:  req.LabelsIncludeAny,
 		LabelsExcludeAny:  req.LabelsExcludeAny,
+		LabelsIncludeAll:  req.LabelsIncludeAll,
 		AutomaticInstall:  req.AutomaticInstall,
 	}
 
