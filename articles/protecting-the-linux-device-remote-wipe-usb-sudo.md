@@ -9,6 +9,8 @@
 - Part 5: Protecting the Linux device: remote wipe, USB and sudo
 - Part 6: [Owning your Linux destiny with open source](https://fleetdm.com/articles/owning-your-linux-destiny-with-open-source)
 
+-----
+
 Cloud security is important. But so is the data sitting on a local device. Developer workstations accumulate sensitive material in every corner of the filesystem: cached credentials in `~/.git-credentials`, SSH keys in `~/.ssh/`, API tokens in environment files, and proprietary source code in local repositories. If an attacker gains access to one of these machines, they inherit everything the developer could reach. The investment in cloud security is a given. So why is the physical security posture of Linux workstations so often treated as an afterthought?
 
 ## Remote lock and wipe

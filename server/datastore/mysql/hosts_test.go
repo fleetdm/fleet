@@ -8764,7 +8764,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 
 	activitySvc := NewTestActivityService(t, ds)
 	apiUser := &activity_api.User{ID: user1.ID, Name: user1.Name, Email: user1.Email}
-	err = activitySvc.NewActivity( // automatically creates the host_activities entry
+	err = activitySvc.NewActivity( // automatically creates the activity_host_past entry
 		ctx,
 		apiUser,
 		activity,
