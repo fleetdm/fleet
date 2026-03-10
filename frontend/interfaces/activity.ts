@@ -165,7 +165,7 @@ export enum ActivityType {
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
-export type IHostPas_tActivityType =
+export type IHostPastActivityType =
   | ActivityType.RanScript
   | ActivityType.LockedHost
   | ActivityType.WipedHost
@@ -394,7 +394,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   mdm_enrolled: "MDM turned on",
   mdm_unenrolled: "MDM turned off",
   ran_script: "Ran script",
-  ran_script_batch: "Bulk ran script",
+  ran_script_batch: "Bulk ran script"/
   scheduled_script_batch: "Scheduled script batch",
   canceled_script_batch: "Canceled script batch",
   read_host_disk_encryption_key: "Viewed disk encryption key",
