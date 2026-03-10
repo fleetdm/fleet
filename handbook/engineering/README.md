@@ -403,6 +403,7 @@ Conduct a postmortem for every service or feature outage and every critical bug,
 
 [Example finished document](https://docs.google.com/document/d/1J35KUdhEaayE8Xoytxf6aVVoCXHwk2IPGk2rXHJgRNk/edit?usp=sharing)
 
+> It is the EM of the affected product group's responsibility to conduct the postmortem and make sure action items are prioritized promptly.
 
 ### Maintain TUF repo for secure agent updates
 
