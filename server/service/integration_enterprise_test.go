@@ -4880,6 +4880,17 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	assert.Equal(t, "SSO User 6", user6.Name)
 	require.NotNil(t, user6.GlobalRole)
 	require.Equal(t, fleet.RoleObserver, *user6.GlobalRole)
+
+	// A user with a global technician role can be created via JIT provisioning,
+	// see `tools/saml/users.php` for details.
+	body = s.LoginSSOUser("sso_user_8_global_technician", "user123#")
+	require.Contains(t, body, "Redirecting to Fleet at  ...")
+	user8, err := s.ds.UserByEmail(context.Background(), "sso_user_8_global_technician@example.com")
+	require.NoError(t, err)
+	assert.Equal(t, "sso_user_8_global_technician@example.com", user8.Email)
+	assert.Equal(t, "SSO User 8", user8.Name)
+	require.NotNil(t, user8.GlobalRole)
+	require.Equal(t, fleet.RoleTechnician, *user8.GlobalRole)
 }
 
 func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
