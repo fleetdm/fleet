@@ -2410,7 +2410,7 @@ software:
 `)
 		require.NoError(t, err)
 
-		// Dry run, controls is now optional so this should succeed.
+		// Dry run.
 		_, err = RunAppNoChecks([]string{
 			"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFileBasic.Name(), "-f",
 			noTeamFileWithoutControls.Name(), "--dry-run",
@@ -2430,7 +2430,7 @@ software:
 	t.Run("global DOES NOT define controls -- should fail", func(t *testing.T) {
 		globalFileWithoutControlsAndSoftwareKeys := createGlobalFileWithoutControlsAndSoftwareKeys(t, fleetServerURL, orgName)
 
-		// Dry run, controls is now optional so this should succeed.
+		// Dry run.
 		_, err = RunAppNoChecks([]string{
 			"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "--dry-run",
 		})
@@ -2443,6 +2443,61 @@ software:
 		})
 		require.Error(t, err)
 		assert.True(t, strings.Contains(err.Error(), "must be set on global config, no-team.yml or unassigned.yml"), err.Error())
+	})
+
+	t.Run("no-team provided without global -- should fail", func(t *testing.T) {
+		noTeamFilePathWithoutControls := filepath.Join(t.TempDir(), "no-team.yml")
+		noTeamFileWithoutControls, err := os.Create(noTeamFilePathWithoutControls)
+		require.NoError(t, err)
+		_, err = noTeamFileWithoutControls.WriteString(`
+policies:
+name: No team
+software:
+`)
+		require.NoError(t, err)
+
+		// Dry run.
+		_, err = RunAppNoChecks([]string{
+			"gitops", "-f", teamFileBasic.Name(), "-f",
+			noTeamFileWithoutControls.Name(), "--dry-run",
+		})
+		require.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "global config must be provided alongside no-team.yml"), err.Error())
+
+		_, err = RunAppNoChecks([]string{
+			"gitops", "-f", teamFileBasic.Name(), "-f",
+			noTeamFileWithoutControls.Name(),
+		})
+		require.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "global config must be provided alongside no-team.yml"), err.Error())
+	})
+
+	t.Run("unassigned provided without global -- should fail", func(t *testing.T) {
+		noTeamFilePathWithoutControls := filepath.Join(t.TempDir(), "unassigned.yml")
+		noTeamFileWithoutControls, err := os.Create(noTeamFilePathWithoutControls)
+		require.NoError(t, err)
+		_, err = noTeamFileWithoutControls.WriteString(`
+policies:
+name: Unassigned
+software:
+`)
+		require.NoError(t, err)
+
+		// Dry run
+		_, err = RunAppNoChecks([]string{
+			"gitops", "-f", teamFileBasic.Name(), "-f",
+			noTeamFileWithoutControls.Name(), "--dry-run",
+		})
+		require.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "global config must be provided alongside unassigned.yml"), err.Error())
+
+		// Real run
+		_, err = RunAppNoChecks([]string{
+			"gitops", "-f", teamFileBasic.Name(), "-f",
+			noTeamFileWithoutControls.Name(),
+		})
+		require.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "global config must be provided alongside unassigned.yml"), err.Error())
 	})
 
 	t.Run("controls only defined in no-team.yml", func(t *testing.T) {
