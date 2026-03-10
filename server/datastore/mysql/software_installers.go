@@ -3203,6 +3203,7 @@ func (ds *Datastore) IsVPPAppLabelScoped(ctx context.Context, vppAppTeamID, host
 }
 
 func (ds *Datastore) isSoftwareLabelScoped(ctx context.Context, softwareID, hostID uint, swType softwareType) (bool, error) {
+	// TODO(mna): support include all
 	stmt := `
 		SELECT 1 FROM (
 

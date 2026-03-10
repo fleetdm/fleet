@@ -3455,7 +3455,6 @@ func filterSoftwareInstallersByLabel(
 	if len(softwareInstallersIDsToCheck) > 0 {
 		globalOrTeamID := ptr.ValOrZero(host.TeamID)
 
-		// TODO(mna): support include all
 		labelSqlFilter := `
 			WITH no_labels AS (
 				SELECT
@@ -3480,14 +3479,16 @@ func filterSoftwareInstallersByLabel(
 				FROM
 					software_installers
 				INNER JOIN software_installer_labels
-					ON software_installer_labels.software_installer_id = software_installers.id AND software_installer_labels.exclude = 0
+					ON software_installer_labels.software_installer_id = software_installers.id
+						AND software_installer_labels.exclude = 0
+						AND software_installer_labels.require_all = 0
 				LEFT JOIN label_membership
 					ON label_membership.label_id = software_installer_labels.label_id
 					AND label_membership.host_id = :host_id
 				GROUP BY
 					software_installers.id
 				HAVING
-					COUNT(*) > 0 AND COUNT(label_membership.label_id) > 0
+					count_installer_labels > 0 AND count_host_labels > 0
 			),
 			exclude_any AS (
 				SELECT
@@ -3506,7 +3507,9 @@ func filterSoftwareInstallersByLabel(
 				FROM
 					software_installers
 				INNER JOIN software_installer_labels
-					ON software_installer_labels.software_installer_id = software_installers.id AND software_installer_labels.exclude = 1
+					ON software_installer_labels.software_installer_id = software_installers.id 
+						AND software_installer_labels.exclude = 1
+						AND software_installer_labels.require_all = 0
 				INNER JOIN labels
 					ON labels.id = software_installer_labels.label_id
 				LEFT JOIN label_membership
@@ -3515,17 +3518,30 @@ func filterSoftwareInstallersByLabel(
 				GROUP BY
 					software_installers.id
 				HAVING
-					COUNT(*) > 0
-					AND COUNT(*) = SUM(
-						CASE
-							WHEN labels.created_at IS NOT NULL AND (
-								labels.label_membership_type = 1 OR
-								(labels.label_membership_type = 0 AND :host_label_updated_at >= labels.created_at)
-							) THEN 1
-							ELSE 0
-						END
-					)
-					AND COUNT(label_membership.label_id) = 0
+					count_installer_labels > 0
+					AND count_installer_labels = count_host_updated_after_labels
+					AND count_host_labels = 0
+			),
+			include_all AS (
+				SELECT
+					software_installers.id AS installer_id,
+					COUNT(*) AS count_installer_labels,
+					COUNT(label_membership.label_id) AS count_host_labels,
+					0 AS count_host_updated_after_labels
+				FROM
+					software_installers
+				INNER JOIN software_installer_labels
+					ON software_installer_labels.software_installer_id = software_installers.id 
+						AND software_installer_labels.exclude = 0
+						AND software_installer_labels.require_all = 1
+				LEFT JOIN label_membership
+					ON label_membership.label_id = software_installer_labels.label_id
+					AND label_membership.host_id = :host_id
+				GROUP BY
+					software_installers.id
+				HAVING
+					count_installer_labels > 0 
+					AND count_host_labels = count_installer_labels
 			)
 			SELECT
 				software_installers.id AS id,
@@ -3538,6 +3554,8 @@ func filterSoftwareInstallersByLabel(
 				ON include_any.installer_id = software_installers.id
 			LEFT JOIN exclude_any
 				ON exclude_any.installer_id = software_installers.id
+			LEFT JOIN include_all
+				ON include_all.installer_id = software_installers.id
 			WHERE
 				software_installers.global_or_team_id = :global_or_team_id
 				AND software_installers.id IN (:software_installer_ids)
@@ -3545,6 +3563,7 @@ func filterSoftwareInstallersByLabel(
 					no_labels.installer_id IS NOT NULL
 					OR include_any.installer_id IS NOT NULL
 					OR exclude_any.installer_id IS NOT NULL
+					OR include_all.installer_id IS NOT NULL
 				)
 		`
 		labelSqlFilter, args, err := sqlx.Named(labelSqlFilter, map[string]any{
