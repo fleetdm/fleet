@@ -3507,7 +3507,7 @@ func filterSoftwareInstallersByLabel(
 				FROM
 					software_installers
 				INNER JOIN software_installer_labels
-					ON software_installer_labels.software_installer_id = software_installers.id 
+					ON software_installer_labels.software_installer_id = software_installers.id
 						AND software_installer_labels.exclude = 1
 						AND software_installer_labels.require_all = 0
 				INNER JOIN labels
@@ -3531,7 +3531,7 @@ func filterSoftwareInstallersByLabel(
 				FROM
 					software_installers
 				INNER JOIN software_installer_labels
-					ON software_installer_labels.software_installer_id = software_installers.id 
+					ON software_installer_labels.software_installer_id = software_installers.id
 						AND software_installer_labels.exclude = 0
 						AND software_installer_labels.require_all = 1
 				LEFT JOIN label_membership
@@ -3540,7 +3540,7 @@ func filterSoftwareInstallersByLabel(
 				GROUP BY
 					software_installers.id
 				HAVING
-					count_installer_labels > 0 
+					count_installer_labels > 0
 					AND count_host_labels = count_installer_labels
 			)
 			SELECT
@@ -3629,7 +3629,6 @@ func filterVPPAppsByLabel(
 			globalOrTeamID = *host.TeamID
 		}
 
-		// TODO(mna): support include all
 		labelSqlFilter := `
 			WITH no_labels AS (
 				SELECT
@@ -3654,7 +3653,9 @@ func filterVPPAppsByLabel(
 				FROM
 					vpp_apps_teams
 				INNER JOIN vpp_app_team_labels
-					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id AND vpp_app_team_labels.exclude = 0
+					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
+						AND vpp_app_team_labels.exclude = 0
+						AND vpp_app_team_labels.require_all = 0
 				LEFT JOIN label_membership
 					ON label_membership.label_id = vpp_app_team_labels.label_id
 					AND label_membership.host_id = :host_id
@@ -3678,7 +3679,9 @@ func filterVPPAppsByLabel(
 				FROM
 					vpp_apps_teams
 				INNER JOIN vpp_app_team_labels
-					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id AND vpp_app_team_labels.exclude = 1
+					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id 
+						AND vpp_app_team_labels.exclude = 1
+						AND vpp_app_team_labels.require_all = 0
 				INNER JOIN labels
 					ON labels.id = vpp_app_team_labels.label_id
 				LEFT OUTER JOIN label_membership
@@ -3689,6 +3692,26 @@ func filterVPPAppsByLabel(
 					count_installer_labels > 0
 					AND count_installer_labels = count_host_updated_after_labels
 					AND count_host_labels = 0
+			),
+			include_all AS (
+				SELECT
+					vpp_apps_teams.id AS team_id,
+					COUNT(vpp_app_team_labels.label_id) AS count_installer_labels,
+					COUNT(label_membership.label_id) AS count_host_labels,
+					0 as count_host_updated_after_labels
+				FROM
+					vpp_apps_teams
+				INNER JOIN vpp_app_team_labels
+					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
+						AND vpp_app_team_labels.exclude = 0
+						AND vpp_app_team_labels.require_all = 1
+				LEFT JOIN label_membership
+					ON label_membership.label_id = vpp_app_team_labels.label_id
+					AND label_membership.host_id = :host_id
+				GROUP BY
+					vpp_apps_teams.id
+				HAVING
+					count_installer_labels > 0 AND count_host_labels = count_installer_labels
 			)
 			SELECT
 				vpp_apps.adam_id AS adam_id,
@@ -3696,7 +3719,9 @@ func filterVPPAppsByLabel(
 			FROM
 				vpp_apps
 			INNER JOIN
-				vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform AND vpp_apps_teams.global_or_team_id = :global_or_team_id
+				vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id 
+					AND vpp_apps.platform = vpp_apps_teams.platform 
+					AND vpp_apps_teams.global_or_team_id = :global_or_team_id
 			LEFT JOIN no_labels
 				ON no_labels.team_id = vpp_apps_teams.id
 			LEFT JOIN include_any
@@ -3709,6 +3734,7 @@ func filterVPPAppsByLabel(
 					no_labels.team_id IS NOT NULL
 					OR include_any.team_id IS NOT NULL
 					OR exclude_any.team_id IS NOT NULL
+					OR include_all.team_id IS NOT NULL
 				)
 		`
 
