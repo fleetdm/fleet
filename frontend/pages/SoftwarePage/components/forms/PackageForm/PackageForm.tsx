@@ -4,6 +4,7 @@ import classnames from "classnames";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import {
   getExtensionFromFileName,
   getFileDetails,
@@ -15,7 +16,6 @@ import { ILabelSummary } from "interfaces/label";
 import { ISoftwareVersion, SoftwareCategory } from "interfaces/software";
 
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 import FileUploader from "components/FileUploader";
@@ -28,6 +28,8 @@ import {
 } from "pages/SoftwarePage/helpers";
 import TargetLabelSelector from "components/TargetLabelSelector";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
+import InfoBanner from "components/InfoBanner";
+import CustomLink from "components/CustomLink";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
 import {
@@ -72,6 +74,24 @@ const getGraphicName = (ext: string) => {
   }
   return "file-pkg";
 };
+
+const renderSoftwareDeployWarningBanner = () => (
+  <InfoBanner
+    color="yellow"
+    className={`${baseClass}__deploy-warning`}
+    cta={
+      <CustomLink
+        url={`${LEARN_MORE_ABOUT_BASE_LINK}/query-templates-for-automatic-install-software`}
+        text="Learn more"
+        newTab
+      />
+    }
+  >
+    Installing software over existing installations might cause issues.
+    Fleet&apos;s policy may not detect these existing installations. Please
+    create a test fleet in Fleet to verify a smooth installation.
+  </InfoBanner>
+);
 
 const renderFileTypeMessage = () => {
   return (
@@ -367,8 +387,10 @@ const PackageForm = ({
     formData.software && !isScriptPackage && !isIpaPackage;
 
   const showDeploySoftwareSlider =
-    !gitOpsModeEnabled &&
-    !isEditingSoftware &&
+    !!formData.software && // show after selection
+    !gitOpsModeEnabled && // hide in gitOps mode
+    !isEditingSoftware && // show only on add, not edit
+    // automatic install is not supported for ipa packages, exe, tarball, or script packages
     !isIpaPackage &&
     !isExePackage &&
     !isTarballPackage &&
@@ -377,14 +399,13 @@ const PackageForm = ({
   // 4.83+ Show deploy slider on add if the package type supports it.
   // Hide from gitOps mode
   const renderSoftwareDeploySlider = () => (
-    <SoftwareDeploySlider
-      deploySoftware={formData.automaticInstall}
-      onToggleDeploySoftware={onToggleAutomaticInstall}
-      isExePackage={false}
-      isTarballPackage={false}
-      isScriptPackage={false}
-      disableOptions={!formData.software} // Disable until app is selected
-    />
+    <>
+      <SoftwareDeploySlider
+        deploySoftware={formData.automaticInstall}
+        onToggleDeploySoftware={onToggleAutomaticInstall}
+      />
+      {formData.automaticInstall && renderSoftwareDeployWarningBanner()}
+    </>
   );
 
   // GitOps mode hides SoftwareOptionsSelector and TargetLabelSelector
@@ -394,15 +415,9 @@ const PackageForm = ({
   const renderSoftwareOptionsSelector = () => (
     <SoftwareOptionsSelector
       formData={formData}
-      onToggleAutomaticInstall={onToggleAutomaticInstall}
       onToggleSelfService={onToggleSelfService}
       onSelectCategory={onSelectCategory}
-      isCustomPackage
       isEditingSoftware={isEditingSoftware}
-      isExePackage={isExePackage}
-      isTarballPackage={isTarballPackage}
-      isScriptPackage={isScriptPackage}
-      isIpaPackage={isIpaPackage}
       onClickPreviewEndUserExperience={() =>
         onClickPreviewEndUserExperience(isIpaPackage)
       }

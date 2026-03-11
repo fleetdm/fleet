@@ -265,7 +265,6 @@ const SoftwareVppForm = ({
             <SoftwareOptionsSelector
               platform={softwareVppForEdit.platform}
               formData={formData}
-              onToggleAutomaticInstall={onToggleAutomaticInstall}
               onToggleSelfService={onToggleSelfService}
               onSelectCategory={onSelectCategory}
               isEditingSoftware
@@ -322,10 +321,6 @@ const SoftwareVppForm = ({
             <SoftwareDeploySlider
               deploySoftware={formData.automaticInstall}
               onToggleDeploySoftware={onToggleAutomaticInstall}
-              platform={formData.selectedApp?.platform}
-              isExePackage={false}
-              isTarballPackage={false}
-              isScriptPackage={false}
             />
           )}
         </div>
