@@ -31,9 +31,7 @@ const (
 	signingMiddlewareID = "Signing"
 )
 
-var findDefaultGoogleCredentials = func(ctx context.Context, scopes ...string) (*google.Credentials, error) {
-	return google.FindDefaultCredentials(ctx, scopes...)
-}
+var findDefaultGoogleCredentials = google.FindDefaultCredentials
 
 type s3store struct {
 	s3Client         *s3.Client
