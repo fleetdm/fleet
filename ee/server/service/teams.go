@@ -1542,6 +1542,11 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(spec.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
 
+	invalid := &fleet.InvalidArgumentError{}
+	if !team.Config.MDM.MacOSSetup.EnableEndUserAuthentication && team.Config.MDM.MacOSSetup.LockEndUserInfo.Value {
+		invalid.Append("macos_setup.lock_end_user_info", `"enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info"`)
+	}
+
 	didUpdateMacOSRequireAllSoftware := spec.MDM.MacOSSetup.RequireAllSoftware != oldMacOSSetup.RequireAllSoftware
 	if didUpdateMacOSRequireAllSoftware && spec.MDM.MacOSSetup.RequireAllSoftware {
 		if !appCfg.MDM.EnabledAndConfigured {
@@ -1604,7 +1609,6 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	// if host_expiry_settings are not provided, do not change them
-	invalid := &fleet.InvalidArgumentError{}
 	if spec.HostExpirySettings != nil {
 		if spec.HostExpirySettings.HostExpiryEnabled && spec.HostExpirySettings.HostExpiryWindow <= 0 {
 			invalid.Append(
@@ -1649,11 +1653,6 @@ func (svc *Service) editTeamFromSpec(
 		}
 		team.Config.Integrations.ConditionalAccessEnabled = optjson.SetBool(*spec.Integrations.ConditionalAccessEnabled)
 	}
-
-	if !team.Config.MDM.MacOSSetup.EnableEndUserAuthentication && team.Config.MDM.MacOSSetup.LockEndUserInfo.Value {
-		invalid.Append("macos_setup.lock_end_user_info", `"enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info"`)
-	}
-
 	if opts.DryRun {
 		for _, secret := range secrets {
 			available, err := svc.ds.IsEnrollSecretAvailable(ctx, secret.Secret, false, &team.ID)
