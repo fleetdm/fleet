@@ -76,13 +76,13 @@ b1ctZeF7HaWwFdTC8GqWI6zzRFn+YA3f/yYibhowuEypPQeSjlI=
 func newTestService() (*idpService, *mock.Store) {
 	ds := new(mock.Store)
 	logger := slog.New(slog.DiscardHandler)
-	return &idpService{ds: ds, logger: logger, certSerialFormat: config.CertSerialFormatHex}, ds
+	return &idpService{ds: ds, logger: logger, certSerialFormat: config.CertSerialFormatHex, mdCache: &metadataCache{}}, ds
 }
 
 func newTestServiceWithCertFormat(certFormat string) (*idpService, *mock.Store) {
 	ds := new(mock.Store)
 	logger := slog.New(slog.DiscardHandler)
-	return &idpService{ds: ds, logger: logger, certSerialFormat: certFormat}, ds
+	return &idpService{ds: ds, logger: logger, certSerialFormat: certFormat, mdCache: &metadataCache{}}, ds
 }
 
 func mockAppConfigFunc(serverURL string) func(context.Context) (*fleet.AppConfig, error) {
@@ -215,6 +215,95 @@ func TestServeMetadata(t *testing.T) {
 		require.Equal(t, http.StatusNotFound, w.Code)
 		require.Contains(t, w.Body.String(), "Server URL not configured")
 	})
+
+	t.Run("caches metadata response", func(t *testing.T) {
+		svc, ds := newTestService()
+		ds.AppConfigFunc = mockAppConfigFunc("https://fleet.example.com")
+		ds.GetAllMDMConfigAssetsByNameFunc = mockCertAssetsFunc(true)
+
+		// First request should hit the datastore
+		req := httptest.NewRequest("GET", idpMetadataPath, nil)
+		w := httptest.NewRecorder()
+		svc.serveMetadata(w, req)
+		require.Equal(t, http.StatusOK, w.Code)
+		firstBody := w.Body.String()
+		require.Contains(t, firstBody, "EntityDescriptor")
+		require.True(t, ds.AppConfigFuncInvoked)
+
+		// Reset invocation tracking
+		ds.AppConfigFuncInvoked = false
+		ds.GetAllMDMConfigAssetsByNameFuncInvoked = false
+
+		// Second request should be served from cache without hitting the datastore
+		req = httptest.NewRequest("GET", idpMetadataPath, nil)
+		w = httptest.NewRecorder()
+		svc.serveMetadata(w, req)
+		require.Equal(t, http.StatusOK, w.Code)
+		require.Equal(t, "application/samlmetadata+xml", w.Header().Get("Content-Type"))
+		require.Equal(t, firstBody, w.Body.String())
+		require.False(t, ds.AppConfigFuncInvoked)
+		require.False(t, ds.GetAllMDMConfigAssetsByNameFuncInvoked)
+	})
+
+	t.Run("does not cache error responses", func(t *testing.T) {
+		svc, ds := newTestService()
+		ds.AppConfigFunc = mockAppConfigFunc("https://fleet.example.com")
+		ds.GetAllMDMConfigAssetsByNameFunc = mockCertAssetsFunc(false) // Will return 404
+
+		// First request returns 404
+		req := httptest.NewRequest("GET", idpMetadataPath, nil)
+		w := httptest.NewRecorder()
+		svc.serveMetadata(w, req)
+		require.Equal(t, http.StatusNotFound, w.Code)
+
+		// Reset and configure for success
+		ds.AppConfigFuncInvoked = false
+		ds.GetAllMDMConfigAssetsByNameFunc = mockCertAssetsFunc(true)
+
+		// Second request should hit the datastore (not cached)
+		req = httptest.NewRequest("GET", idpMetadataPath, nil)
+		w = httptest.NewRecorder()
+		svc.serveMetadata(w, req)
+		require.Equal(t, http.StatusOK, w.Code)
+		require.True(t, ds.AppConfigFuncInvoked)
+		require.Contains(t, w.Body.String(), "EntityDescriptor")
+	})
+}
+
+func TestIDPRateLimiting(t *testing.T) {
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+	cfg := &config.FleetConfig{}
+
+	ds.AppConfigFunc = mockAppConfigFunc("https://fleet.example.com")
+	ds.GetAllMDMConfigAssetsByNameFunc = mockCertAssetsFunc(true)
+
+	mux := http.NewServeMux()
+	err := RegisterIdP(mux, ds, logger, cfg)
+	require.NoError(t, err)
+
+	// Send requests up to the burst limit (maxBurst + 1 = 10 allowed)
+	for i := range idpRateLimitMaxBurst + 1 {
+		req := httptest.NewRequest("GET", idpMetadataPath, nil)
+		req.RemoteAddr = "192.0.2.1:12345"
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		require.NotEqual(t, http.StatusTooManyRequests, w.Code, "request %d should not be rate limited", i)
+	}
+
+	// Next request from the same IP should be rate limited
+	req := httptest.NewRequest("GET", idpMetadataPath, nil)
+	req.RemoteAddr = "192.0.2.1:12345"
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	require.Equal(t, http.StatusTooManyRequests, w.Code)
+
+	// Request from a different IP should not be rate limited
+	req = httptest.NewRequest("GET", idpMetadataPath, nil)
+	req.RemoteAddr = "198.51.100.1:12345"
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	require.NotEqual(t, http.StatusTooManyRequests, w.Code)
 }
 
 func TestParseSerialNumber(t *testing.T) {
