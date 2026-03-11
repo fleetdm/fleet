@@ -128,6 +128,9 @@ func (putSoftwareTitleIconRequest) DecodeRequest(ctx context.Context, r *http.Re
 	}
 	teamID := r.URL.Query().Get("team_id")
 	if teamID == "" {
+		teamID = r.URL.Query().Get("fleet_id")
+	}
+	if teamID == "" {
 		return nil, &fleet.BadRequestError{Message: "team_id is required"}
 	}
 	teamIDUint64, err := strconv.ParseUint(teamID, 10, 64)

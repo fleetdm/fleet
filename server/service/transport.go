@@ -618,8 +618,11 @@ func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) 
 	}
 
 	userOpts := fleet.UserListOptions{ListOptions: opt}
-
-	if tid := r.URL.Query().Get("team_id"); tid != "" {
+	tid := r.URL.Query().Get("team_id")
+	if tid == "" {
+		tid = r.URL.Query().Get("fleet_id")
+	}
+	if tid != "" {
 		teamID, err := strconv.ParseUint(tid, 10, 64)
 		if err != nil {
 			return userOpts, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid team_id: %s", tid)))
