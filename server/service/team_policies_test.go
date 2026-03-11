@@ -24,7 +24,7 @@ func TestTeamPoliciesAuth(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) (tpol, ipol []*fleet.Policy, err error) {
+	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) (tpol, ipol []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}
 	ds.PoliciesByIDFunc = func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {

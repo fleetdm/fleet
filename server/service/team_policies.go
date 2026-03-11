@@ -293,17 +293,13 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 	}
 
 	if teamID > 0 {
-		exists, err := svc.ds.TeamExists(ctx, teamID)
-		if err != nil {
+		if _, err := svc.ds.TeamLite(ctx, teamID); err != nil { // TODO see if we can use TeamExists here instead
 			return nil, nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
-		}
-		if !exists {
-			return nil, nil, ctxerr.Errorf(ctx, "team %d does not exist", teamID)
 		}
 	}
 
 	if mergeInherited {
-		policies, err := svc.ds.ListMergedTeamPolicies(ctx, teamID, opts, automationFilter) // TODO(JK): Also needs filter
+		policies, err := svc.ds.ListMergedTeamPolicies(ctx, teamID, opts, automationFilter)
 		for i := range policies {
 			if err := svc.populatePolicyInstallSoftware(ctx, policies[i]); err != nil {
 				return nil, nil, ctxerr.Wrapf(ctx, err, "populate install_software for policy_id: %d", policies[i].ID)
