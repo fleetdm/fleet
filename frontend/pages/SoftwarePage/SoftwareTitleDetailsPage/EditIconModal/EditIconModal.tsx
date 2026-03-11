@@ -739,25 +739,23 @@ const EditIconModal = ({
       title="Edit appearance"
       onExit={onExitEditIconModal}
     >
-      <>
-        {isFirstLoadWithCustomIcon ? (
-          <Spinner includeContainer={false} />
-        ) : (
-          renderForm()
-        )}
-        <ModalFooter
-          primaryButtons={
-            <Button
-              type="submit"
-              onClick={onClickSave}
-              isLoading={isUpdatingSoftwareInfo}
-              disabled={!canSaveForm || isUpdatingSoftwareInfo}
-            >
-              Save
-            </Button>
-          }
-        />
-      </>
+      {isFirstLoadWithCustomIcon ? (
+        <Spinner includeContainer={false} />
+      ) : (
+        renderForm()
+      )}
+      <ModalFooter
+        primaryButtons={
+          <Button
+            type="submit"
+            onClick={onClickSave}
+            isLoading={isUpdatingSoftwareInfo}
+            disabled={!canSaveForm || isUpdatingSoftwareInfo}
+          >
+            Save
+          </Button>
+        }
+      />
     </Modal>
   );
 };

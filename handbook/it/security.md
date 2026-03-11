@@ -11,14 +11,13 @@ As an all-remote company, we do not have the luxury of seeing each other or bein
 | Participant | Role                                                                                                                                                 |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Requester   | Requests recovery for their own account                                                                |
-| Recoverer   | Person with access to perform the recovery who monitors `help-it` |
+| Recoverer   | Person with access to perform the recovery who monitors [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) |
 | Identifier  | Person that visually identifies the requester in a video call. The identifier can be the recoverer or a person the recoverer can recognize visually |
 
 
 ### Preparing for recovery
 
-1. If the requester still has access to GitHub and/or Slack, they [ask for
-   help](https://fleetdm.com/handbook/it#contact-us). For non-urgent requests, please
+1. If the requester still has access to GitHub and/or Slack, they [ask for help](https://fleetdm.com/handbook/it#contact-us). For non-urgent requests, please
    prefer filing an issue with the IT & Enablement team. If they do not have access,
    they can contact their manager or a teammate over the phone via voice or texting, and they will
    [ask for help](https://fleetdm.com/handbook/it#contact-us) on behalf of the
@@ -31,14 +30,14 @@ As an all-remote company, we do not have the luxury of seeing each other or bein
 3. If the recoverer recognizes the requester or has the identity confirmed by the person acting as
    the identifier, they can perform the recovery and update the login recovery issue.
 * If the recoverer is not 100% satisfied with identification, they do **NOT** proceed and post to
-  `#_security` to engage the security team immediately.
+  [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) to engage the security team immediately.
 
 After the identity confirmation, the recovery can be performed while still on the video call, or asynchronously.
 
 
 ### Performing recovery
 
-Before any account recovery, the recoverer must send a message to `#_security` announcing that the
+Before any account recovery, the recoverer must send a message to [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) announcing that the
 recovery will take place. Then, perform the necessary recovery steps.
 
 
@@ -318,7 +317,6 @@ We configure Chrome on company-owned devices with a basic policy.
 | --------------------------------------------------------- |
 | Enforce Chrome updates and Chrome restart within 48 hours |
 | Block intrusive ads                                       |
-| uBlock Origin adblocker extension deployed               |
 | Password manager extension deployed                       |
 | Chrome Endpoint Verification extension deployed           |
 
@@ -441,7 +439,7 @@ lost or stolen simultaneously.
 
 4. I've lost one of my keys, what do I do?
 
-**Answer**: Post in the `#g-security` channel ASAP so we can disable the key. IF you find it later, no
+**Answer**: Post in the [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) channel ASAP so we can disable the key. If you find it later, no
 worries, just enroll it again!
 
 5. I lost all of my keys, and I'm locked out! What do I do?
@@ -930,7 +928,7 @@ Users must not use the company's cloud resources to:
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @sampfluger88 | 2024-03-14   |
+| @allenhouchins | 2024-03-14   |
 
 Fleet requires all team members to comply with the following acceptable use requirements and procedures:
 
@@ -956,9 +954,9 @@ Fleet requires all team members to comply with the following acceptable use requ
 
 - The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
 
-- Lost or stolen devices (laptops, or any other company-owned or personal devices used for work purposes) must be reported as soon as possible. Minutes count when responding to security incidents triggered by missing devices. Report a lost, stolen, or missing device by posting in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC), or use the security@ (fleetdm.com) email alias if you no longer have access to Slack. Include your name, the type of device, timeline (when were you last in control of the device?), whether the device was locked, whether any sensitive information is on the device, and any other relevant information in the report.
+- Lost or stolen devices (laptops, or any other company-owned or personal devices used for work purposes) must be reported as soon as possible. Minutes count when responding to security incidents triggered by missing devices. Report a lost, stolen, or missing device by posting in [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2), or use the security@ (fleetdm.com) email alias if you no longer have access to Slack. Include your name, the type of device, timeline (when were you last in control of the device?), whether the device was locked, whether any sensitive information is on the device, and any other relevant information in the report.
 
-When in doubt, **ASK!** (in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC))
+When in doubt, **ASK!** (in [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2))
 
 
 ### Access control policy
@@ -967,7 +965,7 @@ When in doubt, **ASK!** (in [#g-security](https://fleetdm.slack.com/archives/C03
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @sampfluger88 | 2024-03-14      |
+| @allenhouchins | 2024-03-14      |
 
 Fleet requires all workforce members to comply with the following acceptable use requirements and procedures, such that:
 
@@ -1045,7 +1043,7 @@ Fleet policy requires that:
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @sampfluger88 | 2024-03-14       |
+| @allenhouchins | 2024-03-14       |
 
 You can't protect what you can't see. Therefore, Fleet must maintain an accurate and up-to-date inventory of its physical and digital assets.
 
@@ -1086,7 +1084,7 @@ For new employees who have not received a company laptop or in cases where a com
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @sampfluger88 | 2024-03-14       |
+| @allenhouchins | 2024-03-14       |
 
 The Fleet business continuity and disaster recovery plan establishes procedures to recover Fleet following a disruption resulting from a disaster. 
 
@@ -1454,14 +1452,10 @@ Incidents of a severity/impact rating higher than **MINOR** shall trigger the re
 
 #### I - Identification and Triage
 
-1. Immediately upon observation, Fleet members report suspected and known Events, Precursors, Indications, and Incidents in one of the following ways:
-  - Direct report to management, CTO, CEO, or other
-  - Email
-  - Phone call
-  - Slack
-2. The individual receiving the report facilitates the collection of additional information about the incident, as needed, and notifies the CTO (if not already done).
-3. The CTO determines if the issue is an Event, Precursor, Indication, or Incident.
-  - If the issue is an event, indication, or precursor, the CTO forwards it to the appropriate resource for resolution.
+1. Immediately upon observation, Fleet members report suspected and known Events, Precursors, Indications, and Incidents by sending a message to the [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) Slack channel, making sure to `@mention` **@allenhouchins** and **@pepper**. For anything serious or if there isn't a timely response, also follow up with a direct message (DM) to Allen Houchins and Pepper (Andrea Pepper).
+2. The individual receiving the report facilitates the collection of additional information about the incident, as needed, and notifies the Head of IT (if not already done).
+3. The Head of IT determines if the issue is an Event, Precursor, Indication, or Incident.
+  - If the issue is an event, indication, or precursor, the Head of IT forwards it to the appropriate resource for resolution.
     - Non-Technical Event (minor infringement): the CTO of the designee creates an appropriate issue in GitHub and further investigates the incident as needed.
     - Technical Event: Assign the issue to a technical resource for resolution. This resource may also be a contractor or outsourced technical resource in the event of a lack of resource or expertise in the area.
   - If the issue is a security incident, the CTO activates the Security Incident Response Team (SIRT) and notifies senior leadership by email.

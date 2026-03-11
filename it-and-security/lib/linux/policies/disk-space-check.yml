@@ -1,0 +1,14 @@
+- name: Linux - Sufficient disk space available
+  query: SELECT 1 FROM mounts WHERE path = '/' AND CAST(blocks_available AS REAL) / blocks > 0.10;
+  critical: false
+  description: >-
+    This policy checks if more than 10% of disk space is available on the root partition. Devices with 10% or less available disk space will fail this policy.
+    Having more than 10% of disk space available is important because low disk space can cause system instability, slowdowns, and crashes.
+    Operating systems need free space for virtual memory/swap, temporary files, and system updates.
+    Applications may fail to save data or function properly when disk space is critically low.
+    Keeping sufficient free space ensures reliable performance and prevents data loss.
+  resolution: |-
+    Free up disk space by removing unnecessary files, clearing package caches, or uninstalling unused applications.
+
+    If the issue persists, please reach out in #help-it.
+  platform: linux

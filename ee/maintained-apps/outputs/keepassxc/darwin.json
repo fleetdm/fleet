@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2.7.11",
+      "version": "2.7.12",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.keepassx.keepassxc';"
       },
-      "installer_url": "https://github.com/keepassxreboot/keepassxc/releases/download/2.7.11/KeePassXC-2.7.11-1-arm64.dmg",
+      "installer_url": "https://github.com/keepassxreboot/keepassxc/releases/download/2.7.12/KeePassXC-2.7.12-arm64.dmg",
       "install_script_ref": "4c077891",
       "uninstall_script_ref": "367d14a0",
-      "sha256": "11c514ed9fcc33b82d2a8e113bfc989b5834335dafd7a5dadd8942410cfbd025",
+      "sha256": "65f4f63607180c0a15794b4a4068f85e99ed5391c87c1fb9312648f1b36fed40",
       "default_categories": [
         "Productivity"
       ]

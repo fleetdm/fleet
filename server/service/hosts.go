@@ -584,6 +584,14 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 			return err
 		}
 
+		if err := svc.activitySvc.CleanupHostActivities(ctx, hostIDs); err != nil {
+			// Log and continue; hosts are already deleted, so aborting would be worse
+			// than leaving orphaned activity_host_past rows.
+			err = ctxerr.Wrap(ctx, err, "cleanup host activities after bulk delete")
+			svc.logger.ErrorContext(ctx, "failed to cleanup host activities", "err", err)
+			ctxerr.Handle(ctx, err)
+		}
+
 		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, svc.NewActivity)
 		lifecycleErrs := []error{}
 		serialsWithErrs := []string{}
@@ -768,16 +776,17 @@ func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID 
 		return nil, fleet.ErrNoContext
 	}
 
-	includeObserver := false
+	filter := fleet.TeamFilter{User: vc.User}
 	if queryID != nil {
-		canRun, err := svc.ds.ObserverCanRunQuery(ctx, *queryID)
+		query, err := svc.ds.Query(ctx, *queryID)
 		if err != nil {
 			return nil, err
 		}
-		includeObserver = canRun
+		filter.IncludeObserver = query.ObserverCanRun
+		// Scope observer access to the query's own team. A user who is observer on
+		// multiple teams may only search hosts from the team the query belongs to.
+		filter.ObserverTeamID = query.TeamID
 	}
-
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
 
 	results := []*fleet.Host{}
 
@@ -1087,6 +1096,14 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "delete host")
 	}
 
+	if err := svc.activitySvc.CleanupHostActivities(ctx, []uint{id}); err != nil {
+		// Log and continue — host is already deleted, so aborting would be worse
+		// than leaving orphaned activity_host_past rows.
+		err = ctxerr.Wrap(ctx, err, "cleanup host activities after delete")
+		svc.logger.ErrorContext(ctx, "failed to cleanup host activities", "err", err)
+		ctxerr.Handle(ctx, err)
+	}
+
 	// Create activity for host deletion
 	adminUser := authz.UserFromContext(ctx)
 	if err := svc.NewActivity(
@@ -1121,6 +1138,18 @@ func (svc *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHos
 	hostDetails, err := svc.ds.CleanupExpiredHosts(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(hostDetails) > 0 {
+		hostIDs := make([]uint, 0, len(hostDetails))
+		for _, h := range hostDetails {
+			hostIDs = append(hostIDs, h.ID)
+		}
+		if err := svc.activitySvc.CleanupHostActivities(ctx, hostIDs); err != nil {
+			err = ctxerr.Wrap(ctx, err, "cleanup host activities after expired host deletion")
+			svc.logger.ErrorContext(ctx, "failed to cleanup host activities", "err", err)
+			ctxerr.Handle(ctx, err)
+		}
 	}
 
 	// Create activities for each deleted host
@@ -2470,6 +2499,9 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 				sb.WriteString(dm.Email)
 			}
 			h.CSVDeviceMapping = sb.String()
+			// Add the aliased fields for team_id and team_name.
+			h.FleetID = h.TeamID
+			h.FleetName = h.TeamName
 		}
 	}
 
@@ -2561,6 +2593,14 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 			cols = append(cols, rawCol)
 			if rawCol == "device_mapping" {
 				req.Opts.DeviceMapping = true
+			}
+			// If team_id / team_name are requested, also include their aliases.
+			// TODO: clean up in Fleet 5.
+			if rawCol == "team_id" {
+				cols = append(cols, "fleet_id")
+			}
+			if rawCol == "team_name" {
+				cols = append(cols, "fleet_name")
 			}
 		}
 	}
