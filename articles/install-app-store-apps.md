@@ -33,7 +33,7 @@ You can also manage which Google Play Store apps are available for self-service 
 #### Install Android web app (web clip)
 
 > Google Chrome [must be installed](https://developers.google.com/android/management/web-apps#distribute-a-web-app) to open the web app. When deploying web apps, make sure to add Google Chrome app first. If not installed, users will be prompted to install it and redirected to the Play Store.
-
+> Before deploying web apps, make sure to [add Google Chrome](#google-play-android) as a Google Play app first. If it's not installed in the end users's work profile, they will be prompted to install it and redirected to the managed Play Store.
 To add an Android web app, first create the web app using the Fleet API. Send a request to the [`Create Android web app`](https://fleetdm.com/docs/rest-api/rest-api#create-android-web-app).
 
 The response includes an `app_store_id` (e.g. `com.google.enterprise.webapp.x1c41e22ab611cb98`). Use this ID as the application ID in **Add software > App store** (step 3 above).
