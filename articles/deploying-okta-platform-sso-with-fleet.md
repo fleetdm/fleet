@@ -163,20 +163,11 @@ On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). 
 - **Certificate Expiration Notification:** Set to 14 days before expiration
 
 **Important:** Okta doesn't support automatic certificate renewal. You must redeploy the profile before the certificate expires to replace it.
-Use the following **Policy** to help find devices with certificates expiring:
-
-```sql
--- Returns 1 if all Okta certs are valid for >14 days (PASSING)
--- Returns nothing if any Okta certs expire within 14 days (FAILING)
 SELECT 1
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM certificates
-    WHERE
-        issuer LIKE '%/DC=com/DC=okta%'
-        AND CAST(not_valid_after AS INTEGER)
-            BETWEEN (SELECT unix_time FROM time)
-            AND (SELECT unix_time FROM time) + 14 * 86400
+FROM certificates
+WHERE issuer LIKE '%/DC=com/DC=okta%'
+  AND ca=0
+  AND CAST((not_valid_after - strftime('%s', 'now')) / 86400 AS INTEGER) >= 14;
 );
 ```
 
