@@ -4381,6 +4381,8 @@ Request (`filters` is specified and empty, to delete all hosts):
 
 Updates the email for the data source in the human-device mapping. This source can only have one email.
 
+> If you're using the `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` variable in Apple (macOS, iOS, iPadOS) and Windows configuration profiles, overriding the `idp` data source resends the configuraiton profile even if the value is unchanged. This causes performance issues. In the future, Fleet will only resend profiles if the value changes ([coming soon](https://github.com/fleetdm/fleet/issues/41239)). In the interim, please only update the `idp` data source when the value changes.
+
 #### Parameters
 
 | Name       | Type              | In   | Description                                                                   |
