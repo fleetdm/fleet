@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -641,6 +642,110 @@ func TestRunMDMCommandValidations(t *testing.T) {
 			_, err := svc.RunMDMCommand(ctx, "!@#", []string{"unused for this test"})
 			require.Error(t, err)
 			require.ErrorContains(t, err, c.wantErr)
+		})
+	}
+}
+
+func TestRunMDMCommandSetRecoveryLockBlocked(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	macosSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", Platform: "darwin"}}
+	macosNoTeamHost := []*fleet.Host{{ID: 2, TeamID: nil, UUID: "b", Platform: "darwin"}}
+	macosTeam2Host := []*fleet.Host{{ID: 3, TeamID: ptr.Uint(2), UUID: "c", Platform: "darwin"}}
+
+	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+		res := make(map[string]bool, len(hosts))
+		for _, h := range hosts {
+			res[h.UUID] = true
+		}
+		return res, nil
+	}
+
+	// Create a SetRecoveryLock command payload
+	setRecoveryLockCmd := base64.RawStdEncoding.EncodeToString([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>RequestType</key>
+        <string>SetRecoveryLock</string>
+        <key>NewPassword</key>
+        <string>MyCustomPassword</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>test-uuid</string>
+</dict>
+</plist>`))
+
+	// Test cases where the command should be blocked
+	cases := []struct {
+		desc                        string
+		hosts                       []*fleet.Host
+		teamMDMConfig               map[uint]*fleet.TeamMDM
+		globalRecoveryLockEnabled   bool
+	}{
+		{
+			desc:  "SetRecoveryLock blocked when team has recovery lock enabled",
+			hosts: macosSingleHost,
+			teamMDMConfig: map[uint]*fleet.TeamMDM{
+				1: {EnableRecoveryLockPassword: true},
+			},
+			globalRecoveryLockEnabled: false,
+		},
+		{
+			desc:  "SetRecoveryLock blocked when any host's team has recovery lock enabled",
+			hosts: []*fleet.Host{macosSingleHost[0], macosTeam2Host[0]},
+			teamMDMConfig: map[uint]*fleet.TeamMDM{
+				1: {EnableRecoveryLockPassword: false},
+				2: {EnableRecoveryLockPassword: true},
+			},
+			globalRecoveryLockEnabled: false,
+		},
+		{
+			desc:                      "SetRecoveryLock blocked for no-team host when global config has recovery lock enabled",
+			hosts:                     macosNoTeamHost,
+			teamMDMConfig:             map[uint]*fleet.TeamMDM{},
+			globalRecoveryLockEnabled: true,
+		},
+		{
+			desc:  "SetRecoveryLock blocked when no-team host in mixed group has global recovery lock enabled",
+			hosts: []*fleet.Host{macosSingleHost[0], macosNoTeamHost[0]},
+			teamMDMConfig: map[uint]*fleet.TeamMDM{
+				1: {EnableRecoveryLockPassword: false},
+			},
+			globalRecoveryLockEnabled: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+				return c.hosts, nil
+			}
+
+			ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+				if cfg, ok := c.teamMDMConfig[teamID]; ok {
+					return cfg, nil
+				}
+				return &fleet.TeamMDM{}, nil
+			}
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					MDM: fleet.MDM{
+						EnabledAndConfigured:       true,
+						EnableRecoveryLockPassword: optjson.SetBool(c.globalRecoveryLockEnabled),
+					},
+				}, nil
+			}
+
+			ctx = test.UserContext(ctx, test.UserAdmin)
+			_, err := svc.RunMDMCommand(ctx, setRecoveryLockCmd, []string{"unused"})
+
+			require.Error(t, err)
+			require.ErrorContains(t, err, "Could not run command. Recovery Lock password is already set for one or more hosts.")
 		})
 	}
 }
