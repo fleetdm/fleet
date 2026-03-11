@@ -1433,7 +1433,6 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			jsonFieldName(t, "Name"):                     policy.Name,
 			jsonFieldName(t, "Description"):              policy.Description,
 			jsonFieldName(t, "Resolution"):               policy.Resolution,
-			jsonFieldName(t, "Query"):                    policy.Query,
 			jsonFieldName(t, "Platform"):                 policy.Platform,
 			jsonFieldName(t, "Critical"):                 policy.Critical,
 			jsonFieldName(t, "CalendarEventsEnabled"):    policy.CalendarEventsEnabled,
@@ -1456,6 +1455,7 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 		if policy.Type != "" {
 			policySpec["type"] = policy.Type
 		}
+
 		// Handle software automation.
 		if policy.InstallSoftware != nil {
 			if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {

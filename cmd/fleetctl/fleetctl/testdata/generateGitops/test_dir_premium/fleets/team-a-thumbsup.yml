@@ -60,7 +60,6 @@ policies:
   resolution: Do a team thing
   type: dynamic
 - calendar_events_enabled: false
-  conditional_access_bypass_enabled: false
   conditional_access_enabled: true
   critical: false
   description: This is a team patch policy
