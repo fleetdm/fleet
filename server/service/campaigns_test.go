@@ -370,10 +370,10 @@ func TestLiveQueryLabelBypassPrevented(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name                  string
-		observerCanRun        bool
-		expectIncludeObs      bool
-		expectObserverTeamID  *uint
+		name                 string
+		observerCanRun       bool
+		expectIncludeObs     bool
+		expectObserverTeamID *uint
 	}{
 		{
 			name:                 "observer_can_run=false: label expansion excludes observer-only team hosts",
