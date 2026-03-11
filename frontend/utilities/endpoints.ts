@@ -300,7 +300,7 @@ export default {
     `/${API_VERSION}/fleet/scripts/batch/${id}`,
   SCRIPT_RUN_BATCH_SUMMARIES: `/${API_VERSION}/fleet/scripts/batch`,
   SCRIPT_BATCH_HOST_RESULTS: (id: string) =>
-    `/${API_VERSION}/fleet/scripts/batch/${id}/host-results`,
+    `/${API_VERSION}/fleet/scripts/batch/${id}/host_results`,
 
   // Command endpoints
   COMMANDS: `/${API_VERSION}/fleet/commands`,
