@@ -136,7 +136,7 @@ Fleet uses "Non-Disclosure Agreements" (NDAs) to protect the company and the com
 
 ### Close a new customer deal
 
-Once an order form has been signed by both Fleet and the new customer, create and complete a ["🤝 Sale" issue](https://github.com/fleetdm/confidential/issues/new?assignees=alexmitchelliii&labels=%23g-sales&projects=&template=3-sale.md&title=New+customer%3A+_____________).
+Once an order form has been signed by both Fleet and the new customer, create and complete a ["🤝 Sale" issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=3-sale.md&title=New+customer%3A+_____________).
 
 
 ### Process a security questionnaire

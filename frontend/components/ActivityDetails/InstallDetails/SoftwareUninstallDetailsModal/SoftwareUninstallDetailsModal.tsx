@@ -271,16 +271,14 @@ const SoftwareUninstallDetailsModal = ({
       onEnter={onCancel}
       className={baseClass}
     >
-      <>
-        {renderContent()}
-        <ModalButtons
-          uninstallStatus={uninstallStatus}
-          deviceAuthToken={deviceAuthToken}
-          onCancel={onCancel}
-          onRetry={onRetry}
-          hostSoftware={hostSoftware}
-        />
-      </>
+      {renderContent()}
+      <ModalButtons
+        uninstallStatus={uninstallStatus}
+        deviceAuthToken={deviceAuthToken}
+        onCancel={onCancel}
+        onRetry={onRetry}
+        hostSoftware={hostSoftware}
+      />
     </Modal>
   );
 };

@@ -290,13 +290,11 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 	logger := slog.Default()
 
 	hostUUID := "test-host-uuid"
-	hostID := uint(42)
 	cmdUUID := "set-recovery-lock-cmd-uuid"
 
 	t.Run("acknowledged sets verified", func(t *testing.T) {
 		ds := new(mock.DataStore)
 
-		host := &fleet.Host{ID: hostID, UUID: hostUUID}
 		var verifiedCalled bool
 		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, hUUID string) error {
 			verifiedCalled = true
@@ -311,7 +309,7 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			CommandUUID: cmdUUID,
 			Status:      fleet.MDMAppleStatusAcknowledged,
 			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
-		}, host)
+		})
 
 		err := handler(ctx, result)
 		require.NoError(t, err)
@@ -323,7 +321,6 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 	t.Run("error status sets failed", func(t *testing.T) {
 		ds := new(mock.DataStore)
 
-		host := &fleet.Host{ID: hostID, UUID: hostUUID}
 		var failedCalled bool
 		var capturedError string
 		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
@@ -341,7 +338,7 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			Status:      fleet.MDMAppleStatusError,
 			ErrorChain:  []mdm.ErrorChain{{ErrorCode: 12345, ErrorDomain: "test", LocalizedDescription: "Test error"}},
 			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
-		}, host)
+		})
 
 		err := handler(ctx, result)
 		require.NoError(t, err)
@@ -353,7 +350,6 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 	t.Run("command format error sets failed with default message", func(t *testing.T) {
 		ds := new(mock.DataStore)
 
-		host := &fleet.Host{ID: hostID, UUID: hostUUID}
 		var capturedError string
 		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
 			capturedError = errorMsg
@@ -367,7 +363,7 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			CommandUUID: cmdUUID,
 			Status:      fleet.MDMAppleStatusCommandFormatError,
 			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
-		}, host)
+		})
 
 		err := handler(ctx, result)
 		require.NoError(t, err)
