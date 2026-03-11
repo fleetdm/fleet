@@ -1398,11 +1398,13 @@ func (ds *Datastore) applyHostFilters(
 
 	mdmAppleProfilesStatusJoin := ""
 	mdmAppleDeclarationsStatusJoin := ""
+	mdmRecoveryLockStatusJoin := ""
 	mdmAndroidProfilesStatusJoin := ""
 	if opt.OSSettingsFilter.IsValid() ||
 		opt.MacOSSettingsFilter.IsValid() {
 		mdmAppleProfilesStatusJoin = sqlJoinMDMAppleProfilesStatus()
 		mdmAppleDeclarationsStatusJoin = sqlJoinMDMAppleDeclarationsStatus()
+		mdmRecoveryLockStatusJoin = sqlJoinRecoveryLockStatus()
 	}
 
 	if opt.OSSettingsFilter.IsValid() {
@@ -1436,6 +1438,7 @@ func (ds *Datastore) applyHostFilters(
     %s
     %s
     %s
+    %s
 	%s
 		WHERE TRUE AND %s AND %s AND %s AND %s AND %s
     `,
@@ -1452,6 +1455,7 @@ func (ds *Datastore) applyHostFilters(
 		connectedToFleetJoin,
 		mdmAppleProfilesStatusJoin,
 		mdmAppleDeclarationsStatusJoin,
+		mdmRecoveryLockStatusJoin,
 		mdmAndroidProfilesStatusJoin,
 		batchScriptExecutionJoin,
 
