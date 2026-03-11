@@ -669,6 +669,8 @@ type DeleteSoftwareVulnerabilitiesFunc func(ctx context.Context, vulnerabilities
 
 type DeleteOutOfDateVulnerabilitiesFunc func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error
 
+type DeleteOrphanedSoftwareVulnerabilitiesFunc func(ctx context.Context) error
+
 type CreateOrUpdateCalendarEventFunc func(ctx context.Context, uuid string, email string, startTime time.Time, endTime time.Time, data []byte, timeZone *string, hostID uint, webhookStatus fleet.CalendarWebhookStatus) (*fleet.CalendarEvent, error)
 
 type GetCalendarEventFunc func(ctx context.Context, email string) (*fleet.CalendarEvent, error)
@@ -882,6 +884,8 @@ type DeleteOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fle
 type InsertOSVulnerabilityFunc func(ctx context.Context, vuln fleet.OSVulnerability, source fleet.VulnerabilitySource) (bool, error)
 
 type DeleteOutOfDateOSVulnerabilitiesFunc func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error
+
+type DeleteOrphanedOSVulnerabilitiesFunc func(ctx context.Context) error
 
 type ListKernelsByOSFunc func(ctx context.Context, osID uint, teamID *uint) ([]*fleet.Kernel, error)
 
@@ -2755,6 +2759,9 @@ type DataStore struct {
 	DeleteOutOfDateVulnerabilitiesFunc        DeleteOutOfDateVulnerabilitiesFunc
 	DeleteOutOfDateVulnerabilitiesFuncInvoked bool
 
+	DeleteOrphanedSoftwareVulnerabilitiesFunc        DeleteOrphanedSoftwareVulnerabilitiesFunc
+	DeleteOrphanedSoftwareVulnerabilitiesFuncInvoked bool
+
 	CreateOrUpdateCalendarEventFunc        CreateOrUpdateCalendarEventFunc
 	CreateOrUpdateCalendarEventFuncInvoked bool
 
@@ -3075,6 +3082,9 @@ type DataStore struct {
 
 	DeleteOutOfDateOSVulnerabilitiesFunc        DeleteOutOfDateOSVulnerabilitiesFunc
 	DeleteOutOfDateOSVulnerabilitiesFuncInvoked bool
+
+	DeleteOrphanedOSVulnerabilitiesFunc        DeleteOrphanedOSVulnerabilitiesFunc
+	DeleteOrphanedOSVulnerabilitiesFuncInvoked bool
 
 	ListKernelsByOSFunc        ListKernelsByOSFunc
 	ListKernelsByOSFuncInvoked bool
@@ -6693,6 +6703,13 @@ func (s *DataStore) DeleteOutOfDateVulnerabilities(ctx context.Context, source f
 	return s.DeleteOutOfDateVulnerabilitiesFunc(ctx, source, olderThan)
 }
 
+func (s *DataStore) DeleteOrphanedSoftwareVulnerabilities(ctx context.Context) error {
+	s.mu.Lock()
+	s.DeleteOrphanedSoftwareVulnerabilitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteOrphanedSoftwareVulnerabilitiesFunc(ctx)
+}
+
 func (s *DataStore) CreateOrUpdateCalendarEvent(ctx context.Context, uuid string, email string, startTime time.Time, endTime time.Time, data []byte, timeZone *string, hostID uint, webhookStatus fleet.CalendarWebhookStatus) (*fleet.CalendarEvent, error) {
 	s.mu.Lock()
 	s.CreateOrUpdateCalendarEventFuncInvoked = true
@@ -7440,6 +7457,13 @@ func (s *DataStore) DeleteOutOfDateOSVulnerabilities(ctx context.Context, source
 	s.DeleteOutOfDateOSVulnerabilitiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteOutOfDateOSVulnerabilitiesFunc(ctx, source, olderThan)
+}
+
+func (s *DataStore) DeleteOrphanedOSVulnerabilities(ctx context.Context) error {
+	s.mu.Lock()
+	s.DeleteOrphanedOSVulnerabilitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteOrphanedOSVulnerabilitiesFunc(ctx)
 }
 
 func (s *DataStore) ListKernelsByOS(ctx context.Context, osID uint, teamID *uint) ([]*fleet.Kernel, error) {
