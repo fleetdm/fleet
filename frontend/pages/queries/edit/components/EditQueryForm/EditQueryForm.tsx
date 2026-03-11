@@ -637,7 +637,7 @@ const EditQueryForm = ({
             <Button
               onClick={() => {
                 router.push(
-                  getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
+                  getPathWithQueryParams(PATHS.LIVE_REPORT(queryIdForEdit), {
                     host_id: hostId,
                     fleet_id: apiTeamIdForQuery,
                   })
@@ -932,7 +932,7 @@ const EditQueryForm = ({
                     setEditingExistingQuery(true); // Persists edited query data through live query flow
                   }
                   router.push(
-                    getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
+                    getPathWithQueryParams(PATHS.LIVE_REPORT(queryIdForEdit), {
                       host_id: hostId,
                       fleet_id: currentTeamId,
                     })

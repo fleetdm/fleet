@@ -1642,6 +1642,10 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.Integrations.ConditionalAccessEnabled = optjson.SetBool(*spec.Integrations.ConditionalAccessEnabled)
 	}
 
+	if !spec.MDM.MacOSSetup.EnableEndUserAuthentication && spec.MDM.MacOSSetup.LockEndUserInfo.Value {
+		invalid.Append("macos_setup.lock_end_user_info", "Couldn't enable macos_setup.lock_end_user_info because macos_setup.enable_end_user_authentication is not enabled.")
+	}
+
 	if opts.DryRun {
 		for _, secret := range secrets {
 			available, err := svc.ds.IsEnrollSecretAvailable(ctx, secret.Secret, false, &team.ID)

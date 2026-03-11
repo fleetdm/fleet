@@ -1496,6 +1496,11 @@ None.
   "mdm": {
     "android_enabled_and_configured": true,
     "windows_enabled_and_configured": true,
+    "windows_entra_tenant_ids": [
+      {
+        "tenant_id": "fec37e96-3615-4e37-8fac-445d5328af3c",
+      },
+    ],
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
@@ -1813,6 +1818,9 @@ Modifies the Fleet's configuration with the supplied information.
     "enabled_and_configured": false,
     "android_enabled_and_configured": false,
     "windows_enabled_and_configured": false,
+    "windows_entra_tenant_ids": [
+      "26ac824d-0d5e-4f0c-a202-1c29d5a48e43"
+    ],
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
@@ -2400,6 +2408,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
+| windows_entra_tenant_ids          | array | _Available in Fleet Premium._ IDs of Microsoft Entra tenants to connect to Fleet, to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home). |
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that belong to no team will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
@@ -4725,7 +4734,7 @@ On macOS hosts, `last_opened_at` is supported for software from the `apps` sourc
 
 On Windows hosts, `last_opened_at` is supported for software from the `programs` source. On Linux hosts, `last_opened_at` is supported for software from the `deb_packages` and `rpm_packages` sources. On Windows and Linux hosts, it represents the last open time of any version.
 
-Currently, `hash_sha256` is only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
+Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
 
 #### Example
 
@@ -4767,7 +4776,9 @@ Currently, `hash_sha256` is only supported for macOS software from the `apps` so
             {
               "installed_path": "/Applications/Google Chrome.app",
               "team_identifier": "EQHXZ8M8AV",
-              "hash_sha256": "a45d00ac9bf21e108fa8e452fabe4d9e05e6765b"
+              "hash_sha256": "a45d00ac9bf21e108fa8e452fabe4d9e05e6765b",
+              "executable_sha256": "7afc9d01a62f03a2de9637936d4afe68090d2de18d03f29c88cfb0b1ba63587f",
+              "executable_path": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
             }
           ]
         }
@@ -4820,7 +4831,9 @@ Currently, `hash_sha256` is only supported for macOS software from the `apps` so
             {
               "installed_path": "/Applications/Logic Pro.app",
               "team_identifier": "",
-              "hash_sha256": null
+              "hash_sha256": null,
+              "executable_sha256": null,
+              "executable_path": null
             }
           ]
         }
@@ -6700,7 +6713,7 @@ The returned value is a signed `.mobileconfig` OTA enrollment profile (see [Appl
 
 If the team in Fleet has [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) enabled, the OTA enrollment profile won't work. Use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
 
-To enroll macOS hosts, turn on MDM features, and add [human-device mapping](#get-human-device-mapping), use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
+To enroll macOS hosts, turn on MDM features, and add [human-device mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts), use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
 
 #### Parameters
 
@@ -6767,7 +6780,7 @@ To enroll macOS hosts, turn on MDM features, and add [human-device mapping](#get
 
 Retrieves an unsigned manual enrollment profile for macOS hosts. Install this profile on macOS hosts to turn on MDM features manually.
 
-To add [human-device mapping](#get-human-device-mapping), [add the end user's email to the enrollment profle](https://fleetdm.com/guides/config-less-fleetd-agent-deployment#using-human-device-mapping).
+To add [human-device mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts), [add the end user's email to the enrollment profile](https://fleetdm.com/guides/config-less-fleetd-agent-deployment#using-human-device-mapping).
 
 `GET /api/v1/fleet/enrollment_profiles/manual`
 

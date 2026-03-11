@@ -260,7 +260,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			if !(found[0].Title == payload.Title && found[0].Source == payload.Source) {
 				return 0, 0, fleet.NewInvalidArgumentError(
 					"software",
-					"Couldn't add software. An installer with identical contents already exists on this team.",
+					"Couldn't add software. An installer with identical contents already exists on this fleet.",
 				)
 			}
 			// If exact duplicate (same title and source), continue to let DB constraint handle it
@@ -2779,6 +2779,18 @@ WHERE
 			// With the unique constraint on (global_or_team_id, title_id, version),
 			// a version change inserts a new row instead of replacing — clean up the old one.
 			if installer.FleetMaintainedAppID == nil {
+				// Re-point any policies that reference the old installer to the new one
+				// before deleting, because policies.software_installer_id has a FK
+				// constraint without ON DELETE CASCADE.
+				if _, err := tx.ExecContext(ctx, `
+					UPDATE policies SET software_installer_id = ?
+					WHERE software_installer_id IN (
+						SELECT id FROM software_installers
+						WHERE global_or_team_id = ? AND title_id = ? AND id != ?
+					)
+				`, installerID, globalOrTeamID, titleID, installerID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "re-point policies for old versions of custom installer %q", installer.Filename)
+				}
 				if _, err := tx.ExecContext(ctx, `
 					DELETE FROM software_installers
 					WHERE global_or_team_id = ? AND title_id = ? AND id != ?
@@ -2834,11 +2846,32 @@ WHERE
 						keepSet[v.ID] = true
 					}
 
+					keepIDs := slices.Collect(maps.Keys(keepSet))
+
+					// Re-point any policies referencing evicted installers to the active one.
+					rePointStmt, rePointArgs, err := sqlx.In(
+						`UPDATE policies SET software_installer_id = ?
+						WHERE software_installer_id IN (
+							SELECT id FROM software_installers
+							WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND id NOT IN (?)
+						)`,
+						activeInstallerID,
+						globalOrTeamID,
+						titleID,
+						keepIDs,
+					)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "build FMA policy re-point query")
+					}
+					if _, err := tx.ExecContext(ctx, rePointStmt, rePointArgs...); err != nil {
+						return ctxerr.Wrapf(ctx, err, "re-point policies for evicted FMA versions of %q", installer.Filename)
+					}
+
 					stmt, args, err := sqlx.In(
 						`DELETE FROM software_installers WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND id NOT IN (?)`,
 						globalOrTeamID,
 						titleID,
-						slices.Collect(maps.Keys(keepSet)),
+						keepIDs,
 					)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "build FMA eviction query")

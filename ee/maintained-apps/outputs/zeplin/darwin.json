@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "10.30.0",
+      "version": "10.31.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.zeplin.osx';"
       },

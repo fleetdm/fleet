@@ -16,7 +16,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/smithy-go/ptr"
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
@@ -81,14 +80,13 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 		return &fleet.Policy{
 			PolicyData: fleet.PolicyData{
-				Name:                           args.Name,
-				Query:                          args.Query,
-				Critical:                       args.Critical,
-				Platform:                       args.Platform,
-				Description:                    args.Description,
-				Resolution:                     &args.Resolution,
-				AuthorID:                       authorID,
-				ConditionalAccessBypassEnabled: ptr.Bool(true),
+				Name:        args.Name,
+				Query:       args.Query,
+				Critical:    args.Critical,
+				Platform:    args.Platform,
+				Description: args.Description,
+				Resolution:  &args.Resolution,
+				AuthorID:    authorID,
 			},
 		}, nil
 	}
@@ -156,6 +154,9 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	}
 	ds.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
 		return nil, nil
+	}
+	ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+		return &fleet.TeamMDM{}, nil
 	}
 	var cachedDS fleet.Datastore
 	if len(opts) > 0 && opts[0].NoCacheDatastore {

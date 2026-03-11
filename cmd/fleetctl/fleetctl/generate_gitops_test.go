@@ -335,8 +335,7 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 					}, {
 						LabelName: "Label B",
 					}},
-					ConditionalAccessEnabled:       true,
-					ConditionalAccessBypassEnabled: ptr.Bool(true),
+					ConditionalAccessEnabled: true,
 				},
 				InstallSoftware: &fleet.PolicySoftwareTitle{
 					SoftwareTitleID: 1,
@@ -347,14 +346,13 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 	return []*fleet.Policy{
 		{
 			PolicyData: fleet.PolicyData{
-				ID:                             1,
-				Name:                           "Team Policy",
-				Query:                          "SELECT * FROM team_policy WHERE id = 1",
-				Resolution:                     ptr.String("Do a team thing"),
-				Description:                    "This is a team policy",
-				Platform:                       "linux,windows",
-				ConditionalAccessEnabled:       true,
-				ConditionalAccessBypassEnabled: ptr.Bool(true),
+				ID:                       1,
+				Name:                     "Team Policy",
+				Query:                    "SELECT * FROM team_policy WHERE id = 1",
+				Resolution:               ptr.String("Do a team thing"),
+				Description:              "This is a team policy",
+				Platform:                 "linux,windows",
+				ConditionalAccessEnabled: true,
 			},
 			RunScript: &fleet.PolicyScript{
 				ID: 1,
@@ -1335,9 +1333,9 @@ func TestGenerateControls(t *testing.T) {
 	}
 	controlsRaw, err = cmd.generateControls(ptr.Uint(0), "no_team", &mdmConfig)
 	require.NoError(t, err)
-	// Check that the controls do not contain a macos_setup section
-	_, ok := controlsRaw["macos_setup"]
-	require.False(t, ok, "Expected no macos_setup section for no-team controls")
+	// Check that the controls do not contain a setup_experience section
+	_, ok := controlsRaw["setup_experience"]
+	require.False(t, ok, "Expected no setup_experience section for no-team controls")
 
 	// Try that again, but with an MDM config that has "EndUserAuthentication" enabled.
 	mdmConfig = fleet.TeamMDM{
@@ -1388,7 +1386,8 @@ func TestGenerateControls(t *testing.T) {
 	controlsRaw, err = cmd.generateControls(ptr.Uint(2), "some_team", nil)
 	require.NoError(t, err)
 	require.NotNil(t, controlsRaw)
-	require.False(t, ok, "Expected no macos_setup section for no-team controls")
+	_, ok = controlsRaw["setup_experience"]
+	require.False(t, ok, "Expected no setup_experience section")
 
 	// Generate controls for a team with a bootstrap pacakge.
 	controlsRaw, err = cmd.generateControls(ptr.Uint(3), "some_team", nil)
@@ -1724,7 +1723,7 @@ func TestGeneratePolicies(t *testing.T) {
 		},
 	}
 
-	policiesRaw, err := cmd.generatePolicies(nil, "default.yml")
+	policiesRaw, err := cmd.generatePolicies(nil, "default.yml", nil)
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
 	var policies []map[string]interface{}
@@ -1747,7 +1746,7 @@ func TestGeneratePolicies(t *testing.T) {
 	// Generate policies for a team.
 	// Note that nested keys here may be strings,
 	// so we'll JSON marshal and unmarshal to a map for comparison.
-	policiesRaw, err = cmd.generatePolicies(ptr.Uint(1), "some_team")
+	policiesRaw, err = cmd.generatePolicies(ptr.Uint(1), "some_team", nil)
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
 	b, err = yaml.Marshal(policiesRaw)
@@ -1863,9 +1862,9 @@ func TestGenerateLabels(t *testing.T) {
 }
 
 func verifyControlsHasMacosSetup(t *testing.T, controlsRaw map[string]interface{}) {
-	macosSetup, ok := controlsRaw["macos_setup"].(string)
-	require.True(t, ok, "Expected macos_setup section to be a string")
-	require.Equal(t, macosSetup, "TODO: update with your macos_setup configuration")
+	macosSetup, ok := controlsRaw["setup_experience"].(string)
+	require.True(t, ok, "Expected setup_experience section to be a string")
+	require.Equal(t, macosSetup, "TODO: update with your setup_experience configuration")
 }
 
 func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {

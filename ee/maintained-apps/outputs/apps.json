@@ -1157,13 +1157,6 @@
       "description": "Okta Verify is a multi-factor authentication app that provides secure identity verification and passwordless sign-in for users accessing Okta-protected applications."
     },
     {
-      "name": "Okta Verify",
-      "slug": "okta-verify/windows",
-      "platform": "windows",
-      "unique_identifier": "Okta Verify",
-      "description": "Okta Verify is a multi-factor authentication app that provides secure identity verification and passwordless sign-in for users accessing Okta-protected applications."
-    },
-    {
       "name": "OmniGraffle",
       "slug": "omnigraffle/darwin",
       "platform": "darwin",
@@ -1701,6 +1694,13 @@
       "platform": "darwin",
       "unique_identifier": "com.wacom.WacomCenter",
       "description": "Wacom Tablet is a collection of resources for configuring Wacom tablets."
+    },
+    {
+      "name": "Warp",
+      "slug": "warp/darwin",
+      "platform": "darwin",
+      "unique_identifier": "dev.warp.Warp-Stable",
+      "description": "Warp is a modern, AI-powered terminal built for speed and productivity with features like command search, intelligent completions, and collaborative workflows."
     },
     {
       "name": "Webex",

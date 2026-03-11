@@ -369,23 +369,25 @@ const HostSoftwareLibrary = ({
 
   const onAddSoftware = useCallback(() => {
     // "Add Software" path dependent on host's platform
-    const addSoftwarePathForHostPlatform = () => {
-      if (isIPadOrIPhoneHost || isAndroidHost) {
-        return getPathWithQueryParams(PATHS.SOFTWARE_ADD_APP_STORE, {
-          platform: isAndroidHost ? "android" : "apple",
-        });
-      }
-      if (isMacOSHost || isWindowsHost) {
-        return PATHS.SOFTWARE_ADD_FLEET_MAINTAINED;
-      }
-      return PATHS.SOFTWARE_ADD_PACKAGE;
-    };
+    let path = "";
+    const params: {
+      fleet_id: number;
+      platform?: string;
+    } = { fleet_id: hostTeamId };
 
-    router.push(
-      getPathWithQueryParams(addSoftwarePathForHostPlatform(), {
-        fleet_id: hostTeamId,
-      })
-    );
+    switch (true) {
+      case isIPadOrIPhoneHost || isAndroidHost:
+        path = PATHS.SOFTWARE_ADD_APP_STORE;
+        params.platform = isAndroidHost ? "android" : "apple";
+        break;
+      case isMacOSHost || isWindowsHost:
+        path = PATHS.SOFTWARE_ADD_FLEET_MAINTAINED;
+        break;
+      default:
+        path = PATHS.SOFTWARE_ADD_PACKAGE;
+    }
+
+    router.push(getPathWithQueryParams(path, params));
   }, [
     hostTeamId,
     isIPadOrIPhoneHost,

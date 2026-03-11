@@ -44,7 +44,10 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
+import {
+  isBYODAccountDrivenUserEnrollment,
+  FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
+} from "interfaces/mdm";
 import { ICommand } from "interfaces/command";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
@@ -118,6 +121,7 @@ import DeleteHostModal from "../../components/DeleteHostModal";
 
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
+import RecoveryLockPasswordModal from "./modals/RecoveryLockPasswordModal";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
@@ -222,6 +226,10 @@ const HostDetailsPage = ({
   const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
   const [showDiskEncryptionModal, setShowDiskEncryptionModal] = useState(false);
+  const [
+    showRecoveryLockPasswordModal,
+    setShowRecoveryLockPasswordModal,
+  ] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
@@ -566,6 +574,10 @@ const HostDetailsPage = ({
     }
   );
 
+  const mdmConfig = host?.team_id
+    ? teams?.find((t) => t.id === host.team_id)?.mdm
+    : config?.mdm;
+
   const canGetMDMCommands =
     !!isMacMdmEnabledAndConfigured && isAppleDevice(host?.platform);
 
@@ -638,10 +650,6 @@ const HostDetailsPage = ({
     : config?.features;
 
   const getOSVersionRequirementFromMDMConfig = (hostPlatform: string) => {
-    const mdmConfig = host?.team_id
-      ? teams?.find((t) => t.id === host.team_id)?.mdm
-      : config?.mdm;
-
     switch (hostPlatform) {
       case "darwin":
         return mdmConfig?.macos_updates;
@@ -933,6 +941,9 @@ const HostDetailsPage = ({
       case "diskEncryption":
         setShowDiskEncryptionModal(true);
         break;
+      case "recoveryLockPassword":
+        setShowRecoveryLockPasswordModal(true);
+        break;
       case "mdmOff":
         toggleUnenrollMdmModal();
         break;
@@ -961,7 +972,7 @@ const HostDetailsPage = ({
 
   const onClickAddQuery = () => {
     router.push(
-      getPathWithQueryParams(PATHS.NEW_QUERY, {
+      getPathWithQueryParams(PATHS.NEW_REPORT, {
         fleet_id: currentTeam?.id || location.query.fleet_id,
         host_id: hostIdFromURL,
       })
@@ -973,11 +984,16 @@ const HostDetailsPage = ({
       return null;
     }
 
+    const diskEncryptionProfile = host.mdm.profiles?.find(
+      (p) => p.name === FLEET_FILEVAULT_PROFILE_DISPLAY_NAME
+    );
+
     return (
       <HostActionsDropdown
         hostTeamId={host.team_id}
         onSelect={onSelectHostAction}
         hostPlatform={host.platform}
+        hostCpuType={host.cpu_type}
         hostStatus={host.status}
         hostMdmDeviceStatus={hostMdmDeviceStatus}
         hostMdmEnrollmentStatus={host.mdm.enrollment_status}
@@ -987,6 +1003,13 @@ const HostDetailsPage = ({
         }
         isConnectedToFleetMdm={host.mdm?.connected_to_fleet}
         hostScriptsEnabled={host.scripts_enabled}
+        isRecoveryLockPasswordEnabled={
+          mdmConfig?.enable_recovery_lock_password ?? false
+        }
+        diskEncryptionProfileStatus={diskEncryptionProfile?.status}
+        recoveryLockPasswordProfileStatus={
+          host.mdm.os_settings?.recovery_lock_password?.status
+        }
       />
     );
   };
@@ -1563,6 +1586,12 @@ const HostDetailsPage = ({
               platform={host.platform}
               hostId={host.id}
               onCancel={() => setShowDiskEncryptionModal(false)}
+            />
+          )}
+          {showRecoveryLockPasswordModal && host && (
+            <RecoveryLockPasswordModal
+              hostId={host.id}
+              onCancel={() => setShowRecoveryLockPasswordModal(false)}
             />
           )}
           {showBootstrapPackageModal &&
