@@ -139,7 +139,7 @@ module "loadtest" {
     )
     private_key_secret_name = "${local.customer}-fleet-server-private-key"
     software_installers = {
-      bucket_prefix                      = "${terraform.workspace}-software-installers-"
+      bucket_prefix                      = "${terraform.workspace}-sw-inst-"
       create_kms_key                     = true
       kms_alias                          = "${local.customer}-software-installers"
       enable_bucket_versioning           = true
