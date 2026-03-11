@@ -2498,6 +2498,9 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 				sb.WriteString(dm.Email)
 			}
 			h.CSVDeviceMapping = sb.String()
+			// Add the aliased fields for team_id and team_name.
+			h.FleetID = h.TeamID
+			h.FleetName = h.TeamName
 		}
 	}
 
@@ -2589,6 +2592,14 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 			cols = append(cols, rawCol)
 			if rawCol == "device_mapping" {
 				req.Opts.DeviceMapping = true
+			}
+			// If team_id / team_name are requested, also include their aliases.
+			// TODO: clean up in Fleet 5.
+			if rawCol == "team_id" {
+				cols = append(cols, "fleet_id")
+			}
+			if rawCol == "team_name" {
+				cols = append(cols, "fleet_name")
 			}
 		}
 	}
