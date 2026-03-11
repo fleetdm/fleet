@@ -68,6 +68,11 @@ var softwareInventoryInsertBatchSize = 100
 // Smaller batches hold locks for shorter durations, reducing contention with concurrent software ingestion.
 var cleanupBatchSize = 1000
 
+// cleanupMaxIterations caps the number of batches per cleanup invocation to prevent the loop from running indefinitely.
+// With cleanupBatchSize=1000, this allows up to 100K orphaned software rows to be cleaned up per cron run.
+// Any remaining orphans will be processed on the next hourly cron cycle.
+var cleanupMaxIterations = 100
+
 func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Software {
 	result := make(map[string]fleet.Software, len(softwareItems))
 	for _, s := range softwareItems {
@@ -2782,13 +2787,18 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 }
 
 // cleanupUnusedSoftware deletes orphaned software rows (not referenced by any host) in batches.
+// It processes at most cleanupMaxIterations batches per invocation to avoid monopolizing the database.
+// Any remaining orphans will be cleaned up on the next cron run.
 func (ds *Datastore) cleanupUnusedSoftware(ctx context.Context) error {
-	// findUnusedSoftwareStmt finds software rows not referenced by any host and absent from software_host_counts.
-	// The NOT EXISTS check on host_software reduces (but does not fully prevent) the chance of deleting software that
-	// is mid-ingestion (inserted into software but not yet linked in host_software). In the unlikely event this happens,
-	// the next hourly ingestion cycle will re-create and re-link the software entry.
+	// findUnusedSoftwareStmt finds software rows not referenced by any host and either absent from
+	// software_host_counts or with a global hosts_count of 0. DISTINCT is needed because the LEFT JOIN
+	// can produce multiple rows per software_id (one per software_host_counts entry with team_id=0).
+	// The NOT EXISTS check on host_software reduces (but does not fully prevent) the chance of deleting
+	// software that is mid-ingestion (inserted into software but not yet linked in host_software).
+	// In the unlikely event this happens, the next hourly ingestion cycle will re-create and re-link
+	// the software entry.
 	const findUnusedSoftwareStmt = `
-		SELECT s.id
+		SELECT DISTINCT s.id
 		FROM software s
 		LEFT JOIN software_host_counts shc ON s.id = shc.software_id
 		WHERE (shc.software_id IS NULL OR (shc.team_id = 0 AND shc.hosts_count = 0))
@@ -2796,7 +2806,7 @@ func (ds *Datastore) cleanupUnusedSoftware(ctx context.Context) error {
 		LIMIT ?
 	`
 
-	for {
+	for range cleanupMaxIterations {
 		var ids []uint
 		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &ids, findUnusedSoftwareStmt, cleanupBatchSize); err != nil {
 			return ctxerr.Wrap(ctx, err, "find unused software for cleanup")
@@ -2813,6 +2823,7 @@ func (ds *Datastore) cleanupUnusedSoftware(ctx context.Context) error {
 			return ctxerr.Wrap(ctx, err, "delete unused software batch")
 		}
 	}
+	return nil
 }
 
 func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
