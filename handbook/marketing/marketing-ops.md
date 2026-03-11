@@ -21,7 +21,7 @@ Our go-to-market (GTM) approach is built on a foundation of end-to-end visibilit
 Conversion rates help us to plan, forecast, and improve. There are several key comparisons that we want to understand:
 
 - **Win rate**: From stage X to closed won.  For closed opportunities, this tells us what percentage of opportunities historically will be won for a given stage in the sales cycle.  
-- **Stage to win cyce time**: tbd/todo  
+- **Stage to win cycle time**: tbd/todo  
 - **Stage to stage**:tbd/todo  
 - **Stage to stage cycle time**: tbd/todo
 
