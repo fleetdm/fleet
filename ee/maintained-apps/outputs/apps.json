@@ -1584,6 +1584,13 @@
       "description": "TextExpander is an application that let's you create and insert pre-made snippets of text anywhere."
     },
     {
+      "name": "The Unarchiver",
+      "slug": "the-unarchiver/darwin",
+      "platform": "darwin",
+      "unique_identifier": "cx.c3.theunarchiver",
+      "description": "The Unarchiver is an archive extraction utility that supports many formats including ZIP, RAR, and 7z."
+    },
+    {
       "name": "Thunderbird",
       "slug": "thunderbird/darwin",
       "platform": "darwin",
