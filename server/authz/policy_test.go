@@ -1669,8 +1669,8 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: twoTeamsAdminObs, object: observerQueryOnTeam1TargetedToTeam1, action: run, allow: true},
 				{user: twoTeamsAdminObs, object: observerQueryOnTeam1TargetedToTeam2, action: run, allow: false},         // observer on team 2 cannot target team 2 for a team 1 query (observer_can_run only applies to the query's team)
 				{user: twoTeamsAdminObs, object: observerQueryOnTeam1TargetedToTeam1AndTeam2, action: run, allow: false}, // cannot target team 2 which is only accessible as observer (not the query's team)
-				{user: twoTeamsAdminObs, object: observerQueryOnTeam1EmptyTeams, action: run, allow: true},              // admin on team 1 can run team 1 observer_can_run query with empty teams
-				{user: twoTeamsAdminObs, object: observerQueryOnTeam2TargetedToTeam2, action: run, allow: true},         // observer on team 2 can run query belonging to team 2
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam1EmptyTeams, action: run, allow: true},               // admin on team 1 can run team 1 observer_can_run query with empty teams
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam2TargetedToTeam2, action: run, allow: true},          // observer on team 2 can run query belonging to team 2
 			},
 		},
 		{
@@ -1685,11 +1685,11 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: twoTeamsObsObs, object: globalObserverQueryTargetedToTeam1AndTeam2AndTeam3, action: run, allow: false}, // not member of team 3
 
 				{user: twoTeamsObsObs, object: observerQueryOnTeam1TargetedToTeam1, action: run, allow: true},
-				{user: twoTeamsObsObs, object: observerQueryOnTeam1TargetedToTeam2, action: run, allow: false},        // observer on team 2 cannot target it for a team 1 query (observer_can_run only applies to the query's team)
+				{user: twoTeamsObsObs, object: observerQueryOnTeam1TargetedToTeam2, action: run, allow: false},         // observer on team 2 cannot target it for a team 1 query (observer_can_run only applies to the query's team)
 				{user: twoTeamsObsObs, object: observerQueryOnTeam1TargetedToTeam1AndTeam2, action: run, allow: false}, // cannot target team 2 via observer role when the query belongs to team 1
-				{user: twoTeamsObsObs, object: observerQueryOnTeam1EmptyTeams, action: run, allow: true},              // observer on team 1 can run team 1 observer_can_run query with empty teams
-				{user: twoTeamsObsObs, object: observerQueryOnTeam2TargetedToTeam2, action: run, allow: true},         // observer on team 2 can run query belonging to team 2
-				{user: twoTeamsObsObs, object: observerQueryOnTeam3TargetedToTeam1, action: run, allow: false},        // not a member of team 3, cannot run team 3 queries
+				{user: twoTeamsObsObs, object: observerQueryOnTeam1EmptyTeams, action: run, allow: true},               // observer on team 1 can run team 1 observer_can_run query with empty teams
+				{user: twoTeamsObsObs, object: observerQueryOnTeam2TargetedToTeam2, action: run, allow: true},          // observer on team 2 can run query belonging to team 2
+				{user: twoTeamsObsObs, object: observerQueryOnTeam3TargetedToTeam1, action: run, allow: false},         // not a member of team 3, cannot run team 3 queries
 			},
 		},
 	})
