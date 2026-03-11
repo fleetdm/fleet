@@ -6318,7 +6318,7 @@ solely on the response status code returned by this endpoint.
 
 ### Resend custom OS setting (configuration profile)
 
-Resends a configuration profile for the specified host. Currently, only macOS configuration profiles (.mobileconfig) are supported.
+Resends a configuration profile for the specified host. Supported for macOS configuration profiles (.mobileconfig) and Windows profiles (XML).
 
 `POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/resend`
 
@@ -6399,7 +6399,7 @@ For each `profile`, only one of `labels_include_all`, `labels_include_any`, or `
 
 ### Resend custom OS setting (configuration profile) by Fleet Desktop token
 
-Resends a configuration profile for the specified host. Currently, only macOS configuration profiles (.mobileconfig) are supported.
+Resends a configuration profile for the specified host. Supported for macOS configuration profiles (.mobileconfig) and Windows profiles (XML).
 
 `POST /api/v1/fleet/device/:token/configuration_profiles/:profile_uuid/resend`
 
