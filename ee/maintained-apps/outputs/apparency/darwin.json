@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "3.1",
+      "version": "3.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mothersruin.Apparency';"
       },
-      "installer_url": "https://www.mothersruin.com/software/archives/Apparency-3.1.dmg",
+      "installer_url": "https://www.mothersruin.com/software/archives/Apparency-3.2.dmg",
       "install_script_ref": "a1a4400f",
       "uninstall_script_ref": "2cb088ff",
-      "sha256": "41d64d14a07bf7533da6f77e082b7b046e006659cf6c1b05db60f85de08747ea",
+      "sha256": "0a2639fac59f2a88510193bc6aa79a6e1af7a7f2c6cb6bc468fb7a30c8a68cc3",
       "default_categories": [
         "Developer tools"
       ]

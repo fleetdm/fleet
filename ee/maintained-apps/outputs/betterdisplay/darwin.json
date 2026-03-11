@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "4.1.5",
+      "version": "4.2.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'pro.betterdisplay.BetterDisplay';"
       },
-      "installer_url": "https://github.com/waydabber/BetterDisplay/releases/download/v4.1.5/BetterDisplay-v4.1.5.dmg",
+      "installer_url": "https://github.com/waydabber/BetterDisplay/releases/download/v4.2.2/BetterDisplay-v4.2.2.dmg",
       "install_script_ref": "940c2611",
       "uninstall_script_ref": "1ed32f46",
-      "sha256": "f847dcd0677463288e0e7942da3013eb44df94e5ec5985db8ac1bdb438b4068d",
+      "sha256": "b8c739d6983cd5395d93e004731ed56255503e3ce77805a5109e6f0b7f684f98",
       "default_categories": [
         "Productivity"
       ]
