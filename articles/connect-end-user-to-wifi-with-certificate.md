@@ -154,7 +154,7 @@ Before deploying NDES certificates to Windows hosts, verify the following:
 
 - **Root CA certificate must be trusted on the device.** Domain-joined devices already receive the enterprise root CA via Group Policy. Non-domain-joined devices do not, so SCEP enrollment will fail because the device can't validate the RA certificate chain. For non-domain-joined devices, deploy the root CA certificate via a separate MDM profile before or alongside the SCEP profile. You can use a [RootCATrustedCertificates CSP](https://learn.microsoft.com/en-us/windows/client-management/mdm/rootcacertificates-csp) profile to install the root CA cert.
 
-- **CA must have an HTTP-accessible CRL Distribution Point.** By default, AD CS only embeds LDAP URLs in certificates for CRL distribution. Non-domain-joined devices cannot reach LDAP endpoints and will reject the SCEP response with a certificate validity error. Configure your CA to publish CRLs via HTTP. See Microsoft's [PKI design considerations](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/pki-design-considerations) and [Configure the CDP and AIA extensions on CA1](https://learn.microsoft.com/en-us/windows-server/networking/core-network-guide/cncg/server-certs/configure-the-cdp-and-aia-extensions-on-ca1) for instructions.
+- **CA must have an HTTP-accessible CRL Distribution Point.** By default, AD CS only embeds LDAP URLs in certificates for CRL distribution. Non-domain-joined devices cannot reach LDAP endpoints and will reject the SCEP response with a certificate validity error. Configure your CA to publish CRLs via HTTP. See Microsoft's [PKI design considerations](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/pki-design-considerations) and [Configure the CDP and AIA extensions on CA1](https://learn.microsoft.com/en-us/windows-server/networking/core-network-guide/cncg/server-certs/configure-the-cdp-and-aia-extensions-on-ca1) for instructions. For testing, you can use the [quick CRL workaround](#quick-crl-workaround-for-testing-ndes-on-windows) instead.
 
   > This requirement is specific to NDES and does not apply to custom SCEP servers. Custom SCEP servers typically use self-signed certificates that do not contain CRL Distribution Point extensions, so Windows skips revocation checking entirely.
 
@@ -1013,6 +1013,29 @@ Steps to get CAThumbrint from your SCEP server:
     2. **PowerShell (Windows)** -> `$cert = Get-PfxCertificate -FilePath "Z:\scep (1).cer";$cert.Thumbprint`
 3. It will return the SHA1 Thumbprint without colons and text. Copy this.
 4. Use the copied value for `./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/CAThumbprint` option.
+
+### Quick CRL workaround for testing NDES on Windows
+
+For production, your CA should publish CRLs via HTTP (see [Prerequisites for Windows hosts](#prerequisites-for-windows-hosts)). For testing, you can manually distribute the CRL to the device instead.
+
+1. On the NDES/CA server, find the CRL files at `C:\Windows\System32\CertSrv\CertEnroll\`. You'll see a base CRL (`<CA-name>.crl`) and possibly a delta CRL (`<CA-name>+.crl`).
+
+2. Copy the CRL files to the Windows test device and install them:
+
+   ```powershell
+   certutil -addstore CA C:\path\to\ca.crl
+   certutil -addstore CA C:\path\to\ca_delta.crl
+   ```
+
+3. Verify that revocation checking now passes:
+
+   ```powershell
+   certutil -verify C:\path\to\ra_cert.cer
+   ```
+
+   The output should end with `CertUtil: -verify command completed successfully.`
+
+> CRLs expire (typically after about a week). You will need to repeat this process when the CRL expires. This workaround does not scale beyond a few test devices.
 
 <meta name="articleTitle" value="Deploy certificates to connect end users to third-party tools">
 <meta name="authorFullName" value="Victor Lyuboslavsky">
