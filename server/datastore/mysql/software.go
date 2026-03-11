@@ -2798,7 +2798,7 @@ func (ds *Datastore) cleanupUnusedSoftware(ctx context.Context) error {
 		SELECT s.id
 		FROM software s
 		LEFT JOIN software_host_counts shc ON s.id = shc.software_id
-		WHERE (shc.software_id IS NULL OR (shc.team_id = 0 AND shc.hosts_count = 0))
+		WHERE shc.software_id IS NULL
 		AND NOT EXISTS (SELECT 1 FROM host_software hsw WHERE hsw.software_id = s.id)
 		LIMIT ?
 	`
