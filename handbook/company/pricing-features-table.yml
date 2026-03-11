@@ -1144,8 +1144,8 @@
   jamfProtectHasFeature: no
   waysToUse:
     - description: Automatically set admin access to Fleet based on your IDP
-- industryName: Grant Wi-Fi access
-  description: Help your end users connect to Wi-Fi by adding your certificate authority (CA).                
+- industryName: Deploy certificates
+  description: Help your end users connect to third party tools (e.g. Wi-Fi or VPN) by deploying certificates from your certificate authority (CA).                
   documentationUrl: https://fleetdm.com/guides/ndes-scep-proxy
   isExperimental: yes
   productCategories: [Device management]
