@@ -343,8 +343,9 @@ func TestLiveQueryLabelValidation(t *testing.T) {
 // maintainer on team 2, running a team-2 query via a label target:
 //   - observer_can_run=false: HostIDsInTargets sees IncludeObserver=false, so team-1 observer
 //     hosts are excluded (label bypass prevented).
-//   - observer_can_run=true: HostIDsInTargets sees IncludeObserver=true, so team-1 observer
-//     hosts are included (expected — observer explicitly granted run permission).
+//   - observer_can_run=true: HostIDsInTargets sees IncludeObserver=true but ObserverTeamID=2,
+//     so team-1 observer hosts are still excluded — observer_can_run is scoped to the query's
+//     own team (team 2), not to all teams the user observes.
 func TestLiveQueryLabelBypassPrevented(t *testing.T) {
 	ds := new(mock.Store)
 	qr := pubsub.NewInmemQueryResults()
@@ -369,19 +370,22 @@ func TestLiveQueryLabelBypassPrevented(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name             string
-		observerCanRun   bool
-		expectIncludeObs bool
+		name                  string
+		observerCanRun        bool
+		expectIncludeObs      bool
+		expectObserverTeamID  *uint
 	}{
 		{
-			name:             "observer_can_run=false: label expansion excludes observer-only team hosts",
-			observerCanRun:   false,
-			expectIncludeObs: false,
+			name:                 "observer_can_run=false: label expansion excludes observer-only team hosts",
+			observerCanRun:       false,
+			expectIncludeObs:     false,
+			expectObserverTeamID: ptr.Uint(2), // always set to query's team; harmless no-op when IncludeObserver=false
 		},
 		{
-			name:             "observer_can_run=true: label expansion includes observer team hosts",
-			observerCanRun:   true,
-			expectIncludeObs: true,
+			name:                 "observer_can_run=true: label expansion scoped to query's team only",
+			observerCanRun:       true,
+			expectIncludeObs:     true,
+			expectObserverTeamID: ptr.Uint(2), // query's team — team-1 observer hosts remain excluded
 		},
 	}
 
@@ -412,6 +416,7 @@ func TestLiveQueryLabelBypassPrevented(t *testing.T) {
 			_, err := svc.NewDistributedQueryCampaign(userCtx, query.Query, ptr.Uint(query.ID), fleet.HostTargets{LabelIDs: []uint{5}})
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectIncludeObs, capturedFilter.IncludeObserver, "IncludeObserver mismatch for observer_can_run=%v", tt.observerCanRun)
+			assert.Equal(t, tt.expectObserverTeamID, capturedFilter.ObserverTeamID, "ObserverTeamID mismatch for observer_can_run=%v", tt.observerCanRun)
 			assert.Equal(t, user, capturedFilter.User)
 		})
 	}
