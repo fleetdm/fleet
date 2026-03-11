@@ -1170,14 +1170,14 @@ Signature-Input: sig1=("@method" "@authority" "@path" "@query" \"content-digest"
 
 Resends a certificate for the specified host. Currently, only Android certificates are supported.
 
-`POST /api/v1/fleet/hosts/:id/certificates/:certificate_id/resend`
+`POST /api/v1/fleet/hosts/:id/certificates/:certificate_template_id/resend`
 
 #### Parameters
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The host's ID. |
-| certificate_id   | string | path | **Required.** The ID of the certificate to resend to the host. |
+| certificate_template_id   | string | path | **Required.** The ID of the certificate to resend to the host. |
 
 #### Example
 
