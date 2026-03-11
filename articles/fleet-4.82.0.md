@@ -19,6 +19,7 @@ Fleet now uses "fleets" instead of "teams" and "reports" instead of "queries" ac
 
 Existing workflows continue to work. All API endpoints, CLI commands, and YAML Keys with "teams" and "queries" are still supported for backward compatibility and automatically map to "fleets" and "reports" respectively. Reference documentation updates are coming soon.
 
+Deprecation warning are coming to fleetctl and Fleet server logs in the next release (4.83). If you want to turn them on early, see the [fleectl](https://fleetdm.com/guides/fleetctl#deprecation-warnings) and [server logs](http://fleetdm.com/docs/configuration/fleet-server-configuration#logging-enable-topics) instructions. 
 GitHub issues: [#39314](https://github.com/fleetdm/fleet/issues/39314), [#39238](https://github.com/fleetdm/fleet/issues/39238) 
 
 ### New technician role
