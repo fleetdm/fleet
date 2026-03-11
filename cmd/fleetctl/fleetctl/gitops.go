@@ -303,12 +303,25 @@ func gitopsCommand() *cli.Command {
 					}
 					if !noTeamControls.Defined && !config.Controls.Defined {
 						if appConfig.License.IsPremium() {
-							return fmt.Errorf("'controls' must be set on global config or %s", noTeamFilename)
+							suggestion := ", no-team.yml or unassigned.yml"
+							if noTeamFilename != "" {
+								suggestion = fmt.Sprintf(" or %s", noTeamFilename)
+							}
+							return fmt.Errorf("'controls' must be set on global config%s", suggestion)
 						}
 						return errors.New("'controls' must be set on global config")
 					}
 					if !config.Controls.Set() {
 						config.Controls = noTeamControls
+					}
+				}
+
+				// Targeting queries against labels is a Premium feature only
+				if !appConfig.License.IsPremium() {
+					for _, query := range config.Queries {
+						if len(query.LabelsIncludeAny) > 0 {
+							return fmt.Errorf("report %q uses 'labels_include_any', which is only available in Fleet Premium", query.Name)
+						}
 					}
 				}
 
@@ -475,6 +488,7 @@ func gitopsCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
+
 				assumptions, err := fleetClient.DoGitOps(
 					c.Context,
 					config,

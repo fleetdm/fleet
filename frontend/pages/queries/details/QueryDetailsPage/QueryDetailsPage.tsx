@@ -406,7 +406,7 @@ const QueryDetailsPage = ({
             (currentUser && isGlobalObserver(currentUser)) ||
             isTeamObserver(currentUser, currentTeamId ?? null)
           ) &&
-            " You can still use query automations to complete this report in your log destination."
+            " You can still use automations to complete this report in your log destination."
         }
       </div>
     </InfoBanner>

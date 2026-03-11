@@ -88,7 +88,7 @@ const NDESForm = ({
         onChange={onInputChange}
         parseTarget
         placeholder="username@example.microsoft.com"
-        helpText="For Microsoft, this is the username in the down-level logon name format required to log in to the SCEP admin page."
+        helpText="For NDES, this is the username in the down-level logon name format required to log in to the SCEP admin page."
       />
       <InputField
         label="Password"
@@ -100,7 +100,7 @@ const NDESForm = ({
         blockAutoComplete
         helpText={
           <>
-            The password required to log in to the{" "}
+            For NDES, the password required to log in to the{" "}
             <b>Network Device Enrollment Service</b> page.
           </>
         }

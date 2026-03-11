@@ -484,16 +484,14 @@ export const VppInstallDetailsModal = ({
       onEnter={onCancel}
       className={baseClass}
     >
-      <>
-        {renderContent()}
-        <ModalButtons
-          deviceAuthToken={deviceAuthToken}
-          hostSoftwareId={hostSoftware?.id}
-          onRetry={onRetry}
-          onCancel={onCancel}
-          displayStatus={displayStatus}
-        />
-      </>
+      {renderContent()}
+      <ModalButtons
+        deviceAuthToken={deviceAuthToken}
+        hostSoftwareId={hostSoftware?.id}
+        onRetry={onRetry}
+        onCancel={onCancel}
+        displayStatus={displayStatus}
+      />
     </Modal>
   );
 };
