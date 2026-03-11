@@ -3679,7 +3679,7 @@ func filterVPPAppsByLabel(
 				FROM
 					vpp_apps_teams
 				INNER JOIN vpp_app_team_labels
-					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id 
+					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
 						AND vpp_app_team_labels.exclude = 1
 						AND vpp_app_team_labels.require_all = 0
 				INNER JOIN labels
@@ -3719,8 +3719,8 @@ func filterVPPAppsByLabel(
 			FROM
 				vpp_apps
 			INNER JOIN
-				vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id 
-					AND vpp_apps.platform = vpp_apps_teams.platform 
+				vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id
+					AND vpp_apps.platform = vpp_apps_teams.platform
 					AND vpp_apps_teams.global_or_team_id = :global_or_team_id
 			LEFT JOIN no_labels
 				ON no_labels.team_id = vpp_apps_teams.id
@@ -3728,6 +3728,8 @@ func filterVPPAppsByLabel(
 				ON include_any.team_id = vpp_apps_teams.id
 			LEFT JOIN exclude_any
 				ON exclude_any.team_id = vpp_apps_teams.id
+			LEFT JOIN include_all
+				ON include_all.team_id = vpp_apps_teams.id
 			WHERE
 				vpp_apps.adam_id IN (:vpp_app_adam_ids)
 				AND (
