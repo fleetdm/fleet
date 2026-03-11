@@ -242,7 +242,7 @@ export const formatScheduledQueryForServer = (
   }
 
   if (queryID) {
-    result.query_id = Number(queryID);
+    (result as any).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -304,7 +304,7 @@ export const formatGlobalScheduledQueryForServer = (
   }
 
   if (queryID) {
-    result.query_id = Number(queryID);
+    (result as any).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -367,7 +367,7 @@ export const formatTeamScheduledQueryForServer = (
   }
 
   if (queryID) {
-    result.query_id = Number(queryID);
+    (result as any).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -375,7 +375,7 @@ export const formatTeamScheduledQueryForServer = (
   }
 
   if (teamID) {
-    result.query_id = Number(teamID);
+    (result as any).report_id = Number(teamID);
   }
 
   return result;

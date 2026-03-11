@@ -239,7 +239,8 @@ export default {
 
   getScripts(params: IListScriptsApiParams): Promise<IScriptsResponse> {
     const { SCRIPTS } = endpoints;
-    const path = `${SCRIPTS}?${buildQueryStringFromParams({ ...params })}`;
+    const { team_id, ...rest } = params;
+    const path = `${SCRIPTS}?${buildQueryStringFromParams({ ...rest, fleet_id: team_id })}`;
 
     return sendRequest("GET", path);
   },
@@ -256,7 +257,7 @@ export default {
     formData.append("script", file);
 
     if (teamId) {
-      formData.append("team_id", teamId.toString());
+      formData.append("fleet_id", teamId.toString());
     }
 
     return sendRequest("POST", SCRIPTS, formData);
@@ -325,9 +326,10 @@ export default {
   getRunScriptBatchSummaries(
     params: IScriptBatchSummariesParams
   ): Promise<IScriptBatchSummariesResponse> {
+    const { team_id, ...rest } = params;
     const path = `${
       endpoints.SCRIPT_RUN_BATCH_SUMMARIES
-    }?${buildQueryStringFromParams({ ...params })}`;
+    }?${buildQueryStringFromParams({ ...rest, fleet_id: team_id })}`;
     return sendRequest("GET", path);
   },
   getScriptBatchHostResults(

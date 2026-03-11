@@ -260,10 +260,10 @@ const getSortParams = (sortOptions?: ISortOption[]) => {
 
 const createMdmParams = (platform?: PlatformValueOptions, teamId?: number) => {
   if (platform === "all") {
-    return buildQueryStringFromParams({ team_id: teamId });
+    return buildQueryStringFromParams({ fleet_id: teamId });
   }
 
-  return buildQueryStringFromParams({ platform, team_id: teamId });
+  return buildQueryStringFromParams({ platform, fleet_id: teamId });
 };
 
 export default {
@@ -526,7 +526,7 @@ export default {
     const { HOSTS_TRANSFER } = endpoints;
 
     return sendRequest("POST", HOSTS_TRANSFER, {
-      team_id: teamId,
+      fleet_id: teamId,
       hosts: hostIds,
     });
   },
@@ -559,7 +559,7 @@ export default {
   }: IActionByFilter) => {
     const { HOSTS_TRANSFER_BY_FILTER } = endpoints;
     return sendRequest("POST", HOSTS_TRANSFER_BY_FILTER, {
-      team_id: teamId,
+      fleet_id: teamId,
       filters: {
         query: query || undefined, // Prevents empty string passed to API which as of 4.47 will return an error
         status,
