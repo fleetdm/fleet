@@ -305,6 +305,10 @@ const routes = (
               <Route component={ManageControlsPage}>
                 <Route path="os-updates" component={OSUpdates} />
                 <Route path="os-settings" component={OSSettings} />
+                <Redirect
+                  from="os-settings/custom-settings"
+                  to="os-settings/configuration-profiles"
+                />
                 <Route path="os-settings/:section" component={OSSettings} />
 
                 <Route path="setup-experience" component={SetupExperience} />
