@@ -198,41 +198,6 @@ func sortUninstall(artifacts []*brewUninstall) {
 	})
 }
 
-// parseSignals parses the raw JSON signal field which can be either a single
-// pair ["TERM", "bundle.id"] or an array of pairs [["TERM", "b1"], ["TERM", "b2"]].
-// Returns a slice of [signal, bundleId] pairs.
-func parseSignals(raw json.RawMessage) [][2]string {
-	if len(raw) == 0 {
-		return nil
-	}
-
-	// Try array of arrays first: [["TERM","app1"],["TERM","app2"]]
-	var multi [][]string
-	if err := json.Unmarshal(raw, &multi); err == nil && len(multi) > 0 {
-		// Check if this is actually a single pair ([]string with 2 elements)
-		// vs array of arrays. A single pair like ["TERM","app"] would parse
-		// as [][]string with each element being... no, it wouldn't. ["TERM","app"]
-		// is []string, not [][]string. So if multi parse succeeds, it's array of arrays.
-		var result [][2]string
-		for _, pair := range multi {
-			if len(pair) == 2 {
-				result = append(result, [2]string{pair[0], pair[1]})
-			}
-		}
-		if len(result) > 0 {
-			return result
-		}
-	}
-
-	// Try single pair: ["TERM", "bundle.id"]
-	var single []string
-	if err := json.Unmarshal(raw, &single); err == nil && len(single) == 2 {
-		return [][2]string{{single[0], single[1]}}
-	}
-
-	return nil
-}
-
 func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	process := func(target optjson.StringOr[[]string], f func(path string)) {
 		if target.IsOther {
@@ -261,16 +226,15 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 		}
 	})
 
-	// Signal can be a single pair ["TERM", "bundle.id"] or an array of pairs
-	// [["TERM", "bundle.id1"], ["TERM", "bundle.id2"]].
+	// Signal is stored as json.RawMessage; try to parse as a single pair
+	// ["signal","bundleId"]. Array-of-arrays formats (e.g. karabiner-elements)
+	// require a custom uninstall script and are not handled here.
 	if len(u.Signal) > 0 {
-		signals := parseSignals(u.Signal)
-		if len(signals) > 0 {
+		var singlePair []string
+		if err := json.Unmarshal(u.Signal, &singlePair); err == nil && len(singlePair) == 2 {
 			addUserVar()
 			sb.AddFunction("send_signal", sendSignalFunc)
-			for _, sig := range signals {
-				sb.Writef(`send_signal '%s' '%s' "$LOGGED_IN_USER"`, sig[0], sig[1])
-			}
+			sb.Writef(`send_signal '%s' '%s' "$LOGGED_IN_USER"`, singlePair[0], singlePair[1])
 		}
 	}
 

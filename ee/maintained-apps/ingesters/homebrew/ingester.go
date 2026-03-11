@@ -309,10 +309,11 @@ type brewUninstall struct {
 	PkgUtil   optjson.StringOr[[]string] `json:"pkgutil"`
 	// brew docs says string or hash, but our only case has a single string.
 	Script optjson.StringOr[map[string]any] `json:"script"`
-	// Signal can be a single [signal, bundleId] pair or an array of such pairs
-	// (e.g. [["TERM","app1"],["TERM","app2"]]). We use json.RawMessage to
-	// handle both formats and parse it manually in the script generator.
-	Signal json.RawMessage `json:"signal"`
+	// Signal can be either a single pair ["signal","bundleId"] or an array of
+	// pairs [["signal","app1"],["signal","app2"]]. We use json.RawMessage so
+	// JSON parsing does not fail on either format; apps that need signal
+	// handling should provide a custom uninstall script.
+	Signal    json.RawMessage `json:"signal"`
 	Delete    optjson.StringOr[[]string] `json:"delete"`
 	RmDir     optjson.StringOr[[]string] `json:"rmdir"`
 	Trash     optjson.StringOr[[]string] `json:"trash"`
