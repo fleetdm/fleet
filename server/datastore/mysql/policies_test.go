@@ -87,6 +87,7 @@ func TestPolicies(t *testing.T) {
 		{"ResetAttemptsOnFailingToPassingAsync", testResetAttemptsOnFailingToPassingAsync},
 		{"PolicyModificationResetsAttemptNumber", testPolicyModificationResetsAttemptNumber},
 		{"TeamPatchPolicy", testTeamPatchPolicy},
+		{"TeamPolicyAutomationFilter", testTeamPolicyAutomationFilter},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3802,7 +3803,7 @@ func testPoliciesNameUnicode(t *testing.T, ds *Datastore) {
 
 	// ListTeamPolicies, including inherited policy
 	teamPolicies, inheritedPolicies, err := ds.ListTeamPolicies(
-		context.Background(), team.ID, fleet.ListOptions{MatchQuery: equivalentNames[1]}, fleet.ListOptions{MatchQuery: equivalentNames[1]}, ""
+		context.Background(), team.ID, fleet.ListOptions{MatchQuery: equivalentNames[1]}, fleet.ListOptions{MatchQuery: equivalentNames[1]}, "",
 	)
 	assert.NoError(t, err)
 	require.Len(t, teamPolicies, 1)
@@ -7209,4 +7210,166 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 
 	_, err = ds.GetPatchPolicy(ctx, &team1.ID, titleID2)
 	require.True(t, fleet.IsNotFound(err))
+}
+
+func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	gpol, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+		Name:        "query 1",
+		Query:       "select 1;",
+		Description: "query desc",
+		Resolution:  "query resolution",
+	})
+	require.NoError(t, err)
+
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "world",
+		StorageID:         "storage1",
+		Filename:          "file1",
+		Title:             "file1",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		TeamID:            nil,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	// create team1 app
+	teamApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.appy",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_app", Platform: fleet.MacOSPlatform}},
+	}, nil)
+	require.NoError(t, err)
+	teamAppMeta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, teamApp.TitleID)
+	require.NoError(t, err)
+
+	// Create policies with automations
+	teamInstallerPolicy, err := ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:                "query 2",
+		Query:               "select 1;",
+		SoftwareInstallerID: &installerID,
+	})
+	require.NoError(t, err)
+
+	teamAppStorePolicy, err := ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:           "query 3",
+		Query:          "select 1;",
+		VPPAppsTeamsID: &teamAppMeta.VPPAppsTeamsID,
+	})
+	require.NoError(t, err)
+
+	script, err := ds.NewScript(context.Background(), &fleet.Script{
+		TeamID:         nil,
+		Name:           "hello-world.sh",
+		ScriptContents: "echo 'Hello World'",
+	})
+	require.NoError(t, err)
+	teamScriptPolicy, err := ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:     "query 4",
+		Query:    "SELECT 1;",
+		ScriptID: &script.ID,
+	})
+	require.NoError(t, err)
+
+	teamCalendarPolicy, err := ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:                  "query 5",
+		Query:                 "SELECT 1;",
+		CalendarEventsEnabled: true,
+	})
+	require.NoError(t, err)
+
+	teamConditionalPolicy, err := ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:                     "query 6",
+		Query:                    "SELECT 1;",
+		ConditionalAccessEnabled: true,
+	})
+	require.NoError(t, err)
+
+	teamWebhookPolicy, err := ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:  "query 7",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	// TODO: test ticket integration policies?
+
+	config := fleet.TeamConfig{}
+	config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = []uint{teamWebhookPolicy.ID}
+	err = ds.SaveDefaultTeamConfig(ctx, &config)
+	require.NoError(t, err)
+
+	// All policies are listed
+	merged, err := ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
+		OrderKey:       "name",
+		OrderDirection: fleet.OrderAscending,
+	}, "")
+	require.NoError(t, err)
+
+	require.Len(t, merged, 7)
+	assert.Equal(t, gpol.ID, merged[0].ID)
+	assert.Equal(t, teamInstallerPolicy.ID, merged[1].ID)
+	assert.Equal(t, teamAppStorePolicy.ID, merged[2].ID)
+	assert.Equal(t, teamScriptPolicy.ID, merged[3].ID)
+	assert.Equal(t, teamCalendarPolicy.ID, merged[4].ID)
+	assert.Equal(t, teamConditionalPolicy.ID, merged[5].ID)
+	assert.Equal(t, teamWebhookPolicy.ID, merged[6].ID)
+
+	// Test filters
+	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
+		OrderKey:       "name",
+		OrderDirection: fleet.OrderAscending,
+	}, "software")
+	require.NoError(t, err)
+	require.Len(t, merged, 2)
+	assert.Equal(t, teamInstallerPolicy.ID, merged[0].ID)
+	assert.Equal(t, teamAppStorePolicy.ID, merged[1].ID)
+
+	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
+		OrderKey:       "name",
+		OrderDirection: fleet.OrderAscending,
+	}, "scripts")
+	require.NoError(t, err)
+	require.Len(t, merged, 1)
+	assert.Equal(t, teamScriptPolicy.ID, merged[0].ID)
+
+	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
+		OrderKey:       "name",
+		OrderDirection: fleet.OrderAscending,
+	}, "calendar")
+	require.NoError(t, err)
+	require.Len(t, merged, 1)
+	assert.Equal(t, teamCalendarPolicy.ID, merged[0].ID)
+
+	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
+		OrderKey:       "name",
+		OrderDirection: fleet.OrderAscending,
+	}, "conditional_access")
+	require.NoError(t, err)
+	require.Len(t, merged, 1)
+	assert.Equal(t, teamConditionalPolicy.ID, merged[0].ID)
+
+	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
+		OrderKey:       "name",
+		OrderDirection: fleet.OrderAscending,
+	}, "other")
+	require.NoError(t, err)
+	require.Len(t, merged, 1)
+	assert.Equal(t, teamWebhookPolicy.ID, merged[0].ID)
+
+	// Test not merged
+	policies, _, err := ds.ListTeamPolicies(ctx, 0, fleet.ListOptions{
+		OrderKey:       "name",
+		OrderDirection: fleet.OrderAscending,
+	}, fleet.ListOptions{}, "software")
+	require.NoError(t, err)
+	require.Len(t, policies, 2)
+	assert.Equal(t, teamInstallerPolicy.ID, policies[0].ID)
+	assert.Equal(t, teamAppStorePolicy.ID, policies[1].ID)
 }
