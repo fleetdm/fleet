@@ -681,10 +681,10 @@ func TestRunMDMCommandSetRecoveryLockBlocked(t *testing.T) {
 
 	// Test cases where the command should be blocked
 	cases := []struct {
-		desc                        string
-		hosts                       []*fleet.Host
-		teamMDMConfig               map[uint]*fleet.TeamMDM
-		globalRecoveryLockEnabled   bool
+		desc                      string
+		hosts                     []*fleet.Host
+		teamMDMConfig             map[uint]*fleet.TeamMDM
+		globalRecoveryLockEnabled bool
 	}{
 		{
 			desc:  "SetRecoveryLock blocked when team has recovery lock enabled",
