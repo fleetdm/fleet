@@ -264,7 +264,7 @@ module.exports.custom = {
     'ee/bulk-operations-dashboard': 'eashaw',
 
     // FMA and icons
-    'frontend/pages/SoftwarePage/components/icons': 'allenhouchins',
+    'frontend/pages/SoftwarePage/components/icons/*.tsx': 'allenhouchins',
     'ee/maintained-apps': 'allenhouchins',
     'website/assets/images': 'allenhouchins',
 
