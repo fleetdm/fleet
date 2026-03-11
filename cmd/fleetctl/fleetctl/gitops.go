@@ -89,10 +89,6 @@ func gitopsCommand() *cli.Command {
 			disableLogTopicsFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			// Disable field deprecation warnings for now.
-			// TODO - remove this in future release to unleash warnings.
-			logging.DisableTopic(logging.DeprecatedFieldTopic)
-
 			// Apply log topic overrides from CLI flags.
 			applyLogTopicFlags(c)
 
