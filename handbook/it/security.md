@@ -439,7 +439,7 @@ lost or stolen simultaneously.
 
 4. I've lost one of my keys, what do I do?
 
-**Answer**: Post in the  channel ASAP so we can disable the key. IF you find it later, no
+**Answer**: Post in the channel ASAP so we can disable the key. If you find it later, no
 worries, just enroll it again!
 
 5. I lost all of my keys, and I'm locked out! What do I do?
