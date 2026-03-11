@@ -73,7 +73,10 @@ func checkNVDVulnerabilities(vulnPath string, logger *slog.Logger) {
 		panic(errors.New("enriched vulnerability spot-check failed for Citrix Workstation on CVE-2024-6286"))
 	}
 	for _, match := range vulnEntry.Schema().Configurations.Nodes[0].CPEMatch {
-		if strings.Contains(match.Cpe23Uri, ":ltsr:") && match.VersionEndExcluding != "2402" {
+		// there are a number of matches here with "ltsr" in their cpe23Uri but no versionEndExcluding.
+		// We are only interested in confirming that the `versionEndExcluding` for the match whose CPE
+		// contains "ltsr", which came from NVD with an incorrect value,has been replaced with "2402"
+		if strings.Contains(match.Cpe23Uri, ":ltsr:") && match.VersionEndExcluding != "" && match.VersionEndExcluding != "2402" {
 			panic(fmt.Errorf("CVE-2024-6286 LTSR versionEndExcluding spot-check failed: got %q, expected \"2402\"", match.VersionEndExcluding))
 		}
 	}
