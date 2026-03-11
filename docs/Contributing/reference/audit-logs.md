@@ -2349,6 +2349,74 @@ This activity contains the following fields:
 }
 ```
 
+## enabled_managed_local_account
+
+Generated when a user turns on create managed local account for a team (or no team).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that create managed local account applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that create managed local account applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## disabled_managed_local_account
+
+Generated when a user turns off create managed local account for a team (or no team).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that create managed local account applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that create managed local account applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## read_local_managed_account
+
+Generated when a user reads the information for the local managed account for a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## created_local_managed_account
+
+Generated when a local managed account is created for a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
