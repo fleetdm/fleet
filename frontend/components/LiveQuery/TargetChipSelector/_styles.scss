@@ -45,6 +45,16 @@
     color: $core-fleet-black;
   }
 
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    &:hover {
+      background-color: $core-fleet-white;
+      box-shadow: inset 0 0 0 1px $ui-fleet-black-25;
+      color: inherit;
+    }
+  }
+
   // When tabbing
   &:focus-visible {
     outline: 1px solid $core-focused-outline;

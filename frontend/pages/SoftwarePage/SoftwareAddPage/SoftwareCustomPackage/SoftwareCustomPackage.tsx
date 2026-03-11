@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 
 import PATHS from "router/paths";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -17,6 +17,7 @@ import FileProgressModal from "components/FileProgressModal";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import InfoBanner from "components/InfoBanner";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
 import PackageForm from "pages/SoftwarePage/components/forms/PackageForm";
@@ -41,6 +42,7 @@ const SoftwareCustomPackage = ({
 }: ISoftwarePackageProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier, config } = useContext(AppContext);
+  const queryClient = useQueryClient();
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -143,6 +145,10 @@ const SoftwareCustomPackage = ({
         );
       }
 
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-titles" }],
+      });
+
       const newQueryParams: QueryParams = {
         fleet_id: currentTeamId,
         gitops_yaml: gitOpsModeEnabled ? "true" : undefined,
@@ -170,6 +176,13 @@ const SoftwareCustomPackage = ({
 
     return (
       <>
+        {gitOpsModeEnabled && (
+          <InfoBanner color="grey" borderRadius="medium">
+            Add custom packages in GitOps mode so Fleet can host your software.
+            After adding, copy its SHA-256 hash into your YAML so the next
+            GitOps workflow doesn&apos;t delete it.
+          </InfoBanner>
+        )}
         <PackageForm
           labels={labels || []}
           showSchemaButton={!isSidePanelOpen}

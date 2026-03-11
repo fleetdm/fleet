@@ -260,7 +260,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			if !(found[0].Title == payload.Title && found[0].Source == payload.Source) {
 				return 0, 0, fleet.NewInvalidArgumentError(
 					"software",
-					"Couldn't add software. An installer with identical contents already exists on this team.",
+					"Couldn't add software. An installer with identical contents already exists on this fleet.",
 				)
 			}
 			// If exact duplicate (same title and source), continue to let DB constraint handle it
@@ -2294,6 +2294,19 @@ ON DUPLICATE KEY UPDATE
   is_active = VALUES(is_active)
 `
 
+	const updateInstaller = `
+UPDATE
+	software_installers
+SET
+	install_during_setup = COALESCE(?, install_during_setup),
+	self_service = ?,
+	install_script_content_id = ?,
+	uninstall_script_content_id = ?,
+	post_install_script_content_id = ?,
+	pre_install_query = ?
+WHERE id = ?
+`
+
 	const loadSoftwareInstallerID = `
 SELECT
 	id
@@ -2715,8 +2728,8 @@ WHERE
 			// for this team+title. This prevents duplicate rows from repeated batch sets
 			// that re-download the same latest version.
 			var skipInsert bool
+			var existingID uint
 			if installer.FleetMaintainedAppID != nil {
-				var existingID uint
 				err := sqlx.GetContext(ctx, tx, &existingID, `
 					SELECT id FROM software_installers
 					WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND version = ?
@@ -2729,7 +2742,21 @@ WHERE
 				}
 			}
 
-			if !skipInsert {
+			if skipInsert {
+				// some fields still need to be updated
+				args := []any{
+					installer.InstallDuringSetup,
+					installer.SelfService,
+					installScriptID,
+					uninstallScriptID,
+					postInstallScriptID,
+					installer.PreInstallQuery,
+					existingID,
+				}
+				if _, err := tx.ExecContext(ctx, updateInstaller, args...); err != nil {
+					return ctxerr.Wrapf(ctx, err, "updating existing installer with name %q", installer.Filename)
+				}
+			} else {
 				upsertQuery := insertNewOrEditedInstaller
 				if len(existing) > 0 && existing[0].IsPackageModified { // update uploaded_at for updated installer package
 					upsertQuery = fmt.Sprintf("%s, uploaded_at = NOW()", upsertQuery)

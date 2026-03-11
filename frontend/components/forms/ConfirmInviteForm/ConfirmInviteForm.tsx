@@ -134,11 +134,11 @@ const ConfirmInviteForm = ({
         error={formErrors.password_confirmation}
         parseTarget
       />
-      <div className="button-wrap">
+      <div className="button-wrap--center">
         <Button
           type="submit"
           disabled={Object.keys(formErrors).length > 0}
-          className="confirm-invite-button"
+          size="wide"
         >
           Submit
         </Button>

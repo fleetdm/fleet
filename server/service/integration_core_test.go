@@ -24,8 +24,10 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -266,7 +268,7 @@ func (s *integrationTestSuite) TestUserWithoutRoleErrors() {
 	}
 
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
-	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "either global role or team role needs to be defined")
+	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "either global role or fleet role needs to be defined")
 }
 
 func (s *integrationTestSuite) TestUserEmailValidation() {
@@ -328,7 +330,7 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 		Teams:    &teams,
 	}
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
-	assertBodyContains(t, resp, `team with id 9999 does not exist`)
+	assertBodyContains(t, resp, `fleet with id 9999 does not exist`)
 }
 
 func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
@@ -365,6 +367,49 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 		}
 	}
 	require.True(t, found)
+}
+
+func (s *integrationTestSuite) TestQueryLabelsIncludeAnyRequiresPremium() {
+	// POST /api/v1/fleet/queries with labels_include_any should fail with 402 on free tier
+	var createResp createQueryResponse
+	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.QueryPayload{
+		Name:             ptr.String("test-labels-query"),
+		Query:            ptr.String("SELECT 1"),
+		LabelsIncludeAny: []string{"some-label"},
+	}, http.StatusPaymentRequired, &createResp)
+
+	// Create a query without labels_include_any to use for the PATCH test
+	var createOKResp createQueryResponse
+	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.QueryPayload{
+		Name:  ptr.String("test-labels-query-for-patch"),
+		Query: ptr.String("SELECT 1"),
+	}, http.StatusOK, &createOKResp)
+	defer s.cleanupQuery(createOKResp.Query.ID)
+
+	// PATCH with labels_include_any should also fail with 402 on free tier
+	var modifyResp modifyQueryResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createOKResp.Query.ID), fleet.QueryPayload{
+		LabelsIncludeAny: []string{"some-label"},
+	}, http.StatusPaymentRequired, &modifyResp)
+
+	// PATCH with an explicit empty labels_include_any (clearing labels) must also require premium
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createOKResp.Query.ID), fleet.QueryPayload{
+		LabelsIncludeAny: []string{},
+	}, http.StatusPaymentRequired, &modifyResp)
+
+	// POST /api/latest/fleet/spec/queries with labels_include_any should fail with 402 on free tier
+	var applyResp applyQuerySpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/queries", applyQuerySpecsRequest{
+		Specs: []*fleet.QuerySpec{
+			{Name: "test-labels-spec-query", Query: "SELECT 1", LabelsIncludeAny: []string{"some-label"}},
+		},
+	}, http.StatusPaymentRequired, &applyResp)
+
+	// POST /api/latest/fleet/spec/queries with an explicit empty labels_include_any must also require premium.
+	// We send raw JSON because QuerySpec.LabelsIncludeAny has omitempty, so a Go []string{} would be
+	// stripped during marshaling and never reach the server as a non-nil empty slice.
+	rawBody := []byte(`{"specs":[{"name":"test-labels-spec-query-empty","query":"SELECT 1","labels_include_any":[]}]}`)
+	s.DoRaw("POST", "/api/latest/fleet/spec/queries", rawBody, http.StatusPaymentRequired)
 }
 
 func (s *integrationTestSuite) TestCreatingAPIOnlyUserReturnsAPIToken() {
@@ -3376,15 +3421,15 @@ func (s *integrationTestSuite) TestListActivities() {
 
 	prevActivities := s.listActivities()
 
-	timestamp := time.Now()
-	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
-	err := s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack{}, nil, timestamp)
+	activitySvc := mysql.NewTestActivityService(t, s.ds)
+	apiUser := &activity_api.User{ID: u.ID, Name: u.Name, Email: u.Email}
+	err := activitySvc.NewActivity(ctx, apiUser, fleet.ActivityTypeAppliedSpecPack{})
 	require.NoError(t, err)
 
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeDeletedPack{}, nil, timestamp)
+	err = activitySvc.NewActivity(ctx, apiUser, fleet.ActivityTypeDeletedPack{})
 	require.NoError(t, err)
 
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeEditedPack{}, nil, timestamp)
+	err = activitySvc.NewActivity(ctx, apiUser, fleet.ActivityTypeEditedPack{})
 	require.NoError(t, err)
 
 	lenPage := len(prevActivities) + 2
@@ -11045,27 +11090,48 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 	h.OrbitNodeKey = &orbitKey
 
 	windowsOnly := windowsMDMConfigurationRequiredEndpoints()
+	androidOnly := androidMDMConfigurationRequiredEndpoints()
 
 	for _, route := range mdmConfigurationRequiredEndpoints() {
 		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
 		path := route.path
 		if slices.Contains(windowsOnly, path) {
 			expectedErr = fleet.ErrWindowsMDMNotConfigured
+		} else if slices.Contains(androidOnly, path) {
+			expectedErr = fleet.ErrAndroidMDMNotConfigured
 		}
+
 		if route.deviceAuthenticated {
 			path = fmt.Sprintf(path, tkn)
 		}
-		var params interface{}
-		if route.method == "POST" && route.path == "/api/fleet/orbit/setup_experience/status" {
+
+		// build the body of the request
+		var params any
+		var multipartBody *bytes.Buffer
+		var headers map[string]string
+		switch {
+		case route.method == "POST" && route.path == "/api/fleet/orbit/setup_experience/status":
 			params = getOrbitSetupExperienceStatusRequest{
 				OrbitNodeKey: *h.OrbitNodeKey,
 			}
-		}
-		// These routes don't require MDM because they can be used to change end-user auth, but they do require a license.
-		if route.method == "PATCH" && (route.path == "/api/latest/fleet/setup_experience" || route.path == "/api/latest/fleet/mdm/apple/setup") {
+
+		case route.method == "POST" && route.path == "/api/latest/fleet/software/web_apps":
+			multipartBody, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+				"title": {"Test App"},
+				"url":   {"https://example.com"},
+			})
+
+		case route.method == "PATCH" && (route.path == "/api/latest/fleet/setup_experience" || route.path == "/api/latest/fleet/mdm/apple/setup"):
+			// These routes don't require MDM because they can be used to change end-user auth, but they do require a license.
 			expectedErr = fleet.ErrMissingLicense
 		}
-		res := s.Do(route.method, path, params, expectedErr.StatusCode())
+
+		var res *http.Response
+		if multipartBody != nil {
+			res = s.DoRawWithHeaders(route.method, path, multipartBody.Bytes(), expectedErr.StatusCode(), headers)
+		} else {
+			res = s.Do(route.method, path, params, expectedErr.StatusCode())
+		}
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, expectedErr.Error(), fmt.Sprintf("%s %s", route.method, path))
 	}
@@ -15867,4 +15933,102 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 		require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status, "%s profile status should be pending after deletion", tc.hostName)
 		require.Equal(t, fleet.MDMOperationTypeRemove, profile.OperationType, "%s profile operation_type should be remove after deletion", tc.hostName)
 	}
+}
+
+// TestOsqueryBodySizeLimit verifies the body size limits on the
+// /api/osquery/log and /api/osquery/distributed/write endpoints:
+//   - Bodies exceeding the default limit are rejected with HTTP 413.
+//   - Bodies within the limit are accepted.
+//   - A malformed (truncated) body within the limit is NOT reported as HTTP 413
+//     (guards against the false-positive PayloadTooLargeError fix).
+//   - Setting Osquery.MaxLogWriteBodySize / MaxDistributedWriteBodySize in the
+//     server config overrides the built-in defaults.
+func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
+	t := s.T()
+
+	host := createOrbitEnrolledHost(t, "linux", "body-limit", s.ds)
+
+	// Body over DefaultMaxOsqueryLogWriteSize must be rejected with 413. The padding
+	// is inside a JSON string value so the body is syntactically valid up to
+	// the point where the reader is cut off.
+	logPrefix := fmt.Sprintf(`{"node_key":%q,"log_type":"status","data":["`, *host.NodeKey)
+	logSuffix := `"]}`
+	logPadSize := int(fleet.DefaultMaxOsqueryLogWriteSize) + 1 - len(logPrefix) - len(logSuffix)
+	require.Positive(t, logPadSize, "padding must be positive; DefaultMaxOsqueryLogWriteSize may be too small")
+	overLimitLog := []byte(logPrefix + strings.Repeat("x", logPadSize) + logSuffix)
+	s.DoRawNoAuth("POST", "/api/osquery/log", overLimitLog, http.StatusRequestEntityTooLarge)
+
+	// A well-formed body within the limit is accepted.
+	withinLimitLog, err := json.Marshal(submitLogsRequest{
+		NodeKey: *host.NodeKey,
+		LogType: "status",
+		Data:    []json.RawMessage{},
+	})
+	require.NoError(t, err)
+	s.DoRawNoAuth("POST", "/api/osquery/log", withinLimitLog, http.StatusOK)
+
+	// A truncated (malformed) body within the limit must NOT return 413.
+	// Before the fix, io.ErrUnexpectedEOF from the JSON decoder was incorrectly
+	// converted to PayloadTooLargeError even when the reader had not been exhausted.
+	// The correct response is 400 Bad Request.
+	truncatedLog := fmt.Appendf(nil, `{"node_key":%q,"log_type":"status","data":[`, *host.NodeKey) // missing closing ]}
+	s.DoRawNoAuth("POST", "/api/osquery/log", truncatedLog, http.StatusBadRequest)
+
+	// Body over DefaultMaxOsqueryDistributedWriteSize must be rejected with 413.
+	distPrefix := fmt.Sprintf(`{"node_key":%q,"queries":{"q1":[{"data":"`, *host.NodeKey)
+	distSuffix := `"}]},"statuses":{"q1":0},"messages":{},"stats":{}}`
+	distPadSize := int(fleet.DefaultMaxOsqueryDistributedWriteSize) + 1 - len(distPrefix) - len(distSuffix)
+	require.Positive(t, distPadSize, "padding must be positive; DefaultMaxOsqueryDistributedWriteSize may be too small")
+	overLimitDist := []byte(distPrefix + strings.Repeat("x", distPadSize) + distSuffix)
+	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", overLimitDist, http.StatusRequestEntityTooLarge)
+
+	// A well-formed body within the limit is accepted.
+	withinLimitDist, err := json.Marshal(submitDistributedQueryResultsRequestShim{
+		NodeKey:  *host.NodeKey,
+		Results:  map[string]json.RawMessage{},
+		Statuses: map[string]any{},
+		Messages: map[string]string{},
+		Stats:    map[string]*fleet.Stats{},
+	})
+	require.NoError(t, err)
+	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", withinLimitDist, http.StatusOK)
+
+	// A truncated body within the limit must NOT return 413 (same false-positive guard).
+	// io.ErrUnexpectedEOF from the bodyDecoder path is now wrapped as BadRequestErr → 400.
+	truncatedDist := fmt.Appendf(nil, `{"node_key":%q,"queries":{"q1":[`, *host.NodeKey) // missing closing
+	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", truncatedDist, http.StatusBadRequest)
+
+	// Verify that Osquery.MaxLogWriteBodySize and MaxDistributedWriteBodySize
+	// in the server config override the built-in defaults.
+	s.Run("config override", func() {
+		const customLimit = 2 * units.MiB
+
+		cfg := config.TestConfig()
+		cfg.Osquery.MaxLogWriteBodySize = customLimit
+		cfg.Osquery.MaxDistributedWriteBodySize = customLimit
+
+		_, customServer := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{
+			FleetConfig:         &cfg,
+			SkipCreateTestUsers: true,
+		})
+		s.T().Cleanup(customServer.Close)
+		ts := withServer{server: customServer}
+		ts.s = &s.Suite
+
+		// body over the custom limit must return 413.
+		logPad := customLimit + 1 - len(logPrefix) - len(logSuffix)
+		require.Positive(s.T(), logPad, "padding must be positive; customLimit may be too small")
+		ts.DoRawNoAuth("POST", "/api/osquery/log", []byte(logPrefix+strings.Repeat("x", logPad)+logSuffix), http.StatusRequestEntityTooLarge)
+
+		// body within the custom limit must succeed.
+		ts.DoRawNoAuth("POST", "/api/osquery/log", withinLimitLog, http.StatusOK)
+
+		// body over the custom limit must return 413.
+		distPad := customLimit + 1 - len(distPrefix) - len(distSuffix)
+		require.Positive(s.T(), distPad, "padding must be positive; customLimit may be too small")
+		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write", []byte(distPrefix+strings.Repeat("x", distPad)+distSuffix), http.StatusRequestEntityTooLarge)
+
+		// body within the custom limit must succeed.
+		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write", withinLimitDist, http.StatusOK)
+	})
 }

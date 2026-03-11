@@ -140,10 +140,13 @@ func maskEmail(email string) string {
 	return string(parts[0][0]) + "***@" + parts[1]
 }
 
+// systemUserName is the name used for the synthetic system user. It matches
+// the activity bounded context's ActivityAutomationAuthor constant ("Fleet").
+const systemUserName = "Fleet"
+
 // systemUser is a synthetic user for internal system operations.
-// The Name uses ActivityAutomationAuthor to align with system-initiated activities.
 var systemUser = &fleet.User{
-	Name:       fleet.ActivityAutomationAuthor,
+	Name:       systemUserName,
 	GlobalRole: ptr.String(fleet.RoleAdmin),
 }
 

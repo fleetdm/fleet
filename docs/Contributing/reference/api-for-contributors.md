@@ -1,8 +1,10 @@
 # API for contributors
 
-Don't use these API endpoints. Please use the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api) instead.
+🚧 **Don't use these API endpoints.** Please use the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api) instead.
 
-These API endpoints in this document are only used when contributing to Fleet. They're for the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality.
+The API endpoints in this document are only used when contributing to Fleet. They're for the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality. Other usage of these endpoints will have unintended consequences.
+
+If you see an endpoint documented here that you'd like to use, please [file a feature request](https://github.com/fleetdm/fleet/issues/new/choose) to bring it into the stable API.
 
 - [Authentication](#authentication)
 - [Packs](#packs)
@@ -12,7 +14,6 @@ These API endpoints in this document are only used when contributing to Fleet. T
 - [Trigger cron schedule](#trigger-cron-schedule)
 - [Device-authenticated routes](#device-authenticated-routes)
 - [Orbit-authenticated routes](#orbit-authenticated-routes)
-- [Downloadable installers](#downloadable-installers)
 - [Setup](#setup)
 - [Scripts](#scripts)
 - [Software](#software)

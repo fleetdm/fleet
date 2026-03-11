@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState, useCallback } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { noop } from "lodash";
 
@@ -156,6 +156,7 @@ const EditIconModal = ({
 }: IEditIconModalProps) => {
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
+  const queryClient = useQueryClient();
 
   const isSoftwarePackage = installerType === "package";
   const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(
@@ -699,16 +700,27 @@ const EditIconModal = ({
             <b>{displayName === "" ? previewInfo.name : displayName}</b>.
           </>
         );
+        // Invalidate software titles list cache so the edit is reflected
+        // if the user navigates back before the stale time has passed.
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-titles" }],
+        });
         refetchSoftwareTitle();
         setIconUploadedAt(new Date().toISOString());
         onExitEditIconModal();
       } else if (iconSucceeded && iconSuccessMessage) {
         renderFlash("success", iconSuccessMessage);
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-titles" }],
+        });
         refetchSoftwareTitle();
         setIconUploadedAt(new Date().toISOString());
         onExitEditIconModal();
       } else if (nameSucceeded && nameSuccessMessage) {
         renderFlash("success", nameSuccessMessage);
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-titles" }],
+        });
         refetchSoftwareTitle();
         setIconUploadedAt(new Date().toISOString());
         onExitEditIconModal();

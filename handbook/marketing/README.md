@@ -4,14 +4,27 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Team
 
-| Role                               | Contributor(s)
-|:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Chief  Marketing Officer          | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([@akuthiala](https://github.com/akuthiala))_
-| Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
-| Head of Demand Generation                  | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/) _([@johnjeremiah](https://github.com/johnjeremiah))_
-| Product Education Manager     | [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/) _([@nonpunctual](https://github.com/nonpunctual))_
-| Analyst Relations     | [Preston Death](https://www.linkedin.com/in/preston-death/) _([@pfd76](https://github.com/pfd76))_
-| Social Media Strategy and Management    | [Thomas Basgil Jr.](https://www.linkedin.com/in/tombasgil/) _([@tombasgil](https://github.com/tombasgil))_
+
+
+
+
+| Role | Person | Github ID | Responsibilities |
+| ----- | ----- | ----- | ----- |
+| Chief marketing officer | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala)  | [*@akuthiala*](https://github.com/akuthiala) | Set, lead, and manage Fleet’s marketing strategy and execution across all aspects of marketing  Lead or own various functions of marketing as appropriate. |
+| Content specialist | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/)  | [*@irenareedy*](https://github.com/irenareedy) | Manage and scale the Fleet Champions Community program by expanding the size and diversity of customer advocates while increasing the number of Fleet peer reviews across multiple platforms. Lead event execution in close collaboration with the Campaign Manager to ensure conferences, meetups, and community events are planned, coordinated, and delivered successfully. Oversee Fleet’s social media program by working with the Social Media Manager to coordinate content, messaging, and publishing across channels. Maintain the marketing operations board to ensure tasks are assigned, actively worked on, and completed so marketing initiatives remain organized and on track. Own and report on weekly marketing KPIs, tracking progress across initiatives and ensuring visibility into performance and outcomes  |
+| Product education manager | [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/)  | [*@nonpunctual*](https://github.com/nonpunctual) | Create core technical assets to train internal, partners, prospects, and customer teams including Fleet certification program and teaching GitOps workshops.  Be the technical expert in validating all things marketing produces, be the Fleet relationship expert with Macadmins community |
+| Head of demand generation | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/)  | [*@johnjeremiah*](https://github.com/johnjeremiah) | Build pipeline,  Marketing ops |
+| Campaign manager | Hired (to be announced) |  | Build, run and measure all marketing campaigns.   Own Fleet swag strategy and execution |
+| Content specialist (Consultant) | [Anthony Critelli](https://www.linkedin.com/in/anthonycritelli/) | [@acritelli](https://github.com/acritelli) | Build out Fleet linux management capabilities content |
+| Technical product marketing and content specialist (Consultant) | [Dan Gordon](https://www.linkedin.com/in/dangordon/) | [@dbgordon](https://github.com/dbgordon) | Create core technical marketing strategy, positioning, messaging and assets for IT technical teams Market Fleet releases  Create, drive and manage analyst relations for Fleet |
+| Product marketing (Consultant) | [Erin Miska](https://www.linkedin.com/in/erinmiska/) | [@miskaek](https://github.com/miskaek) | Positioning and messaging  Leadership marketing facing assets,  Sales and partner enablement  Content strategy |
+| Analyst relations (Consultant) | [Preston Death](https://www.linkedin.com/in/preston-death/)  | [*@pfd76*](https://github.com/pfd76) | Manage analyst relations (with analysts) and drive program internally in Fleet |
+| Social media strategy and management (Consultant) | [Thomas Basgil Jr.](https://www.linkedin.com/in/tombasgil/)  | [*@tombasgil*](https://github.com/tombasgil) | Establish, manage and grow Fleet’s social media presence across all appropriate channels |
+| Public relations (Consultant) | [TBD]  |  | Establish Fleet PR program Identify and train key Fleet employees on PR interactions Establish, measure and improve Fleet share of voice with press, analysts, and media.   Manage Fleet submissions for industry awards |
+
+
+
+
 
 
 ## Contact us
@@ -54,7 +67,7 @@ In the Marketing department, we're using the following issue labels to organize 
 | **:mktg-enablement** | Gold | \#D97706 | All work associated with designing, developing, and delivering enablement content for sales, partners, etc. |
 | **:mktg-event** | Orange | \#F97316 | For tasks related to any event, virtual or in-person (e.g., webinars, conference logistics, booth design, talk submissions). |
 
-Note: for event execution, addtional labels are used to manage the process and track specific events.
+Note: for event execution, additional labels are used to manage the process and track specific events.
 
 
 ### Prepare "Let's get you set up!" meeting notes
@@ -107,83 +120,7 @@ The Head of Marketing is the DRI for deploying Fleet's outward-facing content. T
 
 
 
-### Fleet events
-We sponsor and participate in events so that we can support, connect, engage, and grow the Fleet community. We need to be thoughtful about what events we sponsor or host, and we need to be disciplined in how we run events so we can be efficient and effective.
 
-There are three phases to running an event at FleetDM,
-- **Phase 1:** Propose, review and approve new events
-- **Phase 2:** Manage and and execute approved events
-- **Phase 3:** Event postgame
-
-#### Phase 1 Propose, review and approve new events
-**Objective:**  To ensure that the organization is aligned with the investment of time and resources to execute an event
-This process is managed through Fleet Issues and is summarized in a detailed tracking spreadsheet.
-
-See the section "Settle event strategy" below for the process.
-
-##### Settle event strategy (approve proposed events)
-
-Anyone at Fleet can propose a future event.
-Fleet's [Head of DemandGen](https://fleetdm.com/handbook/marketing#team) serves as the project manager for managing the event approval process. Events are settled in advance to provide ample time for strategy and planning. This includes any event that Fleet pays to attend or sponsor. 
-
-- Field/sales events and GitOps workshops are settled 1 sprint in advance.
-- Conferences are settled 1 quarter in advance. 
-
-Once events have been settled for a particular time frame, i.e, decided in a previous event strategy session, Fleet does not make changes except in extreme circumstances.
-
-1. Add all upcoming proposed in issues using the template (Propose an event: EVENT_NAME - CITY - YYYY-MM-DD). Approval is tracked and recorded in the ["🫧 Proposed events (not yet settled)" tab](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1411322737#gid=1411322737) of the 🎪 Events spreadsheet (confidential doc). 
-2. Proposed events will include the following information:
-  - Event Priority (Scale 1 - 10) where 1 is a top priority
-  - Event Name
-  - Event Location
-  - Event DRI
-  - Event Dates
-  - Type of Event
-  - Theme
-  - Event Registration
-  - Who from Fleet will attend?
-  - Which talk proposal will Fleet submit?
-  - Estimated budget, including sponsorship or airfare, and lodging for attendees.
-2. Set up and attend a 30m meeting with the CMO, Head of Demand Generation, or Manager of Training and Enablement.
-  - First, during this meeting, Marketing will decide which field/sales events and GitOps workshops Fleet will execute in the **following sprint**.
-  - Next, Marketing will decide which conferences in the **following quarter** the company will invest time or money into. 
-3. After the meeting, the Content Specialist will communicate the settled events by
-  - Moving all settled events to the "All 🎪 Official (planned & settled events)" tab of the 🎪 Events spreadsheet (confidential doc).
-  - Using the following template, post a message in the [#oooh-events Slack channel](https://fleetdm.slack.com/archives/C054TGK0H7X).
-
-```
-:fleet-swan: Hi all!
-Here are the [upcoming settled events](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=692710204#gid=692710204) where you can find :fleet:Fleet!
-```
-
-4. Close all proposed event issues that weren't able to be prioritized with a comment explaining why.
-
-#### Phase 2 Manage and and execute approved events
-**Objective** To efficiently plan, organize,track and complete the tasks in order to execute an event. This covers everything from once an event is approved to when the event is finished.  From detail planning to promotion, staff assignments to logistics, events can be complicated projects that need focused attention.
-
-Event execution needs to plan and track the detail decisions supporting:
-
-1. **All Event Logistics.** (Location, Venue, Start and End Date/Time, Event Website, Shipping, Staff schedules, costs, and more)
-2. **Speaking sessions:** (Location, time, talk metadata(title, abstract, etc), av requirements, and more)
-3. **Event Pre Promotion:** (landing page, blog, social, email, customers, prospects, etc)
-4. **Lead capture plans and process:** (scanning process, qualifying questions)
-5. **Booth:** Design, messaging, staffing hours and assignments, attire, swag, power, etc.)
-6. **Key vendor relationships:** (Event Organizer, booth builder, site logisitcs, scanning tech, av tech)
-
-This will be managed in a structure central document for each event so that attendees and organizers have a central place to find information and collaborate. 
-
-[Planning Doc/Tracking Template](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.uych0uenb12p#heading=h.qhf7mkrao68w0
-
-#### Phase 3 Event postgame
-**Objective** To consistently wrap up an event, gather lessons learned, and ensure the organization follows through with our new relationships.  
-
-After the event there are three important activites that need to be completed.
-
-1. **Update CRM:** The CRM is our single source of truth about our relationships. So, it is critical that all the information from what happened at the event is promptly updated in the CRM.
-2. **Follow up:** When we make new friends and connections at an event, we must be prompt in follow through and connecting with them after the event. The CRM is the main way to prompt the right person at Fleet to reach back out and follow up.
-3. **Post Mortem:** Learn and improve from the previous event. (gather feedback, review lessons learned, and update processes and strategy)
-
-(Template details TBD)
 
 
 
@@ -204,8 +141,8 @@ Check the "📃 Planned articles" column in [:help-marketing board](https://gith
 
 **To order T-shirts:**
 
-  - Login to [Rush Order tees](https://www.rushordertees.com/my-account/login/) (saved in 1Password).
-  - Choose Fleet logo design t-shirt under [my designs](https://www.rushordertees.com/my-account/designs/).
+  - Login to [Printful](https://www.printful.com/dashboard/default) (saved in 1Password).
+  - Choose Fleet logo design t-shirt under [product templates](https://www.printful.com/dashboard/product-templates).
   - Order shirts based on the pre-determined number (~5% of total event attendees).
   - Submit the order. Ensure the address matches the expected receiving address.
 

@@ -2,6 +2,7 @@ package file
 
 import (
 	_ "embed"
+	"fmt"
 	"regexp"
 )
 
@@ -78,6 +79,23 @@ var UninstallMsiWithUpgradeCodeScript string
 
 var PackageIDRegex = regexp.MustCompile(`((("\$PACKAGE_ID")|(\$PACKAGE_ID))(?P<suffix>\W|$))|(("\${PACKAGE_ID}")|(\${PACKAGE_ID}))`)
 var UpgradeCodeRegex = regexp.MustCompile(`((("\$UPGRADE_CODE")|(\$UPGRADE_CODE))(?P<suffix>\W|$))|(("\${UPGRADE_CODE}")|(\${UPGRADE_CODE}))`)
+
+// shellMetacharRegex matches shell metacharacters that are unsafe for script interpolation.
+var shellMetacharRegex = regexp.MustCompile("['" + `"` + "`" + `$\\|;&><!\n\r]`)
+
+// ValidatePackageIdentifiers checks that package IDs and upgrade codes do not
+// contain shell metacharacters.
+func ValidatePackageIdentifiers(packageIDs []string, upgradeCode string) error {
+	for _, id := range packageIDs {
+		if shellMetacharRegex.MatchString(id) {
+			return fmt.Errorf("package identifier %q contains invalid characters", id)
+		}
+	}
+	if upgradeCode != "" && shellMetacharRegex.MatchString(upgradeCode) {
+		return fmt.Errorf("upgrade code %q contains invalid characters", upgradeCode)
+	}
+	return nil
+}
 
 //go:embed scripts/uninstall_deb.sh
 var uninstallDebScript string

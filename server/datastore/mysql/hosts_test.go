@@ -21,6 +21,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -8698,16 +8699,13 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		HostID:          host.ID,
 		HostDisplayName: host.DisplayName(),
 	}
-	detailsBytes, err := json.Marshal(activity)
-	require.NoError(t, err)
 
-	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
-	err = ds.NewActivity( // automatically creates the host_activities entry
+	activitySvc := NewTestActivityService(t, ds)
+	apiUser := &activity_api.User{ID: user1.ID, Name: user1.Name, Email: user1.Email}
+	err = activitySvc.NewActivity( // automatically creates the activity_host_past entry
 		ctx,
-		user1,
+		apiUser,
 		activity,
-		detailsBytes,
-		time.Now(),
 	)
 	require.NoError(t, err)
 
@@ -8896,6 +8894,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	err = ds.ConditionalAccessBypassDevice(ctx, host.ID)
+	require.NoError(t, err)
+
+	err = ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.

@@ -92,7 +92,10 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 
 		var deprecatedKeysMap map[string]string
 		switch kind {
-		case fleet.QueryKind:
+		case fleet.QueryKind, fleet.ReportKind:
+			if logFn != nil && kind == fleet.QueryKind {
+				logFn("[!] `kind: query` is deprecated, please use `kind: report` instead.\n")
+			}
 			var err error
 			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.QuerySpec{})
 			if err != nil {
@@ -179,7 +182,10 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			}
 			specs.UsersRoles = userRoleSpec
 
-		case fleet.TeamKind:
+		case fleet.TeamKind, fleet.FleetKind:
+			if logFn != nil && kind == fleet.TeamKind {
+				logFn("[!] `kind: team` is deprecated, please use `kind: fleet` instead.\n")
+			}
 			// unmarshal to a raw map as we don't want to strip away unknown/invalid
 			// fields at this point - that validation is done in the apply spec/teams
 			// endpoint so that it is enforced for both the API and the CLI.
@@ -370,15 +376,15 @@ func ExpandEnvBytesIncludingSecrets(b []byte) ([]byte, error) {
 	return []byte(s), nil
 }
 
-// LookupEnvSecrets only looks up FLEET_SECRET_XXX environment variables. Escaping is limited to XML files.
-// This is used for finding secrets in scripts only. The original string is not modified.
-// A map of secret names to values is updated.
+// LookupEnvSecrets only looks up FLEET_SECRET_XXX environment variables.
+// This is used for finding secrets in profiles and scripts. The original string is not modified.
+// A map of secret names to raw (unescaped) values is updated.
+// XML escaping is intentionally NOT done here — it is handled server-side during
+// secret expansion (see expandEmbeddedSecrets in secret_variables.go).
 func LookupEnvSecrets(s string, secretsMap map[string]string) error {
 	if secretsMap == nil {
 		return errors.New("secretsMap cannot be nil")
 	}
-
-	documentIsXML := strings.HasPrefix(strings.TrimSpace(s), "<") // We need to be more aggressive here, to also escape XML in Windows profiles which does not begin with <?xml
 
 	var err *multierror.Error
 	_ = fleet.MaybeExpand(s, func(env string, startPos, endPos int) (string, bool) {
@@ -388,17 +394,6 @@ func LookupEnvSecrets(s string, secretsMap map[string]string) error {
 			if !ok {
 				err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
 				return "", false
-			}
-
-			if documentIsXML {
-				// Escape XML special characters
-				var b strings.Builder
-				xmlErr := xml.EscapeText(&b, []byte(v))
-				if xmlErr != nil {
-					err = multierror.Append(xmlErr, fmt.Errorf("failed to XML escape fleet secret %s", env))
-					return "", false
-				}
-				v = b.String()
 			}
 
 			secretsMap[env] = v

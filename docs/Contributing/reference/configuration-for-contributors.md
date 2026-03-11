@@ -242,6 +242,26 @@ Enables exporting logs to an OpenTelemetry collector in addition to stderr outpu
     otel_logs_enabled: true
   ```
 
+### mdm.allow_all_declarations
+
+> Experimental feature. Use with caution.
+
+If set to `true`, you can add all types of Apple [declaration profiles](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations). By default, Fleet doesn't allow [these configurations](https://github.com/fleetdm/fleet/blob/9589631a7f25a342ed24571c08deffbc959661ec/server/fleet/apple_mdm.go#L704-L717).
+
+**Note:** [Asset](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations#Assets) declarations require additional infrastructure. You need to self-host the asset and include the URL in the [declaration](https://developer.apple.com/documentation/devicemanagement/assetdata#Asset-example).
+
+**Warning:** Enabling this option bypasses all safety checks for declarations, including checks for
+forbidden declaration types, reserved identifiers, and required prefixes. Use only when you need to
+deploy declarations that Fleet would otherwise block.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_ALLOW_ALL_DECLARATIONS`
+- Config file format:
+  ```yaml
+  mdm:
+    allow_all_declarations: true
+  ```
+
 ### FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS
 
 Use this environment variable to allow `fleetd` to report errors to the server using the [endpoint to report an agent error](./API-for-contributors.md#report-an-agent-error). `fleetd` agents will always report vital errors to Fleet.

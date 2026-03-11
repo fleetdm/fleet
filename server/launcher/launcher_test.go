@@ -3,11 +3,11 @@ package launcher
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/kolide/launcher/pkg/service"
 	"github.com/osquery/osquery-go/plugin/distributed"
@@ -93,7 +93,7 @@ func newTestService(t *testing.T) (*launcherWrapper, *mock.TLSService) {
 	tls := newTLSService(t)
 	launcher := &launcherWrapper{
 		tls:    tls,
-		logger: logging.NewNopLogger(),
+		logger: slog.New(slog.DiscardHandler),
 		healthCheckers: map[string]health.Checker{
 			"noop": health.Nop(),
 		},
