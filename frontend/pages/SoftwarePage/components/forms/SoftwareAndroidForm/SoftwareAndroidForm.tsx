@@ -9,10 +9,8 @@ import { IInputFieldParseTarget } from "interfaces/form_field";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import Card from "components/Card";
 import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
-import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import {
@@ -96,47 +94,6 @@ const SoftwareAndroidForm = ({
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
     setFormValidation(generateFormValidation(newFormData));
-  };
-
-  const onToggleSelfService = () => {
-    const newData = { ...formData, selfService: !formData.selfService };
-    setFormData(newData);
-  };
-
-  const onSelectCategory = ({
-    name,
-    value,
-  }: {
-    name: string;
-    value: boolean;
-  }) => {
-    let newCategories: string[];
-
-    if (value) {
-      // Add the name if not already present
-      newCategories = formData.categories.includes(name)
-        ? formData.categories
-        : [...formData.categories, name];
-    } else {
-      // Remove the name if present
-      newCategories = formData.categories.filter((cat) => cat !== name);
-    }
-
-    const newData = {
-      ...formData,
-      categories: newCategories,
-    };
-
-    setFormData(newData);
-    setFormValidation(generateFormValidation(newData));
-  };
-
-  const onToggleAutomaticInstall = () => {
-    const newData = {
-      ...formData,
-      automaticInstall: !formData.automaticInstall,
-    };
-    setFormData(newData);
   };
 
   const isSubmitDisabled = !formValidation.isValid;

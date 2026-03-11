@@ -1,6 +1,6 @@
 /** FleetAppDetailsForm is a separate component remnant of when we had advanced options on add <4.83 */
 
-import React from "react";
+import React, { useState } from "react";
 import { SoftwareCategory } from "interfaces/software";
 
 import { getPathWithQueryParams } from "utilities/url";
@@ -10,6 +10,7 @@ import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import SoftwareDeploySlider from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
 
 const baseClass = "fleet-app-details-form";
 
@@ -77,7 +78,7 @@ const FleetAppDetailsForm = ({
   onSubmit,
   softwareTitleId,
 }: IFleetAppDetailsFormProps) => {
-  const formData: IFleetMaintainedAppFormData = {
+  const [formData, setFormData] = useState<IFleetMaintainedAppFormData>({
     selfService: false,
     automaticInstall: false,
     preInstallQuery: "",
@@ -88,6 +89,13 @@ const FleetAppDetailsForm = ({
     customTarget: "labelsIncludeAny",
     labelTargets: {},
     categories: categories || [],
+  });
+
+  const onToggleDeploySoftware = () => {
+    setFormData((prevData: IFleetMaintainedAppFormData) => ({
+      ...prevData,
+      automaticInstall: !prevData.automaticInstall,
+    }));
   };
 
   const onSubmitForm = (evt: React.FormEvent<HTMLFormElement>) => {
@@ -100,6 +108,10 @@ const FleetAppDetailsForm = ({
 
   return (
     <form className={baseClass} onSubmit={onSubmitForm}>
+      <SoftwareDeploySlider
+        deploySoftware={formData.automaticInstall}
+        onToggleDeploySoftware={onToggleDeploySoftware}
+      />
       <div className={`${baseClass}__action-buttons`}>
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (
