@@ -30,7 +30,6 @@ import (
 	"github.com/realclientip/realclientip-go"
 	dsig "github.com/russellhaering/goxmldsig"
 	"github.com/throttled/throttled/v2"
-	"github.com/throttled/throttled/v2/store/memstore"
 )
 
 const (
@@ -112,6 +111,7 @@ func RegisterIdP(
 	ds fleet.Datastore,
 	logger *slog.Logger,
 	fleetConfig *config.FleetConfig,
+	limitStore throttled.GCRAStore,
 ) error {
 	if fleetConfig == nil {
 		return errors.New("fleet config is nil")
@@ -134,7 +134,7 @@ func RegisterIdP(
 	// Create per-IP rate limiter for unauthenticated IdP endpoints.
 	// These endpoints are publicly accessible (required by SAML standard),
 	// so rate limiting prevents DDoS-driven database overload.
-	rateLimiter, err := newIDPRateLimiter(ipStrategy)
+	rateLimiter, err := newIDPRateLimiter(limitStore, ipStrategy)
 	if err != nil {
 		return fmt.Errorf("create idp rate limiter: %w", err)
 	}
@@ -175,12 +175,7 @@ func (v *clientIPVaryBy) Key(r *http.Request) string {
 }
 
 // newIDPRateLimiter creates an HTTP rate limiter for the IdP endpoints.
-func newIDPRateLimiter(ipStrategy realclientip.Strategy) (*throttled.HTTPRateLimiter, error) {
-	store, err := memstore.New(65536)
-	if err != nil {
-		return nil, fmt.Errorf("create rate limit store: %w", err)
-	}
-
+func newIDPRateLimiter(store throttled.GCRAStore, ipStrategy realclientip.Strategy) (*throttled.HTTPRateLimiter, error) {
 	quota := throttled.RateQuota{
 		MaxRate:  throttled.PerMin(idpRateLimitPerMinute),
 		MaxBurst: idpRateLimitMaxBurst,

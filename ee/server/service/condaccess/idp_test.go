@@ -18,6 +18,7 @@ import (
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
+	"github.com/throttled/throttled/v2/store/memstore"
 )
 
 // Test certificates used across multiple tests
@@ -73,6 +74,13 @@ b1ctZeF7HaWwFdTC8GqWI6zzRFn+YA3f/yYibhowuEypPQeSjlI=
 
 // Helper functions for test setup
 
+func newTestLimitStore(t *testing.T) *memstore.MemStore {
+	t.Helper()
+	store, err := memstore.New(0)
+	require.NoError(t, err)
+	return store
+}
+
 func newTestService() (*idpService, *mock.Store) {
 	ds := new(mock.Store)
 	logger := slog.New(slog.DiscardHandler)
@@ -118,17 +126,18 @@ func TestRegisterIdP(t *testing.T) {
 	ds := new(mock.Store)
 	logger := slog.New(slog.DiscardHandler)
 	cfg := &config.FleetConfig{}
+	store := newTestLimitStore(t)
 
 	ds.AppConfigFunc = mockAppConfigFunc("https://fleet.example.com")
 	ds.GetAllMDMConfigAssetsByNameFunc = mockCertAssetsFunc(false)
 
 	mux := http.NewServeMux()
 	// Try with nil config
-	err := RegisterIdP(mux, ds, logger, nil)
+	err := RegisterIdP(mux, ds, logger, nil, store)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "fleet config is nil")
 
-	err = RegisterIdP(mux, ds, logger, cfg)
+	err = RegisterIdP(mux, ds, logger, cfg, store)
 	require.NoError(t, err)
 
 	t.Run("metadata endpoint registered", func(t *testing.T) {
@@ -280,7 +289,7 @@ func TestIDPRateLimiting(t *testing.T) {
 		ds.GetAllMDMConfigAssetsByNameFunc = mockCertAssetsFunc(true)
 
 		mux := http.NewServeMux()
-		err := RegisterIdP(mux, ds, logger, cfg)
+		err := RegisterIdP(mux, ds, logger, cfg, newTestLimitStore(t))
 		require.NoError(t, err)
 
 		// Send requests up to the burst limit (maxBurst + 1 = 10 allowed)
@@ -317,7 +326,7 @@ func TestIDPRateLimiting(t *testing.T) {
 		ds.GetAllMDMConfigAssetsByNameFunc = mockCertAssetsFunc(true)
 
 		mux := http.NewServeMux()
-		err := RegisterIdP(mux, ds, logger, cfg)
+		err := RegisterIdP(mux, ds, logger, cfg, newTestLimitStore(t))
 		require.NoError(t, err)
 
 		// Send requests from a proxy IP but different real client IPs via X-Forwarded-For.
