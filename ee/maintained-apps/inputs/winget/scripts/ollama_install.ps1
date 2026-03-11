@@ -6,10 +6,13 @@ $exeFilePath = "${env:INSTALLER_PATH}"
 try {
 
 # Ollama uses an Inno Setup-based installer with user-scope installation.
+# /SP- suppresses "setup is already running" prompt.
 # /CURRENTUSER ensures user-scope install without elevation prompt.
+# /CLOSEAPPLICATIONS closes running instances before install.
+# /MERGETASKS=!runcode prevents auto-launching the app after install.
 $processOptions = @{
   FilePath = "$exeFilePath"
-  ArgumentList = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER"
+  ArgumentList = "/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER /CLOSEAPPLICATIONS /MERGETASKS=!runcode"
   PassThru = $true
   Wait = $true
 }
