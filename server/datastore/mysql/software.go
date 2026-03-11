@@ -64,10 +64,6 @@ var softwareInsertBatchSize = 1000
 // outside the main software ingestion transaction. Smaller batches reduce lock contention.
 var softwareInventoryInsertBatchSize = 100
 
-// cleanupBatchSize controls how many orphaned software rows are deleted per batch during SyncHostsSoftware cleanup.
-// Smaller batches hold locks for shorter durations, reducing contention with concurrent software ingestion.
-var cleanupBatchSize = 1000
-
 func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Software {
 	result := make(map[string]fleet.Software, len(softwareItems))
 	for _, s := range softwareItems {
@@ -2663,6 +2659,20 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 
 		valuesPart = `(?, ?, ?, ?, ?),`
 
+		// We must ensure that software is not in host_software table before deleting it.
+		// This prevents a race condition where a host just added the software, but it is not part of software_host_counts yet.
+		// When a host adds software, software table and host_software table are updated in the same transaction.
+		cleanupSoftwareStmt = `
+      DELETE s
+      FROM software s
+      LEFT JOIN software_host_counts shc
+      ON s.id = shc.software_id
+      WHERE
+        (shc.software_id IS NULL OR
+        (shc.team_id = 0 AND shc.hosts_count = 0)) AND
+		NOT EXISTS (SELECT 1 FROM host_software hsw WHERE hsw.software_id = s.id)
+	  `
+
 		cleanupOrphanedStmt = `
 		  DELETE shc
 		  FROM
@@ -2762,11 +2772,9 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 
 	}
 
-	// Remove any unused software (those not in host_software) in batches to reduce lock contention.
-	// A single large DELETE acquires gap locks on host_software (via the FK cascade check) that block concurrent
-	// software ingestion INSERTs/DELETEs. Batching keeps each DELETE short so other operations can proceed between batches.
-	if err := ds.cleanupUnusedSoftware(ctx); err != nil {
-		return err
+	// remove any unused software (global counts = 0)
+	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupSoftwareStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete unused software")
 	}
 
 	// remove any software count row for software that don't exist anymore
@@ -2779,40 +2787,6 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing teams")
 	}
 	return nil
-}
-
-// cleanupUnusedSoftware deletes orphaned software rows (not referenced by any host) in batches.
-func (ds *Datastore) cleanupUnusedSoftware(ctx context.Context) error {
-	// findUnusedSoftwareStmt finds software rows not referenced by any host and absent from software_host_counts.
-	// The NOT EXISTS check on host_software reduces (but does not fully prevent) the chance of deleting software that
-	// is mid-ingestion (inserted into software but not yet linked in host_software). In the unlikely event this happens,
-	// the next hourly ingestion cycle will re-create and re-link the software entry.
-	const findUnusedSoftwareStmt = `
-		SELECT s.id
-		FROM software s
-		LEFT JOIN software_host_counts shc ON s.id = shc.software_id
-		WHERE (shc.software_id IS NULL OR (shc.team_id = 0 AND shc.hosts_count = 0))
-		AND NOT EXISTS (SELECT 1 FROM host_software hsw WHERE hsw.software_id = s.id)
-		LIMIT ?
-	`
-
-	for {
-		var ids []uint
-		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &ids, findUnusedSoftwareStmt, cleanupBatchSize); err != nil {
-			return ctxerr.Wrap(ctx, err, "find unused software for cleanup")
-		}
-		if len(ids) == 0 {
-			return nil
-		}
-
-		stmt, args, err := sqlx.In(`DELETE FROM software WHERE id IN (?)`, ids)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build delete unused software query")
-		}
-		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete unused software batch")
-		}
-	}
 }
 
 func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
