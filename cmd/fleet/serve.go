@@ -1539,7 +1539,7 @@ the way that the Fleet server works.
 					}
 
 					// Conditional Access IdP (Okta)
-					if err = condaccess.RegisterIdP(rootMux, ds, logger, &config); err != nil {
+					if err = condaccess.RegisterIdP(rootMux, ds, logger, &config, limiterStore); err != nil {
 						initFatal(err, "setup conditional access IdP")
 					}
 				} else {
