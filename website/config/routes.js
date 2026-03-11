@@ -525,6 +525,7 @@ module.exports.routes = {
     action: 'microsoft-proxy/view-remediate',
     locals: {
       showConfigurationProfileLayout: true,
+      disableAnalyticsScriptsAndIndexing: true,
     }
   },
 
@@ -532,6 +533,7 @@ module.exports.routes = {
     action: 'microsoft-proxy/view-turn-on-mdm',
     locals: {
       showConfigurationProfileLayout: true,
+      disableAnalyticsScriptsAndIndexing: true,
     }
   },
 
@@ -546,6 +548,7 @@ module.exports.routes = {
     action: 'view-okta-conditional-access-error',
     locals: {
       showConfigurationProfileLayout: true,
+      disableAnalyticsScriptsAndIndexing: true,
     }
   },
 
