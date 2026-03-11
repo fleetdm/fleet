@@ -255,6 +255,7 @@ type listTeamPoliciesRequest struct {
 	InheritedOrderDirection fleet.OrderDirection `query:"inherited_order_direction,optional"`
 	InheritedOrderKey       string               `query:"inherited_order_key,optional"`
 	MergeInherited          bool                 `query:"merge_inherited,optional"`
+	AutomationType          string               `query:"automation_type,optional"`
 }
 
 type listTeamPoliciesResponse struct {
@@ -275,14 +276,14 @@ func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc flee
 		OrderKey:       req.InheritedOrderKey,
 	}
 
-	tmPols, inheritedPols, err := svc.ListTeamPolicies(ctx, req.TeamID, req.Opts, inheritedListOptions, req.MergeInherited)
+	tmPols, inheritedPols, err := svc.ListTeamPolicies(ctx, req.TeamID, req.Opts, inheritedListOptions, req.MergeInherited, req.AutomationType)
 	if err != nil {
 		return listTeamPoliciesResponse{Err: err}, nil
 	}
 	return listTeamPoliciesResponse{Policies: tmPols, InheritedPolicies: inheritedPols}, nil
 }
 
-func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
+func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationFilter string) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
@@ -292,13 +293,17 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 	}
 
 	if teamID > 0 {
-		if _, err := svc.ds.TeamLite(ctx, teamID); err != nil { // TODO see if we can use TeamExists here instead
+		exists, err := svc.ds.TeamExists(ctx, teamID)
+		if err != nil {
 			return nil, nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+		}
+		if !exists {
+			return nil, nil, ctxerr.Errorf(ctx, "team %d does not exist", teamID)
 		}
 	}
 
 	if mergeInherited {
-		policies, err := svc.ds.ListMergedTeamPolicies(ctx, teamID, opts)
+		policies, err := svc.ds.ListMergedTeamPolicies(ctx, teamID, opts, automationFilter) // TODO(JK): Also needs filter
 		for i := range policies {
 			if err := svc.populatePolicyInstallSoftware(ctx, policies[i]); err != nil {
 				return nil, nil, ctxerr.Wrapf(ctx, err, "populate install_software for policy_id: %d", policies[i].ID)
@@ -310,7 +315,7 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 		return policies, nil, err
 	}
 
-	teamPolicies, inheritedPolicies, err = svc.ds.ListTeamPolicies(ctx, teamID, opts, iopts)
+	teamPolicies, inheritedPolicies, err = svc.ds.ListTeamPolicies(ctx, teamID, opts, iopts, automationFilter)
 	if err != nil {
 		return nil, nil, err
 	}
