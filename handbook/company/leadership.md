@@ -112,7 +112,8 @@ It may make sense to have per-role pages (e.g. cse, csa). But only when the role
 The board meeting and OKR planning happen during the first week of the third month of every quarter. Fleet uses the following agenda to prepare, execute, iterate on, and retro its in-person board meetings and quarterly Objective Key Results (OKRs):
 
 **Two weeks prior (virtual):**
-  - The CEO discusses the board meeting with his coach. 
+  - The CEO discusses the board meeting with his coach.
+  - Add Tina to John Hamm meeting. 
 
 **Day 1 _Prepare_ (in-person):**
   - Board deck finalization:
