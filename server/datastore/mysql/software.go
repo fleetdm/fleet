@@ -3812,7 +3812,6 @@ func filterInHouseAppsByLabel(
 		globalOrTeamID = *host.TeamID
 	}
 
-	// TODO(mna): support include all
 	labelSQLFilter := `
 			WITH no_labels AS (
 				SELECT
@@ -3836,8 +3835,10 @@ func filterInHouseAppsByLabel(
 					0 as count_host_updated_after_labels
 				FROM
 					in_house_apps iha
-				INNER JOIN in_house_app_labels ihl ON
-					ihl.in_house_app_id = iha.id AND ihl.exclude = 0
+				INNER JOIN in_house_app_labels ihl 
+					ON ihl.in_house_app_id = iha.id
+						AND ihl.exclude = 0
+						AND ihl.require_all = 0
 				LEFT JOIN label_membership lm ON
 					lm.label_id = ihl.label_id AND lm.host_id = :host_id
 				GROUP BY
@@ -3859,8 +3860,10 @@ func filterInHouseAppsByLabel(
 					) AS count_host_updated_after_labels
 				FROM
 					in_house_apps iha
-				INNER JOIN in_house_app_labels ihl ON
-					ihl.in_house_app_id = iha.id AND ihl.exclude = 1
+				INNER JOIN in_house_app_labels ihl 
+					ON ihl.in_house_app_id = iha.id 
+						AND ihl.exclude = 1
+						AND ihl.require_all = 0
 				INNER JOIN labels lbl ON
 					lbl.id = ihl.label_id
 				LEFT OUTER JOIN label_membership lm ON
@@ -3871,6 +3874,25 @@ func filterInHouseAppsByLabel(
 					count_installer_labels > 0 AND
 					count_installer_labels = count_host_updated_after_labels AND
 					count_host_labels = 0
+			),
+			include_all AS (
+				SELECT
+					iha.id AS in_house_app_id,
+					COUNT(ihl.label_id) AS count_installer_labels,
+					COUNT(lm.label_id) AS count_host_labels,
+					0 as count_host_updated_after_labels
+				FROM
+					in_house_apps iha
+				INNER JOIN in_house_app_labels ihl 
+					ON ihl.in_house_app_id = iha.id
+						AND ihl.exclude = 0
+						AND ihl.require_all = 1
+				LEFT JOIN label_membership lm ON
+					lm.label_id = ihl.label_id AND lm.host_id = :host_id
+				GROUP BY
+					iha.id
+				HAVING
+					count_installer_labels > 0 AND count_host_labels = count_installer_labels
 			)
 			SELECT
 				iha.id AS in_house_id,
@@ -3883,12 +3905,15 @@ func filterInHouseAppsByLabel(
 				ON include_any.in_house_app_id = iha.id
 			LEFT JOIN exclude_any
 				ON exclude_any.in_house_app_id = iha.id
+			LEFT JOIN include_all
+				ON include_all.in_house_app_id = iha.id
 			WHERE
 				iha.global_or_team_id = :global_or_team_id AND
 				iha.id IN (:in_house_ids) AND (
 					no_labels.in_house_app_id IS NOT NULL OR
 					include_any.in_house_app_id IS NOT NULL OR
-					exclude_any.in_house_app_id IS NOT NULL
+					exclude_any.in_house_app_id IS NOT NULL OR
+					include_all.in_house_app_id IS NOT NULL
 				)
 		`
 
