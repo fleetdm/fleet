@@ -2594,6 +2594,7 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 				req.Opts.DeviceMapping = true
 			}
 			// If team_id / team_name are requested, also include their aliases.
+			// TODO: clean up in Fleet 5.
 			if rawCol == "team_id" {
 				cols = append(cols, "fleet_id")
 			}

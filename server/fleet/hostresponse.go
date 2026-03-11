@@ -11,6 +11,7 @@ import (
 type HostResponse struct {
 	*Host
 	// Add alias fields for team name and ID for use in CSV reports.
+	// TODO: clean up in Fleet 5.
 	FleetID          *uint        `json:"-" csv:"fleet_id"`
 	FleetName        *string      `json:"-" csv:"fleet_name"`
 	Status           HostStatus   `json:"status" csv:"status"`
