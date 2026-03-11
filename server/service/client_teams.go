@@ -81,7 +81,7 @@ func (c *Client) ApplyTeamProfiles(tmName string, profiles []fleet.MDMProfileBat
 	if err != nil {
 		return err
 	}
-	query.Add("team_name", tmName)
+	query.Add("fleet_name", tmName)
 	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.WindowsEnabledAndConfigured.Valid {
 		query.Add("assume_enabled", strconv.FormatBool(opts.DryRunAssumptions.WindowsEnabledAndConfigured.Value))
 	}
@@ -96,7 +96,7 @@ func (c *Client) ApplyTeamScripts(tmName string, scripts []fleet.ScriptPayload, 
 	if err != nil {
 		return nil, err
 	}
-	query.Add("team_name", tmName)
+	query.Add("fleet_name", tmName)
 
 	var resp batchSetScriptsResponse
 	err = c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, &resp, query.Encode())
@@ -108,7 +108,7 @@ func (c *Client) ApplyTeamSoftwareInstallers(tmName string, softwareInstallers [
 	if err != nil {
 		return nil, err
 	}
-	query.Add("team_name", tmName)
+	query.Add("fleet_name", tmName)
 	return c.applySoftwareInstallers(softwareInstallers, query, opts.DryRun)
 }
 
@@ -117,7 +117,7 @@ func (c *Client) ApplyTeamAppStoreAppsAssociation(tmName string, vppBatchPayload
 	if err != nil {
 		return nil, err
 	}
-	query.Add("team_name", tmName)
+	query.Add("fleet_name", tmName)
 	return c.applyAppStoreAppsAssociation(vppBatchPayload, query)
 }
 

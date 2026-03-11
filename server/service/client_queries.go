@@ -21,7 +21,7 @@ func (c *Client) GetQuerySpec(teamID *uint, name string) (*fleet.QuerySpec, erro
 	verb, path := "GET", "/api/latest/fleet/spec/reports/"+url.PathEscape(name)
 	query := url.Values{}
 	if teamID != nil {
-		query.Set("team_id", fmt.Sprint(*teamID))
+		query.Set("fleet_id", fmt.Sprint(*teamID))
 	}
 	var responseBody getQuerySpecResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode())
@@ -33,7 +33,7 @@ func (c *Client) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) {
 	verb, path := "GET", "/api/latest/fleet/reports"
 	query := url.Values{}
 	if teamID != nil {
-		query.Set("team_id", fmt.Sprint(*teamID))
+		query.Set("fleet_id", fmt.Sprint(*teamID))
 	}
 	if name != nil {
 		query.Set("query", *name)

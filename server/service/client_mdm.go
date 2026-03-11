@@ -116,8 +116,8 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage, dry
 		return err
 	}
 
-	// add the team_id field
-	if err := w.WriteField("team_id", fmt.Sprint(pkg.TeamID)); err != nil {
+	// add the fleet_id field
+	if err := w.WriteField("fleet_id", fmt.Sprint(pkg.TeamID)); err != nil {
 		return err
 	}
 
