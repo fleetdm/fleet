@@ -2790,15 +2790,18 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 // It processes at most cleanupMaxIterations batches per invocation to avoid monopolizing the database.
 // Any remaining orphans will be cleaned up on the next cron run.
 func (ds *Datastore) cleanupUnusedSoftware(ctx context.Context) error {
-	// findUnusedSoftwareStmt finds software rows not referenced by any host and absent from software_host_counts.
-	// The NOT EXISTS check on host_software reduces (but does not fully prevent) the chance of deleting software that
-	// is mid-ingestion (inserted into software but not yet linked in host_software). In the unlikely event this happens,
-	// the next hourly ingestion cycle will re-create and re-link the software entry.
+	// findUnusedSoftwareStmt finds software rows not referenced by any host and either absent from
+	// software_host_counts or with a global hosts_count of 0. DISTINCT is needed because the LEFT JOIN
+	// can produce multiple rows per software_id (one per software_host_counts entry with team_id=0).
+	// The NOT EXISTS check on host_software reduces (but does not fully prevent) the chance of deleting
+	// software that is mid-ingestion (inserted into software but not yet linked in host_software).
+	// In the unlikely event this happens, the next hourly ingestion cycle will re-create and re-link
+	// the software entry.
 	const findUnusedSoftwareStmt = `
-		SELECT s.id
+		SELECT DISTINCT s.id
 		FROM software s
 		LEFT JOIN software_host_counts shc ON s.id = shc.software_id
-		WHERE shc.software_id IS NULL
+		WHERE (shc.software_id IS NULL OR (shc.team_id = 0 AND shc.hosts_count = 0))
 		AND NOT EXISTS (SELECT 1 FROM host_software hsw WHERE hsw.software_id = s.id)
 		LIMIT ?
 	`
