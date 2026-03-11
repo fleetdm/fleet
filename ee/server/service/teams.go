@@ -263,16 +263,16 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 
 			team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = payload.MDM.MacOSSetup.EnableEndUserAuthentication
 			// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA.
-			if macOSEnableEndUserAuthUpdated && !payload.MDM.MacOSSetup.LockEndUserInfo.Set {
+			if macOSEnableEndUserAuthUpdated && !payload.MDM.MacOSSetup.LockEndUserInfo.Valid {
 				team.Config.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
 			}
 
-			if payload.MDM.MacOSSetup.LockEndUserInfo.Set {
+			if payload.MDM.MacOSSetup.LockEndUserInfo.Valid {
 				team.Config.MDM.MacOSSetup.LockEndUserInfo = payload.MDM.MacOSSetup.LockEndUserInfo
 			}
 
 			if !team.Config.MDM.MacOSSetup.EnableEndUserAuthentication && team.Config.MDM.MacOSSetup.LockEndUserInfo.Value {
-				return nil, fleet.NewInvalidArgumentError("macos_setup.lock_end_user_info", `"enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info"`)
+				return nil, fleet.NewInvalidArgumentError("macos_setup.lock_end_user_info", `"enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info".`)
 			}
 		}
 	}
