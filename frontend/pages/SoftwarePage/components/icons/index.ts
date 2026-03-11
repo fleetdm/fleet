@@ -233,6 +233,7 @@ import Zed from "./Zed";
 import Zeplin from "./Zeplin";
 import ZeroOneZeroEditor from "./010Editor";
 import Zoom from "./Zoom";
+import Zotero from "./Zotero";
 
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
@@ -477,6 +478,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "yubikey manager": YubikeyManager,
   zed: Zed,
   zeplin: Zeplin,
+  zotero: Zotero,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
