@@ -1312,6 +1312,8 @@ The minimum time difference between the software's "last opened at" timestamp re
 
 ### osquery_max_log_write_body_size
 
+> This config value is deprecated as of Fleet 4.84. It is maintained for backwards compatibility. For more granular control of request body sizes, use `server_endpoint_request_size_overrides` instead.
+
 Maximum HTTP request body size accepted by the `osquery/log` endpoint. Increase this if osquery agents are submitting log batches that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
 
 - Default value: `10MiB`
@@ -1324,6 +1326,7 @@ Maximum HTTP request body size accepted by the `osquery/log` endpoint. Increase 
 
 ### osquery_max_distributed_write_body_size
 
+> This config value is deprecated as of Fleet 4.84. It is maintained for backwards compatibility. For more granular control of request body sizes, use `server_endpoint_request_size_overrides` instead.
 Maximum HTTP request body size accepted by the `osquery/distributed/write` endpoint. Increase this if osquery agents are submitting distributed query results that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
 
 - Default value: `5MiB`
