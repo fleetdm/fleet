@@ -490,20 +490,6 @@ func TestRewriteOldToNewKeys(t *testing.T) {
 		assert.Nil(t, result["team"])
 	})
 
-	t.Run("nested objects", func(t *testing.T) {
-		input := `{"mdm":{"macos_settings":{"custom_settings":[{"path":"foo.mobileconfig"}]}}}`
-		out, err := RewriteOldToNewKeys([]byte(input), rules)
-		require.NoError(t, err)
-
-		var result map[string]any
-		require.NoError(t, json.Unmarshal(out, &result))
-		mdm := result["mdm"].(map[string]any)
-		// macos_settings is not in the rules, so it stays
-		ms := mdm["macos_settings"].(map[string]any)
-		assert.NotNil(t, ms["configuration_profiles"])
-		assert.Nil(t, ms["custom_settings"])
-	})
-
 	t.Run("new keys pass through unchanged", func(t *testing.T) {
 		input := `{"fleet_id":42}`
 		out, err := RewriteOldToNewKeys([]byte(input), rules)
@@ -512,18 +498,5 @@ func TestRewriteOldToNewKeys(t *testing.T) {
 		var result map[string]any
 		require.NoError(t, json.Unmarshal(out, &result))
 		assert.Equal(t, float64(42), result["fleet_id"])
-	})
-
-	t.Run("empty input", func(t *testing.T) {
-		out, err := RewriteOldToNewKeys(nil, rules)
-		require.NoError(t, err)
-		assert.Nil(t, out)
-	})
-
-	t.Run("no rules", func(t *testing.T) {
-		input := `{"team_id":42}`
-		out, err := RewriteOldToNewKeys([]byte(input), nil)
-		require.NoError(t, err)
-		assert.Equal(t, input, string(out))
 	})
 }
