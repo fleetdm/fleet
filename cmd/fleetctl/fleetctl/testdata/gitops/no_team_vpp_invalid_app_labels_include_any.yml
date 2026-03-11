@@ -1,0 +1,9 @@
+name: No team
+controls:
+policies:
+software:
+  app_store_apps:
+    - app_store_id: "1"
+      labels_include_any:
+        - non_existent_label
+        - b

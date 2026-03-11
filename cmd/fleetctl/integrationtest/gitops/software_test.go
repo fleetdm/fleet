@@ -375,6 +375,17 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that fleet"},
 		{"testdata/gitops/no_team_software_installer_valid_ipa.yml", ""},
 		{"testdata/gitops/no_team_software_installer_subdir_ipa.yml", ""},
+		// No team tests for VPP app labels
+		{"testdata/gitops/no_team_vpp_valid_app_labels_include_any.yml", ""},
+		{"testdata/gitops/no_team_vpp_valid_app_labels_exclude_any.yml", ""},
+		{
+			"testdata/gitops/no_team_vpp_invalid_app_labels_include_any.yml",
+			"Please create the missing labels, or update your settings to not refer to these labels.",
+		},
+		{
+			"testdata/gitops/no_team_vpp_invalid_app_labels_both.yml",
+			`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for app store app`,
+		},
 	}
 	for _, c := range cases {
 		c.noTeamFile = filepath.Join("../../fleetctl", c.noTeamFile)
