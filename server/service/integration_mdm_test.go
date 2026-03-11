@@ -4860,6 +4860,16 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 				}
 			}`,
 			expectedEUA:    true,
+			expectedLEUI:   true, // enabling EUA auto-enables LockEndUserInfo
+			expectedStatus: http.StatusOK,
+		},
+		{
+			raw: `"mdm": {
+				"macos_setup": {
+					"enable_end_user_authentication": true, "lock_end_user_info": false
+				}
+			}`,
+			expectedEUA:    true,
 			expectedLEUI:   false,
 			expectedStatus: http.StatusOK,
 		},
