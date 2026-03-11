@@ -1454,11 +1454,7 @@ Incidents of a severity/impact rating higher than **MINOR** shall trigger the re
 
 #### I - Identification and Triage
 
-1. Immediately upon observation, Fleet members report suspected and known Events, Precursors, Indications, and Incidents in one of the following ways:
-  - Direct report to management, CTO, CEO, or other
-  - Email
-  - Phone call
-  - Slack
+1. Immediately upon observation, Fleet members report suspected and known Events, Precursors, Indications, and Incidents by sending a message to the [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC) Slack channel, making sure to `@mention` **@Allen Houchins** and **@Pepper (Andrea Pepper)**. For anything serious or if there isn't a timely response, also follow up with a direct message (DM) to Allen Houchins and Pepper (Andrea Pepper).
 2. The individual receiving the report facilitates the collection of additional information about the incident, as needed, and notifies the CTO (if not already done).
 3. The CTO determines if the issue is an Event, Precursor, Indication, or Incident.
   - If the issue is an event, indication, or precursor, the CTO forwards it to the appropriate resource for resolution.
