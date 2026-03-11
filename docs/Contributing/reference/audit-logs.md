@@ -2356,6 +2356,8 @@ Generated when macOS setup experience is canceled due to software install failur
 This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "software_title_id": ID of the software title.
 
 #### Example
 
@@ -2363,6 +2365,8 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Adobe Acrobat.app",
+  "software_title_id": 12334
 }
 ```
 
