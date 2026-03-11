@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 )
 
 // ListTeams retrieves the list of teams.
@@ -55,7 +56,17 @@ func (c *Client) DeleteTeam(teamID uint) error {
 func (c *Client) ApplyTeams(specs []json.RawMessage, opts fleet.ApplyTeamSpecOptions) (map[string]uint, error) {
 	verb, path := "POST", "/api/latest/fleet/spec/fleets"
 	var responseBody applyTeamSpecsResponse
-	params := map[string]interface{}{"specs": specs}
+	// Rewrite deprecated key names in each team spec to use the new names.
+	rules := endpointer.ExtractAliasRules(fleet.TeamSpec{})
+	rewritten := make([]json.RawMessage, len(specs))
+	for i, spec := range specs {
+		updated, err := endpointer.RewriteOldToNewKeys(spec, rules)
+		if err != nil {
+			return nil, err
+		}
+		rewritten[i] = updated
+	}
+	params := map[string]interface{}{"specs": rewritten}
 	if opts.DryRun && opts.DryRunAssumptions != nil {
 		params["dry_run_assumptions"] = opts.DryRunAssumptions
 	}

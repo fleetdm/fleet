@@ -468,3 +468,62 @@ func TestAliasConflictError_ErrorMessage(t *testing.T) {
 	assert.Contains(t, err.Error(), "team_id")
 	assert.Contains(t, err.Error(), "fleet_id")
 }
+
+func TestRewriteOldToNewKeys(t *testing.T) {
+	rules := []AliasRule{
+		{OldKey: "team_id", NewKey: "fleet_id"},
+		{OldKey: "team", NewKey: "fleet"},
+		{OldKey: "custom_settings", NewKey: "configuration_profiles"},
+	}
+
+	t.Run("rewrites old keys to new", func(t *testing.T) {
+		input := `{"team_id":42,"name":"hello","team":"engineering"}`
+		out, err := RewriteOldToNewKeys([]byte(input), rules)
+		require.NoError(t, err)
+
+		var result map[string]any
+		require.NoError(t, json.Unmarshal(out, &result))
+		assert.Equal(t, float64(42), result["fleet_id"])
+		assert.Equal(t, "engineering", result["fleet"])
+		assert.Equal(t, "hello", result["name"])
+		assert.Nil(t, result["team_id"])
+		assert.Nil(t, result["team"])
+	})
+
+	t.Run("nested objects", func(t *testing.T) {
+		input := `{"mdm":{"macos_settings":{"custom_settings":[{"path":"foo.mobileconfig"}]}}}`
+		out, err := RewriteOldToNewKeys([]byte(input), rules)
+		require.NoError(t, err)
+
+		var result map[string]any
+		require.NoError(t, json.Unmarshal(out, &result))
+		mdm := result["mdm"].(map[string]any)
+		// macos_settings is not in the rules, so it stays
+		ms := mdm["macos_settings"].(map[string]any)
+		assert.NotNil(t, ms["configuration_profiles"])
+		assert.Nil(t, ms["custom_settings"])
+	})
+
+	t.Run("new keys pass through unchanged", func(t *testing.T) {
+		input := `{"fleet_id":42}`
+		out, err := RewriteOldToNewKeys([]byte(input), rules)
+		require.NoError(t, err)
+
+		var result map[string]any
+		require.NoError(t, json.Unmarshal(out, &result))
+		assert.Equal(t, float64(42), result["fleet_id"])
+	})
+
+	t.Run("empty input", func(t *testing.T) {
+		out, err := RewriteOldToNewKeys(nil, rules)
+		require.NoError(t, err)
+		assert.Nil(t, out)
+	})
+
+	t.Run("no rules", func(t *testing.T) {
+		input := `{"team_id":42}`
+		out, err := RewriteOldToNewKeys([]byte(input), nil)
+		require.NoError(t, err)
+		assert.Equal(t, input, string(out))
+	})
+}

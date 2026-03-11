@@ -145,6 +145,21 @@ func RewriteDeprecatedKeys(data []byte, rules []AliasRule) ([]byte, map[string]s
 	return buf.Bytes(), deprecatedKeysMap, nil
 }
 
+// RewriteOldToNewKeys replaces deprecated (old) key names with their new
+// equivalents in the JSON data. This is the reverse of what
+// RewriteDeprecatedKeys does — it's used by client code to send requests
+// using the updated field names so that the server doesn't log deprecation
+// warnings. It works by reversing the alias rules and delegating to
+// RewriteDeprecatedKeys.
+func RewriteOldToNewKeys(data []byte, rules []AliasRule) ([]byte, error) {
+	reversed := make([]AliasRule, len(rules))
+	for i, r := range rules {
+		reversed[i] = AliasRule{OldKey: r.NewKey, NewKey: r.OldKey}
+	}
+	result, _, err := RewriteDeprecatedKeys(data, reversed)
+	return result, err
+}
+
 // rewrite reads tokens from src, rewrites deprecated keys, checks for alias
 // conflicts, and writes the transformed JSON to w.
 func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
