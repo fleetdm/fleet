@@ -4,6 +4,7 @@
 import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 
+import Backblaze from "./Backblaze";
 import BetterDisplay from "./BetterDisplay";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
@@ -267,6 +268,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   avast: AvastSecureBrowser,
   "aws vpn client": AwsVpnClient,
   "aws client vpn": AwsVpnClient,
+  backblaze: Backblaze,
   balenaetcher: BalenaEtcher,
   bbedit: BBEdit,
   betterdisplay: BetterDisplay,
