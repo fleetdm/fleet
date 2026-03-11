@@ -11300,6 +11300,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 
 	t.Cleanup(func() {
 		acResp.MDM.MacOSSetup.EnableEndUserAuthentication = false
+		acResp.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
 		err := s.ds.SaveAppConfig(context.Background(), &acResp.AppConfig)
 		require.NoError(t, err)
 	})
