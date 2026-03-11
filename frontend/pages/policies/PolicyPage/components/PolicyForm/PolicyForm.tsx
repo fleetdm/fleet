@@ -791,7 +791,18 @@ const PolicyForm = ({
             value={lastEditedQueryBody}
             error={errors.query}
             label="Query"
-            labelActionComponent={renderLabelComponent()}
+            labelActionComponent={
+              isPatchPolicy ? (
+                <TooltipWrapper
+                  tipContent="Query is read-only for patch policies."
+                  position="top"
+                >
+                  <Icon name="info" size="small" />
+                </TooltipWrapper>
+              ) : (
+                renderLabelComponent()
+              )
+            }
             name="query editor"
             onLoad={onLoad}
             wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
@@ -800,11 +811,6 @@ const PolicyForm = ({
             wrapEnabled
             focus={!isExistingPolicy}
             readOnly={isPatchPolicy}
-            helpText={
-              isPatchPolicy
-                ? "This query is automatically managed by Fleet."
-                : undefined
-            }
           />
           {renderPlatformCompatibility()}
           {isExistingPolicy && !isPatchPolicy && platformSelector.render()}

@@ -8,6 +8,7 @@ import { getPathWithQueryParams } from "utilities/url";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon/Icon";
+import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 
 const baseClass = "policy-automations";
 
@@ -22,7 +23,8 @@ interface IPolicyAutomationsProps {
 interface IAutomationRow {
   name: string;
   type: string;
-  iconName: IconNames;
+  iconName?: IconNames;
+  isSoftware?: boolean;
   link?: string;
   sortOrder: number;
   sortName: string;
@@ -47,7 +49,7 @@ const PolicyAutomations = ({
     automationRows.push({
       name: storedPolicy.install_software.name,
       type: "Software",
-      iconName: "install",
+      isSoftware: true,
       link: getPathWithQueryParams(
         PATHS.SOFTWARE_TITLE_DETAILS(
           storedPolicy.install_software.software_title_id.toString()
@@ -145,11 +147,17 @@ const PolicyAutomations = ({
               className={`${baseClass}__row`}
             >
               <span className={`${baseClass}__row-name`}>
-                <Icon
-                  name={row.iconName}
-                  size="small"
-                  className={`${baseClass}__row-icon`}
-                />
+                {row.isSoftware ? (
+                  <SoftwareIcon name={row.name} size="small" />
+                ) : (
+                  row.iconName && (
+                    <Icon
+                      name={row.iconName}
+                      size="small"
+                      className={`${baseClass}__row-icon`}
+                    />
+                  )
+                )}
                 {row.link ? <Link to={row.link}>{row.name}</Link> : row.name}
               </span>
               <span className={`${baseClass}__row-type`}>{row.type}</span>
