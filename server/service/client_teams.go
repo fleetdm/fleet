@@ -66,7 +66,7 @@ func (c *Client) ApplyTeams(specs []json.RawMessage, opts fleet.ApplyTeamSpecOpt
 		}
 		rewritten[i] = updated
 	}
-	params := map[string]interface{}{"specs": rewritten}
+	params := map[string]any{"specs": rewritten}
 	if opts.DryRun && opts.DryRunAssumptions != nil {
 		params["dry_run_assumptions"] = opts.DryRunAssumptions
 	}
