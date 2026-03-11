@@ -807,6 +807,13 @@
       "description": "Hyper is a terminal built on web technologies."
     },
     {
+      "name": "IINA",
+      "slug": "iina/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.colliderli.iina",
+      "description": "IINA is a modern, free and open-source media player for macOS."
+    },
+    {
       "name": "iMazing Profile Editor",
       "slug": "imazing-profile-editor/darwin",
       "platform": "darwin",
@@ -1374,6 +1381,13 @@
       "description": "Santa is a binary authorization system for macOS."
     },
     {
+      "name": "Sequel Ace",
+      "slug": "sequel-ace/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sequelace.SequelAce",
+      "description": "Sequel Ace is a MySQL and MariaDB database manager for macOS."
+    },
+    {
       "name": "Shottr",
       "slug": "shottr/darwin",
       "platform": "darwin",
@@ -1589,6 +1603,13 @@
       "platform": "darwin",
       "unique_identifier": "com.smileonmymac.textexpander",
       "description": "TextExpander is an application that let's you create and insert pre-made snippets of text anywhere."
+    },
+    {
+      "name": "The Unarchiver",
+      "slug": "the-unarchiver/darwin",
+      "platform": "darwin",
+      "unique_identifier": "cx.c3.theunarchiver",
+      "description": "The Unarchiver is an archive extraction utility that supports many formats including ZIP, RAR, and 7z."
     },
     {
       "name": "Thunderbird",
@@ -1820,6 +1841,20 @@
       "platform": "windows",
       "unique_identifier": "Zoom Workplace (X64)",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
+    },
+    {
+      "name": "Zotero",
+      "slug": "zotero/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.zotero.zotero",
+      "description": "Zotero is a free tool for collecting, organizing, citing, and sharing research."
+    },
+    {
+      "name": "Zotero",
+      "slug": "zotero/windows",
+      "platform": "windows",
+      "unique_identifier": "Zotero",
+      "description": "Zotero is a free tool for collecting, organizing, citing, and sharing research."
     }
   ]
 }
