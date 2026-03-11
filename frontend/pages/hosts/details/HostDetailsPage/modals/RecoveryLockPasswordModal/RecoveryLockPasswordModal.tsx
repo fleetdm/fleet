@@ -49,32 +49,30 @@ const RecoveryLockPasswordModal = ({
       onEnter={onCancel}
       className={baseClass}
     >
-      <>
-        {isLoading && <Spinner />}
-        {recoveryLockPasswordError ? (
-          <DataError
-            description={getErrorReason(recoveryLockPasswordError) || undefined}
-          />
-        ) : (
-          !isLoading && (
-            <>
-              <InputFieldHiddenContent value={recoveryLockPassword ?? ""} />
-              <p>
-                Use this to unlock and regain access to the host if the end user
-                forgets their local password.{" "}
-                <CustomLink
-                  newTab
-                  url={`${LEARN_MORE_ABOUT_BASE_LINK}/startup-security-macos`}
-                  text="Learn more"
-                />
-              </p>
-              <div className="modal-cta-wrap">
-                <Button onClick={onCancel}>Done</Button>
-              </div>
-            </>
-          )
-        )}
-      </>
+      {isLoading && <Spinner />}
+      {recoveryLockPasswordError ? (
+        <DataError
+          description={getErrorReason(recoveryLockPasswordError) || undefined}
+        />
+      ) : (
+        !isLoading && (
+          <>
+            <InputFieldHiddenContent value={recoveryLockPassword ?? ""} />
+            <p>
+              Use this to unlock and regain access to the host if the end user
+              forgets their local password.{" "}
+              <CustomLink
+                newTab
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/startup-security-macos`}
+                text="Learn more"
+              />
+            </p>
+            <div className="modal-cta-wrap">
+              <Button onClick={onCancel}>Done</Button>
+            </div>
+          </>
+        )
+      )}
     </Modal>
   );
 };

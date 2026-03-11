@@ -46,25 +46,23 @@ const DeleteCertificateAuthorityModal = ({
       title="Delete certificate authority (CA)"
       onExit={onExit}
     >
-      <>
-        <p>
-          Fleet won&apos;t remove certificates from the certificate authority (
-          <b>{certAuthority.name}</b>) on existing hosts.
-        </p>
-        <div className="modal-cta-wrap">
-          <Button
-            variant="alert"
-            onClick={onDeleteCertAuthority}
-            isLoading={isUpdating}
-            disabled={isUpdating}
-          >
-            Delete
-          </Button>
-          <Button variant="inverse-alert" onClick={onExit}>
-            Cancel
-          </Button>
-        </div>
-      </>
+      <p>
+        Fleet won&apos;t remove certificates from the certificate authority (
+        <b>{certAuthority.name}</b>) on existing hosts.
+      </p>
+      <div className="modal-cta-wrap">
+        <Button
+          variant="alert"
+          onClick={onDeleteCertAuthority}
+          isLoading={isUpdating}
+          disabled={isUpdating}
+        >
+          Delete
+        </Button>
+        <Button variant="inverse-alert" onClick={onExit}>
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };
