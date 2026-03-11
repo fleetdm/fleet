@@ -16,7 +16,7 @@ You can enforce OS settings using the Fleet UI, Fleet API, or [Fleet's best prac
 
 Fleet UI:
 
-1. In the Fleet UI, head to the **Controls > OS settings > Custom settings** page.
+1. In the Fleet UI, head to the **Controls > OS settings > Configuration profiles** page.
 
 2. Choose which team you want to add a configuration profile to by selecting the desired team in the teams dropdown in the upper left corner. Teams are available in Fleet Premium.
 
@@ -77,21 +77,19 @@ If you want to make sure the profile stays device-scoped, update `PayloadScope` 
 
 In the Fleet UI, head to the **Controls > OS settings** tab.
 
-To see the status of a specific setting, hover over the setting's row in the **Custom settings** table and select the information (**i**) icon.
+To see the status of a specific setting, hover over the setting's row in the **Configuration profiles** table and select the information (**i**) icon.
 
 Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 seconds for the profile's status to update to "Pending."
 
 ### Verified
 
-> For some Windows configuration profiles, [verification doesn't work](https://github.com/fleetdm/fleet/issues/38833). Fleet will [remove verification](https://github.com/fleetdm/fleet/issues/31921) for Windows profiles in 4.83 (coming soon).
-
-Hosts that applied all OS settings. 
+Hosts that applied all OS settings.
 
 For macOS configuration profiles and device-scoped Windows profiles, Fleet verified by running an osquery query. It can take up to 1 hour ([configurable](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-detail-update-interval)) for these profiles to move from "Verifying" to "Verified".
 
 macOS declarations profiles are verified with a [DDM StatusReport](https://developer.apple.com/documentation/devicemanagement/statusreport).
 
-User-scoped Windows profiles are "Verified" after Fleet gets a [200 response](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes) from the Windows MDM protocol.
+User-scoped Windows profiles are "Verified" after Fleet gets a [200 response](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes) from the Windows MDM protocol. _Note: Windows profiles are not verified by osquery._
 
 iOS and iPadOS hosts are "Verified" after they acknowledge all MDM commands to apply OS settings. Android hosts are "Verified" after Fleet verifies that the settings is applied in the next [status report](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices).
 
@@ -112,26 +110,6 @@ Hosts that failed to apply OS settings. For Windows profiles, status codes are l
 macOS, iOS, or iPadOS hosts may display OS settings as "Failed" even when MDM is turned off. This can happen if MDM was previously enabled and the enrollment profile was deleted while the host was offline. Because Fleet never received [confirmation](https://developer.apple.com/documentation/devicemanagement/check-out) that the enrollment profile was removed, it continues sending MDM commands and checking their status, which always fails. 
 
 To resolve this issue, turn MDM back on, then select **Actions > Turn off MDM** while the host is online.
-
-### Special Windows behavior
-
-For Windows configuration profiles with the [Win32 and Desktop Bridge app ADMX policies](https://learn.microsoft.com/en-us/windows/client-management/win32-and-centennial-app-policy-configuration), Fleet only verifies that the host returned a success status code in response to the MDM command to install the configuration profile. You can query the registry keys defined by the ADMX policy. For instance, if an ADMX file defines the following policy:
-```
-      <policy name="Subteam" class="Machine" displayName="Subteam" key="Software\Policies\employee\Attributes" explainText="Subteam" presentation="String">
-         <parentCategory ref="DefaultCategory" />
-         <supportedOn ref="SUPPORTED_WIN10" />
-         <elements>
-            <text id="Subteam" valueName="Subteam" />
-         </elements>
-      </policy>
-```
-
-To verify that the OS setting is applied, run the following osquery query:
-```
-SELECT data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Policies\employee\Attributes\Subteam';
-```
-
-> If your Windows profile fails with the following error: "The MDM protocol returned a success but the result couldn’t be verified by osquery", and the profile includes `[!CDATA []]` sections, [escape the XML](https://www.freeformatter.com/xml-escape.html) instead of using CDATA. For example, `[!CDATA[<enabled/>]]>` should be changed to `&lt;enabled/&gt;`.
 
 ### Special Android behvaior
 
