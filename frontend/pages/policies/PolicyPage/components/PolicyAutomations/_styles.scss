@@ -1,0 +1,76 @@
+.policy-automations {
+  margin-top: $pad-medium;
+  max-width: 600px;
+
+  &__cta-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: $pad-medium;
+    background-color: $ui-fleet-black-5;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: 8px;
+    margin-bottom: $pad-medium;
+  }
+
+  &__cta-label {
+    font-size: $small;
+    font-weight: $bold;
+    color: $core-fleet-black;
+  }
+
+  &__list {
+    margin-top: $pad-small;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: 8px;
+    padding: 0 $pad-medium;
+  }
+
+  &__list-header {
+    font-size: $xx-small;
+    font-weight: $bold;
+    text-transform: uppercase;
+    color: $ui-fleet-black-50;
+    padding-top: $pad-medium;
+    padding-bottom: $pad-small;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-top: 1px solid $ui-fleet-black-10;
+  }
+
+  &__row-icon {
+    margin-right: $pad-small;
+    vertical-align: middle;
+    color: $ui-fleet-black-50;
+  }
+
+  .software-icon {
+    margin-right: $pad-small;
+  }
+
+  &__row-name {
+    display: flex;
+    align-items: center;
+    font-size: $x-small;
+    color: $core-fleet-black;
+
+    a {
+      color: $core-vibrant-blue;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  &__row-type {
+    font-size: $x-small;
+    color: $ui-fleet-black-50;
+  }
+}
