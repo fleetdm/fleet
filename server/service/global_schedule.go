@@ -37,7 +37,7 @@ func getGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc fle
 }
 
 func (svc *Service) GetGlobalScheduledQueries(ctx context.Context, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
-	queries, _, _, err := svc.ListQueries(ctx, opts, nil, ptr.Bool(true), false, nil) // teamID == nil means global
+	queries, _, _, _, err := svc.ListQueries(ctx, opts, nil, ptr.Bool(true), false, nil) // teamID == nil means global
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func (svc *Service) GetGlobalScheduledQueries(ctx context.Context, opts fleet.Li
 ////////////////////////////////////////////////////////////////////////////////
 
 type globalScheduleQueryRequest struct {
-	QueryID  uint    `json:"query_id"`
+	QueryID  uint    `json:"query_id" renameto:"report_id"`
 	Interval uint    `json:"interval"`
 	Snapshot *bool   `json:"snapshot"`
 	Removed  *bool   `json:"removed"`

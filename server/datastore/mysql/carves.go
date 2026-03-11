@@ -198,7 +198,7 @@ func (ds *Datastore) CarveBySessionId(ctx context.Context, sessionId string) (*f
 	var metadata fleet.CarveMetadata
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &metadata, stmt, sessionId); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("CarveBySessionId").WithName(sessionId))
+			return nil, ctxerr.Wrap(ctx, notFound("CarveBySessionId").WithName(sessionId), "carve not found")
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get carve by session ID")
 	}

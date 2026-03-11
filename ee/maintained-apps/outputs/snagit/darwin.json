@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2026.0.0",
+      "version": "2026.0.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.TechSmith.Snagit';"
       },
-      "installer_url": "https://download.techsmith.com/snagitmac/releases/2600/snagit.dmg",
+      "installer_url": "https://download.techsmith.com/snagitmac/releases/2601/snagit.dmg",
       "install_script_ref": "e4207142",
       "uninstall_script_ref": "c5a5aac4",
-      "sha256": "ecb9477ea8311adf534e3127be5dae5efa03b49d9e8b2c72c07eba86afd65328",
+      "sha256": "2dd08df41232b4791e8e727185e15e568dd9bf644f665625ffc3e9f5a189c4d1",
       "default_categories": [
         "Productivity"
       ]

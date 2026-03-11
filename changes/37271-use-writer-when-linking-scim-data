@@ -1,1 +1,0 @@
-- Fixed an issue where newly-enrolled hosts would sometimes not be linked to SCIM user data.

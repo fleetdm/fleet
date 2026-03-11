@@ -26,8 +26,7 @@ const getPlatformMessage = (isAppStoreApp: boolean, isAndroidApp: boolean) => {
   if (isAndroidApp) {
     return (
       <p>
-        Currently, software won&apos;t be deleted from self-service (managed
-        Google Play) and won&apos;t be uninstalled from the hosts.
+        Software <strong>will be uninstalled</strong> from hosts.
       </p>
     );
   }
@@ -87,7 +86,7 @@ const DeleteSoftwareModal = ({
     setIsDeleting(true);
     try {
       await softwareAPI.deleteSoftwareInstaller(softwareId, teamId);
-      renderFlash("success", "Software deleted successfully!");
+      renderFlash("success", "Successfully deleted software.");
       onSuccess();
     } catch (error) {
       const reason = getErrorReason(error);
@@ -110,28 +109,26 @@ const DeleteSoftwareModal = ({
       onExit={onExit}
       isContentDisabled={isDeleting}
     >
-      <>
-        {gitOpsModeEnabled && (
-          <InfoBanner className={`${baseClass}__gitops-warning`}>
-            You are currently in GitOps mode. If the package is defined in
-            GitOps, it will reappear when GitOps runs.
-          </InfoBanner>
-        )}
-        {getPlatformMessage(isAppStoreApp, isAndroidApp)}
-        <p>Custom icon and display name will be deleted.</p>
-        <div className="modal-cta-wrap">
-          <Button
-            variant="alert"
-            onClick={onDeleteSoftware}
-            isLoading={isDeleting}
-          >
-            Delete
-          </Button>
-          <Button variant="inverse-alert" onClick={onExit}>
-            Cancel
-          </Button>
-        </div>
-      </>
+      {gitOpsModeEnabled && (
+        <InfoBanner className={`${baseClass}__gitops-warning`}>
+          You are currently in GitOps mode. If the package is defined in GitOps,
+          it will reappear when GitOps runs.
+        </InfoBanner>
+      )}
+      {getPlatformMessage(isAppStoreApp, isAndroidApp)}
+      <p>Custom icon and display name will be deleted.</p>
+      <div className="modal-cta-wrap">
+        <Button
+          variant="alert"
+          onClick={onDeleteSoftware}
+          isLoading={isDeleting}
+        >
+          Delete
+        </Button>
+        <Button variant="inverse-alert" onClick={onExit}>
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

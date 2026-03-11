@@ -1,0 +1,1 @@
+- Fixed an issue where GitOps would not respect the value set on `update_new_hosts` for macOS updates.

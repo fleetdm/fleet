@@ -130,27 +130,25 @@ const DeleteConditionalAccessModal = ({
       onExit={toggleDeleteConditionalAccessModal}
       onEnter={handleDelete}
     >
-      <>
-        {copy}
-        <div className="modal-cta-wrap">
-          <Button
-            type="button"
-            variant="alert"
-            onClick={handleDelete}
-            isLoading={isDeleting}
-            disabled={isDeleting}
-          >
-            Delete
-          </Button>
-          <Button
-            onClick={toggleDeleteConditionalAccessModal}
-            variant="inverse-alert"
-            disabled={isDeleting}
-          >
-            Cancel
-          </Button>
-        </div>
-      </>
+      {copy}
+      <div className="modal-cta-wrap">
+        <Button
+          type="button"
+          variant="alert"
+          onClick={handleDelete}
+          isLoading={isDeleting}
+          disabled={isDeleting}
+        >
+          Delete
+        </Button>
+        <Button
+          onClick={toggleDeleteConditionalAccessModal}
+          variant="inverse-alert"
+          disabled={isDeleting}
+        >
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };
@@ -161,6 +159,7 @@ enum EntraPhase {
   ConfirmationError = "confirmation-error",
   AwaitingOAuth = "awaiting-oauth",
   Configured = "configured",
+  ConsentMissing = "consent-missing",
 }
 
 const ConditionalAccess = () => {
@@ -206,8 +205,7 @@ const ConditionalAccess = () => {
           "Successfully verified Microsoft Entra conditional access integration"
         );
       } else {
-        setEntraPhase(EntraPhase.NotConfigured);
-
+        setEntraPhase(EntraPhase.ConsentMissing);
         if (
           // IT admin did not complete the consent.
           !setup_error ||
@@ -265,8 +263,13 @@ const ConditionalAccess = () => {
   // Note: entraPhase is intentionally included in the dependency array to allow
   // manual phase overrides (e.g., AwaitingOAuth) to persist until config changes
   useEffect(() => {
-    // Don't check config if we're in AwaitingOAuth phase
-    if (entraPhase === EntraPhase.AwaitingOAuth) {
+    const finalStates = [
+      EntraPhase.AwaitingOAuth, // Don't check config if we're in AwaitingOAuth phase
+      EntraPhase.ConfirmationError, // Don't do confirm call if we are in a final error state
+      EntraPhase.ConsentMissing, // Don't do confirm call if after tenant ID provided, something went wrong
+    ];
+
+    if (finalStates.includes(entraPhase)) {
       return;
     }
 
@@ -388,26 +391,46 @@ const ConditionalAccess = () => {
           )
         }
       >
-        {oktaConfigured
-          ? "Okta conditional access configured"
-          : "Connect Okta to enable conditional access."}
+        {oktaConfigured ? (
+          <span>
+            <TooltipWrapper
+              tipContent={
+                <>
+                  <b>IdP ID:</b> {config?.conditional_access?.okta_idp_id}
+                </>
+              }
+            >
+              Okta
+            </TooltipWrapper>{" "}
+            conditional access connected.
+          </span>
+        ) : (
+          "Connect Okta to enable conditional access."
+        )}
       </SectionCard>
     );
   };
 
   const renderEntraContent = () => {
-    if (entraPhase === EntraPhase.ConfirmingConfigured) {
-      return (
-        <SectionCard header="Microsoft Entra">
-          <Spinner />
-        </SectionCard>
-      );
-    }
-
     if (entraPhase === EntraPhase.ConfirmationError) {
       return (
         <SectionCard header="Microsoft Entra">
           <DataError />
+        </SectionCard>
+      );
+    }
+
+    if (entraPhase === EntraPhase.ConfirmingConfigured) {
+      return (
+        <SectionCard
+          header="Microsoft Entra"
+          cta={
+            <Button isLoading disabled>
+              Connect
+            </Button>
+          }
+        >
+          Please wait until Microsoft Entra configuration is confirmed.
         </SectionCard>
       );
     }
@@ -435,9 +458,22 @@ const ConditionalAccess = () => {
       entraCta = <Button onClick={toggleEntraModal}>Connect</Button>;
     }
 
-    let entraContent: string;
+    let entraContent: React.ReactNode;
     if (entraIsConfigured) {
-      entraContent = "Microsoft Entra conditional access configured";
+      entraContent = (
+        <span>
+          <TooltipWrapper
+            tipContent={
+              <>
+                <b>Tenant ID:</b> {entraTenantId}
+              </>
+            }
+          >
+            Microsoft Entra
+          </TooltipWrapper>{" "}
+          conditional access connected.
+        </span>
+      );
     } else if (entraIsAwaitingOAuth) {
       entraContent =
         "To complete your integration, follow the instructions in the other tab, then refresh this page to verify.";
@@ -500,7 +536,7 @@ const ConditionalAccess = () => {
           />
         )}
       </div>
-      {(oktaConfigured || entraPhase === EntraPhase.Configured) && (
+      {oktaConfigured && (
         <div className={`${baseClass}__end-user-experience`}>
           <SectionHeader title="End user experience" />
           <form onSubmit={handleSaveBypassSettings}>
@@ -513,8 +549,7 @@ const ConditionalAccess = () => {
               <TooltipWrapper
                 tipContent={
                   <>
-                    When enabled, end users will have the option to bypass Okta
-                    conditional access if they are unable to resolve failing
+                    Disables bypassing Okta conditional access for non-critical
                     policies.{" "}
                     <em>
                       (Default: <strong>Off</strong>)
@@ -522,12 +557,12 @@ const ConditionalAccess = () => {
                     <br />
                     <br />
                     Bypassing is valid for a single login attempt and is tracked
-                    in audit logs.
+                    in audit logs. Critical policies can never be bypassed.
                   </>
                 }
                 showArrow={false}
               >
-                Allow end user to temporarily restore access
+                Disable bypass
               </TooltipWrapper>
             </Checkbox>
             <Button

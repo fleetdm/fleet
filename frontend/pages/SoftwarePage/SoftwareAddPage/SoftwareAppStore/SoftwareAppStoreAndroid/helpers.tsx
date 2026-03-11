@@ -27,7 +27,7 @@ export const getErrorMessage = (e: unknown): string | ReactElement => {
 
     // TODO: What is the check for a Android app? assuming "VPPApp" check won't suffice
     if (reason.includes("VPPApp")) {
-      return `${ADD_SOFTWARE_ERROR_PREFIX} The software is already available to install on this team.`;
+      return `${ADD_SOFTWARE_ERROR_PREFIX} The software is already available to install in this fleet.`;
     }
   }
 

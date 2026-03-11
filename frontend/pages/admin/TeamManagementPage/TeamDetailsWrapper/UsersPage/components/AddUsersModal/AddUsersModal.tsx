@@ -47,7 +47,7 @@ const AddUsersModal = ({
       <form className={`${baseClass}__form`}>
         <div className="form-field">
           <label className="form-field__label" htmlFor="user-autocomplete">
-            Grant users access to this team
+            Grant users access to this fleet
           </label>
           <AutocompleteDropdown
             team={team}

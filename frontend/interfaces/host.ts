@@ -112,14 +112,26 @@ export interface IHostAndroidCert {
   detail: string;
 }
 
+export type RecoveryLockPasswordStatus =
+  | "verified"
+  | "verifying"
+  | "pending"
+  | "failed";
+
+// Prefer this over IMdmMacOsSettings, introduced MDM has expanded to non-mac platforms
 export interface IOSSettings {
   disk_encryption: {
     status: DiskEncryptionStatus | null;
     detail: string;
   };
+  recovery_lock_password?: {
+    status: RecoveryLockPasswordStatus;
+    detail: string;
+  };
   certificates: IHostAndroidCert[];
 }
 
+// Legacy Mac mdm settings. Prefer IOSSettings
 interface IMdmMacOsSettings {
   disk_encryption: DiskEncryptionStatus | null;
   action_required: MacDiskEncryptionActionRequired | null;
@@ -215,7 +227,8 @@ export interface IHostResponse {
   host: IHost;
 }
 
-export interface IDeviceUserResponse {
+// Device User Page
+export interface IDUPDetails {
   host: IHostDevice;
   license: ILicense;
   org_logo_url: string;
@@ -232,6 +245,14 @@ export interface IHostEncrpytionKeyResponse {
   encryption_key: {
     updated_at: string;
     key: string;
+  };
+}
+
+export interface IHostRecoveryLockPasswordResponse {
+  host_id: number;
+  recovery_lock_password: {
+    updated_at: string;
+    password: string;
   };
 }
 
@@ -326,6 +347,7 @@ export interface IHost {
   device_mapping: IDeviceUser[] | null;
   /** There will be at most 1 end user */
   end_users?: IHostEndUser[];
+  conditional_access_bypassed: boolean;
 }
 
 /*

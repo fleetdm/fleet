@@ -1,7 +1,7 @@
 import React, { useContext, useState } from "react";
 import { AxiosResponse } from "axios";
 import { Location } from "history";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
 import { useErrorHandler } from "react-error-boundary";
 
@@ -107,7 +107,7 @@ const FleetAppSummary = ({
 };
 
 export interface IFleetMaintainedAppDetailsQueryParams {
-  team_id?: string;
+  fleet_id?: string;
 }
 
 interface IFleetMaintainedAppDetailsRouteParams {
@@ -131,13 +131,14 @@ const FleetMaintainedAppDetailsPage = ({
   router,
   routeParams,
 }: IFleetMaintainedAppDetailsPageProps) => {
-  const teamId = location.query.team_id;
+  const teamId = location.query.fleet_id;
   const appId = parseInt(routeParams.id, 10);
   if (isNaN(appId)) {
     router.push(PATHS.SOFTWARE_ADD_FLEET_MAINTAINED);
   }
 
   const { renderFlash } = useContext(NotificationContext);
+  const queryClient = useQueryClient();
 
   const handlePageError = useErrorHandler();
   const { isPremiumTier } = useContext(AppContext);
@@ -204,7 +205,7 @@ const FleetMaintainedAppDetailsPage = ({
 
   const backToAddSoftwareUrl = getPathWithQueryParams(
     PATHS.SOFTWARE_ADD_FLEET_MAINTAINED,
-    { team_id: teamId }
+    { fleet_id: teamId }
   );
 
   const onCancel = () => {
@@ -225,11 +226,18 @@ const FleetMaintainedAppDetailsPage = ({
         appId,
       });
 
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-titles" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "fleet-maintained-apps" }],
+      });
+
       router.push(
         getPathWithQueryParams(
           PATHS.SOFTWARE_TITLE_DETAILS(softwareFmaTitleId.toString()),
           {
-            team_id: teamId,
+            fleet_id: teamId,
           }
         )
       );

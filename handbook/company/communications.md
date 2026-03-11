@@ -20,7 +20,7 @@ The "[¶ 🗣 E-Group weekly [no shadows]](https://docs.google.com/document/d/13
 
 ### Strategy
 
-You can read background about how Fleet reached its positioning and product strategy in ["🎐 Why Fleet?" (private Google doc)](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#). You can read about Fleet's Go-To-Market (GTM) strategy on our [Go-To-Market groups page](https://fleetdm.com/handbook/company/go-to-market-groups).
+You can read background about how Fleet reached its positioning and product strategy in ["🎐 Why Fleet?" (private Google doc)](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#). You can read about Fleet's Go-To-Market (GTM) strategy on our [Go-To-Market ops page](https://fleetdm.com/handbook/company/go-to-market-operations).
 
 You can read the [Fleet ideal customer profile (ICP) and core personas doc (confidential)](https://docs.google.com/document/d/1ffsPCS6KGrHQFF7EgRLz1z2mOvtZwMSGyfDezOuOUwc/edit?tab=t.0#heading=h.xbsablobgthj) to understand how we identify our prospects.
 
@@ -43,7 +43,7 @@ Security policies are best when they're alive, in context of how an organization
 Fleet is successful because of our customers and community, and those relationships are built on [trust](https://fleetdm.com/trust).
 
 > **Compliance**
-> Community members can request compliance documentation (e.g. Fleet's SOC2 Type 2 report) at https://fleetdm.com/trust. In its current form, our SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement (NDA) with Fleet. Internal stakeholders can [download approved documents](https://fleetdm.com/handbook/company/go-to-market-groups#fleets-vendor-collateral) from Google Drive.
+> Community members can request compliance documentation (e.g. Fleet's SOC2 Type 2 report) at https://fleetdm.com/trust. In its current form, our SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement (NDA) with Fleet. Internal stakeholders can [download approved documents](https://fleetdm.com/handbook/company/go-to-market-operations#fleets-vendor-collateral) from Google Drive.
 
 
 ## Directly responsible individuals (DRIs)
@@ -161,7 +161,7 @@ Videos are transcribed, and this makes it easier to find required redactions dur
 
 To schedule a meeting within Fleet:
 - To add a Zoom meeting to a calendar event, click the "Add video conferencing" dropdown and select "Zoom Meeting." Google Calendar will automatically add the Zoom meeting details and instructions to join the event.
-- Enter the `@fleetdm.com` emails for each participant into the "Add guests" box in Google Calendar, and the calendar availability for each participant will appear in your view.
+- Enter the `@fleetdm.com` emails for each participant into the "Add guests" box in Google Calendar, and the calendar availability for each participant will appear in your view. Do not use "Optional" for invitees.
 - Select a meeting time, the participants will automatically be invited and a video conference will be attached to the invite (this can save a lot of communication overhead when scheduling with multiple participants).
 
 **Internal meeting scheduling**: Fleet uses the Zoom add-on for Google Calendar to schedule meetings (exceptions are customers that are non-negotiably required to use a different tool) when we [create calendar events](https://support.google.com/calendar/answer/72143?hl=en&ref_topic=10510646&sjid=7187599067132459840-NA#zippy=%2Cclick-an-empty-time-in-your-calendar). 
@@ -215,6 +215,11 @@ Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valu
 > **Are you scheduling time with the CEO?**
 >
 > Please do not add events to the CEO's calendar, *even if the CEO asks you to*. Instead, [get scheduling help from the Executive Assistant](https://fleetdm.com/handbook/company/leadership#schedule-time-with-the-ceo)).
+
+
+## Shadowing meetings
+
+Calendars at Fleet are public for all Fleeties, and anyone can join any meeting that doesn't say `[no shadows]`. The invitees for a recurring calendar event are those who are mandatory for the meeting. If you are interested in joining a call, add yourself to a particular instance of the meeting. Do not mark yourself as "Optional" in Google Calendar.
 
 
 ## Email relays
@@ -284,6 +289,73 @@ We have specific channels for various topics, but we also have more general chan
 | `#random`                   | Be random.
 
 
+## AI usage guidelines
+
+We encourage everyone to use AI tools to work more efficiently, think more creatively, and free yourself from repetitive, low-value tasks so you can spend more time on work that's interesting, complex, and uniquely human. These guidelines exist not to restrict how you use AI, but to make sure we're using it responsibly and in a way that protects our customers, our teammates, and the quality of our work.
+
+
+### Available AI tools
+
+You have access to the following tools and can use whatever combination best fits your work:
+
+- **Gemini:** included with your Google Workspace account.
+- **GitHub Copilot:** available by request through GitHub.
+- **Claude:** available to all Fleeties using their @fleetdm.com account.
+- **ChatGPT or other general-purpose assistants:** approval from your manager and expense via your Brex card.
+
+You're not limited to this list. If another tool would help you do your job better, use it. Expense it via Brex if there's a cost, and use the judgment in these guidelines to do so responsibly.
+
+
+### Integrated AI tools
+
+Gemini is natively integrated into Google Workspace and can be used with internal content within that environment. Claude is the AI tool we are integrating with Google Workspace and all other internal systems (e.g. Slack, Salesforce, etc.) Because these tools operate under our enterprise agreements and data protections, they are approved for use with internal data in accordance with the confidentiality guidelines below.
+
+No other AI tools are approved for integration with or direct access to internal systems at this time. You can still use other tools for general-purpose work, but they should not be connected to, granted access to, or used as a pipeline for internal systems, data stores, or company accounts beyond what is described above.
+
+> **Note:** When using tools other than Gemini, GitHub Copilot, and Claude with your @fleetdm.com account, your usage is considered personal or individual. Be mindful of this when inputting any company-related content into those tools.
+
+
+### You own the output
+
+AI is a tool. It is not a colleague, not a reviewer, and not someone you can hand off accountability to. When you use AI to produce work, that work is yours. You are responsible for its accuracy, quality, and appropriateness before it goes anywhere.
+
+In practice, this means:
+
+- **Code:** Review it before you ship it. AI-generated code can contain bugs, security issues, or logic errors that look correct at a glance. Test it. Read it. Understand it.
+- **Written content:** Verify facts and figures. AI tools can confidently state things that are wrong. If you are sending a communication or publishing content based on AI output, confirm anything factual before it goes out.
+- **Emails and communication:** Apply judgment to tone and substance. AI doesn't know your audience, your relationships, or the full context of a situation. An AI-drafted email may be technically fine but miss the mark entirely. Edit with intent.
+- **Analysis and summaries:** Check that they reflect the source. AI can hallucinate or oversimplify. If you are summarizing a document or producing a report, verify the output against the original.
+
+The bottom line: don't put your name on something you haven't actually reviewed. That applies to AI-generated work the same as anything else.
+
+
+### Protect customer and confidential information
+
+This is a hard rule: do not input confidential or private information into personal AI tools.
+
+Most consumer-facing AI tools (including free and personal-tier accounts) use your inputs to improve their models. Even when they don't, there's no guarantee your data stays private or secure. In systems that do not utilize managed enterprise accounts with appropriate data protections, treat these tools as if anything you type could be seen by others.
+
+What this means in practice:
+
+- No customer names, emails, device data, usage data, or anything else a customer has shared with us.
+- No internal credentials, API keys, tokens, or access information.
+- No unpublished financials, pricing details, or strategic plans that aren't public.
+- No personnel information like performance reviews, compensation, HR matters, etc.
+
+If you are unsure whether something counts as confidential, default to not including it. Paraphrase or describe the problem in general terms instead. You can usually get the help you need without sharing sensitive specifics.
+
+
+### When in doubt, ask
+
+These guidelines are meant to cover the common cases, not every possible scenario. If you are not sure whether a particular use is appropriate, or you're considering a tool or workflow that feels like it might be pushing against the spirit of these guidelines, just ask.
+
+There are no wrong questions here. We'd rather you check than skip a useful tool out of unnecessary caution or use one in a way that creates a problem we didn't anticipate.
+
+Reach out to your manager or drop a message in [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) on Slack.
+
+These guidelines will evolve as AI tools and our use of them mature.
+
+
 ## Fleetdm.com
 
 Any change to fleetdm.com follows the same process as [making changes](https://fleetdm.com/handbook/company/product-groups#making-changes) to the core product. To propose a change to Fleet's website [create a website request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-website&projects=&template=website-request.md&title=Website%20request%3A+__________________________) on the #g-website kanban board. 
@@ -348,7 +420,7 @@ _**Note:**_ There are only a few "special" labels that are exceptions to this ru
 - `story` A user story.
 - `timebox` A timeboxed issue (a task or bug limited to a fixed duration, after which work stops regardless of completion).
 -  `prospect-` A customer prospect.
-- `P-` A [priority level](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs).
+- `P-` A [priority level](https://fleetdm.com/handbook/product-groups#high-priority-user-stories-and-bugs).
 
 
 > If you're adding multiple labels to an issue template, GitHub won't add both labels unless you put them in an array e.g. `labels: ['~air-guitar', ':product']`.  To verify the syntax is correct, you can preview the template and make sure each label name is in a separate box.  
@@ -358,7 +430,6 @@ _**Note:**_ There are only a few "special" labels that are exceptions to this ru
 >
 > If you need to track content from a Slack channel (e.g. #help-customers), you can automatically generate a GitHub issue by adding the emoji `create-github-issue` as a reaction to any message. This will automatically: 
 > - Create an issue tagged with the departmental GitHub label that corresponds with the Slack channel. If there isn't a corresponding departmental label for the channel, the issue defaults to the [:help-it](https://github.com/orgs/fleetdm/projects/101) kanban board.
-
 
 
 ### Process new requests
@@ -372,7 +443,6 @@ To process intake team members will:
 - If the task is to be backlogged (i.e. "Not yet"), place the issue in the "Not yet" column and at-mention the requestor in an issue comment. Explain why the task is unable to be prioritized and provide a tentative ETA on when the task will be completed.
 
 
-
 ### Propose an event
 
 Fleet's Marketing team is responsible for deciding/signing off on the events Fleet will participate in. This includes any event that Fleet pays to attend or sponsor, and even events where Fleet's only involvement is that a Fleetie will give a talk or otherwise represent the brand.
@@ -380,55 +450,14 @@ Fleet's Marketing team is responsible for deciding/signing off on the events Fle
 To propose an event, complete the steps in the [Propose event issue](https://github.com/fleetdm/confidential/issues/new?template=prepare-event.md). Once the request has been submitted with all necessary information, the marketing team will process your request within 72 business hours.
 
 
-
-### Estimation points
-
-Estimation points represent the effort required to complete a task. After accessing wireframes, we typically play planning poker, a gamified estimation technique, to determine the necessary story point value. We use the following story points to estimate tasks:
-
-| Story point | Time |
-|:---|:--------------|
-| 1  | 1 to 2 hours  |
-| 2  | 2 to 4 hours  |
-| 3  | 1 day         |
-| 5  | 2 to 3 days   |
-| 8  | Up to a week  |
-| 13 | 1 to 2 weeks  |
-
-> Larger projects are estimated in a way that can sometimes look disproportionate to account for edge cases that weren't caught during planning. This helps us develop [iteratively](https://fleetdm.com/handbook/company#results) and deliver bite-sized functionality on more predictable time scales.
-
-
-## High-priority user stories and bugs
-
-All issues are treated as standard priority by default. Some issues are assigned a priority label to indicate the level of urgency.
-
-- Emergency: `P0`
-  - Examples: Customer outage, confirmed security vulnerability ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a new feature is needed to address an immediate Fleet emergency.
-  - Response: Immediately stop other work to swarm the issue. Work 24/7 in shifts until resolved.
-  - Impact: Significant impact. May void current sprint.
-
-- Critical: `P1`
-  - Examples: A supported workflow is broken ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a potential security vulnerability, a new feature is required to address an immediate critical Fleet need.
-  - Response: Issue brought to next standup for estimation and immediately brought into the sprint. Necessary team members are assigned as their top priority.
-  - Impact: High impact. Does not void sprint, but reduces overall velocity and requires deprioritizing other work.
-
-- Urgent: `P2`
-  - Examples: A supported workflow is not functioning as intended, a newly drafted feature has an associated urgent Fleet need.
-  - Response: Issue is prioritized at the top of the next sprint. If opportunity cost of waiting for the next sprint is too high, it may be considered for current sprint.
-  - Impact: Low to medium impact. If prioritized into current sprint, may reduce overall velocity and require deprioritizing other work.
-
-Any fleetie can follow the process below to add a priority label to an issue.
-
-1. Add as much context as possible to the issue description and assign labels to help the team
-   understand the problem and what is driving the urgency. 
-2. Add the `P0`, `P1`, or `P2` label based on the urgency of the issue. 
-3. Comment on the GitHub issue explaining why the issue is a priority, and assign the issue to the [Engineering Manager for the associated product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups). For immediate action, follow up with the EM via Slack DM or by phone.
-4. The EM will review the issue to determine if it meets the criteria for the assigned priority label. If so, they will triage as needed based on priority level. If not, they will remove the priority label and add a comment on the issue explaining why.
-
 ## Contributing to the handbook and docs
 
 > Fleet operates as a [handbook-first](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy) company.  If something has changed, it is up to you to update the handbook first.  If the change can't be handbooked in 1 business day, or if you are stuck waiting on a review before it can be merged, get a handbook coach.  They'll pair with you in a scheduled meeting on your calendar and help.  To get a handbook coach, ask [Sam Pfluger](https://fleetdm.slack.com/team/U05CS07KASK) in Slack.
 
 Learn how to contribute to the handbook, documentation, and articles at Fleet on the ["Writing at Fleet" handbook page](https://fleetdm.com/handbook/company/writing).
+
+## Social media 
+When posting about a personal or philosophical topic that potential Fleet customers might read, consider adding a disclaimer that these are your views and don’t necessarily represent your company or peers.
 
 
 ## Feedback
@@ -662,7 +691,7 @@ Variable compensation (i.e. commission) is reviewed and submitted for processing
 
 #### Compensation changes
 
-Fleet benchmarks US-based team members based on the United States Dollar (USD). Non-US Fleeties are benchmarked in the local currency.  Compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Head of People is responsible for the process to [update compensation](https://fleetdm.com/handbook/people#update-a-team-members-compensation).
+Fleet benchmarks US-based team members based on the United States Dollar (USD). Non-US team members' compensation is communicated in local currency, but is benchmarked based on real wages in consideration of both the local currency and USD.  Compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Head of People is responsible for the process to [update compensation](https://fleetdm.com/handbook/people#update-a-team-members-compensation).
 
 
 #### Exercise stock options
@@ -783,7 +812,7 @@ The following stubs are included only to make links backward compatible.
 Please see 📖[handbook/company/communications#competition](https://fleetdm.com/handbook/company/communications#new-fleeties).
 
 ##### Customer support service level agreements (SLAs)
-Please see 📖[handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos).
+Please see 📖[handbook/company/go-to-market-operations#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-operations#customer-support-service-level-objectives-slos).
 
 For below, please see 📖[handbook/company/communications#scheduling-a-meeting](https://fleetdm.com/handbook/company/communications#scheduling-a-meeting).
 ##### Internal meetings

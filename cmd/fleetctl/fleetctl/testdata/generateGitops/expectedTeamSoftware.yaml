@@ -29,6 +29,8 @@ fleet_maintained_apps:
     pre_install_query:
       path: ../lib/some-team/queries/my-fma-darwin-preinstallquery.yml
     self_service: true
+  - slug: fma2/windows
+    self_service: true
 app_store_apps:
   - app_store_id: com.example.team-software
     labels_exclude_any:

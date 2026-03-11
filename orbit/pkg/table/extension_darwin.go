@@ -34,12 +34,14 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
+	"github.com/macadmins/osquery-extension/tables/localnetworkpermissions"
 	"github.com/macadmins/osquery-extension/tables/macos_profiles"
 	"github.com/macadmins/osquery-extension/tables/macosrsr"
 	"github.com/macadmins/osquery-extension/tables/mdm"
 	"github.com/macadmins/osquery-extension/tables/munki"
 	"github.com/macadmins/osquery-extension/tables/sofa"
 	"github.com/macadmins/osquery-extension/tables/unifiedlog"
+	"github.com/macadmins/osquery-extension/tables/wifi_network"
 
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
@@ -93,6 +95,12 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 			"sofa_unpatched_cves", sofa.SofaUnpatchedCVEsColumns(),
 			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 				return sofa.SofaUnpatchedCVEsGenerate(ctx, queryContext, opts.Socket, sofa.WithUserAgent("fleetd"))
+			},
+		),
+		table.NewPlugin("local_network_permissions", localnetworkpermissions.LocalNetworkPermissionsColumns(), localnetworkpermissions.LocalNetworkPermissionsGenerate),
+		table.NewPlugin("wifi_network", wifi_network.WifiNetworkColumns(),
+			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
+				return wifi_network.WifiNetworkGenerate(ctx, queryContext, opts.Socket)
 			},
 		),
 

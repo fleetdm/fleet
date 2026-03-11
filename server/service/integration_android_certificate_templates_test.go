@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"testing"
@@ -14,8 +15,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -137,8 +138,8 @@ func (s *integrationMDMTestSuite) createEnrolledAndroidHost(t *testing.T, ctx co
 			AppliedPolicyID:      ptr.String("1"),
 		},
 	}
-	androidHostInput.SetNodeKey(enterpriseID)
-	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput)
+	androidHostInput.SetNodeKey("android/" + hostUUID)
+	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput, false)
 	require.NoError(t, err)
 
 	host := createdAndroidHost.Host
@@ -206,7 +207,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 		},
 	}
 	androidHostInput.SetNodeKey(enterpriseID)
-	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput)
+	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput, false)
 	require.NoError(t, err)
 
 	host := createdAndroidHost.Host
@@ -241,7 +242,9 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeAddedCertificate{}.ActivityName(),
 		fmt.Sprintf(
-			`{"team_id": %d, "team_name": %q, "name": %q}`,
+			`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q, "name": %q}`,
+			teamID,
+			teamName,
 			teamID,
 			teamName,
 			certTemplateName,
@@ -308,7 +311,9 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDeletedCertificate{}.ActivityName(),
 		fmt.Sprintf(
-			`{"team_id": %d, "team_name": %q, "name": %q}`,
+			`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q, "name": %q}`,
+			teamID,
+			teamName,
 			teamID,
 			teamName,
 			certTemplateName,
@@ -386,7 +391,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 		},
 	}
 	androidHostInput.SetNodeKey(enterpriseID)
-	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput)
+	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput, false)
 	require.NoError(t, err)
 
 	host := createdAndroidHost.Host
@@ -430,7 +435,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 	// Step: Queue and run the Android setup experience worker job
 	// Note: Pending certificate templates were created above (simulating pubsub). The worker will deliver them.
 	enterpriseName := "enterprises/" + enterpriseID
-	err = worker.QueueRunAndroidSetupExperience(ctx, s.ds, log.NewNopLogger(), host.UUID, &teamID, enterpriseName)
+	err = worker.QueueRunAndroidSetupExperience(ctx, s.ds, slog.New(slog.DiscardHandler), host.UUID, &teamID, enterpriseName)
 	require.NoError(t, err)
 	s.runWorker()
 
@@ -499,7 +504,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable()
 		},
 	}
 	androidHostInput.SetNodeKey(enterpriseID)
-	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput)
+	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput, false)
 	require.NoError(t, err)
 
 	host := createdAndroidHost.Host
@@ -532,7 +537,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable()
 	// Step: Queue and run the Android setup experience worker job
 	// Note: Pending certificate templates were created above (simulating pubsub). The worker will deliver them.
 	enterpriseName := "enterprises/" + enterpriseID
-	err = worker.QueueRunAndroidSetupExperience(ctx, s.ds, log.NewNopLogger(), host.UUID, nil, enterpriseName)
+	err = worker.QueueRunAndroidSetupExperience(ctx, s.ds, slog.New(slog.DiscardHandler), host.UUID, nil, enterpriseName)
 	require.NoError(t, err)
 	s.runWorker()
 
@@ -610,7 +615,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 		},
 	}
 	androidHostInput.SetNodeKey(enterpriseID)
-	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput)
+	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput, false)
 	require.NoError(t, err)
 
 	host := createdAndroidHost.Host
@@ -672,7 +677,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 	require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status)
 
 	// Step: Re-enroll the host (simulates pubsub status report triggering UpdateAndroidHost with fromEnroll=true)
-	err = s.ds.UpdateAndroidHost(ctx, createdAndroidHost, true)
+	err = s.ds.UpdateAndroidHost(ctx, createdAndroidHost, true, false)
 	require.NoError(t, err)
 
 	// Verify host is re-enrolled
@@ -1121,15 +1126,16 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
 			shouldRenew:   false,
 			description:   "30-day cert expiring in 16 days should NOT renew (outside 15-day threshold)",
 		},
-		// Edge case: exactly at boundary (validity = 31 days, so > 30, uses 30-day threshold)
-		// SQL uses strict less-than: not_valid_after < NOW() + 30 days
-		// So expiring in exactly 30 days is NOT renewed (30 < 30 is false)
+		// Edge case: validity = 31 days (> 30), so uses 30-day threshold.
+		// Exact boundary (expiresInDays == 30) is tested in the unit test where we can pass a fixed
+		// reference time. Here we use 31 days to avoid flakiness from clock skew between test setup
+		// and the renewal job execution.
 		{
-			name:          "boundary_31d_expires_30d",
+			name:          "boundary_31d_expires_31d",
 			validityDays:  31,
-			expiresInDays: 30,
+			expiresInDays: 31,
 			shouldRenew:   false,
-			description:   "31-day cert expiring in exactly 30 days should NOT renew (at boundary, not within)",
+			description:   "31-day cert expiring in 31 days should NOT renew (outside 30-day threshold)",
 		},
 	}
 
@@ -1235,4 +1241,125 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
 			}
 		})
 	}
+}
+
+// TestCertificateTemplateAuthorizationForTeamUsers tests authorization for certificate templates with team-level users.
+// This test covers the bug fix where team admins/maintainers/gitops can read certificate templates for their own teams.
+// The bug was that CertificateTemplate struct was missing JSON tags, causing TeamID to serialize as "TeamID"
+// instead of "team_id", which prevented the OPA policy from matching correctly.
+func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUsers() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a team
+	teamName := t.Name() + "-team"
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+		TeamPayload: fleet.TeamPayload{
+			Name: ptr.String(teamName),
+		},
+	}, http.StatusOK, &createTeamResp)
+	teamID := createTeamResp.Team.ID
+
+	// Create a team admin user
+	teamAdminEmail := "team-admin@example.com"
+	teamAdminPassword := "password123#"
+	var createUserResp createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
+		UserPayload: fleet.UserPayload{
+			Name:                     ptr.String("Team Admin"),
+			Email:                    &teamAdminEmail,
+			Password:                 &teamAdminPassword,
+			GlobalRole:               nil,
+			AdminForcedPasswordReset: ptr.Bool(false),
+			Teams: &[]fleet.UserTeam{
+				{
+					Team: fleet.Team{ID: teamID},
+					Role: fleet.RoleAdmin,
+				},
+			},
+		},
+	}, http.StatusOK, &createUserResp)
+	require.NotZero(t, createUserResp.User.ID)
+
+	// Create a certificate authority
+	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String(t.Name() + "-CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+	caID := ca.ID
+
+	// Login as team admin
+	var loginResp loginResponse
+	s.DoJSON("POST", "/api/latest/fleet/login", contract.LoginRequest{
+		Email:    teamAdminEmail,
+		Password: teamAdminPassword,
+	}, http.StatusOK, &loginResp)
+	teamAdminToken := loginResp.Token
+
+	// Store original token
+	originalToken := s.token
+	defer func() { s.token = originalToken }()
+
+	// Switch to team admin token
+	s.token = teamAdminToken
+
+	// Team admin should be able to list certificate templates for their own team
+	t.Run("team admin can list own team certificates", func(t *testing.T) {
+		// Create a certificate template for the team using global admin
+		s.token = originalToken
+		certTemplateTeamName := strings.ReplaceAll(t.Name(), "/", "-") + "-Team-Cert"
+		var createResp createCertificateTemplateResponse
+		s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+			Name:                   certTemplateTeamName,
+			TeamID:                 teamID,
+			CertificateAuthorityId: caID,
+			SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
+		}, http.StatusOK, &createResp)
+		require.NotZero(t, createResp.ID)
+		teamCertID := createResp.ID
+
+		// Switch back to team admin
+		s.token = teamAdminToken
+
+		var listResp listCertificateTemplatesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", teamID), nil, http.StatusOK, &listResp)
+		require.Len(t, listResp.Certificates, 1)
+		require.Equal(t, teamCertID, listResp.Certificates[0].ID)
+		require.Equal(t, certTemplateTeamName, listResp.Certificates[0].Name)
+	})
+
+	// Team admin should not be able to list certificates for a different team
+	t.Run("team admin cannot list other team certificates", func(t *testing.T) {
+		// Create another team
+		s.token = originalToken
+		otherTeamName := t.Name() + "-other-team"
+		var createTeamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+			TeamPayload: fleet.TeamPayload{
+				Name: ptr.String(otherTeamName),
+			},
+		}, http.StatusOK, &createTeamResp)
+		otherTeamID := createTeamResp.Team.ID
+
+		// Create a certificate template for the other team
+		certTemplateOtherTeamName := strings.ReplaceAll(t.Name(), "/", "-") + "-OtherTeam-Cert"
+		var createResp createCertificateTemplateResponse
+		s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+			Name:                   certTemplateOtherTeamName,
+			TeamID:                 otherTeamID,
+			CertificateAuthorityId: caID,
+			SubjectName:            "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+		}, http.StatusOK, &createResp)
+		require.NotZero(t, createResp.ID)
+
+		// Switch back to team admin
+		s.token = teamAdminToken
+
+		// Team admin should get 403 forbidden when trying to list other team's certificates
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", otherTeamID), nil, http.StatusForbidden, &listCertificateTemplatesResponse{})
+	})
 }

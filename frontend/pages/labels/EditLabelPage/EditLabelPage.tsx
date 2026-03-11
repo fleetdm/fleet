@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 
@@ -9,6 +9,7 @@ import labelsAPI, {
   IGetLabelResponse,
 } from "services/entities/labels";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getErrorReason } from "interfaces/errors";
 import { ILabel } from "interfaces/label";
 import { IHost } from "interfaces/host";
 import { NotificationContext } from "context/notification";
@@ -38,6 +39,7 @@ type IEditLabelPageProps = RouteComponentProps<
 const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { currentUser } = useContext(AppContext);
+  const queryClient = useQueryClient();
 
   const labelId = parseInt(routeParams.label_id, 10);
 
@@ -98,8 +100,20 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
     try {
       await labelsAPI.update(labelId, formData);
       renderFlash("success", "Label updated successfully.");
-    } catch {
-      renderFlash("error", "Couldn't edit label. Please try again.");
+      queryClient.invalidateQueries(["label", labelId, currentUser]);
+    } catch (error) {
+      const status = (error as { status: number }).status;
+      let errorMessage = "Couldn't edit label. Please try again.";
+      if (status === 409) {
+        errorMessage =
+          "Couldn't edit label: A label with this name already exists.";
+      } else if (status === 422) {
+        const reason = getErrorReason(error);
+        if (reason) {
+          errorMessage = `Couldn't edit label: ${reason}. Please try again.`;
+        }
+      }
+      renderFlash("error", errorMessage);
     }
   };
 

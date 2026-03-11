@@ -75,7 +75,7 @@ func output(metadata *file.InstallerMetadata) {
 
 func processPackageFromUrl(url string) (*file.InstallerMetadata, error) {
 	client := fleethttp.NewClient()
-	client.Transport = fleethttp.NewSizeLimitTransport(installersize.DefaultMaxInstallerSize)
+	client.Transport = fleethttp.NewSizeLimitTransport(installersize.MaxSoftwareInstallerSize)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {

@@ -31,12 +31,9 @@ func TestActivity(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"UsernameChange", testActivityUsernameChange},
-		{"New", testActivityNew},
-		{"EmptyUser", testActivityEmptyUser},
 		{"ListHostUpcomingActivities", testListHostUpcomingActivities},
-		{"ListHostPastActivities", testListHostPastActivities},
-		{"CleanupActivitiesAndAssociatedData", testCleanupActivitiesAndAssociatedData},
-		{"CleanupActivitiesAndAssociatedDataBatch", testCleanupActivitiesAndAssociatedDataBatch},
+		{"CleanupExpiredLiveQueries", testCleanupExpiredLiveQueries},
+		{"CleanupExpiredLiveQueriesBatch", testCleanupExpiredLiveQueriesBatch},
 		{"ActivateNextActivity", testActivateNextActivity},
 		{"ActivateItselfOnEmptyQueue", testActivateItselfOnEmptyQueue},
 		{"CancelNonActivatedUpcomingActivity", testCancelNonActivatedUpcomingActivity},
@@ -97,22 +94,22 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	_, err := ds.NewUser(context.Background(), u)
 	require.NoError(t, err)
 
-	timestamp := time.Now()
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
+	apiUser := &activity_api.User{ID: u.ID, Name: u.Name, Email: u.Email}
+	ctx := context.Background()
 	require.NoError(
-		t, ds.NewActivity(
-			ctx, u, dummyActivity{
+		t, activitySvc.NewActivity(
+			ctx, apiUser, dummyActivity{
 				name:    "test1",
 				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
-			}, nil, timestamp,
+			},
 		),
 	)
 	require.NoError(
-		t, ds.NewActivity(
-			ctx, u, dummyActivity{
+		t, activitySvc.NewActivity(
+			ctx, apiUser, dummyActivity{
 				name:    "test2",
 				details: map[string]interface{}{"detail": 2},
-			}, nil, timestamp,
+			},
 		),
 	)
 
@@ -138,108 +135,6 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "fullname", *activities[0].ActorFullName)
 	assert.Nil(t, activities[0].ActorGravatar)
-}
-
-func testActivityNew(t *testing.T, ds *Datastore) {
-	activitySvc := NewTestActivityService(t, ds)
-
-	u := &fleet.User{
-		Password:   []byte("asd"),
-		Name:       "fullname",
-		Email:      "email@asd.com",
-		GlobalRole: ptr.String(fleet.RoleObserver),
-	}
-	_, err := ds.NewUser(context.Background(), u)
-	require.Nil(t, err)
-	timestamp := time.Now()
-
-	activity := dummyActivity{
-		name:    "test0",
-		details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
-	}
-	// If we don't set the ActivityWebhookContextKey context value, the activity will not be created
-	assert.Error(t, ds.NewActivity(context.Background(), u, activity, nil, timestamp))
-	// If we set the context value to the wrong thing, the activity will not be created
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, "bozo")
-	assert.Error(t, ds.NewActivity(ctx, u, activity, nil, timestamp))
-
-	ctx = context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
-	require.NoError(
-		t, ds.NewActivity(
-			ctx, u, dummyActivity{
-				name:    "test1",
-				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
-			}, nil, timestamp,
-		),
-	)
-	require.NoError(
-		t, ds.NewActivity(
-			ctx, u, dummyActivity{
-				name:    "test2",
-				details: map[string]interface{}{"detail": 2},
-			}, nil, timestamp,
-		),
-	)
-
-	opt := activity_api.ListOptions{
-		Page:    0,
-		PerPage: 1,
-	}
-	activities := ListActivitiesAPI(t, context.Background(), activitySvc, opt)
-	assert.Len(t, activities, 1)
-	assert.Equal(t, "fullname", *activities[0].ActorFullName)
-	assert.Equal(t, "test1", activities[0].Type)
-
-	opt = activity_api.ListOptions{
-		Page:    1,
-		PerPage: 1,
-	}
-	activities = ListActivitiesAPI(t, context.Background(), activitySvc, opt)
-	assert.Len(t, activities, 1)
-	assert.Equal(t, "fullname", *activities[0].ActorFullName)
-	assert.Equal(t, "test2", activities[0].Type)
-
-	opt = activity_api.ListOptions{
-		Page:    0,
-		PerPage: 10,
-	}
-	activities = ListActivitiesAPI(t, context.Background(), activitySvc, opt)
-	assert.Len(t, activities, 2)
-}
-
-func testActivityEmptyUser(t *testing.T, ds *Datastore) {
-	activitySvc := NewTestActivityService(t, ds)
-
-	timestamp := time.Now()
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
-	require.NoError(
-		t, ds.NewActivity(
-			ctx, nil, dummyActivity{
-				name:    "test1",
-				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
-			}, nil, timestamp,
-		),
-	)
-
-	require.NoError(
-		t, ds.NewActivity(
-			ctx, nil, fleet.ActivityInstalledAppStoreApp{
-				HostID:          1,
-				HostDisplayName: "A Host",
-				SoftwareTitle:   "Trello",
-				AppStoreID:      "123456",
-				CommandUUID:     "some uuid",
-				Status:          string(fleet.SoftwareInstalled),
-				SelfService:     false,
-				PolicyID:        ptr.Uint(1),
-				PolicyName:      ptr.String("Sample Policy"),
-			}, nil, timestamp,
-		),
-	)
-
-	activities := ListActivitiesAPI(t, context.Background(), activitySvc, activity_api.ListOptions{})
-	assert.Len(t, activities, 2)
-	assert.Equal(t, "Fleet", *activities[1].ActorFullName)
 }
 
 func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
@@ -641,98 +536,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testListHostPastActivities(t *testing.T, ds *Datastore) {
-	getDetails := func(a *fleet.Activity) map[string]any {
-		details := make(map[string]any)
-		err := json.Unmarshal([]byte(*a.Details), &details)
-		require.NoError(t, err)
-
-		return details
-	}
-
-	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
-	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
-	activities := []dummyActivity{
-		{
-			name:    "ran_script",
-			details: map[string]any{"host_id": float64(h1.ID), "host_display_name": h1.DisplayName(), "script_execution_id": "exec_1", "script_name": "script_1.sh", "async": true},
-			hostIDs: []uint{h1.ID},
-		},
-
-		{
-			name:    "ran_script",
-			details: map[string]any{"host_id": float64(h1.ID), "host_display_name": h1.DisplayName(), "script_execution_id": "exec_2", "async": false},
-			hostIDs: []uint{h1.ID},
-		},
-	}
-
-	timestamp := time.Now()
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
-	for _, a := range activities {
-		detailsBytes, err := json.Marshal(a)
-		require.NoError(t, err)
-		require.NoError(t, ds.NewActivity(ctx, u, a, detailsBytes, timestamp))
-	}
-
-	cases := []struct {
-		name    string
-		expActs []dummyActivity
-		opts    fleet.ListOptions
-		expMeta *fleet.PaginationMetadata
-	}{
-		{
-			name:    "fetch page one",
-			expActs: []dummyActivity{activities[0]},
-			expMeta: &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
-			opts: fleet.ListOptions{
-				Page:    0,
-				PerPage: 1,
-			},
-		},
-		{
-			name:    "fetch page two",
-			expActs: []dummyActivity{activities[1]},
-			expMeta: &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
-			opts: fleet.ListOptions{
-				Page:    1,
-				PerPage: 1,
-			},
-		},
-		{
-			name:    "fetch all activities",
-			expActs: activities,
-			expMeta: &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
-			opts: fleet.ListOptions{
-				Page:    0,
-				PerPage: 2,
-			},
-		},
-	}
-
-	for _, c := range cases {
-		c.opts.IncludeMetadata = true
-		acts, meta, err := ds.ListHostPastActivities(ctx, h1.ID, c.opts)
-		require.NoError(t, err)
-		require.Len(t, acts, len(c.expActs))
-		require.Equal(t, c.expMeta, meta)
-
-		// check fields in activities
-		for i, ra := range acts {
-			require.Equal(t, u.Email, *ra.ActorEmail)
-			require.Equal(t, u.Name, *ra.ActorFullName)
-			require.Equal(t, "ran_script", ra.Type)
-			require.Equal(t, u.GravatarURL, *ra.ActorGravatar)
-			require.Equal(t, u.ID, *ra.ActorID)
-			details := getDetails(ra)
-			for k, v := range details {
-				require.Equal(t, c.expActs[i].details[k], v)
-			}
-		}
-	}
-}
-
-func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *Datastore) {
-	activitySvc := NewTestActivityService(t, ds)
+func testCleanupExpiredLiveQueries(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	user1 := &fleet.User{
 		Password:   []byte("p4ssw0rd.123"),
@@ -744,224 +548,123 @@ func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Nothing to delete.
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, 500, 1)
+	err = ds.CleanupExpiredLiveQueries(ctx, 1)
 	require.NoError(t, err)
 
-	nonSavedQuery1, err := ds.NewQuery(ctx, &fleet.Query{
-		Name:    "nonSavedQuery1",
+	nonSavedQuery, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:    "nonSavedQuery",
 		Saved:   false,
 		Query:   "SELECT 1;",
 		Logging: fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
-	savedQuery1, err := ds.NewQuery(ctx, &fleet.Query{
-		Name:    "savedQuery1",
+	savedQuery, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:    "savedQuery",
 		Saved:   true,
 		Query:   "SELECT 2;",
 		Logging: fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
-	distributedQueryCampaign1, err := ds.NewDistributedQueryCampaign(ctx, &fleet.DistributedQueryCampaign{
-		QueryID: nonSavedQuery1.ID,
+	campaign, err := ds.NewDistributedQueryCampaign(ctx, &fleet.DistributedQueryCampaign{
+		QueryID: nonSavedQuery.ID,
 		Status:  fleet.QueryComplete,
 		UserID:  user1.ID,
 	})
 	require.NoError(t, err)
 	_, err = ds.NewDistributedQueryCampaignTarget(ctx, &fleet.DistributedQueryCampaignTarget{
-		DistributedQueryCampaignID: distributedQueryCampaign1.ID,
+		DistributedQueryCampaignID: campaign.ID,
 		TargetID:                   1,
 		Type:                       fleet.TargetHost,
 	})
 	require.NoError(t, err)
-	timestamp := time.Now()
-	ctx = context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
-	err = ds.NewActivity(ctx, user1, dummyActivity{
-		name:    "other activity",
-		details: map[string]interface{}{"detail": 0, "foo": "zoo"},
-	}, nil, timestamp,
-	)
-	require.NoError(t, err)
-	err = ds.NewActivity(ctx, user1, dummyActivity{
-		name:    "live query",
-		details: map[string]interface{}{"detail": 1, "foo": "bar"},
-	}, nil, timestamp,
-	)
-	require.NoError(t, err)
-	err = ds.NewActivity(ctx, user1, dummyActivity{
-		name:    "some host activity",
-		details: map[string]interface{}{"detail": 0, "foo": "zoo"},
-		hostIDs: []uint{1},
-	}, nil, timestamp,
-	)
-	require.NoError(t, err)
-	err = ds.NewActivity(ctx, user1, dummyActivity{
-		name:    "some host activity 2",
-		details: map[string]interface{}{"detail": 0, "foo": "bar"},
-		hostIDs: []uint{2},
-	}, nil, timestamp,
-	)
+
+	// Nothing is deleted because the data is recent.
+	err = ds.CleanupExpiredLiveQueries(ctx, 1)
 	require.NoError(t, err)
 
-	// Nothing is deleted, as the activities and associated data is recent.
-	const maxCount = 500
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	_, err = ds.Query(ctx, nonSavedQuery.ID)
 	require.NoError(t, err)
-
-	activities := ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
-	require.Len(t, activities, 4)
-	nonExpiredActivityID := activities[0].ID
-	expiredActivityID := activities[1].ID
-	nonExpiredHostActivityID := activities[2].ID
-	expiredHostActivityID := activities[3].ID
-	_, err = ds.Query(ctx, nonSavedQuery1.ID)
+	_, err = ds.DistributedQueryCampaign(ctx, campaign.ID)
 	require.NoError(t, err)
-	_, err = ds.DistributedQueryCampaign(ctx, distributedQueryCampaign1.ID)
-	require.NoError(t, err)
-	targets, err := ds.DistributedQueryCampaignTargetIDs(ctx, distributedQueryCampaign1.ID)
+	targets, err := ds.DistributedQueryCampaignTargetIDs(ctx, campaign.ID)
 	require.NoError(t, err)
 	require.Len(t, targets.HostIDs, 1)
 
-	// Make some of the activity and associated data older.
-	_, err = ds.writer(context.Background()).Exec(`
-		UPDATE activities SET created_at = ? WHERE id = ? OR id = ?`,
-		time.Now().Add(-48*time.Hour), expiredActivityID, expiredHostActivityID,
-	)
-	require.NoError(t, err)
+	// Make the queries older.
 	_, err = ds.writer(context.Background()).Exec(`
 		UPDATE queries SET created_at = ? WHERE id = ? OR id = ?`,
-		time.Now().Add(-48*time.Hour), nonSavedQuery1.ID, savedQuery1.ID,
+		time.Now().Add(-48*time.Hour), nonSavedQuery.ID, savedQuery.ID,
 	)
 	require.NoError(t, err)
 
-	// Expired activity and associated data should be cleaned up.
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	// Expired unsaved query, its campaign, and campaign targets should be cleaned up.
+	err = ds.CleanupExpiredLiveQueries(ctx, 1)
 	require.NoError(t, err)
 
-	activities = ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
-	require.Len(t, activities, 3)
-	require.Equal(t, nonExpiredActivityID, activities[0].ID)
-	require.Equal(t, nonExpiredHostActivityID, activities[1].ID)
-	require.Equal(t, expiredHostActivityID, activities[2].ID)
-	_, err = ds.Query(ctx, nonSavedQuery1.ID)
+	_, err = ds.Query(ctx, nonSavedQuery.ID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
-	_, err = ds.DistributedQueryCampaign(ctx, distributedQueryCampaign1.ID)
+	_, err = ds.DistributedQueryCampaign(ctx, campaign.ID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
-	targets, err = ds.DistributedQueryCampaignTargetIDs(ctx, distributedQueryCampaign1.ID)
+	targets, err = ds.DistributedQueryCampaignTargetIDs(ctx, campaign.ID)
 	require.NoError(t, err)
 	require.Empty(t, targets.HostIDs)
 	require.Empty(t, targets.LabelIDs)
 	require.Empty(t, targets.TeamIDs)
 
 	// Saved query should not be cleaned up.
-	savedQuery1, err = ds.Query(ctx, savedQuery1.ID)
+	savedQuery, err = ds.Query(ctx, savedQuery.ID)
 	require.NoError(t, err)
-	require.NotNil(t, savedQuery1)
+	require.NotNil(t, savedQuery)
 }
 
-func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
-	activitySvc := NewTestActivityService(t, ds)
+func testCleanupExpiredLiveQueriesBatch(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	user1 := &fleet.User{
-		Password:   []byte("p4ssw0rd.123"),
-		Name:       "user1",
-		Email:      "user1@example.com",
-		GlobalRole: ptr.String(fleet.RoleAdmin),
-	}
-	user1, err := ds.NewUser(ctx, user1)
-	require.NoError(t, err)
-
-	const maxCount = 500
-
-	// Create 1500 activities.
-	insertActivitiesStmt := `
-		INSERT INTO activities
-		(user_id, user_name, activity_type, details, user_email)
-		VALUES `
-	var insertActivitiesArgs []interface{}
-	for i := 0; i < 1500; i++ {
-		insertActivitiesArgs = append(insertActivitiesArgs,
-			user1.ID, user1.Name, "foobar", `{"foo": "bar"}`, user1.Email,
-		)
-	}
-	insertActivitiesStmt += strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?),", 1500), ",")
-	_, err = ds.writer(ctx).ExecContext(ctx, insertActivitiesStmt, insertActivitiesArgs...)
-	require.NoError(t, err)
 
 	// Create 1500 non-saved queries.
 	insertQueriesStmt := `
 		INSERT INTO queries
 		(name, description, query)
 		VALUES `
-	var insertQueriesArgs []interface{}
-	for i := 0; i < 1500; i++ {
+	var insertQueriesArgs []any
+	for i := range 1500 {
 		insertQueriesArgs = append(insertQueriesArgs,
 			fmt.Sprintf("foobar%d", i), "foobar", "SELECT 1;",
 		)
 	}
 	insertQueriesStmt += strings.TrimSuffix(strings.Repeat("(?, ?, ?),", 1500), ",")
-	_, err = ds.writer(ctx).ExecContext(ctx, insertQueriesStmt, insertQueriesArgs...)
+	_, err := ds.writer(ctx).ExecContext(ctx, insertQueriesStmt, insertQueriesArgs...)
 	require.NoError(t, err)
 
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	// Nothing deleted; all recent.
+	err = ds.CleanupExpiredLiveQueries(ctx, 1)
 	require.NoError(t, err)
 
-	activities := ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
-	require.Len(t, activities, 1500)
 	var queriesLen int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
 	require.Equal(t, 1500, queriesLen)
 
-	// Make 1250 activities as expired.
-	_, err = ds.writer(context.Background()).Exec(`
-		UPDATE activities SET created_at = ? WHERE id <= 1250`,
-		time.Now().Add(-48*time.Hour),
-	)
-	require.NoError(t, err)
-
-	// Make 1250 queries as expired.
+	// Make 1250 queries expired.
 	_, err = ds.writer(context.Background()).Exec(`
 		UPDATE queries SET created_at = ? WHERE id <= 1250`,
 		time.Now().Add(-48*time.Hour),
 	)
 	require.NoError(t, err)
 
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	// All 1250 expired queries should be cleaned up in one call (batched internally).
+	err = ds.CleanupExpiredLiveQueries(ctx, 1)
 	require.NoError(t, err)
 
-	activities = ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
-	require.Len(t, activities, 1000)
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
-	})
-	require.Equal(t, 250, queriesLen) // All expired queries should be cleaned up.
-
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
-	require.NoError(t, err)
-
-	activities = ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
-	require.Len(t, activities, 500)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
 	require.Equal(t, 250, queriesLen)
 
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	// Running again should be a no-op (remaining 250 are not expired).
+	err = ds.CleanupExpiredLiveQueries(ctx, 1)
 	require.NoError(t, err)
 
-	activities = ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
-	require.Len(t, activities, 250)
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
-	})
-	require.Equal(t, 250, queriesLen)
-
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
-	require.NoError(t, err)
-
-	activities = ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
-	require.Len(t, activities, 250)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
@@ -969,8 +672,8 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 }
 
 func testActivateNextActivity(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
 
 	test.CreateInsertGlobalVPPToken(t, ds)
 
@@ -1155,11 +858,11 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
 
-	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+	err = activitySvc.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
 		HostID:      h1.ID,
 		AppStoreID:  vppApp1.VPPAppTeam.AdamID,
 		CommandUUID: vpp1_1,
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 
 	appleCmdRes, err := ds.GetMDMAppleCommandResults(ctx, vpp1_1, "")
@@ -1236,11 +939,11 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
 
-	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+	err = activitySvc.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
 		HostID:      h1.ID,
 		AppStoreID:  vppApp2.VPPAppTeam.AdamID,
 		CommandUUID: vpp1_2,
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 
 	appleCmdRes, err = ds.GetMDMAppleCommandResults(ctx, vpp1_2, "")
@@ -1339,12 +1042,12 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
 
-	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+	err = activitySvc.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
 		HostID:      hIOS.ID,
 		AppStoreID:  vppApp1IOS.VPPAppTeam.AdamID,
 		CommandUUID: vpp1_1_ios,
 		Status:      "Error", // using a failure because otherwise it requires verification to activate next
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 
 	// the in-house app is now activated
@@ -1382,11 +1085,11 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
 
-	err = ds.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
+	err = activitySvc.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
 		HostID:      hIOS.ID,
 		CommandUUID: ihaCmd,
 		Status:      "Error", // using a failure because otherwise it requires verification to activate next
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 
 	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
@@ -1414,11 +1117,11 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
 
-	err = ds.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
+	err = activitySvc.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
 		HostID:      hIOS.ID,
 		CommandUUID: vpp1_1_ios,
 		Status:      string(fleet.SoftwareInstalled),
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 
 	// both are still upcoming...
@@ -1446,11 +1149,11 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
 
-	err = ds.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
+	err = activitySvc.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
 		HostID:      hIOS.ID,
 		CommandUUID: ihaCmd,
 		Status:      string(fleet.SoftwareInstalled),
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 
 	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
@@ -1468,8 +1171,8 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 }
 
 func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
 	test.CreateInsertGlobalVPPToken(t, ds)
 
 	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
@@ -1555,11 +1258,11 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 	}
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
-	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+	err = activitySvc.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
 		HostID:      h1.ID,
 		AppStoreID:  vppApp1.VPPAppTeam.AdamID,
 		CommandUUID: vpp1_1,
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 
 	// the upcoming queue should be empty, each result having emptied the list
@@ -1570,6 +1273,14 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 }
 
 func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
+	newActivityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		var apiUser *activity_api.User
+		if user != nil {
+			apiUser = &activity_api.User{ID: user.ID, Name: user.Name, Email: user.Email}
+		}
+		return activitySvc.NewActivity(ctx, apiUser, activity)
+	}
 	ctx := context.Background()
 	test.CreateInsertGlobalVPPToken(t, ds)
 
@@ -1671,7 +1382,7 @@ func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 				exec2 := test.CreateHostScriptUpcomingActivity(t, ds, host)
 				exec3 := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
 				t.Cleanup(func() {
-					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec1, adamID, "Acknowledged")
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec1, adamID, "Acknowledged", newActivityFn)
 					test.SetHostSoftwareInstallResult(t, ds, host, exec3, 0)
 				})
 				return []string{exec1, exec2, exec3}
@@ -1700,7 +1411,7 @@ func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 				exec1, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hostIOS)
 				exec2 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
 				t.Cleanup(func() {
-					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec1, adamID, "Acknowledged")
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec1, adamID, "Acknowledged", newActivityFn)
 				})
 				return []string{exec1, exec2}
 			},
@@ -1736,6 +1447,14 @@ func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 }
 
 func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
+	newActivityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		var apiUser *activity_api.User
+		if user != nil {
+			apiUser = &activity_api.User{ID: user.ID, Name: user.Name, Email: user.Email}
+		}
+		return activitySvc.NewActivity(ctx, apiUser, activity)
+	}
 	ctx := context.Background()
 	test.CreateInsertGlobalVPPToken(t, ds)
 
@@ -1798,7 +1517,7 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 				exec1 := test.CreateHostSoftwareUninstallUpcomingActivity(t, ds, host, u)
 				exec2, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
 				t.Cleanup(func() {
-					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec2, adamID, "Acknowledged")
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec2, adamID, "Acknowledged", newActivityFn)
 				})
 				return []string{exec1, exec2}
 			},
@@ -1852,7 +1571,7 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 				exec1, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
 				exec2, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
 				t.Cleanup(func() {
-					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec2, adamID, "Acknowledged")
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec2, adamID, "Acknowledged", newActivityFn)
 				})
 				return []string{exec1, exec2}
 			},
@@ -1864,7 +1583,7 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 				exec1 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
 				exec2, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hostIOS)
 				t.Cleanup(func() {
-					test.SetHostVPPAppInstallResult(t, ds, nanoDB, hostIOS, exec2, adamID, "Acknowledged")
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, hostIOS, exec2, adamID, "Acknowledged", newActivityFn)
 				})
 				return []string{exec1, exec2}
 			},
@@ -1876,7 +1595,7 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 				exec1 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
 				exec2 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
 				t.Cleanup(func() {
-					test.SetHostInHouseAppInstallResult(t, ds, nanoDB, hostIOS, exec2, "Acknowledged")
+					test.SetHostInHouseAppInstallResult(t, ds, nanoDB, hostIOS, exec2, "Acknowledged", newActivityFn)
 				})
 				return []string{exec1, exec2}
 			},
@@ -1941,6 +1660,14 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 }
 
 func testSetResultAfterCancelUpcomingActivity(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
+	newActivityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		var apiUser *activity_api.User
+		if user != nil {
+			apiUser = &activity_api.User{ID: user.ID, Name: user.Name, Email: user.Email}
+		}
+		return activitySvc.NewActivity(ctx, apiUser, activity)
+	}
 	ctx := context.Background()
 	test.CreateInsertGlobalVPPToken(t, ds)
 
@@ -1972,7 +1699,7 @@ func testSetResultAfterCancelUpcomingActivity(t *testing.T, ds *Datastore) {
 	exec, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
 	_, err = ds.CancelHostUpcomingActivity(ctx, host.ID, exec)
 	require.NoError(t, err)
-	test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec, adamID, "Acknowledged")
+	test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec, adamID, "Acknowledged", newActivityFn)
 }
 
 func testGetHostUpcomingActivityMeta(t *testing.T, ds *Datastore) {

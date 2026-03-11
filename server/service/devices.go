@@ -18,7 +18,6 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -750,11 +749,9 @@ func (f *fleetdErrorRequest) deviceAuthToken() string {
 // Since we're directly storing what we get in Redis, limit the request size to
 // 5MB, this combined with the rate limit of this endpoint should be enough to
 // prevent a malicious actor.
-const maxFleetdErrorReportSize int64 = 5 * 1024 * 1024
-
+// body limiting is done at the handler level
 func (f *fleetdErrorRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
-	limitedReader := io.LimitReader(r, maxFleetdErrorReportSize+1)
-	decoder := json.NewDecoder(limitedReader)
+	decoder := json.NewDecoder(r)
 
 	for {
 		if err := decoder.Decode(&f.FleetdError); err == io.EOF {
@@ -790,12 +787,7 @@ func (svc *Service) LogFleetdError(ctx context.Context, fleetdError fleet.Fleetd
 	}
 
 	err := ctxerr.WrapWithData(ctx, fleetdError, "receive fleetd error", fleetdError.ToMap())
-	level.Warn(svc.logger).Log(
-		"msg",
-		"fleetd error",
-		"error",
-		err,
-	)
+	svc.logger.WarnContext(ctx, "fleetd error", "error", err)
 	// Send to Redis/telemetry (if enabled)
 	ctxerr.Handle(ctx, err)
 
@@ -1073,13 +1065,22 @@ type getDeviceSetupExperienceStatusResponse struct {
 func (r getDeviceSetupExperienceStatusResponse) Error() error { return r.Err }
 
 func getDeviceSetupExperienceStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	if _, ok := request.(*getDeviceSetupExperienceStatusRequest); !ok {
+	req, ok := request.(*getDeviceSetupExperienceStatusRequest)
+	if !ok {
 		return nil, fmt.Errorf("internal error: invalid request type: %T", request)
 	}
 	results, err := svc.GetDeviceSetupExperienceStatus(ctx)
 	if err != nil {
 		return &getDeviceSetupExperienceStatusResponse{Err: err}, nil
 	}
+
+	// only software can have custom icons, so no need to iterate over Scripts
+	for _, r := range results.Software {
+		// mutate SetupExperienceStatusResult records for my device page
+		// (same approach used for HostSoftwareWithInstaller)
+		r.ForMyDevicePage(req.Token)
+	}
+
 	return &getDeviceSetupExperienceStatusResponse{Results: results}, nil
 }
 

@@ -7,16 +7,17 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                                  | Contributor(s)           |
 |:--------------------------------------|:------------------------------------------------------------------------------------------|
-| SVP of Gobal Sales                    | [Chaz MacLaughlin](https://www.linkedin.com/in/chazmaclaughlin/) _([@chazmac6](https://github.com/chazmac6))_
+| SVP of Global Sales                   | [Chaz MacLaughlin](https://www.linkedin.com/in/chazmaclaughlin/) _([@chazmac6](https://github.com/chazmac6))_
+| Head of Account Management            | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
 | Channel Manager, North America        | [Eric Comeau](https://www.linkedin.com/in/escomeau/) _([@escomeau](https://github.com/escomeau))_
-| Account Executive (AE)                | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)
-| Solutions Specialist                  | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)
+| Account Executive (AE)                | <sup><sub> _See [🚂 Go-To-Market operations](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions)_
+| Solutions Specialist                  | <sup><sub> _See [🚂 Go-To-Market operations](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions)_
 
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in the [#g-sales](https://fleetdm.slack.com/archives/C030A767HQV) Slack channel.)
-  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/74) for this department, including pending tasks and the status of new requests.
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-gtm-ops&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in the [help-sales](https://fleetdm.slack.com/archives/C030A767HQV) Slack channel.)
+  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/81) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
 
@@ -29,7 +30,7 @@ The Sales department is directly responsible for attaining the revenue goals of 
 
 Use the following steps to add an account to Salesforce if one doesn't exist already:
 1. Obtain the company name, website, and LinkedIn company url of the account you would like to create and search Salesforce to be sure a duplicate, parent, or child account doesn't already exist. 
-2. If the account already exists, reach out to the [GTM Systems Architect](https://fleetdm.com/handbook/finance#team) in the [#g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) with the account data and request the account be created and/or added to your patch.
+2. If the account already exists, reach out to the [Head of GTM Architecture](https://fleetdm.com/handbook/finance#team) in the [:help-gtm-ops Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) with the account data and request the account be created and/or added to your patch.
 
 
 ### Respond to a customer feature comparison request
@@ -47,6 +48,19 @@ To run a demo for a prospect, follow the relevant steps in ["Why Fleet?"](https:
 ### Introduce Fleet's CEO
 
 To get the CEO's attention and introduce him to an account, @-mention his Executive Assistant (`@SFriendLee`) in the [#help-ea Slack channel](https://fleetdm.slack.com/archives/C08HKQ84UCD) with the LinkedIn URL(s) of the people you would like the CEO to connect with. The EA will send all connect requests within the same business day. 
+
+
+### Request executive involvement in an opportunity
+
+When executive involvement (e.g., from the CEO, Customer Success leader, or another Fleet executive) would meaningfully increase the likelihood of closing a deal, the AE can request that a specific executive join a prospect call for an already-qualified opportunity. Executive involvement is meant to accelerate deals, not create qualification. The AE will submit a request in the [#help-sales](https://fleetdm.slack.com/archives/C030A767HQV) Slack channel at least 48 hours before the requested call. Use the following template to submit your request:
+
+```
+- Who are you requesting: @REQUESTED_EXECUTIVE
+- Clear objective: Be explicit about what decision, commitment, or alignment we’re seeking.
+- A brief opportunity overview: company name, incumbent solution, objective, what the AE needs the executive to say, and what the executive should **not** say.
+- Confirmed attendees: We match executive-level (jerseys) on both sides, no title mismatch.
+- Opportunity URL:
+```
 
 
 ### Track an objection
@@ -81,7 +95,7 @@ Once a week, during the "🤝❌ Closed (for now) opportunity review" meeting, t
 1. Before the meeting, the [GTM Systems Architect](https://fleetdm.com/handbook/finance#team) will copy the goal from the gross new ARR goal from ["OCV GOH: Fleet" doc (confidential document)](https://docs.google.com/document/d/17VK0_pRrFGTqKCRfppIjUgfjdL012Ssirks8Jxk4SE4/edit?tab=t.0) and add it to the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0). 
 2. Before the meeting, the Executive Assistant will take a screenshot of the [Ω Open ops (Next 45 days) oppty list](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Open_ops_Next_45_days) that includes the next 5+ deals set to close based on "Close date" and add it to the doc. 
 3. Using the ["Ω ∆ARR won + open pipeline (current Q)" Salesforce report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000019LuH2AU/view) (and adjusting the filters if needed), the Executive Assistant will calculate the progress toward the goal and "Amount left to close" and add it to the doc. 
-4. The CRO will paste a screenshot of the progress toward the goal and the actionable next steps from the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0) in the [#g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR). 
+4. The CRO will paste a screenshot of the progress toward the goal and the actionable next steps from the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0) in the [:help-gtm-ops Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR). 
 
 
 ### Send a reseller subscription quote
@@ -117,12 +131,12 @@ In order to be transparent, Fleet sends order forms within 30 days of opportunit
 Fleet uses "Non-Disclosure Agreements" (NDAs) to protect the company and the companies we collaborate with. Always offer to send Fleet's NDA and, whenever possible, default to using the company's version. To send an NDA to a customer, follow these steps: 
 1. If a customer has no objections to using Fleet's NDA, route the NDA to them for signature using the "🙊 NDA (Non-disclosure agreement)" template in [DocuSign](https://apps.docusign.com/send/home). If a customer would like to review the NDA first, download a .docx of [Fleet's NDA](https://docs.google.com/document/d/1gQCrF3silBFG9dJgyCvpmLa6hPhX_T4V7pL3XAwgqEU/edit?usp=sharing) and send it to the customer.
 2. If the customer has no objections, route the NDA using the template in DocuSign (do not upload and use the copy you emailed to the customer).
-3. If the customer "redlines" (i.e. wants to change) the NDA, follow the [contract review process](https://fleetdm.com/handbook/company/go-to-market-groups#getting-a-contract-reviewed) so that Finance can look over any proposed changes and provide guidance on how to proceed.
+3. If the customer "redlines" (i.e. wants to change) the NDA, follow the [contract review process](https://fleetdm.com/handbook/company/go-to-market-operations#getting-a-contract-reviewed) so that Finance can look over any proposed changes and provide guidance on how to proceed.
 
 
 ### Close a new customer deal
 
-Once an order form has been signed by both Fleet and the new customer, create and complete a ["🤝 Sale" issue](https://github.com/fleetdm/confidential/issues/new?assignees=alexmitchelliii&labels=%23g-sales&projects=&template=3-sale.md&title=New+customer%3A+_____________).
+Once an order form has been signed by both Fleet and the new customer, create and complete a ["🤝 Sale" issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=3-sale.md&title=New+customer%3A+_____________).
 
 
 ### Process a security questionnaire
@@ -145,12 +159,10 @@ To complete a security questionnaire, the AE assigned to the account will:
 The “Attributed to” field in the Salesforce opportunity page will be used to track where each new business opportunity created can be attributed to. This is a temporary solution put in place until we have built out the process that would automate how we track attribution and measure ROI associated with our program spend.  
 
 The “Attributed to” field is associated with a Salesforce user. The opportunity owner will have to determine the correct user to add to the field when the opportunity is created. The rule to determine which user to add to the field:
-
-- Inbound: For all opportunities created based on inbound leads (e.g., digital ads, brand, events, GitOps workshops, organic web traffic, etc), update the field with the CMO’s name
 - Outbound-AE: If the opportunity was created as a result of the AE’s outbound efforts, update the field with the AE's name.
-- Outbound-SDR: If the opportunity was created as a result of the AE’s outbound efforts, update the field with the SDR’s name
+- Outbound-Specialist: If the opportunity was created as a result of the Solutions Specialist’s outbound efforts, update the field with the Specialist’s name.
 - Channel: If a deal was referred to us from a Channel Partner (deal-reg approved by Channel Manager), update the field with the Channel Manager’s name.
-- All other sources: For opportunities that do not fall under any of the above categories, update the field with the CMO's name
+- All other sources: For opportunities that do not fall under any of the above categories, e.g., opportunities created based on inbound leads, digital ads, brand, events, GitOps workshops, organic web traffic, etc, update the field with the Integrations Admin user.
 
 
 ## Rituals
@@ -164,7 +176,7 @@ The following stubs are included only to make links backward compatible.
 ##### Fleet Premium
 ##### Fleet Free
 ##### Emergency (P0) request communications
-Please see [handbook/company/communications#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos) for all sections above.
+Please see [handbook/company/communications#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-operations#customer-support-service-level-objectives-slos) for all sections above.
 ##### Submit a customer contract for legal review
 ##### Standard terms
 ##### Non-standard NDAs
@@ -173,5 +185,5 @@ Please see [handbook/company/communications#customer-support-service-level-objec
 Please see [handbook/sales#create-a-customer-agreement](https://fleetdm.com/handbook/sales#create-a-customer-agreement) for all sections above.
 
 
-<meta name="maintainedBy" value="alexmitchelliii">
+<meta name="maintainedBy" value="chazmac6">
 <meta name="title" value="🐋 Sales">

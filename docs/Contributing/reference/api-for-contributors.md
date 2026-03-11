@@ -1,8 +1,10 @@
 # API for contributors
 
-Don't use these API endpoints. Please use the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api) instead.
+🚧 **Don't use these API endpoints.** Please use the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api) instead.
 
-These API endpoints in this document are only used when contributing to Fleet. They're for the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality. 
+The API endpoints in this document are only used when contributing to Fleet. They're for the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality. Other usage of these endpoints will have unintended consequences.
+
+If you see an endpoint documented here that you'd like to use, please [file a feature request](https://github.com/fleetdm/fleet/issues/new/choose) to bring it into the stable API.
 
 - [Authentication](#authentication)
 - [Packs](#packs)
@@ -12,7 +14,6 @@ These API endpoints in this document are only used when contributing to Fleet. T
 - [Trigger cron schedule](#trigger-cron-schedule)
 - [Device-authenticated routes](#device-authenticated-routes)
 - [Orbit-authenticated routes](#orbit-authenticated-routes)
-- [Downloadable installers](#downloadable-installers)
 - [Setup](#setup)
 - [Scripts](#scripts)
 - [Software](#software)
@@ -3149,7 +3150,6 @@ currently pending.
 
 Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, Fleet user's API token does not authenticate them. They use a device-specific token.
 
-- [Refetch device's host](#refetch-devices-host)
 - [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles)
 - [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
 - [Get Fleet Desktop information](#get-fleet-desktop-information)
@@ -3167,28 +3167,6 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
 - [Trigger Linux disk encryption escrow](#trigger-linux-disk-encryption-escrow)
 - [Report an agent error](#report-an-agent-error)
-
-#### Refetch device's host
-
-Same as [Refetch host route](https://fleetdm.com/docs/using-fleet/rest-api#refetch-host) for the current device.
-
-`POST /api/v1/fleet/device/{token}/refetch`
-
-##### Parameters
-
-| Name  | Type   | In   | Description                        |
-| ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The device's authentication token. |
-
-#### Request headers
-
-This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
-
-The `Authorization` header must be formatted as follows:
-
-```
-X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
-```
 
 #### Get device's Google Chrome profiles
 
@@ -3777,7 +3755,7 @@ Redirects to the transparency URL.
 
 #### Download device's MDM manual enrollment profile
 
-Returns the URL to open to provide installation instructions and allow a user to download a manual enrollment profile 
+Returns the URL to open to provide installation instructions and allow a user to download a manual enrollment profile
 for a device. A user may be required to complete SSO authenticaton if configured on the team before being presented
 with the download option.
 
@@ -3883,7 +3861,9 @@ _Available in Fleet Premium_
       {
         "name": "slack.deb",
         "status": "pending",
-        "software_title_id": 3008
+        "software_title_id": 3008,
+        "display_name": "My Slack",
+        "icon_url": "/api/latest/fleet/device/7d940b6e-130a-493b-b58a-2b6e9f9f8bfc/software/titles/3008/icon"
       }
     ]
   }
@@ -4021,7 +4001,9 @@ Notifies the server about an agent error, resulting in two outcomes:
             {
                 "name": "Evernote",
                 "status": "success",
-                "software_title_id": 1313
+                "software_title_id": 1313,
+                "display_name": "My Evernote",
+                "icon_url": "/api/latest/fleet/software/titles/1313/icon?team_id=0"
             }
         ],
         "configuration_profiles": [
@@ -4801,6 +4783,9 @@ _Available in Fleet Premium._
 | app_store_apps.install_during_setup | boolean  | body  | Specifies whether the VPP app is included in Setup experience.                                                                                                                                                                |
 | app_store_apps.labels_include_any | array   | body  | App will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 | app_store_apps.labels_exclude_any | array   | body  | App will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
+| app_store_apps.auto_update_enabled | boolean | body | **Optional**. Whether automatic updates are enabled for this iOS/iPadOS VPP app. |
+| app_store_apps.auto_update_window_start | string | body | **Optional**. The start time (in HH:MM format, local time) of the window during which automatic updates can occur. Required if `auto_update_enabled` is `true`. |
+| app_store_apps.auto_update_window_end | string | body | **Optional**. The end time (in HH:MM format, local time) of the window during which automatic updates can occur. Required if `auto_update_enabled` is `true`. |
 
 #### Example
 
@@ -4822,7 +4807,10 @@ _Available in Fleet Premium._
     },
     {
       "app_store_id": "497799835",
-      "self_service": true
+      "self_service": true,
+      "auto_update_enabled": true,
+      "auto_update_window_start": "01:00",
+      "auto_update_window_end": "05:00"
     }
   ]
 }

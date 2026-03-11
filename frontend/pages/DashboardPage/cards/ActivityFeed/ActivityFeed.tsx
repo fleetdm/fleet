@@ -299,7 +299,7 @@ const ActivityFeed = ({
     return (
       <EmptyTable
         header="No activities match the current criteria"
-        info="Try editing a query, updating your policies, or running a live query."
+        info="Try editing a report, updating your policies, or running a live report."
       />
     );
   };

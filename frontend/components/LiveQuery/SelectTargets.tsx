@@ -54,6 +54,7 @@ interface ISelectTargetsProps {
   setTargetsTotalCount: React.Dispatch<React.SetStateAction<number>>;
   isLivePolicy?: boolean;
   isObserverCanRunQuery?: boolean;
+  queryTeamId?: number | null;
 }
 
 interface ILabelsByType {
@@ -124,6 +125,7 @@ const SelectTargets = ({
   setTargetsTotalCount,
   isLivePolicy,
   isObserverCanRunQuery,
+  queryTeamId,
 }: ISelectTargetsProps): JSX.Element => {
   const isMountedRef = useRef(false);
   const { isPremiumTier, isOnGlobalTeam, currentUser } = useContext(AppContext);
@@ -359,11 +361,14 @@ const SelectTargets = ({
 
   const renderTargetEntitySection = (
     entityType: string,
-    entityList: ISelectLabel[] | ISelectTeam[]
+    entityList: ISelectLabel[] | ISelectTeam[],
+    disabledIds?: Set<number>
   ): JSX.Element => {
-    const isSearchEnabled = entityType === "teams" || entityType === "labels";
+    const isTeamsSection = entityType === "teams";
+    const displayType = isTeamsSection ? "fleets" : entityType;
+    const isSearchEnabled = isTeamsSection || entityType === "labels";
     const searchTerm = (
-      (entityType === "teams" ? searchTextTeams : searchTextLabels) || ""
+      (isTeamsSection ? searchTextTeams : searchTextLabels) || ""
     ).toLowerCase();
     const arrFixed = entityList as Array<typeof entityList[number]>;
     const filteredEntities = isSearchEnabled
@@ -377,8 +382,9 @@ const SelectTargets = ({
         })
       : arrFixed;
 
-    const isListExpanded =
-      entityType === "teams" ? isTeamListExpanded : isLabelsListExpanded;
+    const isListExpanded = isTeamsSection
+      ? isTeamListExpanded
+      : isLabelsListExpanded;
     const truncatedEntities = filteredEntities.slice(
       0,
       getTruncatedEntityCount(filteredEntities, SECTION_CHARACTER_LIMIT)
@@ -387,7 +393,7 @@ const SelectTargets = ({
       filteredEntities.length - truncatedEntities.length;
 
     const toggleExpansion = () => {
-      entityType === "teams"
+      isTeamsSection
         ? setIsTeamListExpanded(!isTeamListExpanded)
         : setIsLabelsListExpanded(!isLabelsListExpanded);
     };
@@ -396,7 +402,7 @@ const SelectTargets = ({
       ? filteredEntities
       : truncatedEntities;
 
-    const emptySearchString = `No matching ${entityType}.`;
+    const emptySearchString = `No matching ${displayType}.`;
 
     const renderEmptySearchString = () => {
       if (entitiesToDisplay.length === 0 && searchTerm !== "") {
@@ -411,13 +417,18 @@ const SelectTargets = ({
 
     return (
       <>
-        {entityType && <h3>{capitalize(entityType)}</h3>}
+        {entityType && <h3>{capitalize(displayType)}</h3>}
+        {isTeamsSection && !!disabledIds?.size && (
+          <p className={`${baseClass}__team-help-text`}>
+            Results limited to fleets you can access.
+          </p>
+        )}
         {isSearchEnabled && (
           <>
             <SearchField
-              placeholder={`Search ${entityType}`}
+              placeholder={`Search ${displayType}`}
               onChange={(searchString) => {
-                entityType === "teams"
+                isTeamsSection
                   ? setSearchTextTeams(searchString)
                   : setSearchTextLabels(searchString);
               }}
@@ -435,6 +446,7 @@ const SelectTargets = ({
                 entity={entity}
                 isSelected={targetList.some((t) => t.id === entity.id)}
                 onClick={handleButtonSelect}
+                disabled={disabledIds?.has(entity.id)}
               />
             );
           })}
@@ -528,30 +540,47 @@ const SelectTargets = ({
   const resultsTableConfig = generateTableHeaders();
   const selectedHostsTableConfig = generateTableHeaders(handleRowRemove);
 
-  // Filter out observer teams that break live query/policy API
-  const filterTeamObserverTeams = () => {
-    // API blocks live policy if a team level user is able to select the team they are an observer on
-    if (isLivePolicy) {
-      return (
-        teams?.filter(
-          (team) =>
-            !permissions.isTeamObserver(currentUser, team.id) ||
-            permissions.isTeamObserverPlus(currentUser, team.id)
-        ) || []
-      );
+  const shouldDisableForObserver = (teamId: number): boolean => {
+    if (isLivePolicy) return true;
+    if (!isObserverCanRunQuery) return true;
+    // observer_can_run is scoped to the query's own team; plain observers cannot
+    // target teams other than the one the query belongs to.
+    if (queryTeamId != null && queryTeamId !== teamId) return true;
+    return false;
+  };
+
+  const getDisabledTeamIds = (): Set<number> => {
+    const disabled = new Set<number>();
+
+    const isGlobalPlainObserver = currentUser?.global_role === "observer";
+
+    if (isGlobalPlainObserver) {
+      // Global plain observers have the same restrictions as team-level
+      // observers but applied to ALL teams/fleets (including "Unassigned")
+      const allTeamIds = [...(teams?.map((t) => t.id) || []), 0]; // 0 = "Unassigned"
+      allTeamIds.forEach((teamId) => {
+        if (shouldDisableForObserver(teamId)) {
+          disabled.add(teamId);
+        }
+      });
+      return disabled;
     }
 
-    // API blocks live query if a team level user is able to select the team they are an observer on
-    // AND the query does not have observer can run enabled
-    return (
-      teams?.filter(
-        (team) =>
-          !permissions.isTeamObserver(currentUser, team.id) ||
-          permissions.isTeamObserverPlus(currentUser, team.id) ||
-          isObserverCanRunQuery
-      ) || []
-    );
+    // Team/fleet-level plain observer logic
+    teams?.forEach((team) => {
+      const isPlainObserver =
+        permissions.isTeamObserver(currentUser, team.id) &&
+        !permissions.isTeamObserverPlus(currentUser, team.id);
+      if (!isPlainObserver) return;
+
+      if (shouldDisableForObserver(team.id)) {
+        disabled.add(team.id);
+      }
+    });
+    return disabled;
   };
+
+  const disabledTeamIds = getDisabledTeamIds();
 
   if (isLoadingLabels || isLoadingTeams) {
     return <Spinner />;
@@ -567,11 +596,12 @@ const SelectTargets = ({
           renderTargetEntitySection("Platforms", labels.platforms)}
         {!!teams?.length &&
           (isOnGlobalTeam
-            ? renderTargetEntitySection("teams", [
-                { id: 0, name: "No team" },
-                ...teams,
-              ])
-            : renderTargetEntitySection("teams", filterTeamObserverTeams()))}
+            ? renderTargetEntitySection(
+                "teams",
+                [{ id: 0, name: "Unassigned" }, ...teams],
+                disabledTeamIds
+              )
+            : renderTargetEntitySection("teams", teams, disabledTeamIds))}
         {!!labels?.other?.length &&
           renderTargetEntitySection("labels", labels.other)}
       </div>

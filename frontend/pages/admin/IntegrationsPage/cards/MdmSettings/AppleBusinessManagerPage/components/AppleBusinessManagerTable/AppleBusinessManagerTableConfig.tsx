@@ -22,7 +22,7 @@ type IRenewDateCellProps = CellProps<IMdmAbmToken, IMdmAbmToken["renew_date"]>;
 type ITableHeaderProps = IHeaderProps<IMdmAbmToken>;
 
 const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
-  { value: "editTeams", label: "Edit teams", disabled: false },
+  { value: "editTeams", label: "Edit fleets", disabled: false },
   { value: "renew", label: "Renew", disabled: false },
   { value: "delete", label: "Delete", disabled: false },
 ];
@@ -96,12 +96,12 @@ export const generateTableConfig = (
           <TooltipWrapper
             tipContent={
               <>
-                macOS hosts are automatically added to this team in Fleet when
+                macOS hosts are automatically added to this fleet in Fleet when
                 they appear in Apple Business Manager.
               </>
             }
           >
-            macOS team
+            macOS fleet
           </TooltipWrapper>
         );
         return <HeaderCell value={titleWithToolTip} disableSortBy />;
@@ -119,12 +119,12 @@ export const generateTableConfig = (
           <TooltipWrapper
             tipContent={
               <>
-                iOS hosts are automatically added to this team in Fleet when
+                iOS hosts are automatically added to this fleet in Fleet when
                 they appear in Apple Business Manager.
               </>
             }
           >
-            iOS team
+            iOS fleet
           </TooltipWrapper>
         );
         return <HeaderCell value={titleWithToolTip} disableSortBy />;
@@ -142,12 +142,12 @@ export const generateTableConfig = (
           <TooltipWrapper
             tipContent={
               <>
-                iPadOS hosts are automatically added to this team in Fleet when
+                iPadOS hosts are automatically added to this fleet in Fleet when
                 they appear in Apple Business Manager.
               </>
             }
           >
-            iPadOS team
+            iPadOS fleet
           </TooltipWrapper>
         );
         return <HeaderCell value={titleWithToolTip} disableSortBy />;

@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2025.3.2",
+      "version": "2025.3.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.intellij';"
       },
-      "installer_url": "https://download.jetbrains.com/idea/ideaIU-2025.3.2-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/idea/ideaIU-2025.3.3-aarch64.dmg",
       "install_script_ref": "2aaa2896",
       "uninstall_script_ref": "73c2195b",
-      "sha256": "b9a057c055fa7dde406bbf9807fca2b367f0c1d47771df6ac068a07ffdb76ec9",
+      "sha256": "002e623edf51d02228faa741bc25fd2ef7e7485513b0854c846f4cc5d6c66e50",
       "default_categories": [
         "Developer tools"
       ]

@@ -35,16 +35,27 @@ module.exports = {
   fn: async function ({slug}) {
 
     if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.markdownPages) || !sails.config.builtStaticContent.markdownPages) {
-      throw {badConfig: 'builtStaticContent.appLibrary'};
+      throw {badConfig: 'builtStaticContent.markdownPages'};
     }
 
-    let thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: '/compare/'+slug });
+    let thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: '/compare/'+encodeURIComponent(slug) });
     if (!thisPage) {
       throw 'notFound';
     }
 
+    let pageTitleForMeta;
+    let pageDescriptionForMeta;
+    if(thisPage.meta.articleTitle) {
+      pageTitleForMeta = thisPage.meta.articleTitle;
+    }
+    if(thisPage.meta.description) {
+      pageDescriptionForMeta = thisPage.meta.description;
+    }
+
     // Respond with view.
     return {
+      pageTitleForMeta,
+      pageDescriptionForMeta,
       path: require('path'),
       thisPage: thisPage,
     };

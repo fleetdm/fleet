@@ -19,7 +19,7 @@ import (
 
 type createDistributedQueryCampaignRequest struct {
 	QuerySQL string            `json:"query"`
-	QueryID  *uint             `json:"query_id"`
+	QueryID  *uint             `json:"query_id" renameto:"report_id"`
 	Selected fleet.HostTargets `json:"selected"`
 }
 
@@ -89,7 +89,7 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 		return nil, err
 	}
 
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: query.ObserverCanRun}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: query.ObserverCanRun, ObserverTeamID: query.TeamID}
 
 	campaign, err := svc.ds.NewDistributedQueryCampaign(ctx, &fleet.DistributedQueryCampaign{
 		QueryID: query.ID,
@@ -175,7 +175,7 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 
 type createDistributedQueryCampaignByIdentifierRequest struct {
 	QuerySQL string                                       `json:"query"`
-	QueryID  *uint                                        `json:"query_id"`
+	QueryID  *uint                                        `json:"query_id" renameto:"report_id"`
 	Selected distributedQueryCampaignTargetsByIdentifiers `json:"selected"`
 }
 
@@ -186,7 +186,8 @@ type distributedQueryCampaignTargetsByIdentifiers struct {
 }
 
 func createDistributedQueryCampaignByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer,
-	error) {
+	error,
+) {
 	req := request.(*createDistributedQueryCampaignByIdentifierRequest)
 	campaign, err := svc.NewDistributedQueryCampaignByIdentifiers(ctx, req.QuerySQL, req.QueryID, req.Selected.Hosts, req.Selected.Labels)
 	if err != nil {

@@ -3,18 +3,22 @@ package main
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"math/rand"
 	"os"
 	"time"
 
 	"github.com/briandowns/spinner"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/shellquote"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/otel"
+	otelsdklog "go.opentelemetry.io/otel/sdk/log"
 )
+
+var tracer = otel.Tracer("github.com/fleetdm/fleet/v4/cmd/fleet")
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
@@ -100,8 +104,8 @@ func applyDevFlags(cfg *config.FleetConfig) {
 		}
 	}
 
-	setIfEmpty(&cfg.Mysql.Username, "fleet")
-	setIfEmpty(&cfg.Mysql.Database, "fleet")
+	// We don't set defaults for database and username here because there are already defaults in config.go
+	// that match our default dev setup.
 	setIfEmpty(&cfg.Mysql.Password, "insecure")
 
 	setIfEmpty(&cfg.Prometheus.BasicAuth.Username, "fleet")
@@ -132,21 +136,14 @@ func applyDevFlags(cfg *config.FleetConfig) {
 	}
 }
 
-func initLogger(cfg config.FleetConfig) kitlog.Logger {
-	var logger kitlog.Logger
-	{
-		output := os.Stderr
-		if cfg.Logging.JSON {
-			logger = kitlog.NewJSONLogger(output)
-		} else {
-			logger = kitlog.NewLogfmtLogger(output)
-		}
-		if cfg.Logging.Debug {
-			logger = level.NewFilter(logger, level.AllowDebug())
-		} else {
-			logger = level.NewFilter(logger, level.AllowInfo())
-		}
-		logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
-	}
-	return logger
+// initLogger creates a *slog.Logger with the appropriate handler based on the
+// Fleet configuration (JSON format, debug level, tracing, OTEL logs).
+func initLogger(cfg config.FleetConfig, loggerProvider *otelsdklog.LoggerProvider) *slog.Logger {
+	return logging.NewSlogLogger(logging.Options{
+		JSON:            cfg.Logging.JSON,
+		Debug:           cfg.Logging.Debug,
+		TracingEnabled:  cfg.Logging.TracingEnabled,
+		OtelLogsEnabled: cfg.Logging.OtelLogsEnabled,
+		LoggerProvider:  loggerProvider,
+	})
 }

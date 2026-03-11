@@ -120,13 +120,14 @@ describe("getUiStatus", () => {
     });
     expect(getUiStatus(sw, true)).toBe("failed_install_update_available");
   });
-
-  it("returns 'failed_install' when failed_install and no update available", () => {
+  // As of 4.81 shows install details modal with installed status if versions still present #31663
+  // Users can hover over installed in InstallStatusCell for more info to see failure logs in host activity
+  it("returns 'failed_install_installed' when failed_install and no update available but there's installed versions", () => {
     const sw = createMockHostSoftware({
       status: "failed_install",
       // version equal to installed version
     });
-    expect(getUiStatus(sw, true)).toBe("failed_install");
+    expect(getUiStatus(sw, true)).toBe("failed_install_installed");
   });
 
   it("returns 'failed_uninstall_update_available' when failed_uninstall and update available", () => {
@@ -136,13 +137,14 @@ describe("getUiStatus", () => {
     });
     expect(getUiStatus(sw, true)).toBe("failed_uninstall_update_available");
   });
-
-  it("returns 'failed_uninstall' when failed_uninstall and no update available", () => {
+  // As of 4.81 shows install details modal with installed status if versions still present #31663
+  // Users can hover over installed in InstallStatusCell for more info to see failure logs in host activity
+  it("returns 'failed_uninstall_installed' when failed_uninstall and no update available but there's installed versions", () => {
     const sw = createMockHostSoftware({
       status: "failed_uninstall",
       // version equal to installed version
     });
-    expect(getUiStatus(sw, true)).toBe("failed_uninstall");
+    expect(getUiStatus(sw, true)).toBe("failed_uninstall_installed");
   });
 
   it("returns 'updating' if pending_install and update is available, host online", () => {
@@ -282,6 +284,54 @@ describe("getUiStatus", () => {
     expect(getUiStatus(sw, true, hostSoftwareUpdatedAt)).toBe(
       "recently_uninstalled"
     );
+  });
+
+  it("does not return 'recently_installed' for tgz_packages even when lastInstallDate is newer than hostSoftwareUpdatedAt", () => {
+    const now = new Date();
+    const lastInstallDate = new Date(now.getTime() + 60 * 1000).toISOString();
+    const hostSoftwareUpdatedAt = now.toISOString();
+
+    const sw = createMockHostSoftware({
+      status: "installed",
+      source: "tgz_packages",
+      // Tarballs never return a version in software_package, and don't participate in inventory-based checks
+      software_package: createMockHostSoftwarePackage({
+        version: undefined,
+        last_install: {
+          install_uuid: "abc",
+          installed_at: lastInstallDate,
+        },
+      }),
+      installed_versions: [], // inventory wouldn't show this anyway for tarballs
+    });
+
+    // Even though lastInstallDate is newer than hostSoftwareUpdatedAt,
+    // tarballs should not show 'recently_installed' and immediately show 'installed' since they don't participate in inventory-based update checks.
+    expect(getUiStatus(sw, true, hostSoftwareUpdatedAt)).toBe("installed");
+  });
+
+  it("does not return 'recently_uninstalled' for tgz_packages even when lastUninstallDate is newer than hostSoftwareUpdatedAt", () => {
+    const now = new Date();
+    const lastUninstallDate = new Date(now.getTime() + 60 * 1000).toISOString();
+    const hostSoftwareUpdatedAt = now.toISOString();
+
+    const sw = createMockHostSoftware({
+      status: null,
+      source: "tgz_packages",
+      // Tarballs never return a version in software_package, and don't participate in inventory-based checks
+      software_package: createMockHostSoftwarePackage({
+        version: undefined,
+        last_uninstall: {
+          script_execution_id: "def",
+          uninstalled_at: lastUninstallDate,
+        },
+      }),
+      installed_versions: [],
+    });
+
+    // Even though lastUninstallDate is newer than hostSoftwareUpdatedAt,
+    // tarballs should not show 'recently_uninstalled' and immediately show 'uninstalled' since they don't participate in inventory-based update checks.
+    expect(getUiStatus(sw, true, hostSoftwareUpdatedAt)).toBe("uninstalled");
   });
 
   // Extra verification: recently_uninstalled takes precedence over update_available

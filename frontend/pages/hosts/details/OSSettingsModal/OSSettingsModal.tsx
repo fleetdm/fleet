@@ -47,17 +47,15 @@ const OSSettingsModal = ({
       className={baseClass}
       width="xlarge"
     >
-      <>
-        <OSSettingsTable
-          canResendProfiles={canResendProfiles}
-          tableData={memoizedTableData ?? []}
-          resendRequest={resendRequest}
-          onProfileResent={onProfileResent}
-        />
-        <div className="modal-cta-wrap">
-          <Button onClick={onClose}>Done</Button>
-        </div>
-      </>
+      <OSSettingsTable
+        canResendProfiles={canResendProfiles}
+        tableData={memoizedTableData ?? []}
+        resendRequest={resendRequest}
+        onProfileResent={onProfileResent}
+      />
+      <div className="modal-cta-wrap">
+        <Button onClick={onClose}>Done</Button>
+      </div>
     </Modal>
   );
 };

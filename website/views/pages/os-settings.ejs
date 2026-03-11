@@ -49,7 +49,8 @@
           </div>
           <div purpose="platform-content" v-if="selectedPlatform === 'windows'">
             <ul>
-              <li><p>Check out Fleet’s <a href="/vitals/battery#windows">built-in checks</a> for Windows.</p></li>
+              <li><p>For local testing on Windows, <a href="https://github.com/okieselbach/SyncMLViewer/releases" target="_blank">SyncMLViewer</a> is a useful GUI tool for inspecting MDM traffic.</p></li>
+              <li><p>Check out Fleet's <a href="/vitals/battery#windows">built-in checks</a> for Windows.</p></li>
               <li><p>View the complete <a href="https://learn.microsoft.com/en-us/windows/client-management/mdm/" target="_blank">Windows docs</a>.</p></li>
               <li><p>Need more help? join us in the <a href="/support">support channel</a>.</p></li>
             </ul>
@@ -77,6 +78,5 @@
         </div>
     </modal>
   </div>
-  <signup-modal></signup-modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

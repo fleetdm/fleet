@@ -16,11 +16,13 @@ import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Checkbox from "components/forms/fields/Checkbox";
 import TargetLabelSelector from "components/TargetLabelSelector";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import {
   CUSTOM_TARGET_OPTIONS,
   generateSelectedLabels,
   getCustomTarget,
+  getDisplayedSoftwareName,
   generateHelpText,
   getTargetType,
 } from "pages/SoftwarePage/helpers";
@@ -121,7 +123,13 @@ const EditAutoUpdateConfigModal = ({
       renderFlash(
         "success",
         <>
-          <strong>{softwareTitle.name}</strong> configuration updated.
+          <strong>
+            {getDisplayedSoftwareName(
+              softwareTitle.name,
+              softwareTitle.display_name
+            )}
+          </strong>{" "}
+          configuration updated.
         </>
       );
 
@@ -207,8 +215,14 @@ const EditAutoUpdateConfigModal = ({
               <div className={`form-field`}>
                 <div className="form-field__label">Auto updates</div>
                 <div className="form-field__subtitle">
-                  Automatically update <strong>{softwareTitle.name}</strong> on
-                  all targeted hosts when a new version is available.
+                  Automatically update{" "}
+                  <strong>
+                    {getDisplayedSoftwareName(
+                      softwareTitle.name,
+                      softwareTitle.display_name
+                    )}
+                  </strong>{" "}
+                  on all targeted hosts when a new version is available.
                 </div>
                 <div>
                   <Checkbox
@@ -282,24 +296,34 @@ const EditAutoUpdateConfigModal = ({
             />
           </Card>
         </div>
-        <ModalFooter
-          primaryButtons={
-            <>
-              <Button onClick={onExit} variant="inverse">
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                onClick={onSubmitForm}
-                isLoading={isUpdatingConfiguration}
-                disabled={!formValidation.isValid || isUpdatingConfiguration}
-              >
-                Save
-              </Button>
-            </>
-          }
-        />
       </div>
+      <ModalFooter
+        primaryButtons={
+          <>
+            <Button onClick={onExit} variant="inverse">
+              Cancel
+            </Button>
+            <GitOpsModeTooltipWrapper
+              position="right"
+              tipOffset={8}
+              renderChildren={(disableChildren) => (
+                <Button
+                  type="submit"
+                  onClick={onSubmitForm}
+                  isLoading={isUpdatingConfiguration}
+                  disabled={
+                    !formValidation.isValid ||
+                    isUpdatingConfiguration ||
+                    disableChildren
+                  }
+                >
+                  Save
+                </Button>
+              )}
+            />
+          </>
+        }
+      />
     </Modal>
   );
 };

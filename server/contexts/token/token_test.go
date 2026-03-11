@@ -57,7 +57,40 @@ func TestFromHTTPRequest(t *testing.T) {
 				Method: http.MethodPost,
 				Body:   io.NopCloser(strings.NewReader("token=bar")),
 			},
-			want: "bar",
+			want: "", // no longer support parsing token from request body
+		}, {
+			name: "BEARER with 3 parts",
+			r: &http.Request{
+				Header: map[string][]string{
+					"Authorization": {"BEARER foobar extra"},
+					"Content-Type":  {"application/x-www-form-urlencoded"},
+				},
+				Method: http.MethodPost,
+				Body:   io.NopCloser(strings.NewReader("token=bar")),
+			},
+			want: "",
+		}, {
+			name: "BEARER with multiple extra parts",
+			r: &http.Request{
+				Header: map[string][]string{
+					"Authorization": {"BEARER foobar extra parts here"},
+					"Content-Type":  {"application/x-www-form-urlencoded"},
+				},
+				Method: http.MethodPost,
+				Body:   io.NopCloser(strings.NewReader("token=bar")),
+			},
+			want: "",
+		}, {
+			name: "bearer lowercase with extra parts",
+			r: &http.Request{
+				Header: map[string][]string{
+					"Authorization": {"bearer foobar extra"},
+					"Content-Type":  {"application/x-www-form-urlencoded"},
+				},
+				Method: http.MethodPost,
+				Body:   io.NopCloser(strings.NewReader("token=bar")),
+			},
+			want: "",
 		},
 	}
 	for _, tt := range tests {

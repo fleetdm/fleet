@@ -84,7 +84,6 @@ const config = {
         use: {
           loader: "esbuild-loader",
           options: {
-            loader: "tsx", // Or 'ts' if you don't need tsx
             target: "es2016",
           },
         },
@@ -108,6 +107,14 @@ const config = {
               sassOptions: {
                 includePaths: bourbon,
                 importer: globImporter(),
+                silenceDeprecations: [
+                  "import",
+                  "global-builtin",
+                  "slash-div",
+                  "color-functions",
+                  "mixed-decls",
+                  "legacy-js-api",
+                ],
               },
             },
           },
@@ -130,6 +137,9 @@ const config = {
         use: { loader: "babel-loader", options: { cacheDirectory: true } },
       },
     ],
+  },
+  performance: {
+    hints: false,
   },
   resolve: {
     extensions: [".tsx", ".ts", ".js", ".jsx", ".json"],

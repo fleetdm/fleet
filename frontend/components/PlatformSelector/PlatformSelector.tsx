@@ -55,7 +55,7 @@ export const PlatformSelector = ({
     const softwareId = installSoftware.software_title_id.toString();
     const softwareLink = getPathWithQueryParams(
       paths.SOFTWARE_TITLE_DETAILS(softwareId),
-      { team_id: currentTeamId }
+      { fleet_id: currentTeamId }
     );
 
     return (

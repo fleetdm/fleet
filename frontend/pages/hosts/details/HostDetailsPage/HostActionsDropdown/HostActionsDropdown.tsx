@@ -20,8 +20,12 @@ interface IHostActionsDropdownProps {
   doesStoreEncryptionKey?: boolean;
   isConnectedToFleetMdm?: boolean;
   hostPlatform?: string;
+  hostCpuType?: string;
   onSelect: (value: string) => void;
   hostScriptsEnabled: boolean | null;
+  isRecoveryLockPasswordEnabled?: boolean;
+  diskEncryptionProfileStatus?: string;
+  recoveryLockPasswordProfileStatus?: string;
 }
 
 const HostActionsDropdown = ({
@@ -32,13 +36,18 @@ const HostActionsDropdown = ({
   doesStoreEncryptionKey,
   isConnectedToFleetMdm,
   hostPlatform = "",
+  hostCpuType = "",
   hostScriptsEnabled = false,
   onSelect,
+  isRecoveryLockPasswordEnabled = false,
+  diskEncryptionProfileStatus,
+  recoveryLockPasswordProfileStatus,
 }: IHostActionsDropdownProps) => {
   const {
     isPremiumTier = false,
     isGlobalAdmin = false,
     isGlobalMaintainer = false,
+    isGlobalTechnician = false,
     isMacMdmEnabledAndConfigured = false,
     isWindowsMdmEnabledAndConfigured = false,
     isAndroidMdmEnabledAndConfigured = false,
@@ -53,17 +62,24 @@ const HostActionsDropdown = ({
     currentUser,
     hostTeamId
   );
+  const isTeamTechnician = permissions.isTeamTechnician(
+    currentUser,
+    hostTeamId
+  );
   const isTeamObserver = permissions.isTeamObserver(currentUser, hostTeamId);
   const isGlobalObserver = permissions.isGlobalObserver(currentUser);
 
   const options = generateHostActionOptions({
     hostPlatform,
+    hostCpuType,
     isPremiumTier,
     isGlobalAdmin,
     isGlobalMaintainer,
     isGlobalObserver,
+    isGlobalTechnician,
     isTeamAdmin,
     isTeamMaintainer,
+    isTeamTechnician,
     isTeamObserver,
     isHostOnline: hostStatus === "online",
     isEnrolledInMdm: isEnrolledInMdm(hostMdmEnrollmentStatus),
@@ -77,6 +93,9 @@ const HostActionsDropdown = ({
     scriptsGloballyDisabled: globalConfig?.server_settings.scripts_disabled,
     isPrimoMode: globalConfig?.partnerships?.enable_primo ?? false,
     hostMdmEnrollmentStatus,
+    isRecoveryLockPasswordEnabled,
+    diskEncryptionProfileStatus,
+    recoveryLockPasswordProfileStatus,
   });
 
   // No options to render. Exit early

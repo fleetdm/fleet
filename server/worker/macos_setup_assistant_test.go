@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -18,7 +19,6 @@ import (
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -73,7 +73,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm2.ID, []uint{hosts[4].ID, hosts[5].ID}))
 	require.NoError(t, err)
 
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	depStorage, err := ds.NewMDMAppleDEPStorage()
 	require.NoError(t, err)
 	macosJob := &MacosSetupAssistant{

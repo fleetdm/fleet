@@ -1,10 +1,9 @@
 import React, { useContext, useRef, useState } from "react";
 
-import {
-  FLEET_WEBSITE_URL,
-  LEARN_MORE_ABOUT_BASE_LINK,
-} from "utilities/constants";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import CriticalPolicyBadge from "components/CriticalPolicyBadge";
 import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -78,6 +77,13 @@ const ConditionalAccessModal = ({
     />
   );
 
+  const renderItemLabel = (policy: IFormPolicy) => (
+    <>
+      <TooltipTruncatedText value={policy.name} />
+      {policy.critical && <CriticalPolicyBadge />}
+    </>
+  );
+
   const renderConfigured = () => {
     return (
       <>
@@ -90,18 +96,13 @@ const ConditionalAccessModal = ({
               activeText="Enabled"
               disabled={gitOpsModeEnabled || !isAdmin}
             />
-            <CustomLink
-              text="Preview end user experience"
-              newTab
-              multiline={false}
-              url={`${FLEET_WEBSITE_URL}/microsoft-compliance-partner/remediate`}
-            />
           </span>
           <PoliciesPaginatedList
             ref={paginatedListRef}
             isSelected="conditional_access_enabled"
             getPolicyDisabled={getPolicyDisabled}
             getPolicyTooltipContent={getPolicyTooltipContent}
+            renderItemLabel={renderItemLabel}
             onToggleItem={(item: IFormPolicy) => {
               item.conditional_access_enabled = !item.conditional_access_enabled;
               return item;

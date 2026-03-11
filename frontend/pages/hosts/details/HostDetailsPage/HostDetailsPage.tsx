@@ -44,7 +44,10 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
+import {
+  isBYODAccountDrivenUserEnrollment,
+  FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
+} from "interfaces/mdm";
 import { ICommand } from "interfaces/command";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
@@ -118,6 +121,7 @@ import DeleteHostModal from "../../components/DeleteHostModal";
 
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
+import RecoveryLockPasswordModal from "./modals/RecoveryLockPasswordModal";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
@@ -163,6 +167,7 @@ interface IHostDetailsProps {
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
+      fleet_id?: string;
     };
     search?: string;
   };
@@ -200,6 +205,7 @@ const HostDetailsPage = ({
     currentUser,
     isGlobalAdmin = false,
     isGlobalMaintainer,
+    isGlobalTechnician,
     isTeamMaintainerOrTeamAdmin,
     isPremiumTier = false,
     isOnlyObserver,
@@ -220,6 +226,10 @@ const HostDetailsPage = ({
   const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
   const [showDiskEncryptionModal, setShowDiskEncryptionModal] = useState(false);
+  const [
+    showRecoveryLockPasswordModal,
+    setShowRecoveryLockPasswordModal,
+  ] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
@@ -306,9 +316,6 @@ const HostDetailsPage = ({
     () => teamAPI.loadAll(),
     {
       enabled: !!hostIdFromURL && !!isPremiumTier,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
       retry: false,
       select: (data: ILoadTeamsResponse) => data.teams,
     }
@@ -319,9 +326,6 @@ const HostDetailsPage = ({
     () => hostAPI.getMdm(hostIdFromURL),
     {
       enabled: !!hostIdFromURL,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
       retry: false,
       onError: (err) => {
         // no handling needed atm. data is simply not shown.
@@ -335,9 +339,6 @@ const HostDetailsPage = ({
     () => hostAPI.loadHostDetailsExtension(hostIdFromURL, "macadmins"),
     {
       enabled: !!hostIdFromURL, // TODO(android): disable for unsupported platforms?
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
       retry: false,
       select: (data: IMacadminsResponse) => data.macadmins,
     }
@@ -399,9 +400,6 @@ const HostDetailsPage = ({
     () => hostAPI.loadHostDetails(hostIdFromURL),
     {
       enabled: !!hostIdFromURL,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
       retry: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
@@ -576,6 +574,10 @@ const HostDetailsPage = ({
     }
   );
 
+  const mdmConfig = host?.team_id
+    ? teams?.find((t) => t.id === host.team_id)?.mdm
+    : config?.mdm;
+
   const canGetMDMCommands =
     !!isMacMdmEnabledAndConfigured && isAppleDevice(host?.platform);
 
@@ -648,10 +650,6 @@ const HostDetailsPage = ({
     : config?.features;
 
   const getOSVersionRequirementFromMDMConfig = (hostPlatform: string) => {
-    const mdmConfig = host?.team_id
-      ? teams?.find((t) => t.id === host.team_id)?.mdm
-      : config?.mdm;
-
     switch (hostPlatform) {
       case "darwin":
         return mdmConfig?.macos_updates;
@@ -667,7 +665,7 @@ const HostDetailsPage = ({
   useEffect(() => {
     setUsersState(() => {
       return (
-        host?.users.filter((user) => {
+        host?.users?.filter((user) => {
           return user.username
             .toLowerCase()
             .includes(usersSearchString.toLowerCase());
@@ -905,7 +903,7 @@ const HostDetailsPage = ({
 
       const successMessage =
         teamId === null
-          ? `Host successfully removed from teams.`
+          ? `Host successfully removed from fleets.`
           : `Host successfully transferred to  ${team.name}.`;
 
       renderFlash("success", successMessage);
@@ -943,6 +941,9 @@ const HostDetailsPage = ({
       case "diskEncryption":
         setShowDiskEncryptionModal(true);
         break;
+      case "recoveryLockPassword":
+        setShowRecoveryLockPasswordModal(true);
+        break;
       case "mdmOff":
         toggleUnenrollMdmModal();
         break;
@@ -971,8 +972,8 @@ const HostDetailsPage = ({
 
   const onClickAddQuery = () => {
     router.push(
-      getPathWithQueryParams(PATHS.NEW_QUERY, {
-        team_id: currentTeam?.id,
+      getPathWithQueryParams(PATHS.NEW_REPORT, {
+        fleet_id: currentTeam?.id || location.query.fleet_id,
         host_id: hostIdFromURL,
       })
     );
@@ -983,11 +984,16 @@ const HostDetailsPage = ({
       return null;
     }
 
+    const diskEncryptionProfile = host.mdm.profiles?.find(
+      (p) => p.name === FLEET_FILEVAULT_PROFILE_DISPLAY_NAME
+    );
+
     return (
       <HostActionsDropdown
         hostTeamId={host.team_id}
         onSelect={onSelectHostAction}
         hostPlatform={host.platform}
+        hostCpuType={host.cpu_type}
         hostStatus={host.status}
         hostMdmDeviceStatus={hostMdmDeviceStatus}
         hostMdmEnrollmentStatus={host.mdm.enrollment_status}
@@ -997,6 +1003,13 @@ const HostDetailsPage = ({
         }
         isConnectedToFleetMdm={host.mdm?.connected_to_fleet}
         hostScriptsEnabled={host.scripts_enabled}
+        isRecoveryLockPasswordEnabled={
+          mdmConfig?.enable_recovery_lock_password ?? false
+        }
+        diskEncryptionProfileStatus={diskEncryptionProfile?.status}
+        recoveryLockPasswordProfileStatus={
+          host.mdm.os_settings?.recovery_lock_password?.status
+        }
       />
     );
   };
@@ -1096,16 +1109,28 @@ const HostDetailsPage = ({
 
   const navigateToNav = (i: number): void => {
     const navPath = hostDetailsSubNav[i].pathname;
-    router.push(navPath);
+    router.push(
+      getPathWithQueryParams(navPath, {
+        fleet_id: currentTeam?.id || location.query.fleet_id,
+      })
+    );
   };
 
   const navigateToSoftwareTab = (i: number): void => {
     const navPath = hostSoftwareSubNav[i].pathname;
-    router.push(navPath);
+    router.push(
+      getPathWithQueryParams(navPath, {
+        fleet_id: currentTeam?.id || location.query.fleet_id,
+      })
+    );
   };
 
   const isHostTeamAdmin = permissions.isTeamAdmin(currentUser, host?.team_id);
   const isHostTeamMaintainer = permissions.isTeamMaintainer(
+    currentUser,
+    host?.team_id
+  );
+  const isHostTeamTechnician = permissions.isTeamTechnician(
     currentUser,
     host?.team_id
   );
@@ -1121,16 +1146,19 @@ const HostDetailsPage = ({
   const isAndroidHost = isAndroid(host.platform);
   const isWindowsHost = isWindows(host.platform);
   const isChromeHost = isChrome(host.platform);
+  const isAppleDeviceHost = isAppleDevice(host.platform);
 
   const isSupportedHostQueriesPlatform =
     !isIosOrIpadosHost && !isAndroidHost && !isChromeHost;
 
   const canResendProfiles =
-    (isMacOSHost || isWindowsHost) &&
+    (isAppleDeviceHost || isWindowsHost) &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
+      isGlobalTechnician ||
       isHostTeamAdmin ||
-      isHostTeamMaintainer);
+      isHostTeamMaintainer ||
+      isHostTeamTechnician);
 
   const showSoftwareLibraryTab = isPremiumTier;
 
@@ -1138,7 +1166,7 @@ const HostDetailsPage = ({
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showCertificatesCard =
-    isAppleDevice(host.platform) && !!hostCertificates?.certificates.length;
+    isAppleDeviceHost && !!hostCertificates?.certificates.length;
 
   const renderSoftwareCard = () => {
     return (
@@ -1278,7 +1306,12 @@ const HostDetailsPage = ({
           <div className={`${baseClass}__header-links`}>
             <BackButton
               text="Back to all hosts"
-              path={filteredHostsPath || PATHS.MANAGE_HOSTS}
+              path={
+                filteredHostsPath ||
+                getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
+                  fleet_id: location.query.fleet_id,
+                })
+              }
             />
           </div>
           <div className={`${baseClass}__header-summary`}>
@@ -1555,6 +1588,12 @@ const HostDetailsPage = ({
               onCancel={() => setShowDiskEncryptionModal(false)}
             />
           )}
+          {showRecoveryLockPasswordModal && host && (
+            <RecoveryLockPasswordModal
+              hostId={host.id}
+              onCancel={() => setShowRecoveryLockPasswordModal(false)}
+            />
+          )}
           {showBootstrapPackageModal &&
             bootstrapPackageData.details &&
             bootstrapPackageData.name && (
@@ -1645,6 +1684,7 @@ const HostDetailsPage = ({
             <WipeModal
               id={host.id}
               hostName={host.display_name}
+              isWindowsHost={isWindowsHost}
               onSuccess={() => setHostMdmDeviceState("wiping")}
               onClose={() => setShowWipeModal(false)}
             />

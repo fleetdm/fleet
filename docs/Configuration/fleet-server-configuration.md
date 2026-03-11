@@ -632,6 +632,18 @@ The TLS key to use when terminating TLS.
     key: /tmp/fleet.key
   ```
 
+### server_default_max_request_body_size
+
+The max request body size, in a human readable format (size + unit), for endpoints that don't implement a higher size. If an endpoint has a default limit of 3MB for instance, and this value is set to 5MB, that endpoint will have its maximum request size increased to 5MB as well. To see which endpoints have a higher size than the default, check out the [API reference docs](https://fleetdm.com/docs/rest-api/rest-api).
+
+- Default value: 1MiB
+- Environment variable: `FLEET_SERVER_DEFAULT_MAX_REQUEST_BODY_SIZE`
+- Config file format:
+  ```yaml
+  server:
+    default_max_request_body_size: 2MB
+  ```
+
 ### server_tls
 
 Whether or not the server should be served over TLS.
@@ -682,6 +694,44 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
   ```yaml
   server:
     keepalive: true
+  ```
+
+### server_trusted_proxies (Fleet 4.80.1+)
+
+Sets the strategy that Fleet uses to determine the IP address of the client making a request. This address is used for rate-limiting purposes. Options are:
+
+- `none`: always take the IP from the remote address of the request
+- A comma-delimited set of IP addresses or ranges: parse the `x-forwarded-for` or `forwarded` header (if any) in the request and take the right-most IP _not_ in the list
+- A number: parse the `x-forwarded-for` or `forwarded` header (if any) and taken the Nth address from the right (`1` indicates the right-most address, `2` the second-to-right-most, etc.)
+- A string starting with `header:`: take the value of that header as the IP address
+- Empty: take the value of the IP from the `True-Client-IP` header, or else the `X-Real-IP` header, or else the left-most value of the `X-Forwarded-For` header. _This setting is deprecated: For Fleet servers directly facing the internet, `none` is recommended. Otherwise use a value compatible with your proxy setup._
+
+> If no value can be determined via the configured setting (for example, if a number is supplied but no `x-forwarded-for` or `forwarded` headers exist on the request) then the remote address of the request will be used.
+
+For example, if a request from remote address `5.5.5.5` has these headers:
+```
+X-Forwarded-For: 1.1.1.1, 2.2.2.2, 4.4.4.4, 192.168.0.120
+X-Real-IP: 2.2.2.2
+```
+
+Then depending on how `fleet_server_trusted_proxies` is set, Fleet would determine the following values for the client IP:
+
+| Trusted proxies setting | Client IP | Explanation |
+| --- | --- | --- |
+|`none` | `5.5.5.5` | The address Fleet received the request from |
+|`192.168.0.0/24, 4.4.4.4`| `2.2.2.2` | Using `X-Forwarded-For` and skipping the trusted addresses of `192.168.0.120` and `4.4.4.4` |
+|`1`| `192.168.0.120` | The first address from the right in `x-forwarded-for`
+|`2`| `4.4.4.4` | The second address from the right in `x-forwarded-for` |
+|`header:x-real-ip`| `2.2.2.2` | The value of the specified header|
+|`header:x-peekaboo`| `5.5.5.5` |  The address Fleet received the request from, since the specified header doesn't exist in the request |
+|empty| `2.2.2.2` | The value of the `x-real-ip` header
+
+- Default value: empty
+- Environment variable: `FLEET_SERVER_TRUSTED_PROXIES`
+- Config file format:
+  ```yaml
+  server:
+    trusted_proxies: none
   ```
 
 ### server_websockets_allow_unsafe_origin
@@ -778,6 +828,32 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
   ```yaml
   server:
     private_key_sts_external_id: your_unique_id
+  ```
+
+### server_max_installer_size
+
+Maximum size for software installer uploads. Accepts human-readable size values with suffixes like `K`, `M`, `G`, `T` (binary, e.g., `10GiB` = 10 * 1024³ bytes) or `KB`, `MB`, `GB`, `TB` (decimal, e.g., `10GB` = 10 * 1000³ bytes). Plain numbers are interpreted as bytes.
+
+- Default value: `10GiB`
+- Environment variable: `FLEET_SERVER_MAX_INSTALLER_SIZE`
+- Config file format:
+  ```yaml
+  server:
+    max_installer_size: 10GiB
+  ```
+  
+### server_gzip_responses
+
+If enabled, the server will return gzip-compressed responses for HTTP requests to clients that indicate support. Client support is determined by the presence of `gzip` in an `Accept-Encoding` request header.
+
+Enable this to significantly reduce the outbound bandwidth from the Fleet server at a small expense to CPU utilization on the server.
+
+- Default value: false
+- Environment variable: `FLEET_SERVER_GZIP_RESPONSES`
+- Config file format:
+  ```yaml
+  server:
+    gzip_responses: true
   ```
 
 ## Auth
@@ -948,9 +1024,7 @@ Options are `provided` (default), `uuid`, `hostname`, or `instance`.
 
 This setting works in combination with the `--host_identifier` flag in osquery. In most deployments, using `uuid` will be the best option. The flag defaults to `provided` -- preserving the existing behavior of Fleet's handling of host identifiers -- using the identifier provided by osquery. `instance`, `uuid`, and `hostname` correspond to the same meanings as osquery's `--host_identifier` flag.
 
-Users that have duplicate UUIDs in their environment can benefit from setting this flag to `instance`.
-
-> If you are enrolling your hosts using Fleet generated packages, it is recommended to use `uuid` as your identifier. This prevents potential issues with duplicate host enrollments.
+> If you are enrolling your hosts using Fleet generated packages, it is recommended to leave this setting as the default of `provided` and use the `--host-identifier` flag to specify an identifier when building your fleetd package. Supported options are `uuid` and `instance`.
 
 - Default value: `provided`
 - Environment variable: `FLEET_OSQUERY_HOST_IDENTIFIER`
@@ -1219,6 +1293,30 @@ The minimum time difference between the software's "last opened at" timestamp re
   ```yaml
   osquery:
     min_software_last_opened_at_diff: 4h
+  ```
+
+### osquery_max_log_write_body_size
+
+Maximum HTTP request body size accepted by the `osquery/log` endpoint. Increase this if osquery agents are submitting log batches that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
+
+- Default value: `10MiB`
+- Environment variable: `FLEET_OSQUERY_MAX_LOG_WRITE_BODY_SIZE`
+- Config file format:
+  ```yaml
+  osquery:
+    max_log_write_body_size: 20MiB
+  ```
+
+### osquery_max_distributed_write_body_size
+
+Maximum HTTP request body size accepted by the `osquery/distributed/write` endpoint. Increase this if osquery agents are submitting distributed query results that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
+
+- Default value: `5MiB`
+- Environment variable: `FLEET_OSQUERY_MAX_DISTRIBUTED_WRITE_BODY_SIZE`
+- Config file format:
+  ```yaml
+  osquery:
+    max_distributed_write_body_size: 10MiB
   ```
 
 ## External activity audit logging
@@ -3212,6 +3310,57 @@ The best practice is to set this to 3x the number of new employees (end users) t
   ```yaml
   mdm:
     sso_rate_limit_per_minute: 200
+  ```
+
+### mdm.apple_vpp_app_metadata_api_bearer_token
+
+By default, Fleet retrieves [Apple App Store (VPP) metadata](https://developer.apple.com/documentation/devicemanagement/get-your-apps-metadata) from Apple using an API token from Fleet's Apple Developer account. This API token is hosted on fleetdm.com.
+
+If you have an [Apple Developer account that is enabled as an MDM vendor](https://developer.apple.com/help/account/service-configurations/apps-and-books-for-organizations), you can optionally configure Fleet with your own API token. This way, Fleet can directly communicate with Apple.
+
+- Default value: none
+- Environment variable: `FLEET_MDM_APPLE_VPP_APP_METADATA_API_BEARER_TOKEN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_vpp_app_metadata_api_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
+  ```
+
+### fleet_allow_bootstrap_package_during_migration
+
+When set to `1` or `true`, this environment variable enables Fleet to install bootstrap packages on hosts during MDM migration enrollments (i.e. non-DEP enrollments). By default, bootstrap packages are only installed for DEP-enrolled hosts. Setting this variable restores the previous behavior, ensuring all new enrollments receive the bootstrap package.
+
+This is only supported as an environment variable.
+
+- Environment variable: `FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION`
+
+### silent_migration_enrollment_profile
+
+Specifies the original enrollment profile from the previous MDM, used by Fleet for migrated Apple hosts during SCEP certificate renewal. This profile ensures that migrated hosts can renew their SCEP certificates without requiring re-enrollment or user interaction, enabling seamless MDM migration. Required when migrating hosts from another MDM to Fleet to maintain uninterrupted certificate management.
+
+The enrollment profile must be base64-encoded. This is only supported as an environment variable. 
+
+- Environment variable: `FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE`
+- Note: If you are experiencing systems failing SCEP renewal, please [contact us](mailto: support@fleetdm.com).
+
+## Conditional access
+
+### conditional_access_cert_serial_format
+
+Specifies the format for parsing certificate serial numbers from the `X-Client-Cert-Serial` header during Okta conditional access authentication.
+
+Different load balancers/reverse proxies send certificate serial numbers in different formats:
+- AWS ALB sends serial numbers in **hexadecimal** format (e.g., `A` for serial 10)
+- Caddy sends serial numbers in **decimal** format (e.g., `10` for serial 10)
+
+This configuration allows Fleet to correctly parse the serial number regardless of the proxy being used.
+
+- Default value: `hex`
+- Environment variable: `FLEET_CONDITIONAL_ACCESS_CERT_SERIAL_FORMAT`
+- Config file format:
+  ```yaml
+  conditional_access:
+    cert_serial_format: decimal
   ```
 
 ## Partnerships

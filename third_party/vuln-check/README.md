@@ -34,7 +34,6 @@ This directory solves that problem by creating "dummy" manifest files that list 
 | josharian/impl             | server/mock/mockimpl/                 | v1.4.0                             |
 | mitchellh/gon              | orbit/pkg/packaging/macos_notarize.go | v0.2.3                             |
 | sassoftware/relic          | pkg/file/xar.go                       | v7.2.1+incompatible                |
-| oscartbeaumont/windows_mdm | tools/mdm/windows/poc-mdm-server/     | v0.0.0-20210615145659-e52e28e50db7 |
 
 ### npm dependencies (package.json)
 

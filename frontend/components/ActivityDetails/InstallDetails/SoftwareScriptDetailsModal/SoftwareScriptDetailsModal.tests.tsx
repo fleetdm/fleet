@@ -149,7 +149,7 @@ describe("SoftwareScriptDetailsModal - ModalButtons component", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("on device user page, shows Done button for ran payload-free software script", () => {
+  it("on device user page, shows Done button for ran script-only software script", () => {
     const onCancel = jest.fn();
     render(
       <ModalButtons

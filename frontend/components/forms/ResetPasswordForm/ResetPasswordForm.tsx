@@ -117,12 +117,8 @@ const ResetPasswordForm = ({
         className={`${baseClass}__input`}
         type="password"
       />
-      <div className="button-wrap">
-        <Button
-          type="submit"
-          onClick={onFormSubmit}
-          className={`${baseClass}__btn`}
-        >
+      <div className="button-wrap--center">
+        <Button type="submit" onClick={onFormSubmit} size="wide">
           Reset password
         </Button>
       </div>

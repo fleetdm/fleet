@@ -8,7 +8,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 | Role                                    | Contributor(s)
 |:----------------------------------------|:----------------------------------------------------------------------|
 | Head of IT & Solutions Consulting                 | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_
-| Solutions Consultant (SC)               | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)_
+| Solutions Consultant (SC)               | <sup><sub> _See [🚂 Go-To-Market operations](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions)_
 | IT Support Administrator             | [Andrea Pepper](https://www.linkedin.com/in/lppepper/) _([@lppepper2](https://github.com/lppepper2))_ 
 
 

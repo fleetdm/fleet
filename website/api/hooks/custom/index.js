@@ -203,6 +203,7 @@ will be disabled and/or hidden in the UI.
                 source: req.param('utm_source'),// will be undefined if this is not set
                 medium: req.param('utm_medium'),// will be undefined if this is not set
                 campaign: req.param('utm_campaign'),// will be undefined if this is not set
+                gclid: req.param('gclid'),// will be undefined if this is not set
                 referrer: req.get('referer'),
                 initialUrl: req.url,
               };
@@ -363,7 +364,6 @@ will be disabled and/or hidden in the UI.
                       emailAddress: sanitizedUser.emailAddress,
                       firstName: sanitizedUser.firstName,
                       lastName: sanitizedUser.lastName,
-                      organization: sanitizedUser.organization,
                       contactSource: 'Website - Sign up',// Note: this is only set on new contacts.
                       marketingAttributionCookie: attributionCookieOrUndefined,
                     });

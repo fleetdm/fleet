@@ -91,14 +91,14 @@ type TeamRole struct {
 
 func (s SSORolesInfo) verify() error {
 	if s.Global != nil && len(s.Teams) > 0 {
-		return errors.New("cannot set both global and team roles")
+		return errors.New("cannot set both global and fleet roles")
 	}
 	// Check for duplicate entries for the same team.
 	// This is just in case some IdP allows duplicating attributes.
 	teamSet := make(map[uint]struct{})
 	for _, teamRole := range s.Teams {
 		if _, ok := teamSet[teamRole.ID]; ok {
-			return fmt.Errorf("duplicate team entry: %d", teamRole.ID)
+			return fmt.Errorf("duplicate fleet entry: %d", teamRole.ID)
 		}
 		teamSet[teamRole.ID] = struct{}{}
 	}
@@ -122,7 +122,7 @@ const (
 //     for setting role for a team with ID <TEAM_ID>.
 //
 // For both attributes currently supported values are `admin`, `maintainer`, `observer`,
-// `observer_plus` and `null`. A `null` value is used to ignore the attribute.
+// `observer_plus`, `technician` and `null`. A `null` value is used to ignore the attribute.
 func RolesFromSSOAttributes(attributes []SAMLAttribute) (SSORolesInfo, error) {
 	ssoRolesInfo := SSORolesInfo{}
 	for _, attribute := range attributes {
@@ -175,6 +175,7 @@ func parseRole(values []SAMLAttributeValue) (string, error) {
 		value != RoleMaintainer &&
 		value != RoleObserver &&
 		value != RoleObserverPlus &&
+		value != RoleTechnician &&
 		value != ssoAttrNullRoleValue {
 		return "", fmt.Errorf("invalid role: %s", value)
 	}
