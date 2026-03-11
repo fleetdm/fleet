@@ -32,7 +32,7 @@ func (c *Client) ApplyPolicies(specs []*fleet.PolicySpec) error {
 func (c *Client) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 	verb, path := "GET", ""
 	if teamID != nil {
-		path = fmt.Sprintf("/api/latest/fleet/teams/%d/policies", *teamID)
+		path = fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", *teamID)
 	} else {
 		path = "/api/latest/fleet/policies"
 	}
@@ -50,7 +50,7 @@ func (c *Client) DeletePolicies(teamID *uint, ids []uint) error {
 	verb, path := "POST", ""
 	req := deleteTeamPoliciesRequest{IDs: ids}
 	if teamID != nil {
-		path = fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", *teamID)
+		path = fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/delete", *teamID)
 		req.TeamID = *teamID
 	} else {
 		path = "/api/latest/fleet/policies/delete"
