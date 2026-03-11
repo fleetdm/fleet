@@ -19620,25 +19620,20 @@ func (s *integrationMDMTestSuite) TestCancelLockWipeUpcomingActivity() {
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.EqualValues(t, fleet.PendingActionNone, *getHostResp.Host.MDM.PendingAction)
 
-	// past lock/wipe actions have been cleared
+	// original lock/wipe activities are preserved in the audit log, with the cancelation as the latest activity
 	var listAct listActivitiesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", h3.ID), nil, http.StatusOK, &listAct)
-	// latest activity is the cancelation
-	require.True(t, len(listAct.Activities) > 0)
+	require.True(t, len(listAct.Activities) > 1)
 	require.Equal(t, fleet.ActivityTypeCanceledRunScript{}.ActivityName(), listAct.Activities[0].Type)
-	if len(listAct.Activities) > 1 {
-		require.NotEqual(t, lockActID, listAct.Activities[1].ID)
-		require.NotEqual(t, fleet.ActivityTypeLockedHost{}.ActivityName(), listAct.Activities[1].Type)
-	}
+	require.Equal(t, lockActID, listAct.Activities[1].ID)
+	require.Equal(t, fleet.ActivityTypeLockedHost{}.ActivityName(), listAct.Activities[1].Type)
 
 	listAct = listActivitiesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", h4.ID), nil, http.StatusOK, &listAct)
-	require.True(t, len(listAct.Activities) > 0)
+	require.True(t, len(listAct.Activities) > 1)
 	require.Equal(t, fleet.ActivityTypeCanceledRunScript{}.ActivityName(), listAct.Activities[0].Type)
-	if len(listAct.Activities) > 1 {
-		require.NotEqual(t, wipeActID, listAct.Activities[1].ID)
-		require.NotEqual(t, fleet.ActivityTypeWipedHost{}.ActivityName(), listAct.Activities[1].Type)
-	}
+	require.Equal(t, wipeActID, listAct.Activities[1].ID)
+	require.Equal(t, fleet.ActivityTypeWipedHost{}.ActivityName(), listAct.Activities[1].Type)
 }
 
 func (s *integrationMDMTestSuite) TestSoftwareCategories() {
