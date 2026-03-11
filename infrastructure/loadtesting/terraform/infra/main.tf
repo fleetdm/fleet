@@ -142,9 +142,6 @@ module "loadtest" {
       bucket_prefix                      = "${terraform.workspace}-sw-inst-"
       create_kms_key                     = true
       kms_alias                          = "${local.customer}-software-installers"
-      enable_bucket_versioning           = true
-      expire_noncurrent_versions         = true
-      noncurrent_version_expiration_days = 30
     }
     volumes = [
       {
