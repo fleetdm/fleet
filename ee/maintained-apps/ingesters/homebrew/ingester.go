@@ -313,7 +313,7 @@ type brewUninstall struct {
 	// pairs [["signal","app1"],["signal","app2"]]. We use json.RawMessage so
 	// JSON parsing does not fail on either format; apps that need signal
 	// handling should provide a custom uninstall script.
-	Signal    json.RawMessage `json:"signal"`
+	Signal    json.RawMessage            `json:"signal"`
 	Delete    optjson.StringOr[[]string] `json:"delete"`
 	RmDir     optjson.StringOr[[]string] `json:"rmdir"`
 	Trash     optjson.StringOr[[]string] `json:"trash"`
