@@ -23,6 +23,7 @@ export interface ILoginResponse {
   available_teams: ITeamSummary[];
   available_fleets: ITeamSummary[];
   token: string;
+  token_expires_at?: string;
 }
 
 export default {

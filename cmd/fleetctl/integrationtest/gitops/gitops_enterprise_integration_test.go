@@ -1194,7 +1194,7 @@ settings:
 	// Test dry-run first
 	output := fleetctl.RunAppForTest(t,
 		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"})
-	s.assertDryRunOutput(t, output)
+	s.assertDryRunOutputWithDeprecation(t, output, true)
 
 	// Check that webhook settings are mentioned in the output
 	require.Contains(t, output, "would've applied webhook settings for unassigned hosts")
@@ -1202,7 +1202,7 @@ settings:
 	// Apply the configuration (non-dry-run)
 	output = fleetctl.RunAppForTest(t,
 		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath})
-	s.assertRealRunOutput(t, output)
+	s.assertRealRunOutputWithDeprecation(t, output, true)
 
 	// Verify the output mentions webhook settings were applied
 	require.Contains(t, output, "applying webhook settings for unassigned hosts")
@@ -3825,8 +3825,9 @@ labels:
 	require.NoError(t, err)
 	require.Len(t, labels, 1)
 
-	// Step 2: Apply a minimal global config that omits policies, agent_options, controls, reports, labels.
+	// Step 2: Apply a minimal global config that omits policies, agent_options, reports, labels.
 	const minimalGlobalConfig = `
+controls:
 org_settings:
   server_settings:
     server_url: $FLEET_URL

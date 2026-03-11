@@ -151,6 +151,18 @@ func TestFullProductName(t *testing.T) {
 			finalName: "Windows Server 2022 (Server Core installation) Version 21H2",
 		},
 		{
+			fullName:  "Windows Server 2025",
+			arch:      "all",
+			prodName:  "Windows Server 2025",
+			finalName: "Windows Server 2025 Version 24H2",
+		},
+		{
+			fullName:  "Windows Server 2025 (Server Core installation)",
+			arch:      "all",
+			prodName:  "Windows Server 2025",
+			finalName: "Windows Server 2025 (Server Core installation) Version 24H2",
+		},
+		{
 			fullName:  "Windows 10 Version 20H2 for x64-based Systems",
 			arch:      "64-bit",
 			prodName:  "Windows 10",
@@ -554,6 +566,7 @@ var msrcWinProducts = Products{
 	"11923": "Windows Server 2022",
 	"11924": "Windows Server 2022 (Server Core installation)",
 	"12244": "Windows Server 2022, 23H2 Edition (Server Core installation)",
+	"12436": "Windows Server 2025 Version 24H2",
 }
 
 func TestMatchesOperatingSystem(t *testing.T) {
@@ -631,6 +644,16 @@ func TestMatchesOperatingSystem(t *testing.T) {
 				DisplayVersion: "23H2",
 			},
 			want: "12244",
+			err:  nil,
+		},
+		{
+			name: "Windows Server 2025 with display version",
+			os: fleet.OperatingSystem{
+				Name:           "Microsoft Windows Server 2025 Datacenter 24H2",
+				Arch:           "64-bit",
+				DisplayVersion: "24H2",
+			},
+			want: "12436",
 			err:  nil,
 		},
 		{

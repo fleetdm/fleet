@@ -39,30 +39,28 @@ const WarningModal = ({
       title="Save changes?"
       onExit={onExit}
     >
-      <>
-        <p>
-          The changes you are making will cancel any pending script runs for{" "}
-          <b>{scriptName}</b>.<br />
-          <br />
-          If this script is currently running on a host, it will complete, but
-          results won&apos;t appear in Fleet. <br />
-          <br />
-          You cannot undo this action.
-        </p>
-        <div className="modal-cta-wrap">
-          <Button
-            type="button"
-            onClick={onSave}
-            className="save-loading"
-            isLoading={isSubmitting}
-          >
-            Save
-          </Button>
-          <Button onClick={onExit} variant="inverse">
-            Cancel
-          </Button>
-        </div>
-      </>
+      <p>
+        The changes you are making will cancel any pending script runs for{" "}
+        <b>{scriptName}</b>.<br />
+        <br />
+        If this script is currently running on a host, it will complete, but
+        results won&apos;t appear in Fleet. <br />
+        <br />
+        You cannot undo this action.
+      </p>
+      <div className="modal-cta-wrap">
+        <Button
+          type="button"
+          onClick={onSave}
+          className="save-loading"
+          isLoading={isSubmitting}
+        >
+          Save
+        </Button>
+        <Button onClick={onExit} variant="inverse">
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

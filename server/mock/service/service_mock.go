@@ -111,6 +111,8 @@ type SSOSettingsFunc func(ctx context.Context) (*fleet.SessionSSOSettings, error
 
 type LoginFunc func(ctx context.Context, email string, password string, supportsEmailVerification bool) (user *fleet.User, session *fleet.Session, err error)
 
+type GetSessionDurationFunc func(ctx context.Context) time.Duration
+
 type LogoutFunc func(ctx context.Context) (err error)
 
 type CompleteMFAFunc func(ctx context.Context, token string) (*fleet.Session, *fleet.User, error)
@@ -1027,6 +1029,9 @@ type Service struct {
 
 	LoginFunc        LoginFunc
 	LoginFuncInvoked bool
+
+	GetSessionDurationFunc        GetSessionDurationFunc
+	GetSessionDurationFuncInvoked bool
 
 	LogoutFunc        LogoutFunc
 	LogoutFuncInvoked bool
@@ -2518,6 +2523,13 @@ func (s *Service) Login(ctx context.Context, email string, password string, supp
 	s.LoginFuncInvoked = true
 	s.mu.Unlock()
 	return s.LoginFunc(ctx, email, password, supportsEmailVerification)
+}
+
+func (s *Service) GetSessionDuration(ctx context.Context) time.Duration {
+	s.mu.Lock()
+	s.GetSessionDurationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSessionDurationFunc(ctx)
 }
 
 func (s *Service) Logout(ctx context.Context) (err error) {
