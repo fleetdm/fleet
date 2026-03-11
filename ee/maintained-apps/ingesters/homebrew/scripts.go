@@ -1,6 +1,7 @@
 package homebrew
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -170,7 +171,7 @@ func uninstallArtifactOrder(artifact *brewUninstall) int {
 		return PriorityLaunchctl
 	case len(artifact.Quit.String)+len(artifact.Quit.Other) > 0:
 		return PriorityQuit
-	case len(artifact.Signal.String)+len(artifact.Signal.Other) > 0:
+	case len(artifact.Signal) > 0:
 		return PrioritySignal
 	case len(artifact.LoginItem.String)+len(artifact.LoginItem.Other) > 0:
 		return PriorityLoginItem
@@ -195,6 +196,41 @@ func sortUninstall(artifacts []*brewUninstall) {
 	slices.SortFunc(artifacts, func(a, b *brewUninstall) int {
 		return uninstallArtifactOrder(a) - uninstallArtifactOrder(b)
 	})
+}
+
+// parseSignals parses the raw JSON signal field which can be either a single
+// pair ["TERM", "bundle.id"] or an array of pairs [["TERM", "b1"], ["TERM", "b2"]].
+// Returns a slice of [signal, bundleId] pairs.
+func parseSignals(raw json.RawMessage) [][2]string {
+	if len(raw) == 0 {
+		return nil
+	}
+
+	// Try array of arrays first: [["TERM","app1"],["TERM","app2"]]
+	var multi [][]string
+	if err := json.Unmarshal(raw, &multi); err == nil && len(multi) > 0 {
+		// Check if this is actually a single pair ([]string with 2 elements)
+		// vs array of arrays. A single pair like ["TERM","app"] would parse
+		// as [][]string with each element being... no, it wouldn't. ["TERM","app"]
+		// is []string, not [][]string. So if multi parse succeeds, it's array of arrays.
+		var result [][2]string
+		for _, pair := range multi {
+			if len(pair) == 2 {
+				result = append(result, [2]string{pair[0], pair[1]})
+			}
+		}
+		if len(result) > 0 {
+			return result
+		}
+	}
+
+	// Try single pair: ["TERM", "bundle.id"]
+	var single []string
+	if err := json.Unmarshal(raw, &single); err == nil && len(single) == 2 {
+		return [][2]string{{single[0], single[1]}}
+	}
+
+	return nil
 }
 
 func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
@@ -225,12 +261,17 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 		}
 	})
 
-	// per the spec, signals can't have a different format. In the homebrew
-	// source code an error is raised when the format is different.
-	if u.Signal.IsOther && len(u.Signal.Other) == 2 {
-		addUserVar()
-		sb.AddFunction("send_signal", sendSignalFunc)
-		sb.Writef(`send_signal '%s' '%s' "$LOGGED_IN_USER"`, u.Signal.Other[0], u.Signal.Other[1])
+	// Signal can be a single pair ["TERM", "bundle.id"] or an array of pairs
+	// [["TERM", "bundle.id1"], ["TERM", "bundle.id2"]].
+	if len(u.Signal) > 0 {
+		signals := parseSignals(u.Signal)
+		if len(signals) > 0 {
+			addUserVar()
+			sb.AddFunction("send_signal", sendSignalFunc)
+			for _, sig := range signals {
+				sb.Writef(`send_signal '%s' '%s' "$LOGGED_IN_USER"`, sig[0], sig[1])
+			}
+		}
 	}
 
 	if u.Script.IsOther {

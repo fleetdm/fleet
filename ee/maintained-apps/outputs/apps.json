@@ -877,6 +877,13 @@
       "description": "JetBrains tools manager."
     },
     {
+      "name": "Karabiner-Elements",
+      "slug": "karabiner-elements/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.pqrs.Karabiner-Elements",
+      "description": "Karabiner-Elements is a keyboard customizer that allows remapping keys and creating complex key modifications for macOS."
+    },
+    {
       "name": "KeePassXC",
       "slug": "keepassxc/darwin",
       "platform": "darwin",

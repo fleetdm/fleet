@@ -1,0 +1,8 @@
+{
+  "name": "Karabiner-Elements",
+  "unique_identifier": "org.pqrs.Karabiner-Elements",
+  "token": "karabiner-elements",
+  "installer_format": "pkg",
+  "slug": "karabiner-elements/darwin",
+  "default_categories": ["Utilities"]
+}
