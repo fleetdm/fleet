@@ -1,0 +1,1 @@
+- Add `wifi_network` and `local_network_permissions` tables from the MacAdmins osquery extension.

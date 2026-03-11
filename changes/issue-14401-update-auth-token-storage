@@ -1,0 +1,1 @@
+- update storage of the auth token used in the UI; move if from local storage to a cookie.

@@ -31,6 +31,7 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Value	bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamConfig	MDM	fleet.TeamMDM
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	EnableDiskEncryption	bool
+github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	EnableRecoveryLockPassword	bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	RequireBitLockerPIN	bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	MacOSUpdates	fleet.AppleOSUpdateSettings
 github.com/fleetdm/fleet/v4/server/fleet/AppleOSUpdateSettings	UpdateNewHosts	optjson.Bool
@@ -58,6 +59,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	DeprecatedEnableDiskEncry
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	MacOSSetup	fleet.MacOSSetup
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	BootstrapPackage	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableEndUserAuthentication	bool
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	LockEndUserInfo	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	MacOSSetupAssistant	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableReleaseDeviceManually	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	Script	optjson.String
@@ -109,6 +111,7 @@ github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	LabelsExcludeAny	[]
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	InstallDuringSetup	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Icon	fleet.TeamSpecSoftwareAsset
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Slug	*string
+github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Version	string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	ReferencedYamlPath	string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	SHA256	string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Categories	[]string
@@ -118,6 +121,7 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MaintainedAppSpec]	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MaintainedAppSpec]	Value	[]fleet.MaintainedAppSpec
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	Slug	string
+github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	Version	string
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	SelfService	bool
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	PreInstallQuery	fleet.TeamSpecSoftwareAsset
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	InstallScript	fleet.TeamSpecSoftwareAsset

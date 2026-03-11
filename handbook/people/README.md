@@ -98,7 +98,8 @@ You can also grab a copy of the [original slides](https://fleetdm.com/handbook/c
 
 <img width="464" alt="image" src="https://github.com/Sampfluger88/fleet/assets/108141731/c2002cfa-a0f6-4349-bb06-71104f6cdce1">
 
-4. Schedule the Slack message to go out at 6pm CT (18:00).
+4. Convert the "All hands" Keynote file to a PDF and save in the [Drive](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY). 
+5. Schedule the Slack message to go out at 6pm CT (18:00).
 
 
 ### Update personnel details

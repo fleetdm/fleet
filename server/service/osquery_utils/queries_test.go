@@ -7,11 +7,9 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"encoding/xml"
 	"errors"
 	"fmt"
 	"log/slog"
-	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -27,7 +25,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -135,6 +132,88 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	MutateSoftwareOnIngestion(t.Context(), sw, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "TNMS", sw.Name)
 	assert.Equal(t, "21.10.0.590.1", sw.Version)
+
+	// Test JetBrains version sanitizer - extracts version from product name
+	jetbrainsGoLand := &fleet.Software{
+		Name:    "GoLand 2025.3.3",
+		Source:  "programs",
+		Vendor:  "JetBrains s.r.o.",
+		Version: "253.31033.139",
+	}
+	MutateSoftwareOnIngestion(t.Context(), jetbrainsGoLand, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2025.3.3", jetbrainsGoLand.Version)
+
+	// Test JetBrains with 4-part version number
+	jetbrainsIntelliJ := &fleet.Software{
+		Name:    "IntelliJ IDEA 2025.3.1.1",
+		Source:  "programs",
+		Vendor:  "JetBrains s.r.o.",
+		Version: "253.31033.200",
+	}
+	MutateSoftwareOnIngestion(t.Context(), jetbrainsIntelliJ, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2025.3.1.1", jetbrainsIntelliJ.Version)
+
+	// Test JetBrains Toolbox is excluded (reports correct version)
+	jetbrainsToolbox := &fleet.Software{
+		Name:    "JetBrains Toolbox",
+		Source:  "programs",
+		Vendor:  "JetBrains s.r.o.",
+		Version: "2.6.2.38498",
+	}
+	MutateSoftwareOnIngestion(t.Context(), jetbrainsToolbox, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2.6.2.38498", jetbrainsToolbox.Version)
+
+	// Test JetBrains software without version in name is not transformed
+	jetbrainsNoVersionInName := &fleet.Software{
+		Name:    "IntelliJ IDEA",
+		Source:  "programs",
+		Vendor:  "JetBrains s.r.o.",
+		Version: "253.31033.139",
+	}
+	MutateSoftwareOnIngestion(t.Context(), jetbrainsNoVersionInName, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "253.31033.139", jetbrainsNoVersionInName.Version)
+
+	// Test non-JetBrains software is not transformed
+	nonJetbrains := &fleet.Software{
+		Name:    "Some Software 2025.1.1",
+		Source:  "programs",
+		Vendor:  "Some Vendor",
+		Version: "253.31033.139",
+	}
+	MutateSoftwareOnIngestion(t.Context(), nonJetbrains, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "253.31033.139", nonJetbrains.Version)
+
+	// Test RHEL kernel version and release are joined
+	rhelKernel := &fleet.Software{
+		Name:    "kernel",
+		Source:  "rpm_packages",
+		Version: "5.14.0",
+		Release: "362.24.1.el9_3",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rhelKernel, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "5.14.0-362.24.1.el9_3", rhelKernel.Version)
+	assert.Equal(t, "", rhelKernel.Release)
+
+	// Test RHEL kernel without release is not modified
+	rhelKernelNoRelease := &fleet.Software{
+		Name:    "kernel",
+		Source:  "rpm_packages",
+		Version: "5.14.0",
+		Release: "",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rhelKernelNoRelease, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "5.14.0", rhelKernelNoRelease.Version)
+
+	// Test non-kernel rpm package is not modified
+	rpmPackage := &fleet.Software{
+		Name:    "openssl",
+		Source:  "rpm_packages",
+		Version: "3.0.7",
+		Release: "24.el9",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rpmPackage, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "3.0.7", rpmPackage.Version)
+	assert.Equal(t, "24.el9", rpmPackage.Release)
 }
 
 func TestDetailQueryNetworkInterfaces(t *testing.T) {
@@ -416,7 +495,7 @@ func TestGetDetailQueries(t *testing.T) {
 	queriesWithUsersAndSoftware := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{}, nil)
 	qs = baseQueries
 	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_linux_fleetd_pacman",
-		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc", "software_windows_jetbrains")
+		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -2217,78 +2296,6 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 				require.Equal(t, true, ds.DeleteHostSCIMUserMappingFuncInvoked)
 			}
 		})
-	}
-}
-
-func TestDirectIngestWindowsProfiles(t *testing.T) {
-	ctx := t.Context()
-	logger := slog.New(slog.DiscardHandler)
-	ds := new(mock.Store)
-
-	for _, tc := range []struct {
-		hostProfiles []*fleet.ExpectedMDMProfile
-		want         string
-	}{
-		{nil, ""},
-		{
-			[]*fleet.ExpectedMDMProfile{
-				{Name: "N1", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{})},
-			},
-			"",
-		},
-		{
-			[]*fleet.ExpectedMDMProfile{
-				{Name: "N1", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1"}})},
-			},
-			"SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1255198959</CmdID><Item><Target><LocURI>L1</LocURI></Target></Item></Get></SyncBody>';",
-		},
-		{
-			[]*fleet.ExpectedMDMProfile{
-				{Name: "N1", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Add", LocURI: "L1", Data: "D1"}})},
-			},
-			"SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1255198959</CmdID><Item><Target><LocURI>L1</LocURI></Target></Item></Get></SyncBody>';",
-		},
-		{
-			[]*fleet.ExpectedMDMProfile{
-				{Name: "N1", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1"}})},
-				{Name: "N2", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Add", LocURI: "L2", Data: "D2"}})},
-				{Name: "N3", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L3", Data: "D3"}, {Verb: "Add", LocURI: "L3.1", Data: "D3.1"}})},
-			},
-			"SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1255198959</CmdID><Item><Target><LocURI>L1</LocURI></Target></Item></Get><Get><CmdID>2736786183</CmdID><Item><Target><LocURI>L2</LocURI></Target></Item></Get><Get><CmdID>894211447</CmdID><Item><Target><LocURI>L3</LocURI></Target></Item></Get><Get><CmdID>3410477854</CmdID><Item><Target><LocURI>L3.1</LocURI></Target></Item></Get></SyncBody>';",
-		},
-	} {
-
-		ds.GetHostMDMProfilesExpectedForVerificationFunc = func(ctx context.Context, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error) {
-			result := map[string]*fleet.ExpectedMDMProfile{}
-			for _, p := range tc.hostProfiles {
-				result[p.Name] = p
-			}
-			return result, nil
-		}
-		ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, secret string) (string, error) {
-			return secret, nil
-		}
-
-		gotQuery, _ := buildConfigProfilesWindowsQuery(ctx, logger, &fleet.Host{}, ds)
-		if tc.want != "" {
-			require.Contains(t, gotQuery, "SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input =")
-			re := regexp.MustCompile(`'<(.*?)>'`)
-			gotMatches := re.FindStringSubmatch(gotQuery)
-			require.NotEmpty(t, gotMatches)
-			wantMatches := re.FindStringSubmatch(tc.want)
-			require.NotEmpty(t, wantMatches)
-
-			var extractedStruct, expectedStruct fleet.SyncBody
-			err := xml.Unmarshal([]byte(gotMatches[0]), &extractedStruct)
-			require.NoError(t, err)
-
-			err = xml.Unmarshal([]byte(wantMatches[0]), &expectedStruct)
-			require.NoError(t, err)
-
-			require.ElementsMatch(t, expectedStruct.Get, extractedStruct.Get)
-		} else {
-			require.Equal(t, gotQuery, tc.want)
-		}
 	}
 }
 

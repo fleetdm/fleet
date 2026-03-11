@@ -49,6 +49,8 @@ module.exports = {
     numHostsFleetDesktopEnabled: {required: true, type: 'number'},
     numQueries: {required: true, type: 'number' },
     numHostsABMPending: {required: true, type: 'number' },
+    fleetMaintainedAppsMacOS: {required: true, type: 'json'},
+    fleetMaintainedAppsWindows: {required: true, type: 'json'},
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗

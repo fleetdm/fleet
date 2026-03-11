@@ -67,31 +67,29 @@ const RenewVppModal = ({
       isContentDisabled={isRenewing}
       width="large"
     >
-      <>
-        <p className={`${baseClass}__description`}>
-          Renew Volume Purchasing Program for <b>{orgName}</b> location.
-        </p>
-        <VppSetupSteps />
-        <FileUploader
-          className={`${baseClass}__file-uploader`}
-          accept=".vpptoken"
-          message="Content token (.vpptoken)"
-          graphicName="file-vpp"
-          buttonType="brand-inverse-icon"
-          buttonMessage="Upload"
-          fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
-          onFileUpload={onSelectFile}
-        />
-        <div className="modal-cta-wrap">
-          <Button
-            onClick={onRenewToken}
-            isLoading={isRenewing}
-            disabled={!tokenFile}
-          >
-            Renew token
-          </Button>
-        </div>
-      </>
+      <p className={`${baseClass}__description`}>
+        Renew Volume Purchasing Program for <b>{orgName}</b> location.
+      </p>
+      <VppSetupSteps />
+      <FileUploader
+        className={`${baseClass}__file-uploader`}
+        accept=".vpptoken"
+        message="Content token (.vpptoken)"
+        graphicName="file-vpp"
+        buttonType="brand-inverse-icon"
+        buttonMessage="Upload"
+        fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
+        onFileUpload={onSelectFile}
+      />
+      <div className="modal-cta-wrap">
+        <Button
+          onClick={onRenewToken}
+          isLoading={isRenewing}
+          disabled={!tokenFile}
+        >
+          Renew token
+        </Button>
+      </div>
     </Modal>
   );
 };

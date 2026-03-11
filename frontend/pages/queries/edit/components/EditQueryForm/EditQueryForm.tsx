@@ -566,27 +566,20 @@ const EditQueryForm = ({
   };
 
   const renderQueryTeam = (isEditing = false) => {
-    if (isFreeTier) return null;
+    if (isFreeTier || !currentTeamName) return null;
 
-    if (currentTeamName) {
-      if (isEditing) {
-        return (
-          <p>
-            Editing report for <strong>{currentTeamName}</strong> fleet.
-          </p>
-        );
-      }
+    if (isEditing) {
       return (
         <p>
-          Creating a new report for <strong>{currentTeamName}</strong> fleet.
+          Editing report for <strong>{currentTeamName}</strong>.
         </p>
       );
     }
-
-    if (isEditing) {
-      return <p>Editing global report.</p>;
-    }
-    return <p>Creating a new global report.</p>;
+    return (
+      <p>
+        Creating a new report for <strong>{currentTeamName}</strong>.
+      </p>
+    );
   };
 
   // Observers and observer+ of existing query
@@ -644,7 +637,7 @@ const EditQueryForm = ({
             <Button
               onClick={() => {
                 router.push(
-                  getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
+                  getPathWithQueryParams(PATHS.LIVE_REPORT(queryIdForEdit), {
                     host_id: hostId,
                     fleet_id: apiTeamIdForQuery,
                   })
@@ -939,7 +932,7 @@ const EditQueryForm = ({
                     setEditingExistingQuery(true); // Persists edited query data through live query flow
                   }
                   router.push(
-                    getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
+                    getPathWithQueryParams(PATHS.LIVE_REPORT(queryIdForEdit), {
                       host_id: hostId,
                       fleet_id: currentTeamId,
                     })

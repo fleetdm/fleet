@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -18,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -33,18 +33,17 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 		if id == policyID1 {
 			return &fleet.Policy{
 				PolicyData: fleet.PolicyData{
-					ID:                             policyID1,
-					Name:                           "policy1",
-					Query:                          "select 42",
-					Description:                    "policy1 description",
-					AuthorID:                       ptr.Uint(1),
-					AuthorName:                     "Alice",
-					AuthorEmail:                    "alice@example.com",
-					TeamID:                         nil,
-					Resolution:                     ptr.String("policy1 resolution"),
-					Platform:                       "darwin",
-					Critical:                       true,
-					ConditionalAccessBypassEnabled: ptr.Bool(true),
+					ID:          policyID1,
+					Name:        "policy1",
+					Query:       "select 42",
+					Description: "policy1 description",
+					AuthorID:    ptr.Uint(1),
+					AuthorName:  "Alice",
+					AuthorEmail: "alice@example.com",
+					TeamID:      nil,
+					Resolution:  ptr.String("policy1 resolution"),
+					Platform:    "darwin",
+					Critical:    true,
 				},
 			}, nil
 		}
@@ -94,13 +93,13 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 	require.NoError(t, err)
 
 	mockClock := time.Now()
-	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, slog.New(slog.DiscardHandler), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 		serverURL, err := url.Parse(ac.ServerSettings.ServerURL)
 		if err != nil {
 			return err
 		}
 		return SendFailingPoliciesBatchedPOSTs(
-			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, mockClock, kitlog.NewNopLogger())
+			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, mockClock, slog.New(slog.DiscardHandler))
 	})
 	require.NoError(t, err)
 	timestamp, err := mockClock.MarshalJSON()
@@ -128,8 +127,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
         "host_count_updated_at": null,
 		"critical": true,
 		"calendar_events_enabled": false,
-		"conditional_access_enabled": false,
-		"conditional_access_bypass_enabled": true
+		"conditional_access_enabled": false
     },
     "hosts": [
         {
@@ -153,13 +151,13 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 
 	requestBody = ""
 
-	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, slog.New(slog.DiscardHandler), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 		serverURL, err := url.Parse(ac.ServerSettings.ServerURL)
 		if err != nil {
 			return err
 		}
 		return SendFailingPoliciesBatchedPOSTs(
-			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, mockClock, kitlog.NewNopLogger())
+			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, mockClock, slog.New(slog.DiscardHandler))
 	})
 	require.NoError(t, err)
 	assert.Empty(t, requestBody)
@@ -188,48 +186,45 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 	policiesByID := map[uint]*fleet.Policy{
 		1: {
 			PolicyData: fleet.PolicyData{
-				ID:                             1,
-				Name:                           "policy1",
-				Query:                          "select 1",
-				Description:                    "policy1 description",
-				AuthorID:                       ptr.Uint(1),
-				AuthorName:                     "Alice",
-				AuthorEmail:                    "alice@example.com",
-				TeamID:                         &teamID,
-				Resolution:                     ptr.String("policy1 resolution"),
-				Platform:                       "darwin",
-				CalendarEventsEnabled:          true,
-				ConditionalAccessBypassEnabled: ptr.Bool(true),
+				ID:                    1,
+				Name:                  "policy1",
+				Query:                 "select 1",
+				Description:           "policy1 description",
+				AuthorID:              ptr.Uint(1),
+				AuthorName:            "Alice",
+				AuthorEmail:           "alice@example.com",
+				TeamID:                &teamID,
+				Resolution:            ptr.String("policy1 resolution"),
+				Platform:              "darwin",
+				CalendarEventsEnabled: true,
 			},
 		},
 		2: {
 			PolicyData: fleet.PolicyData{
-				ID:                             2,
-				Name:                           "policy2",
-				Query:                          "select 2",
-				Description:                    "policy2 description",
-				AuthorID:                       ptr.Uint(1),
-				AuthorName:                     "Alice",
-				AuthorEmail:                    "alice@example.com",
-				TeamID:                         &teamID,
-				Resolution:                     ptr.String("policy2 resolution"),
-				Platform:                       "darwin",
-				ConditionalAccessBypassEnabled: ptr.Bool(true),
+				ID:          2,
+				Name:        "policy2",
+				Query:       "select 2",
+				Description: "policy2 description",
+				AuthorID:    ptr.Uint(1),
+				AuthorName:  "Alice",
+				AuthorEmail: "alice@example.com",
+				TeamID:      &teamID,
+				Resolution:  ptr.String("policy2 resolution"),
+				Platform:    "darwin",
 			},
 		},
 		3: {
 			PolicyData: fleet.PolicyData{
-				ID:                             2,
-				Name:                           "policy3",
-				Query:                          "select 3",
-				Description:                    "policy3 description",
-				AuthorID:                       ptr.Uint(1),
-				AuthorName:                     "Alice",
-				AuthorEmail:                    "alice@example.com",
-				TeamID:                         nil, // global policy
-				Resolution:                     ptr.String("policy3 resolution"),
-				Platform:                       "darwin",
-				ConditionalAccessBypassEnabled: ptr.Bool(true),
+				ID:          3,
+				Name:        "policy3",
+				Query:       "select 3",
+				Description: "policy3 description",
+				AuthorID:    ptr.Uint(1),
+				AuthorName:  "Alice",
+				AuthorEmail: "alice@example.com",
+				TeamID:      nil, // global policy
+				Resolution:  ptr.String("policy3 resolution"),
+				Platform:    "darwin",
 			},
 		},
 	}
@@ -284,13 +279,13 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 	require.NoError(t, err)
 
 	now := time.Now()
-	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, slog.New(slog.DiscardHandler), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 		serverURL, err := url.Parse(ac.ServerSettings.ServerURL)
 		if err != nil {
 			return err
 		}
 		return SendFailingPoliciesBatchedPOSTs(
-			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, now, kitlog.NewNopLogger())
+			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, now, slog.New(slog.DiscardHandler))
 	})
 	require.NoError(t, err)
 
@@ -321,8 +316,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
         "host_count_updated_at": null,
 		"critical": false,
 		"calendar_events_enabled": true,
-		"conditional_access_enabled": false,
-		"conditional_access_bypass_enabled": true
+		"conditional_access_enabled": false
     },
     "hosts": [
         {
@@ -340,13 +334,13 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 
 	webhookBody = ""
 
-	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, slog.New(slog.DiscardHandler), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 		serverURL, err := url.Parse(ac.ServerSettings.ServerURL)
 		if err != nil {
 			return err
 		}
 		return SendFailingPoliciesBatchedPOSTs(
-			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, now, kitlog.NewNopLogger())
+			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, now, slog.New(slog.DiscardHandler))
 	})
 	require.NoError(t, err)
 	assert.Empty(t, webhookBody)
@@ -473,7 +467,7 @@ func TestSendBatchedPOSTs(t *testing.T) {
 				serverURL,
 				webhookURL,
 				now,
-				kitlog.NewNopLogger(),
+				slog.New(slog.DiscardHandler),
 			)
 			require.NoError(t, err)
 			require.Len(t, allHosts, tc.hostCount)

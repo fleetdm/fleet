@@ -210,9 +210,11 @@ export default {
     return sendRequest("GET", path);
   },
   modifyEnrollSecrets: (teamId: number, secrets: IEnrollSecret[]) => {
+    // The API only expects an array of objects with a "secret" property.
+    const payload = secrets.map((s) => pick(s, "secret"));
     const { TEAMS_ENROLL_SECRETS } = endpoints;
     const path = TEAMS_ENROLL_SECRETS(teamId);
 
-    return sendRequest("PATCH", path, { secrets });
+    return sendRequest("PATCH", path, { secrets: payload });
   },
 };

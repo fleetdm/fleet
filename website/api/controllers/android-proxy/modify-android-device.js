@@ -25,6 +25,7 @@ module.exports = {
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound' },
     deviceNoLongerManaged: { description: 'The device is no longer managed by the Android enterprise.', responseType: 'notFound' },
+    invalidPolicyName: {description: 'The specified policy_name is invalid', responseType: 'badRequest' }
   },
 
 
@@ -79,6 +80,8 @@ module.exports = {
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Devices.html#patch
       let patchDeviceResponse = await androidmanagement.enterprises.devices.patch({
         name: `enterprises/${androidEnterpriseId}/devices/${deviceId}`,
+        // Note: Typically, we use defined inputs instead of accessing req.body directly. We forward req.body here to prevent previously set values from being overwritten by undefined values.
+        // This behavior should not be repeated in future Android proxy endpoints.
         requestBody: this.req.body,
       });
       return patchDeviceResponse.data;
@@ -91,7 +94,10 @@ module.exports = {
       if (errorString.includes('Device is no longer being managed')) {
         return {'deviceNoLongerManaged': 'The device is no longer managed by the Android enterprise.'};
       }
-      return new Error(`When attempting to update a device for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+      if(errorString.includes('policy_name is expected to start')) {
+        return {'invalidPolicyName': 'The request could not be completed because of an invalid policy name.'};
+      }
+      return new Error(`When attempting to update a device for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
     });
 
 

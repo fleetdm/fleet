@@ -24,6 +24,7 @@ module.exports = {
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
+    deviceNoLongerManaged: { description: 'The specified device is no longer managed by the Android enterprise.', responseType: 'notFound' },
   },
 
 
@@ -84,7 +85,11 @@ module.exports = {
       sails.log.warn(`p1: Android management API rate limit exceeded!`);
       return new Error(`When attempting to delete a device for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
     }).intercept((err)=>{
-      return new Error(`When attempting to delete a device for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+      let errorString = err.toString();
+      if (errorString.includes('Device is no longer being managed')) {
+        return {'deviceNoLongerManaged': 'The device is no longer managed by the Android enterprise.'};
+      }
+      return new Error(`When attempting to delete a device for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
     });
 
 

@@ -25,6 +25,7 @@ module.exports = {
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
     invalidPolicy: { description: 'Invalid patch policy request', responseType: 'badRequest' },
+    policyNotFound: { description: 'The specified policy was not found on this Android enterprise', responseType: 'notFound' },
   },
 
 
@@ -79,6 +80,8 @@ module.exports = {
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Policies.html#patch
       let patchPoliciesResponse = await androidmanagement.enterprises.policies.patch({
         name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
+        // Note: Typically, we use defined inputs instead of accessing req.body directly. We forward req.body here to prevent previously set values from being overwritten by undefined values.
+        // This behavior should not be repeated in future Android proxy endpoints.
         requestBody: this.req.body,
         updateMask: this.req.param('updateMask') // Pass the update mask to avoid overwriting applications
       });
@@ -89,8 +92,10 @@ module.exports = {
       return new Error(`When attempting to update a policy for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
     }).intercept({ status: 400 }, (err) => {
       return {'invalidPolicy': `Attempted to update a policy with an invalid value for an Android enterprise (${androidEnterpriseId}): ${err}`};
+    }).intercept({ status: 404 }, (err) => {
+      return {'policyNotFound': `Specified policy not found on this Android enterprise (${androidEnterpriseId}): ${err}`};
     }).intercept((err) => {
-      return new Error(`When attempting to update a policy for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+      return new Error(`When attempting to update a policy for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
     });
 
 

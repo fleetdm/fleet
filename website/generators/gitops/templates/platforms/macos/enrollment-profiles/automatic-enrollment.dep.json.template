@@ -1,0 +1,25 @@
+{
+  "profile_name": "Automatic enrollment profile",
+  "allow_pairing": true,
+  "is_supervised": true,
+  "is_mdm_removable": false,
+  "org_magic": "1",
+  "language": "en",
+  "region": "US",
+  "skip_setup_items": [
+    "AppleID",
+    "AppStore",
+    "Diagnostics",
+    "iCloudDiagnostics",
+    "iCloudStorage",
+    "Location",
+    "Payment",
+    "Privacy",
+    "Restore",
+    "ScreenTime",
+    "Siri",
+    "TermsOfAddress",
+    "TOS",
+    "UnlockWithWatch"
+  ]
+}

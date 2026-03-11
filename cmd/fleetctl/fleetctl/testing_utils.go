@@ -29,6 +29,7 @@ func RunAppNoChecks(args []string) (*bytes.Buffer, error) {
 
 	w := new(bytes.Buffer)
 	app := CreateApp(nil, w, os.Stderr, noopExitErrHandler)
+	StashRawArgs(app, args)
 	err := app.Run(args)
 	return w, err
 }
@@ -38,6 +39,7 @@ func RunWithErrWriter(args []string, errWriter io.Writer) (*bytes.Buffer, error)
 
 	w := new(bytes.Buffer)
 	app := CreateApp(nil, w, errWriter, noopExitErrHandler)
+	StashRawArgs(app, args)
 	err := app.Run(args)
 	return w, err
 }
