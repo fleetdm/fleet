@@ -128,6 +128,13 @@
       "description": "Airtame is an app that makes shared screens easy to use — for screen sharing, conferencing, digital signage, and alerts."
     },
     {
+      "name": "AltTab",
+      "slug": "alt-tab/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.lwouis.alt-tab-macos",
+      "description": "AltTab is an app that enables Windows-like alt-tab."
+    },
+    {
       "name": "Amazon Chime",
       "slug": "amazon-chime/darwin",
       "platform": "darwin",

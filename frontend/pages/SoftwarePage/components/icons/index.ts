@@ -4,6 +4,7 @@
 import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 
+import AltTab from "./AltTab";
 import BetterDisplay from "./BetterDisplay";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
@@ -251,6 +252,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "adobe dng converter": AdobeDngConverter,
   aircall: Aircall,
   airtame: Airtame,
+  alttab: AltTab,
   "amazon chime": AmazonChime,
   "amazon dcv": AmazonDCV,
   androidPlayStore: AndroidPlayStore,
