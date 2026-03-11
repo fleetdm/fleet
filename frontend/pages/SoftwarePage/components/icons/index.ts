@@ -7,6 +7,7 @@ import { ISoftware } from "interfaces/software";
 import BetterDisplay from "./BetterDisplay";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
+import Iina from "./Iina";
 import LastPass from "./LastPass";
 import Nextcloud from "./Nextcloud";
 import Notepad from "./Notepad++";
@@ -296,6 +297,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
+  iina: Iina,
   lastpass: LastPass,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,

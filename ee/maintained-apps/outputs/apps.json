@@ -807,6 +807,13 @@
       "description": "Hyper is a terminal built on web technologies."
     },
     {
+      "name": "IINA",
+      "slug": "iina/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.colliderli.iina",
+      "description": "IINA is a modern, free and open-source media player for macOS."
+    },
+    {
       "name": "iMazing Profile Editor",
       "slug": "imazing-profile-editor/darwin",
       "platform": "darwin",
