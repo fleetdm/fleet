@@ -6078,11 +6078,6 @@ func decrypt(encrypted []byte, privateKey string) ([]byte, error) {
 	// Get the nonce size
 	nonceSize := aesGCM.NonceSize()
 
-	// Validate that encrypted data is long enough to contain nonce + at least 1 byte of ciphertext
-	if len(encrypted) <= nonceSize {
-		return nil, fmt.Errorf("encrypted data too short: got %d bytes, need at least %d", len(encrypted), nonceSize+1)
-	}
-
 	// Extract the nonce from the encrypted data
 	nonce, ciphertext := encrypted[:nonceSize], encrypted[nonceSize:]
 
