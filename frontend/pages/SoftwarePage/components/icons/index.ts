@@ -13,6 +13,7 @@ import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import Proxifier from "./Proxifier";
 import Putty from "./Putty";
+import SequelAce from "./SequelAce";
 import SevenZip from "./7Zip";
 import Abstract from "./Abstract";
 import AcrobatReader from "./AcrobatReader";
@@ -425,6 +426,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rustrover: RustRover,
   safari: Safari,
   santa: Santa,
+  "sequel ace": SequelAce,
   shottr: Shottr,
   signal: Signal,
   sketch: Sketch,

@@ -1367,6 +1367,13 @@
       "description": "Santa is a binary authorization system for macOS."
     },
     {
+      "name": "Sequel Ace",
+      "slug": "sequel-ace/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sequelace.SequelAce",
+      "description": "Sequel Ace is a MySQL and MariaDB database manager for macOS."
+    },
+    {
       "name": "Shottr",
       "slug": "shottr/darwin",
       "platform": "darwin",
