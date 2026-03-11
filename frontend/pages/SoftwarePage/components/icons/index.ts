@@ -205,6 +205,7 @@ import Telegram from "./Telegram";
 import TeleportConnect from "./TeleportConnect";
 import Terminal from "./Terminal";
 import TextExpander from "./TextExpander";
+import TheUnarchiver from "./TheUnarchiver";
 import Thunderbird from "./Thunderbird";
 import Todoist from "./Todoist";
 import Tower from "./Tower";
@@ -455,6 +456,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   terminal: Terminal,
   teamviewer: TeamViewer,
   textexpander: TextExpander,
+  "the unarchiver": TheUnarchiver,
   thunderbird: Thunderbird,
   todoist: Todoist,
   tower: Tower,
