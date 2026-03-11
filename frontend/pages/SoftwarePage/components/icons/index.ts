@@ -12,6 +12,7 @@ import LastPass from "./LastPass";
 import Nextcloud from "./Nextcloud";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
+import Ollama from "./Ollama";
 import Proxifier from "./Proxifier";
 import Putty from "./Putty";
 import SequelAce from "./SequelAce";
@@ -397,6 +398,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   obs: Obs,
   obsidian: Obsidian,
   "okta verify": OktaVerify,
+  ollama: Ollama,
   omnigraffle: OmniGraffle,
   "omnissa horizon client": OmnissaHorizonClient,
   onedrive: OneDrive,
