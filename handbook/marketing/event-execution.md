@@ -124,13 +124,14 @@ We use GitHub labels to organize the difference between overall event issues and
 | **:mktg-event:YYMM-eventname-city** | Salmon | \#FA8072 | 5th color custom lable for specific events |
 | **:mktg-event:YYMM-eventname-city** | Brick | \#B91C1C | 6th color custom lable for specific events |
 
+
+
 ### **Event plans**
 
 We utilize two general event plans, which act as templates depending on the scale and type of the event:
 
 1. **Conference:** Used for large conferences and events where we have a booth, speaking slots, lead scanning, and other major logistical needs.  
 2. **Workshop/Happy hour:** Used for our GitOps workshop series (which often includes happy hours). This smaller template can be used for the full workshop or for bespoke, standalone happy hours.
-
 
 ### **Execution process**
 
@@ -770,6 +771,96 @@ create_sub_issue "6. Post-Mortem & Follow-Up"
 
 echo "Done."
 ```
+
+## **Connecting Eventbrite Registrations to Salesforce Campaigns (Event ID Key)**
+
+#### **Purpose**
+
+We need a reliable, repeatable way to associate each Eventbrite registration with the correct Salesforce Campaign **without adding any visible fields to the attendee experience**. This approach uses the Eventbrite **Event ID** as the canonical key to map registrations to Campaigns in Salesforce.
+
+#### **Core Idea**
+
+Each Eventbrite event has a unique identifier (`event_id`). We store that identifier on the corresponding Salesforce Campaign. When a new registration occurs, our integration (e.g., Clay) reads the `event_id` from the registration payload, finds the matching Campaign, then creates/updates the Campaign Member.
+
+This creates a clean 1:1 relationship:
+
+**1 Eventbrite Event → 1 Salesforce Campaign → Many Campaign Members (registrants)**
+
+#### **Why This Approach**
+
+* **Invisible to attendees:** No hidden checkout questions or user-facing “tags.”  
+* **Stable and unambiguous:** Event IDs are unique and don’t depend on event names.  
+* **Easy to operationalize:** Simple to document and enforce as a process.  
+* **Scalable to other platforms:** The same pattern could be extended to Lu.ma later using a platform-specific ID or key (if we ever want to use Lu.ma)
+
+### **Data Model (Salesforce)**
+
+#### **Campaign Fields**
+
+Add the following field to **Campaign**:
+
+* **Event Key** (Text) \= composite key of the platform and event id:  
+  * `eventbrite:{event_id}`  
+  * `luma:{event_id}`
+
+The composite key pattern lets us use one matching field across platforms and avoid collisions if we ever want to use [Lu.ma](http://Lu.ma) or others.
+
+
+### **Operational Workflow**
+
+##### **1\) Capture the Eventbrite Event ID**
+
+The Event ID can be sourced from:
+
+* Eventbrite event page URL (contains the ID), or  
+* Event settings / Event details in Eventbrite, or  
+* Eventbrite API / integration payload
+
+**Important:** Do not use event name as a key (names can change and are not guaranteed unique).
+
+##### **2\) Create the Salesforce Campaign**
+
+* Create a Campaign for the event.  
+* Set:  
+  * **Event Key** `eventbrite:{event_id}`
+
+##### **3\) Integration Logic (Clay)**
+
+When Clay receives a new Eventbrite registration/attendee record:
+
+1. **Extract** `event_id` from the Eventbrite payload  
+   * Clay knows it’s coming from Eventbrite, so it looks up the event\_id and then is able to create the composite key “eventbrite:{event\_id}”  
+2. **Find Campaign** in Salesforce where:  
+   * *`Event Key = eventbrite:{event_id}`*  
+3. **Create/update Person Record**  
+   * Match/Create the Contact  
+4. **Create/Update Campaign Member**  
+   * Add the person as a Campaign Member on the matched Campaign  
+   * Optionally set Campaign Member Status (e.g., `Registered`, `Attended`, `No Show`) if we later sync those states
+
+
+### **Assumptions / Scope**
+* **One ticket type per Campaign** (i.e., we do not need ticket-type-level mapping).  
+* **One event maps to exactly one Salesforce Campaign**.  
+* We are focusing on **registrations** (Campaign Members). 
+
+### **Governance & Quality Controls**
+To keep the system clean and prevent broken mappings:
+
+* **Required fields:** Ensure Campaigns intended for Eventbrite syncing have `Event Key` populated.  
+* **Uniqueness guardrails:** Prevent multiple Campaigns from sharing the same Event Key (via process, reporting, or validation rules).  
+* **Monitoring:** Have a Clay/Salesforce report for “registrations received with no matching Campaign” to catch missing IDs early.
+
+### **(FUTURE) Extending This to Lu.ma (Future)**
+If we adopt Lu.ma later, we can follow the same model:
+
+* Store Lu.ma’s stable event identifier (ID or slug) on the Salesforce Campaign.  
+* Use `Event Key` to map inbound registrations to the correct Campaign.  
+* No attendee-visible fields required.
+
+### **Summary**
+
+This approach “connects” Eventbrite to Salesforce Campaigns by using the **Eventbrite Event ID as the system-of-record key**. Salesforce Campaigns store that key, and Clay uses it to automatically route registrations to the right Campaign and create/update Campaign Members—cleanly, invisibly, and in a way that can later support additional event platforms.
 
 
 <meta name="maintainedBy" value="johnjeremiah">

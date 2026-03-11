@@ -303,7 +303,11 @@ func gitopsCommand() *cli.Command {
 					}
 					if !noTeamControls.Defined && !config.Controls.Defined {
 						if appConfig.License.IsPremium() {
-							return fmt.Errorf("'controls' must be set on global config or %s", noTeamFilename)
+							suggestion := ", no-team.yml or unassigned.yml"
+							if noTeamFilename != "" {
+								suggestion = fmt.Sprintf(" or %s", noTeamFilename)
+							}
+							return fmt.Errorf("'controls' must be set on global config%s", suggestion)
 						}
 						return errors.New("'controls' must be set on global config")
 					}

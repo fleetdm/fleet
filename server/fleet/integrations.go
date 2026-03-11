@@ -389,6 +389,10 @@ const (
 	GoogleCalendarPrivateKey = "private_key"
 )
 
+// googleCalendarKeyNames lists all valid JSON keys for GoogleCalendarApiKey,
+// used by ValidKeys() for gitops unknown-key validation.
+var googleCalendarKeyNames = []string{GoogleCalendarEmail, GoogleCalendarPrivateKey}
+
 // GoogleCalendarApiKey is a custom type for the Google Calendar API key JSON.
 // It handles JSON marshaling/unmarshaling with support for masking sensitive data.
 // When marshaled in masked state, it serializes to just "********".
@@ -398,6 +402,13 @@ type GoogleCalendarApiKey struct {
 	Values map[string]string
 	// masked indicates if this key should be serialized as masked
 	masked bool
+}
+
+// ValidKeys returns the set of accepted JSON keys for this type.
+// This is used by gitops validation to check for unknown keys in types
+// with custom JSON marshaling.
+func (GoogleCalendarApiKey) ValidKeys() []string {
+	return googleCalendarKeyNames
 }
 
 // MarshalJSON implements json.Marshaler. When masked, returns "********".
@@ -566,7 +577,7 @@ func ValidateGoogleCalendarIntegrations(intgs []*GoogleCalendarIntegration, inva
 				)
 			}
 		}
-		if privateKey, ok := intg.ApiKey.Values["private_key"]; !ok {
+		if privateKey, ok := intg.ApiKey.Values[GoogleCalendarPrivateKey]; !ok {
 			invalid.Append(
 				fmt.Sprintf("integrations.google_calendar.api_key_json.%s", GoogleCalendarPrivateKey),
 				fmt.Sprintf("%s is required", GoogleCalendarPrivateKey),

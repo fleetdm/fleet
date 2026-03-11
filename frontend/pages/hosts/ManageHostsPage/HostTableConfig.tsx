@@ -149,7 +149,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
                 This host was ordered using <br />
                 Apple Business Manager <br />
                 (ABM). You will see host <br />
-                vitals when it is enrolled in Fleet <br />
+                vitals when it is enrolled in Fleet. <br />
               </span>
             </ReactTooltip>
           </>
