@@ -3203,7 +3203,6 @@ func (ds *Datastore) IsVPPAppLabelScoped(ctx context.Context, vppAppTeamID, host
 }
 
 func (ds *Datastore) isSoftwareLabelScoped(ctx context.Context, softwareID, hostID uint, swType softwareType) (bool, error) {
-	// TODO(mna): support include all
 	stmt := `
 		SELECT 1 FROM (
 
@@ -3227,6 +3226,7 @@ func (ds *Datastore) isSoftwareLabelScoped(ctx context.Context, softwareID, host
 			WHERE
 				sil.%[1]s_id = :software_id
 				AND sil.exclude = 0
+				AND sil.require_all = 0
 			HAVING
 				count_installer_labels > 0 AND count_host_labels > 0
 
@@ -3256,8 +3256,27 @@ func (ds *Datastore) isSoftwareLabelScoped(ctx context.Context, softwareID, host
 			WHERE
 				sil.%[1]s_id = :software_id
 				AND sil.exclude = 1
+				AND sil.require_all = 0
 			HAVING
 				count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+
+			UNION
+
+			-- include all
+			SELECT
+				COUNT(*) AS count_installer_labels,
+				COUNT(lm.label_id) AS count_host_labels,
+				0 as count_host_updated_after_labels
+			FROM
+				%[1]s_labels sil
+				LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+				AND lm.host_id = :host_id
+			WHERE
+				sil.%[1]s_id = :software_id
+				AND sil.exclude = 0
+				AND sil.require_all = 1
+			HAVING
+				count_installer_labels > 0 AND count_host_labels = count_installer_labels
 			) t
 	`
 
