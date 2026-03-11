@@ -337,6 +337,23 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	assert.Equal(t, calendarWebhookUrl, team.Config.Integrations.GoogleCalendar.WebhookURL)
 	assert.True(t, team.Config.Integrations.GoogleCalendar.Enable)
 
+	// dry-run with invalid EUA=disabled and lock_end_user_info=enabled
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamNameDecomposed,
+				"mdm": map[string]any{
+					"macos_setup": map[string]any{
+						"lock_end_user_info": true,
+					},
+				},
+			},
+		},
+	}
+	res := s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't enable macos_setup.lock_end_user_info because macos_setup.enable_end_user_authentication is not enabled")
+
 	// dry-run with invalid windows updates
 	teamSpecs = map[string]any{
 		"specs": []any{
@@ -351,8 +368,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	res := s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
-	errMsg := extractServerErrorText(res.Body)
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "deadline_days must be an integer between 0 and 30")
 
 	// apply valid windows updates settings
@@ -4890,6 +4907,17 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	assert.Equal(t, "SSO User 6", user6.Name)
 	require.NotNil(t, user6.GlobalRole)
 	require.Equal(t, fleet.RoleObserver, *user6.GlobalRole)
+
+	// A user with a global technician role can be created via JIT provisioning,
+	// see `tools/saml/users.php` for details.
+	body = s.LoginSSOUser("sso_user_8_global_technician", "user123#")
+	require.Contains(t, body, "Redirecting to Fleet at  ...")
+	user8, err := s.ds.UserByEmail(context.Background(), "sso_user_8_global_technician@example.com")
+	require.NoError(t, err)
+	assert.Equal(t, "sso_user_8_global_technician@example.com", user8.Email)
+	assert.Equal(t, "SSO User 8", user8.Name)
+	require.NotNil(t, user8.GlobalRole)
+	require.Equal(t, fleet.RoleTechnician, *user8.GlobalRole)
 }
 
 func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
@@ -5771,8 +5799,6 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 	}
 	s.DoJSON("POST", "/api/latest/fleet/policies", createPol1Req, http.StatusOK, &createPol1)
 	allEqual(t, createPol1Req, createPol1.Policy, fields...)
-	require.NotNil(t, createPol1.Policy.ConditionalAccessBypassEnabled)
-	assert.True(t, *createPol1.Policy.ConditionalAccessBypassEnabled)
 
 	createPol2 := &globalPolicyResponse{}
 	createPol2Req := &globalPolicyRequest{
@@ -5785,8 +5811,6 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 	}
 	s.DoJSON("POST", "/api/latest/fleet/policies", createPol2Req, http.StatusOK, &createPol2)
 	allEqual(t, createPol2Req, createPol2.Policy, fields...)
-	require.NotNil(t, createPol2.Policy.ConditionalAccessBypassEnabled)
-	assert.True(t, *createPol2.Policy.ConditionalAccessBypassEnabled)
 
 	listPol := &listGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, listPol)
@@ -5847,7 +5871,7 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
-	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical", "CalendarEventsEnabled", "ConditionalAccessBypassEnabled"}
+	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical", "CalendarEventsEnabled"}
 
 	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          42,
@@ -5858,28 +5882,26 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	createPol1 := &teamPolicyResponse{}
 	createPol1Req := &teamPolicyRequest{
-		Query:                          "query",
-		Name:                           "name1",
-		Description:                    "description",
-		Resolution:                     "resolution",
-		Platform:                       "linux",
-		Critical:                       true,
-		CalendarEventsEnabled:          true,
-		ConditionalAccessBypassEnabled: ptr.Bool(false),
+		Query:                 "query",
+		Name:                  "name1",
+		Description:           "description",
+		Resolution:            "resolution",
+		Platform:              "linux",
+		Critical:              true,
+		CalendarEventsEnabled: true,
 	}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol1Req, http.StatusOK, &createPol1)
 	allEqual(s.T(), createPol1Req, createPol1.Policy, fields...)
 
 	createPol2 := &teamPolicyResponse{}
 	createPol2Req := &teamPolicyRequest{
-		Query:                          "query",
-		Name:                           "name2",
-		Description:                    "description",
-		Resolution:                     "resolution",
-		Platform:                       "linux",
-		Critical:                       false,
-		CalendarEventsEnabled:          false,
-		ConditionalAccessBypassEnabled: ptr.Bool(true),
+		Query:                 "query",
+		Name:                  "name2",
+		Description:           "description",
+		Resolution:            "resolution",
+		Platform:              "linux",
+		Critical:              false,
+		CalendarEventsEnabled: false,
 	}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol2Req, http.StatusOK, &createPol2)
 	allEqual(s.T(), createPol2Req, createPol2.Policy, fields...)
@@ -5895,14 +5917,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	patchPol1Req := &modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:                           ptr.String("newName1"),
-			Query:                          ptr.String("newQuery"),
-			Description:                    ptr.String("newDescription"),
-			Resolution:                     ptr.String("newResolution"),
-			Platform:                       ptr.String("windows"),
-			Critical:                       ptr.Bool(false),
-			CalendarEventsEnabled:          ptr.Bool(false),
-			ConditionalAccessBypassEnabled: ptr.Bool(true),
+			Name:                  ptr.String("newName1"),
+			Query:                 ptr.String("newQuery"),
+			Description:           ptr.String("newDescription"),
+			Resolution:            ptr.String("newResolution"),
+			Platform:              ptr.String("windows"),
+			Critical:              ptr.Bool(false),
+			CalendarEventsEnabled: ptr.Bool(false),
 		},
 	}
 	patchPol1 := &modifyTeamPolicyResponse{}
@@ -5911,14 +5932,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	patchPol2Req := &modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:                           ptr.String("newName2"),
-			Query:                          ptr.String("newQuery"),
-			Description:                    ptr.String("newDescription"),
-			Resolution:                     ptr.String("newResolution"),
-			Platform:                       ptr.String("windows"),
-			Critical:                       ptr.Bool(true),
-			CalendarEventsEnabled:          ptr.Bool(true),
-			ConditionalAccessBypassEnabled: ptr.Bool(false),
+			Name:                  ptr.String("newName2"),
+			Query:                 ptr.String("newQuery"),
+			Description:           ptr.String("newDescription"),
+			Resolution:            ptr.String("newResolution"),
+			Platform:              ptr.String("windows"),
+			Critical:              ptr.Bool(true),
+			CalendarEventsEnabled: ptr.Bool(true),
 		},
 	}
 	patchPol2 := &modifyTeamPolicyResponse{}
@@ -5938,193 +5958,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 	getPol2 := &getPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol2.Policy.ID), nil, http.StatusOK, getPol2)
 	require.Equal(s.T(), listPol.Policies[1], getPol2.Policy)
-
-	// Verify that patching without ConditionalAccessBypassEnabled preserves existing value.
-	// patchPol1 previously set bypass to true.
-	patchPreserveReq := &modifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name: ptr.String("preservedBypassName"),
-			// ConditionalAccessBypassEnabled intentionally omitted
-		},
-	}
-	patchPreserve := &modifyTeamPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol1.Policy.ID), patchPreserveReq, http.StatusOK, patchPreserve)
-	require.NotNil(s.T(), patchPreserve.Policy.ConditionalAccessBypassEnabled)
-	assert.True(s.T(), *patchPreserve.Policy.ConditionalAccessBypassEnabled, "bypass value should be preserved when not provided in PATCH")
-}
-
-func (s *integrationEnterpriseTestSuite) TestPolicySpecConditionalAccessBypassEnabled() {
-	t := s.T()
-
-	type reapply struct {
-		bypass   *bool
-		expected bool
-	}
-
-	cases := []struct {
-		name           string
-		team           string // empty = global policy
-		createBypass   *bool
-		expectedCreate bool
-		reapply        *reapply
-	}{
-		{
-			name:           "team default nil",
-			team:           "team",
-			createBypass:   nil,
-			expectedCreate: true,
-		},
-		{
-			name:           "team explicit false",
-			team:           "team",
-			createBypass:   ptr.Bool(false),
-			expectedCreate: false,
-		},
-		{
-			name:           "team explicit true",
-			team:           "team",
-			createBypass:   ptr.Bool(true),
-			expectedCreate: true,
-		},
-		{
-			name:           "reapply false to true",
-			team:           "team",
-			createBypass:   ptr.Bool(false),
-			expectedCreate: false,
-			reapply:        &reapply{bypass: ptr.Bool(true), expected: true},
-		},
-		{
-			name:           "reapply true to false",
-			team:           "team",
-			createBypass:   nil,
-			expectedCreate: true,
-			reapply:        &reapply{bypass: ptr.Bool(false), expected: false},
-		},
-		{
-			name:           "global default",
-			team:           "",
-			createBypass:   nil,
-			expectedCreate: true,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			teamName := tc.team
-			if teamName != "" {
-				teamName = t.Name() // use unique team name per subtest
-				_, err := s.ds.NewTeam(t.Context(), &fleet.Team{
-					Name: teamName,
-				})
-				require.NoError(t, err)
-			}
-
-			policyName := t.Name() + " policy"
-			spec := &fleet.PolicySpec{
-				Name:                           policyName,
-				Query:                          "SELECT 1",
-				Team:                           teamName,
-				ConditionalAccessBypassEnabled: tc.createBypass,
-				Type:                           fleet.PolicyTypeDynamic,
-			}
-
-			applyResp := applyPolicySpecsResponse{}
-			s.DoJSON("POST", "/api/latest/fleet/spec/policies",
-				applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
-				http.StatusOK, &applyResp,
-			)
-
-			// Read back and find the policy by name.
-			var bypassValue *bool
-			if teamName != "" {
-				listResp := listTeamPoliciesResponse{}
-				// Look up the team to get its ID.
-				teams, err := s.ds.TeamsSummary(t.Context())
-				require.NoError(t, err)
-				var teamID uint
-				for _, tm := range teams {
-					if tm.Name == teamName {
-						teamID = tm.ID
-						break
-					}
-				}
-				require.NotZero(t, teamID, "team %s not found", teamName)
-
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID),
-					nil, http.StatusOK, &listResp,
-				)
-				var found *fleet.Policy
-				for _, p := range listResp.Policies {
-					if p.Name == policyName {
-						found = p
-						break
-					}
-				}
-				require.NotNil(t, found, "policy %s not found", policyName)
-				bypassValue = found.ConditionalAccessBypassEnabled
-			} else {
-				listResp := listGlobalPoliciesResponse{}
-				s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listResp)
-				var found *fleet.Policy
-				for _, p := range listResp.Policies {
-					if p.Name == policyName {
-						found = p
-						break
-					}
-				}
-				require.NotNil(t, found, "policy %s not found", policyName)
-				bypassValue = found.ConditionalAccessBypassEnabled
-			}
-			require.Equal(t, tc.expectedCreate, *bypassValue, "after initial apply")
-
-			// Reapply with updated bypass value if specified.
-			if tc.reapply != nil {
-				spec.ConditionalAccessBypassEnabled = tc.reapply.bypass
-				reapplyResp := applyPolicySpecsResponse{}
-				s.DoJSON("POST", "/api/latest/fleet/spec/policies",
-					applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
-					http.StatusOK, &reapplyResp,
-				)
-
-				if teamName != "" {
-					listResp := listTeamPoliciesResponse{}
-					teams, err := s.ds.TeamsSummary(t.Context())
-					require.NoError(t, err)
-					var teamID uint
-					for _, tm := range teams {
-						if tm.Name == teamName {
-							teamID = tm.ID
-							break
-						}
-					}
-					s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID),
-						nil, http.StatusOK, &listResp,
-					)
-					var found *fleet.Policy
-					for _, p := range listResp.Policies {
-						if p.Name == policyName {
-							found = p
-							break
-						}
-					}
-					require.NotNil(t, found, "policy %s not found after reapply", policyName)
-					require.Equal(t, tc.reapply.expected, *found.ConditionalAccessBypassEnabled, "after reapply")
-				} else {
-					listResp := listGlobalPoliciesResponse{}
-					s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listResp)
-					var found *fleet.Policy
-					for _, p := range listResp.Policies {
-						if p.Name == policyName {
-							found = p
-							break
-						}
-					}
-					require.NotNil(t, found, "policy %s not found after reapply", policyName)
-					require.Equal(t, tc.reapply.expected, *found.ConditionalAccessBypassEnabled, "after reapply")
-				}
-			}
-		})
-	}
 }
 
 func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
@@ -17620,7 +17453,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&activityCount,
-			`SELECT count(1) FROM activities`,
+			`SELECT count(1) FROM activity_past`,
 		)
 	})
 	// host2Team1 posts the installation result for ruby.deb (first attempt).
@@ -17646,7 +17479,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&activityNewCount,
-			`SELECT count(1) FROM activities`,
+			`SELECT count(1) FROM activity_past`,
 		)
 	})
 	require.Equal(t, activityCount, activityNewCount, "no new activity should be created for first failed install attempts")
@@ -17793,7 +17626,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &count, `
 				SELECT COUNT(*)
-				FROM activities
+				FROM activity_past
 				WHERE JSON_EXTRACT(details, '$.host_id') = ? AND JSON_EXTRACT(details, '$.policy_id') = ?
 			`, host.ID, policy.ID)
 		})
@@ -18087,7 +17920,7 @@ func (s *integrationEnterpriseTestSuite) TestNonPolicySoftwareInstallRetries() {
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &count, `
 				SELECT COUNT(*)
-				FROM activities
+				FROM activity_past
 				WHERE activity_type = 'installed_software'
 					AND JSON_EXTRACT(details, '$.host_id') = ?
 					AND JSON_EXTRACT(details, '$.status') = 'failed_install'
@@ -19150,7 +18983,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &count, `
 				SELECT COUNT(*)
-				FROM activities
+				FROM activity_past
 				WHERE JSON_EXTRACT(details, '$.host_id') = ? AND JSON_EXTRACT(details, '$.policy_id') = ?
 			`, host.ID, policy.ID)
 		})
@@ -24512,23 +24345,23 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 		require.False(t, getDeviceHostResp.Host.ConditionalAccessBypassed)
 	})
 
-	t.Run("bypass fails when host has failing non-bypassable policy", func(t *testing.T) {
-		token := fmt.Sprintf("bypass-nonbypassable-%s", uuid.New().String())
+	t.Run("bypass fails when host has failing critical policy", func(t *testing.T) {
+		token := fmt.Sprintf("bypass-critical-%s", uuid.New().String())
 		host := createHostAndDeviceToken(t, s.ds, token)
 
-		// Create a global policy
+		// Assign host to a team
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: fmt.Sprintf("ca-blocking-team-%s", uuid.New().String())})
+		require.NoError(t, err)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
 		adminUser := s.users["admin1@example.com"]
-		policy, err := s.ds.NewGlobalPolicy(ctx, &adminUser.ID, fleet.PolicyPayload{
-			Name:  fmt.Sprintf("non-bypassable-%s", uuid.New().String()),
-			Query: "select 1;",
+		policy, err := s.ds.NewTeamPolicy(ctx, team.ID, &adminUser.ID, fleet.PolicyPayload{
+			Name:                     fmt.Sprintf("ca-critical-%s", uuid.New().String()),
+			Query:                    "select 1;",
+			Critical:                 true,
+			ConditionalAccessEnabled: true,
 		})
 		require.NoError(t, err)
-
-		// Make the policy non-bypassable
-		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-			_, innerErr := db.ExecContext(ctx, `UPDATE policies SET conditional_access_bypass_enabled = 0 WHERE id = ?`, policy.ID)
-			return innerErr
-		})
 
 		// Record a failing result for this policy on the host
 		err = s.ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: ptr.Bool(false)}, time.Now(), false)
@@ -24543,6 +24376,51 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 		bypassedAt, err := s.ds.ConditionalAccessBypassedAt(ctx, host.ID)
 		require.NoError(t, err)
 		require.Nil(t, bypassedAt)
+	})
+
+	t.Run("bypass allowed when only non-CA critical policy is failing", func(t *testing.T) {
+		token := fmt.Sprintf("bypass-non-ca-%s", uuid.New().String())
+		host := createHostAndDeviceToken(t, s.ds, token)
+
+		// Assign host to a team
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: fmt.Sprintf("non-ca-team-%s", uuid.New().String())})
+		require.NoError(t, err)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+		adminUser := s.users["admin1@example.com"]
+
+		// CA policy — passing
+		caPolicy, err := s.ds.NewTeamPolicy(ctx, team.ID, &adminUser.ID, fleet.PolicyPayload{
+			Name:                     fmt.Sprintf("ca-policy-%s", uuid.New().String()),
+			Query:                    "select 1;",
+			Critical:                 true,
+			ConditionalAccessEnabled: true,
+		})
+		require.NoError(t, err)
+
+		// Non-CA critical policy — failing
+		nonCAPolicy, err := s.ds.NewTeamPolicy(ctx, team.ID, &adminUser.ID, fleet.PolicyPayload{
+			Name:     fmt.Sprintf("non-ca-policy-%s", uuid.New().String()),
+			Query:    "select 1;",
+			Critical: true,
+		})
+		require.NoError(t, err)
+
+		err = s.ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
+			caPolicy.ID:    ptr.Bool(true),  // passing
+			nonCAPolicy.ID: ptr.Bool(false), // failing
+		}, time.Now(), false)
+		require.NoError(t, err)
+
+		// Bypass must succeed: the only failing policy is not CA-enabled
+		var bypassResp bypassConditionalAccessResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusOK, &bypassResp)
+		require.Nil(t, bypassResp.Err)
+
+		bypassedAt, err := s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+		require.NoError(t, err)
+		require.NotNil(t, bypassedAt)
 	})
 }
 

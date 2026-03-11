@@ -1,0 +1,1 @@
+* Fixed DB lock contention during vulnerability cron's software cleanup that caused failures under load.

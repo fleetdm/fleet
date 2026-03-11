@@ -156,8 +156,7 @@ func (c *Client) GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetup
 	}
 	var responseBody createMDMAppleSetupAssistantResponse
 	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
-		var notFoundErr notFoundErr
-		if errors.As(err, &notFoundErr) {
+		if isNotFoundErr(err) {
 			// If the profile is not found, return nil instead of an error.
 			return nil, nil
 		}

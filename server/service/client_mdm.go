@@ -80,7 +80,7 @@ func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*flee
 func (c *Client) DeleteBootstrapPackageIfNeeded(teamID uint, dryRun bool) error {
 	_, err := c.GetBootstrapPackageMetadata(teamID, true)
 	switch {
-	case errors.As(err, &notFoundErr{}):
+	case isNotFoundErr(err):
 		// not found is OK, it means there is nothing to delete
 		return nil
 	case err != nil:
@@ -149,7 +149,7 @@ func (c *Client) UploadBootstrapPackageIfNeeded(bp *fleet.MDMAppleBootstrapPacka
 	oldMeta, err := c.GetBootstrapPackageMetadata(teamID, true)
 	if err != nil {
 		// not found is OK, it means this is our first time uploading a package
-		if !errors.As(err, &notFoundErr{}) {
+		if !isNotFoundErr(err) {
 			return fmt.Errorf("getting bootstrap package metadata: %w", err)
 		}
 		isFirstTime = true
@@ -449,7 +449,7 @@ func (c *Client) GetEULAMetadata() (*fleet.MDMEULA, error) {
 func (c *Client) DeleteEULAIfNeeded(dryRun bool) error {
 	eula, err := c.GetEULAMetadata()
 	switch {
-	case errors.As(err, &notFoundErr{}):
+	case isNotFoundErr(err):
 		// not found is OK, it means there is nothing to delete
 		return nil
 	case err != nil:
@@ -475,7 +475,7 @@ func (c *Client) UploadEULAIfNeeded(eulaPath string, dryRun bool) error {
 	oldMeta, err := c.GetEULAMetadata()
 	if err != nil {
 		// not found is OK, it means this is our first time uploading a eula
-		if !errors.As(err, &notFoundErr{}) {
+		if !isNotFoundErr(err) {
 			return fmt.Errorf("getting eula metadata: %w", err)
 		}
 		isFirstTime = true

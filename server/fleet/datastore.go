@@ -881,6 +881,9 @@ type Datastore interface {
 	// DeleteOutOfDateVulnerabilities deletes 'software_cve' entries from the provided source where
 	// the updated_at timestamp is older than the provided timestamp
 	DeleteOutOfDateVulnerabilities(ctx context.Context, source VulnerabilitySource, olderThan time.Time) error
+	// DeleteOrphanedSoftwareVulnerabilities deletes 'software_cve' entries where the software_id
+	// no longer has any associated hosts in 'host_software'.
+	DeleteOrphanedSoftwareVulnerabilities(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Calendar events
@@ -1225,6 +1228,9 @@ type Datastore interface {
 	// DeleteOutOfDateOSVulnerabilities deletes 'operating_system_vulnerabilities' entries from the provided source where
 	// the updated_at timestamp is older than the supplied timestamp
 	DeleteOutOfDateOSVulnerabilities(ctx context.Context, source VulnerabilitySource, olderThan time.Time) error
+	// DeleteOrphanedOSVulnerabilities deletes 'operating_system_vulnerabilities' entries where the operating_system_id
+	// no longer has any associated hosts in 'host_operating_system'.
+	DeleteOrphanedOSVulnerabilities(ctx context.Context) error
 
 	ListKernelsByOS(ctx context.Context, osID uint, teamID *uint) ([]*Kernel, error)
 

@@ -56,11 +56,6 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool
-	// ConditionalAccessBypassEnabled indicates if a conditional access policy can be one-time
-	// bypased by end users.
-	//
-	// Only applies to team policies.
-	ConditionalAccessBypassEnabled *bool
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type string
@@ -106,9 +101,6 @@ type NewTeamPolicyPayload struct {
 	LabelsExcludeAny []string
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	ConditionalAccessEnabled bool
-	// ConditionalAccessBypassEnabled indicates if a conditional access policy can be one-time
-	// bypassed by the end user
-	ConditionalAccessBypassEnabled *bool
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type *string
@@ -247,11 +239,6 @@ type ModifyPolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled *bool `json:"conditional_access_enabled" premium:"true"`
-	// ConditionalAccessBypassEnabled indicates if a conditional access policy can be one-time
-	// bypased by end users.
-	//
-	// Only applies to team policies.
-	ConditionalAccessBypassEnabled *bool `json:"conditional_access_bypass_enabled" premium:"true"`
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type string `json:"-"`
@@ -339,11 +326,6 @@ type PolicyData struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool `json:"conditional_access_enabled" db:"conditional_access_enabled"`
-	// ConditionalAccessBypassEnabled indicates if a conditional access policy can be one-time
-	// bypased by end users.
-	//
-	// Only applies to team policies.
-	ConditionalAccessBypassEnabled *bool `json:"conditional_access_bypass_enabled" db:"conditional_access_bypass_enabled"`
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type string `json:"type" db:"type"`
@@ -476,11 +458,6 @@ type PolicySpec struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
-	// ConditionalAccessBypassEnabled indicates if a conditional access policy can be one-time
-	// bypased by end users.
-	//
-	// Only applies to team policies.
-	ConditionalAccessBypassEnabled *bool `json:"conditional_access_bypass_enabled"`
 
 	Type                   string `json:"type"`
 	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug"`

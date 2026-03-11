@@ -387,6 +387,17 @@ func (ds *Datastore) DeleteOutOfDateOSVulnerabilities(ctx context.Context, src f
 	return nil
 }
 
+func (ds *Datastore) DeleteOrphanedOSVulnerabilities(ctx context.Context) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx, `
+		DELETE osv FROM operating_system_vulnerabilities osv
+		LEFT JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id
+		WHERE hos.host_id IS NULL
+	`); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting orphaned OS vulnerabilities")
+	}
+	return nil
+}
+
 func (ds *Datastore) ListKernelsByOS(ctx context.Context, osVersionID uint, teamID *uint) ([]*fleet.Kernel, error) {
 	var kernels []*fleet.Kernel
 

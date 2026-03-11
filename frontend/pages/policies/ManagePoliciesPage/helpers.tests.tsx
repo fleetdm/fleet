@@ -30,7 +30,6 @@ describe("getInstallSoftwareErrorMessage", () => {
       critical: false,
       calendar_events_enabled: false,
       conditional_access_enabled: false,
-      conditional_access_bypass_enabled: true,
       type: "dynamic",
     },
     {
@@ -53,7 +52,6 @@ describe("getInstallSoftwareErrorMessage", () => {
       critical: false,
       calendar_events_enabled: false,
       conditional_access_enabled: false,
-      conditional_access_bypass_enabled: true,
       type: "dynamic",
     },
   ];
@@ -166,7 +164,6 @@ describe("getRunScriptErrorMessage", () => {
       critical: false,
       calendar_events_enabled: false,
       conditional_access_enabled: false,
-      conditional_access_bypass_enabled: true,
       type: "dynamic",
     },
     {
@@ -189,7 +186,6 @@ describe("getRunScriptErrorMessage", () => {
       critical: false,
       calendar_events_enabled: false,
       conditional_access_enabled: false,
-      conditional_access_bypass_enabled: true,
       type: "dynamic",
     },
   ];

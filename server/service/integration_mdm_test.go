@@ -787,7 +787,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.T().Setenv("FLEET_DEV_AZURE_JWT_JWKS_URI", jwksServer.URL+"/jwks.json")
 
 	dev_mode.SetOverride("FLEET_DEV_BATCH_RETRY_INTERVAL", "1s")
-
 }
 
 func (s *integrationMDMTestSuite) TearDownSuite() {
@@ -1726,7 +1725,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 	t := s.T()
 	// Clear out all activities to other test leaking activities into this one.
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(context.Background(), `DELETE FROM activities`)
+		_, err := q.ExecContext(context.Background(), `DELETE FROM activity_past`)
 		return err
 	})
 
@@ -3409,6 +3408,52 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.False(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
+
+	// test via apply team specs
+	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			EnableRecoveryLockPassword: optjson.SetBool(true),
+		},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	// check it's enabled
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
+
+	// apply with recovery lock password disabled
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			EnableRecoveryLockPassword: optjson.SetBool(false),
+		},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	// check it's disabled
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.False(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
+
+	// create a new team via spec with recovery lock password enabled
+	newTeamName := teamName + "2"
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: newTeamName,
+		MDM: fleet.TeamSpecMDM{
+			EnableRecoveryLockPassword: optjson.SetBool(true),
+		},
+	}}}
+	var specResp applyTeamSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+	newTeamID := specResp.TeamIDsByName[newTeamName]
+	require.NotZero(t, newTeamID)
+
+	// check the new team has recovery lock password enabled
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", newTeamID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
 }
 
 func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
@@ -4247,7 +4292,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	var summaryResp getMDMAppleBootstrapPackageSummaryResponse
 	s.DoJSON("GET", "/api/latest/fleet/bootstrap/summary", nil, http.StatusOK, &summaryResp)
 	// We don't count the "skipped" device as it is pending migration and will not install the bootstrap package
-	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(noTeamDevices) - 1)}, summaryResp.MDMAppleBootstrapPackageSummary)
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(noTeamDevices) - 1)}, summaryResp.MDMAppleBootstrapPackageSummary) //nolint:gosec // dismiss G115
 
 	var lhr listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &lhr, "team_id", "0", "bootstrap_package", "pending")
@@ -4279,7 +4324,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 	summaryResp = getMDMAppleBootstrapPackageSummaryResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/bootstrap/summary?team_id=%d", team.ID), nil, http.StatusOK, &summaryResp)
-	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(teamDevices) - 1)}, summaryResp.MDMAppleBootstrapPackageSummary)
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(teamDevices) - 1)}, summaryResp.MDMAppleBootstrapPackageSummary) //nolint:gosec // dismiss G115
 
 	mockErrorChain := []mdm.ErrorChain{
 		{ErrorCode: 12021, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "Unknown command", USEnglishDescription: "Unknown command"},
@@ -5148,6 +5193,8 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 	t.Run("ValidateEnableEndUserAuthentication", func(t *testing.T) {
 		// ensure the test is setup correctly
 		var acResp appConfigResponse
+		var errResp validationErrResp
+		var teamResp teamResponse
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
 				"end_user_authentication": {
@@ -5162,7 +5209,30 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		}`), http.StatusOK, &acResp)
 		require.NotEmpty(t, acResp.MDM.EndUserAuthentication)
 
-		// ok to disable end user authentication without a configured IdP
+		// can't clear IdP settings while end user authentication is enabled (global)
+		errResp = validationErrResp{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "",
+					"idp_name": "",
+					"metadata_url": ""
+				}
+			}
+		}`), http.StatusUnprocessableEntity, &errResp)
+		require.Len(t, errResp.Errors, 1)
+		require.Equal(t, errResp.Errors[0].Reason, "End user authentication is enabled. Please disable end user authentication in Controls > Setup experience and try again")
+
+		//  disable end user authentication before clearing IdP settings
+		acResp = appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"macos_setup": {
+					"enable_end_user_authentication": false
+				}
+			}
+		}`), http.StatusOK, &acResp)
+		require.Equal(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication, false)
 		acResp = appConfigResponse{}
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
@@ -5170,13 +5240,70 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 					"entity_id": "",
 					"idp_name": "",
 					"metadata_url": ""
-				},
+				}
+			}
+		}`), http.StatusOK, &acResp)
+		require.True(t, acResp.MDM.EndUserAuthentication.IsEmpty())
+
+		// can't clear IdP settings while end user authentication is enabled on a team
+		// 1. configure IdP globally
+		acResp = appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "https://localhost:8080",
+					"idp_name": "SimpleSAML",
+					"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+				}
+			}
+		}`), http.StatusOK, &acResp)
+		require.NotEmpty(t, acResp.MDM.EndUserAuthentication)
+		require.False(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+
+		// 2. enable EUA on a team
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
+			"name": %q,
+			"mdm": {
+				"macos_setup": {
+					"enable_end_user_authentication": true
+				}
+			}
+		}`, tm.Name)), http.StatusOK, &teamResp)
+		require.True(t, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+
+		// 3. clearing IdP while team EUA is enabled should fail
+		errResp = validationErrResp{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "",
+					"idp_name": "",
+					"metadata_url": ""
+				}
+			}
+		}`), http.StatusUnprocessableEntity, &errResp)
+		require.Len(t, errResp.Errors, 1)
+		require.Equal(t, errResp.Errors[0].Reason, "End user authentication is enabled. Please disable end user authentication in Controls > Setup experience and try again")
+
+		// 4. disable team EUA, then clear IdP
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
+			"name": %q,
+			"mdm": {
 				"macos_setup": {
 					"enable_end_user_authentication": false
 				}
 			}
+		}`, tm.Name)), http.StatusOK, &teamResp)
+		acResp = appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "",
+					"idp_name": "",
+					"metadata_url": ""
+				}
+			}
 		}`), http.StatusOK, &acResp)
-		require.Equal(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication, false)
 		require.True(t, acResp.MDM.EndUserAuthentication.IsEmpty())
 
 		// can't enable end user authentication without a configured IdP
@@ -5198,7 +5325,6 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 			fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusUnprocessableEntity)
 
 		// can't enable end user authentication on team config without a configured IdP already on app config
-		var teamResp teamResponse
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
 			"name": %q,
 			"mdm": {
@@ -10447,6 +10573,14 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 				},
 				// disk encryption does not require mdm enabled and configured
 				http.StatusOK,
+			},
+			{
+				"enable recovery lock password",
+				&fleet.TeamSpecMDM{
+					EnableRecoveryLockPassword: optjson.SetBool(true),
+				},
+				// recovery lock password requires mdm enabled and configured
+				http.StatusUnprocessableEntity,
 			},
 			// Ian - this test still passes, that is, returns 4xx – perhaps related to one of the endpoints we still need to update
 			{

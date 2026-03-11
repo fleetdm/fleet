@@ -178,7 +178,7 @@ const generateColumnConfigs = ({
                   )}
               </>
             }
-            path={getPathWithQueryParams(PATHS.QUERY_DETAILS(id), {
+            path={getPathWithQueryParams(PATHS.REPORT_DETAILS(id), {
               fleet_id: team_id ?? currentTeamId,
             })}
           />

@@ -115,7 +115,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	// Update $PACKAGE_ID/$UPGRADE_CODE in uninstall script
 	if err := preProcessUninstallScript(payload); err != nil {
 		return nil, &fleet.BadRequestError{
-			Message: "Couldn't add. $UPGRADE_CODE variable was used but package does not have an UpgradeCode.",
+			Message: fmt.Sprintf("Couldn't add software: %s", err),
 		}
 	}
 
@@ -239,40 +239,47 @@ func ValidateSoftwareLabels(ctx context.Context, svc fleet.Service, teamID *uint
 }
 
 func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) error {
-	// We assume that we already validated that payload.PackageIDs is not empty.
-	// Replace $PACKAGE_ID in the uninstall script with the package ID(s).
 	if len(payload.PackageIDs) == 0 {
 		// do nothing, this could be a FMA which won't include the installer when editing the scripts
 		return nil
 	}
 
-	// Validate that package identifiers and upgrade codes don't contain shell metacharacters
-	if err := file.ValidatePackageIdentifiers(payload.PackageIDs, payload.UpgradeCode); err != nil {
-		return err
-	}
-
-	var packageID string
+	// dmg and zip don't use template variable substitution
 	switch payload.Extension {
 	case "dmg", "zip":
 		return nil
-	case "pkg":
-		var sb strings.Builder
-		_, _ = sb.WriteString("(\n")
-		for _, pkgID := range payload.PackageIDs {
-			_, _ = sb.WriteString(fmt.Sprintf("  '%s'\n", pkgID))
-		}
-		_, _ = sb.WriteString(")") // no ending newline
-		packageID = sb.String()
-	default:
-		packageID = fmt.Sprintf("'%s'", payload.PackageIDs[0])
 	}
 
-	payload.UninstallScript = file.PackageIDRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("%s${suffix}", packageID))
+	// Only validate and substitute $PACKAGE_ID if it appears in the script
+	if file.PackageIDRegex.MatchString(payload.UninstallScript) {
+		if err := file.ValidatePackageIdentifiers(payload.PackageIDs, ""); err != nil {
+			return err
+		}
 
-	// If $UPGRADE_CODE is in the script and we have one, replace it; if the var is included but we don't have one, error
+		var packageID string
+		switch payload.Extension {
+		case "pkg":
+			var sb strings.Builder
+			_, _ = sb.WriteString("(\n")
+			for _, pkgID := range payload.PackageIDs {
+				_, _ = sb.WriteString(fmt.Sprintf("  '%s'\n", pkgID))
+			}
+			_, _ = sb.WriteString(")") // no ending newline
+			packageID = sb.String()
+		default:
+			packageID = fmt.Sprintf("'%s'", payload.PackageIDs[0])
+		}
+
+		payload.UninstallScript = file.PackageIDRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("%s${suffix}", packageID))
+	}
+
+	// Only validate and substitute $UPGRADE_CODE if the template variable appears in the script
 	if file.UpgradeCodeRegex.MatchString(payload.UninstallScript) {
 		if payload.UpgradeCode == "" {
-			return errors.New("blank upgrade code when required in script")
+			return errors.New("$UPGRADE_CODE variable was used in uninstall script but package does not have an UpgradeCode")
+		}
+		if err := file.ValidatePackageIdentifiers(nil, payload.UpgradeCode); err != nil {
+			return err
 		}
 
 		payload.UninstallScript = file.UpgradeCodeRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("'%s'${suffix}", payload.UpgradeCode))
@@ -559,7 +566,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 			if err := preProcessUninstallScript(payloadForUninstallScript); err != nil {
 				return nil, &fleet.BadRequestError{
-					Message: "Couldn't add. $UPGRADE_CODE variable was used but package does not have an UpgradeCode.",
+					Message: fmt.Sprintf("Couldn't edit software: %s", err),
 				}
 			}
 
@@ -1160,7 +1167,7 @@ func (svc *Service) getSoftwareInstallerBinary(ctx context.Context, storageID st
 		return nil, ctxerr.Wrap(ctx, err, "checking if installer exists")
 	}
 	if !exists {
-		return nil, ctxerr.Wrapf(ctx, notFoundError{}, "%s with filename %s does not exist in software installer store", storageID,
+		return nil, ctxerr.Wrapf(ctx, &notFoundError{}, "%s with filename %s does not exist in software installer store", storageID,
 			filename)
 	}
 
@@ -2591,7 +2598,7 @@ func (svc *Service) softwareBatchUpload(
 
 			// Update $PACKAGE_ID/$UPGRADE_CODE in uninstall script
 			if err := preProcessUninstallScript(installer); err != nil {
-				return errors.New("$UPGRADE_CODE variable was used but package does not have an UpgradeCode")
+				return fmt.Errorf("processing uninstall script: %w", err)
 			}
 
 			// if filename was empty, try to extract it from the URL with the
@@ -2712,7 +2719,7 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 		return "", "", nil, ctxerr.Wrap(ctx, err, "failed to get result")
 	}
 	if result == nil {
-		return "", "", nil, ctxerr.Wrap(ctx, notFoundError{}, "request_uuid not found")
+		return "", "", nil, ctxerr.Wrap(ctx, &notFoundError{}, "request_uuid not found")
 	}
 
 	switch {
@@ -2760,6 +2767,11 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 }
 
 func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
+	if fleet.IsAppleMobilePlatform(host.Platform) &&
+		host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == string(fleet.MDMEnrollStatusPersonal) {
+		return fleet.NewUserMessageError(errors.New(fleet.InstallSoftwarePersonalAppleDeviceErrMsg), http.StatusUnprocessableEntity)
+	}
+
 	installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
 	if err != nil {
 		if !fleet.IsNotFound(err) {

@@ -2074,7 +2074,7 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team " + strconv.Itoa(i)})
 		require.NoError(t, err)
 
-		installers[i], _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		installers[i], _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{ //nolint:gosec // dismiss G602
 			Title:            "foo",
 			Source:           "apps",
 			Version:          "1.0",
@@ -2087,14 +2087,14 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 		})
 		require.NoError(t, err)
-		require.NotZero(t, installers[i])
+		require.NotZero(t, installers[i]) //nolint:gosec // dismiss G602
 	}
 
 	// install software on host
 	updateSw, err := fleet.SoftwareFromOsqueryRow("foo", "1.0", "apps", "", "", "", "", "com.foo.installer", "", "", "", "")
 	require.NoError(t, err)
 
-	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installers[0], fleet.HostSoftwareInstallOptions{})
+	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installers[0], fleet.HostSoftwareInstallOptions{}) //nolint:gosec // dismiss G602
 	require.NoError(t, err)
 
 	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{

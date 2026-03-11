@@ -1319,14 +1319,15 @@ func (svc *Service) createTeamFromSpec(
 			AgentOptions: agentOptions,
 			Features:     features,
 			MDM: fleet.TeamMDM{
-				EnableDiskEncryption: enableDiskEncryption,
-				RequireBitLockerPIN:  spec.MDM.RequireBitLockerPIN.Value,
-				MacOSUpdates:         spec.MDM.MacOSUpdates,
-				WindowsUpdates:       spec.MDM.WindowsUpdates,
-				MacOSSettings:        macOSSettings,
-				MacOSSetup:           macOSSetup,
-				WindowsSettings:      spec.MDM.WindowsSettings,
-				AndroidSettings:      spec.MDM.AndroidSettings,
+				EnableDiskEncryption:       enableDiskEncryption,
+				EnableRecoveryLockPassword: spec.MDM.EnableRecoveryLockPassword.Value,
+				RequireBitLockerPIN:        spec.MDM.RequireBitLockerPIN.Value,
+				MacOSUpdates:               spec.MDM.MacOSUpdates,
+				WindowsUpdates:             spec.MDM.WindowsUpdates,
+				MacOSSettings:              macOSSettings,
+				MacOSSetup:                 macOSSetup,
+				WindowsSettings:            spec.MDM.WindowsSettings,
+				AndroidSettings:            spec.MDM.AndroidSettings,
 			},
 			HostExpirySettings: hostExpirySettings,
 			WebhookSettings: fleet.TeamWebhookSettings{
@@ -1461,6 +1462,15 @@ func (svc *Service) editTeamFromSpec(
 
 	if spec.MDM.RequireBitLockerPIN.Valid {
 		team.Config.MDM.RequireBitLockerPIN = spec.MDM.RequireBitLockerPIN.Value
+	}
+
+	if spec.MDM.EnableRecoveryLockPassword.Valid {
+		recoveryLockPasswordUpdated := team.Config.MDM.EnableRecoveryLockPassword != spec.MDM.EnableRecoveryLockPassword.Value
+		if recoveryLockPasswordUpdated && !appCfg.MDM.EnabledAndConfigured {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm.enable_recovery_lock_password",
+				`Couldn't update enable_recovery_lock_password because MDM features aren't turned on in Fleet.`))
+		}
+		team.Config.MDM.EnableRecoveryLockPassword = spec.MDM.EnableRecoveryLockPassword.Value
 	}
 
 	if !team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
@@ -1630,6 +1640,10 @@ func (svc *Service) editTeamFromSpec(
 			return ctxerr.Wrap(ctx, err)
 		}
 		team.Config.Integrations.ConditionalAccessEnabled = optjson.SetBool(*spec.Integrations.ConditionalAccessEnabled)
+	}
+
+	if !spec.MDM.MacOSSetup.EnableEndUserAuthentication && spec.MDM.MacOSSetup.LockEndUserInfo.Value {
+		invalid.Append("macos_setup.lock_end_user_info", "Couldn't enable macos_setup.lock_end_user_info because macos_setup.enable_end_user_authentication is not enabled.")
 	}
 
 	if opts.DryRun {
