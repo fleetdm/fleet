@@ -7481,6 +7481,8 @@ This endpoint returns the list of custom MDM commands that have been executed.
 > Currently, `⁠command_status` is only available when ⁠`host_identifier` is provided and the host is macOS, iOS, or iPadOS. Additionally, ⁠`count` is returned only when ⁠`command_status` is `⁠pending`; for any other values, ⁠`count` will be `⁠null`.
 >
 > Apple (macOS, iOS, iPadOS) MDM commands that 'ran' have an 'Acknowledged' `status`. Commands that are 'pending' have a 'Pending' or 'NotNow' `status`. Apple commands that 'failed' have an 'Error' `status`.
+>
+> Apple (macOS, iOS, iPadOS) InstallProfile and RemoveProfile commands enqueued by Fleet going forward will have a non-`null` "name" which represents the profile name. Previously-enqueued(prior to v4.84.0) or manually-enqueued commands will have a `null` name, as will other types of Apple MDM commands and all Windows commands.
 
 #### Example
 
@@ -7501,6 +7503,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
       "command_status": "ran",
       "updated_at": "2023-04-04:00:00Z",
       "request_type": "ProfileList",
+      "name": null,
       "hostname": "mycomputer"
     },
     {
@@ -7510,6 +7513,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
       "command_status": "ran",
       "updated_at": "2023-05-04:00:00Z",
       "request_type": "./Device/Vendor/MSFT/Reboot/RebootNow",
+      "name": null,
       "hostname": "myhost"
     }
   ]
