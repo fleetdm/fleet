@@ -348,7 +348,7 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	}
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
 	ds.ListTeamPoliciesFunc = func(
-		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}

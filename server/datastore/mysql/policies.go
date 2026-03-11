@@ -779,9 +779,7 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 
 	query += filterClause
 	if len(filterArgs) > 0 {
-		for _, id := range filterArgs {
-			args = append(args, id)
-		}
+		args = append(args, filterArgs...)
 	}
 
 	// We must normalize the name for full Unicode support (Unicode equivalence).
@@ -1190,9 +1188,7 @@ func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, op
 
 	args = append(args, teamID, teamID)
 	if len(filterArgs) > 0 {
-		for _, id := range filterArgs {
-			args = append(args, id)
-		}
+		args = append(args, filterArgs...)
 	}
 
 	// We must normalize the name for full Unicode support (Unicode equivalence).
