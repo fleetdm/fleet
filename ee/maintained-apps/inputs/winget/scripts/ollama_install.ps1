@@ -5,10 +5,11 @@ $exeFilePath = "${env:INSTALLER_PATH}"
 
 try {
 
-# Add arguments to install silently (Ollama uses an Inno Setup-based installer)
+# Ollama uses an Inno Setup-based installer with user-scope installation.
+# /CURRENTUSER ensures user-scope install without elevation prompt.
 $processOptions = @{
   FilePath = "$exeFilePath"
-  ArgumentList = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART"
+  ArgumentList = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER"
   PassThru = $true
   Wait = $true
 }

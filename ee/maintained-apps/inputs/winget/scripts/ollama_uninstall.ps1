@@ -23,6 +23,11 @@ $exitCode = 0
 
 try {
 
+# Stop any running Ollama processes before uninstalling
+Stop-Process -Name "ollama app" -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "ollama" -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+
 [array]$uninstallKeys = Get-ChildItem `
     -Path @($machineKey, $machineKey32on64, $userKey, $userKey32on64) `
     -ErrorAction SilentlyContinue |
