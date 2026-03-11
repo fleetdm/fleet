@@ -49,9 +49,8 @@ const generateInstallerPoliciesTableConfig = ({
           )}
           className="w400"
           suffix={
-            // TODO: We're not using type
             <SoftwareInstallPolicyBadges
-              policyType={cellProps.row.original.type} // TODO: Update according to Marko
+              policyType={cellProps.row.original.type}
             />
           }
         />
