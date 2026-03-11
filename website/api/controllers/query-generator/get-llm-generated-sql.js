@@ -67,7 +67,7 @@ module.exports = {
       "couldNotGenerateQueries": true
     }`;
 
-    let filteredTables = await sails.helpers.ai.prompt(schemaFiltrationPrompt, 'gpt-4o-mini-2024-07-18', true, 'Please only respond in valid JSON with no codefences or backticks.')
+    let filteredTables = await sails.helpers.ai.prompt(schemaFiltrationPrompt, 'claude-sonnet-4-20250514', true, 'Please only respond in valid JSON with no codefences or backticks.')
     .intercept((err)=>{
       sails.log.warn(`When trying to get a subset of tables to use to generate a query for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
       if(this.req.isSocket){
@@ -170,7 +170,7 @@ module.exports = {
       "couldNotGenerateQueries": true
     }`;
 
-    let sqlReport = await sails.helpers.ai.prompt.with({prompt:sqlPrompt, baseModel:'o3-mini-2025-01-31', expectJson: true})
+    let sqlReport = await sails.helpers.ai.prompt.with({prompt:sqlPrompt, baseModel:'claude-sonnet-4-20250514', expectJson: true})
     .intercept((err)=>{
       if(this.req.isSocket){
         // If this request was from a socket and an error occurs, broadcast an 'error' event and unsubscribe the socket from this room.
