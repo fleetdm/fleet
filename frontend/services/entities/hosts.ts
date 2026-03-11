@@ -308,7 +308,7 @@ export default {
         query: query || undefined, // Prevents empty string passed to API which as of 4.47 will return an error
         status,
         label_id: labelId,
-        team_id: teamId,
+        fleet_id: teamId,
         policy_id: policyId,
         policy_response: policyResponse,
         software_id: softwareId,
@@ -564,7 +564,7 @@ export default {
         query: query || undefined, // Prevents empty string passed to API which as of 4.47 will return an error
         status,
         label_id: labelId,
-        team_id: currentTeam,
+        fleet_id: currentTeam,
         policy_id: policyId,
         policy_response: policyResponse,
         software_id: softwareId,
