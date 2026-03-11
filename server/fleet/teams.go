@@ -629,6 +629,11 @@ type TeamFilter struct {
 	// specified, they must met too (e.g. if a User is provided, that team ID
 	// must be part of their teams).
 	TeamID *uint
+	// ObserverTeamID, when set, restricts observer-role access to only this team.
+	// Used for live queries where observer_can_run is scoped to the query's own team,
+	// so that a user who is observer on multiple teams only sees hosts from the query's team.
+	// Non-observer roles (admin, maintainer, etc.) are not affected.
+	ObserverTeamID *uint
 }
 
 func (f TeamFilter) UserCanAccessSelectedTeam() bool {
