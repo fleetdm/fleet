@@ -914,6 +914,8 @@ module.exports.routes = {
   'GET /announcements/cloud-based-data-leader-choosed-fleet-for-orchestration': '/case-study/cloud-data-platform',
   'GET /announcements/large-gaming-company-enhances-server-observability-with-fleet': '/case-study/online-gaming-platform',
   'GET /case-study/financial-data-company-scales-endpoint-visibility-with-fleet': '/case-study/financial-data-company',
+  'GET /articles/fleet-management-software': '/compare/fleet-vs-jamf-vs-intune',
+  'GET /articles/mdm-providers-compared': '/compare/fleet-vs-workspace-one',
 
   // Software catalog redirects
   'GET /software-catalog/abstract': '/software-catalog/abstract-darwin',

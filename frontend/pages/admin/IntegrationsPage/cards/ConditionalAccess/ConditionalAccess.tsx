@@ -130,27 +130,25 @@ const DeleteConditionalAccessModal = ({
       onExit={toggleDeleteConditionalAccessModal}
       onEnter={handleDelete}
     >
-      <>
-        {copy}
-        <div className="modal-cta-wrap">
-          <Button
-            type="button"
-            variant="alert"
-            onClick={handleDelete}
-            isLoading={isDeleting}
-            disabled={isDeleting}
-          >
-            Delete
-          </Button>
-          <Button
-            onClick={toggleDeleteConditionalAccessModal}
-            variant="inverse-alert"
-            disabled={isDeleting}
-          >
-            Cancel
-          </Button>
-        </div>
-      </>
+      {copy}
+      <div className="modal-cta-wrap">
+        <Button
+          type="button"
+          variant="alert"
+          onClick={handleDelete}
+          isLoading={isDeleting}
+          disabled={isDeleting}
+        >
+          Delete
+        </Button>
+        <Button
+          onClick={toggleDeleteConditionalAccessModal}
+          variant="inverse-alert"
+          disabled={isDeleting}
+        >
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };
