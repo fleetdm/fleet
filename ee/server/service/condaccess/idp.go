@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -22,9 +23,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"github.com/google/uuid"
+	"github.com/realclientip/realclientip-go"
 	dsig "github.com/russellhaering/goxmldsig"
 	"github.com/throttled/throttled/v2"
 	"github.com/throttled/throttled/v2/store/memstore"
@@ -47,7 +50,7 @@ const (
 	// Policy response values
 	policyResponseFail = "fail"
 
-	// Rate limiting: 10 requests per minute per IP with burst of 10
+	// Rate limiting: 10 requests per minute per IP with burst of 9 (allows 10 initial requests before throttling)
 	idpRateLimitPerMinute = 10
 	idpRateLimitMaxBurst  = 9
 
@@ -68,28 +71,30 @@ func (e *notFoundError) IsNotFound() bool {
 	return true
 }
 
-// metadataCache caches the SAML IdP metadata XML response to avoid repeated database queries.
+// metadataCache caches the SAML IdP metadata XML response (body + headers) to avoid repeated database queries.
 type metadataCache struct {
 	mu        sync.RWMutex
 	data      []byte
+	headers   http.Header
 	expiresAt time.Time
 }
 
-// get returns the cached metadata if it hasn't expired.
-func (c *metadataCache) get() ([]byte, bool) {
+// get returns the cached metadata and headers if the cache hasn't expired.
+func (c *metadataCache) get() ([]byte, http.Header, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	if c.data == nil || time.Now().After(c.expiresAt) {
-		return nil, false
+		return nil, nil, false
 	}
-	return c.data, true
+	return c.data, c.headers, true
 }
 
-// set stores the metadata in the cache with the given TTL.
-func (c *metadataCache) set(data []byte, ttl time.Duration) {
+// set stores the metadata and headers in the cache with the given TTL.
+func (c *metadataCache) set(data []byte, headers http.Header, ttl time.Duration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.data = data
+	c.headers = headers.Clone()
 	c.expiresAt = time.Now().Add(ttl)
 }
 
@@ -119,10 +124,17 @@ func RegisterIdP(
 		mdCache:          &metadataCache{},
 	}
 
+	// Create IP extraction strategy for real client IP behind load balancers.
+	// This reuses the same trusted_proxies configuration as the main API handler.
+	ipStrategy, err := endpointer.NewClientIPStrategy(fleetConfig.Server.TrustedProxies)
+	if err != nil {
+		return fmt.Errorf("create ip strategy: %w", err)
+	}
+
 	// Create per-IP rate limiter for unauthenticated IdP endpoints.
 	// These endpoints are publicly accessible (required by SAML standard),
 	// so rate limiting prevents DDoS-driven database overload.
-	rateLimiter, err := newIDPRateLimiter()
+	rateLimiter, err := newIDPRateLimiter(ipStrategy)
 	if err != nil {
 		return fmt.Errorf("create idp rate limiter: %w", err)
 	}
@@ -131,13 +143,14 @@ func RegisterIdP(
 	loggingMiddleware := log.NewLoggingMiddleware(svc.logger)
 
 	// Register handlers with logging, rate limiting, and OpenTelemetry middleware.
-	// Order (outermost first): OTEL -> rate limit -> logging -> handler
-	metadataHandler := loggingMiddleware(http.HandlerFunc(svc.serveMetadata))
-	metadataHandler = rateLimiter.RateLimit(metadataHandler)
+	// Order (outermost first): OTEL -> logging -> rate limit -> handler
+	// Logging wraps rate limiting so that 429 responses are also logged.
+	metadataHandler := rateLimiter.RateLimit(http.HandlerFunc(svc.serveMetadata))
+	metadataHandler = loggingMiddleware(metadataHandler)
 	metadataHandler = otel.WrapHandler(metadataHandler, idpMetadataPath, *fleetConfig)
 
-	ssoHandler := loggingMiddleware(http.HandlerFunc(svc.serveSSO))
-	ssoHandler = rateLimiter.RateLimit(ssoHandler)
+	ssoHandler := rateLimiter.RateLimit(http.HandlerFunc(svc.serveSSO))
+	ssoHandler = loggingMiddleware(ssoHandler)
 	ssoHandler = otel.WrapHandler(ssoHandler, idpSSOPath, *fleetConfig)
 
 	mux.Handle(idpMetadataPath, metadataHandler)
@@ -146,8 +159,23 @@ func RegisterIdP(
 	return nil
 }
 
+// clientIPVaryBy implements throttled.VaryBy using the real client IP extracted via the configured
+// trusted_proxies strategy. This correctly identifies clients behind load balancers/reverse proxies
+// instead of rate-limiting by the proxy's IP address.
+type clientIPVaryBy struct {
+	strategy realclientip.Strategy
+}
+
+func (v *clientIPVaryBy) Key(r *http.Request) string {
+	ip := v.strategy.ClientIP(r.Header, r.RemoteAddr)
+	if ip == "" {
+		return r.RemoteAddr
+	}
+	return ip
+}
+
 // newIDPRateLimiter creates an HTTP rate limiter for the IdP endpoints.
-func newIDPRateLimiter() (*throttled.HTTPRateLimiter, error) {
+func newIDPRateLimiter(ipStrategy realclientip.Strategy) (*throttled.HTTPRateLimiter, error) {
 	store, err := memstore.New(65536)
 	if err != nil {
 		return nil, fmt.Errorf("create rate limit store: %w", err)
@@ -165,7 +193,7 @@ func newIDPRateLimiter() (*throttled.HTTPRateLimiter, error) {
 
 	return &throttled.HTTPRateLimiter{
 		RateLimiter: rateLimiter,
-		VaryBy:      &throttled.VaryBy{RemoteAddr: true},
+		VaryBy:      &clientIPVaryBy{strategy: ipStrategy},
 	}, nil
 }
 
@@ -185,8 +213,8 @@ func handleInternalServerError(ctx context.Context, w http.ResponseWriter, logge
 // Responses are cached in memory to avoid repeated database queries.
 func (s *idpService) serveMetadata(w http.ResponseWriter, r *http.Request) {
 	// Return cached response if available
-	if cached, ok := s.mdCache.get(); ok {
-		w.Header().Set("Content-Type", "application/samlmetadata+xml")
+	if cached, cachedHeaders, ok := s.mdCache.get(); ok {
+		maps.Copy(w.Header(), cachedHeaders)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(cached)
 		return
@@ -227,13 +255,11 @@ func (s *idpService) serveMetadata(w http.ResponseWriter, r *http.Request) {
 
 	// Only cache successful responses
 	if rec.statusCode == http.StatusOK || rec.statusCode == 0 {
-		s.mdCache.set(rec.body, metadataCacheTTL)
+		s.mdCache.set(rec.body, rec.header, metadataCacheTTL)
 	}
 
 	// Write the captured response to the actual client
-	for k, v := range rec.header {
-		w.Header()[k] = v
-	}
+	maps.Copy(w.Header(), rec.header)
 	if rec.statusCode > 0 {
 		w.WriteHeader(rec.statusCode)
 	}

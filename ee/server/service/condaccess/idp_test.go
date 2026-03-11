@@ -271,39 +271,83 @@ func TestServeMetadata(t *testing.T) {
 }
 
 func TestIDPRateLimiting(t *testing.T) {
-	ds := new(mock.Store)
-	logger := slog.New(slog.DiscardHandler)
-	cfg := &config.FleetConfig{}
+	t.Run("rate limits by remote addr", func(t *testing.T) {
+		ds := new(mock.Store)
+		logger := slog.New(slog.DiscardHandler)
+		cfg := &config.FleetConfig{}
 
-	ds.AppConfigFunc = mockAppConfigFunc("https://fleet.example.com")
-	ds.GetAllMDMConfigAssetsByNameFunc = mockCertAssetsFunc(true)
+		ds.AppConfigFunc = mockAppConfigFunc("https://fleet.example.com")
+		ds.GetAllMDMConfigAssetsByNameFunc = mockCertAssetsFunc(true)
 
-	mux := http.NewServeMux()
-	err := RegisterIdP(mux, ds, logger, cfg)
-	require.NoError(t, err)
+		mux := http.NewServeMux()
+		err := RegisterIdP(mux, ds, logger, cfg)
+		require.NoError(t, err)
 
-	// Send requests up to the burst limit (maxBurst + 1 = 10 allowed)
-	for i := range idpRateLimitMaxBurst + 1 {
+		// Send requests up to the burst limit (maxBurst + 1 = 10 allowed)
+		for i := range idpRateLimitMaxBurst + 1 {
+			req := httptest.NewRequest("GET", idpMetadataPath, nil)
+			req.RemoteAddr = "192.0.2.1:12345"
+			w := httptest.NewRecorder()
+			mux.ServeHTTP(w, req)
+			require.NotEqual(t, http.StatusTooManyRequests, w.Code, "request %d should not be rate limited", i)
+		}
+
+		// Next request from the same IP should be rate limited
 		req := httptest.NewRequest("GET", idpMetadataPath, nil)
 		req.RemoteAddr = "192.0.2.1:12345"
 		w := httptest.NewRecorder()
 		mux.ServeHTTP(w, req)
-		require.NotEqual(t, http.StatusTooManyRequests, w.Code, "request %d should not be rate limited", i)
-	}
+		require.Equal(t, http.StatusTooManyRequests, w.Code)
 
-	// Next request from the same IP should be rate limited
-	req := httptest.NewRequest("GET", idpMetadataPath, nil)
-	req.RemoteAddr = "192.0.2.1:12345"
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-	require.Equal(t, http.StatusTooManyRequests, w.Code)
+		// Request from a different IP should not be rate limited
+		req = httptest.NewRequest("GET", idpMetadataPath, nil)
+		req.RemoteAddr = "198.51.100.1:12345"
+		w = httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		require.NotEqual(t, http.StatusTooManyRequests, w.Code)
+	})
 
-	// Request from a different IP should not be rate limited
-	req = httptest.NewRequest("GET", idpMetadataPath, nil)
-	req.RemoteAddr = "198.51.100.1:12345"
-	w = httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-	require.NotEqual(t, http.StatusTooManyRequests, w.Code)
+	t.Run("rate limits by X-Forwarded-For when trusted proxies configured", func(t *testing.T) {
+		ds := new(mock.Store)
+		logger := slog.New(slog.DiscardHandler)
+		cfg := &config.FleetConfig{}
+		cfg.Server.TrustedProxies = "10.0.0.0/8"
+
+		ds.AppConfigFunc = mockAppConfigFunc("https://fleet.example.com")
+		ds.GetAllMDMConfigAssetsByNameFunc = mockCertAssetsFunc(true)
+
+		mux := http.NewServeMux()
+		err := RegisterIdP(mux, ds, logger, cfg)
+		require.NoError(t, err)
+
+		// Send requests from a proxy IP but different real client IPs via X-Forwarded-For.
+		// All come from the same RemoteAddr (the proxy), but different real client IPs.
+		// With trusted_proxies configured, rate limiting should be per real client IP.
+		for i := range idpRateLimitMaxBurst + 1 {
+			req := httptest.NewRequest("GET", idpMetadataPath, nil)
+			req.RemoteAddr = "10.0.0.1:12345"
+			req.Header.Set("X-Forwarded-For", "203.0.113.10, 10.0.0.1")
+			w := httptest.NewRecorder()
+			mux.ServeHTTP(w, req)
+			require.NotEqual(t, http.StatusTooManyRequests, w.Code, "request %d should not be rate limited", i)
+		}
+
+		// Next request from the same real client IP should be rate limited
+		req := httptest.NewRequest("GET", idpMetadataPath, nil)
+		req.RemoteAddr = "10.0.0.1:12345"
+		req.Header.Set("X-Forwarded-For", "203.0.113.10, 10.0.0.1")
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		require.Equal(t, http.StatusTooManyRequests, w.Code)
+
+		// Request from the same proxy but different real client IP should NOT be rate limited
+		req = httptest.NewRequest("GET", idpMetadataPath, nil)
+		req.RemoteAddr = "10.0.0.1:12345"
+		req.Header.Set("X-Forwarded-For", "203.0.113.20, 10.0.0.1")
+		w = httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		require.NotEqual(t, http.StatusTooManyRequests, w.Code)
+	})
 }
 
 func TestParseSerialNumber(t *testing.T) {
