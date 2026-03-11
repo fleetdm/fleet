@@ -3678,7 +3678,7 @@ type getHostRecoveryLockPasswordResponse struct {
 
 func (r getHostRecoveryLockPasswordResponse) Error() error { return r.Err }
 
-func getHostRecoveryLockPasswordEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getHostRecoveryLockPasswordEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostRecoveryLockPasswordRequest)
 	password, err := svc.GetHostRecoveryLockPassword(ctx, req.ID)
 	if err != nil {
