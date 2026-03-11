@@ -2,6 +2,7 @@ package microsoft_mdm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"testing"
@@ -85,7 +86,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 		return "ndes-test-challenge", nil
 	}
 	getNDESChallengeFail := func(_ context.Context, _ fleet.NDESSCEPProxyCA) (string, error) {
-		return "", fmt.Errorf("ndes server error")
+		return "", errors.New("ndes server error")
 	}
 	defaultNDESErrorToDetail := func(err error) string {
 		return fmt.Sprintf("Fleet couldn't populate %s. %s", fleet.FleetVarNDESSCEPChallenge.WithPrefix(), err.Error())
