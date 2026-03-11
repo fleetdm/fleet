@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEncryptDecryptAESGCM(t *testing.T) {
@@ -23,23 +26,15 @@ func TestEncryptDecryptAESGCM(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			encrypted, err := EncryptAESGCM(tt.plaintext, key)
-			if err != nil {
-				t.Fatalf("EncryptAESGCM() error = %v", err)
-			}
+			require.NoError(t, err, "EncryptAESGCM()")
 
 			// Encrypted should be longer than plaintext (nonce + auth tag)
-			if len(encrypted) <= len(tt.plaintext) {
-				t.Errorf("encrypted length %d should be > plaintext length %d", len(encrypted), len(tt.plaintext))
-			}
+			assert.Greater(t, len(encrypted), len(tt.plaintext), "encrypted length should be > plaintext length")
 
 			decrypted, err := DecryptAESGCM(encrypted, key)
-			if err != nil {
-				t.Fatalf("DecryptAESGCM() error = %v", err)
-			}
+			require.NoError(t, err, "DecryptAESGCM()")
 
-			if !bytes.Equal(decrypted, tt.plaintext) {
-				t.Errorf("DecryptAESGCM() = %v, want %v", decrypted, tt.plaintext)
-			}
+			assert.True(t, bytes.Equal(decrypted, tt.plaintext), "DecryptAESGCM() result mismatch")
 		})
 	}
 }
@@ -50,14 +45,10 @@ func TestDecryptAESGCM_InvalidKey(t *testing.T) {
 
 	plaintext := []byte("secret message")
 	encrypted, err := EncryptAESGCM(plaintext, key)
-	if err != nil {
-		t.Fatalf("EncryptAESGCM() error = %v", err)
-	}
+	require.NoError(t, err, "EncryptAESGCM()")
 
 	_, err = DecryptAESGCM(encrypted, wrongKey)
-	if err == nil {
-		t.Error("DecryptAESGCM() with wrong key should fail")
-	}
+	assert.Error(t, err, "DecryptAESGCM() with wrong key should fail")
 }
 
 func TestDecryptAESGCM_MalformedCiphertext(t *testing.T) {
@@ -76,9 +67,7 @@ func TestDecryptAESGCM_MalformedCiphertext(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := DecryptAESGCM(tt.ciphertext, key)
-			if err == nil {
-				t.Errorf("DecryptAESGCM() with %s ciphertext should fail", tt.name)
-			}
+			assert.Error(t, err, "DecryptAESGCM() with %s ciphertext should fail", tt.name)
 		})
 	}
 }
@@ -102,8 +91,10 @@ func TestEncryptAESGCM_InvalidKeyLength(t *testing.T) {
 			key := strings.Repeat("a", tt.keyLen)
 
 			_, err := EncryptAESGCM([]byte("test"), key)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("EncryptAESGCM() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				assert.Error(t, err, "EncryptAESGCM() should fail")
+			} else {
+				assert.NoError(t, err, "EncryptAESGCM() should succeed")
 			}
 		})
 	}
@@ -113,9 +104,7 @@ func TestDecryptAESGCM_InvalidKeyLength(t *testing.T) {
 	// First encrypt with valid key
 	validKey := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	encrypted, err := EncryptAESGCM([]byte("test"), validKey)
-	if err != nil {
-		t.Fatalf("EncryptAESGCM() error = %v", err)
-	}
+	require.NoError(t, err, "EncryptAESGCM()")
 
 	tests := []struct {
 		name   string
@@ -133,9 +122,7 @@ func TestDecryptAESGCM_InvalidKeyLength(t *testing.T) {
 			key := strings.Repeat("b", tt.keyLen)
 
 			_, err := DecryptAESGCM(encrypted, key)
-			if err == nil {
-				t.Errorf("DecryptAESGCM() with %d-byte key should fail", tt.keyLen)
-			}
+			assert.Error(t, err, "DecryptAESGCM() with %d-byte key should fail", tt.keyLen)
 		})
 	}
 }
@@ -145,16 +132,11 @@ func TestEncryptAESGCM_UniqueNonces(t *testing.T) {
 	plaintext := []byte("same message")
 
 	encrypted1, err := EncryptAESGCM(plaintext, key)
-	if err != nil {
-		t.Fatalf("first EncryptAESGCM() error = %v", err)
-	}
+	require.NoError(t, err, "first EncryptAESGCM()")
+
 	encrypted2, err := EncryptAESGCM(plaintext, key)
-	if err != nil {
-		t.Fatalf("second EncryptAESGCM() error = %v", err)
-	}
+	require.NoError(t, err, "second EncryptAESGCM()")
 
 	// Same plaintext should produce different ciphertext due to random nonce
-	if bytes.Equal(encrypted1, encrypted2) {
-		t.Error("encrypting same plaintext twice should produce different ciphertext")
-	}
+	assert.NotEqual(t, encrypted1, encrypted2, "encrypting same plaintext twice should produce different ciphertext")
 }
