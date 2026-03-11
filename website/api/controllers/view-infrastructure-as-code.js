@@ -1,16 +1,16 @@
 module.exports = {
 
 
-  friendlyName: 'View fleet gitops',
+  friendlyName: 'View infrastructure-as-code',
 
 
-  description: 'Display "Fleet gitops" page.',
+  description: 'Display "Fleet infrastructure-as-code" page.',
 
 
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/fleet-gitops'
+      viewTemplatePath: 'pages/infrastructure-as-code'
     },
 
     badConfig: {
