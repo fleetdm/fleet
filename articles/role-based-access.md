@@ -14,7 +14,7 @@ Maintainers can manage most entities in Fleet, like queries, policies, and label
 
 Unlike admins, maintainers cannot edit higher level settings like application configuration, fleets or users.
 
-### Technician ([coming soon](https://github.com/fleetdm/fleet/issues/35696))
+### Technician
 
 `Applies only to Fleet Premium`
 
