@@ -7,8 +7,6 @@ import Select from "react-select";
 import dropdownOptionInterface from "interfaces/dropdownOption";
 import FormField from "components/forms/FormField";
 import Icon from "components/Icon";
-import { emotionCache } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-
 import DropdownOptionTooltipWrapper from "./DropdownOptionTooltipWrapper";
 
 const baseClass = "dropdown";
