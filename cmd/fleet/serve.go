@@ -1400,6 +1400,7 @@ the way that the Fleet server works.
 					[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes}, extra...)
 
 				if serveCSP {
+					// Only injecting this if CSP is turned on since the default security headers add some overhead to each request
 					apiHandler = endpointer.BrowserSecurityHeadersHandler(serveCSP, apiHandler)
 				}
 

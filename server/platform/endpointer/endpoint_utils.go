@@ -1162,8 +1162,6 @@ func EncodeCommonResponse(
 	// page and the error will be logged
 	if page, ok := response.(htmlPage); ok {
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-		// TODO: pass a variable in here to incidate whether or not to serve a CSP. Hardcoded for now
-		WriteBrowserSecurityHeaders(w, true, false)
 		if coder, ok := page.Error().(kithttp.StatusCoder); ok {
 			w.WriteHeader(coder.StatusCode())
 		}
