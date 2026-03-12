@@ -41,9 +41,7 @@
   src: url("../assets/fonts/source-code-pro/Source-Code-Pro-Regular.eot?#iefix")
       format("embedded-opentype"),
     url("../assets/fonts/source-code-pro/Source-Code-Pro-Regular.ttf.woff")
-      format("woff"),
-    url("../assets/fonts/source-code-pro/Source-Code-Pro-Regular.ttf")
-      format("truetype");
+      format("woff");
   font-weight: 400;
   font-style: normal;
 }
@@ -54,9 +52,7 @@
   src: url("../assets/fonts/source-code-pro/Source-Code-Pro-Bold.eot?#iefix")
       format("embedded-opentype"),
     url("../assets/fonts/source-code-pro/Source-Code-Pro-Bold.woff")
-      format("woff"),
-    url("../assets/fonts/source-code-pro/Source-Code-Pro-Bold.ttf")
-      format("truetype");
+      format("woff");
   font-weight: $bold;
   font-style: normal;
 }
