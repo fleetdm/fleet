@@ -501,10 +501,11 @@ type MDMDeliveryStatus string
 //     the summary endpoints/functions or for the list hosts filter, a NULL
 //     status is equivalent to a Pending status.
 var (
-	MDMDeliveryFailed    MDMDeliveryStatus = "failed"
-	MDMDeliveryVerified  MDMDeliveryStatus = "verified"
-	MDMDeliveryVerifying MDMDeliveryStatus = "verifying"
-	MDMDeliveryPending   MDMDeliveryStatus = "pending"
+	MDMDeliveryFailed              MDMDeliveryStatus = "failed"
+	MDMDeliveryVerified            MDMDeliveryStatus = "verified"
+	MDMDeliveryVerifying           MDMDeliveryStatus = "verifying"
+	MDMDeliveryPending             MDMDeliveryStatus = "pending"
+	MDMDeliveryRemovingEnforcement MDMDeliveryStatus = "removing_enforcement"
 )
 
 func (s MDMDeliveryStatus) IsValid() bool {

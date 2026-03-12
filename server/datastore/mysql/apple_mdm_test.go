@@ -10465,6 +10465,52 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 func testGetHostRecoveryLockPasswordStatus(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
+	// Helper to create a team with recovery lock setting
+	createTeamWithRecoveryLock := func(t *testing.T, name string, enabled bool) *fleet.Team {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: name})
+		require.NoError(t, err)
+		team.Config.MDM.EnableRecoveryLockPassword = enabled
+		team, err = ds.SaveTeam(ctx, team)
+		require.NoError(t, err)
+		return team
+	}
+
+	// Helper to set app config recovery lock setting
+	setAppConfigRecoveryLock := func(t *testing.T, enabled bool) {
+		ac, err := ds.AppConfig(ctx)
+		require.NoError(t, err)
+		ac.MDM.EnableRecoveryLockPassword = optjson.SetBool(enabled)
+		err = ds.SaveAppConfig(ctx, ac)
+		require.NoError(t, err)
+	}
+
+	// Helper to set host CPU type
+	setHostCPUType := func(t *testing.T, hostID uint, cpuType string) {
+		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET cpu_type = ? WHERE id = ?`, cpuType, hostID)
+		require.NoError(t, err)
+	}
+
+	// Helper to get password record details for verification
+	getPasswordRecord := func(t *testing.T, hostUUID string) (opType string, status string, found bool) {
+		var rec struct {
+			OperationType string  `db:"operation_type"`
+			Status        *string `db:"status"`
+		}
+		err := sqlx.GetContext(ctx, ds.reader(ctx), &rec,
+			`SELECT operation_type, status FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`, hostUUID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return "", "", false
+			}
+			require.NoError(t, err)
+		}
+		statusStr := ""
+		if rec.Status != nil {
+			statusStr = *rec.Status
+		}
+		return rec.OperationType, statusStr, true
+	}
+
 	t.Run("returns nil for host without recovery lock password", func(t *testing.T) {
 		host := test.NewHost(t, ds, "no-rlp-host", "1.2.6.1", "norlpkey", "norlpuuid", time.Now())
 
@@ -10487,8 +10533,63 @@ func testGetHostRecoveryLockPasswordStatus(t *testing.T, ds *Datastore) {
 		assert.Empty(t, status.Detail)
 	})
 
+	t.Run("returns removing status when operation_type is remove", func(t *testing.T) {
+		// Create team with recovery lock enabled initially
+		team := createTeamWithRecoveryLock(t, "removing-status-team", true)
+		host := test.NewHost(t, ds, "removing-rlp-host", "1.2.6.4", "removingrlpkey", "removingrlpuuid", time.Now(),
+			test.WithPlatform("darwin"), test.WithTeamID(team.ID))
+		setHostCPUType(t, host.ID, "arm64")
+		nanoEnrollAndSetHostMDMData(t, ds, host, false)
+
+		// Set password and verify
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		err = ds.SetRecoveryLockVerified(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Disable recovery lock for team to trigger clear
+		team.Config.MDM.EnableRecoveryLockPassword = false
+		_, err = ds.SaveTeam(ctx, team)
+		require.NoError(t, err)
+
+		// Claim for clear - this sets operation_type to "remove" and status to "pending"
+		_, err = ds.ClaimHostsForRecoveryLockClear(ctx)
+		require.NoError(t, err)
+
+		// Verify that GetHostRecoveryLockPasswordStatus returns "removing_enforcement" status
+		rlpStatus, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, rlpStatus)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.MDMDeliveryRemovingEnforcement, *rlpStatus.Status, "status should be 'removing_enforcement' when operation_type is remove")
+	})
+
+	t.Run("returns pending when operation_type is install and status is NULL", func(t *testing.T) {
+		host := test.NewHost(t, ds, "install-null-host", "1.2.6.5", "installnullkey", "installnulluuid", time.Now())
+
+		// Insert a record with operation_type=install and status=NULL directly
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO host_recovery_key_passwords (host_uuid, encrypted_password, operation_type, status)
+			 VALUES (?, 'test', 'install', NULL)`, host.UUID)
+		require.NoError(t, err)
+
+		// Verify that GetHostRecoveryLockPasswordStatus returns "pending" status
+		rlpStatus, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, rlpStatus)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.MDMDeliveryPending, *rlpStatus.Status, "status should be 'pending' when operation_type is install and status is NULL")
+	})
+
 	t.Run("returns verified status", func(t *testing.T) {
-		host := test.NewHost(t, ds, "verified-rlp-host", "1.2.6.3", "verifiedrlpkey", "verifiedrlpuuid", time.Now())
+		// Create team with recovery lock enabled
+		team := createTeamWithRecoveryLock(t, "verified-status-team", true)
+		host := test.NewHost(t, ds, "verified-rlp-host", "1.2.6.3", "verifiedrlpkey", "verifiedrlpuuid", time.Now(),
+			test.WithPlatform("darwin"), test.WithTeamID(team.ID))
+		setHostCPUType(t, host.ID, "arm64")
+		nanoEnrollAndSetHostMDMData(t, ds, host, false)
+
 		pw := apple_mdm.GenerateRecoveryLockPassword()
 		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
 		require.NoError(t, err)
