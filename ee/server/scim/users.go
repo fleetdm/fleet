@@ -1244,7 +1244,6 @@ func scimUserID(userID uint) string {
 	return fmt.Sprintf("%d", userID)
 }
 
-// extractUserIDFromValue extracts the user ID from a value like "123"
 // mapDatastoreErrorToScimError translates known datastore errors into SCIM protocol errors.
 // Returns nil if the error is not a recognized type.
 func mapDatastoreErrorToScimError(err error) error {
@@ -1259,6 +1258,7 @@ func mapDatastoreErrorToScimError(err error) error {
 	return nil
 }
 
+// extractUserIDFromValue extracts the user ID from a value like "123"
 func extractUserIDFromValue(value string) (uint, error) {
 	id, err := strconv.ParseUint(value, 10, 64)
 	if err != nil {
