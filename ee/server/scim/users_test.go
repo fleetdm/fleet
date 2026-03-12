@@ -622,6 +622,69 @@ func TestUserHandlerReplaceDeactivation(t *testing.T) {
 
 		assert.False(t, mocks.ds.DeleteUserFuncInvoked)
 	})
+
+	t.Run("returns uniqueness error when ReplaceScimUser returns wrapped AlreadyExistsError", func(t *testing.T) {
+		mocks := newTestMocks()
+		existingScimUser := newTestScimUser(&scimUserOpts{
+			active:     ptr.Bool(true),
+			givenName:  "John",
+			familyName: "Doe",
+		})
+
+		mocks.ds.ScimUserByIDFunc = func(ctx context.Context, id uint) (*fleet.ScimUser, error) {
+			return existingScimUser, nil
+		}
+		// Pre-check passes (no other user with this username)
+		mocks.ds.ScimUserByUserNameFunc = func(ctx context.Context, userName string) (*fleet.ScimUser, error) {
+			return nil, platform_mysql.NotFound("ScimUser")
+		}
+		// ReplaceScimUser returns a wrapped AlreadyExistsError (race condition: concurrent update took the username)
+		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) error {
+			return fmt.Errorf("update scim user: %w", &alreadyExistsErr{msg: "user_name already exists"})
+		}
+
+		handler := mocks.newTestHandler()
+		attrs := newTestAttrs("taken@example.com", ptr.Bool(true), "John", "Doe")
+
+		_, err := handler.Replace(httptest.NewRequest(http.MethodPut, "/scim/v2/Users/1", nil), "1", attrs)
+		require.Error(t, err)
+
+		scimErr, ok := err.(scimerrors.ScimError)
+		require.True(t, ok, "expected ScimError, got %T: %v", err, err)
+		assert.Equal(t, http.StatusConflict, scimErr.Status)
+		assert.Equal(t, scimerrors.ScimTypeUniqueness, scimErr.ScimType)
+	})
+
+	t.Run("returns bad params error when ReplaceScimUser returns SCIMValidationError", func(t *testing.T) {
+		mocks := newTestMocks()
+		existingScimUser := newTestScimUser(&scimUserOpts{
+			active:     ptr.Bool(true),
+			givenName:  "John",
+			familyName: "Doe",
+		})
+
+		mocks.ds.ScimUserByIDFunc = func(ctx context.Context, id uint) (*fleet.ScimUser, error) {
+			return existingScimUser, nil
+		}
+		mocks.ds.ScimUserByUserNameFunc = func(ctx context.Context, userName string) (*fleet.ScimUser, error) {
+			return existingScimUser, nil
+		}
+		// ReplaceScimUser returns a validation error (field too long)
+		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) error {
+			return &fleet.SCIMValidationError{Field: "given_name", Message: "exceeds maximum length of 255 characters"}
+		}
+
+		handler := mocks.newTestHandler()
+		attrs := newTestAttrs("user@example.com", ptr.Bool(true), "John", "Doe")
+
+		_, err := handler.Replace(httptest.NewRequest(http.MethodPut, "/scim/v2/Users/1", nil), "1", attrs)
+		require.Error(t, err)
+
+		scimErr, ok := err.(scimerrors.ScimError)
+		require.True(t, ok, "expected ScimError, got %T: %v", err, err)
+		assert.Equal(t, http.StatusBadRequest, scimErr.Status)
+		assert.Contains(t, scimErr.Detail, "given_name")
+	})
 }
 
 func TestUserHandlerPatchDeactivation(t *testing.T) {
@@ -767,6 +830,41 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 
 		assert.False(t, mocks.ds.DeleteUserFuncInvoked)
 	})
+
+	t.Run("returns uniqueness error when ReplaceScimUser returns wrapped AlreadyExistsError via Patch", func(t *testing.T) {
+		mocks := newTestMocks()
+		existingScimUser := newTestScimUser(&scimUserOpts{
+			active:     ptr.Bool(true),
+			givenName:  "John",
+			familyName: "Doe",
+		})
+
+		mocks.ds.ScimUserByIDFunc = func(ctx context.Context, id uint) (*fleet.ScimUser, error) {
+			return existingScimUser, nil
+		}
+		// ReplaceScimUser returns a wrapped AlreadyExistsError (race condition: concurrent update took the username)
+		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) error {
+			return fmt.Errorf("update scim user: %w", &alreadyExistsErr{msg: "user_name already exists"})
+		}
+
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		userNamePath, err := filter.ParsePath([]byte("userName"))
+		require.NoError(t, err)
+
+		patchOps := []scim.PatchOperation{
+			{Op: scim.PatchOperationReplace, Path: &userNamePath, Value: "taken@example.com"},
+		}
+
+		_, err = handler.Patch(req, "1", patchOps)
+		require.Error(t, err)
+
+		scimErr, ok := err.(scimerrors.ScimError)
+		require.True(t, ok, "expected ScimError, got %T: %v", err, err)
+		assert.Equal(t, http.StatusConflict, scimErr.Status)
+		assert.Equal(t, scimerrors.ScimTypeUniqueness, scimErr.ScimType)
+	})
 }
 
 func TestUserHandlerCreateReactivation(t *testing.T) {
@@ -882,6 +980,33 @@ func TestUserHandlerCreateReactivation(t *testing.T) {
 		require.True(t, ok, "expected ScimError, got %T: %v", err, err)
 		assert.Equal(t, http.StatusConflict, scimErr.Status)
 		assert.Equal(t, scimerrors.ScimTypeUniqueness, scimErr.ScimType)
+	})
+
+	t.Run("returns bad params error when CreateScimUser returns SCIMValidationError", func(t *testing.T) {
+		mocks := newTestMocks()
+
+		// No existing user found during pre-check
+		mocks.ds.ScimUserByUserNameFunc = func(ctx context.Context, userName string) (*fleet.ScimUser, error) {
+			return nil, platform_mysql.NotFound("ScimUser")
+		}
+
+		// CreateScimUser returns a validation error (field too long)
+		mocks.ds.CreateScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) (uint, error) {
+			return 0, &fleet.SCIMValidationError{Field: "user_name", Message: "exceeds maximum length of 255 characters"}
+		}
+
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPost, "/scim/v2/Users", nil)
+		attrs := newTestAttrs("user@example.com", ptr.Bool(true), "John", "Doe")
+
+		_, err := handler.Create(req, attrs)
+		require.Error(t, err)
+
+		// Should be a SCIM bad params error (400), not a 500
+		scimErr, ok := err.(scimerrors.ScimError)
+		require.True(t, ok, "expected ScimError, got %T: %v", err, err)
+		assert.Equal(t, http.StatusBadRequest, scimErr.Status)
+		assert.Contains(t, scimErr.Detail, "user_name")
 	})
 
 	t.Run("returns uniqueness error for user with nil active", func(t *testing.T) {

@@ -106,10 +106,9 @@ func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes
 	}
 	user.ID, err = u.ds.CreateScimUser(ctx, user)
 	if err != nil {
-		var existsErr fleet.AlreadyExistsError
-		if errors.As(err, &existsErr) {
-			u.logger.InfoContext(ctx, "constraint violation: user already exists", userNameAttr, userName)
-			return scim.Resource{}, scimerrors.ScimErrorUniqueness
+		if scimErr := mapDatastoreErrorToScimError(err); scimErr != nil {
+			u.logger.InfoContext(ctx, "create scim user client error", userNameAttr, userName, "err", err)
+			return scim.Resource{}, scimErr
 		}
 		u.logger.ErrorContext(ctx, "failed to create scim user", userNameAttr, userName, "err", err)
 		return scim.Resource{}, err
@@ -491,6 +490,10 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 		u.logger.InfoContext(ctx, "failed to find user to replace", "id", id)
 		return scim.Resource{}, scimerrors.ScimErrorResourceNotFound(id)
 	case err != nil:
+		if scimErr := mapDatastoreErrorToScimError(err); scimErr != nil {
+			u.logger.InfoContext(ctx, "replace scim user client error", "id", id, userNameAttr, user.UserName, "err", err)
+			return scim.Resource{}, scimErr
+		}
 		u.logger.ErrorContext(ctx, "failed to replace user", "id", id, "err", err)
 		return scim.Resource{}, err
 	}
@@ -786,6 +789,10 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 			u.logger.InfoContext(ctx, "failed to find user to patch", "id", id)
 			return scim.Resource{}, scimerrors.ScimErrorResourceNotFound(id)
 		case err != nil:
+			if scimErr := mapDatastoreErrorToScimError(err); scimErr != nil {
+				u.logger.InfoContext(ctx, "patch scim user client error", "id", id, userNameAttr, user.UserName, "err", err)
+				return scim.Resource{}, scimErr
+			}
 			u.logger.ErrorContext(ctx, "failed to patch user", "id", id, "err", err)
 			return scim.Resource{}, err
 		}
@@ -1238,6 +1245,20 @@ func scimUserID(userID uint) string {
 }
 
 // extractUserIDFromValue extracts the user ID from a value like "123"
+// mapDatastoreErrorToScimError translates known datastore errors into SCIM protocol errors.
+// Returns nil if the error is not a recognized type.
+func mapDatastoreErrorToScimError(err error) error {
+	var existsErr fleet.AlreadyExistsError
+	if errors.As(err, &existsErr) {
+		return scimerrors.ScimErrorUniqueness
+	}
+	var validationErr *fleet.SCIMValidationError
+	if errors.As(err, &validationErr) {
+		return scimerrors.ScimErrorBadParams([]string{validationErr.Field})
+	}
+	return nil
+}
+
 func extractUserIDFromValue(value string) (uint, error) {
 	id, err := strconv.ParseUint(value, 10, 64)
 	if err != nil {
