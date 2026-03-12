@@ -270,7 +270,7 @@ To [change a teammate's compensation](https://fleetdm.com/handbook/company/commu
 ### Offboard a consultant
 
 When a consultant's engagement with Fleet is ending, the following steps are taken to offboard them:
-1. The Head of People gets notified by the [project DRI](https://fleetdm.com/handbook/company/leadership#consultants) that a consultant's engagement is ending.
+1. The Head of People gets notified by the [consultant's DRI](https://fleetdm.com/handbook/company/leadership#consultants) that a consultant's engagement is ending.
 2. [Retire the consultant's column](https://fleetdm.com/handbook/people#retire-a-kpi) in the [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
 3. Open an [offboarding issue](https://github.com/fleetdm/classified/blob/main/.github/ISSUE_TEMPLATE/offboarding.md) on the People board and work with IT to ensure the consultant's access to all Fleet systems is removed.
 
