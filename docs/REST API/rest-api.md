@@ -1504,6 +1504,7 @@ None.
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
+    "enable_create_local_managed_account": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01",
@@ -1824,6 +1825,7 @@ Modifies the Fleet's configuration with the supplied information.
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
+    "enable_create_local_managed_account": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01",
@@ -2412,6 +2414,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that belong to no team will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
+| enable_create_local_managed_account     | boolean | _Available in Fleet Premium._ A managed local admin account will be created on macOS hosts that belong to no team if set to true. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
 | ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
@@ -2547,6 +2550,7 @@ _Available in Fleet Premium._
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
+    "enable_create_local_managed_account": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01",
@@ -11940,6 +11944,7 @@ _Available in Fleet Premium_
     "mdm": {
       "enable_disk_encryption": true,
       "windows_require_bitlocker_pin": false,
+      "enable_create_local_managed_account": false,
       "macos_updates": {
         "minimum_version": "12.3.1",
         "deadline": "2022-01-01",
@@ -12318,6 +12323,7 @@ _Available in Fleet Premium_
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_disk_encryption          | boolean | Hosts that belong to this team will have disk encryption enabled if set to true.                                                                                        |
+| enable_create_local_managed_account | boolean | _Available in Fleet Premium._ A managed local admin account will be created on macOS hosts that belong to this team if set to true.                                                                                        |
 | custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create custom OS setting (configuration profile)](#create-custom-os-setting-configuration-profile) endpoint instead.                                                                                                                                      |
 
 <br/>
@@ -12490,6 +12496,7 @@ _Available in Fleet Premium_
     "mdm": {
       "enable_disk_encryption": true,
       "windows_require_bitlocker_pin": false,
+      "enable_create_local_managed_account": false,
       "macos_updates": {
         "minimum_version": "12.3.1",
         "deadline": "2022-01-01",
