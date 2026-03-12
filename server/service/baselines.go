@@ -36,7 +36,7 @@ type listBaselinesResponse struct {
 
 func (r listBaselinesResponse) Error() error { return r.Err }
 
-func listBaselinesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func listBaselinesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	all, err := baselines.ListBaselines()
 	if err != nil {
 		return &listBaselinesResponse{Err: err}, nil
@@ -63,7 +63,7 @@ type applyBaselineResponse struct {
 func (r applyBaselineResponse) Error() error { return r.Err }
 func (r applyBaselineResponse) Status() int  { return http.StatusOK }
 
-func applyBaselineEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func applyBaselineEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*applyBaselineRequest)
 
 	manifest, err := baselines.GetBaseline(req.BaselineID)
@@ -191,7 +191,7 @@ type removeBaselineResponse struct {
 
 func (r removeBaselineResponse) Error() error { return r.Err }
 
-func removeBaselineEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func removeBaselineEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*removeBaselineRequest)
 
 	// Remove baseline profiles.
