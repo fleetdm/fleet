@@ -1,8 +1,7 @@
 import classnames from "classnames";
-import { uniqueId } from "lodash";
 import React from "react";
-import ReactTooltip from "react-tooltip";
-import { COLORS } from "styles/var/colors";
+
+import TooltipWrapper from "components/TooltipWrapper";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 const baseClass = "text-cell";
@@ -46,24 +45,12 @@ const TextCell = ({
     [grey, italic] = [true, true];
   }
 
-  // TODO: Refactor to use TooltipWrapper component
   const renderEmptyCell = () => {
     if (emptyCellTooltipText) {
-      const tooltipId = uniqueId();
       return (
-        <>
-          <span data-tip data-for={tooltipId}>
-            {DEFAULT_EMPTY_CELL_VALUE}
-          </span>
-          <ReactTooltip
-            place="top"
-            effect="solid"
-            backgroundColor={COLORS["tooltip-bg"]}
-            id={tooltipId}
-          >
-            {emptyCellTooltipText}
-          </ReactTooltip>
-        </>
+        <TooltipWrapper tipContent={emptyCellTooltipText} position="top">
+          {DEFAULT_EMPTY_CELL_VALUE}
+        </TooltipWrapper>
       );
     }
     return DEFAULT_EMPTY_CELL_VALUE;
