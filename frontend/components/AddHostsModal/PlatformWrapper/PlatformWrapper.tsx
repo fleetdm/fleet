@@ -243,7 +243,7 @@ const PlatformWrapper = ({
             Use this command to generate Fleet's agent.{" "}
             <CustomLink
               className={`${baseClass}__command-line-tool`}
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/installing-fleetctl`}
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/generate-fleets-agent`}
               text="Learn how"
               newTab
             />
