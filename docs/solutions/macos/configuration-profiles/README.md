@@ -1,5 +1,10 @@
 # macOS Configuration Profiles
 
+## [Password Policy](password-policy.mobileconfig)
+
+- It's best to combine this profile with the [Lock Screen](lock-screen.mobileconfig) config profile.
+
+
 ## [Block Apps](block-apps.mobileconfig)
 
 - This blocks a several system apps, as well as Siri.
