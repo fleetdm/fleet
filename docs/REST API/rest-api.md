@@ -2889,6 +2889,7 @@ None.
 - [Remove labels from host](#remove-labels-from-host)
 - [Run live query on host (ad hoc)](#run-live-query-on-host-ad-hoc)
 - [Run live query on host by identifier (ad hoc)](#run-live-query-on-host-by-identifier-ad-hoc)
+- [List host's reports](#list-hosts-reports)
 - [Bypass host's conditional access](#bypass-hosts-conditional-access)
 
 
@@ -5520,6 +5521,86 @@ The live query will stop if the targeted host is offline, or if the query times 
 
 Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be `null`.
 
+### List host's reports
+
+Lists the saved queries (reports) that run on a host, along with the first result for each report that saves results.
+
+`GET /api/v1/fleet/hosts/:id/reports`
+
+#### Parameters
+
+| Name               | Type    | In    | Description                                                                                                   |
+| ------------------ | ------- | ----- | ------------------------------------------------------------------------------------------------------------- |
+| id                 | integer | path  | **Required**. The host's ID.                                                                                  |
+| exclude_no_results | boolean | query | If `true`, exclude reports that don't save results. Default is `false`.                                       |
+| page               | integer | query | Page number of the results to fetch.                                                                          |
+| per_page           | integer | query | Results per page.                                                                                             |
+| order_key          | string  | query | What to order results by. Valid options are `"name"` and `"updated_at"`. Default is `"name"`.                 |
+| order_direction    | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/reports`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "reports": [
+    {
+      "query_id": 31,
+      "name": "usb_devices",
+      "description": "Retrieves USB devices and their details.",
+      "query": "SELECT model, vendor FROM usb_devices;",
+      "discard_data": false,
+      "updated_at": "2021-01-19T17:08:31Z",
+      "last_fetched": "2021-01-19T17:08:31Z",
+      "result": {
+        "columns": {
+          "model": "USB 2.0 Hub",
+          "vendor": "VIA Labs, Inc."
+        }
+      }
+    },
+    {
+      "query_id": 44,
+      "name": "os_version",
+      "description": "Retrieves the host's operating system version.",
+      "query": "SELECT name, version, major, minor, patch FROM os_version;",
+      "discard_data": false,
+      "updated_at": "2021-01-20T14:52:09Z",
+      "last_fetched": "2021-01-20T14:52:09Z",
+      "result": {
+        "columns": {
+          "name": "macOS",
+          "version": "14.2.1",
+          "major": "14",
+          "minor": "2",
+          "patch": "1"
+        }
+      }
+    },
+    {
+      "query_id": 52,
+      "name": "disk_encryption",
+      "description": "Checks disk encryption status.",
+      "query": "SELECT 1 FROM disk_encryption WHERE encrypted = 1;",
+      "discard_data": true,
+      "updated_at": "2021-01-21T09:30:00Z",
+      "last_fetched": null,
+      "result": null
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+> Note: Reports with `discard_data` set to `true` will have `null` for both `last_fetched` and `result`, as results are not stored. Use `exclude_no_results` to filter these out.
 
 ## Bypass host's conditional access
 
