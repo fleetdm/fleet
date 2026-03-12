@@ -113,6 +113,7 @@ The board meeting and OKR planning happen during the first week of the third mon
 
 **Two weeks prior (virtual):**
   - The CEO discusses the board meeting with his coach.
+  - The CEO and CFO discuss the board meeting with the CEO's coach.
   - The EA asks each executive for 2-3 charts and 1-2 questions for board members ahead of the board meeting.
 
 **Day 1 _Prepare_ (in-person):**
