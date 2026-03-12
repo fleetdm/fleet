@@ -3,19 +3,29 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="robots" content="noindex" />
-    <meta property="csp-nonce" content="{{.CSPNonce}}" />
     <meta name="viewport" content="width=768" id="viewport-meta-tag" />
+    <meta property="csp-nonce" content="{{.CSPNonce}}" />
+
+    <script nonce="{{.CSPNonce}}">
+      // If URL contains /device/, set mobile-friendly viewport
+      if (window.location.pathname.includes("/device/")) {
+        document
+          .getElementById("viewport-meta-tag")
+          .setAttribute("content", "width=device-width, initial-scale=1.0");
+      }
+    </script>
 
     <link
       rel="stylesheet"
       type="text/css"
       href="{{.URLPrefix}}<%= htmlWebpackPlugin.files.css[0] %>"
-      nonce="{{.CSPNonce}}"
     />
     <link rel="shortcut icon" href="{{.URLPrefix}}/assets/favicon.ico" />
 
     <title>Fleet</title>
-    <meta name="url-prefix" content="{{.URLPrefix}}" />
+    <script type="text/javascript" nonce="{{.CSPNonce}}}">
+      var urlPrefix = "{{.URLPrefix}}";
+    </script>
   </head>
   <body>
     <div id="app"></div>
