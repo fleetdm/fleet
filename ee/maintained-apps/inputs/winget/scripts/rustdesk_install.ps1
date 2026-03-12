@@ -1,30 +1,14 @@
-# Learn more about .exe install scripts:
-# http://fleetdm.com/learn-more-about/exe-install-scripts
-
-# RustDesk's silent installer spawns a persistent service process, so we use
-# WaitForExit with a timeout instead of -Wait to avoid blocking indefinitely.
-$timeoutSeconds = 120
-
-$exeFilePath = "${env:INSTALLER_PATH}"
+$logFile = "${env:TEMP}/fleet-install-software.log"
 
 try {
 
-$process = Start-Process -FilePath "$exeFilePath" `
-  -ArgumentList "--silent-install" `
-  -PassThru
+$installProcess = Start-Process msiexec.exe `
+  -ArgumentList "/quiet /norestart /lv ${logFile} /i `"${env:INSTALLER_PATH}`"" `
+  -PassThru -Verb RunAs -Wait
 
-$exited = $process.WaitForExit($timeoutSeconds * 1000)
-if (-not $exited) {
-  Write-Host "Installer did not exit within $timeoutSeconds seconds; killing process."
-  Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-  Start-Sleep -Seconds 2
-}
+Get-Content $logFile -Tail 500
 
-# Kill any lingering RustDesk service processes spawned by the installer
-Stop-Process -Name "rustdesk" -Force -ErrorAction SilentlyContinue
-
-Write-Host "Install complete."
-Exit 0
+Exit $installProcess.ExitCode
 
 } catch {
   Write-Host "Error: $_"
