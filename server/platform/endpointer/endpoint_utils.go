@@ -309,7 +309,7 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair, customDecoder DomainQuer
 					logging.WithLevel(ctx, slog.LevelWarn)
 					logging.WithExtras(ctx,
 						"deprecated_param", queryTagValue,
-						"deprecation_warning", fmt.Sprintf("'%s' is deprecated, use '%s' instead", queryTagValue, newName),
+						"deprecation_warning", fmt.Sprintf("'%s' is deprecated, use '%s' instead", queryTagValue, renameTo),
 					)
 				}
 			}
