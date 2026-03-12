@@ -1,0 +1,1 @@
+- Added security baselines feature: curated bundles of Windows MDM profiles, verification policies, and remediation scripts that can be applied to teams through existing Fleet primitives (profiles, policies, scripts) with no orbit modifications required.

@@ -1,8 +1,11 @@
 package baselines
 
 import (
+	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -131,6 +134,31 @@ func TestGetProfileContentValid(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(content), "Firewall")
 	require.Contains(t, string(content), "LocURI")
+}
+
+func TestAllProfilesPassFleetValidation(t *testing.T) {
+	manifest, err := GetBaseline("nvidia-security-baseline")
+	require.NoError(t, err)
+
+	for _, c := range manifest.Categories {
+		for _, p := range c.Profiles {
+			t.Run(c.Name+"/"+p, func(t *testing.T) {
+				content, err := GetProfileContent(manifest.ID, p)
+				require.NoError(t, err)
+
+				// Build a profile name using the baseline naming convention.
+				base := filepath.Base(p)
+				profileName := "[NVIDIA Baseline] " + c.Name + " - " + strings.TrimSuffix(base, filepath.Ext(base))
+
+				profile := &fleet.MDMWindowsConfigProfile{
+					Name:   profileName,
+					SyncML: content,
+				}
+				err = profile.ValidateUserProvided(false)
+				require.NoError(t, err, "profile %s failed Fleet validation", p)
+			})
+		}
+	}
 }
 
 func TestServiceConfigurationCategoryHasNoProfiles(t *testing.T) {

@@ -7,6 +7,7 @@ import DiskEncryption from "./cards/DiskEncryption";
 import CustomSettings from "./cards/CustomSettings";
 import Certificates from "./cards/Certificates";
 import Passwords from "./cards/Passwords";
+import Baselines from "./cards/Baselines";
 import { ICustomSettingsProps } from "./cards/CustomSettings/CustomSettings";
 import { IDiskEncryptionProps } from "./cards/DiskEncryption/DiskEncryption";
 
@@ -50,6 +51,13 @@ const getOSSettingsNavItems = (
       Card: Passwords,
       urlSection: "passwords",
       path: PATHS.CONTROLS_PASSWORDS,
+      exclude: isTechnician,
+    },
+    {
+      title: "Security baselines",
+      Card: Baselines,
+      urlSection: "baselines",
+      path: PATHS.CONTROLS_BASELINES,
       exclude: isTechnician,
     },
   ];
