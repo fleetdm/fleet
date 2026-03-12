@@ -1041,6 +1041,8 @@ type DeleteHostRecoveryLockPasswordFunc func(ctx context.Context, hostUUID strin
 
 type GetRecoveryLockOperationTypeFunc func(ctx context.Context, hostUUID string) (fleet.MDMOperationType, error)
 
+type ResetRecoveryLockForRetryFunc func(ctx context.Context, hostUUID string) error
+
 type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error
 
 type CopyDefaultMDMAppleBootstrapPackageFunc func(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error
@@ -3336,6 +3338,9 @@ type DataStore struct {
 
 	GetRecoveryLockOperationTypeFunc        GetRecoveryLockOperationTypeFunc
 	GetRecoveryLockOperationTypeFuncInvoked bool
+
+	ResetRecoveryLockForRetryFunc        ResetRecoveryLockForRetryFunc
+	ResetRecoveryLockForRetryFuncInvoked bool
 
 	InsertMDMAppleBootstrapPackageFunc        InsertMDMAppleBootstrapPackageFunc
 	InsertMDMAppleBootstrapPackageFuncInvoked bool
@@ -8053,6 +8058,13 @@ func (s *DataStore) GetRecoveryLockOperationType(ctx context.Context, hostUUID s
 	s.GetRecoveryLockOperationTypeFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetRecoveryLockOperationTypeFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.ResetRecoveryLockForRetryFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResetRecoveryLockForRetryFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {

@@ -1535,6 +1535,11 @@ type Datastore interface {
 	// Used by the result handler to determine if this was a set or clear operation.
 	GetRecoveryLockOperationType(ctx context.Context, hostUUID string) (MDMOperationType, error)
 
+	// ResetRecoveryLockForRetry resets a failed clear operation back to install/verified
+	// so it will be picked up by ClaimHostsForRecoveryLockClear on the next cron cycle.
+	// This is used when a clear command fails with a transient error (not password mismatch).
+	ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error
+
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
 	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage, pkgStore MDMBootstrapPackageStore) error

@@ -7405,14 +7405,38 @@ func NewSetRecoveryLockResultsHandler(
 					errorMsg = "SetRecoveryLock command failed"
 				}
 			}
-			if err := ds.SetRecoveryLockFailed(ctx, hostUUID, errorMsg); err != nil {
-				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock failed")
+
+			if opType == fleet.MDMOperationTypeRemove {
+				// CLEAR operation failed
+				if apple_mdm.IsRecoveryLockPasswordMismatchError(rlResult.cmdResult.ErrorChain) {
+					// Password mismatch is a terminal error - requires admin intervention
+					if err := ds.SetRecoveryLockFailed(ctx, hostUUID, errorMsg); err != nil {
+						return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock failed")
+					}
+					logger.WarnContext(ctx, "ClearRecoveryLock failed due to password mismatch",
+						"host_uuid", hostUUID,
+						"error", errorMsg,
+					)
+				} else {
+					// Transient error - reset to install/verified for retry on next cron cycle
+					if err := ds.ResetRecoveryLockForRetry(ctx, hostUUID); err != nil {
+						return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: reset recovery lock for retry")
+					}
+					logger.InfoContext(ctx, "ClearRecoveryLock failed with transient error, will retry",
+						"host_uuid", hostUUID,
+						"error", errorMsg,
+					)
+				}
+			} else {
+				// SET operation failed - mark as failed
+				if err := ds.SetRecoveryLockFailed(ctx, hostUUID, errorMsg); err != nil {
+					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock failed")
+				}
+				logger.WarnContext(ctx, "SetRecoveryLock command failed",
+					"host_uuid", hostUUID,
+					"error", errorMsg,
+				)
 			}
-			logger.WarnContext(ctx, "SetRecoveryLock command failed",
-				"host_uuid", hostUUID,
-				"operation_type", opType,
-				"error", errorMsg,
-			)
 		}
 
 		return nil

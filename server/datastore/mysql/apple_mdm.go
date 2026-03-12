@@ -7501,3 +7501,18 @@ func (ds *Datastore) GetRecoveryLockOperationType(ctx context.Context, hostUUID 
 
 	return opType, nil
 }
+
+func (ds *Datastore) ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error {
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET operation_type = '%s', status = '%s', error_message = NULL
+		WHERE host_uuid = ?
+		  AND deleted = 0
+	`, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "reset recovery lock for retry")
+	}
+
+	return nil
+}

@@ -412,7 +412,7 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 		assert.True(t, deleteCalled)
 	})
 
-	t.Run("error clear sets failed", func(t *testing.T) {
+	t.Run("error clear with password mismatch sets failed", func(t *testing.T) {
 		ds := new(mock.DataStore)
 
 		// Mock GetRecoveryLockOperationType to return 'remove' (CLEAR operation)
@@ -429,11 +429,12 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 
 		handler := NewSetRecoveryLockResultsHandler(ds, logger)
 
+		// Test MDMClientError 70 (password not provided)
 		result := NewRecoveryLockResult(&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: cmdUUID,
 			Status:      fleet.MDMAppleStatusError,
-			ErrorChain:  []mdm.ErrorChain{{ErrorCode: 12345, ErrorDomain: "test", LocalizedDescription: "Clear failed"}},
+			ErrorChain:  []mdm.ErrorChain{{ErrorCode: 70, ErrorDomain: "MDMClientError", LocalizedDescription: "Existing recovery lock password not provided"}},
 			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
 		})
 
@@ -441,6 +442,73 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.True(t, failedCalled)
-		assert.Contains(t, capturedError, "Clear failed")
+		assert.Contains(t, capturedError, "Existing recovery lock password not provided")
+	})
+
+	t.Run("error clear with ROSLockoutService password validation error sets failed", func(t *testing.T) {
+		ds := new(mock.DataStore)
+
+		ds.GetRecoveryLockOperationTypeFunc = func(_ context.Context, hUUID string) (fleet.MDMOperationType, error) {
+			return fleet.MDMOperationTypeRemove, nil
+		}
+		var failedCalled bool
+		var capturedError string
+		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
+			failedCalled = true
+			capturedError = errorMsg
+			return nil
+		}
+
+		handler := NewSetRecoveryLockResultsHandler(ds, logger)
+
+		// Test ROSLockoutServiceDaemonErrorDomain 8 (password failed to validate)
+		result := NewRecoveryLockResult(&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: cmdUUID,
+			Status:      fleet.MDMAppleStatusError,
+			ErrorChain:  []mdm.ErrorChain{{ErrorCode: 8, ErrorDomain: "ROSLockoutServiceDaemonErrorDomain", LocalizedDescription: "The provided recovery password failed to validate."}},
+			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
+		})
+
+		err := handler(ctx, result)
+		require.NoError(t, err)
+
+		assert.True(t, failedCalled)
+		assert.Contains(t, capturedError, "The provided recovery password failed to validate")
+	})
+
+	t.Run("error clear with transient error resets for retry", func(t *testing.T) {
+		ds := new(mock.DataStore)
+
+		ds.GetRecoveryLockOperationTypeFunc = func(_ context.Context, hUUID string) (fleet.MDMOperationType, error) {
+			return fleet.MDMOperationTypeRemove, nil
+		}
+		var resetCalled bool
+		ds.ResetRecoveryLockForRetryFunc = func(_ context.Context, hUUID string) error {
+			resetCalled = true
+			assert.Equal(t, hostUUID, hUUID)
+			return nil
+		}
+		// SetRecoveryLockFailed should NOT be called for transient errors
+		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
+			t.Fatal("SetRecoveryLockFailed should not be called for transient errors")
+			return nil
+		}
+
+		handler := NewSetRecoveryLockResultsHandler(ds, logger)
+
+		// Test a generic transient error (not password mismatch)
+		result := NewRecoveryLockResult(&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: cmdUUID,
+			Status:      fleet.MDMAppleStatusError,
+			ErrorChain:  []mdm.ErrorChain{{ErrorCode: 12345, ErrorDomain: "SomeTransientError", LocalizedDescription: "Network timeout or temporary failure"}},
+			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
+		})
+
+		err := handler(ctx, result)
+		require.NoError(t, err)
+
+		assert.True(t, resetCalled, "ResetRecoveryLockForRetry should be called for transient errors")
 	})
 }

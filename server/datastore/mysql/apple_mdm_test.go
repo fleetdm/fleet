@@ -10241,6 +10241,70 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.Equal(t, string(fleet.MDMDeliveryVerified), status)
 	})
+
+	t.Run("ResetRecoveryLockForRetry", func(t *testing.T) {
+		host := setupHost(t, "reset-retry-host", "1.2.3.13", "rrkey", "rruuid")
+
+		// First set to remove/pending (simulating a clear in progress)
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+			UPDATE host_recovery_key_passwords
+			SET operation_type = ?, status = ?, error_message = ?
+			WHERE host_uuid = ?
+		`, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending, "test error", host.UUID)
+		require.NoError(t, err)
+
+		// Reset for retry
+		err = ds.ResetRecoveryLockForRetry(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Verify it was reset to install/verified with no error message
+		var result struct {
+			OperationType string         `db:"operation_type"`
+			Status        string         `db:"status"`
+			ErrorMessage  sql.NullString `db:"error_message"`
+		}
+		err = ds.writer(ctx).GetContext(ctx, &result, `
+			SELECT operation_type, status, error_message
+			FROM host_recovery_key_passwords
+			WHERE host_uuid = ?
+		`, host.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, string(fleet.MDMOperationTypeInstall), result.OperationType)
+		assert.Equal(t, string(fleet.MDMDeliveryVerified), result.Status)
+		assert.False(t, result.ErrorMessage.Valid, "error_message should be NULL after reset")
+	})
+
+	t.Run("ResetRecoveryLockForRetry from failed state", func(t *testing.T) {
+		host := setupHost(t, "reset-failed-host", "1.2.3.14", "rfkey", "rfuuid")
+
+		// Set to remove/failed (simulating a failed clear)
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+			UPDATE host_recovery_key_passwords
+			SET operation_type = ?, status = ?, error_message = ?
+			WHERE host_uuid = ?
+		`, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryFailed, "previous error", host.UUID)
+		require.NoError(t, err)
+
+		// Reset for retry
+		err = ds.ResetRecoveryLockForRetry(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Verify it was reset to install/verified
+		var result struct {
+			OperationType string         `db:"operation_type"`
+			Status        string         `db:"status"`
+			ErrorMessage  sql.NullString `db:"error_message"`
+		}
+		err = ds.writer(ctx).GetContext(ctx, &result, `
+			SELECT operation_type, status, error_message
+			FROM host_recovery_key_passwords
+			WHERE host_uuid = ?
+		`, host.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, string(fleet.MDMOperationTypeInstall), result.OperationType)
+		assert.Equal(t, string(fleet.MDMDeliveryVerified), result.Status)
+		assert.False(t, result.ErrorMessage.Valid, "error_message should be NULL after reset")
+	})
 }
 
 func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
