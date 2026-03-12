@@ -223,7 +223,10 @@ const SelectTargets = ({
     ],
     ({ queryKey }) => {
       const { query_id, selected } = queryKey[0];
-      return targetsAPI.count({ report_id: query_id, selected: selected || null });
+      return targetsAPI.count({
+        report_id: query_id,
+        selected: selected || null,
+      });
     },
     {
       enabled: !!selectedTargets.length,
