@@ -411,7 +411,10 @@ const mdmService = {
     const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
 
     let path = MDM_SETUP_EXPERIENCE_SCRIPT;
-    path += `?${buildQueryStringFromParams({ fleet_id: teamId, alt: "media" })}`;
+    path += `?${buildQueryStringFromParams({
+      fleet_id: teamId,
+      alt: "media",
+    })}`;
 
     return sendRequest("GET", path);
   },

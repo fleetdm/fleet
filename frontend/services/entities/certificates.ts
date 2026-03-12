@@ -114,7 +114,11 @@ export default {
   }: IGetCertsParams): Promise<IGetCertsResponse> => {
     const { CERTIFICATES } = endpoints;
 
-    const queryString = buildQueryStringFromParams({ fleet_id: team_id, page, per_page });
+    const queryString = buildQueryStringFromParams({
+      fleet_id: team_id,
+      page,
+      per_page,
+    });
 
     return sendRequest(
       "GET",

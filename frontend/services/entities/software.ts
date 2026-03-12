@@ -408,7 +408,10 @@ export default {
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const { team_id, ...restParams } = snakeCaseParams;
-    const queryString = buildQueryStringFromParams({ ...restParams, fleet_id: team_id });
+    const queryString = buildQueryStringFromParams({
+      ...restParams,
+      fleet_id: team_id,
+    });
     const path = `${SOFTWARE}?${queryString}`;
 
     try {
@@ -435,7 +438,10 @@ export default {
     };
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const { team_id, ...restCountParams } = snakeCaseParams;
-    const queryString = buildQueryStringFromParams({ ...restCountParams, fleet_id: team_id });
+    const queryString = buildQueryStringFromParams({
+      ...restCountParams,
+      fleet_id: team_id,
+    });
 
     return sendRequest("GET", path.concat(`?${queryString}`));
   },
@@ -446,7 +452,10 @@ export default {
     const { SOFTWARE_TITLES } = endpoints;
     const snakeCaseParams = convertParamsToSnakeCase(params);
     const { team_id, ...restTitleParams } = snakeCaseParams;
-    const queryString = buildQueryStringFromParams({ ...restTitleParams, fleet_id: team_id });
+    const queryString = buildQueryStringFromParams({
+      ...restTitleParams,
+      fleet_id: team_id,
+    });
     const path = `${SOFTWARE_TITLES}?${queryString}`;
     return sendRequest("GET", path);
   },
@@ -466,7 +475,10 @@ export default {
     const { SOFTWARE_VERSIONS } = endpoints;
     const snakeCaseParams = convertParamsToSnakeCase(params);
     const { team_id, ...restVersionParams } = snakeCaseParams;
-    const queryString = buildQueryStringFromParams({ ...restVersionParams, fleet_id: team_id });
+    const queryString = buildQueryStringFromParams({
+      ...restVersionParams,
+      fleet_id: team_id,
+    });
     const path = `${SOFTWARE_VERSIONS}?${queryString}`;
     return sendRequest("GET", path);
   },

@@ -240,7 +240,10 @@ export default {
   getScripts(params: IListScriptsApiParams): Promise<IScriptsResponse> {
     const { SCRIPTS } = endpoints;
     const { team_id, ...rest } = params;
-    const path = `${SCRIPTS}?${buildQueryStringFromParams({ ...rest, fleet_id: team_id })}`;
+    const path = `${SCRIPTS}?${buildQueryStringFromParams({
+      ...rest,
+      fleet_id: team_id,
+    })}`;
 
     return sendRequest("GET", path);
   },
