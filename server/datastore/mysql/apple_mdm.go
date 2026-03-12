@@ -7347,7 +7347,7 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]strin
 	return hostUUIDs, nil
 }
 
-func (ds *Datastore) SetRecoveryLockVerified(ctx context.Context, hostUUID string) error {
+func (ds *Datastore) SetRecoveryLockVerified(ctx context.Context, hostUUID string) (uint, error) {
 	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
 		SET status = '%s',
@@ -7356,10 +7356,17 @@ func (ds *Datastore) SetRecoveryLockVerified(ctx context.Context, hostUUID strin
 	`, fleet.MDMDeliveryVerified)
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "set recovery lock verified")
+		return 0, ctxerr.Wrap(ctx, err, "set recovery lock verified")
 	}
 
-	return nil
+	// Get the host_id for activity logging
+	var hostID uint
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hostID, `SELECT id FROM hosts WHERE uuid = ?`, hostUUID)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "get host id for recovery lock verified")
+	}
+
+	return hostID, nil
 }
 
 func (ds *Datastore) SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error {

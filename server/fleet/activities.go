@@ -122,8 +122,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEnabledMacosDiskEncryption{},
 	ActivityTypeDisabledMacosDiskEncryption{},
 
-	ActivityTypeEnabledRecoveryLockPassword{},
-	ActivityTypeDisabledRecoveryLockPassword{},
+	ActivityTypeSetHostRecoveryLockPassword{},
+	ActivityTypeEnabledRecoveryLockPasswords{},
+	ActivityTypeDisabledRecoveryLockPasswords{},
 
 	ActivityTypeEnabledGitOpsMode{},
 	ActivityTypeDisabledGitOpsMode{},
@@ -741,22 +742,34 @@ func (a ActivityTypeDisabledMacosDiskEncryption) ActivityName() string {
 	return "disabled_macos_disk_encryption"
 }
 
-type ActivityTypeEnabledRecoveryLockPassword struct {
+type ActivityTypeSetHostRecoveryLockPassword struct {
+	HostID uint `json:"host_id"`
+}
+
+func (a ActivityTypeSetHostRecoveryLockPassword) ActivityName() string {
+	return "set_host_recovery_lock_password"
+}
+
+func (a ActivityTypeSetHostRecoveryLockPassword) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type ActivityTypeEnabledRecoveryLockPasswords struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
 }
 
-func (a ActivityTypeEnabledRecoveryLockPassword) ActivityName() string {
-	return "enabled_recovery_lock_password"
+func (a ActivityTypeEnabledRecoveryLockPasswords) ActivityName() string {
+	return "enabled_recovery_lock_passwords"
 }
 
-type ActivityTypeDisabledRecoveryLockPassword struct {
+type ActivityTypeDisabledRecoveryLockPasswords struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
 }
 
-func (a ActivityTypeDisabledRecoveryLockPassword) ActivityName() string {
-	return "disabled_recovery_lock_password"
+func (a ActivityTypeDisabledRecoveryLockPasswords) ActivityName() string {
+	return "disabled_recovery_lock_passwords"
 }
 
 type ActivityTypeEnabledGitOpsMode struct{}

@@ -471,9 +471,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	if recoveryLockPasswordUpdated {
 		var act fleet.ActivityDetails
 		if team.Config.MDM.EnableRecoveryLockPassword {
-			act = fleet.ActivityTypeEnabledRecoveryLockPassword{TeamID: &team.ID, TeamName: &team.Name}
+			act = fleet.ActivityTypeEnabledRecoveryLockPasswords{TeamID: &team.ID, TeamName: &team.Name}
 		} else {
-			act = fleet.ActivityTypeDisabledRecoveryLockPassword{TeamID: &team.ID, TeamName: &team.Name}
+			act = fleet.ActivityTypeDisabledRecoveryLockPasswords{TeamID: &team.ID, TeamName: &team.Name}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team recovery lock password")
