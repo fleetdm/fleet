@@ -361,6 +361,17 @@ export const SoftwareIpaInstallDetailsModal = ({
       ].includes(displayStatus)) ||
     overrideFailedMessageWithInstalledMessage;
 
+  // Hide failed details if host shows installed versions (4.82 #31663)
+  // Note: Currently no uninstall IPA but added for symmetry with SoftwareInstallDetailsModal
+  const excludeInstallDetails =
+    canOverrideFailureWithInstalled &&
+    [
+      "failed_install_installed",
+      "failed_uninstall_installed",
+      "failed_install",
+      "failed_uninstall",
+    ].includes(displayStatus || "");
+
   const isInstalledByFleet = hostSoftware
     ? !!hostSoftware.app_store_app?.last_install
     : true; // if no hostSoftware passed in, can assume this is the activity feed, meaning this can only refer to a Fleet-handled install
@@ -455,15 +466,7 @@ export const SoftwareIpaInstallDetailsModal = ({
         {shouldShowInventoryVersions && renderInventoryVersionsSection()}
         {!isPendingInstall &&
           isInstalledByFleet &&
-          !(
-            canOverrideFailureWithInstalled &&
-            [
-              "failed_install_installed",
-              "failed_uninstall_installed",
-              "failed_install",
-              "failed_uninstall",
-            ].includes(displayStatus || "")
-          ) &&
+          !excludeInstallDetails &&
           renderInstallDetailsSection()}
       </div>
     );
