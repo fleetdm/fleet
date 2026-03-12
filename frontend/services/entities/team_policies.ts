@@ -18,6 +18,7 @@ interface IPoliciesApiQueryParams {
   orderKey?: string;
   orderDirection?: "asc" | "desc";
   query?: string;
+  automationType?: string;
 }
 
 export interface IPoliciesApiParams extends IPoliciesApiQueryParams {
@@ -155,6 +156,7 @@ export default {
     orderDirection: orderDir = ORDER_DIRECTION,
     query,
     mergeInherited,
+    automationType,
   }: IPoliciesApiParams): Promise<ILoadTeamPoliciesResponse> => {
     const { TEAMS } = endpoints;
 
@@ -165,6 +167,7 @@ export default {
       orderDirection: orderDir,
       query,
       mergeInherited,
+      automationType,
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
