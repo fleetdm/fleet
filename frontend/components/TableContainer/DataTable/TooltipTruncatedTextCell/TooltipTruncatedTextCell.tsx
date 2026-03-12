@@ -1,9 +1,10 @@
-import React, { useRef } from "react";
+import React, { useState, useRef, useLayoutEffect } from "react";
+import { uniqueId } from "lodash";
 import classnames from "classnames";
 
-import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
-import TooltipWrapper from "components/TooltipWrapper";
+import ReactTooltip from "react-tooltip";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { COLORS } from "styles/var/colors";
 
 interface ITooltipTruncatedTextCellProps {
   value: React.ReactNode;
@@ -39,43 +40,58 @@ const TooltipTruncatedTextCell = ({
 
   // Tooltip visibility logic: Enable only when text is truncated
   const ref = useRef<HTMLSpanElement>(null);
-  const isTruncated = useCheckTruncatedElement(ref);
+  const [tooltipDisabled, setTooltipDisabled] = useState(true);
 
-  const displayValue =
+  useLayoutEffect(() => {
+    if (ref?.current !== null) {
+      const scrollWidth = ref.current.scrollWidth;
+      const offsetWidth = ref.current.offsetWidth;
+      setTooltipDisabled(scrollWidth <= offsetWidth);
+    }
+  }, [ref]);
+  // End
+
+  const tooltipId = uniqueId();
+  value =
     value === null || value === undefined || value === ""
       ? DEFAULT_EMPTY_CELL_VALUE
       : value;
-  const isDefaultValue = displayValue === DEFAULT_EMPTY_CELL_VALUE;
+  const isDefaultValue = value === DEFAULT_EMPTY_CELL_VALUE;
 
   return (
     <div className={classNames}>
       {prefix && <span className="data-table__prefix">{prefix}</span>}
-      <TooltipWrapper
+      <div
         className="data-table__tooltip-truncated-text-container"
-        tipContent={
-          <>
-            {tooltip ?? displayValue}
-            <div className="safari-hack">&nbsp;</div>
-            {/* Fixes triple click selecting next element in Safari */}
-          </>
-        }
-        position="top"
-        tooltipClass="truncated-tooltip"
-        clickable
-        showArrow
-        delayHide={200}
-        disableTooltip={isDefaultValue || !isTruncated}
-        underline={false}
+        data-tip
+        data-for={tooltipId}
+        data-tip-disable={isDefaultValue || tooltipDisabled}
       >
         <span
           ref={ref}
           className={`data-table__tooltip-truncated-text ${
             isDefaultValue ? "text-muted" : ""
-          } ${isTruncated ? "truncated" : ""}`}
+          } ${tooltipDisabled ? "" : "truncated"}`}
         >
-          {displayValue}
+          {value}
         </span>
-      </TooltipWrapper>
+      </div>
+      <ReactTooltip
+        place="top"
+        effect="solid"
+        backgroundColor={COLORS["tooltip-bg"]}
+        id={tooltipId}
+        data-html
+        className="truncated-tooltip" // responsive widths
+        clickable
+        delayHide={200} // need delay set to hover using clickable
+      >
+        <>
+          {tooltip ?? value}
+          <div className="safari-hack">&nbsp;</div>
+          {/* Fixes triple click selecting next element in Safari */}
+        </>
+      </ReactTooltip>
       {suffix && <span className="data-table__suffix">{suffix}</span>}
     </div>
   );
