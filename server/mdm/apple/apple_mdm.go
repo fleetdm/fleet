@@ -1724,6 +1724,7 @@ func sendSetRecoveryLockCommands(
 				"host_count", len(hostUUIDs),
 				"error", clearErr,
 			)
+			err = multierror.Append(err, clearErr)
 		}
 		return ctxerr.Wrap(ctx, err, "enqueue SetRecoveryLock commands")
 	}
@@ -1779,6 +1780,7 @@ func sendClearRecoveryLockCommands(
 				"host_count", len(hosts),
 				"error", clearErr,
 			)
+			err = multierror.Append(err, clearErr)
 		}
 		return ctxerr.Wrap(ctx, err, "enqueue ClearRecoveryLock commands")
 	}
