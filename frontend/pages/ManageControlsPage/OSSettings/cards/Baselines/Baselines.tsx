@@ -17,22 +17,19 @@ const baseClass = "baselines";
 
 export type IBaselinesProps = IOSSettingsCommonProps;
 
-const Baselines = ({
-  currentTeamId,
-  onMutation,
-}: IBaselinesProps) => {
+const Baselines = ({ currentTeamId, onMutation }: IBaselinesProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const queryClient = useQueryClient();
   const [applyingId, setApplyingId] = useState<string | null>(null);
 
-  const {
-    data: baselinesData,
-    isLoading,
-    isError,
-  } = useQuery(["baselines"], () => baselinesAPI.loadAll(), {
-    refetchOnWindowFocus: false,
-    retry: false,
-  });
+  const { data: baselinesData, isLoading, isError } = useQuery(
+    ["baselines"],
+    () => baselinesAPI.loadAll(),
+    {
+      refetchOnWindowFocus: false,
+      retry: false,
+    }
+  );
 
   const applyMutation = useMutation(
     (baselineId: string) =>
@@ -46,10 +43,7 @@ const Baselines = ({
           (data.profiles_created?.length ?? 0) +
           (data.policies_created?.length ?? 0) +
           (data.scripts_created?.length ?? 0);
-        renderFlash(
-          "success",
-          `Baseline applied: ${total} resources created.`
-        );
+        renderFlash("success", `Baseline applied: ${total} resources created.`);
         queryClient.invalidateQueries(["baselines"]);
         onMutation();
       },
