@@ -7338,9 +7338,10 @@ func NewRecoveryLockResult(cmdResult *mdm.CommandResults) fleet.MDMCommandResult
 }
 
 // NewSetRecoveryLockResultsHandler processes SetRecoveryLock command results.
-// It handles both SET (install) and CLEAR (remove) operations:
+// It handles SET (install), CLEAR (remove), and ROTATE operations:
 // - SET: When acknowledged, marks the recovery lock as verified. On error, marks as failed.
 // - CLEAR: When acknowledged, deletes the recovery lock password record. On error, marks as failed.
+// - ROTATE: When acknowledged, moves pending password to active. On error, marks rotation as failed.
 func NewSetRecoveryLockResultsHandler(
 	ds fleet.Datastore,
 	logger *slog.Logger,
@@ -7354,6 +7355,47 @@ func NewSetRecoveryLockResultsHandler(
 
 		hostUUID := results.HostUUID()
 		status := rlResult.cmdResult.Status
+
+		// Check if this is a rotation (has pending password)
+		hasPendingRotation, err := ds.HasPendingRecoveryLockRotation(ctx, hostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: check pending rotation")
+		}
+
+		if hasPendingRotation {
+			// This is a rotation result
+			logger.DebugContext(ctx, "SetRecoveryLock rotation result received",
+				"host_uuid", hostUUID,
+				"command_uuid", results.UUID(),
+				"status", status,
+			)
+
+			switch status {
+			case fleet.MDMAppleStatusAcknowledged:
+				// Rotation succeeded - move pending password to active
+				if err := ds.CompleteRecoveryLockRotation(ctx, hostUUID); err != nil {
+					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: complete rotation")
+				}
+				logger.InfoContext(ctx, "RotateRecoveryLock acknowledged, password rotated",
+					"host_uuid", hostUUID,
+				)
+
+			case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
+				errorMsg := apple_mdm.FmtErrorChain(rlResult.cmdResult.ErrorChain)
+				if errorMsg == "" {
+					errorMsg = "RotateRecoveryLock command failed"
+				}
+				if err := ds.FailRecoveryLockRotation(ctx, hostUUID, errorMsg); err != nil {
+					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: fail rotation")
+				}
+				logger.WarnContext(ctx, "RotateRecoveryLock command failed",
+					"host_uuid", hostUUID,
+					"error", errorMsg,
+				)
+			}
+
+			return nil
+		}
 
 		// Get the operation type to determine if this was a SET or CLEAR operation
 		opType, err := ds.GetRecoveryLockOperationType(ctx, hostUUID)
