@@ -46,6 +46,7 @@ spec:
     enrollment_status: null
     name: ""
     server_url: null
+    unlock_token_available: false
   memory: 0
   orbit_version: null
   os_version: ""
@@ -115,6 +116,7 @@ spec:
     enrollment_status: null
     name: ""
     server_url: null
+    unlock_token_available: false
   memory: 0
   orbit_version: null
   os_version: ""

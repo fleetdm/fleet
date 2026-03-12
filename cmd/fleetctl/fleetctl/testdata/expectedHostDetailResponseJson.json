@@ -49,7 +49,8 @@
       "enrollment_status": null,
       "name": "",
       "pending_action": "",
-      "server_url": null
+      "server_url": null,
+      "unlock_token_available": false
     },
     "memory": 0,
     "orbit_version": null,

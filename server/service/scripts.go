@@ -1700,7 +1700,7 @@ type clearHostPasscodeResponse struct {
 
 func (r clearHostPasscodeResponse) Error() error { return r.Err }
 
-func clearHostPasscodeEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func clearHostPasscodeEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*clearHostPasscodeRequest)
 	if err := svc.ClearHostPasscode(ctx, req.HostID); err != nil {
 		return clearHostPasscodeResponse{Err: err}, nil
