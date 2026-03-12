@@ -2889,6 +2889,7 @@ None.
 - [Remove labels from host](#remove-labels-from-host)
 - [Run live query on host (ad hoc)](#run-live-query-on-host-ad-hoc)
 - [Run live query on host by identifier (ad hoc)](#run-live-query-on-host-by-identifier-ad-hoc)
+- [List host's reports](#list-hosts-reports)
 - [Bypass host's conditional access](#bypass-hosts-conditional-access)
 
 
@@ -5519,6 +5520,81 @@ The live query will stop if the targeted host is offline, or if the query times 
 ```
 
 Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be `null`.
+
+### List host's reports
+
+Lists saved queries (reports) running on a host, along with the first result for each report that saves results.
+
+`GET /api/v1/fleet/hosts/:id/reports`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's ID. |
+| exclude_no_results | boolean | query | If `true`, excludes reports that don't save results. Default: `false`. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page.|
+| order_key | string | query | What to order results by. Options include `"name"` and `"updated_at"`. |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| query | string | query | Search query keywords. Searchable fields include `name`. |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/reports?exclude_no_results=true&page=0&per_page=20&order_key=name&order_direction=asc&query=compliance`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "reports": [
+    {
+      "query_id": 42,
+      "query_name": "Compliance check - disk encryption",
+      "description": "Checks disk encryption status on the host",
+      "author_name": "Jane Doe",
+      "author_email": "jane@example.com",
+      "updated_at": "2025-01-15T10:30:00Z",
+      "last_fetched_results_row_count": 1,
+      "discard_data": false,
+      "results": [
+        {
+          "columns": {
+            "name": "FileVault",
+            "status": "On",
+            "encrypted": "1"
+          }
+        }
+      ]
+    },
+    {
+      "query_id": 55,
+      "query_name": "Software inventory",
+      "description": "Lists installed software on the host",
+      "author_name": "John Smith",
+      "author_email": "john@example.com",
+      "updated_at": "2025-01-14T08:00:00Z",
+      "last_fetched_results_row_count": 150,
+      "discard_data": false,
+      "results": [
+        {
+          "columns": {
+            "name": "Google Chrome",
+            "version": "120.0.6099.129",
+            "type": "Application"
+          }
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
+  }
+}
+```
 
 
 ## Bypass host's conditional access
