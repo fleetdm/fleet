@@ -6,6 +6,7 @@ import { ISoftware } from "interfaces/software";
 
 import Backblaze from "./Backblaze";
 import BetterDisplay from "./BetterDisplay";
+import Charles from "./Charles";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import Iina from "./Iina";
@@ -210,6 +211,7 @@ import TextExpander from "./TextExpander";
 import TheUnarchiver from "./TheUnarchiver";
 import Thunderbird from "./Thunderbird";
 import Todoist from "./Todoist";
+import TorBrowser from "./TorBrowser";
 import Tower from "./Tower";
 import Transmit from "./Transmit";
 import Tunnelblick from "./Tunnelblick";
@@ -287,6 +289,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   calibre: Calibre,
   camtasia: Camtasia,
   canva: Canva,
+  charles: Charles,
   "chatgpt atlas": ChatGptAtlas,
   chatgpt: ChatGpt,
   "cisco jabber": CiscoJabber,
@@ -463,6 +466,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "the unarchiver": TheUnarchiver,
   thunderbird: Thunderbird,
   todoist: Todoist,
+  "tor browser": TorBrowser,
   tower: Tower,
   transmit: Transmit,
   tunnelblick: Tunnelblick,
