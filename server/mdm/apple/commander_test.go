@@ -214,6 +214,23 @@ func TestMDMAppleCommander(t *testing.T) {
 	mdmStorage.EnqueueDeviceWipeCommandFuncInvoked = false
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
 	mdmStorage.RetrievePushInfoFuncInvoked = false
+
+	cmdUUID = uuid.New().String()
+	unlockToken := []byte("test-unlock-token")
+	mdmStorage.EnqueueDeviceClearPasscodeCommandFunc = func(ctx context.Context, gotHost *fleet.Host, cmd *mdm.Command) error {
+		require.NotNil(t, gotHost)
+		require.Equal(t, host.ID, gotHost.ID)
+		require.Equal(t, host.UUID, gotHost.UUID)
+		require.Equal(t, "ClearPasscode", cmd.Command.RequestType)
+		require.Contains(t, string(cmd.Raw), cmdUUID)
+		return nil
+	}
+	err = cmdr.ClearPasscode(ctx, host, cmdUUID, unlockToken)
+	require.NoError(t, err)
+	require.True(t, mdmStorage.EnqueueDeviceClearPasscodeCommandFuncInvoked)
+	mdmStorage.EnqueueDeviceClearPasscodeCommandFuncInvoked = false
+	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
+	mdmStorage.RetrievePushInfoFuncInvoked = false
 }
 
 func TestMDMAppleCommanderConcurrentDeviceLock(t *testing.T) {

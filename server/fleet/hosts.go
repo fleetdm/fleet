@@ -590,6 +590,11 @@ type MDMHostData struct {
 	// with this Fleet instance. This boolean is not filled by all
 	// host-returning methods.
 	ConnectedToFleet *bool `json:"connected_to_fleet" csv:"-" db:"connected_to_fleet"`
+
+	// UnlockTokenAvailable indicates whether an MDM unlock token has been
+	// received from this host, which is required to send a ClearPasscode command.
+	// Only relevant for iOS and iPadOS hosts. Not filled by all host-returning methods.
+	UnlockTokenAvailable bool `json:"unlock_token_available" db:"-" csv:"-"`
 }
 
 type HostMDMOSSettings struct {

@@ -277,6 +277,13 @@ func (s *NanoMDMStorage) EnqueueDeviceWipeCommand(ctx context.Context, host *fle
 	}, s.logger)
 }
 
+// EnqueueDeviceClearPasscodeCommand enqueues a ClearPasscode command for the given host.
+func (s *NanoMDMStorage) EnqueueDeviceClearPasscodeCommand(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error {
+	return common_mysql.WithRetryTxx(ctx, s.db, func(tx sqlx.ExtContext) error {
+		return enqueueCommandDB(ctx, tx, []string{host.UUID}, cmd)
+	}, s.logger)
+}
+
 func (s *NanoMDMStorage) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName,
 	queryerContext sqlx.QueryerContext,
 ) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {

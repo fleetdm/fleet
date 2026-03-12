@@ -1812,6 +1812,14 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	host.MDM.DeviceStatus = ptr.String(string(mdmActions.DeviceStatus()))
 	host.MDM.PendingAction = ptr.String(string(mdmActions.PendingAction()))
 
+	if host.FleetPlatform() == "ios" || host.FleetPlatform() == "ipados" {
+		unlockToken, err := svc.ds.GetMDMAppleDeviceUnlockToken(ctx, host.UUID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get device unlock token for host details")
+		}
+		host.MDM.UnlockTokenAvailable = len(unlockToken) > 0
+	}
+
 	host.Policies = policies
 
 	endUsers, err := fleet.GetEndUsers(ctx, svc.ds, host.ID)

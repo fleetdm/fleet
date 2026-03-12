@@ -2882,6 +2882,7 @@ None.
 - [Lock host](#lock-host)
 - [Unlock host](#unlock-host)
 - [Wipe host](#wipe-host)
+- [Clear passcode](#clear-passcode)
 - [Get host's past activity](#get-hosts-past-activity)
 - [Get host's upcoming activity](#get-hosts-upcoming-activity)
 - [Cancel host's upcoming activity](#cancel-hosts-upcoming-activity)
@@ -5184,6 +5185,28 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 ```
 
 > To verify the host was successfully wiped, you can use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`.
+
+### Clear passcode
+
+Sends a command to clear the passcode on the specified iOS or iPadOS host. The device must be enrolled via Automated Device Enrollment (ADE) and have MDM turned on.
+
+The host must have previously sent its unlock token to Fleet (visible via `mdm.unlock_token_available` on the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) response). The unlock token is sent automatically when the device checks in.
+
+`POST /api/v1/fleet/hosts/:id/clear_passcode`
+
+#### Parameters
+
+| Name | Type    | In   | Description                                            |
+|------|---------|------|--------------------------------------------------------|
+| id   | integer | path | **Required**. ID of the iOS or iPadOS host.            |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/clear_passcode`
+
+##### Default response
+
+`Status: 200`
 
 ### Get host's past activity
 

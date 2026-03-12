@@ -19,6 +19,52 @@ import (
 	"howett.net/plist"
 )
 
+// mockMDMAppleCommander implements fleet.MDMAppleCommandIssuer for testing.
+type mockMDMAppleCommander struct {
+	clearPasscodeFunc func(ctx context.Context, host *fleet.Host, commandUUID string, unlockToken []byte) error
+}
+
+func (m *mockMDMAppleCommander) InstallProfile(_ context.Context, _ []string, _ mobileconfig.Mobileconfig, _ string) error {
+	return nil
+}
+func (m *mockMDMAppleCommander) RemoveProfile(_ context.Context, _ []string, _ string, _ string) error {
+	return nil
+}
+func (m *mockMDMAppleCommander) DeviceLock(_ context.Context, _ *fleet.Host, _ string) (string, error) {
+	return "", nil
+}
+func (m *mockMDMAppleCommander) EnableLostMode(_ context.Context, _ *fleet.Host, _ string, _ string) error {
+	return nil
+}
+func (m *mockMDMAppleCommander) DisableLostMode(_ context.Context, _ *fleet.Host, _ string) error {
+	return nil
+}
+func (m *mockMDMAppleCommander) EraseDevice(_ context.Context, _ *fleet.Host, _ string) error {
+	return nil
+}
+func (m *mockMDMAppleCommander) InstallEnterpriseApplication(_ context.Context, _ []string, _ string, _ string) error {
+	return nil
+}
+func (m *mockMDMAppleCommander) DeviceConfigured(_ context.Context, _, _ string) error { return nil }
+func (m *mockMDMAppleCommander) ClearPasscode(ctx context.Context, host *fleet.Host, commandUUID string, unlockToken []byte) error {
+	if m.clearPasscodeFunc != nil {
+		return m.clearPasscodeFunc(ctx, host, commandUUID, unlockToken)
+	}
+	return nil
+}
+
+// minimalMockFleetService provides the fleet.Service methods needed by ClearHostPasscode tests.
+type minimalMockFleetService struct {
+	fleet.Service
+	newActivityCalled bool
+}
+
+func (s *minimalMockFleetService) VerifyMDMAppleConfigured(_ context.Context) error { return nil }
+func (s *minimalMockFleetService) NewActivity(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+	s.newActivityCalled = true
+	return nil
+}
+
 func setup(t *testing.T) (*mock.Store, *Service) {
 	ds := new(mock.Store)
 
@@ -175,6 +221,152 @@ b1xn1jGQd/o0xFf9ojpDNy6vNojidQGHh6E3h0GYvxbnQmVNq5U=
 // prevent static analysis tools from raising issues due to detection of
 // private key in code.
 func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
+
+func TestClearHostPasscode(t *testing.T) {
+	t.Parallel()
+
+	ds := new(mock.Store)
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	commander := &mockMDMAppleCommander{}
+	activitySvc := &minimalMockFleetService{}
+	svc := Service{ds: ds, authz: authorizer, mdmAppleCommander: commander, Service: activitySvc}
+
+	iosHost := &fleet.Host{
+		ID:       1,
+		UUID:     "ios-host-uuid",
+		Platform: "ios",
+	}
+	enrolledAuto := "On (automatic)"
+	iosHost.MDM.EnrollmentStatus = &enrolledAuto
+
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return iosHost, nil
+	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
+	ds.GetMDMAppleDeviceUnlockTokenFunc = func(ctx context.Context, hostUUID string) ([]byte, error) {
+		return []byte("unlock-token"), nil
+	}
+
+	t.Run("auth", func(t *testing.T) {
+		cases := []struct {
+			desc          string
+			user          *fleet.User
+			shouldFailAuth bool
+		}{
+			{"no role", test.UserNoRoles, true},
+			{"global admin", test.UserAdmin, false},
+			{"global maintainer", test.UserMaintainer, false},
+			{"global observer", test.UserObserver, true},
+			{"global observer+", test.UserObserverPlus, true},
+			{"global technician", test.UserTechnician, true},
+			// GitOps cannot list hosts (first auth check), so this fails.
+			{"global gitops", test.UserGitOps, true},
+			// Team-scoped users can list hosts but cannot write global MDM commands.
+			{"team admin team1", test.UserTeamAdminTeam1, true},
+			{"team maintainer team1", test.UserTeamMaintainerTeam1, true},
+			{"team observer team1", test.UserTeamObserverTeam1, true},
+			{"team observer+ team1", test.UserTeamObserverPlusTeam1, true},
+		}
+		for _, c := range cases {
+			t.Run(c.desc, func(t *testing.T) {
+				ctx := test.UserContext(t.Context(), c.user)
+				err := svc.ClearHostPasscode(ctx, iosHost.ID)
+				checkAuthErr(t, c.shouldFailAuth, err)
+			})
+		}
+	})
+
+	t.Run("non-iOS platform fails", func(t *testing.T) {
+		macHost := &fleet.Host{ID: 2, UUID: "mac-uuid", Platform: "darwin"}
+		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return macHost, nil
+		}
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		err := svc.ClearHostPasscode(ctx, macHost.ID)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "only supported for iOS and iPadOS")
+		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return iosHost, nil
+		}
+	})
+
+	t.Run("personal enrollment fails", func(t *testing.T) {
+		personal := "On (personal)"
+		host := &fleet.Host{ID: 3, UUID: "ios-personal", Platform: "ios"}
+		host.MDM.EnrollmentStatus = &personal
+		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return host, nil
+		}
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		err := svc.ClearHostPasscode(ctx, host.ID)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "personal device")
+		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return iosHost, nil
+		}
+	})
+
+	t.Run("manual enrollment fails", func(t *testing.T) {
+		manual := "On (manual)"
+		host := &fleet.Host{ID: 4, UUID: "ios-manual", Platform: "ios"}
+		host.MDM.EnrollmentStatus = &manual
+		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return host, nil
+		}
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		err := svc.ClearHostPasscode(ctx, host.ID)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "manually enrolled")
+		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return iosHost, nil
+		}
+	})
+
+	t.Run("not connected to Fleet MDM fails", func(t *testing.T) {
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return false, nil
+		}
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		err := svc.ClearHostPasscode(ctx, iosHost.ID)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "doesn't have MDM turned on")
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return true, nil
+		}
+	})
+
+	t.Run("missing unlock token returns error", func(t *testing.T) {
+		ds.GetMDMAppleDeviceUnlockTokenFunc = func(ctx context.Context, hostUUID string) ([]byte, error) {
+			return nil, nil
+		}
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		err := svc.ClearHostPasscode(ctx, iosHost.ID)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unlock token is not yet available")
+		ds.GetMDMAppleDeviceUnlockTokenFunc = func(ctx context.Context, hostUUID string) ([]byte, error) {
+			return []byte("unlock-token"), nil
+		}
+	})
+
+	t.Run("happy path", func(t *testing.T) {
+		var commanderCalled bool
+		commander.clearPasscodeFunc = func(ctx context.Context, host *fleet.Host, commandUUID string, unlockToken []byte) error {
+			commanderCalled = true
+			require.Equal(t, iosHost.UUID, host.UUID)
+			require.Equal(t, []byte("unlock-token"), unlockToken)
+			return nil
+		}
+		activitySvc.newActivityCalled = false
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		err := svc.ClearHostPasscode(ctx, iosHost.ID)
+		require.NoError(t, err)
+		require.True(t, commanderCalled)
+		require.True(t, activitySvc.newActivityCalled)
+	})
+}
 
 func TestCountABMTokensAuth(t *testing.T) {
 	t.Parallel()

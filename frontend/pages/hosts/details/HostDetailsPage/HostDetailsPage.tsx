@@ -130,6 +130,7 @@ import SelectQueryModal from "./modals/SelectQueryModal";
 import HostDetailsBanners from "./components/HostDetailsBanners";
 import LockModal from "./modals/LockModal";
 import UnlockModal from "./modals/UnlockModal";
+import ClearPasscodeModal from "./modals/ClearPasscodeModal";
 import {
   HostMdmDeviceStatusUIState,
   getHostDeviceStatusUIState,
@@ -236,6 +237,7 @@ const HostDetailsPage = ({
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
+  const [showClearPasscodeModal, setShowClearPasscodeModal] = useState(false);
   const [showUpdateEndUserModal, setShowUpdateEndUserModal] = useState(false);
   // Undefined used to return to true after closing the lock modal
   const [showLocationModal, setShowLocationModal] = useState<
@@ -969,6 +971,9 @@ const HostDetailsPage = ({
       case "wipe":
         setShowWipeModal(true);
         break;
+      case "clear_passcode":
+        setShowClearPasscodeModal(true);
+        break;
       default: // do nothing
     }
   };
@@ -1017,6 +1022,7 @@ const HostDetailsPage = ({
         recoveryLockPasswordProfileStatus={
           host.mdm.os_settings?.recovery_lock_password?.status
         }
+        unlockTokenAvailable={host.mdm.unlock_token_available}
       />
     );
   };
@@ -1707,6 +1713,14 @@ const HostDetailsPage = ({
               isWindowsHost={isWindowsHost}
               onSuccess={() => setHostMdmDeviceState("wiping")}
               onClose={() => setShowWipeModal(false)}
+            />
+          )}
+          {showClearPasscodeModal && (
+            <ClearPasscodeModal
+              id={host.id}
+              hostName={host.display_name}
+              onSuccess={() => setShowClearPasscodeModal(false)}
+              onClose={() => setShowClearPasscodeModal(false)}
             />
           )}
           {selectedHostSWForInventoryVersions && (

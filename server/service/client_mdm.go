@@ -419,6 +419,14 @@ func (c *Client) MDMWipeHost(hostID uint) error {
 	return nil
 }
 
+func (c *Client) MDMClearHostPasscode(hostID uint) error {
+	var response clearHostPasscodeResponse
+	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", hostID), &response); err != nil {
+		return fmt.Errorf("clear host passcode request: %w", err)
+	}
+	return nil
+}
+
 type eulaContent struct {
 	Bytes []byte
 }
