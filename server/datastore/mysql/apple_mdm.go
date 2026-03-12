@@ -7315,7 +7315,9 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 }
 
 func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
-	const stmt = `SELECT encrypted_password, updated_at FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`
+	// Only return password for active recovery locks (install operation).
+	// When operation_type is 'remove', the password is being cleared and should not be exposed.
+	const stmt = `SELECT encrypted_password, updated_at FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0 AND operation_type = 'install'`
 
 	var row struct {
 		EncryptedPassword []byte    `db:"encrypted_password"`
@@ -7341,11 +7343,12 @@ func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID s
 }
 
 func (ds *Datastore) GetHostRecoveryLockPasswordStatus(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
-	const stmt = `SELECT status, COALESCE(error_message, '') AS detail FROM host_recovery_key_passwords WHERE host_uuid = ?`
+	const stmt = `SELECT status, COALESCE(error_message, '') AS detail, operation_type FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`
 
 	var row struct {
-		Status *fleet.MDMDeliveryStatus `db:"status"`
-		Detail string                   `db:"detail"`
+		Status        *fleet.MDMDeliveryStatus `db:"status"`
+		Detail        string                   `db:"detail"`
+		OperationType fleet.MDMOperationType   `db:"operation_type"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -7354,8 +7357,33 @@ func (ds *Datastore) GetHostRecoveryLockPasswordStatus(ctx context.Context, host
 		return nil, ctxerr.Wrap(ctx, err, "getting recovery lock password status")
 	}
 
+	// Compute the effective status based on operation_type and raw status
+	// Similar to how FileVault handles "removing" status
+	var effectiveStatus *fleet.MDMDeliveryStatus
+	switch row.OperationType {
+	case fleet.MDMOperationTypeRemove:
+		// When operation_type is "remove", status should be "removing_enforcement" (pending or NULL means removing in progress)
+		// This matches the disk_encryption status string
+		if row.Status == nil || *row.Status == fleet.MDMDeliveryPending {
+			removing := fleet.MDMDeliveryRemovingEnforcement
+			effectiveStatus = &removing
+		} else {
+			effectiveStatus = row.Status
+		}
+	case fleet.MDMOperationTypeInstall:
+		// When operation_type is "install" and status is NULL, treat as pending
+		if row.Status == nil {
+			pending := fleet.MDMDeliveryPending
+			effectiveStatus = &pending
+		} else {
+			effectiveStatus = row.Status
+		}
+	default:
+		effectiveStatus = row.Status
+	}
+
 	return &fleet.HostMDMRecoveryLockPassword{
-		Status: row.Status,
+		Status: effectiveStatus,
 		Detail: row.Detail,
 	}, nil
 }
