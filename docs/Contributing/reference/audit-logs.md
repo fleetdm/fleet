@@ -2364,7 +2364,7 @@ This activity contains the following fields:
 {
   "host_id": 123,
   "host_display_name": "PWNED-VM-123",
-  "command_uuid": "98765432-1234-1234-1234-1234567890ab",
+  "command_uuid": "98765432-1234-1234-1234-1234567890ab"
 }
 ```
 
