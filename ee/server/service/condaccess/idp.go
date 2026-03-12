@@ -67,7 +67,10 @@ func (e *notFoundError) IsNotFound() bool {
 	return true
 }
 
-// metadataCache caches the SAML IdP metadata XML response (body + headers) to avoid repeated database queries.
+// metadataCache caches the SAML IdP metadata XML response (body + headers). Unlike authenticated
+// endpoints that rely on the datastore's AppConfig cache, this unauthenticated endpoint uses its own
+// cache to avoid hitting the database entirely, even the datastore cache lookup is skipped, providing
+// an extra layer of protection against DDoS-driven load.
 type metadataCache struct {
 	mu        sync.RWMutex
 	data      []byte
@@ -131,7 +134,7 @@ func RegisterIdP(
 	// Create per-IP rate limiter for unauthenticated IdP endpoints.
 	// These endpoints are publicly accessible (required by SAML standard),
 	// so rate limiting prevents DDoS-driven database overload.
-	rateLimiter, err := ratelimit.NewHTTPRateLimiter(limitStore, ratelimit.DefaultHTTPRateQuota, ipStrategy)
+	rateLimiter, err := ratelimit.NewHTTPRateLimiter(limitStore, ratelimit.DefaultHTTPRateQuota(), ipStrategy)
 	if err != nil {
 		return fmt.Errorf("create idp rate limiter: %w", err)
 	}
