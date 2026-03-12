@@ -624,14 +624,14 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 		return nil, ctxerr.Wrap(ctx, err, "json unmarshal setup assistant profile")
 	}
 	if _, ok := m["configuration_web_url"]; ok && endUserAuthEnabled {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit setup_experience_assistant. First, disable end user authentication before adding an automatic enrollment (DEP) profile with a configuration_web_url.`))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit apple_experience_assistant. First, disable end user authentication before adding an automatic enrollment (DEP) profile with a configuration_web_url.`))
 	}
 
 	if _, ok := m["url"]; ok {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit setup_experience_assistant. The automatic enrollment profile can't include url.`))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit apple_experience_assistant. The automatic enrollment profile can't include url.`))
 	}
 	if _, ok := m["await_device_configured"]; ok {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit setup_experience_assistant. The profile can't include "await_device_configured" option.`))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit apple_experience_assistant. The profile can't include "await_device_configured" option.`))
 	}
 
 	// must read the existing setup assistant first to detect if it did change
