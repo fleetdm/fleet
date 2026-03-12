@@ -1521,8 +1521,10 @@ type Datastore interface {
 	ClearRecoveryLockPendingStatus(ctx context.Context, hostUUIDs []string) error
 
 	// ClaimHostsForRecoveryLockClear returns host UUIDs that need their recovery lock
-	// cleared and marks them as pending. Returns hosts with operation_type='remove' and
-	// status=NULL where the team/appconfig has enable_recovery_lock_password=false.
+	// cleared and marks them as pending. Returns hosts where the team/appconfig has
+	// enable_recovery_lock_password=false and either:
+	// - operation_type='install' and status='verified' (new clears), or
+	// - operation_type='remove' and status=NULL (retries after failed enqueue)
 	ClaimHostsForRecoveryLockClear(ctx context.Context) ([]string, error)
 
 	// DeleteHostRecoveryLockPassword deletes the recovery lock password record for the given host.

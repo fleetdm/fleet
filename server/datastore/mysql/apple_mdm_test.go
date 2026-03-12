@@ -10624,6 +10624,14 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 		opType, err = ds.GetRecoveryLockOperationType(ctx, host.UUID)
 		require.NoError(t, err)
 		assert.Equal(t, fleet.MDMOperationTypeRemove, opType)
+
+		// Soft delete - should return not found
+		err = ds.DeleteHostRecoveryLockPassword(ctx, host.UUID)
+		require.NoError(t, err)
+
+		_, err = ds.GetRecoveryLockOperationType(ctx, host.UUID)
+		require.Error(t, err)
+		assert.True(t, fleet.IsNotFound(err), "soft-deleted record should return not found")
 	})
 
 	t.Run("retries failed clear attempts", func(t *testing.T) {
