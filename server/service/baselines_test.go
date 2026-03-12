@@ -16,7 +16,7 @@ func TestListBaselinesEndpointReturnsBaselines(t *testing.T) {
 
 	var found bool
 	for _, b := range all {
-		if b.ID == "nvidia-security-baseline" {
+		if b.ID == "windows-security-baseline" {
 			found = true
 			require.Equal(t, "windows", b.Platform)
 			require.NotEmpty(t, b.Categories)
@@ -27,7 +27,7 @@ func TestListBaselinesEndpointReturnsBaselines(t *testing.T) {
 
 func TestApplyBaselineRequestValidation(t *testing.T) {
 	// Verify baseline exists before apply
-	_, err := baselines.GetBaseline("nvidia-security-baseline")
+	_, err := baselines.GetBaseline("windows-security-baseline")
 	require.NoError(t, err)
 
 	// Verify nonexistent baseline returns error
@@ -36,7 +36,7 @@ func TestApplyBaselineRequestValidation(t *testing.T) {
 }
 
 func TestBaselineProfileContentsReadable(t *testing.T) {
-	manifest, err := baselines.GetBaseline("nvidia-security-baseline")
+	manifest, err := baselines.GetBaseline("windows-security-baseline")
 	require.NoError(t, err)
 
 	for _, cat := range manifest.Categories {
@@ -68,7 +68,7 @@ func TestStripExtension(t *testing.T) {
 }
 
 func TestBaselinePolicyYAMLParsing(t *testing.T) {
-	manifest, err := baselines.GetBaseline("nvidia-security-baseline")
+	manifest, err := baselines.GetBaseline("windows-security-baseline")
 	require.NoError(t, err)
 
 	totalPolicies := 0
@@ -97,7 +97,7 @@ func TestBaselinePolicyYAMLParsing(t *testing.T) {
 }
 
 func TestBaselinePolicySpecConversion(t *testing.T) {
-	manifest, err := baselines.GetBaseline("nvidia-security-baseline")
+	manifest, err := baselines.GetBaseline("windows-security-baseline")
 	require.NoError(t, err)
 
 	teamName := "Test Team"
@@ -129,7 +129,7 @@ func TestBaselinePolicySpecConversion(t *testing.T) {
 }
 
 func TestBaselineProfileNaming(t *testing.T) {
-	manifest, err := baselines.GetBaseline("nvidia-security-baseline")
+	manifest, err := baselines.GetBaseline("windows-security-baseline")
 	require.NoError(t, err)
 
 	for _, cat := range manifest.Categories {

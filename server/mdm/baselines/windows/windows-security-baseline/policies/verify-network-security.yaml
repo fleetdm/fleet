@@ -1,25 +1,25 @@
-- name: "[NVIDIA Baseline] Verify LAN Manager authentication level"
+- name: "[Security Baseline] Verify LAN Manager authentication level"
   query: "SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\LmCompatibilityLevel' AND CAST(data AS INTEGER) >= 5;"
   description: "Verifies LAN Manager authentication level is set to 'Send NTLMv2 response only. Refuse LM & NTLM' (level 5)."
   resolution: "Re-apply the Network Security SyncML profile via Fleet MDM."
   platform: windows
   critical: true
 
-- name: "[NVIDIA Baseline] Verify SMB client signing required"
+- name: "[Security Baseline] Verify SMB client signing required"
   query: "SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters\\RequireSecuritySignature' AND data = '1';"
   description: "Verifies SMB client digitally signs communications always."
   resolution: "Re-apply the Network Security SyncML profile via Fleet MDM."
   platform: windows
   critical: true
 
-- name: "[NVIDIA Baseline] Verify SMB server signing required"
+- name: "[Security Baseline] Verify SMB server signing required"
   query: "SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters\\RequireSecuritySignature' AND data = '1';"
   description: "Verifies SMB server digitally signs communications always."
   resolution: "Re-apply the Network Security SyncML profile via Fleet MDM."
   platform: windows
   critical: true
 
-- name: "[NVIDIA Baseline] Verify UAC admin approval mode"
+- name: "[Security Baseline] Verify UAC admin approval mode"
   query: "SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\EnableLUA' AND data = '1';"
   description: "Verifies User Account Control admin approval mode is enabled."
   resolution: "Re-apply the Network Security SyncML profile via Fleet MDM."

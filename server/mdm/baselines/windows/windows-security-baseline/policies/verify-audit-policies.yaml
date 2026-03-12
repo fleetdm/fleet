@@ -1,18 +1,18 @@
-- name: "[NVIDIA Baseline] Verify audit policy - credential validation"
+- name: "[Security Baseline] Verify audit policy - credential validation"
   query: "SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\PolicyManager\\providers\\{GUID}\\default\\Audit~Policy~Config~Audit\\AccountLogon_AuditCredentialValidation' AND CAST(data AS INTEGER) >= 3;"
   description: "Verifies audit policy for credential validation is set to Success and Failure."
   resolution: "Re-apply the Audit Policies SyncML profile via Fleet MDM."
   platform: windows
   critical: false
 
-- name: "[NVIDIA Baseline] Verify audit policy - process creation"
+- name: "[Security Baseline] Verify audit policy - process creation"
   query: "SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\PolicyManager\\providers\\{GUID}\\default\\Audit~Policy~Config~Audit\\DetailedTracking_AuditProcessCreation' AND CAST(data AS INTEGER) >= 1;"
   description: "Verifies audit policy for process creation is set to at least Success."
   resolution: "Re-apply the Audit Policies SyncML profile via Fleet MDM."
   platform: windows
   critical: false
 
-- name: "[NVIDIA Baseline] Verify audit policy - logon events"
+- name: "[Security Baseline] Verify audit policy - logon events"
   query: "SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\PolicyManager\\providers\\{GUID}\\default\\Audit~Policy~Config~Audit\\LogonLogoff_AuditLogon' AND CAST(data AS INTEGER) >= 3;"
   description: "Verifies audit policy for logon events is set to Success and Failure."
   resolution: "Re-apply the Audit Policies SyncML profile via Fleet MDM."

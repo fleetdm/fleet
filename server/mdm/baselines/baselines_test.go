@@ -14,12 +14,12 @@ func TestListBaselines(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, baselines, "expected at least one embedded baseline")
 
-	// Verify the NVIDIA baseline is present
+	// Verify the windows baseline is present
 	var found bool
 	for _, b := range baselines {
-		if b.ID == "nvidia-security-baseline" {
+		if b.ID == "windows-security-baseline" {
 			found = true
-			require.Equal(t, "NVIDIA Windows Security Baseline", b.Name)
+			require.Equal(t, "Windows Security Baseline", b.Name)
 			require.Equal(t, "1.0.0", b.Version)
 			require.Equal(t, "windows", b.Platform)
 			require.NotEmpty(t, b.Description)
@@ -27,15 +27,15 @@ func TestListBaselines(t *testing.T) {
 			break
 		}
 	}
-	require.True(t, found, "expected nvidia-security-baseline in embedded baselines")
+	require.True(t, found, "expected windows-security-baseline in embedded baselines")
 }
 
 func TestGetBaseline(t *testing.T) {
 	t.Run("existing baseline", func(t *testing.T) {
-		manifest, err := GetBaseline("nvidia-security-baseline")
+		manifest, err := GetBaseline("windows-security-baseline")
 		require.NoError(t, err)
 		require.NotNil(t, manifest)
-		require.Equal(t, "nvidia-security-baseline", manifest.ID)
+		require.Equal(t, "windows-security-baseline", manifest.ID)
 		require.Equal(t, "windows", manifest.Platform)
 	})
 
@@ -47,7 +47,7 @@ func TestGetBaseline(t *testing.T) {
 }
 
 func TestBaselineCategories(t *testing.T) {
-	manifest, err := GetBaseline("nvidia-security-baseline")
+	manifest, err := GetBaseline("windows-security-baseline")
 	require.NoError(t, err)
 
 	// Verify expected categories exist
@@ -75,7 +75,7 @@ func TestBaselineCategories(t *testing.T) {
 }
 
 func TestBaselineCategoryContents(t *testing.T) {
-	manifest, err := GetBaseline("nvidia-security-baseline")
+	manifest, err := GetBaseline("windows-security-baseline")
 	require.NoError(t, err)
 
 	for _, c := range manifest.Categories {
@@ -102,7 +102,7 @@ func TestBaselineCategoryContents(t *testing.T) {
 }
 
 func TestAllReferencedFilesExist(t *testing.T) {
-	manifest, err := GetBaseline("nvidia-security-baseline")
+	manifest, err := GetBaseline("windows-security-baseline")
 	require.NoError(t, err)
 
 	for _, c := range manifest.Categories {
@@ -125,19 +125,19 @@ func TestAllReferencedFilesExist(t *testing.T) {
 }
 
 func TestGetProfileContentInvalid(t *testing.T) {
-	_, err := GetProfileContent("nvidia-security-baseline", "profiles/nonexistent.xml")
+	_, err := GetProfileContent("windows-security-baseline", "profiles/nonexistent.xml")
 	require.Error(t, err)
 }
 
 func TestGetProfileContentValid(t *testing.T) {
-	content, err := GetProfileContent("nvidia-security-baseline", "profiles/firewall.xml")
+	content, err := GetProfileContent("windows-security-baseline", "profiles/firewall.xml")
 	require.NoError(t, err)
 	require.Contains(t, string(content), "Firewall")
 	require.Contains(t, string(content), "LocURI")
 }
 
 func TestAllProfilesPassFleetValidation(t *testing.T) {
-	manifest, err := GetBaseline("nvidia-security-baseline")
+	manifest, err := GetBaseline("windows-security-baseline")
 	require.NoError(t, err)
 
 	for _, c := range manifest.Categories {
@@ -148,7 +148,7 @@ func TestAllProfilesPassFleetValidation(t *testing.T) {
 
 				// Build a profile name using the baseline naming convention.
 				base := filepath.Base(p)
-				profileName := "[NVIDIA Baseline] " + c.Name + " - " + strings.TrimSuffix(base, filepath.Ext(base))
+				profileName := "[Security Baseline] " + c.Name + " - " + strings.TrimSuffix(base, filepath.Ext(base))
 
 				profile := &fleet.MDMWindowsConfigProfile{
 					Name:   profileName,
@@ -162,7 +162,7 @@ func TestAllProfilesPassFleetValidation(t *testing.T) {
 }
 
 func TestServiceConfigurationCategoryHasNoProfiles(t *testing.T) {
-	manifest, err := GetBaseline("nvidia-security-baseline")
+	manifest, err := GetBaseline("windows-security-baseline")
 	require.NoError(t, err)
 
 	for _, c := range manifest.Categories {

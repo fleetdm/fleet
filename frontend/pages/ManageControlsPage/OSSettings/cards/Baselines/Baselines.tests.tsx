@@ -24,8 +24,8 @@ const baselinesHandler = http.get(baseUrl("/mdm/baselines"), () => {
   return HttpResponse.json({
     baselines: [
       {
-        id: "nvidia-security-baseline",
-        name: "NVIDIA Windows Security Baseline",
+        id: "windows-security-baseline",
+        name: "Windows Security Baseline",
         version: "1.0.0",
         platform: "windows",
         description: "Corporate Windows security settings.",
@@ -68,7 +68,7 @@ describe("Baselines", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("NVIDIA Windows Security Baseline")
+        screen.getByText("Windows Security Baseline")
       ).toBeInTheDocument();
     });
 

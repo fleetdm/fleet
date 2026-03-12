@@ -8,12 +8,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/baselines"
 	"gopkg.in/yaml.v2"
 )
 
-const baselineNamePrefix = "[NVIDIA Baseline] "
+const baselineNamePrefix = "[Security Baseline] "
 
 // baselinePolicyYAML matches the YAML structure of verification policy files.
 type baselinePolicyYAML struct {
@@ -37,6 +38,11 @@ type listBaselinesResponse struct {
 func (r listBaselinesResponse) Error() error { return r.Err }
 
 func listBaselinesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	// Mark authorization as checked — listing baselines is static, read-only data
+	// and the user is already authenticated by the endpoint middleware.
+	if ac, ok := authz_ctx.FromContext(ctx); ok {
+		ac.SetChecked()
+	}
 	all, err := baselines.ListBaselines()
 	if err != nil {
 		return &listBaselinesResponse{Err: err}, nil
@@ -77,14 +83,16 @@ func applyBaselineEndpoint(ctx context.Context, request any, svc fleet.Service) 
 		return &applyBaselineResponse{Err: fmt.Errorf("looking up team %d: %w", req.TeamID, err)}, nil
 	}
 
-	// --- Remove existing baseline profiles for idempotent re-apply ---
-	if err := removeBaselineProfiles(ctx, svc, req.TeamID); err != nil {
-		return &applyBaselineResponse{Err: fmt.Errorf("removing old baseline profiles: %w", err)}, nil
+	// --- Remove existing baseline resources for idempotent re-apply ---
+	// Order matters: policies reference scripts, so remove policies first.
+	if err := removeBaselinePolicies(ctx, svc, req.TeamID); err != nil {
+		return &applyBaselineResponse{Err: fmt.Errorf("removing old baseline policies: %w", err)}, nil
 	}
-
-	// --- Remove existing baseline scripts for idempotent re-apply ---
 	if err := removeBaselineScripts(ctx, svc, req.TeamID); err != nil {
 		return &applyBaselineResponse{Err: fmt.Errorf("removing old baseline scripts: %w", err)}, nil
+	}
+	if err := removeBaselineProfiles(ctx, svc, req.TeamID); err != nil {
+		return &applyBaselineResponse{Err: fmt.Errorf("removing old baseline profiles: %w", err)}, nil
 	}
 
 	var profileNames, policyNames, scriptNames []string
@@ -113,7 +121,7 @@ func applyBaselineEndpoint(ctx context.Context, request any, svc fleet.Service) 
 			if err != nil {
 				return &applyBaselineResponse{Err: err}, nil
 			}
-			scriptName := baselineNamePrefix + stripExtension(s)
+			scriptName := baselineNamePrefix + filepath.Base(s)
 			tmID := req.TeamID
 			created, err := svc.NewScript(ctx, &tmID, scriptName, bytes.NewReader(content))
 			if err != nil {
@@ -194,19 +202,17 @@ func (r removeBaselineResponse) Error() error { return r.Err }
 func removeBaselineEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*removeBaselineRequest)
 
-	// Remove baseline profiles.
-	if err := removeBaselineProfiles(ctx, svc, req.TeamID); err != nil {
-		return &removeBaselineResponse{Err: fmt.Errorf("removing baseline profiles: %w", err)}, nil
+	// Order matters: policies reference scripts, so remove policies first.
+	if err := removeBaselinePolicies(ctx, svc, req.TeamID); err != nil {
+		return &removeBaselineResponse{Err: fmt.Errorf("removing baseline policies: %w", err)}, nil
 	}
 
-	// Remove baseline scripts.
 	if err := removeBaselineScripts(ctx, svc, req.TeamID); err != nil {
 		return &removeBaselineResponse{Err: fmt.Errorf("removing baseline scripts: %w", err)}, nil
 	}
 
-	// Remove baseline policies.
-	if err := removeBaselinePolicies(ctx, svc, req.TeamID); err != nil {
-		return &removeBaselineResponse{Err: fmt.Errorf("removing baseline policies: %w", err)}, nil
+	if err := removeBaselineProfiles(ctx, svc, req.TeamID); err != nil {
+		return &removeBaselineResponse{Err: fmt.Errorf("removing baseline profiles: %w", err)}, nil
 	}
 
 	return &removeBaselineResponse{}, nil

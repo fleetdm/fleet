@@ -1,6 +1,6 @@
-- name: "[NVIDIA Baseline] Verify Windows Firewall enabled (all profiles)"
+- name: "[Security Baseline] Verify Windows Firewall enabled (all profiles)"
   query: "SELECT 1 WHERE EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\DomainProfile\\EnableFirewall' AND data = '1') AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\StandardProfile\\EnableFirewall' AND data = '1') AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\PublicProfile\\EnableFirewall' AND data = '1');"
-  description: "Verifies Windows Firewall is enabled for Domain, Private, and Public profiles as required by the NVIDIA security baseline."
+  description: "Verifies Windows Firewall is enabled for Domain, Private, and Public profiles as required by the security baseline."
   resolution: "Re-apply the firewall SyncML profile via Fleet MDM or check for Group Policy conflicts."
   platform: windows
   critical: true

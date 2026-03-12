@@ -1,4 +1,4 @@
-# NVIDIA Security Baseline - Service Configuration
+# Security Baseline - Service Configuration
 # Disables services that increase attack surface and have no CSP equivalent.
 # Delivered via Fleet script execution; verified by osquery service policies.
 

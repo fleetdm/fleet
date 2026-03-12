@@ -1,4 +1,4 @@
-- name: "[NVIDIA Baseline] Verify Attack Surface Reduction rules enabled"
+- name: "[Security Baseline] Verify Attack Surface Reduction rules enabled"
   query: "SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\ExploitGuard_ASR_Rules' AND data = '1';"
   description: "Verifies ASR rules are globally enabled via the Defender CSP."
   resolution: "Re-apply the ASR Rules SyncML profile via Fleet MDM."

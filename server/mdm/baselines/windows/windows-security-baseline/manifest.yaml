@@ -1,8 +1,8 @@
-id: nvidia-security-baseline
-name: "NVIDIA Windows Security Baseline"
+id: windows-security-baseline
+name: "Windows Security Baseline"
 version: "1.0.0"
 platform: windows
-description: "Corporate Windows security settings derived from CIS L1, Intune baselines, and NVIDIA security requirements. Covers firewall, Defender, credential guard, ASR rules, audit policies, network security, account lockout, user rights, and browser security."
+description: "Windows security settings derived from CIS L1 and Microsoft Intune security baselines. Covers firewall, Defender, credential guard, ASR rules, audit policies, network security, account lockout, user rights, and browser security."
 categories:
   - name: "Windows Firewall"
     profiles:
