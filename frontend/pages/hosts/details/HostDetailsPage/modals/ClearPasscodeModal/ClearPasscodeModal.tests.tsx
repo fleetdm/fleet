@@ -65,9 +65,7 @@ describe("ClearPasscodeModal", () => {
   });
 
   it("calls onSuccess and shows success flash when API call succeeds", async () => {
-    mockServer.use(
-      http.post(clearPasscodeUrl, () => HttpResponse.json({}))
-    );
+    mockServer.use(http.post(clearPasscodeUrl, () => HttpResponse.json({})));
 
     const render = createCustomRenderer({ withBackendMock: true });
     const { user } = render(<ClearPasscodeModal {...MOCK_PROPS} />);
@@ -86,7 +84,10 @@ describe("ClearPasscodeModal", () => {
   it("shows error flash when API call fails", async () => {
     mockServer.use(
       http.post(clearPasscodeUrl, () =>
-        HttpResponse.json({ message: "unlock token unavailable" }, { status: 422 })
+        HttpResponse.json(
+          { message: "unlock token unavailable" },
+          { status: 422 }
+        )
       )
     );
 
