@@ -59,13 +59,21 @@ func (m *mockMDMAppleCommander) ClearPasscode(ctx context.Context, host *fleet.H
 // minimalMockFleetService provides the fleet.Service methods needed by ClearHostPasscode tests.
 type minimalMockFleetService struct {
 	fleet.Service
-	newActivityCalled bool
+	newActivityCalled       bool
+	newActivityErr          error
+	verifyMDMConfiguredFunc func() error
 }
 
-func (s *minimalMockFleetService) VerifyMDMAppleConfigured(_ context.Context) error { return nil }
+func (s *minimalMockFleetService) VerifyMDMAppleConfigured(_ context.Context) error {
+	if s.verifyMDMConfiguredFunc != nil {
+		return s.verifyMDMConfiguredFunc()
+	}
+	return nil
+}
+
 func (s *minimalMockFleetService) NewActivity(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
 	s.newActivityCalled = true
-	return nil
+	return s.newActivityErr
 }
 
 func setup(t *testing.T) (*mock.Store, *Service) {
@@ -368,6 +376,97 @@ func TestClearHostPasscode(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, commanderCalled)
 		require.True(t, activitySvc.newActivityCalled)
+	})
+
+	t.Run("ds.Host error", func(t *testing.T) {
+		testErr := errors.New("db error")
+		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return nil, testErr
+		}
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		err := svc.ClearHostPasscode(ctx, iosHost.ID)
+		require.Error(t, err)
+		require.ErrorIs(t, err, testErr)
+		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return iosHost, nil
+		}
+	})
+
+	t.Run("MDM not configured returns bad request", func(t *testing.T) {
+		activitySvc.verifyMDMConfiguredFunc = func() error {
+			return fleet.ErrMDMNotConfigured
+		}
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		err := svc.ClearHostPasscode(ctx, iosHost.ID)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), fleet.AppleMDMNotConfiguredMessage)
+		activitySvc.verifyMDMConfiguredFunc = nil
+	})
+
+	t.Run("MDM configured check returns generic error", func(t *testing.T) {
+		testErr := errors.New("mdm config error")
+		activitySvc.verifyMDMConfiguredFunc = func() error {
+			return testErr
+		}
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		err := svc.ClearHostPasscode(ctx, iosHost.ID)
+		require.Error(t, err)
+		require.ErrorIs(t, err, testErr)
+		activitySvc.verifyMDMConfiguredFunc = nil
+	})
+
+	t.Run("IsHostConnectedToFleetMDM error", func(t *testing.T) {
+		testErr := errors.New("connected check error")
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return false, testErr
+		}
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		err := svc.ClearHostPasscode(ctx, iosHost.ID)
+		require.Error(t, err)
+		require.ErrorIs(t, err, testErr)
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return true, nil
+		}
+	})
+
+	t.Run("GetMDMAppleDeviceUnlockToken error", func(t *testing.T) {
+		testErr := errors.New("unlock token error")
+		ds.GetMDMAppleDeviceUnlockTokenFunc = func(ctx context.Context, hostUUID string) ([]byte, error) {
+			return nil, testErr
+		}
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		err := svc.ClearHostPasscode(ctx, iosHost.ID)
+		require.Error(t, err)
+		require.ErrorIs(t, err, testErr)
+		ds.GetMDMAppleDeviceUnlockTokenFunc = func(ctx context.Context, hostUUID string) ([]byte, error) {
+			return []byte("unlock-token"), nil
+		}
+	})
+
+	t.Run("commander ClearPasscode error", func(t *testing.T) {
+		testErr := errors.New("commander error")
+		commander.clearPasscodeFunc = func(ctx context.Context, host *fleet.Host, commandUUID string, unlockToken []byte) error {
+			return testErr
+		}
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		err := svc.ClearHostPasscode(ctx, iosHost.ID)
+		require.Error(t, err)
+		require.ErrorIs(t, err, testErr)
+		commander.clearPasscodeFunc = nil
+	})
+
+	t.Run("NewActivity error", func(t *testing.T) {
+		testErr := errors.New("activity error")
+		activitySvc.newActivityErr = testErr
+		commander.clearPasscodeFunc = func(ctx context.Context, host *fleet.Host, commandUUID string, unlockToken []byte) error {
+			return nil
+		}
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		err := svc.ClearHostPasscode(ctx, iosHost.ID)
+		require.Error(t, err)
+		require.ErrorIs(t, err, testErr)
+		activitySvc.newActivityErr = nil
+		commander.clearPasscodeFunc = nil
 	})
 }
 

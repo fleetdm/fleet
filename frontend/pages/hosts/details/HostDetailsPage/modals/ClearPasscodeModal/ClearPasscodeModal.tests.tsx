@@ -1,8 +1,12 @@
 import React from "react";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
+import mockServer from "test/mock-server";
 import { createCustomRenderer } from "test/test-utils";
 
 import ClearPasscodeModal from "./ClearPasscodeModal";
+
+const clearPasscodeUrl = `/api/latest/fleet/hosts/7/clear_passcode`;
 
 const MOCK_PROPS = {
   id: 7,
@@ -58,5 +62,45 @@ describe("ClearPasscodeModal", () => {
     await user.click(cancelButton);
 
     expect(MOCK_PROPS.onClose).toHaveBeenCalled();
+  });
+
+  it("calls onSuccess and shows success flash when API call succeeds", async () => {
+    mockServer.use(
+      http.post(clearPasscodeUrl, () => HttpResponse.json({}))
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { user } = render(<ClearPasscodeModal {...MOCK_PROPS} />);
+
+    const checkbox = screen.getByRole("checkbox", { name: /iphone-host-1/i });
+    await user.click(checkbox);
+
+    const clearButton = screen.getByRole("button", { name: /Clear passcode/i });
+    await user.click(clearButton);
+
+    await waitFor(() => {
+      expect(MOCK_PROPS.onSuccess).toHaveBeenCalled();
+    });
+  });
+
+  it("shows error flash when API call fails", async () => {
+    mockServer.use(
+      http.post(clearPasscodeUrl, () =>
+        HttpResponse.json({ message: "unlock token unavailable" }, { status: 422 })
+      )
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { user } = render(<ClearPasscodeModal {...MOCK_PROPS} />);
+
+    const checkbox = screen.getByRole("checkbox", { name: /iphone-host-1/i });
+    await user.click(checkbox);
+
+    const clearButton = screen.getByRole("button", { name: /Clear passcode/i });
+    await user.click(clearButton);
+
+    await waitFor(() => {
+      expect(MOCK_PROPS.onSuccess).not.toHaveBeenCalled();
+    });
   });
 });

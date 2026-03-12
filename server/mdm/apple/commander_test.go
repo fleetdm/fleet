@@ -233,6 +233,62 @@ func TestMDMAppleCommander(t *testing.T) {
 	mdmStorage.RetrievePushInfoFuncInvoked = false
 }
 
+func TestMDMAppleCommanderClearPasscodeErrors(t *testing.T) {
+	ctx := context.Background()
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	pushFactory, mockPushProvider := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		stdlogfmt.New(),
+	)
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+
+	host := &fleet.Host{ID: 1, UUID: "TEST-HOST", Platform: "ios"}
+	cmdUUID := uuid.New().String()
+	unlockToken := []byte("test-unlock-token")
+
+	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, ids []string) (map[string]*mdm.Push, error) {
+		return map[string]*mdm.Push{
+			host.UUID: {
+				PushMagic: "push-magic",
+				Token:     []byte("token"),
+				Topic:     "topic",
+			},
+		}, nil
+	}
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("../../service/testdata/server.pem", "../../service/testdata/server.key")
+		return &cert, "", err
+	}
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+
+	t.Run("EnqueueDeviceClearPasscodeCommand error", func(t *testing.T) {
+		testErr := errors.New("enqueue error")
+		mdmStorage.EnqueueDeviceClearPasscodeCommandFunc = func(ctx context.Context, gotHost *fleet.Host, cmd *mdm.Command) error {
+			return testErr
+		}
+		err := cmdr.ClearPasscode(ctx, host, cmdUUID, unlockToken)
+		require.Error(t, err)
+		require.ErrorIs(t, err, testErr)
+	})
+
+	t.Run("SendNotifications error", func(t *testing.T) {
+		mdmStorage.EnqueueDeviceClearPasscodeCommandFunc = func(ctx context.Context, gotHost *fleet.Host, cmd *mdm.Command) error {
+			return nil
+		}
+		mockPushProvider.PushFunc = func(_ context.Context, _ []*mdm.Push) (map[string]*push.Response, error) {
+			return nil, errors.New("push error")
+		}
+		err := cmdr.ClearPasscode(ctx, host, cmdUUID, unlockToken)
+		require.Error(t, err)
+		mockPushProvider.PushFunc = mockSuccessfulPush
+	})
+}
+
 func TestMDMAppleCommanderConcurrentDeviceLock(t *testing.T) {
 	ctx := context.Background()
 	mdmStorage := &mdmmock.MDMAppleStore{}
