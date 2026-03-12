@@ -7271,8 +7271,7 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 			error_message = NULL
 	`
 
-	placeholders := strings.Repeat("(?, ?, ?, ?),", len(passwords))
-	placeholders = placeholders[:len(placeholders)-1] // remove trailing comma
+	placeholders := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?),", len(passwords)), ",")
 	stmt = fmt.Sprintf(stmt, placeholders)
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
