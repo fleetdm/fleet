@@ -23,6 +23,13 @@ func (v *clientIPVaryBy) Key(r *http.Request) string {
 	return ip
 }
 
+// DefaultHTTPRateQuota is a reasonable default for HTTP-level rate limiting:
+// 10 requests per minute per IP with burst of 9 (allows 10 initial requests before throttling).
+var DefaultHTTPRateQuota = throttled.RateQuota{
+	MaxRate:  throttled.PerMin(10),
+	MaxBurst: 9,
+}
+
 // NewHTTPRateLimiter creates an HTTP-level rate limiter that varies by real client IP.
 // The ipStrategy determines how to extract the real client IP from requests (e.g. from
 // X-Forwarded-For headers when behind a load balancer). Use endpointer.NewClientIPStrategy

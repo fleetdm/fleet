@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/middleware/ratelimit"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -293,7 +294,7 @@ func TestIDPRateLimiting(t *testing.T) {
 		require.NoError(t, err)
 
 		// Send requests up to the burst limit (maxBurst + 1 = 10 allowed)
-		for i := range idpRateLimitMaxBurst + 1 {
+		for i := range ratelimit.DefaultHTTPRateQuota.MaxBurst + 1 {
 			req := httptest.NewRequest("GET", idpMetadataPath, nil)
 			req.RemoteAddr = "192.0.2.1:12345"
 			w := httptest.NewRecorder()
@@ -332,7 +333,7 @@ func TestIDPRateLimiting(t *testing.T) {
 		// Send requests from a proxy IP but different real client IPs via X-Forwarded-For.
 		// All come from the same RemoteAddr (the proxy), but different real client IPs.
 		// With trusted_proxies configured, rate limiting should be per real client IP.
-		for i := range idpRateLimitMaxBurst + 1 {
+		for i := range ratelimit.DefaultHTTPRateQuota.MaxBurst + 1 {
 			req := httptest.NewRequest("GET", idpMetadataPath, nil)
 			req.RemoteAddr = "10.0.0.1:12345"
 			req.Header.Set("X-Forwarded-For", "203.0.113.10, 10.0.0.1")

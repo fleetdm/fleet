@@ -49,12 +49,9 @@ const (
 	// Policy response values
 	policyResponseFail = "fail"
 
-	// Rate limiting: 10 requests per minute per IP with burst of 9 (allows 10 initial requests before throttling)
-	idpRateLimitPerMinute = 10
-	idpRateLimitMaxBurst  = 9
-
-	// Metadata cache TTL
-	metadataCacheTTL = 5 * time.Minute
+	// Metadata cache TTL (for DDoS protection). Keep this short because the cached response
+	// depends on the server URL from AppConfig; a URL change will serve stale data until expiry.
+	metadataCacheTTL = 1 * time.Minute
 )
 
 // notFoundError implements fleet.NotFoundError interface for conditional access IdP errors.
@@ -134,11 +131,7 @@ func RegisterIdP(
 	// Create per-IP rate limiter for unauthenticated IdP endpoints.
 	// These endpoints are publicly accessible (required by SAML standard),
 	// so rate limiting prevents DDoS-driven database overload.
-	quota := throttled.RateQuota{
-		MaxRate:  throttled.PerMin(idpRateLimitPerMinute),
-		MaxBurst: idpRateLimitMaxBurst,
-	}
-	rateLimiter, err := ratelimit.NewHTTPRateLimiter(limitStore, quota, ipStrategy)
+	rateLimiter, err := ratelimit.NewHTTPRateLimiter(limitStore, ratelimit.DefaultHTTPRateQuota, ipStrategy)
 	if err != nil {
 		return fmt.Errorf("create idp rate limiter: %w", err)
 	}
