@@ -10431,7 +10431,8 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 	}
 
 	// Helper to get password record (excludes soft-deleted records)
-	getPasswordRecord := func(hostUUID string) (opType, status string, found bool) {
+	getPasswordRecord := func(t *testing.T, hostUUID string) (opType, status string, found bool) {
+		t.Helper()
 		var rec struct {
 			OperationType string  `db:"operation_type"`
 			Status        *string `db:"status"`
@@ -10439,7 +10440,10 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 		err := sqlx.GetContext(ctx, ds.reader(ctx), &rec,
 			`SELECT operation_type, status FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`, hostUUID)
 		if err != nil {
-			return "", "", false
+			if errors.Is(err, sql.ErrNoRows) {
+				return "", "", false
+			}
+			t.Fatalf("getPasswordRecord query failed: %v", err)
 		}
 		if rec.Status != nil {
 			status = *rec.Status
@@ -10469,7 +10473,7 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// Verify initial state
-		opType, status, found := getPasswordRecord(host.UUID)
+		opType, status, found := getPasswordRecord(t, host.UUID)
 		require.True(t, found)
 		assert.Equal(t, "install", opType)
 		assert.Equal(t, "verified", status)
@@ -10490,7 +10494,7 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 		assert.Contains(t, hosts, host.UUID)
 
 		// Verify state changed to remove/pending
-		opType, status, found = getPasswordRecord(host.UUID)
+		opType, status, found = getPasswordRecord(t, host.UUID)
 		require.True(t, found)
 		assert.Equal(t, "remove", opType)
 		assert.Equal(t, "pending", status)
@@ -10574,7 +10578,7 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// Verify record exists
-		_, _, found := getPasswordRecord(host.UUID)
+		_, _, found := getPasswordRecord(t, host.UUID)
 		require.True(t, found)
 
 		// Soft delete the record
@@ -10582,7 +10586,7 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// Verify record is not found by normal queries (excludes deleted)
-		_, _, found = getPasswordRecord(host.UUID)
+		_, _, found = getPasswordRecord(t, host.UUID)
 		assert.False(t, found)
 
 		// Verify record still exists in DB but is marked as deleted and verified
@@ -10657,7 +10661,7 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 		assert.Contains(t, hosts, host.UUID)
 
 		// Verify state is remove/pending
-		opType, status, found := getPasswordRecord(host.UUID)
+		opType, status, found := getPasswordRecord(t, host.UUID)
 		require.True(t, found)
 		assert.Equal(t, "remove", opType)
 		assert.Equal(t, "pending", status)
@@ -10667,7 +10671,7 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// Verify state is remove/NULL (retry state)
-		opType, status, found = getPasswordRecord(host.UUID)
+		opType, status, found = getPasswordRecord(t, host.UUID)
 		require.True(t, found)
 		assert.Equal(t, "remove", opType)
 		assert.Equal(t, "", status) // NULL becomes empty string
@@ -10678,7 +10682,7 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 		assert.Contains(t, hosts, host.UUID, "host with remove/NULL should be retried")
 
 		// Verify state is back to remove/pending
-		opType, status, found = getPasswordRecord(host.UUID)
+		opType, status, found = getPasswordRecord(t, host.UUID)
 		require.True(t, found)
 		assert.Equal(t, "remove", opType)
 		assert.Equal(t, "pending", status)
