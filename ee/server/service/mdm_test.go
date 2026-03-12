@@ -255,8 +255,8 @@ func TestClearHostPasscode(t *testing.T) {
 
 	t.Run("auth", func(t *testing.T) {
 		cases := []struct {
-			desc          string
-			user          *fleet.User
+			desc           string
+			user           *fleet.User
 			shouldFailAuth bool
 		}{
 			{"no role", test.UserNoRoles, true},

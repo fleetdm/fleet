@@ -7254,7 +7254,6 @@ func (ds *Datastore) GetMDMAppleDeviceUnlockToken(ctx context.Context, hostUUID 
 	return token, nil
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // Apple MDM Recovery Lock Password
 
