@@ -47,16 +47,16 @@ After connecting Fleet to ABM, set Fleet to be the MDM for all Macs:
 
 macOS, iOS, and iPadOS hosts listed in ABM and associated to a Fleet instance with MDM enabled will sync to Fleet and appear in the Hosts view with the **MDM status** label set to "Pending".
 
-Hosts that automatically enroll will be assigned to a default team. You can configure the default team for macOS, iOS, and iPadOS hosts:
+Hosts that automatically enroll will be assigned to a default fleet. You can configure the default fleet for macOS, iOS, and iPadOS hosts:
 
-1. Create a team, if you have not already, following [this guide](https://fleetdm.com/guides/teams).
+1. Create a fleet, if you have not already, following [this guide](https://fleetdm.com/guides/fleets).
 2. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page and select **Edit** under **Automatic enrollment**.
-3. Select the **Actions** dropdown for the ABM token you want to update, and then select **Edit teams**.
-4. Select the default team for each platform, and select **Save** to save your selections.
+3. Select the **Actions** dropdown for the ABM token you want to update, and then select **Edit fleets**.
+4. Select the default fleet for each platform, and select **Save** to save your selections.
 
-> If no default team is set for a host platform (macOS, iOS, or iPadOS), then newly enrolled hosts of that platform will be placed in "No team".
+> If no default fleet is set for a host platform (macOS, iOS, or iPadOS), then newly enrolled hosts of that platform will be placed in "Unassigned".
 
-> A host can be transferred to a new (not default) team before it enrolls. In the Fleet UI, you can do this under **Settings** > **Teams**.
+> A host can be transferred to a new (not default) fleet before it enrolls. In the Fleet UI, you can do this under **Settings** > **Fleets**.
 
 ## Turn on MDM on a host
 
@@ -91,7 +91,7 @@ Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides
 
 2. In the **Volume Purchasing Program (VPP)** section, select **Add VPP**, and then select **Add VPP** again on the following page. Follow the directions on the modal to get your VPP token from Apple Business Manager, and then select the **Upload** button at the bottom to upload it to Fleet.
 
-3. To assign the VPP token to a specific team, find the token in the table of VPP tokens. Select the **Actions** dropdown, and then select **Edit teams**. Use the picker to select which team(s) this VPP token should be assigned to.
+3. To assign the VPP token to a specific fleet, find the token in the table of VPP tokens. Select the **Actions** dropdown, and then select **Edit fleets**. Use the picker to select which fleet(s) this VPP token should be assigned to.
 
 To renew a VPP token:
 
@@ -111,30 +111,30 @@ These organizations may need multiple ABM and VPP tokens:
 
 For **MSPs**, the best practice is to have one ABM and VPP connection per client.
 
-The default teams in Fleet for each client's ABM token in Fleet will look like this:
+The default fleets for each client's ABM token will look like this:
 - macOS: 💻 Client A - Workstations
 - iOS: 📱🏢 Client A - Company-owned iPhones
 - iPadOS:🔳🏢 Client A - Company-owned iPads
 
-Client A's VPP token will be assigned to the above teams.
+Client A's VPP token will be assigned to the above fleets.
 
 For **enterprises that acquire**, the best practice is to add a new ABM and VPP connection for each acquisition.
 
-These will default teams in Fleet:
+These will be the default fleets:
 
 Enterprise ABM token:
 - macOS: 💻 Enterprise - Workstations
 - iOS: 📱🏢 Enterprise - Company-owned iPhones
 - iPadOS:🔳🏢 Enterprise - Company-owned iPads
 
-The enterprises's VPP token will be assigned to the above teams.
+The enterprises's VPP token will be assigned to the above fleets.
 
 Acquisition ABM token:
 - macOS: 💻 Acquisition - Workstations
 - iOS: 📱🏢 Acquisition - Company-owned iPhones
 - iPadOS:🔳🏢 Acquisition - Company-owned iPads
 
-The acquisitions's VPP token will be assigned to the above teams.
+The acquisitions's VPP token will be assigned to the above fleets.
 
 ## Simple Certificate Enrollment Protocol (SCEP)
 

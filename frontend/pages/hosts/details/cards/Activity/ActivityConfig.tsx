@@ -17,6 +17,7 @@ import UnlockedHostActivityItem from "./ActivityItems/UnlockedHostActivityItem";
 import ReadHostDiskEncryptionKeyActivityItem from "./ActivityItems/ReadHostDiskEncryptionKey";
 import ViewedHostRecoveryLockPasswordActivityItem from "./ActivityItems/ViewedHostRecoveryLockPassword";
 import SetHostRecoveryLockPasswordActivityItem from "./ActivityItems/SetHostRecoveryLockPassword";
+import RotatedHostRecoveryLockPasswordActivityItem from "./ActivityItems/RotatedHostRecoveryLockPassword";
 import InstalledSoftwareActivityItem from "./ActivityItems/InstalledSoftwareActivityItem";
 import CanceledRunScriptActivityItem from "./ActivityItems/CanceledRunScriptActivityItem";
 import CanceledInstallSoftwareActivityItem from "./ActivityItems/CanceledInstallSoftwareActivityItem";
@@ -54,6 +55,7 @@ export const pastActivityComponentMap: Record<
   [ActivityType.ReadHostDiskEncryptionKey]: ReadHostDiskEncryptionKeyActivityItem,
   [ActivityType.ViewedHostRecoveryLockPassword]: ViewedHostRecoveryLockPasswordActivityItem,
   [ActivityType.SetHostRecoveryLockPassword]: SetHostRecoveryLockPasswordActivityItem,
+  [ActivityType.RotatedHostRecoveryLockPassword]: RotatedHostRecoveryLockPasswordActivityItem,
   [ActivityType.UnlockedHost]: UnlockedHostActivityItem,
   [ActivityType.InstalledSoftware]: InstalledSoftwareActivityItem,
   [ActivityType.UninstalledSoftware]: InstalledSoftwareActivityItem,

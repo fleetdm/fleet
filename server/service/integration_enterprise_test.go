@@ -352,7 +352,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	}
 	res := s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't enable macos_setup.lock_end_user_info because macos_setup.enable_end_user_authentication is not enabled")
+	require.Contains(t, errMsg, `"enable_end_user_authentication" must be set to "true"`)
 
 	// dry-run with invalid windows updates
 	teamSpecs = map[string]any{

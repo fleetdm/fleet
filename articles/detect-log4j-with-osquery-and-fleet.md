@@ -6,17 +6,17 @@
 
 In response, the ASF has released a patch and recommends an immediate upgrade to fix the impacted library.
 
-Since Log4j is an embedded library used by many applications in your server and endpoint environments: how do you know your exposure? Here we describe a query you can run using Fleet to get granular and real-time visibility into Log4j installs across your infrastructure.
+Since Log4j is an embedded library used by many applications in your server and endpoint environments: how do you know your exposure? Here we describe a report you can run using Fleet to get granular and real-time visibility into Log4j installs across your infrastructure.
 
 <div purpose="embedded-content">
 	<iframe src="https://www.youtube.com/embed/pRE_QT5zr5s" allowfullscreen></iframe>
 </div>
 
-## The Query (tl;dr)
+## The report (tl;dr)
 
-The Fleet team developed this osquery SQL to detect running processes with Log4J loaded on Linux and macOS systems. Run it as a live query via [Fleet](https://fleetdm.com/) (or any other osquery manager) to quickly detect potential targets within your infrastructure. Thank you to Tim Brown for [creating these YARA queries](https://github.com/timb-machine/log4j).
+The Fleet team developed this osquery SQL to detect running processes with Log4J loaded on Linux and macOS systems. Run it as a live report via [Fleet](https://fleetdm.com/) (or any other osquery manager) to quickly detect potential targets within your infrastructure. Thank you to Tim Brown for [creating these YARA queries](https://github.com/timb-machine/log4j).
 
-This query can also be found in Fleet’s osquery [standard query library](https://fleetdm.com/queries/detect-active-processes-with-log-4-j-running).
+This report can also be found in Fleet’s [library](https://fleetdm.com/queries/detect-active-processes-with-log-4-j-running).
 
 ```
 WITH target_jars AS (
@@ -58,11 +58,11 @@ WHERE path IN (SELECT path FROM target_jars)
   );
 ```
 
->Note: This query is resource intensive and has caused problems on systems with limited swap space. Test on some systems before running this widely.
+>Note: This report is resource intensive and has caused problems on systems with limited swap space. Test on some systems before running this widely.
 
 ## How it works
 
-The query essentially works in two parts:
+The report essentially works in two parts:
 
 1. Find loaded Java JAR files on the system.
 2. Use YARA scanning to detect Log4J utilization in those files.
@@ -96,7 +96,7 @@ WHERE path LIKE '%.jar'
 
 ### Scan for Log4J
 
-Once the query rounds up all the JARs, we use YARA to scan for evidence of Log4J in those JARs.
+Once the report rounds up all the JARs, we use YARA to scan for evidence of Log4J in those JARs.
 
 A trimmed-down set of the YARA rules from [Tim Brown’s repository](https://github.com/timb-machine/log4j) are applied:
 

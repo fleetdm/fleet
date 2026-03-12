@@ -652,7 +652,7 @@ module.exports = {
                   throw new Error(`Failed compiling markdown content: An article page is missing a category meta tag (<meta name="category" value="guides">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the category of the article`);
                 } else {
                   // Throwing an error if the article has an invalid category.
-                  let validArticleCategories = ['deploy', 'articles', 'security', 'engineering', 'success stories', 'announcements', 'guides', 'releases', 'podcasts', 'report', 'case study', 'comparison' ];
+                  let validArticleCategories = ['deploy', 'articles', 'security', 'engineering', 'success stories', 'announcements', 'guides', 'releases', 'podcasts', 'report', 'case study', 'comparison', 'whitepaper' ];
                   if(!validArticleCategories.includes(embeddedMetadata.category)) {
                     throw new Error(`Failed compiling markdown content: An article page has an invalid category meta tag (<meta name="category" value="${embeddedMetadata.category}">) at "${path.join(topLvlRepoPath, pageSourcePath)}". To resolve, change the meta tag to a valid category, one of: ${validArticleCategories}`);
                   }
@@ -735,6 +735,17 @@ module.exports = {
                     }
                   }
                 }
+                // If this is a whitepaper article, we'll check to make sure it has a whitepaperFilename and TODO metatags
+                if(embeddedMetadata.category === 'whitepaper') {
+                  if(!embeddedMetadata.whitepaperFilename){
+                    throw new Error(`Failed compiling markdown content: A whitepaper article is missing a 'whitepaperFilename' meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a whitepaperFilename meta tag with a value that is the filename of a PDF whitepaper in the website/assets/pdf folder and try running this script again.`);
+                  } else {
+                    let whitePaperPdfExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/pdfs/'+embeddedMetadata.whitepaperFilename));
+                    if(!whitePaperPdfExists){
+                      throw new Error(`Failed compiling markdown content: A whitepaper article (${path.join(topLvlRepoPath, pageSourcePath)}) has a "whitepaperFilename" meta tag value that references a PDF that is not in the website/assets/pdfs folder (${path.join(topLvlRepoPath, 'website/assets/pdfs/'+embeddedMetadata.whitepaperFilename)}). Was it moved?`);
+                    }
+                  }
+                }
                 // If this is a comparison article, we will require a different set of meta tags and will determine the URL of the page using the articleSlugInCategory meta tag.
                 if(embeddedMetadata.category === 'comparison') {
                   if(!embeddedMetadata.articleSubtitle){
@@ -755,7 +766,7 @@ module.exports = {
                   // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'
                   rootRelativeUrlPath = (
                     '/' +
-                    (encodeURIComponent(embeddedMetadata.category === 'success stories' ? 'success-stories' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category === 'case study' ? 'case-study' : embeddedMetadata.category)) + '/' +
+                    (encodeURIComponent(embeddedMetadata.category === 'success stories' ? 'success-stories' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category === 'whitepaper' ? 'whitepapers' : embeddedMetadata.category === 'case study' ? 'case-study' : embeddedMetadata.category)) + '/' +
                     (pageUnextensionedUnwhitespacedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,'').replace(/\./g, '-'))).join('/'))
                   );
                 }
