@@ -8567,6 +8567,7 @@ Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fl
 - [List queries](#list-queries)
 - [Get query](#get-query)
 - [Get query report](#get-query-report)
+- [List host's reports](#list-hosts-reports)
 - [Get host's query report](#get-hosts-query-report)
 - [Create query](#create-query)
 - [Update query](#update-query)
@@ -8842,11 +8843,55 @@ If a query has no results stored, then `results` will be an empty array:
 
 > Note: osquery scheduled queries do not return errors, so only non-error results are included in the report. If you suspect a query may be running into errors, you can use the [live query](#run-live-query) endpoint to get diagnostics.
 
-### Get host's query report
+### List host's reports
 
-Returns a query report for a single host.
+Returns a list of reports running on a host.
 
-`GET /api/v1/fleet/hosts/:id/queries/:query_id`
+`GET /api/v1/fleet/hosts/:id/reports`
+
+#### Parameters
+
+| Name      | Type    | In    | Description                                |
+| --------- | ------- | ----- | ------------------------------------------ |
+| id        | integer | path  | **Required**. The ID of the desired host.          |
+| order_key       | string  | query | What to order results by. Can be `"name" or `"updated_at"`.                                                             |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| query           | string  | query | Search query keywords. Searchable fields include `name`.                                                                      |
+| page                    | integer | query | Page number of the results to fetch. |
+| per_page                | integer | query | Results per page. |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/reports`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "reports": [
+    {
+      "id": 123,
+      "name": "List USB devices",
+      "description": "TODO",
+      "logging": "snapshot",
+      "discard_data": false,
+      "created_at": "2021-01-19T17:08:24Z",
+      "updated_at": "2021-01-19T17:08:24Z",
+      "result_count": 3,
+      "first_result_columns": {
+        "TODO": "TODO"
+      }
+    }
+  ],
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
+  },
+  "count": 200
+}
+```
 
 #### Parameters
 
