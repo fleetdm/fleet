@@ -7,7 +7,7 @@ From the [MITRE ATT&CK® site](https://attack.mitre.org):"MITRE ATT&CK® is a gl
 knowledge base of adversary tactics and techniques based on real-world observations." Essentially, Fleet and osquery bring the "real-world observations" to the table when you are looking to adopt the MITRE ATT&CK® framework. 
 
 ## Overview
-While osquery is capable of gathering an extremely diverse set of data from macOS, Windows, and Linux hosts, it can be difficult understanding how to use that data. In this article we will translate the techniques and tactics defined by ATT&CK® into queries that we can execute using Fleet. Then we  will provide an example aggregating our logs from Fleet into Splunk Cloud to construct a dashboard of our real-world observations. The intent of this article is to provide a starting point in correlating osquery related observations from host endpoints, using query packs already out in the wild. 
+While osquery is capable of gathering an extremely diverse set of data from macOS, Windows, and Linux hosts, it can be difficult understanding how to use that data. In this article we will translate the techniques and tactics defined by ATT&CK® into queries that we can execute using Fleet. Then we  will provide an example aggregating our logs from Fleet into Splunk Cloud to construct a dashboard of our real-world observations. The intent of this article is to provide a starting point in correlating osquery related observations from host endpoints, using packs already out in the wild. 
 
 
 ## Setting up Fleet and osquery
@@ -39,7 +39,7 @@ For brevity, we are going to focus on the "Process Network Connection" query tha
 ATT&CK® Techniques.
 ![process-network-conn](../website/assets/images/articles/mapping-fleet-and-osquery-results-to-the-mitre-attck-framework-via-splunk-process-network-conn-1769x922@2x.png)
 
-Next, we will add it as a scheduled query with a daily interval. In order to get data quickly into
+Next, we will add it as a scheduled report with a daily interval. In order to get data quickly into
 your osquery results log, you may want to temporarily set the schedule duration to 15 minutes. Don't
 forget to set it back to "Daily" ;).
 ![fleet-scheduled-queries](../website/assets/images/articles/mapping-fleet-and-osquery-results-to-the-mitre-attck-framework-via-splunk-fleet-scheduled-queries-1788x728@2x.png)
@@ -64,7 +64,7 @@ Next, create a new input:
 If everything with the account config works, you should be able to immediately see the results of a
 global index search:
 ![splunk-index](../website/assets/images/articles/mapping-fleet-and-osquery-results-to-the-mitre-attck-framework-via-splunk-global-index-results-1775x915@2x.png)
-Now comes the tough part, or at least it was a bit challenging for me, since I'm no Splunk expert. We’re going to build some SPL (Search Processing Language) to translate the observations we've uncovered via osquery into search results in Splunk. After that, we can drop the search results into a dashboard or even build an alert. That being said though, if this was an alerting use case, I would recommend using the built-in Policies from Fleet to trigger alerts via webhooks. Here's what the first query looks like to get the Process Connections from our Fleet scheduled query and push it to a table in Splunk:
+Now comes the tough part, or at least it was a bit challenging for me, since I'm no Splunk expert. We’re going to build some SPL (Search Processing Language) to translate the observations we've uncovered via osquery into search results in Splunk. After that, we can drop the search results into a dashboard or even build an alert. That being said though, if this was an alerting use case, I would recommend using the built-in Policies from Fleet to trigger alerts via webhooks. Here's what the first query looks like to get the Process Connections from our Fleet scheduled report and push it to a table in Splunk:
 ```
 index="osquery_results" name="pack/Global/ATT&CK® - Process_Network_Conn" | 
 dedup _time, hostname | 

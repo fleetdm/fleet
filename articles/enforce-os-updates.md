@@ -20,13 +20,21 @@ You can enforce OS settings using the Fleet UI, Fleet API, or [Fleet's best prac
 
 4. *macOS only*: check "Update new hosts to latest" if you would like hosts to automatically update to the latest OS version during automatic (ADE) enrollment, regardless of the minimum version and deadline settings.
 
-Fleet API: Use the [modify team endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-team) to turn on minimum OS version enforcement. The relevant payload keys in the `mdm` object are:
-- `macos_updates`
-- `ios_updates`
-- `ipados_updates`
-- `windows_updates`
+Use the [modify fleet endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-team) to turn on minimum OS version enforcement. The relevant payload keys in the `mdm` object are:
++ `macos_updates`
++ `ios_updates`
++ `ipados_updates`
++ `windows_updates`
 
-## Apple (macOS, iOS, and iPadOS)
+## GitOps
+
+OS version enforcement options are declared within the [controls](https://fleetdm.com/docs/configuration/yaml-files#controls) section of a Fleet GitOps YAML file, using the following keys: 
++ [macos_updates](https://fleetdm.com/docs/configuration/yaml-files#macos-updates)
++ [ios_updates](https://fleetdm.com/docs/configuration/yaml-files#ios-updates)
++ [ipados_updates](https://fleetdm.com/docs/configuration/yaml-files#ipados-updates)
++ [windows_updates](https://fleetdm.com/docs/configuration/yaml-files#windows-updates)
+
+## Apple (macOS, iOS, and iPadOS) end user experience
 
 On macOS hosts, when a minimum version is enforced, end users see a native macOS notification (DDM) once per day. Users can choose to update ahead of the deadline or schedule it for that night. 24 hours before the deadline, the notification appears hourly and ignores Do Not Disturb. One hour before the deadline, the notification appears every 30 minutes and then every 10 minutes.
 

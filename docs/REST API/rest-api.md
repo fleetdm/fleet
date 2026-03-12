@@ -4381,6 +4381,8 @@ Request (`filters` is specified and empty, to delete all hosts):
 
 Updates the email for the data source in the human-device mapping. This source can only have one email.
 
+> If you're using the `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` variable in Apple (macOS, iOS, iPadOS) and Windows configuration profiles, overriding the `idp` data source resends the configuraiton profile even if the value is unchanged. This causes performance issues. In the future, Fleet will only resend profiles if the value changes ([coming soon](https://github.com/fleetdm/fleet/issues/41239)). In the interim, please only update the `idp` data source when the value changes.
+
 #### Parameters
 
 | Name       | Type              | In   | Description                                                                   |
@@ -6318,7 +6320,7 @@ solely on the response status code returned by this endpoint.
 
 ### Resend custom OS setting (configuration profile)
 
-Resends a configuration profile for the specified host. Currently, only macOS configuration profiles (.mobileconfig) are supported.
+Resends a configuration profile for the specified host. Currently, macOS, iOS, iPadOS configuration profiles (.mobileconfig) are supported, as well as Windows (.xml) configuration profiles.
 
 `POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/resend`
 
@@ -6399,7 +6401,7 @@ For each `profile`, only one of `labels_include_all`, `labels_include_any`, or `
 
 ### Resend custom OS setting (configuration profile) by Fleet Desktop token
 
-Resends a configuration profile for the specified host. Currently, only macOS configuration profiles (.mobileconfig) are supported.
+Resends a configuration profile for the specified host. Currently, macOS, iOS, iPadOS configuration profiles (.mobileconfig) are supported, as well as Windows (.xml) configuration profiles.
 
 `POST /api/v1/fleet/device/:token/configuration_profiles/:profile_uuid/resend`
 

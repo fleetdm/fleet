@@ -19,8 +19,8 @@ Learn more about automatically installing software [the Automatically install so
 ## Add a custom package
 
 * Navigate to the **Software** page.
-* Select a team (or "No team")
-> Software cannot be added to "All teams."
+* Select a fleet
+> Software cannot be added to "All fleets"
 * Click the **Add software** button in the top right corner.
 * Select the **Custom package** tab.
 * Choose a file to upload. `.pkg`, `.msi`, `.exe`, `.rpm`, `.deb`, `.ipa`, `.tar.gz`, `.sh`, and `.ps1` files are supported.
@@ -92,7 +92,7 @@ Fleet also provides an `$UPGRADE_CODE` placeholder for MSIs. This placeholder is
 
 ## Install the package
 
-After a software package is added to a team, it can be installed on hosts via the UI.
+After a software package is added to a fleet, it can be installed on hosts via the UI.
 
 * Navigate to the **Hosts** page.
 * Select the host where you want to install the software package.
@@ -107,10 +107,10 @@ Once the package is installed, Fleet will automatically refetch the host's vital
 
 ## Edit the package
 
-* Navigate to the **Software** page, choose a team, and select the software you want to edit.
+* Navigate to the **Software** page, choose a fleet, and select the software you want to edit.
   * Use a dropdown above the table to filter software **Available for install** or software available in **Self-service**.
 * On the **Software details** page select **Actions > Edit software** to edit the software's [self-service](https://fleetdm.com/guides/software-self-service) status, change its target to different sets of hosts, or edit advanced options like pre-install query, install script, post-install script, and uninstall script.
-* Select **Actions > Edit appearance** to edit the software's icon and display name. The icon and display name can be edited for software that is available for install. The new icon and display name will appear on the software list and details pages for the team where the package is uploaded, as well as on **My device > Self-service**. If the display name is not set, then the default name (ingested by osquery) will be used.
+* Select **Actions > Edit appearance** to edit the software's icon and display name. The icon and display name can be edited for software that is available for install. The new icon and display name will appear on the software list and details pages for the fleet where the package is uploaded, as well as on **My device > Self-service**. If the display name is not set, then the default name (ingested by osquery) will be used.
 
 > Editing the advanced options cancels all pending installations and uninstallations for that package. Installs and uninstalls currently running on a host will complete, but results won't appear in Fleet. The software's host counts will be reset.
 
@@ -127,11 +127,11 @@ After a software package is installed on a host, it can be uninstalled on the ho
 
 ## Delete the package
 
-* Navigate to the **Software** page, choose a team, and select the software you want to edit.
+* Navigate to the **Software** page, choose a fleet, and select the software you want to edit.
   * Use the dropdown above the table to filter software **Available for install** or software available in **Self-service**.
 * On the **Software details** page, select the **Delete** icon next to the uploaded package file.
 
-> Deleting a software package from a team will cancel pending installs for hosts that are not in the middle of installing the software, but will not uninstall the software from hosts where it is already installed.
+> Deleting a software package from a fleet will cancel pending installs for hosts that are not in the middle of installing the software, but will not uninstall the software from hosts where it is already installed.
 
 ## Manage packages with Fleet's REST API
 

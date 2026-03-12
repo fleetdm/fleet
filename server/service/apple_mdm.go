@@ -3891,6 +3891,12 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				return nil, ctxerr.Wrap(r.Context, err, "DeviceLocation: calling handlers")
 			}
 		}
+
+	case fleet.SetRecoveryLockCmdName:
+		res := NewRecoveryLockResult(cmdResult)
+		if err := svc.runCommandHandlers(r.Context, fleet.SetRecoveryLockCmdName, res); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "SetRecoveryLock: calling handlers")
+		}
 	}
 
 	return nil, nil
@@ -7312,4 +7318,73 @@ func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, dep
 	}
 
 	return nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Apple MDM Recovery Lock Password
+
+// recoveryLockResult wraps mdm.CommandResults to implement fleet.MDMCommandResults
+type recoveryLockResult struct {
+	cmdResult *mdm.CommandResults
+}
+
+func (r *recoveryLockResult) Raw() []byte      { return r.cmdResult.Raw }
+func (r *recoveryLockResult) UUID() string     { return r.cmdResult.CommandUUID }
+func (r *recoveryLockResult) HostUUID() string { return r.cmdResult.UDID } // SetRecoveryLock is device-only, UDID is always present
+
+// NewRecoveryLockResult wraps an mdm.CommandResults to implement fleet.MDMCommandResults
+func NewRecoveryLockResult(cmdResult *mdm.CommandResults) fleet.MDMCommandResults {
+	return &recoveryLockResult{cmdResult: cmdResult}
+}
+
+// NewSetRecoveryLockResultsHandler processes SetRecoveryLock command results.
+// When a SetRecoveryLock command is acknowledged, it marks the recovery lock as verified.
+// On error, it marks the recovery lock as failed.
+func NewSetRecoveryLockResultsHandler(
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) fleet.MDMCommandResultsHandler {
+	return func(ctx context.Context, results fleet.MDMCommandResults) error {
+		// Get the underlying result to access status and error chain
+		rlResult, ok := results.(*recoveryLockResult)
+		if !ok {
+			return ctxerr.New(ctx, "SetRecoveryLock handler: unexpected results type")
+		}
+
+		hostUUID := results.HostUUID()
+		status := rlResult.cmdResult.Status
+
+		logger.DebugContext(ctx, "SetRecoveryLock command result received",
+			"host_uuid", hostUUID,
+			"command_uuid", results.UUID(),
+			"status", status,
+		)
+
+		switch status {
+		case fleet.MDMAppleStatusAcknowledged:
+			// ACK means the password was successfully applied - mark as verified
+			if err := ds.SetRecoveryLockVerified(ctx, hostUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock verified")
+			}
+
+			logger.InfoContext(ctx, "SetRecoveryLock acknowledged, marked verified",
+				"host_uuid", hostUUID,
+			)
+
+		case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
+			errorMsg := apple_mdm.FmtErrorChain(rlResult.cmdResult.ErrorChain)
+			if errorMsg == "" {
+				errorMsg = "SetRecoveryLock command failed"
+			}
+			if err := ds.SetRecoveryLockFailed(ctx, hostUUID, errorMsg); err != nil {
+				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock failed")
+			}
+			logger.WarnContext(ctx, "SetRecoveryLock command failed",
+				"host_uuid", hostUUID,
+				"error", errorMsg,
+			)
+		}
+
+		return nil
+	}
 }
