@@ -153,7 +153,7 @@ export interface IFleetMaintainedAppResponse {
 }
 
 interface IAddFleetMaintainedAppPostBody {
-  team_id: number;
+  fleet_id: number;
   fleet_maintained_app_id: number;
   pre_install_query?: string;
   install_script?: string;
@@ -780,7 +780,7 @@ export default {
     const { SOFTWARE_FLEET_MAINTAINED_APPS } = endpoints;
 
     // Base64 encode script fields to bypass WAF rules that block script patterns
-    const body: Record<string, unknown> = {
+    const body: IAddFleetMaintainedAppPostBody = {
       fleet_id: teamId,
       fleet_maintained_app_id: formData.appId,
       pre_install_query: encodeScriptBase64(formData.preInstallQuery),
