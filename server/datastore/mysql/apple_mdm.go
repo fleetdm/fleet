@@ -7412,13 +7412,22 @@ func (ds *Datastore) ClaimHostsForRecoveryLockClear(ctx context.Context) ([]stri
 	// This includes:
 	// 1. New clears: verified passwords (operation_type='install', status='verified')
 	// 2. Retries: previous clear attempt failed (operation_type='remove', status=NULL)
+	// Also applies the same enrollment/platform filters as GetHostsForRecoveryLockAction
+	// to ensure only hosts that can receive MDM commands are claimed.
 	selectStmt := fmt.Sprintf(`
 		SELECT rkp.host_uuid
 		FROM host_recovery_key_passwords rkp
 		JOIN hosts h ON h.uuid = rkp.host_uuid
+		JOIN nano_enrollments ne ON ne.device_id = h.uuid
+		JOIN host_mdm hm ON hm.host_id = h.id
 		LEFT JOIN teams t ON t.id = h.team_id
 		CROSS JOIN app_config_json ac
 		WHERE rkp.deleted = 0
+		  AND h.platform = 'darwin'
+		  AND h.cpu_type LIKE '%%arm%%'
+		  AND ne.enabled = 1
+		  AND ne.type IN ('Device', 'User Enrollment (Device)')
+		  AND hm.enrolled = 1
 		  AND (
 		      (rkp.operation_type = '%s' AND rkp.status = '%s')
 		      OR
