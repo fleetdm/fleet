@@ -926,6 +926,20 @@
       "description": "Keka is a file archiver."
     },
     {
+      "name": "Krita",
+      "slug": "krita/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.kde.krita",
+      "description": "Krita is a free and open-source digital painting application."
+    },
+    {
+      "name": "Krita",
+      "slug": "krita/windows",
+      "platform": "windows",
+      "unique_identifier": "Krita_x64",
+      "description": "Krita is a free and open-source digital painting application."
+    },
+    {
       "name": "LastPass",
       "slug": "lastpass/windows",
       "platform": "windows",
