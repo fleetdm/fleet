@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"os"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
@@ -27,15 +26,18 @@ func newBinaryFileSystem(root string) *assetfs.AssetFS {
 	}
 }
 
-func ServeFrontend(urlPrefix string, sandbox bool, logger *slog.Logger) http.Handler {
+func ServeFrontend(urlPrefix string, sandbox bool, logger *slog.Logger, serveCSP bool) http.Handler {
 	herr := func(ctx context.Context, w http.ResponseWriter, err string) {
 		logger.ErrorContext(ctx, err)
 		http.Error(w, err, http.StatusInternalServerError)
 	}
-	cspEV := os.Getenv("FLEET_SERVER_ENABLE_CSP")
-	serveCSP := cspEV == "1" || cspEV == "true" || cspEV == "TRUE"
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		nonce := endpointer.WriteBrowserSecurityHeaders(w, serveCSP)
+		ctx := r.Context()
+		nonce, err := endpointer.WriteBrowserSecurityHeaders(w, serveCSP, true)
+		if err != nil {
+			herr(ctx, w, "write browser security headers err: "+err.Error())
+			return
+		}
 
 		// The following check is to prevent a misconfigured osquery from submitting
 		// data to the root endpoint (the osquery remote API uses POST for all its endpoints).
@@ -46,7 +48,6 @@ func ServeFrontend(urlPrefix string, sandbox bool, logger *slog.Logger) http.Han
 		}
 
 		fs := newBinaryFileSystem("/frontend")
-		ctx := r.Context()
 		file, err := fs.Open("templates/react.tmpl")
 		if err != nil {
 			herr(ctx, w, "load react template: "+err.Error())
@@ -88,15 +89,18 @@ func ServeEndUserEnrollOTA(
 	urlPrefix string,
 	ds fleet.Datastore,
 	logger *slog.Logger,
+	serveCSP bool,
 ) http.Handler {
 	herr := func(ctx context.Context, w http.ResponseWriter, err string) {
 		logger.ErrorContext(ctx, err)
 		http.Error(w, err, http.StatusInternalServerError)
 	}
-	cspEV := os.Getenv("FLEET_SERVER_ENABLE_CSP")
-	serveCSP := cspEV == "1" || cspEV == "true" || cspEV == "TRUE"
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		nonce := endpointer.WriteBrowserSecurityHeaders(w, serveCSP)
+		nonce, err := endpointer.WriteBrowserSecurityHeaders(w, serveCSP, true)
+		if err != nil {
+			herr(r.Context(), w, "write browser security headers err: "+err.Error())
+			return
+		}
 		ctx := r.Context()
 		setupRequired, err := svc.SetupRequired(ctx)
 		if err != nil {
@@ -250,9 +254,10 @@ func initiateOTAEnrollSSO(svc fleet.Service, w http.ResponseWriter, r *http.Requ
 	return nil
 }
 
-func ServeStaticAssets(path string) http.Handler {
+func ServeStaticAssets(path string, serveCSP bool) http.Handler {
 	contentTypes := []string{"text/javascript", "text/css"}
-	withoutGzip := http.StripPrefix(path, http.FileServer(newBinaryFileSystem("/assets")))
+	staticAssetsServer := endpointer.BrowserSecurityHeadersHandler(serveCSP, http.FileServer(newBinaryFileSystem("/assets")))
+	withoutGzip := http.StripPrefix(path, staticAssetsServer)
 
 	withOpts, err := gzhttp.NewWrapper(gzhttp.ContentTypes(contentTypes))
 	if err != nil { // fall back to serving without gzip if serving with gzip somehow fails
