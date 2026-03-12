@@ -596,11 +596,11 @@ A value of 0 means no timeout.
 
 ### server_address
 
-the address to serve the fleet webserver.
+The address to serve the Fleet webserver.
 
-- default value: `0.0.0.0:8080`
-- environment variable: `fleet_server_address`
-- config file format:
+- Default value: `0.0.0.0:8080`
+- Environment variable: `FLEET_SERVER_ADDRESS`
+- Config file format:
   ```yaml
   server:
     address: 0.0.0.0:443
