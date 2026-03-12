@@ -51,17 +51,11 @@ With Windows MDM turned on, enroll a Windows host to Fleet by installing [Fleet'
 
 When migrating Windows hosts from another MDM, devices may fail to report MDM as "On." You might see enrollment errors (e.g., ⁠400 or ⁠0x8018000a) in [fleetd logs](https://fleetdm.com/guides/enroll-hosts#debugging).
 
-These issues are caused by residual enrollment data, registry conflicts, or third-party management agents from the previous MDM solution. [Run the scripts](https://fleetdm.com/guides/scripts#manually-run-scripts) below on the affected hosts, then **reboot the device** and select **Refetch** on the host details.
+These issues are caused by residual enrollment data, registry conflicts, tattooed policies, or third-party management agents from the previous MDM solution.
 
+[Run the combined remediation script](https://fleetdm.com/guides/scripts#manually-run-scripts) below on the affected hosts, then **reboot the device** and select **Refetch** on the host details:
 
-- [reset-mdm-enrollment-flag.ps1](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/reset-mdm-enrollment-flag.ps1): Resets the `MmpcEnrollmentFlag` registry value to fix incorrect MDM status reporting after migration.
-
-
-- [remove-stale-mdm-enrollment-records.ps1](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/remove-stale-mdm-enrollment-records.ps1): Removes failed or orphaned MDM enrollment records, AAD discovery cache, and MS DM Server cache left behind by the previous MDM solution.
-
-- [fix-workplace-join-configuration.ps1](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/fix-workplace-join-configuration.ps1): Re-enables the Automatic-Device-Join scheduled task and fixes Workplace Join policies that may be misconfigured after migration.
-
-- [remove-unreachable-wsus-configuration.ps1](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/remove-unreachable-wsus-configuration.ps1): Removes stale WSUS server configurations that can break Windows Update after migration. Only removes the configuration if the WSUS server is unreachable.
+- [fix-windows-mdm-migration.ps1](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/fix-windows-mdm-migration.ps1): Comprehensive remediation script that detects and fixes common post-migration issues. Each fix only runs if the problem is detected. The script handles: incorrect MDM enrollment flags, stale enrollment records and caches, broken Workplace Join configuration, unreachable WSUS server configuration, orphaned EnterpriseMgmt scheduled tasks, and local account lockout caused by tattooed `LocalUsersAndGroups` policies (see [#38985](https://github.com/fleetdm/fleet/issues/38985)).
 
 **Conflicting RMM or management agents:** Third-party RMM agents (such as N-able/SolarWinds, ConnectWise, or Kaseya) installed alongside the previous MDM solution can interfere with Fleet's MDM enrollment and may cause Windows Update to stop functioning. Check for and remove any RMM agents that are no longer needed before or after migrating to Fleet.
 
