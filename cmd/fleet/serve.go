@@ -1378,6 +1378,7 @@ the way that the Fleet server works.
 				}
 			}
 
+			// This is off by default for testing and development uses only.
 			cspEV := os.Getenv("FLEET_SERVER_ENABLE_CSP")
 			serveCSP := cspEV == "1" || cspEV == "true"
 

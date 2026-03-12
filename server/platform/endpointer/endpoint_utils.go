@@ -762,8 +762,8 @@ func newNonce() (string, error) {
 
 func WriteBrowserSecurityHeaders(w http.ResponseWriter, serveCSP, includeNonce bool) (string, error) {
 	// This endpoint can optionally return a nonce if needed for the Content-Security-Policy header. In general only
-	// our HTML responses need the nonce, API and other static assets should not include it
-	// Return an empty but syntactically valid nonce in the unused case since this will still get substituted into HTML templates when unused
+	// our HTML responses need the nonce, API and other static assets should not include it. We return an empty but
+	// syntactically valid nonce in the unused case since this will still get substituted into HTML templates when unused
 	nonce := "disabled"
 	nonceExtraParam := ""
 	// generate a unique nonce for this response

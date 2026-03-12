@@ -33,7 +33,7 @@ func ServeFrontend(urlPrefix string, sandbox bool, logger *slog.Logger, serveCSP
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		nonce, err := endpointer.WriteBrowserSecurityHeaders(w, serveCSP, true)
+		nonce, err := endpointer.WriteBrowserSecurityHeaders(w, serveCSP, serveCSP)
 		if err != nil {
 			herr(ctx, w, "write browser security headers err: "+err.Error())
 			return
@@ -96,7 +96,7 @@ func ServeEndUserEnrollOTA(
 		http.Error(w, err, http.StatusInternalServerError)
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		nonce, err := endpointer.WriteBrowserSecurityHeaders(w, serveCSP, true)
+		nonce, err := endpointer.WriteBrowserSecurityHeaders(w, serveCSP, serveCSP)
 		if err != nil {
 			herr(r.Context(), w, "write browser security headers err: "+err.Error())
 			return
