@@ -335,11 +335,6 @@ export const SoftwareInstallDetailsModal = ({
     );
   };
 
-  // Hide version section for pending installs only
-  const excludeVersions = ["pending_install"].includes(
-    swInstallResult?.status || ""
-  );
-
   const hostDisplayname =
     swInstallResult?.host_display_name || detailsFromProps.host_display_name;
 
@@ -365,12 +360,24 @@ export const SoftwareInstallDetailsModal = ({
     ? inventoryReportsInstalled
     : false;
 
-  // Hide failed details if host shows installed versions (4.82 #31663)
-  const excludeInstallDetails =
+  // Treat failed_install / failed_uninstall with installed versions as installed
+  const overrideFailedMessageWithInstalledMessage =
     canOverrideFailureWithInstalled &&
     ["failed_install", "failed_uninstall"].includes(
-      swInstallResult?.status || ""
+      swInstallResult?.status || "" || ""
     );
+
+  // Hide version section from pending installs or failures that aren't overridden to installed (4.82 #31663)
+  const shouldShowInventoryVersions =
+    (!!hostSoftware &&
+      deviceAuthToken &&
+      ![
+        "pending_install",
+        "failed_install",
+        "failed_uninstall",
+        "pending",
+      ].includes(swInstallResult?.status || "")) ||
+    overrideFailedMessageWithInstalledMessage;
 
   const renderContent = () => {
     if (isInstalledByFleet) {
@@ -433,9 +440,9 @@ export const SoftwareInstallDetailsModal = ({
           canOverrideFailureWithInstalled={canOverrideFailureWithInstalled}
         />
 
-        {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
+        {shouldShowInventoryVersions && renderInventoryVersionsSection()}
         {isInstalledByFleet &&
-          !excludeInstallDetails &&
+          !overrideFailedMessageWithInstalledMessage &&
           renderInstallDetailsSection()}
       </div>
     );

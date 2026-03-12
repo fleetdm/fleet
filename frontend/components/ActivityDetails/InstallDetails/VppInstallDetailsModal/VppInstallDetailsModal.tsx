@@ -405,9 +405,17 @@ export const VppInstallDetailsModal = ({
   const isMDMStatusNotNow = vppCommandResult?.status === "NotNow";
   const isMDMStatusAcknowledged = vppCommandResult?.status === "Acknowledged";
 
-  const excludeVersions =
-    !deviceAuthToken &&
-    ["pending_install", "failed_install", "pending"].includes(displayStatus);
+  // Hide version section from pending installs or failures that aren't overridden to installed (4.82 #31663)
+  const shouldShowInventoryVersions =
+    (!!hostSoftware &&
+      deviceAuthToken &&
+      ![
+        "pending_install",
+        "failed_install",
+        "failed_uninstall",
+        "pending",
+      ].includes(displayStatus)) ||
+    overrideFailedMessageWithInstalledMessage;
 
   const isInstalledByFleet = hostSoftware
     ? !!hostSoftware.app_store_app?.last_install
@@ -513,7 +521,7 @@ export const VppInstallDetailsModal = ({
           iconName={iconName}
           message={<span>{statusMessage}</span>}
         />
-        {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
+        {shouldShowInventoryVersions && renderInventoryVersionsSection()}
         {!isPendingInstall &&
           isInstalledByFleet &&
           !excludeInstallDetails &&

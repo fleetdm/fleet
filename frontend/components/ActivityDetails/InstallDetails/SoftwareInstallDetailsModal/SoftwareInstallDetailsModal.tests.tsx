@@ -103,7 +103,7 @@ describe("SoftwareInstallDetailsModal", () => {
             status: "failed_install",
           })}
           isMyDevicePage={false}
-          hasInstalledVersions
+          canOverrideFailureWithInstalled
         />
       );
 
