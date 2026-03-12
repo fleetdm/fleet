@@ -14,9 +14,8 @@
   }
 
   &__cta-label {
-    font-size: $small;
-    font-weight: $bold;
-    color: $core-fleet-black;
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
   }
 
   &__list {
@@ -57,15 +56,11 @@
     display: flex;
     align-items: center;
     font-size: $x-small;
-    color: $core-fleet-black;
+    color: $ui-fleet-black-75;
 
     a {
-      color: $core-vibrant-blue;
-      text-decoration: none;
-
-      &:hover {
-        text-decoration: underline;
-      }
+      @include link;
+      @include animated-bottom-border;
     }
   }
 
