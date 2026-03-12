@@ -2,6 +2,9 @@ import classnames from "classnames";
 import React from "react";
 import { Tooltip as ReactTooltip5, PlacesType } from "react-tooltip-5";
 
+// eslint-disable-next-line import/no-unresolved
+import "react-tooltip-5/dist/react-tooltip.css";
+
 import { uniqueId } from "lodash";
 
 export interface ITooltipWrapper {
@@ -133,7 +136,7 @@ const TooltipWrapper = ({
           noArrow={!showArrow}
           place={position}
           opacity={1}
-          disableStyleInjection
+          disableStyleInjection="core"
           clickable={clickable}
           offset={tipOffset}
           positionStrategy={fixedPositionStrategy ? "fixed" : "absolute"}
