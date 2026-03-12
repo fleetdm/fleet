@@ -210,7 +210,6 @@ import TextExpander from "./TextExpander";
 import TheUnarchiver from "./TheUnarchiver";
 import Thunderbird from "./Thunderbird";
 import Todoist from "./Todoist";
-import TorBrowser from "./TorBrowser";
 import Tower from "./Tower";
 import Transmit from "./Transmit";
 import Tunnelblick from "./Tunnelblick";
@@ -464,7 +463,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "the unarchiver": TheUnarchiver,
   thunderbird: Thunderbird,
   todoist: Todoist,
-  "tor browser": TorBrowser,
   tower: Tower,
   transmit: Transmit,
   tunnelblick: Tunnelblick,
