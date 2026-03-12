@@ -7,6 +7,7 @@ import Select, {
   StylesConfig,
 } from "react-select-5";
 import { upperFirst } from "lodash";
+import { CacheProvider } from "@emotion/react";
 
 import { COLORS } from "styles/var/colors";
 import { PADDING } from "styles/var/padding";
@@ -22,6 +23,7 @@ import {
 } from "interfaces/team";
 
 import Icon from "components/Icon";
+import { emotionCache } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
 export interface INumberDropdownOption extends Omit<IDropdownOption, "value"> {
   value: number; // Redefine the value property to be just number
@@ -131,22 +133,22 @@ const TeamsDropdown = ({
 
   const [variableControlStyles, variableSingleValueStyles] = asFormField
     ? [
-        {
-          padding: ".5rem 1rem",
-          backgroundColor: COLORS["ui-light-grey"],
-        },
-        {},
-      ]
+      {
+        padding: ".5rem 1rem",
+        backgroundColor: COLORS["ui-light-grey"],
+      },
+      {},
+    ]
     : [
-        {
-          padding: "8px 0",
-          backgroundColor: "initial",
-          border: 0,
-        },
-        {
-          fontSize: "24px",
-        },
-      ];
+      {
+        padding: "8px 0",
+        backgroundColor: "initial",
+        border: 0,
+      },
+      {
+        fontSize: "24px",
+      },
+    ];
 
   // see https://react-select.com/styles#the-styles-prop
   const customStyles: StylesConfig<INumberDropdownOption, false> = {
@@ -281,30 +283,32 @@ const TeamsDropdown = ({
 
   return (
     <div className={dropdownWrapperClasses}>
-      <Select<INumberDropdownOption, false>
-        options={teamOptions}
-        placeholder="All fleets"
-        onChange={(newValue) => {
-          if (newValue) {
-            onChange(newValue.value);
-          }
-          // If newValue is null or undefined, we don't call onChange
-        }}
-        isDisabled={isDisabled}
-        isSearchable
-        noOptionsMessage={() => "No matching fleets"}
-        styles={customStyles}
-        components={{
-          DropdownIndicator: CustomDropdownIndicator,
-          IndicatorSeparator: () => null,
-        }}
-        value={teamOptions.find((option) => option.value === selectedValue)}
-        isOptionSelected={() => false} // Hides any styling on selected option
-        className={baseClass}
-        classNamePrefix={baseClass}
-        onMenuOpen={onOpen}
-        onMenuClose={onClose}
-      />
+      <CacheProvider value={emotionCache}>
+        <Select<INumberDropdownOption, false>
+          options={teamOptions}
+          placeholder="All fleets"
+          onChange={(newValue) => {
+            if (newValue) {
+              onChange(newValue.value);
+            }
+            // If newValue is null or undefined, we don't call onChange
+          }}
+          isDisabled={isDisabled}
+          isSearchable
+          noOptionsMessage={() => "No matching fleets"}
+          styles={customStyles}
+          components={{
+            DropdownIndicator: CustomDropdownIndicator,
+            IndicatorSeparator: () => null,
+          }}
+          value={teamOptions.find((option) => option.value === selectedValue)}
+          isOptionSelected={() => false} // Hides any styling on selected option
+          className={baseClass}
+          classNamePrefix={baseClass}
+          onMenuOpen={onOpen}
+          onMenuClose={onClose}
+        />
+      </CacheProvider>
     </div>
   );
 };

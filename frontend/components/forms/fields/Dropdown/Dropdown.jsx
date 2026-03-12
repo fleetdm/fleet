@@ -3,6 +3,8 @@ import PropTypes from "prop-types";
 import classnames from "classnames";
 import { noop, pick } from "lodash";
 import Select from "react-select";
+import { CacheProvider } from "@emotion/react";
+import createCache from "@emotion/cache";
 
 import dropdownOptionInterface from "interfaces/dropdownOption";
 import FormField from "components/forms/FormField";
@@ -214,25 +216,27 @@ class Dropdown extends Component {
         type="dropdown"
         className={wrapperClassName}
       >
-        <Select
-          className={selectClasses}
-          clearable={clearable}
-          disabled={disabled}
-          multi={multi}
-          searchable={searchable}
-          name={`${name}-select`}
-          onChange={handleChange}
-          options={options}
-          optionRenderer={renderOption}
-          placeholder={placeholder}
-          value={value}
-          onOpen={onMenuOpen}
-          onClose={onMenuClose}
-          autoFocus={autoFocus}
-          arrowRenderer={renderCustomDropdownArrow}
-          valueComponent={iconName ? renderWithIcon : undefined}
-          tabIndex={disabled ? -1 : 0} // Ensures disabled dropdown has no keyboard accessibility
-        />
+        <CacheProvider value={emotonCache}>
+          <Select
+            className={selectClasses}
+            clearable={clearable}
+            disabled={disabled}
+            multi={multi}
+            searchable={searchable}
+            name={`${name}-select`}
+            onChange={handleChange}
+            options={options}
+            optionRenderer={renderOption}
+            placeholder={placeholder}
+            value={value}
+            onOpen={onMenuOpen}
+            onClose={onMenuClose}
+            autoFocus={autoFocus}
+            arrowRenderer={renderCustomDropdownArrow}
+            valueComponent={iconName ? renderWithIcon : undefined}
+            tabIndex={disabled ? -1 : 0} // Ensures disabled dropdown has no keyboard accessibility
+          />
+        </CacheProvider>
       </FormField>
     );
   }
