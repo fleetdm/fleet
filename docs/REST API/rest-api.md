@@ -5532,6 +5532,7 @@ Lists the saved queries (reports) that run on a host, along with the first resul
 | Name               | Type    | In    | Description                                                                                                   |
 | ------------------ | ------- | ----- | ------------------------------------------------------------------------------------------------------------- |
 | id                 | integer | path  | **Required**. The host's ID.                                                                                  |
+| query              | string  | query | Search reports by name. Partial matches are supported.                                                        |
 | exclude_no_results | boolean | query | If `true`, exclude reports that don't save results. Default is `false`.                                       |
 | page               | integer | query | Page number of the results to fetch.                                                                          |
 | per_page           | integer | query | Results per page.                                                                                             |
@@ -5550,47 +5551,46 @@ Lists the saved queries (reports) that run on a host, along with the first resul
 {
   "reports": [
     {
-      "query_id": 31,
+      "report_id": 31,
       "name": "usb_devices",
       "description": "Retrieves USB devices and their details.",
       "query": "SELECT model, vendor FROM usb_devices;",
       "discard_data": false,
+      "total_results_count": 4,
       "updated_at": "2021-01-19T17:08:31Z",
       "last_fetched": "2021-01-19T17:08:31Z",
-      "result": {
-        "columns": {
-          "model": "USB 2.0 Hub",
-          "vendor": "VIA Labs, Inc."
-        }
+      "first_result_columns": {
+        "model": "USB 2.0 Hub",
+        "vendor": "VIA Labs, Inc."
       }
     },
     {
-      "query_id": 44,
+      "report_id": 44,
       "name": "os_version",
       "description": "Retrieves the host's operating system version.",
       "query": "SELECT name, version, major, minor, patch FROM os_version;",
       "discard_data": false,
+      "total_results_count": 1,
       "updated_at": "2021-01-20T14:52:09Z",
       "last_fetched": "2021-01-20T14:52:09Z",
-      "result": {
-        "columns": {
-          "name": "macOS",
-          "version": "14.2.1",
-          "major": "14",
-          "minor": "2",
-          "patch": "1"
-        }
+      "first_result_columns": {
+        "name": "macOS",
+        "version": "14.2.1",
+        "major": "14",
+        "minor": "2",
+        "patch": "1"
       }
     },
     {
-      "query_id": 52,
+      "report_id": 52,
       "name": "disk_encryption",
       "description": "Checks disk encryption status.",
       "query": "SELECT 1 FROM disk_encryption WHERE encrypted = 1;",
       "discard_data": true,
+      "total_results_count": 0,
       "updated_at": "2021-01-21T09:30:00Z",
       "last_fetched": null,
-      "result": null
+      "first_result_columns": null
     }
   ],
   "meta": {
@@ -5600,7 +5600,7 @@ Lists the saved queries (reports) that run on a host, along with the first resul
 }
 ```
 
-> Note: Reports with `discard_data` set to `true` will have `null` for both `last_fetched` and `result`, as results are not stored. Use `exclude_no_results` to filter these out.
+> Note: Reports with `discard_data` set to `true` will have `null` for both `last_fetched` and `first_result_columns`, as results are not stored. Use `exclude_no_results` to filter these out.
 
 ## Bypass host's conditional access
 
