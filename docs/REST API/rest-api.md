@@ -8865,7 +8865,7 @@ Lists the saved reports that run on a host, along with the first result for each
 | exclude_no_results | boolean | query | If `true`, exclude reports that don't save results. Default is `false`.                                       |
 | page               | integer | query | Page number of the results to fetch.                                                                          |
 | per_page           | integer | query | Results per page.                                                                                             |
-| order_key          | string  | query | What to order results by. Valid options are `"name"` and `"updated_at"`. Default is `"name"`.                 |
+| order_key          | string  | query | What to order results by. Valid options are `"name"` and `"last_fetched"`. Default is `"name"`.               |
 | order_direction    | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 
 #### Example
@@ -8887,7 +8887,6 @@ Lists the saved reports that run on a host, along with the first result for each
       "logging": "snapshot",
       "discard_data": false,
       "total_results_count": 4,
-      "updated_at": "2021-01-19T17:08:31Z",
       "last_fetched": "2021-01-19T17:08:31Z",
       "first_result_columns": {
         "model": "USB 2.0 Hub",
@@ -8902,7 +8901,6 @@ Lists the saved reports that run on a host, along with the first result for each
       "logging": "differential",
       "discard_data": false,
       "total_results_count": 1,
-      "updated_at": "2021-01-20T14:52:09Z",
       "last_fetched": "2021-01-20T14:52:09Z",
       "first_result_columns": {
         "name": "macOS",
@@ -8920,8 +8918,7 @@ Lists the saved reports that run on a host, along with the first result for each
       "logging": "snapshot",
       "discard_data": true,
       "total_results_count": 0,
-      "updated_at": "2021-01-21T09:30:00Z",
-      "last_fetched": null,
+      "last_fetched": "2021-01-21T09:30:00Z",
       "first_result_columns": null
     }
   ],
@@ -8932,8 +8929,6 @@ Lists the saved reports that run on a host, along with the first result for each
   "count": 3
 }
 ```
-
-> Note: Reports with `discard_data` set to `true` will have `null` for both `last_fetched` and `first_result_columns`, as results are not stored. Use `exclude_no_results` to filter these out.
 
 ### Get host's query report
 
