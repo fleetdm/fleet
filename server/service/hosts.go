@@ -3712,7 +3712,7 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 		return nil, err
 	}
 
-	host, err := svc.ds.HostLite(ctx, hostID)
+	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host")
 	}
@@ -3720,6 +3720,11 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 	// Require admin or maintainer role (ActionWrite) for this sensitive data
 	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
 		return nil, err
+	}
+
+	// Recovery lock is only supported on Apple Silicon macOS hosts
+	if host.Platform != "darwin" || !strings.Contains(strings.ToLower(host.CPUType), "arm") {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "recovery lock is only available on Apple Silicon macOS hosts"), "check host platform and cpu type")
 	}
 
 	// Check that MDM is enabled
