@@ -6866,7 +6866,6 @@ func TestMDMTokenUpdateSCEPRenewal(t *testing.T) {
 			return nil, nil
 		}
 		ds.NewJobFunc = func(ctx context.Context, j *fleet.Job) (*fleet.Job, error) {
-			fmt.Println("Called new job")
 			return j, nil
 		}
 
