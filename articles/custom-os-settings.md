@@ -89,7 +89,7 @@ For macOS configuration profiles and device-scoped Windows profiles, Fleet verif
 
 macOS declarations profiles are verified with a [DDM StatusReport](https://developer.apple.com/documentation/devicemanagement/statusreport).
 
-User-scoped Windows profiles are "Verified" after Fleet gets a [200 response](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes) from the Windows MDM protocol. _Note: Windows profiles are not verified by osquery._
+All Windows profiles are "Verified" after Fleet gets a [200 response](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes) from the Windows MDM protocol. _Note: Windows profiles are not verified by osquery._
 
 iOS and iPadOS hosts are "Verified" after they acknowledge all MDM commands to apply OS settings. Android hosts are "Verified" after Fleet verifies that the settings is applied in the next [status report](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices).
 
@@ -97,7 +97,7 @@ iOS and iPadOS hosts are "Verified" after they acknowledge all MDM commands to a
 
 Hosts that acknowledged all MDM commands to apply OS settings. Fleet is verifying. If the profile wasn't delivered, Fleet will redeliver the profile.
 
-For Windows profiles, when Fleet gets a [200 response](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes) from the Windows MDM protocol, device-scoped profiles are "Verifying" but, currently, user-scoped Windows profiles go straight to "Verified."
+_Note: Windows profiles do not go through verifiying/verification._
 
 ### Pending
 
