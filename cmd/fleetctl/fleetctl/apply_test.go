@@ -4002,7 +4002,7 @@ spec:
       macos_settings:
         enable_disk_encryption: true
 `,
-			wantErr: `Couldn't update macos_settings because MDM features aren't turned on in Fleet.`,
+			wantErr: `Couldn't update apple_settings because MDM features aren't turned on in Fleet.`,
 		},
 		{
 			desc: "team config macos_settings.enable_disk_encryption false",
