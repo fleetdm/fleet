@@ -158,10 +158,12 @@ describe("SoftwareIpaInstallDetailsModal component", () => {
     await waitFor(() => {
       expect(screen.getByText(/is installed\./i)).toBeInTheDocument();
       expect(screen.getByText(/Current version/i)).toBeInTheDocument();
+      expect(screen.getByTestId("success-icon")).toBeInTheDocument();
     });
 
     // No failure wording when treated as installed
     expect(screen.queryByText(/failed to install/i)).not.toBeInTheDocument();
+    expect(screen.queryAllByTestId("error-icon")).toBeInTheDocument();
     expect(
       screen.queryByText(/Please re-attempt this installation/i)
     ).not.toBeInTheDocument();

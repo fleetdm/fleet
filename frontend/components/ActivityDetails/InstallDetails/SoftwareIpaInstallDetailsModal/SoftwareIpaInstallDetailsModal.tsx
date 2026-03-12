@@ -303,10 +303,6 @@ export const SoftwareIpaInstallDetailsModal = ({
   // True when host inventory reports at least one installed version for this app.
   const inventoryReportsInstalled = !!hostSoftware?.installed_versions?.length;
 
-  // True when the IPA command result metadata says the app is installed on the host.
-  const commandReportsInstalled =
-    (swInstallResult?.results_metadata?.software_installed as boolean) ?? false;
-
   // This modal is opened in two contexts:
   // - From Host -> Software: hostSoftware is defined (we trust inventory to override failures).
   // - From the Activity feed: hostSoftware is undefined (we trust command result status).
