@@ -5,7 +5,6 @@ import React, {
   useContext,
   useRef,
 } from "react";
-import { Link } from "react-router";
 import PATHS from "router/paths";
 
 import { PRIMO_TOOLTIP } from "utilities/constants";
@@ -390,12 +389,11 @@ const UserForm = ({
         <p>
           Expecting to see fleets? Try again in a few seconds as the system
           catches up or&nbsp;
-          <Link
+          <CustomLink
             className={`${baseClass}__create-team-link`}
-            to={PATHS.ADMIN_FLEETS}
-          >
-            create a fleet
-          </Link>
+            url={PATHS.ADMIN_FLEETS}
+            text="create a fleet"
+          />
           .
         </p>
       </div>
