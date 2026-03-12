@@ -772,6 +772,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/mdm/profiles/summary", getMDMProfilesSummaryEndpoint, getMDMProfilesSummaryRequest{})
 	ue.GET("/api/_version_/fleet/configuration_profiles/summary", getMDMProfilesSummaryEndpoint, getMDMProfilesSummaryRequest{})
 
+	// Security baselines
+	ue.GET("/api/_version_/fleet/mdm/baselines", listBaselinesEndpoint, listBaselinesRequest{})
+	ue.POST("/api/_version_/fleet/mdm/baselines/apply", applyBaselineEndpoint, applyBaselineRequest{})
+	ue.DELETE("/api/_version_/fleet/mdm/baselines/{baseline_id}/teams/{team_id}", removeBaselineEndpoint, removeBaselineRequest{})
+
 	// Deprecated: GET /mdm/profiles/:profile_uuid is now deprecated, replaced by
 	// GET /configuration_profiles/:profile_uuid.
 	mdmAnyMW.GET("/api/_version_/fleet/mdm/profiles/{profile_uuid}", getMDMConfigProfileEndpoint, getMDMConfigProfileRequest{})
