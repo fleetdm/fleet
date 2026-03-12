@@ -30,6 +30,51 @@ const DiscardDataOption = ({
     selectedLoggingType === "differential" ||
     selectedLoggingType === "differential_ignore_removals";
 
+  const renderHelpText = () => (
+    <>
+      {isDisabled ? (
+        <>
+          This setting is ignored because reports in Fleet have been{" "}
+          <TooltipWrapper
+            tipContent={
+              <>
+                A Fleet administrator can enable reports under <br />
+                <b>
+                  Organization settings &gt; Advanced options &gt; Disable
+                  reports
+                </b>
+                .
+              </>
+            }
+          >
+            globally disabled.
+          </TooltipWrapper>
+          <Button
+            onClick={(e: React.MouseEvent) => {
+              e.preventDefault();
+              setForceEditDiscardData(true);
+            }}
+            variant="text-icon"
+            size="small"
+            className={`${baseClass}__edit-anyway`}
+            iconStroke
+          >
+            <>
+              Edit anyway
+              <Icon
+                name="chevron-right"
+                color="ui-fleet-black-75"
+                size="small"
+              />
+            </>
+          </Button>
+        </>
+      ) : (
+        "The most recent results for each host will not be available in Fleet."
+      )}
+    </>
+  );
+
   return (
     <div className={baseClass}>
       {isReportsLoggingIgnored && (
@@ -43,50 +88,7 @@ const DiscardDataOption = ({
         onChange={setDiscardData}
         value={discardData}
         disabled={isDisabled}
-        helpText={
-          <div className="help-text">
-            {isDisabled ? (
-              <>
-                This setting is ignored because reports in Fleet have been{" "}
-                <TooltipWrapper
-                  tipContent={
-                    <>
-                      A Fleet administrator can enable reports under <br />
-                      <b>
-                        Organization settings &gt; Advanced options &gt; Disable
-                        reports
-                      </b>
-                      .
-                    </>
-                  }
-                >
-                  globally disabled.
-                </TooltipWrapper>
-                <Button
-                  onClick={(e: React.MouseEvent) => {
-                    e.preventDefault();
-                    setForceEditDiscardData(true);
-                  }}
-                  variant="text-icon"
-                  size="small"
-                  className={`${baseClass}__edit-anyway`}
-                  iconStroke
-                >
-                  <>
-                    Edit anyway
-                    <Icon
-                      name="chevron-right"
-                      color="ui-fleet-black-75"
-                      size="small"
-                    />
-                  </>
-                </Button>
-              </>
-            ) : (
-              "The most recent results for each host will not be available in Fleet."
-            )}
-          </div>
-        }
+        helpText={renderHelpText()}
       >
         Discard data
       </Checkbox>
