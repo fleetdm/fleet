@@ -7406,3 +7406,89 @@ func (ds *Datastore) ClearRecoveryLockPendingStatus(ctx context.Context, hostUUI
 
 	return nil
 }
+
+func (ds *Datastore) ClaimHostsForRecoveryLockClear(ctx context.Context) ([]string, error) {
+	// Query hosts that need recovery lock cleared where config has it disabled.
+	// This includes:
+	// 1. New clears: verified passwords (operation_type='install', status='verified')
+	// 2. Retries: previous clear attempt failed (operation_type='remove', status=NULL)
+	selectStmt := fmt.Sprintf(`
+		SELECT rkp.host_uuid
+		FROM host_recovery_key_passwords rkp
+		JOIN hosts h ON h.uuid = rkp.host_uuid
+		LEFT JOIN teams t ON t.id = h.team_id
+		CROSS JOIN app_config_json ac
+		WHERE rkp.deleted = 0
+		  AND (
+		      (rkp.operation_type = '%s' AND rkp.status = '%s')
+		      OR
+		      (rkp.operation_type = '%s' AND rkp.status IS NULL)
+		  )
+		  AND (
+		      (h.team_id IS NOT NULL AND JSON_EXTRACT(t.config, '$.mdm.enable_recovery_lock_password') = false)
+		      OR
+		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.enable_recovery_lock_password') = false)
+		  )
+		LIMIT 500
+		FOR UPDATE
+	`, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeRemove)
+
+	// Update all claimed hosts to remove/pending
+	updateStmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET operation_type = '%s', status = '%s'
+		WHERE host_uuid IN (?)
+	`, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending)
+
+	var hostUUIDs []string
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := sqlx.SelectContext(ctx, tx, &hostUUIDs, selectStmt); err != nil {
+			return ctxerr.Wrap(ctx, err, "select hosts for recovery lock clear")
+		}
+
+		if len(hostUUIDs) == 0 {
+			return nil
+		}
+
+		query, args, err := sqlx.In(updateStmt, hostUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build update query")
+		}
+
+		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "mark hosts pending for clear")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return hostUUIDs, nil
+}
+
+func (ds *Datastore) DeleteHostRecoveryLockPassword(ctx context.Context, hostUUID string) error {
+	stmt := fmt.Sprintf(`UPDATE host_recovery_key_passwords SET deleted = 1, status = '%s' WHERE host_uuid = ? AND deleted = 0`, fleet.MDMDeliveryVerified)
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "soft delete host recovery lock password")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) GetRecoveryLockOperationType(ctx context.Context, hostUUID string) (fleet.MDMOperationType, error) {
+	const stmt = `SELECT operation_type FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`
+
+	var opType fleet.MDMOperationType
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &opType, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
+				WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+		}
+		return "", ctxerr.Wrap(ctx, err, "get recovery lock operation type")
+	}
+
+	return opType, nil
+}

@@ -295,6 +295,10 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 	t.Run("acknowledged sets verified", func(t *testing.T) {
 		ds := new(mock.DataStore)
 
+		// Mock GetRecoveryLockOperationType to return 'install' (SET operation)
+		ds.GetRecoveryLockOperationTypeFunc = func(_ context.Context, hUUID string) (fleet.MDMOperationType, error) {
+			return fleet.MDMOperationTypeInstall, nil
+		}
 		var verifiedCalled bool
 		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, hUUID string) error {
 			verifiedCalled = true
@@ -321,6 +325,10 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 	t.Run("error status sets failed", func(t *testing.T) {
 		ds := new(mock.DataStore)
 
+		// Mock GetRecoveryLockOperationType to return 'install' (SET operation)
+		ds.GetRecoveryLockOperationTypeFunc = func(_ context.Context, hUUID string) (fleet.MDMOperationType, error) {
+			return fleet.MDMOperationTypeInstall, nil
+		}
 		var failedCalled bool
 		var capturedError string
 		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
@@ -350,6 +358,10 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 	t.Run("command format error sets failed with default message", func(t *testing.T) {
 		ds := new(mock.DataStore)
 
+		// Mock GetRecoveryLockOperationType to return 'install' (SET operation)
+		ds.GetRecoveryLockOperationTypeFunc = func(_ context.Context, hUUID string) (fleet.MDMOperationType, error) {
+			return fleet.MDMOperationTypeInstall, nil
+		}
 		var capturedError string
 		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
 			capturedError = errorMsg
@@ -369,5 +381,66 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, "SetRecoveryLock command failed", capturedError)
+	})
+
+	t.Run("acknowledged clear deletes password", func(t *testing.T) {
+		ds := new(mock.DataStore)
+
+		// Mock GetRecoveryLockOperationType to return 'remove' (CLEAR operation)
+		ds.GetRecoveryLockOperationTypeFunc = func(_ context.Context, hUUID string) (fleet.MDMOperationType, error) {
+			return fleet.MDMOperationTypeRemove, nil
+		}
+		var deleteCalled bool
+		ds.DeleteHostRecoveryLockPasswordFunc = func(_ context.Context, hUUID string) error {
+			deleteCalled = true
+			assert.Equal(t, hostUUID, hUUID)
+			return nil
+		}
+
+		handler := NewSetRecoveryLockResultsHandler(ds, logger)
+
+		result := NewRecoveryLockResult(&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: cmdUUID,
+			Status:      fleet.MDMAppleStatusAcknowledged,
+			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
+		})
+
+		err := handler(ctx, result)
+		require.NoError(t, err)
+
+		assert.True(t, deleteCalled)
+	})
+
+	t.Run("error clear sets failed", func(t *testing.T) {
+		ds := new(mock.DataStore)
+
+		// Mock GetRecoveryLockOperationType to return 'remove' (CLEAR operation)
+		ds.GetRecoveryLockOperationTypeFunc = func(_ context.Context, hUUID string) (fleet.MDMOperationType, error) {
+			return fleet.MDMOperationTypeRemove, nil
+		}
+		var failedCalled bool
+		var capturedError string
+		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
+			failedCalled = true
+			capturedError = errorMsg
+			return nil
+		}
+
+		handler := NewSetRecoveryLockResultsHandler(ds, logger)
+
+		result := NewRecoveryLockResult(&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: cmdUUID,
+			Status:      fleet.MDMAppleStatusError,
+			ErrorChain:  []mdm.ErrorChain{{ErrorCode: 12345, ErrorDomain: "test", LocalizedDescription: "Clear failed"}},
+			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
+		})
+
+		err := handler(ctx, result)
+		require.NoError(t, err)
+
+		assert.True(t, failedCalled)
+		assert.Contains(t, capturedError, "Clear failed")
 	})
 }

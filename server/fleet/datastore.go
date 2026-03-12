@@ -1520,6 +1520,19 @@ type Datastore interface {
 	// be picked up again on the next cron run.
 	ClearRecoveryLockPendingStatus(ctx context.Context, hostUUIDs []string) error
 
+	// ClaimHostsForRecoveryLockClear returns host UUIDs that need their recovery lock
+	// cleared and marks them as pending. Returns hosts with operation_type='remove' and
+	// status=NULL where the team/appconfig has enable_recovery_lock_password=false.
+	ClaimHostsForRecoveryLockClear(ctx context.Context) ([]string, error)
+
+	// DeleteHostRecoveryLockPassword deletes the recovery lock password record for the given host.
+	// Called after a successful clear operation.
+	DeleteHostRecoveryLockPassword(ctx context.Context, hostUUID string) error
+
+	// GetRecoveryLockOperationType returns the current operation type for the host's recovery lock.
+	// Used by the result handler to determine if this was a set or clear operation.
+	GetRecoveryLockOperationType(ctx context.Context, hostUUID string) (MDMOperationType, error)
+
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
 	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage, pkgStore MDMBootstrapPackageStore) error
