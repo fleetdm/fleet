@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -12,7 +14,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -751,15 +752,31 @@ func MakeDecoder(
 
 // TODO perhaps use just basic RNG. Nonce may only include valid base64 chars after the "nonce-" portion, so
 // we must strip dashes
-func newNonce() string {
-	return "8IBTHwOdqNKAWeKl7plt8g=="
+func newNonce() (string, error) {
+	b := make([]byte, 16)
+	if _, err := io.ReadFull(rand.Reader, b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
-func WriteBrowserSecurityHeaders(w http.ResponseWriter, serveCSP bool) string {
+func WriteBrowserSecurityHeaders(w http.ResponseWriter, serveCSP, includeNonce bool) (string, error) {
+	// This endpoint can optionally return a nonce if needed for the Content-Security-Policy header. In general only
+	// our HTML responses need the nonce, API and other static assets should not include it
+	nonce := ""
+	nonceExtraParam := ""
+	// generate a unique nonce for this response
+	if includeNonce {
+		var err error
+		nonce, err = newNonce()
+		if err != nil {
+			return "", err
+		}
+		nonceExtraParam = fmt.Sprintf(" 'nonce-%s'", nonce)
+	}
 	// Strict-Transport-Security informs browsers that the site should only be
 	// accessed using HTTPS, and that any future attempts to access it using
 	// HTTP should automatically be converted to HTTPS.
-	nonce := newNonce() // generate a unique nonce for this response
 	w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains;")
 	// X-Frames-Options disallows embedding the UI in other sites via <frame>,
 	// <iframe>, <embed> or <object>, which can prevent attacks like
@@ -773,12 +790,24 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter, serveCSP bool) string {
 	// Referer.
 	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 	if serveCSP {
-		// TODO Is https OK for img-src? We allow customers to upload their own images and we have to reach out to gravatar for them.
-		// TODO: Fix unsafe-inline style-src
+		// TODO Is https OK for img-src? We allow customers to upload their own images and we have to reach out to gravatar for others.
 		// NB: If default-src ever changes from 'none' make sure to add object-src 'none'
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; base-uri 'self'; connect-src 'self' www.gravatar.com ws: wss:; img-src 'self' www.gravatar.com data: https:; style-src 'self' 'nonce-"+nonce+"'; font-src 'self'; script-src 'self' 'nonce-"+nonce+"'")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; base-uri 'self'; connect-src 'self' www.gravatar.com ws: wss:; img-src 'self' www.gravatar.com data: https:; style-src 'self'"+nonceExtraParam+"; font-src 'self'; script-src 'self'"+nonceExtraParam)
 	}
-	return nonce
+	return nonce, nil
+}
+
+func BrowserSecurityHeadersHandler(serveCSP bool, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// We don't implement a way to access the nonce here in the generic case, however the few endpoints that need it should implement
+		// their own handling
+		_, err := WriteBrowserSecurityHeaders(w, serveCSP, false)
+		if err != nil {
+			http.Error(w, "failed to write browser security headers", http.StatusInternalServerError)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
 }
 
 // handlerKey identifies a registered handler by HTTP method and unversioned path template.
@@ -1128,14 +1157,12 @@ func EncodeCommonResponse(
 		cs.SetCookies(ctx, w)
 	}
 
-	cspEV := os.Getenv("FLEET_SERVER_ENABLE_CSP")
-	serveCSP := cspEV == "1" || cspEV == "true" || cspEV == "TRUE"
-
 	// The has to happen first, if an error happens we'll redirect to an error
 	// page and the error will be logged
 	if page, ok := response.(htmlPage); ok {
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-		WriteBrowserSecurityHeaders(w, serveCSP)
+		// TODO: pass a variable in here to incidate whether or not to serve a CSP. Hardcoded for now
+		WriteBrowserSecurityHeaders(w, true, false)
 		if coder, ok := page.Error().(kithttp.StatusCoder); ok {
 			w.WriteHeader(coder.StatusCode())
 		}

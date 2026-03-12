@@ -512,7 +512,7 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 
 func TestWriteBrowserSecurityHeaders(t *testing.T) {
 	w := httptest.NewRecorder()
-	endpointer.WriteBrowserSecurityHeaders(w)
+	endpointer.WriteBrowserSecurityHeaders(w, false, false)
 	headers := w.Header()
 	require.Equal(
 		t,
