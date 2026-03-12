@@ -11,8 +11,6 @@
 
 import classnames from "classnames";
 import React from "react";
-import createCache from "@emotion/cache";
-import { CacheProvider } from "@emotion/react";
 import Select, {
   components,
   DropdownIndicatorProps,
@@ -37,18 +35,6 @@ interface CustomOptionProps
   extends Omit<OptionProps<CustomOptionType, false>, "data"> {
   data: CustomOptionType;
 }
-
-console.log(
-  "Creating emotion cache with nonce:",
-  document.querySelector('meta[property="csp-nonce"]')?.getAttribute("content")
-);
-export const emotionCache = createCache({
-  key: "dropdown-emotion-cache",
-  nonce:
-    document
-      .querySelector('meta[property="csp-nonce"]')
-      ?.getAttribute("content") || "",
-});
 
 const baseClass = "dropdown-wrapper";
 
@@ -523,28 +509,26 @@ const DropdownWrapper = ({
       type="dropdown"
       className={wrapperClassNames}
     >
-      <CacheProvider value={emotionCache}>
-        <Select<CustomOptionType, false>
-          classNamePrefix="react-select"
-          isSearchable={isSearchable}
-          styles={generateCustomDropdownStyles(variant, isDisabled, nowrapMenu)}
-          options={options}
-          components={{
-            Option: CustomOption,
-            DropdownIndicator: CustomDropdownIndicator,
-            IndicatorSeparator: () => null,
-            ValueContainer,
-          }}
-          value={getCurrentValue()}
-          onChange={handleChange}
-          isDisabled={isDisabled}
-          noOptionsMessage={() => customNoOptionsMessage ?? "No results found"}
-          tabIndex={isDisabled ? -1 : 0} // Ensures disabled dropdown has no keyboard accessibility
-          placeholder={placeholder}
-          onMenuOpen={onMenuOpen}
-          controlShouldRenderValue={variant !== "button"} // Control doesn't change placeholder to selected value
-        />
-      </CacheProvider>
+      <Select<CustomOptionType, false>
+        classNamePrefix="react-select"
+        isSearchable={isSearchable}
+        styles={generateCustomDropdownStyles(variant, isDisabled, nowrapMenu)}
+        options={options}
+        components={{
+          Option: CustomOption,
+          DropdownIndicator: CustomDropdownIndicator,
+          IndicatorSeparator: () => null,
+          ValueContainer,
+        }}
+        value={getCurrentValue()}
+        onChange={handleChange}
+        isDisabled={isDisabled}
+        noOptionsMessage={() => customNoOptionsMessage ?? "No results found"}
+        tabIndex={isDisabled ? -1 : 0} // Ensures disabled dropdown has no keyboard accessibility
+        placeholder={placeholder}
+        onMenuOpen={onMenuOpen}
+        controlShouldRenderValue={variant !== "button"} // Control doesn't change placeholder to selected value
+      />
     </FormField>
   );
 };

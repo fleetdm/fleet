@@ -9,7 +9,7 @@ const WebpackNotifierPlugin = require("webpack-notifier");
 const ForkTsCheckerWebpackPlugin = require("fork-ts-checker-webpack-plugin");
 const globImporter = require("node-sass-glob-importer");
 
-const DEV_SOURCE_MAPS = "source-map";
+const DEV_SOURCE_MAPS = "eval-source-map";
 
 let plugins = [
   new ForkTsCheckerWebpackPlugin(),
@@ -57,8 +57,7 @@ const config = {
     publicPath: "/assets/",
     filename: "[name].js",
   },
-  // devtool: process.env.NODE_ENV === "development" ? DEV_SOURCE_MAPS : false,
-  devtool: false,
+  devtool: process.env.NODE_ENV === "development" ? DEV_SOURCE_MAPS : false,
   plugins,
   optimization: {
     minimize: process.env.NODE_ENV === "production",

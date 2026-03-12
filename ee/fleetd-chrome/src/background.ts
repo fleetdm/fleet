@@ -1,5 +1,5 @@
 import VirtualDatabase from "./db";
-import { E_ALREADY_LOCKED, Mutex, tryAcquire, withTimeout } from 'async-mutex';
+import {E_ALREADY_LOCKED, Mutex, tryAcquire, withTimeout} from 'async-mutex';
 
 // ENV Vars
 declare var FLEET_URL: string;
@@ -79,7 +79,7 @@ const authenticatedRequest = async ({
   }
 
   try {
-    return await request({ path, body: { ...body, node_key } });
+    return await request({path, body: {...body, node_key}});
   } catch (err) {
     // Reenroll if it's a node_invalid issue (and we haven't already tried a reenroll), otherwise
     // rethrow the error.

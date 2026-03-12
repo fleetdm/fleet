@@ -10,6 +10,7 @@
       rel="stylesheet"
       type="text/css"
       href="{{.URLPrefix}}<%= htmlWebpackPlugin.files.css[0] %>"
+      nonce="{{.CSPNonce}}"
     />
     <link rel="shortcut icon" href="{{.URLPrefix}}/assets/favicon.ico" />
 

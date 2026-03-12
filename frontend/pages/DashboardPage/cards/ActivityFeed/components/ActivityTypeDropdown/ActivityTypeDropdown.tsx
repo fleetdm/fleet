@@ -9,7 +9,6 @@ import Select, {
   GroupBase,
   ValueContainerProps,
 } from "react-select-5";
-import { CacheProvider } from "@emotion/react";
 
 import {
   ACTIVITY_TYPE_TO_FILTER_LABEL,
@@ -20,7 +19,6 @@ import {
   CustomOptionType,
   CustomDropdownIndicator,
   generateCustomDropdownStyles,
-  emotionCache,
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Icon from "components/Icon";
 import FormField from "components/forms/FormField";
@@ -34,7 +32,7 @@ declare module "react-select-5/dist/declarations/src/Select" {
     Option,
     IsMulti extends boolean,
     Group extends GroupBase<Option>
-    > {
+  > {
     searchQuery?: string;
     onChangeSearchQuery?: (event: React.ChangeEvent<HTMLInputElement>) => void;
     onClickSearchInput?: React.MouseEventHandler<HTMLInputElement>;
@@ -260,31 +258,29 @@ const ActivityTypeDropdown = ({
       label=""
     >
       <div onClick={toggleMenu}>
-        <CacheProvider value={emotionCache}>
-          <Select<CustomOptionType, false>
-            ref={selectRef}
-            classNamePrefix="activity-type-select"
-            styles={customStyles}
-            menuIsOpen={menuIsOpen}
-            options={options}
-            components={{
-              MenuList: CustomMenuList,
-              DropdownIndicator: CustomDropdownIndicator,
-              IndicatorSeparator: () => null,
-              ValueContainer: CustomValueContainer,
-            }}
-            isSearchable={false}
-            value={getValue()}
-            onChange={handleChange}
-            searchQuery={searchQuery}
-            noOptionsMessage={() => "No items match this search criteria."}
-            onKeyDown={onKeyDown}
-            onBlur={onBlur}
-            onChangeSearchQuery={onChangeSearchQuery}
-            onClickSearchInput={onClickSearchInput}
-            onBlurSearchInput={onBlurSearchInput}
-          />
-        </CacheProvider>
+        <Select<CustomOptionType, false>
+          ref={selectRef}
+          classNamePrefix="activity-type-select"
+          styles={customStyles}
+          menuIsOpen={menuIsOpen}
+          options={options}
+          components={{
+            MenuList: CustomMenuList,
+            DropdownIndicator: CustomDropdownIndicator,
+            IndicatorSeparator: () => null,
+            ValueContainer: CustomValueContainer,
+          }}
+          isSearchable={false}
+          value={getValue()}
+          onChange={handleChange}
+          searchQuery={searchQuery}
+          noOptionsMessage={() => "No items match this search criteria."}
+          onKeyDown={onKeyDown}
+          onBlur={onBlur}
+          onChangeSearchQuery={onChangeSearchQuery}
+          onClickSearchInput={onClickSearchInput}
+          onBlurSearchInput={onBlurSearchInput}
+        />
       </div>
     </FormField>
   );

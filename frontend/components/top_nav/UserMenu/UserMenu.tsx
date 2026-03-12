@@ -1,5 +1,4 @@
 import React, { useContext, useEffect, useState } from "react";
-import { CacheProvider } from "@emotion/react";
 import Select, {
   components,
   DropdownIndicatorProps,
@@ -19,7 +18,6 @@ import { PADDING } from "styles/var/padding";
 import { COLORS } from "styles/var/colors";
 
 import Icon from "components/Icon";
-import { emotionCache } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import AvatarTopNav from "../../AvatarTopNav";
 
 const baseClass = "user-menu";
@@ -201,9 +199,9 @@ const UserMenu = ({
       },
       ...(state.isFocused &&
         isKeyboardFocus && {
-        outline: `1px solid ${COLORS["core-fleet-black"]}`,
-        outlineOffset: "1px",
-      }),
+          outline: `1px solid ${COLORS["core-fleet-black"]}`,
+          outlineOffset: "1px",
+        }),
       ...(state.menuIsOpen && {
         ".user-menu-select__indicator svg": {
           transform: "rotate(180deg)",
@@ -269,30 +267,28 @@ const UserMenu = ({
 
   return (
     <div className={baseClass} data-testid="user-menu">
-      <CacheProvider value={emotionCache}>
-        <Select<IDropdownOption, false>
-          options={dropdownItems}
-          placeholder={renderPlaceholder()}
-          styles={customStyles}
-          components={{
-            DropdownIndicator: CustomDropdownIndicator,
-            IndicatorSeparator: () => null,
-            Option: (props) => (
-              <CustomOption {...props} isKeyboardFocus={isKeyboardFocus} />
-            ),
-            SingleValue: () => null,
-          }}
-          controlShouldRenderValue={false}
-          isOptionSelected={() => false}
-          className={baseClass}
-          classNamePrefix={`${baseClass}-select`}
-          menuPlacement="bottom"
-          onChange={(option) => {
-            option?.onClick && option?.onClick();
-          }}
-          isSearchable={false}
-        />
-      </CacheProvider>
+      <Select<IDropdownOption, false>
+        options={dropdownItems}
+        placeholder={renderPlaceholder()}
+        styles={customStyles}
+        components={{
+          DropdownIndicator: CustomDropdownIndicator,
+          IndicatorSeparator: () => null,
+          Option: (props) => (
+            <CustomOption {...props} isKeyboardFocus={isKeyboardFocus} />
+          ),
+          SingleValue: () => null,
+        }}
+        controlShouldRenderValue={false}
+        isOptionSelected={() => false}
+        className={baseClass}
+        classNamePrefix={`${baseClass}-select`}
+        menuPlacement="bottom"
+        onChange={(option) => {
+          option?.onClick && option?.onClick();
+        }}
+        isSearchable={false}
+      />
     </div>
   );
 };
