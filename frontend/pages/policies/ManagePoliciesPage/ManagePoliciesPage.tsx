@@ -207,6 +207,15 @@ const ManagePolicyPage = ({
   >(initialSortDirection);
   const [automationFilter, setAutomationFilter] = useState<string | null>(null);
 
+  // Maps frontend dropdown values to backend automation_type query param values
+  const AUTOMATION_FILTER_TO_API: Record<string, string> = {
+    install_software: "software",
+    run_script: "scripts",
+    calendar_events: "calendar",
+    conditional_access: "conditional_access",
+    other_workflows: "other",
+  };
+
   useEffect(() => {
     setLastEditedQueryPlatform(null);
   }, [setLastEditedQueryPlatform]);
@@ -318,6 +327,9 @@ const ManagePolicyPage = ({
         teamId: teamIdForApi || 0,
         // no teams does inherit
         mergeInherited: true,
+        automationType: automationFilter
+          ? AUTOMATION_FILTER_TO_API[automationFilter]
+          : undefined,
       },
     ],
     ({ queryKey }) => {
@@ -997,9 +1009,10 @@ const ManagePolicyPage = ({
     );
   };
 
-  // TODO: Replace client-side filtering with BE query param (e.g. automation_type)
-  // to support server-side pagination correctly.
-  const filterPoliciesByAutomation = (
+  // Client-side filtering is still needed for global policies since the
+  // global policies endpoint does not support automation_type. Team policies
+  // use the server-side automation_type query param instead.
+  const filterGlobalPoliciesByAutomation = (
     policies: IPolicyStats[]
   ): IPolicyStats[] => {
     if (!automationFilter) return policies;
@@ -1036,9 +1049,15 @@ const ManagePolicyPage = ({
           className={`${baseClass}__filter-automation-dropdown`}
           name="filter-by-automation"
           onChange={(val: SingleValue<CustomOptionType>) => {
-            setAutomationFilter(
-              val?.value && val.value !== "all" ? val.value : null
-            );
+            const newFilter =
+              val?.value && val.value !== "all" ? val.value : null;
+            setAutomationFilter(newFilter);
+            // Reset to first page when filter changes
+            const locationPath = getNextLocationPath({
+              pathPrefix: PATHS.MANAGE_POLICIES,
+              queryParams: { ...queryParams, page: "0" },
+            });
+            router?.push(locationPath);
           }}
           placeholder="Filter by automation"
           options={automationFilterOptions}
@@ -1057,7 +1076,7 @@ const ManagePolicyPage = ({
       if (globalPoliciesError) {
         return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
       }
-      const filteredGlobalPolicies = filterPoliciesByAutomation(
+      const filteredGlobalPolicies = filterGlobalPoliciesByAutomation(
         globalPolicies || []
       );
       const filteredGlobalCount = automationFilter
@@ -1095,14 +1114,16 @@ const ManagePolicyPage = ({
     if (teamPoliciesError) {
       return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
     }
-    const filteredTeamPolicies = filterPoliciesByAutomation(teamPolicies || []);
-    const filteredTeamCount = automationFilter
-      ? filteredTeamPolicies.length
+    const displayedTeamPolicies = teamPolicies || [];
+    // When a filter is active, use the returned array length as the count
+    // since the count endpoint doesn't support automation_type yet.
+    const displayedTeamCount = automationFilter
+      ? displayedTeamPolicies.length
       : teamPoliciesCountMergeInherited || 0;
     return (
       <div>
         <PoliciesTable
-          policiesList={filteredTeamPolicies}
+          policiesList={displayedTeamPolicies}
           isLoading={
             isFetchingTeamPolicies ||
             isFetchingTeamConfig ||
@@ -1115,12 +1136,12 @@ const ManagePolicyPage = ({
           currentAutomatedPolicies={currentAutomatedPolicies}
           renderPoliciesCount={() =>
             renderPoliciesCountAndLastUpdated(
-              filteredTeamCount,
-              filteredTeamPolicies
+              displayedTeamCount,
+              displayedTeamPolicies
             )
           }
           isPremiumTier={isPremiumTier}
-          count={filteredTeamCount}
+          count={displayedTeamCount}
           searchQuery={searchQuery}
           sortHeader={sortHeader}
           sortDirection={sortDirection}
