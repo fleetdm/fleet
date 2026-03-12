@@ -12310,7 +12310,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		batchAssociateAppStoreAppsRequest{
 			Apps: []fleet.VPPBatchPayload{
 				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID},
-				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, SelfService: true, Categories: []string{"Browsers"}},
+				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, SelfService: true, Categories: []string{"Browsers"}, LabelsIncludeAll: []string{"label1"}},
 			},
 		}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name,
 	)

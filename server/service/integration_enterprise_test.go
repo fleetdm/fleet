@@ -18269,38 +18269,48 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.NotNil(t, host1LastInstall)
 
 	// --- include_all tests ---
-	// Host has lbl1 and lbl2. lbl3 is not on the host.
+	//
+	// Use a dedicated team so we can reuse the ruby.deb and vim.deb testdata
+	// files without conflicting with the no-team installers already uploaded above.
+	var inclAllTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", fleet.Team{Name: t.Name() + "-include-all"}, http.StatusOK, &inclAllTeamResp)
+	inclAllTeam := inclAllTeamResp.Team
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&inclAllTeam.ID, []uint{host.ID}))
+	require.NoError(t, err)
 
-	// Upload sed.deb with labels_include_all: [lbl1, lbl2].
-	// Host has both labels, so it IS in scope — install should be attempted.
-	sedPayload := &fleet.UploadSoftwareInstallerPayload{
+	// Host has lbl1 and lbl2. lbl3 is not on the host (lbl3 was never added
+	// via RecordLabelQueryExecutions in this test above).
+
+	// Upload ruby.deb with labels_include_all: [lbl1, lbl2].
+	// Host has both labels, so it IS in scope and install should be attempted.
+	rubyIncludeAllPayload := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:    "some deb install script",
-		Filename:         "sed.deb",
-		TeamID:           nil,
+		Filename:         "ruby.deb",
+		TeamID:           &inclAllTeam.ID,
 		LabelsIncludeAll: []string{lbl1.Name, lbl2.Name},
 		Platform:         "linux",
 	}
-	s.uploadSoftwareInstaller(t, sedPayload, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, rubyIncludeAllPayload, http.StatusOK, "")
 
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
-		"query", "sed",
-		"team_id", "0",
+		"query", "ruby",
+		"team_id", fmt.Sprint(inclAllTeam.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	sedTitleID := resp.SoftwareTitles[0].ID
+	rubyInclAllTitleID := resp.SoftwareTitles[0].ID
 
-	var sedDetail getSoftwareTitleResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", sedTitleID), nil, http.StatusOK, &sedDetail)
-	require.NotNil(t, sedDetail.SoftwareTitle)
-	require.NotNil(t, sedDetail.SoftwareTitle.SoftwarePackage)
-	sedInstallerID := sedDetail.SoftwareTitle.SoftwarePackage.InstallerID
+	var rubyInclAllDetail getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyInclAllTitleID), nil, http.StatusOK, &rubyInclAllDetail, "team_id", fmt.Sprint(inclAllTeam.ID))
+	require.NotNil(t, rubyInclAllDetail.SoftwareTitle)
+	require.NotNil(t, rubyInclAllDetail.SoftwareTitle.SoftwarePackage)
+	rubyInclAllInstallerID := rubyInclAllDetail.SoftwareTitle.SoftwarePackage.InstallerID
 
-	policy3, err := s.ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+	policy3, err := s.ds.NewTeamPolicy(ctx, inclAllTeam.ID, nil, fleet.PolicyPayload{
 		Name:     "policy3",
 		Query:    "SELECT 3;",
 		Platform: "linux",
@@ -18308,13 +18318,13 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.NoError(t, err)
 
 	mtplr = modifyTeamPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", policy3.ID), modifyTeamPolicyRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", inclAllTeam.ID, policy3.ID), modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: sedTitleID},
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyInclAllTitleID},
 		},
 	}, http.StatusOK, &mtplr)
 
-	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, sedInstallerID)
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, rubyInclAllInstallerID)
 	require.NoError(t, err)
 	require.Nil(t, host1LastInstall)
 
@@ -18334,41 +18344,41 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.Equal(t, uint(0), policy3.PassingHostCount)
 	require.Equal(t, uint(1), policy3.FailingHostCount)
 
-	// Installation attempt was made for sed, because host has all required labels.
-	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, sedInstallerID)
+	// Installation attempt was made for ruby, because host has all required labels.
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, rubyInclAllInstallerID)
 	require.NoError(t, err)
 	require.NotNil(t, host1LastInstall)
 
-	// Upload awk.deb with labels_include_all: [lbl1, lbl3].
-	// Host has lbl1 but NOT lbl3, so it is NOT in scope — install should be skipped.
-	awkPayload := &fleet.UploadSoftwareInstallerPayload{
+	// Upload vim.deb with labels_include_all: [lbl1, lbl3].
+	// Host has lbl1 but NOT lbl3, so it is NOT in scope and install should be skipped.
+	vimIncludeAllPayload := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:    "some deb install script",
-		Filename:         "awk.deb",
-		TeamID:           nil,
+		Filename:         "vim.deb",
+		TeamID:           &inclAllTeam.ID,
 		LabelsIncludeAll: []string{lbl1.Name, lbl3.Name},
 		Platform:         "linux",
 	}
-	s.uploadSoftwareInstaller(t, awkPayload, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, vimIncludeAllPayload, http.StatusOK, "")
 
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
-		"query", "awk",
-		"team_id", "0",
+		"query", "vim",
+		"team_id", fmt.Sprint(inclAllTeam.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	awkTitleID := resp.SoftwareTitles[0].ID
+	vimInclAllTitleID := resp.SoftwareTitles[0].ID
 
-	var awkDetail getSoftwareTitleResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", awkTitleID), nil, http.StatusOK, &awkDetail)
-	require.NotNil(t, awkDetail.SoftwareTitle)
-	require.NotNil(t, awkDetail.SoftwareTitle.SoftwarePackage)
-	awkInstallerID := awkDetail.SoftwareTitle.SoftwarePackage.InstallerID
+	var vimInclAllDetail getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", vimInclAllTitleID), nil, http.StatusOK, &vimInclAllDetail, "team_id", fmt.Sprint(inclAllTeam.ID))
+	require.NotNil(t, vimInclAllDetail.SoftwareTitle)
+	require.NotNil(t, vimInclAllDetail.SoftwareTitle.SoftwarePackage)
+	vimInclAllInstallerID := vimInclAllDetail.SoftwareTitle.SoftwarePackage.InstallerID
 
-	policy4, err := s.ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+	policy4, err := s.ds.NewTeamPolicy(ctx, inclAllTeam.ID, nil, fleet.PolicyPayload{
 		Name:     "policy4",
 		Query:    "SELECT 4;",
 		Platform: "linux",
@@ -18376,13 +18386,13 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.NoError(t, err)
 
 	mtplr = modifyTeamPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", policy4.ID), modifyTeamPolicyRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", inclAllTeam.ID, policy4.ID), modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: awkTitleID},
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: vimInclAllTitleID},
 		},
 	}, http.StatusOK, &mtplr)
 
-	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, awkInstallerID)
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, vimInclAllInstallerID)
 	require.NoError(t, err)
 	require.Nil(t, host1LastInstall)
 
@@ -18402,12 +18412,12 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.Equal(t, uint(0), policy4.PassingHostCount)
 	require.Equal(t, uint(0), policy4.FailingHostCount)
 
-	// No installation attempt for awk, because host is missing one of the required labels.
-	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, awkInstallerID)
+	// No installation attempt for vim, because host is missing one of the required labels.
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, vimInclAllInstallerID)
 	require.NoError(t, err)
 	require.Nil(t, host1LastInstall)
 
-	// Now add lbl3 to the host and re-run the policy failure. awk should now be in scope.
+	// Now add lbl3 to the host and re-run the policy failure. vim should now be in scope.
 	err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{lbl3.ID: ptr.Bool(true)}, time.Now(), false)
 	require.NoError(t, err)
 
@@ -18426,8 +18436,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.Equal(t, uint(0), policy4.PassingHostCount)
 	require.Equal(t, uint(1), policy4.FailingHostCount)
 
-	// Installation attempt was made for awk now that the host has all required labels.
-	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, awkInstallerID)
+	// Installation attempt was made for vim now that the host has all required labels.
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, vimInclAllInstallerID)
 	require.NoError(t, err)
 	require.NotNil(t, host1LastInstall)
 }
