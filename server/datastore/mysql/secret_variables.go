@@ -463,6 +463,9 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 		}
 	}
 
+	// Check if document is XML (same logic as expandEmbeddedSecrets)
+	documentIsXML := strings.HasPrefix(strings.TrimSpace(document), "<")
+
 	// Expand the placeholders
 	expanded := fleet.MaybeExpand(document, func(s string, startPos, endPos int) (string, bool) {
 		if !strings.HasPrefix(s, fleet.HostSecretPrefix) {
@@ -470,6 +473,19 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 		}
 		secretType := strings.TrimPrefix(s, fleet.HostSecretPrefix)
 		val, ok := secretValues[secretType]
+		if !ok {
+			return "", false
+		}
+
+		if documentIsXML {
+			// Escape XML special characters to prevent malformed output
+			var b strings.Builder
+			if err := xml.EscapeText(&b, []byte(val)); err != nil {
+				return "", false
+			}
+			val = b.String()
+		}
+
 		return val, ok
 	})
 
