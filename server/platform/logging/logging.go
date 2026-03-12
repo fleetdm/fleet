@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -160,12 +159,12 @@ func (h *OtelTracingHandler) WithGroup(name string) slog.Handler {
 var _ slog.Handler = (*OtelTracingHandler)(nil)
 
 // MaybeAddDeprecatedFieldWarning adds deprecated field warning to a log, if the topic is enabled.
-func MaybeAddDeprecatedFieldWarning(r *http.Request, oldFieldName, newFieldName string) {
+func MaybeAddDeprecatedFieldWarning(ctx context.Context, oldFieldName, newFieldName string) {
 	if !TopicEnabled(DeprecatedFieldTopic) {
 		return
 	}
-	logging.WithLevel(r.Context(), slog.LevelWarn)
-	logging.WithExtras(r.Context(),
+	logging.WithLevel(ctx, slog.LevelWarn)
+	logging.WithExtras(ctx,
 		"deprecated_param", oldFieldName,
 		"deprecation_warning", fmt.Sprintf("'%s' is deprecated, use '%s' instead", oldFieldName, newFieldName),
 	)

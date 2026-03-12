@@ -145,7 +145,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	if teamID == "" {
 		teamID = r.URL.Query().Get("team_id")
 		if teamID != "" {
-			platform_logging.MaybeAddDeprecatedFieldWarning(r, "team_id", "fleet_id")
+			platform_logging.MaybeAddDeprecatedFieldWarning(r.Context(), "team_id", "fleet_id")
 		}
 	}
 	if teamID != "" {
@@ -625,7 +625,7 @@ func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) 
 	if tid == "" {
 		tid = r.URL.Query().Get("team_id")
 		if tid != "" {
-			platform_logging.MaybeAddDeprecatedFieldWarning(r, "team_id", "fleet_id")
+			platform_logging.MaybeAddDeprecatedFieldWarning(r.Context(), "team_id", "fleet_id")
 		}
 	}
 	if tid != "" {

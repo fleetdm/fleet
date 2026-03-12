@@ -319,7 +319,7 @@ func parseMultipartForm(ctx context.Context, r *http.Request, maxMemory int64) e
 	teamIDs, teamIDPresent := r.Form["team_id"]
 	if teamIDPresent && len(teamIDs) > 0 {
 		teamID := teamIDs[0]
-		platform_logging.MaybeAddDeprecatedFieldWarning(r, "team_id", "fleet_id")
+		platform_logging.MaybeAddDeprecatedFieldWarning(ctx, "team_id", "fleet_id")
 		r.Form.Set("fleet_id", teamID)
 		r.Form.Del("team_id")
 		r.MultipartForm.Value["fleet_id"] = []string{teamID}
