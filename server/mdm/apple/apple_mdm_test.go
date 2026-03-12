@@ -3,10 +3,12 @@ package apple_mdm
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"testing"
 	"time"
 
@@ -273,3 +275,194 @@ type notFoundError struct{}
 func (e notFoundError) IsNotFound() bool { return true }
 
 func (e notFoundError) Error() string { return "not found" }
+
+func TestGenerateRecoveryLockPassword(t *testing.T) {
+	// Pattern: 6 groups of 4 characters from the allowed charset, separated by dashes
+	pattern := regexp.MustCompile(`^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}(-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}){5}$`)
+
+	t.Run("format", func(t *testing.T) {
+		password := GenerateRecoveryLockPassword()
+		assert.True(t, pattern.MatchString(password), "password %q does not match expected format", password)
+		assert.Len(t, password, 29) // 24 chars + 5 dashes
+	})
+
+	t.Run("excludes confusing characters", func(t *testing.T) {
+		// Generate multiple passwords and check none contain confusing chars
+		confusingChars := regexp.MustCompile(`[01OIl]`)
+		for range 100 {
+			password := GenerateRecoveryLockPassword()
+			assert.False(t, confusingChars.MatchString(password), "password %q contains confusing characters", password)
+		}
+	})
+
+	t.Run("uniqueness", func(t *testing.T) {
+		// Generate multiple passwords and verify they're unique
+		seen := make(map[string]bool)
+		for range 100 {
+			password := GenerateRecoveryLockPassword()
+			assert.False(t, seen[password], "duplicate password generated: %s", password)
+			seen[password] = true
+		}
+	})
+}
+
+// TestSendRecoveryLockCommands tests the cron job that sends SetRecoveryLock commands
+// to hosts that need recovery lock passwords.
+//
+// Note: SetRecoveryLock command results are handled synchronously in the MDM results handler
+// (server/service/apple_mdm.go), which is tested separately in apple_mdm_cmd_results_test.go.
+func TestSendRecoveryLockCommands(t *testing.T) {
+	ctx := context.Background()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	t.Run("no hosts needing recovery lock does not send commands", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+
+		var commandSent bool
+		mockCommander := &mockRecoveryLockCommander{
+			setRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+				commandSent = true
+				return nil
+			},
+		}
+
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
+		require.NoError(t, err)
+		assert.False(t, commandSent, "SetRecoveryLock should not be called when no hosts need it")
+	})
+
+	t.Run("host needing recovery lock gets SetRecoveryLock and password stored with pending status", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		hostUUID := "host-uuid-1"
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+			return []string{hostUUID}, nil
+		}
+
+		// Track call order to verify correct sequencing
+		var callOrder []string
+		var storedPasswords []fleet.HostRecoveryLockPasswordPayload
+		ds.SetHostsRecoveryLockPasswordsFunc = func(ctx context.Context, passwords []fleet.HostRecoveryLockPasswordPayload) error {
+			callOrder = append(callOrder, "SetHostsRecoveryLockPasswords")
+			storedPasswords = passwords
+			return nil
+		}
+
+		var sentCmdUUID string
+		mockCommander := &mockRecoveryLockCommander{
+			setRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+				callOrder = append(callOrder, "SetRecoveryLock")
+				assert.Equal(t, []string{hostUUID}, hostUUIDs)
+				sentCmdUUID = cmdUUID
+				return nil
+			},
+		}
+
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
+		require.NoError(t, err)
+
+		// Verify call order: password must be stored BEFORE command is sent
+		require.Equal(t, []string{"SetHostsRecoveryLockPasswords", "SetRecoveryLock"}, callOrder,
+			"SetHostsRecoveryLockPasswords must be called before SetRecoveryLock")
+
+		// Password should be stored with pending status atomically
+		require.Len(t, storedPasswords, 1, "password should be stored for host")
+		assert.Equal(t, hostUUID, storedPasswords[0].HostUUID)
+		assert.NotEmpty(t, storedPasswords[0].Password)
+		assert.NotEmpty(t, sentCmdUUID, "command UUID should have been sent")
+	})
+
+	t.Run("SetRecoveryLock failure clears pending status to allow retry", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		hostUUID := "host-uuid-1"
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+			return []string{hostUUID}, nil
+		}
+
+		// Track call order to verify correct sequencing
+		var callOrder []string
+		ds.SetHostsRecoveryLockPasswordsFunc = func(ctx context.Context, passwords []fleet.HostRecoveryLockPasswordPayload) error {
+			callOrder = append(callOrder, "SetHostsRecoveryLockPasswords")
+			return nil
+		}
+
+		var clearedHostUUIDs []string
+		ds.ClearRecoveryLockPendingStatusFunc = func(ctx context.Context, hostUUIDs []string) error {
+			callOrder = append(callOrder, "ClearRecoveryLockPendingStatus")
+			clearedHostUUIDs = hostUUIDs
+			return nil
+		}
+
+		mockCommander := &mockRecoveryLockCommander{
+			setRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+				callOrder = append(callOrder, "SetRecoveryLock")
+				return errors.New("APNs push failed")
+			},
+		}
+
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "APNs push failed")
+
+		// Verify call order: password stored -> command attempt -> clear pending on failure
+		require.Equal(t, []string{"SetHostsRecoveryLockPasswords", "SetRecoveryLock", "ClearRecoveryLockPendingStatus"}, callOrder,
+			"Operations must occur in order: store password, attempt command, clear pending on failure")
+
+		// Status should be cleared to allow retry on next cron run
+		assert.Equal(t, []string{hostUUID}, clearedHostUUIDs, "pending status should be cleared on enqueue failure")
+	})
+
+	t.Run("APNs delivery failure does not clear pending status", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		hostUUID := "host-uuid-1"
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+			return []string{hostUUID}, nil
+		}
+
+		// Track call order to verify ClearRecoveryLockPendingStatus is NOT called
+		var callOrder []string
+		ds.SetHostsRecoveryLockPasswordsFunc = func(ctx context.Context, passwords []fleet.HostRecoveryLockPasswordPayload) error {
+			callOrder = append(callOrder, "SetHostsRecoveryLockPasswords")
+			return nil
+		}
+
+		ds.ClearRecoveryLockPendingStatusFunc = func(ctx context.Context, hostUUIDs []string) error {
+			callOrder = append(callOrder, "ClearRecoveryLockPendingStatus")
+			return nil
+		}
+
+		mockCommander := &mockRecoveryLockCommander{
+			setRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+				callOrder = append(callOrder, "SetRecoveryLock")
+				// Return APNs delivery error - command was persisted but push failed
+				return &APNSDeliveryError{errorsByUUID: map[string]error{hostUUID: errors.New("push failed")}}
+			},
+		}
+
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
+		// Should NOT return error - command was persisted, just push failed
+		require.NoError(t, err)
+
+		// Verify ClearRecoveryLockPendingStatus was NOT called (status should stay pending)
+		// Command is queued and will be delivered when device checks in
+		require.Equal(t, []string{"SetHostsRecoveryLockPasswords", "SetRecoveryLock"}, callOrder,
+			"ClearRecoveryLockPendingStatus should NOT be called when APNs push fails (command is already queued)")
+	})
+}
+
+// mockRecoveryLockCommander implements RecoveryLockCommander for testing.
+type mockRecoveryLockCommander struct {
+	setRecoveryLockFn func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+}
+
+func (m *mockRecoveryLockCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+	if m.setRecoveryLockFn != nil {
+		return m.setRecoveryLockFn(ctx, hostUUIDs, cmdUUID)
+	}
+	return nil
+}

@@ -10089,7 +10089,12 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows[0], 55)         // total number of cols
+	assert.Len(t, rows[0], 57)         // total number of cols
+	// Validate that both team_id and fleet_id columns are present.
+	assert.Contains(t, rows[0], "team_id")
+	assert.Contains(t, rows[0], "fleet_id")
+	assert.Contains(t, rows[0], "team_name")
+	assert.Contains(t, rows[0], "fleet_name")
 
 	const (
 		idCol        = 3
@@ -10114,13 +10119,17 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	// valid format, some columns
 	res = s.DoRaw(
 		"GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv",
-		"columns", "hostname,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space",
+		"columns", "hostname,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,team_id,team_name",
 	)
 	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1)
 	require.Contains(t, rows[0], "hostname") // first row contains headers
+	assert.Contains(t, rows[0], "team_id")
+	assert.Contains(t, rows[0], "fleet_id")
+	assert.Contains(t, rows[0], "team_name")
+	assert.Contains(t, rows[0], "fleet_name")
 	require.Contains(t, res.Header, "Content-Disposition")
 	require.Contains(t, res.Header, "Content-Type")
 	require.Contains(t, res.Header, "X-Content-Type-Options")
@@ -12477,7 +12486,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows1, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows1[0], 55)         // total number of cols
+	assert.Len(t, rows1[0], 57)         // total number of cols
 
 	var (
 		idIdx     int
@@ -12507,7 +12516,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows2, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows2[0], 55)         // total number of cols
+	assert.Len(t, rows2[0], 57)         // total number of cols
 
 	// Check that all hosts have 0 issues and that they match the previous call to `/hosts/report`.
 	for i := 1; i < len(hosts)+1; i++ {

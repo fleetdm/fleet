@@ -12,7 +12,7 @@ Policies in Fleet are more than just rules; they are the gatekeepers of your dev
 
 ## Policy creation
 
-Policies can be created from the web UI, the command-line interface called `fleetctl` with config files, or the REST API. The user creates a policy and selects which devices need to be checked using that policy. Policies can be global or team-specific.
+Policies can be created from the web UI, the command-line interface called `fleetctl` with config files, or the REST API. The user creates a policy and selects which devices need to be checked using that policy. Policies can be global or fleet-specific.
 
 When a policy is created, a record for it is stored in the **policies** table of the MySQL database. A Fleet deployment consists of several servers behind a load balancer, so storing the record in the DB makes all servers aware of the new policy.
 

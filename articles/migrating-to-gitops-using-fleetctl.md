@@ -30,7 +30,7 @@ It is generally not recommended to store sensitive information such as Fleet enr
 
 ```yaml
 - secrets:
-    - secret: $TEAM_ENROLLMENT_SECRET
+    - secret: $ENROLLMENT_SECRET
 ```
 
 To have `generate-gitops` output sensitive info in plaintext in your files, you may use the `--insecure` option. Caveat emptor!
@@ -40,8 +40,8 @@ To have `generate-gitops` output sensitive info in plaintext in your files, you 
 The `generate-gitops` tool includes a few other options to make migrating to GitOps easier:
 
 - `--print` : Print the configuration to `stdout` rather than to files.
-- `--team` : **Available in Fleet Premium.** Only output the configuration files of the team with the specified name. Global or "no team" configuration may be output using `--team global` or `--team no-team`. (This option can be useful for testing out GitOps with a "canary" team before rolling it out to your entire organization.)
-- `--key` : Display the value of a specific, dot-delimited key, e.g. `agent_options.config.decorators`. Searches for the given key in the global configuration by default; use in conjunction with `--team` to output config from a specific team.
+- `--team` : **Available in Fleet Premium.** Only output the configuration files of the fleet with the specified name. Global or "Unassgined" configuration may be output using `--team global` or `--team no-team`.
+- `--key` : Display the value of a specific, dot-delimited key, e.g. `agent_options.config.decorators`. Searches for the given key in the global configuration by default; use in conjunction with `--team` to output config from a specific fleet.
 
 See `fleetctl generate-gitops --help` for all options.
 

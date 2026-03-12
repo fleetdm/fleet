@@ -196,10 +196,8 @@ const LocationModal = ({
 
   return (
     <Modal title="Location" className={baseClass} onExit={onExit}>
-      <>
-        {renderContent()}
-        {renderFooter()}
-      </>
+      {renderContent()}
+      {renderFooter()}
     </Modal>
   );
 };

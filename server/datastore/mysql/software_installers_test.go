@@ -58,6 +58,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"SoftwareTitleDisplayName", testSoftwareTitleDisplayName},
 		{"AddSoftwareTitleToMatchingSoftware", testAddSoftwareTitleToMatchingSoftware},
 		{"FleetMaintainedAppInstallerUpdates", testFleetMaintainedAppInstallerUpdates},
+		{"RepointCustomPackagePolicyToNewInstaller", testRepointPolicyToNewInstaller},
 	}
 
 	for _, c := range cases {
@@ -4368,4 +4369,198 @@ func testFleetMaintainedAppInstallerUpdates(t *testing.T, ds *Datastore) {
 	require.NotEqual(t, postInstallScript, installer.PostInstallScriptContentID)
 	require.NotEqual(t, uninstallScript, installer.UninstallScriptContentID)
 	require.Equal(t, "SELECT 1 DIFFERENT", installer.PreInstallQuery)
+}
+
+func testRepointPolicyToNewInstaller(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	t.Run("custom_package", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team" + t.Name()})
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("file contents"), t.TempDir)
+		require.NoError(t, err)
+
+		installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			Title:              "testpkg",
+			Source:             "apps",
+			Platform:           "darwin",
+			PreInstallQuery:    "SELECT 1",
+			InstallScript:      "echo install",
+			PostInstallScript:  "echo post install",
+			UninstallScript:    "echo uninstall",
+			InstallerFile:      tfr,
+			StorageID:          "storageid1",
+			Filename:           "test.pkg",
+			Version:            "1.0",
+			UserID:             user.ID,
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+			InstallDuringSetup: ptr.Bool(false),
+			SelfService:        false,
+			TeamID:             ptr.Uint(team.ID),
+		})
+		require.NoError(t, err)
+
+		policy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+			Name:                "p1",
+			Query:               "SELECT 1;",
+			SoftwareInstallerID: &installerID,
+		})
+		require.NoError(t, err)
+
+		tmFilter := fleet.TeamFilter{User: test.UserAdmin, TeamID: ptr.Uint(team.ID)}
+		titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: ptr.Uint(team.ID), Platform: "darwin", AvailableForInstall: true}, tmFilter)
+		require.NoError(t, err)
+		require.Len(t, titles, 1)
+		require.False(t, *titles[0].SoftwarePackage.InstallDuringSetup)
+		require.False(t, *titles[0].SoftwarePackage.SelfService)
+
+		installer, err := ds.GetSoftwareInstallerMetadataByID(ctx, installerID)
+		require.NoError(t, err)
+		require.NotNil(t, installer)
+
+		installScript := installer.InstallScriptContentID
+		postInstallScript := installer.PostInstallScriptContentID
+		uninstallScript := installer.UninstallScriptContentID
+
+		require.NotZero(t, installScript)
+		require.NotZero(t, postInstallScript)
+		require.NotZero(t, uninstallScript)
+		require.Equal(t, "SELECT 1", installer.PreInstallQuery)
+
+		// batch add (gitops), this should succeed because we now update the pointer in the policy for the new version
+		err = ds.BatchSetSoftwareInstallers(ctx, ptr.Uint(team.ID), []*fleet.UploadSoftwareInstallerPayload{
+			{
+				Title:              "testpkg",
+				Source:             "apps",
+				Platform:           "darwin",
+				PreInstallQuery:    "SELECT 1 DIFFERENT",
+				InstallScript:      "echo install 2",
+				PostInstallScript:  "echo post install 2",
+				UninstallScript:    "echo uninstall 2",
+				InstallerFile:      tfr,
+				StorageID:          "storageid1",
+				Filename:           "test.pkg",
+				Version:            "2.0", // Note the new version, this means we evict version 1.0 because it's a custom package
+				UserID:             user.ID,
+				ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+				InstallDuringSetup: ptr.Bool(true),
+				SelfService:        true,
+				TeamID:             ptr.Uint(team.ID),
+			},
+		})
+		require.NoError(t, err)
+		titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: ptr.Uint(team.ID), Platform: "darwin", AvailableForInstall: true}, tmFilter)
+		require.NoError(t, err)
+		require.Len(t, titles, 1)
+		require.Len(t, titles[0].SoftwarePackage.AutomaticInstallPolicies, 1)
+		require.Equal(t, policy.ID, titles[0].SoftwarePackage.AutomaticInstallPolicies[0].ID)
+
+		metadata, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, ptr.Uint(team.ID), titles[0].ID, false)
+		require.NoError(t, err)
+
+		policyAfterUpdate, err := ds.TeamPolicy(ctx, team.ID, policy.ID)
+		require.NoError(t, err)
+		require.Equal(t, metadata.InstallerID, *policyAfterUpdate.SoftwareInstallerID)
+	})
+
+	t.Run("fma", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team" + t.Name()})
+		require.NoError(t, err)
+
+		fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{ID: 1})
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("file contents"), t.TempDir)
+		require.NoError(t, err)
+
+		installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			FleetMaintainedAppID: ptr.Uint(fma.ID),
+			Title:                "testpkg_fma",
+			Source:               "apps",
+			Platform:             "darwin",
+			PreInstallQuery:      "SELECT 1",
+			InstallScript:        "echo install",
+			PostInstallScript:    "echo post install",
+			UninstallScript:      "echo uninstall",
+			InstallerFile:        tfr,
+			StorageID:            "storageid1",
+			Filename:             "test_fma.pkg",
+			Version:              "1.0",
+			UserID:               user.ID,
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			InstallDuringSetup:   ptr.Bool(false),
+			SelfService:          false,
+			TeamID:               ptr.Uint(team.ID),
+		})
+		require.NoError(t, err)
+
+		policy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+			Name:                "p2",
+			Query:               "SELECT 1;",
+			SoftwareInstallerID: &installerID,
+		})
+		require.NoError(t, err)
+
+		tmFilter := fleet.TeamFilter{User: test.UserAdmin, TeamID: ptr.Uint(team.ID)}
+		titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: ptr.Uint(team.ID), Platform: "darwin", AvailableForInstall: true}, tmFilter)
+		require.NoError(t, err)
+		require.Len(t, titles, 1)
+		require.False(t, *titles[0].SoftwarePackage.InstallDuringSetup)
+		require.False(t, *titles[0].SoftwarePackage.SelfService)
+
+		installer, err := ds.GetSoftwareInstallerMetadataByID(ctx, installerID)
+		require.NoError(t, err)
+		require.NotNil(t, installer)
+
+		installScript := installer.InstallScriptContentID
+		postInstallScript := installer.PostInstallScriptContentID
+		uninstallScript := installer.UninstallScriptContentID
+
+		require.NotZero(t, installScript)
+		require.NotZero(t, postInstallScript)
+		require.NotZero(t, uninstallScript)
+		require.Equal(t, "SELECT 1", installer.PreInstallQuery)
+
+		for i := 2; i <= 3; i++ {
+			// Simulate multiple gitops runs that each increment the FMA version.
+			// This will lead to v1.0 getting evicted.
+			err = ds.BatchSetSoftwareInstallers(ctx, ptr.Uint(team.ID), []*fleet.UploadSoftwareInstallerPayload{
+				{
+					FleetMaintainedAppID: ptr.Uint(fma.ID),
+					Title:                "testpkg_fma",
+					Source:               "apps",
+					Platform:             "darwin",
+					PreInstallQuery:      "SELECT 1 DIFFERENT",
+					InstallScript:        "echo install 2",
+					PostInstallScript:    "echo post install 2",
+					UninstallScript:      "echo uninstall 2",
+					InstallerFile:        tfr,
+					StorageID:            "storageid2",
+					Filename:             "test_fma.pkg",
+					Version:              fmt.Sprintf("%d.0", i),
+					UserID:               user.ID,
+					ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+					InstallDuringSetup:   ptr.Bool(true),
+					SelfService:          true,
+					TeamID:               ptr.Uint(team.ID),
+				},
+			})
+			require.NoError(t, err)
+		}
+
+		titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: ptr.Uint(team.ID), Platform: "darwin", AvailableForInstall: true}, tmFilter)
+		require.NoError(t, err)
+		require.Len(t, titles, 1)
+		require.Len(t, titles[0].SoftwarePackage.AutomaticInstallPolicies, 1)
+		require.Equal(t, policy.ID, titles[0].SoftwarePackage.AutomaticInstallPolicies[0].ID)
+
+		metadata, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, ptr.Uint(team.ID), titles[0].ID, false)
+		require.NoError(t, err)
+
+		policyAfterUpdate, err := ds.TeamPolicy(ctx, team.ID, policy.ID)
+		require.NoError(t, err)
+		require.Equal(t, metadata.InstallerID, *policyAfterUpdate.SoftwareInstallerID)
+	})
 }

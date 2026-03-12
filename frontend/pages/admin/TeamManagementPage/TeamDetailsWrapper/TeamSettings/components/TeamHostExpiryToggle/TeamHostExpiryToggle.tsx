@@ -1,7 +1,8 @@
 import Checkbox from "components/forms/fields/Checkbox";
 import Icon from "components/Icon";
 import React from "react";
-import { Link } from "react-router";
+
+import Button from "components/buttons/Button";
 
 const baseClass = "team-host-expiry-toggle";
 
@@ -27,13 +28,15 @@ const TeamHostExpiryToggle = ({
         Host expiry is globally enabled in organization settings. By default,
         hosts expire after {globalHostExpiryWindow} days.{" "}
         {!teamExpiryEnabled && (
-          <Link
-            to=""
+          <Button
             onClick={(e: React.MouseEvent) => {
               e.preventDefault();
               setTeamExpiryEnabled(true);
             }}
             className={`${baseClass}__add-custom-window`}
+            variant="text-icon"
+            size="small"
+            iconStroke
           >
             <>
               Add custom expiry window
@@ -43,7 +46,7 @@ const TeamHostExpiryToggle = ({
                 size="small"
               />
             </>
-          </Link>
+          </Button>
         )}
       </div>
     ) : (
