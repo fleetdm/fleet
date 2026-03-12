@@ -275,13 +275,12 @@ const mdmService = {
 
   updateSetupExperienceSettings: (updateData: IUpdateSetupExperienceBody) => {
     const { MDM_SETUP_EXPERIENCE } = endpoints;
-    const { fleet_id, ...rest } = updateData;
-    const body: Record<string, unknown> = {
-      ...rest,
+    const body = {
+      ...updateData,
     };
 
-    if (fleet_id !== API_NO_TEAM_ID) {
-      body.fleet_id = fleet_id;
+    if (updateData.fleet_id === API_NO_TEAM_ID) {
+      delete body.fleet_id;
     }
 
     return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, body);
@@ -290,12 +289,13 @@ const mdmService = {
   updateReleaseDeviceSetting: (teamId: number, isEnabled: boolean) => {
     const { MDM_SETUP_EXPERIENCE } = endpoints;
 
-    const body: Record<string, unknown> = {
+    const body: IUpdateSetupExperienceBody = {
+      fleet_id: teamId,
       enable_release_device_manually: isEnabled,
     };
 
-    if (teamId !== API_NO_TEAM_ID) {
-      body.fleet_id = teamId;
+    if (teamId === API_NO_TEAM_ID) {
+      delete body.fleet_id;
     }
 
     return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, body);
