@@ -3,7 +3,7 @@ name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
 labels: '#g-mdm,#g-orchestration,#g-software,#g-security-compliance,:release'
-assignees: 'xpkoala,andreykizimenko,chrstphr84,Brajim20,Ravenstencil'
+assignees: 'xpkoala,andreykizimenko,chrstphr84,Brajim20'
 
 ---
 
@@ -76,11 +76,48 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
  
 </td><td>pass/fail</td></tr>
 
-<tr><td>GitOps and generate-gitops</td><td>
+<tr><td>IdP Provisioning (SCIM)</td><td>Verify host vitals sync</td><td>
 
-1. `fleetctl generate-gitops` from a version-matched fleetctl successfully outputs YAML from a brand new Fleet server (net of auto-populated fleets etc.).
-2. Running GitOps succeeds on the files created in the previous step, either using the `gitops.sh` script directly (from the `fleet-gitops` repo) or by using the GitOps GitHub or GitLab workflow (attempting via one of these three is sufficient).
+1. Configure and verify provisioning with the following IdPs:
+    1. Okta
+    3. Entra
+    4. Hydrant/Google
+2. Enroll hosts with EUA & IdP Provisioning enabled
+    1. MacOS
+    2. Windows
+    3. Ubuntu
+    4. iOS/iPadOS
+    5. Android
  
+</td><td>pass/fail</td></tr>
+
+<tr><td>GitOps and generate-gitops</td><td> Verify `fleetctl generate-gitops` and `GitOps` functionality</td><td>
+
+1. Generate-gitops from a version-matched fleetctl successfully outputs YAML from a brand new Fleet server (net of auto-populated fleets etc.).
+2. Running GitOps either using the `gitops.sh` script directly (from the `fleet-gitops` repo) or by using the GitOps GitHub or GitLab workflow (attempting via one of these three is sufficient) succeeds.
+
+</td><td>pass/fail</td></tr>
+
+<tr><td>Fleet Free</td><td>Verify that product group features behave correctly on Fleet Free</td><td>
+
+Run basic checks for the product group area while using a Fleet Free license.
+ 
+- Features documented as Free work normally
+- Premium features are correctly restricted or hidden
+- No UI, API, or workflow errors occur when using Free-only functionality
+
+Reference: https://fleetdm.com/pricing
+</td><td>pass/fail</td></tr>
+
+<tr><td>UI / UX</td><td>Verify visual consistency and layout integrity across product group areas</td><td>
+ 
+Perform a quick visual scan of the UI and confirm: 
+
+- No layout or alignment issues (misaligned, overlapping, or clipped elements)
+- Fonts, colors, and icons render correctly and match the design system
+- UI components render correctly (buttons, inputs, tables)
+- No obvious visual regressions or broken UI states
+
 </td><td>pass/fail</td></tr>
 
 </table>
@@ -140,25 +177,8 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 1. Verify BYOD enrollment.
 2. Verify Profiles are delivered to host and applied.
 3. Verify apps install.
-4. Verify `Unenroll`.
- 
-</td><td>pass/fail</td></tr>
-
-<tr><td>Certificate Authorities</td><td>Verify setup and certificate delivery</td><td>
-
-1. Configure and verify that certificates deploy to hosts with the following CAs:
-    1. DigiCert
-    3. NDES
-    4. SmallStep
- 
-</td><td>pass/fail</td></tr>
-
-<tr><td>IdP Provisioning (SCIM)</td><td>Verify host vitals sync</td><td>
-
-1. Configure and verify provisioning with the following IdPs:
-    1. Okta
-    3. Entra
-    4. Hydrant/Google
+4. Verify certificate delivery
+5. Verify `Unenroll`.
  
 </td><td>pass/fail</td></tr>
 
@@ -167,6 +187,28 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 1. Renew APNs Certificate.
 2. Renew ABM Token.
 3. Ensure ADE hosts can enroll.
+</td><td>pass/fail</td></tr>
+
+<tr><td>Fleet Free</td><td>Verify that product group features behave correctly on Fleet Free</td><td>
+
+Run basic checks for the product group area while using a Fleet Free license.
+ 
+- Features documented as Free work normally
+- Premium features are correctly restricted or hidden
+- No UI, API, or workflow errors occur when using Free-only functionality
+
+Reference: https://fleetdm.com/pricing
+</td><td>pass/fail</td></tr>
+
+<tr><td>UI / UX</td><td>Verify visual consistency and layout integrity across product group areas</td><td>
+ 
+Perform a quick visual scan of the UI and confirm: 
+
+- No layout or alignment issues (misaligned, overlapping, or clipped elements)
+- Fonts, colors, and icons render correctly and match the design system
+- UI components render correctly (buttons, inputs, tables)
+- No obvious visual regressions or broken UI states
+
 </td><td>pass/fail</td></tr>
 
 </table>
@@ -225,6 +267,29 @@ Using the github action https://github.com/fleetdm/fleet/actions/workflows/db-up
 4. Click `Run workflow`.
 5. Action should complete successfully.
 </td><td>pass/fail</td></tr>
+
+<tr><td>Fleet Free</td><td>Verify that product group features behave correctly on Fleet Free</td><td>
+
+Run basic checks for the product group area while using a Fleet Free license.
+ 
+- Features documented as Free work normally
+- Premium features are correctly restricted or hidden
+- No UI, API, or workflow errors occur when using Free-only functionality
+
+Reference: https://fleetdm.com/pricing
+</td><td>pass/fail</td></tr>
+
+<tr><td>UI / UX</td><td>Verify visual consistency and layout integrity across product group areas</td><td>
+ 
+Perform a quick visual scan of the UI and confirm: 
+
+- No layout or alignment issues (misaligned, overlapping, or clipped elements)
+- Fonts, colors, and icons render correctly and match the design system
+- UI components render correctly (buttons, inputs, tables)
+- No obvious visual regressions or broken UI states
+
+</td><td>pass/fail</td></tr>
+
 </table>
 
 ### Security & Compliance
@@ -246,6 +311,15 @@ Using the github action https://github.com/fleetdm/fleet/actions/workflows/db-up
 3. Verify that vulnerable software appears under "My device > Software" for affected hosts with expected CVEs
 </td><td>pass/fail</td></tr>
 
+<tr><td>Certificate Authorities</td><td>Verify setup and certificate delivery</td><td>
+
+1. Configure and verify that certificates deploy to hosts with the following CAs:
+    1. DigiCert
+    2. NDES
+    3. SmallStep
+ 
+</td><td>pass/fail</td></tr>
+
 <tr><td>OS updates</td><td>Verify OS updates flow</td><td>
 
 1. Configure OS updates (macOS & Windows).
@@ -260,6 +334,29 @@ Using the github action https://github.com/fleetdm/fleet/actions/workflows/db-up
 4. Verify wiping and locking hosts using `fleetctl` (macOS, Windows, & Linux)
  
 </td><td>pass/fail</td></tr>
+
+<tr><td>Fleet Free</td><td>Verify that product group features behave correctly on Fleet Free</td><td>
+
+Run basic checks for the product group area while using a Fleet Free license.
+ 
+- Features documented as Free work normally
+- Premium features are correctly restricted or hidden
+- No UI, API, or workflow errors occur when using Free-only functionality
+
+Reference: https://fleetdm.com/pricing
+</td><td>pass/fail</td></tr>
+
+<tr><td>UI / UX</td><td>Verify visual consistency and layout integrity across product group areas</td><td>
+ 
+Perform a quick visual scan of the UI and confirm: 
+
+- No layout or alignment issues (misaligned, overlapping, or clipped elements)
+- Fonts, colors, and icons render correctly and match the design system
+- UI components render correctly (buttons, inputs, tables)
+- No obvious visual regressions or broken UI states
+
+</td><td>pass/fail</td></tr>
+
 </table>
 
 
