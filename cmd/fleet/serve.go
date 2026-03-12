@@ -1385,11 +1385,15 @@ the way that the Fleet server works.
 				}
 			}
 
+			// This is off by default for testing and development uses only.
+			cspEV := os.Getenv("FLEET_SERVER_ENABLE_CSP")
+			serveCSP := cspEV == "1" || cspEV == "true"
+
 			var apiHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
 			{
 				frontendHandler = service.PrometheusMetricsHandler(
 					"get_frontend",
-					service.ServeFrontend(config.Server.URLPrefix, config.Server.SandboxEnabled, httpLogger),
+					service.ServeFrontend(config.Server.URLPrefix, config.Server.SandboxEnabled, httpLogger, serveCSP),
 				)
 
 				frontendHandler = service.WithMDMEnrollmentMiddleware(svc, httpLogger, frontendHandler)
@@ -1402,6 +1406,11 @@ the way that the Fleet server works.
 
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 					[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes}, extra...)
+
+				if serveCSP {
+					// Only injecting this if CSP is turned on since the default security headers add some overhead to each request
+					apiHandler = endpointer.BrowserSecurityHeadersHandler(serveCSP, apiHandler)
+				}
 
 				setupRequired, err := svc.SetupRequired(baseCtx)
 				if err != nil {
@@ -1422,6 +1431,7 @@ the way that the Fleet server works.
 					config.Server.URLPrefix,
 					ds,
 					logger,
+					serveCSP,
 				)
 			}
 
@@ -1457,7 +1467,7 @@ the way that the Fleet server works.
 			rootMux := http.NewServeMux()
 			rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", otelmw.WrapHandler(health.Handler(httpLogger, healthCheckers), "/healthz", config)))
 			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", otelmw.WrapHandler(version.Handler(), "/version", config)))
-			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", otelmw.WrapHandlerDynamic(service.ServeStaticAssets("/assets/"), config)))
+			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", otelmw.WrapHandlerDynamic(service.ServeStaticAssets("/assets/", serveCSP), config)))
 
 			if len(config.Server.PrivateKey) > 0 {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
