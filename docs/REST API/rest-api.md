@@ -8855,7 +8855,7 @@ Returns a list of reports running on a host.
 | --------- | ------- | ----- | ------------------------------------------ |
 | id        | integer | path  | **Required**. The ID of the desired host.          |
 | order_key       | string  | query | What to order results by. Can be `"name" or `"updated_at"`.                                                             |
-| exclude_no_results | boolean  | query | If `true`, omits reports in Fleet (have `discard_data: true` or non-`snapshot` logging).                                                             |
+| exclude_no_results | boolean  | query | If `true`, omits reports that don't save results in Fleet (have `discard_data: true` or non-`snapshot` logging).                                                             |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | query           | string  | query | Search query keywords. Searchable fields include `name`.                                                                      |
 | page                    | integer | query | Page number of the results to fetch. |
