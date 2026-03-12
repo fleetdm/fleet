@@ -8861,7 +8861,7 @@ Lists the saved reports that run on a host, along with the first result for each
 | Name               | Type    | In    | Description                                                                                                   |
 | ------------------ | ------- | ----- | ------------------------------------------------------------------------------------------------------------- |
 | id                 | integer | path  | **Required**. The host's ID.                                                                                  |
-| query              | string  | query | Search reports by name. Partial matches are supported.                                                        |
+| query              | string  | query | Search query keywords. Searchable fields include `name`.                                                      |
 | exclude_no_results | boolean | query | If `true`, exclude reports that don't save results. Default is `false`.                                       |
 | page               | integer | query | Page number of the results to fetch.                                                                          |
 | per_page           | integer | query | Results per page.                                                                                             |
@@ -8928,7 +8928,8 @@ Lists the saved reports that run on a host, along with the first result for each
   "meta": {
     "has_next_results": false,
     "has_previous_results": false
-  }
+  },
+  "count": 3
 }
 ```
 
