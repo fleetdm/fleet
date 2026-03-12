@@ -577,8 +577,8 @@ module.exports.routes = {
     action: 'landing-pages/view-basic-comparison'
   },
 
-  'GET /fleet-gitops': {
-    action: 'view-fleet-gitops',
+  'GET /infrastructure-as-code': {
+    action: 'view-infrastructure-as-code',
     locals: {
       pageTitleForMeta: 'Infrastructure as code',
       pageDescriptionForMeta: 'See every change, undo any error, repeat every success. Fleet\'s infrastructure as code approach lets you manage every endpoint setting in version-controlled YAML.',
@@ -1046,6 +1046,7 @@ module.exports.routes = {
   'GET /apps': '/software-catalog',// This is mostly for mikermcneil who keeps trying to type the old url.
   'GET /register': '/login#register',
   'GET /handbook/finance/security': '/handbook/it/security',
+  'GET /fleet-gitops': '/infrastructure-as-code',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
