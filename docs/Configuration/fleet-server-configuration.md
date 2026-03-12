@@ -596,11 +596,11 @@ A value of 0 means no timeout.
 
 ### server_address
 
-The address to serve the Fleet webserver.
+the address to serve the fleet webserver.
 
-- Default value: `0.0.0.0:8080`
-- Environment variable: `FLEET_SERVER_ADDRESS`
-- Config file format:
+- default value: `0.0.0.0:8080`
+- environment variable: `fleet_server_address`
+- config file format:
   ```yaml
   server:
     address: 0.0.0.0:443
@@ -855,6 +855,21 @@ Enable this to significantly reduce the outbound bandwidth from the Fleet server
   server:
     gzip_responses: true
   ```
+
+### server_enable_csp
+
+If enabled, the server sends a Content-Security-Policy header on responses.
+
+A Content-Security-Policy is a defense-in-depth mechanism to protect malicious script/style injection such as XSS attacks. It should generally be enabled,
+
+- Default value: true
+- Environment variable: `FLEET_SERVER_ENABLE_CSP`
+- Config file format:
+  ```yaml
+  server:
+    enable_csp: true
+  ```
+
 
 ## Auth
 
