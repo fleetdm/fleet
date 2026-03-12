@@ -62,6 +62,7 @@ const TooltipTruncatedTextCell = ({
         position="top"
         tooltipClass="truncated-tooltip"
         clickable
+        showArrow
         delayHide={200}
         disableTooltip={isDefaultValue || !isTruncated}
         underline={false}
