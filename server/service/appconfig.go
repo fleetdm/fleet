@@ -511,7 +511,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	if appConfig.MDM.MacOSSetup.ManualAgentInstall.Valid && appConfig.MDM.MacOSSetup.ManualAgentInstall.Value {
 		if !lic.IsPremium() {
-			invalid.Append("apple_setup.macos_manual_agent_install", ErrMissingLicense.Error())
+			invalid.Append("setup_experience.macos_manual_agent_install", ErrMissingLicense.Error())
 			return nil, ctxerr.Wrap(ctx, invalid)
 		}
 	}
@@ -1365,7 +1365,7 @@ func (svc *Service) validateMDM(
 		invalid.Append("setup_experience.enable_end_user_authentication", ErrMissingLicense.Error())
 	}
 	if mdm.MacOSSetup.ManualAgentInstall.Valid && oldMdm.MacOSSetup.ManualAgentInstall.Value != mdm.MacOSSetup.ManualAgentInstall.Value && !lic.IsPremium() {
-		invalid.Append("setup_experience.manual_agent_install", ErrMissingLicense.Error())
+		invalid.Append("setup_experience.macos_manual_agent_install", ErrMissingLicense.Error())
 	}
 	if mdm.WindowsMigrationEnabled && !lic.IsPremium() {
 		invalid.Append("windows_migration_enabled", ErrMissingLicense.Error())
