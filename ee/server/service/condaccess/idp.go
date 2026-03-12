@@ -24,10 +24,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	"github.com/fleetdm/fleet/v4/server/platform/middleware/ratelimit"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"github.com/google/uuid"
-	"github.com/realclientip/realclientip-go"
 	dsig "github.com/russellhaering/goxmldsig"
 	"github.com/throttled/throttled/v2"
 )
@@ -134,7 +134,11 @@ func RegisterIdP(
 	// Create per-IP rate limiter for unauthenticated IdP endpoints.
 	// These endpoints are publicly accessible (required by SAML standard),
 	// so rate limiting prevents DDoS-driven database overload.
-	rateLimiter, err := newIDPRateLimiter(limitStore, ipStrategy)
+	quota := throttled.RateQuota{
+		MaxRate:  throttled.PerMin(idpRateLimitPerMinute),
+		MaxBurst: idpRateLimitMaxBurst,
+	}
+	rateLimiter, err := ratelimit.NewHTTPRateLimiter(limitStore, quota, ipStrategy)
 	if err != nil {
 		return fmt.Errorf("create idp rate limiter: %w", err)
 	}
@@ -157,39 +161,6 @@ func RegisterIdP(
 	mux.Handle(idpSSOPath, ssoHandler)
 
 	return nil
-}
-
-// clientIPVaryBy implements throttled.VaryBy using the real client IP extracted via the configured
-// trusted_proxies strategy. This correctly identifies clients behind load balancers/reverse proxies
-// instead of rate-limiting by the proxy's IP address.
-type clientIPVaryBy struct {
-	strategy realclientip.Strategy
-}
-
-func (v *clientIPVaryBy) Key(r *http.Request) string {
-	ip := v.strategy.ClientIP(r.Header, r.RemoteAddr)
-	if ip == "" {
-		return r.RemoteAddr
-	}
-	return ip
-}
-
-// newIDPRateLimiter creates an HTTP rate limiter for the IdP endpoints.
-func newIDPRateLimiter(store throttled.GCRAStore, ipStrategy realclientip.Strategy) (*throttled.HTTPRateLimiter, error) {
-	quota := throttled.RateQuota{
-		MaxRate:  throttled.PerMin(idpRateLimitPerMinute),
-		MaxBurst: idpRateLimitMaxBurst,
-	}
-
-	rateLimiter, err := throttled.NewGCRARateLimiter(store, quota)
-	if err != nil {
-		return nil, fmt.Errorf("create rate limiter: %w", err)
-	}
-
-	return &throttled.HTTPRateLimiter{
-		RateLimiter: rateLimiter,
-		VaryBy:      &clientIPVaryBy{strategy: ipStrategy},
-	}, nil
 }
 
 // handleInternalServerError logs the error, records it in context, and returns HTTP 500.
