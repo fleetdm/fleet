@@ -9,6 +9,7 @@
   var hideFooterLinks;// Hides footer links, reduces the height of the footer to 60px;
   var showAdminLinks;// Shows links to admin pages to admin users.
   var showConfigurationProfileLayout;
+  var disableAnalyticsScriptsAndIndexing;// Disables analytics scripts and adds a noindex meta tag. Used on pages linked to from Fleet.
   // Applies personalization for who people come from ads, so that the website makes more sense for them:
   var primaryBuyingSituation;
   var defaultMetaDescription = 'Open-source '+(['it-major-mdm', 'it-gap-filler-mdm', 'it-misc'].includes(primaryBuyingSituation) ? 'IT' : ['security-misc','security-vm'].includes(primaryBuyingSituation) ? 'security' : 'IT and security')+' for teams with lots of '+(['it-major-mdm', 'it-gap-filler-mdm'].includes(primaryBuyingSituation) ? 'computers. (macOS, Windows, Linux, ChromeOS)' : 'workstations and servers. (Linux, macOS, Windows, cloud, data center, OT/ICS, Chrome)');
@@ -43,7 +44,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&family=Roboto+Mono:ital,wght@0,200;0,300;0,400;0,500;0,700;1,200;1,300;1,400;1,500;1,700&family=Source+Code+Pro:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
     <% /* Certain scripts, normally analytics tools like Google Tag Manager and
     Google Analytics, should only be included in production: */
-    if (sails.config.environment === 'production') { %>
+    if (sails.config.environment === 'production' && !disableAnalyticsScriptsAndIndexing) { %>
     <% /* Rollbar */%>
     <script>
     var _rollbarConfig = {
