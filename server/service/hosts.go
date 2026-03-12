@@ -776,16 +776,17 @@ func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID 
 		return nil, fleet.ErrNoContext
 	}
 
-	includeObserver := false
+	filter := fleet.TeamFilter{User: vc.User}
 	if queryID != nil {
-		canRun, err := svc.ds.ObserverCanRunQuery(ctx, *queryID)
+		query, err := svc.ds.Query(ctx, *queryID)
 		if err != nil {
 			return nil, err
 		}
-		includeObserver = canRun
+		filter.IncludeObserver = query.ObserverCanRun
+		// Scope observer access to the query's own team. A user who is observer on
+		// multiple teams may only search hosts from the team the query belongs to.
+		filter.ObserverTeamID = query.TeamID
 	}
-
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
 
 	results := []*fleet.Host{}
 
@@ -2498,6 +2499,9 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 				sb.WriteString(dm.Email)
 			}
 			h.CSVDeviceMapping = sb.String()
+			// Add the aliased fields for team_id and team_name.
+			h.FleetID = h.TeamID
+			h.FleetName = h.TeamName
 		}
 	}
 
@@ -2589,6 +2593,14 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 			cols = append(cols, rawCol)
 			if rawCol == "device_mapping" {
 				req.Opts.DeviceMapping = true
+			}
+			// If team_id / team_name are requested, also include their aliases.
+			// TODO: clean up in Fleet 5.
+			if rawCol == "team_id" {
+				cols = append(cols, "fleet_id")
+			}
+			if rawCol == "team_name" {
+				cols = append(cols, "fleet_name")
 			}
 		}
 	}

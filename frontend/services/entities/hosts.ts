@@ -614,6 +614,11 @@ export default {
     return sendRequest("GET", HOST_RECOVERY_LOCK_PASSWORD(id));
   },
 
+  rotateRecoveryLockPassword: (id: number): Promise<void> => {
+    const { HOST_RECOVERY_LOCK_PASSWORD_ROTATE } = endpoints;
+    return sendRequest("POST", HOST_RECOVERY_LOCK_PASSWORD_ROTATE(id));
+  },
+
   lockHost: (id: number) => {
     const { HOST_LOCK } = endpoints;
     return sendRequest("POST", HOST_LOCK(id));

@@ -496,7 +496,7 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 func (ds *Datastore) getHostRecoveryLockPasswordDecrypted(ctx context.Context, hostUUID string) (string, error) {
 	var encryptedPassword []byte
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &encryptedPassword,
-		`SELECT encrypted_password FROM host_recovery_key_passwords WHERE host_uuid = ?`, hostUUID)
+		`SELECT encrypted_password FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`, hostUUID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").

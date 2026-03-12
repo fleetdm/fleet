@@ -19,6 +19,14 @@ type fieldInfo struct {
 	typ      reflect.Type
 }
 
+// ValidKeysProvider is implemented by types with custom JSON marshaling
+// that want to declare valid keys for gitops unknown-key validation.
+type ValidKeysProvider interface {
+	ValidKeys() []string
+}
+
+var validKeysProviderType = reflect.TypeFor[ValidKeysProvider]()
+
 var (
 	knownKeysCache   = make(map[reflect.Type]map[string]fieldInfo)
 	knownKeysCacheMu sync.Mutex
@@ -26,6 +34,7 @@ var (
 
 // knownJSONKeys extracts the set of valid JSON field names from a struct type,
 // including fields from embedded structs. Results are cached per type.
+// For types implementing ValidKeysProvider, the declared keys are used instead.
 func knownJSONKeys(t reflect.Type) map[string]fieldInfo {
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
@@ -42,7 +51,22 @@ func knownJSONKeys(t reflect.Type) map[string]fieldInfo {
 	}
 
 	keys := make(map[string]fieldInfo)
-	collectFields(t, keys)
+
+	// If the type (or pointer to it) implements ValidKeysProvider, use those
+	// keys instead of reflecting on struct fields. This handles types with
+	// custom JSON marshaling (e.g. GoogleCalendarApiKey).
+	if reflect.PointerTo(t).Implements(validKeysProviderType) || t.Implements(validKeysProviderType) {
+		provider := reflect.New(t).Interface().(ValidKeysProvider)
+		for _, name := range provider.ValidKeys() {
+			keys[name] = fieldInfo{
+				jsonName: name,
+				typ:      reflect.TypeFor[any](),
+			}
+		}
+	} else {
+		collectFields(t, keys)
+	}
+
 	knownKeysCache[t] = keys
 	return keys
 }
@@ -108,6 +132,10 @@ var anyFieldTypes = map[reflect.Type]map[string]reflect.Type{
 		"windows_settings": reflect.TypeFor[fleet.WindowsSettings](),
 		"android_settings": reflect.TypeFor[fleet.AndroidSettings](),
 	},
+	reflect.TypeFor[GitOpsOrgSettings](): {
+		"certificate_authorities": reflect.TypeFor[fleet.GroupedCertificateAuthorities](),
+		"mdm":                     reflect.TypeFor[GitOpsMDM](),
+	},
 }
 
 // suggestKey returns the closest known key name if one is within a reasonable
@@ -159,7 +187,9 @@ func validateMapKeys(data map[string]any, targetType reflect.Type, path []string
 	}
 
 	known := knownJSONKeys(targetType)
-	if known == nil {
+	if len(known) == 0 {
+		// No JSON-tagged fields: either not a struct or a struct with custom
+		// serialization. Skip validation since we don't know the expected keys.
 		return nil
 	}
 
@@ -181,13 +211,13 @@ func validateMapKeys(data map[string]any, targetType reflect.Type, path []string
 		// Determine the type to recurse into.
 		fieldType := fi.typ
 
-		// If the field type is `any` (interface{}), check the override registry.
-		if fieldType.Kind() == reflect.Interface {
-			if override, ok := parentOverrides[key]; ok { // indexing a nil map is safe; ok will be false
-				fieldType = override
-			} else {
-				continue // any-typed field with no override, skip
-			}
+		// Check the override registry for this field. This handles two cases:
+		// 1. `any`/`interface{}` fields that need a concrete type for recursion
+		// 2. Struct fields that need a gitops-extended type (e.g. fleet.MDM -> GitOpsMDM)
+		if override, ok := parentOverrides[key]; ok {
+			fieldType = override
+		} else if fieldType.Kind() == reflect.Interface {
+			continue // any-typed field with no override, skip
 		}
 
 		// Recurse into nested structs or slices.
