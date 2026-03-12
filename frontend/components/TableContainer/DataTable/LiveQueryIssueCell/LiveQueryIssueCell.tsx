@@ -1,21 +1,18 @@
 import React from "react";
-import ReactTooltip from "react-tooltip";
 
 import Icon from "components/Icon";
-import { COLORS } from "styles/var/colors";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface ILiveQueryIssueCellProps<T> {
   displayName: string;
   distributedInterval: number;
   status: string;
-  rowId: number;
 }
 
 const LiveQueryIssueCell = ({
   displayName,
   distributedInterval,
   status,
-  rowId,
 }: ILiveQueryIssueCellProps<any>): JSX.Element => {
   if (distributedInterval < 60 && status === "online") {
     return <>{displayName}</>;
@@ -24,39 +21,33 @@ const LiveQueryIssueCell = ({
   return (
     <>
       {displayName}{" "}
-      <span
-        className={`host-issue tooltip tooltip__tooltip-icon`}
-        data-tip
-        data-for={`host-issue__${rowId.toString()}`}
-        data-tip-disable={false}
+      <TooltipWrapper
+        showArrow
+        tipContent={
+          <span className="tooltip__tooltip-text">
+            {status === "offline" ? (
+              <>
+                Offline hosts will not <br />
+                respond to a live report.
+              </>
+            ) : (
+              <>
+                This host might take up to
+                <br /> {distributedInterval} seconds to respond.
+              </>
+            )}
+          </span>
+        }
+        position="top"
+        underline={false}
+        className="host-issue tooltip tooltip__tooltip-icon"
       >
         <Icon
           name="error-outline"
           size="small"
           color={status === "offline" ? "status-error" : "status-warning"}
         />
-      </span>
-      <ReactTooltip
-        place="top"
-        effect="solid"
-        backgroundColor={COLORS["tooltip-bg"]}
-        id={`host-issue__${rowId.toString()}`}
-        data-html
-      >
-        <span className={`tooltip__tooltip-text`}>
-          {status === "offline" ? (
-            <>
-              Offline hosts will not <br />
-              respond to a live report.
-            </>
-          ) : (
-            <>
-              This host might take up to
-              <br /> {distributedInterval} seconds to respond.
-            </>
-          )}
-        </span>
-      </ReactTooltip>
+      </TooltipWrapper>
     </>
   );
 };
