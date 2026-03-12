@@ -25,7 +25,9 @@ describe("ClearPasscodeModal", () => {
         /Clearing the passcode allows the user to set a new passcode on the device./i
       )
     ).toBeInTheDocument();
-    expect(screen.getByText(/I wish to clear the passcode on/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/I wish to clear the passcode on/i)
+    ).toBeInTheDocument();
     expect(screen.getByText(/iphone-host-1/i)).toBeInTheDocument();
   });
 
