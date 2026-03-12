@@ -8574,6 +8574,7 @@ Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fl
 - [List queries](#list-queries)
 - [Get query](#get-query)
 - [Get query report](#get-query-report)
+- [List host's reports](#list-hosts-reports)
 - [Get host's query report](#get-hosts-query-report)
 - [Create query](#create-query)
 - [Update query](#update-query)
@@ -8848,6 +8849,87 @@ If a query has no results stored, then `results` will be an empty array:
 ```
 
 > Note: osquery scheduled queries do not return errors, so only non-error results are included in the report. If you suspect a query may be running into errors, you can use the [live query](#run-live-query) endpoint to get diagnostics.
+
+### List host's reports
+
+Lists the saved reports that run on a host, along with the first result for each report that saves results.
+
+`GET /api/v1/fleet/hosts/:id/reports`
+
+#### Parameters
+
+| Name               | Type    | In    | Description                                                                                                   |
+| ------------------ | ------- | ----- | ------------------------------------------------------------------------------------------------------------- |
+| id                 | integer | path  | **Required**. The host's ID.                                                                                  |
+| query              | string  | query | Search reports by name. Partial matches are supported.                                                        |
+| exclude_no_results | boolean | query | If `true`, exclude reports that don't save results. Default is `false`.                                       |
+| page               | integer | query | Page number of the results to fetch.                                                                          |
+| per_page           | integer | query | Results per page.                                                                                             |
+| order_key          | string  | query | What to order results by. Valid options are `"name"` and `"updated_at"`. Default is `"name"`.                 |
+| order_direction    | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/reports`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "reports": [
+    {
+      "report_id": 31,
+      "name": "usb_devices",
+      "description": "Retrieves USB devices and their details.",
+      "query": "SELECT model, vendor FROM usb_devices;",
+      "discard_data": false,
+      "total_results_count": 4,
+      "updated_at": "2021-01-19T17:08:31Z",
+      "last_fetched": "2021-01-19T17:08:31Z",
+      "first_result_columns": {
+        "model": "USB 2.0 Hub",
+        "vendor": "VIA Labs, Inc."
+      }
+    },
+    {
+      "report_id": 44,
+      "name": "os_version",
+      "description": "Retrieves the host's operating system version.",
+      "query": "SELECT name, version, major, minor, patch FROM os_version;",
+      "discard_data": false,
+      "total_results_count": 1,
+      "updated_at": "2021-01-20T14:52:09Z",
+      "last_fetched": "2021-01-20T14:52:09Z",
+      "first_result_columns": {
+        "name": "macOS",
+        "version": "14.2.1",
+        "major": "14",
+        "minor": "2",
+        "patch": "1"
+      }
+    },
+    {
+      "report_id": 52,
+      "name": "disk_encryption",
+      "description": "Checks disk encryption status.",
+      "query": "SELECT 1 FROM disk_encryption WHERE encrypted = 1;",
+      "discard_data": true,
+      "total_results_count": 0,
+      "updated_at": "2021-01-21T09:30:00Z",
+      "last_fetched": null,
+      "first_result_columns": null
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+> Note: Reports with `discard_data` set to `true` will have `null` for both `last_fetched` and `first_result_columns`, as results are not stored. Use `exclude_no_results` to filter these out.
 
 ### Get host's query report
 
