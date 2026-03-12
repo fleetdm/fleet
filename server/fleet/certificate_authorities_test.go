@@ -13,11 +13,14 @@ func TestValidateCertificateAuthoritiesSpec(t *testing.T) {
 
 func TestGroupedCertificateAuthorities(t *testing.T) {
 	grouped := GroupedCertificateAuthorities{
-		NDESSCEP: &NDESSCEPProxyCA{ // should not be included
-			URL:      "https://some-ndes-scep-proxy-url.com",
-			AdminURL: "https://some-ndes-admin-url.com",
-			Username: "some-ndes-username",
-			Password: "some-ndes-password",
+		NDESSCEP: []NDESSCEPProxyCA{
+			{
+				Name:     "NDES_PROD",
+				URL:      "https://some-ndes-scep-proxy-url.com",
+				AdminURL: "https://some-ndes-admin-url.com",
+				Username: "some-ndes-username",
+				Password: "some-ndes-password",
+			},
 		},
 		CustomScepProxy: []CustomSCEPProxyCA{ // should both be included
 			{
@@ -94,6 +97,7 @@ func TestPreprocessCAFields(t *testing.T) {
 
 	t.Run("NDES CA fields are trimmed and normalized", func(t *testing.T) {
 		ndesCA := &NDESSCEPProxyCA{
+			Name:     "  NDES_PROD  ",
 			URL:      "  https://ndes.com  ",
 			AdminURL: "  https://ndes.com/admin  ",
 			Username: "  admin  ",
@@ -102,6 +106,7 @@ func TestPreprocessCAFields(t *testing.T) {
 
 		ndesCA.Preprocess()
 
+		require.Equal(t, "NDES_PROD", ndesCA.Name)
 		require.Equal(t, "https://ndes.com", ndesCA.URL)
 		require.Equal(t, "https://ndes.com/admin", ndesCA.AdminURL)
 		require.Equal(t, "admin", ndesCA.Username)

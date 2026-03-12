@@ -1319,19 +1319,25 @@ func (a ActivityEditedAppStoreApp) ActivityName() string {
 	return "edited_app_store_app"
 }
 
-type ActivityAddedNDESSCEPProxy struct{}
+type ActivityAddedNDESSCEPProxy struct {
+	Name string `json:"name"`
+}
 
 func (a ActivityAddedNDESSCEPProxy) ActivityName() string {
 	return "added_ndes_scep_proxy"
 }
 
-type ActivityDeletedNDESSCEPProxy struct{}
+type ActivityDeletedNDESSCEPProxy struct {
+	Name *string `json:"name,omitempty"`
+}
 
 func (a ActivityDeletedNDESSCEPProxy) ActivityName() string {
 	return "deleted_ndes_scep_proxy"
 }
 
-type ActivityEditedNDESSCEPProxy struct{}
+type ActivityEditedNDESSCEPProxy struct {
+	Name string `json:"name"`
+}
 
 func (a ActivityEditedNDESSCEPProxy) ActivityName() string {
 	return "edited_ndes_scep_proxy"

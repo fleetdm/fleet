@@ -113,14 +113,14 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 			return nil, err
 		}
 
-		caToCreate.Name = ptr.String("NDES")
+		caToCreate.Name = &p.NDESSCEPProxy.Name
 		caToCreate.Type = string(fleet.CATypeNDESSCEPProxy)
 		caToCreate.URL = &p.NDESSCEPProxy.URL
 		caToCreate.AdminURL = ptr.String(p.NDESSCEPProxy.AdminURL)
 		caToCreate.Username = ptr.String(p.NDESSCEPProxy.Username)
 		caToCreate.Password = &p.NDESSCEPProxy.Password
 		caDisplayType = "NDES SCEP"
-		activity = fleet.ActivityAddedNDESSCEPProxy{}
+		activity = fleet.ActivityAddedNDESSCEPProxy{Name: p.NDESSCEPProxy.Name}
 	}
 
 	if p.CustomSCEPProxy != nil {
@@ -158,9 +158,6 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 	createdCA, err := svc.ds.NewCertificateAuthority(ctx, caToCreate)
 	if err != nil {
 		if errors.As(err, &fleet.ConflictError{}) {
-			if caToCreate.Type == string(fleet.CATypeNDESSCEPProxy) {
-				return nil, &fleet.BadRequestError{Message: fmt.Sprintf("%s. Only a single NDES CA can be added.", errPrefix)}
-			}
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("%s\"%s\" name is already used by another %s certificate authority. Please choose a different name and try again.", errPrefix, *caToCreate.Name, caDisplayType)}
 		}
 		return nil, err
@@ -237,10 +234,6 @@ func (svc *Service) validateDigicert(ctx context.Context, digicertCA *fleet.Digi
 }
 
 func validateCAName(name string, errPrefix string) error {
-	// This is used by NDES itself which doesn't have a name the user can set so we must reserve it
-	if name == "NDES" {
-		return fleet.NewInvalidArgumentError("name", fmt.Sprintf("%sCA name cannot be NDES", errPrefix))
-	}
 	if len(name) == 0 {
 		return fleet.NewInvalidArgumentError("name", fmt.Sprintf("%sCA name cannot be empty", errPrefix))
 	}
@@ -370,6 +363,9 @@ func validateURL(caURL, displayType, errPrefix string) error {
 }
 
 func (svc *Service) validateNDESSCEPProxy(ctx context.Context, ndesSCEP *fleet.NDESSCEPProxyCA, errPrefix string) error {
+	if err := validateCAName(ndesSCEP.Name, errPrefix); err != nil {
+		return err
+	}
 	if err := validateURL(ndesSCEP.URL, "NDES SCEP", errPrefix); err != nil {
 		return err
 	}
@@ -459,7 +455,9 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 			Name: ca.Name,
 		}
 	case string(fleet.CATypeNDESSCEPProxy):
-		activity = fleet.ActivityDeletedNDESSCEPProxy{}
+		activity = fleet.ActivityDeletedNDESSCEPProxy{
+			Name: ca.Name,
+		}
 	case string(fleet.CATypeHydrant):
 		activity = fleet.ActivityDeletedHydrant{
 			Name: ca.Name,
@@ -597,11 +595,18 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		}
 	}
 	// preprocess ndes
-	if incoming.NDESSCEP != nil {
-		incoming.NDESSCEP.Preprocess()
+	for _, ca := range incoming.NDESSCEP {
+		if ca.Name == "" {
+			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.ndes_scep_proxy: CA name cannot be empty.")
+		}
+		ca.Preprocess()
+
+		if err := checkAllNames(ca.Name, "ndes_scep_proxy", "NDES SCEP Proxy"); err != nil {
+			return nil, err
+		}
 	}
 
-	if err := svc.processNDESSCEP(ctx, batchOps, incoming.NDESSCEP, existing.NDESSCEP); err != nil {
+	if err := svc.processNDESSCEPCAs(ctx, batchOps, incoming.NDESSCEP, existing.NDESSCEP); err != nil {
 		return nil, err
 	}
 	if err := svc.processDigiCertCAs(ctx, batchOps, incoming.DigiCert, existing.DigiCert); err != nil {
@@ -623,67 +628,67 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 	return batchOps, nil
 }
 
-func (svc *Service) processNDESSCEP(ctx context.Context, batchOps *fleet.CertificateAuthoritiesBatchOperations, incoming *fleet.NDESSCEPProxyCA, existing *fleet.NDESSCEPProxyCA) error {
-	ndesName := "NDES"
-
-	if existing == nil && incoming == nil {
-		// do nothing
-		svc.logger.DebugContext(ctx, "no existing or incoming NDES SCEP CA, skipping")
-		return nil
+func (svc *Service) processNDESSCEPCAs(ctx context.Context, batchOps *fleet.CertificateAuthoritiesBatchOperations, incomingCAs []fleet.NDESSCEPProxyCA, existingCAs []fleet.NDESSCEPProxyCA) error {
+	incomingByName := make(map[string]*fleet.NDESSCEPProxyCA)
+	for _, incoming := range incomingCAs {
+		// Note: caller is responsible for ensuring incoming list has no duplicates
+		incomingByName[incoming.Name] = &incoming
 	}
 
-	if existing != nil && incoming != nil && incoming.URL == existing.URL && incoming.AdminURL == existing.AdminURL && incoming.Username == existing.Username && incoming.Password == existing.Password {
-		// all fields are identical so we can skip further validation and processing
-		svc.logger.DebugContext(ctx, "existing and incoming NDES SCEP CA are identical, skipping")
-		return nil
+	existingByName := make(map[string]*fleet.NDESSCEPProxyCA)
+	for _, existing := range existingCAs {
+		// if existing CA isn't in the incoming list, we should delete it
+		if _, ok := incomingByName[existing.Name]; !ok {
+			batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
+				Type:     string(fleet.CATypeNDESSCEPProxy),
+				Name:     &existing.Name,
+				URL:      &existing.URL,
+				AdminURL: &existing.AdminURL,
+				Username: &existing.Username,
+				Password: &existing.Password,
+			})
+		}
+		// Note: datastore is responsible for ensuring no existing list has no duplicates
+		existingByName[existing.Name] = &existing
 	}
 
-	if existing != nil && (incoming == nil || (incoming.URL == "" && incoming.AdminURL == "" && incoming.Username == "" && incoming.Password == "")) {
-		// delete current
-		svc.logger.DebugContext(ctx, "deleting existing NDES SCEP CA as incoming is empty")
-		batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
-			Type:     string(fleet.CATypeNDESSCEPProxy),
-			Name:     &ndesName,
-			AdminURL: &existing.AdminURL,
-			Username: &existing.Username,
-			Password: &existing.Password,
-		})
-		return nil
-	}
+	for name, incoming := range incomingByName {
+		if incoming.Password == "" || incoming.Password == fleet.MaskedPassword {
+			return fleet.NewInvalidArgumentError("password", fmt.Sprintf("certificate_authorities.ndes_scep_proxy.password: NDES SCEP password cannot be empty for CA %s.", name))
+		}
 
-	if incoming.Password == "" || incoming.Password == fleet.MaskedPassword {
-		return fleet.NewInvalidArgumentError("password", "certificate_authorities.ndes_scep_proxy.password: NDES SCEP password cannot be empty.")
-	}
+		if err := svc.validateNDESSCEPProxy(ctx, incoming, "certificate_authorities.ndes_scep_proxy: "); err != nil {
+			return err
+		}
 
-	if err := svc.validateNDESSCEPProxy(ctx, incoming, "certificate_authorities.ndes_scep_proxy: "); err != nil {
-		return err
+		// create the payload to be added or updated
+		existing, ok := existingByName[name]
+		switch {
+		case ok && incoming.Equals(existing):
+			// found and identical so do nothing
+			continue
+		case ok:
+			// update existing
+			batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
+				Type:     string(fleet.CATypeNDESSCEPProxy),
+				Name:     &incoming.Name,
+				URL:      &incoming.URL,
+				AdminURL: &incoming.AdminURL,
+				Username: &incoming.Username,
+				Password: &incoming.Password,
+			})
+		default:
+			// add new
+			batchOps.Add = append(batchOps.Add, &fleet.CertificateAuthority{
+				Type:     string(fleet.CATypeNDESSCEPProxy),
+				Name:     &incoming.Name,
+				URL:      &incoming.URL,
+				AdminURL: &incoming.AdminURL,
+				Username: &incoming.Username,
+				Password: &incoming.Password,
+			})
+		}
 	}
-
-	// add if there is no existing
-	if existing == nil || (existing.URL == "" && existing.AdminURL == "" && existing.Username == "" && existing.Password == "") {
-		svc.logger.DebugContext(ctx, "adding new NDES SCEP CA as none exists")
-		batchOps.Add = append(batchOps.Add, &fleet.CertificateAuthority{
-			Type:     string(fleet.CATypeNDESSCEPProxy),
-			Name:     &ndesName,
-			URL:      &incoming.URL,
-			AdminURL: &incoming.AdminURL,
-			Username: &incoming.Username,
-			Password: &incoming.Password,
-		})
-		return nil
-	}
-
-	// otherwise update with existing id
-	svc.logger.DebugContext(ctx, "updating existing NDES SCEP CA")
-	incoming.ID = existing.ID
-	batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
-		Type:     string(fleet.CATypeNDESSCEPProxy),
-		Name:     &ndesName,
-		URL:      &incoming.URL,
-		AdminURL: &incoming.AdminURL,
-		Username: &incoming.Username,
-		Password: &incoming.Password,
-	})
 
 	return nil
 }
@@ -979,7 +984,7 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 	for _, ca := range ops.Add {
 		switch ca.Type {
 		case string(fleet.CATypeNDESSCEPProxy):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedNDESSCEPProxy{}); err != nil {
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedNDESSCEPProxy{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for added NDES SCEP proxy")
 			}
 		case string(fleet.CATypeDigiCert):
@@ -1007,7 +1012,7 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 	for _, ca := range ops.Update {
 		switch ca.Type {
 		case string(fleet.CATypeNDESSCEPProxy):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedNDESSCEPProxy{}); err != nil {
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedNDESSCEPProxy{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for edited NDES SCEP proxy")
 			}
 		case string(fleet.CATypeDigiCert):
@@ -1035,7 +1040,7 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 	for _, ca := range ops.Delete {
 		switch ca.Type {
 		case string(fleet.CATypeNDESSCEPProxy):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedNDESSCEPProxy{}); err != nil {
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedNDESSCEPProxy{Name: ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for deleted NDES SCEP proxy")
 			}
 		case string(fleet.CATypeDigiCert):
@@ -1174,6 +1179,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 			return err
 		}
 		caToUpdate.Type = string(fleet.CATypeNDESSCEPProxy)
+		caToUpdate.Name = p.NDESSCEPProxyCAUpdatePayload.Name
 		caToUpdate.URL = p.NDESSCEPProxyCAUpdatePayload.URL
 		caToUpdate.AdminURL = p.NDESSCEPProxyCAUpdatePayload.AdminURL
 		caToUpdate.Username = p.NDESSCEPProxyCAUpdatePayload.Username
@@ -1183,7 +1189,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		} else {
 			caActivityName = *oldCA.Name
 		}
-		activity = fleet.ActivityEditedNDESSCEPProxy{}
+		activity = fleet.ActivityEditedNDESSCEPProxy{Name: caActivityName}
 	case p.CustomSCEPProxyCAUpdatePayload != nil:
 		if p.CustomSCEPProxyCAUpdatePayload.IsEmpty() {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sCustom SCEP Proxy CA update payload is empty", errPrefix)}
@@ -1395,7 +1401,12 @@ func (svc *Service) validateCustomESTUpdate(ctx context.Context, estUpdate *flee
 }
 
 func (svc *Service) validateNDESSCEPProxyUpdate(ctx context.Context, ndesSCEP *fleet.NDESSCEPProxyCAUpdatePayload, oldCA *fleet.CertificateAuthority, errPrefix string) error {
-	// some methods in this fuction require the NDESSCEPProxyCA type so we convert the ndes update payload here
+	// some methods in this function require the NDESSCEPProxyCA type so we convert the ndes update payload here
+	if ndesSCEP.Name != nil {
+		if err := validateCAName(*ndesSCEP.Name, errPrefix); err != nil {
+			return err
+		}
+	}
 
 	if ndesSCEP.URL != nil {
 		if err := validateURL(*ndesSCEP.URL, "NDES SCEP", errPrefix); err != nil {

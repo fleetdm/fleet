@@ -966,11 +966,13 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 			}
 		}
 		if ndes_scep_proxy, ok := result["ndes_scep_proxy"]; ok && ndes_scep_proxy != nil {
-			ndes_scep_proxy.(map[string]interface{})["password"] = cmd.AddComment(filePath, "TODO: Add your NDES SCEP proxy password here")
-			cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
-				Filename: "default.yml",
-				Key:      "certificate_authorities.ndes_scep_proxy.password",
-			})
+			for _, intg := range ndes_scep_proxy.([]interface{}) {
+				intg.(map[string]interface{})["password"] = cmd.AddComment(filePath, "TODO: Add your NDES SCEP proxy password here")
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: "default.yml",
+					Key:      "certificate_authorities.ndes_scep_proxy.password",
+				})
+			}
 		}
 		if custom_scep_proxy, ok := result["custom_scep_proxy"]; ok && custom_scep_proxy != nil {
 			for _, intg := range custom_scep_proxy.([]interface{}) {

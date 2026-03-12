@@ -436,8 +436,8 @@ In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_`. F
 
 | Name | Platforms | Description |
 | ---- | --------- | ----------- |
-| <span style="display: inline-block; min-width: 240px;">`$FLEET_VAR_NDES_SCEP_CHALLENGE`</span> | macOS, iOS, iPadOS | Fleet-managed one-time NDES challenge password used during SCEP certificate configuration profile deployment. |
-| `$FLEET_VAR_NDES_SCEP_PROXY_URL`                   | macOS, iOS, iPadOS | Fleet-managed NDES SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
+| <span style="display: inline-block; min-width: 240px;">`$FLEET_VAR_NDES_SCEP_CHALLENGE_<CA_NAME>`</span> | macOS, iOS, iPadOS | Fleet-managed one-time NDES challenge password used during SCEP certificate configuration profile deployment. `<CA_NAME>` is the name of the NDES SCEP proxy certificate authority. |
+| `$FLEET_VAR_NDES_SCEP_PROXY_URL_<CA_NAME>`                   | macOS, iOS, iPadOS | Fleet-managed NDES SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. `<CA_NAME>` is the name of the NDES SCEP proxy certificate authority. |
 | `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`            | macOS, iOS, iPadOS, Windows | Host's IdP username (e.g. "user@example.com"). When this changes, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`           | macOS, iOS, iPadOS, Windows | Host's IdP full name. When this changes, Fleet will automatically resend the profile. |`            | macOS, iOS, iPadOS | Host's IdP username. When this changes, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART` | macOS, iOS, iPadOS, Windows | Local part of the email (e.g. john from john@example.com). When this changes, Fleet will automatically resend the profile. |
@@ -899,10 +899,11 @@ org_settings:
           - $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
         certificate_seat_id: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
     ndes_scep_proxy:
-      url: https://example.com/certsrv/mscep/mscep.dll
-      admin_url: https://example.com/certsrv/mscep_admin/
-      username: Administrator@example.com
-      password: myPassword
+      - name: NDES_OKTA_PROD
+        url: https://example.com/certsrv/mscep/mscep.dll
+        admin_url: https://example.com/certsrv/mscep_admin/
+        username: Administrator@example.com
+        password: myPassword
     custom_scep_proxy:
       - name: SCEP_VPN
         url: https://example.com/scep
@@ -944,6 +945,7 @@ Can only be configured for all teams (`org_settings`).
 
 #### ndes_scep_proxy
 
+- `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
 - `url` is the URL of the NDES SCEP endpoint (default: `""`).
 - `admin_url` is the URL of the NDES admin endpoint (default: `""`).
 - `username` is the username of the NDES admin endpoint (default: `""`).

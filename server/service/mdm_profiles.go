@@ -86,17 +86,28 @@ func (d *DigiCertVarsFound) SetPassword(value string) (*DigiCertVarsFound, bool)
 }
 
 type NDESVarsFound struct {
-	urlFound       bool
-	challengeFound bool
+	urlCA          map[string]struct{}
+	challengeCA    map[string]struct{}
 	renewalIdFound bool
 }
 
-// Ok makes sure that Challenge, URL, and renewal ID are present.
+// Ok makes sure that Challenge is present only if URL is also present in SCEP profile.
 func (n *NDESVarsFound) Ok() bool {
 	if n == nil {
 		return true
 	}
-	return n.urlFound && n.challengeFound && n.renewalIdFound
+	if len(n.challengeCA) != len(n.urlCA) {
+		return false
+	}
+	if len(n.challengeCA) == 0 {
+		return false
+	}
+	for ca := range n.challengeCA {
+		if _, ok := n.urlCA[ca]; !ok {
+			return false
+		}
+	}
+	return n.renewalIdFound
 }
 
 func (n *NDESVarsFound) Found() bool {
@@ -104,31 +115,62 @@ func (n *NDESVarsFound) Found() bool {
 }
 
 func (n *NDESVarsFound) RenewalOnly() bool {
-	return n != nil && !n.urlFound && !n.challengeFound && n.renewalIdFound
+	return n != nil && len(n.urlCA) == 0 && len(n.challengeCA) == 0 && n.renewalIdFound
+}
+
+func (n *NDESVarsFound) CAs() []string {
+	if n == nil {
+		return nil
+	}
+	keys := make([]string, 0, len(n.urlCA))
+	for key := range n.urlCA {
+		keys = append(keys, key)
+	}
+	return keys
 }
 
 func (n *NDESVarsFound) ErrorMessage() string {
-	if n.renewalIdFound && !n.urlFound && !n.challengeFound {
+	if n.renewalIdFound && len(n.challengeCA) == 0 && len(n.urlCA) == 0 {
 		return fleet.SCEPRenewalIDWithoutURLChallengeErrMsg
 	}
-	return fleet.NDESSCEPVariablesMissingErrMsg
+	if !n.renewalIdFound || len(n.challengeCA) == 0 || len(n.urlCA) == 0 {
+		return fmt.Sprintf("SCEP profile for NDES certificate authority requires: $FLEET_VAR_%s<CA_NAME>, $FLEET_VAR_%s<CA_NAME>, and $FLEET_VAR_%s variables.", fleet.FleetVarNDESSCEPChallengePrefix, fleet.FleetVarNDESSCEPProxyURLPrefix, fleet.FleetVarSCEPRenewalID)
+	}
+	for ca := range n.challengeCA {
+		if _, ok := n.urlCA[ca]; !ok {
+			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarNDESSCEPProxyURLPrefix, ca)
+		}
+	}
+	for ca := range n.urlCA {
+		if _, ok := n.challengeCA[ca]; !ok {
+			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarNDESSCEPChallengePrefix, ca)
+		}
+	}
+	return fmt.Sprintf("CA name mismatch between $FLEET_VAR_%s<ca_name> and $FLEET_VAR_%s<ca_name> in the profile.",
+		fleet.FleetVarNDESSCEPProxyURLPrefix, fleet.FleetVarNDESSCEPChallengePrefix)
 }
 
-func (n *NDESVarsFound) SetURL() (*NDESVarsFound, bool) {
+func (n *NDESVarsFound) SetURL(value string) (*NDESVarsFound, bool) {
 	if n == nil {
 		n = &NDESVarsFound{}
 	}
-	alreadyPresent := n.urlFound
-	n.urlFound = true
+	if n.urlCA == nil {
+		n.urlCA = make(map[string]struct{})
+	}
+	_, alreadyPresent := n.urlCA[value]
+	n.urlCA[value] = struct{}{}
 	return n, !alreadyPresent
 }
 
-func (n *NDESVarsFound) SetChallenge() (*NDESVarsFound, bool) {
+func (n *NDESVarsFound) SetChallenge(value string) (*NDESVarsFound, bool) {
 	if n == nil {
 		n = &NDESVarsFound{}
 	}
-	alreadyPresent := n.challengeFound
-	n.challengeFound = true
+	if n.challengeCA == nil {
+		n.challengeCA = make(map[string]struct{})
+	}
+	_, alreadyPresent := n.challengeCA[value]
+	n.challengeCA[value] = struct{}{}
 	return n, !alreadyPresent
 }
 
@@ -448,12 +490,30 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 			if !caFound {
 				ok = false
 			}
-		case k == string(fleet.FleetVarNDESSCEPProxyURL):
-			caFound = true
-			ndesVars, ok = ndesVars.SetURL()
-		case k == string(fleet.FleetVarNDESSCEPChallenge):
-			caFound = true
-			ndesVars, ok = ndesVars.SetChallenge()
+		case strings.HasPrefix(k, string(fleet.FleetVarNDESSCEPProxyURLPrefix)):
+			caName := strings.TrimPrefix(k, string(fleet.FleetVarNDESSCEPProxyURLPrefix))
+			for _, ca := range groupedCAs.NDESSCEP {
+				if ca.Name == caName {
+					caFound = true
+					ndesVars, ok = ndesVars.SetURL(caName)
+					break
+				}
+			}
+			if !caFound {
+				ok = false
+			}
+		case strings.HasPrefix(k, string(fleet.FleetVarNDESSCEPChallengePrefix)):
+			caName := strings.TrimPrefix(k, string(fleet.FleetVarNDESSCEPChallengePrefix))
+			for _, ca := range groupedCAs.NDESSCEP {
+				if ca.Name == caName {
+					caFound = true
+					ndesVars, ok = ndesVars.SetChallenge(caName)
+					break
+				}
+			}
+			if !caFound {
+				ok = false
+			}
 		case k == string(fleet.FleetVarSCEPRenewalID):
 			caFound = true
 			// This is kind of a goofy way of doing things but essentially, since custom SCEP, NDES, and Smallstep

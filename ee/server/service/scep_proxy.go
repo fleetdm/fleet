@@ -375,8 +375,18 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 
 	switch certReq.GetCAType() {
 	case fleet.CAConfigNDES:
-		if groupedCAs.NDESSCEP == nil {
+		if len(groupedCAs.NDESSCEP) < 1 {
 			// Return error that implements kithttp.StatusCoder interface
+			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
+		}
+		var ndesCA *fleet.NDESSCEPProxyCA
+		for _, ca := range groupedCAs.NDESSCEP {
+			if ca.Name == certReq.GetCAName() {
+				ndesCA = &ca
+				break
+			}
+		}
+		if ndesCA == nil {
 			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 		}
 		challengeRetrievedAt := certReq.GetChallengeRetrievedAt()
@@ -389,7 +399,7 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			}
 			return "", &scepserver.BadRequestError{Message: "challenge password has expired"}
 		}
-		scepURL = groupedCAs.NDESSCEP.URL
+		scepURL = ndesCA.URL
 
 	case fleet.CAConfigSmallstep:
 		if len(groupedCAs.Smallstep) < 1 {

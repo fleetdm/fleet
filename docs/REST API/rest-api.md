@@ -643,6 +643,7 @@ Object with the following structure:
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| name | string | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
 | url | string | **Required**. The URL of the NDES SCEP endpoint. |
 | admin_url | string | **Required**. The URL of the NDES admin endpoint. |
 | password | string | **Required**. The password for the NDES admin endpoint. |

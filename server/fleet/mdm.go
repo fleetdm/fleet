@@ -47,8 +47,8 @@ func (n FleetVarName) WithBraces() string {
 }
 
 const (
-	// FleetVarNDESSCEPChallenge and other variables are used as $FLEET_VAR_<VARIABLE_NAME>.
-	// For example: $FLEET_VAR_NDES_SCEP_CHALLENGE
+	// FleetVarNDESSCEPChallengePrefix and other variables are used as $FLEET_VAR_<VARIABLE_NAME>.
+	// For example: $FLEET_VAR_NDES_SCEP_CHALLENGE_<CA_NAME>
 	// Currently, we assume the variables are fully unique and not substrings of each other.
 	//
 	// NOTE: if you add new variables, make sure you create a DB migration to insert them
@@ -68,8 +68,8 @@ const (
 	FleetVarHostPlatform                    FleetVarName = "HOST_PLATFORM"
 
 	// Certificate authority variables
-	FleetVarNDESSCEPChallenge            FleetVarName = "NDES_SCEP_CHALLENGE"
-	FleetVarNDESSCEPProxyURL             FleetVarName = "NDES_SCEP_PROXY_URL"
+	FleetVarNDESSCEPChallengePrefix      FleetVarName = "NDES_SCEP_CHALLENGE_"
+	FleetVarNDESSCEPProxyURLPrefix       FleetVarName = "NDES_SCEP_PROXY_URL_"
 	FleetVarSCEPRenewalID                FleetVarName = "SCEP_RENEWAL_ID"
 	FleetVarDigiCertDataPrefix           FleetVarName = "DIGICERT_DATA_"
 	FleetVarDigiCertPasswordPrefix       FleetVarName = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
@@ -90,8 +90,8 @@ var (
 	FleetVarHostEndUserIDPDepartmentRegexp        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPDepartment))
 	FleetVarHostEndUserIDPUsernameLocalPartRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPUsernameLocalPart))
 	FleetVarHostEndUserIDPGroupsRegexp            = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPGroups))
-	FleetVarNDESSCEPChallengeRegexp               = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPChallenge))
-	FleetVarNDESSCEPProxyURLRegexp                = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPProxyURL))
+	FleetVarNDESSCEPChallengePrefixRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s\w+)|(\${FLEET_VAR_%[1]s\w+})`, FleetVarNDESSCEPChallengePrefix))
+	FleetVarNDESSCEPProxyURLPrefixRegexp           = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s\w+)|(\${FLEET_VAR_%[1]s\w+})`, FleetVarNDESSCEPProxyURLPrefix))
 	FleetVarHostEndUserIDPFullnameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPFullname))
 	FleetVarSCEPRenewalIDRegexp                   = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPRenewalID))
 	FleetVarHostUUIDRegexp                        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostUUID))
