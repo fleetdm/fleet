@@ -14,9 +14,9 @@ interface ICreateTeamScheduledQueryFormData {
   logging_type: string;
   name?: string;
   platform: string;
-  query_id?: number;
+  report_id: number;
   shard: number;
-  team_id?: number;
+  fleet_id: number;
   version: string;
 }
 
@@ -28,11 +28,19 @@ export default {
       interval,
       logging_type: loggingType,
       platform,
-      query_id: queryID,
+      report_id: reportID,
       shard,
       version,
-      team_id: teamID,
+      fleet_id: fleetID,
     } = formData;
+
+    if (fleetID <= API_NO_TEAM_ID) {
+      return Promise.reject(
+        new Error(
+          `Invalid team id: ${fleetID} must be greater than ${API_NO_TEAM_ID}`
+        )
+      );
+    }
 
     const removed = loggingType === "differential";
     const snapshot = loggingType === "snapshot";
@@ -40,15 +48,15 @@ export default {
     const params = {
       interval: Number(interval),
       platform,
-      query_id: Number(queryID),
+      report_id: reportID,
       removed,
       snapshot,
       shard: Number(shard),
       version,
-      team_id: Number(teamID),
+      fleet_id: fleetID,
     };
 
-    return sendRequest("POST", TEAM_SCHEDULE(teamID || 0), params);
+    return sendRequest("POST", TEAM_SCHEDULE(fleetID), params);
   },
   destroy: (teamId: number | undefined, queryID: number) => {
     if (!teamId || teamId <= API_NO_TEAM_ID) {

@@ -332,7 +332,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		},
 		"error in bootstrap_package (invalid option)": {
 			url:          "/foo?bootstrap_package=foo",
-			errorMessage: "Invalid bootstrap_package",
+			errorMessage: "Invalid macos_bootstrap_package",
 		},
 		"error in munki_issue_id": {
 			url:          "/foo?munki_issue_id=foo",
