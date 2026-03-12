@@ -70,6 +70,8 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 #### Core flow
 <!-- Product TODO -->
 - TODO
+- TODO
+- TODO
 
 #### UI
 - [ ] Verify that all UI changes specified in the Figma design are correctly implemented
@@ -103,6 +105,8 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 4. Behavior when related objects are deleted or modified
 -->
 
+- TODO
+- TODO
 - TODO
 
 #### Supplemental testing
