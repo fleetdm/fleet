@@ -299,6 +299,15 @@ func (s *NanoMDMStorage) ExpandEmbeddedSecrets(ctx context.Context, document str
 	return s.ds.ExpandEmbeddedSecrets(ctx, document)
 }
 
+// ExpandHostSecrets expands host-scoped secrets in the document using the enrollment ID.
+func (s *NanoMDMStorage) ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error) {
+	return s.ds.ExpandHostSecrets(ctx, document, enrollmentID)
+}
+
+func (s *NanoMDMStorage) SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error {
+	return s.ds.SetRecoveryLockFailed(ctx, hostUUID, errorMsg)
+}
+
 // ClearQueue in NanoMDMStorage overrides the implementation in
 // nanomdm_mysql.MySQLStorage. It does call
 // nanomdm_mysql.MySQLStorage.ClearQueue, but expands on its behavior.

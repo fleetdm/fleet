@@ -205,6 +205,16 @@ These are generic "buckets" for continuous inbound channels that don't have a st
 
 Salesforce campaigns should live inside a parent-child hierarchy that mirrors the attribution framework. This allows us to roll up ROI, pipeline, and engagement at any level — from an individual campaign all the way up to a Source bucket — without building custom reports from scratch.
 
+There are two types of campaigns in Salesforce, determined by the **campaign record type**:
+- **Working campaigns:** Traditional campaigns with content and activities associated with them.
+- **Parent campaigns:** Buckets that group related working campaigns together.
+
+The campaign record type is the controlling field that determines whether a campaign is a working campaign or a parent campaign.
+
+Use the following list views to navigate campaigns in Salesforce:
+1. [Parent campaigns list](https://fleetdm.lightning.force.com/lightning/o/Campaign/list?filterName=Parent_campaigns)
+2. [Active working campaigns list](https://fleetdm.lightning.force.com/lightning/o/Campaign/list?filterName=Active_working_campaigns)
+
 #### How the hierarchy maps to attribution
 
 | Hierarchy level | Attribution level | What it represents | Example |

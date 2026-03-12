@@ -28,7 +28,7 @@ Unified device management across macOS and Windows.
 Smooth and seamless migration.
 </div>
 
-By switching to Fleet, they continue to manage their devices through automated MDM workflows that support thousands of devices. Capabilities like automated device enrollment, dynamic host segmentation, real-time querying, and assisted migration allowed them to enforce security settings without overly restricting endpoints or their users.
+By switching to Fleet, they continue to manage their devices through automated MDM workflows that support thousands of devices. Capabilities like automated device enrollment, dynamic host segmentation, real-time reporting, and assisted migration allowed them to enforce security settings without overly restricting endpoints or their users.
 
 
 ## Their story
@@ -48,9 +48,9 @@ With Fleet, they achieved this through:
 
 Fleet is open-source, allowing engineering teams to audit, customize, and extend the platform as needed alongside [infrastructure-as-code workflows](https://github.com/fleetdm/fleet-gitops). This makes device management more agile and automated while reducing errors through peer review.
 
-### Real-time querying and definitive data
+### Real-time reporting and definitive data
 
-Fleet’s query engine, [osquery](https://osquery.io/), allowed the company to run live [queries](https://fleetdm.com/guides/queries), dynamically segment hosts, and gain real-time insights across their entire fleet. This capability enhanced incident response and ensured critical policies and configurations were consistently enforced through Fleet’s double-check [verification](https://fleetdm.com/guides/custom-os-settings#os-settings-status).
+Fleet allowed the company to run live [reports](https://fleetdm.com/guides/queries), dynamically segment hosts, and gain real-time insights across their entire fleet. This capability enhanced incident response and ensured critical policies and configurations were consistently enforced through Fleet’s double-check [verification](https://fleetdm.com/guides/custom-os-settings#os-settings-status).
 
 ### Eliminate tool overlap
 
@@ -63,7 +63,7 @@ Fleet provides timely issue resolutions, guidance, and ensures a smooth transiti
 
 ## Conclusion
 
-By switching to Fleet, it solved their critical challenges in device management, including integration with existing tools, cross-platform compatibility, and scalability. Fleet's Infrastructure-as-Code workflows, real-time querying, and automation eliminated manual inefficiencies and consolidated tools. With Fleet, the company improved visibility, enforced security policies, and managed thousands of devices without performance impacts. The smooth migration process and dedicated support made Fleet a practical, long-term solution for their complex, enterprise-level needs.
+By switching to Fleet, it solved their critical challenges in device management, including integration with existing tools, cross-platform compatibility, and scalability. Fleet's Infrastructure-as-Code workflows, real-time reporting, and automation eliminated manual inefficiencies and consolidated tools. With Fleet, the company improved visibility, enforced security policies, and managed thousands of devices without performance impacts. The smooth migration process and dedicated support made Fleet a practical, long-term solution for their complex, enterprise-level needs.
 
 <call-to-action></call-to-action>
 

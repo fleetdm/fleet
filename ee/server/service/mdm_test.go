@@ -46,6 +46,9 @@ func (m *mockMDMAppleCommander) InstallEnterpriseApplication(_ context.Context, 
 	return nil
 }
 func (m *mockMDMAppleCommander) DeviceConfigured(_ context.Context, _, _ string) error { return nil }
+func (m *mockMDMAppleCommander) SetRecoveryLock(_ context.Context, _ []string, _ string) error {
+	return nil
+}
 func (m *mockMDMAppleCommander) ClearPasscode(ctx context.Context, host *fleet.Host, commandUUID string, unlockToken []byte) error {
 	if m.clearPasscodeFunc != nil {
 		return m.clearPasscodeFunc(ctx, host, commandUUID, unlockToken)

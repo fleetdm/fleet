@@ -586,3 +586,57 @@ UUID: uuid3, Error: timeout error`,
 		})
 	}
 }
+
+func TestMDMAppleCommanderSetRecoveryLock(t *testing.T) {
+	ctx := context.Background()
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		stdlogfmt.New(),
+	)
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+
+	hostUUIDs := []string{"host-uuid-1"}
+	cmdUUID := uuid.New().String()
+
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+		require.NotNil(t, cmd)
+		require.Equal(t, "SetRecoveryLock", cmd.Command.Command.RequestType)
+		require.Contains(t, string(cmd.Raw), cmdUUID)
+		require.Contains(t, string(cmd.Raw), "SetRecoveryLock")
+		// Should contain the placeholder, not the actual password
+		require.Contains(t, string(cmd.Raw), "$"+fleet.HostSecretPrefix+fleet.HostSecretRecoveryLockPassword)
+		require.Contains(t, string(cmd.Raw), "<key>NewPassword</key>")
+		return nil, nil
+	}
+
+	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, targetUUIDs []string) (map[string]*mdm.Push, error) {
+		require.ElementsMatch(t, hostUUIDs, targetUUIDs)
+		pushes := make(map[string]*mdm.Push, len(targetUUIDs))
+		for _, uuid := range targetUUIDs {
+			pushes[uuid] = &mdm.Push{
+				PushMagic: "magic" + uuid,
+				Token:     []byte("token" + uuid),
+				Topic:     "topic" + uuid,
+			}
+		}
+		return pushes, nil
+	}
+
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("../../service/testdata/server.pem", "../../service/testdata/server.key")
+		return &cert, "", err
+	}
+
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+
+	err := cmdr.SetRecoveryLock(ctx, hostUUIDs, cmdUUID)
+	require.NoError(t, err)
+	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
+}
