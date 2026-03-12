@@ -1,0 +1,334 @@
+<!-- ============================================================ -->
+<!-- Microsoft Edge Enterprise Configuration Profile              -->
+<!-- Configures security, privacy, update, UX, extension, and     -->
+<!-- telemetry policies for Microsoft Edge (Chromium) v77+.       -->
+<!-- Deploy via Fleet as a Windows MDM configuration profile.     -->
+<!-- ============================================================ -->
+
+<!-- =========================== -->
+<!-- SECURITY & PRIVACY SETTINGS -->
+<!-- =========================== -->
+
+<!-- Enable Microsoft Defender SmartScreen -->
+<Replace>
+  <CmdID>1</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/microsoft_edge~Policy~microsoft_edge~SmartScreen/SmartScreenEnabled</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;enabled/&gt;</Data>
+  </Item>
+</Replace>
+
+<!-- Prevent bypassing SmartScreen prompts for sites -->
+<Replace>
+  <CmdID>2</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/microsoft_edge~Policy~microsoft_edge~SmartScreen/PreventSmartScreenPromptOverride</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;enabled/&gt;</Data>
+  </Item>
+</Replace>
+
+<!-- Prevent bypassing SmartScreen warnings about downloads -->
+<Replace>
+  <CmdID>3</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/microsoft_edge~Policy~microsoft_edge~SmartScreen/PreventSmartScreenPromptOverrideForFiles</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;enabled/&gt;</Data>
+  </Item>
+</Replace>
+
+<!-- Block potentially unwanted apps (PUA) via SmartScreen -->
+<Replace>
+  <CmdID>4</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/microsoft_edge~Policy~microsoft_edge~SmartScreen/SmartScreenPuaEnabled</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;enabled/&gt;</Data>
+  </Item>
+</Replace>
+
+<!-- Enable site isolation for every site -->
+<Replace>
+  <CmdID>5</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/microsoft_edge~Policy~microsoft_edge/SitePerProcess</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;enabled/&gt;</Data>
+  </Item>
+</Replace>
+
+<!-- Disable saving passwords to the browser password manager -->
+<Replace>
+  <CmdID>6</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/microsoft_edge~Policy~microsoft_edge~PasswordManager/PasswordManagerEnabled</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;disabled/&gt;</Data>
+  </Item>
+</Replace>
+
+<!-- Disable AutoFill for payment instruments (credit cards) -->
+<Replace>
+  <CmdID>7</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/microsoft_edge~Policy~microsoft_edge~PasswordManager/AutofillCreditCardEnabled</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;disabled/&gt;</Data>
+  </Item>
+</Replace>
+
+<!-- Disable AutoFill for addresses -->
+<Replace>
+  <CmdID>8</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/microsoft_edge~Policy~microsoft_edge~PasswordManager/AutofillAddressEnabled</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;disabled/&gt;</Data>
+  </Item>
+</Replace>
+
+<!-- Enable DNS-over-HTTPS (DoH) without insecure fallback -->
+<!-- DnsOverHttpsMode: off | automatic | secure -->
+<!-- "secure" = DoH only, no insecure fallback -->
+<Replace>
+  <CmdID>9</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/microsoft_edge~Policy~microsoft_edge~NetworkSettings/DnsOverHttpsMode</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;enabled/&gt;&lt;data id="DnsOverHttpsMode" value="automatic"/&gt;</Data>
+  </Item>
+</Replace>
+
+<!-- Set DNS-over-HTTPS resolver template (Cloudflare) -->
+<Replace>
+  <CmdID>10</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/microsoft_edge~Policy~microsoft_edge~NetworkSettings/DnsOverHttpsTemplates</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;enabled/&gt;&lt;data id="DnsOverHttpsTemplates" value="https://cloudflare-dns.com/dns-query"/&gt;</Data>
+  </Item>
+</Replace>
+
+<!-- Block third-party cookies -->
+<Replace>
+  <CmdID>11</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/microsoft_edge~Policy~microsoft_edge/BlockThirdPartyCookies</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;enabled/&gt;</Data>
+  </Item>
+</Replace>
+
+<!-- ========================== -->
+<!-- UPDATES & STABILITY        -->
+<!-- ========================== -->
+
+<!-- Enable auto-updates: always allow updates (1 = Always allow) -->
+<Replace>
+  <CmdID>12</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/microsoft_edgeupdate~Policy~edgeupdate~Applications/UpdateDefault</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;enabled/&gt;&lt;data id="UpdateDefault" value="1"/&gt;</Data>
+  </Item>
+</Replace>
+
+<!-- ===================================== -->
+<!-- USER EXPERIENCE / ENTERPRISE CONTROL  -->
+<!-- ===================================== -->
+
+<!-- Set homepage to new tab page -->
+<!-- HomepageIsNewTabPage: enabled = homepage is new tab page -->
+<Replace>
+  <CmdID>13</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/microsoft_edge~Policy~microsoft_edge~Startup/HomepageIsNewTabPage</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;enabled/&gt;</Data>
+  </Item>
+</Replace>
+
+<!-- Disable the first-run experience and splash screen -->
+<Replace>
+  <CmdID>14</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/microsoft_edge~Policy~microsoft_edge/HideFirstRunExperience</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;enabled/&gt;</Data>
+  </Item>
+</Replace>
+
+<!-- Disable importing browser data on first run -->
+<!-- ImportOnEachLaunch is not available; use AutoImportAtFirstRun -->
+<!-- 4 = Disables auto-import -->
+<Replace>
+  <CmdID>15</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/microsoft_edge~Policy~microsoft_edge~ImportData/AutoImportAtFirstRun</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;enabled/&gt;&lt;data id="AutoImportAtFirstRun" value="4"/&gt;</Data>
+  </Item>
+</Replace>
+
+<!-- Disable sync (enterprise manages configuration centrally) -->
+<Replace>
+  <CmdID>16</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/microsoft_edge~Policy~microsoft_edge/SyncDisabled</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;enabled/&gt;</Data>
+  </Item>
+</Replace>
+
+<!-- Disable guest mode -->
+<Replace>
+  <CmdID>17</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/microsoft_edge~Policy~microsoft_edge/BrowserGuestModeEnabled</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;disabled/&gt;</Data>
+  </Item>
+</Replace>
+
+<!-- Restrict browser sign-in to enterprise (Azure AD) accounts only -->
+<!-- BrowserSignin: 0 = disabled, 1 = enabled, 2 = force sign-in -->
+<!-- Value 1 allows sign-in but does not force; combine with -->
+<!-- RestrictSigninToPattern for enterprise-only accounts.         -->
+<Replace>
+  <CmdID>18</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/microsoft_edge~Policy~microsoft_edge~SigninAndSync/BrowserSignin</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;enabled/&gt;&lt;data id="BrowserSignin" value="1"/&gt;</Data>
+  </Item>
+</Replace>
+
+<!-- ========================== -->
+<!-- EXTENSIONS                 -->
+<!-- ========================== -->
+
+<!-- Block all extensions by default using ExtensionInstallBlocklist -->
+<!-- "*" blocks all extensions; use ExtensionInstallAllowlist to   -->
+<!-- allow specific extensions by their extension ID.              -->
+<Replace>
+  <CmdID>19</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/microsoft_edge~Policy~microsoft_edge~Extensions/ExtensionInstallBlocklist</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;enabled/&gt;&lt;data id="ExtensionInstallBlocklistDesc" value="1&#xF000;*"/&gt;</Data>
+  </Item>
+</Replace>
+
+<!-- Allowlist for specific extensions (add extension IDs here)   -->
+<!-- Example: uBlock Origin = cjpalhdlnbpafiamejdnhcphjbkeiagm -->
+<!--          1Password       = aeblfdkhhhdcdjpifhhbdiojplfjncoa -->
+<!-- Separate multiple IDs with &#xF000; delimiter.               -->
+<Replace>
+  <CmdID>20</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/microsoft_edge~Policy~microsoft_edge~Extensions/ExtensionInstallAllowlist</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;enabled/&gt;&lt;data id="ExtensionInstallAllowlistDesc" value="1&#xF000;cjpalhdlnbpafiamejdnhcphjbkeiagm&#xF000;2&#xF000;aeblfdkhhhdcdjpifhhbdiojplfjncoa"/&gt;</Data>
+  </Item>
+</Replace>
+
+<!-- ========================== -->
+<!-- TELEMETRY / DIAGNOSTICS    -->
+<!-- ========================== -->
+
+<!-- Set diagnostic data to required (minimal) only -->
+<!-- DiagnosticData: 0 = off, 1 = required, 2 = optional -->
+<Replace>
+  <CmdID>21</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/microsoft_edge~Policy~microsoft_edge~DiagnosticData/DiagnosticData</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>&lt;enabled/&gt;&lt;data id="DiagnosticData" value="1"/&gt;</Data>
+  </Item>
+</Replace>
