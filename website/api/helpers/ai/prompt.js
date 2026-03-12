@@ -28,8 +28,8 @@ module.exports = {
       // 'gpt-4o-mini-2024-07-18'
       // 'gpt-4.1-2025-04-14'
       // Anthropic models:
-      // 'claude-sonnet-4-20250514'
-      // 'claude-opus-4-20250514'
+      // 'claude-sonnet-4-6-20260218'
+      // 'claude-opus-4-6-20260218'
       moreInfoUrl: 'https://platform.openai.com/docs/models',
       defaultsTo: 'gpt-3.5-turbo',
     },
