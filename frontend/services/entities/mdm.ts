@@ -28,7 +28,7 @@ export type ProfileStatusSummaryResponse = Record<MdmProfileStatus, number>;
 export interface IGetProfilesApiParams {
   page?: number;
   per_page?: number;
-  team_id?: number;
+  fleet_id?: number;
 }
 
 export interface IMdmProfilesResponse {
@@ -52,7 +52,7 @@ export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
 };
 
 interface IUpdateSetupExperienceBody {
-  team_id?: number;
+  fleet_id?: number;
   enable_end_user_authentication?: boolean;
   enable_release_device_manually?: boolean;
   manual_agent_install?: boolean;
@@ -89,7 +89,7 @@ export interface IGetSetupExperienceScriptResponse {
 }
 
 interface IGetSetupExperienceSoftwareParams extends Partial<PaginationParams> {
-  team_id: number;
+  fleet_id: number;
   platform: SetupExperiencePlatform;
 }
 
@@ -121,11 +121,7 @@ const mdmService = {
     params: IGetProfilesApiParams
   ): Promise<IMdmProfilesResponse> => {
     const { MDM_PROFILES } = endpoints;
-    const { team_id, ...rest } = params;
-    const path = `${MDM_PROFILES}?${buildQueryStringFromParams({
-      ...rest,
-      fleet_id: team_id,
-    })}`;
+    const path = `${MDM_PROFILES}?${buildQueryStringFromParams(params)}`;
 
     return sendRequest("GET", path);
   },
@@ -279,13 +275,13 @@ const mdmService = {
 
   updateSetupExperienceSettings: (updateData: IUpdateSetupExperienceBody) => {
     const { MDM_SETUP_EXPERIENCE } = endpoints;
-    const { team_id, ...rest } = updateData;
+    const { fleet_id, ...rest } = updateData;
     const body: Record<string, unknown> = {
       ...rest,
     };
 
-    if (team_id !== API_NO_TEAM_ID) {
-      body.fleet_id = team_id;
+    if (fleet_id !== API_NO_TEAM_ID) {
+      body.fleet_id = fleet_id;
     }
 
     return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, body);
@@ -371,12 +367,8 @@ const mdmService = {
   ): Promise<IGetSetupExperienceSoftwareResponse> => {
     const { MDM_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
 
-    const { team_id, ...rest } = params;
     const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
-      {
-        ...rest,
-        fleet_id: team_id,
-      }
+      params
     )}`;
 
     return sendRequest("GET", path);

@@ -33,7 +33,7 @@ export interface IScriptsResponse {
 export interface IListScriptsApiParams {
   page?: number;
   per_page?: number;
-  team_id?: number;
+  fleet_id?: number;
 }
 
 export interface IListScriptsQueryKey extends IListScriptsApiParams {
@@ -183,7 +183,7 @@ export interface IScriptBatchSummaryV2 extends IScriptBatchHostCountsV2 {
 }
 
 export interface IScriptBatchSummariesParams {
-  team_id: number;
+  fleet_id: number;
   status: ScriptBatchStatus;
   page: number;
   per_page: number;
@@ -239,11 +239,7 @@ export default {
 
   getScripts(params: IListScriptsApiParams): Promise<IScriptsResponse> {
     const { SCRIPTS } = endpoints;
-    const { team_id, ...rest } = params;
-    const path = `${SCRIPTS}?${buildQueryStringFromParams({
-      ...rest,
-      fleet_id: team_id,
-    })}`;
+    const path = `${SCRIPTS}?${buildQueryStringFromParams(params)}`;
 
     return sendRequest("GET", path);
   },
@@ -329,10 +325,9 @@ export default {
   getRunScriptBatchSummaries(
     params: IScriptBatchSummariesParams
   ): Promise<IScriptBatchSummariesResponse> {
-    const { team_id, ...rest } = params;
     const path = `${
       endpoints.SCRIPT_RUN_BATCH_SUMMARIES
-    }?${buildQueryStringFromParams({ ...rest, fleet_id: team_id })}`;
+    }?${buildQueryStringFromParams(params)}`;
     return sendRequest("GET", path);
   },
   getScriptBatchHostResults(
