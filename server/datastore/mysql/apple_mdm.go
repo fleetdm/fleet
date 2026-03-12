@@ -7596,3 +7596,199 @@ func (ds *Datastore) ResetRecoveryLockForRetry(ctx context.Context, hostUUID str
 
 	return nil
 }
+
+func (ds *Datastore) InitiateRecoveryLockRotation(ctx context.Context, hostUUID string, newPassword string) error {
+	encryptedPassword, err := encrypt([]byte(newPassword), ds.serverPrivateKey)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "encrypt pending recovery lock password")
+	}
+
+	// Set the pending password and mark status as pending.
+	// Only allow rotation if:
+	// - Has an existing password (encrypted_password IS NOT NULL)
+	// - Operation type is 'install' (not removing the password)
+	// - Current status is 'verified' or 'failed' (not 'pending' or NULL)
+	// - No pending rotation already (pending_encrypted_password IS NULL)
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET pending_encrypted_password = ?,
+		    pending_error_message = NULL,
+		    status = '%s'
+		WHERE host_uuid = ?
+		  AND deleted = 0
+		  AND encrypted_password IS NOT NULL
+		  AND operation_type = '%s'
+		  AND status IN ('%s', '%s')
+		  AND pending_encrypted_password IS NULL
+	`, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed)
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, encryptedPassword, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "initiate recovery lock rotation")
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		// Determine the specific reason for failure
+		var hasPassword bool
+		var hasPending bool
+		var status, opType sql.NullString
+		checkStmt := `
+			SELECT
+				encrypted_password IS NOT NULL AND deleted = 0 AS has_password,
+				pending_encrypted_password IS NOT NULL AS has_pending,
+				status,
+				operation_type
+			FROM host_recovery_key_passwords
+			WHERE host_uuid = ? AND deleted = 0
+		`
+		err := ds.reader(ctx).QueryRowxContext(ctx, checkStmt, hostUUID).Scan(&hasPassword, &hasPending, &status, &opType)
+		if err == sql.ErrNoRows {
+			return ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
+				WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+		}
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check recovery lock rotation eligibility")
+		}
+
+		if hasPending {
+			return ctxerr.Errorf(ctx, "rotation already pending for host %s", hostUUID)
+		}
+
+		return ctxerr.Errorf(ctx, "host %s not eligible for rotation (status=%v, operation_type=%v)", hostUUID, status.String, opType.String)
+	}
+
+	return nil
+}
+
+func (ds *Datastore) CompleteRecoveryLockRotation(ctx context.Context, hostUUID string) error {
+	// Move pending password to active and clear pending columns.
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET encrypted_password = pending_encrypted_password,
+		    pending_encrypted_password = NULL,
+		    pending_error_message = NULL,
+		    status = '%s',
+		    error_message = NULL
+		WHERE host_uuid = ?
+		  AND deleted = 0
+		  AND pending_encrypted_password IS NOT NULL
+	`, fleet.MDMDeliveryVerified)
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "complete recovery lock rotation")
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("HostRecoveryLockPendingPassword").
+			WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+	}
+
+	return nil
+}
+
+func (ds *Datastore) FailRecoveryLockRotation(ctx context.Context, hostUUID string, errorMsg string) error {
+	// Mark as failed but keep pending password for potential retry.
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET status = '%s',
+		    pending_error_message = ?
+		WHERE host_uuid = ?
+		  AND deleted = 0
+		  AND pending_encrypted_password IS NOT NULL
+	`, fleet.MDMDeliveryFailed)
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, errorMsg, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fail recovery lock rotation")
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("HostRecoveryLockPendingPassword").
+			WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+	}
+
+	return nil
+}
+
+func (ds *Datastore) ClearRecoveryLockRotation(ctx context.Context, hostUUID string) error {
+	// Clear pending rotation (e.g., if command enqueue fails).
+	// Also clears status back to its previous state.
+	stmt := `
+		UPDATE host_recovery_key_passwords
+		SET pending_encrypted_password = NULL,
+		    pending_error_message = NULL,
+		    status = NULL
+		WHERE host_uuid = ?
+		  AND deleted = 0
+	`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear recovery lock rotation")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) GetRecoveryLockRotationStatus(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockRotationStatus, error) {
+	const stmt = `
+		SELECT
+			host_uuid,
+			encrypted_password IS NOT NULL AND deleted = 0 AS has_password,
+			status,
+			operation_type,
+			pending_encrypted_password IS NOT NULL AS has_pending_rotation,
+			pending_error_message
+		FROM host_recovery_key_passwords
+		WHERE host_uuid = ?
+		  AND deleted = 0
+	`
+
+	var row struct {
+		HostUUID            string  `db:"host_uuid"`
+		HasPassword         bool    `db:"has_password"`
+		Status              *string `db:"status"`
+		OperationType       string  `db:"operation_type"`
+		HasPendingRotation  bool    `db:"has_pending_rotation"`
+		PendingErrorMessage *string `db:"pending_error_message"`
+	}
+
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
+				WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get recovery lock rotation status")
+	}
+
+	return &fleet.HostRecoveryLockRotationStatus{
+		HostUUID:            row.HostUUID,
+		HasPassword:         row.HasPassword,
+		Status:              row.Status,
+		OperationType:       row.OperationType,
+		HasPendingRotation:  row.HasPendingRotation,
+		PendingErrorMessage: row.PendingErrorMessage,
+	}, nil
+}
+
+func (ds *Datastore) HasPendingRecoveryLockRotation(ctx context.Context, hostUUID string) (bool, error) {
+	const stmt = `
+		SELECT pending_encrypted_password IS NOT NULL
+		FROM host_recovery_key_passwords
+		WHERE host_uuid = ?
+		  AND deleted = 0
+	`
+
+	var hasPending bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hasPending, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "has pending recovery lock rotation")
+	}
+
+	return hasPending, nil
+}

@@ -985,6 +985,8 @@ CREATE TABLE `host_recovery_key_passwords` (
   `deleted` tinyint(1) NOT NULL DEFAULT '0',
   `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `pending_encrypted_password` blob DEFAULT NULL,
+  `pending_error_message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   PRIMARY KEY (`host_uuid`),
   KEY `status` (`status`),
   KEY `operation_type` (`operation_type`),
