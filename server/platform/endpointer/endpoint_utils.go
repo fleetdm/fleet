@@ -305,7 +305,13 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair, customDecoder DomainQuer
 					}
 				}
 				// Log deprecation warning - the old name was used.
-				platform_logging.MaybeAddDeprecatedFieldWarning(r.Context(), queryTagValue, newName)
+				if platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+					logging.WithLevel(ctx, slog.LevelWarn)
+					logging.WithExtras(ctx,
+						"deprecated_param", queryTagValue,
+						"deprecation_warning", fmt.Sprintf("'%s' is deprecated, use '%s' instead", queryTagValue, newName),
+					)
+				}
 			}
 		} else if renameTo, hasRenameTo := fp.Sf.Tag.Lookup("renameto"); hasRenameTo {
 			renameTo, _, err = ParseTag(renameTo)

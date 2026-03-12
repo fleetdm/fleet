@@ -12,6 +12,7 @@ import (
 	"reflect"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
@@ -319,7 +320,13 @@ func parseMultipartForm(ctx context.Context, r *http.Request, maxMemory int64) e
 	teamIDs, teamIDPresent := r.Form["team_id"]
 	if teamIDPresent && len(teamIDs) > 0 {
 		teamID := teamIDs[0]
-		platform_logging.MaybeAddDeprecatedFieldWarning(ctx, "team_id", "fleet_id")
+		if platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+			logging.WithExtras(ctx,
+				"deprecated_param", "team_id",
+				"deprecation_warning", "'team_id' is deprecated, use 'fleet_id' instead",
+			)
+			logging.WithLevel(ctx, slog.LevelWarn)
+		}
 		r.Form.Set("fleet_id", teamID)
 		r.Form.Del("team_id")
 		r.MultipartForm.Value["fleet_id"] = []string{teamID}

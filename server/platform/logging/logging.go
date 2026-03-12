@@ -5,14 +5,12 @@ package logging
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 	otellog "go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/trace"
@@ -157,15 +155,3 @@ func (h *OtelTracingHandler) WithGroup(name string) slog.Handler {
 
 // Ensure OtelTracingHandler implements slog.Handler at compile time.
 var _ slog.Handler = (*OtelTracingHandler)(nil)
-
-// MaybeAddDeprecatedFieldWarning adds deprecated field warning to a log, if the topic is enabled.
-func MaybeAddDeprecatedFieldWarning(ctx context.Context, oldFieldName, newFieldName string) {
-	if !TopicEnabled(DeprecatedFieldTopic) {
-		return
-	}
-	logging.WithLevel(ctx, slog.LevelWarn)
-	logging.WithExtras(ctx,
-		"deprecated_param", oldFieldName,
-		"deprecation_warning", fmt.Sprintf("'%s' is deprecated, use '%s' instead", oldFieldName, newFieldName),
-	)
-}

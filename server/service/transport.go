@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
@@ -144,8 +146,13 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	teamID := r.URL.Query().Get("fleet_id")
 	if teamID == "" {
 		teamID = r.URL.Query().Get("team_id")
-		if teamID != "" {
-			platform_logging.MaybeAddDeprecatedFieldWarning(r.Context(), "team_id", "fleet_id")
+		if teamID != "" &&
+			platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+			logging.WithLevel(r.Context(), slog.LevelWarn)
+			logging.WithExtras(r.Context(),
+				"deprecated_param", "team_id",
+				"deprecation_warning", "'team_id' is deprecated, use 'fleet_id' instead",
+			)
 		}
 	}
 	if teamID != "" {
@@ -624,8 +631,12 @@ func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) 
 	tid := r.URL.Query().Get("fleet_id")
 	if tid == "" {
 		tid = r.URL.Query().Get("team_id")
-		if tid != "" {
-			platform_logging.MaybeAddDeprecatedFieldWarning(r.Context(), "team_id", "fleet_id")
+		if tid != "" && platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+			logging.WithLevel(r.Context(), slog.LevelWarn)
+			logging.WithExtras(r.Context(),
+				"deprecated_param", "team_id",
+				"deprecation_warning", "'team_id' is deprecated, use 'fleet_id' instead",
+			)
 		}
 	}
 	if tid != "" {
