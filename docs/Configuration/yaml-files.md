@@ -962,7 +962,7 @@ Can only be configured for all teams (`org_settings`).
 
 #### custom_est_proxy
 
-- `name` is the name of the certificate authority. Only letters, numbers, and underscores are allowed.
+- `name` is the name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
 - `url` is the EST (Enrollment Over Secure Transport) endpoint's URL.
 - `username` is the username used to authenticate with the EST endpoint.
 - `password` is the password used to authenticate with the EST endpoint.
@@ -973,13 +973,6 @@ Can only be configured for all teams (`org_settings`).
 - `url` is the EST (Enrollment Over Secure Transport) endpoint provided by Hydrant.
 - `client_id` is the client ID provided by Hydrant.
 - `client_secret` is the client secret provided by Hydrant.
-
-#### custom_est_proxy
-
-- `name` is the name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
-- `url` is the EST (Enrollment Over Secure Transport) endpoint.
-- `username` is the username for the EST server.
-- `password` is the password for the EST server.
 
 #### smallstep
 

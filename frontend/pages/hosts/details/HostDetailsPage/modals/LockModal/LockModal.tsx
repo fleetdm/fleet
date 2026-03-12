@@ -1,5 +1,4 @@
 import React, { useContext } from "react";
-import { Link } from "react-router";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
