@@ -676,11 +676,14 @@ func (MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.Gro
 				CertificateSeatID: "some-digicert-certificate-seat-id",
 			},
 		},
-		NDESSCEP: &fleet.NDESSCEPProxyCA{
-			URL:      "https://some-ndes-scep-proxy-url.com",
-			AdminURL: "https://some-ndes-admin-url.com",
-			Username: "some-ndes-username",
-			Password: maskSecret("some-ndes-password", includeSecrets),
+		NDESSCEP: []fleet.NDESSCEPProxyCA{
+			{
+				Name:     "NDES",
+				URL:      "https://some-ndes-scep-proxy-url.com",
+				AdminURL: "https://some-ndes-admin-url.com",
+				Username: "some-ndes-username",
+				Password: maskSecret("some-ndes-password", includeSecrets),
+			},
 		},
 		CustomScepProxy: []fleet.CustomSCEPProxyCA{
 			{

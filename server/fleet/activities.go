@@ -1328,7 +1328,7 @@ func (a ActivityAddedNDESSCEPProxy) ActivityName() string {
 }
 
 type ActivityDeletedNDESSCEPProxy struct {
-	Name *string `json:"name,omitempty"`
+	Name string `json:"name"`
 }
 
 func (a ActivityDeletedNDESSCEPProxy) ActivityName() string {

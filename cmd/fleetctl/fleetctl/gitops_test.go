@@ -504,10 +504,11 @@ agent_options:
 org_settings:
   certificate_authorities:
     ndes_scep_proxy:
-      url: https://ndes.example.com/scep
-      admin_url: https://ndes.example.com/admin
-      username: ndes_user
-      password: ndes_password
+      - name: NDES
+        url: https://ndes.example.com/scep
+        admin_url: https://ndes.example.com/admin
+        username: ndes_user
+        password: ndes_password
     digicert:
       - name: DigiCert
         url: https://one.digicert.com
@@ -583,8 +584,8 @@ software:
 	defer muStoredCAs.Unlock()
 
 	// check ndes
-	require.NotNil(t, storedCAs.NDESSCEP)
-	assert.Equal(t, "https://ndes.example.com/scep", storedCAs.NDESSCEP.URL)
+	require.Len(t, storedCAs.NDESSCEP, 1)
+	assert.Equal(t, "https://ndes.example.com/scep", storedCAs.NDESSCEP[0].URL)
 
 	// check digicert
 	assert.True(t, digiCertService.VerifyProfileIDFuncInvoked)

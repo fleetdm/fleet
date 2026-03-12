@@ -299,7 +299,7 @@ func TestValidateIdentifier(t *testing.T) {
 		ds := new(mock.DataStore)
 		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 			return &fleet.GroupedCertificateAuthorities{
-				NDESSCEP: &fleet.NDESSCEPProxyCA{URL: "https://ndes.example.com/scep"},
+				NDESSCEP: []fleet.NDESSCEPProxyCA{{Name: "NDES", URL: "https://ndes.example.com/scep"}},
 			}, nil
 		}
 		verifiedStatus := fleet.MDMDeliveryVerified
@@ -377,7 +377,7 @@ func TestValidateIdentifier(t *testing.T) {
 		ds := new(mock.DataStore)
 		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 			return &fleet.GroupedCertificateAuthorities{
-				NDESSCEP: &fleet.NDESSCEPProxyCA{URL: "https://ndes.example.com/scep"},
+				NDESSCEP: []fleet.NDESSCEPProxyCA{{Name: "NDES", URL: "https://ndes.example.com/scep"}},
 			}, nil
 		}
 		pendingStatus := fleet.MDMDeliveryPending
@@ -402,7 +402,7 @@ func TestValidateIdentifier(t *testing.T) {
 		ds := new(mock.DataStore)
 		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 			return &fleet.GroupedCertificateAuthorities{
-				NDESSCEP: &fleet.NDESSCEPProxyCA{URL: "https://ndes.example.com/scep"},
+				NDESSCEP: []fleet.NDESSCEPProxyCA{{Name: "NDES", URL: "https://ndes.example.com/scep"}},
 			}, nil
 		}
 		pendingStatus := fleet.MDMDeliveryPending
@@ -436,7 +436,7 @@ func TestValidateIdentifier(t *testing.T) {
 		ds := new(mock.DataStore)
 		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 			return &fleet.GroupedCertificateAuthorities{
-				NDESSCEP: &fleet.NDESSCEPProxyCA{URL: "https://ndes.example.com/scep"},
+				NDESSCEP: []fleet.NDESSCEPProxyCA{{Name: "NDES", URL: "https://ndes.example.com/scep"}},
 			}, nil
 		}
 		pendingStatus := fleet.MDMDeliveryPending
@@ -765,7 +765,7 @@ func TestValidateIdentifier(t *testing.T) {
 		ds := new(mock.DataStore)
 		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 			return &fleet.GroupedCertificateAuthorities{
-				NDESSCEP: &fleet.NDESSCEPProxyCA{URL: "https://ndes.example.com/scep"},
+				NDESSCEP: []fleet.NDESSCEPProxyCA{{Name: "NDES", URL: "https://ndes.example.com/scep"}},
 			}, nil
 		}
 		pendingStatus := fleet.MDMDeliveryPending
@@ -795,7 +795,7 @@ func TestValidateIdentifier(t *testing.T) {
 		ds := new(mock.DataStore)
 		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 			return &fleet.GroupedCertificateAuthorities{
-				NDESSCEP: &fleet.NDESSCEPProxyCA{URL: "https://ndes.example.com/scep"},
+				NDESSCEP: []fleet.NDESSCEPProxyCA{{Name: "NDES", URL: "https://ndes.example.com/scep"}},
 			}, nil
 		}
 		pendingStatus := fleet.MDMDeliveryPending

@@ -3430,7 +3430,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	}
 
 	// TODO(hca): ask Magnus where/how new tests cover the CA portion of this test
-	t.Run("replace $FLEET_VAR_"+string(fleet.FleetVarNDESSCEPProxyURL), func(t *testing.T) {
+	t.Run("replace $FLEET_VAR_"+string(fleet.FleetVarNDESSCEPProxyURLPrefix + "NDES"Prefix)+"NDES", func(t *testing.T) {
 		var upsertCount int
 		failedCall = false
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
@@ -3443,7 +3443,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			}
 		}
 		enqueueFailForOp = ""
-		newContents := "$FLEET_VAR_" + fleet.FleetVarNDESSCEPProxyURL
+		newContents := "$FLEET_VAR_" + fleet.FleetVarNDESSCEPProxyURLPrefix + "NDES"Prefix + "NDES"
 		originalContents1 := contents1
 		originalExpectedContents1 := expectedContents1
 		contents1 = []byte(newContents)
@@ -3591,7 +3591,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	userEnrollmentsToHostUUIDsMap := make(map[string]string)
 	populateTargets()
 	profileContents := map[string]mobileconfig.Mobileconfig{
-		"p1": []byte("$FLEET_VAR_" + fleet.FleetVarNDESSCEPProxyURL),
+		"p1": []byte("$FLEET_VAR_" + fleet.FleetVarNDESSCEPProxyURLPrefix + "NDES"),
 	}
 
 	var updatedPayload *fleet.MDMAppleBulkUpsertHostProfilePayload
@@ -3668,17 +3668,20 @@ func TestPreprocessProfileContents(t *testing.T) {
 	username := "admin"
 	password := "test-password"
 	groupedCAs := &fleet.GroupedCertificateAuthorities{
-		NDESSCEP: &fleet.NDESSCEPProxyCA{
-			URL:      "https://test-example.com",
-			AdminURL: adminUrl,
-			Username: username,
-			Password: password,
+		NDESSCEP: []fleet.NDESSCEPProxyCA{
+			{
+				Name:     "NDES",
+				URL:      "https://test-example.com",
+				AdminURL: adminUrl,
+				Username: username,
+				Password: password,
+			},
 		},
 	}
 
 	// Could not get NDES SCEP challenge
 	profileContents = map[string]mobileconfig.Mobileconfig{
-		"p1": []byte("$FLEET_VAR_" + fleet.FleetVarNDESSCEPChallenge),
+		"p1": []byte("$FLEET_VAR_" + fleet.FleetVarNDESSCEPChallengePrefix + "NDES"),
 	}
 	scepConfig := &scep_mock.SCEPConfigService{}
 	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
@@ -3694,7 +3697,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
-	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
+	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallengePrefix + "NDES")
 	assert.Contains(t, updatedProfile.Detail, "update credentials")
 	assert.NotNil(t, updatedProfile.VariablesUpdatedAt)
 	assert.Empty(t, targets)
@@ -3709,7 +3712,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
-	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
+	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallengePrefix + "NDES")
 	assert.Contains(t, updatedProfile.Detail, "cached passwords")
 	assert.NotNil(t, updatedProfile.VariablesUpdatedAt)
 	assert.Empty(t, targets)
@@ -3724,7 +3727,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
-	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
+	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallengePrefix + "NDES")
 	assert.Contains(t, updatedProfile.Detail, "does not have sufficient permissions")
 	assert.NotNil(t, updatedProfile.VariablesUpdatedAt)
 	assert.Empty(t, targets)
@@ -3739,7 +3742,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
-	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
+	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallengePrefix + "NDES")
 	assert.NotContains(t, updatedProfile.Detail, "cached passwords")
 	assert.NotContains(t, updatedProfile.Detail, "update credentials")
 	assert.NotNil(t, updatedProfile.VariablesUpdatedAt)
@@ -3778,7 +3781,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 
 	// NDES SCEP proxy URL
 	profileContents = map[string]mobileconfig.Mobileconfig{
-		"p1": []byte("$FLEET_VAR_" + fleet.FleetVarNDESSCEPProxyURL),
+		"p1": []byte("$FLEET_VAR_" + fleet.FleetVarNDESSCEPProxyURLPrefix + "NDES"),
 	}
 	expectedURL := "https://test.example.com" + apple_mdm.SCEPProxyPath + url.QueryEscape(fmt.Sprintf("%s,%s,NDES", hostUUID, "p1"))
 	updatedProfile = nil
@@ -3968,7 +3971,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	populateTargets()
 	groupedCAs.NDESSCEP = nil
 	profileContents = map[string]mobileconfig.Mobileconfig{
-		"p1": []byte("$FLEET_VAR_" + fleet.FleetVarNDESSCEPProxyURL),
+		"p1": []byte("$FLEET_VAR_" + fleet.FleetVarNDESSCEPProxyURLPrefix + "NDES"),
 		"p2": []byte("$FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP),
 		"p3": []byte("no variables"),
 	}
@@ -6373,33 +6376,33 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 		{
 			name: "Custom SCEP and NDES 2 valid profiles should error",
 			profile: customSCEPForValidation2("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName}", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
-				"$FLEET_VAR_NDES_SCEP_CHALLENGE", "$FLEET_VAR_NDES_SCEP_PROXY_URL"),
+				"$FLEET_VAR_NDES_SCEP_CHALLENGE_ndesName", "$FLEET_VAR_NDES_SCEP_PROXY_URL_ndesName"),
 			errMsg: fleet.MultipleSCEPPayloadsErrMsg,
 		},
 		{
 			name: "NDES renewal ID shows up in the wrong place",
-			profile: customSCEPForValidationWithoutRenewalID("$FLEET_VAR_NDES_SCEP_CHALLENGE", "$FLEET_VAR_NDES_SCEP_PROXY_URL",
+			profile: customSCEPForValidationWithoutRenewalID("$FLEET_VAR_NDES_SCEP_CHALLENGE_ndesName", "$FLEET_VAR_NDES_SCEP_PROXY_URL_ndesName",
 				"$FLEET_VAR_SCEP_RENEWAL_ID",
 				"com.apple.security.scep"),
 			errMsg: "Variable $FLEET_VAR_SCEP_RENEWAL_ID must be in the SCEP certificate's organizational unit (OU).",
 		},
 		{
 			name: "NDES profile is not scep",
-			profile: customSCEPForValidation("$FLEET_VAR_NDES_SCEP_CHALLENGE", "$FLEET_VAR_NDES_SCEP_PROXY_URL",
+			profile: customSCEPForValidation("$FLEET_VAR_NDES_SCEP_CHALLENGE_ndesName", "$FLEET_VAR_NDES_SCEP_PROXY_URL_ndesName",
 				"Name", "com.apple.security.SCEP"),
 			errMsg: fleet.SCEPVariablesNotInSCEPPayloadErrMsg,
 		},
 		{
 			name: "NDES challenge is not a fleet variable",
-			profile: customSCEPForValidation("x$FLEET_VAR_NDES_SCEP_CHALLENGE", "${FLEET_VAR_NDES_SCEP_PROXY_URL}",
+			profile: customSCEPForValidation("x$FLEET_VAR_NDES_SCEP_CHALLENGE_ndesName", "${FLEET_VAR_NDES_SCEP_PROXY_URL_ndesName}",
 				"Name", "com.apple.security.scep"),
-			errMsg: "Variable \"$FLEET_VAR_NDES_SCEP_CHALLENGE\" must be in the SCEP certificate's \"Challenge\" field.",
+			errMsg: "Variable \"$FLEET_VAR_NDES_SCEP_CHALLENGE_ndesName\" must be in the SCEP certificate's \"Challenge\" field.",
 		},
 		{
 			name: "NDES url is not a fleet variable",
-			profile: customSCEPForValidation("${FLEET_VAR_NDES_SCEP_CHALLENGE}", "x${FLEET_VAR_NDES_SCEP_PROXY_URL}",
+			profile: customSCEPForValidation("${FLEET_VAR_NDES_SCEP_CHALLENGE_ndesName}", "x${FLEET_VAR_NDES_SCEP_PROXY_URL_ndesName}",
 				"Name", "com.apple.security.scep"),
-			errMsg: "Variable \"$FLEET_VAR_NDES_SCEP_PROXY_URL\" must be in the SCEP certificate's \"URL\" field.",
+			errMsg: "Variable \"$FLEET_VAR_NDES_SCEP_PROXY_URL_ndesName\" must be in the SCEP certificate's \"URL\" field.",
 		},
 		{
 			name: "SCEP renewal ID without other variables",
@@ -6409,30 +6412,30 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 		},
 		{
 			name: "NDES happy path",
-			profile: customSCEPForValidation("${FLEET_VAR_NDES_SCEP_CHALLENGE}", "${FLEET_VAR_NDES_SCEP_PROXY_URL}",
+			profile: customSCEPForValidation("${FLEET_VAR_NDES_SCEP_CHALLENGE_ndesName}", "${FLEET_VAR_NDES_SCEP_PROXY_URL_ndesName}",
 				"Name", "com.apple.security.scep"),
 			errMsg: "",
-			vars:   []string{"NDES_SCEP_CHALLENGE", "NDES_SCEP_PROXY_URL", "SCEP_RENEWAL_ID"},
+			vars:   []string{"NDES_SCEP_CHALLENGE_ndesName", "NDES_SCEP_PROXY_URL_ndesName", "SCEP_RENEWAL_ID"},
 		},
 		{
 			name: "NDES happy path with OU renewal ID",
-			profile: customSCEPWithOURenewalIDForValidation("${FLEET_VAR_NDES_SCEP_CHALLENGE}", "${FLEET_VAR_NDES_SCEP_PROXY_URL}",
+			profile: customSCEPWithOURenewalIDForValidation("${FLEET_VAR_NDES_SCEP_CHALLENGE_ndesName}", "${FLEET_VAR_NDES_SCEP_PROXY_URL_ndesName}",
 				"Name", "com.apple.security.scep"),
 			errMsg: "",
-			vars:   []string{"NDES_SCEP_CHALLENGE", "NDES_SCEP_PROXY_URL", "SCEP_RENEWAL_ID"},
+			vars:   []string{"NDES_SCEP_CHALLENGE_ndesName", "NDES_SCEP_PROXY_URL_ndesName", "SCEP_RENEWAL_ID"},
 		},
 		{
 			name: "NDES 2 valid profiles should error",
-			profile: customSCEPForValidation2("${FLEET_VAR_NDES_SCEP_CHALLENGE}", "${FLEET_VAR_NDES_SCEP_PROXY_URL}",
+			profile: customSCEPForValidation2("${FLEET_VAR_NDES_SCEP_CHALLENGE_ndesName}", "${FLEET_VAR_NDES_SCEP_PROXY_URL_ndesName}",
 				"challenge", "http://example2.com"),
 			errMsg: fleet.MultipleSCEPPayloadsErrMsg,
 		},
 		{
 			name:    "NDES and DigiCert profiles happy path",
-			profile: customSCEPDigiCertForValidation("${FLEET_VAR_NDES_SCEP_CHALLENGE}", "${FLEET_VAR_NDES_SCEP_PROXY_URL}"),
+			profile: customSCEPDigiCertForValidation("${FLEET_VAR_NDES_SCEP_CHALLENGE_ndesName}", "${FLEET_VAR_NDES_SCEP_PROXY_URL_ndesName}"),
 			errMsg:  "",
 			vars: []string{
-				"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "NDES_SCEP_CHALLENGE", "NDES_SCEP_PROXY_URL",
+				"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "NDES_SCEP_CHALLENGE_ndesName", "NDES_SCEP_PROXY_URL_ndesName",
 				"SCEP_RENEWAL_ID",
 			},
 		},

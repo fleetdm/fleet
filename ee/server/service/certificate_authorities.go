@@ -1040,7 +1040,7 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 	for _, ca := range ops.Delete {
 		switch ca.Type {
 		case string(fleet.CATypeNDESSCEPProxy):
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedNDESSCEPProxy{Name: ca.Name}); err != nil {
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedNDESSCEPProxy{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for deleted NDES SCEP proxy")
 			}
 		case string(fleet.CATypeDigiCert):

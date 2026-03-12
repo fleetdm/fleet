@@ -88,6 +88,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 
 	// goodNDESSCEPCA is a base object for testing with a valid NDES SCEP CA. Copy it to override specific fields in tests.
 	goodNDESSCEPCA := fleet.NDESSCEPProxyCA{
+		Name:     "NDES",
 		URL:      ndesSCEPServer.URL + "/scep",
 		AdminURL: ndesAdminServer.URL + "/mscep_admin/",
 		Username: "user",
@@ -164,7 +165,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 		case fleet.NDESSCEPProxyCA:
 			return batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-					NDESSCEP: &v,
+					NDESSCEP: []fleet.NDESSCEPProxyCA{v},
 				},
 				DryRun: dryRun,
 			}, nil
@@ -239,15 +240,16 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			require.NoError(t, err)
 
 			if expectNDES != nil {
-				require.NotNil(t, cas.NDESSCEP)
-				require.NotZero(t, cas.NDESSCEP.ID)
-				require.Equal(t, expectNDES.URL, cas.NDESSCEP.URL)
-				require.Equal(t, expectNDES.AdminURL, cas.NDESSCEP.AdminURL)
-				require.Equal(t, expectNDES.Username, cas.NDESSCEP.Username)
-				require.Equal(t, expectNDES.Password, cas.NDESSCEP.Password)
+				require.Len(t, cas.NDESSCEP, 1)
+				require.NotZero(t, cas.NDESSCEP[0].ID)
+				require.Equal(t, expectNDES.Name, cas.NDESSCEP[0].Name)
+				require.Equal(t, expectNDES.URL, cas.NDESSCEP[0].URL)
+				require.Equal(t, expectNDES.AdminURL, cas.NDESSCEP[0].AdminURL)
+				require.Equal(t, expectNDES.Username, cas.NDESSCEP[0].Username)
+				require.Equal(t, expectNDES.Password, cas.NDESSCEP[0].Password)
 
 			} else {
-				require.Nil(t, cas.NDESSCEP)
+				require.Empty(t, cas.NDESSCEP)
 			}
 		}
 
@@ -327,19 +329,19 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
 				checkNDESApplied(t, &goodNDESSCEPCA)
 
-				// try dry run of deletion by making an apply request where NDES is an empty struct and dry run is true
+				// try dry run of deletion by making an apply request where NDES is an empty slice and dry run is true
 				_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{
 					CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-						NDESSCEP: &fleet.NDESSCEPProxyCA{},
+						NDESSCEP: []fleet.NDESSCEPProxyCA{},
 					},
 					DryRun: true,
 				}, http.StatusOK)
 				checkNDESApplied(t, &goodNDESSCEPCA) // prior ndes should still exist
 
-				// now delete it by making an apply request where NDES is an empty struct
+				// now delete it by making an apply request where NDES is an empty slice
 				_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{
 					CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-						NDESSCEP: &fleet.NDESSCEPProxyCA{},
+						NDESSCEP: []fleet.NDESSCEPProxyCA{},
 					},
 					DryRun: false,
 				}, http.StatusOK)
@@ -1556,9 +1558,11 @@ func (s *integrationMDMTestSuite) checkAppliedCAs(t *testing.T, ds fleet.Datasto
 		assert.Empty(t, gotCAs.EST)
 	}
 
-	if expectedCAs.NDESSCEP != nil {
-		assert.NotNil(t, gotCAs.NDESSCEP)
-		gotCAs.NDESSCEP.ID = 0 // ignore ID when comparing
+	if len(expectedCAs.NDESSCEP) > 0 {
+		require.Len(t, gotCAs.NDESSCEP, len(expectedCAs.NDESSCEP))
+		for i := range gotCAs.NDESSCEP {
+			gotCAs.NDESSCEP[i].ID = 0 // ignore ID when comparing
+		}
 		assert.Equal(t, expectedCAs.NDESSCEP, gotCAs.NDESSCEP)
 	} else {
 		assert.Empty(t, gotCAs.NDESSCEP)

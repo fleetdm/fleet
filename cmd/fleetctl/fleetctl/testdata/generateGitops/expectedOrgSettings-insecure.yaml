@@ -1,9 +1,9 @@
 certificate_authorities:
   custom_est_proxy:
-  - name: some-est-name
-    password: some-est-password
-    url: https://some-est-url.example.com
-    username: some-est-username
+    - name: some-est-name
+      password: some-est-password
+      url: https://some-est-url.example.com
+      username: some-est-username
   custom_scep_proxy:
     - challenge: some-custom-scep-proxy-challenge
       name: some-custom-scep-proxy-name
@@ -24,10 +24,11 @@ certificate_authorities:
       client_id: some-hydrant-client-id
       client_secret: some-hydrant-client-secret
   ndes_scep_proxy:
-    admin_url: https://some-ndes-admin-url.com
-    password: some-ndes-password
-    url: https://some-ndes-scep-proxy-url.com
-    username: some-ndes-username
+    - admin_url: https://some-ndes-admin-url.com
+      name: NDES
+      password: some-ndes-password
+      url: https://some-ndes-scep-proxy-url.com
+      username: some-ndes-username
   smallstep:
     - challenge_url: https://some-smallstep-challenge-url.com
       name: some-smallstep-name
