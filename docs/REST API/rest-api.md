@@ -8880,10 +8880,11 @@ Lists the saved reports that run on a host, along with the first result for each
 {
   "reports": [
     {
-      "report_id": 31,
-      "name": "usb_devices",
+      "id": 31,
+      "name": "List USB devices",
       "description": "Retrieves USB devices and their details.",
       "query": "SELECT model, vendor FROM usb_devices;",
+      "logging": "snapshot",
       "discard_data": false,
       "total_results_count": 4,
       "updated_at": "2021-01-19T17:08:31Z",
@@ -8894,10 +8895,11 @@ Lists the saved reports that run on a host, along with the first result for each
       }
     },
     {
-      "report_id": 44,
-      "name": "os_version",
+      "id": 44,
+      "name": "Get operating system version",
       "description": "Retrieves the host's operating system version.",
       "query": "SELECT name, version, major, minor, patch FROM os_version;",
+      "logging": "differential",
       "discard_data": false,
       "total_results_count": 1,
       "updated_at": "2021-01-20T14:52:09Z",
@@ -8911,10 +8913,11 @@ Lists the saved reports that run on a host, along with the first result for each
       }
     },
     {
-      "report_id": 52,
-      "name": "disk_encryption",
+      "id": 52,
+      "name": "Check disk encryption status",
       "description": "Checks disk encryption status.",
       "query": "SELECT 1 FROM disk_encryption WHERE encrypted = 1;",
+      "logging": "snapshot",
       "discard_data": true,
       "total_results_count": 0,
       "updated_at": "2021-01-21T09:30:00Z",
