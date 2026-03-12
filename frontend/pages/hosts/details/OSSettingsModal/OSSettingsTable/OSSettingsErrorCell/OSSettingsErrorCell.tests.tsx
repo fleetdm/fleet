@@ -3,20 +3,26 @@ import { render, screen } from "@testing-library/react";
 
 import { createMockHostMdmProfile } from "__mocks__/hostMock";
 
+import { REC_LOCK_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
+
 import OSSettingsErrorCell from "./OSSettingsErrorCell";
+
+const noop = () => new Promise<void>(() => undefined);
 
 describe("OSSettingsErrorCell", () => {
   it("should render a formatted message for windows profiles", () => {
     render(
       <OSSettingsErrorCell
         canResendProfiles
+        canRotateRecoveryLockPassword={false}
         profile={createMockHostMdmProfile({
           platform: "windows",
           status: "failed",
           detail:
             "starting encryption: encrypt(C:): error code returned during encryption: -2147024809, error 2: This is another error",
         })}
-        resendRequest={() => new Promise(() => undefined)}
+        resendRequest={noop}
+        rotateRecoveryLockPassword={noop}
       />
     );
 
@@ -51,8 +57,10 @@ describe("OSSettingsErrorCell", () => {
     render(
       <OSSettingsErrorCell
         canResendProfiles
+        canRotateRecoveryLockPassword={false}
         profile={createMockHostMdmProfile({})}
-        resendRequest={() => new Promise(() => undefined)}
+        resendRequest={noop}
+        rotateRecoveryLockPassword={noop}
       />
     );
 
@@ -63,8 +71,10 @@ describe("OSSettingsErrorCell", () => {
     render(
       <OSSettingsErrorCell
         canResendProfiles
+        canRotateRecoveryLockPassword={false}
         profile={createMockHostMdmProfile({ status: "failed" })}
-        resendRequest={() => new Promise(() => undefined)}
+        resendRequest={noop}
+        rotateRecoveryLockPassword={noop}
       />
     );
 
@@ -75,8 +85,10 @@ describe("OSSettingsErrorCell", () => {
     render(
       <OSSettingsErrorCell
         canResendProfiles
+        canRotateRecoveryLockPassword={false}
         profile={createMockHostMdmProfile({ status: "verified" })}
-        resendRequest={() => new Promise(() => undefined)}
+        resendRequest={noop}
+        rotateRecoveryLockPassword={noop}
       />
     );
 
@@ -87,11 +99,13 @@ describe("OSSettingsErrorCell", () => {
     render(
       <OSSettingsErrorCell
         canResendProfiles
+        canRotateRecoveryLockPassword={false}
         profile={createMockHostMdmProfile({
           status: "failed",
           detail: "There is no IdP email for this host.",
         })}
-        resendRequest={() => new Promise(() => undefined)}
+        resendRequest={noop}
+        rotateRecoveryLockPassword={noop}
       />
     );
 
@@ -105,11 +119,13 @@ describe("OSSettingsErrorCell", () => {
     render(
       <OSSettingsErrorCell
         canResendProfiles
+        canRotateRecoveryLockPassword={false}
         profile={createMockHostMdmProfile({
           status: "failed",
           detail: `Fleet couldn't populate $FLEET_VAR_CUSTOM_SCEP_URL_SCEP_WIFI because SCEP_WIFI certificate authority doesn't exist.`,
         })}
-        resendRequest={() => new Promise(() => undefined)}
+        resendRequest={noop}
+        rotateRecoveryLockPassword={noop}
       />
     );
 
@@ -125,11 +141,13 @@ describe("OSSettingsErrorCell", () => {
     render(
       <OSSettingsErrorCell
         canResendProfiles
+        canRotateRecoveryLockPassword={false}
         profile={createMockHostMdmProfile({
           status: "failed",
           detail: `Couldn't get certificate from DigiCert for WIFI_CERTIFICATE. unexpected DigiCert status code for POST request: 410, errors: Profile with id {test-id} was deleted`,
         })}
-        resendRequest={() => new Promise(() => undefined)}
+        resendRequest={noop}
+        rotateRecoveryLockPassword={noop}
       />
     );
 
@@ -145,12 +163,14 @@ describe("OSSettingsErrorCell", () => {
     render(
       <OSSettingsErrorCell
         canResendProfiles
+        canRotateRecoveryLockPassword={false}
         profile={createMockHostMdmProfile({
           status: "failed",
           detail: `Couldn't get certificate from DigiCert for WIFI_CERTIFICATE. unexpected DigiCert status code for POST request: 400, errors: Enrollment creation and Certificate issuance/renewal for deleted or suspended Profile are not supported.
           Please contact system Administrator.`,
         })}
-        resendRequest={() => new Promise(() => undefined)}
+        resendRequest={noop}
+        rotateRecoveryLockPassword={noop}
       />
     );
 
@@ -162,15 +182,89 @@ describe("OSSettingsErrorCell", () => {
     expect(screen.getByText("Profile GUID")).toBeInTheDocument();
   });
 
+  it("renders a rotate button when canRotateRecoveryLockPassword is true and password status is verified", () => {
+    render(
+      <OSSettingsErrorCell
+        canResendProfiles={false}
+        canRotateRecoveryLockPassword
+        profile={createMockHostMdmProfile({
+          profile_uuid: REC_LOCK_SYNTHETIC_PROFILE_UUID,
+          status: "verified",
+        })}
+        resendRequest={noop}
+        rotateRecoveryLockPassword={noop}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Rotate" })).toBeInTheDocument();
+  });
+
+  it("renders a rotate button when canRotateRecoveryLockPassword is true and password status is failed", () => {
+    render(
+      <OSSettingsErrorCell
+        canResendProfiles={false}
+        canRotateRecoveryLockPassword
+        profile={createMockHostMdmProfile({
+          profile_uuid: REC_LOCK_SYNTHETIC_PROFILE_UUID,
+          status: "failed",
+        })}
+        resendRequest={noop}
+        rotateRecoveryLockPassword={noop}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Rotate" })).toBeInTheDocument();
+  });
+
+  it("does not render a rotate button when canRotateRecoveryLockPassword is false", () => {
+    render(
+      <OSSettingsErrorCell
+        canResendProfiles={false}
+        canRotateRecoveryLockPassword={false}
+        profile={createMockHostMdmProfile({
+          profile_uuid: REC_LOCK_SYNTHETIC_PROFILE_UUID,
+          status: "verified",
+        })}
+        resendRequest={noop}
+        rotateRecoveryLockPassword={noop}
+      />
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Rotate" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not render a rotate button when password status is pending", () => {
+    render(
+      <OSSettingsErrorCell
+        canResendProfiles={false}
+        canRotateRecoveryLockPassword
+        profile={createMockHostMdmProfile({
+          profile_uuid: REC_LOCK_SYNTHETIC_PROFILE_UUID,
+          status: "pending",
+        })}
+        resendRequest={noop}
+        rotateRecoveryLockPassword={noop}
+      />
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Rotate" })
+    ).not.toBeInTheDocument();
+  });
+
   it("renders a formatted tooltip when the error message matches digicert token patern", () => {
     render(
       <OSSettingsErrorCell
         canResendProfiles
+        canRotateRecoveryLockPassword={false}
         profile={createMockHostMdmProfile({
           status: "failed",
-          detail: `Couldn’t get certificate from DigiCert. The API token configured in DIGICERT_TEST certificate authority is invalid.`,
+          detail: `Couldn't get certificate from DigiCert. The API token configured in DIGICERT_TEST certificate authority is invalid.`,
         })}
-        resendRequest={() => new Promise(() => undefined)}
+        resendRequest={noop}
+        rotateRecoveryLockPassword={noop}
       />
     );
 

@@ -1692,6 +1692,11 @@ func (svc *Service) EnqueueMDMAppleCommand(
 		return nil, ctxerr.Wrap(ctx, err, "decode base64 command")
 	}
 
+	// Validate the command before enqueueing
+	if err := svc.validateAppleMDMCommand(ctx, rawXMLCmd, hosts); err != nil {
+		return nil, err
+	}
+
 	return svc.enqueueAppleMDMCommand(ctx, rawXMLCmd, deviceIDs)
 }
 

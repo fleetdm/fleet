@@ -93,6 +93,13 @@
         gap: 20px;
       }
 
+      .switch-browser-content {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+      }
+
       .page-description {
         font-size: 16px;
         margin-bottom: 48px;
@@ -402,6 +409,24 @@
       </div>
     </template>
 
+    <!-- Open in Safari content (iOS/iPadOS only) -->
+    <template id="open-in-safari-template">
+      <section class="device-instructions-content">
+        <h1>Please open in Safari</h1>
+        <div class="switch-browser-content">
+          <p>
+            To enroll your device, this page needs to be opened in
+            <b>Safari</b>.
+          </p>
+          <button class="enroll-link open-safari-btn">Open in Safari</button>
+          <p class="safari-fallback-msg" style="display: none">
+            URL copied to clipboard. Please open <b>Safari</b> and paste the
+            URL.
+          </p>
+        </div>
+      </section>
+    </template>
+
     <!-- Error content -->
     <template id="error-template">
       <h1 class="error-header">
@@ -477,6 +502,67 @@
           default:
             return "unsupported";
         }
+      };
+
+      // Detects if the browser is Safari on iOS/iPadOS
+      // Other browsers on iOS: CriOS (Chrome), FxiOS (Firefox), EdgiOS (Edge), OPiOS or OPT (Opera)
+      // Brave (Brave)
+      const isSafariBrowser = () => {
+        const ua = navigator.userAgent;
+        return (
+          /Safari/i.test(ua) &&
+          !/CriOS/i.test(ua) &&
+          !/FxiOS/i.test(ua) &&
+          !/EdgiOS/i.test(ua) &&
+          !/OPiOS/i.test(ua) &&
+          !/OPT/i.test(ua) &&
+          !/Brave/i.test(ua)
+        );
+      };
+
+      // Attempts to open the current URL in Safari, falls back to clipboard copy
+      const openInSafari = async () => {
+        const currentUrl = window.location.href;
+        const safariUrl = currentUrl.replace(
+          /^https?:\/\//,
+          "x-safari-https://"
+        );
+
+        // Track if the page loses focus (indicates Safari opened)
+        let didNavigate = false;
+        const handleBlur = () => {
+          didNavigate = true;
+        };
+        window.addEventListener("blur", handleBlur);
+
+        // Try to open Safari via URL scheme
+        window.location.href = safariUrl;
+
+        // Wait a moment to see if navigation occurred
+        setTimeout(async () => {
+          window.removeEventListener("blur", handleBlur);
+
+          if (!didNavigate) {
+            // URL scheme didn't work, fall back to clipboard
+            try {
+              await navigator.clipboard.writeText(currentUrl);
+              const fallbackMsg = document.querySelector(
+                ".safari-fallback-msg"
+              );
+              const openBtn = document.querySelector(".open-safari-btn");
+              if (fallbackMsg) {
+                fallbackMsg.style.display = "block";
+              }
+              if (openBtn) {
+                openBtn.textContent = "URL Copied";
+                openBtn.disabled = true;
+                openBtn.style.backgroundColor = "#6A6A6A";
+              }
+            } catch (err) {
+              console.error("Failed to copy URL to clipboard", err);
+            }
+          }
+        }, 500);
       };
 
       /**
@@ -706,6 +792,17 @@
             renderError("Apple MDM is turned off.", description);
             return;
           }
+
+          // Check if user is NOT in Safari - redirect them to Safari
+          if (!isSafariBrowser()) {
+            renderContent("open-in-safari-template");
+            const openBtn = document.querySelector(".open-safari-btn");
+            if (openBtn) {
+              openBtn.addEventListener("click", openInSafari);
+            }
+            return;
+          }
+
           renderContent(templateId);
           setIosIpadContent(platform);
         }
