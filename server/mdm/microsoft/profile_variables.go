@@ -4,14 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"slices"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/variables"
@@ -182,9 +180,7 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarNDESSCEPChallengeRegexp, result, challenge)
 
 		case fleetVar == string(fleet.FleetVarNDESSCEPProxyURL):
-			proxyURL := fmt.Sprintf("%s%s%s", deps.AppConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
-				url.PathEscape(fmt.Sprintf("%s,%s,NDES", params.HostUUID, params.ProfileUUID)))
-			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarNDESSCEPProxyURLRegexp, result, proxyURL)
+			result = profiles.ReplaceNDESSCEPProxyURLVariable(deps.AppConfig.MDMUrl(), params.HostUUID, params.ProfileUUID, result)
 		}
 	}
 
