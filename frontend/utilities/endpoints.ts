@@ -187,6 +187,8 @@ export default {
     `/${API_VERSION}/fleet/hosts/${id}/encryption_key`,
   HOST_RECOVERY_LOCK_PASSWORD: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/recovery_lock_password`,
+  HOST_RECOVERY_LOCK_PASSWORD_ROTATE: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/recovery_lock_password/rotate`,
 
   ME: `/${API_VERSION}/fleet/me`,
 

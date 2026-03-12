@@ -1329,7 +1329,7 @@ func TestMDMConfig(t *testing.T) {
 					IDPName:     "onelogin",
 				}},
 			},
-			expectedError: "Couldn't enable macos_setup.lock_end_user_info because macos_setup.enable_end_user_authentication is not enabled.",
+			expectedError: `"enable_end_user_authentication" must be set to "true"`,
 		},
 	}
 

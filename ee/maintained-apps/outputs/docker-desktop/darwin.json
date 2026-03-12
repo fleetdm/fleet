@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "4.63.0",
+      "version": "4.64.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dockerdesktop';"
       },
-      "installer_url": "https://desktop.docker.com/mac/main/arm64/220185/Docker.dmg",
+      "installer_url": "https://desktop.docker.com/mac/main/arm64/221278/Docker.dmg",
       "install_script_ref": "2fd921da",
       "uninstall_script_ref": "876e899c",
-      "sha256": "02d8fb3dfc8b5a0a1d29779e5c99321ee3d586b4c2067943e3de0b7bcf027c09",
+      "sha256": "9ecfb1a3a45945bec5e3e541557259cfe89705622baf41402f04593ee8d4279f",
       "default_categories": [
         "Developer tools"
       ]

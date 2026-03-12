@@ -1291,6 +1291,13 @@ the way that the Fleet server works.
 				}); err != nil {
 					initFatal(err, "failed to register refresh vpp app versions schedule")
 				}
+
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+					return newRecoveryLockPasswordSchedule(ctx, instanceID, ds, commander, logger)
+				}); err != nil {
+					initFatal(err, "failed to register recovery lock password schedule")
+				}
 			}
 
 			if license.IsPremium() && config.Activity.EnableAuditLog {
@@ -1478,6 +1485,7 @@ the way that the Fleet server works.
 
 				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay, svc.NewActivity))
 				mdmCheckinAndCommandService.RegisterResultsHandler(fleet.DeviceLocationCmdName, service.NewDeviceLocationResultsHandler(ds, commander, logger))
+				mdmCheckinAndCommandService.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, service.NewSetRecoveryLockResultsHandler(ds, logger))
 
 				hasSCEPChallenge, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
 				if err != nil {

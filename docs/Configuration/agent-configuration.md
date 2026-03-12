@@ -56,7 +56,7 @@ To see a description for all available settings, first [enroll your host](https:
 osquery > SELECT name, default_value, value, description FROM osquery_flags; 
 ```
 
-Running the interactive osquery shell loads a standalone instance of osquery, with a default configuration rather than the one set in agent options. If you'd like to verify that your hosts are running with the latest settings set in `options`, run the query as a live query in Fleet.
+Running the interactive osquery shell loads a standalone instance of osquery, with a default configuration rather than the one set in agent options. If you'd like to verify that your hosts are running with the latest settings set in `options`, run the report as a live report in Fleet.
 
 > If you revoke an old enroll secret, the `command_line_flags` won't update for hosts that enrolled to Fleet using this old enroll secret. This is because fleetd uses the enroll secret to receive new flags from Fleet. For these hosts, all existing features will work as expected.
 
@@ -73,7 +73,7 @@ fleetctl apply --force -f config.yaml
 In the `decorators` key, you can specify queries to include additional information in your osquery results logs.
 
 - `load` are queries you want to update values when the configuration loads.
-- `always` are queries to update every time a scheduled query is run.
+- `always` are queries to update every time a scheduled report is run.
 - `interval` are queries you want to update on a schedule.
 
 ### yara
@@ -84,7 +84,7 @@ You can use Fleet to configure the `yara` and `yara_events` osquery tables, used
 
 > This feature requires a custom TUF [auto-update server](https://fleetdm.com/guides/fleetd-updates) (available in Fleet Premium).
 
-The `extensions` key inside of `agent_options` allows you to remotely manage and deploy osquery extensions. Just like other `agent_options` the `extensions` key can be applied either to a team specific one or the global one.
+The `extensions` key inside of `agent_options` allows you to remotely manage and deploy osquery extensions. Just like other `agent_options` the `extensions` key can be applied either to a specific fleet specific or global across all fleets.
 
 #### Example
 
