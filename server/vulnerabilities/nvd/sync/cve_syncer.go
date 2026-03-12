@@ -287,6 +287,7 @@ func (s *CVE) updateVulnCheckYearFile(ctx context.Context, year int, cves []Vuln
 		}
 		legacyCVE := convertAPI20CVEToLegacy(ctx, cve.CVE, s.logger)
 		updateWithVulnCheckConfigurations(legacyCVE, cve.VcConfigurations)
+		applyLegacyCVECorrections(legacyCVE)
 		newLegacyCVEs[legacyCVE.CVE.CVEDataMeta.ID] = legacyCVE
 	}
 
@@ -554,6 +555,29 @@ func transformVuln(year int, item nvdapi.CVEItem) nvdapi.CVEItem {
 	}
 
 	return item
+}
+
+// applyLegacyCVECorrections applies Fleet-specific corrections to legacy format CVE items.
+// These corrections fix incorrect upstream data (from NVD or VulnCheck) that would cause
+// false positives or missed detections.
+func applyLegacyCVECorrections(cve *schema.NVDCVEFeedJSON10DefCVEItem) {
+	// Correct the resolved-in version for CVE-2024-6286 LTSR to what Citrix actually reports.
+	if cve.CVE.CVEDataMeta.ID == "CVE-2024-6286" && cve.Configurations != nil {
+		for _, node := range cve.Configurations.Nodes {
+			correctLTSRVersionEndExcluding(node)
+		}
+	}
+}
+
+func correctLTSRVersionEndExcluding(node *schema.NVDCVEFeedJSON10DefNode) {
+	for _, match := range node.CPEMatch {
+		if strings.Contains(match.Cpe23Uri, ":ltsr:") && match.VersionEndExcluding == "2203.1" {
+			match.VersionEndExcluding = "2402"
+		}
+	}
+	for _, child := range node.Children {
+		correctLTSRVersionEndExcluding(child)
+	}
 }
 
 func (s *CVE) DoVulnCheck(ctx context.Context) error {
