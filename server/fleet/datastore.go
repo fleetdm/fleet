@@ -1503,6 +1503,9 @@ type Datastore interface {
 	// for the given host UUID.
 	GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*HostRecoveryLockPassword, error)
 
+	// GetHostRecoveryLockPasswordStatus returns the recovery lock password status for a given host.
+	GetHostRecoveryLockPasswordStatus(ctx context.Context, hostUUID string) (*HostMDMRecoveryLockPassword, error)
+
 	// GetHostsForRecoveryLockAction returns host UUIDs that need recovery lock password action:
 	// - Teams with enable_recovery_lock_password = true
 	// - macOS Apple Silicon hosts that are MDM enrolled
