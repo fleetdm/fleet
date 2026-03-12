@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 )
@@ -210,6 +211,19 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 					team.Config.MDM.IPadOSUpdates.Deadline.Value != payload.MDM.IPadOSUpdates.Deadline.Value
 				team.Config.MDM.IPadOSUpdates = *payload.MDM.IPadOSUpdates
 			}
+		}
+
+		// Always check whether specified versions are supported by Apple (even if they weren't updated)
+		// Note that we're validating against the full, non-public asset set of OS versions here because
+		// in our DEP flow the minimum version just acts as the threshold for whether or not to update
+		// the host to the latest, public version. We don't need to install the specified version on the
+		// host during DEP so it doesn't need to be in the public asset set.
+		if errs := apple_mdm.ValidateMDMSettingsAppleSupportedOSVersion(team.Config.MDM, false); len(errs) > 0 {
+			invalid := &fleet.InvalidArgumentError{}
+			for k, v := range errs {
+				invalid.Append(k, v.Error())
+			}
+			return nil, invalid
 		}
 
 		if payload.MDM.WindowsUpdates != nil {
@@ -1131,6 +1145,8 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		if len(secrets) > fleet.MaxEnrollSecretsCount {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "too many secrets"), "validate secrets")
 		}
+		// TODO: should we be we validating the other Apple platforms? if so, we should also include
+		// ValidateMDMSettingsAppleSupportedOSVersion for each platform
 		if err := spec.MDM.MacOSUpdates.Validate(); err != nil {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_updates", err.Error()))
 		}
