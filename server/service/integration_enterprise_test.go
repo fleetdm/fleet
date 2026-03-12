@@ -13225,8 +13225,6 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	t := s.T()
 	ctx := context.Background()
 
-	fmt.Printf("dev_mode.Env(\"FLEET_DEV_BATCH_RETRY_INTERVAL\"): %v\n", dev_mode.Env("FLEET_DEV_BATCH_RETRY_INTERVAL"))
-
 	// non-existent team
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{}, http.StatusNotFound, "team_name", "foo")
 
@@ -13434,24 +13432,65 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	titlesResp.SoftwareTitles[0].SoftwarePackage.SelfService = ptr.Bool(true)
 	require.Equal(t, titlesResp, newTitlesResp)
 
-	// create some labels A and B
+	// create some labels A, B and C
 	lblA, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "A"})
 	require.NoError(t, err)
 	lblB, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "B"})
 	require.NoError(t, err)
+	lblC, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "C"})
+	require.NoError(t, err)
 
-	// providing both labels include/exclude results in an error
-	softwareToInstall = []*fleet.SoftwareInstallerPayload{
-		{URL: rubyURL, LabelsIncludeAny: []string{lblA.Name}, LabelsExcludeAny: []string{lblB.Name}},
+	// validate that providing more than 1 type of label
+	// results in an error
+	testCases := []struct {
+		desc    string
+		incAny  []string
+		exclAny []string
+		incAll  []string
+	}{
+		{
+			desc:    "include_any_exclude_any",
+			incAny:  []string{lblA.Name},
+			exclAny: []string{lblB.Name},
+		},
+		{
+			desc:   "include_any_include_all",
+			incAny: []string{lblA.Name},
+			incAll: []string{lblB.Name},
+		},
+		{
+			desc:    "exclude_any_include_all",
+			exclAny: []string{lblA.Name},
+			incAll:  []string{lblB.Name},
+		},
+		{
+			desc:    "all_types",
+			incAny:  []string{lblA.Name},
+			exclAny: []string{lblB.Name},
+			incAll:  []string{lblC.Name},
+		},
 	}
-	res := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(res.Body), `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`)
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			softwareToInstall = []*fleet.SoftwareInstallerPayload{
+				{
+					URL:              rubyURL,
+					LabelsIncludeAny: tc.incAny,
+					LabelsExcludeAny: tc.exclAny,
+					LabelsIncludeAll: tc.incAll,
+				},
+			}
+			res := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusBadRequest)
+			assert.Contains(t, extractServerErrorText(res.Body), `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`)
+
+		})
+	}
 
 	// providing a non-existing label results in an error
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{
 		{URL: rubyURL, LabelsIncludeAny: []string{"no-such-label"}},
 	}
-	res = s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusBadRequest)
+	res := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(res.Body), `Couldn't update. Label "no-such-label" doesn't exist. Please remove the label from the software.`)
 
 	// valid installer scoped by label
@@ -13536,7 +13575,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 
 	// with a label
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{
-		{Slug: &maintained1.Slug, LabelsIncludeAny: []string{lblA.Name}},
+		{Slug: &maintained1.Slug, LabelsIncludeAll: []string{lblA.Name}},
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, "", batchResponse.RequestUUID)
@@ -13547,10 +13586,10 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, *packages[0].TitleID, false)
 	require.NoError(t, err)
 	require.Empty(t, meta.LabelsExcludeAny)
-	require.Empty(t, meta.LabelsIncludeAll)
-	require.Len(t, meta.LabelsIncludeAny, 1)
-	require.Equal(t, lblA.ID, meta.LabelsIncludeAny[0].LabelID)
-	require.Equal(t, lblA.Name, meta.LabelsIncludeAny[0].LabelName)
+	require.Empty(t, meta.LabelsIncludeAny)
+	require.Len(t, meta.LabelsIncludeAll, 1)
+	require.Equal(t, lblA.ID, meta.LabelsIncludeAll[0].LabelID)
+	require.Equal(t, lblA.Name, meta.LabelsIncludeAll[0].LabelName)
 
 	// maintained app with no_check for sha, latest for version
 	maintained2, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
@@ -13615,7 +13654,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	http.DefaultTransport = mockTransport
 
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{
-		{Slug: &maintained2.Slug},
+		{Slug: &maintained2.Slug, LabelsIncludeAll: []string{lblA.Name}},
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, "", batchResponse.RequestUUID)
@@ -13630,6 +13669,16 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	titleResponse := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", *packages[0].TitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
 	require.Equal(t, "1.0.0", titleResponse.SoftwareTitle.SoftwarePackage.Version)
+
+	meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, *packages[0].TitleID, false)
+	require.NoError(t, err)
+
+	// Validate labels
+	require.Empty(t, meta.LabelsExcludeAny)
+	require.Empty(t, meta.LabelsIncludeAny)
+	require.Len(t, meta.LabelsIncludeAll, 1)
+	require.Equal(t, lblA.ID, meta.LabelsIncludeAll[0].LabelID)
+	require.Equal(t, lblA.Name, meta.LabelsIncludeAll[0].LabelName)
 
 	http.DefaultTransport = oldTransport
 }
@@ -18216,6 +18265,169 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 
 	// We have an installation attempt for vim, because it's in scope
 	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, vimInstallerID)
+	require.NoError(t, err)
+	require.NotNil(t, host1LastInstall)
+
+	// --- include_all tests ---
+	// Host has lbl1 and lbl2. lbl3 is not on the host.
+
+	// Upload sed.deb with labels_include_all: [lbl1, lbl2].
+	// Host has both labels, so it IS in scope — install should be attempted.
+	sedPayload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:    "some deb install script",
+		Filename:         "sed.deb",
+		TeamID:           nil,
+		LabelsIncludeAll: []string{lbl1.Name, lbl2.Name},
+		Platform:         "linux",
+	}
+	s.uploadSoftwareInstaller(t, sedPayload, http.StatusOK, "")
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "sed",
+		"team_id", "0",
+	)
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	sedTitleID := resp.SoftwareTitles[0].ID
+
+	var sedDetail getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", sedTitleID), nil, http.StatusOK, &sedDetail)
+	require.NotNil(t, sedDetail.SoftwareTitle)
+	require.NotNil(t, sedDetail.SoftwareTitle.SoftwarePackage)
+	sedInstallerID := sedDetail.SoftwareTitle.SoftwarePackage.InstallerID
+
+	policy3, err := s.ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:     "policy3",
+		Query:    "SELECT 3;",
+		Platform: "linux",
+	})
+	require.NoError(t, err)
+
+	mtplr = modifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", policy3.ID), modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: sedTitleID},
+		},
+	}, http.StatusOK, &mtplr)
+
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, sedInstallerID)
+	require.NoError(t, err)
+	require.Nil(t, host1LastInstall)
+
+	// Send back a failed result for policy3.
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host,
+		map[uint]*bool{
+			policy3.ID: ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+	err = s.ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policy3, err = s.ds.Policy(ctx, policy3.ID)
+	require.NoError(t, err)
+	// Host has all required labels, so the installer is in scope and the policy is marked failed.
+	require.Equal(t, uint(0), policy3.PassingHostCount)
+	require.Equal(t, uint(1), policy3.FailingHostCount)
+
+	// Installation attempt was made for sed, because host has all required labels.
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, sedInstallerID)
+	require.NoError(t, err)
+	require.NotNil(t, host1LastInstall)
+
+	// Upload awk.deb with labels_include_all: [lbl1, lbl3].
+	// Host has lbl1 but NOT lbl3, so it is NOT in scope — install should be skipped.
+	awkPayload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:    "some deb install script",
+		Filename:         "awk.deb",
+		TeamID:           nil,
+		LabelsIncludeAll: []string{lbl1.Name, lbl3.Name},
+		Platform:         "linux",
+	}
+	s.uploadSoftwareInstaller(t, awkPayload, http.StatusOK, "")
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "awk",
+		"team_id", "0",
+	)
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	awkTitleID := resp.SoftwareTitles[0].ID
+
+	var awkDetail getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", awkTitleID), nil, http.StatusOK, &awkDetail)
+	require.NotNil(t, awkDetail.SoftwareTitle)
+	require.NotNil(t, awkDetail.SoftwareTitle.SoftwarePackage)
+	awkInstallerID := awkDetail.SoftwareTitle.SoftwarePackage.InstallerID
+
+	policy4, err := s.ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:     "policy4",
+		Query:    "SELECT 4;",
+		Platform: "linux",
+	})
+	require.NoError(t, err)
+
+	mtplr = modifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", policy4.ID), modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: awkTitleID},
+		},
+	}, http.StatusOK, &mtplr)
+
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, awkInstallerID)
+	require.NoError(t, err)
+	require.Nil(t, host1LastInstall)
+
+	// Send back a failed result for policy4.
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host,
+		map[uint]*bool{
+			policy4.ID: ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+	err = s.ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policy4, err = s.ds.Policy(ctx, policy4.ID)
+	require.NoError(t, err)
+	// Host is missing lbl3, so the installer is not in scope. Policy should not be counted as failed.
+	require.Equal(t, uint(0), policy4.PassingHostCount)
+	require.Equal(t, uint(0), policy4.FailingHostCount)
+
+	// No installation attempt for awk, because host is missing one of the required labels.
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, awkInstallerID)
+	require.NoError(t, err)
+	require.Nil(t, host1LastInstall)
+
+	// Now add lbl3 to the host and re-run the policy failure. awk should now be in scope.
+	err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{lbl3.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host,
+		map[uint]*bool{
+			policy4.ID: ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+	err = s.ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policy4, err = s.ds.Policy(ctx, policy4.ID)
+	require.NoError(t, err)
+	// Host now has all required labels, so the policy is marked as failed.
+	require.Equal(t, uint(0), policy4.PassingHostCount)
+	require.Equal(t, uint(1), policy4.FailingHostCount)
+
+	// Installation attempt was made for awk now that the host has all required labels.
+	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, awkInstallerID)
 	require.NoError(t, err)
 	require.NotNil(t, host1LastInstall)
 }
