@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ============================================================================
+  Grubhub EDR Migration — PSADT v4.1 Configuration
+  ============================================================================
+  This file configures the PowerShell App Deployment Toolkit for the
+  Grubhub-branded EDR migration (SentinelOne → CrowdStrike Falcon).
+
+  Reference: https://psappdeploytoolkit.com/docs/reference/xml-configuration/
+  ============================================================================
+-->
+<AppDeployToolkit_Config>
+
+  <!-- ======================================================================
+       Toolkit Options
+       ====================================================================== -->
+  <Toolkit_Options>
+    <!-- Toolkit name shown in logs and references -->
+    <Toolkit_Name>Grubhub EDR Migration Toolkit</Toolkit_Name>
+
+    <!-- Temporary directory for toolkit operations -->
+    <Toolkit_TempPath>C:\Temp\GrubhubEDR</Toolkit_TempPath>
+
+    <!-- Regex for MSI mutual exclusion -->
+    <Toolkit_RegPath>HKLM:\SOFTWARE\GrubhubIT\EDRMigration</Toolkit_RegPath>
+
+    <!-- Log directory and filename pattern -->
+    <Toolkit_LogPath>C:\Logs\GrubhubIT</Toolkit_LogPath>
+    <Toolkit_LogName>Grubhub_EDR_Migration</Toolkit_LogName>
+    <Toolkit_LogMaxSize>10</Toolkit_LogMaxSize>
+    <Toolkit_LogWriteToHost>True</Toolkit_LogWriteToHost>
+    <Toolkit_LogDebugMessage>False</Toolkit_LogDebugMessage>
+
+    <!-- Compress log files -->
+    <Toolkit_CompressLogs>False</Toolkit_CompressLogs>
+
+    <!-- Require admin rights to run -->
+    <Toolkit_RequireAdmin>True</Toolkit_RequireAdmin>
+  </Toolkit_Options>
+
+  <!-- ======================================================================
+       UI Options — Grubhub Branding
+       ====================================================================== -->
+  <UI_Options>
+    <!-- Application name displayed in all dialogs -->
+    <AppName>Grubhub EDR Migration</AppName>
+
+    <!-- Publisher / department name -->
+    <Publisher>Grubhub IT</Publisher>
+
+    <!-- Installation UI language -->
+    <InstallationUI_Language>EN</InstallationUI_Language>
+
+    <!-- Dialog window title -->
+    <InstallationUI_Title>Grubhub IT — Endpoint Security Migration</InstallationUI_Title>
+
+    <!-- Dialog subtitle / description -->
+    <InstallationUI_Subtitle>Migrating from SentinelOne to CrowdStrike Falcon</InstallationUI_Subtitle>
+
+    <!--
+      Branding colors — Grubhub brand palette
+      Primary:   #F63440 (Grubhub Red/Orange)
+      Secondary: #FFFFFF (White)
+      Accent:    #1A1A2E (Dark Navy)
+    -->
+    <BannerColor>#F63440</BannerColor>
+    <BannerTextColor>#FFFFFF</BannerTextColor>
+
+    <!-- Banner image — place a Grubhub-branded banner in the AppDeployToolkit folder
+         and reference it here. The recommended size is 500x60 pixels. -->
+    <BannerImage>AppDeployToolkit\GrubhubBanner.png</BannerImage>
+
+    <!-- Icon used for dialogs and balloon tips
+         Place a Grubhub logo icon in the AppDeployToolkit folder (ICO format, 64x64). -->
+    <Icon>AppDeployToolkit\GrubhubIcon.ico</Icon>
+
+    <!-- Show balloon notifications -->
+    <ShowBalloonNotifications>True</ShowBalloonNotifications>
+
+    <!-- Dialog timeout (seconds) — auto-continue after this period -->
+    <InstallationUI_Timeout>3600</InstallationUI_Timeout>
+
+    <!-- Welcome prompt countdown (seconds) -->
+    <InstallationWelcome_CloseAppsCountdown>300</InstallationWelcome_CloseAppsCountdown>
+
+    <!-- Defer options (not used for this migration, but configured for safety) -->
+    <InstallationDefer_ExitOnDefer>True</InstallationDefer_ExitOnDefer>
+
+    <!-- Restart prompt settings -->
+    <InstallationRestart_PromptUser>True</InstallationRestart_PromptUser>
+    <InstallationRestart_CountdownSeconds>600</InstallationRestart_CountdownSeconds>
+
+    <!-- Progress dialog — keep it on top -->
+    <InstallationProgress_TopMost>True</InstallationProgress_TopMost>
+
+    <!-- Welcome dialog persistence -->
+    <InstallationWelcome_PersistPrompt>True</InstallationWelcome_PersistPrompt>
+  </UI_Options>
+
+  <!-- ======================================================================
+       MSI Options
+       ====================================================================== -->
+  <MSI_Options>
+    <!-- Default MSI logging parameters -->
+    <MSI_LogPath>C:\Logs\GrubhubIT</MSI_LogPath>
+    <MSI_LogName>Grubhub_EDR_Migration_MSI</MSI_LogName>
+    <MSI_LoggingOptions>/L*V</MSI_LoggingOptions>
+
+    <!-- MSI install parameters -->
+    <MSI_InstallParams>/QN /NORESTART</MSI_InstallParams>
+
+    <!-- MSI uninstall parameters -->
+    <MSI_UninstallParams>/QN /NORESTART</MSI_UninstallParams>
+
+    <!-- Mutex wait time (seconds) for MSI operations -->
+    <MSI_MutexWaitTime>600</MSI_MutexWaitTime>
+  </MSI_Options>
+
+  <!-- ======================================================================
+       Custom Configuration — EDR Migration Specific
+       ====================================================================== -->
+  <Custom_Options>
+    <!--
+      These values are also configurable at the top of Invoke-AppDeployToolkit.ps1.
+      The script-level variables take precedence over these config values.
+    -->
+
+    <!-- CrowdStrike Falcon installer path (relative to Files directory) -->
+    <CrowdStrike_InstallerPath>Files\CrowdStrike\WindowsSensor.exe</CrowdStrike_InstallerPath>
+
+    <!-- CrowdStrike Customer ID — SET THIS BEFORE DEPLOYMENT -->
+    <CrowdStrike_CID></CrowdStrike_CID>
+
+    <!-- SentinelOne management passphrase — SET THIS BEFORE DEPLOYMENT -->
+    <SentinelOne_Passphrase></SentinelOne_Passphrase>
+
+    <!-- Support contact information -->
+    <Support_Email>it-security@grubhub.com</Support_Email>
+    <Support_URL>https://grubhub.service-now.com</Support_URL>
+  </Custom_Options>
+
+</AppDeployToolkit_Config>
