@@ -2627,7 +2627,8 @@ unknown_policy_pkg_field: bad
 }
 
 // TestControlsNewKeyNames verifies that the new multi-platform key names
-// (apple_settings, setup_experience, configuration_profiles, apple_setup_assistant)
+// (apple_settings, setup_experience, configuration_profiles, apple_setup_assistant,
+// macos_bootstrap_package, apple_enable_release_device_manually, macos_script, macos_manual_agent_install)
 // are accepted in controls parsing and produce the same result as the old names.
 func TestControlsNewKeyNames(t *testing.T) {
 	t.Parallel()
@@ -2655,9 +2656,11 @@ controls:
     - path: ./lib/collect-fleetd-logs.sh
   enable_disk_encryption: true
   setup_experience:
-    bootstrap_package: null
+    macos_bootstrap_package: null
     enable_end_user_authentication: false
     apple_setup_assistant: null
+    apple_enable_release_device_manually: null
+    macos_manual_agent_install: null
   macos_updates:
     deadline: null
     minimum_version: null
@@ -2720,9 +2723,11 @@ scripts:
   - path: ./lib/collect-fleetd-logs.sh
 enable_disk_encryption: true
 setup_experience:
-  bootstrap_package: null
+  macos_bootstrap_package: null
   enable_end_user_authentication: false
   apple_setup_assistant: null
+  apple_enable_release_device_manually: null
+  macos_manual_agent_install: null
 macos_updates:
   deadline: null
   minimum_version: null
@@ -2906,6 +2911,106 @@ controls:
 		require.Contains(t, err.Error(), "Conflicting field names")
 		require.Contains(t, err.Error(), "setup_experience")
 		require.Contains(t, err.Error(), "`macos_setup` (deprecated)")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_bootstrap_package", func(t *testing.T) {
+		dir := t.TempDir()
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:
+controls:
+  setup_experience:
+    bootstrap_package: ""
+    macos_bootstrap_package: ""
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "macos_bootstrap_package")
+		require.Contains(t, err.Error(), "`bootstrap_package` (deprecated)")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_enable_release_device_manually", func(t *testing.T) {
+		dir := t.TempDir()
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:
+controls:
+  setup_experience:
+    enable_release_device_manually: false
+    apple_enable_release_device_manually: false
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "apple_enable_release_device_manually")
+		require.Contains(t, err.Error(), "`enable_release_device_manually` (deprecated)")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_script", func(t *testing.T) {
+		dir := t.TempDir()
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:
+controls:
+  setup_experience:
+    script: null
+    macos_script: null
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "macos_script")
+		require.Contains(t, err.Error(), "`script` (deprecated)")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_manual_agent_install", func(t *testing.T) {
+		dir := t.TempDir()
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:
+controls:
+  setup_experience:
+    manual_agent_install: false
+    macos_manual_agent_install: false
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "macos_manual_agent_install")
+		require.Contains(t, err.Error(), "`manual_agent_install` (deprecated)")
 	})
 
 	t.Run("duplicate_keys_external_file", func(t *testing.T) {
