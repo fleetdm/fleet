@@ -15,7 +15,7 @@ type SCIMValidationError struct {
 }
 
 func (e *SCIMValidationError) Error() string {
-	return fmt.Sprintf("%s: %s", e.Field, e.Message)
+	return fmt.Sprintf("%s %s", e.Field, e.Message)
 }
 
 // ScimUser represents a SCIM user in the database
