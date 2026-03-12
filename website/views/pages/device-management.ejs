@@ -3,7 +3,7 @@
     <div purpose="page-content" class="mx-auto">
       <div purpose="hero">
         <div purpose="page-headline">
-          <h4>Open device management</h4>
+          <h4>High-agency device management</h4>
           <h1>Manage devices your way</h1>
         </div>
         <div purpose="testimonials" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
@@ -27,7 +27,7 @@
           <div purpose="testimonial-quote">
             <div purpose="quote">
               <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
-              <p>We wanted an open-source MDM to easily use configuration-as-code, deliver the best possible experience for our employees, and make security happy.</p>
+              <p>We wanted an open-source MDM to easily use infrastructure-as-code, deliver the best possible experience for our employees, and make security happy.</p>
             </div>
             <a href="https://www.linkedin.com/in/kennybotelho/" class="d-inline-block" target="_blank" no-icon>
             <div purpose="quote-attribution" class="d-flex flex-row align-items-center">
@@ -83,7 +83,26 @@
 
             <div purpose="feature-item" class="pr-0 pr-lg-4 col-12 col-sm-6 col-lg-4">
               <h5>Flexible by design</h5>
-              <p>Manage devices via Fleet’s UI, API, or GitOps. The open-source community helps extend what’s possible, from platform support to deployment workflows.</p>
+              <p>Manage devices via Fleet’s UI, API, or infrastructure as code. The open-source community helps extend what’s possible, from platform support to deployment workflows.</p>
+            </div>
+          </div>
+
+          <%/* Modern change management section */%>
+          <div purpose="page-section">
+            <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
+              <div purpose="feature-image" class="right">
+                <img alt="Modern change management" src="/images/mdm-modern-change-management-528x377@2x.png">
+              </div>
+              <div purpose="feature-text" class="d-flex flex-column">
+                <h2>Modern change management</h2>
+                <p>Provide a transparent log of all changes and     collaborate on how your devices are managed.</p>
+                <div purpose="checklist" class="flex-column d-flex">
+                  <p>Ship device changes in minutes with GitOps and peer review.</p>
+                  <p>Track every change with version control and a    complete audit history.</p>
+                  <p>Use CI/CD checks and peer reviews before changes reach devices.</p>
+                  <p>Roll back instantly if something goes wrong.</p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -355,7 +374,7 @@
             </div>
 
             <div purpose="table-row">
-              <div purpose="feature-name"><p>Config as code (GitOps)</p></div>
+              <div purpose="feature-name"><p>Infrastructure as code (GitOps)</p></div>
               <div purpose="fleet-column"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></div>
               <div purpose="comparison-column" v-if="['puppet', 'chef', 'ansible'].includes(comparisonMode)">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
@@ -832,11 +851,11 @@
         <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
           <div purpose="feature-text" class="d-flex flex-column">
             <h2>Shorten the feedback loop</h2>
-            <p>Built for speed and transparency. No more waiting for closed systems to catch up.</p>
+            <p>Built for speed and transparency. Stop waiting for scripts or reports to finish.</p>
             <div purpose="checklist" class="flex-column d-flex">
               <p><a href="/orchestration">Get near-instant visibility</a> into your Apple, Linux, and Windows devices from a single, open platform.</p>
-              <p>Verify changes in real time with full audit logs.</p>
-              <p>Confidently resolve issues before users notice.</p>
+              <p>Run reports to verify changes in real time with full audit logs.</p>
+              <p>Reduce audit busywork. Some teams spend up to 20% of their time gathering audit evidence. Fleet helps you answer those questions instantly.</p>
             </div>
           </div>
           <div purpose="feature-image">
@@ -848,12 +867,13 @@
       <div purpose="page-section">
         <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
           <div purpose="feature-image" class="right">
-            <img alt="Deploy anywhere you want" src="/images/mdm-deploy-anywhere-you-want-528x377@2x.png">
+            <img alt="Deploy anywhere you want" src="/images/flexible-deployment-528x377@2x.png">
           </div>
           <div purpose="feature-text" class="d-flex flex-column">
             <h2>Deploy anywhere you want</h2>
-            <p>On-prem, cloud, or air-gapped. Fleet works where you need it. No lock-in or black boxes. Fleet adapts as you grow.</p>
+            <p>Run Fleet on-prem, in the cloud, or air-gapped. Move between environments anytime. No lock-in or black boxes.</p>
             <div purpose="checklist" class="flex-column d-flex">
+              <p>Change deployment models without rebuilding your stack.</p>
               <p>No hidden dependencies or forced cloud services.</p>
               <p>Flexible APIs and open data formats.</p>
               <p>Keep control of your infrastructure and your data.</p>
@@ -869,29 +889,13 @@
             <p>Increase <a href="https://fleetdm.com/handbook/company/why-this-way#why-open-source">buy-in</a> from end users by clarifying how their devices are managed.</p>
             <div purpose="checklist" class="flex-column d-flex">
               <p>Give end users assurance about what actions IT can take on their computer.</p>
-              <p>Let end users see exactly what data is collected, all the way down to the source code</p>
-              <p>Set clear expectations about how to configure company devices</p>
+              <p>Let end users see exactly what data is collected, all the way down to the source code.</p>
+              <p>Support regional privacy rules with configurable management controls.</p>
+              <p>Set clear expectations about how to configure company devices.</p>
             </div>
           </div>
           <div purpose="feature-image" class="right">
             <img alt="Transparency for end users" src="/images/mdm-scope-transparency-528x377@2x.png">
-          </div>
-        </div>
-      </div>
-      <%/* Modern change management section */%>
-      <div purpose="page-section">
-        <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
-          <div purpose="feature-image" class="right">
-            <img alt="Modern change management" src="/images/mdm-modern-change-management-528x377@2x.png">
-          </div>
-          <div purpose="feature-text" class="d-flex flex-column">
-            <h2>Modern change management</h2>
-            <p>Provide a transparent log of all changes and collaborate on how your devices are managed.</p>
-            <div purpose="checklist" class="flex-column d-flex">
-              <p>Democratize change with GitOps so everyone can contribute to device management and security.</p>
-              <p>Maintain reliable employee experiences with version-controlled changes and enhancements.</p>
-              <p>Use CI/CD and peer reviews to look before you leap. (Configurable)</p>
-            </div>
           </div>
         </div>
       </div>
@@ -910,7 +914,7 @@
   <div purpose="bottom-gradient">
     <div purpose="page-container" class="container">
       <div purpose="bottom-cta" class="text-center">
-        <h4>Open device management</h4>
+        <h4>High-agency device management</h4>
         <h2>Your last MDM migration</h2>
         <div purpose="button-row" style="margin-top: 32px;" class="d-flex justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" class="mr-0" href="/contact">Get a demo</a>

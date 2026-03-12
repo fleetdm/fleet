@@ -2446,6 +2446,160 @@ software:
 		assert.Contains(t, err.Error(), "unknown_array_field")
 	})
 
+	t.Run("unknown key in org_settings", func(t *testing.T) {
+		t.Parallel()
+		config := `
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+  unknown_org_field: true
+  secrets:
+controls:
+agent_options:
+reports:
+policies:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_org_field")
+	})
+
+	t.Run("unknown nested key in org_settings", func(t *testing.T) {
+		t.Parallel()
+		config := `
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+    unknown_server_field: true
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+  secrets:
+controls:
+agent_options:
+reports:
+policies:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `unknown key "org_settings.server_settings.unknown_server_field"`)
+	})
+
+	t.Run("unknown key in org_settings with typo suggestion", func(t *testing.T) {
+		t.Parallel()
+		config := `
+org_settings:
+  server_settigns:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+  secrets:
+controls:
+agent_options:
+reports:
+policies:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "org_settings.server_settigns")
+		assert.Contains(t, err.Error(), `did you mean "server_settings"?`)
+	})
+
+	t.Run("unknown key in fleet settings", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: FleetName
+settings:
+  secrets:
+  unknown_fleet_field: true
+agent_options:
+controls:
+reports:
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_fleet_field")
+	})
+
+	t.Run("unknown nested key in fleet settings webhook_settings", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: FleetName
+settings:
+  secrets:
+  webhook_settings:
+    unknown_webhook_field: true
+agent_options:
+controls:
+reports:
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `unknown key "settings.webhook_settings.unknown_webhook_field"`)
+	})
+
+	t.Run("unknown key in org_settings via path", func(t *testing.T) {
+		t.Parallel()
+		config := `
+org_settings:
+  path: org_settings.yml
+controls:
+agent_options:
+reports:
+policies:
+`
+		path, basePath := createTempFile(t, "", config)
+		orgSettingsYAML := `
+server_settings:
+  server_url: https://fleet.example.com
+org_info:
+  contact_url: https://example.com/contact
+  org_name: Test Org
+unknown_org_path_field: true
+secrets:
+`
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "org_settings.yml"), []byte(orgSettingsYAML), 0o644))
+		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `unknown key "org_settings.unknown_org_path_field" in "org_settings.yml"`)
+	})
+
+	t.Run("unknown key in fleet settings via path", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: FleetName
+settings:
+  path: fleet_settings.yml
+agent_options:
+controls:
+reports:
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		fleetSettingsYAML := `
+secrets:
+unknown_fleet_path_field: true
+`
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "fleet_settings.yml"), []byte(fleetSettingsYAML), 0o644))
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `unknown key "settings.unknown_fleet_path_field" in "fleet_settings.yml"`)
+	})
+
 	t.Run("unknown key in policy install_software package_path", func(t *testing.T) {
 		t.Parallel()
 		config := getTeamConfig([]string{"policies", "software"})

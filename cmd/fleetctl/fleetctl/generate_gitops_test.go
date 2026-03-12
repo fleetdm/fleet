@@ -1745,7 +1745,7 @@ func TestGeneratePolicies(t *testing.T) {
 		},
 	}
 
-	policiesRaw, err := cmd.generatePolicies(nil, "default.yml")
+	policiesRaw, err := cmd.generatePolicies(nil, "default.yml", nil)
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
 	var generatedPolicies []map[string]any
@@ -1771,7 +1771,7 @@ func TestGeneratePolicies(t *testing.T) {
 
 	var expectedTeamPolicies []map[string]any
 	var generatedTeamPolicies []map[string]any
-	policiesRaw, err = cmd.generatePolicies(ptr.Uint(1), "some_team")
+	policiesRaw, err = cmd.generatePolicies(ptr.Uint(1), "some_team", nil)
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
 	b, err = yaml.Marshal(policiesRaw)

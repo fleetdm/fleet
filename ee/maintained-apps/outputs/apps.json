@@ -219,6 +219,13 @@
       "description": "AWS Client VPN is a managed client-based VPN service to securely access AWS resources."
     },
     {
+      "name": "Backblaze",
+      "slug": "backblaze/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.backblaze.bzbmenu",
+      "description": "Backblaze is a data backup and storage service."
+    },
+    {
       "name": "balenaEtcher",
       "slug": "balenaetcher/darwin",
       "platform": "darwin",
@@ -807,6 +814,13 @@
       "description": "Hyper is a terminal built on web technologies."
     },
     {
+      "name": "IINA",
+      "slug": "iina/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.colliderli.iina",
+      "description": "IINA is a modern, free and open-source media player for macOS."
+    },
+    {
       "name": "iMazing Profile Editor",
       "slug": "imazing-profile-editor/darwin",
       "platform": "darwin",
@@ -1157,6 +1171,20 @@
       "description": "Okta Verify is a multi-factor authentication app that provides secure identity verification and passwordless sign-in for users accessing Okta-protected applications."
     },
     {
+      "name": "Ollama",
+      "slug": "ollama/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.ollama",
+      "description": "Ollama is a tool to get up and running with large language models locally."
+    },
+    {
+      "name": "Ollama",
+      "slug": "ollama/windows",
+      "platform": "windows",
+      "unique_identifier": "Ollama",
+      "description": "Ollama is a tool to get up and running with large language models locally."
+    },
+    {
       "name": "OmniGraffle",
       "slug": "omnigraffle/darwin",
       "platform": "darwin",
@@ -1365,6 +1393,13 @@
       "platform": "darwin",
       "unique_identifier": "com.northpolesec.santa",
       "description": "Santa is a binary authorization system for macOS."
+    },
+    {
+      "name": "Sequel Ace",
+      "slug": "sequel-ace/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sequelace.SequelAce",
+      "description": "Sequel Ace is a MySQL and MariaDB database manager for macOS."
     },
     {
       "name": "Shottr",
@@ -1584,6 +1619,13 @@
       "description": "TextExpander is an application that let's you create and insert pre-made snippets of text anywhere."
     },
     {
+      "name": "The Unarchiver",
+      "slug": "the-unarchiver/darwin",
+      "platform": "darwin",
+      "unique_identifier": "cx.c3.theunarchiver",
+      "description": "The Unarchiver is an archive extraction utility that supports many formats including ZIP, RAR, and 7z."
+    },
+    {
       "name": "Thunderbird",
       "slug": "thunderbird/darwin",
       "platform": "darwin",
@@ -1696,6 +1738,13 @@
       "description": "Wacom Tablet is a collection of resources for configuring Wacom tablets."
     },
     {
+      "name": "Warp",
+      "slug": "warp/darwin",
+      "platform": "darwin",
+      "unique_identifier": "dev.warp.Warp-Stable",
+      "description": "Warp is a modern, AI-powered terminal built for speed and productivity with features like command search, intelligent completions, and collaborative workflows."
+    },
+    {
       "name": "Webex",
       "slug": "webex/darwin",
       "platform": "darwin",
@@ -1806,6 +1855,20 @@
       "platform": "windows",
       "unique_identifier": "Zoom Workplace (X64)",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
+    },
+    {
+      "name": "Zotero",
+      "slug": "zotero/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.zotero.zotero",
+      "description": "Zotero is a free tool for collecting, organizing, citing, and sharing research."
+    },
+    {
+      "name": "Zotero",
+      "slug": "zotero/windows",
+      "platform": "windows",
+      "unique_identifier": "Zotero",
+      "description": "Zotero is a free tool for collecting, organizing, citing, and sharing research."
     }
   ]
 }

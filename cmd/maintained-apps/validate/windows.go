@@ -112,6 +112,14 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 			if strings.HasPrefix(appVersion, result.Version+".") {
 				return true, nil
 			}
+
+			// Google Chrome auto-updates immediately after installation, so the
+			// installed version may be newer than the installer version. If
+			// version didn't match above, fall back to existence-only check.
+			if appName == "Google Chrome" {
+				logger.InfoContext(ctx, "Google Chrome detected - version mismatch but app is installed, skipping version check due to auto-update behavior")
+				return true, nil
+			}
 		}
 	}
 

@@ -10,6 +10,7 @@
   type: dynamic
   conditional_access_enabled: true
   conditional_access_bypass_enabled: true
+  webhooks_and_tickets_enabled: false
 - calendar_events_enabled: false
   critical: false
   description: This is a team patch policy
@@ -21,3 +22,4 @@
   type: patch
   conditional_access_enabled: true
   conditional_access_bypass_enabled: false
+  webhooks_and_tickets_enabled: false

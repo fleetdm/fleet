@@ -2687,9 +2687,7 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 
 	if !dryRun {
 		logFn("[+] applying webhook settings for unassigned hosts\n")
-		// Apply the webhook settings to team ID 0 using the PATCH endpoint
-		var teamResp interface{}
-		err := c.authenticatedRequest(teamPayload, "PATCH", "/api/latest/fleet/teams/0", &teamResp)
+		err := c.PatchFleet(0, teamPayload)
 		if err != nil {
 			return fmt.Errorf("applying webhook settings for unassigned hosts: %w", err)
 		}
@@ -2746,6 +2744,27 @@ func (c *Client) doGitOpsLabels(
 }
 
 func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []fleet.SoftwarePackageResponse, teamVPPApps []fleet.VPPAppResponse, teamScripts []fleet.ScriptResponse, logFn func(format string, args ...interface{}), dryRun bool) error {
+	// Collect policy names that have webhooks_and_tickets_enabled set.
+	var policyNamesWithWebhooks []string
+	for _, p := range config.Policies {
+		if p.WebhooksAndTicketsEnabled {
+			policyNamesWithWebhooks = append(policyNamesWithWebhooks, p.Name)
+		}
+	}
+
+	// Get failing policies webhook settings to check for conflicts with policies that have webhooks_and_tickets_enabled.
+	fpw := extractFailingPoliciesWebhookFromConfig(config)
+
+	if len(fpw.PolicyIDs) > 0 {
+		if len(policyNamesWithWebhooks) > 0 {
+			return errors.New(
+				"cannot use both 'webhooks_and_tickets_enabled' on policies and 'policy_ids' in failing_policies_webhook settings; please use one or the other",
+			)
+		}
+		// Log a deprecation warning.
+		logFn("[!] WARNING: using 'policy_ids' in failing_policies_webhook settings is deprecated; please use 'webhooks_and_tickets_enabled: true' on individual policies instead\n")
+	}
+
 	var teamID *uint // Global policies (nil)
 	switch {
 	case config.TeamID != nil: // Team policies
@@ -2953,7 +2972,91 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			}
 		}
 	}
+
+	// If any policies have webhooks_and_tickets_enabled, resolve their IDs
+	// and update the failing policies webhook settings with the policy_ids list.
+	if len(policyNamesWithWebhooks) > 0 {
+		if dryRun {
+			logFn("[+] would've enabled failed policy reporting for %s\n",
+				numberWithPluralization(len(policyNamesWithWebhooks), "policy", "policies"))
+		} else {
+			// Resolve policy names to IDs. First try using the policies we already
+			// fetched earlier; only re-fetch if some names are missing (i.e.,
+			// newly created policies whose IDs we don't have yet).
+			policyNameSet := make(map[string]bool, len(policyNamesWithWebhooks))
+			for _, name := range policyNamesWithWebhooks {
+				policyNameSet[name] = true
+			}
+			var resolvedIDs []uint
+			for _, p := range policies {
+				if policyNameSet[p.Name] {
+					resolvedIDs = append(resolvedIDs, p.ID)
+					delete(policyNameSet, p.Name)
+				}
+			}
+			// If we have names left that couldn't resolve, re-fetch all the policies
+			// to get the IDs for the newly created ones.
+			if len(policyNameSet) > 0 {
+				// Some policies were newly created; re-fetch to get their IDs.
+				allPolicies, err := c.GetPolicies(teamID)
+				if err != nil {
+					return fmt.Errorf("error getting policies to resolve webhooks_and_tickets_enabled: %w", err)
+				}
+				for _, p := range allPolicies {
+					if policyNameSet[p.Name] {
+						resolvedIDs = append(resolvedIDs, p.ID)
+					}
+				}
+			}
+
+			// Extract the existing webhook config and set the resolved policy IDs.
+			fpw.PolicyIDs = resolvedIDs
+
+			// Re-apply the webhook settings with the resolved policy IDs.
+			if config.TeamName == nil {
+				if err := c.ApplyAppConfig(map[string]any{
+					"webhook_settings": map[string]any{"failing_policies_webhook": fpw},
+				}, fleet.ApplySpecOptions{}); err != nil {
+					return fmt.Errorf("error updating failing policies webhook: %w", err)
+				}
+			} else {
+				var patchTeamID uint
+				if config.IsNoTeam() {
+					patchTeamID = 0
+				} else {
+					patchTeamID = *config.TeamID
+				}
+				if err := c.PatchFleet(patchTeamID, fleet.TeamPayload{
+					WebhookSettings: &fleet.TeamWebhookSettings{FailingPoliciesWebhook: fpw},
+				}); err != nil {
+					return fmt.Errorf("error updating failing policies webhook: %w", err)
+				}
+			}
+			logFn("[+] enabled failed policy reporting for %s\n",
+				numberWithPluralization(len(resolvedIDs), "policy", "policies"))
+		}
+	}
+
 	return nil
+}
+
+// extractFailingPoliciesWebhookFromConfig extracts the FailingPoliciesWebhookSettings
+// from the gitops config's settings (org or team).
+func extractFailingPoliciesWebhookFromConfig(config *spec.GitOps) fleet.FailingPoliciesWebhookSettings {
+	var settings map[string]any
+	if config.TeamName == nil {
+		settings = config.OrgSettings
+	} else {
+		settings = config.TeamSettings
+	}
+	if settings == nil {
+		return fleet.FailingPoliciesWebhookSettings{}
+	}
+	webhookSettings, ok := settings["webhook_settings"]
+	if !ok || webhookSettings == nil {
+		return fleet.FailingPoliciesWebhookSettings{}
+	}
+	return extractFailingPoliciesWebhook(webhookSettings)
 }
 
 func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {

@@ -22,6 +22,7 @@ import {
   generateLinuxDiskEncryptionSetting,
   generateRecoveryLockPasswordSetting,
   generateWinDiskEncryptionSetting,
+  REC_LOCK_SYNTHETIC_PROFILE_UUID,
 } from "../../helpers";
 
 export interface IHostMdmProfileWithAddedStatus
@@ -45,7 +46,9 @@ export type OsSettingsTableStatusValue =
 const generateTableConfig = (
   canResendProfiles: boolean,
   resendRequest: (profileUUID: string) => Promise<void>,
-  onProfileResent: () => void
+  onProfileResent: () => void,
+  canRotateRecoveryLockPassword?: boolean,
+  rotateRecoveryLockPassword?: () => Promise<void>
 ): ITableColumnConfig[] => {
   return [
     {
@@ -95,14 +98,22 @@ const generateTableConfig = (
           isAppleDevice(platform) && !isDDMProfile(cellProps.row.original);
         const isWindowsProfile = platform === "windows";
 
+        const isRecoveryLockRow =
+          cellProps.row.original.profile_uuid ===
+          REC_LOCK_SYNTHETIC_PROFILE_UUID;
+
         return (
           <OSSettingsErrorCell
             canResendProfiles={
               canResendProfiles &&
               (isWindowsProfile || isAppleMobileConfigProfile)
             }
+            canRotateRecoveryLockPassword={
+              isRecoveryLockRow && canRotateRecoveryLockPassword
+            }
             profile={cellProps.row.original}
             resendRequest={resendRequest}
+            rotateRecoveryLockPassword={rotateRecoveryLockPassword}
             onProfileResent={onProfileResent}
           />
         );
