@@ -2572,7 +2572,7 @@ func (ds *Datastore) GetPatchPolicy(ctx context.Context, teamID *uint, titleID u
 	return &policy, nil
 }
 
-func (ds *Datastore) createAutomationClause(ctx context.Context, automationFilter string, teamID uint) (string, []interface{}, error) {
+func (ds *Datastore) createAutomationClause(ctx context.Context, automationFilter string, teamID uint) (string, []any, error) {
 	// TODO: improve filtering by "other"
 	if automationFilter == "other" {
 		team, err := ds.TeamLite(ctx, teamID)
