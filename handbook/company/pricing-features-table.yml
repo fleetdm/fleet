@@ -397,7 +397,7 @@
 #   ║ ╠═╣╠╦╝║ ╦║╣  ║ ║╣  ║║   ║║║╣ ╚╗╔╝║║  ║╣   ╚═╗║  ║ ║╠═╝║║║║║ ╦
 #   ╩ ╩ ╩╩╚═╚═╝╚═╝ ╩ ╚═╝═╩╝  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╚═╝╚═╝╚═╝╩  ╩╝╚╝╚═╝
 - industryName: Targeted device scoping
-  description: Organize devices with Teams and Labels.
+  description: Organize devices with fleets and labels.
   documentationUrl: https://fleetdm.com/guides/managing-labels-in-fleet
   tier: Premium
   jamfProHasFeature: yes
@@ -768,10 +768,10 @@
 #  ╔╦╗╔═╗╔═╗╔╦╗╔═╗
 #   ║ ║╣ ╠═╣║║║╚═╗
 #   ╩ ╚═╝╩ ╩╩ ╩╚═╝
-- industryName: Teams
-  friendlyName: Manage different endpoints differently
+- industryName: Fleets
+  friendlyName: Manage different devices differently
   documentationUrl: https://fleetdm.com/docs/using-fleet/segment-hosts
-  description: Teams are what Fleet calls baselines, similar to security groups or images. Every host in a team matches the same baseline, with minor exceptions. This makes it faster and less risky to maintain computers, leading to faster timelines and fewer tickets. #Enroll hosts into device groups ("teams") using different enrollment secrets and/or installers. Set baselines and strategies for hosts in different situations, and move hosts between them via API-driven automations or a simple, delegatable user interface with role-based access.
+  description: Fleets are device groups used to configure controls, software, automations, policies, and reports that apply only to computing devices (hosts) in a particular fleet.
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
@@ -797,7 +797,7 @@
 #  ╠═╝║ ║║  ║║  ║║╣ ╚═╗ 
 #  ╩  ╚═╝╩═╝╩╚═╝╩╚═╝╚═╝                                                                                                                                                                                                          
 - industryName: Policies
-  description: A policy is a specific “yes” or “no” query. Use policies to manage security compliance in your organization.  
+  description: A policy is a specific “yes” or “no” question. Use policies to manage security compliance in your organization.  
   documentationUrl: https://fleetdm.com/docs/using-fleet/fleet-ui
   tier: Free
   jamfProHasFeature: yes
@@ -903,7 +903,7 @@
 #  ╩╝╚╝╚═╝╩═╩╝╚═╝╝╚╝ ╩   ╩╚═╚═╝╚═╝╩  ╚═╝╝╚╝╚═╝╚═╝
 - industryName: Incident response
   friendlyName: Interrogate hosts in real time
-  description: Live query, triage, figuring out scope of impact, remediate using scripts or MDM commands (e.g. remote wipe), and quarantine or reimage using other systems and APIs (e.g. remove from network, decommission container)
+  description: Live report, triage, figuring out scope of impact, remediate using scripts or MDM commands (e.g. remote wipe), and quarantine or reimage using other systems and APIs (e.g. remove from network, decommission container)
   documentationUrl: https://fleetdm.com/securing/how-osquery-can-help-cyber-responders#simplifying-endpoint-visibility-with-osquery-and-fleet
   tier: Free
   jamfProHasFeature: yes

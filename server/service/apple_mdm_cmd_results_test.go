@@ -284,3 +284,90 @@ func TestInstalledApplicationListHandler(t *testing.T) {
 		assert.True(t, ds.NewJobFuncInvoked, "should queue a polling job when expected app not in list")
 	})
 }
+
+func TestSetRecoveryLockResultsHandler(t *testing.T) {
+	ctx := context.Background()
+	logger := slog.Default()
+
+	hostUUID := "test-host-uuid"
+	cmdUUID := "set-recovery-lock-cmd-uuid"
+
+	t.Run("acknowledged sets verified", func(t *testing.T) {
+		ds := new(mock.DataStore)
+
+		var verifiedCalled bool
+		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, hUUID string) error {
+			verifiedCalled = true
+			assert.Equal(t, hostUUID, hUUID)
+			return nil
+		}
+
+		handler := NewSetRecoveryLockResultsHandler(ds, logger)
+
+		result := NewRecoveryLockResult(&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: cmdUUID,
+			Status:      fleet.MDMAppleStatusAcknowledged,
+			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
+		})
+
+		err := handler(ctx, result)
+		require.NoError(t, err)
+
+		// Verify status was set to verified
+		assert.True(t, verifiedCalled)
+	})
+
+	t.Run("error status sets failed", func(t *testing.T) {
+		ds := new(mock.DataStore)
+
+		var failedCalled bool
+		var capturedError string
+		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
+			failedCalled = true
+			assert.Equal(t, hostUUID, hUUID)
+			capturedError = errorMsg
+			return nil
+		}
+
+		handler := NewSetRecoveryLockResultsHandler(ds, logger)
+
+		result := NewRecoveryLockResult(&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: cmdUUID,
+			Status:      fleet.MDMAppleStatusError,
+			ErrorChain:  []mdm.ErrorChain{{ErrorCode: 12345, ErrorDomain: "test", LocalizedDescription: "Test error"}},
+			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
+		})
+
+		err := handler(ctx, result)
+		require.NoError(t, err)
+
+		assert.True(t, failedCalled)
+		assert.Contains(t, capturedError, "Test error")
+	})
+
+	t.Run("command format error sets failed with default message", func(t *testing.T) {
+		ds := new(mock.DataStore)
+
+		var capturedError string
+		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
+			capturedError = errorMsg
+			return nil
+		}
+
+		handler := NewSetRecoveryLockResultsHandler(ds, logger)
+
+		result := NewRecoveryLockResult(&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: cmdUUID,
+			Status:      fleet.MDMAppleStatusCommandFormatError,
+			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
+		})
+
+		err := handler(ctx, result)
+		require.NoError(t, err)
+
+		assert.Equal(t, "SetRecoveryLock command failed", capturedError)
+	})
+}

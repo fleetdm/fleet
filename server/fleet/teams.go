@@ -185,7 +185,7 @@ func (t *Team) UnmarshalJSON(b []byte) error {
 		x.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
 	if !x.MDM.MacOSSetup.LockEndUserInfo.Valid {
-		x.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+		x.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(x.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
 	*t = Team{
 		ID:          x.ID,
