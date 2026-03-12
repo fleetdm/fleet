@@ -95,6 +95,8 @@ export const getStatusMessage = ({
   }
 
   // Handles the case where software is installed manually by the user and not through Fleet
+  // This IPA software_packages modal matches app_store_app modal and software_packages modal
+  // for software installed manually shown with VppInstallDetailsModal and SoftwareInstallDetailsModal
   if (displayStatus === "installed" && !commandUpdatedAt) {
     return (
       <>
@@ -168,6 +170,7 @@ export const getStatusMessage = ({
       </>
     );
   };
+  // Create predicate and subordinate for other statuses
   return (
     <>
       Fleet {getInstallDetailsStatusPredicate(displayStatus)} <b>{appName}</b>
@@ -264,6 +267,9 @@ export const SoftwareIpaInstallDetailsModal = ({
   ) => {
     const results = response.results?.[0];
     if (!results) {
+      // FIXME: It's currently possible that the command results API response is empty for pending
+      // commands. As a temporary workaround to handle this case, we'll ignore the empty response and
+      // display some minimal pending UI. This should be removed once the API response is fixed.
       return {} as ICommandResult;
     }
     return {
@@ -313,9 +319,6 @@ export const SoftwareIpaInstallDetailsModal = ({
     ? inventoryReportsInstalled
     : false;
 
-  const hasInstalledVersionsOnHost =
-    commandReportsInstalled || inventoryReportsInstalled;
-
   // Fallback to "installed" if no status is provided
   const displayStatus = fleetInstallStatus ?? "installed";
 
@@ -336,10 +339,17 @@ export const SoftwareIpaInstallDetailsModal = ({
       : INSTALL_DETAILS_STATUS_ICONS[displayStatus];
 
   // Handles "pending" value prior to 4.57 AND never shows error state on pending_install
+  // as some cases have command results not available for pending_installs
+  // which we don't want to show a UI error state for
   const isPendingInstall = ["pending_install", "pending"].includes(
     displayStatus
   );
 
+  // Note: We need to reconcile status values from two different sources. From props, we
+  // get the status of the Fleet install operation (which can be "failed", "pending", or
+  // "installed"). From the command results API response, we also receive the raw status
+  // from the MDM protocol, e.g., "NotNow" or "Acknowledged". We need to display some special
+  // messaging for the "NotNow" status, which otherwise would be treated as "pending".
   const isMDMStatusNotNow = swInstallResult?.status === "NotNow";
   const isMDMStatusAcknowledged = swInstallResult?.status === "Acknowledged";
 
@@ -357,7 +367,7 @@ export const SoftwareIpaInstallDetailsModal = ({
 
   const isInstalledByFleet = hostSoftware
     ? !!hostSoftware.app_store_app?.last_install
-    : true;
+    : true; // if no hostSoftware passed in, can assume this is the activity feed, meaning this can only refer to a Fleet-handled install
 
   const statusMessage = getStatusMessage({
     isMyDevicePage: !!deviceAuthToken,
@@ -378,6 +388,7 @@ export const SoftwareIpaInstallDetailsModal = ({
   };
 
   const renderInstallDetailsSection = () => {
+    // Hide section if there's no details to display
     if (!swInstallResult?.result && !swInstallResult?.payload) {
       return null;
     }
