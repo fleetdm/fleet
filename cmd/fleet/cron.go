@@ -41,6 +41,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/osv"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
@@ -193,7 +194,16 @@ func scanVulnerabilities(
 	}
 
 	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "", startTime)
-	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+
+	// Use OSV or OVAL for Ubuntu vulnerabilities based on feature flag
+	var ovalVulns []fleet.SoftwareVulnerability
+	var osvVulns []fleet.SoftwareVulnerability
+	if config.OSVForUbuntu {
+		osvVulns = checkOSVVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	} else {
+		ovalVulns = checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	}
+
 	govalDictVulns := checkGovalDictionaryVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	customVulns := checkCustomVulnerabilities(ctx, ds, logger, vulnAutomationEnabled != "", startTime)
@@ -209,9 +219,10 @@ func scanVulnerabilities(
 		trace.WithAttributes(attribute.String("automation_type", vulnAutomationEnabled)))
 	defer automationSpan.End()
 
-	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns)+len(macOfficeVulns))
+	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns)+len(osvVulns)+len(macOfficeVulns))
 	vulns = append(vulns, nvdVulns...)
 	vulns = append(vulns, ovalVulns...)
+	vulns = append(vulns, osvVulns...)
 	vulns = append(vulns, macOfficeVulns...)
 	vulns = append(vulns, govalDictVulns...)
 	vulns = append(vulns, customVulns...)
@@ -423,6 +434,52 @@ func checkOvalVulnerabilities(
 		results = append(results, r...)
 		if err != nil {
 			errHandler(analyzeCtx, logger, "analyzing oval definitions", err)
+		}
+	}
+	analyzeSpan.End()
+
+	return results
+}
+
+func checkOSVVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *logging.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_osv")
+	defer span.End()
+
+	var results []fleet.SoftwareVulnerability
+
+	// Get Platforms
+	versions, err := ds.OSVersions(ctx, nil, nil, nil, nil)
+	if err != nil {
+		errHandler(ctx, logger, "getting os versions for OSV", err)
+		return nil
+	}
+
+	// Analyze all supported os versions using the OSV artifacts
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.osv.analyze",
+		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
+	for _, version := range versions.OSVersions {
+		start := time.Now()
+		r, err := osv.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns)
+		if err != nil && errors.Is(err, osv.ErrUnsupportedPlatform) {
+			logger.DebugContext(analyzeCtx, "osv-analysis-unsupported", "platform", version.Name)
+			continue
+		}
+
+		elapsed := time.Since(start)
+		logger.DebugContext(analyzeCtx, "osv-analysis-done",
+			"platform", version.Name,
+			"elapsed", elapsed,
+			"found new", len(r))
+		results = append(results, r...)
+		if err != nil {
+			errHandler(analyzeCtx, logger, "analyzing osv definitions", err)
 		}
 	}
 	analyzeSpan.End()
