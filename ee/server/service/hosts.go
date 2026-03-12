@@ -31,7 +31,8 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 }
 
 func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, _ bool,
-	maxVulnerabilities *int) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
+	maxVulnerabilities *int,
+) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
 	// reuse OSVersions, but include premium options
 	return svc.Service.OSVersions(ctx, teamID, platform, name, version, opts, true, maxVulnerabilities)
 }
@@ -670,7 +671,7 @@ func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint)
 		if err := svc.NewActivity(
 			ctx,
 			vc.User,
-			fleet.ActivityTypeRotatedRecoveryLockPassword{
+			fleet.ActivityTypeRotatedHostRecoveryLockPassword{
 				HostID:          host.ID,
 				HostDisplayName: host.DisplayName(),
 			},
