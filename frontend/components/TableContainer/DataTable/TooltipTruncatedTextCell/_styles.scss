@@ -9,9 +9,15 @@
   }
 
   .data-table__tooltip-truncated-text-container {
-    display: flex; // Flex container for text and suffix
-    align-items: center; // Keep text and suffix aligned
     min-width: 0; // Prevent flex child from growing beyond container
+
+    // Target the TooltipWrapper's inner element for proper truncation
+    .component__tooltip-wrapper__element {
+      display: flex; // Flex container for text
+      align-items: center; // Keep text aligned
+      min-width: 0; // Allow truncation to work
+      width: 100%;
+    }
   }
 
   .data-table__tooltip-truncated-text {
@@ -61,7 +67,4 @@
     flex-shrink: 0; /* Prevent suffix from shrinking */
   }
 
-  .__react_component_tooltip {
-    font-size: $xx-small;
-  }
 }
