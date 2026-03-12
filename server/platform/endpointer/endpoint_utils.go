@@ -750,8 +750,6 @@ func MakeDecoder(
 	}
 }
 
-// TODO perhaps use just basic RNG. Nonce may only include valid base64 chars after the "nonce-" portion, so
-// we must strip dashes
 func newNonce() (string, error) {
 	b := make([]byte, 16)
 	if _, err := io.ReadFull(rand.Reader, b); err != nil {
