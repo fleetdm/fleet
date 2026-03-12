@@ -1633,17 +1633,19 @@ func sendRecoveryLockCommandsWithCommander(
 	commander RecoveryLockCommander,
 	logger *slog.Logger,
 ) error {
+	var result *multierror.Error
+
 	// 1. Handle SET password operations (hosts that need a recovery lock password)
 	if err := sendSetRecoveryLockCommands(ctx, ds, commander, logger); err != nil {
-		return err
+		result = multierror.Append(result, err)
 	}
 
 	// 2. Handle CLEAR password operations (hosts that need their recovery lock cleared)
 	if err := sendClearRecoveryLockCommands(ctx, ds, commander, logger); err != nil {
-		return err
+		result = multierror.Append(result, err)
 	}
 
-	return nil
+	return result.ErrorOrNil()
 }
 
 func sendSetRecoveryLockCommands(
