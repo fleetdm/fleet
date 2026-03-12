@@ -8663,6 +8663,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAndroidProfilesStatus() {
 // hosts when OS update settings are initially set or when deadline/minimum version changes.
 func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 	t := s.T()
+	s.setSkipWorkerJobs(t)
 	ctx := context.Background()
 
 	// Create a team via the API so agent ops are initialized.

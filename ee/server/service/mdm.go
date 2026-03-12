@@ -219,13 +219,13 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
-	// If the user turned off end user auth and didn't specify lock_end_user_info, turn it off so it does not conflict
-	if didUpdateMacOSEndUserAuth && !ac.MDM.MacOSSetup.EnableEndUserAuthentication && payload.LockEndUserInfo == nil {
-		ac.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+	// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA.
+	if didUpdateMacOSEndUserAuth && payload.LockEndUserInfo == nil {
+		ac.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(ac.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
 
 	if !ac.MDM.MacOSSetup.EnableEndUserAuthentication && ac.MDM.MacOSSetup.LockEndUserInfo.Value {
-		return fleet.NewUserMessageError(errors.New("Couldn’t enable lock_end_user_info when enable_end_user_authentication is disabled."), http.StatusUnprocessableEntity)
+		return fleet.NewUserMessageError(errors.New(`Couldn't edit. "enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info".`), http.StatusUnprocessableEntity)
 	}
 
 	if payload.RequireAllSoftware != nil && ac.MDM.MacOSSetup.RequireAllSoftware != *payload.RequireAllSoftware {

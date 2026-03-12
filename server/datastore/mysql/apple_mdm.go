@@ -7239,3 +7239,170 @@ func (ds *Datastore) DeleteHostLocationData(ctx context.Context, hostID uint) er
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID)
 	return ctxerr.Wrap(ctx, err, "delete host location data")
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// Apple MDM Recovery Lock Password
+
+func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, passwords []fleet.HostRecoveryLockPasswordPayload) error {
+	if len(passwords) == 0 {
+		return nil
+	}
+
+	// Build values for bulk insert.
+	// Status is set to 'pending' immediately to prevent the host from being picked up
+	// again by the next cron run while the command is being enqueued. If enqueue fails,
+	// ClearRecoveryLockPendingStatus should be called to reset the status to NULL.
+	var args []any
+	for _, p := range passwords {
+		encrypted, err := encrypt([]byte(p.Password), ds.serverPrivateKey)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "encrypting recovery lock password")
+		}
+		args = append(args, p.HostUUID, encrypted, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall)
+	}
+
+	stmt := `
+		INSERT INTO host_recovery_key_passwords (host_uuid, encrypted_password, status, operation_type)
+		VALUES %s
+		ON DUPLICATE KEY UPDATE
+			encrypted_password = VALUES(encrypted_password),
+			status = VALUES(status),
+			operation_type = VALUES(operation_type),
+			error_message = NULL,
+			deleted = 0
+	`
+
+	placeholders := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?),", len(passwords)), ",")
+	stmt = fmt.Sprintf(stmt, placeholders)
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "storing recovery lock passwords")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
+	const stmt = `SELECT encrypted_password, updated_at FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`
+
+	var row struct {
+		EncryptedPassword []byte    `db:"encrypted_password"`
+		UpdatedAt         time.Time `db:"updated_at"`
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
+				WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting recovery lock password")
+	}
+
+	decrypted, err := decrypt(row.EncryptedPassword, ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "decrypting recovery lock password")
+	}
+
+	return &fleet.HostRecoveryLockPassword{
+		Password:  string(decrypted),
+		UpdatedAt: row.UpdatedAt,
+	}, nil
+}
+
+func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]string, error) {
+	// Query hosts that:
+	// - Have enable_recovery_lock_password = true (from team config or appconfig for no-team hosts)
+	// - Are Apple Silicon (ARM CPU)
+	// - Are MDM enrolled (enabled = 1 and device enrollment type)
+	// - Have no recovery lock password record OR have a password with NULL status (command not yet enqueued)
+	// Note: hosts with status pending, verified, or failed are NOT included
+	const stmt = `
+		SELECT h.uuid
+		FROM hosts h
+		JOIN nano_enrollments ne ON ne.device_id = h.uuid
+		JOIN host_mdm hm ON hm.host_id = h.id
+		LEFT JOIN teams t ON t.id = h.team_id
+		CROSS JOIN app_config_json ac
+		LEFT JOIN host_recovery_key_passwords rkp ON rkp.host_uuid = h.uuid AND rkp.deleted = 0
+		WHERE h.platform = 'darwin'
+		  AND h.cpu_type LIKE '%arm%'
+		  AND ne.enabled = 1
+		  AND ne.type IN ('Device', 'User Enrollment (Device)')
+		  AND hm.enrolled = 1
+		  AND (
+		      -- Team hosts: check team config
+		      (h.team_id IS NOT NULL AND JSON_EXTRACT(t.config, '$.mdm.enable_recovery_lock_password') = true)
+		      OR
+		      -- No-team hosts: check appconfig
+		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.enable_recovery_lock_password') = true)
+		  )
+		  AND (rkp.host_uuid IS NULL OR rkp.status IS NULL)
+		LIMIT 500
+	`
+
+	var hostUUIDs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get hosts for recovery lock action")
+	}
+
+	return hostUUIDs, nil
+}
+
+func (ds *Datastore) SetRecoveryLockVerified(ctx context.Context, hostUUID string) error {
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET status = '%s',
+		    error_message = NULL
+		WHERE host_uuid = ?
+		  AND deleted = 0
+	`, fleet.MDMDeliveryVerified)
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set recovery lock verified")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error {
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET status = '%s',
+		    error_message = ?
+		WHERE host_uuid = ?
+		  AND deleted = 0
+	`, fleet.MDMDeliveryFailed)
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, errorMsg, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set recovery lock failed")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) ClearRecoveryLockPendingStatus(ctx context.Context, hostUUIDs []string) error {
+	if len(hostUUIDs) == 0 {
+		return nil
+	}
+
+	// Reset status to NULL for hosts that failed to have their commands enqueued.
+	// This allows them to be picked up again on the next cron run.
+	// Only clears status if it's currently 'pending' to avoid overwriting other statuses.
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET status = NULL
+		WHERE host_uuid IN (?)
+		  AND status = '%s'
+		  AND deleted = 0
+	`, fleet.MDMDeliveryPending)
+
+	query, args, err := sqlx.In(stmt, hostUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build query for clear recovery lock pending status")
+	}
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear recovery lock pending status")
+	}
+
+	return nil
+}
