@@ -67,9 +67,7 @@ describe("Baselines", () => {
     );
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Windows Security Baseline")
-      ).toBeInTheDocument();
+      expect(screen.getByText("Windows Security Baseline")).toBeInTheDocument();
     });
 
     expect(screen.getByText("v1.0.0")).toBeInTheDocument();
