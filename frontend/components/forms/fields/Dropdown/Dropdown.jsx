@@ -4,11 +4,12 @@ import classnames from "classnames";
 import { noop, pick } from "lodash";
 import Select from "react-select";
 import { CacheProvider } from "@emotion/react";
-import createCache from "@emotion/cache";
 
 import dropdownOptionInterface from "interfaces/dropdownOption";
 import FormField from "components/forms/FormField";
 import Icon from "components/Icon";
+import { emotionCache } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+
 import DropdownOptionTooltipWrapper from "./DropdownOptionTooltipWrapper";
 
 const baseClass = "dropdown";
@@ -216,7 +217,7 @@ class Dropdown extends Component {
         type="dropdown"
         className={wrapperClassName}
       >
-        <CacheProvider value={emotonCache}>
+        <CacheProvider value={emotionCache}>
           <Select
             className={selectClasses}
             clearable={clearable}
