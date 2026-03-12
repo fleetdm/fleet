@@ -612,15 +612,26 @@ func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertifica
 		groupedCAs.NDESSCEP = []NDESSCEPProxyCA{}
 	} else {
 		// We unmarshal NDES SCEP Proxy integration into its dedicated type for additional
-		// validation.
+		// validation. We accept both a single object (legacy format) and an array of
+		// objects (new format) for backward compatibility.
 		ndesSCEPProxyJSON, err := json.Marshal(ndesSCEPProxy)
 		if err != nil {
 			return nil, fmt.Errorf("org_settings.certificate_authorities.ndes_scep_proxy cannot be marshalled into JSON: %w", err)
 		}
 		var ndesSCEPProxyData []NDESSCEPProxyCA
-		err = json.Unmarshal(ndesSCEPProxyJSON, &ndesSCEPProxyData)
-		if err != nil {
-			return nil, fmt.Errorf("org_settings.certificate_authorities.ndes_scep_proxy cannot be parsed: %w", err)
+		if _, isMap := ndesSCEPProxy.(map[string]interface{}); isMap {
+			// Legacy single-object format: wrap it in an array.
+			var single NDESSCEPProxyCA
+			err = json.Unmarshal(ndesSCEPProxyJSON, &single)
+			if err != nil {
+				return nil, fmt.Errorf("org_settings.certificate_authorities.ndes_scep_proxy cannot be parsed: %w", err)
+			}
+			ndesSCEPProxyData = []NDESSCEPProxyCA{single}
+		} else {
+			err = json.Unmarshal(ndesSCEPProxyJSON, &ndesSCEPProxyData)
+			if err != nil {
+				return nil, fmt.Errorf("org_settings.certificate_authorities.ndes_scep_proxy cannot be parsed: %w", err)
+			}
 		}
 		groupedCAs.NDESSCEP = ndesSCEPProxyData
 	}
