@@ -368,7 +368,7 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
 
 ### redis_duplicate_results
 
-Whether or not to duplicate Live Query results to another Redis channel named `LQDuplicate`. This is useful in a scenario involving shipping the Live Query results outside of Fleet, near real-time.
+Whether or not to duplicate results to another Redis channel named `LQDuplicate`. This is useful in a scenario involving shipping the results outside of Fleet, near real-time.
 
 - Default value: `false`
 - Environment variable: `FLEET_REDIS_DUPLICATE_RESULTS`
@@ -1150,7 +1150,7 @@ to the amount of time it takes for Fleet to give the host the label queries.
 
 ### osquery_enable_async_host_processing
 
-**Experimental feature**. Enable asynchronous processing of hosts' query results. Currently, asynchronous processing is only supported for label query execution, policy membership results, hosts' last seen timestamp, and hosts' scheduled query statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
+**Experimental feature**. Enable asynchronous processing of hosts' report results. Currently, asynchronous processing is only supported for label query execution, policy membership results, hosts' last seen timestamp, and hosts' scheduled report statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
 
 Note that currently, if both the failing policies webhook *and* this `osquery.enable_async_host_processing` option are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
 
@@ -1159,7 +1159,7 @@ It can be set to a single boolean value ("true" or "false"), which controls all 
 * `label_membership` for updating the hosts' label query execution;
 * `policy_membership` for updating the hosts' policy membership results;
 * `host_last_seen` for updating the hosts' last seen timestamp.
-* `scheduled_query_stats` for saving the hosts' scheduled query statistics.
+* `scheduled_query_stats` for saving the hosts' scheduled report statistics.
 
 - Default value: false
 - Environment variable: `FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING`
@@ -1528,7 +1528,7 @@ to zero will retain all logs. _Note_ max_age may still cause them to be deleted.
 
 ## Webhook
 
-To use webhook logging for query results, the following two Fleet config values must *both* be set:
+To use webhook logging for report results, the following two Fleet config values must *both* be set:
 
 ### Set log method to 'webhook' by
 - Command line flag: `--osquery_result_log_plugin="webhook"`,
@@ -2199,7 +2199,7 @@ notation, such as `log.name` and `log.decorations.hostname`.
 | Description         | Template                                          | Result                       |
 |---------------------|---------------------------------------------------|------------------------------|
 | Route by hostname   | `results.{log.decorations.hostname}`              | `results.webserver`          |
-| Extract query name  | `results.{log.name \| split("/") \| last()}`      | `results.process_events`     |
+| Extract report name  | `results.{log.name \| split("/") \| last()}`      | `results.process_events`     |
 | Action and hostname | `results.{log.action}.{log.decorations.hostname}` | `results.snapshot.webserver` |
 
 ### nats_server

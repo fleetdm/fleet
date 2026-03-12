@@ -59,7 +59,7 @@ These bounded contexts are candidates for future extraction, based on domain bou
 - **Software** - Software inventory, installation, and updates
 - **Policies** - Policy definitions and compliance
 - **Scripts** - Script execution and batch activities
-- **Queries** - Query management and scheduling
+- **Reports** - Report management and scheduling
 
 ## Architecture principles
 
