@@ -1031,7 +1031,7 @@ type GetHostRecoveryLockPasswordStatusFunc func(ctx context.Context, hostUUID st
 
 type GetHostsForRecoveryLockActionFunc func(ctx context.Context) ([]string, error)
 
-type SetRecoveryLockVerifiedFunc func(ctx context.Context, hostUUID string) error
+type SetRecoveryLockVerifiedFunc func(ctx context.Context, hostUUID string) (uint, error)
 
 type SetRecoveryLockFailedFunc func(ctx context.Context, hostUUID string, errorMsg string) error
 
@@ -8060,7 +8060,7 @@ func (s *DataStore) GetHostsForRecoveryLockAction(ctx context.Context) ([]string
 	return s.GetHostsForRecoveryLockActionFunc(ctx)
 }
 
-func (s *DataStore) SetRecoveryLockVerified(ctx context.Context, hostUUID string) error {
+func (s *DataStore) SetRecoveryLockVerified(ctx context.Context, hostUUID string) (uint, error) {
 	s.mu.Lock()
 	s.SetRecoveryLockVerifiedFuncInvoked = true
 	s.mu.Unlock()

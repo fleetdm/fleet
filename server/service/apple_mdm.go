@@ -7322,6 +7322,7 @@ func NewRecoveryLockResult(cmdResult *mdm.CommandResults) fleet.MDMCommandResult
 func NewSetRecoveryLockResultsHandler(
 	ds fleet.Datastore,
 	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
 ) fleet.MDMCommandResultsHandler {
 	return func(ctx context.Context, results fleet.MDMCommandResults) error {
 		// Get the underlying result to access status and error chain
@@ -7406,13 +7407,17 @@ func NewSetRecoveryLockResultsHandler(
 					"host_uuid", hostUUID,
 				)
 			} else {
-				// SET succeeded - mark as verified
-				if err := ds.SetRecoveryLockVerified(ctx, hostUUID); err != nil {
+				// ACK means the password was successfully applied - mark as verified
+				hostID, err := ds.SetRecoveryLockVerified(ctx, hostUUID)
+				if err != nil {
 					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock verified")
 				}
-				logger.InfoContext(ctx, "SetRecoveryLock acknowledged, marked verified",
-					"host_uuid", hostUUID,
-				)
+				// Log the activity (no user context, this is a system action)
+				if err := newActivityFn(ctx, nil, fleet.ActivityTypeSetHostRecoveryLockPassword{
+					HostID: hostID,
+				}); err != nil {
+					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: create activity")
+				}
 			}
 
 		case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:

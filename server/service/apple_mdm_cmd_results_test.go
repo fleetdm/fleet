@@ -304,13 +304,23 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return false, nil
 		}
 		var verifiedCalled bool
-		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, hUUID string) error {
+		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, hUUID string) (uint, error) {
 			verifiedCalled = true
 			assert.Equal(t, hostUUID, hUUID)
+			return 1, nil
+		}
+
+		var activityCalled bool
+		var capturedHostID uint
+		newActivityFn := func(_ context.Context, _ *fleet.User, activity fleet.ActivityDetails) error {
+			activityCalled = true
+			act, ok := activity.(fleet.ActivityTypeSetHostRecoveryLockPassword)
+			require.True(t, ok)
+			capturedHostID = act.HostID
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger)
+		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
 
 		result := NewRecoveryLockResult(&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
@@ -324,6 +334,8 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 
 		// Verify status was set to verified
 		assert.True(t, verifiedCalled)
+		assert.True(t, activityCalled)
+		assert.Equal(t, uint(1), capturedHostID)
 	})
 
 	t.Run("error status sets failed", func(t *testing.T) {
@@ -346,7 +358,12 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger)
+		newActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+			t.Fatal("activity should not be called on error")
+			return nil
+		}
+
+		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
 
 		result := NewRecoveryLockResult(&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
@@ -380,7 +397,12 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger)
+		newActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+			t.Fatal("activity should not be called on error")
+			return nil
+		}
+
+		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
 
 		result := NewRecoveryLockResult(&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
