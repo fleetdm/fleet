@@ -90,10 +90,12 @@ describe("Baselines", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Apply to team")).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Apply to team" })
+      ).toBeInTheDocument();
     });
 
-    const applyButton = screen.getByText("Apply to team");
+    const applyButton = screen.getByRole("button", { name: "Apply to team" });
     expect(applyButton).not.toBeDisabled();
   });
 
@@ -107,10 +109,12 @@ describe("Baselines", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Apply to team")).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Apply to team" })
+      ).toBeInTheDocument();
     });
 
-    const applyButton = screen.getByText("Apply to team");
+    const applyButton = screen.getByRole("button", { name: "Apply to team" });
     expect(applyButton).toBeDisabled();
     expect(
       screen.getByText("Select a team to apply or remove this baseline.")
