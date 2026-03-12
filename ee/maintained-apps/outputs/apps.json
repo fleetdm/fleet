@@ -1644,12 +1644,6 @@
       "slug": "todoist-app/darwin",
       "platform": "darwin",
       "unique_identifier": "com.todoist.mac.Todoist",
-      "description": "Todoist is a to do list and a planning center for individuals and teams."
-    },
-    {
-      "name": "Tor Browser",
-      "slug": "tor-browser/darwin",
-      "platform": "darwin",
       "unique_identifier": "org.torproject.torbrowser",
       "description": "Tor Browser is a privacy-focused web browser that protects against tracking, surveillance, and censorship by routing traffic through the Tor network."
     },
