@@ -63,15 +63,51 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 
 ### Test plan
 <!-- Add detailed manual testing steps for all affected user roles. -->
-
 > Make sure to go through [the list](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/ui/design-qa-considerations.md) and consider all events that might be related to this story, so we catch edge cases earlier.
+> 
+<!-- The following sections can be removed if they are inapplicable for this User Story -->
 
-- TODO
-- TODO
+#### Core flow
+<!-- Product TODO -->
 - TODO
 
+#### UI
+- [ ] Verify that all UI changes specified in the Figma design are correctly implemented
+- [ ] Verify expected UI states (loading, empty, error states if applicable)
+
+#### API
+- [ ] Test all API endpoints added or modified in the **API changes** section of this issue
+- [ ] Verify error handling for invalid inputs where applicable
+
+#### GitOps (generate + apply)
+- [ ] Configure the feature through the UI and run `fleetctl generate-gitops`
+- [ ] Confirm the generated `.yml` includes the expected fields (compare with YAML changes in the Product section)
+- [ ] Modify the generated `.yml` and run `fleetctl gitops`
+- [ ] Confirm the configuration updates correctly in Fleet
+- [ ] Enable GitOps mode and verify the feature behaves correctly fleet is managed via GitOps
+
+#### Permissions
 <!-- Consider: Do the steps above apply to all global access roles, including admin, maintainer, observer, observer+, and GitOps?  Do the steps above apply to all fleet-level access roles?  If not, write the steps used to test each variation.
 -->
+- [ ] Verify role restrictions are applied correctly for **global roles**
+- [ ] Verify role restrictions are applied correctly for **team-level roles**
+
+#### Edge cases
+
+<!-- QA TODO: Replace the TODO below with relevant edge cases or remove this section if not applicable -->
+
+<!-- Edge case examples:
+1. Invalid or unexpected input values
+2. Boundary conditions
+3. Behavior when required configuration is missing
+4. Behavior when related objects are deleted or modified
+-->
+
+- TODO
+
+#### Supplemental testing
+
+<!-- Mid-cycle testing checks. Added by QA after the issue was moved to Awaiting QA -->
 
 ### Testing notes
 <!-- Any additional testing notes relevant to this story or tools required for testing. -->
@@ -79,5 +115,5 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 ### Confirmation
 <!-- The engineer responsible for implementing this user story completes the test plan before moving to the "Awaiting QA" column. -->
 
-1. [ ] Engineer: Added comment to user story confirming successful completion of test plan.
+1. [ ] Engineer: Added comment to user story confirming successful completion of test plan (include any special setup, test data, or configuration used during development/testing if applicable).
 2. [ ] QA: Added comment to user story confirming successful completion of test plan.
