@@ -10,7 +10,6 @@ import "./index.scss";
 
 if (typeof window !== "undefined") {
   const { document } = global;
-
   const app = document.getElementById("app");
   const root = createRoot(app);
   root.render(routes);
