@@ -1,10 +1,12 @@
+import React, { useState } from "react";
+
+import { QueryLoggingOption } from "interfaces/schedulable_query";
+
+import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import Icon from "components/Icon";
 import InfoBanner from "components/InfoBanner";
 import TooltipWrapper from "components/TooltipWrapper";
-import { QueryLoggingOption } from "interfaces/schedulable_query";
-import React, { useState } from "react";
-import { Link } from "react-router";
 
 const baseClass = "discard-data-option";
 
@@ -22,70 +24,69 @@ const DiscardDataOption = ({
   setDiscardData,
 }: IDiscardDataOptionProps) => {
   const [forceEditDiscardData, setForceEditDiscardData] = useState(false);
-  const disable = queryReportsDisabled && !forceEditDiscardData;
 
-  const renderHelpText = () => (
-    <div className="help-text">
-      {disable ? (
-        <>
-          This setting is ignored because reports in Fleet have been{" "}
-          <TooltipWrapper
-            tipContent={
-              <>
-                A Fleet administrator can enable reports under <br />
-                <b>
-                  Organization settings &gt; Advanced options &gt; Disable
-                  reports
-                </b>
-                .
-              </>
-            }
-          >
-            {"globally disabled."}
-          </TooltipWrapper>{" "}
-          <Link
-            to=""
-            onClick={(e: React.MouseEvent) => {
-              e.preventDefault();
-              setForceEditDiscardData(true);
-            }}
-            className={`${baseClass}__edit-anyway`}
-          >
-            <>
-              Edit anyway
-              <Icon
-                name="chevron-right"
-                color="ui-fleet-black-75"
-                size="small"
-              />
-            </>
-          </Link>
-        </>
-      ) : (
-        "The most recent results for each host will not be available in Fleet."
-      )}
-    </div>
-  );
+  const isDisabled = queryReportsDisabled && !forceEditDiscardData;
+  const isReportsLoggingIgnored =
+    selectedLoggingType === "differential" ||
+    selectedLoggingType === "differential_ignore_removals";
+
   return (
     <div className={baseClass}>
-      {["differential", "differential_ignore_removals"].includes(
-        selectedLoggingType
-      ) && (
-        <>
-          <InfoBanner color="grey">
-            The <b>Discard data</b> setting is ignored when differential logging
-            is enabled. This report&apos;s results will not be saved in Fleet.
-          </InfoBanner>
-        </>
+      {isReportsLoggingIgnored && (
+        <InfoBanner color="grey">
+          The <b>Discard data</b> setting is ignored when differential logging
+          is enabled. This report&apos;s results will not be saved in Fleet.
+        </InfoBanner>
       )}
       <Checkbox
         name="discardData"
         onChange={setDiscardData}
         value={discardData}
-        wrapperClassName={
-          disable ? `${baseClass}__disabled-discard-data-checkbox` : ""
+        disabled={isDisabled}
+        helpText={
+          <div className="help-text">
+            {isDisabled ? (
+              <>
+                This setting is ignored because reports in Fleet have been{" "}
+                <TooltipWrapper
+                  tipContent={
+                    <>
+                      A Fleet administrator can enable reports under <br />
+                      <b>
+                        Organization settings &gt; Advanced options &gt; Disable
+                        reports
+                      </b>
+                      .
+                    </>
+                  }
+                >
+                  globally disabled.
+                </TooltipWrapper>
+                <Button
+                  onClick={(e: React.MouseEvent) => {
+                    e.preventDefault();
+                    setForceEditDiscardData(true);
+                  }}
+                  variant="text-icon"
+                  size="small"
+                  className={`${baseClass}__edit-anyway`}
+                  iconStroke
+                >
+                  <>
+                    Edit anyway
+                    <Icon
+                      name="chevron-right"
+                      color="ui-fleet-black-75"
+                      size="small"
+                    />
+                  </>
+                </Button>
+              </>
+            ) : (
+              "The most recent results for each host will not be available in Fleet."
+            )}
+          </div>
         }
-        helpText={renderHelpText()}
       >
         Discard data
       </Checkbox>
