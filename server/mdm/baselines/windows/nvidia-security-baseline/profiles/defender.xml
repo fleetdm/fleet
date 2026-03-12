@@ -1,0 +1,80 @@
+<Replace>
+  <CmdID>1</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Defender/AllowRealtimeMonitoring</LocURI></Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>2</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Defender/AllowCloudProtection</LocURI></Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>3</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Defender/PUAProtection</LocURI></Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>4</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Defender/CloudBlockLevel</LocURI></Target>
+    <Data>2</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>5</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Defender/SubmitSamplesConsent</LocURI></Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>6</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Defender/EnableNetworkProtection</LocURI></Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>7</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Defender/AllowBehaviorMonitoring</LocURI></Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>8</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Defender/AllowIOAVProtection</LocURI></Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>9</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Defender/AllowScriptScanning</LocURI></Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>10</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Defender/CloudExtendedTimeout</LocURI></Target>
+    <Data>50</Data>
+  </Item>
+</Replace>

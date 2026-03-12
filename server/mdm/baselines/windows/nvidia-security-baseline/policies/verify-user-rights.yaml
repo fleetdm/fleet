@@ -1,0 +1,13 @@
+- name: "[NVIDIA Baseline] Verify deny network access configured"
+  query: "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\PolicyManager\\%\\UserRights~Policy~UserRights\\DenyAccessFromNetwork' AND data IS NOT NULL AND data != '';"
+  description: "Verifies the 'Deny access to this computer from the network' user right assignment is configured."
+  resolution: "Re-apply the User Rights SyncML profile via Fleet MDM."
+  platform: windows
+  critical: false
+
+- name: "[NVIDIA Baseline] Verify deny remote desktop logon configured"
+  query: "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\PolicyManager\\%\\UserRights~Policy~UserRights\\DenyRemoteDesktopServicesLogOn' AND data IS NOT NULL AND data != '';"
+  description: "Verifies the 'Deny log on through Remote Desktop Services' user right assignment is configured."
+  resolution: "Re-apply the User Rights SyncML profile via Fleet MDM."
+  platform: windows
+  critical: false

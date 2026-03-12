@@ -1,0 +1,20 @@
+- name: "[NVIDIA Baseline] Verify Windows Defender real-time protection"
+  query: "SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows Defender\\Real-Time Protection\\DisableRealtimeMonitoring' AND data = '0';"
+  description: "Verifies Windows Defender real-time protection is enabled."
+  resolution: "Re-apply the Defender SyncML profile via Fleet MDM. Check for third-party AV conflicts."
+  platform: windows
+  critical: true
+
+- name: "[NVIDIA Baseline] Verify Windows Defender cloud protection"
+  query: "SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Spynet\\SpynetReporting' AND CAST(data AS INTEGER) >= 1;"
+  description: "Verifies Windows Defender cloud-delivered protection (MAPS) is enabled."
+  resolution: "Re-apply the Defender SyncML profile via Fleet MDM."
+  platform: windows
+  critical: false
+
+- name: "[NVIDIA Baseline] Verify Windows Defender PUA protection"
+  query: "SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\PUAProtection' AND data = '1';"
+  description: "Verifies potentially unwanted application (PUA) protection is enabled."
+  resolution: "Re-apply the Defender SyncML profile via Fleet MDM."
+  platform: windows
+  critical: false

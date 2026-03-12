@@ -1,0 +1,27 @@
+<Replace>
+  <CmdID>1</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxDevicePasswordFailedAttempts</LocURI></Target>
+    <Data>10</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>2</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/DeviceLock/MinDevicePasswordLength</LocURI></Target>
+    <Data>14</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>3</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/DeviceLock/AccountLockoutPolicy</LocURI></Target>
+    <Data><![CDATA[<enabled/>
+<data id="LockoutDuration" value="15"/>
+<data id="ResetLockoutCount" value="15"/>
+<data id="LockoutBadCount" value="10"/>]]></Data>
+  </Item>
+</Replace>

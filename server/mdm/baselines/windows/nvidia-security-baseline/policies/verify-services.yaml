@@ -1,0 +1,20 @@
+- name: "[NVIDIA Baseline] Verify Remote Registry service disabled"
+  query: "SELECT 1 FROM services WHERE name = 'RemoteRegistry' AND start_type = 'DISABLED';"
+  description: "Verifies the Remote Registry service is disabled to prevent remote registry access."
+  resolution: "Run the service configuration remediation script via Fleet."
+  platform: windows
+  critical: true
+
+- name: "[NVIDIA Baseline] Verify SSDP Discovery service disabled"
+  query: "SELECT 1 FROM services WHERE name = 'SSDPSRV' AND start_type = 'DISABLED';"
+  description: "Verifies the SSDP Discovery service is disabled to reduce attack surface."
+  resolution: "Run the service configuration remediation script via Fleet."
+  platform: windows
+  critical: false
+
+- name: "[NVIDIA Baseline] Verify UPnP Device Host service disabled"
+  query: "SELECT 1 FROM services WHERE name = 'upnphost' AND start_type = 'DISABLED';"
+  description: "Verifies the UPnP Device Host service is disabled to reduce attack surface."
+  resolution: "Run the service configuration remediation script via Fleet."
+  platform: windows
+  critical: false

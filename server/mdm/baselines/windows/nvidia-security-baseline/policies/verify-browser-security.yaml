@@ -1,0 +1,13 @@
+- name: "[NVIDIA Baseline] Verify Edge SmartScreen enabled"
+  query: "SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Edge\\SmartScreenEnabled' AND data = '1';"
+  description: "Verifies Microsoft Edge SmartScreen is enabled."
+  resolution: "Re-apply the Browser Security SyncML profile via Fleet MDM."
+  platform: windows
+  critical: false
+
+- name: "[NVIDIA Baseline] Verify Edge SmartScreen prompt override blocked"
+  query: "SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Edge\\PreventSmartScreenPromptOverride' AND data = '1';"
+  description: "Verifies users cannot bypass Edge SmartScreen warnings."
+  resolution: "Re-apply the Browser Security SyncML profile via Fleet MDM."
+  platform: windows
+  critical: false

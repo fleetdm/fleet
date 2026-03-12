@@ -1,0 +1,13 @@
+- name: "[NVIDIA Baseline] Verify minimum password length"
+  query: "SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\PolicyManager\\providers\\{GUID}\\default\\DeviceLock~Policy~DeviceLock\\MinDevicePasswordLength' AND CAST(data AS INTEGER) >= 14;"
+  description: "Verifies minimum password length is at least 14 characters."
+  resolution: "Re-apply the Account Lockout SyncML profile via Fleet MDM."
+  platform: windows
+  critical: true
+
+- name: "[NVIDIA Baseline] Verify account lockout threshold"
+  query: "SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\PolicyManager\\providers\\{GUID}\\default\\DeviceLock~Policy~DeviceLock\\MaxDevicePasswordFailedAttempts' AND CAST(data AS INTEGER) <= 10 AND CAST(data AS INTEGER) > 0;"
+  description: "Verifies account lockout threshold is set to 10 or fewer failed attempts."
+  resolution: "Re-apply the Account Lockout SyncML profile via Fleet MDM. Requires Windows 11 22H2+ with KB5053657."
+  platform: windows
+  critical: true
