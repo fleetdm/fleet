@@ -117,22 +117,23 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	// bootstrap package, configuration profiles, and account configuration to complete first. We
 	// want to start directly with the webview if all of those things are already in a terminal
 	// state to avoid have a momentary flash of the "Setting up your Mac..." UI.
-	var bootstrapDone, profilesDone, accountConfigDone, startWithWebview bool
-	if payload.BootstrapPackage == nil || payload.BootstrapPackage.Status == fleet.MDMBootstrapPackageFailed || payload.BootstrapPackage.Status == fleet.MDMBootstrapPackageInstalled {
-		bootstrapDone = true
-	}
-	if isPending, _ := anyProfilePending(payload.ConfigurationProfiles); !isPending {
-		profilesDone = true
-	}
-	if payload.AccountConfiguration == nil || payload.AccountConfiguration.Status == fleet.MDMAppleStatusAcknowledged ||
-		payload.AccountConfiguration.Status == fleet.MDMAppleStatusError ||
-		payload.AccountConfiguration.Status == fleet.MDMAppleStatusCommandFormatError {
-		accountConfigDone = true
-	}
-	log.Info().Msgf("setup experience status: bootstrap done: %t, profiles done: %t, account config done: %t", bootstrapDone, profilesDone, accountConfigDone)
-	startWithWebview = bootstrapDone && profilesDone && accountConfigDone
+	log.Info().Msg("setup experience: checking for pending statuses")
 
-	if err := s.startSwiftDialog(binaryPath, orgLogo, startWithWebview); err != nil {
+	isPending, pendingName := anyProfilePending(payload.ConfigurationProfiles)
+	if isPending {
+		log.Info().Msgf("setup experience: profile pending: %s", pendingName)
+	}
+
+	bootstrapDone := payload.BootstrapPackage == nil || payload.BootstrapPackage.Status == fleet.MDMBootstrapPackageFailed || payload.BootstrapPackage.Status == fleet.MDMBootstrapPackageInstalled
+
+	accountConfigDone := payload.AccountConfiguration == nil || payload.AccountConfiguration.Status == fleet.MDMAppleStatusAcknowledged ||
+		payload.AccountConfiguration.Status == fleet.MDMAppleStatusError ||
+		payload.AccountConfiguration.Status == fleet.MDMAppleStatusCommandFormatError
+
+	log.Info().Msgf("setup experience status: bootstrap done: %t, profiles done: %t, account config done: %t", bootstrapDone, !isPending, accountConfigDone)
+
+	showWebview := !isPending && bootstrapDone && accountConfigDone
+	if err := s.startSwiftDialog(binaryPath, orgLogo, showWebview); err != nil {
 		return err
 	}
 
@@ -147,35 +148,15 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 		// ok
 	}
 
-	// We're rendering the initial loading UI (shown while there are still profiles, bootstrap package,
-	// and account configuration to verify) right off the bat, so we can just no-op if any of those
-	// are not terminal
-
-	log.Info().Msg("setup experience: checking for pending statuses")
-
-	if payload.BootstrapPackage != nil {
-		if payload.BootstrapPackage.Status != fleet.MDMBootstrapPackageFailed && payload.BootstrapPackage.Status != fleet.MDMBootstrapPackageInstalled {
-			log.Info().Msg("setup experience: bootstrap package pending")
-			return nil
-		}
-	}
-
-	if isPending, name := anyProfilePending(payload.ConfigurationProfiles); isPending {
-		log.Info().Msg(fmt.Sprintf("setup experience: profile pending: %s", name))
+	if !showWebview {
+		// We're rendering the initial loading UI (shown while there are still profiles, bootstrap package,
+		// and account configuration to verify) right off the bat, so we can just no-op if any of those
+		// are not terminal
+		log.Info().Msg("setup experience: showing initial UI for pending bootstrap package, configuration profile, or account configuration")
 		return nil
 	}
 
-	if payload.AccountConfiguration != nil {
-		if payload.AccountConfiguration.Status != fleet.MDMAppleStatusAcknowledged &&
-			payload.AccountConfiguration.Status != fleet.MDMAppleStatusError &&
-			payload.AccountConfiguration.Status != fleet.MDMAppleStatusCommandFormatError {
-
-			log.Info().Msg("setup experience: account config pending")
-			return nil
-		}
-	}
-
-	// If we got this far, then we can hand the UI over to the webview if it is not already there.
+	// Otherwise, proceed to show the webview UI for software and script status
 	log.Info().Msg("setup experience: proceeding to software and script status UI")
 
 	// Clear the dialog message.
@@ -232,6 +213,8 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 		if payload.Script != nil && payload.Script.Status != fleet.SetupExperienceStatusFailure && payload.Script.Status != fleet.SetupExperienceStatusSuccess {
 			allStepsDone = false
 		}
+	} else {
+		log.Info().Msg("setup experience: no software or script payload")
 	}
 
 	// If we get here, we can close the webview.
