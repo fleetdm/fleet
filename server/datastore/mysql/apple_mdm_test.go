@@ -10402,7 +10402,8 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	// Helper to create a team with recovery lock setting
-	createTeamWithRecoveryLock := func(name string, enabled bool) *fleet.Team {
+	createTeamWithRecoveryLock := func(t *testing.T, name string, enabled bool) *fleet.Team {
+		t.Helper()
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: name})
 		require.NoError(t, err)
 
@@ -10413,7 +10414,8 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 	}
 
 	// Helper to set app config recovery lock setting
-	setAppConfigRecoveryLock := func(enabled bool) {
+	setAppConfigRecoveryLock := func(t *testing.T, enabled bool) {
+		t.Helper()
 		ac, err := ds.AppConfig(ctx)
 		require.NoError(t, err)
 		ac.MDM.EnableRecoveryLockPassword = optjson.SetBool(enabled)
@@ -10422,7 +10424,8 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 	}
 
 	// Helper to set host CPU type
-	setHostCPUType := func(hostID uint, cpuType string) {
+	setHostCPUType := func(t *testing.T, hostID uint, cpuType string) {
+		t.Helper()
 		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET cpu_type = ? WHERE id = ?`, cpuType, hostID)
 		require.NoError(t, err)
 	}
@@ -10452,10 +10455,10 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 
 	t.Run("claims verified host when config disabled", func(t *testing.T) {
 		// Create team with recovery lock enabled initially
-		team := createTeamWithRecoveryLock("clear-test-team", true)
+		team := createTeamWithRecoveryLock(t, "clear-test-team", true)
 		host := test.NewHost(t, ds, "clear-host", "1.2.6.1", "clearkey", "clearuuid", time.Now(),
 			test.WithPlatform("darwin"), test.WithTeamID(team.ID))
-		setHostCPUType(host.ID, "arm64")
+		setHostCPUType(t, host.ID, "arm64")
 		nanoEnrollAndSetHostMDMData(t, ds, host, false)
 
 		// Set password and mark as verified
@@ -10499,12 +10502,12 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("does not claim pending or failed hosts", func(t *testing.T) {
-		team := createTeamWithRecoveryLock("clear-pending-team", false)
+		team := createTeamWithRecoveryLock(t, "clear-pending-team", false)
 
 		// Host with pending status
 		hostPending := test.NewHost(t, ds, "pending-clear", "1.2.6.2", "pendkey", "penduuid", time.Now(),
 			test.WithPlatform("darwin"), test.WithTeamID(team.ID))
-		setHostCPUType(hostPending.ID, "arm64")
+		setHostCPUType(t, hostPending.ID, "arm64")
 		nanoEnrollAndSetHostMDMData(t, ds, hostPending, false)
 		pw := apple_mdm.GenerateRecoveryLockPassword()
 		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: hostPending.UUID, Password: pw}})
@@ -10514,7 +10517,7 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 		// Host with failed status
 		hostFailed := test.NewHost(t, ds, "failed-clear", "1.2.6.3", "failkey", "failuuid", time.Now(),
 			test.WithPlatform("darwin"), test.WithTeamID(team.ID))
-		setHostCPUType(hostFailed.ID, "arm64")
+		setHostCPUType(t, hostFailed.ID, "arm64")
 		nanoEnrollAndSetHostMDMData(t, ds, hostFailed, false)
 		pw2 := apple_mdm.GenerateRecoveryLockPassword()
 		err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: hostFailed.UUID, Password: pw2}})
@@ -10530,11 +10533,11 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 
 	t.Run("claims no-team host when appconfig disabled", func(t *testing.T) {
 		// Enable recovery lock in appconfig
-		setAppConfigRecoveryLock(true)
+		setAppConfigRecoveryLock(t, true)
 
 		host := test.NewHost(t, ds, "noteam-clear", "1.2.6.4", "ntkey", "ntuuid", time.Now(),
 			test.WithPlatform("darwin"))
-		setHostCPUType(host.ID, "arm64")
+		setHostCPUType(t, host.ID, "arm64")
 		nanoEnrollAndSetHostMDMData(t, ds, host, false)
 
 		pw := apple_mdm.GenerateRecoveryLockPassword()
@@ -10549,7 +10552,7 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 		assert.NotContains(t, hosts, host.UUID)
 
 		// Disable recovery lock in appconfig
-		setAppConfigRecoveryLock(false)
+		setAppConfigRecoveryLock(t, false)
 
 		// Now should be claimed
 		hosts, err = ds.ClaimHostsForRecoveryLockClear(ctx)
@@ -10558,10 +10561,10 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("soft delete marks password record as deleted", func(t *testing.T) {
-		team := createTeamWithRecoveryLock("delete-test-team", true)
+		team := createTeamWithRecoveryLock(t, "delete-test-team", true)
 		host := test.NewHost(t, ds, "delete-host", "1.2.6.5", "delkey", "deluuid", time.Now(),
 			test.WithPlatform("darwin"), test.WithTeamID(team.ID))
-		setHostCPUType(host.ID, "arm64")
+		setHostCPUType(t, host.ID, "arm64")
 		nanoEnrollAndSetHostMDMData(t, ds, host, false)
 
 		pw := apple_mdm.GenerateRecoveryLockPassword()
@@ -10595,10 +10598,10 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("get operation type", func(t *testing.T) {
-		team := createTeamWithRecoveryLock("optype-test-team", false)
+		team := createTeamWithRecoveryLock(t, "optype-test-team", false)
 		host := test.NewHost(t, ds, "optype-host", "1.2.6.6", "optkey", "optuuid", time.Now(),
 			test.WithPlatform("darwin"), test.WithTeamID(team.ID))
-		setHostCPUType(host.ID, "arm64")
+		setHostCPUType(t, host.ID, "arm64")
 		nanoEnrollAndSetHostMDMData(t, ds, host, false)
 
 		// No record - should return not found
@@ -10635,10 +10638,10 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("retries failed clear attempts", func(t *testing.T) {
-		team := createTeamWithRecoveryLock("retry-test-team", false)
+		team := createTeamWithRecoveryLock(t, "retry-test-team", false)
 		host := test.NewHost(t, ds, "retry-host", "1.2.6.7", "retrykey", "retryuuid", time.Now(),
 			test.WithPlatform("darwin"), test.WithTeamID(team.ID))
-		setHostCPUType(host.ID, "arm64")
+		setHostCPUType(t, host.ID, "arm64")
 		nanoEnrollAndSetHostMDMData(t, ds, host, false)
 
 		// Set password and mark as verified
