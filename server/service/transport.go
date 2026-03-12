@@ -4,13 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/gorilla/mux"
 )
@@ -439,7 +442,21 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		)
 	}
 
-	mdmBootstrapPackageStatus := r.URL.Query().Get("bootstrap_package")
+	mdmBootstrapPackageStatus := r.URL.Query().Get("macos_bootstrap_package")
+	if mdmBootstrapPackageStatus == "" {
+		mdmBootstrapPackageStatus = r.URL.Query().Get("bootstrap_package")
+		if mdmBootstrapPackageStatus != "" {
+			// log a deprecation warning
+			if platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+				logging.WithLevel(r.Context(), slog.LevelWarn)
+				logging.WithExtras(r.Context(),
+					"deprecated_param", "bootstrap_package",
+					"deprecation_warning", "'bootstrap_package' is deprecated, use 'macos_bootstrap_package' instead",
+				)
+			}
+		}
+
+	}
 	switch fleet.MDMBootstrapPackageStatus(mdmBootstrapPackageStatus) {
 	case fleet.MDMBootstrapPackageFailed, fleet.MDMBootstrapPackagePending, fleet.MDMBootstrapPackageInstalled:
 		bpf := fleet.MDMBootstrapPackageStatus(mdmBootstrapPackageStatus)
@@ -448,7 +465,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		// No error when unset
 	default:
 		return hopt, ctxerr.Wrap(
-			r.Context(), badRequest(fmt.Sprintf("Invalid bootstrap_package: %s", mdmBootstrapPackageStatus)),
+			r.Context(), badRequest(fmt.Sprintf("Invalid macos_bootstrap_package: %s", mdmBootstrapPackageStatus)),
 		)
 	}
 
