@@ -38,6 +38,7 @@ import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
 import Arc from "./Arc";
 import Archaeology from "./Archaeology";
+import ArduinoIde from "./ArduinoIde";
 import Asana from "./Asana";
 import Audacity from "./Audacity";
 import AvastSecureBrowser from "./AvastSecureBrowser";
@@ -269,6 +270,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   appleAppStore: AppleAppStore,
   arc: Arc,
   archaeology: Archaeology,
+  "arduino ide": ArduinoIde,
   asana: Asana,
   audacity: Audacity,
   avast: AvastSecureBrowser,
