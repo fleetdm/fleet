@@ -146,7 +146,7 @@ An API-only user can be given the same permissions as a regular user. The defaul
 fleetctl user create --name 'API User' --email 'api@example.com' --password 'temp@pass123' --api-only --global-role 'admin'
 ```
 
-On Fleet Premium, use the `--team <team_id>:<role>` to create an API-only user on a team:
+On Fleet Premium, use the `--team <team_id>:<role>` to create an API-only user on a fleet:
 
 ```sh
 fleetctl user create --name 'API User' --email 'api@example.com' --password 'temp@pass123' --api-only --team 4:gitops

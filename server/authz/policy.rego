@@ -609,7 +609,7 @@ allow {
 }
 
 # Team admin, maintainer, technician, observer_plus, and observer running an observers_can_run query that belongs to their team must have the targets
-# filtered to only teams that they observe.
+# filtered to only teams that they observe. Observers may only target the query's own team; admin/maintainer/etc. may target any team they have such a role on.
 allow {
   object.type == "targeted_query"
   object.observer_can_run == true

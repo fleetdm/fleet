@@ -3148,9 +3148,11 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 
 	matchingHostIDs := make([]int, 0)
 	if len(matchQuery) > 0 {
-		// first we'll find the hosts that match the search criteria, to keep thing simple, then we'll query again
-		// to get all the additional data for hosts that match the search criteria by host_id
-		matchingHosts := "SELECT h.id FROM hosts h WHERE TRUE"
+		// First we'll find the hosts that match the search criteria, to keep thing simple, then we'll query again
+		// to get all the additional data for hosts that match the search criteria by host_id.
+		// Apply the team filter so that LIMIT 10 below only counts hosts the caller can access —
+		// without it, 10 high-ID hosts on inaccessible teams could crowd out all accessible results.
+		matchingHosts := "SELECT h.id FROM hosts h WHERE " + ds.whereFilterHostsByTeams(filter, "h")
 		var args []interface{}
 		// TODO: should search columns include display_name (requires join to host_display_names)?
 		searchHostsQuery, args := hostSearchLike(matchingHosts, args, matchQuery, hostSearchColumns...)
@@ -3159,7 +3161,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 			searchHostsQuery += " UNION " + union
 			args = wildCardArgs
 		}
-		searchHostsQuery += " AND TRUE ORDER BY id DESC LIMIT 10"
+		searchHostsQuery += " ORDER BY id DESC LIMIT 10"
 		searchHostsQuery = ds.reader(ctx).Rebind(searchHostsQuery)
 		err := sqlx.SelectContext(ctx, ds.reader(ctx), &matchingHostIDs, searchHostsQuery, args...)
 		if err != nil {

@@ -48,13 +48,13 @@ Now, your technical experts have more visibility. What should they do with it? I
 
 ## Fleet makes tracking compliance easy
 
-A little insight goes a long way. The right tools will take you even further. Fleet lets you create [policies](https://fleetdm.com/securing/what-are-fleet-policies) that ask questions about your devices — questions you can customize to meet your compliance goals. You can group these custom queries with [teams](https://fleetdm.com/docs/using-fleet/teams), eliminating unnecessary processes and lowering the level of effort for your organization.
+A little insight goes a long way. The right tools will take you even further. Fleet lets you create [policies](https://fleetdm.com/securing/what-are-fleet-policies) that ask questions about your devices — questions you can customize to meet your compliance goals. You can group these custom queries with [fleets](https://fleetdm.com/docs/using-fleet/teams), eliminating unnecessary processes and lowering the level of effort for your organization.
 
 If a device doesn’t comply with one of your policies, [Fleet can automatically create tickets in external systems](https://fleetdm.com/docs/using-fleet/automations#policy-automations) — so employees can fix the problem right away.
 
-Fleet also lets you [assign users different levels of access](https://fleetdm.com/docs/using-fleet/permissions): Observer, Maintainer, and Admin. So, your CISO can create policies and assign them to different teams — preparing technical experts to run queries for up-to-the-minute data on devices. Though that might not be necessary. Fleet policies automatically refresh every hour.
+Fleet also lets you [assign users different levels of access](https://fleetdm.com/docs/using-fleet/permissions): Observer, Maintainer, and Admin. So, your CISO can create policies and assign them to different fleets — preparing technical experts to run queries for up-to-the-minute data on devices. Though that might not be necessary. Fleet policies automatically refresh every hour.
 
-Fleet policies, teams, and permissions empower employees at every level of your organization to share the responsibility of measuring compliance. With more hands on deck, going after your goals will be a breeze.
+Fleet policies, fleets, and permissions empower employees at every level of your organization to share the responsibility of measuring compliance. With more hands on deck, going after your goals will be a breeze.
 
 
 <meta name="category" value="security">
