@@ -240,6 +240,7 @@ const generateColumnConfigs = ({
         <PerformanceImpactCell
           value={{
             indicator: cellProps.cell.value,
+            id: cellProps.row.original.id,
           }}
         />
       ),

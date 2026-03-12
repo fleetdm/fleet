@@ -1,5 +1,9 @@
 import React from "react";
 import classnames from "classnames";
+import { uniqueId } from "lodash";
+
+import ReactTooltip from "react-tooltip";
+import { COLORS } from "styles/var/colors";
 
 import { getPerformanceImpactIndicatorTooltip } from "utilities/helpers";
 import {
@@ -7,14 +11,14 @@ import {
   PerformanceImpactIndicatorValue,
 } from "interfaces/schedulable_query";
 
-import TooltipWrapper from "components/TooltipWrapper";
-
 interface IPerformanceImpactCellValue {
   indicator: string;
+  id?: number;
 }
 interface IPerformanceImpactCellProps {
   value: IPerformanceImpactCellValue;
   isHostSpecific?: boolean;
+  customIdPrefix?: string;
 }
 
 const generateClassTag = (rawValue: string): string => {
@@ -26,8 +30,9 @@ const baseClass = "performance-impact-cell";
 const PerformanceImpactCell = ({
   value,
   isHostSpecific = false,
+  customIdPrefix,
 }: IPerformanceImpactCellProps): JSX.Element => {
-  const { indicator } = value;
+  const { indicator, id } = value;
   const pillClassName = classnames(
     "data-table__pill",
     `data-table__pill--${generateClassTag(indicator || "")}`,
@@ -41,32 +46,36 @@ const PerformanceImpactCell = ({
     "Undetermined",
   ].includes(indicator);
 
+  const tooltipId = uniqueId();
+
   const indicatorValue = isPerformanceImpactIndicator(indicator)
     ? indicator
     : PerformanceImpactIndicatorValue.UNDETERMINED;
 
   return (
     <span className={`${baseClass}`}>
-      <TooltipWrapper
-        showArrow
-        tipContent={
-          <span
-            className={`tooltip ${generateClassTag(
-              indicatorValue || ""
-            )}__tooltip-text`}
-          >
-            {getPerformanceImpactIndicatorTooltip(
-              indicatorValue,
-              isHostSpecific
-            )}
-          </span>
-        }
-        position="top"
-        underline={false}
-        disableTooltip={disableTooltip}
+      <span
+        data-tip
+        data-for={`${customIdPrefix || "pill"}__${id?.toString() || tooltipId}`}
+        data-tip-disable={disableTooltip}
       >
         <span className={pillClassName}>{indicatorValue}</span>
-      </TooltipWrapper>
+      </span>
+      <ReactTooltip
+        place="top"
+        effect="solid"
+        backgroundColor={COLORS["tooltip-bg"]}
+        id={`${customIdPrefix || "pill"}__${id?.toString() || tooltipId}`}
+        data-html
+      >
+        <span
+          className={`tooltip ${generateClassTag(
+            indicatorValue || ""
+          )}__tooltip-text`}
+        >
+          {getPerformanceImpactIndicatorTooltip(indicatorValue, isHostSpecific)}
+        </span>
+      </ReactTooltip>
     </span>
   );
 };
