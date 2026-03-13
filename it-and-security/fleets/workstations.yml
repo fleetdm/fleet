@@ -82,6 +82,7 @@ controls:
         labels_include_any:
           - "Santa test devices"
       - path: ../lib/macos/configuration-profiles/nudge-configuration.mobileconfig
+      - path: ../lib/macos/configuration-profiles/firefox-dns-over-https.mobileconfig
       - path: ../lib/macos/configuration-profiles/microsoft-autoupdate-settings.mobileconfig
         labels_include_any:
           - "Microsoft AutoUpdate installed"
@@ -101,6 +102,7 @@ controls:
       - path: ../lib/windows/configuration-profiles/Disable OneDrive.xml
       - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
       - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
+      - path: ../lib/windows/configuration-profiles/Firefox DNS over HTTPS.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2

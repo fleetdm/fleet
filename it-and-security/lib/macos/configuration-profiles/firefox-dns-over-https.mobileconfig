@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>EnterprisePoliciesEnabled</key>
+			<true/>
+			<key>DNSOverHTTPS</key>
+			<dict>
+				<key>Enabled</key>
+				<true/>
+				<key>Fallback</key>
+				<true/>
+				<key>Locked</key>
+				<true/>
+			</dict>
+			<key>PayloadDisplayName</key>
+			<string>Firefox DNS over HTTPS</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.firefox-doh.org.mozilla.firefox</string>
+			<key>PayloadType</key>
+			<string>org.mozilla.firefox</string>
+			<key>PayloadUUID</key>
+			<string>E74A3D8C-4F92-4B1E-9C6D-3A7F5E8B2D01</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Enforces DNS over HTTPS with fallback enabled in Mozilla Firefox</string>
+	<key>PayloadDisplayName</key>
+	<string>Firefox DNS over HTTPS</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.firefox-doh</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>A2B9C6D4-8E3F-4A71-B5C2-9D0E1F7A3B84</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

@@ -1,0 +1,79 @@
+<Add>
+  <!-- Ingest Firefox ADMX policy definitions for DNS over HTTPS -->
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/Firefox/Policy/FirefoxAdmx</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data><![CDATA[<policyDefinitions revision="1.0" schemaVersion="1.0">
+  <policyNamespaces>
+    <target prefix="Firefox" namespace="Mozilla.Policies.Firefox"/>
+  </policyNamespaces>
+  <resources minRequiredRevision="1.0"/>
+  <categories>
+    <category name="Cat_Firefox" displayName="$(string.Cat_Firefox)"/>
+    <category name="Cat_DNSOverHTTPS" displayName="$(string.Cat_DNSOverHTTPS)">
+      <parentCategory ref="Cat_Firefox"/>
+    </category>
+  </categories>
+  <policies>
+    <policy name="DNSOverHTTPS_Enabled" class="Both" displayName="$(string.DNSOverHTTPS_Enabled)" explainText="$(string.DNSOverHTTPS_Enabled_Explain)" key="Software\Policies\Mozilla\Firefox\DNSOverHTTPS" valueName="Enabled">
+      <parentCategory ref="Cat_DNSOverHTTPS"/>
+      <supportedOn ref="SUPPORTED_FF63"/>
+      <enabledValue><decimal value="1"/></enabledValue>
+      <disabledValue><decimal value="0"/></disabledValue>
+    </policy>
+    <policy name="DNSOverHTTPS_Fallback" class="Both" displayName="$(string.DNSOverHTTPS_Fallback)" explainText="$(string.DNSOverHTTPS_Fallback_Explain)" key="Software\Policies\Mozilla\Firefox\DNSOverHTTPS" valueName="Fallback">
+      <parentCategory ref="Cat_DNSOverHTTPS"/>
+      <supportedOn ref="SUPPORTED_FF124"/>
+      <enabledValue><decimal value="1"/></enabledValue>
+      <disabledValue><decimal value="0"/></disabledValue>
+    </policy>
+    <policy name="DNSOverHTTPS_Locked" class="Both" displayName="$(string.DNSOverHTTPS_Locked)" explainText="$(string.DNSOverHTTPS_Locked_Explain)" key="Software\Policies\Mozilla\Firefox\DNSOverHTTPS" valueName="Locked">
+      <parentCategory ref="Cat_DNSOverHTTPS"/>
+      <supportedOn ref="SUPPORTED_FF63"/>
+      <enabledValue><decimal value="1"/></enabledValue>
+      <disabledValue><decimal value="0"/></disabledValue>
+    </policy>
+  </policies>
+</policyDefinitions>]]></Data>
+  </Item>
+</Add>
+<Replace>
+  <!-- Enable DNS over HTTPS in Firefox -->
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Firefox~Policy~firefox~DNSOverHTTPS/DNSOverHTTPS_Enabled</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data><![CDATA[<enabled/>]]></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Enable fallback to native DNS resolver -->
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Firefox~Policy~firefox~DNSOverHTTPS/DNSOverHTTPS_Fallback</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data><![CDATA[<enabled/>]]></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Lock the DNS over HTTPS setting to prevent user changes -->
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Firefox~Policy~firefox~DNSOverHTTPS/DNSOverHTTPS_Locked</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data><![CDATA[<enabled/>]]></Data>
+  </Item>
+</Replace>
