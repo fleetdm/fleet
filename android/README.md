@@ -511,3 +511,71 @@ SELECT timestamp, level, tag, message FROM android_logcat WHERE level='E' LIMIT 
 | `level` | Log level |
 | `tag` | Log tag |
 | `message` | Log message text |
+
+### Quick start (5 minutes)
+
+Run these commands from `android/`:
+
+```bash
+adb devices
+adb reverse tcp:8080 tcp:8080
+export FLEET_ENROLL_SECRET='YOUR_ENROLL_SECRET'
+FLEET_SERVER_URL='http://127.0.0.1:8080' ./gradlew installDebug
+adb shell pm clear com.fleetdm.agent
+adb shell monkey -p com.fleetdm.agent -c android.intent.category.LAUNCHER 1
+```
+
+### Verify it works
+
+1. Open Fleet UI and check that the Android host appears in **Hosts**.
+2. Run a simple live query:
+
+```sql
+SELECT name, version, platform, security_patch FROM os_version;
+```
+
+3. Confirm logs show successful read/write loop:
+
+```bash
+adb logcat | rg "fleet-ApiClient|fleet-distributed|Successfully enrolled host|distributed/read"
+```
+
+### Architecture at a glance
+
+```text
+Managed config (server_url + enroll_secret + host_uuid)
+  -> AgentApplication refreshes credentials
+  -> ApiClient enrolls via /api/fleet/orbit/enroll (node key persisted)
+  -> DistributedCheckinWorker polls /api/v1/osquery/distributed/read
+  -> OsqueryQueryEngine runs SQL on Android-backed tables
+  -> Results posted to /api/v1/osquery/distributed/write
+```
+
+### Current limitations
+
+- SQL support is intentionally limited (basic `SELECT` + simple `WHERE`).
+- Debug distributed polling interval is currently hardcoded to 15 seconds.
+- Debug builds allow cleartext HTTP for local development; production should use managed secure config.
+
+### Roadmap / next steps
+
+- Make distributed polling interval configurable (managed config or build config).
+- Add explicit platform validation updates for Android query targeting.
+- Add more Android-specific tables and improve schema/docs coverage.
+- Expand integration tests for distributed query loop behavior.
+
+### Troubleshooting by symptom
+
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| Host not appearing in Fleet | Wrong `server_url` or enroll secret | Use `adb reverse`, set `FLEET_SERVER_URL=http://127.0.0.1:8080`, reinstall debug build |
+| `localhost` does not work from phone | Phone resolves localhost to itself | Use `adb reverse tcp:8080 tcp:8080` or LAN IP |
+| Query returns no rows | Unsupported table/columns or no local data | Start with `os_version` and `device_info` queries |
+| No distributed logs | App not started after install/clear | Launch with `adb shell monkey -p com.fleetdm.agent -c android.intent.category.LAUNCHER 1` |
+| Build/install fails | Missing execute bit or SDK/JDK setup | Run `chmod +x ./gradlew` and verify SDK/JDK requirements |
+
+### Security model (summary)
+
+- Enrollment uses managed config (`server_url`, `enroll_secret`, `host_uuid`) or debug fallback in debug builds only.
+- Node key and API credentials are stored encrypted on-device using Android Keystore-backed encryption.
+- Network access is restricted by build type; debug permits local development workflows, while production is expected to use secure managed configuration.
