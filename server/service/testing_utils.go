@@ -1464,7 +1464,10 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 		_, _ = w.Write(state.installerBytes)
 	}))
 
-	maintained_apps.SyncApps(t, ds)
+	// call Refresh directly (instead of SyncApps) since we're using the server above and not the file server
+	// created in SyncApps
+	err := maintained_apps.Refresh(t.Context(), ds, slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
 
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var state *fmaTestState
