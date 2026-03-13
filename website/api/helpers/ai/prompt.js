@@ -144,8 +144,13 @@ Please do not add any text outside of the JSON or wrap it in a code fence.  Neve
     // The response to our prompt might be JSON.
     let parsedPromptResponse;
     if (expectJson) {
+      // If the JSON response is wrapped in a code fence, remove it before trying to parse it.
+      let jsonResponse = rawPromptResponse.trim();
+      if (jsonResponse.startsWith('```')) {
+        jsonResponse = jsonResponse.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+      }
       try {
-        parsedPromptResponse = JSON.parse(rawPromptResponse);
+        parsedPromptResponse = JSON.parse(jsonResponse);
       } catch (err) {
         throw new Error('Expecting JSON result from LLM, but when attemting to JSON.parse(…) it, an error occurred: '+err.stack+'\n P.S. Here is what the LLM returned (and what we were *trying* to parse as valid JSON):'+rawPromptResponse);
       }
