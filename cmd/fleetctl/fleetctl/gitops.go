@@ -489,6 +489,17 @@ func gitopsCommand() *cli.Command {
 					return err
 				}
 
+				// Defer certificate authority processing to after all team configs are processed.
+				// This ensures certificate templates referencing a CA are deleted (by team configs)
+				// before the CA itself is deleted (by the global config).
+				// During dry run, no actual deletions happen, so there's no FK ordering issue
+				// and CAs can be processed inline for validation.
+				var deferredCAs any
+				if isGlobalConfig && !flDryRun {
+					deferredCAs = config.OrgSettings["certificate_authorities"]
+					delete(config.OrgSettings, "certificate_authorities")
+				}
+
 				assumptions, err := fleetClient.DoGitOps(
 					c.Context,
 					config,
@@ -505,6 +516,36 @@ func gitopsCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
+
+				// Schedule CA application as a post-op so it runs after all team configs.
+				// Certificate authority deletions may fail if certificate templates still reference
+				// them, so we defer CA processing until after team configs have cleaned up their
+				// certificate templates.
+				if isGlobalConfig && deferredCAs != nil {
+					config.OrgSettings["certificate_authorities"] = deferredCAs
+					caFilename := flFilename
+					allPostOps = append(allPostOps, func() error {
+						groupedCAs, caErr := fleet.ValidateCertificateAuthoritiesSpec(deferredCAs)
+						if caErr != nil {
+							return fmt.Errorf("invalid certificate_authorities: %w", caErr)
+						}
+						if groupedCAs == nil {
+							return nil
+						}
+						if caErr = fleetClient.ApplyCertificateAuthoritiesSpec(*groupedCAs, fleet.ApplySpecOptions{}); caErr != nil {
+							if caErr.Error() == "missing or invalid license" {
+								return fmt.Errorf(
+									"Couldn't edit %q at \"certificate_authorities\": Missing or invalid license. Certificate authorities are available in Fleet Premium only.",
+									filepath.Base(caFilename),
+								)
+							}
+							return fmt.Errorf("applying certificate authorities: %w", caErr)
+						}
+						logf("[+] applied certificate authorities\n")
+						return nil
+					})
+				}
+
 				if config.TeamName != nil {
 					teamNames = append(teamNames, *config.TeamName)
 				} else {

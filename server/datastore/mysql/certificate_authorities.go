@@ -350,6 +350,11 @@ func batchDeleteCertificateAuthorities(ctx context.Context, tx sqlx.ExtContext, 
 
 	_, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
+		if isMySQLForeignKey(err) {
+			return &fleet.ConflictError{
+				Message: "Couldn't delete certificate authority. Certificate templates still reference it. Please remove the certificate templates first.",
+			}
+		}
 		return ctxerr.Wrap(ctx, err, "deleting certificate authorities")
 	}
 
