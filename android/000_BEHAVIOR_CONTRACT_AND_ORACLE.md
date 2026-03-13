@@ -8,7 +8,7 @@ This document was created by AI, but it was created **after** the implementation
 So this is not the historical authoring order; it is a post-hoc contract/oracle reconstruction for human review and accountability.
 
 ## Compliance statement
-The implementation in this PR was checked against this behavior contract and oracle, and it appears to respect them based on current unit tests and manual validation performed in this branch.  
+The implementation in this PR was checked against this behavior contract and oracle, and it appears to respect them based on current unit tests and manual validation performed by this AI agent in this branch.  
 This is an engineering confidence statement, not a formal proof of correctness.
 
 ## System behavior contract
