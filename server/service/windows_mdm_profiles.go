@@ -149,6 +149,7 @@ var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
 	fleet.FleetVarHostEndUserIDPDepartment,
 	fleet.FleetVarHostEndUserIDPGroups,
 	fleet.FleetVarHostPlatform,
+
 }
 
 func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) ([]string, error) {
@@ -166,12 +167,14 @@ func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInf
 	for _, varName := range foundVars {
 		if !slices.Contains(fleetVarsSupportedInWindowsProfiles, fleet.FleetVarName(varName)) &&
 			!strings.HasPrefix(varName, string(fleet.FleetVarCustomSCEPChallengePrefix)) &&
-			!strings.HasPrefix(varName, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) {
+			!strings.HasPrefix(varName, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) &&
+			!strings.HasPrefix(varName, string(fleet.FleetVarNDESSCEPChallengePrefix)) &&
+			!strings.HasPrefix(varName, string(fleet.FleetVarNDESSCEPProxyURLPrefix)) {
 			return nil, fleet.NewInvalidArgumentError("profile", fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in Windows profiles.", varName))
 		}
 	}
 
-	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs, nil, additionalCustomSCEPValidationForWindowsProfiles, nil, nil)
+	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs, nil, additionalCustomSCEPValidationForWindowsProfiles, additionalNDESValidationForWindowsProfiles, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -179,6 +182,120 @@ func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInf
 	// Do additional validation that both custom SCEP URL and challenge vars are provided and not using different CA names etc.
 
 	return foundVars, nil
+}
+
+// collectAllSyncMLItems returns all CmdItems from a SyncMLCmd, including items from nested
+// commands within Atomic blocks (ReplaceCommands, AddCommands, ExecCommands).
+func collectAllSyncMLItems(cmd *fleet.SyncMLCmd) []fleet.CmdItem {
+	items := cmd.Items
+	for _, nested := range cmd.ReplaceCommands {
+		items = append(items, nested.Items...)
+	}
+	for _, nested := range cmd.AddCommands {
+		items = append(items, nested.Items...)
+	}
+	for _, nested := range cmd.ExecCommands {
+		items = append(items, nested.Items...)
+	}
+	return items
+}
+
+// containsFleetVar checks if s contains the given Fleet variable in either $FLEET_VAR_ or ${FLEET_VAR_} form.
+func containsFleetVar(s string, v fleet.FleetVarName) bool {
+	return strings.Contains(s, v.WithPrefix()) || strings.Contains(s, v.WithBraces())
+}
+
+// isFleetVar checks if s is exactly the given Fleet variable in either $FLEET_VAR_ or ${FLEET_VAR_} form.
+func isFleetVar(s string, v fleet.FleetVarName) bool {
+	return s == v.WithPrefix() || s == v.WithBraces()
+}
+
+// containsFleetVarPrefix checks if s contains any Fleet variable starting with the given prefix
+// in either $FLEET_VAR_ or ${FLEET_VAR_} form.
+func containsFleetVarPrefix(s string, prefix fleet.FleetVarName) bool {
+	return strings.Contains(s, "$FLEET_VAR_"+string(prefix)) || strings.Contains(s, "${FLEET_VAR_"+string(prefix))
+}
+
+func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESVarsFound) error {
+	if ndesVars == nil {
+		return nil
+	}
+
+	var cmdMsg *fleet.SyncMLCmd
+	dec := xml.NewDecoder(bytes.NewReader(bytes.TrimSpace([]byte(contents))))
+	for {
+		if err := dec.Decode(&cmdMsg); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return fmt.Errorf("The payload isn't valid XML: %w", err)
+		}
+		if cmdMsg == nil {
+			break
+		}
+
+		for _, cmd := range collectAllSyncMLItems(cmdMsg) {
+			if cmd.Target == nil {
+				continue
+			}
+
+			dataContent := ""
+			if cmd.Data != nil {
+				dataContent = cmd.Data.Content
+			}
+
+			isChallenge := strings.HasSuffix(*cmd.Target, "/Install/Challenge")
+			isServerURL := strings.HasSuffix(*cmd.Target, "/Install/ServerURL")
+			isSubjectName := strings.HasSuffix(*cmd.Target, "/Install/SubjectName")
+
+			// Verify that each NDES variable appears ONLY in its expected field.
+			// This prevents the one-time challenge or proxy URL from being placed in an unexpected field
+			// where it could be exfiltrated, since variable replacement is a global string substitution.
+			if !isChallenge && containsFleetVarPrefix(dataContent, fleet.FleetVarNDESSCEPChallengePrefix) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf(
+						"NDES SCEP challenge variables must only be in the SCEP certificate's \"Challenge\" field."),
+				}
+			}
+			if !isServerURL && containsFleetVarPrefix(dataContent, fleet.FleetVarNDESSCEPProxyURLPrefix) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf(
+						"NDES SCEP proxy URL variables must only be in the SCEP certificate's \"ServerURL\" field."),
+				}
+			}
+
+			// Variables must not appear in LocURI target paths.
+			if containsFleetVarPrefix(*cmd.Target, fleet.FleetVarNDESSCEPChallengePrefix) ||
+				containsFleetVarPrefix(*cmd.Target, fleet.FleetVarNDESSCEPProxyURLPrefix) {
+				return &fleet.BadRequestError{
+					Message: "NDES Fleet variables must not appear in LocURI target paths.",
+				}
+			}
+
+			// Verify the expected fields contain the correct variables.
+			if isChallenge && !containsFleetVarPrefix(dataContent, fleet.FleetVarNDESSCEPChallengePrefix) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf(
+						"An NDES SCEP challenge variable ($FLEET_VAR_%s<CA_NAME>) must be in the SCEP certificate's \"Challenge\" field.", fleet.FleetVarNDESSCEPChallengePrefix),
+				}
+			}
+			if isServerURL && !containsFleetVarPrefix(dataContent, fleet.FleetVarNDESSCEPProxyURLPrefix) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf(
+						"An NDES SCEP proxy URL variable ($FLEET_VAR_%s<CA_NAME>) must be in the SCEP certificate's \"ServerURL\" field.", fleet.FleetVarNDESSCEPProxyURLPrefix),
+				}
+			}
+			if isSubjectName &&
+				!strings.Contains(dataContent, "OU="+fleet.FleetVarSCEPRenewalID.WithPrefix()) &&
+				!strings.Contains(dataContent, "OU="+fleet.FleetVarSCEPRenewalID.WithBraces()) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf("SubjectName item must contain the %s variable in the OU field", fleet.FleetVarSCEPRenewalID.WithPrefix()),
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func additionalCustomSCEPValidationForWindowsProfiles(contents string, customSCEPVars *CustomSCEPVarsFound) error {
@@ -199,9 +316,7 @@ func additionalCustomSCEPValidationForWindowsProfiles(contents string, customSCE
 			break
 		}
 
-		// cmdMsg represents a top-level command (<Replace>...</Replace>)
-		// so we look through all items, often there is only one item per command.
-		for _, cmd := range cmdMsg.Items {
+		for _, cmd := range collectAllSyncMLItems(cmdMsg) {
 			if cmd.Target == nil {
 				continue
 			}

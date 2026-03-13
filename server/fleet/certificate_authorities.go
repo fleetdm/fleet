@@ -521,6 +521,15 @@ func (g *GroupedCertificateAuthorities) ToCustomSCEPProxyCAMap() map[string]*Cus
 	return customSCEPCAs
 }
 
+// ToNDESSCEPProxyCAMap converts the NDESSCEP slice to a map keyed by CA name
+func (g *GroupedCertificateAuthorities) ToNDESSCEPProxyCAMap() map[string]*NDESSCEPProxyCA {
+	ndesCAs := make(map[string]*NDESSCEPProxyCA, len(g.NDESSCEP))
+	for _, ca := range g.NDESSCEP {
+		ndesCAs[ca.Name] = &ca
+	}
+	return ndesCAs
+}
+
 func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCertificateAuthorities, error) {
 	grouped := &GroupedCertificateAuthorities{
 		DigiCert:        []DigiCertCA{},

@@ -4,12 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
+	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/variables"
 )
 
@@ -37,6 +41,9 @@ type ProfilePreprocessDependencies struct {
 	AppConfig                  *fleet.AppConfig
 	CustomSCEPCAs              map[string]*fleet.CustomSCEPProxyCA
 	ManagedCertificatePayloads *[]*fleet.MDMManagedCertificate
+	NDESCAs                    map[string]*fleet.NDESSCEPProxyCA
+	GetNDESSCEPChallenge       func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error)
+	NDESChallengeErrorToDetail func(err error, caName string) string
 }
 
 type ProfilePreprocessParams struct {
@@ -56,6 +63,8 @@ type ProfilePreprocessParams struct {
 //   - $FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID or ${FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID}: Replaced with the profile UUID for SCEP certificate
 //   - $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME> or ${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>}: Replaced with the challenge for the specified custom SCEP CA
 //   - $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME> or ${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>}: Replaced with the proxy URL for the specified custom SCEP CA
+//   - $FLEET_VAR_NDES_SCEP_CHALLENGE_<CA_NAME> or ${FLEET_VAR_NDES_SCEP_CHALLENGE_<CA_NAME>}: Replaced with the one-time NDES challenge password for the specified NDES CA
+//   - $FLEET_VAR_NDES_SCEP_PROXY_URL_<CA_NAME> or ${FLEET_VAR_NDES_SCEP_PROXY_URL_<CA_NAME>}: Replaced with the Fleet SCEP proxy URL for the specified NDES CA
 //
 // Why we don't use Go templates here:
 //  1. Error handling: Go templates don't provide fine-grained error handling for individual variable
@@ -150,9 +159,38 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 			result = replacedContents
 
 			*deps.ManagedCertificatePayloads = append(*deps.ManagedCertificatePayloads, managedCertificate)
-		}
 
-		// Add other Fleet variables here as they are implemented, identify if it can be skipped for verification.
+		case strings.HasPrefix(fleetVar, string(fleet.FleetVarNDESSCEPChallengePrefix)):
+			caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarNDESSCEPChallengePrefix))
+			ndesConfig, ok := deps.NDESCAs[caName]
+			if !ok || ndesConfig == nil {
+				return profileContents, &MicrosoftProfileProcessingError{
+					message: fmt.Sprintf("NDES CA %q is not configured. Fleet couldn't populate $FLEET_VAR_%s%s.", caName, fleet.FleetVarNDESSCEPChallengePrefix, caName),
+				}
+			}
+			deps.Logger.DebugContext(deps.Context, "fetching NDES challenge", "host_uuid", params.HostUUID, "profile_uuid", params.ProfileUUID, "ca_name", caName)
+			challenge, err := deps.GetNDESSCEPChallenge(deps.Context, *ndesConfig)
+			if err != nil {
+				return profileContents, &MicrosoftProfileProcessingError{message: deps.NDESChallengeErrorToDetail(err, caName)}
+			}
+			payload := &fleet.MDMManagedCertificate{
+				HostUUID:             params.HostUUID,
+				ProfileUUID:          params.ProfileUUID,
+				ChallengeRetrievedAt: ptr.Time(time.Now()),
+				Type:                 fleet.CAConfigNDES,
+				CAName:               caName,
+			}
+			*deps.ManagedCertificatePayloads = append(*deps.ManagedCertificatePayloads, payload)
+			ndesChallengeRegexp := regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s%s)|(\${FLEET_VAR_%[1]s%[2]s})`, fleet.FleetVarNDESSCEPChallengePrefix, caName))
+			result = profiles.ReplaceFleetVariableInXML(ndesChallengeRegexp, result, challenge)
+
+		case strings.HasPrefix(fleetVar, string(fleet.FleetVarNDESSCEPProxyURLPrefix)):
+			caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarNDESSCEPProxyURLPrefix))
+			proxyURL := fmt.Sprintf("%s%s%s", deps.AppConfig.MDMUrl(), profiles.SCEPProxyPath,
+				url.PathEscape(fmt.Sprintf("%s,%s,%s", params.HostUUID, params.ProfileUUID, caName)))
+			ndesProxyURLRegexp := regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s%s)|(\${FLEET_VAR_%[1]s%[2]s})`, fleet.FleetVarNDESSCEPProxyURLPrefix, caName))
+			result = profiles.ReplaceFleetVariableInXML(ndesProxyURLRegexp, result, proxyURL)
+		}
 	}
 
 	return result, nil

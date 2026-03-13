@@ -27,6 +27,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
+	mdmtest "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
@@ -206,6 +207,9 @@ func TestApplyTeamSpecs(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
 
+	// Mock Apple GDMF API (required for validating OS update minimum version settings)
+	mdmtest.StartNewAppleGDMFTestServer(t)
+
 	teamsByName := map[string]*fleet.Team{
 		"team1": {
 			ID:          42,
@@ -321,7 +325,7 @@ spec:
       - secret: AAA
     mdm:
       macos_updates:
-        minimum_version: 12.3.1
+        minimum_version: 14.6.1
         deadline: 2011-03-01
         update_new_hosts: true
 `)
@@ -329,7 +333,7 @@ spec:
 	newAgentOpts := json.RawMessage(`{"config":{"views":{"foo":"bar"}}}`)
 	newMDMSettings := fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("12.3.1"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2011-03-01"),
 			UpdateNewHosts: optjson.SetBool(true),
 		},
@@ -368,7 +372,7 @@ spec:
 	require.Equal(t, "[+] applied 1 fleet\n", RunAppForTest(t, []string{"apply", "-f", filename}))
 	newMDMSettings = fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("12.3.1"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2011-03-01"),
 			UpdateNewHosts: optjson.SetBool(true),
 		},
@@ -398,7 +402,7 @@ spec:
 
 	newMDMSettings = fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("12.3.1"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2011-03-01"),
 			UpdateNewHosts: optjson.SetBool(true),
 		},
@@ -436,13 +440,13 @@ spec:
     name: team1
     mdm:
       macos_updates:
-        minimum_version: 10.10.10
+        minimum_version: 14.6.1
         deadline: 1992-03-01
       ios_updates:
-        minimum_version: 11.11.11
+        minimum_version: 17.6.1
         deadline: 1993-04-02
       ipados_updates:
-        minimum_version: 12.12.12
+        minimum_version: 17.6.1
         deadline: 1994-05-03
     secrets:
       - secret: BBB
@@ -450,15 +454,15 @@ spec:
 
 	newMDMSettings = fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("10.10.10"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
 		IOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("11.11.11"),
+			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("1993-04-02"),
 		},
 		IPadOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("12.12.12"),
+			MinimumVersion: optjson.SetString("17.6.1"),
 			Deadline:       optjson.SetString("1994-05-03"),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -489,7 +493,7 @@ spec:
     name: team1
     mdm:
       macos_updates:
-      macos_settings:
+      apple_settings:
 `)
 
 	require.Equal(t, "[+] applied 1 fleet\n", RunAppForTest(t, []string{"apply", "-f", filename}))
@@ -690,6 +694,9 @@ func TestApplyAppConfig(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
 
+	// Mock Apple GDMF API (required for validating OS update minimum version settings)
+	mdmtest.StartNewAppleGDMFTestServer(t)
+
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return userRoleSpecList, nil
 	}
@@ -776,7 +783,7 @@ spec:
   mdm:
     apple_bm_default_team: "team1"
     macos_updates:
-      minimum_version: 12.1.1
+      minimum_version: 14.6.1
       deadline: 2011-02-01
     windows_updates:
       deadline_days: 5
@@ -787,7 +794,7 @@ spec:
 		DeprecatedAppleBMDefaultTeam: "team1",
 		AppleBMTermsExpired:          false,
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("12.1.1"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
 		},
 		MacOSSetup: fleet.MacOSSetup{
@@ -870,7 +877,7 @@ spec:
 		DeprecatedAppleBMDefaultTeam: "team1",
 		AppleBMTermsExpired:          false,
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("12.1.1"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
 		},
 		MacOSSetup: fleet.MacOSSetup{
@@ -1343,6 +1350,9 @@ func TestApplyAsGitOps(t *testing.T) {
 	// Mock Apple DEP API
 	depStorage := SetupMockDEPStorageAndMockDEPServer(t)
 
+	// Mock Apple GDMF API (required for validating OS update minimum version settings)
+	mdmtest.StartNewAppleGDMFTestServer(t)
+
 	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, "../../../server/service/testdata")
 
 	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
@@ -1541,7 +1551,7 @@ kind: config
 spec:
   mdm:
     macos_updates:
-      minimum_version: 10.10.10
+      minimum_version: 14.6.1
       deadline: 2020-02-02
     windows_updates:
       deadline_days: 1
@@ -1570,7 +1580,7 @@ spec:
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("10.10.10"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2020-02-02"),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -1614,7 +1624,7 @@ spec:
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("10.10.10"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2020-02-02"),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -1641,7 +1651,7 @@ spec:
     mdm:
       enable_disk_encryption: false
       macos_updates:
-        minimum_version: 10.10.10
+        minimum_version: 14.6.1
         deadline: 1992-03-01
       windows_updates:
         deadline_days: 0
@@ -1665,7 +1675,7 @@ spec:
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("10.10.10"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
 		MacOSSetup: fleet.MacOSSetup{
@@ -1708,7 +1718,7 @@ spec:
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("10.10.10"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -1746,7 +1756,7 @@ spec:
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString("10.10.10"),
+			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -2467,7 +2477,7 @@ spec:
 		// appconfig not .json
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", "no_such_file.txt"))
 		_, err = RunAppNoChecks([]string{"apply", "-f", name})
-		require.ErrorContains(t, err, `Couldn’t edit macos_setup_assistant. The file should be a .json file.`)
+		require.ErrorContains(t, err, `Couldn’t edit apple_setup_assistant. The file should be a .json file.`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.SaveAppConfigFuncInvoked)
 
@@ -2488,7 +2498,7 @@ spec:
 		// team not .json
 		name = writeTmpYml(t, fmt.Sprintf(team1Spec, "", "no_such_file.txt"))
 		_, err = RunAppNoChecks([]string{"apply", "-f", name})
-		require.ErrorContains(t, err, `Couldn’t edit macos_setup_assistant. The file should be a .json file.`)
+		require.ErrorContains(t, err, `Couldn’t edit apple_setup_assistant. The file should be a .json file.`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.SaveTeamFuncInvoked)
 
@@ -2666,8 +2676,8 @@ spec:
 			expectedErr error
 		}{
 			{"signed.pkg", nil},
-			{"unsigned.pkg", errors.New("applying fleet config: Couldn’t edit bootstrap_package. The bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/learn-more-about/setup-experience/bootstrap-package")},
-			{"invalid.tar.gz", errors.New("applying fleet config: Couldn’t edit bootstrap_package. The file must be a package (.pkg).")},
+			{"unsigned.pkg", errors.New("applying fleet config: Couldn’t edit macos_bootstrap_package. The macos_bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/learn-more-about/setup-experience/bootstrap-package")},
+			{"invalid.tar.gz", errors.New("applying fleet config: Couldn’t edit macos_bootstrap_package. The file must be a package (.pkg).")},
 			{"wrong-toc.pkg", errors.New("applying fleet config: checking package signature: decompressing TOC: unexpected EOF")},
 		}
 
@@ -3457,7 +3467,7 @@ spec:
         minimum_version: "12.2"
         deadline: "1892-01-01T00:00:00Z"
 `,
-			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
+			wantErr: fmt.Sprintf(`422 Validation Failed: %s`, fleet.AppleOSVersionDeadlineInvalidMessage),
 		},
 		{
 			desc: "macos_updates.deadline with invalid date",
@@ -3472,7 +3482,7 @@ spec:
         minimum_version: "12.2"
         deadline: "18-01-01"
 `,
-			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
+			wantErr: fmt.Sprintf(`422 Validation Failed: %s`, fleet.AppleOSVersionDeadlineInvalidMessage),
 		},
 		{
 			desc: "macos_updates.deadline with incomplete date",
@@ -3487,7 +3497,7 @@ spec:
         minimum_version: "12.2"
         deadline: "2022-01"
 `,
-			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
+			wantErr: fmt.Sprintf(`422 Validation Failed: %s`, fleet.AppleOSVersionDeadlineInvalidMessage),
 		},
 		{
 			desc: "windows_updates.deadline_days but grace period empty",
@@ -3782,7 +3792,7 @@ spec:
       minimum_version: "12.2"
       deadline: "1892-01-01T00:00:00Z"
 `,
-			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
+			wantErr: fmt.Sprintf(`422 Validation Failed: %s`, fleet.AppleOSVersionDeadlineInvalidMessage),
 		},
 		{
 			desc: "app config macos_updates.deadline with invalid date",
@@ -3795,7 +3805,7 @@ spec:
       minimum_version: "12.2"
       deadline: "18-01-01"
 `,
-			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
+			wantErr: fmt.Sprintf(`422 Validation Failed: %s`, fleet.AppleOSVersionDeadlineInvalidMessage),
 		},
 		{
 			desc: "app config macos_updates.deadline with incomplete date",
@@ -3808,7 +3818,7 @@ spec:
       minimum_version: "12.2"
       deadline: "2022-01"
 `,
-			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
+			wantErr: fmt.Sprintf(`422 Validation Failed: %s`, fleet.AppleOSVersionDeadlineInvalidMessage),
 		},
 		{
 			desc: "app config windows_updates.deadline_days but grace period empty",
@@ -4002,7 +4012,7 @@ spec:
       macos_settings:
         enable_disk_encryption: true
 `,
-			wantErr: `Couldn't update macos_settings because MDM features aren't turned on in Fleet.`,
+			wantErr: `Couldn't update apple_settings because MDM features aren't turned on in Fleet.`,
 		},
 		{
 			desc: "team config macos_settings.enable_disk_encryption false",

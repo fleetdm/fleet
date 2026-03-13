@@ -19,7 +19,7 @@ const globalPoliciesHandler = http.get(baseUrl("/policies"), () => {
   });
 });
 
-const teamPoliciesHandler = http.get(baseUrl("/teams/2/policies"), () => {
+const teamPoliciesHandler = http.get(baseUrl("/fleets/2/policies"), () => {
   return HttpResponse.json({
     policies: [
       createMockPolicy({ id: 4, team_id: 2, name: "Team policy 1" }),
