@@ -92,7 +92,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 <!-- Consider: Do the steps above apply to all global access roles, including admin, maintainer, observer, observer+, and GitOps?  Do the steps above apply to all fleet-level access roles?  If not, write the steps used to test each variation.
 -->
 - [ ] Verify role restrictions are applied correctly for **global roles**
-- [ ] Verify role restrictions are applied correctly for **team-level roles**
+- [ ] Verify role restrictions are applied correctly for **fleet-level roles**
 
 #### Edge cases
 
