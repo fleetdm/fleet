@@ -1,8 +1,7 @@
 import React from "react";
-import { uniqueId } from "lodash";
-import ReactTooltip from "react-tooltip";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipWrapper from "components/TooltipWrapper";
 import { ISoftwareVulnerability } from "interfaces/software";
 
 const NUM_VULNERABILITIES_IN_TOOLTIP = 3;
@@ -57,36 +56,23 @@ const condenseVulnerabilities = (
     : condensed;
 };
 
-const generateTooltip = (
+const generateTooltipContent = (
   vulnerabilities: ISoftwareVulnerability[] | string[],
-  tooltipId: string,
   totalCount?: number
 ) => {
-  const count = totalCount ?? vulnerabilities.length;
-  if (count <= 1) {
-    return null;
-  }
-
   const condensedVulnerabilities = condenseVulnerabilities(
     vulnerabilities,
     totalCount
   );
 
   return (
-    <ReactTooltip
-      effect="solid"
-      backgroundColor="#3e4771"
-      id={tooltipId}
-      data-html
-    >
-      <ul className={`${baseClass}__vulnerability-list`}>
-        {condensedVulnerabilities.map((vulnerability) => {
-          const key =
-            typeof vulnerability === "string" ? vulnerability : uniqueId();
-          return <li key={key}>{vulnerability}</li>;
-        })}
-      </ul>
-    </ReactTooltip>
+    <ul className={`${baseClass}__vulnerability-list`}>
+      {condensedVulnerabilities.map((vulnerability, index) => (
+        // allow index in key as vulnerablity is not certain to be unique
+        // eslint-disable-next-line react/no-array-index-key
+        <li key={`vulnerability-${index}`}>{vulnerability}</li>
+      ))}
+    </ul>
   );
 };
 interface IVulnerabilitiesCellProps {
@@ -98,8 +84,6 @@ const VulnerabilitiesCell = ({
   vulnerabilities,
   vulnerabilitiesCount,
 }: IVulnerabilitiesCellProps) => {
-  const tooltipId = uniqueId();
-
   // only one vulnerability, no need for tooltip
   const cell = generateCell(vulnerabilities, vulnerabilitiesCount);
   const count = vulnerabilitiesCount ?? vulnerabilities?.length ?? 0;
@@ -107,23 +91,15 @@ const VulnerabilitiesCell = ({
     return <>{cell}</>;
   }
 
-  const vulnerabilityTooltip = generateTooltip(
-    vulnerabilities,
-    tooltipId,
-    vulnerabilitiesCount
-  );
-
   return (
-    <>
-      <div
-        className={`${baseClass}__vulnerability-text-with-tooltip`}
-        data-tip
-        data-for={tooltipId}
-      >
-        {cell}
-      </div>
-      {vulnerabilityTooltip}
-    </>
+    <TooltipWrapper
+      showArrow
+      tipContent={generateTooltipContent(vulnerabilities, vulnerabilitiesCount)}
+      underline={false}
+      className={`${baseClass}__vulnerability-text-with-tooltip`}
+    >
+      {cell}
+    </TooltipWrapper>
   );
 };
 
