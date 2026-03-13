@@ -1,0 +1,11 @@
+- name: macOS - Gatekeeper enabled (ISO 27001)
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+  critical: false
+  description: >-
+    Verifies that macOS Gatekeeper is enabled to ensure only trusted software runs.
+    ISO 27001 control A.12.2 requires protection against malware.
+  resolution: >-
+    Gatekeeper should be automatically enforced by the Fleet configuration profile.
+    If you are failing this policy, try restarting your Mac and clicking Refetch in Fleet Desktop.
+    If the issue persists, contact IT support via #help-dogfooding in Slack.
+  platform: darwin

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>iOS Restrictions</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.iso27001.ios-restrictions</string>
+			<key>PayloadType</key>
+			<string>com.apple.applicationaccess</string>
+			<key>PayloadUUID</key>
+			<string>C1D2E3F4-A5B6-7890-CDEF-123456789ABC</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>forceEncryptedBackup</key>
+			<true/>
+			<key>allowUSBRestrictedMode</key>
+			<true/>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Enforces iOS security restrictions for ISO 27001 compliance. Requires encrypted backups and enforces USB restricted mode.</string>
+	<key>PayloadDisplayName</key>
+	<string>ISO 27001 iOS restrictions</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.iso27001.ios-restrictions.profile</string>
+	<key>PayloadOrganization</key>
+	<string>Fleet</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>D2E3F4A5-B6C7-8901-DEFA-23456789ABCD</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

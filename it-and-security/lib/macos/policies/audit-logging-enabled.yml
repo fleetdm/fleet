@@ -1,0 +1,12 @@
+- name: macOS - Audit logging enabled (ISO 27001)
+  query: SELECT 1 FROM processes WHERE name = 'auditd' AND state != 'Z';
+  critical: false
+  description: >-
+    Verifies that the macOS audit daemon (auditd) is running. ISO 27001 control A.12.4
+    requires that audit logs are maintained to record user activities, exceptions, faults,
+    and information security events.
+  resolution: >-
+    The macOS audit daemon should be running by default. If it is not running, contact
+    IT support via #help-dogfooding in Slack. The audit daemon can be started with
+    'sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.auditd.plist'.
+  platform: darwin

@@ -23,6 +23,11 @@ controls:
       - path: ../lib/ios/declaration-profiles/Passcode settings.json
       - path: ../lib/ios/declaration-profiles/Software Update settings.json
       - path: ../lib/ios/configuration-profiles/self-service.mobileconfig
+      - path: ../lib/ios/configuration-profiles/restrictions.mobileconfig
+      - path: ../lib/ipados/configuration-profiles/restrictions.mobileconfig
+      - path: ../lib/ipados/declaration-profiles/Passcode settings.json
+      - path: ../lib/ipados/declaration-profiles/Software Update settings.json
+      - path: ../lib/ipados/configuration-profiles/lock-screen-message.mobileconfig
   macos_setup:
     enable_end_user_authentication: true
   scripts:

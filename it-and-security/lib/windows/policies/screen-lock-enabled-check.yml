@@ -1,0 +1,20 @@
+- name: Windows - Screen lock enabled (ISO 27001)
+  query: |
+    SELECT 1 FROM registry
+    WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Power\PowerSettings\3C0BC021-C8A8-4E07-A973-6B14CBCB2B7E\ACSettingIndex'
+    AND CAST(data AS INTEGER) <= 900
+    UNION
+    SELECT 1 FROM registry
+    WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\InactivityTimeoutSecs'
+    AND CAST(data AS INTEGER) <= 900;
+  critical: false
+  description: >-
+    Verifies that Windows screen lock is configured to activate after no more than
+    15 minutes of inactivity. ISO 27001 control A.11.2.8 requires that unattended
+    equipment has appropriate protection.
+  resolution: >-
+    The screen lock timeout should be automatically enforced by the Fleet MDM configuration
+    profile. If you are failing this policy, try restarting your device and clicking
+    Refetch in Fleet Desktop. If the issue persists, contact IT support via
+    #help-dogfooding in Slack.
+  platform: windows

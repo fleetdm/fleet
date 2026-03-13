@@ -1,0 +1,23 @@
+- name: Windows - Firewall enabled (ISO 27001)
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM windows_firewall_rules
+      WHERE enabled = 0
+      AND direction = 'In'
+      LIMIT 1
+    )
+    AND EXISTS (
+      SELECT 1 FROM registry
+      WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\DomainProfile\EnableFirewall'
+      AND CAST(data AS INTEGER) = 1
+    );
+  critical: false
+  description: >-
+    Verifies that the Windows Firewall is enabled on all network profiles.
+    ISO 27001 control A.13.1 requires network security controls.
+  resolution: >-
+    The Windows firewall should be automatically enforced by the Fleet MDM configuration
+    profile. If you are failing this policy, try restarting your device and clicking
+    Refetch in Fleet Desktop. If the issue persists, contact IT support via
+    #help-dogfooding in Slack.
+  platform: windows
