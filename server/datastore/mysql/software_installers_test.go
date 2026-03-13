@@ -4267,6 +4267,7 @@ func testAddSoftwareTitleToMatchingSoftware(t *testing.T, ds *Datastore) {
 		UUID:          uuid.NewString(),
 		Platform:      "ios",
 	})
+	require.NoError(t, err)
 	software2 := []fleet.Software{
 		{Name: "iOS Title", Version: "1.0", Source: "ios_apps", BundleIdentifier: "com.foo"},
 	}
