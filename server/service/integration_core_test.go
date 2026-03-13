@@ -8059,7 +8059,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 			"mdm": { "macos_settings": { "custom_settings": ["foo", "bar"] } }
 	  }`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
+	assert.Contains(t, errMsg, "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
 
 	// test setting the default app config we use for new installs (this check
 	// ensures that the default config passes the validation)

@@ -790,7 +790,7 @@ type SoftwarePackageSpec struct {
 
 	// ReferencedYamlPath is the resolved path of the file used to fill the
 	// software package. Only present after parsing a GitOps file on the fleetctl
-	// side of processing. This is required to match a macos_setup.software to
+	// side of processing. This is required to match a setup_experience.software to
 	// its corresponding software package, as we do this matching by yaml path.
 	//
 	// It must be JSON-marshaled because it gets set during gitops file processing,

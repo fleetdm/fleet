@@ -563,7 +563,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	}
 	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
+	require.Contains(t, errMsg, "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
 
 	// dry-run with macos disk encryption set to false, no error
 	teamSpecs = map[string]any{
@@ -597,7 +597,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	}
 	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
+	require.Contains(t, errMsg, "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
 
 	// dry-run with macos enable release device set to false, no error
 	teamSpecs = map[string]any{
@@ -631,7 +631,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	}
 	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't update macos_setup because MDM features aren't turned on in Fleet.")
+	require.Contains(t, errMsg, "Couldn't update setup_experience because MDM features aren't turned on in Fleet.")
 
 	// dry-run with invalid host_expiry_settings.host_expiry_window
 	teamSpecs = map[string]any{
@@ -1765,7 +1765,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 		},
 	}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, `Couldn't update macos_settings because MDM features aren't turned on in Fleet.`)
+	assert.Contains(t, errMsg, `Couldn't update apple_settings because MDM features aren't turned on in Fleet.`)
 
 	// modify a team with a NULL config
 	defaultFeatures := fleet.Features{}
@@ -5793,7 +5793,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 		"mdm": { "macos_setup": { "enable_release_device_manually": true } }
 	}`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Couldn't update macos_setup because MDM features aren't turned on in Fleet.`)
+	require.Contains(t, errMsg, `Couldn't update setup_experience because MDM features aren't turned on in Fleet.`)
 
 	// setting end-user auth does NOT require MDM
 	s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableEndUserAuthentication: ptr.Bool(false)}, http.StatusNoContent)
