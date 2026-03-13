@@ -26,7 +26,7 @@ APNs is the operational backbone of on-demand Apple device management.
 
 Communication between an MDM server and an Apple device follows a three-phase pattern, with APNs sitting in the middle as a relay rather than a command transport layer. With a clear view of each phase, you can usually narrow failures down to push delivery, device check-in, or token and certificate issues.
 
-When your MDM server has something for a device to do (like installing a new configuration profile, updating device information or executing a command) it doesn't deliver the payload directly. APNs sends the device a “wake-up signal” \- a notification letting it know to check in (think of it as a note that says “call your mom”.) The device then connects to your MDM server and receives whatever is queued.
+When your MDM server has something for a device to do (like installing a new configuration profile, updating device information or executing a command) it doesn't deliver the payload directly. APNs sends the device a “wake-up signal” - a notification letting it know to check in (think of it as a note that says “call your mom”.) The device then connects to your MDM server and receives whatever is queued.
 
 This separation is deliberate and has security benefits. No sensitive data touches APNs: your configuration profiles, settings, and commands travel over a separate encrypted connection directly between the device and your MDM server. Apple also builds interception detection into the APNs connection. If a TLS inspection appliance or similar tool tries to decrypt that traffic, the device treats the connection as compromised and refuses it. Apple's [Platform Deployment Guide](https://support.apple.com/guide/deployment/welcome/web) covers the full technical details.
 
