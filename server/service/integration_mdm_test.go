@@ -12303,6 +12303,27 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	require.NoError(t, err)
 	require.Len(t, assoc, 1)
 
+	// Add a label
+	clr := createLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+		LabelPayload: fleet.LabelPayload{
+			Name:  "label1" + t.Name(),
+			Query: "SELECT 1;",
+		},
+	}, http.StatusOK, &clr)
+
+	label1 := clr.Label
+
+	clr = createLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+		LabelPayload: fleet.LabelPayload{
+			Name:  "label2" + t.Name(),
+			Query: "SELECT 2;",
+		},
+	}, http.StatusOK, &clr)
+
+	label2 := clr.Label
+
 	// Associating two apps we own
 	beforeAssociation := time.Now()
 	s.DoJSON("POST",
@@ -12310,7 +12331,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		batchAssociateAppStoreAppsRequest{
 			Apps: []fleet.VPPBatchPayload{
 				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID},
-				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, SelfService: true, Categories: []string{"Browsers"}, LabelsIncludeAll: []string{"label1"}},
+				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, SelfService: true, Categories: []string{"Browsers"}, LabelsIncludeAll: []string{label1.Name, label2.Name}},
 			},
 		}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name,
 	)
@@ -12332,6 +12353,11 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 			var getSWTitle getSoftwareTitleResponse
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", st.ID), nil, http.StatusOK, &getSWTitle, "team_id", fmt.Sprint(tmGood.ID))
 			s.Assert().ElementsMatch([]string{"Browsers"}, getSWTitle.SoftwareTitle.AppStoreApp.Categories)
+			var labelNames []string
+			for _, l := range getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAll {
+				labelNames = append(labelNames, l.LabelName)
+			}
+			s.Assert().ElementsMatch([]string{label1.Name, label2.Name}, labelNames)
 		}
 	}
 
