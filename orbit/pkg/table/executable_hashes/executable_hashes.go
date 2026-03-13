@@ -148,12 +148,53 @@ func getExecutablePath(ctx context.Context, path string) string {
 	}
 
 	// The macOS `defaults read` command encodes supplementary Unicode characters (such as emoji) as
-	// \uXXXX escape sequences using UTF-16 surrogate pairs. Decode them via JSON, which natively
-	// handles surrogate pairs, so the resulting path matches the real filesystem path.
-	var decoded string
-	if err := json.Unmarshal([]byte(`"`+executableName+`"`), &decoded); err == nil {
-		executableName = decoded
-	}
+	// \uXXXX escape sequences using UTF-16 surrogate pairs.
+	executableName = decodeDefaultsUnicodeEscapes(executableName)
 
 	return filepath.Join(path, "/Contents/MacOS/", executableName)
+}
+
+// decodeDefaultsUnicodeEscapes decodes \uXXXX escape sequences (including UTF-16 surrogate pairs)
+// while preserving any other literal backslashes in the string.
+func decodeDefaultsUnicodeEscapes(s string) string {
+	if !strings.Contains(s, `\u`) {
+		return s
+	}
+
+	// Build a valid JSON string where only \uXXXX sequences are left as JSON escapes;
+	// all other backslashes and double-quotes are escaped so the subsequent json.Unmarshal won't interpret them.
+	var buf strings.Builder
+	buf.Grow(len(s) + 2)
+	buf.WriteByte('"')
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+5 < len(s) && s[i+1] == 'u' && startsWithHex4(s[i+2:i+6]) {
+			buf.WriteString(s[i : i+6])
+			i += 5
+		} else if s[i] == '\\' || s[i] == '"' {
+			buf.WriteByte('\\')
+			buf.WriteByte(s[i])
+		} else {
+			buf.WriteByte(s[i])
+		}
+	}
+	buf.WriteByte('"')
+
+	var decoded string
+	if err := json.Unmarshal([]byte(buf.String()), &decoded); err == nil {
+		return decoded
+	}
+	return s
+}
+
+// startsWithHex4 reports whether s starts with at least 4 hexadecimal characters.
+func startsWithHex4(s string) bool {
+	if len(s) < 4 {
+		return false
+	}
+	for _, c := range s[:4] {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return false
+		}
+	}
+	return true
 }
