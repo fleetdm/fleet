@@ -29,6 +29,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-01-03 15:15:53
 
+### [CVE-2025-68121](https://nvd.nist.gov/vuln/detail/CVE-2025-68121)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Fleet does not mutate CA pool store between TLS sessions.
+- **Products:**: `fleet`,`pkg:golang/stdlib`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-03-13 13:23:41
+
 ### [CVE-2025-61729](https://nvd.nist.gov/vuln/detail/CVE-2025-61729)
 #### Statement:
 - **Author:** @lucasmrod
