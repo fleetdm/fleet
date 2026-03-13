@@ -200,7 +200,7 @@ For this to work correctly make sure that:
 Users created via JIT provisioning can be assigned Fleet roles using SAML custom attributes that are sent by the IdP in `SAMLResponse`s during login.
 Fleet will attempt to parse SAML custom attributes with the following format:
 - `FLEET_JIT_USER_ROLE_GLOBAL`: Specifies the global role to use when creating the user.
-- `FLEET_JIT_USER_ROLE_FLEET_<FLEET_ID>`: Specifies fleet role for fleet with ID `<FLEET_ID>` to use when creating the user.
+- `FLEET_JIT_USER_ROLE_FLEET_<FLEET_ID>`: Specifies fleet-level role for fleet with ID `<FLEET_ID>` to use when creating the user.
 
 Currently supported values for the above attributes are: `admin`, `maintainer`, `observer`, `observer_plus` and `null`.
 A role attribute with value `null` will be ignored by Fleet. (This is to support limitations on some IdPs which do not allow you to choose what keys are sent to Fleet when creating a new user.)
