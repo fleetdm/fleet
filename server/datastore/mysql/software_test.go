@@ -7983,26 +7983,28 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 		label4, err := ds.NewLabel(ctx, &fleet.Label{Name: "label4" + t.Name()})
 		require.NoError(t, err)
 
-		fmt.Printf("label4.ID: %v\n", label4.ID)
-		fmt.Printf("installerID1: %v\n", installerID1)
-
 		err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID1, fleet.LabelIdentsWithScope{
 			LabelScope: fleet.LabelScopeIncludeAll,
 			ByName:     map[string]fleet.LabelIdent{label1.Name: {LabelName: label1.Name, LabelID: label1.ID}, label4.Name: {LabelName: label4.Name, LabelID: label4.ID}},
 		}, softwareTypeInstaller)
 		require.NoError(t, err)
 
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			DumpTable(t, q, "software_installer_labels")
-			return nil
-		})
-
 		software, _, err = ds.ListHostSoftware(ctx, hostIncludeAll, opts)
-		for _, s := range software {
-			fmt.Printf("s.Name: %v\n", s.Name)
-		}
 		require.NoError(t, err)
+
+		// software should be file2, file3, file5
 		checkSoftware(software, installer1.Filename, installer4.Filename)
+
+		// set labels on the host
+		require.NoError(t, ds.AddLabelsToHost(ctx, hostIncludeAll.ID, []uint{label1.ID, label4.ID}))
+		host.LabelUpdatedAt = time.Now()
+		err = ds.UpdateHost(ctx, hostIncludeAll)
+		require.NoError(t, err)
+		time.Sleep(time.Second)
+
+		// software should be file1, file2, file3, file5
+		checkSoftware(software, installer4.Filename)
+
 	})
 
 }
