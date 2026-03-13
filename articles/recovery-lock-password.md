@@ -141,7 +141,6 @@ Turn off the setting using the same path as enabling (UI, fleetctl, or API). Fle
 - **Password format**: 6 groups of 4 alphanumeric characters separated by dashes (e.g., `A3B7-C9D2-E5F8-G4H6-J2K9-L7M3`). Characters that look similar (0/O, 1/I/l) are excluded for readability.
 - **Encryption**: Passwords are encrypted with AES-256 using the server's private key before storage. They are never stored in plaintext.
 - **Secret injection**: Passwords are injected into MDM commands at delivery time using placeholder expansion, so plaintext passwords never appear in the command queue.
-- **Automatic retry**: If the device reports a password mismatch error, Fleet automatically regenerates and resends the password.
 - **Activities**: Fleet logs activities when a password is set, rotated, or viewed, and when the
   feature is enabled or disabled for a fleet. These appear on the host's activity timeline and in the global
   activity feed.
