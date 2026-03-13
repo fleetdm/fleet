@@ -518,7 +518,7 @@ Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confid
 
 ### Send Primo CRO weekly export
 
-Every Friday, the Head of GTM Architecture will send an export/email to Primo's CRO with a list of non-ICP contact form visitors.
+Every Friday, the Head of GTM Architecture will send an export/email to Primo's CRO with a list of [non-ICP contact form visitors](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000004GF2P2AW/view).
 
 1. Export a list of non-ICP contact form visitors from the CRM.
 2. Email the export to Primo's CRO.
