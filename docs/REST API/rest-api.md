@@ -602,6 +602,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 - [Delete certificate authority (CA)](#delete-certificate-authority-ca)
 - [Delete certificate template](#delete-certificate-template)
 - [Request certificate](#request-certificate)
+- [Resend host's certificate](#resend-hosts-certificate)
 
 ### Connect certificate authority (CA)
 
@@ -768,6 +769,7 @@ Add a certificate template to deploy a certificate to all hosts on the team. Fle
   "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
 }
 ```
+
 
 ### Update certificate authority (CA)
 
@@ -1163,6 +1165,27 @@ Signature-Input: sig1=("@method" "@authority" "@path" "@query" \"content-digest"
   "certificate": "-----BEGIN CERTIFICATE-----\nMIIC5DCCAcwCCQChs1cFRAzRCTANBgkqhkiG9w0BAQsFADA0MTIwMAYDVQQDDClD\ndXN0b21lclVzZXJOZXR3b3JrQWNjZXNzOmJvYkBleGFtcGxlLmNvbTAeFw0yNTA5\nMDgxODM0MzNaFw0yODA2MDUxODM0MzNaMDQxMjAwBgNVBAMMKUN1c3RvbWVyVXNl\nck5ldHdvcmtBY2Nlc3M6Ym9iQGV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEF\nAAOCAQ8AMIIBCgKCAQEAuojcu8UBxTjpz5krPX4KmWNAmWvJ4U7yh8pGXOp6kngz\n1iRmGkBYdr0CQXlkrASejqglbdDfaRt3hz8S4raIlKyiU59gFK6f2Lory54ndzJw\nhVeNGqpLrnW1T763zvjcSKaASfVzdnsa66v6pZQte2fZAk7+q5o9ezyirSQmTuks\ndxXAZ5OiDafFwzXlanGZIvCsHBTJtbi881/QU701aTdFFrxLd+jsiaFhKSoQQcL5\nt0zu96cPS2dJivxpaogZ1f8dispWeRiMbt3njaxfWazm4RqvwvDouTSstqUxTzC8\n28Kbh7bnxPcSiuajnf35q53juhTLmB2CKEf0m1eqEwIDAQABMA0GCSqGSIb3DQEB\nCwUAA4IBAQCp75tK8cxR6A0Sfu3vg7TMPD3MkGrpdgh2giAVoCa4hOxOdHl/nYgu\nfPHodsRUfXi1SXo/77jLldGOLE6Ro447FMgrN94mRkaFUZbuLC5z2VciF9x1fdus\nIFfASIFnb4Zw24F2RDBbbGqXqRrA/1m1fWjHTb20+8rHeZW+FCJmxQrL27OG7n/n\nqDr8QmfNwTm8l72FBvUIz1xisuba5nXNAEc6rxTFw6WhPq5fgtBlVZCm55h87hHd\nQbzDGlkIXf+nypg9kwk3fDQ7VY9hrqc74wAefbIkvUSTk9rNaoncxI5Mod/imyan\ngCioUdMGd7M/dpEDDXKJNyI6lfscpG1D\n-----END CERTIFICATE-----\n"
 }
 ```
+
+### Resend host's certificate
+
+Resends a certificate for the specified host. Currently, only Android certificates are supported.
+
+`POST /api/v1/fleet/hosts/:id/certificates/:certificate_template_id/resend`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The host's ID. |
+| certificate_template_id   | string | path | **Required.** The ID of the certificate to resend to the host. |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/233/certificates/322/resend`
+
+##### Default response
+
+`Status: 202`
 
 ---
 
