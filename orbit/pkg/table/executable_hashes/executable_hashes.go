@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -144,6 +145,14 @@ func getExecutablePath(ctx context.Context, path string) string {
 	executableName := strings.TrimSpace(string(output))
 	if executableName == "" {
 		return ""
+	}
+
+	// The macOS `defaults read` command encodes supplementary Unicode characters (such as emoji) as
+	// \uXXXX escape sequences using UTF-16 surrogate pairs. Decode them via JSON, which natively
+	// handles surrogate pairs, so the resulting path matches the real filesystem path.
+	var decoded string
+	if err := json.Unmarshal([]byte(`"`+executableName+`"`), &decoded); err == nil {
+		executableName = decoded
 	}
 
 	return filepath.Join(path, "/Contents/MacOS/", executableName)
