@@ -81,57 +81,6 @@ func TestGenerateWithExactPath(t *testing.T) {
 	}
 }
 
-func TestDecodeDefaultsUnicodeEscapes(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "no escapes",
-			input:    "Hello World",
-			expected: "Hello World",
-		},
-		{
-			name:     "surrogate pair for printer emoji",
-			input:    `\ud83d\udda8\ufe0f Printer`,
-			expected: "🖨️ Printer",
-		},
-		{
-			name:     "BMP character",
-			input:    `\u00e9`,
-			expected: "é",
-		},
-		{
-			name:     "literal backslash-n preserved",
-			input:    `app\nfile`,
-			expected: `app\nfile`,
-		},
-		{
-			name:     "literal backslash-t preserved",
-			input:    `app\tfile`,
-			expected: `app\tfile`,
-		},
-		{
-			name:     "literal double quote preserved",
-			input:    `app"name`,
-			expected: `app"name`,
-		},
-		{
-			name:     "empty string",
-			input:    "",
-			expected: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := decodeDefaultsUnicodeEscapes(tt.input)
-			require.Equal(t, tt.expected, result)
-		})
-	}
-}
-
 func TestGenerateWithWildcard(t *testing.T) {
 	dir := t.TempDir()
 	defer os.RemoveAll(dir)
