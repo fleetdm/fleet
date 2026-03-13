@@ -7491,6 +7491,33 @@ func testCleanupPolicyMembershipCrashRecovery(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, pol.ID))
 		assert.Zero(t, count, "all policy_membership rows must be cleaned up by the cron safety net")
 	})
+
+	t.Run("cron clears flag when cleanup already completed", func(t *testing.T) {
+		// Simulates: the transaction committed (flag=1), cleanupPolicy ran and
+		// removed all membership rows, but the server crashed before executing
+		// UPDATE policies SET needs_full_membership_cleanup = 0.
+		// The cron must handle this gracefully (no-op cleanup) and clear the flag.
+		pol := newTestPolicy(t, ds, user1, "flag-only recovery policy", "", nil)
+
+		// No membership rows exist — simulating that cleanup already removed them.
+		var count int
+		require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, pol.ID))
+		require.Zero(t, count, "precondition: no membership rows")
+
+		// Set the flag to simulate the crash window between cleanup and flag clear.
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE policies SET needs_full_membership_cleanup = 1 WHERE id = ?`, pol.ID)
+		require.NoError(t, err)
+
+		// CleanupPolicyMembership (cron) should handle this without errors.
+		require.NoError(t, ds.CleanupPolicyMembership(ctx, time.Now()))
+
+		// Flag must be cleared.
+		var flagVal int
+		require.NoError(t, ds.writer(ctx).Get(&flagVal,
+			`SELECT needs_full_membership_cleanup FROM policies WHERE id = ?`, pol.ID))
+		assert.Zero(t, flagVal, "flag must be cleared even when no membership rows remain")
+	})
 }
 
 func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
