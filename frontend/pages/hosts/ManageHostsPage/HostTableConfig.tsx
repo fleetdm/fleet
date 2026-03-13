@@ -3,7 +3,6 @@
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
 import { CellProps, Column } from "react-table";
-import ReactTooltip from "react-tooltip";
 
 import { IDeviceUser, IHost } from "interfaces/host";
 import {
@@ -34,7 +33,6 @@ import {
   hostTeamName,
   tooltipTextWithLineBreaks,
 } from "utilities/helpers";
-import { COLORS } from "styles/var/colors";
 import {
   IHeaderProps,
   IStringCellProps,
@@ -131,28 +129,22 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
         !cellProps.row.original.osquery_version
       ) {
         return (
-          <>
-            <span
-              className="text-cell"
-              data-tip
-              data-for={`host__${cellProps.row.original.id}`}
-            >
-              {cellProps.cell.value}
-            </span>
-            <ReactTooltip
-              effect="solid"
-              backgroundColor={COLORS["tooltip-bg"]}
-              id={`host__${cellProps.row.original.id}`}
-              data-html
-            >
-              <span className={`tooltip__tooltip-text`}>
+          <TooltipWrapper
+            className="text-cell"
+            underline={false}
+            showArrow
+            position="top"
+            tipContent={
+              <span className="tooltip__tooltip-text">
                 This host was ordered using <br />
                 Apple Business Manager <br />
                 (ABM). You will see host <br />
-                vitals when it is enrolled in Fleet. <br />
+                vitals when it is enrolled in Fleet.
               </span>
-            </ReactTooltip>
-          </>
+            }
+          >
+            {cellProps.cell.value}
+          </TooltipWrapper>
         );
       }
       return (
