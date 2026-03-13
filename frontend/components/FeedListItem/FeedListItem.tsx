@@ -1,15 +1,14 @@
 import React, { ReactNode } from "react";
-import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
-import { noop, uniqueId } from "lodash";
+import { noop } from "lodash";
 
-import { COLORS } from "styles/var/colors";
 import { dateAgo } from "utilities/date_format";
 import { internationalTimeFormat } from "utilities/helpers";
 
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "feed-list-item";
 
@@ -47,8 +46,6 @@ const FeedListItem = ({
     [`${baseClass}__no-details`]: !allowShowDetails,
   });
 
-  const tooltipId = uniqueId();
-
   return (
     <div className={classNames}>
       <div className={`${baseClass}__avatar-wrapper`}>
@@ -73,24 +70,19 @@ const FeedListItem = ({
             <span>{children}</span>
           </span>
           <br />
-          <span
-            className={`${baseClass}__details-bottomline`}
-            data-tip
-            data-for={tooltipId}
-          >
-            {createdAt && dateAgo(createdAt)}
-          </span>
-          {createdAt && (
-            <ReactTooltip
-              className="date-tooltip"
-              place="top"
-              type="dark"
-              effect="solid"
-              id={tooltipId}
-              backgroundColor={COLORS["tooltip-bg"]}
+          {createdAt ? (
+            <TooltipWrapper
+              showArrow
+              tipContent={internationalTimeFormat(createdAt)}
+              position="top"
+              tooltipClass="date-tooltip"
+              className={`${baseClass}__details-bottomline`}
+              underline={false}
             >
-              {internationalTimeFormat(createdAt)}
-            </ReactTooltip>
+              {dateAgo(createdAt)}
+            </TooltipWrapper>
+          ) : (
+            <span className={`${baseClass}__details-bottomline`} />
           )}
         </div>
         <div className={`${baseClass}__details-actions`}>
