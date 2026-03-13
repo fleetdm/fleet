@@ -76,6 +76,34 @@ object ApiClient : CertificateApiClient {
 
     private val enrollmentMutex = Mutex()
 
+    private fun shouldRequireHttps(): Boolean = !BuildConfig.DEBUG && !KeystoreManager.isTestModeEnabled()
+
+    internal fun validateBaseUrl(baseUrl: String, requireHttps: Boolean): Result<String> {
+        return try {
+            val parsedUrl = URL(baseUrl)
+            if (parsedUrl.protocol !in listOf("https", "http")) {
+                return Result.failure(Exception("Base URL must use HTTP or HTTPS scheme"))
+            }
+            if (requireHttps && parsedUrl.protocol != "https") {
+                return Result.failure(Exception("Base URL must use HTTPS in non-debug builds"))
+            }
+            if (parsedUrl.userInfo != null) {
+                return Result.failure(Exception("Base URL must not include user info"))
+            }
+            if (parsedUrl.path.isNotEmpty() && parsedUrl.path != "/") {
+                return Result.failure(Exception("Base URL must not include a path"))
+            }
+            if (!parsedUrl.query.isNullOrEmpty() || !parsedUrl.ref.isNullOrEmpty()) {
+                return Result.failure(Exception("Base URL must not include query or fragment"))
+            }
+
+            val normalized = "${parsedUrl.protocol}://${parsedUrl.authority}".trimEnd('/')
+            Result.success(normalized)
+        } catch (e: Exception) {
+            Result.failure(Exception("Invalid base URL format: ${e.message}"))
+        }
+    }
+
     fun initialize(context: Context) {
         Log.d(TAG, "initializing api client")
         if (!::dataStore.isInitialized) {
@@ -166,27 +194,10 @@ object ApiClient : CertificateApiClient {
                 Exception("Base URL not configured"),
             )
 
-            // Validate base URL format and scheme
-            try {
-                val parsedUrl = URL(baseUrl)
-                if (parsedUrl.protocol !in listOf("https", "http")) {
-                    return@withContext Result.failure(
-                        Exception("Base URL must use HTTP or HTTPS scheme"),
-                    )
-                }
+            val normalizedBaseUrl = validateBaseUrl(baseUrl, requireHttps = shouldRequireHttps())
+                .getOrElse { error -> return@withContext Result.failure(error) }
 
-                if (!BuildConfig.DEBUG && parsedUrl.protocol != "https") {
-                    return@withContext Result.failure(
-                        Exception("Base URL must use HTTPS in non-debug builds"),
-                    )
-                }
-            } catch (e: Exception) {
-                return@withContext Result.failure(
-                    Exception("Invalid base URL format: ${e.message}"),
-                )
-            }
-
-            val url = URL("$baseUrl$endpoint")
+            val url = URL("$normalizedBaseUrl$endpoint")
             connection = url.openConnection() as HttpURLConnection
 
             connection.apply {
@@ -194,7 +205,12 @@ object ApiClient : CertificateApiClient {
                 useCaches = false
                 doInput = true
                 setRequestProperty("Content-Type", "application/json")
-                setRequestProperty("X-Fleet-Device-Id", DeviceIdManager.getOrCreateDeviceId())
+                val deviceId = runCatching { DeviceIdManager.getOrCreateDeviceId() }
+                    .onFailure { FleetLog.e(TAG, "Failed to retrieve device id: ${it.message}") }
+                    .getOrNull()
+                if (!deviceId.isNullOrBlank()) {
+                    setRequestProperty("X-Fleet-Device-Id", deviceId)
+                }
                 if (authorized) {
                     getNodeKeyOrEnroll().fold(
                         onFailure = { throwable -> return@withContext Result.failure(throwable) },
@@ -310,6 +326,20 @@ object ApiClient : CertificateApiClient {
 
     suspend fun setEnrollmentCredentials(enrollSecret: String, hardwareUUID: String, computerName: String, serverUrl: String) {
         dataStore.edit { preferences ->
+            val currentEnrollSecret = preferences[ENROLL_SECRET]
+            val currentHardwareUUID = preferences[HARDWARE_UUID]
+            val currentServerUrl = preferences[SERVER_URL_KEY]
+
+            val identityChanged = currentEnrollSecret != null &&
+                (currentEnrollSecret != enrollSecret ||
+                    currentHardwareUUID != hardwareUUID ||
+                    currentServerUrl != serverUrl)
+
+            if (identityChanged) {
+                preferences.remove(API_KEY)
+                Log.i(TAG, "Enrollment identity changed, cleared stored node key")
+            }
+
             preferences[ENROLL_SECRET] = enrollSecret
             preferences[HARDWARE_UUID] = hardwareUUID
             preferences[COMPUTER_NAME] = computerName
