@@ -302,3 +302,9 @@ The goal is to make Android hosts first-class query targets with osquery-style t
 The app reads `server_url`, `enroll_secret`, and `host_uuid` from Android managed configuration.  
 It enrolls with Fleet Orbit and stores the node key securely on device for future API calls.  
 In debug builds, if managed configuration is missing, it can fall back to debug-provided server URL and enroll secret.
+
+### Query polling cadence
+
+For distributed queries, the app checks in with Fleet on a loop using WorkManager.  
+In the current implementation, the debug polling interval is hardcoded to **15 seconds** in `DistributedCheckinWorker`.  
+This interval is **not configurable yet**; making it configurable (for example via managed config or a build setting) is a good next step.
