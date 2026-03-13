@@ -14,9 +14,9 @@ interface ICreateTeamScheduledQueryFormData {
   logging_type: string;
   name?: string;
   platform: string;
-  report_id: number;
+  report_id?: number;
   shard: number;
-  fleet_id: number;
+  fleet_id?: number;
   version: string;
 }
 
@@ -28,10 +28,10 @@ export default {
       interval,
       logging_type: loggingType,
       platform,
-      report_id: reportID,
+      report_id: queryID,
       shard,
       version,
-      fleet_id: fleetID,
+      fleet_id: teamID,
     } = formData;
 
     if (fleetID <= API_NO_TEAM_ID) {
@@ -48,12 +48,12 @@ export default {
     const params = {
       interval: Number(interval),
       platform,
-      report_id: reportID,
+      report_id: Number(queryID),
       removed,
       snapshot,
       shard: Number(shard),
       version,
-      fleet_id: fleetID,
+      fleet_id: Number(teamID),
     };
 
     return sendRequest("POST", TEAM_SCHEDULE(fleetID), params);

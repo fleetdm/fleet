@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/version"
@@ -1484,6 +1485,15 @@ func (svc *Service) validateMDM(
 	}
 	if err := mdm.IPadOSUpdates.Validate(); err != nil {
 		invalid.Append("ipados_updates", err.Error())
+	}
+
+	// Always check whether specified versions are supported by Apple (even if they weren't updated)
+	// Note that we're validating against the full, non-public asset set of OS versions here because
+	// in our DEP flow the minimum version just acts as the threshold for whether or not to update
+	// the host to the latest, public version. We don't need to install the specified version on the
+	// host during DEP so it doesn't need to be in the public asset set.
+	for k, v := range apple_mdm.ValidateMDMSettingsAppleSupportedOSVersion(*mdm, false) {
+		invalid.Append(k, v.Error())
 	}
 
 	if err := mdm.MacOSSetup.Validate(); err != nil {
