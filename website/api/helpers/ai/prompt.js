@@ -79,7 +79,7 @@ Please do not add any text outside of the JSON or wrap it in a code fence.  Neve
 
       let requestData = {
         model: baseModel,
-        max_tokens: 4096,
+        max_tokens: 4096,// eslint-disable-line camelcase
         messages: [
           { role: 'user', content: prompt+(expectJson? JSON_PROMPT_SUFFIX : '') }
         ]
