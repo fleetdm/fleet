@@ -7,6 +7,7 @@ import { REC_LOCK_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { NotificationContext } from "context/notification";
 import { IHostMdmProfile } from "interfaces/mdm";
+import { getErrorReason } from "interfaces/errors";
 
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import Button from "components/buttons/Button";
@@ -302,10 +303,11 @@ const OSSettingsErrorCell = ({
         "Successfully sent request to rotate Recovery Lock password."
       );
     } catch (e) {
-      renderFlash(
-        "error",
-        "Couldn't send request to rotate Recovery Lock password. Please try again."
-      );
+      const msg = getErrorReason(e).includes("already in progress")
+        ? "Recovery lock password rotation is already in progress for this host."
+        : "Couldn't send request to rotate Recovery Lock password. Please try again.";
+
+      renderFlash("error", msg);
     }
     setIsRotating(false);
   };
