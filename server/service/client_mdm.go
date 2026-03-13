@@ -20,6 +20,7 @@ import (
 	"github.com/beevik/etree"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/google/uuid"
 	"howett.net/plist"
 )
@@ -269,7 +270,15 @@ func (c *Client) uploadMacOSSetupAssistant(data []byte, teamID *uint, name strin
 		Name:              name,
 		EnrollmentProfile: json.RawMessage(data),
 	}
-	return c.authenticatedRequest(request, verb, path, nil)
+	body, err := json.Marshal(request)
+	if err != nil {
+		return err
+	}
+	body, err = endpointer.RewriteOldToNewKeys(body, endpointer.ExtractAliasRules(request))
+	if err != nil {
+		return err
+	}
+	return c.authenticatedRequest(body, verb, path, nil)
 }
 
 func (c *Client) deleteMacOSSetupAssistant(teamID *uint) error {
