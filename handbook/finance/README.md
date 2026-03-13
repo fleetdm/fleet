@@ -518,10 +518,10 @@ Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confid
 
 ### Send Primo CRO weekly export
 
-Every Friday, send an export/email to Primo's CRO (olivier.nairey@getprimo.com) with a list of contact form visitors who are less than 700 employees. This is in addition to warm-intro's by the support team for any actual inbound requests that are not Fleet ICP.
+Every Friday, send an export/email to Primo's CRO with a list of non-ICP contact form visitors.
 
-1. Export a list of contact form visitors from the CRM who have less than 700 employees.
-2. Send the export via email to olivier.nairey@getprimo.com.
+1. Export a list of non-ICP contact form visitors from the CRM.
+2. Email the export to Primo's CRO.
 
 
 ### Grant role-specific license to a team member

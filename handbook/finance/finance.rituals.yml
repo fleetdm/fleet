@@ -187,7 +187,7 @@
 - task: "Send Primo CRO weekly export"
   startedOn: "2026-03-13"
   frequency: "Weekly"
-  description: "Every Friday, send an export/email to Primo's CRO (olivier.nairey@getprimo.com) with a list of contact form visitors who are less than 700 employees. This is in addition to warm-intro's by the support team for any actual inbound requests that are not Fleet ICP."
+  description: "Every Friday, send an export/email to Primo's CRO with a list of non-ICP contact form visitors."
   moreInfoUrl: "https://fleetdm.com/handbook/finance#send-primo-cro-weekly-export"
   dri: "sampfluger88"
   autoIssue:
