@@ -30,7 +30,7 @@ const baseClass = "passwords";
 
 const RECOVERY_LOCK_TOOLTIP_CONTENT = (
   <>
-    Configure and escrow macOS Recovery Lock passwords. These restrict access to
+    Configure and set macOS Recovery Lock passwords. These restrict access to
     recoveryOS and are securely stored for authorized admin retrieval.{" "}
     <CustomLink
       text="Learn more"
