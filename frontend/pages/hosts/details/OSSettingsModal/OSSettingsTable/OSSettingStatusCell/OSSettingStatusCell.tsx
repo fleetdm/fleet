@@ -1,11 +1,10 @@
 import React from "react";
-import ReactTooltip from "react-tooltip";
-import { uniqueId } from "lodash";
 
 import { REC_LOCK_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
 
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   LinuxDiskEncryptionStatus,
@@ -13,7 +12,6 @@ import {
   ProfilePlatform,
   RecoveryLockPasswordStatus,
 } from "interfaces/mdm";
-import { COLORS } from "styles/var/colors";
 
 import { OsSettingsTableStatusValue } from "../OSSettingsTableConfig";
 import TooltipContent from "./components/Tooltip/TooltipContent";
@@ -122,27 +120,14 @@ const OSSettingStatusCell = ({
 
   if (displayOption) {
     const { statusText, iconName, tooltip } = displayOption;
-    const tooltipId = uniqueId();
     return (
       <span className={baseClass}>
         <Icon name={iconName} />
         {tooltip ? (
-          <>
-            <span
-              className={`${baseClass}__status-text`}
-              data-tip
-              data-for={tooltipId}
-              data-tip-disable={false}
-            >
-              {statusText}
-            </span>
-            <ReactTooltip
-              place="top"
-              effect="solid"
-              backgroundColor={COLORS["tooltip-bg"]}
-              id={tooltipId}
-              data-html
-            >
+          <TooltipWrapper
+            showArrow
+            className={`${baseClass}__status-text`}
+            tipContent={
               <span className="tooltip__tooltip-text">
                 {status !== "action_required" ? (
                   <TooltipContent
@@ -160,8 +145,12 @@ const OSSettingStatusCell = ({
                   />
                 )}
               </span>
-            </ReactTooltip>
-          </>
+            }
+            position="top"
+            underline={false}
+          >
+            {statusText}
+          </TooltipWrapper>
         ) : (
           <span className={`${baseClass}__status-text`}>{statusText}</span>
         )}
