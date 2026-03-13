@@ -109,9 +109,7 @@ const RecoveryLockPasswordModal = ({
     >
       {isLoading && <Spinner />}
       {recoveryLockPasswordError ? (
-        <DataError
-          description={getErrorReason(recoveryLockPasswordError) || undefined}
-        />
+        <DataError />
       ) : (
         !isLoading && (
           <>
