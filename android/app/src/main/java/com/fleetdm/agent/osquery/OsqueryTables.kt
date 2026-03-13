@@ -12,6 +12,8 @@ import com.fleetdm.agent.osquery.tables.BatteryTable
 import com.fleetdm.agent.osquery.tables.WifiNetworksTable
 import com.fleetdm.agent.osquery.tables.SystemPropertiesTable
 import com.fleetdm.agent.osquery.tables.AndroidLogcatTable
+import com.fleetdm.agent.osquery.tables.TimeTable
+import com.fleetdm.agent.osquery.tables.UptimeTable
 
 
 
@@ -28,7 +30,8 @@ object OsqueryTables {
         TableRegistry.register(WifiNetworksTable(context))
         TableRegistry.register(SystemPropertiesTable())
         TableRegistry.register(AndroidLogcatTable(context))
+        TableRegistry.register(TimeTable())
+        TableRegistry.register(UptimeTable())
 
     }
 }
-

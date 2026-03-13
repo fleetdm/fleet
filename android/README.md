@@ -324,6 +324,8 @@ This interval is **not configurable yet**; making it configurable (for example v
 | `wifi_networks` | Wi-Fi connection/network details | `SELECT ssid, bssid, rssi, is_connected FROM wifi_networks;` |
 | `system_properties` | Android system property key/value pairs | `SELECT key, value FROM system_properties LIMIT 50;` |
 | `android_logcat` | Recent logcat entries | `SELECT timestamp, level, tag, message FROM android_logcat LIMIT 100;` |
+| `time` | Current local time/timezone snapshot | `SELECT weekday, hour, minutes, local_timezone, unix_time FROM time;` |
+| `uptime` | Device uptime duration snapshot | `SELECT days, hours, minutes, seconds, total_seconds FROM uptime;` |
 
 ### Quick start (5 minutes)
 
