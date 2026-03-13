@@ -63,7 +63,7 @@ object FleetDistributedQueryRunner {
                 handled++
             } catch (e: Exception) {
                 val msg = e.message ?: e.javaClass.simpleName
-                Log.w(tag, "Query failed: $qName sql=$sql err=$msg")
+                Log.w(tag, "Query failed: $qName err=$msg")
 
                 if (clearUnknownQueries) {
                     resultsToWrite[qName] = emptyList()

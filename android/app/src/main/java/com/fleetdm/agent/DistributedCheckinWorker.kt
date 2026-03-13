@@ -28,8 +28,8 @@ class DistributedCheckinWorker(
                     Log.d(TAG, "Distributed check-in: received ${queries.size} query(ies)")
 
                     // 1) Log received queries
-                    queries.forEach { (name, sql) ->
-                        Log.i(TAG, "Distributed query [$name]:\n$sql")
+                    queries.forEach { (name, _) ->
+                        Log.i(TAG, "Distributed query [$name] received")
                     }
 
                     // 2) Execute what we can, and write results back

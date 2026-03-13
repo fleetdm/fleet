@@ -27,9 +27,8 @@ object OsqueryTables {
         TableRegistry.register(BatteryTable(context))
         TableRegistry.register(WifiNetworksTable(context))
         TableRegistry.register(SystemPropertiesTable())
-        TableRegistry.register(AndroidLogcatTable())
+        TableRegistry.register(AndroidLogcatTable(context))
 
     }
 }
-
 

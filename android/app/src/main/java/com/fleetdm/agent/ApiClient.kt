@@ -174,6 +174,12 @@ object ApiClient : CertificateApiClient {
                         Exception("Base URL must use HTTP or HTTPS scheme"),
                     )
                 }
+
+                if (!BuildConfig.DEBUG && parsedUrl.protocol != "https") {
+                    return@withContext Result.failure(
+                        Exception("Base URL must use HTTPS in non-debug builds"),
+                    )
+                }
             } catch (e: Exception) {
                 return@withContext Result.failure(
                     Exception("Invalid base URL format: ${e.message}"),
