@@ -1229,7 +1229,8 @@ module.exports.routes = {
   'GET /learn-more-about/startup-security-macos': 'https://support.apple.com/guide/deployment/startup-security-dep5810e849c',
   'GET /learn-more-about/unlock-ios-ipados': 'https://fleetdm.com/guides/lock-wipe-hosts#how-to-unlock-offline-ios-and-ipados-hosts',
   'GET /learn-more-about/certificates': '/guides/connect-end-user-to-wifi-with-certificate',
-    // Sitemap
+   
+  // Sitemap
   // =============================================================================================================
   // This is for search engines, not humans.  Search engines know to visit fleetdm.com/sitemap.xml to download this
   // XML file, which helps search engines know which pages are available on the website.
