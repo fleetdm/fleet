@@ -493,7 +493,7 @@ spec:
     name: team1
     mdm:
       macos_updates:
-      macos_settings:
+      apple_settings:
 `)
 
 	require.Equal(t, "[+] applied 1 fleet\n", RunAppForTest(t, []string{"apply", "-f", filename}))
