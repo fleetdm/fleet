@@ -74,7 +74,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 - TODO
 
 #### UI
-- [ ] Verify that all UI changes specified in the Figma design are correctly implemented
+- [ ] Verify that all UI changes specified in the Figma wireframes are correctly implemented
 - [ ] Verify expected UI states (loading, empty, error states if applicable)
 
 #### API
