@@ -21,7 +21,7 @@ If you don't use MDM features, to enable scripts, we'll [deploy Fleet's agent (f
 
 If you already deployed fleetd, instead of re-deploying it, you can update fleetd's configuration remotely to enable scripts. This requires a third-party tool (ex. [Chef](https://www.chef.io/)), other than Fleet, that can run scripts. 
 
-Using your separate third-party tool, run the enable scripts script for [macOS](https://github.com/fleetdm/fleet/blob/main/assets/scripts/enable-scripts-macos.sh), [Windows](https://github.com/fleetdm/fleet/blob/main/assets/windows/scripts/enable-scripts-windows.ps1), or [Linux](https://github.com/fleetdm/fleet/blob/main/assets/scripts/enable-scripts-linux.sh).
+Using your separate third-party tool, run the enable scripts script for [macOS](https://github.com/fleetdm/fleet/blob/main/assets/scripts/enable-scripts-macos.sh), [Windows](https://github.com/fleetdm/fleet/blob/main/assets/scripts/enable-scripts-windows.ps1), or [Linux](https://github.com/fleetdm/fleet/blob/main/assets/scripts/enable-scripts-linux.sh).
 
 ## Manually run scripts
 
@@ -41,7 +41,7 @@ Fleet UI (multiple hosts):
 
 1. In Fleet, head to the **Controls > Scripts** tab and upload your script.
 
-2. Head to the **Hosts** page. If you're on Fleet Premium, select a team (or "no team").
+2. Head to the **Hosts** page. If you're on Fleet Premium, select a fleet (or "Unassigned").
 
 3. Click the checkbox next to one or more hosts you want to run the script on.
 
@@ -71,7 +71,7 @@ You can execute a script on a large number of hosts at the same time using the F
 
 Fleet UI:
 
-1. In Fleet, go to the **Hosts** page, and select a team.
+1. In Fleet, go to the **Hosts** page, and select a fleet.
 
 2. Select the hosts that you want to run the script on.
 

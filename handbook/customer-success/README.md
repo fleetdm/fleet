@@ -7,7 +7,6 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                                  | Contributor(s)           |
 |:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Chief Customer Officer                   | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
 | SVP of Customer Success                | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
 | VP of Security Solutions              | [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv/) _([@karmine05](https://github.com/karmine05))_
 | Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_ <br> [Jorge Falcon](https://www.linkedin.com/in/falcon-jorge/) _([@BCTBB](https://github.com/bctbb))_
@@ -211,6 +210,14 @@ During the window of time available to investigate an issue, use the resources a
 
 Note: For non-CSA engaged customer requests, CSE's are responsible for escalations to a CSA as needed. 
 
+### Report an incident
+
+Review the [criteria](https://fleetdm.com/handbook/product-groups#high-priority-user-stories-and-bugs) to determine the priority level of the issue.
+
+If it qualifies as a P0, follow the response instructions to initiate our incident response process by creating an [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md). Creating the issue triggers incident.io to notify the incident on-call engineer 24/7/365.
+
+For P1 and lower issues, contact the on-call engineer via `@oncall` in `#help-engineering`. Responses to on-call will be addressed during business hours.
+
 ### Contact the developer on-call
 
 The acting developer on-call rotation is reflected in the [📈KPIs spreadsheet (confidential Google sheet)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0&range=F2 ). The developer on-call is responsible for responses to technical Slack comments, Slack threads, and GitHub issues raised by customers and the community, which the CSE team cannot address.
@@ -291,11 +298,11 @@ All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1. W
 
 ### Communicate feedback on prioritized customer requests
 
-When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Product Designer (PD) files a user story that's brought through [drafting](https://fleetdm.com/handbook/product-design#drafting).
+When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Product Designer (PD) brings one or more user stories through [drafting](https://fleetdm.com/handbook/product-design#drafting).
 
-After the user story is released, the PD will ask the appropriate Customer Success Manager (CSM) to bring the released improvements to the customer for feedback. When this happens, PD assigns the CSM and adds the `:help-customers` label.
+After the user stories are released and the relevant Customer Solutions Architect (CSA) confirms that the request is fulfilled during [confirm and celebrate](https://fleetdm.com/handbook/product-design#confirm-and-celebrate), it's up to the Customer Success Manager (CSM) to inform the customer and close the issue.
 
-If the improvements meet the customer's needs, the request issue is closed with a comment that @ mentions the PD. If the improvements are missing something in order to meet the customer's needs, the CSM adds feedback as comment (Gong snippet, Slack thread, or meetings notes), @ mention the PD, and unsassign themselves from the request issue.
+If we learn the improvements are missing something in order to meet the customer's needs, the CSM re-opens the issue, adds feedback in a comment (Gong snippet, Slack thread, or meetings notes), and @ mentions the HPD.
 
 ### Manage DNS records
 
@@ -333,7 +340,7 @@ When a user requests that we delete all data we have stored about them, their da
 
 ### Create a task for a CSA
 
-If assistance is needed for research or solutioning by a CSA, create an issue using the [CSA task template](github.com/fleetdm/fleet/issues/new?template=csa-task.md) for tracking.
+If assistance is needed for research or solutioning by a CSA, create an issue using the [CSA task template](https://github.com/fleetdm/fleet/issues/new?template=csa-task.md) for tracking.
 
 **Ensure all private data is scrubbed and customer code names are used.**
 

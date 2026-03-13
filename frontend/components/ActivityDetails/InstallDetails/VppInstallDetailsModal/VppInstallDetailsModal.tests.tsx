@@ -233,7 +233,8 @@ describe("getStatusMessage helper function", () => {
         hostDisplayName: "Marko's MacBook Pro",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
         platform: "darwin",
-        hasInstalledVersions: true,
+        canOverrideFailureWithInstalled: true,
+        hasInstalledVersionsOnHost: true,
       })
     );
 
@@ -254,7 +255,8 @@ describe("getStatusMessage helper function", () => {
         hostDisplayName: "Marko's iPhone",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
         platform: "ios",
-        hasInstalledVersions: true,
+        canOverrideFailureWithInstalled: true,
+        hasInstalledVersionsOnHost: true,
       })
     );
 
@@ -275,7 +277,8 @@ describe("getStatusMessage helper function", () => {
         hostDisplayName: "Marko's iPad",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
         platform: "ipados",
-        hasInstalledVersions: true,
+        canOverrideFailureWithInstalled: true,
+        hasInstalledVersionsOnHost: true,
       })
     );
 
@@ -296,7 +299,8 @@ describe("getStatusMessage helper function", () => {
         hostDisplayName: "Marko's MacBook Pro",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
         platform: "darwin",
-        hasInstalledVersions: true,
+        canOverrideFailureWithInstalled: true,
+        hasInstalledVersionsOnHost: true,
       })
     );
 

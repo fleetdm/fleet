@@ -525,6 +525,7 @@ module.exports.routes = {
     action: 'microsoft-proxy/view-remediate',
     locals: {
       showConfigurationProfileLayout: true,
+      disableAnalyticsScriptsAndIndexing: true,
     }
   },
 
@@ -532,6 +533,7 @@ module.exports.routes = {
     action: 'microsoft-proxy/view-turn-on-mdm',
     locals: {
       showConfigurationProfileLayout: true,
+      disableAnalyticsScriptsAndIndexing: true,
     }
   },
 
@@ -546,6 +548,7 @@ module.exports.routes = {
     action: 'view-okta-conditional-access-error',
     locals: {
       showConfigurationProfileLayout: true,
+      disableAnalyticsScriptsAndIndexing: true,
     }
   },
 
@@ -577,12 +580,41 @@ module.exports.routes = {
     action: 'landing-pages/view-basic-comparison'
   },
 
-  'GET /fleet-gitops': {
-    action: 'view-fleet-gitops',
+  'GET /infrastructure-as-code': {
+    action: 'view-infrastructure-as-code',
     locals: {
-      pageTitleForMeta: 'Fleet GitOps',
-      pageDescriptionForMeta: 'See every change, undo any error, repeat every success. Fleet and GitOps work together to optimize your endpoint management strategy.',
+      pageTitleForMeta: 'Infrastructure as code',
+      pageDescriptionForMeta: 'See every change, undo any error, repeat every success. Fleet\'s infrastructure as code approach lets you manage every endpoint setting in version-controlled YAML.',
       currentSection: 'platform',
+    }
+  },
+
+  'GET /deployment': {
+    action: 'landing-pages/view-deployment',
+    locals: {
+      pageTitleForMeta: 'Deploy Fleet anywhere',
+      pageDescriptionForMeta: 'Run Fleet on-premise, in your private cloud (AWS, Azure, GCP), or air-gapped environments. Or let us handle it with Fleet Cloud. The only MDM with zero infrastructure lock-in.',
+      currentSection: 'platform'
+    }
+  },
+
+  'GET /linux-management': {
+    action: 'landing-pages/view-linux-management',
+    locals: {
+      pageTitleForMeta: 'Linux device management',
+      pageDescriptionForMeta: 'Manage Linux devices with full visibility and control. Automate patching, monitor compliance, and unify Linux, macOS, and Windows in one place.',
+      currentSection: 'platform',
+    }
+  },
+
+  'GET /whitepapers/:slug': {
+    action: 'articles/view-basic-whitepaper'
+  },
+
+  'GET /whitepapers': {
+    action: 'articles/view-articles',
+    locals: {
+      currentSection: 'more',
     }
   },
 
@@ -756,7 +788,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/fleet-desktop': (req, res) => { return res.redirect(301, '/guides/fleet-desktop'); },
   'GET /docs/using-fleet/enroll-hosts': (req, res) => { return res.redirect(301, '/guides/enroll-hosts'); },
   'GET /docs/using-fleet/manage-access': (req, res) => { return res.redirect(301, '/guides/role-based-access'); },
-  'GET /docs/using-fleet/segment-hosts': (req, res) => { return res.redirect(301, '/guides/teams'); },
+  'GET /docs/using-fleet/segment-hosts': (req, res) => { return res.redirect(301, '/guides/fleets'); },
   'GET /docs/using-fleet/supported-browsers': (req, res) => { return res.redirect(301, '/docs/get-started/faq'); },
   'GET /docs/using-fleet/supported-host-operating-systems': (req, res) => { return res.redirect(301, '/docs/get-started/faq'); },
   'GET /docs/using-fleet/gitops': (req, res) => { return res.redirect(301, '/docs/configuration/yaml-files'); },
@@ -872,6 +904,32 @@ module.exports.routes = {
   'GET /guides/macos-mdm-setup': '/guides/apple-mdm-setup',
   'GET /guides/macos-setup-experience': '/guides/setup-experience',
   'GET /guides/install-vpp-apps-on-macos-using-fleet': '/guides/install-app-store-apps',
+  'GET /announcements/scaling-agritech-with-lake-to-plate-visibility': '/case-study/agritech-producer',
+  'GET /announcements/enterprise-AI-security-company': '/case-study/ai-security-company',
+  'GET /announcements/banking-as-a-service-platform': '/case-study/banking-platform',
+  'GET /announcements/cannabis-technology-company': '/case-study/cannabis-technology-company',
+  'GET /announcements/communications-services-sector-scaling-cross-platform-device-management-with-fleet': '/case-study/communications-platform',
+  'GET /announcements/financial-services-platform': '/case-study/financial-services-platform',
+  'GET /announcements/financial-technology-company': '/case-study/financial-technology-company',
+  'GET /announcements/gaming-technology-company': '/case-study/gaming-technology-company',
+  'GET /announcements/global-social-media-platform-switches-to-fleet': '/case-study/global-social-media-platform',
+  'GET /announcements/global-workforce-management-company-achieves-compliance-and-clarity-with-fleet': '/case-study/global-workforce-management-company',
+  'GET /announcements/healthcare.technology.organization': '/case-study/healthcare-technology-organization',
+  'GET /announcements/interactive-entertainment-company-adopts-fleet-for-mdm': '/case-study/interactive-entertainment-company',
+  'GET /announcements/all-in-one-it-platform-provider': '/case-study/it-platform-provider',
+  'GET /announcements/scaling-IT-as-a-service-with-GitOps-first-management': '/case-study/it-service-provider',
+  'GET /announcements/independent-journalism-nonprofit': '/case-study/journalism-nonprofit',
+  'GET /announcements/open-source-software-organization': '/case-study/open-source-organization',
+  'GET /announcements/robotics-company': '/case-study/robotics-company',
+  'GET /announcements/modular-workspace-software-company': '/case-study/workspace-software-company',
+  'GET /announcements/worldwide-security-and-authentication-platform-chooses-fleet-for-linux': '/case-study/worldwide-security-and-authentication-platform',
+  'GET /announcements/fintech-company-migrates-to-fleet': '/case-study/financial-services-company',
+  'GET /announcements/vehicle-manufacturer-transitions-to-fleet-for-endpoint-security': '/case-study/electric-vehicle-manufacturer',
+  'GET /announcements/cloud-based-data-leader-choosed-fleet-for-orchestration': '/case-study/cloud-data-platform',
+  'GET /announcements/large-gaming-company-enhances-server-observability-with-fleet': '/case-study/online-gaming-platform',
+  'GET /case-study/financial-data-company-scales-endpoint-visibility-with-fleet': '/case-study/financial-data-company',
+  'GET /articles/fleet-management-software': '/compare/fleet-vs-jamf-vs-intune',
+  'GET /articles/mdm-providers-compared': '/compare/fleet-vs-workspace-one',
 
   // Software catalog redirects
   'GET /software-catalog/abstract': '/software-catalog/abstract-darwin',
@@ -991,6 +1049,7 @@ module.exports.routes = {
   'GET /apps': '/software-catalog',// This is mostly for mikermcneil who keeps trying to type the old url.
   'GET /register': '/login#register',
   'GET /handbook/finance/security': '/handbook/it/security',
+  'GET /fleet-gitops': '/infrastructure-as-code',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
@@ -1065,7 +1124,7 @@ module.exports.routes = {
   'GET /learn-more-about/chromeos-updates': 'https://support.google.com/chrome/a/answer/6220366',
   'GET /learn-more-about/just-in-time-provisioning': '/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning',
   'GET /learn-more-about/os-updates': '/docs/using-fleet/mdm-os-updates',
-  'GET /sign-in-to/microsoft-automatic-enrollment-tool': 'https://portal.azure.com',
+  'GET /sign-in-to/microsoft-automatic-enrollment-tool': 'https://entra.microsoft.com',
   'GET /learn-more-about/custom-os-settings': '/docs/using-fleet/mdm-custom-os-settings',
   'GET /learn-more-about/ndes': 'https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview', // TODO: Confirm URL
   'GET /learn-more-about/setup-ndes': '/guides/ndes-scep-proxy',
@@ -1216,18 +1275,19 @@ module.exports.routes = {
   //  ╔═╗╔╗╔╔╦╗╦═╗╔═╗╦╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
   //  ╠═╣║║║ ║║╠╦╝║ ║║ ║║  ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
   //  ╩ ╩╝╚╝═╩╝╩╚═╚═╝╩═╩╝  ╩  ╩╚═╚═╝╩ ╚═ ╩   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
-  'POST /api/android/v1/signupUrls': { action: 'android-proxy/create-android-signup-url', csrf: false},
-  'POST /api/android/v1/enterprises': { action: 'android-proxy/create-android-enterprise', csrf: false},
-  'GET /api/android/v1/enterprises': { action: 'android-proxy/get-android-enterprises'},
-  'POST /api/android/v1/enterprises/:androidEnterpriseId/enrollmentTokens': { action: 'android-proxy/create-android-enrollment-token', csrf: false},
-  'PATCH /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId': { action: 'android-proxy/modify-android-policies', csrf: false},
-  'DELETE /api/android/v1/enterprises/:androidEnterpriseId': { action: 'android-proxy/delete-one-android-enterprise', csrf: false},
+  'POST /api/android/v1/signupUrls': { action: 'android-proxy/create-android-signup-url', csrf: false },
+  'POST /api/android/v1/enterprises': { action: 'android-proxy/create-android-enterprise', csrf: false },
+  'GET /api/android/v1/enterprises': { action: 'android-proxy/get-android-enterprises' },
+  'POST /api/android/v1/enterprises/:androidEnterpriseId/enrollmentTokens': { action: 'android-proxy/create-android-enrollment-token', csrf: false },
+  'PATCH /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId': { action: 'android-proxy/modify-android-policies', csrf: false },
+  'DELETE /api/android/v1/enterprises/:androidEnterpriseId': { action: 'android-proxy/delete-one-android-enterprise', csrf: false },
   'GET /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/get-android-device' },
   'GET /api/android/v1/enterprises/:androidEnterpriseId/devices': { action: 'android-proxy/get-android-devices' },
-  'DELETE /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/delete-android-device', csrf: false},
-  'PATCH /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/modify-android-device', csrf: false},
-  'GET /api/android/v1/enterprises/:androidEnterpriseId/applications/:applicationId': { action: 'android-proxy/get-enterprise-applications', skipAssets: false},
-  'POST /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId::googleAction': { action: 'android-proxy/modify-enterprise-app-policy', csrf: false, skipAssets: false},
+  'DELETE /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/delete-android-device', csrf: false },
+  'PATCH /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/modify-android-device', csrf: false },
+  'GET /api/android/v1/enterprises/:androidEnterpriseId/applications/:applicationId': { action: 'android-proxy/get-enterprise-applications', skipAssets: false },
+  'POST /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId::googleAction': { action: 'android-proxy/modify-enterprise-app-policy', csrf: false, skipAssets: false },
+  'POST /api/android/v1/enterprises/:androidEnterpriseId/webApps': { action: 'android-proxy/create-enterprise-webapp', csrf: false, skipAssets: false },
 
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
@@ -1269,6 +1329,7 @@ module.exports.routes = {
   'POST /api/v1/deliver-application-submission': { action: 'deliver-application-submission' },
   'POST /api/v1/deliver-gitops-request': { action: 'deliver-gitops-workshop-request' },
   'POST /api/v1/admin/reset-one-fleet-premium-local-trial': { action: 'admin/reset-one-fleet-premium-local-trial' },
+  'POST /api/v1/deliver-whitepaper-download-request': { action: 'deliver-whitepaper-download-request' },
 
 
   //  ╔╦╗╦╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗

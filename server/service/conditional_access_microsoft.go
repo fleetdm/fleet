@@ -7,7 +7,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/log/level"
 )
 
 type conditionalAccessMicrosoftCreateRequest struct {
@@ -133,14 +132,14 @@ func (svc *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (conf
 
 	getResponse, err := svc.conditionalAccessMicrosoftProxy.Get(ctx, integration.TenantID, integration.ProxyServerSecret)
 	if err != nil {
-		level.Error(svc.logger).Log("msg", "failed to get integration settings from proxy", "err", err)
+		svc.logger.ErrorContext(ctx, "failed to get integration settings from proxy", "err", err)
 		return false, "", nil
 	}
 
 	if !getResponse.SetupDone {
 		var setupError string
 		if getResponse.SetupError != nil {
-			level.Error(svc.logger).Log("msg", "setup is not done", "setup_error", getResponse.SetupError)
+			svc.logger.ErrorContext(ctx, "setup is not done", "setup_error", getResponse.SetupError)
 			setupError = *getResponse.SetupError
 		}
 		return false, setupError, nil
@@ -202,7 +201,7 @@ func (svc *Service) ConditionalAccessMicrosoftDelete(ctx context.Context) error 
 		if fleet.IsNotFound(err) {
 			// In case there's an issue on the Proxy database we want to make sure to
 			// allow deleting the integration in Fleet, so we continue.
-			svc.logger.Log("msg", "delete returned not found, continuing...")
+			svc.logger.WarnContext(ctx, "delete returned not found, continuing...")
 		} else {
 			return ctxerr.Wrap(ctx, err, "failed to delete the integration on the proxy")
 		}

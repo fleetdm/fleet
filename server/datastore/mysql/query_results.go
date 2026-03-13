@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -155,12 +156,14 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
 		batchSize = opts[0].BatchSize
 	}
 
-	// Get all distinct query_ids that have results and are scheduled queries with discard_data = false
+	// Get all saved query IDs that could have query results to clean up.
+	// Only saved queries (scheduled reports) store rows in query_results;
+	// live queries do not, so there's nothing to clean up for them.
 	var queryIDs []uint
 	selectStmt := `
 		SELECT id
 		FROM queries
-		WHERE discard_data = false AND logging_type = 'snapshot'
+		WHERE saved = 1 AND discard_data = false AND logging_type = 'snapshot'
 	`
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &queryIDs, selectStmt); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting query IDs for cleanup")
@@ -188,12 +191,18 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
         ) cutoff
         WHERE rn = ?
     `
-	query, args, err := sqlx.In(cutoffStmt, queryIDs, maxQueryReportRows)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building cutoff query")
-	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &queryCutoffs, ds.reader(ctx).Rebind(query), args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "selecting cutoffs")
+	// Batch the IN clause to avoid MySQL's 65,535 placeholder limit.
+	const queryIDBatchSize = 50000
+	for batch := range slices.Chunk(queryIDs, queryIDBatchSize) {
+		var batchCutoffs []cutoffRow
+		query, args, err := sqlx.In(cutoffStmt, batch, maxQueryReportRows)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "building cutoff query")
+		}
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &batchCutoffs, ds.reader(ctx).Rebind(query), args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "selecting cutoffs")
+		}
+		queryCutoffs = append(queryCutoffs, batchCutoffs...)
 	}
 
 	// Delete excess rows from each query, in batches.
@@ -230,12 +239,16 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
         WHERE query_id IN (?) AND data IS NOT NULL
         GROUP BY query_id
     `
-	query, args, err = sqlx.In(countStmt, queryIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building count query")
-	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &counts, ds.reader(ctx).Rebind(query), args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "selecting counts")
+	for batch := range slices.Chunk(queryIDs, queryIDBatchSize) {
+		var batchCounts []countRow
+		query, args, err := sqlx.In(countStmt, batch)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "building count query")
+		}
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &batchCounts, ds.reader(ctx).Rebind(query), args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "selecting counts")
+		}
+		counts = append(counts, batchCounts...)
 	}
 
 	queryCounts := make(map[uint]int)

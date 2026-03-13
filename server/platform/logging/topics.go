@@ -4,6 +4,8 @@ import (
 	"sync"
 )
 
+const DeprecatedFieldTopic = "deprecated-field-names"
+
 // disabledTopics tracks which topics have been explicitly disabled.
 // Topics are enabled by default — only topics in this map are disabled.
 var (

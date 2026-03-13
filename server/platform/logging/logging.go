@@ -25,6 +25,8 @@ type Options struct {
 	// TracingEnabled enables OpenTelemetry trace correlation.
 	// When enabled, trace_id and span_id are automatically injected into logs.
 	TracingEnabled bool
+	// AddSource adds source file and line number to log entries.
+	AddSource bool
 	// OtelLogsEnabled enables exporting logs to an OpenTelemetry collector.
 	// When enabled, logs are sent to both the primary handler (stderr) and OTEL.
 	OtelLogsEnabled bool
@@ -52,6 +54,7 @@ func NewSlogLogger(opts Options) *slog.Logger {
 	}
 
 	handlerOpts := &slog.HandlerOptions{
+		AddSource:   opts.AddSource,
 		Level:       level,
 		ReplaceAttr: replaceAttr,
 	}
@@ -152,21 +155,3 @@ func (h *OtelTracingHandler) WithGroup(name string) slog.Handler {
 
 // Ensure OtelTracingHandler implements slog.Handler at compile time.
 var _ slog.Handler = (*OtelTracingHandler)(nil)
-
-// NewNopLogger returns a no-op *Logger that discards all log output.
-// Use this in tests instead of kitlog.NewNopLogger() to maintain type safety.
-func NewNopLogger() *Logger {
-	return NewLogger(slog.New(slog.DiscardHandler))
-}
-
-// NewLogfmtLogger creates a *Logger that outputs text-formatted logs to the given writer.
-// This is a drop-in replacement for kitlog.NewLogfmtLogger().
-func NewLogfmtLogger(output io.Writer) *Logger {
-	return NewLogger(NewSlogLogger(Options{Output: output, Debug: true}))
-}
-
-// NewJSONLogger creates a *Logger that outputs JSON-formatted logs to the given writer.
-// This is a drop-in replacement for kitlog.NewJSONLogger().
-func NewJSONLogger(output io.Writer) *Logger {
-	return NewLogger(NewSlogLogger(Options{Output: output, JSON: true, Debug: true}))
-}

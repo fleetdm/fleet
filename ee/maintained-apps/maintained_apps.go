@@ -5,15 +5,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
+	"log/slog"
 	"strings"
-
-	kitlog "github.com/go-kit/log"
 )
 
 // Ingester is responsible for ingesting the metadata for maintained apps for a given platform.
 // Each platform may have multiple sources for metadata (e.g. homebrew and autopkg for macOS). Each
 // source must have its own Ingester implementation.
-type Ingester func(ctx context.Context, logger kitlog.Logger, inputsPath string, slugFilter string) ([]*FMAManifestApp, error)
+type Ingester func(ctx context.Context, logger *slog.Logger, inputsPath string, slugFilter string) ([]*FMAManifestApp, error)
 
 const OutputPath = "ee/maintained-apps/outputs"
 

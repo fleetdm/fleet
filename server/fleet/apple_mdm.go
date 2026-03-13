@@ -27,6 +27,7 @@ type MDMAppleCommandIssuer interface {
 	EraseDevice(ctx context.Context, host *Host, uuid string) error
 	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
 	DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error
+	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 }
 
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
@@ -513,6 +514,7 @@ type MDMAppleSetupPayload struct {
 	EnableReleaseDeviceManually *bool `json:"enable_release_device_manually"`
 	ManualAgentInstall          *bool `json:"manual_agent_install"`
 	RequireAllSoftware          *bool `json:"require_all_software_macos"`
+	LockEndUserInfo             *bool `json:"lock_end_user_info"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -1123,10 +1125,23 @@ const (
 	DeviceLocationCmdName  = "DeviceLocation"
 	EnableLostModeCmdName  = "EnableLostMode"
 	DisableLostModeCmdName = "DisableLostMode"
+	SetRecoveryLockCmdName = "SetRecoveryLock"
 )
 
 type HostLocationData struct {
 	HostID    uint    `db:"host_id"`
 	Latitude  float64 `db:"latitude"`
 	Longitude float64 `db:"longitude"`
+}
+
+// HostRecoveryLockPassword represents a recovery lock password for a host.
+type HostRecoveryLockPassword struct {
+	Password  string
+	UpdatedAt time.Time
+}
+
+// HostRecoveryLockPasswordPayload contains the data needed to store a recovery lock password.
+type HostRecoveryLockPasswordPayload struct {
+	HostUUID string
+	Password string
 }

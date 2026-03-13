@@ -64,7 +64,7 @@ type NanoMDMStorage struct {
 func (ds *Datastore) NewMDMAppleMDMStorage() (*NanoMDMStorage, error) {
 	s, err := nanomdm_mysql.New(
 		nanomdm_mysql.WithDB(ds.primary.DB),
-		nanomdm_mysql.WithLogger(ds.logger.SlogLogger()),
+		nanomdm_mysql.WithLogger(ds.logger),
 		nanomdm_mysql.WithReaderFunc(ds.reader),
 	)
 	if err != nil {
@@ -73,7 +73,7 @@ func (ds *Datastore) NewMDMAppleMDMStorage() (*NanoMDMStorage, error) {
 	return &NanoMDMStorage{
 		MySQLStorage: s,
 		db:           ds.primary,
-		logger:       ds.logger.SlogLogger(),
+		logger:       ds.logger,
 		ds:           ds,
 	}, nil
 }
@@ -84,7 +84,7 @@ func (ds *Datastore) NewMDMAppleMDMStorage() (*NanoMDMStorage, error) {
 func (ds *Datastore) NewTestMDMAppleMDMStorage(asyncCap int, asyncInterval time.Duration) (*NanoMDMStorage, error) {
 	s, err := nanomdm_mysql.New(
 		nanomdm_mysql.WithDB(ds.primary.DB),
-		nanomdm_mysql.WithLogger(ds.logger.SlogLogger()),
+		nanomdm_mysql.WithLogger(ds.logger),
 		nanomdm_mysql.WithReaderFunc(ds.reader),
 		nanomdm_mysql.WithAsyncLastSeen(asyncCap, asyncInterval),
 	)
@@ -94,7 +94,7 @@ func (ds *Datastore) NewTestMDMAppleMDMStorage(asyncCap int, asyncInterval time.
 	return &NanoMDMStorage{
 		MySQLStorage: s,
 		db:           ds.primary,
-		logger:       ds.logger.SlogLogger(),
+		logger:       ds.logger,
 		ds:           ds,
 	}, nil
 }
@@ -290,6 +290,15 @@ func (s *NanoMDMStorage) GetABMTokenByOrgName(ctx context.Context, orgName strin
 // ExpandEmbeddedSecrets in NanoMDMStorage overrides the implementation in nanomdm_mysql.MySQLStorage.
 func (s *NanoMDMStorage) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
 	return s.ds.ExpandEmbeddedSecrets(ctx, document)
+}
+
+// ExpandHostSecrets expands host-scoped secrets in the document using the enrollment ID.
+func (s *NanoMDMStorage) ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error) {
+	return s.ds.ExpandHostSecrets(ctx, document, enrollmentID)
+}
+
+func (s *NanoMDMStorage) SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error {
+	return s.ds.SetRecoveryLockFailed(ctx, hostUUID, errorMsg)
 }
 
 // ClearQueue in NanoMDMStorage overrides the implementation in

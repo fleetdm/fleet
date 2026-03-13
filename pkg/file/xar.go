@@ -639,7 +639,10 @@ func isValidAppFilePath(input string) (string, bool) {
 		return file, true
 	}
 
-	if strings.HasSuffix(file, ".app") {
+	// ignore nested .app files, we want to make sure the .app file is
+	// in the Applications directory and not nested somewhere else
+	// See https://github.com/fleetdm/fleet/issues/38356#issuecomment-3935530961
+	if strings.HasSuffix(file, ".app") && !strings.Contains(dir, ".app/") {
 		if strings.HasPrefix(dir, "Applications/") && strings.HasSuffix(dir, "/") {
 			return file, true
 		}

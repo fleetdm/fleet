@@ -1,3 +1,37 @@
+## Fleet 4.81.2 (Mar 06, 2026)
+
+### Bug fixes
+
+- Fixed a bug where macOS systems previous enrolled in fleet wouldn't always go through setup experience after a wipe.
+- Fixed issue where policy automation retries were potentially reading stale data from replica database.
+- Updated the DEP syncer to properly reassign a profile when ABM unilaterally removes it
+
+## Fleet 4.81.1 (Mar 2, 2026)
+
+### Bug fixes
+
+- Fixed an issue where some UI users saw a blank gutter on the right side of parts of the UI.
+- Updated UI to enable adding/removing multiple Microsoft Entra tenant ids.
+- Fixed a hover style issue in the label filter close button.
+- Fixed false positive CVE for Nextcloud Desktop.
+- Fixed rare CPE error when software name sanitizes to empty (e.g. only special characters).
+- Fixed false negative CVE-2026-20841 on Windows Notepad.
+- Fixed issue with hosts incorrectly reporting policy failures after policy label targets changed.
+- Updated storage of the auth token used in the UI; move if from local storage to a cookie.
+- Improved spacing on the Controls > OS Settings page.
+- Added the ability to specify allowed Entra tenant IDs for enrollments.
+- Added CTA to turn on Android MDM for Android software setup experience if MDM is not configured.
+- Addded CVE alias for python visual studio code extension.
+- Improved validation for host transfers.
+- Fixed query results cleanup cron failing with "too many placeholders" error by filtering to only saved queries and batching the SQL IN clause.
+- Moved the copy button for text areas out of the text area itself and in line with its label.
+- Fixed some styling issues for the UI when no enroll secret is present on a fleet.
+- Left-aligned "Critical" checkbox in Save policy form.
+- Fixed matching logic on App component for pages titles.
+- Fixed issue where the status name was wrapping at smaller viewport witdths on the mdm card on the Dashboard page.
+- Disallowed editing Fleet-maintained app in the UI while GitOps mode is enabled.
+- Fixed error handling on failed VPP install commands not initiated by Fleet VPP app installation.
+
 ## Fleet 4.81.0 (Feb 20, 2026)
 
 ### IT Admins
@@ -77,6 +111,19 @@
 - Fixed unnecessary error logging when no CPE match is found for software items like VSCode extensions and JetBrains plugins.
 - Fixed created_at and updated_at timestamps on API responses for Label and Team creation.
 - Fixed issues where different variations of the same software weren't linked to the same software title.
+
+## Fleet 4.80.3 (Feb 20, 2026)
+
+### Bug fixes
+
+- Fixed validation and error handling issues.
+
+## Fleet 4.80.2 (Feb 11, 2026)
+
+### Bug fixes
+
+- Updated to Go 1.25.7.
+- Fix issue where MySQL read replicas were not using TLS.
 
 ## Fleet 4.80.1 (Feb 06, 2026)
 
@@ -287,7 +334,7 @@ Refactored common_mysql package to support bounded contexts inside Fleet codebas
 - Added a new error UI for file uploaders, and applied it in the Okta Conditional Access modal.
 - Returned pre-install query output in Install Details modal.
 - Translated `idp` to `mdm_idp_accounts` on API responses. 
-- Updated `last_restarted_at` property for hosts to be more reliable. 
+- Updated `last_restarted_at` property for hosts to be more reliable.
 - Added Mosyle to the list of well-known MDM platforms.
 - Changed where `mdm_enrolled` activity is created so it occures after the inital Token Update command to allowa the webhook to fire after the host can recieve additonal commands from Fleet MDM.
 - Improved MDM command result endpoint response for pending Windows commands.

@@ -21,7 +21,7 @@ Our go-to-market (GTM) approach is built on a foundation of end-to-end visibilit
 Conversion rates help us to plan, forecast, and improve. There are several key comparisons that we want to understand:
 
 - **Win rate**: From stage X to closed won.  For closed opportunities, this tells us what percentage of opportunities historically will be won for a given stage in the sales cycle.  
-- **Stage to win cyce time**: tbd/todo  
+- **Stage to win cycle time**: tbd/todo  
 - **Stage to stage**:tbd/todo  
 - **Stage to stage cycle time**: tbd/todo
 
@@ -103,10 +103,10 @@ For all unpaid, inbound traffic and brand-driven interest.
 
 | Source detail | Code | Campaign examples (always-on) |
 | :---- | :---- | :---- |
-| Organic search | OS | OS-Default |
-| Direct traffic | DT | DT-Default |
-| Web referral | WR | WR-Default |
-| Organic social | SOC | SOC-Default |
+| Organic search | OS | Default-OS |
+| Direct traffic | DT | Default-DT |
+| Web referral | WR | Default-WR |
+| Organic social | SOC | Default-SOC |
 
 
 #### 🗣️ Word-of-mouth
@@ -115,8 +115,8 @@ For all manually tracked, human-to-human recommendations.
 
 | Source detail | Code | Campaign examples |
 | :---- | :---- | :---- |
-| Customer referral | CR | CR-Default  |
-| Employee referral | ER | ER-Default  |
+| Customer referral | CR | Default-CR  |
+| Employee referral | ER | Default-ER  |
 | Analyst/influencer | AR | AR-gartner\_mention |
 
 
@@ -193,10 +193,90 @@ Discreet campaigns have a specific start, end, and budget (e.g., webinar, trade 
 #### Always-on campaigns
 
 These are generic "buckets" for continuous inbound channels that don't have a start/end date.  They are “Default” campaigns, since they do not have a start or stop date. Use the following naming convention when naming an "Always-on" campaign:
-- **Structure:** \[Code\]-Default  
+- **Structure:** Default-\[Code\]  
+  - **\[Name\]:** Default, Always\_On, or General.
   - **\[Code\]:** The 2-4 letter code.
-  - **\[Name\]:** Default, Always\_On, or General.  
-- **Full example:** OS-Default (for all Organic Search)
+- **Full example:** Default-OS (for all Organic Search)
+
+
+## SFDC Campaign Hierarchy
+
+### Campaign hierarchy
+
+Salesforce campaigns should live inside a parent-child hierarchy that mirrors the attribution framework. This allows us to roll up ROI, pipeline, and engagement at any level — from an individual campaign all the way up to a Source bucket — without building custom reports from scratch.
+
+There are two types of campaigns in Salesforce, determined by the **campaign record type**:
+- **Working campaigns:** Traditional campaigns with content and activities associated with them.
+- **Parent campaigns:** Buckets that group related working campaigns together.
+
+The campaign record type is the controlling field that determines whether a campaign is a working campaign or a parent campaign.
+
+Use the following list views to navigate campaigns in Salesforce:
+1. [Parent campaigns list](https://fleetdm.lightning.force.com/lightning/o/Campaign/list?filterName=Parent_campaigns)
+2. [Active working campaigns list](https://fleetdm.lightning.force.com/lightning/o/Campaign/list?filterName=Active_working_campaigns)
+
+#### How the hierarchy maps to attribution
+
+| Hierarchy level | Attribution level | What it represents | Example |
+|----------------|-------------------|--------------------|---------|
+| L1 — Top parent | Source | The 6 high-level budget buckets | `1_Event` |
+| L2 — Sub-parent | Source Detail | The specific tactic or program type within a Source | `2_Field_Event` |
+| L3 — Program parent (optional) | — | A recurring initiative that runs multiple times | `3_GitOps_Workshops` |
+| Leaf — Individual campaign | Campaign | The specific, trackable activity with campaign members | `2026_03-FE-GitOps_Workshop_Chicago` |
+
+L1, L2, and L3 parent campaigns are structural — they exist only for rollup and never have campaign members directly attached to them. Only leaf campaigns contain campaign members.
+
+#### Parent campaign naming
+
+Parent campaigns (nodes in the tree) use a numerical prefix that indicates their hierarchy level. Leaf campaigns keep their existing naming convention unchanged.
+
+L1 Source parents use the prefix `1_` followed by the Source name: `1_Organic_Web`, `1_Word_of_Mouth`, `1_Event`, `1_Digital`, `1_Prospecting`, `1_Partner`.
+
+L2 Source Detail parents use the prefix `2_` followed by the Source Detail name: `2_Paid_Search`, `2_Field_Event`, `2_Major_Conference`, `2_Webinar`.
+
+L3 Program parents use the prefix `3_` followed by a descriptive name: `3_GitOps_Workshops`.
+
+The numerical prefix makes the hierarchy level immediately visible in any SFDC list view and sorts parent campaigns naturally above leaf campaigns.
+
+#### When to create a program parent
+
+Create an L3 program parent when a tactic is repeated three or more times and you want to see the collective impact separately from other campaigns in the same Source Detail. For example, if we run six GitOps Workshops under Field Event (FE), a `3_` program parent lets us see the total pipeline from GitOps Workshops without mixing in happy hours or dinners.
+
+If a tactic only runs once or twice, keep it directly under the `2_` Source Detail parent — no program parent needed.
+
+#### Where always-on campaigns live
+
+Always-on "Default" campaigns sit inside the hierarchy under their corresponding `2_` Source Detail parent, just like discrete campaigns. For example, `Default-OS-Organic` lives under `2_Organic_Search`, which lives under `1_Organic_Web`. This ensures that rollup numbers at every level are complete.
+
+To isolate discrete campaigns for time-bound analysis, filter on campaign name — anything starting with `Default-` is always-on.
+
+#### Fiscal year
+
+Fiscal year is not a layer in the campaign hierarchy. Use the `Fiscal_Year__c` formula field on the Campaign record (derived from Start Date) to filter any report by fiscal year. The YYYY_MM prefix in campaign names also provides a natural date anchor for sorting and filtering.
+
+#### Adding a new campaign to the hierarchy
+
+When creating a new campaign in Salesforce:
+
+1. Identify the Source Detail code from the attribution framework table above (e.g., FE for Field Event).
+2. Find the corresponding `2_` parent campaign (e.g., `2_Field_Event`).
+3. If the campaign belongs to an existing program series, set the parent to the `3_` program parent instead (e.g., `3_GitOps_Workshops`).
+4. If no `2_` parent exists yet for that Source Detail, create one under the correct `1_` Source parent first.
+5. Set the Parent Campaign field on your new campaign before launch.
+
+#### Example
+
+A new GitOps Workshop in Nashville in May 2026:
+
+```
+1_Event
+└── 2_Field_Event
+    └── 3_GitOps_Workshops
+        └── 2026_05-FE-GitOps_Workshop_Nashville   ← new campaign here
+```
+
+The workshop's pipeline will automatically roll up into the GitOps Workshops total, the Field Event total, and the overall Event total.
+
 
 
 ## Unified campaign member status framework
@@ -273,7 +353,10 @@ All campaigns must utilize the following status values. Custom statuses outside 
 - **Registered:** Clicked a link and filled out the resulting form.  
 - **Engaged:** Replied to the email directly.
 
-
+#### Website Chat (Qualified)
+- **Interacted:** We chatted and learned about the prospect
+- **Engaged:** We chatted long enough to offer a meeting 
+- **Meeting Requested:** The prospect has booked a meeting
 
 ## 📧 Contact marketability & compliance
 

@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"time"
@@ -10,8 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -388,6 +387,17 @@ func (ds *Datastore) DeleteOutOfDateOSVulnerabilities(ctx context.Context, src f
 	return nil
 }
 
+func (ds *Datastore) DeleteOrphanedOSVulnerabilities(ctx context.Context) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx, `
+		DELETE osv FROM operating_system_vulnerabilities osv
+		LEFT JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id
+		WHERE hos.host_id IS NULL
+	`); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting orphaned OS vulnerabilities")
+	}
+	return nil
+}
+
 func (ds *Datastore) ListKernelsByOS(ctx context.Context, osVersionID uint, teamID *uint) ([]*fleet.Kernel, error) {
 	var kernels []*fleet.Kernel
 
@@ -602,19 +612,19 @@ type vulnResult struct {
 // deduplicates CVEs across all kernels for each unique name+version combination.
 // Each os_version_id maps to a unique name+version (e.g., "Ubuntu 22.04.1 LTS")
 func processLinuxVulnResults(
+	ctx context.Context,
 	results []vulnResult,
 	osVersionIDToKeyMap map[uint]string,
 	totalCountByOSVersionID map[uint]uint, // Output: tracks total counts per os_version_id
 	vulnsByKey map[string][]fleet.CVE, // Output: CVEs grouped by "name-version" key
 	cveSet map[string]struct{}, // Output: global set of all CVEs for CVSS fetching
-	logger log.Logger,
+	logger *slog.Logger,
 ) {
 	for _, r := range results {
 		key := osVersionIDToKeyMap[r.OSVersionID]
 		if key == "" {
 			// Skip results with missing os_version_id mapping to avoid creating empty string keys
-			level.Error(logger).Log(
-				"msg", "missing os_version_id mapping in processLinuxVulnResults",
+			logger.ErrorContext(ctx, "missing os_version_id mapping in processLinuxVulnResults",
 				"os_version_id", r.OSVersionID,
 				"cve", r.CVE,
 			)
@@ -1023,6 +1033,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 	// Process kernel vulnerability results (Linux)
 	// Use optimized Linux-specific processing (no deduplication overhead)
 	processLinuxVulnResults(
+		ctx,
 		kernelVulnResults,
 		linuxOSVersionMap,
 		totalCountByOSVersionID,

@@ -368,7 +368,7 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
 
 ### redis_duplicate_results
 
-Whether or not to duplicate Live Query results to another Redis channel named `LQDuplicate`. This is useful in a scenario involving shipping the Live Query results outside of Fleet, near real-time.
+Whether or not to duplicate results to another Redis channel named `LQDuplicate`. This is useful in a scenario involving shipping the results outside of Fleet, near real-time.
 
 - Default value: `false`
 - Environment variable: `FLEET_REDIS_DUPLICATE_RESULTS`
@@ -1024,9 +1024,7 @@ Options are `provided` (default), `uuid`, `hostname`, or `instance`.
 
 This setting works in combination with the `--host_identifier` flag in osquery. In most deployments, using `uuid` will be the best option. The flag defaults to `provided` -- preserving the existing behavior of Fleet's handling of host identifiers -- using the identifier provided by osquery. `instance`, `uuid`, and `hostname` correspond to the same meanings as osquery's `--host_identifier` flag.
 
-Users that have duplicate UUIDs in their environment can benefit from setting this flag to `instance`.
-
-> If you are enrolling your hosts using Fleet generated packages, it is recommended to use `uuid` as your identifier. This prevents potential issues with duplicate host enrollments.
+> If you are enrolling your hosts using Fleet generated packages, it is recommended to leave this setting as the default of `provided` and use the `--host-identifier` flag to specify an identifier when building your fleetd package. Supported options are `uuid` and `instance`.
 
 - Default value: `provided`
 - Environment variable: `FLEET_OSQUERY_HOST_IDENTIFIER`
@@ -1152,7 +1150,7 @@ to the amount of time it takes for Fleet to give the host the label queries.
 
 ### osquery_enable_async_host_processing
 
-**Experimental feature**. Enable asynchronous processing of hosts' query results. Currently, asynchronous processing is only supported for label query execution, policy membership results, hosts' last seen timestamp, and hosts' scheduled query statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
+**Experimental feature**. Enable asynchronous processing of hosts' report results. Currently, asynchronous processing is only supported for label query execution, policy membership results, hosts' last seen timestamp, and hosts' scheduled report statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
 
 Note that currently, if both the failing policies webhook *and* this `osquery.enable_async_host_processing` option are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
 
@@ -1161,7 +1159,7 @@ It can be set to a single boolean value ("true" or "false"), which controls all 
 * `label_membership` for updating the hosts' label query execution;
 * `policy_membership` for updating the hosts' policy membership results;
 * `host_last_seen` for updating the hosts' last seen timestamp.
-* `scheduled_query_stats` for saving the hosts' scheduled query statistics.
+* `scheduled_query_stats` for saving the hosts' scheduled report statistics.
 
 - Default value: false
 - Environment variable: `FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING`
@@ -1297,6 +1295,30 @@ The minimum time difference between the software's "last opened at" timestamp re
     min_software_last_opened_at_diff: 4h
   ```
 
+### osquery_max_log_write_body_size
+
+Maximum HTTP request body size accepted by the `osquery/log` endpoint. Increase this if osquery agents are submitting log batches that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
+
+- Default value: `10MiB`
+- Environment variable: `FLEET_OSQUERY_MAX_LOG_WRITE_BODY_SIZE`
+- Config file format:
+  ```yaml
+  osquery:
+    max_log_write_body_size: 20MiB
+  ```
+
+### osquery_max_distributed_write_body_size
+
+Maximum HTTP request body size accepted by the `osquery/distributed/write` endpoint. Increase this if osquery agents are submitting distributed query results that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
+
+- Default value: `5MiB`
+- Environment variable: `FLEET_OSQUERY_MAX_DISTRIBUTED_WRITE_BODY_SIZE`
+- Config file format:
+  ```yaml
+  osquery:
+    max_distributed_write_body_size: 10MiB
+  ```
+
 ## External activity audit logging
 
 > Available in Fleet Premium. Activity information is available for all Fleet Free and Fleet Premium instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
@@ -1383,6 +1405,32 @@ and a negative value to disable storage of errors in Redis.
   ```yaml
   logging:
     error_retention_period: 1h
+  ```
+
+### logging_enable_topics
+
+A comma-delimited set of log topics to enable. 
+
+In Fleet v4.82.0, a number of API parameters and URLs were deprecated. Starting with version 4.83.0, Fleet server will begin logging warnings when deprecated API parameters or URLs are used. To see the warnings in v4.82.0, enable the `deprecated-field-names` topic using this setting.
+
+- Default value: none
+- Environment variable: `FLEET_LOGGING_ENABLE_TOPICS`
+- Config file format:
+  ```yaml
+  logging:
+    enable_topics: deprecated-field-names
+  ```
+
+### logging_disable_topics
+
+A comma-delimited set of log topics to disable. If a topic is included in both this and the `logging_enable_topics` setting, it will be enabled.
+
+- Default value: none
+- Environment variable: `FLEET_LOGGING_DISABLE_TOPICS`
+- Config file format:
+  ```yaml
+  logging:
+    disable_topics: deprecated-field-names
   ```
 
 ## Filesystem
@@ -1506,7 +1554,7 @@ to zero will retain all logs. _Note_ max_age may still cause them to be deleted.
 
 ## Webhook
 
-To use webhook logging for query results, the following two Fleet config values must *both* be set:
+To use webhook logging for report results, the following two Fleet config values must *both* be set:
 
 ### Set log method to 'webhook' by
 - Command line flag: `--osquery_result_log_plugin="webhook"`,
@@ -2177,7 +2225,7 @@ notation, such as `log.name` and `log.decorations.hostname`.
 | Description         | Template                                          | Result                       |
 |---------------------|---------------------------------------------------|------------------------------|
 | Route by hostname   | `results.{log.decorations.hostname}`              | `results.webserver`          |
-| Extract query name  | `results.{log.name \| split("/") \| last()}`      | `results.process_events`     |
+| Extract report name  | `results.{log.name \| split("/") \| last()}`      | `results.process_events`     |
 | Action and hostname | `results.{log.action}.{log.decorations.hostname}` | `results.snapshot.webserver` |
 
 ### nats_server
@@ -3302,6 +3350,24 @@ If you have an [Apple Developer account that is enabled as an MDM vendor](https:
   ```yaml
   mdm:
     apple_vpp_app_metadata_api_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
+  ```
+
+### fleet_allow_bootstrap_package_during_migration
+
+When set to `1` or `true`, this environment variable enables Fleet to install bootstrap packages on hosts during MDM migration enrollments (i.e. non-DEP enrollments). By default, bootstrap packages are only installed for DEP-enrolled hosts. Setting this variable restores the previous behavior, ensuring all new enrollments receive the bootstrap package.
+
+This is only supported as an environment variable.
+
+- Environment variable: `FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION`
+
+### silent_migration_enrollment_profile
+
+Specifies the original enrollment profile from the previous MDM, used by Fleet for migrated Apple hosts during SCEP certificate renewal. This profile ensures that migrated hosts can renew their SCEP certificates without requiring re-enrollment or user interaction, enabling seamless MDM migration. Required when migrating hosts from another MDM to Fleet to maintain uninterrupted certificate management.
+
+The enrollment profile must be base64-encoded. This is only supported as an environment variable. 
+
+- Environment variable: `FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE`
+- Note: If you are experiencing systems failing SCEP renewal, please contact [Fleet support](https://fleetdm.com/support).
 
 ## Conditional access
 

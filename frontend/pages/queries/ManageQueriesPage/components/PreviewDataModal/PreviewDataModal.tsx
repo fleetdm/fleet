@@ -41,8 +41,8 @@ const PreviewDataModal = ({
           <TooltipWrapper
             tipContent={
               <>
-                The &quot;snapshot&quot; key includes the query&apos;s results.
-                These will be unique to your query.
+                The &quot;snapshot&quot; key includes the report&apos;s results.
+                These will be unique to your report.
               </>
             }
           >
