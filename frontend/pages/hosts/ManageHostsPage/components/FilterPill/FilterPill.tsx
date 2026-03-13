@@ -1,13 +1,12 @@
 import React, { ReactNode, useRef } from "react";
-import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
 
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
-import { COLORS } from "styles/var/colors";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface IFilterPillProps {
   label: string;
@@ -44,41 +43,34 @@ const FilterPill = ({
       role="status"
       aria-label={`hosts filtered by ${label}`}
     >
-      <>
-        <span>
-          <div className={labelClasses}>
-            {icon && <Icon name={icon} />}
-            <span
-              data-tip={tooltipContent}
-              data-for={`filter-pill-tooltip-${label}`}
+      <span>
+        <div className={labelClasses}>
+          {icon && <Icon name={icon} />}
+          {tooltipContent ? (
+            <TooltipWrapper
+              showArrow
+              tipContent={<span>{tooltipContent}</span>}
+              position="top"
+              underline={false}
               className={`${baseClass}__tooltip-text`}
-              ref={pillText}
             >
+              <span ref={pillText}>{label}</span>
+            </TooltipWrapper>
+          ) : (
+            <span className={`${baseClass}__tooltip-text`} ref={pillText}>
               {label}
             </span>
-            <Button
-              className={`${baseClass}__clear-filter`}
-              onClick={onClear}
-              variant="icon"
-              title={label}
-            >
-              <Icon name="close" color="core-fleet-black" size="small" />
-            </Button>
-          </div>
-        </span>
-        {tooltipContent && (
-          <ReactTooltip
-            role="tooltip"
-            place="top"
-            effect="solid"
-            backgroundColor={COLORS["tooltip-bg"]}
-            id={`filter-pill-tooltip-${label}`}
-            data-html
+          )}
+          <Button
+            className={`${baseClass}__clear-filter`}
+            onClick={onClear}
+            variant="icon"
+            title={label}
           >
-            <span>{tooltipContent}</span>
-          </ReactTooltip>
-        )}
-      </>
+            <Icon name="close" color="core-fleet-black" size="small" />
+          </Button>
+        </div>
+      </span>
     </div>
   );
 };
