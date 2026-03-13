@@ -11,7 +11,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Role | Person | Github ID | Responsibilities |
 | ----- | ----- | ----- | ----- |
 | Chief marketing officer | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala)  | [*@akuthiala*](https://github.com/akuthiala) | Set, lead, and manage Fleet’s marketing strategy and execution across all aspects of marketing  Lead or own various functions of marketing as appropriate. |
-| Content specialist | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/)  | [*@irenareedy*](https://github.com/irenareedy) | Manage and scale Fleet Champions community program, increasing the size and diversity of Fleet champions Increase number of Fleet peer reviews across multiple sites   Own event execution working closely with campaign manager   Oversee social media program working closely with social media manager  Own the marketing board ensuring all tasks are assigned, being worked on, and completed  |
+| Content specialist | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/)  | [*@irenareedy*](https://github.com/irenareedy) | Manage and scale the Fleet Champions Community program by expanding the size and diversity of customer advocates while increasing the number of Fleet peer reviews across multiple platforms. Lead event execution in close collaboration with the Campaign Manager to ensure conferences, meetups, and community events are planned, coordinated, and delivered successfully. Oversee Fleet’s social media program by working with the Social Media Manager to coordinate content, messaging, and publishing across channels. Maintain the marketing operations board to ensure tasks are assigned, actively worked on, and completed so marketing initiatives remain organized and on track. Own and report on weekly marketing KPIs, tracking progress across initiatives and ensuring visibility into performance and outcomes  |
 | Product education manager | [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/)  | [*@nonpunctual*](https://github.com/nonpunctual) | Create core technical assets to train internal, partners, prospects, and customer teams including Fleet certification program and teaching GitOps workshops.  Be the technical expert in validating all things marketing produces, be the Fleet relationship expert with Macadmins community |
 | Head of demand generation | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/)  | [*@johnjeremiah*](https://github.com/johnjeremiah) | Build pipeline,  Marketing ops |
 | Campaign manager | Hired (to be announced) |  | Build, run and measure all marketing campaigns.   Own Fleet swag strategy and execution |
@@ -41,7 +41,7 @@ The Marketing department is directly responsible for achieving revenue pipeline�
 
 ### Marketing Assets
 
-The complete list of all marketing assets is listed on [this handbook page](https://fleetdm.com/handbook/marketing/marketing-assets.dm).
+The complete list of all marketing assets is listed on [this handbook page](https://fleetdm.com/handbook/marketing/marketing-assets).
 
 ### Press boilerplate text
 
@@ -73,6 +73,8 @@ Note: for event execution, additional labels are used to manage the process and 
 ### Prepare "Let's get you set up!" meeting notes
 
 Before each group call, copy the attendees from the "Lets get you set up! (group office hours)" calendar event and paste them into the correct section of the ["Let's get you set up!" meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc.
+On Thursdays, marketing reviews the names and accounts for upcoming meetings and checks how many hosts each account has. If an account has more than 500 hosts, post a message in the #help-gtm-ops Slack channel.
+Add notes in the meeting document if you cannot find a Salesforce account for an attendee, and include any other relevant information needed for the call to run smoothly.
 
 
 ### Create UTM link
@@ -141,8 +143,8 @@ Check the "📃 Planned articles" column in [:help-marketing board](https://gith
 
 **To order T-shirts:**
 
-  - Login to [Rush Order tees](https://www.rushordertees.com/my-account/login/) (saved in 1Password).
-  - Choose Fleet logo design t-shirt under [my designs](https://www.rushordertees.com/my-account/designs/).
+  - Login to [Printful](https://www.printful.com/dashboard/default) (saved in 1Password).
+  - Choose Fleet logo design t-shirt under [product templates](https://www.printful.com/dashboard/product-templates).
   - Order shirts based on the pre-determined number (~5% of total event attendees).
   - Submit the order. Ensure the address matches the expected receiving address.
 

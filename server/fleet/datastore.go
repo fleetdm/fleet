@@ -879,6 +879,9 @@ type Datastore interface {
 	// DeleteOutOfDateVulnerabilities deletes 'software_cve' entries from the provided source where
 	// the updated_at timestamp is older than the provided timestamp
 	DeleteOutOfDateVulnerabilities(ctx context.Context, source VulnerabilitySource, olderThan time.Time) error
+	// DeleteOrphanedSoftwareVulnerabilities deletes 'software_cve' entries where the software_id
+	// no longer has any associated hosts in 'host_software'.
+	DeleteOrphanedSoftwareVulnerabilities(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Calendar events
@@ -1223,6 +1226,9 @@ type Datastore interface {
 	// DeleteOutOfDateOSVulnerabilities deletes 'operating_system_vulnerabilities' entries from the provided source where
 	// the updated_at timestamp is older than the supplied timestamp
 	DeleteOutOfDateOSVulnerabilities(ctx context.Context, source VulnerabilitySource, olderThan time.Time) error
+	// DeleteOrphanedOSVulnerabilities deletes 'operating_system_vulnerabilities' entries where the operating_system_id
+	// no longer has any associated hosts in 'host_operating_system'.
+	DeleteOrphanedOSVulnerabilities(ctx context.Context) error
 
 	ListKernelsByOS(ctx context.Context, osID uint, teamID *uint) ([]*Kernel, error)
 
@@ -1486,6 +1492,33 @@ type Datastore interface {
 	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
 	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Apple MDM Recovery Lock Password
+
+	// SetHostsRecoveryLockPasswords encrypts and stores recovery lock passwords for the given hosts.
+	SetHostsRecoveryLockPasswords(ctx context.Context, passwords []HostRecoveryLockPasswordPayload) error
+
+	// GetHostRecoveryLockPassword retrieves and decrypts the recovery lock password
+	// for the given host UUID.
+	GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*HostRecoveryLockPassword, error)
+
+	// GetHostsForRecoveryLockAction returns host UUIDs that need recovery lock password action:
+	// - Teams with enable_recovery_lock_password = true
+	// - macOS Apple Silicon hosts that are MDM enrolled
+	// - No password saved or status is NULL (ready for command)
+	GetHostsForRecoveryLockAction(ctx context.Context) ([]string, error)
+
+	// SetRecoveryLockVerified marks the recovery lock as verified.
+	SetRecoveryLockVerified(ctx context.Context, hostUUID string) error
+
+	// SetRecoveryLockFailed marks the recovery lock as failed with the given error message.
+	SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error
+
+	// ClearRecoveryLockPendingStatus resets the recovery lock status to NULL for hosts
+	// that failed to have their SetRecoveryLock commands enqueued. This allows them to
+	// be picked up again on the next cron run.
+	ClearRecoveryLockPendingStatus(ctx context.Context, hostUUIDs []string) error
 
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
@@ -2401,6 +2434,11 @@ type Datastore interface {
 	// ExpandEmbeddedSecretsAndUpdatedAt is like ExpandEmbeddedSecrets but also
 	// returns the latest updated_at time of the secrets used in the expansion.
 	ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, document string) (string, *time.Time, error)
+
+	// ExpandHostSecrets expands host-scoped secrets ($FLEET_HOST_SECRET_*) in the document.
+	// The enrollmentID (typically UDID) is used to look up host-specific secrets
+	// like recovery lock passwords.
+	ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Android

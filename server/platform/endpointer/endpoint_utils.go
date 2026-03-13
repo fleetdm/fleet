@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -500,6 +502,23 @@ type requestValidator interface {
 // query parameter decoding logic.
 //
 // If adding a new way to parse/decode the requset, make sure to wrap the body in a limited reader with the maxRequestBodySize
+
+// limitExhaustedBody returns true when the LimitedReader was the cause of an
+// unexpected EOF — i.e. the underlying body actually had more data beyond the
+// limit. It does this by attempting a single-byte read from the underlying
+// reader (limitedReader.R) which bypasses the limit wrapper. A successful read
+// means the body exceeded the limit; an immediate EOF means the body ended
+// exactly at the limit (malformed JSON, not an oversized payload).
+//
+// This is used to avoid false-positive PayloadTooLargeError responses for
+// bodies whose JSON is malformed and happen to be exactly maxRequestBodySize
+// bytes long.
+func limitExhaustedBody(limitedReader *io.LimitedReader) bool {
+	var peek [1]byte
+	n, _ := limitedReader.R.Read(peek[:])
+	return n > 0
+}
+
 func MakeDecoder(
 	iface interface{},
 	jsonUnmarshal func(body io.Reader, req any) error,
@@ -518,8 +537,9 @@ func MakeDecoder(
 	}
 	if rd, ok := iface.(RequestDecoder); ok {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
+			var limitedReader *io.LimitedReader
 			if maxRequestBodySize != -1 {
-				limitedReader := io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
+				limitedReader = io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
 
 				r.Body = &LimitedReadCloser{
 					LimitedReader: limitedReader,
@@ -527,7 +547,7 @@ func MakeDecoder(
 				}
 			}
 			ret, err := rd.DecodeRequest(ctx, r)
-			if err != nil && errors.Is(err, io.ErrUnexpectedEOF) {
+			if err != nil && errors.Is(err, io.ErrUnexpectedEOF) && limitedReader != nil && limitedReader.N == 0 && limitExhaustedBody(limitedReader) {
 				return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
 			}
 			return ret, err
@@ -544,8 +564,9 @@ func MakeDecoder(
 		nilBody := false
 		var rewriter *JSONKeyRewriteReader
 
+		var limitedReader *io.LimitedReader
 		if maxRequestBodySize != -1 {
-			limitedReader := io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
+			limitedReader = io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
 
 			r.Body = &LimitedReadCloser{
 				LimitedReader: limitedReader,
@@ -590,7 +611,7 @@ func MakeDecoder(
 						}
 					}
 
-					if errors.Is(err, io.ErrUnexpectedEOF) {
+					if errors.Is(err, io.ErrUnexpectedEOF) && limitedReader != nil && limitedReader.N == 0 && limitExhaustedBody(limitedReader) {
 						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
 					}
 
@@ -681,7 +702,10 @@ func MakeDecoder(
 				}
 
 				if errors.Is(err, io.ErrUnexpectedEOF) {
-					return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+					if limitedReader != nil && limitedReader.N == 0 && limitExhaustedBody(limitedReader) {
+						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+					}
+					return nil, BadRequestErr("json decoder error", err)
 				}
 				return nil, err
 			}
@@ -726,7 +750,29 @@ func MakeDecoder(
 	}
 }
 
-func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
+func newNonce() (string, error) {
+	b := make([]byte, 16)
+	if _, err := io.ReadFull(rand.Reader, b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+func WriteBrowserSecurityHeaders(w http.ResponseWriter, serveCSP, includeNonce bool) (string, error) {
+	// This endpoint can optionally return a nonce if needed for the Content-Security-Policy header. In general only
+	// our HTML responses need the nonce, API and other static assets should not include it. We return an empty but
+	// syntactically valid nonce in the unused case since this will still get substituted into HTML templates when unused
+	nonce := "disabled"
+	nonceExtraParam := ""
+	// generate a unique nonce for this response
+	if includeNonce {
+		var err error
+		nonce, err = newNonce()
+		if err != nil {
+			return "", err
+		}
+		nonceExtraParam = fmt.Sprintf(" 'nonce-%s'", nonce)
+	}
 	// Strict-Transport-Security informs browsers that the site should only be
 	// accessed using HTTPS, and that any future attempts to access it using
 	// HTTP should automatically be converted to HTTPS.
@@ -742,6 +788,25 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
 	// Referrer-Policy prevents leaking the origin of the referrer in the
 	// Referer.
 	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+	if serveCSP {
+		// TODO Is https OK for img-src? We allow customers to upload their own images and we have to reach out to gravatar for others.
+		// NB: If default-src ever changes from 'none' make sure to add object-src 'none'
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; base-uri 'self'; connect-src 'self' www.gravatar.com ws: wss:; img-src 'self' www.gravatar.com data: https:; style-src 'self'"+nonceExtraParam+"; font-src 'self'; script-src 'self'"+nonceExtraParam)
+	}
+	return nonce, nil
+}
+
+func BrowserSecurityHeadersHandler(serveCSP bool, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// We don't implement the nonce here in the generic case, however the few endpoints that need it should implement
+		// their own handling
+		_, err := WriteBrowserSecurityHeaders(w, serveCSP, false)
+		if err != nil {
+			http.Error(w, "failed to write browser security headers", http.StatusInternalServerError)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
 }
 
 // handlerKey identifies a registered handler by HTTP method and unversioned path template.
@@ -1095,7 +1160,8 @@ func EncodeCommonResponse(
 	// page and the error will be logged
 	if page, ok := response.(htmlPage); ok {
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-		WriteBrowserSecurityHeaders(w)
+		// This will not return an error if disabled
+		_, _ = WriteBrowserSecurityHeaders(w, false, false)
 		if coder, ok := page.Error().(kithttp.StatusCoder); ok {
 			w.WriteHeader(coder.StatusCode())
 		}

@@ -14,7 +14,7 @@ You can also manage which Google Play Store apps are available for self-service 
 
 1. Purchase the relevant app through Apple Business Manager (ABM). You must perform this step even if the app is free, or if it is a custom app you own. Learn how in [Apple's documentation](https://support.apple.com/guide/apple-business-manager/select-and-buy-content-axmc21817890/web).
 
-2. In Fleet, head to the **Software** page and select a team in the teams dropdown.
+2. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
 
 3. Select **Add software > App store**, then select the app you just purchased.
 
@@ -26,13 +26,13 @@ You can also manage which Google Play Store apps are available for self-service 
 
 1. Head to the [Google Play Store](https://play.google.com/store/apps), find the app, and copy the ID at the end of the URL (e.g. "com.android.chrome")
 
-2. In Fleet, head to the **Software** page and select a team in the teams dropdown.
+2. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
 
 3. Select **Add software > App store**, choose the Android platform, then enter the application ID.
 
 ## Edit or delete the app
 
-1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
+1. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
 
 2. Search for the app you want to remove and select the app to head to its **Software details** page.
 
@@ -44,7 +44,7 @@ You can also manage which Google Play Store apps are available for self-service 
 
 ## Configure automatic updates for an app (iOS / iPadOS only)
 
-1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
+1. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
 
 2. Search for the app you want to configure and select the app to head to its **Software details** page.
 

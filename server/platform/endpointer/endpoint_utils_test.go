@@ -2,10 +2,14 @@ package endpointer
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -14,6 +18,7 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -224,5 +229,84 @@ func TestRegisterDeprecatedPathAliasesPanicsOnMissing(t *testing.T) {
 				DeprecatedPaths: []string{"/api/_version_/fleet/old"},
 			},
 		})
+	})
+}
+
+func defaultJSONUnmarshal(body io.Reader, req any) error {
+	return json.NewDecoder(body).Decode(req)
+}
+
+type testRequestDecoderType struct {
+	Data string `json:"data"`
+}
+
+func (d *testRequestDecoderType) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
+	err := json.NewDecoder(r.Body).Decode(d)
+	return d, err
+}
+
+// TestMakeDecoderRequestDecoderFalsePositive verifies that a body containing
+// malformed JSON that is within the size limit does not produce a
+// PayloadTooLargeError (false positive)
+func TestMakeDecoderRequestDecoderFalsePositive(t *testing.T) {
+	const limit = 50
+
+	makeDecoder := func(limit int64) kithttp.DecodeRequestFunc {
+		return MakeDecoder(&testRequestDecoderType{}, defaultJSONUnmarshal, nil, nil, nil, nil, limit)
+	}
+
+	t.Run("malformed JSON within limit returns decode error, not 413", func(t *testing.T) {
+		body := strings.NewReader(`{"data": "truncated`) // malformed, within limit
+		r := httptest.NewRequest("POST", "/", body)
+		_, err := makeDecoder(limit)(context.Background(), r)
+		require.Error(t, err)
+		var ple platform_http.PayloadTooLargeError
+		require.False(t, errors.As(err, &ple), "malformed body within limit must not produce PayloadTooLargeError")
+	})
+
+	t.Run("body over limit returns 413", func(t *testing.T) {
+		big := `{"data":"` + strings.Repeat("x", limit+10) + `"}`
+		body := strings.NewReader(big)
+		r := httptest.NewRequest("POST", "/", body)
+		_, err := makeDecoder(limit)(context.Background(), r)
+		require.Error(t, err)
+		var ple platform_http.PayloadTooLargeError
+		require.True(t, errors.As(err, &ple), "body over limit must produce PayloadTooLargeError, got: %v", err)
+	})
+
+	t.Run("malformed JSON exactly at limit returns decode error, not 413", func(t *testing.T) {
+		// Build a body of exactly `limit` bytes that is malformed JSON (no closing
+		// brace). The LimitedReader is exhausted (N==0), but a peek at the
+		// underlying reader returns EOF — the body ended at the limit, it was not
+		// cut short. Must not produce PayloadTooLargeError.
+		prefix := `{"data":"`
+		body := strings.NewReader(prefix + strings.Repeat("x", limit-len(prefix))) // exactly limit bytes, no closing
+		r := httptest.NewRequest("POST", "/", body)
+		_, err := makeDecoder(limit)(context.Background(), r)
+		require.Error(t, err)
+		var ple platform_http.PayloadTooLargeError
+		require.False(t, errors.As(err, &ple), "malformed body exactly at limit must not produce PayloadTooLargeError")
+	})
+
+	t.Run("body over limit without Content-Length returns 413", func(t *testing.T) {
+		// Simulate a chunked request (no Content-Length) whose body exceeds the
+		// limit. The peek at the underlying reader finds more data → 413.
+		big := `{"data":"` + strings.Repeat("x", limit+10) + `"}`
+		r := httptest.NewRequest("POST", "/", strings.NewReader(big))
+		r.ContentLength = -1 // strip the Content-Length that httptest set
+		_, err := makeDecoder(limit)(context.Background(), r)
+		require.Error(t, err)
+		var ple platform_http.PayloadTooLargeError
+		require.True(t, errors.As(err, &ple), "over-limit body without Content-Length must produce PayloadTooLargeError, got: %v", err)
+	})
+
+	t.Run("valid body within limit is decoded successfully", func(t *testing.T) {
+		body := strings.NewReader(`{"data":"hello"}`)
+		r := httptest.NewRequest("POST", "/", body)
+		result, err := makeDecoder(limit)(context.Background(), r)
+		require.NoError(t, err)
+		rd, ok := result.(*testRequestDecoderType)
+		require.True(t, ok)
+		assert.Equal(t, "hello", rd.Data)
 	})
 }

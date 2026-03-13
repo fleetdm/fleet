@@ -1,6 +1,6 @@
-/** This modal is only used for VPP apps and their related installations.
- * For iOS/iPadOS packages (e.g. .ipa packages software source is ios_apps or ipados_apps)
- *  we use SoftwareIpaInstallDetailsModal with the command_uuid. */
+/** Modal for VPP app installs only.
+ * For iOS/iPadOS .ipa packages (software source: ios_apps or ipados_apps),
+ * use SoftwareIpaInstallDetailsModal with the command_uuid instead. */
 
 import React, { useState } from "react";
 import { useQuery } from "react-query";
@@ -51,7 +51,14 @@ interface IGetStatusMessageProps {
   hostDisplayName: string;
   commandUpdatedAt: string;
   platform?: string;
-  hasInstalledVersions?: boolean;
+  /**  Used only for overriding failed_install/failed_uninstall -> "is installed."
+   - From Host -> Software: override based on inventory.
+   - From Activity feed: never override (always show the failure).
+   Parity with SoftwareInstallDetailsModal/SoftwareIpaInstallDetailsModal */
+  canOverrideFailureWithInstalled?: boolean;
+  /** Used to show warning to close an app if failed to install with
+   * detected installed version on host */
+  hasInstalledVersionsOnHost?: boolean;
 }
 
 export const getStatusMessage = ({
@@ -63,10 +70,11 @@ export const getStatusMessage = ({
   hostDisplayName,
   commandUpdatedAt,
   platform,
-  hasInstalledVersions = false,
+  canOverrideFailureWithInstalled = false,
+  hasInstalledVersionsOnHost = false,
 }: IGetStatusMessageProps) => {
   const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
-  const displayTimeStamp =
+  const displayTimestamp =
     ["failed_install", "installed"].includes(displayStatus || "") &&
     commandUpdatedAt
       ? ` (${formatDistanceToNow(new Date(commandUpdatedAt), {
@@ -82,11 +90,11 @@ export const getStatusMessage = ({
 
   // Treat failed_install / failed_uninstall with installed versions as installed
   // as the host still reports installed versions (4.82 #31663)
-  const isActuallyInstalled =
-    hasInstalledVersions &&
+  const overrideFailureWithInstalled =
+    canOverrideFailureWithInstalled &&
     ["failed_install", "failed_uninstall"].includes(displayStatus || "");
 
-  if (isActuallyInstalled) {
+  if (overrideFailureWithInstalled) {
     return (
       <>
         <b>{appName}</b> is installed.
@@ -116,7 +124,7 @@ export const getStatusMessage = ({
             was running on battery power while in Power Nap
           </>
         )}
-        {displayTimeStamp && <> {displayTimeStamp}</>}. Fleet will try again.
+        {displayTimestamp && <> {displayTimestamp}</>}. Fleet will try again.
       </>
     );
   }
@@ -144,7 +152,7 @@ export const getStatusMessage = ({
               {!isMyDevicePage && <> on {formattedHost}</>}, but the app failed
               to install.
             </div>
-            {platform && isMacOS(platform) && hasInstalledVersions && (
+            {platform && isMacOS(platform) && hasInstalledVersionsOnHost && (
               <div className="vpp-install-details-modal__update-tip">
                 If you&apos;re updating the app and the app is open,{" "}
                 <TooltipWrapper
@@ -183,7 +191,7 @@ export const getStatusMessage = ({
           <>
             The MDM command (request) to install <b>{appName}</b>
             {!isMyDevicePage && <> on {formattedHost}</>} failed
-            {displayTimeStamp && <> {displayTimeStamp}</>}. Please re-attempt
+            {displayTimestamp && <> {displayTimestamp}</>}. Please re-attempt
             this installation.
           </>
         )}
@@ -193,14 +201,14 @@ export const getStatusMessage = ({
 
   const renderSuffix = () => {
     if (isMyDevicePage) {
-      return <> {displayTimeStamp && <> {displayTimeStamp}</>}</>;
+      return <> {displayTimestamp && <> {displayTimestamp}</>}</>;
     }
     return (
       <>
         {" "}
         on {formattedHost}
         {isPendingInstall && " when it comes online"}
-        {displayTimeStamp && <> {displayTimeStamp}</>}
+        {displayTimestamp && <> {displayTimestamp}</>}
       </>
     );
   };
@@ -336,9 +344,51 @@ export const VppInstallDetailsModal = ({
     }
   );
 
+  // Reconcile "installed" state from inventory vs command results.
+
+  // True when host inventory reports at least one installed version for this app.
+  const inventoryReportsInstalled = !!hostSoftware?.installed_versions?.length;
+
+  // True when the VPP command result metadata says the app is installed on the host.
+  const commandReportsInstalled =
+    (vppCommandResult?.results_metadata?.software_installed as boolean) ??
+    false;
+
+  // This modal is opened in two contexts:
+  // - From Host -> Software: hostSoftware is defined (we trust inventory to override failures).
+  // - From the Activity feed: hostSoftware is undefined (we trust command result status).
+  const openedFromHostSoftwarePage = !!hostSoftware;
+
+  // Used only for overriding failed_install/failed_uninstall -> "is installed."
+  // - From Host -> Software: override based on inventory.
+  // - From Activity feed: never override (always show the failure).
+  const canOverrideFailureWithInstalled = openedFromHostSoftwarePage
+    ? inventoryReportsInstalled
+    : false;
+
+  // Used to
+  const hasInstalledVersionsOnHost =
+    commandReportsInstalled || inventoryReportsInstalled;
+
   // Fallback to "installed" if no status is provided
   const displayStatus = fleetInstallStatus ?? "installed";
-  const iconName = INSTALL_DETAILS_STATUS_ICONS[displayStatus];
+
+  // Treat failed_install / failed_uninstall with installed versions as installed
+  const overrideFailedMessageWithInstalledMessage =
+    canOverrideFailureWithInstalled &&
+    ["failed_install", "failed_uninstall"].includes(displayStatus || "");
+
+  const commandUpdatedAt = vppCommandResult?.updated_at;
+
+  // Handles the case where software is installed manually by the user and not through Fleet
+  const isManuallyInstalled =
+    displayStatus === "installed" && !commandUpdatedAt; // using same condition as in getStatusMessage
+
+  // Use success icon when we show “is installed”
+  const iconName =
+    overrideFailedMessageWithInstalledMessage || isManuallyInstalled
+      ? "success"
+      : INSTALL_DETAILS_STATUS_ICONS[displayStatus];
 
   // Handles "pending" value prior to 4.57 AND never shows error state on pending_install
   // as some cases have command results not available for pending_installs
@@ -355,9 +405,17 @@ export const VppInstallDetailsModal = ({
   const isMDMStatusNotNow = vppCommandResult?.status === "NotNow";
   const isMDMStatusAcknowledged = vppCommandResult?.status === "Acknowledged";
 
-  const excludeVersions =
-    !deviceAuthToken &&
-    ["pending_install", "failed_install", "pending"].includes(displayStatus);
+  // Hide version section from pending installs or failures that aren't overridden to installed (4.82 #31663)
+  const shouldShowInventoryVersions =
+    (!!hostSoftware &&
+      deviceAuthToken &&
+      ![
+        "pending_install",
+        "failed_install",
+        "failed_uninstall",
+        "pending",
+      ].includes(displayStatus)) ||
+    overrideFailedMessageWithInstalledMessage;
 
   const isInstalledByFleet = hostSoftware
     ? !!hostSoftware.app_store_app?.last_install
@@ -372,9 +430,8 @@ export const VppInstallDetailsModal = ({
     hostDisplayName,
     commandUpdatedAt: vppCommandResult?.updated_at || "",
     platform: hostSoftware?.app_store_app?.platform || detailsPlatform,
-    hasInstalledVersions:
-      (vppCommandResult?.results_metadata?.software_installed as boolean) ??
-      !!hostSoftware?.installed_versions?.length,
+    canOverrideFailureWithInstalled,
+    hasInstalledVersionsOnHost,
   });
 
   const renderInventoryVersionsSection = () => {
@@ -417,14 +474,10 @@ export const VppInstallDetailsModal = ({
     );
   };
 
-  const hasInstalledVersions =
-    (vppCommandResult?.results_metadata?.software_installed as boolean) ??
-    !!hostSoftware?.installed_versions?.length;
-
   // Hide failed details if host shows installed versions (4.82 #31663)
   // NOTE: Currently no uninstall VPP but added for symmetry with SoftwareInstallDetailsModal
   const excludeInstallDetails =
-    hasInstalledVersions &&
+    canOverrideFailureWithInstalled &&
     [
       "failed_install_installed",
       "failed_uninstall_installed",
@@ -468,7 +521,7 @@ export const VppInstallDetailsModal = ({
           iconName={iconName}
           message={<span>{statusMessage}</span>}
         />
-        {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
+        {shouldShowInventoryVersions && renderInventoryVersionsSection()}
         {!isPendingInstall &&
           isInstalledByFleet &&
           !excludeInstallDetails &&
@@ -484,16 +537,14 @@ export const VppInstallDetailsModal = ({
       onEnter={onCancel}
       className={baseClass}
     >
-      <>
-        {renderContent()}
-        <ModalButtons
-          deviceAuthToken={deviceAuthToken}
-          hostSoftwareId={hostSoftware?.id}
-          onRetry={onRetry}
-          onCancel={onCancel}
-          displayStatus={displayStatus}
-        />
-      </>
+      {renderContent()}
+      <ModalButtons
+        deviceAuthToken={deviceAuthToken}
+        hostSoftwareId={hostSoftware?.id}
+        onRetry={onRetry}
+        onCancel={onCancel}
+        displayStatus={displayStatus}
+      />
     </Modal>
   );
 };

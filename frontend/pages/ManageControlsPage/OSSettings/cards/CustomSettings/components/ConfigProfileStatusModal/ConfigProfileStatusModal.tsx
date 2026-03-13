@@ -59,12 +59,10 @@ const ConfigProfileStatusModal = ({
 
   return (
     <Modal className={baseClass} title={name} onExit={onExit}>
-      <>
-        {renderContent()}
-        <div className="modal-cta-wrap">
-          <Button onClick={onExit}>Done</Button>
-        </div>
-      </>
+      {renderContent()}
+      <div className="modal-cta-wrap">
+        <Button onClick={onExit}>Done</Button>
+      </div>
     </Modal>
   );
 };

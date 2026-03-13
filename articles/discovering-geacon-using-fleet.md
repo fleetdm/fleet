@@ -49,18 +49,17 @@ fa9b04bdc97ffe55ae84e5c47e525c295fca1241
 `~/runoob.log`
 
 
-### Building a query
+### Building a report
 
-Based on the indicators of compromise listed above, we have two ways to look for Geacon on a device. The first is a suspicious file path, and the second is BundleIdentifiers. Let us build a query for each.
+Based on the indicators of compromise listed above, we have two ways to look for Geacon on a device. The first is a suspicious file path, and the second is BundleIdentifiers. Let us build a report for each.
 
 
 
-1. In the top navigation of the Fleet UI, select **Queries**.
-2. Select **Create new query** to navigate to the query console.
-3. In the **Query** field, we will enter our query to first look for the suspicious file path. From above, we are looking for `runoob.log` in the user's directory, `~`. To do this, we will use the file and hash tables joined on the path, and look for our file path. \
+1. In the top navigation of the Fleet UI, select **Reports** and **Add report**.
+2. In the **Query** field, we will enter our query to first look for the suspicious file path. From above, we are looking for `runoob.log` in the user's directory, `~`. To do this, we will use the file and hash tables joined on the path, and look for our file path. \
 `SELECT f.path, h.sha256 FROM file f JOIN hash h ON f.path = h.path WHERE f.path LIKE '/Users/%/runoob.log';`
-4. Select **Save**, enter a name and description for your query, and select **Save query**.
-5. Next, we will repeat this process to search for the suspicious BundleIdentifiers. To do this, we will look at the apps table and search for the BundleIdentifiers. \
+3. Select **Save**, enter a name and description for your report, and select **Save**.
+4. Next, we will repeat this process to search for the suspicious BundleIdentifiers. To do this, we will look at the apps table and search for the BundleIdentifiers. \
 `SELECT * FROM apps WHERE bundle_identifier = "com.apple.ScriptEditor.id.1223" or bundle_identifier = "com.apple.automator.makabaka"`
 
 
@@ -68,16 +67,15 @@ Based on the indicators of compromise listed above, we have two ways to look for
 
 Now let us combine these two queries into a single policy.
 
-1. In the top navigation of the Fleet UI, select Policies.
-2. Select **Create new policy** to navigate to the query console.
-3. In the **Query** field, enter our query that now combines both queries we built above into a single query. If either of these produces a match, the query will return `1` or true. \
+1. In the top navigation of the Fleet UI, select **Policies** and **Add policy**.
+2. In the **Query** field, enter our query that now combines both queries we built above into a single query. If either of these produces a match, the query will return `1` or true. \
 `SELECT 1 WHERE EXISTS (SELECT 1 FROM file f JOIN hash h ON f.path = h.path WHERE f.path LIKE "/Users/%/runoob.log") OR (SELECT 1 FROM running_apps WHERE bundle_identifier = "com.apple.ScriptEditor.id.1223" or bundle_identifier = "com.apple.automator.makabaka") LIMIT 1;`
-4. Select **Save**, enter a name and description for your policy, and select Save query.
+3. Select **Save**, enter a name and description for your policy, and select **Save**.
 
 
 ## Discovering out-of-policy devices
 
-The policies page indicates whether devices on each team are passing or failing with distinct "yes" or "no" responses. Although manually checking devices is relatively easy, we have made it easier for endpoint detection and response security using Fleet's automation.
+The policies page indicates whether devices in each fleet are passing or failing with distinct "yes" or "no" responses. Although manually checking devices is relatively easy, we have made it easier for endpoint detection and response security using Fleet's automation.
 
 Fleet can call a webhook when an out-of-policy device is identified. Users can specify a webhook URL to send alerts that include all devices that answered "No" to a policy. This makes it easier to create a support ticket and resolve each device.
 

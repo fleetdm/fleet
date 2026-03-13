@@ -232,21 +232,52 @@ const generateErrorTooltip = (
   return cellValue;
 };
 
+interface IRotateButtonProps {
+  isRotating: boolean;
+  onClick: () => void;
+}
+
+const RotateButton = ({ isRotating, onClick }: IRotateButtonProps) => {
+  const classNames = classnames(`${baseClass}__rotate-button`, "rotate-link", {
+    [`${baseClass}__rotating`]: isRotating,
+  });
+
+  const buttonText = isRotating ? "Rotating..." : "Rotate";
+
+  return (
+    <Button
+      disabled={isRotating}
+      onClick={onClick}
+      variant="inverse"
+      className={classNames}
+      size="small"
+    >
+      <Icon name="refresh" color="ui-fleet-black-75" size="small" />
+      {buttonText}
+    </Button>
+  );
+};
+
 interface IOSSettingsErrorCellProps {
   canResendProfiles: boolean;
+  canRotateRecoveryLockPassword?: boolean;
   profile: IHostMdmProfileWithAddedStatus;
   resendRequest: (profileUUID: string) => Promise<void>;
+  rotateRecoveryLockPassword?: () => Promise<void>;
   onProfileResent?: () => void;
 }
 
 const OSSettingsErrorCell = ({
   canResendProfiles,
+  canRotateRecoveryLockPassword = false,
   profile,
   resendRequest,
+  rotateRecoveryLockPassword,
   onProfileResent = noop,
 }: IOSSettingsErrorCellProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRotating, setIsRotating] = useState(false);
 
   const onResendProfile = async () => {
     setIsLoading(true);
@@ -259,9 +290,29 @@ const OSSettingsErrorCell = ({
     setIsLoading(false);
   };
 
+  const onRotatePassword = async () => {
+    if (!rotateRecoveryLockPassword) return;
+    setIsRotating(true);
+    try {
+      await rotateRecoveryLockPassword();
+      renderFlash(
+        "success",
+        "Successfully sent request to rotate Recovery Lock password."
+      );
+    } catch (e) {
+      renderFlash(
+        "error",
+        "Couldn't send request to rotate Recovery Lock password. Please try again."
+      );
+    }
+    setIsRotating(false);
+  };
+
   const isFailed = profile.status === "failed";
   const isVerified = profile.status === "verified";
   const showRefetchButton = canResendProfiles && (isFailed || isVerified);
+  const showRotateButton =
+    canRotateRecoveryLockPassword && (isFailed || isVerified);
   const value = (isFailed && profile.detail) || DEFAULT_EMPTY_CELL_VALUE;
 
   const tooltip = generateErrorTooltip(value, profile);
@@ -275,13 +326,16 @@ const OSSettingsErrorCell = ({
         // we dont want the default "w250" class so we pass in empty string
         classes=""
         className={
-          isFailed || showRefetchButton
+          isFailed || showRefetchButton || showRotateButton
             ? `${baseClass}__failed-message`
             : undefined
         }
       />
       {showRefetchButton && (
         <RefetchButton isFetching={isLoading} onClick={onResendProfile} />
+      )}
+      {showRotateButton && (
+        <RotateButton isRotating={isRotating} onClick={onRotatePassword} />
       )}
     </div>
   );
