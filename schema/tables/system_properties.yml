@@ -1,0 +1,22 @@
+name: system_properties
+evented: false
+platforms:
+  - android
+description: Android system properties exposed as key/value pairs.
+examples: |-
+  Inspect Android runtime properties.
+
+  ```
+  SELECT key, value
+  FROM system_properties
+  LIMIT 50;
+  ```
+columns:
+  - name: key
+    type: text
+    required: false
+    description: Property key.
+  - name: value
+    type: text
+    required: false
+    description: Property value.

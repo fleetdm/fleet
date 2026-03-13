@@ -1,0 +1,57 @@
+name: device_info
+evented: false
+platforms:
+  - android
+description: Static Android device identity and hardware metadata.
+examples: |-
+  Get device model and manufacturer details.
+
+  ```
+  SELECT manufacturer, brand, model, device, product
+  FROM device_info;
+  ```
+columns:
+  - name: device
+    type: text
+    required: false
+    description: Device codename.
+  - name: model
+    type: text
+    required: false
+    description: End-user-visible model name.
+  - name: manufacturer
+    type: text
+    required: false
+    description: Device manufacturer.
+  - name: brand
+    type: text
+    required: false
+    description: Device brand.
+  - name: product
+    type: text
+    required: false
+    description: Product name.
+  - name: hardware
+    type: text
+    required: false
+    description: Hardware name.
+  - name: board
+    type: text
+    required: false
+    description: Underlying board name.
+  - name: fingerprint
+    type: text
+    required: false
+    description: Build fingerprint.
+  - name: bootloader
+    type: text
+    required: false
+    description: Bootloader version.
+  - name: tags
+    type: text
+    required: false
+    description: Build tags.
+  - name: type
+    type: text
+    required: false
+    description: Build type (for example user or userdebug).

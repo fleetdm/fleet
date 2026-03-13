@@ -4,6 +4,7 @@ platforms:
   - windows
   - linux
   - chrome
+  - android
 columns:
   - name: pid
     platforms:

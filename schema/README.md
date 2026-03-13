@@ -25,12 +25,12 @@ examples: |- # (optional) string - An example query for this table. Note: This f
 	# Add examples here
 notes: |- # (optional) string - Notes about this table. Note: This field supports markdown.
 	# Add notes here
-platforms: |- # (optional) array - A list of supported platforms for this table (any of: `darwin`, `windows`, `linux`, `chrome`)
+platforms: |- # (optional) array - A list of supported platforms for this table (any of: `darwin`, `windows`, `linux`, `chrome`, `android`)
 	# Add platforms here
 columns: # (required) array - An array of columns in this table
   - name: # (required) string - The name of the column
     description: # (required) string - The column's description
     type: # (required) string - the column's data type
     required: # (required) boolean - whether or not this column is required to query this table.
-    platforms: # (optional) array - List of supported platforms, used to clarify when a column isn't available on every platform its table supports (any of: `darwin`, `windows`, `linux`, `chrome`)
+    platforms: # (optional) array - List of supported platforms, used to clarify when a column isn't available on every platform its table supports (any of: `darwin`, `windows`, `linux`, `chrome`, `android`)
 ```
