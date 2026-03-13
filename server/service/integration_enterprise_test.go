@@ -12517,7 +12517,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// check activity
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(),
-			fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?team_id=0", "team_name": null, "team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true}`, titleID), 0)
+			fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?fleet_id=0", "team_name": null, "team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true}`, titleID), 0)
 
 		// download the installer, not found anymore
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", 0))
@@ -13043,7 +13043,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 		headers,
 	)
 	result := parsePutResponse(resp)
-	iconUrl := fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID)
+	iconUrl := fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", titleID, tm.ID)
 	require.Nil(t, result.Err)
 	require.Contains(t, result.IconUrl, iconUrl)
 

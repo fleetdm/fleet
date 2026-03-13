@@ -171,7 +171,7 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tea
 		return nil, ctxerr.Wrap(ctx, err, "get in house app manifest: get in house app metadata")
 	}
 
-	downloadURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app?team_id=%d", appConfig.ServerSettings.ServerURL, titleID, ptr.ValOrZero(teamID))
+	downloadURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app?fleet_id=%d", appConfig.ServerSettings.ServerURL, titleID, ptr.ValOrZero(teamID))
 
 	if svc.config.S3.SoftwareInstallersCloudFrontSigner != nil {
 		signedURL, err := svc.softwareInstallStore.Sign(ctx, meta.StorageID, fleet.InHouseAppSignedURLExpiry)
@@ -184,7 +184,7 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tea
 	}
 
 	// Escape & characters in case of using CloudFront signed URL
-	var funcMap = map[string]any{
+	funcMap := map[string]any{
 		"xml": mobileconfig.XMLEscapeString,
 	}
 
@@ -235,7 +235,6 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tea
 		Name     string
 		URL      string
 	}{meta.BundleIdentifier, meta.Version, meta.SoftwareTitle, downloadURL})
-
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "rendering app manifest")
 	}

@@ -98,23 +98,23 @@ func (c *MockClient) ListTeams(query string) ([]fleet.Team, error) {
 
 func (MockClient) ListScripts(query string) ([]*fleet.Script, error) {
 	switch query {
-	case "team_id=1":
+	case "fleet_id=1":
 		return []*fleet.Script{{
 			ID:              2,
 			TeamID:          ptr.Uint(1),
 			Name:            "Script B.ps1",
 			ScriptContentID: 2,
 		}}, nil
-	case "team_id=0":
+	case "fleet_id=0":
 		return []*fleet.Script{{
 			ID:              3,
 			TeamID:          ptr.Uint(0),
 			Name:            "Script Z.ps1",
 			ScriptContentID: 3,
 		}}, nil
-	case "team_id=2", "team_id=3", "team_id=4", "team_id=5":
+	case "fleet_id=2", "fleet_id=3", "fleet_id=4", "fleet_id=5":
 		return nil, nil
-	case "team_id=6":
+	case "fleet_id=6":
 		return nil, nil
 	default:
 		return nil, fmt.Errorf("unexpected query: %s", query)
@@ -249,7 +249,7 @@ func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
 
 func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
 	switch query {
-	case "available_for_install=1&team_id=1":
+	case "available_for_install=1&fleet_id=1":
 		return []fleet.SoftwareTitleListResult{
 			{
 				ID:         1,
@@ -312,7 +312,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				},
 			},
 		}, nil
-	case "available_for_install=1&team_id=0":
+	case "available_for_install=1&fleet_id=0":
 		return []fleet.SoftwareTitleListResult{}, nil
 	default:
 		return nil, fmt.Errorf("unexpected query: %s", query)
@@ -1592,7 +1592,7 @@ type MockClientWithScriptPackage struct {
 
 func (c *MockClientWithScriptPackage) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
 	switch query {
-	case "available_for_install=1&team_id=2":
+	case "available_for_install=1&fleet_id=2":
 		return []fleet.SoftwareTitleListResult{
 			{
 				ID:         3,
