@@ -2786,12 +2786,12 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		for _, softwareInstaller := range teamSoftwareInstallers {
 			if softwareInstaller.TitleID == nil {
 				// Should not happen, but to not panic we just log a warning.
-				logFn("[!] software installer without title id: team_id=%d, url=%s\n", *teamID, softwareInstaller.URL)
+				logFn("[!] software installer without title id: fleet_id=%d, url=%s\n", *teamID, softwareInstaller.URL)
 				continue
 			}
 			if softwareInstaller.URL == "" && softwareInstaller.HashSHA256 == "" {
 				// Should not happen because we previously applied packages via gitops, but to not panic we just log a warning.
-				logFn("[!] software installer without url: team_id=%d, title_id=%d\n", *teamID, *softwareInstaller.TitleID)
+				logFn("[!] software installer without url: fleet_id=%d, title_id=%d\n", *teamID, *softwareInstaller.TitleID)
 				continue
 			}
 			softwareTitleIDsByInstallerURL[softwareInstaller.URL] = *softwareInstaller.TitleID
@@ -2803,12 +2803,12 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			}
 			if vppApp.TitleID == nil {
 				// Should not happen, but to not panic we just log a warning.
-				logFn("[!] VPP app without title id: team_id=%d, app_store_id=%s\n", *teamID, vppApp.AppStoreID)
+				logFn("[!] VPP app without title id: fleet_id=%d, app_store_id=%s\n", *teamID, vppApp.AppStoreID)
 				continue
 			}
 			if vppApp.AppStoreID == "" {
 				// Should not happen because we previously applied apps via gitops, but to not panic we just log a warning.
-				logFn("[!] VPP app without app ID: team_id=%d, title_id=%d\n", *teamID, *vppApp.TitleID)
+				logFn("[!] VPP app without app ID: fleet_id=%d, title_id=%d\n", *teamID, *vppApp.TitleID)
 				continue
 			}
 			softwareTitleIDsByAppStoreAppID[vppApp.AppStoreID] = *vppApp.TitleID

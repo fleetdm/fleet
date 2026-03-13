@@ -40,7 +40,7 @@ func (c *Client) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResu
 func (c *Client) GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error) {
 	verb, path := "GET", "/api/latest/fleet/setup_experience/software"
 	var responseBody getSetupExperienceSoftwareResponse
-	query := fmt.Sprintf("platform=%s&team_id=%d", platform, teamID)
+	query := fmt.Sprintf("platform=%s&fleet_id=%d", platform, teamID)
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
 	if err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func (c *Client) GetSetupExperienceSoftware(platform string, teamID uint) ([]fle
 func (c *Client) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTitle, error) {
 	var query string
 	if teamID != nil {
-		query = fmt.Sprintf("team_id=%d", *teamID)
+		query = fmt.Sprintf("fleet_id=%d", *teamID)
 	}
 	verb, path := "GET", "/api/latest/fleet/software/titles/"+fmt.Sprint(ID)
 	var responseBody getSoftwareTitleResponse
@@ -67,7 +67,7 @@ func (c *Client) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTit
 
 func (c *Client) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error) {
 	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon", titleID)
-	response, err := c.AuthenticatedDo(verb, path, fmt.Sprintf("team_id=%d", teamID), nil)
+	response, err := c.AuthenticatedDo(verb, path, fmt.Sprintf("fleet_id=%d", teamID), nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
 	}
@@ -211,7 +211,7 @@ func (c *Client) putIcon(teamID uint, titleID uint, writer *multipart.Writer, bu
 		context.Background(),
 		"PUT",
 		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon", titleID),
-		fmt.Sprintf("team_id=%d", teamID),
+		fmt.Sprintf("fleet_id=%d", teamID),
 		buf.Bytes(),
 		map[string]string{
 			"Content-Type":  writer.FormDataContentType(),
@@ -235,7 +235,7 @@ func (c *Client) DeleteIcon(teamID uint, titleID uint) error {
 	response, err := c.AuthenticatedDo(
 		"DELETE",
 		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon", titleID),
-		fmt.Sprintf("team_id=%d", teamID),
+		fmt.Sprintf("fleet_id=%d", teamID),
 		nil,
 	)
 	if err != nil {

@@ -4865,7 +4865,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	// auto-incremented and other tests cause it to be different than what we need (ID=1).
 	var execErr error
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, execErr = db.ExecContext(context.Background(), `INSERT INTO teams (id, name) VALUES (1, 'Foobar') ON DUPLICATE KEY UPDATE name = VALUES(name);`)
+		_, execErr = db.ExecContext(context.Background(), `INSERT INTO teams (id, name) VALUES (1, 'Foobar'), (2, 'Hollatchaboi') ON DUPLICATE KEY UPDATE name = VALUES(name);`)
 		return execErr
 	})
 	require.NoError(t, execErr)
@@ -4886,9 +4886,11 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	require.Equal(t, "sso_user_4_team_maintainer@example.com", user4.Email)
 	require.Equal(t, "SSO User 4", user4.Name)
 	require.Nil(t, user4.GlobalRole)
-	require.Len(t, user4.Teams, 1)
+	require.Len(t, user4.Teams, 2)
 	require.Equal(t, uint(1), user4.Teams[0].ID)
 	require.Equal(t, fleet.RoleMaintainer, user4.Teams[0].Role)
+	require.Equal(t, uint(2), user4.Teams[1].ID)
+	require.Equal(t, fleet.RoleObserver, user4.Teams[1].Role)
 
 	// A user with pre-configured roles can be created,
 	// see `tools/saml/users.php` for details.
@@ -12515,7 +12517,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// check activity
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(),
-			fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?team_id=0", "team_name": null, "team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true}`, titleID), 0)
+			fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?fleet_id=0", "team_name": null, "team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true}`, titleID), 0)
 
 		// download the installer, not found anymore
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", 0))
@@ -13041,7 +13043,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 		headers,
 	)
 	result := parsePutResponse(resp)
-	iconUrl := fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID)
+	iconUrl := fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", titleID, tm.ID)
 	require.Nil(t, result.Err)
 	require.Contains(t, result.IconUrl, iconUrl)
 

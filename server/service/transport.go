@@ -146,7 +146,14 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	teamID := r.URL.Query().Get("fleet_id")
 	if teamID == "" {
 		teamID = r.URL.Query().Get("team_id")
-		// TODO: warn about deprecated team_id parameter if team_id is used instead of fleet_id.
+		if teamID != "" &&
+			platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+			logging.WithLevel(r.Context(), slog.LevelWarn)
+			logging.WithExtras(r.Context(),
+				"deprecated_param", "team_id",
+				"deprecation_warning", "'team_id' is deprecated, use 'fleet_id' instead",
+			)
+		}
 	}
 	if teamID != "" {
 		id, err := strconv.ParseUint(teamID, 10, 32)
@@ -635,8 +642,18 @@ func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) 
 	}
 
 	userOpts := fleet.UserListOptions{ListOptions: opt}
-
-	if tid := r.URL.Query().Get("team_id"); tid != "" {
+	tid := r.URL.Query().Get("fleet_id")
+	if tid == "" {
+		tid = r.URL.Query().Get("team_id")
+		if tid != "" && platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+			logging.WithLevel(r.Context(), slog.LevelWarn)
+			logging.WithExtras(r.Context(),
+				"deprecated_param", "team_id",
+				"deprecation_warning", "'team_id' is deprecated, use 'fleet_id' instead",
+			)
+		}
+	}
+	if tid != "" {
 		teamID, err := strconv.ParseUint(tid, 10, 64)
 		if err != nil {
 			return userOpts, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid team_id: %s", tid)))
