@@ -8,7 +8,7 @@ module.exports = {
     './it-and-security/.github/fleet-gitops/action.yml': { copy: './github/fleet-gitops/action.yml.template' },
     './it-and-security/.github/fleet-gitops/gitops.sh': { copy: './github/fleet-gitops/gitops.sh.template' },
     './it-and-security/.github/workflows': { folder: {} },
-    './it-and-security/.github/workflows/workflow.yml': { copy: './github/workflows/fleet-gitops-workflow.yml.template' },
+    './it-and-security/.github/workflows/workflow.yml': { copy: './github/workflows/workflow.yml.template' },
     './it-and-security/.gitlab-ci.yml': { copy: './gitlab-ci.yml.template' },
     './it-and-security/.gitignore': { copy: './gitignore.template' },
     './it-and-security/default.yml': { copy: './default.yml.template' },
