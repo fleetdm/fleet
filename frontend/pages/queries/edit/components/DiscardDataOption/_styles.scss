@@ -1,20 +1,13 @@
 .discard-data-option {
-  .info-banner {
-    margin-bottom: 1.5rem;
-    &__info {
-      line-height: 21px;
-    }
-  }
+  @include vertical-form-layout;
 
-  &__disabled-discard-data-checkbox > .fleet-checkbox {
-    @include disabled;
+  .info-banner {
+    margin-bottom: 0; // TODO: Remove when globally info-banner gaps do not rely on margin but flex gap
   }
 
   &__edit-anyway {
-    display: inline-flex;
-    align-items: center;
-    cursor: pointer;
-    font-weight: inherit;
-    font-size: inherit;
+    margin-top: -$pad-small; // Prevents help text jump from padded button disappearing when clicked
+    margin-bottom: -$pad-small; // Prevents help text jump from padded button disappearing when clicked
+    margin-left: $pad-small; // Space between text and button, can't use flex as we have a tooltip within text
   }
 }
