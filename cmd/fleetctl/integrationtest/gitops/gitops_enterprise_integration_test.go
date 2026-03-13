@@ -210,7 +210,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutputWithDeprecation
 	pattern := fmt.Sprintf("\\[([+\\-!])] would've (%s)", strings.Join(allowedVerbs, "|"))
 	reg := regexp.MustCompile(pattern)
 	for line := range strings.SplitSeq(output, "\n") {
-		if expectDeprecation && line != "" && strings.Contains(line, "is deprecated") {
+		if line != "" && strings.Contains(line, "is deprecated") {
 			sawDeprecation = true
 			continue
 		}
@@ -242,7 +242,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertRealRunOutputWithDeprecatio
 	pattern := fmt.Sprintf("\\[([+\\-!])] (%s)", strings.Join(allowedVerbs, "|"))
 	reg := regexp.MustCompile(pattern)
 	for line := range strings.SplitSeq(output, "\n") {
-		if allowDeprecation && line != "" && strings.Contains(line, "is deprecated") {
+		if line != "" && strings.Contains(line, "is deprecated") {
 			continue
 		}
 		if line != "" && !strings.Contains(line, "succeeded") {

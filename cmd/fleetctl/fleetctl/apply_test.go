@@ -1556,11 +1556,11 @@ spec:
     windows_updates:
       deadline_days: 1
       grace_period_days: 0
-    macos_settings:
-      custom_settings:
+    apple_settings:
+      configuration_profiles:
       - %s
-    macos_setup:
-      macos_setup_assistant: %s
+    setup_experience:
+      apple_setup_assistant: %s
     windows_enabled_and_configured: true
 `, mobileConfigPath, emptySetupAsst))
 
@@ -1603,7 +1603,7 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
+    setup_experience:
       bootstrap_package: %s
 `, bootstrapURL))
 
@@ -2322,9 +2322,9 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
+    setup_experience:
       bootstrap_package: %s
-      macos_setup_assistant: %s
+      apple_setup_assistant: %s
 `
 		appConfigEnableReleaseSpec = appConfigSpec + `
       enable_release_device_manually: %s
@@ -2334,14 +2334,14 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
+    setup_experience:
 `
 		appConfigSpecEnableEndUserAuth = `
 apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
+    setup_experience:
       enable_end_user_authentication: %s
 `
 		team1Spec = `
@@ -2351,9 +2351,9 @@ spec:
   team:
     name: tm1
     mdm:
-      macos_setup:
+      setup_experience:
         bootstrap_package: %s
-        macos_setup_assistant: %s
+        apple_setup_assistant: %s
 `
 		team1EnableReleaseSpec = team1Spec + `
         enable_release_device_manually: %s
@@ -2366,7 +2366,7 @@ spec:
   team:
     name: tm1
     mdm:
-      macos_setup:
+      setup_experience:
 `
 		team1And2Spec = `
 apiVersion: v1
@@ -2375,9 +2375,9 @@ spec:
   team:
     name: tm1
     mdm:
-      macos_setup:
+      setup_experience:
         bootstrap_package: %s
-        macos_setup_assistant: %s
+        apple_setup_assistant: %s
 ---
 apiVersion: v1
 kind: fleet
@@ -2385,9 +2385,9 @@ spec:
   team:
     name: tm2
     mdm:
-      macos_setup:
+      setup_experience:
         bootstrap_package: %s
-        macos_setup_assistant: %s
+        apple_setup_assistant: %s
 `
 		team1SpecEnableEndUserAuth = `
 apiVersion: v1
@@ -2396,7 +2396,7 @@ spec:
   team:
     name: tm1
     mdm:
-      macos_setup:
+      setup_experience:
         enable_end_user_authentication: %s
 `
 	)
@@ -2746,7 +2746,7 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
+    setup_experience:
       bootstrap_package: %s
       manual_agent_install: true
 `
@@ -3929,7 +3929,7 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_settings:
+    apple_settings:
       enable_disk_encryption:
 `,
 			wantOutput: `[+] applied fleet config`,
@@ -3941,7 +3941,7 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_settings:
+    apple_settings:
       enable_disk_encryption: 123
 `,
 			wantErr: `400 Bad request: failed to decode app config`,
@@ -3953,7 +3953,7 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_settings:
+    apple_settings:
       enable_disk_encryption: true
 `,
 
@@ -3967,7 +3967,7 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_settings:
+    apple_settings:
       enable_disk_encryption: false
 `,
 			wantOutput: `[+] applied fleet config`,
@@ -3981,7 +3981,7 @@ spec:
   team:
     name: team1
     mdm:
-      macos_settings:
+      apple_settings:
         enable_disk_encryption:
 `,
 			wantErr: `400 Bad Request: invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got <nil>`,
@@ -3995,7 +3995,7 @@ spec:
   team:
     name: team1
     mdm:
-      macos_settings:
+      apple_settings:
         enable_disk_encryption: 123
 `,
 			wantErr: `400 Bad Request: invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got float64`,
@@ -4009,7 +4009,7 @@ spec:
   team:
     name: team1
     mdm:
-      macos_settings:
+      apple_settings:
         enable_disk_encryption: true
 `,
 			wantErr: `Couldn't update macos_settings because MDM features aren't turned on in Fleet.`,
@@ -4023,7 +4023,7 @@ spec:
   team:
     name: team1
     mdm:
-      macos_settings:
+      apple_settings:
         enable_disk_encryption: false
 `,
 			wantOutput: `[+] applied 1 fleet`,
@@ -4037,8 +4037,8 @@ spec:
   team:
     name: team1
     mdm:
-      macos_setup:
-        macos_setup_assistant: %s
+      setup_experience:
+        apple_setup_assistant: %s
 `, macSetupFile),
 			wantErr: `macOS MDM isn't turned on.`,
 		},
@@ -4049,8 +4049,8 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
-      macos_setup_assistant: %s
+    setup_experience:
+      apple_setup_assistant: %s
 `, macSetupFile),
 			wantErr: `macOS MDM isn't turned on.`,
 		},
