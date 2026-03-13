@@ -187,7 +187,12 @@ const SoftwareNameCell = ({
   // My device page > Software fake link as entire row opens a modal
   if (pageContext === "deviceUser" && !isSelfService) {
     return (
-      <LinkCell tooltipTruncate prefix={icon} value={softwareDisplayName} />
+      <LinkCell
+        className="w400"
+        tooltipTruncate
+        prefix={icon}
+        value={softwareDisplayName}
+      />
     );
   }
 

@@ -838,9 +838,10 @@ const PolicyForm = ({
               suppressTitle
             />
           )}
-          {isExistingPolicy && isPatchPolicy && storedPolicy && (
+          {isExistingPolicy && storedPolicy && (
             <PolicyAutomations
               storedPolicy={storedPolicy}
+              isPatchPolicy={isPatchPolicy}
               currentAutomatedPolicies={currentAutomatedPolicies}
               onAddAutomation={onAddPatchAutomation}
               isAddingAutomation={isAddingAutomation}
