@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
@@ -378,15 +379,15 @@ func TestValidGitOpsYaml(t *testing.T) {
 					assert.NotNil(t, gitops.Policies[5].InstallSoftware)
 
 					if name == "team_config_with_paths_and_only_sha256" {
-						assert.Equal(t, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", gitops.Policies[5].InstallSoftware.HashSHA256)
+						assert.Equal(t, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", gitops.Policies[5].InstallSoftware.Other.HashSHA256)
 					} else {
-						assert.Equal(t, "./microsoft-teams.pkg.software.yml", gitops.Policies[5].InstallSoftware.PackagePath)
+						assert.Equal(t, "./microsoft-teams.pkg.software.yml", gitops.Policies[5].InstallSoftware.Other.PackagePath)
 						assert.Equal(t, "https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg", gitops.Policies[5].InstallSoftwareURL)
 					}
 
 					assert.Equal(t, "Slack on macOS is installed", gitops.Policies[6].Name)
 					assert.NotNil(t, gitops.Policies[6].InstallSoftware)
-					assert.Equal(t, "123456", gitops.Policies[6].InstallSoftware.AppStoreID)
+					assert.Equal(t, "123456", gitops.Policies[6].InstallSoftware.Other.AppStoreID)
 
 					assert.Equal(t, "Script run policy", gitops.Policies[7].Name)
 					assert.NotNil(t, gitops.Policies[7].RunScript)
@@ -3200,12 +3201,14 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 
 	t.Run("wrapErrs prefixes errors", func(t *testing.T) {
 		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{}
+
 		policy := &Policy{
 			GitOpsPolicySpec: GitOpsPolicySpec{
 				PolicySpec:      fleet.PolicySpec{Name: "my policy"},
-				InstallSoftware: &PolicyInstallSoftware{
-					// no package_path, app_store_id, or hash_sha256
-				},
+				InstallSoftware: installSoftware, // no package_path, app_store_id, or hash_sha256
 			},
 		}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil)
@@ -3221,12 +3224,13 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		path := filepath.Join(dir, "pkg.yml")
 		require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
 
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{PackagePath: path}
+
 		policy := &Policy{
 			GitOpsPolicySpec: GitOpsPolicySpec{
-				PolicySpec: fleet.PolicySpec{Name: "typo policy"},
-				InstallSoftware: &PolicyInstallSoftware{
-					PackagePath: path,
-				},
+				PolicySpec:      fleet.PolicySpec{Name: "typo policy"},
+				InstallSoftware: installSoftware,
 			},
 		}
 		packages := []*fleet.SoftwarePackageSpec{{SHA256: sha}}

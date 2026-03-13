@@ -53,9 +53,10 @@ type FileToWrite struct {
 }
 
 type Software struct {
-	Hash       string
-	AppStoreId string
-	Comment    string
+	Hash            string
+	AppStoreId      string
+	Comment         string
+	MaintainedAppID uint
 }
 
 type teamToProcess struct {
@@ -87,6 +88,7 @@ type generateGitopsClient interface {
 	GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error)
 	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
 	GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error)
+	GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error)
 }
 
 // Given a struct type and a field name, return the JSON field name.
@@ -1444,12 +1446,29 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			jsonFieldName(t, "Name"):                     policy.Name,
 			jsonFieldName(t, "Description"):              policy.Description,
 			jsonFieldName(t, "Resolution"):               policy.Resolution,
-			jsonFieldName(t, "Query"):                    policy.Query,
 			jsonFieldName(t, "Platform"):                 policy.Platform,
 			jsonFieldName(t, "Critical"):                 policy.Critical,
 			jsonFieldName(t, "CalendarEventsEnabled"):    policy.CalendarEventsEnabled,
 			jsonFieldName(t, "ConditionalAccessEnabled"): policy.ConditionalAccessEnabled,
 		}
+
+		if policy.Type == fleet.PolicyTypeDynamic {
+			policySpec[jsonFieldName(t, "Query")] = policy.Query
+		}
+
+		if policy.PatchSoftware != nil {
+			cachedSWTitle := cmd.SoftwareList[policy.PatchSoftware.SoftwareTitleID]
+
+			fma, err := cmd.Client.GetFleetMaintainedApp(cachedSWTitle.MaintainedAppID)
+			if err != nil {
+				return nil, err
+			}
+			policySpec["fleet_maintained_app_slug"] = fma.Slug
+		}
+		if policy.Type != "" {
+			policySpec["type"] = policy.Type
+		}
+
 		// This is derived from the failing_policies_webhook.policy_ids field, which is being deprecated.
 		policySpec["webhooks_and_tickets_enabled"] = failingPolicyIDs[policy.ID]
 		// Handle software automation.
@@ -1638,10 +1657,15 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				softwareSpec["hash_sha256"] = cmd.AddComment(filePath, "TODO: Add your hash_sha256 here")
 			} else {
 				softwareSpec["hash_sha256"] = *sw.HashSHA256 + " " + comment
-				cmd.SoftwareList[sw.ID] = Software{
+				swEntry := Software{
 					Hash:    *sw.HashSHA256,
 					Comment: comment,
 				}
+				if sw.SoftwarePackage != nil && sw.SoftwarePackage.FleetMaintainedAppID != nil {
+					swEntry.MaintainedAppID = *sw.SoftwarePackage.FleetMaintainedAppID
+				}
+
+				cmd.SoftwareList[sw.ID] = swEntry
 			}
 		case sw.AppStoreApp != nil:
 			softwareSpec["app_store_id"] = sw.AppStoreApp.AppStoreID

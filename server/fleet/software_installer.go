@@ -133,6 +133,9 @@ type SoftwareInstaller struct {
 
 	// DisplayName is an end-user friendly name.
 	DisplayName string `json:"display_name"`
+
+	// PatchPolicy is present for Fleet maintained apps with an associated patch policy
+	PatchPolicy *PatchPolicyData `json:"patch_policy"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -726,6 +729,12 @@ type AutomaticInstallPolicy struct {
 	ID      uint   `json:"id" db:"id"`
 	Name    string `json:"name" db:"name"`
 	TitleID uint   `json:"-" db:"software_title_id"`
+	Type    string `json:"type" db:"type"`
+}
+
+type PatchPolicyData struct {
+	ID   uint   `json:"id" db:"id"`
+	Name string `json:"name" db:"name"`
 }
 
 // SoftwarePackageOrApp provides information about a software installer

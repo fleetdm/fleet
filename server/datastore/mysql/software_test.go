@@ -4843,10 +4843,12 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		{
 			ID:   policy1.ID,
 			Name: policy1.Name,
+			Type: fleet.PolicyTypeDynamic,
 		},
 		{
 			ID:   policy2.ID,
 			Name: policy2.Name,
+			Type: fleet.PolicyTypeDynamic,
 		},
 	}
 	compareResults(expectedWithPolicies, sw, true)
@@ -5031,10 +5033,12 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 					{
 						ID:   policy3.ID,
 						Name: policy3.Name,
+						Type: fleet.PolicyTypeDynamic,
 					},
 					{
 						ID:   policy4.ID,
 						Name: policy4.Name,
+						Type: fleet.PolicyTypeDynamic,
 					},
 				},
 			},
