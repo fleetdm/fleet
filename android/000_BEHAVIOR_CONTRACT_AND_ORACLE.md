@@ -8,10 +8,12 @@ This PR is large. The goal of this document is to give reviewers a stable behavi
 ## Provenance and ordering note
 This document was created by AI, but it was created **after** the implementation (reverse-extracted from the code in this PR branch).  
 So this is not the historical authoring order; it is a post-hoc contract/oracle reconstruction for human review and accountability.
+As part of this PR, the contracts/oracle approach from the book was adopted during the work: some sections were extracted from already-implemented code, and some sections were defined contract-first and then implemented according to that contract.
 
 ## Compliance statement
-The implementation in this PR was checked against this behavior contract and oracle, and it appears to respect them based on current unit tests and manual validation performed by this AI agent in this branch.  
-This is an engineering confidence statement, not a formal proof of correctness.
+The implementation in this PR was checked against the currently implemented contract/oracle rules (C1-C8 and O1-O5), and it appears to respect them based on current unit tests and manual validation performed by this AI agent in this branch.  
+This is an engineering confidence statement, not a formal proof of correctness.  
+The newly approved `time`/`uptime` additions (C9 and O6-O7) define the next implementation target.
 
 ## System behavior contract
 
@@ -22,6 +24,7 @@ This contract covers Android osquery behavior implemented in this PR branch:
 - SQL surface and table execution semantics
 - osquery table exposure for Android
 - security-sensitive behavior for transport and logging
+- cross-OS parity table behavior for `time` and `uptime`
 
 ### Actors and interfaces
 - Fleet server endpoints:
@@ -78,6 +81,21 @@ A table may only emit declared columns; unknown columns are contract violation. 
 - sensitive token redaction patterns
 - bounded execution timeout
 
+#### C9. Cross-OS parity tables `time` and `uptime`
+Android must expose `time` and `uptime` using osquery-style table names and deterministic one-row semantics.
+
+`time` contract:
+- exactly one row per query
+- required columns: `weekday`, `year`, `month`, `day`, `hour`, `minutes`, `seconds`, `timezone`, `local_timezone`, `unix_time`
+- values come from device local clock/timezone at query runtime
+- `unix_time` is epoch seconds
+
+`uptime` contract:
+- exactly one row per query
+- required columns: `days`, `hours`, `minutes`, `seconds`, `total_seconds`
+- values come from elapsed realtime since boot
+- all values are non-negative
+
 ### Contracted Android table set
 Current registered tables:
 - `installed_apps`
@@ -91,6 +109,8 @@ Current registered tables:
 - `wifi_networks`
 - `system_properties`
 - `android_logcat`
+- `time`
+- `uptime`
 
 ## Oracle for reviewers
 An oracle is the set of observable truths used to decide whether implementation behavior is acceptable.  
@@ -144,8 +164,28 @@ How to verify:
 - code path: `AndroidLogcatTable`
 - manual managed-config validation (off vs on)
 
+### O6. `time` table behavior
+Human rule:
+- `SELECT * FROM time;` returns exactly one row.
+- Required columns are present and parseable where numeric semantics apply.
+- `unix_time` is a valid epoch-seconds value close to device current time.
+- `local_timezone` is non-empty.
+How to verify:
+- manual Fleet query on Android host
+- unit/integration assertion for one-row shape and parseability
+
+### O7. `uptime` table behavior
+Human rule:
+- `SELECT * FROM uptime;` returns exactly one row.
+- `total_seconds` is an integer >= 0.
+- `days/hours/minutes/seconds` are non-negative and consistent with `total_seconds` within integer rounding tolerance.
+How to verify:
+- manual Fleet query on Android host
+- unit/integration assertion for non-negative and consistency checks
+
 ## Reviewer checklist (fast path)
 1. Validate C1-C4 against unit test evidence (`ApiClientReenrollTest`).
 2. Validate C5-C7 by one end-to-end run: query from Fleet UI and inspect writeback results.
 3. Validate C8 by running `android_logcat` once with flag off (expect empty), then on (expect filtered/redacted rows).
-4. Approve only if behavior and safety expectations match this contract, even if implementation details change later.
+4. Validate C9/O6/O7 with `SELECT * FROM time;` and `SELECT * FROM uptime;` plus basic value sanity checks.
+5. Approve only if behavior and safety expectations match this contract, even if implementation details change later.
