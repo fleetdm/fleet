@@ -18,7 +18,7 @@ For Apple (macOS, iOS, and iPadOS) hosts, Apple requires that the OS version is 
 
 ## Fleet API
 
-Use the [modify team endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-team) to turn on minimum OS version enforcement. The relevant payload keys in the `mdm` object are:
+Use the [modify fleet endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-team) to turn on minimum OS version enforcement. The relevant payload keys in the `mdm` object are:
 + `macos_updates`
 + `ios_updates`
 + `ipados_updates`

@@ -1,5 +1,11 @@
 # Detecting AI agents like OpenClaw with automated tooling
 
+### Links to article series:
+
+- Part 1: [OpenClaw: Open for work?](https://fleetdm.com/articles/openclaw-open-for-work)
+- Part 2: Detecting AI agents like OpenClaw with automated tooling
+- Part 3: [Mitigation assets and detection patterns for AI agents like OpenClaw](https://fleetdm.com/guides/mitigation-assets-and-detection-patterns-for-ai-agents-like-openclaw)
+
 AI-powered coding assistants, autonomous security agents, and extension-based development tools are transforming how engineering teams operate. The innovations are real, but they introduce a new category of shadow IT with significant security and compliance implications.
 
 For CTOs, CIOs, and CISOs, understanding and controlling this risk must become a priority.
@@ -16,7 +22,7 @@ AI agents and extensions operate across multiple vectors:
 
 **Network communication** — Agents and tools communicating with external APIs, cloud services, and command and control infrastructure
 
-Traditional SIEM alerts rarely catch these activities because individual signals appear normal during development workflows.
+Traditional SIEM alerts rarely catch these all of these vectors because individual signals appear normal during development workflows.
 
 ## Why it matters for enterprise
 
@@ -36,35 +42,35 @@ Traditional SIEM alerts rarely catch these activities because individual signals
 
 ## A defense-in-depth detection framework
 
-An effective detection strategy must combine multiple detection vectors:
+An effective detection strategy must combine multiple detections:
 
 ### 1. Filesystem and artifact detection
 
-AI tools often install persistent artifacts across user home directories and project repositories. Path-based queries scan for:
+AI tools often install persistent artifacts across user home directories and project repositories. Path-based queries can scan for:
 
-- Configuration directories: `~/.claude/skills`, `~/.openclaw/skills`, `~/.gemini/skills`
-- Plugin registries: `~/.claude/.plugins`, `.vscode/extensions`
-- Repository-local skills: Project-specific `.claude/` directories
+- **Configuration directories:** `~/.claude/skills`, `~/.openclaw/skills`, `~/.gemini/skills`
+- **Plugin registries:** `~/.claude/.plugins`, `.vscode/extensions`
+- **Repository-local skills:** Project-specific `.claude/` directories
 
-This captures dormant threats that may not appear in process lists.
+Looking in these locations will capture dormant threats that may not appear in process lists.
 
 ### 2. Runtime process detection
 
 Active AI tools manifest as running processes with recognizable signatures:
 
-- Desktop applications: Claude Desktop, Cursor, Windsurf, LM Studio
-- CLI tools: GitHub Copilot CLI, Aider, Continue.dev
-- Autonomous agents: OpenClaw, Clawdbot, Moltbot, ollama
+- **Desktop applications:** Claude Desktop, Cursor, Windsurf, LM Studio
+- **CLI tools:** GitHub Copilot CLI, Aider, Continue.dev
+- **Autonomous agents:** OpenClaw, Clawdbot, Moltbot, ollama
 
-Process monitoring combined with user context provides real-time visibility into tool usage.
+Process monitoring combined with user context discovery provides real-time visibility into tool usage.
 
 ### 3. Extension and plugin detection
 
 IDE extensions and browser plugins can execute code even when parent applications are inactive:
 
-- VSCode extensions: GitHub Copilot, Claude, Cody, Continue.dev
-- Code completion providers: Windsurf, OpenClaw agents
-- Browser extensions for AI integration
+- **VSCode extensions:** GitHub Copilot, Claude, Cody, Continue.dev
+- **Code completion providers:** Windsurf, OpenClaw agents
+- **Browser extensions for AI integration:** Claude AI Extension, Grammarly, Monica, Sider
 
 Extension catalogs provide version metadata for vulnerability correlation and attack surface analysis.
 
@@ -91,7 +97,7 @@ Effective threat hunting requires a layered approach:
 
 ### Data and alerting strategy
 
-CISOs should define clear alerting thresholds:
+Securtiy leaders should define clear alerting thresholds:
 
 - **High-severity:** Unauthorized autonomous agents on non-compliant systems, exposed listening ports, credential access attempts
 - **Medium-severity:** Unknown AI tool usage, unexpected process starts, suspicious command-line arguments
@@ -112,7 +118,7 @@ This sequence should be supported by clear evidence trails for audit and complia
 
 ### Measurement and reporting
 
-Board-level visibility requires focused metrics:
+Board-level visibility requires accurate data capture and focused metrics to tell the story clearly:
 
 - **Asset coverage:** Percentage of endpoints with AI tool detection enabled
 - **Alert volume:** High/medium/low severity alerts prioritized by business risk
@@ -120,28 +126,28 @@ Board-level visibility requires focused metrics:
 - **Policy compliance rate:** Percentage of endpoints in compliance with AI tool usage policy
 - **Vulnerability exposure:** Number of extension and tool versions with known CVEs
 
-These metrics should be reviewed quarterly with the board and technical teams.
+Metrics should be reviewed quarterly with the board and technical teams.
 
 ## Moving forward
 
-AI and autonomous tooling is no longer optional for modern engineering teams. The question isn't whether to adopt these tools — it's how to govern them effectively.
+AI and autonomous tooling is no longer optional for modern engineering teams. The question isn't whether to adopt these tools, it's how to govern them effectively.
 
 Organizations that implement detection frameworks now will be better positioned to:
 
-- Maintain security posture in an evolving threat landscape
-- Enable compliance with data protection and privacy regulations
-- Protect intellectual property and sensitive information
-- Make informed decisions about AI tool adoption and governance
+- **Maintain security posture in an evolving threat landscape**
+- **Enable compliance with data protection and privacy regulations**
+- **Protect intellectual property and sensitive information**
+- **Make informed decisions about AI tool adoption and governance**
 
 The time to establish control is now, before AI tools become entrenched. With a comprehensive detection framework in place, leadership can enable innovation while maintaining visibility and control. 
 
-For more on this topic, check out [Threat Hunting AI Agents and Autonomous Tooling: What Your Board Needs to Know](https://www.linkedin.com/pulse/threat-hunting-ai-agents-autonomous-tooling-what-your-dhruv-majumdar-ia49c/?trackingId=jc1qB6wobL0xVUGoy5al%2Fg%3D%3D) from our very own VP of Security Solutions, [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv/).
+In our [next article](https://fleetdm.com/guides/mitigation-assets-and-detection-patterns-for-ai-agents-like-openclaw) (part 3 of this series) Fleet's [Adam Baali](https://www.linkedin.com/in/adambaali/) will go beyond the outline given here and provide mitigations that security teams can use right now. 
 
-In our next article, part 3 of this series, Fleet's [Adam Baali](https://www.linkedin.com/in/adambaali/) will go beyond the overview given here and provide actual mitigations security teams can use today. 
+About the author: [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv) is Fleet's VP of Security Solutions. Talk to [Fleet](https://fleetdm.com/device-management) today to find out how to solve your trickiest device management, data orchestration and security problems. Cross-post:[Threat Hunting AI Agents and Autonomous Tooling: What Your Board Needs to Know](https://www.linkedin.com/pulse/threat-hunting-ai-agents-autonomous-tooling-what-your-dhruv-majumdar-ia49c/?trackingId=jc1qB6wobL0xVUGoy5al%2Fg%3D%3D)
 
-<meta name="articleTitle" value="Threat hunting AI agents like OpenClaw with automated tooling">
-<meta name="authorFullName" value="Brock Walters">
-<meta name="authorGitHubUsername" value="nonpunctual">
+<meta name="articleTitle" value="Detecting AI agents like OpenClaw with automated tooling">
+<meta name="authorFullName" value="Dhruv Majumdar">
+<meta name="authorGitHubUsername" value="drvcodenta">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-02-18">
-<meta name="description" value="Part 2 of the OpenClaw series: Detect and govern AI coding agents and extensions to reduce enterprise security and compliance risk.">
+<meta name="description" value="Part 2 of 3 - OpenClaw: What governance over autonomous AI agents looks like and what IT leaders should know about them.">

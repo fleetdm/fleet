@@ -2,6 +2,7 @@ package endpointer
 
 import (
 	"bufio"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"errors"
@@ -14,12 +15,14 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/platform/middleware/authzcheck"
 	"github.com/fleetdm/fleet/v4/server/platform/middleware/ratelimit"
 	"github.com/go-kit/kit/endpoint"
@@ -88,6 +91,100 @@ func allFields(ifv reflect.Value) []fieldPair {
 	}
 
 	return fields
+}
+
+// aliasRulesCache caches the result of ExtractAliasRules by reflect.Type so
+// that the reflection walk happens only once per struct type, not on every
+// request.
+var aliasRulesCache sync.Map // reflect.Type → []AliasRule
+
+// ExtractAliasRules inspects the struct type of iface (recursively, including
+// embedded structs) and builds an []AliasRule from fields that carry a
+// `renameto` struct tag. For each such field the json tag's field name
+// becomes OldKey (the current/deprecated name) and the renameto value becomes
+// NewKey (the target name).
+//
+// Only `json` tags are considered; `url` and `query` tags are ignored for now.
+//
+// The returned slice is deduplicated: if the same alias pair appears on
+// multiple fields (e.g. in both a request and an embedded struct) it is
+// included only once.
+//
+// Results are cached by type so that the reflection walk only happens once.
+func ExtractAliasRules(iface any) []AliasRule {
+	if iface == nil {
+		return nil
+	}
+	t := reflect.TypeOf(iface)
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	if t.Kind() != reflect.Struct {
+		return nil
+	}
+
+	if cached, ok := aliasRulesCache.Load(t); ok {
+		return cached.([]AliasRule)
+	}
+
+	seen := make(map[AliasRule]bool)
+	var rules []AliasRule
+	extractAliasRulesFromType(t, seen, &rules)
+	aliasRulesCache.Store(t, rules)
+	return rules
+}
+
+func extractAliasRulesFromType(t reflect.Type, seen map[AliasRule]bool, rules *[]AliasRule) {
+	// visited tracks types we've already walked to avoid infinite recursion
+	// from cyclic type references (e.g. type Node struct { Children []Node }).
+	visited := make(map[reflect.Type]bool)
+	extractAliasRulesRecursive(t, seen, rules, visited)
+}
+
+// elemType dereferences pointer, slice, array, and map types to find the
+// underlying (possibly struct) element type.
+func elemType(t reflect.Type) reflect.Type {
+	for t.Kind() == reflect.Ptr || t.Kind() == reflect.Slice || t.Kind() == reflect.Array || t.Kind() == reflect.Map {
+		t = t.Elem()
+	}
+	return t
+}
+
+// Recursively extract alias rules from the type t.
+// This should only be called on struct types.
+func extractAliasRulesRecursive(t reflect.Type, seen map[AliasRule]bool, rules *[]AliasRule, visited map[reflect.Type]bool) {
+	if visited[t] {
+		return
+	}
+	visited[t] = true
+
+	for i := 0; i < t.NumField(); i++ {
+		structField := t.Field(i)
+
+		// Check this field for a renameto tag.
+		renameTo, hasRenameTo := structField.Tag.Lookup("renameto")
+		if hasRenameTo && renameTo != "" {
+			jsonTag, hasJSON := structField.Tag.Lookup("json")
+			if hasJSON && jsonTag != "" && jsonTag != "-" {
+				// Strip options like ",omitempty" from the json tag.
+				jsonFieldName, _, _ := strings.Cut(jsonTag, ",")
+				if jsonFieldName != "" && jsonFieldName != "-" {
+					rule := AliasRule{OldKey: jsonFieldName, NewKey: renameTo}
+					if !seen[rule] {
+						seen[rule] = true
+						*rules = append(*rules, rule)
+					}
+				}
+			}
+		}
+
+		// Recurse into any struct type reachable from this field
+		// (through pointers, slices, arrays, maps, or directly).
+		fieldType := elemType(structField.Type)
+		if fieldType.Kind() == reflect.Struct {
+			extractAliasRulesRecursive(fieldType, seen, rules, visited)
+		}
+	}
 }
 
 func BadRequestErr(publicMsg string, internalErr error) error {
@@ -183,7 +280,7 @@ func DecodeURLTagValue(r *http.Request, field reflect.Value, urlTagValue string,
 // It returns true if it handled the field, false if default handling should be used.
 type DomainQueryFieldDecoder func(queryTagName, queryVal string, field reflect.Value) (handled bool, err error)
 
-func DecodeQueryTagValue(r *http.Request, fp fieldPair, customDecoder DomainQueryFieldDecoder) error {
+func DecodeQueryTagValue(r *http.Request, fp fieldPair, customDecoder DomainQueryFieldDecoder, ctx context.Context) error {
 	queryTagValue, ok := fp.Sf.Tag.Lookup("query")
 
 	if ok {
@@ -194,7 +291,36 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair, customDecoder DomainQuer
 			return err
 		}
 		queryVal := r.URL.Query().Get(queryTagValue)
-		// if optional and it's a ptr, leave as nil
+
+		// The query tag now holds the old (deprecated) name. If the old name
+		// was used, log a deprecation warning. If not found, check the
+		// renameto value (the new name) as a fallback.
+		if queryVal != "" {
+			if renameTo, hasRenameTo := fp.Sf.Tag.Lookup("renameto"); hasRenameTo {
+				// Check for conflict: if both old and new names are provided, return an error.
+				newName, _, _ := ParseTag(renameTo)
+				if newVal := r.URL.Query().Get(newName); newVal != "" {
+					return &platform_http.BadRequestError{
+						Message: fmt.Sprintf("Specify only one of %q or %q", queryTagValue, newName),
+					}
+				}
+				// Log deprecation warning - the old name was used.
+				if platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+					logging.WithLevel(ctx, slog.LevelWarn)
+					logging.WithExtras(ctx,
+						"deprecated_param", queryTagValue,
+						"deprecation_warning", fmt.Sprintf("'%s' is deprecated, use '%s' instead", queryTagValue, renameTo),
+					)
+				}
+			}
+		} else if renameTo, hasRenameTo := fp.Sf.Tag.Lookup("renameto"); hasRenameTo {
+			renameTo, _, err = ParseTag(renameTo)
+			if err != nil {
+				return err
+			}
+			queryVal = r.URL.Query().Get(renameTo)
+		}
+		// If we still don't have a value, return if this is optional, otherwise error.
 		if queryVal == "" {
 			if optional {
 				return nil
@@ -374,6 +500,23 @@ type requestValidator interface {
 // query parameter decoding logic.
 //
 // If adding a new way to parse/decode the requset, make sure to wrap the body in a limited reader with the maxRequestBodySize
+
+// limitExhaustedBody returns true when the LimitedReader was the cause of an
+// unexpected EOF — i.e. the underlying body actually had more data beyond the
+// limit. It does this by attempting a single-byte read from the underlying
+// reader (limitedReader.R) which bypasses the limit wrapper. A successful read
+// means the body exceeded the limit; an immediate EOF means the body ended
+// exactly at the limit (malformed JSON, not an oversized payload).
+//
+// This is used to avoid false-positive PayloadTooLargeError responses for
+// bodies whose JSON is malformed and happen to be exactly maxRequestBodySize
+// bytes long.
+func limitExhaustedBody(limitedReader *io.LimitedReader) bool {
+	var peek [1]byte
+	n, _ := limitedReader.R.Read(peek[:])
+	return n > 0
+}
+
 func MakeDecoder(
 	iface interface{},
 	jsonUnmarshal func(body io.Reader, req any) error,
@@ -383,6 +526,8 @@ func MakeDecoder(
 	customQueryDecoder DomainQueryFieldDecoder,
 	maxRequestBodySize int64,
 ) kithttp.DecodeRequestFunc {
+	// Infer alias rules from `renameto` struct tags on the request type.
+	aliasRules := ExtractAliasRules(iface)
 	if iface == nil {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
 			return nil, nil
@@ -390,8 +535,9 @@ func MakeDecoder(
 	}
 	if rd, ok := iface.(RequestDecoder); ok {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
+			var limitedReader *io.LimitedReader
 			if maxRequestBodySize != -1 {
-				limitedReader := io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
+				limitedReader = io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
 
 				r.Body = &LimitedReadCloser{
 					LimitedReader: limitedReader,
@@ -399,7 +545,7 @@ func MakeDecoder(
 				}
 			}
 			ret, err := rd.DecodeRequest(ctx, r)
-			if err != nil && errors.Is(err, io.ErrUnexpectedEOF) {
+			if err != nil && errors.Is(err, io.ErrUnexpectedEOF) && limitedReader != nil && limitedReader.N == 0 && limitExhaustedBody(limitedReader) {
 				return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
 			}
 			return ret, err
@@ -414,9 +560,11 @@ func MakeDecoder(
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
 		v := reflect.New(t)
 		nilBody := false
+		var rewriter *JSONKeyRewriteReader
 
+		var limitedReader *io.LimitedReader
 		if maxRequestBodySize != -1 {
-			limitedReader := io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
+			limitedReader = io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
 
 			r.Body = &LimitedReadCloser{
 				LimitedReader: limitedReader,
@@ -438,17 +586,56 @@ func MakeDecoder(
 				body = gzr
 			}
 
+			// Insert the JSON key rewriter into the reader pipeline
+			// (after gzip decompression, before JSON decoding) to rename
+			// deprecated field names and detect alias conflicts.
+			if len(aliasRules) > 0 {
+				rewriter = NewJSONKeyRewriteReader(body, aliasRules)
+				//nolint:errcheck // nothing to do on .Close() error.
+				defer rewriter.Close()
+				body = rewriter
+			}
+
 			if isBodyDecoder == nil || !isBodyDecoder(v) {
 				req := v.Interface()
 				err := jsonUnmarshal(body, req)
 				if err != nil {
-					if errors.Is(err, io.ErrUnexpectedEOF) {
+					// Check for alias conflict errors from the rewriter.
+					var ace *AliasConflictError
+					if errors.As(err, &ace) {
+						return nil, &platform_http.BadRequestError{
+							Message:     fmt.Sprintf("Specify only one of %q or %q", ace.Old, ace.New),
+							InternalErr: ace,
+						}
+					}
+
+					if errors.Is(err, io.ErrUnexpectedEOF) && limitedReader != nil && limitedReader.N == 0 && limitExhaustedBody(limitedReader) {
 						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
 					}
 
 					return nil, BadRequestErr("json decoder error", err)
 				}
 				v = reflect.ValueOf(req)
+			}
+
+			// Log deprecation warnings when deprecated field names are used.
+			if rewriter != nil {
+				if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
+					newNames := make([]string, len(deprecated))
+					for i, old := range deprecated {
+						for _, rule := range aliasRules {
+							if rule.OldKey == old {
+								newNames[i] = rule.NewKey
+								break
+							}
+						}
+					}
+					logging.WithLevel(ctx, slog.LevelWarn)
+					logging.WithExtras(ctx,
+						"deprecated_fields", fmt.Sprintf("%v", deprecated),
+						"deprecation_warning", fmt.Sprintf("use the updated field names (%s) instead", newNames),
+					)
+				}
 			}
 		}
 
@@ -494,7 +681,7 @@ func MakeDecoder(
 				return nil, platform_http.NewUserMessageError(errors.New("Expected Content-Type \"application/json\""), http.StatusUnsupportedMediaType)
 			}
 
-			err = DecodeQueryTagValue(r, fp, customQueryDecoder)
+			err = DecodeQueryTagValue(r, fp, customQueryDecoder, ctx)
 			if err != nil {
 				return nil, err
 			}
@@ -503,10 +690,34 @@ func MakeDecoder(
 		if isBodyDecoder != nil && isBodyDecoder(v) {
 			err := decodeBody(ctx, r, v, body)
 			if err != nil {
+				// Check for alias conflict errors from the rewriter.
+				var ace *AliasConflictError
+				if errors.As(err, &ace) {
+					return nil, &platform_http.BadRequestError{
+						Message:     fmt.Sprintf("Specify only one of %q or %q", ace.Old, ace.New),
+						InternalErr: ace,
+					}
+				}
+
 				if errors.Is(err, io.ErrUnexpectedEOF) {
-					return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+					if limitedReader != nil && limitedReader.N == 0 && limitExhaustedBody(limitedReader) {
+						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+					}
+					return nil, BadRequestErr("json decoder error", err)
 				}
 				return nil, err
+			}
+
+			// Log deprecation warnings when deprecated field names are used
+			// (bodyDecoder path).
+			if rewriter != nil {
+				if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
+					logging.WithLevel(ctx, slog.LevelWarn)
+					logging.WithExtras(ctx,
+						"deprecated_fields", fmt.Sprintf("%v", deprecated),
+						"deprecation_warning", "use the updated field names instead",
+					)
+				}
 			}
 		}
 
@@ -555,6 +766,87 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
 	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 }
 
+// handlerKey identifies a registered handler by HTTP method and unversioned path template.
+type handlerKey struct {
+	method string
+	path   string // unversioned path template, e.g. "/api/_version_/fleet/fleets"
+}
+
+// HandlerRegistry stores HTTP handlers by method+path during endpoint registration,
+// enabling lookup for deprecated path alias registration.
+type HandlerRegistry struct {
+	handlers map[handlerKey]http.Handler
+}
+
+// NewHandlerRegistry creates an empty HandlerRegistry.
+func NewHandlerRegistry() *HandlerRegistry {
+	return &HandlerRegistry{handlers: make(map[handlerKey]http.Handler)}
+}
+
+// DeprecatedPathAlias maps a primary (canonical) path to one or more deprecated
+// paths that should serve the same handler.
+type DeprecatedPathAlias struct {
+	Method          string
+	PrimaryPath     string   // canonical path (must already be registered)
+	DeprecatedPaths []string // old paths to alias
+}
+
+// deprecatedPathInfoKey is the context key for deprecated URL path info.
+type deprecatedPathInfoKey struct{}
+
+// deprecatedPathInfo holds the deprecated and canonical paths for logging.
+type deprecatedPathInfo struct {
+	deprecatedPath string
+	primaryPath    string
+}
+
+// LogDeprecatedPathAlias is a kithttp.RequestFunc (ServerBefore function)
+// that checks if the request is using a deprecated URL path alias and, if so,
+// elevates the log level to Warn and adds deprecation info to the request log.
+// It must run after the LoggingContext is created (i.e. after SetRequestsContexts).
+func LogDeprecatedPathAlias(ctx context.Context, _ *http.Request) context.Context {
+	if !platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+		return ctx
+	}
+	info, ok := ctx.Value(deprecatedPathInfoKey{}).(deprecatedPathInfo)
+	if !ok {
+		return ctx
+	}
+	logging.WithLevel(ctx, slog.LevelWarn)
+	logging.WithExtras(ctx,
+		"deprecated_path", info.deprecatedPath,
+		"deprecation_warning", fmt.Sprintf("API `%s` is deprecated, use `%s` instead", info.deprecatedPath, info.primaryPath),
+	)
+	return ctx
+}
+
+// RegisterDeprecatedPathAliases registers deprecated URL path aliases that point
+// to the same handler as the canonical path, and wraps them in a handler that
+// can log deprecation warnings.
+func RegisterDeprecatedPathAliases(r *mux.Router, versions []string, registry *HandlerRegistry, aliases []DeprecatedPathAlias) {
+	allVersions := append(append([]string{}, versions...), "latest")
+	versionRegex := strings.Join(allVersions, "|")
+	for _, alias := range aliases {
+		handler := registry.handlers[handlerKey{alias.Method, alias.PrimaryPath}]
+		if handler == nil {
+			panic(fmt.Sprintf("deprecated alias: no handler registered for %s %s", alias.Method, alias.PrimaryPath))
+		}
+		for _, path := range alias.DeprecatedPaths {
+			// Replace the version placeholder in the deprecated path with a regex that matches all versions,
+			// so that the same handler can be used for all versions of the deprecated path.
+			pathForHandler := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", versionRegex), 1)
+			info := deprecatedPathInfo{deprecatedPath: path, primaryPath: alias.PrimaryPath}
+			// Wrap the handler to inject deprecation info into the context for logging.
+			wrappedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				ctx := context.WithValue(r.Context(), deprecatedPathInfoKey{}, info)
+				handler.ServeHTTP(w, r.WithContext(ctx))
+			})
+			nameAndVerb := getNameFromPathAndVerb(alias.Method, path, "")
+			r.Handle(pathForHandler, wrappedHandler).Name(nameAndVerb).Methods(alias.Method)
+		}
+	}
+}
+
 type CommonEndpointer[H any] struct {
 	EP            Endpointer[H]
 	MakeDecoderFn func(iface any, requestBodyLimit int64) kithttp.DecodeRequestFunc
@@ -570,6 +862,12 @@ type CommonEndpointer[H any] struct {
 	CustomMiddleware []endpoint.Middleware
 	// CustomMiddlewareAfterAuth are middlewares that run after authentication.
 	CustomMiddlewareAfterAuth []endpoint.Middleware
+
+	// HandlerRegistry, if set, records handlers by method+path for deprecated
+	// path alias lookup. The pointer is shared across shallow copies (created
+	// by builder methods like WithAltPaths) so all registrations land in the
+	// same map.
+	HandlerRegistry *HandlerRegistry
 
 	startingAtVersion string
 	endingAtVersion   string
@@ -782,10 +1080,14 @@ func (e *CommonEndpointer[H]) HandlePathHandler(path string, pathHandler func(pa
 
 	versionedPath := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
 	nameAndVerb := getNameFromPathAndVerb(verb, path, e.startingAtVersion)
+	handler := pathHandler(versionedPath)
 	if e.usePathPrefix {
-		e.Router.PathPrefix(versionedPath).Handler(pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
+		e.Router.PathPrefix(versionedPath).Handler(handler).Name(nameAndVerb).Methods(verb)
 	} else {
-		e.Router.Handle(versionedPath, pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
+		e.Router.Handle(versionedPath, handler).Name(nameAndVerb).Methods(verb)
+	}
+	if e.HandlerRegistry != nil {
+		e.HandlerRegistry.handlers[handlerKey{verb, path}] = handler
 	}
 	for _, alias := range e.alternativePaths {
 		nameAndVerb := getNameFromPathAndVerb(verb, alias, e.startingAtVersion)
@@ -805,6 +1107,8 @@ func EncodeCommonResponse(
 	jsonMarshal func(w http.ResponseWriter, response interface{}) error,
 	domainErrorEncoder DomainErrorEncoder,
 ) error {
+	// Infer alias rules from `renameto` struct tags on the response type.
+	aliasRules := ExtractAliasRules(response)
 	if cs, ok := response.(cookieSetter); ok {
 		cs.SetCookies(ctx, w)
 	}
@@ -838,6 +1142,20 @@ func EncodeCommonResponse(
 		}
 	}
 
+	// If alias rules are configured, buffer the JSON output so we can
+	// duplicate keys (old→new) for forwards compatibility before writing
+	// to the response.
+	if len(aliasRules) > 0 {
+		var buf bytes.Buffer
+		bufWriter := &bufferedResponseWriter{ResponseWriter: w, buf: &buf}
+		if err := jsonMarshal(bufWriter, response); err != nil {
+			return err
+		}
+		transformed := DuplicateJSONKeys(buf.Bytes(), aliasRules)
+		_, err := w.Write(transformed)
+		return err
+	}
+
 	return jsonMarshal(w, response)
 }
 
@@ -862,4 +1180,17 @@ type renderHijacker interface {
 // cookieSetter can be implemented by response values to set cookies on the response.
 type cookieSetter interface {
 	SetCookies(ctx context.Context, w http.ResponseWriter)
+}
+
+// bufferedResponseWriter wraps an http.ResponseWriter but redirects Write
+// calls to a bytes.Buffer, allowing the output to be captured and
+// transformed before being sent to the real writer. It implements
+// http.ResponseWriter so it can be passed to jsonMarshal functions.
+type bufferedResponseWriter struct {
+	http.ResponseWriter
+	buf *bytes.Buffer
+}
+
+func (b *bufferedResponseWriter) Write(data []byte) (int, error) {
+	return b.buf.Write(data)
 }

@@ -336,44 +336,42 @@ const RunScriptBatchModal = ({
         className={classes}
         disableClosingModal={isUpdating}
       >
-        <>
-          {renderModalContent()}
-          {!selectedScript && !scriptForDetails && (
-            <div className="modal-cta-wrap">
-              <Button disabled={isUpdating} onClick={onCancel}>
-                Done
-              </Button>
-            </div>
-          )}
-          {selectedScript && (
-            <div className="modal-cta-wrap">
-              <TooltipWrapper
-                tipContent="Enter a date and time to schedule this script."
-                underline={false}
-                position="top"
-                disableTooltip={formValidation.isValid}
-                showArrow
-              >
-                <Button
-                  disabled={isUpdating || !formValidation.isValid}
-                  onClick={() => onRunScriptBatch(selectedScript)}
-                  isLoading={isUpdating}
-                >
-                  Run
-                </Button>
-              </TooltipWrapper>
+        {renderModalContent()}
+        {!selectedScript && !scriptForDetails && (
+          <div className="modal-cta-wrap">
+            <Button disabled={isUpdating} onClick={onCancel}>
+              Done
+            </Button>
+          </div>
+        )}
+        {selectedScript && (
+          <div className="modal-cta-wrap">
+            <TooltipWrapper
+              tipContent="Enter a date and time to schedule this script."
+              underline={false}
+              position="top"
+              disableTooltip={formValidation.isValid}
+              showArrow
+            >
               <Button
-                disabled={isUpdating}
-                variant="inverse"
-                onClick={() => {
-                  setSelectedScript(undefined);
-                }}
+                disabled={isUpdating || !formValidation.isValid}
+                onClick={() => onRunScriptBatch(selectedScript)}
+                isLoading={isUpdating}
               >
-                Cancel
+                Run
               </Button>
-            </div>
-          )}
-        </>
+            </TooltipWrapper>
+            <Button
+              disabled={isUpdating}
+              variant="inverse"
+              onClick={() => {
+                setSelectedScript(undefined);
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        )}
       </Modal>
       {!!scriptForDetails && !selectedScript && (
         <ScriptDetailsModal

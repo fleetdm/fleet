@@ -4,15 +4,26 @@ import (
 	"context"
 	"database/sql"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/text/unicode/norm"
 )
+
+// secretVariableAllowedOrderKeys defines the allowed order keys for ListSecretVariables.
+// SECURITY: This prevents information disclosure via arbitrary column sorting.
+// Sensitive columns like 'value' are intentionally excluded.
+var secretVariableAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"name":       "name",
+	"id":         "id",
+	"updated_at": "updated_at",
+}
 
 func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) error {
 	if len(secretVariables) == 0 {
@@ -151,7 +162,10 @@ func (ds *Datastore) ListSecretVariables(ctx context.Context, opt fleet.ListOpti
 	// build the count statement before adding pagination constraints
 	countStmt := fmt.Sprintf("SELECT COUNT(DISTINCT id) FROM (%s) AS s", stmt)
 
-	stmt, args = appendListOptionsWithCursorToSQL(stmt, args, &opt)
+	stmt, args, err = appendListOptionsWithCursorToSQLSecure(stmt, args, &opt, secretVariableAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, 0, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 
 	dbReader := ds.reader(ctx)
 	if err := sqlx.SelectContext(ctx, dbReader, &secretVariables, stmt, args...); err != nil {
@@ -422,4 +436,79 @@ func (ds *Datastore) ValidateEmbeddedSecrets(ctx context.Context, documents []st
 	}
 
 	return nil
+}
+
+// ExpandHostSecrets expands host-scoped secrets ($FLEET_HOST_SECRET_*) in the document.
+// The enrollmentID (typically UDID/host UUID) is used to look up host-specific secrets.
+func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error) {
+	// Check for host secret placeholders
+	hostSecrets := fleet.ContainsPrefixVars(document, fleet.HostSecretPrefix)
+	if len(hostSecrets) == 0 {
+		return document, nil
+	}
+
+	// Build a map of secret type -> value
+	// enrollmentID is the host UUID, which is the primary key in host_recovery_key_passwords
+	secretValues := make(map[string]string)
+	for _, secretType := range hostSecrets {
+		switch secretType {
+		case fleet.HostSecretRecoveryLockPassword:
+			password, err := ds.getHostRecoveryLockPasswordDecrypted(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "getting recovery lock password for host %s", enrollmentID)
+			}
+			secretValues[secretType] = password
+		default:
+			return "", ctxerr.Errorf(ctx, "unknown host secret type: %s", secretType)
+		}
+	}
+
+	// Check if document is XML (same logic as expandEmbeddedSecrets)
+	documentIsXML := strings.HasPrefix(strings.TrimSpace(document), "<")
+
+	// Expand the placeholders
+	expanded := fleet.MaybeExpand(document, func(s string, startPos, endPos int) (string, bool) {
+		if !strings.HasPrefix(s, fleet.HostSecretPrefix) {
+			return "", false
+		}
+		secretType := strings.TrimPrefix(s, fleet.HostSecretPrefix)
+		val, ok := secretValues[secretType]
+		if !ok {
+			return "", false
+		}
+
+		if documentIsXML {
+			// Escape XML special characters to prevent malformed output
+			var b strings.Builder
+			if err := xml.EscapeText(&b, []byte(val)); err != nil {
+				return "", false
+			}
+			val = b.String()
+		}
+
+		return val, ok
+	})
+
+	return expanded, nil
+}
+
+// getHostRecoveryLockPasswordDecrypted retrieves and decrypts the recovery lock password for a host.
+func (ds *Datastore) getHostRecoveryLockPasswordDecrypted(ctx context.Context, hostUUID string) (string, error) {
+	var encryptedPassword []byte
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &encryptedPassword,
+		`SELECT encrypted_password FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`, hostUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
+				WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+		}
+		return "", ctxerr.Wrap(ctx, err, "getting encrypted recovery lock password")
+	}
+
+	password, err := decrypt(encryptedPassword, ds.serverPrivateKey)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "decrypting recovery lock password")
+	}
+
+	return string(password), nil
 }

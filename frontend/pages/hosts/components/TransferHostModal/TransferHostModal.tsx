@@ -76,45 +76,40 @@ const TransferHostModal = ({
 
   return (
     <Modal onExit={onCancel} title="Transfer" className={baseClass}>
-      <>
-        <form className={`${baseClass}__form`}>
-          <Dropdown
-            wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
-            label={`Transfer ${multipleHosts ? "selected hosts" : "host"} to:`}
-            value={selectedTeam && selectedTeam.id}
-            options={createTeamDropdownOptions()}
-            onChange={onChangeSelectTeam}
-            placeholder="Select a fleet"
-            searchable
-            autoFocus
-          />
-          {isGlobalAdmin ? (
-            <p>
-              Fleet not here?{" "}
-              <Link
-                to={PATHS.ADMIN_TEAMS}
-                className={`${baseClass}__team-link`}
-              >
-                Create a fleet
-              </Link>
-            </p>
-          ) : null}
-          <div className="modal-cta-wrap">
-            <Button
-              disabled={selectedTeam === undefined}
-              type="button"
-              onClick={onSubmitTransferHost}
-              className="transfer-loading"
-              isLoading={isUpdating}
-            >
-              Transfer
-            </Button>
-            <Button onClick={onCancel} variant="inverse">
-              Cancel
-            </Button>
-          </div>
-        </form>
-      </>
+      <form className={`${baseClass}__form`}>
+        <Dropdown
+          wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
+          label={`Transfer ${multipleHosts ? "selected hosts" : "host"} to:`}
+          value={selectedTeam && selectedTeam.id}
+          options={createTeamDropdownOptions()}
+          onChange={onChangeSelectTeam}
+          placeholder="Select a fleet"
+          searchable
+          autoFocus
+        />
+        {isGlobalAdmin ? (
+          <p>
+            Fleet not here?{" "}
+            <Link to={PATHS.ADMIN_FLEETS} className={`${baseClass}__team-link`}>
+              Create a fleet
+            </Link>
+          </p>
+        ) : null}
+        <div className="modal-cta-wrap">
+          <Button
+            disabled={selectedTeam === undefined}
+            type="button"
+            onClick={onSubmitTransferHost}
+            className="transfer-loading"
+            isLoading={isUpdating}
+          >
+            Transfer
+          </Button>
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
+          </Button>
+        </div>
+      </form>
     </Modal>
   );
 };

@@ -86,5 +86,6 @@ module.exports.policies = {
   'deliver-application-submission': true,
   'landing-pages/*': true,
   'deliver-gitops-workshop-request': true,
-  'view-fleet-gitops': true,
+  'view-infrastructure-as-code': true,
+  'deliver-whitepaper-download-request': true,
 };

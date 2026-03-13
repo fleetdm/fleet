@@ -423,8 +423,13 @@ type ScriptPayload struct {
 }
 
 type SoftwareInstallerPayload struct {
-	URL                string   `json:"url"`
-	PreInstallQuery    string   `json:"pre_install_query"`
+	// URL is the download URL for the installer. For script packages specified via
+	// the path field, this uses "script://filename" to pass the filename; in that
+	// case InstallScript contains the script content directly.
+	URL             string `json:"url"`
+	PreInstallQuery string `json:"pre_install_query"`
+	// InstallScript is the script to run after downloading the installer. For script
+	// packages via "script://" URL, this contains the package content itself.
 	InstallScript      string   `json:"install_script"`
 	UninstallScript    string   `json:"uninstall_script"`
 	PostInstallScript  string   `json:"post_install_script"`
@@ -441,8 +446,9 @@ type SoftwareInstallerPayload struct {
 	Categories      []string `json:"categories"`
 	DisplayName     string   `json:"display_name"`
 	// This is to support FMAs
-	Slug          *string        `json:"slug"`
-	MaintainedApp *MaintainedApp `json:"-"`
+	Slug            *string        `json:"slug"`
+	MaintainedApp   *MaintainedApp `json:"-"`
+	RollbackVersion string         `json:"fleet_maintained_app_version"`
 
 	IconPath string `json:"-"`
 	IconHash string `json:"-"`

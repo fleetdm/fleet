@@ -95,7 +95,9 @@ On your Fleet server:
 
  ![The configuration for the SSO connection in Fleet](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/entra-sso-configuration-fleet-config.png) 
 3. Enable SSO for a test user and try to log in with Entra.
-   
+	- Click the **Account** icon in the top right and select **Users**.
+	- Select a test user and choose **Actions** > **Edit**.
+	- Under **Authentication**, select **Single sign-on** and save.
 
 
 ## authentik
@@ -198,13 +200,13 @@ For this to work correctly make sure that:
 Users created via JIT provisioning can be assigned Fleet roles using SAML custom attributes that are sent by the IdP in `SAMLResponse`s during login.
 Fleet will attempt to parse SAML custom attributes with the following format:
 - `FLEET_JIT_USER_ROLE_GLOBAL`: Specifies the global role to use when creating the user.
-- `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>`: Specifies team role for team with ID `<TEAM_ID>` to use when creating the user.
+- `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>`: Specifies fleet role for fleet with ID `<TEAM_ID>` to use when creating the user.
 
 Currently supported values for the above attributes are: `admin`, `maintainer`, `observer`, `observer_plus` and `null`.
 A role attribute with value `null` will be ignored by Fleet. (This is to support limitations on some IdPs which do not allow you to choose what keys are sent to Fleet when creating a new user.)
 SAML supports multi-valued attributes, Fleet will always use the last value.
 
-NOTE: Setting both `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>` will cause an error during login as Fleet users cannot be Global users and belong to teams.
+NOTE: Setting both `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>` will cause an error during login as Fleet users cannot be Global users and belong to fleets.
 
 Following is the behavior that will take place on every SSO login:
 
@@ -239,7 +241,7 @@ Here's a `SAMLResponse` sample to set the role of SSO users to Global `admin`:
 [...]
 ```
 
-Here's a `SAMLResponse` sample to set the role of SSO users to `observer` in team with ID `1` and `maintainer` in team with ID `2`:
+Here's a `SAMLResponse` sample to set the role of SSO users to `observer` in fleet with ID `1` and `maintainer` in fleet with ID `2`:
 
 ```xml
 [...]

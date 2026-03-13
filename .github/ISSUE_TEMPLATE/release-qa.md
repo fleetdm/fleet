@@ -45,7 +45,7 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 
 1. remove all fleet processes/agents/etc using `fleetctl preview reset` for a clean slate
 2. run `fleetctl preview` with no tag for latest stable
-3. create a host/query to later confirm upgrade with
+3. create a host/report to later confirm upgrade with
 4. STOP fleet-preview-server instances in containers/apps on Docker
 5. run `fleetctl preview` with appropriate testing tag
 6. Navigate through all new UI flows and confirm dashboard, hosts, controls, queries, policies, and settings pages are working as expected. </td><td>All previously created hosts/queries are verified to still exist</td><td>pass/fail</td></tr>
@@ -69,16 +69,16 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
  
 </td><td>pass/fail</td></tr>
 
-<tr><td>Log destination flow</td><td>Verify log destination for software, query, policy, and packs.</td><td>
+<tr><td>Log destination flow</td><td>Verify log destination for software, reports, policies, and packs.</td><td>
 
-1. Software, query, policy, and packs logs are successfully sent to external log destinations
-2. Software, query, policy, and packs logs are successfully sent to Filesystem log destinations
+1. Software, report, policy, and packs logs are successfully sent to external log destinations
+2. Software, report, policy, and packs logs are successfully sent to Filesystem log destinations
  
 </td><td>pass/fail</td></tr>
 
 <tr><td>GitOps and generate-gitops</td><td>
 
-1. `fleetctl generate-gitops` from a version-matched fleetctl successfully outputs YAML from a brand new Fleet server (net of auto-populated teams etc.).
+1. `fleetctl generate-gitops` from a version-matched fleetctl successfully outputs YAML from a brand new Fleet server (net of auto-populated fleets etc.).
 2. Running GitOps succeeds on the files created in the previous step, either using the `gitops.sh` script directly (from the `fleet-gitops` repo) or by using the GitOps GitHub or GitLab workflow (attempting via one of these three is sufficient).
  
 </td><td>pass/fail</td></tr>
@@ -175,9 +175,9 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
 <tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
-<tr><td>Query flow</td><td>Create, edit, run, and delete queries. </td><td>
+<tr><td>Report flow</td><td>Create, edit, run, and delete reports. </td><td>
 
-1. permissions regarding creating/editing/deleting queries are up to date with documentation
+1. permissions regarding creating/editing/deleting reports are up to date with documentation
 2. syntax errors result in error messaging
 3. queries can be run manually 
 </td><td>pass/fail</td></tr>
@@ -364,7 +364,7 @@ IMPORTANT: Do not build fleetd from `main` as it is a moving target and new flee
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
 <tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
 
- <tr><td>Query flow</td><td>Run queries. </td><td>
+ <tr><td>Report flow</td><td>Run reports. </td><td>
 1. Queries can be run manually 
 </td><td>pass/fail</td></tr>
 
@@ -410,6 +410,15 @@ After repointing a Fleet Desktop install at a server running Fleet Free:
 1. Clicking the Fleet desktop item, then "My device" successfully loads the my device page.<br>
 2. The "My device" page is populated correctly and as expected. <br>
 3. Styling and padding appears correct. 
+</td><td>pass/fail</td></tr>
+
+<tr><td>Auto-updates disabled</td><td>Verify 
+that fleetd works on when the installer package is built with `--disable-updates`.</td><td>
+
+1. Generate package with `fleetctl package [...] --updates-disabled`<br>
+2. Install packages on macOS, Windows, and Linux <br>
+3. Smoke test orbit and Fleet Desktop functionality, and osquery tables.
+
 </td><td>pass/fail</td></tr>
 
 </table>

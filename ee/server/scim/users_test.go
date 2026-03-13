@@ -2,6 +2,7 @@ package scim
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,7 +13,6 @@ import (
 	mockservice "github.com/fleetdm/fleet/v4/server/mock/service"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/log"
 	"github.com/scim2/filter-parser/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,9 +32,9 @@ func newTestMocks() *testMocks {
 
 func (m *testMocks) newTestHandler() *UserHandler {
 	return &UserHandler{
-		ds:             m.ds,
-		activityModule: m.svc,
-		logger:         kitlog.NewNopLogger(),
+		ds:          m.ds,
+		newActivity: m.svc.NewActivity,
+		logger:      slog.New(slog.DiscardHandler),
 	}
 }
 

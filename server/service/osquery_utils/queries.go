@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -24,7 +25,6 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
-	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -841,12 +841,6 @@ var mdmQueries = map[string]DetailQuery{
 			discoveryTable("macos_user_profiles"),
 		),
 	},
-	"mdm_config_profiles_windows": {
-		QueryFunc:        buildConfigProfilesWindowsQuery,
-		Platforms:        []string{"windows"},
-		DirectIngestFunc: directIngestWindowsProfiles,
-		Discovery:        discoveryTable("mdm_bridge"),
-	},
 	// There are two mutually-exclusive queries used to read the FileVaultPRK depending on which
 	// extension tables are discovered on the agent. The preferred query uses the newer custom
 	// `filevault_prk` extension table rather than the macadmins `file_lines` table. It is preferred
@@ -1344,44 +1338,6 @@ FROM chrome_extensions`,
 // Software queries expect specific columns to be present.  Reference the
 // software_{macos|windows|linux} queries for the expected columns.
 var SoftwareOverrideQueries = map[string]DetailQuery{
-	// windows_jetbrains uses the version contained in the product-info.json file as exe installers
-	// provide an unconvertible build number in the programs table not used in vulnerability matching.
-	"windows_jetbrains": {
-		Description: "A software override query to use the version from the product-info.json file for JetBrains programs on Windows.",
-		Query: `
-		SELECT
-		p.name AS name,
-
-		COALESCE(
-			trim(json_extract(fc.contents, '$.version'), '"'),
-			p.version
-		) AS version,
-
-		'' AS extension_id,
-		'' AS extension_for,
-		'programs' AS source,
-		p.publisher AS vendor,
-		p.install_location AS installed_path,
-		p.upgrade_code AS upgrade_code
-
-		FROM programs p
-		LEFT JOIN file_contents fc
-		ON fc.path = CASE
-			WHEN p.install_location IS NULL OR p.install_location = ''
-			THEN NULL
-			ELSE rtrim(p.install_location, '\') || '\product-info.json'
-		END
-
-		WHERE p.publisher LIKE '%JetBrains%'
-		AND p.name NOT LIKE '%Toolbox%'
-`,
-		Platforms:        []string{"windows"},
-		DirectIngestFunc: directIngestSoftware,
-		Discovery:        discoveryTable("file_contents"),
-		SoftwareOverrideMatch: func(row map[string]string) bool {
-			return strings.Contains(row["vendor"], "JetBrains") && !strings.Contains(row["name"], "Toolbox")
-		},
-	},
 	// windows_acrobat_dc checks the Windows registry to determine if "DC" should be appended to the Adobe Acrobat
 	// product name. While Adobe recently rebranded the free version to "Adobe Acrobat (64-bit)" — matching
 	// the naming convention of the paid product — our vulnerability detection engine requires the "DC" postfix for accurate
@@ -2146,7 +2102,10 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 var (
 	dcvVersionFormat         = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
 	tunnelblickVersionFormat = regexp.MustCompile(`^(.+?)\s*\(build\s+\d+\)$`)
-	basicAppSanitizers       = []struct {
+	// jetbrainsNameVersion extracts version from JetBrains product names like "GoLand 2025.3.3"
+	// or "IntelliJ IDEA 2025.3.1.1" (supports 3 or 4 part versions)
+	jetbrainsNameVersion = regexp.MustCompile(`\s(\d{4}\.\d+\.\d+(?:\.\d+)?)$`)
+	basicAppSanitizers   = []struct {
 		matchBundleIdentifier string
 		matchName             string
 		mutate                func(*fleet.Software, *slog.Logger)
@@ -2248,19 +2207,48 @@ var (
 		},
 		// end of #34159 cleanup in basic matchers
 	}
-	customAppSanitizers = []struct {
+	customSanitizers = []struct {
 		matches func(*fleet.Software) bool
 		mutate  func(*fleet.Software, *slog.Logger)
 	}{
 		{
 			matches: func(s *fleet.Software) bool { // #34159
-				return strings.HasPrefix(s.Name, "TNMS ") &&
+				return s.Source == "apps" &&
+					strings.HasPrefix(s.Name, "TNMS ") &&
 					strings.HasPrefix(s.BundleIdentifier, "TNMS_") &&
 					strings.Replace(s.BundleIdentifier, "_", " ", 1) == s.Name
 			},
 			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				s.Name = "TNMS"
 				s.Version = strings.Replace(s.BundleIdentifier, "TNMS_", "", 1)
+			},
+		},
+		{
+			// JetBrains products on Windows report build numbers (e.g., "253.31033.139")
+			// instead of marketing versions. This sanitizer extracts the version from
+			// the product name (e.g., "GoLand 2025.3.3" -> "2025.3.3").
+			// Excludes JetBrains Toolbox which reports the correct version.
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "programs" &&
+					strings.Contains(strings.ToLower(s.Vendor), "jetbrains") &&
+					!strings.Contains(s.Name, "Toolbox") &&
+					jetbrainsNameVersion.MatchString(s.Name)
+			},
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				if matches := jetbrainsNameVersion.FindStringSubmatch(s.Name); len(matches) == 2 {
+					s.Version = matches[1]
+				}
+			},
+		},
+		{
+			// For RHEL kernels, join version and release to match OVAL format.
+			// See server/vulnerabilities/goval_dictionary/database.Eval
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "rpm_packages" && s.Name == rpmKernelName && s.Release != ""
+			},
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				s.Version = fmt.Sprintf("%s-%s", s.Version, s.Release)
+				s.Release = "" // Clear release to avoid issues with vulnerability matching
 			},
 		},
 	}
@@ -2270,9 +2258,11 @@ var (
 //
 // Some fields are reported with known incorrect values and we need to fix them before using them.
 func MutateSoftwareOnIngestion(ctx context.Context, s *fleet.Software, logger *slog.Logger) {
-	// all of our current on-ingest mutations use this table,
-	// so might as well let other stuff go faster and save some redundant checks inside the matchers
-	if s != nil && s.Source == "apps" {
+	if s == nil {
+		return
+	}
+	// basicAppSanitizers only apply to macOS apps
+	if s.Source == "apps" {
 		for _, sanitizer := range basicAppSanitizers {
 			if (sanitizer.matchBundleIdentifier != "" || sanitizer.matchName != "") &&
 				(sanitizer.matchBundleIdentifier == "" || sanitizer.matchBundleIdentifier == s.BundleIdentifier) &&
@@ -2286,24 +2276,18 @@ func MutateSoftwareOnIngestion(ctx context.Context, s *fleet.Software, logger *s
 				break
 			}
 		}
-		for _, sanitizer := range customAppSanitizers {
-			if sanitizer.matches(s) {
-				defer func() {
-					if r := recover(); r != nil {
-						logger.WarnContext(ctx, "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
-					}
-				}()
-				sanitizer.mutate(s, logger)
-				break
-			}
-		}
 	}
 
-	// For RHEL kernels, join version and release to match OVAL format.
-	// See server/vulnerabilities/goval_dictionary/database.Eval
-	if s != nil && s.Source == "rpm_packages" && s.Name == rpmKernelName && s.Release != "" {
-		s.Version = fmt.Sprintf("%s-%s", s.Version, s.Release)
-		s.Release = "" // Clear release to avoid issues with vulnerability matching
+	for _, sanitizer := range customSanitizers {
+		if sanitizer.matches(s) {
+			defer func() {
+				if r := recover(); r != nil {
+					logger.WarnContext(ctx, "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
+				}
+			}()
+			sanitizer.mutate(s, logger)
+			break
+		}
 	}
 }
 
@@ -2553,7 +2537,7 @@ func directIngestMunkiInfo(ctx context.Context, logger *slog.Logger, host *fleet
 	}
 
 	errors, warnings := rows[0]["errors"], rows[0]["warnings"]
-	errList, warnList := splitCleanSemicolonSeparated(errors), splitCleanSemicolonSeparated(warnings)
+	errList, warnList := str.SplitAndTrim(errors, ";", true), str.SplitAndTrim(warnings, ";", true)
 	return ds.SetOrUpdateMunkiInfo(ctx, host.ID, rows[0]["version"], errList, warnList)
 }
 
@@ -3200,81 +3184,6 @@ func GetDetailQueries(
 	return generatedMap
 }
 
-func splitCleanSemicolonSeparated(s string) []string {
-	parts := strings.Split(s, ";")
-	cleaned := make([]string, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part != "" {
-			cleaned = append(cleaned, part)
-		}
-	}
-	return cleaned
-}
-
-func buildConfigProfilesWindowsQuery(
-	ctx context.Context,
-	logger *slog.Logger,
-	host *fleet.Host,
-	ds fleet.Datastore,
-) (string, bool) {
-	var sb strings.Builder
-	sb.WriteString("<SyncBody>")
-	gotProfiles := false
-	err := microsoft_mdm.LoopOverExpectedHostProfiles(ctx, platformlogging.NewLogger(logger), ds, host, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
-		// Per the [docs][1], to `<Get>` configurations you must
-		// replace `/Policy/Config/` with `Policy/Result/`
-		// [1]: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider
-		// Note that the trailing slash is important because there is also /Policy/ConfigOperations
-		// for ADMX policy ingestion which does not have a corresponding Result URI.
-		locURI = strings.Replace(locURI, "/Policy/Config/", "/Policy/Result/", 1)
-		sb.WriteString(
-			// NOTE: intentionally building the xml as a one-liner
-			// to prevent any errors in the query.
-			fmt.Sprintf(
-				"<Get><CmdID>%s</CmdID><Item><Target><LocURI>%s</LocURI></Target></Item></Get>",
-				hash,
-				locURI,
-			))
-		gotProfiles = true
-	})
-	if err != nil {
-		logger.ErrorContext(ctx, "QueryFunc - windows config profiles", "component", "service", "err", err)
-		return "", false
-	}
-	if !gotProfiles {
-		logger.DebugContext(ctx, "host doesn't have profiles to check",
-			"component", "service",
-			"method", "QueryFunc - windows config profiles",
-			"host_id", host.ID)
-		return "", false
-	}
-	sb.WriteString("</SyncBody>")
-	return fmt.Sprintf("SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '%s';", sb.String()), true
-}
-
-func directIngestWindowsProfiles(
-	ctx context.Context,
-	logger *slog.Logger,
-	host *fleet.Host,
-	ds fleet.Datastore,
-	rows []map[string]string,
-) error {
-	if len(rows) == 0 {
-		return nil
-	}
-
-	if len(rows) > 1 {
-		return ctxerr.Errorf(ctx, "directIngestWindowsProfiles invalid number of rows: %d", len(rows))
-	}
-
-	rawResponse := []byte(rows[0]["raw_mdm_command_output"])
-	if len(rawResponse) == 0 {
-		return ctxerr.Errorf(ctx, "directIngestWindowsProfiles host %s got an empty SyncML response", host.UUID)
-	}
-	return microsoft_mdm.VerifyHostMDMProfiles(ctx, platformlogging.NewLogger(logger), ds, host, rawResponse)
-}
-
 var rxExtractUsernameFromHostCertPath = regexp.MustCompile(`^/Users/([^/]+)/Library/Keychains/login\.keychain\-db$`)
 
 func directIngestHostCertificatesDarwin(
@@ -3292,6 +3201,12 @@ func directIngestHostCertificatesDarwin(
 
 	certs := make([]*fleet.HostCertificateRecord, 0, len(rows))
 	for _, row := range rows {
+		// Unescape \xHH sequences in fields that may contain non-ASCII
+		// characters (e.g. Cyrillic) in the certificate's distinguished name.
+		row["common_name"] = fleet.DecodeHexEscapes(row["common_name"])
+		row["subject"] = fleet.DecodeHexEscapes(row["subject"])
+		row["issuer"] = fleet.DecodeHexEscapes(row["issuer"])
+
 		csum, err := hex.DecodeString(row["sha1"])
 		if err != nil {
 			logger.ErrorContext(ctx, "decoding sha1", "component", "service", "method", "directIngestHostCertificates", "err", err)
@@ -3379,6 +3294,12 @@ func directIngestHostCertificatesWindows(
 	// SHA1 sum + username
 	existsSha1User := make(map[string]bool, len(rows))
 	for _, row := range rows {
+		// Unescape \xHH sequences in fields that may contain non-ASCII
+		// characters (e.g. Cyrillic) in the certificate's distinguished name.
+		row["common_name"] = fleet.DecodeHexEscapes(row["common_name"])
+		row["subject"] = fleet.DecodeHexEscapes(row["subject"])
+		row["issuer"] = fleet.DecodeHexEscapes(row["issuer"])
+
 		csum, err := hex.DecodeString(row["sha1"])
 		if err != nil {
 			logger.ErrorContext(ctx, "decoding sha1", "component", "service", "method", "directIngestHostCertificates", "err", err)

@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,6 +21,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -131,10 +133,6 @@ func TestMDMAppleAuthorization(t *testing.T) {
 	}
 
 	ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error {
-		return nil
-	}
-
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
 		return nil
 	}
 
@@ -644,6 +642,110 @@ func TestRunMDMCommandValidations(t *testing.T) {
 			_, err := svc.RunMDMCommand(ctx, "!@#", []string{"unused for this test"})
 			require.Error(t, err)
 			require.ErrorContains(t, err, c.wantErr)
+		})
+	}
+}
+
+func TestRunMDMCommandSetRecoveryLockBlocked(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	macosSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", Platform: "darwin"}}
+	macosNoTeamHost := []*fleet.Host{{ID: 2, TeamID: nil, UUID: "b", Platform: "darwin"}}
+	macosTeam2Host := []*fleet.Host{{ID: 3, TeamID: ptr.Uint(2), UUID: "c", Platform: "darwin"}}
+
+	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+		res := make(map[string]bool, len(hosts))
+		for _, h := range hosts {
+			res[h.UUID] = true
+		}
+		return res, nil
+	}
+
+	// Create a SetRecoveryLock command payload
+	setRecoveryLockCmd := base64.RawStdEncoding.EncodeToString([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>RequestType</key>
+        <string>SetRecoveryLock</string>
+        <key>NewPassword</key>
+        <string>MyCustomPassword</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>test-uuid</string>
+</dict>
+</plist>`))
+
+	// Test cases where the command should be blocked
+	cases := []struct {
+		desc                      string
+		hosts                     []*fleet.Host
+		teamMDMConfig             map[uint]*fleet.TeamMDM
+		globalRecoveryLockEnabled bool
+	}{
+		{
+			desc:  "SetRecoveryLock blocked when team has recovery lock enabled",
+			hosts: macosSingleHost,
+			teamMDMConfig: map[uint]*fleet.TeamMDM{
+				1: {EnableRecoveryLockPassword: true},
+			},
+			globalRecoveryLockEnabled: false,
+		},
+		{
+			desc:  "SetRecoveryLock blocked when any host's team has recovery lock enabled",
+			hosts: []*fleet.Host{macosSingleHost[0], macosTeam2Host[0]},
+			teamMDMConfig: map[uint]*fleet.TeamMDM{
+				1: {EnableRecoveryLockPassword: false},
+				2: {EnableRecoveryLockPassword: true},
+			},
+			globalRecoveryLockEnabled: false,
+		},
+		{
+			desc:                      "SetRecoveryLock blocked for no-team host when global config has recovery lock enabled",
+			hosts:                     macosNoTeamHost,
+			teamMDMConfig:             map[uint]*fleet.TeamMDM{},
+			globalRecoveryLockEnabled: true,
+		},
+		{
+			desc:  "SetRecoveryLock blocked when no-team host in mixed group has global recovery lock enabled",
+			hosts: []*fleet.Host{macosSingleHost[0], macosNoTeamHost[0]},
+			teamMDMConfig: map[uint]*fleet.TeamMDM{
+				1: {EnableRecoveryLockPassword: false},
+			},
+			globalRecoveryLockEnabled: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+				return c.hosts, nil
+			}
+
+			ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+				if cfg, ok := c.teamMDMConfig[teamID]; ok {
+					return cfg, nil
+				}
+				return &fleet.TeamMDM{}, nil
+			}
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					MDM: fleet.MDM{
+						EnabledAndConfigured:       true,
+						EnableRecoveryLockPassword: optjson.SetBool(c.globalRecoveryLockEnabled),
+					},
+				}, nil
+			}
+
+			ctx = test.UserContext(ctx, test.UserAdmin)
+			_, err := svc.RunMDMCommand(ctx, setRecoveryLockCmd, []string{"unused"})
+
+			require.Error(t, err)
+			require.ErrorContains(t, err, "Could not run command. Recovery Lock password is already set for one or more hosts.")
 		})
 	}
 }
@@ -1213,9 +1315,6 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
-		return nil
-	}
 	ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, pid string) (*fleet.MDMWindowsConfigProfile, error) {
 		var tid uint
 		if pid == "team-1" {
@@ -1312,9 +1411,6 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 			return nil, &notFoundError{}
 		}
 		return &fleet.Team{ID: tid, Name: "team1"}, nil
-	}
-	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
-		return nil
 	}
 	ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
 		if bytes.Contains(cp.SyncML, []byte("duplicate")) {
@@ -1430,11 +1526,6 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profVars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string,
 		hostUUIDs []string,
@@ -2231,9 +2322,6 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 	ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profUUID string) error {
 		return nil
 	}
-	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
-		return nil
-	}
 	ds.BatchResendMDMProfileToHostsFunc = func(ctx context.Context, profUUID string, filters fleet.BatchResendMDMProfileFilters) (int64, error) {
 		return 0, nil
 	}
@@ -2551,7 +2639,8 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 	// We want to verify here that the disk encryption profile get's deleted for apple.
 	ds := new(mock.Store)
 	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true, License: lic})
+	opts := &TestServerOpts{SkipCreateTestUsers: true, License: lic}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
 	ctx = test.UserContext(ctx, test.UserAdmin)
 	ctx = license.NewContext(ctx, lic)
 
@@ -2598,7 +2687,7 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 	}
 
 	newActivityCalls := 0
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
 		act := fleet.ActivityTypeEnabledMacosDiskEncryption{}
 		require.Equal(t, act.ActivityName(), activity.ActivityName())
 		newActivityCalls++
@@ -2685,11 +2774,6 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 	}
 	ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: id, Name: "team"}, nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
 	}
 	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
 		return nil

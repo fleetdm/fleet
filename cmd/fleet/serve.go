@@ -32,6 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
+	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
@@ -67,6 +68,7 @@ import (
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -74,7 +76,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
-	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
@@ -84,9 +85,6 @@ import (
 	"github.com/getsentry/sentry-go"
 	"github.com/go-kit/kit/endpoint"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/ngrok/sqlmw"
@@ -234,8 +232,25 @@ the way that the Fleet server works.
 
 			logger := initLogger(config, loggerProvider)
 
+			// If you want to disable any logs by default, this is where to do it.
+			//
+			// For example:
+			// platform_logging.DisableTopic("deprecated-api-keys")
+			platform_logging.DisableTopic(platform_logging.DeprecatedFieldTopic)
+
+			// Apply log topic overrides from config. Enables run first, then
+			// disables, so disable wins on conflict.
+			// Note that any topic not included in these lists will be considered
+			// enabled if it's encountered in a log.
+			for _, topic := range str.SplitAndTrim(config.Logging.EnableLogTopics, ",", true) {
+				platform_logging.EnableTopic(topic)
+			}
+			for _, topic := range str.SplitAndTrim(config.Logging.DisableLogTopics, ",", true) {
+				platform_logging.DisableTopic(topic)
+			}
+
 			if dev_mode.IsEnabled {
-				createTestBuckets(&config, logger)
+				createTestBuckets(cmd.Context(), &config, logger)
 			}
 
 			allowedHostIdentifiers := map[string]bool{
@@ -412,7 +427,7 @@ the way that the Fleet server works.
 			if err != nil {
 				initFatal(err, "initialize Redis")
 			}
-			level.Info(logger).Log("component", "redis", "mode", redisPool.Mode())
+			logger.InfoContext(cmd.Context(), "redis initialized", "component", "redis", "mode", redisPool.Mode())
 
 			ds = cached_mysql.New(ds)
 			var dsOpts []mysqlredis.Option
@@ -494,7 +509,7 @@ the way that the Fleet server works.
 			loggingConfig.KafkaREST.Topic = config.KafkaREST.StatusTopic
 			loggingConfig.Nats.Subject = config.Nats.StatusSubject
 
-			osquerydStatusLogger, err := logging.NewJSONLogger("status", loggingConfig, logger)
+			osquerydStatusLogger, err := logging.NewJSONLogger(cmd.Context(), "status", loggingConfig, logger)
 			if err != nil {
 				initFatal(err, "initializing osqueryd status logging")
 			}
@@ -511,7 +526,7 @@ the way that the Fleet server works.
 			loggingConfig.KafkaREST.Topic = config.KafkaREST.ResultTopic
 			loggingConfig.Nats.Subject = config.Nats.ResultSubject
 
-			osquerydResultLogger, err := logging.NewJSONLogger("result", loggingConfig, logger)
+			osquerydResultLogger, err := logging.NewJSONLogger(cmd.Context(), "result", loggingConfig, logger)
 			if err != nil {
 				initFatal(err, "initializing osqueryd result logging")
 			}
@@ -529,7 +544,7 @@ the way that the Fleet server works.
 				loggingConfig.KafkaREST.Topic = config.KafkaREST.AuditTopic
 				loggingConfig.Nats.Subject = config.Nats.AuditSubject
 
-				auditLogger, err = logging.NewJSONLogger("audit", loggingConfig, logger)
+				auditLogger, err = logging.NewJSONLogger(cmd.Context(), "audit", loggingConfig, logger)
 				if err != nil {
 					initFatal(err, "initializing audit logging")
 				}
@@ -548,7 +563,7 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "initializing sentry")
 				}
-				level.Info(logger).Log("msg", "sentry initialized", "dsn", config.Sentry.Dsn)
+				logger.InfoContext(cmd.Context(), "sentry initialized", "dsn", config.Sentry.Dsn)
 
 				defer sentry.Recover()
 				defer sentry.Flush(2 * time.Second)
@@ -559,7 +574,7 @@ the way that the Fleet server works.
 			if config.GeoIP.DatabasePath != "" {
 				maxmind, err := fleet.NewMaxMindGeoIP(logger, config.GeoIP.DatabasePath)
 				if err != nil {
-					level.Error(logger).Log("msg", "failed to initialize maxmind geoip, check database path", "database_path",
+					logger.ErrorContext(cmd.Context(), "failed to initialize maxmind geoip, check database path", "database_path",
 						config.GeoIP.DatabasePath, "error", err)
 				} else {
 					geoIP = maxmind
@@ -568,7 +583,7 @@ the way that the Fleet server works.
 
 			if config.MDM.EnableCustomOSUpdatesAndFileVault && !license.IsPremium() {
 				config.MDM.EnableCustomOSUpdatesAndFileVault = false
-				level.Warn(logger).Log("msg", "Disabling custom OS updates and FileVault management because Fleet Premium license is not present")
+				logger.WarnContext(cmd.Context(), "Disabling custom OS updates and FileVault management because Fleet Premium license is not present")
 			}
 
 			mdmStorage, err := mds.NewMDMAppleMDMStorage()
@@ -631,7 +646,7 @@ the way that the Fleet server works.
 					toInsert[fleet.MDMAssetAPNSCert] = struct{}{}
 					toInsert[fleet.MDMAssetAPNSKey] = struct{}{}
 				default:
-					level.Warn(logger).Log("msg",
+					logger.WarnContext(cmd.Context(),
 						"Your server already has stored APNs certificates. Fleet will ignore any certificates provided via environment variables when this happens.")
 				}
 
@@ -644,7 +659,7 @@ the way that the Fleet server works.
 					toInsert[fleet.MDMAssetCACert] = struct{}{}
 					toInsert[fleet.MDMAssetCAKey] = struct{}{}
 				default:
-					level.Warn(logger).Log("msg",
+					logger.WarnContext(cmd.Context(),
 						"Your server already has stored SCEP certificates. Fleet will ignore any certificates provided via environment variables when this happens.")
 				}
 
@@ -684,7 +699,7 @@ the way that the Fleet server works.
 					if err := ds.InsertMDMConfigAssets(context.Background(), args, nil); err != nil {
 						if mysql.IsDuplicate(err) {
 							// we already checked for existing assets so we should never have a duplicate key error here; we'll add a debug log just in case
-							level.Debug(logger).Log("msg", "unexpected duplicate key error inserting MDM APNs and SCEP assets")
+							logger.DebugContext(cmd.Context(), "unexpected duplicate key error inserting MDM APNs and SCEP assets")
 						} else {
 							initFatal(err, "inserting MDM APNs and SCEP assets")
 						}
@@ -714,7 +729,7 @@ the way that the Fleet server works.
 					toInsert = append(toInsert, fleet.MDMConfigAsset{Name: fleet.MDMAssetABMKey, Value: appleBM.KeyPEM},
 						fleet.MDMConfigAsset{Name: fleet.MDMAssetABMCert, Value: appleBM.CertPEM})
 				default:
-					level.Warn(logger).Log("msg",
+					logger.WarnContext(cmd.Context(),
 						"Your server already has stored ABM certificates and token. Fleet will ignore any certificates provided via environment variables when this happens.")
 				}
 
@@ -723,7 +738,7 @@ the way that the Fleet server works.
 					switch {
 					case err != nil && mysql.IsDuplicate(err):
 						// we already checked for existing assets so we should never have a duplicate key error here; we'll add a debug log just in case
-						level.Debug(logger).Log("msg", "unexpected duplicate key error inserting ABM assets")
+						logger.DebugContext(cmd.Context(), "unexpected duplicate key error inserting ABM assets")
 					case err != nil:
 						initFatal(err, "inserting ABM assets")
 					default:
@@ -777,10 +792,10 @@ the way that the Fleet server works.
 				}
 			}
 			if appCfg.MDM.EnabledAndConfigured {
-				level.Info(logger).Log("msg", "Apple MDM enabled")
+				logger.InfoContext(cmd.Context(), "Apple MDM enabled")
 			}
 			if appCfg.MDM.AppleBMEnabledAndConfigured {
-				level.Info(logger).Log("msg", "Apple Business Manager enabled")
+				logger.InfoContext(cmd.Context(), "Apple Business Manager enabled")
 			}
 
 			// register the Microsoft MDM services
@@ -810,12 +825,12 @@ the way that the Fleet server works.
 				// if SMTP is already enabled then default the backend to empty string, which fill force load the SMTP implementation
 				if config.Email.EmailBackend != "" {
 					config.Email.EmailBackend = ""
-					level.Warn(logger).Log("msg", "SMTP is already enabled, first disable SMTP to utilize a different email backend")
+					logger.WarnContext(cmd.Context(), "SMTP is already enabled, first disable SMTP to utilize a different email backend")
 				}
 			}
 			mailService, err := mail.NewService(config)
 			if err != nil {
-				level.Error(logger).Log("err", err, "msg", "failed to configure mailing service")
+				logger.ErrorContext(cmd.Context(), "failed to configure mailing service", "err", err)
 			}
 
 			cronSchedules := fleet.NewCronSchedules()
@@ -826,8 +841,8 @@ the way that the Fleet server works.
 
 			// Channel used to trigger graceful shutdown on fatal DB errors (e.g. Aurora failover).
 			dbFatalCh := make(chan error, 1)
-			common_mysql.SetFatalErrorHandler(func(err error) {
-				level.Error(logger).Log("msg", "fatal database error detected, initiating graceful shutdown", "err", err)
+			common_mysql.SetFatalErrorHandler(func(ctx context.Context, err error) {
+				logger.ErrorContext(ctx, "fatal database error detected, initiating graceful shutdown", "err", err)
 				select {
 				case dbFatalCh <- err:
 				default:
@@ -858,23 +873,26 @@ the way that the Fleet server works.
 			digiCertService := digicert.NewService(digicert.WithLogger(logger))
 			ctx = ctxerr.NewContext(ctx, eh)
 
-			activitiesModule := activities.NewActivityModule(ds, logger)
+			// Declare svc early so the closure below can capture it.
+			var svc fleet.Service
 			config.MDM.AndroidAgent.Validate(initFatal)
 			androidSvc, err := android_service.NewService(
 				ctx,
-				logger.SlogLogger(),
+				logger,
 				ds,
 				config.License.Key,
 				config.Server.PrivateKey,
 				ds,
-				activitiesModule,
+				func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+					return svc.NewActivity(ctx, user, activity)
+				},
 				config.MDM.AndroidAgent,
 			)
 			if err != nil {
 				initFatal(err, "initializing android service")
 			}
 
-			svc, err := service.NewService(
+			svc, err = service.NewService(
 				ctx,
 				ds,
 				task,
@@ -917,7 +935,7 @@ the way that the Fleet server works.
 				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
 				if config.S3.SoftwareInstallersBucket != "" {
 					if config.S3.BucketsAndPrefixesMatch() {
-						level.Warn(logger).Log("msg",
+						logger.WarnContext(ctx,
 							"the S3 buckets and prefixes for carves and software installers appear to be identical, this can cause issues")
 					}
 					// Extract the CloudFront URL signer before creating the S3 stores.
@@ -942,20 +960,20 @@ the way that the Fleet server works.
 						initFatal(err, "initializing S3 software installer store")
 					}
 					softwareInstallStore = store
-					level.Info(logger).Log("msg", "using S3 software installer store", "bucket", config.S3.SoftwareInstallersBucket)
+					logger.InfoContext(ctx, "using S3 software installer store", "bucket", config.S3.SoftwareInstallersBucket)
 
 					bstore, err := s3.NewBootstrapPackageStore(config.S3)
 					if err != nil {
 						initFatal(err, "initializing S3 bootstrap package store")
 					}
 					bootstrapPackageStore = bstore
-					level.Info(logger).Log("msg", "using S3 bootstrap package store", "bucket", config.S3.SoftwareInstallersBucket)
+					logger.InfoContext(ctx, "using S3 bootstrap package store", "bucket", config.S3.SoftwareInstallersBucket)
 
 					softwareTitleIconStore, err = s3.NewSoftwareTitleIconStore(config.S3)
 					if err != nil {
 						initFatal(err, "initializing S3 software title icon store")
 					}
-					level.Info(logger).Log("msg", "using S3 software title icon store", "bucket", config.S3.SoftwareInstallersBucket)
+					logger.InfoContext(ctx, "using S3 software title icon store", "bucket", config.S3.SoftwareInstallersBucket)
 				} else {
 					installerDir := os.TempDir()
 					if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
@@ -963,11 +981,11 @@ the way that the Fleet server works.
 					}
 					store, err := filesystem.NewSoftwareInstallerStore(installerDir)
 					if err != nil {
-						level.Error(logger).Log("err", err, "msg", "failed to configure local filesystem software installer store")
+						logger.ErrorContext(ctx, "failed to configure local filesystem software installer store", "err", err)
 						softwareInstallStore = failing.NewFailingSoftwareInstallerStore()
 					} else {
 						softwareInstallStore = store
-						level.Info(logger).Log("msg",
+						logger.InfoContext(ctx,
 							"using local filesystem software installer store, this is not suitable for production use", "directory",
 							installerDir)
 					}
@@ -978,11 +996,11 @@ the way that the Fleet server works.
 					}
 					iconStore, err := filesystem.NewSoftwareTitleIconStore(iconDir)
 					if err != nil {
-						level.Error(logger).Log("err", err, "msg", "failed to configure local filesystem software title icon store")
+						logger.ErrorContext(ctx, "failed to configure local filesystem software title icon store", "err", err)
 						softwareTitleIconStore = failing.NewFailingSoftwareTitleIconStore()
 					} else {
 						softwareTitleIconStore = iconStore
-						level.Warn(logger).Log("msg",
+						logger.WarnContext(ctx,
 							"using local filesystem software title icon store, this is not suitable for production use", "directory",
 							iconDir)
 					}
@@ -1019,21 +1037,23 @@ the way that the Fleet server works.
 			if err != nil {
 				initFatal(errors.New("Error generating random instance identifier"), "")
 			}
-			level.Info(logger).Log("instanceID", instanceID)
+			logger.InfoContext(ctx, "instance info", "instanceID", instanceID)
 
 			// Bootstrap activity bounded context (needed for cron schedules and HTTP routes)
-			activitySvc, activityRoutes := createActivityBoundedContext(svc, dbConns, logger.SlogLogger())
+			activitySvc, activityRoutes := createActivityBoundedContext(svc, dbConns, logger)
+			// Inject the activity bounded context into the main service
+			svc.SetActivityService(activitySvc)
 
 			// Perform a cleanup of cron_stats outside of the cronSchedules because the
 			// schedule package uses cron_stats entries to decide whether a schedule will
 			// run or not (see https://github.com/fleetdm/fleet/issues/9486).
 			go func() {
 				cleanupCronStats := func() {
-					level.Debug(logger).Log("msg", "cleaning up cron_stats")
+					logger.DebugContext(ctx, "cleaning up cron_stats")
 					// Datastore.CleanupCronStats should be safe to run by multiple fleet
 					// instances at the same time and it should not be an expensive operation.
 					if err := ds.CleanupCronStats(ctx); err != nil {
-						level.Info(logger).Log("msg", "failed to clean up cron_stats", "err", err)
+						logger.InfoContext(ctx, "failed to clean up cron_stats", "err", err)
 					}
 				}
 
@@ -1083,7 +1103,7 @@ the way that the Fleet server works.
 				func() (fleet.CronSchedule, error) {
 					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 					return newCleanupsAndAggregationSchedule(
-						ctx, instanceID, ds, svc, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore, androidSvc,
+						ctx, instanceID, ds, svc, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore, androidSvc, activitySvc,
 					)
 				},
 			); err != nil {
@@ -1122,10 +1142,10 @@ the way that the Fleet server works.
 			vulnerabilityScheduleDisabled := false
 			if config.Vulnerabilities.DisableSchedule {
 				vulnerabilityScheduleDisabled = true
-				level.Info(logger).Log("msg", "vulnerabilities schedule disabled via vulnerabilities.disable_schedule")
+				logger.InfoContext(ctx, "vulnerabilities schedule disabled via vulnerabilities.disable_schedule")
 			}
 			if config.Vulnerabilities.CurrentInstanceChecks == "no" || config.Vulnerabilities.CurrentInstanceChecks == "0" {
-				level.Info(logger).Log("msg", "vulnerabilities schedule disabled via vulnerabilities.current_instance_checks")
+				logger.InfoContext(ctx, "vulnerabilities schedule disabled via vulnerabilities.current_instance_checks")
 				vulnerabilityScheduleDisabled = true
 			}
 			if !vulnerabilityScheduleDisabled {
@@ -1215,6 +1235,7 @@ the way that the Fleet server works.
 					ds,
 					logger,
 					config.License.Key,
+					svc.NewActivity,
 				)
 			}); err != nil {
 				initFatal(err, "failed to register mdm_android_device_reconciler schedule")
@@ -1270,6 +1291,13 @@ the way that the Fleet server works.
 				}); err != nil {
 					initFatal(err, "failed to register refresh vpp app versions schedule")
 				}
+
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+					return newRecoveryLockPasswordSchedule(ctx, instanceID, ds, commander, logger)
+				}); err != nil {
+					initFatal(err, "failed to register recovery lock password schedule")
+				}
 			}
 
 			if license.IsPremium() && config.Activity.EnableAuditLog {
@@ -1309,7 +1337,7 @@ the way that the Fleet server works.
 				initFatal(err, "failed to register batch activity completion checker schedule")
 			}
 
-			level.Info(logger).Log("msg", fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedules.ScheduleNames(), ", ")))
+			logger.InfoContext(ctx, fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedules.ScheduleNames(), ", ")))
 
 			// StartCollectors starts a goroutine per collector, using ctx to cancel.
 			task.StartCollectors(ctx, logger.With("cron", "async_task"))
@@ -1320,10 +1348,7 @@ the way that the Fleet server works.
 				go func() {
 					for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) {
 						if err := task.FlushHostsLastSeen(baseCtx, clock.C.Now()); err != nil {
-							level.Info(logger).Log(
-								"err", err,
-								"msg", "failed to update host seen times",
-							)
+							logger.InfoContext(ctx, "failed to update host seen times", "err", err)
 						}
 					}
 				}()
@@ -1445,10 +1470,12 @@ the way that the Fleet server works.
 					license.IsPremium(),
 					logger,
 					redis_key_value.New(redisPool),
+					svc.NewActivity,
 				)
 
-				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay))
+				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay, svc.NewActivity))
 				mdmCheckinAndCommandService.RegisterResultsHandler(fleet.DeviceLocationCmdName, service.NewDeviceLocationResultsHandler(ds, commander, logger))
+				mdmCheckinAndCommandService.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, service.NewSetRecoveryLockResultsHandler(ds, logger))
 
 				hasSCEPChallenge, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
 				if err != nil {
@@ -1472,7 +1499,7 @@ the way that the Fleet server works.
 							initFatal(err, "inserting SCEP challenge")
 						}
 
-						level.Warn(logger).Log("msg",
+						logger.WarnContext(ctx,
 							"Your server already has stored a SCEP challenge. Fleet will ignore this value provided via environment variables when this happens.")
 					}
 				}
@@ -1524,7 +1551,7 @@ the way that the Fleet server works.
 						initFatal(err, "setup conditional access IdP")
 					}
 				} else {
-					level.Warn(logger).Log("msg",
+					logger.WarnContext(ctx,
 						"Host identity and conditional access SCEP is not available because no server private key has been set up.")
 				}
 			}
@@ -1537,10 +1564,10 @@ the way that the Fleet server works.
 				))
 			} else {
 				if config.Prometheus.BasicAuth.Disable {
-					level.Info(logger).Log("msg", "metrics endpoint enabled with http basic auth disabled")
+					logger.InfoContext(ctx, "metrics endpoint enabled with http basic auth disabled")
 					rootMux.Handle("/metrics", service.PrometheusMetricsHandler("metrics", otelmw.WrapHandler(promhttp.Handler(), "/metrics", config)))
 				} else {
-					level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)")
+					logger.InfoContext(ctx, "metrics endpoint disabled (http basic auth credentials not set)")
 				}
 			}
 
@@ -1562,8 +1589,8 @@ the way that the Fleet server works.
 					// add an additional 30 seconds to prevent race conditions where the
 					// request is terminated early.
 					if err := rc.SetWriteDeadline(time.Now().Add(scripts.MaxServerWaitTime + (30 * time.Second))); err != nil {
-						level.Error(logger).Log(
-							"msg", "http middleware failed to override endpoint write timeout for script sync run",
+						logger.ErrorContext(req.Context(),
+							"http middleware failed to override endpoint write timeout for script sync run",
 							"response_writer_type", fmt.Sprintf("%T", rw),
 							"response_writer", fmt.Sprintf("%+v", rw),
 							"err", err,
@@ -1586,8 +1613,8 @@ the way that the Fleet server works.
 					// TODO: Is this really how we want to handle this? Or would an arbitrarily long
 					// timeout be better?
 					if err := rc.SetReadDeadline(zeroTime); err != nil {
-						level.Error(logger).Log(
-							"msg", "http middleware failed to override endpoint read timeout for software package upload",
+						logger.ErrorContext(req.Context(),
+							"http middleware failed to override endpoint read timeout for software package upload",
 							"response_writer_type", fmt.Sprintf("%T", rw),
 							"response_writer", fmt.Sprintf("%+v", rw),
 							"err", err,
@@ -1600,8 +1627,8 @@ the way that the Fleet server works.
 					// TODO: Is this really how we want to handle this? Or would an arbitrarily long
 					// timeout be better?
 					if err := rc.SetWriteDeadline(zeroTime); err != nil {
-						level.Error(logger).Log(
-							"msg", "http middleware failed to override endpoint write timeout for software package upload",
+						logger.ErrorContext(req.Context(),
+							"http middleware failed to override endpoint write timeout for software package upload",
 							"response_writer_type", fmt.Sprintf("%T", rw),
 							"response_writer", fmt.Sprintf("%+v", rw),
 							"err", err,
@@ -1618,8 +1645,8 @@ the way that the Fleet server works.
 					// When enabling Android MDM, frontend UI will wait for the admin to finish the setup in Google.
 					rc := http.NewResponseController(rw)
 					if err := rc.SetWriteDeadline(time.Now().Add(30 * time.Minute)); err != nil {
-						level.Error(logger).Log(
-							"msg", "http middleware failed to override endpoint write timeout for android enterpriset setup",
+						logger.ErrorContext(req.Context(),
+							"http middleware failed to override endpoint write timeout for android enterpriset setup",
 							"response_writer_type", fmt.Sprintf("%T", rw),
 							"response_writer", fmt.Sprintf("%+v", rw),
 							"err", err,
@@ -1635,16 +1662,16 @@ the way that the Fleet server works.
 					// across a large number of hosts, so set the timeouts a bit higher than default
 					rc := http.NewResponseController(rw)
 					if err := rc.SetWriteDeadline(time.Now().Add(5 * time.Minute)); err != nil {
-						level.Error(logger).Log(
-							"msg", "http middleware failed to override endpoint write timeout for MDM profiles batch endpoint",
+						logger.ErrorContext(req.Context(),
+							"http middleware failed to override endpoint write timeout for MDM profiles batch endpoint",
 							"response_writer_type", fmt.Sprintf("%T", rw),
 							"response_writer", fmt.Sprintf("%+v", rw),
 							"err", err,
 						)
 					}
 					if err := rc.SetReadDeadline(time.Now().Add(5 * time.Minute)); err != nil {
-						level.Error(logger).Log(
-							"msg", "http middleware failed to override endpoint read timeout for MDM profiles batch endpoint",
+						logger.ErrorContext(req.Context(),
+							"http middleware failed to override endpoint read timeout for MDM profiles batch endpoint",
 							"response_writer_type", fmt.Sprintf("%T", rw),
 							"response_writer", fmt.Sprintf("%+v", rw),
 							"err", err,
@@ -1664,7 +1691,7 @@ the way that the Fleet server works.
 			rootMux.Handle("/", otelmw.WrapHandler(frontendHandler, "/", config))
 
 			debugHandler := &debugMux{
-				fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger.SlogLogger(), eh, ds),
+				fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds),
 			}
 			rootMux.Handle("/debug/", otelmw.WrapHandlerDynamic(debugHandler, config))
 
@@ -1693,7 +1720,7 @@ the way that the Fleet server works.
 			if v := os.Getenv("FLEET_LIVE_QUERY_REST_PERIOD"); v != "" {
 				duration, err := time.ParseDuration(v)
 				if err != nil {
-					level.Error(logger).Log("live_query_rest_period_err", err)
+					logger.ErrorContext(ctx, "failed to parse live query rest period", "err", err)
 				} else {
 					liveQueryRestPeriod = duration
 				}
@@ -1723,10 +1750,10 @@ the way that the Fleet server works.
 			errs := make(chan error, 2)
 			go func() {
 				if !config.Server.TLS {
-					logger.Log("transport", "http", "address", config.Server.Address, "msg", "listening")
+					logger.InfoContext(ctx, "listening", "transport", "http", "address", config.Server.Address)
 					errs <- srv.ListenAndServe()
 				} else {
-					logger.Log("transport", "https", "address", config.Server.Address, "msg", "listening")
+					logger.InfoContext(ctx, "listening", "transport", "https", "address", config.Server.Address)
 					srv.TLSConfig = getTLSConfig(config.Server.TLSProfile)
 					errs <- srv.ListenAndServeTLS(
 						config.Server.Cert,
@@ -1750,17 +1777,17 @@ the way that the Fleet server works.
 					// Flush any pending OTEL data before shutting down
 					if tracerProvider != nil {
 						if err := tracerProvider.Shutdown(ctx); err != nil {
-							level.Error(logger).Log("msg", "failed to shutdown OTEL tracer provider", "err", err)
+							logger.ErrorContext(ctx, "failed to shutdown OTEL tracer provider", "err", err)
 						}
 					}
 					if meterProvider != nil {
 						if err := meterProvider.Shutdown(ctx); err != nil {
-							level.Error(logger).Log("msg", "failed to shutdown OTEL meter provider", "err", err)
+							logger.ErrorContext(ctx, "failed to shutdown OTEL meter provider", "err", err)
 						}
 					}
 					if loggerProvider != nil {
 						if err := loggerProvider.Shutdown(ctx); err != nil {
-							level.Error(logger).Log("msg", "failed to shutdown OTEL logger provider", "err", err)
+							logger.ErrorContext(ctx, "failed to shutdown OTEL logger provider", "err", err)
 						}
 					}
 					return srv.Shutdown(ctx)
@@ -1768,7 +1795,7 @@ the way that the Fleet server works.
 			}()
 
 			// block on errs signal
-			logger.Log("terminated", <-errs)
+			logger.InfoContext(ctx, "terminated", "err", <-errs)
 		},
 	}
 
@@ -1941,39 +1968,39 @@ func getTLSConfig(profile string) *tls.Config {
 type devSQLInterceptor struct {
 	sqlmw.NullInterceptor
 
-	logger kitlog.Logger
+	logger *slog.Logger
 }
 
 func (in *devSQLInterceptor) ConnQueryContext(ctx context.Context, conn driver.QueryerContext, query string, args []driver.NamedValue) (driver.Rows, error) {
 	start := time.Now()
 	rows, err := conn.QueryContext(ctx, query, args)
-	in.logQuery(start, query, args, err)
+	in.logQuery(ctx, start, query, args, err)
 	return rows, err
 }
 
 func (in *devSQLInterceptor) StmtQueryContext(ctx context.Context, stmt driver.StmtQueryContext, query string, args []driver.NamedValue) (driver.Rows, error) {
 	start := time.Now()
 	rows, err := stmt.QueryContext(ctx, args)
-	in.logQuery(start, query, args, err)
+	in.logQuery(ctx, start, query, args, err)
 	return rows, err
 }
 
 func (in *devSQLInterceptor) StmtExecContext(ctx context.Context, stmt driver.StmtExecContext, query string, args []driver.NamedValue) (driver.Result, error) {
 	start := time.Now()
 	result, err := stmt.ExecContext(ctx, args)
-	in.logQuery(start, query, args, err)
+	in.logQuery(ctx, start, query, args, err)
 	return result, err
 }
 
 var spaceRegex = regexp.MustCompile(`\s+`)
 
-func (in *devSQLInterceptor) logQuery(start time.Time, query string, args []driver.NamedValue, err error) {
-	logLevel := level.Debug
-	if err != nil {
-		logLevel = level.Error
-	}
+func (in *devSQLInterceptor) logQuery(ctx context.Context, start time.Time, query string, args []driver.NamedValue, err error) {
 	query = strings.TrimSpace(spaceRegex.ReplaceAllString(query, " "))
-	logLevel(in.logger).Log("duration", time.Since(start), "query", query, "args", argsToString(args), "err", err)
+	if err != nil {
+		in.logger.ErrorContext(ctx, "sql query", "duration", time.Since(start), "query", query, "args", argsToString(args), "err", err)
+	} else {
+		in.logger.DebugContext(ctx, "sql query", "duration", time.Since(start), "query", query, "args", argsToString(args))
+	}
 }
 
 func argsToString(args []driver.NamedValue) string {
@@ -2021,16 +2048,15 @@ func (n nopPusher) Push(context.Context, []string) (map[string]*push.Response, e
 	return nil, nil
 }
 
-func createTestBuckets(config *configpkg.FleetConfig, logger log.Logger) {
+func createTestBuckets(ctx context.Context, config *configpkg.FleetConfig, logger *slog.Logger) {
 	softwareInstallerStore, err := s3.NewSoftwareInstallerStore(config.S3)
 	if err != nil {
 		initFatal(err, "initializing S3 software installer store")
 	}
-	if err := softwareInstallerStore.CreateTestBucket(context.Background(), config.S3.SoftwareInstallersBucket); err != nil {
+	if err := softwareInstallerStore.CreateTestBucket(ctx, config.S3.SoftwareInstallersBucket); err != nil {
 		// Don't panic, allow devs to run Fleet without S3 dependency.
-		level.Info(logger).Log(
+		logger.InfoContext(ctx, "failed to create test software installer bucket",
 			"err", err,
-			"msg", "failed to create test software installer bucket",
 			"name", config.S3.SoftwareInstallersBucket,
 		)
 	}
@@ -2038,11 +2064,10 @@ func createTestBuckets(config *configpkg.FleetConfig, logger log.Logger) {
 	if err != nil {
 		initFatal(err, "initializing S3 carve store")
 	}
-	if err := carveStore.CreateTestBucket(context.Background(), config.S3.CarvesBucket); err != nil {
+	if err := carveStore.CreateTestBucket(ctx, config.S3.CarvesBucket); err != nil {
 		// Don't panic, allow devs to run Fleet without S3 dependency.
-		level.Info(logger).Log(
+		logger.InfoContext(ctx, "failed to create test carve bucket",
 			"err", err,
-			"msg", "failed to create test carve bucket",
 			"name", config.S3.CarvesBucket,
 		)
 	}

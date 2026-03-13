@@ -5,7 +5,7 @@ import paths from "router/paths";
 import { AppContext } from "context/app";
 import { RoutingContext } from "context/routing";
 import useDeepEffect from "hooks/useDeepEffect";
-import { authToken, clearToken } from "utilities/local";
+import authToken from "utilities/auth_token";
 import { useErrorHandler } from "react-error-boundary";
 import permissions from "utilities/permissions";
 
@@ -78,7 +78,7 @@ export const AuthenticatedRoutes = ({
   useDeepEffect(() => {
     // this works with App.tsx. if authToken does
     // exist, user state is checked and fetched if null
-    if (!authToken()) {
+    if (!authToken.get()) {
       if (window.location.hostname.includes(".sandbox.fleetdm.com")) {
         window.location.href = "https://www.fleetdm.com/try-fleet/login";
       }
@@ -86,7 +86,7 @@ export const AuthenticatedRoutes = ({
       return redirectToLogin();
     }
 
-    if (currentUser?.force_password_reset && !authToken()) {
+    if (currentUser?.force_password_reset && !authToken.get()) {
       return redirectToPasswordReset();
     }
 
@@ -95,7 +95,7 @@ export const AuthenticatedRoutes = ({
     }
 
     if (currentUser && permissions.isNoAccess(currentUser)) {
-      clearToken();
+      authToken.remove();
       return handlePageError({ status: 403 });
     }
   }, [currentUser]);

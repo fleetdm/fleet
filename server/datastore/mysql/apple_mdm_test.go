@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -26,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -105,10 +107,19 @@ func TestMDMApple(t *testing.T) {
 		{"TestDeleteMDMAppleDeclarationWithPendingInstalls", testDeleteMDMAppleDeclarationWithPendingInstalls},
 		{"TestUpdateNanoMDMUserEnrollmentUsername", testUpdateNanoMDMUserEnrollmentUsername},
 		{"TestLockUnlockWipeIphone", testLockUnlockWipeIphone},
+		{"TestOrphanMDMCommandRef", testOrphanMDMCommandRef},
 		{"TestGetLatestAppleMDMCommandOfType", testGetLatestAppleMDMCommandOfType},
 		{"TestSetLockCommandForLostModeCheckin", testSetLockCommandForLostModeCheckin},
 		{"DeviceLocation", testDeviceLocation},
 		{"TestGetDEPAssignProfileExpiredCooldowns", testGetDEPAssignProfileExpiredCooldowns},
+		{"DeleteMDMAppleDeclarationByNameCancelsInstalls", testDeleteMDMAppleDeclarationByNameCancelsInstalls},
+		{"RecoveryLockPasswordSetAndGet", testRecoveryLockPasswordSetAndGet},
+		{"RecoveryLockPasswordBulkSet", testRecoveryLockPasswordBulkSet},
+		{"RecoveryLockPasswordGetNotFound", testRecoveryLockPasswordGetNotFound},
+		{"RecoveryLockPasswordSetOverwrite", testRecoveryLockPasswordSetOverwrite},
+		{"RecoveryLockPasswordUpdatedAtChanges", testRecoveryLockPasswordUpdatedAtChanges},
+		{"RecoveryLockStatusMethods", testRecoveryLockStatusMethods},
+		{"GetHostsForRecoveryLockAction", testGetHostsForRecoveryLockAction},
 	}
 
 	for _, c := range cases {
@@ -5791,6 +5802,110 @@ func testLockUnlockWipeIphone(t *testing.T, ds *Datastore) {
 	checkLockWipeState(t, status, false, false, true, false, false, false)
 }
 
+func testOrphanMDMCommandRef(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const orphanUUID = "orphan-command-uuid"
+
+	oldLogger := ds.logger
+	t.Cleanup(func() { ds.logger = oldLogger })
+	buf := &bytes.Buffer{}
+	ds.logger = logging.NewSlogLogger(logging.Options{Output: buf, Debug: true})
+
+	t.Run("darwin orphan lock_ref", func(t *testing.T) {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "orphan-lock-darwin",
+			OsqueryHostID: ptr.String("orphan-lock-darwin"),
+			NodeKey:       ptr.String("orphan-lock-darwin"),
+			UUID:          "orphan-lock-darwin-uuid",
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+
+		// insert a lock_ref pointing to a non-existent MDM command (orphan reference)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO host_mdm_actions (host_id, lock_ref, fleet_platform) VALUES (?, ?, ?)`,
+			host.ID, orphanUUID, "darwin")
+		require.NoError(t, err)
+
+		buf.Reset()
+		// should return no error and appear unlocked (not pending lock, not locked)
+		status, err := ds.GetHostLockWipeStatus(ctx, host)
+		require.NoError(t, err)
+		checkLockWipeState(t, status, true, false, false, false, false, false)
+		require.Nil(t, status.LockMDMCommand)
+		require.Contains(t, buf.String(), "orphan lock MDM command reference")
+	})
+
+	t.Run("darwin orphan wipe_ref", func(t *testing.T) {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "orphan-wipe-darwin",
+			OsqueryHostID: ptr.String("orphan-wipe-darwin"),
+			NodeKey:       ptr.String("orphan-wipe-darwin"),
+			UUID:          "orphan-wipe-darwin-uuid",
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO host_mdm_actions (host_id, wipe_ref, fleet_platform) VALUES (?, ?, ?)`,
+			host.ID, orphanUUID, "darwin")
+		require.NoError(t, err)
+
+		buf.Reset()
+		status, err := ds.GetHostLockWipeStatus(ctx, host)
+		require.NoError(t, err)
+		checkLockWipeState(t, status, true, false, false, false, false, false)
+		require.Nil(t, status.WipeMDMCommand)
+		require.Contains(t, buf.String(), "orphan wipe MDM command reference")
+	})
+
+	t.Run("ios orphan lock_ref", func(t *testing.T) {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "orphan-lock-ios",
+			OsqueryHostID: ptr.String("orphan-lock-ios"),
+			NodeKey:       ptr.String("orphan-lock-ios"),
+			UUID:          "orphan-lock-ios-uuid",
+			Platform:      "ios",
+		})
+		require.NoError(t, err)
+
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO host_mdm_actions (host_id, lock_ref, fleet_platform) VALUES (?, ?, ?)`,
+			host.ID, orphanUUID, "ios")
+		require.NoError(t, err)
+
+		buf.Reset()
+		status, err := ds.GetHostLockWipeStatus(ctx, host)
+		require.NoError(t, err)
+		checkLockWipeState(t, status, true, false, false, false, false, false)
+		require.Nil(t, status.LockMDMCommand)
+		require.Contains(t, buf.String(), "orphan lock MDM command reference")
+	})
+
+	t.Run("ios orphan unlock_ref", func(t *testing.T) {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "orphan-unlock-ios",
+			OsqueryHostID: ptr.String("orphan-unlock-ios"),
+			NodeKey:       ptr.String("orphan-unlock-ios"),
+			UUID:          "orphan-unlock-ios-uuid",
+			Platform:      "ios",
+		})
+		require.NoError(t, err)
+
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO host_mdm_actions (host_id, unlock_ref, fleet_platform) VALUES (?, ?, ?)`,
+			host.ID, orphanUUID, "ios")
+		require.NoError(t, err)
+
+		buf.Reset()
+		status, err := ds.GetHostLockWipeStatus(ctx, host)
+		require.NoError(t, err)
+		checkLockWipeState(t, status, true, false, false, false, false, false)
+		require.Nil(t, status.UnlockMDMCommand)
+		require.Contains(t, buf.String(), "orphan unlock MDM command reference")
+	})
+}
+
 func testScreenDEPAssignProfileSerialsForCooldown(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	skip, assign, err := ds.ScreenDEPAssignProfileSerialsForCooldown(ctx, []string{})
@@ -9843,4 +9958,441 @@ func testMDMAppleHostsDiskEncryption(t *testing.T, ds *Datastore) {
 	require.NotNil(t, fvProfileSummary)
 	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
 	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionEnforcing, nil))
+}
+
+func testDeleteMDMAppleDeclarationByNameCancelsInstalls(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	SetTestABMAssets(t, ds, "fleet")
+
+	runTest := func(t *testing.T, teamID *uint) {
+		// Create two declarations.
+		appleDecls := []*fleet.MDMAppleDeclaration{
+			declForTest("D1", "D1", "{}"),
+			declForTest("D2", "D2", "{}"),
+		}
+		_, err := ds.BatchSetMDMProfiles(ctx, teamID, nil, nil, appleDecls, nil, nil)
+		require.NoError(t, err)
+		declNameToDeclarations := make(map[string]*fleet.MDMConfigProfilePayload)
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, teamID, fleet.ListOptions{})
+		require.NoError(t, err)
+		for _, prof := range profs {
+			declNameToDeclarations[prof.Name] = prof
+		}
+
+		// Delete declaration D1.
+		err = ds.DeleteMDMAppleDeclarationByName(ctx, teamID, "D1")
+		require.NoError(t, err)
+
+		// Create two hosts.
+		var opts []test.NewHostOption
+		if teamID != nil {
+			opts = append(opts, test.WithTeamID(*teamID))
+		}
+		host1 := test.NewHost(t, ds, "host1", "1"+t.Name(), "h1key"+t.Name(), "host1uuid"+t.Name(), time.Now(), opts...)
+		host2 := test.NewHost(t, ds, "host2", "2"+t.Name(), "h2key"+t.Name(), "host2uuid"+t.Name(), time.Now(), opts...)
+		nanoEnroll(t, ds, host1, false)
+		nanoEnroll(t, ds, host2, false)
+
+		for _, h := range []*fleet.Host{host1, host2} {
+			err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", false)
+			require.NoError(t, err)
+		}
+
+		// Set the D2 declaration as pending install on host1, installed on host2
+		forceSetAppleHostDeclarationStatus(t, ds, host1.UUID, test.ToMDMAppleDecl(declNameToDeclarations["D2"]), fleet.MDMOperationTypeInstall, "")
+		forceSetAppleHostDeclarationStatus(t, ds, host2.UUID, test.ToMDMAppleDecl(declNameToDeclarations["D2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+		assertHostProfileOpStatus(t, ds, host1.UUID,
+			hostProfileOpStatus{declNameToDeclarations["D2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall})
+		assertHostProfileOpStatus(t, ds, host2.UUID,
+			hostProfileOpStatus{declNameToDeclarations["D2"].ProfileUUID, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall})
+
+		// Delete declaration D2.
+		err = ds.DeleteMDMAppleDeclarationByName(ctx, teamID, "D2")
+		require.NoError(t, err)
+
+		assertHostProfileOpStatus(t, ds, host1.UUID)
+		assertHostProfileOpStatus(t, ds, host2.UUID,
+			hostProfileOpStatus{declNameToDeclarations["D2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
+
+		// Deleting unexisting declaration should not fail.
+		err = ds.DeleteMDMAppleDeclarationByName(ctx, teamID, "D3")
+		require.NoError(t, err)
+	}
+
+	t.Run("No team", func(t *testing.T) {
+		runTest(t, nil)
+	})
+
+	t.Run("Team", func(t *testing.T) {
+		team, err := ds.NewTeam(t.Context(), &fleet.Team{
+			Name: t.Name(),
+		})
+		require.NoError(t, err)
+		runTest(t, &team.ID)
+	})
+}
+
+func testRecoveryLockPasswordSetAndGet(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "test-host-1", "1.2.3.4", "h1key", "h1uuid", time.Now())
+
+	// Generate and set password
+	password := apple_mdm.GenerateRecoveryLockPassword()
+
+	err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: password}})
+	require.NoError(t, err)
+
+	// Get password and verify it matches
+	result, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.Equal(t, password, result.Password)
+	assert.False(t, result.UpdatedAt.IsZero())
+}
+
+func testRecoveryLockPasswordBulkSet(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create multiple hosts
+	host1 := test.NewHost(t, ds, "bulk-host-1", "1.2.3.10", "bulk1key", "bulk1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "bulk-host-2", "1.2.3.11", "bulk2key", "bulk2uuid", time.Now())
+	host3 := test.NewHost(t, ds, "bulk-host-3", "1.2.3.12", "bulk3key", "bulk3uuid", time.Now())
+
+	// Generate passwords for all hosts
+	pw1 := apple_mdm.GenerateRecoveryLockPassword()
+	pw2 := apple_mdm.GenerateRecoveryLockPassword()
+	pw3 := apple_mdm.GenerateRecoveryLockPassword()
+
+	// Bulk set passwords
+	err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{
+		{HostUUID: host1.UUID, Password: pw1},
+		{HostUUID: host2.UUID, Password: pw2},
+		{HostUUID: host3.UUID, Password: pw3},
+	})
+	require.NoError(t, err)
+
+	// Verify all passwords are stored correctly
+	result1, err := ds.GetHostRecoveryLockPassword(ctx, host1.UUID)
+	require.NoError(t, err)
+	assert.Equal(t, pw1, result1.Password)
+
+	result2, err := ds.GetHostRecoveryLockPassword(ctx, host2.UUID)
+	require.NoError(t, err)
+	assert.Equal(t, pw2, result2.Password)
+
+	result3, err := ds.GetHostRecoveryLockPassword(ctx, host3.UUID)
+	require.NoError(t, err)
+	assert.Equal(t, pw3, result3.Password)
+
+	// Verify all passwords are different
+	assert.NotEqual(t, pw1, pw2)
+	assert.NotEqual(t, pw2, pw3)
+	assert.NotEqual(t, pw1, pw3)
+}
+
+func testRecoveryLockPasswordGetNotFound(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Try to get password for non-existent host
+	_, err := ds.GetHostRecoveryLockPassword(ctx, "non-existent-uuid")
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+}
+
+func testRecoveryLockPasswordSetOverwrite(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "test-host-2", "1.2.3.5", "h2key", "h2uuid", time.Now())
+
+	// Set password first time
+	password1 := apple_mdm.GenerateRecoveryLockPassword()
+	err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: password1}})
+	require.NoError(t, err)
+
+	// Set password second time (should overwrite)
+	password2 := apple_mdm.GenerateRecoveryLockPassword()
+	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: password2}})
+	require.NoError(t, err)
+
+	// Passwords should be different (randomly generated)
+	assert.NotEqual(t, password1, password2)
+
+	// Verify only the new password is stored
+	result, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.Equal(t, password2, result.Password)
+}
+
+func testRecoveryLockPasswordUpdatedAtChanges(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "test-host-3", "1.2.3.6", "h3key", "h3uuid", time.Now())
+
+	// Set password first time
+	password1 := apple_mdm.GenerateRecoveryLockPassword()
+	err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: password1}})
+	require.NoError(t, err)
+
+	result1, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+	require.NoError(t, err)
+
+	// Wait a bit to ensure timestamp changes
+	time.Sleep(1 * time.Second)
+
+	// Set password second time
+	password2 := apple_mdm.GenerateRecoveryLockPassword()
+	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: password2}})
+	require.NoError(t, err)
+
+	result2, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+	require.NoError(t, err)
+
+	// updated_at should have changed
+	assert.True(t, result2.UpdatedAt.After(result1.UpdatedAt), "updated_at should increase after overwrite")
+}
+
+func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Helper to create a host with a recovery lock password (status is set to 'pending' atomically)
+	setupHost := func(t *testing.T, name, ip, key, uuid string) *fleet.Host {
+		t.Helper()
+		host := test.NewHost(t, ds, name, ip, key, uuid, time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		return host
+	}
+
+	t.Run("SetHostsRecoveryLockPasswords sets pending status atomically", func(t *testing.T) {
+		host := setupHost(t, "atomic-pending-host", "1.2.3.6", "atomickey", "atomicuuid")
+
+		// Verify status is pending immediately after storing password
+		var status string
+		err := ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_uuid = ?", host.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, string(fleet.MDMDeliveryPending), status)
+	})
+
+	t.Run("SetRecoveryLockVerified", func(t *testing.T) {
+		host := setupHost(t, "verified-host", "1.2.3.9", "verifiedkey", "verifieduuid")
+
+		// Set verified status
+		err := ds.SetRecoveryLockVerified(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Verify status
+		var status string
+		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_uuid = ?", host.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, string(fleet.MDMDeliveryVerified), status)
+	})
+
+	t.Run("SetRecoveryLockFailed", func(t *testing.T) {
+		host := setupHost(t, "failed-host", "1.2.3.10", "failedkey", "faileduuid")
+
+		// Set failed status
+		err := ds.SetRecoveryLockFailed(ctx, host.UUID, "test error message")
+		require.NoError(t, err)
+
+		// Verify status and error message
+		var status, errorMsg string
+		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_uuid = ?", host.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, string(fleet.MDMDeliveryFailed), status)
+
+		err = ds.writer(ctx).GetContext(ctx, &errorMsg, "SELECT error_message FROM host_recovery_key_passwords WHERE host_uuid = ?", host.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, "test error message", errorMsg)
+	})
+
+	t.Run("ClearRecoveryLockPendingStatus", func(t *testing.T) {
+		host := setupHost(t, "clear-pending-host", "1.2.3.11", "clearkey", "clearuuid")
+
+		// Verify status is pending
+		var status sql.NullString
+		err := ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_uuid = ?", host.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, string(fleet.MDMDeliveryPending), status.String)
+
+		// Clear pending status
+		err = ds.ClearRecoveryLockPendingStatus(ctx, []string{host.UUID})
+		require.NoError(t, err)
+
+		// Verify status is now NULL
+		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_uuid = ?", host.UUID)
+		require.NoError(t, err)
+		assert.False(t, status.Valid, "status should be NULL after clearing")
+	})
+
+	t.Run("ClearRecoveryLockPendingStatus only clears pending", func(t *testing.T) {
+		host := setupHost(t, "no-clear-verified-host", "1.2.3.12", "ncvkey", "ncvuuid")
+
+		// Set to verified
+		err := ds.SetRecoveryLockVerified(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Try to clear - should not affect verified status
+		err = ds.ClearRecoveryLockPendingStatus(ctx, []string{host.UUID})
+		require.NoError(t, err)
+
+		// Verify status is still verified
+		var status string
+		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_uuid = ?", host.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, string(fleet.MDMDeliveryVerified), status)
+	})
+}
+
+func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Helper to create a team with recovery lock setting
+	createTeamWithRecoveryLock := func(name string, enabled bool) *fleet.Team {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: name})
+		require.NoError(t, err)
+
+		team.Config.MDM.EnableRecoveryLockPassword = enabled
+		team, err = ds.SaveTeam(ctx, team)
+		require.NoError(t, err)
+		return team
+	}
+
+	// Helper to set app config recovery lock setting
+	setAppConfigRecoveryLock := func(enabled bool) {
+		ac, err := ds.AppConfig(ctx)
+		require.NoError(t, err)
+		ac.MDM.EnableRecoveryLockPassword = optjson.SetBool(enabled)
+		err = ds.SaveAppConfig(ctx, ac)
+		require.NoError(t, err)
+	}
+
+	// Helper to set host CPU type
+	setHostCPUType := func(hostID uint, cpuType string) {
+		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET cpu_type = ? WHERE id = ?`, cpuType, hostID)
+		require.NoError(t, err)
+	}
+
+	// Initially no eligible hosts
+	hosts, err := ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, hosts)
+
+	// Create eligible Apple Silicon host in team with recovery lock enabled
+	teamARM := createTeamWithRecoveryLock("team-arm", true)
+	hostARM := test.NewHost(t, ds, "arm-host", "1.2.5.1", "armkey", "armuuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(teamARM.ID))
+	setHostCPUType(hostARM.ID, "arm64")
+	nanoEnrollAndSetHostMDMData(t, ds, hostARM, false)
+
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.True(t, slices.Contains(hosts, hostARM.UUID), "Apple Silicon (ARM) host should be eligible")
+
+	// Create ineligible Intel host
+	teamIntel := createTeamWithRecoveryLock("team-intel", true)
+	hostIntel := test.NewHost(t, ds, "intel-host", "1.2.5.2", "intelkey", "inteluuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(teamIntel.ID))
+	setHostCPUType(hostIntel.ID, "x86_64")
+	nanoEnrollAndSetHostMDMData(t, ds, hostIntel, false)
+
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.False(t, slices.Contains(hosts, hostIntel.UUID), "Intel host should NOT be eligible")
+
+	// Create host in team with recovery lock DISABLED
+	teamDisabled := createTeamWithRecoveryLock("team-disabled", false)
+	hostDisabled := test.NewHost(t, ds, "disabled-team-host", "1.2.5.4", "dtkey", "dtuuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(teamDisabled.ID))
+	setHostCPUType(hostDisabled.ID, "arm64e")
+	nanoEnrollAndSetHostMDMData(t, ds, hostDisabled, false)
+
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.False(t, slices.Contains(hosts, hostDisabled.UUID), "host in disabled team should NOT be eligible")
+
+	// Create host without MDM enrollment
+	teamNotEnrolled := createTeamWithRecoveryLock("team-not-enrolled", true)
+	hostNotEnrolled := test.NewHost(t, ds, "not-enrolled-host", "1.2.5.5", "nekey", "neuuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(teamNotEnrolled.ID))
+	setHostCPUType(hostNotEnrolled.ID, "arm64e")
+	// No nano enrollment
+
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.False(t, slices.Contains(hosts, hostNotEnrolled.UUID), "non-enrolled host should NOT be eligible")
+
+	// Create Windows host (not darwin)
+	teamNotDarwin := createTeamWithRecoveryLock("team-not-darwin", true)
+	hostWindows := test.NewHost(t, ds, "windows-host", "1.2.5.6", "wkey", "wuuid", time.Now(),
+		test.WithPlatform("windows"), test.WithTeamID(teamNotDarwin.ID))
+	nanoEnrollAndSetHostMDMData(t, ds, hostWindows, false)
+
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.False(t, slices.Contains(hosts, hostWindows.UUID), "Windows host should NOT be eligible")
+
+	// Create host with pending status (already has SetRecoveryLock in progress)
+	// Note: SetHostsRecoveryLockPasswords now sets status to 'pending' atomically
+	teamPending := createTeamWithRecoveryLock("team-pending", true)
+	hostPending := test.NewHost(t, ds, "pending-host2", "1.2.5.7", "pkey2", "puuid2", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(teamPending.ID))
+	setHostCPUType(hostPending.ID, "arm64e")
+	nanoEnrollAndSetHostMDMData(t, ds, hostPending, false)
+	pendingPW := apple_mdm.GenerateRecoveryLockPassword()
+	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: hostPending.UUID, Password: pendingPW}})
+	require.NoError(t, err)
+	// Status is already 'pending' from SetHostsRecoveryLockPasswords - no need to call SetRecoveryLockPending
+
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.False(t, slices.Contains(hosts, hostPending.UUID), "pending host should NOT be eligible")
+
+	// Create host with verified status (already has recovery lock set)
+	teamVerified := createTeamWithRecoveryLock("team-verified", true)
+	hostVerified := test.NewHost(t, ds, "verified-host2", "1.2.5.8", "vkey2", "vuuid2", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(teamVerified.ID))
+	setHostCPUType(hostVerified.ID, "arm64e")
+	nanoEnrollAndSetHostMDMData(t, ds, hostVerified, false)
+	verifiedPW := apple_mdm.GenerateRecoveryLockPassword()
+	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: hostVerified.UUID, Password: verifiedPW}})
+	require.NoError(t, err)
+	err = ds.SetRecoveryLockVerified(ctx, hostVerified.UUID)
+	require.NoError(t, err)
+
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.False(t, slices.Contains(hosts, hostVerified.UUID), "verified host should NOT be eligible")
+
+	// Test no-team host with app config recovery lock enabled
+	setAppConfigRecoveryLock(true)
+	hostNoTeam := test.NewHost(t, ds, "no-team-host", "1.2.5.9", "ntkey", "ntuuid", time.Now(),
+		test.WithPlatform("darwin"))
+	setHostCPUType(hostNoTeam.ID, "arm64e")
+	nanoEnrollAndSetHostMDMData(t, ds, hostNoTeam, false)
+
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.True(t, slices.Contains(hosts, hostNoTeam.UUID), "no-team host should be eligible when app config enabled")
+
+	// Clean up - disable app config recovery lock
+	setAppConfigRecoveryLock(false)
+
+	// Now the no-team host should not be eligible
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.False(t, slices.Contains(hosts, hostNoTeam.UUID), "no-team host should NOT be eligible when app config disabled")
+
+	// Create host with nano enrollment but MDM turned off (host_mdm.enrolled = 0)
+	// This tests that hosts are properly excluded after MDMTurnOff is called
+	teamUnenrolled := createTeamWithRecoveryLock("team-unenrolled", true)
+	hostUnenrolled := test.NewHost(t, ds, "unenrolled-host", "1.2.5.10", "uekey", "ueuuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(teamUnenrolled.ID))
+	setHostCPUType(hostUnenrolled.ID, "arm64e")
+	nanoEnroll(t, ds, hostUnenrolled, false)
+	// Set host_mdm with enrolled = false (simulates MDM turn off)
+	err = ds.SetOrUpdateMDMData(ctx, hostUnenrolled.ID, false, false, "", false, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
+
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.False(t, slices.Contains(hosts, hostUnenrolled.UUID), "host with MDM turned off should NOT be eligible")
 }

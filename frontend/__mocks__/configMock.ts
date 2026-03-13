@@ -3,9 +3,11 @@ import { IConfig, ILicense, IMdmConfig } from "interfaces/config";
 const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   apple_server_url: "",
   enable_disk_encryption: false,
+  enable_recovery_lock_password: false,
   windows_require_bitlocker_pin: false,
   enable_turn_on_windows_mdm_manually: false,
   windows_enabled_and_configured: true,
+  windows_entra_tenant_ids: [],
   apple_bm_default_team: "Apples",
   apple_bm_enabled_and_configured: true,
   apple_bm_terms_expired: false,
@@ -34,6 +36,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
     macos_setup_assistant: null,
     enable_release_device_manually: false,
     require_all_software_macos: false,
+    lock_end_user_info: false,
   },
   macos_migration: {
     enable: false,

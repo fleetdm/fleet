@@ -399,15 +399,15 @@ Email: sso_user_3_global_admin@example.com
 Password: user123#
 Display name: SSO User 3
 
-# sso_user_4_team_maintainer is automatically added as maintainer of Team with ID = 1.
-# If a team with ID 1 doesn't exist then the login with this user will fail.
-Username: sso_user_4_team_maintainer
-Email: sso_user_4_team_maintainer@example.com
+# sso_user_4_fleet_maintainer is automatically added as maintainer of Fleet with ID = 1.
+# If a fleet with ID 1 doesn't exist then the login with this user will fail.
+Username: sso_user_4_fleet_maintainer
+Email: sso_user_4_fleet_maintainer@example.com
 Password: user123#
 Display name: SSO User 4
 
-Username: sso_user_5_team_admin
-Email: sso_user_5_team_admin@example.com
+Username: sso_user_5_fleet_admin
+Email: sso_user_5_fleet_admin@example.com
 Password: user123#
 Display name: SSO User 5
 

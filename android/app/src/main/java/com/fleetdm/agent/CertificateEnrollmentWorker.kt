@@ -63,7 +63,7 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
                     is CleanupResult.AlreadyRemoved ->
                         Log.d(TAG, "Certificate $certId already removed (alias: ${result.alias})")
                     is CleanupResult.Failure ->
-                        Log.e(TAG, "Failed to cleanup certificate $certId: ${result.reason}", result.exception)
+                        FleetLog.e(TAG, "Failed to cleanup certificate $certId: ${result.reason}", result.exception)
                 }
             }
 
@@ -100,7 +100,7 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
                         // Treat as handled - no retry needed
                     }
                     is CertificateEnrollmentHandler.EnrollmentResult.Failure -> {
-                        Log.e(TAG, "Certificate $certificateId enrollment failed: ${result.reason}", result.exception)
+                        FleetLog.e(TAG, "Certificate $certificateId enrollment failed: ${result.reason}", result.exception)
                         if (result.isRetryable) {
                             hasTransientFailure = true
                         } else {
@@ -140,7 +140,7 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Unexpected error in certificate enrollment", e)
+            FleetLog.e(TAG, "Unexpected error in certificate enrollment", e)
             Result.failure()
         }
     }
