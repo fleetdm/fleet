@@ -41,7 +41,7 @@ The Marketing department is directly responsible for achieving revenue pipelineÂ
 
 ### Marketing Assets
 
-The complete list of all marketing assets is listed on [this handbook page](https://fleetdm.com/handbook/marketing/marketing-assets.dm).
+The complete list of all marketing assets is listed on [this handbook page](https://fleetdm.com/handbook/marketing/marketing-assets).
 
 ### Press boilerplate text
 
