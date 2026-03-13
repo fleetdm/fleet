@@ -212,21 +212,23 @@ How-to guides, step-by-step walkthroughs, and reference material for IT admins a
 
 ### Deployment & server setup
 
-| <nobr>Date updated</nobr> | Asset | Description | Author |
-|--------------|-------|-------------|--------|
-| <nobr>2026&#8209;02&#8209;06</nobr> | [Migrate Fleet server to a new deployment](https://fleetdm.com/guides/migrate-fleet-server) | Step-by-step guide to migrating your Fleet server to a new deployment. | Kitzy |
-| <nobr>2025&#8209;12&#8209;01</nobr> | [Deploy Fleet with Docker Compose](https://fleetdm.com/guides/deploy-fleet-on-docker-compose) | Learn how to deploy Fleet using Docker Compose. | Kitzy |
-| <nobr>2025&#8209;07&#8209;17</nobr> | [Deploy Fleet on AWS with Terraform](https://fleetdm.com/guides/deploy-fleet-on-aws-with-terraform) | Learn how to deploy Fleet on AWS. | Ben Edwards |
-| <nobr>2025&#8209;07&#8209;17</nobr> | [Deploy Fleet on Render](https://fleetdm.com/guides/deploy-fleet-on-render) | Learn how to deploy Fleet on Render. | Ben Edwards |
-| <nobr>2025&#8209;06&#8209;26</nobr> | [Deploy Fleet on GCP](https://fleetdm.com/guides/deploy-fleet-on-gcp) | Learn how to deploy Fleet on GCP. | Ben Edwards |
-| <nobr>2024&#8209;06&#8209;12</nobr> | [Deploy Fleet on Ubuntu](https://fleetdm.com/guides/deploy-fleet-on-ubuntu-with-elastic) | A guide to deploy Fleet and Elastic on Ubuntu. | Josh Brower |
-| <nobr>2023&#8209;09&#8209;01</nobr> | [Using the Fleet Terraform module with an existing VPC](https://fleetdm.com/guides/fleet-terraform-byo-vpc-module) | How to integrate the Fleet Terraform module into an existing VPC for a custom AWS deployment. | Robert Fairburn |
-| <nobr>2022&#8209;09&#8209;08</nobr> | [Deploy Fleet on Cloud.gov](https://fleetdm.com/guides/deploy-fleet-on-cloudgov) | Information for deploying Fleet on Cloud.gov. | John Jediny |
-| <nobr>2022&#8209;06&#8209;27</nobr> | [Deploy Fleet on Hetzner Cloud](https://fleetdm.com/guides/deploy-fleet-on-hetzner-cloud) | Learn how to deploy Fleet on Hetzner Cloud using cloud-init and Docker. | Kathy Satterlee |
-| <nobr>2022&#8209;05&#8209;26</nobr> | [Enrolling a DigitalOcean Droplet on a Fleet instance](https://fleetdm.com/guides/enrolling-a-digital-ocean-droplet-on-a-fleet-instance) | How to enroll a DigitalOcean Droplet as a managed host in a Fleet instance. | Kelvin Omereshone |
-| <nobr>2021&#8209;10&#8209;06</nobr> | [Deploy Fleet on AWS ECS](https://fleetdm.com/guides/deploy-fleet-on-aws-ecs) | Information for deploying Fleet on AWS ECS. | Ben Edwards |
-| <nobr>2017&#8209;11&#8209;18</nobr> | [Deploy Fleet on Kubernetes](https://fleetdm.com/guides/deploy-fleet-on-kubernetes) | Learn how to deploy Fleet on Kubernetes. | Mike Arpaia |
-| <nobr>2017&#8209;09&#8209;22</nobr> | [Deploy Fleet on CentOS](https://fleetdm.com/guides/deploy-fleet-on-centos) | A guide to deploy Fleet on CentOS. | Mike Arpaia |
+> **Platform key:** ☁️ Cloud platform &nbsp;|&nbsp; 🐧 Linux self-hosted &nbsp;|&nbsp; 🐳 Container / orchestration &nbsp;|&nbsp; 🔧 Server ops
+
+| Date updated | Platform | Asset | Description |
+|:-------------|:--------:|-------|-------------|
+| <nobr>2026&#8209;02&#8209;06</nobr> | 🔧 Ops | [Migrate Fleet server to a new deployment](/guides/migrate-fleet-server) | Step-by-step guide to migrating your Fleet server to a new deployment |
+| <nobr>2025&#8209;12&#8209;01</nobr> | 🐳 Container | [Deploy Fleet with Docker Compose](/guides/deploy-fleet-on-docker-compose) | Learn how to deploy Fleet using Docker Compose |
+| <nobr>2025&#8209;07&#8209;17</nobr> | ☁️ AWS | [Deploy Fleet on AWS with Terraform](/guides/deploy-fleet-on-aws-with-terraform) | Learn how to deploy Fleet on AWS |
+| <nobr>2025&#8209;07&#8209;17</nobr> | ☁️ PaaS | [Deploy Fleet on Render](/guides/deploy-fleet-on-render) | Learn how to deploy Fleet on Render |
+| <nobr>2025&#8209;06&#8209;26</nobr> | ☁️ GCP | [Deploy Fleet on GCP](/guides/deploy-fleet-on-gcp) | Learn how to deploy Fleet on GCP |
+| <nobr>2024&#8209;06&#8209;12</nobr> | 🐧 Linux | [Deploy Fleet on Ubuntu](/guides/deploy-fleet-on-ubuntu-with-elastic) | A guide to deploy Fleet and Elastic on Ubuntu |
+| <nobr>2023&#8209;09&#8209;01</nobr> | ☁️ AWS | [Using the Fleet Terraform module with an existing VPC](/guides/fleet-terraform-byo-vpc-module) | How to integrate the Fleet Terraform module into an existing VPC for a custom AWS deployment |
+| <nobr>2022&#8209;09&#8209;08</nobr> | ☁️ GovCloud | [Deploy Fleet on Cloud.gov](/guides/deploy-fleet-on-cloudgov) | Information for deploying Fleet on Cloud.gov |
+| <nobr>2022&#8209;06&#8209;27</nobr> | ☁️ VPS | [Deploy Fleet on Hetzner Cloud](/guides/deploy-fleet-on-hetzner-cloud) | Learn how to deploy Fleet on Hetzner Cloud using cloud-init and Docker |
+| <nobr>2022&#8209;05&#8209;26</nobr> | 🐧 Linux | [Enrolling a DigitalOcean Droplet on a Fleet instance](/guides/enrolling-a-digital-ocean-droplet-on-a-fleet-instance) | How to enroll a DigitalOcean Droplet as a managed host in a Fleet instance |
+| <nobr>2021&#8209;10&#8209;06</nobr> | ☁️ AWS | [Deploy Fleet on AWS ECS](/guides/deploy-fleet-on-aws-ecs) | Information for deploying Fleet on AWS ECS |
+| <nobr>2017&#8209;11&#8209;18</nobr> | 🐳 Container | [Deploy Fleet on Kubernetes](/guides/deploy-fleet-on-kubernetes) | Learn how to deploy Fleet on Kubernetes |
+| <nobr>2017&#8209;09&#8209;22</nobr> | 🐧 Linux | [Deploy Fleet on CentOS](/guides/deploy-fleet-on-centos) | A guide to deploy Fleet on CentOS |
 
 ### MDM setup & enrollment
 
