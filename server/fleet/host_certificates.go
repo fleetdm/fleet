@@ -365,13 +365,17 @@ func parseUnicodeEscape(s string, i int) (rune, int) {
 	if !ok {
 		return 0, 0
 	}
-	// If it's a UTF-16 high surrogate, look for a low surrogate immediately after.
+	// If it's a UTF-16 surrogate, handle pairing or leave as-is.
 	if hi >= 0xD800 && hi <= 0xDBFF {
 		lo, ok := parseHex4(s, i+6)
 		if ok && lo >= 0xDC00 && lo <= 0xDFFF {
 			return 0x10000 + (hi-0xD800)*0x400 + (lo - 0xDC00), 12
 		}
 		// Unpaired high surrogate — leave as-is.
+		return 0, 0
+	}
+	if hi >= 0xDC00 && hi <= 0xDFFF {
+		// Standalone low surrogate — leave as-is.
 		return 0, 0
 	}
 	return hi, 6

@@ -348,6 +348,11 @@ func TestDecodeUnicodeEscapes(t *testing.T) {
 			expected: `\ud83d hello`,
 		},
 		{
+			name:     "standalone low surrogate left as-is",
+			input:    `\udda8 hello`,
+			expected: `\udda8 hello`,
+		},
+		{
 			name:     "no escape sequences present",
 			input:    `/Users/test/Applications/Test.app`,
 			expected: `/Users/test/Applications/Test.app`,
