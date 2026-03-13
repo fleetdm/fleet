@@ -390,7 +390,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		// No error when unset
 	default:
 		return hopt, ctxerr.Wrap(
-			r.Context(), badRequest(fmt.Sprintf("Invalid macos_settings: %s", macOSSettingsStatus)),
+			r.Context(), badRequest(fmt.Sprintf("Invalid apple_settings: %s", macOSSettingsStatus)),
 		)
 	}
 

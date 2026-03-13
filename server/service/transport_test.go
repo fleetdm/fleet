@@ -316,7 +316,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		},
 		"error in macos_settings (invalid option)": {
 			url:          "/foo?macos_settings=foo",
-			errorMessage: "Invalid macos_settings",
+			errorMessage: "Invalid apple_settings",
 		},
 		"error in macos_settings_disk_encryption (invalid option)": {
 			url:          "/foo?macos_settings_disk_encryption=foo",
@@ -421,6 +421,46 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				ProfileStatusFilter: &verified,
 			},
 			errorMessage: "Missing profile_uuid (it must be present when profile_status is specified)",
+		},
+		// New param names (aliases for deprecated params)
+		"fleet_id (new name for team_id)": {
+			url: "/foo?fleet_id=5",
+			hostListOptions: fleet.HostListOptions{
+				TeamFilter: ptr.Uint(5),
+			},
+		},
+		"apple_settings (new name for macos_settings)": {
+			url: "/foo?apple_settings=pending",
+			hostListOptions: fleet.HostListOptions{
+				MacOSSettingsFilter: fleet.OSSettingsPending,
+			},
+		},
+		"macos_bootstrap_package (new name for bootstrap_package)": {
+			url: "/foo?macos_bootstrap_package=installed",
+			hostListOptions: fleet.HostListOptions{
+				MDMBootstrapPackageFilter: (*fleet.MDMBootstrapPackageStatus)(ptr.String(string(fleet.MDMBootstrapPackageInstalled))),
+			},
+		},
+		"error in apple_settings (invalid option)": {
+			url:          "/foo?apple_settings=foo",
+			errorMessage: "Invalid apple_settings",
+		},
+		"error in macos_bootstrap_package (invalid option)": {
+			url:          "/foo?macos_bootstrap_package=foo",
+			errorMessage: "Invalid macos_bootstrap_package",
+		},
+		// Conflict: both old and new param names specified
+		"error when both team_id and fleet_id specified": {
+			url:          "/foo?team_id=1&fleet_id=2",
+			errorMessage: "Cannot specify both team_id and fleet_id",
+		},
+		"error when both macos_settings and apple_settings specified": {
+			url:          "/foo?macos_settings=pending&apple_settings=verified",
+			errorMessage: "Cannot specify both macos_settings and apple_settings",
+		},
+		"error when both bootstrap_package and macos_bootstrap_package specified": {
+			url:          "/foo?bootstrap_package=installed&macos_bootstrap_package=pending",
+			errorMessage: "Cannot specify both bootstrap_package and macos_bootstrap_package",
 		},
 	}
 
