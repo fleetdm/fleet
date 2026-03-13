@@ -1,10 +1,6 @@
-# Osquery on Android
-
-This project upgrades the Fleet Android agent into an Android osquery runtime that can execute distributed queries and return results to Fleet.  
-The goal is to make Android hosts first-class query targets with osquery-style tables and behavior.
+# Fleet Android agent
 
 - [Requirements](#requirements)
-- [How enrollment works](#how-enrollment-works)
 - [Building the project](#building-the-project)
 - [Deploying via Android MDM](#deploying-via-android-mdm-development)
 - [How the app starts](#how-the-app-starts)
@@ -21,12 +17,6 @@ The goal is to make Android hosts first-class query targets with osquery-style t
   - Install via [Android Studio](https://developer.android.com/studio) (easiest)
   - Or install [command-line tools](https://developer.android.com/studio#command-line-tools-only)
   - Requires SDK Platform API 33+ and Build Tools 34.0.0+
-
-## How enrollment works
-
-The app reads Fleet enrollment settings (`server_url`, `enroll_secret`, and `host_uuid`) from Android managed configuration.  
-Using those values, it enrolls with Fleet Orbit and stores the returned node key securely on device for future API calls.  
-In debug builds, if managed configuration is missing, it can fall back to debug-provided server URL and enroll secret.
 
 ## Building the project
 
@@ -301,3 +291,14 @@ See `gradle/libs.versions.toml` for complete list.
 **Delete device from Android MDM:**
 - Delete Work profile on Android device
 - Using `tools/android/android.go`, delete the device and delete the associated policy (as of 2025/11/21, Fleet server does not do this)
+
+## Osquery on Android
+
+This project extends the Fleet Android agent toward an Android osquery runtime that executes distributed queries and reports results back to Fleet.  
+The goal is to make Android hosts first-class query targets with osquery-style tables and behavior.
+
+### Enrollment summary
+
+The app reads `server_url`, `enroll_secret`, and `host_uuid` from Android managed configuration.  
+It enrolls with Fleet Orbit and stores the node key securely on device for future API calls.  
+In debug builds, if managed configuration is missing, it can fall back to debug-provided server URL and enroll secret.
