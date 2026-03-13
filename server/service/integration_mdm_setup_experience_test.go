@@ -600,7 +600,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
 	require.NoError(t, err)
 
 	// v2 uses slightly different bytes so it gets a distinct SHA and storage ID.
-	v2Bytes := append(pkgBytes, []byte("v2")...)
+	v2Bytes := fmt.Append(pkgBytes, []byte("v2"))
 
 	// fmaState is the single mutable state object the manifest server reads.
 	// startFMAServers calls ComputeSHA on the initial installerBytes.
