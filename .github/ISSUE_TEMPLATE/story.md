@@ -81,7 +81,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 - [ ] Test all API endpoints added or modified in the **API changes** section of this issue
 - [ ] Verify error handling for invalid inputs where applicable
 
-#### GitOps (generate + apply)
+#### GitOps (generate + run)
 - [ ] Configure the feature through the UI and run `fleetctl generate-gitops`
 - [ ] Confirm the generated `.yml` includes the expected fields (compare with YAML changes in the Product section)
 - [ ] Modify the generated `.yml` and run `fleetctl gitops`
