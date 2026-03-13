@@ -207,6 +207,7 @@ Consultants [track time using the company's tools](https://fleetdm.com/handbook/
 
 > To update a consultant's fee, [submit an issue to 🧑‍🚀 People](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-people&projects=&title=Update%20consultant%20fee) with the consultant's name and new hourly rate.
 
+> **Offboarding a consultant?** When a consultant's engagement is ending, the DRI for that consultant notifies the [Head of People](https://fleetdm.com/handbook/people#team) so they can [begin the offboarding process](https://fleetdm.com/handbook/people#offboard-a-consultant).
 
 
 
