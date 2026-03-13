@@ -4865,7 +4865,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	// auto-incremented and other tests cause it to be different than what we need (ID=1).
 	var execErr error
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, execErr = db.ExecContext(context.Background(), `INSERT INTO teams (id, name) VALUES (1, 'Foobar') ON DUPLICATE KEY UPDATE name = VALUES(name);`)
+		_, execErr = db.ExecContext(context.Background(), `INSERT INTO teams (id, name) VALUES (1, 'Foobar'), (2, 'Hollatchaboi') ON DUPLICATE KEY UPDATE name = VALUES(name);`)
 		return execErr
 	})
 	require.NoError(t, execErr)
@@ -4886,9 +4886,11 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	require.Equal(t, "sso_user_4_team_maintainer@example.com", user4.Email)
 	require.Equal(t, "SSO User 4", user4.Name)
 	require.Nil(t, user4.GlobalRole)
-	require.Len(t, user4.Teams, 1)
+	require.Len(t, user4.Teams, 2)
 	require.Equal(t, uint(1), user4.Teams[0].ID)
 	require.Equal(t, fleet.RoleMaintainer, user4.Teams[0].Role)
+	require.Equal(t, uint(2), user4.Teams[1].ID)
+	require.Equal(t, fleet.RoleObserver, user4.Teams[1].Role)
 
 	// A user with pre-configured roles can be created,
 	// see `tools/saml/users.php` for details.
