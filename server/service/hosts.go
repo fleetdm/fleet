@@ -3232,12 +3232,12 @@ func hostListOptionsFromFilters(filter *map[string]interface{}) (*fleet.HostList
 			} else {
 				return nil, nil, badRequest("label_id must be a number")
 			}
-		case "team_id":
+		case "fleet_id", "team_id":
 			if teamID, ok := v.(float64); ok { // json unmarshals numbers as float64
 				teamID := uint(teamID)
 				opt.TeamFilter = &teamID
 			} else {
-				return nil, nil, badRequest("team_id must be a number")
+				return nil, nil, badRequest("fleet_id must be a number")
 			}
 		case "status":
 			status, ok := v.(string)

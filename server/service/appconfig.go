@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/version"
@@ -503,11 +504,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.MacOSSetup.LockEndUserInfo = oldAppConfig.MDM.MacOSSetup.LockEndUserInfo
 	}
 
-	// If disabling EUA and LockEndUserInfo is not explicitly passed, also disable it to avoid errors if user attempts to patch EUA off.
-	// Will error during validation if user attempts to patch with EUA off and LockEndUserInfo on.
+	// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA.
 	if oldAppConfig.MDM.MacOSSetup.EnableEndUserAuthentication != appConfig.MDM.MacOSSetup.EnableEndUserAuthentication &&
-		!appConfig.MDM.MacOSSetup.EnableEndUserAuthentication && !newAppConfig.MDM.MacOSSetup.LockEndUserInfo.Valid {
-		appConfig.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+		!newAppConfig.MDM.MacOSSetup.LockEndUserInfo.Valid {
+		appConfig.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(appConfig.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
 
 	if appConfig.MDM.MacOSSetup.ManualAgentInstall.Valid && appConfig.MDM.MacOSSetup.ManualAgentInstall.Value {
@@ -1487,6 +1487,15 @@ func (svc *Service) validateMDM(
 		invalid.Append("ipados_updates", err.Error())
 	}
 
+	// Always check whether specified versions are supported by Apple (even if they weren't updated)
+	// Note that we're validating against the full, non-public asset set of OS versions here because
+	// in our DEP flow the minimum version just acts as the threshold for whether or not to update
+	// the host to the latest, public version. We don't need to install the specified version on the
+	// host during DEP so it doesn't need to be in the public asset set.
+	for k, v := range apple_mdm.ValidateMDMSettingsAppleSupportedOSVersion(*mdm, false) {
+		invalid.Append(k, v.Error())
+	}
+
 	if err := mdm.MacOSSetup.Validate(); err != nil {
 		var invalidArgErr *fleet.InvalidArgumentError
 		if errors.As(err, &invalidArgErr) {
@@ -1551,7 +1560,7 @@ func (svc *Service) validateMDM(
 
 	if mdm.MacOSSetup.LockEndUserInfo.Value && !mdm.MacOSSetup.EnableEndUserAuthentication {
 		invalid.Append("macos_setup.lock_end_user_info",
-			`Couldn't enable macos_setup.lock_end_user_info because macos_setup.enable_end_user_authentication is not enabled.`)
+			`"enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info".`)
 	}
 
 	if mdm.MacOSSetup.EnableEndUserAuthentication != oldMdm.MacOSSetup.EnableEndUserAuthentication {

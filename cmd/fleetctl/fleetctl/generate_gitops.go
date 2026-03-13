@@ -1390,7 +1390,7 @@ func (cmd *GenerateGitopsCommand) generateScripts(teamId *uint, teamName string)
 	// Get scripts.
 	query := ""
 	if teamId != nil {
-		query = fmt.Sprintf("team_id=%d", *teamId)
+		query = fmt.Sprintf("fleet_id=%d", *teamId)
 	}
 	scripts, err := cmd.Client.ListScripts(query)
 	if err != nil {
@@ -1587,7 +1587,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		return nil, nil // software is premium-only
 	}
 
-	query := fmt.Sprintf("available_for_install=1&team_id=%d", teamID)
+	query := fmt.Sprintf("available_for_install=1&fleet_id=%d", teamID)
 	software, err := cmd.Client.ListSoftwareTitles(query)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software: %s\n", err)

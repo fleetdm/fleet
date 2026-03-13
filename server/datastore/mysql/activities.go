@@ -15,9 +15,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-var (
-	deleteIDsBatchSize = 1000
-)
+var deleteIDsBatchSize = 1000
 
 // ListHostUpcomingActivities returns the list of activities pending execution
 // or processing for the specific host. It is the "unified queue" of work to be
@@ -1487,7 +1485,7 @@ WHERE
 		return ctxerr.Wrap(ctx, err, "get in-house app title id")
 	}
 
-	manifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", appConfig.ServerSettings.ServerURL, titleID, tid)
+	manifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?fleet_id=%d", appConfig.ServerSettings.ServerURL, titleID, tid)
 
 	// insert the nano command
 	namedArgs := map[string]any{

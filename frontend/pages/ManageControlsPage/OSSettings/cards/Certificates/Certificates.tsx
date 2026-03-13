@@ -71,7 +71,7 @@ const Certificates = ({
     [
       {
         scope: "certificates",
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
         page: currentPage,
         per_page: 10,
       },
