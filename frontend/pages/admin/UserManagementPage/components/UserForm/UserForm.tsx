@@ -350,7 +350,7 @@ const UserForm = ({
     return (
       <>
         {isPremiumTier && (
-          <InfoBanner className={`${baseClass}__user-permissions-info`}>
+          <InfoBanner color="grey" className={`${baseClass}__user-permissions-info`}>
             <p>
               Global users can manage or observe all users, entities, and
               settings in Fleet.
@@ -406,7 +406,7 @@ const UserForm = ({
         {!!availableTeams.length &&
           (isModifiedByGlobalAdmin ? (
             <>
-              <InfoBanner className={`${baseClass}__user-permissions-info`}>
+              <InfoBanner color="grey" className={`${baseClass}__user-permissions-info`}>
                 <p>
                   Users can manage or observe fleet-specific users, entities,
                   and settings in Fleet.
