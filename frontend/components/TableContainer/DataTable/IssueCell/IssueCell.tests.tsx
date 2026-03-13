@@ -11,7 +11,6 @@ describe("Issue cell", () => {
           total_issues_count: 0,
           failing_policies_count: 0,
         }}
-        rowId={1}
       />
     );
 
