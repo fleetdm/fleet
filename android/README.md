@@ -308,3 +308,206 @@ In debug builds, if managed configuration is missing, it can fall back to debug-
 For distributed queries, the app checks in with Fleet on a loop using WorkManager.  
 In the current implementation, the debug polling interval is hardcoded to **15 seconds** in `DistributedCheckinWorker`.  
 This interval is **not configurable yet**; making it configurable (for example via managed config or a build setting) is a good next step.
+
+### Android table reference
+
+#### `installed_apps`
+Installed application inventory and package metadata.
+
+Example query:
+```sql
+SELECT app_name, package_name, version_name, version_code FROM installed_apps LIMIT 25;
+```
+
+| Column | Description |
+| --- | --- |
+| `package_name` | Android package name |
+| `app_name` | Human-readable app name |
+| `version_name` | App version name |
+| `version_code` | App version code |
+| `first_install_time` | First install timestamp |
+| `last_update_time` | Last update timestamp |
+| `is_system` | Whether this is a system app |
+
+#### `app_permissions`
+Permissions requested and granted by installed apps.
+
+Example query:
+```sql
+SELECT app_name, package_name, permission, granted FROM app_permissions WHERE granted='true' LIMIT 50;
+```
+
+| Column | Description |
+| --- | --- |
+| `package_name` | Android package name |
+| `app_name` | Human-readable app name |
+| `permission` | Permission name |
+| `protection_level` | Permission protection level |
+| `granted` | Whether permission is granted |
+| `is_system` | Whether this is a system app |
+
+#### `os_version`
+Android OS version, build, and platform metadata.
+
+Example query:
+```sql
+SELECT name, version, major, build, platform, arch, security_patch FROM os_version;
+```
+
+| Column | Description |
+| --- | --- |
+| `name` | OS name |
+| `version` | OS version string |
+| `major` | Major version |
+| `minor` | Minor version |
+| `patch` | Patch version |
+| `build` | Build ID |
+| `platform` | Platform name |
+| `arch` | CPU architecture |
+| `security_patch` | Android security patch level |
+
+#### `osquery_info`
+Android osquery runtime metadata.
+
+Example query:
+```sql
+SELECT uuid, instance_id, version, build_platform, build_distro FROM osquery_info;
+```
+
+| Column | Description |
+| --- | --- |
+| `uuid` | Agent UUID |
+| `instance_id` | Runtime instance identifier |
+| `version` | Agent version |
+| `config_hash` | Active config hash |
+| `extensions` | Extension list/summary |
+| `build_platform` | Build platform |
+| `build_distro` | Build distro |
+| `platform_mask` | Platform mask |
+
+#### `certificates`
+Certificate records visible to the Android agent.
+
+Example query:
+```sql
+SELECT alias, subject, issuer, serial, not_after FROM certificates LIMIT 50;
+```
+
+| Column | Description |
+| --- | --- |
+| `alias` | Certificate alias |
+| `subject` | Subject DN |
+| `issuer` | Issuer DN |
+| `serial` | Certificate serial number |
+| `not_before` | Validity start |
+| `not_after` | Validity end |
+| `sha256` | SHA-256 fingerprint |
+| `store` | Source store |
+
+#### `device_info`
+Static device and hardware metadata.
+
+Example query:
+```sql
+SELECT manufacturer, brand, model, device, product FROM device_info;
+```
+
+| Column | Description |
+| --- | --- |
+| `device` | Device codename |
+| `model` | End-user model |
+| `manufacturer` | Manufacturer |
+| `brand` | Brand |
+| `product` | Product name |
+| `hardware` | Hardware name |
+| `board` | Board name |
+| `fingerprint` | Build fingerprint |
+| `bootloader` | Bootloader version |
+| `tags` | Build tags |
+| `type` | Build type |
+
+#### `network_interfaces`
+Network interface details and addressing.
+
+Example query:
+```sql
+SELECT name, mac, mtu, addresses FROM network_interfaces;
+```
+
+| Column | Description |
+| --- | --- |
+| `name` | Interface name |
+| `is_up` | Whether interface is up |
+| `mac` | MAC address |
+| `mtu` | MTU value |
+| `is_loopback` | Whether interface is loopback |
+| `is_virtual` | Whether interface is virtual |
+| `addresses` | Interface IP addresses |
+
+#### `battery`
+Battery status and health information.
+
+Example query:
+```sql
+SELECT percent_remaining, charging, health, technology FROM battery;
+```
+
+| Column | Description |
+| --- | --- |
+| `percent_remaining` | Remaining battery percent |
+| `charging` | Charging status |
+| `plugged` | Power source type |
+| `health` | Battery health |
+| `status` | Battery status |
+| `technology` | Battery chemistry/technology |
+| `temperature_c` | Temperature in Celsius |
+| `voltage_mv` | Voltage in millivolts |
+
+#### `wifi_networks`
+Wi-Fi connection and network information.
+
+Example query:
+```sql
+SELECT ssid, bssid, rssi, frequency_mhz, is_connected FROM wifi_networks;
+```
+
+| Column | Description |
+| --- | --- |
+| `ssid` | Wi-Fi SSID |
+| `bssid` | Wi-Fi BSSID |
+| `ip_address` | Assigned IP address |
+| `mac_address` | Device Wi-Fi MAC |
+| `rssi` | Signal strength (RSSI) |
+| `link_speed_mbps` | Link speed in Mbps |
+| `frequency_mhz` | Frequency in MHz |
+| `network_id` | Android network ID |
+| `is_connected` | Whether currently connected |
+| `transport` | Transport type |
+
+#### `system_properties`
+Android system properties as key/value rows.
+
+Example query:
+```sql
+SELECT key, value FROM system_properties LIMIT 50;
+```
+
+| Column | Description |
+| --- | --- |
+| `key` | Property key |
+| `value` | Property value |
+
+#### `android_logcat`
+Recent Android logcat entries.
+
+Example query:
+```sql
+SELECT timestamp, level, tag, message FROM android_logcat WHERE level='E' LIMIT 100;
+```
+
+| Column | Description |
+| --- | --- |
+| `timestamp` | Log timestamp |
+| `level` | Log level |
+| `tag` | Log tag |
+| `message` | Log message text |
