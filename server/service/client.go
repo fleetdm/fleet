@@ -1366,13 +1366,7 @@ func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
 		return nil
 	}
 	bp, _ := mos["bootstrap_package"].(string) // if not a string, bp == ""
-	if bp == "" {
-		bp, _ = mos["macos_bootstrap_package"].(string)
-	}
 	msa, _ := mos["macos_setup_assistant"].(string)
-	if msa == "" {
-		msa, _ = mos["apple_setup_assistant"].(string)
-	}
 	return &fleet.MacOSSetup{
 		BootstrapPackage:    optjson.SetString(bp),
 		MacOSSetupAssistant: optjson.SetString(msa),
