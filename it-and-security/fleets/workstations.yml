@@ -90,8 +90,8 @@ controls:
     enable_end_user_authentication: true
     macos_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
   macos_updates:
-    deadline:
-    minimum_version:
+    deadline: "2026-03-27"
+    minimum_version: "15.5"
     update_new_hosts: true
   windows_settings:
     custom_settings:
