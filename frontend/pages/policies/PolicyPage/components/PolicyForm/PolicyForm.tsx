@@ -797,6 +797,9 @@ const PolicyForm = ({
                 <TooltipWrapper
                   tipContent="Query is read-only for patch policies."
                   position="top"
+                  underline={false}
+                  showArrow
+                  tipOffset={12}
                 >
                   <Icon name="info" size="small" />
                 </TooltipWrapper>

@@ -353,7 +353,7 @@ const SoftwareInstallerCard = ({
           isLoading={isLoading}
         />
       </div>
-      {mergedPolicies && (
+      {mergedPolicies.length > 0 && (
         <div className={`${baseClass}__installer-policies-table`}>
           <InstallerPoliciesTable
             teamId={teamId}

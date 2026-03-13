@@ -1,5 +1,4 @@
 .policy-automations {
-  margin-top: $pad-medium;
   max-width: 600px;
 
   &__cta-card {
@@ -19,42 +18,33 @@
   }
 
   &__list {
-    margin-top: $pad-small;
     border: 1px solid $ui-fleet-black-10;
     border-radius: 8px;
-    padding: 0 $pad-medium;
   }
 
-  &__list-header {
-    font-size: $xx-small;
+  &__list-label {
+    color: $core-fleet-black;
     font-weight: $bold;
-    text-transform: uppercase;
-    color: $ui-fleet-black-50;
-    padding-top: $pad-medium;
-    padding-bottom: $pad-small;
   }
 
   &__row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 0;
+    padding: 0 $pad-large;
+    height: 40px;
     border-top: 1px solid $ui-fleet-black-10;
   }
 
-  &__row-icon {
-    margin-right: $pad-small;
+  &__row-graphic {
     vertical-align: middle;
     color: $ui-fleet-black-50;
-  }
-
-  .software-icon {
-    margin-right: $pad-small;
   }
 
   &__row-name {
     display: flex;
     align-items: center;
+    gap: $pad-small;
     font-size: $x-small;
     color: $ui-fleet-black-75;
 
@@ -65,7 +55,6 @@
   }
 
   &__row-type {
-    font-size: $x-small;
-    color: $ui-fleet-black-50;
+    color: $ui-fleet-black-75;
   }
 }

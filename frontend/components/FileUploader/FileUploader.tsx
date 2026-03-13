@@ -25,6 +25,9 @@ export type ISupportedGraphicNames = Extract<
   | "file-pem"
   | "file-vpp"
   | "file-png"
+  | "calendar"
+  | "lock"
+  | "settings"
 >;
 
 interface IFileUploaderProps {
