@@ -1,4 +1,7 @@
-# Fleet Android agent
+# Osquery on Android
+
+This project upgrades the Fleet Android agent into an Android osquery runtime that can execute distributed queries and return results to Fleet.  
+The goal is to make Android hosts first-class query targets with osquery-style tables and behavior.
 
 - [Requirements](#requirements)
 - [Building the project](#building-the-project)
