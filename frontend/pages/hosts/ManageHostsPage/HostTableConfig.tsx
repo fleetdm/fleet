@@ -466,12 +466,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
       if (isMobilePlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
-      return (
-        <IssueCell
-          issues={cellProps.row.original.issues}
-          rowId={cellProps.row.original.id}
-        />
-      );
+      return <IssueCell issues={cellProps.row.original.issues} />;
     },
   },
   // MDM status
