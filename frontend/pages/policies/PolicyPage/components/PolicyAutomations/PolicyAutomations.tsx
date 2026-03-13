@@ -2,12 +2,14 @@ import React from "react";
 import { Link } from "react-router";
 
 import { IPolicy } from "interfaces/policy";
-import { IconNames } from "components/icons";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
+
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon/Icon";
+import Graphic from "components/Graphic";
+import { GraphicNames } from "components/graphics";
+import Icon from "components/Icon";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 
 const baseClass = "policy-automations";
@@ -23,7 +25,7 @@ interface IPolicyAutomationsProps {
 interface IAutomationRow {
   name: string;
   type: string;
-  iconName?: IconNames;
+  graphicName?: GraphicNames;
   isSoftware?: boolean;
   link?: string;
   sortOrder: number;
@@ -65,7 +67,9 @@ const PolicyAutomations = ({
     automationRows.push({
       name: storedPolicy.run_script.name,
       type: "Script",
-      iconName: "text",
+      graphicName: storedPolicy.run_script.name.endsWith(".sh")
+        ? "file-sh"
+        : "file-ps1",
       sortOrder: 1,
       sortName: storedPolicy.run_script.name.toLowerCase(),
     });
@@ -75,7 +79,7 @@ const PolicyAutomations = ({
     automationRows.push({
       name: "Maintenance window",
       type: "Calendar",
-      iconName: "calendar",
+      graphicName: "calendar",
       sortOrder: 2,
       sortName: "",
     });
@@ -85,7 +89,7 @@ const PolicyAutomations = ({
     automationRows.push({
       name: "Block single sign-on",
       type: "Conditional access",
-      iconName: "disable",
+      graphicName: "lock",
       sortOrder: 3,
       sortName: "",
     });
@@ -95,7 +99,7 @@ const PolicyAutomations = ({
     automationRows.push({
       name: "Create ticket or send webhook",
       type: "Other",
-      iconName: "external-link",
+      graphicName: "settings",
       sortOrder: 4,
       sortName: "",
     });
@@ -112,7 +116,7 @@ const PolicyAutomations = ({
     "";
 
   return (
-    <div className={baseClass}>
+    <div className={`${baseClass} form-field`}>
       {showCtaCard && (
         <div className={`${baseClass}__cta-card`}>
           <span className={`${baseClass}__cta-label`}>
@@ -139,31 +143,38 @@ const PolicyAutomations = ({
         </div>
       )}
       {automationRows.length > 0 && (
-        <div className={`${baseClass}__list`}>
-          <div className={`${baseClass}__list-header`}>Automations</div>
-          {automationRows.map((row) => (
-            <div
-              key={`${row.type}-${row.name}`}
-              className={`${baseClass}__row`}
-            >
-              <span className={`${baseClass}__row-name`}>
-                {row.isSoftware ? (
-                  <SoftwareIcon name={row.name} size="small" />
-                ) : (
-                  row.iconName && (
-                    <Icon
-                      name={row.iconName}
-                      size="small"
-                      className={`${baseClass}__row-icon`}
-                    />
-                  )
-                )}
-                {row.link ? <Link to={row.link}>{row.name}</Link> : row.name}
-              </span>
-              <span className={`${baseClass}__row-type`}>{row.type}</span>
-            </div>
-          ))}
-        </div>
+        <>
+          <div className={`${baseClass}__list-label`}>Automations</div>
+          <div className={`${baseClass}__list`}>
+            {automationRows.map((row) => (
+              <div
+                key={`${row.type}-${row.name}`}
+                className={`${baseClass}__row`}
+              >
+                <div className={`${baseClass}__row-name`}>
+                  {row.isSoftware ? (
+                    <SoftwareIcon name={row.name} size="small" />
+                  ) : (
+                    row.graphicName && (
+                      <Graphic
+                        name={row.graphicName}
+                        key={`${row.graphicName}-graphic`}
+                        className={`${baseClass}__row-graphic ${
+                          row.graphicName === "file-sh" ||
+                          row.graphicName === "file-ps1"
+                            ? "scale-40-24"
+                            : ""
+                        }`}
+                      />
+                    )
+                  )}
+                  {row.link ? <Link to={row.link}>{row.name}</Link> : row.name}
+                </div>
+                <span className={`${baseClass}__row-type`}>{row.type}</span>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
