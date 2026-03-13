@@ -251,6 +251,7 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 	packageLevel.Categories = spec.Categories
 	packageLevel.LabelsIncludeAny = spec.LabelsIncludeAny
 	packageLevel.LabelsExcludeAny = spec.LabelsExcludeAny
+	packageLevel.LabelsIncludeAll = spec.LabelsIncludeAll
 	packageLevel.InstallDuringSetup = spec.InstallDuringSetup
 	packageLevel.SelfService = spec.SelfService
 
@@ -1605,8 +1606,14 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			continue
 		}
 
-		if len(item.LabelsExcludeAny) > 0 && len(item.LabelsIncludeAny) > 0 {
-			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for app store app %q`, item.AppStoreID))
+		var count int
+		for _, set := range [][]string{item.LabelsExcludeAny, item.LabelsIncludeAny, item.LabelsIncludeAll} {
+			if len(set) > 0 {
+				count++
+			}
+		}
+		if count > 1 {
+			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for app store app %q`, item.AppStoreID))
 			continue
 		}
 
@@ -1626,8 +1633,14 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			continue
 		}
 
-		if len(maintainedAppSpec.LabelsExcludeAny) > 0 && len(maintainedAppSpec.LabelsIncludeAny) > 0 {
-			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for fleet maintained app %q`, maintainedAppSpec.Slug))
+		var count int
+		for _, set := range [][]string{maintainedAppSpec.LabelsExcludeAny, maintainedAppSpec.LabelsIncludeAny, maintainedAppSpec.LabelsIncludeAll} {
+			if len(set) > 0 {
+				count++
+			}
+		}
+		if count > 1 {
+			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for fleet maintained app %q`, maintainedAppSpec.Slug))
 			continue
 		}
 
@@ -1752,10 +1765,18 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					continue
 				}
 			}
-			if len(softwarePackageSpec.LabelsExcludeAny) > 0 && len(softwarePackageSpec.LabelsIncludeAny) > 0 {
-				multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for software URL %q`, softwarePackageSpec.URL))
+
+			var count int
+			for _, set := range [][]string{softwarePackageSpec.LabelsExcludeAny, softwarePackageSpec.LabelsIncludeAny, softwarePackageSpec.LabelsIncludeAll} {
+				if len(set) > 0 {
+					count++
+				}
+			}
+			if count > 1 {
+				multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for software URL %q`, softwarePackageSpec.URL))
 				continue
 			}
+
 			if softwarePackageSpec.SHA256 != "" && !validSHA256Value.MatchString(softwarePackageSpec.SHA256) {
 				multiError = multierror.Append(multiError, fmt.Errorf("hash_sha256 value %q must be a valid lower-case hex-encoded (64-character) SHA-256 hash value", softwarePackageSpec.SHA256))
 				continue

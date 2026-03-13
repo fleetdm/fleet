@@ -763,9 +763,15 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		}
 		if len(softwarePackage.LabelsExcludeAny) > 0 {
 			if len(labels) > 0 {
-				return nil, fmt.Errorf("Software package '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", softwarePackage.URL)
+				return nil, fmt.Errorf("Software package '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", softwarePackage.URL)
 			}
 			labels = softwarePackage.LabelsExcludeAny
+		}
+		if len(softwarePackage.LabelsIncludeAll) > 0 {
+			if len(labels) > 0 {
+				return nil, fmt.Errorf("Software package '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", softwarePackage.URL)
+			}
+			labels = softwarePackage.LabelsIncludeAll
 		}
 		updateLabelUsage(labels, softwarePackage.URL, "Software Package", result)
 	}
@@ -778,9 +784,15 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		}
 		if len(vppApp.LabelsExcludeAny) > 0 {
 			if len(labels) > 0 {
-				return nil, fmt.Errorf("App Store App '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", vppApp.AppStoreID)
+				return nil, fmt.Errorf("App Store App '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", vppApp.AppStoreID)
 			}
 			labels = vppApp.LabelsExcludeAny
+		}
+		if len(vppApp.LabelsIncludeAll) > 0 {
+			if len(labels) > 0 {
+				return nil, fmt.Errorf("App Store App '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", vppApp.AppStoreID)
+			}
+			labels = vppApp.LabelsIncludeAll
 		}
 		updateLabelUsage(labels, vppApp.AppStoreID, "App Store App", result)
 	}
@@ -792,9 +804,15 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		}
 		if len(maintainedApp.LabelsExcludeAny) > 0 {
 			if len(labels) > 0 {
-				return nil, fmt.Errorf("Fleet Maintained App '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", maintainedApp.Slug)
+				return nil, fmt.Errorf("Fleet Maintained App '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", maintainedApp.Slug)
 			}
 			labels = maintainedApp.LabelsExcludeAny
+		}
+		if len(maintainedApp.LabelsIncludeAll) > 0 {
+			if len(labels) > 0 {
+				return nil, fmt.Errorf("Fleet Maintained App '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", maintainedApp.Slug)
+			}
+			labels = maintainedApp.LabelsIncludeAll
 		}
 		updateLabelUsage(labels, maintainedApp.Slug, "Fleet Maintained App", result)
 	}

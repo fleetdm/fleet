@@ -9,7 +9,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
+	"maps"
 	"math/rand"
+	std_slices "slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -7630,7 +7632,8 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 				require.False(t, ok)
 				continue
 			}
-			require.True(t, ok)
+			names := std_slices.Collect(maps.Keys(expectedInstallers))
+			require.Truef(t, ok, "didn't find installer for %s in expectedInstallers (%s)", got.SoftwarePackage.Name, strings.Join(names, ", "))
 			require.Equal(t, want, got.SoftwarePackage)
 		}
 	}
@@ -7971,6 +7974,39 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	checkSoftware(software, installer2.Filename, installer3.Filename, installer4.Filename)
+
+	t.Run("include_all", func(t *testing.T) {
+
+		hostIncludeAll := test.NewHost(t, ds, "host_include_all", "", "host1key_include_all", "host1uuid_include_all", time.Now(), test.WithPlatform("darwin"))
+		nanoEnroll(t, ds, hostIncludeAll, false)
+
+		label4, err := ds.NewLabel(ctx, &fleet.Label{Name: "label4" + t.Name()})
+		require.NoError(t, err)
+
+		err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID1, fleet.LabelIdentsWithScope{
+			LabelScope: fleet.LabelScopeIncludeAll,
+			ByName:     map[string]fleet.LabelIdent{label1.Name: {LabelName: label1.Name, LabelID: label1.ID}, label4.Name: {LabelName: label4.Name, LabelID: label4.ID}},
+		}, softwareTypeInstaller)
+		require.NoError(t, err)
+
+		software, _, err = ds.ListHostSoftware(ctx, hostIncludeAll, opts)
+		require.NoError(t, err)
+
+		// software should be file2, file3, file5
+		checkSoftware(software, installer1.Filename, installer4.Filename)
+
+		// set labels on the host
+		require.NoError(t, ds.AddLabelsToHost(ctx, hostIncludeAll.ID, []uint{label1.ID, label4.ID}))
+		host.LabelUpdatedAt = time.Now()
+		err = ds.UpdateHost(ctx, hostIncludeAll)
+		require.NoError(t, err)
+		time.Sleep(time.Second)
+
+		// software should be file1, file2, file3, file5
+		checkSoftware(software, installer4.Filename)
+
+	})
+
 }
 
 func testListHostSoftwareVulnerableAndVPP(t *testing.T, ds *Datastore) {
