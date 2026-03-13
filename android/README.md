@@ -4,6 +4,7 @@ This project upgrades the Fleet Android agent into an Android osquery runtime th
 The goal is to make Android hosts first-class query targets with osquery-style tables and behavior.
 
 - [Requirements](#requirements)
+- [How enrollment works](#how-enrollment-works)
 - [Building the project](#building-the-project)
 - [Deploying via Android MDM](#deploying-via-android-mdm-development)
 - [How the app starts](#how-the-app-starts)
@@ -20,6 +21,12 @@ The goal is to make Android hosts first-class query targets with osquery-style t
   - Install via [Android Studio](https://developer.android.com/studio) (easiest)
   - Or install [command-line tools](https://developer.android.com/studio#command-line-tools-only)
   - Requires SDK Platform API 33+ and Build Tools 34.0.0+
+
+## How enrollment works
+
+The app reads Fleet enrollment settings (`server_url`, `enroll_secret`, and `host_uuid`) from Android managed configuration.  
+Using those values, it enrolls with Fleet Orbit and stores the returned node key securely on device for future API calls.  
+In debug builds, if managed configuration is missing, it can fall back to debug-provided server URL and enroll secret.
 
 ## Building the project
 
