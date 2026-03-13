@@ -639,13 +639,13 @@ func CPEFromSoftware(ctx context.Context, logger *slog.Logger, db *sqlx.DB, soft
 			// This avoids nondeterministic results when multiple CPE entries match
 			// (e.g. "ge:line" vs "linecorp:line" for the "Line" app).
 			var bestMatch *IndexedCPEItem
-			var hasDeprecatedMatches bool
+			var deprecatedMatches []IndexedCPEItem
 			for i := range results {
 				if !cpeItemMatchesSoftware(&results[i], software) {
 					continue
 				}
 				if results[i].Deprecated {
-					hasDeprecatedMatches = true
+					deprecatedMatches = append(deprecatedMatches, results[i])
 					continue
 				}
 				if bestMatch == nil || (!cpeVendorMatchesSoftware(bestMatch, software) && cpeVendorMatchesSoftware(&results[i], software)) {
@@ -656,8 +656,8 @@ func CPEFromSoftware(ctx context.Context, logger *slog.Logger, db *sqlx.DB, soft
 				return bestMatch.FmtStr(software), nil
 			}
 			// All matches are deprecated; try to resolve via deprecation chain
-			if hasDeprecatedMatches {
-				cpe, err := resolveDeprecatedCPE(db, results, software)
+			if len(deprecatedMatches) > 0 {
+				cpe, err := resolveDeprecatedCPE(db, deprecatedMatches, software)
 				if err != nil {
 					return "", err
 				}

@@ -64,6 +64,14 @@ func TestCPEFromSoftware(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:linecorp:line:4.3.1:*:*:*:*:macos:*:*", cpe)
 
+	// Deprecated CPE: when the only matching CPE is deprecated, follows the deprecation
+	// chain to find the non-deprecated replacement.
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+		Name: "Widget", Version: "1.0", Vendor: "goodcorp inc", Source: "programs",
+	}, nil, reCache)
+	require.NoError(t, err)
+	require.Equal(t, "cpe:2.3:a:goodcorp:correct_result:1.0:*:*:*:*:windows:*:*", cpe)
+
 	// Does not error on Unicode Names
 	_, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{Name: "Девушка Фонарём", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)
