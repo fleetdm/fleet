@@ -36,5 +36,13 @@ const XmlCPETestDict = `
     <title xml:lang="en-US">Vendor2 Product4 999 for MacOS</title>
     <cpe-23:cpe23-item name="cpe:2.3:a:vendor2:product4:999:*:*:*:*:macos:*:*"/>
   </cpe-item>
+  <cpe-item name="cpe:/a:ge:line:1.0">
+    <title xml:lang="en-US">GE Line 1.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:ge:line:1.0:*:*:*:*:*:*:*"/>
+  </cpe-item>
+  <cpe-item name="cpe:/a:linecorp:line:1.0">
+    <title xml:lang="en-US">LINE Corporation Line 1.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:linecorp:line:1.0:*:*:*:*:*:*:*"/>
+  </cpe-item>
 </cpe-list>
 `

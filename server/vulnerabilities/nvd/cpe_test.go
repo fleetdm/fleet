@@ -47,6 +47,23 @@ func TestCPEFromSoftware(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor2:product4:0.3:*:*:*:*:macos:*:*", cpe)
 
+	// When multiple CPE candidates share the same product name and no vendor info
+	// is available, ORDER BY ensures deterministic results across runs.
+	for range 5 {
+		cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+			Name: "Line", Version: "3.5.1", Source: "chrome_extensions",
+		}, nil, reCache)
+		require.NoError(t, err)
+		require.Equal(t, "cpe:2.3:a:ge:line:3.5.1:*:*:*:*:chrome:*:*", cpe, "should be deterministic across runs")
+	}
+
+	// When vendor info is present and matches a CPE vendor, prefer that match.
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+		Name: "Line", Version: "4.3.1", Vendor: "linecorp inc", Source: "apps",
+	}, nil, reCache)
+	require.NoError(t, err)
+	require.Equal(t, "cpe:2.3:a:linecorp:line:4.3.1:*:*:*:*:macos:*:*", cpe)
+
 	// Does not error on Unicode Names
 	_, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{Name: "Девушка Фонарём", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)
@@ -910,7 +927,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "2.37.1",
 				Vendor:           "The Git Development Community",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:git-scm:git:2.37.1:*:*:*:*:windows:*:*",
+			}, cpe: "cpe:2.3:a:git:git:2.37.1:*:*:*:*:windows:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1258,7 +1275,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "3.12.4",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:google:protobuf:3.12.4:*:*:*:*:python:*:*",
+			}, cpe: "cpe:2.3:a:golang:protobuf:3.12.4:*:*:*:*:python:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1285,7 +1302,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "2.3.0+ubuntu2.1",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:ubuntu:python-apt:2.3.0.ubuntu2.1:*:*:*:*:python:*:*",
+			}, cpe: "cpe:2.3:a:debian:python-apt:2.3.0.ubuntu2.1:*:*:*:*:python:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1321,7 +1338,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "2.25.1",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:python:requests:2.25.1:*:*:*:*:python:*:*",
+			}, cpe: "cpe:2.3:a:jenkins:requests:2.25.1:*:*:*:*:python:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1800,7 +1817,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version: "3.9.18_2",
 				Vendor:  "",
 			},
-			cpe: `cpe:2.3:a:python:python:3.9.18_2:-:*:*:*:macos:*:*`,
+			cpe: `cpe:2.3:a:microsoft:python:3.9.18_2:*:*:*:*:macos:*:*`,
 		},
 		{
 			software: fleet.Software{
@@ -2028,6 +2045,47 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, tt.cpe, cpe, tt.software.Name)
+	}
+}
+
+func TestCPEVendorMatchesSoftware(t *testing.T) {
+	tests := []struct {
+		name           string
+		cpeVendor      string
+		softwareVendor string
+		want           bool
+	}{
+		{
+			name:           "CPE vendor appears in software vendor",
+			cpeVendor:      "linecorp",
+			softwareVendor: "linecorp inc",
+			want:           true,
+		},
+		{
+			name:           "CPE vendor does not appear in software vendor",
+			cpeVendor:      "ge",
+			softwareVendor: "linecorp inc",
+			want:           false,
+		},
+		{
+			name:           "software vendor is empty",
+			cpeVendor:      "linecorp",
+			softwareVendor: "",
+			want:           false,
+		},
+		{
+			name:           "CPE vendor appears in software vendor case-insensitive",
+			cpeVendor:      "python",
+			softwareVendor: "Python Software Foundation",
+			want:           true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			item := &IndexedCPEItem{Vendor: tt.cpeVendor}
+			sw := &fleet.Software{Vendor: tt.softwareVendor}
+			assert.Equal(t, tt.want, cpeVendorMatchesSoftware(item, sw))
+		})
 	}
 }
 
