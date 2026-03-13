@@ -182,21 +182,21 @@ export const RECOVERY_LOCK_PASSWORD_DISPLAY_CONFIG: Record<
   verified: {
     statusText: "Verified",
     iconName: "success",
-    tooltip: null,
+    tooltip: "Fleet set a recovery lock password for the host.",
   },
   pending: {
     statusText: "Enforcing (pending)",
     iconName: "pending-outline",
-    tooltip: null,
+    tooltip: "Fleet is setting a recovery lock password for the host.",
   },
   removing_enforcement: {
     statusText: "Removing enforcement (pending)",
     iconName: "pending-outline",
-    tooltip: null,
+    tooltip: "Fleet is unsetting the recovery lock password for the host.",
   },
   failed: {
     statusText: "Failed",
     iconName: "error",
-    tooltip: null,
+    tooltip: "Fleet failed to set a recovery lock password for the host.",
   },
 };
