@@ -4245,37 +4245,89 @@ func testMatchOrCreateSoftwareInstallerDuplicateHash(t *testing.T, ds *Datastore
 
 func testAddSoftwareTitleToMatchingSoftware(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	software1 := []fleet.Software{
-		{Name: "Win Title", Version: "0.0.1", Source: "programs", UpgradeCode: ptr.String("CODE_1")},
+		{Name: "Win Title", Version: "1.0", Source: "programs", UpgradeCode: ptr.String("CODE_1")},
 	}
 
-	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	// create a vpp app
+	test.CreateInsertGlobalVPPToken(t, ds)
+	app, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: "ios"}, DisplayName: ptr.String("VPP1")},
+		Name:             "iOS Title",
+		BundleIdentifier: "com.foo",
+	}, nil)
+	require.NoError(t, err)
+
+	host2, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "ios-test",
+		OsqueryHostID: ptr.String("osquery-ios"),
+		NodeKey:       ptr.String("node-key-ios"),
+		UUID:          uuid.NewString(),
+		Platform:      "ios",
+	})
+	software2 := []fleet.Software{
+		{Name: "iOS Title", Version: "1.0", Source: "ios_apps", BundleIdentifier: "com.foo"},
+	}
+
+	_, err = ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
 	require.NoError(t, err)
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	// creates a second software title with the same name
 	payload := &fleet.UploadSoftwareInstallerPayload{
-		Title:       "Win Title",
-		Source:      "programs",
-		UpgradeCode: "CODE_2",
+		Title:           "Win Title",
+		Source:          "programs",
+		UpgradeCode:     "CODE_2",
+		Filename:        "something.msi",
+		Version:         "1.0",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	}
-	titleID, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, payload)
-	require.NoError(t, err)
-	require.NotEmpty(t, titleID)
 
-	err = ds.addSoftwareTitleToMatchingSoftware(ctx, titleID, payload)
+	_, newTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, payload)
 	require.NoError(t, err)
+	require.NotEmpty(t, newTitleID)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		var gotTitleID uint
 		err := sqlx.GetContext(ctx, q, &gotTitleID, `SELECT title_id FROM software WHERE name = ?`, "Win Title")
 		require.NoError(t, err)
-		require.NotEqual(t, titleID, gotTitleID)
+		require.NotEqual(t, newTitleID, gotTitleID) // title with different upgrade code is new
 		return nil
 	})
 
+	// check that host has the ios app installed and title is correct.
+	found, err := hostInstalledSoftware(ds, ctx, host2.ID)
+	require.NoError(t, err)
+	require.Len(t, found, 1)
+	require.Equal(t, app.TitleID, found[0].ID)
+
+	// add macOS installer with the same bundle identifier
+	payloadMacOS := &fleet.UploadSoftwareInstallerPayload{
+		Title:            "A Mac Title",
+		Source:           "apps",
+		Platform:         "darwin",
+		Filename:         "something.pkg",
+		Version:          "1.0",
+		BundleIdentifier: "com.foo",
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	}
+
+	_, titleIDMacOS, err := ds.MatchOrCreateSoftwareInstaller(ctx, payloadMacOS)
+	require.NoError(t, err)
+	require.NotEqual(t, app.TitleID, titleIDMacOS)
+
+	// check that the installed ios app did not change title ID to the new installer
+	found, err = hostInstalledSoftware(ds, ctx, host2.ID)
+	require.NoError(t, err)
+	require.Len(t, found, 1)
+	require.Equal(t, app.TitleID, found[0].ID)
 }
 
 func testFleetMaintainedAppInstallerUpdates(t *testing.T, ds *Datastore) {

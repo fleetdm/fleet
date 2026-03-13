@@ -563,8 +563,8 @@ func (ds *Datastore) addSoftwareTitleToMatchingSoftware(ctx context.Context, tit
 	whereClause := "WHERE (s.name, s.source, s.extension_for) = (?, ?, '')"
 	whereArgs := []any{payload.Title, payload.Source}
 	if payload.BundleIdentifier != "" {
-		whereClause = "WHERE s.bundle_identifier = ?"
-		whereArgs = []any{payload.BundleIdentifier}
+		whereClause = "WHERE s.bundle_identifier = ? AND source = ?"
+		whereArgs = []any{payload.BundleIdentifier, payload.Source}
 	}
 	if payload.UpgradeCode != "" {
 		// match only by upgrade code
