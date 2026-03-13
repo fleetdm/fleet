@@ -537,8 +537,9 @@ const modifyOptions = (
   }
 
   if (
-    recoveryLockPasswordProfileStatus === "pending" ||
-    recoveryLockPasswordProfileStatus === "failed"
+    ["pending", "removing_enforcement", "failed"].includes(
+      recoveryLockPasswordProfileStatus ?? ""
+    )
   ) {
     const rlpOption = options.find(
       (option) => option.value === "recoveryLockPassword"

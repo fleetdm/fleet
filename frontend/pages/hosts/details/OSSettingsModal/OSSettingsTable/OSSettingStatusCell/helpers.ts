@@ -1,6 +1,7 @@
 import {
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
   ProfileOperationType,
+  RecoveryLockPasswordStatus,
 } from "interfaces/mdm";
 
 import { IconNames } from "components/icons";
@@ -171,5 +172,31 @@ export const LINUX_DISK_ENCRYPTION_DISPLAY_CONFIG: LinuxDiskEncryptionDisplayCon
     statusText: "Action required (pending)",
     iconName: "pending-outline",
     tooltip: TooltipInnerContentActionRequired as TooltipInnerContentFunc,
+  },
+};
+
+export const RECOVERY_LOCK_PASSWORD_DISPLAY_CONFIG: Record<
+  RecoveryLockPasswordStatus,
+  ProfileDisplayOption
+> = {
+  verified: {
+    statusText: "Verified",
+    iconName: "success",
+    tooltip: null,
+  },
+  pending: {
+    statusText: "Enforcing (pending)",
+    iconName: "pending-outline",
+    tooltip: null,
+  },
+  removing_enforcement: {
+    statusText: "Removing enforcement (pending)",
+    iconName: "pending-outline",
+    tooltip: null,
+  },
+  failed: {
+    statusText: "Failed",
+    iconName: "error",
+    tooltip: null,
   },
 };

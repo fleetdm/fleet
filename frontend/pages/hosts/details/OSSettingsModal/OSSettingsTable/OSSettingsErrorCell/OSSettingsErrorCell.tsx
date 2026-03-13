@@ -2,6 +2,8 @@ import React, { useContext, useState } from "react";
 import classnames from "classnames";
 import { noop } from "lodash";
 
+import { REC_LOCK_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
+
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { NotificationContext } from "context/notification";
 import { IHostMdmProfile } from "interfaces/mdm";
@@ -310,7 +312,10 @@ const OSSettingsErrorCell = ({
 
   const isFailed = profile.status === "failed";
   const isVerified = profile.status === "verified";
-  const showRefetchButton = canResendProfiles && (isFailed || isVerified);
+  const showRefetchButton =
+    canResendProfiles &&
+    (isFailed || isVerified) &&
+    profile.profile_uuid !== REC_LOCK_SYNTHETIC_PROFILE_UUID;
   const showRotateButton =
     canRotateRecoveryLockPassword && (isFailed || isVerified);
   const value = (isFailed && profile.detail) || DEFAULT_EMPTY_CELL_VALUE;
