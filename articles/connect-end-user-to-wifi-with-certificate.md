@@ -9,7 +9,7 @@ Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS), Windo
 Currently, these are supported platforms for each certificate authority:
 - **Okta**: macOS, iOS, and iPadOS
 - **DigiCert**: macOS, iOS, and iPadOS
-- **Microsoft NDES**: macOS, iOS, iPadOS and Windows (coming soon)
+- **Microsoft NDES**: macOS, iOS, iPadOS and Windows
 - **Smallstep**: macOS, iOS, and iPadOS
 - **Hydrant**: Linux
 - **Custom SCEP server**: macOS, Windows, iOS, iPadOS, and Android
@@ -148,6 +148,18 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
 
 The following steps show how to deploy [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview) certificates.
 
+### Prerequisites for Windows hosts
+
+Before deploying NDES certificates to Windows hosts, verify the following:
+
+- **Root CA certificate must be trusted on the device.** Domain-joined devices already receive the enterprise root CA via Group Policy. Non-domain-joined devices do not, so SCEP enrollment will fail because the device can't validate the RA certificate chain. For non-domain-joined devices, deploy the root CA certificate via a separate MDM profile before or alongside the SCEP profile. You can use a [RootCATrustedCertificates CSP](https://learn.microsoft.com/en-us/windows/client-management/mdm/rootcacertificates-csp) profile to install the root CA cert.
+
+- **CA must have an HTTP-accessible CRL Distribution Point.** By default, AD CS only embeds LDAP URLs in certificates for CRL distribution. Non-domain-joined devices cannot reach LDAP endpoints and will reject the SCEP response with a certificate validity error. Configure your CA to publish CRLs via HTTP. See Microsoft's [PKI design considerations](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/pki-design-considerations) and [Configure the CDP and AIA extensions on CA1](https://learn.microsoft.com/en-us/windows-server/networking/core-network-guide/cncg/server-certs/configure-the-cdp-and-aia-extensions-on-ca1) for instructions. For testing, you can use the [quick CRL workaround](#quick-crl-workaround-for-testing-ndes-on-windows) instead.
+
+  > This requirement is specific to NDES and does not apply to custom SCEP servers. Custom SCEP servers typically use self-signed certificates that do not contain CRL Distribution Point extensions, so Windows skips revocation checking entirely.
+
+- **CA server clock must be synchronized.** If the CA server's clock drifts, certificates may have `notBefore` timestamps in the future. The Windows SCEP client will reject them with a validity-period error even though the CA issued the certificate successfully.
+
 ### Step 1: Connect Fleet to NDES
 
 1. In Fleet, head to **Settings > **Integrations > Certificates**.
@@ -159,19 +171,26 @@ The example paths end with `/certsrv/mscep/mscep.dll` and `/certsrv/mscep_admin/
 
 When saving the configuration, Fleet will attempt to connect to the SCEP server to verify the connection, including retrieving a one-time challenge password. This validation also occurs when adding a new SCEP configuration or updating an existing one via API and GitOps, including dry runs. Please ensure the NDES password cache size is large enough to accommodate this validation.
 
+> The default NDES password cache holds only 5 one-time challenge passwords. Each failed enrollment attempt consumes a password. We recommend increasing the cache size on the NDES server for production use.
+
 ### Step 2: Add SCEP configuration profile to Fleet
 
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_NDES_SCEP_CHALLENGE`. For `URL`, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
 
-2. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
+2. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can use [Fleet's host variables](https://fleetdm.com/docs/configuration/yaml-files#variables) such as `$FLEET_VAR_HOST_HARDWARE_SERIAL`. For Apple hosts, you can also use any of [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
 
-3. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
+3. For Windows profiles, you also need to set `CAThumbprint` to the SHA1 fingerprint of your **root CA certificate** (not the RA signing certificate). See [How to get the CAThumbprint for Windows SCEP profiles](#how-to-get-the-cathumbprint-for-windows-scep-profiles).
+
+4. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
 
 When the profile is delivered to your hosts, Fleet will replace the variables. If something fails, errors will appear on each host's **Host details > OS settings**.
 
 ![NDES SCEP failed profile](../website/assets/images/articles/ndes-scep-failed-profile-405x215@2x.png)
 
-#### Example configuration profile
+#### Example configuration profiles
+
+<details>
+<summary>Apple configuration profile (macOS)</summary>
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -234,6 +253,127 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
 </dict>
 </plist>
 ```
+
+</details>
+<details>
+<summary>Windows configuration profile (device-scope)</summary>
+
+All options in the example profile are required. Replace `<CA_THUMBPRINT>` with your root CA's SHA1 fingerprint. See [How to get the CAThumbprint for Windows SCEP profiles](#how-to-get-the-cathumbprint-for-windows-scep-profiles).
+
+You can add any other options listed under Device/SCEP in the [Microsoft ClientCertificateInstall CSP documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp).
+
+```xml
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">node</Format>
+        </Meta>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/ServerURL</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">chr</Format>
+        </Meta>
+        <Data>$FLEET_VAR_NDES_SCEP_PROXY_URL</Data>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Challenge</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">chr</Format>
+        </Meta>
+        <Data>$FLEET_VAR_NDES_SCEP_CHALLENGE</Data>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/SubjectName</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">chr</Format>
+        </Meta>
+        <Data>CN=$FLEET_VAR_HOST_HARDWARE_SERIAL NDES Device Cert,OU=$FLEET_VAR_SCEP_RENEWAL_ID</Data>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/KeyUsage</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">int</Format>
+        </Meta>
+        <Data>160</Data>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/KeyLength</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">int</Format>
+        </Meta>
+        <Data>2048</Data>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/HashAlgorithm</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">chr</Format>
+        </Meta>
+        <Data>SHA-2</Data>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/CAThumbprint</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">chr</Format>
+        </Meta>
+        <Data><CA_THUMBPRINT></Data>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/EKUMapping</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">chr</Format>
+        </Meta>
+        <!-- 1.3.6.1.5.5.7.3.2 is the OID for Client Authentication -->
+        <Data>1.3.6.1.5.5.7.3.2</Data>
+    </Item>
+</Add>
+<Exec>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll</LocURI>
+        </Target>
+    </Item>
+</Exec>
+```
+
+To create a **user-scope** profile, replace `./Device/` with `./User/` in all `<LocURI>` elements. User-scope profiles require the Windows device to have an Azure AD (Entra ID) user association. Devices with device-only MDM enrollment cannot process user-scope commands.
+
+</details>
 
 ## Smallstep
 
@@ -784,6 +924,8 @@ You can deploy a user-scoped certificate on macOS and Windows hosts using a user
 
 For macOS hosts, user-scoped certificates only work if the `login` keychain is unlocked. If it's locked, MDM commands to install the certificate configuration profile will always return `NotNow`. To check whether the `login` keychain is unlocked, open Keychain Access on the Mac. An unlocked icon should appear to the left of the `login` keychain under **Default keychains**. If it's locked, right-click on the `login` keychain to unlock it.
 
+For Windows hosts, user-scoped profiles require the device to have an Azure AD (Entra ID) user association. Devices with device-only MDM enrollment do not have a user context and will reject all `./User/` CSP commands. Azure AD-joined devices with user enrollment support user-scope profiles.
+
 ### Editing ceritificate configuration profiles on Apple (macOS, iOS, iPadOS) hosts
 
 When you edit a certificate configuration profile for Apple hosts, via GitOps, a new certificate will be added to each hosts' Keychain and the old certificate will be removed. It takes a couple minutes for the old certificate to be removed.
@@ -818,12 +960,22 @@ fetch_cert -ca <EST-CA-ID> -fleeturl "<Fleet-server-URL>" -csr CustomerUserNetwo
 
 ### Assumptions and limitations
 
-* NDES SCEP proxy is currently supported for macOS devices via Apple config profiles. Support for DDM (Declarative Device Management) is coming soon, as is support for iOS, iPadOS, Windows, and Linux.
+* NDES SCEP proxy is currently supported for macOS and Windows devices. Support for DDM (Declarative Device Management) is coming soon, as is support for iOS, iPadOS, and Linux.
 * Fleet server assumes a one-time challenge password expiration time of 60 minutes.
 * On **Windows**, SCEP challenge strings should NOT include `base64` encoding or special characters such as `! @ # $ % ^ & * _`, and Common Names (CN) should NOT include `+` characters.
 * The Windows SCEP client adds ⁠/pkiclient.exe to the SCEP server URL. When using Fleet's custom SCEP proxy to deploy certificates, Fleet removes it, allowing you to use non-NDES SCEP servers.
 * On **Windows** hosts, Fleet will not verify the SCEP profile via osquery. Fleet will mark it as verified, if a successful request went through, even if the certificate is not present.
 * On **Windows** hosts, Fleet will not remove deployed certificate, when respective configuration profile is removed from Fleet, or when host is transfered to another team.
+
+### Troubleshooting NDES on Windows
+
+If SCEP enrollment fails on a Windows device, the error `0x800B0101` ("A required certificate is not within its validity period") can indicate any of three issues:
+
+1. **Root CA not trusted**: The device doesn't trust the CA that issued the NDES RA certificates. Fix: deploy the root CA certificate to the device's Trusted Root Certification Authorities store via an MDM profile.
+2. **CRL not reachable**: The device can't fetch the Certificate Revocation List because the CA only publishes CRLs via LDAP. Fix: configure the CA to publish CRLs via an HTTP endpoint. See [Prerequisites for Windows hosts](#prerequisites-for-windows-hosts).
+3. **CA clock skew**: The CA server's clock is ahead of the device, causing certificates to have `notBefore` timestamps in the future. Fix: synchronize the CA server's clock via NTP.
+
+If NDES returns `pkiStatus=FAILURE, failInfo=badRequest`, the NDES password cache may be full. Increase the cache size on the NDES server (see [Prerequisites for Windows hosts](#prerequisites-for-windows-hosts)).
 
 ### How the SCEP proxy works
 
@@ -859,6 +1011,29 @@ An example CAThumprint looks like this: `2133EC6A3CFB8418837BB395188D1A62CA2B96A
     2. **PowerShell (Windows)** -> `$cert = Get-PfxCertificate -FilePath "Z:\scep (1).cer";$cert.Thumbprint`
 3. It will return the SHA1 Thumbprint without colons and text. Copy this.
 4. Use the copied value for `./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/CAThumbprint` option.
+
+### Quick CRL workaround for testing NDES on Windows
+
+For production, your CA should publish CRLs via HTTP (see [Prerequisites for Windows hosts](#prerequisites-for-windows-hosts)). For testing, you can manually distribute the CRL to the device instead.
+
+1. On the NDES/CA server, find the CRL files at `C:\Windows\System32\CertSrv\CertEnroll\`. You'll see a base CRL (`<CA-name>.crl`) and possibly a delta CRL (`<CA-name>+.crl`).
+
+2. Copy the CRL files to the Windows test device and install them:
+
+   ```powershell
+   certutil -addstore CA C:\path\to\ca.crl
+   certutil -addstore CA C:\path\to\ca_delta.crl
+   ```
+
+3. Verify that revocation checking now passes:
+
+   ```powershell
+   certutil -verify C:\path\to\ra_cert.cer
+   ```
+
+   The output should end with `CertUtil: -verify command completed successfully.`
+
+> CRLs expire (typically after about a week). You will need to repeat this process when the CRL expires. This workaround does not scale beyond a few test devices.
 
 <meta name="articleTitle" value="Deploy certificates to connect end users to third-party tools">
 <meta name="authorFullName" value="Victor Lyuboslavsky">
