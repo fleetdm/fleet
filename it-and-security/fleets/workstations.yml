@@ -315,8 +315,6 @@ software:
     - slug: slack/darwin # Slack for macOS
       self_service: true
       setup_experience: true
-      labels_include_any:
-        - Apple Silicon macOS hosts
       categories:
         - Communication
     - slug: okta-verify/darwin # Okta Verify for macOS
