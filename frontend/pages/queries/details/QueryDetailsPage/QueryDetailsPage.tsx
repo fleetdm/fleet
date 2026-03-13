@@ -2,8 +2,6 @@ import React, { useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
-import ReactTooltip from "react-tooltip";
-import { COLORS } from "styles/var/colors";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -295,11 +293,13 @@ const QueryDetailsPage = ({
                   <div
                     className={`button-wrap ${baseClass}__button-wrap--new-query`}
                   >
-                    <div
-                      data-tip
-                      data-for="live-query-button"
-                      // Tooltip shows when live queries are globally disabled
-                      data-tip-disable={!isLiveQueryDisabled}
+                    <TooltipWrapper
+                      showArrow
+                      tipContent="Live reports are disabled in organization settings"
+                      position="top"
+                      tooltipClass="live-query-button-tooltip"
+                      underline={false}
+                      disableTooltip={!isLiveQueryDisabled}
                     >
                       <Button
                         className={`${baseClass}__run`}
@@ -320,17 +320,7 @@ const QueryDetailsPage = ({
                       >
                         Live report <Icon name="run" />
                       </Button>
-                    </div>
-                    <ReactTooltip
-                      className="live-query-button-tooltip"
-                      place="top"
-                      effect="solid"
-                      backgroundColor={COLORS["tooltip-bg"]}
-                      id="live-query-button"
-                      data-html
-                    >
-                      Live reports are disabled in organization settings
-                    </ReactTooltip>
+                    </TooltipWrapper>
                   </div>
                 )}
                 {canEditQuery && (
