@@ -3,19 +3,10 @@
     font-family: SourceCodePro, $monospace;
   }
 
-  .modal-cta-wrap {
-    display: flex;
-    justify-content: flex-end;
-  }
-
-  &__rotate-button {
+  &__rotate-button .children-wrapper {
     display: flex;
     align-items: center;
-    gap: $pad-xsmall;
-
-    .icon {
-      margin-right: 0;
-    }
+    gap: $pad-small;
   }
 
   &__rotate-button--disabled {
@@ -25,11 +16,5 @@
     .icon {
       color: $ui-fleet-black-50;
     }
-  }
-
-  &__rotate-button-content {
-    display: flex;
-    align-items: center;
-    gap: $pad-xsmall;
   }
 }
