@@ -1,5 +1,4 @@
 import React, { FormEvent, useState, useEffect } from "react";
-import ReactTooltip from "react-tooltip";
 
 import {
   IIntegrationFormData,
@@ -15,7 +14,7 @@ import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 
 import Spinner from "components/Spinner";
-import { COLORS } from "styles/var/colors";
+import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
@@ -281,35 +280,27 @@ const IntegrationForm = ({
                       formData.email === "" ||
                       formData.apiToken === "" ||
                       formData.groupId === 0;
-                // TODO - refactor below to use TooltipWrapper
                 return (
-                  <>
-                    <div
-                      data-tip
-                      data-for="add-integration-button"
-                      data-tip-disable={!formInvalid || disableChildren}
-                      className="tooltip"
-                    >
-                      <Button
-                        type="submit"
-                        disabled={formInvalid || disableChildren}
-                      >
-                        Add
-                      </Button>
-                    </div>
-                    <ReactTooltip
-                      className="add-integration-tooltip"
-                      place="bottom"
-                      effect="solid"
-                      backgroundColor={COLORS["tooltip-bg"]}
-                      id="add-integration-button"
-                      data-html
-                    >
+                  <TooltipWrapper
+                    showArrow
+                    tipContent={
                       <>
                         Complete all fields to save <br /> the integration.
                       </>
-                    </ReactTooltip>
-                  </>
+                    }
+                    position="bottom"
+                    tooltipClass="add-integration-tooltip"
+                    className="tooltip"
+                    underline={false}
+                    disableTooltip={!formInvalid || disableChildren}
+                  >
+                    <Button
+                      type="submit"
+                      disabled={formInvalid || disableChildren}
+                    >
+                      Add
+                    </Button>
+                  </TooltipWrapper>
                 );
               }}
             />
