@@ -2,12 +2,10 @@ import React from "react";
 import { browserHistory } from "react-router";
 
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
-import { uniqueId } from "lodash";
-import ReactTooltip from "react-tooltip";
-import { COLORS } from "styles/var/colors";
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import Button from "components/buttons/Button";
+import TooltipWrapper from "components/TooltipWrapper";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import PATHS from "router/paths";
 
@@ -43,27 +41,21 @@ const ReportUpdatedCell = ({
           <TextCell
             className={`${baseClass}__value no-report`}
             formatter={(val) => {
-              const tooltipId = uniqueId();
               return (
-                <>
-                  <span data-tip data-for={tooltipId}>
-                    {val}
-                  </span>
-                  <ReactTooltip
-                    place="top"
-                    effect="solid"
-                    backgroundColor={COLORS["tooltip-bg"]}
-                    id={tooltipId}
-                  >
-                    {
-                      <>
-                        Results from this report are not reported in Fleet.
-                        <br />
-                        Data is being sent to your log destination.
-                      </>
-                    }
-                  </ReactTooltip>
-                </>
+                <TooltipWrapper
+                  showArrow
+                  tipContent={
+                    <>
+                      Results from this report are not reported in Fleet.
+                      <br />
+                      Data is being sent to your log destination.
+                    </>
+                  }
+                  position="top"
+                  underline={false}
+                >
+                  {val}
+                </TooltipWrapper>
               );
             }}
             value="No report"
@@ -73,26 +65,24 @@ const ReportUpdatedCell = ({
 
       // Query is scheduled to run on host, but hasn't yet
       if (!last_fetched) {
-        const tipId = uniqueId();
         return (
           <TextCell
             value={DEFAULT_EMPTY_CELL_VALUE}
             formatter={(val) => (
-              <>
-                <span data-tip data-for={tipId}>
-                  {val}
-                </span>
-                <ReactTooltip
-                  id={tipId}
-                  effect="solid"
-                  backgroundColor={COLORS["tooltip-bg"]}
-                  place="top"
-                >
-                  Fleet is collecting report results.
-                  <br />
-                  Check back later.
-                </ReactTooltip>
-              </>
+              <TooltipWrapper
+                showArrow
+                tipContent={
+                  <>
+                    Fleet is collecting report results.
+                    <br />
+                    Check back later.
+                  </>
+                }
+                position="top"
+                underline={false}
+              >
+                {val}
+              </TooltipWrapper>
             )}
             grey
             italic
