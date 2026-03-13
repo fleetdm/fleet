@@ -7,6 +7,10 @@ This PR is large. The goal of this document is to give reviewers a stable behavi
 This document was created by AI, but it was created **after** the implementation (reverse-extracted from the code in this PR branch).  
 So this is not the historical authoring order; it is a post-hoc contract/oracle reconstruction for human review and accountability.
 
+## Compliance statement
+The implementation in this PR was checked against this behavior contract and oracle, and it appears to respect them based on current unit tests and manual validation performed in this branch.  
+This is an engineering confidence statement, not a formal proof of correctness.
+
 ## System behavior contract
 
 ### Scope
