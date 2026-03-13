@@ -371,7 +371,7 @@ func (m AppleOSUpdateSettings) Validate() error {
 	}
 
 	if _, err := time.Parse("2006-01-02", m.Deadline.Value); err != nil {
-		return errors.New(`deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`)
+		return errors.New(AppleOSVersionDeadlineInvalidMessage)
 	}
 
 	return nil
@@ -569,7 +569,7 @@ func (mos *MacOSSetup) SetDefaultsIfNeeded() {
 		mos.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
 	if !mos.LockEndUserInfo.Valid {
-		mos.LockEndUserInfo = optjson.SetBool(false)
+		mos.LockEndUserInfo = optjson.SetBool(mos.EnableEndUserAuthentication)
 	}
 	if !mos.Script.Valid {
 		mos.Script = optjson.SetString("")
@@ -1124,7 +1124,7 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 		c.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
 	if !c.MDM.MacOSSetup.LockEndUserInfo.Valid {
-		c.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+		c.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(c.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)

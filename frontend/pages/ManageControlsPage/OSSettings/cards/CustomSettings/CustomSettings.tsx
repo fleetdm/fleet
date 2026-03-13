@@ -96,7 +96,7 @@ const CustomSettings = ({
     ],
     () =>
       mdmAPI.getProfiles({
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
         page: currentPage,
         per_page: PROFILES_PER_PAGE,
       }),

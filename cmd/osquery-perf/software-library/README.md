@@ -154,7 +154,7 @@ This creates a CSV with the following columns:
 - `upgrade_code` - Windows upgrade GUID
 
 **Optional filtering:**
-- Add `WHERE` clause to filter by date, team, or other criteria
+- Add `WHERE` clause to filter by date, fleet, or other criteria
 - Example: `WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
 
 ### Step 3: Import server data

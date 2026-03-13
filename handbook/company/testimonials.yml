@@ -312,3 +312,10 @@
   quoteLinkUrl: https://www.linkedin.com/in/johnonolan/
   quoteAuthorProfileImageFilename: testimonial-author-john-o'nolan-100x100@2x.png
   productCategories: [Device management]
+# -
+#   quote: Thank you for enabling SCIM for the admin interface! You have solved de-provisioning for us because if an admin leaves their identity gets turned off automatically by Okta. We also can quickly check user roles in Okta without needing to login to FleetDM or monitoring user_role.yaml with GitOps.
+#   quoteAuthorName: Nick Borgers
+#   quoteAuthorJobTitle: Cybersecurity and DevOps
+#   quoteLinkUrl: https://www.linkedin.com/in/nickborgers/
+#   quoteAuthorProfileImageFilename: testimonial-author-nick-borgers-100x100@2x.png
+#   productCategories: [Device management] 
