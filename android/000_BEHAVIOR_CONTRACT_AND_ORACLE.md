@@ -189,3 +189,39 @@ How to verify:
 3. Validate C8 by running `android_logcat` once with flag off (expect empty), then on (expect filtered/redacted rows).
 4. Validate C9/O6/O7 with `SELECT * FROM time;` and `SELECT * FROM uptime;` plus basic value sanity checks.
 5. Approve only if behavior and safety expectations match this contract, even if implementation details change later.
+
+---
+
+## Proposed change for review (process standardization)
+
+### Proposal P2: Add a reusable AI workflow instruction file for all developers
+Goal: provide one copy/paste instruction file that makes Codex/Claude follow contract-first development on every task.
+
+#### Contract additions (proposed)
+- Add a human-readable, AI-targeted instruction file in this repo for developers to paste into terminal AI sessions before work starts.
+- The instruction file must define the concepts for AI systems with no prior context:
+  - **Behavior contract**: the human-reviewable description of what the system must do and what must remain true.
+  - **Oracle**: the concrete, observable checks used to decide if implementation behavior is acceptable.
+  - **Contract-first step**: update/create contract + oracle before any code change.
+- The instruction file must require this sequence for every task:
+  1. restate human intent
+  2. create/update behavior contract + oracle first
+  3. ask human to review and approve
+  4. only after explicit approval, implement code
+  5. run verification and map results back to oracle checks
+  6. update PR/summary with tested vs untested oracle items
+- The instruction file must include strict truthfulness rules:
+  - do not claim contract-first history when work was reverse-extracted
+  - separate confidence statements from proof
+  - clearly label AI-performed validation
+
+#### Oracle additions (proposed)
+
+### O8. Process compliance oracle for AI-assisted development
+Human rule:
+- For any new requested change, AI must produce contract/oracle deltas before code edits.
+- AI must pause for human approval before implementation.
+- Final output must state what oracle items were tested and what remains untested.
+How to verify:
+- PR timeline and commit order show contract/oracle update commit before implementation commit.
+- Conversation history shows explicit approval checkpoint before code edits.
