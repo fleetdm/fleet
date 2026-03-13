@@ -3,6 +3,7 @@ import { IConfig, ILicense, IMdmConfig } from "interfaces/config";
 const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   apple_server_url: "",
   enable_disk_encryption: false,
+  enable_recovery_lock_password: false,
   windows_require_bitlocker_pin: false,
   enable_turn_on_windows_mdm_manually: false,
   windows_enabled_and_configured: true,
