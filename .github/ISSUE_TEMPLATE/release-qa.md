@@ -139,8 +139,7 @@ Perform a quick visual scan of the UI and confirm:
 1. Turn off MDM on an ADE-eligible macOS host and verify that the native, "Device Enrollment" macOS notification appears.
 2. On the My device page, follow the "Turn on MDM" instructions and verify that MDM is turned on.
 3. Turn off MDM on a non ADE-eligible macOS host.
-4. On the My device page, follow the "Turn on MDM" instructions and verify that MDM is turned on.
-5. Verify Windows host migrates from 3rd party MDM to Fleet when automatic migration is turned on.
+4. Verify Windows host migrates from 3rd party MDM to Fleet when automatic migration is turned on.
 </td><td>pass/fail</td></tr>
 
 <tr><td>OS settings</td><td>Verify OS settings functionality</td><td>
