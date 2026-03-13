@@ -163,7 +163,7 @@ const OSSettingStatusCell = ({
             </ReactTooltip>
           </>
         ) : (
-          statusText
+          <span className={`${baseClass}__status-text`}>{statusText}</span>
         )}
       </span>
     );
