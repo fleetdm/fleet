@@ -2,6 +2,8 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 import { uniqueId } from "lodash";
 
+import { REC_LOCK_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
+
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import {
@@ -9,6 +11,7 @@ import {
   LinuxDiskEncryptionStatus,
   ProfileOperationType,
   ProfilePlatform,
+  RecoveryLockPasswordStatus,
 } from "interfaces/mdm";
 import { COLORS } from "styles/var/colors";
 
@@ -20,6 +23,7 @@ import {
   PROFILE_DISPLAY_CONFIG,
   ProfileDisplayOption,
   ProfileStatus,
+  RECOVERY_LOCK_PASSWORD_DISPLAY_CONFIG,
   WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG,
   WindowsDiskEncryptionDisplayStatus,
 } from "./helpers";
@@ -45,6 +49,11 @@ const OSSettingStatusCell = ({
   if (hostPlatform === "linux") {
     displayOption =
       LINUX_DISK_ENCRYPTION_DISPLAY_CONFIG[status as LinuxDiskEncryptionStatus];
+  } else if (profileUUID === REC_LOCK_SYNTHETIC_PROFILE_UUID) {
+    displayOption =
+      RECOVERY_LOCK_PASSWORD_DISPLAY_CONFIG[
+        status as RecoveryLockPasswordStatus
+      ];
   }
 
   // Android host certificate templates.
