@@ -353,7 +353,7 @@ const UserForm = ({
           <InfoBanner 
             color="grey" 
             className={`${baseClass}__user-permissions-info`}
-           >
+          >
             <p>
               Global users can manage or observe all users, entities, and
               settings in Fleet.
