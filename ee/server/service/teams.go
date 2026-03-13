@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 )
@@ -212,6 +213,19 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 		}
 
+		// Always check whether specified versions are supported by Apple (even if they weren't updated)
+		// Note that we're validating against the full, non-public asset set of OS versions here because
+		// in our DEP flow the minimum version just acts as the threshold for whether or not to update
+		// the host to the latest, public version. We don't need to install the specified version on the
+		// host during DEP so it doesn't need to be in the public asset set.
+		if errs := apple_mdm.ValidateMDMSettingsAppleSupportedOSVersion(team.Config.MDM, false); len(errs) > 0 {
+			invalid := &fleet.InvalidArgumentError{}
+			for k, v := range errs {
+				invalid.Append(k, v.Error())
+			}
+			return nil, invalid
+		}
+
 		if payload.MDM.WindowsUpdates != nil {
 			if err := payload.MDM.WindowsUpdates.Validate(); err != nil {
 				return nil, fleet.NewInvalidArgumentError("windows_updates", err.Error())
@@ -262,16 +276,17 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 
 			team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = payload.MDM.MacOSSetup.EnableEndUserAuthentication
-			if !team.Config.MDM.MacOSSetup.EnableEndUserAuthentication {
-				team.Config.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+			// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA.
+			if macOSEnableEndUserAuthUpdated && !payload.MDM.MacOSSetup.LockEndUserInfo.Valid {
+				team.Config.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
 			}
 
-			if payload.MDM.MacOSSetup.LockEndUserInfo.Set {
+			if payload.MDM.MacOSSetup.LockEndUserInfo.Valid {
 				team.Config.MDM.MacOSSetup.LockEndUserInfo = payload.MDM.MacOSSetup.LockEndUserInfo
 			}
 
 			if !team.Config.MDM.MacOSSetup.EnableEndUserAuthentication && team.Config.MDM.MacOSSetup.LockEndUserInfo.Value {
-				return nil, fleet.NewInvalidArgumentError("macos_setup.lock_end_user_info", "Couldn't enable macos_setup.lock_end_user_info because macos_setup.enable_end_user_authentication is not enabled.")
+				return nil, fleet.NewInvalidArgumentError("macos_setup.lock_end_user_info", `"enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info".`)
 			}
 		}
 	}
@@ -1130,6 +1145,8 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		if len(secrets) > fleet.MaxEnrollSecretsCount {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "too many secrets"), "validate secrets")
 		}
+		// TODO: should we be we validating the other Apple platforms? if so, we should also include
+		// ValidateMDMSettingsAppleSupportedOSVersion for each platform
 		if err := spec.MDM.MacOSUpdates.Validate(); err != nil {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_updates", err.Error()))
 		}
@@ -1237,7 +1254,13 @@ func (svc *Service) createTeamFromSpec(
 	}
 
 	if macOSSetup.LockEndUserInfo.Value && !macOSSetup.EnableEndUserAuthentication {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.lock_end_user_info", "Couldn't enable macos_setup.lock_end_user_info because macos_setup.enable_end_user_authentication is not enabled."))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.lock_end_user_info", `"enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info"`))
+	}
+
+	// Default the value of "lock_end_user_info" to the value of "enable_end_user_authentication" if not explicitly set in the spec to keep prior
+	// behavior.
+	if !macOSSetup.LockEndUserInfo.Valid {
+		macOSSetup.LockEndUserInfo = optjson.SetBool(macOSSetup.EnableEndUserAuthentication)
 	}
 
 	enableDiskEncryption := spec.MDM.EnableDiskEncryption.Value
@@ -1476,9 +1499,6 @@ func (svc *Service) editTeamFromSpec(
 	if !team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
-	if !team.Config.MDM.MacOSSetup.LockEndUserInfo.Valid {
-		team.Config.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
-	}
 
 	oldMacOSSetup := team.Config.MDM.MacOSSetup
 	var didUpdateSetupAssistant, didUpdateBootstrapPackage, didUpdateEnableReleaseManually, didUpdateManualAgentInstall bool
@@ -1531,7 +1551,16 @@ func (svc *Service) editTeamFromSpec(
 	team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = spec.MDM.MacOSSetup.EnableEndUserAuthentication
 
 	if spec.MDM.MacOSSetup.LockEndUserInfo.Valid {
+		// User explicitly set LockEndUserInfo - use that value.
 		team.Config.MDM.MacOSSetup.LockEndUserInfo = spec.MDM.MacOSSetup.LockEndUserInfo
+	} else {
+		// Otherwise use the value of End User Authentication to maintain previous(unconfigurable) behavior where it was turned on when EUA was enabled
+		team.Config.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(spec.MDM.MacOSSetup.EnableEndUserAuthentication)
+	}
+
+	invalid := &fleet.InvalidArgumentError{}
+	if !team.Config.MDM.MacOSSetup.EnableEndUserAuthentication && team.Config.MDM.MacOSSetup.LockEndUserInfo.Value {
+		invalid.Append("macos_setup.lock_end_user_info", `"enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info"`)
 	}
 
 	didUpdateMacOSRequireAllSoftware := spec.MDM.MacOSSetup.RequireAllSoftware != oldMacOSSetup.RequireAllSoftware
@@ -1596,7 +1625,6 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	// if host_expiry_settings are not provided, do not change them
-	invalid := &fleet.InvalidArgumentError{}
 	if spec.HostExpirySettings != nil {
 		if spec.HostExpirySettings.HostExpiryEnabled && spec.HostExpirySettings.HostExpiryWindow <= 0 {
 			invalid.Append(
@@ -1641,11 +1669,6 @@ func (svc *Service) editTeamFromSpec(
 		}
 		team.Config.Integrations.ConditionalAccessEnabled = optjson.SetBool(*spec.Integrations.ConditionalAccessEnabled)
 	}
-
-	if !spec.MDM.MacOSSetup.EnableEndUserAuthentication && spec.MDM.MacOSSetup.LockEndUserInfo.Value {
-		invalid.Append("macos_setup.lock_end_user_info", "Couldn't enable macos_setup.lock_end_user_info because macos_setup.enable_end_user_authentication is not enabled.")
-	}
-
 	if opts.DryRun {
 		for _, secret := range secrets {
 			available, err := svc.ds.IsEnrollSecretAvailable(ctx, secret.Secret, false, &team.ID)
@@ -1959,13 +1982,13 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 		}
 	}
 
-	// If the user turned off end user auth and didn't specify lock_end_user_info, turn it off so it does not conflict
-	if didUpdateMacOSEndUserAuth && !tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication && payload.LockEndUserInfo == nil {
-		tm.Config.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+	// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA.
+	if didUpdateMacOSEndUserAuth && payload.LockEndUserInfo == nil {
+		tm.Config.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
 
 	if !tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication && tm.Config.MDM.MacOSSetup.LockEndUserInfo.Value {
-		return fleet.NewUserMessageError(errors.New("Couldn't enable macos_setup.lock_end_user_info because macos_setup.enable_end_user_authentication is not enabled."), http.StatusUnprocessableEntity)
+		return fleet.NewUserMessageError(errors.New(`Couldn't edit. "enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info".`), http.StatusUnprocessableEntity)
 	}
 
 	if payload.EnableReleaseDeviceManually != nil {

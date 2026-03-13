@@ -176,7 +176,7 @@ const RunQuery = ({
         if (message === "forbidden") {
           renderFlash(
             "error",
-            "It seems you do not have the rights to run this report. If you believe this is in error, please contact your administrator."
+            "It seems you do not have the rights to run this report. If you believe this is an error, please contact your administrator."
           );
         } else {
           renderFlash("error", "Something has gone wrong. Please try again.");

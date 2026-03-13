@@ -54,6 +54,7 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
   const [enableRecoveryLockPassword, setEnableRecoveryLockPassword] = useState<
     boolean | undefined
   >(undefined);
+  const [updating, setUpdating] = useState(false);
 
   const {
     isLoading: isLoadingTeam,
@@ -93,6 +94,7 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
     !isFormReady || isTeamError || enableRecoveryLockPassword === undefined;
 
   const onUpdateRecoveryLockPassword = async () => {
+    setUpdating(true);
     try {
       if (currentTeamId === API_NO_TEAM_ID) {
         await configAPI.update({
@@ -116,6 +118,8 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
         getErrorReason(e) ??
         "Couldn't update Recovery Lock password enforcement. Please try again.";
       renderFlash("error", errorMsg);
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -150,6 +154,7 @@ const Passwords = ({ currentTeamId, onMutation }: IOSSettingsCommonProps) => {
               renderChildren={(gitopsDisabled) => (
                 <Button
                   disabled={isFormDisabled || gitopsDisabled}
+                  isLoading={updating}
                   className={`${baseClass}__save-button`}
                   onClick={onUpdateRecoveryLockPassword}
                 >
