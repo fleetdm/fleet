@@ -4,11 +4,9 @@ import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
 import { useQuery } from "react-query";
 
 import { Ace } from "ace-builds";
-import ReactTooltip from "react-tooltip";
 import { useDebouncedCallback } from "use-debounce";
 import { size } from "lodash";
 import classnames from "classnames";
-import { COLORS } from "styles/var/colors";
 
 import { addGravatarUrlToResource } from "utilities/helpers";
 import { AppContext } from "context/app";
@@ -777,48 +775,51 @@ const PolicyForm = ({
             {hasSavePermissions && (
               <GitOpsModeTooltipWrapper
                 renderChildren={(disableChildren) => (
-                  // TODO - update to use TooltipWrapper
-                  <>
-                    <span
-                      className={`${baseClass}__button-wrap--tooltip`}
-                      data-tip
-                      data-for="save-policy-button"
-                      data-tip-disable={
-                        !isExistingPolicy || isAnyPlatformSelected
-                      }
+                  <TooltipWrapper
+                    showArrow
+                    tipContent={
+                      <>
+                        Select the platforms this
+                        <br />
+                        policy will be checked on
+                        <br />
+                        to save or run the policy.
+                      </>
+                    }
+                    position="bottom"
+                    tooltipClass={`${baseClass}__button-wrap--tooltip`}
+                    underline={false}
+                    disableTooltip={!isExistingPolicy || isAnyPlatformSelected}
+                  >
+                    <Button
+                      onClick={promptSavePolicy()}
+                      disabled={disableSaveFormErrors || disableChildren}
+                      className="save-loading"
+                      isLoading={isUpdatingPolicy}
                     >
-                      <Button
-                        onClick={promptSavePolicy()}
-                        disabled={disableSaveFormErrors || disableChildren}
-                        className="save-loading"
-                        isLoading={isUpdatingPolicy}
-                      >
-                        Save
-                      </Button>
-                    </span>
-                    <ReactTooltip
-                      className={`${baseClass}__button-wrap--tooltip`}
-                      place="bottom"
-                      effect="solid"
-                      id="save-policy-button"
-                      backgroundColor={COLORS["tooltip-bg"]}
-                    >
-                      Select the platforms this
-                      <br />
-                      policy will be checked on
-                      <br />
-                      to save or run the policy.
-                    </ReactTooltip>
-                  </>
+                      Save
+                    </Button>
+                  </TooltipWrapper>
                 )}
               />
             )}
-            {/* TODO - update to use TooltipWrapper */}
-            <span
-              className={`${baseClass}__button-wrap--tooltip`}
-              data-tip
-              data-for="run-policy-button"
-              data-tip-disable={
+            <TooltipWrapper
+              showArrow
+              tipContent={
+                disabledLiveQuery ? (
+                  <>Live reports are disabled in organization settings</>
+                ) : (
+                  <>
+                    Select the platforms this <br />
+                    policy will be checked on <br />
+                    to save or run the policy.
+                  </>
+                )
+              }
+              position="bottom"
+              tooltipClass={`${baseClass}__button-wrap--tooltip`}
+              underline={false}
+              disableTooltip={
                 (!isExistingPolicy || isAnyPlatformSelected) &&
                 !disabledLiveQuery
               }
@@ -833,25 +834,7 @@ const PolicyForm = ({
               >
                 Run <Icon name="run" />
               </Button>
-            </span>
-            <ReactTooltip
-              className={`${baseClass}__button-wrap--tooltip`}
-              place="bottom"
-              effect="solid"
-              id="run-policy-button"
-              backgroundColor={COLORS["tooltip-bg"]}
-              data-html
-            >
-              {disabledLiveQuery ? (
-                <>Live reports are disabled in organization settings</>
-              ) : (
-                <>
-                  Select the platforms this <br />
-                  policy will be checked on <br />
-                  to save or run the policy.
-                </>
-              )}
-            </ReactTooltip>
+            </TooltipWrapper>
           </div>
         </form>
         {isSaveNewPolicyModalOpen && (
