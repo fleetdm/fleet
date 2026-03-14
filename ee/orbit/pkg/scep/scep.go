@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"slices"
 	"time"
 
@@ -48,6 +49,8 @@ type Client struct {
 
 	// extraExtensions allows adding custom extensions to the CSR
 	extraExtensions []pkix.Extension
+	// uris sets the Subject Alternative Name URI fields on the CSR
+	uris []*url.URL
 }
 
 // Option is a functional option for configuring a SCEP Client
@@ -114,6 +117,13 @@ func Insecure() Option {
 func WithExtraExtensions(extensions []pkix.Extension) Option {
 	return func(c *Client) {
 		c.extraExtensions = extensions
+	}
+}
+
+// WithURIs sets Subject Alternative Name URI fields on the CSR.
+func WithURIs(uris []*url.URL) Option {
+	return func(c *Client) {
+		c.uris = uris
 	}
 }
 
@@ -194,6 +204,7 @@ func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 			// Currently, signer.Public() will always be of type *ecdsa.PublicKey.
 			SignatureAlgorithm: x509.ECDSAWithSHA256,
 			ExtraExtensions:    c.extraExtensions,
+			URIs:               c.uris,
 		},
 		ChallengePassword: c.scepChallenge,
 	}

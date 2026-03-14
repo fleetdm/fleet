@@ -421,6 +421,10 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		*host.DiskEncryptionEnabled &&
 		svc.ds.IsHostPendingEscrow(ctx, host.ID)
 
+	notifs.RunConditionalAccessEnrollment = fleet.IsLinux(host.Platform) &&
+		appConfig.ConditionalAccess != nil &&
+		appConfig.ConditionalAccess.OktaConfigured()
+
 	// load the (active, ready to execute) pending software install executions for that host
 	pendingInstalls, err := svc.ds.ListReadyToExecuteSoftwareInstalls(ctx, host.ID)
 	if err != nil {

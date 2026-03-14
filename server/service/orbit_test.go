@@ -989,3 +989,85 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 	})
 	require.Equal(t, 1, retryCount, "should have scheduled a retry in upcoming_activities")
 }
+
+// newOrbitConfigContext sets up a minimal mock context for GetOrbitConfig tests.
+func newOrbitConfigContext(t *testing.T, host *fleet.Host, appCfg *fleet.AppConfig) (*mock.Store, fleet.Service, context.Context) {
+	t.Helper()
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return appCfg, nil }
+	ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+		return nil, nil
+	}
+	ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+		return nil, nil
+	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return false, nil
+	}
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		return nil, nil
+	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		return false, nil
+	}
+	ctx = test.HostContext(ctx, host)
+	return ds, svc, ctx
+}
+
+func TestGetOrbitConfigLinuxConditionalAccessNotification(t *testing.T) {
+	linuxHost := &fleet.Host{
+		OsqueryHostID: ptr.String("linux-test"),
+		ID:            1,
+		Platform:      "ubuntu",
+	}
+	macHost := &fleet.Host{
+		OsqueryHostID: ptr.String("mac-test"),
+		ID:            2,
+		Platform:      "darwin",
+	}
+
+	fullyConfiguredOkta := &fleet.ConditionalAccessSettings{
+		OktaIDPID:                       optjson.SetString("idp-id"),
+		OktaAssertionConsumerServiceURL: optjson.SetString("https://example.okta.com/sso"),
+		OktaAudienceURI:                 optjson.SetString("https://fleet.example.com"),
+		OktaCertificate:                 optjson.SetString("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----"),
+	}
+
+	t.Run("linux with Okta configured gets notification=true", func(t *testing.T) {
+		appCfg := &fleet.AppConfig{ConditionalAccess: fullyConfiguredOkta}
+		_, svc, ctx := newOrbitConfigContext(t, linuxHost, appCfg)
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.True(t, cfg.Notifications.RunConditionalAccessEnrollment)
+	})
+
+	t.Run("linux without Okta configured gets notification=false", func(t *testing.T) {
+		appCfg := &fleet.AppConfig{} // nil ConditionalAccess
+		_, svc, ctx := newOrbitConfigContext(t, linuxHost, appCfg)
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.False(t, cfg.Notifications.RunConditionalAccessEnrollment)
+	})
+
+	t.Run("linux with partially configured Okta gets notification=false", func(t *testing.T) {
+		partial := &fleet.ConditionalAccessSettings{
+			OktaIDPID: optjson.SetString("only-idp-set"),
+			// other fields empty
+		}
+		appCfg := &fleet.AppConfig{ConditionalAccess: partial}
+		_, svc, ctx := newOrbitConfigContext(t, linuxHost, appCfg)
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.False(t, cfg.Notifications.RunConditionalAccessEnrollment)
+	})
+
+	t.Run("macOS with Okta configured gets notification=false", func(t *testing.T) {
+		appCfg := &fleet.AppConfig{ConditionalAccess: fullyConfiguredOkta}
+		_, svc, ctx := newOrbitConfigContext(t, macHost, appCfg)
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.False(t, cfg.Notifications.RunConditionalAccessEnrollment)
+	})
+}

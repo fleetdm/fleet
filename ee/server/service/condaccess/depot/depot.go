@@ -161,16 +161,23 @@ func (d *ConditionalAccessSCEPDepot) Put(name string, crt *x509.Certificate) err
 	return nil
 }
 
+// knownURIPrefixes are the SAN URI prefixes used by Fleet-enrolled device certificates.
+// Apple MDM profiles use the "apple" prefix; Linux orbit enrollment uses the "fleet" prefix.
+var knownURIPrefixes = []string{
+	"urn:device:apple:uuid:",
+	"urn:device:fleet:uuid:",
+}
+
 // extractUUIDFromCert extracts the device UUID from the SAN URI field.
-// Expected format: urn:device:apple:uuid:<uuid>
+// Supports both urn:device:apple:uuid:<uuid> (macOS) and urn:device:fleet:uuid:<uuid> (Linux).
 // Returns the UUID portion or empty string if not found.
 func extractUUIDFromCert(crt *x509.Certificate) string {
-	const prefix = "urn:device:apple:uuid:"
 	for _, uri := range crt.URIs {
-		// Check if this is a device URI (urn:device:apple:uuid:...)
 		uriStr := uri.String()
-		if strings.HasPrefix(uriStr, prefix) {
-			return strings.TrimPrefix(uriStr, prefix)
+		for _, prefix := range knownURIPrefixes {
+			if after, ok := strings.CutPrefix(uriStr, prefix); ok {
+				return after
+			}
 		}
 	}
 	return ""
