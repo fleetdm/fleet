@@ -121,6 +121,28 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		return nil, fmt.Errorf("get data from winget repo: %w", err)
 	}
 
+	// Filter out 4-digit year directories (e.g., "2020") which are year-based groupings, not versions
+	filtered := make([]*github.RepositoryContent, 0, len(repoContents))
+	for _, item := range repoContents {
+		name := item.GetName()
+		// Skip directories that are exactly 4 digits (year groupings like "2020")
+		// This preserves year-based versions like "2025.0.1"
+		if len(name) == 4 && name >= "2000" && name <= "2099" {
+			allDigits := true
+			for _, r := range name {
+				if r < '0' || r > '9' {
+					allDigits = false
+					break
+				}
+			}
+			if allDigits {
+				continue
+			}
+		}
+		filtered = append(filtered, item)
+	}
+	repoContents = filtered
+
 	// sort the list of directories in descending order
 	slices.SortFunc(repoContents, func(a, b *github.RepositoryContent) int { return feednvd.SmartVerCmp(b.GetName(), a.GetName()) })
 
