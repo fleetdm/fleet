@@ -14,6 +14,9 @@ import com.fleetdm.agent.osquery.tables.SystemPropertiesTable
 import com.fleetdm.agent.osquery.tables.AndroidLogcatTable
 import com.fleetdm.agent.osquery.tables.TimeTable
 import com.fleetdm.agent.osquery.tables.UptimeTable
+import com.fleetdm.agent.osquery.tables.SystemInfoTable
+import com.fleetdm.agent.osquery.tables.KernelInfoTable
+import com.fleetdm.agent.osquery.tables.MemoryInfoTable
 
 
 
@@ -32,6 +35,9 @@ object OsqueryTables {
         TableRegistry.register(AndroidLogcatTable(context))
         TableRegistry.register(TimeTable())
         TableRegistry.register(UptimeTable())
+        TableRegistry.register(SystemInfoTable(context))
+        TableRegistry.register(KernelInfoTable())
+        TableRegistry.register(MemoryInfoTable(context))
 
     }
 }

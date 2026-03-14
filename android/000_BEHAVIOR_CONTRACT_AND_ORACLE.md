@@ -11,9 +11,9 @@ So this is not the historical authoring order; it is a post-hoc contract/oracle 
 As part of this PR, the contracts/oracle approach from the book was adopted during the work: some sections were extracted from already-implemented code, and some sections were defined contract-first and then implemented according to that contract.
 
 ## Compliance statement
-The implementation in this PR was checked against the currently implemented contract/oracle rules (C1-C8 and O1-O5), and it appears to respect them based on current unit tests and manual validation performed by this AI agent in this branch.  
+The implementation in this PR was checked against the currently implemented contract/oracle rules (C1-C9 and O1-O8), and it appears to respect them based on current unit tests and manual validation performed by this AI agent in this branch.  
 This is an engineering confidence statement, not a formal proof of correctness.  
-The newly approved `time`/`uptime` additions (C9 and O6-O7) define the next implementation target.
+The newly approved `system_info`/`kernel_info`/`memory_info` additions (C10 and O9-O11) define the next implementation target.
 
 ## System behavior contract
 
@@ -25,6 +25,7 @@ This contract covers Android osquery behavior implemented in this PR branch:
 - osquery table exposure for Android
 - security-sensitive behavior for transport and logging
 - cross-OS parity table behavior for `time` and `uptime`
+- cross-OS parity table behavior for `system_info`, `kernel_info`, and `memory_info`
 
 ### Actors and interfaces
 - Fleet server endpoints:
@@ -96,6 +97,24 @@ Android must expose `time` and `uptime` using osquery-style table names and dete
 - values come from elapsed realtime since boot
 - all values are non-negative
 
+#### C10. Cross-OS parity tables `system_info`, `kernel_info`, `memory_info`
+Android must expose `system_info`, `kernel_info`, and `memory_info` using osquery-style names and deterministic snapshot semantics.
+
+`system_info` contract:
+- exactly one row per query
+- exposes stable host identity/profile snapshot fields
+- includes non-empty identity/model fields where Android provides them
+
+`kernel_info` contract:
+- exactly one row per query
+- exposes kernel/runtime version snapshot fields from local system properties
+- no network dependency
+
+`memory_info` contract:
+- exactly one row per query
+- exposes memory snapshot fields derived from Android memory APIs
+- total/available/threshold fields are non-negative numeric values
+
 ### Contracted Android table set
 Current registered tables:
 - `installed_apps`
@@ -111,6 +130,9 @@ Current registered tables:
 - `android_logcat`
 - `time`
 - `uptime`
+- `system_info`
+- `kernel_info`
+- `memory_info`
 
 ## Oracle for reviewers
 An oracle is the set of observable truths used to decide whether implementation behavior is acceptable.  
@@ -183,21 +205,58 @@ How to verify:
 - manual Fleet query on Android host
 - unit/integration assertion for non-negative and consistency checks
 
+### O8. Process compliance oracle for AI-assisted development
+Human rule:
+- For any new requested change, AI must produce contract/oracle deltas before code edits.
+- AI must pause for human approval before implementation.
+- Final output must state what oracle items were tested and what remains untested.
+How to verify:
+- PR timeline and commit order show contract/oracle update commit before implementation commit.
+- Conversation history shows explicit approval checkpoint before code edits.
+
+### O9. `system_info` table behavior
+Human rule:
+- `SELECT * FROM system_info;` returns exactly one row.
+- Identity/model fields expected on Android are present and non-empty when available.
+- Output is deterministic for a single snapshot (no crashes, no multi-row behavior).
+How to verify:
+- manual Fleet query on Android host
+- unit assertion for one-row shape and required keys
+
+### O10. `kernel_info` table behavior
+Human rule:
+- `SELECT * FROM kernel_info;` returns exactly one row.
+- Kernel/runtime version fields are present and non-empty where available.
+- Table does not depend on network access.
+How to verify:
+- manual Fleet query on Android host
+- unit assertion for one-row shape and key presence
+
+### O11. `memory_info` table behavior
+Human rule:
+- `SELECT * FROM memory_info;` returns exactly one row.
+- memory totals/available values parse as non-negative integers.
+- low-memory indicator is stable and parseable.
+How to verify:
+- manual Fleet query on Android host
+- unit assertion for one-row shape and numeric parseability
+
 ## Reviewer checklist (fast path)
 1. Validate C1-C4 against unit test evidence (`ApiClientReenrollTest`).
 2. Validate C5-C7 by one end-to-end run: query from Fleet UI and inspect writeback results.
 3. Validate C8 by running `android_logcat` once with flag off (expect empty), then on (expect filtered/redacted rows).
 4. Validate C9/O6/O7 with `SELECT * FROM time;` and `SELECT * FROM uptime;` plus basic value sanity checks.
-5. Approve only if behavior and safety expectations match this contract, even if implementation details change later.
+5. Validate C10/O9/O10/O11 with `SELECT * FROM system_info;`, `SELECT * FROM kernel_info;`, and `SELECT * FROM memory_info;`.
+6. Approve only if behavior and safety expectations match this contract, even if implementation details change later.
 
 ---
 
-## Proposed change for review (process standardization)
+## Process standardization (implemented in this PR)
 
-### Proposal P2: Add a reusable AI workflow instruction file for all developers
-Goal: provide one copy/paste instruction file that makes Codex/Claude follow contract-first development on every task.
+### P2: Reusable AI workflow instruction file for all developers
+Goal achieved: one copy/paste instruction file makes Codex/Claude follow contract-first development on every task.
 
-#### Contract additions (proposed)
+#### Contract additions
 - Add a human-readable, AI-targeted instruction file in this repo for developers to paste into terminal AI sessions before work starts.
 - The instruction file must define the concepts for AI systems with no prior context:
   - **Behavior contract**: the human-reviewable description of what the system must do and what must remain true.
@@ -215,13 +274,5 @@ Goal: provide one copy/paste instruction file that makes Codex/Claude follow con
   - separate confidence statements from proof
   - clearly label AI-performed validation
 
-#### Oracle additions (proposed)
-
-### O8. Process compliance oracle for AI-assisted development
-Human rule:
-- For any new requested change, AI must produce contract/oracle deltas before code edits.
-- AI must pause for human approval before implementation.
-- Final output must state what oracle items were tested and what remains untested.
-How to verify:
-- PR timeline and commit order show contract/oracle update commit before implementation commit.
-- Conversation history shows explicit approval checkpoint before code edits.
+#### Oracle additions
+- See O8 above.

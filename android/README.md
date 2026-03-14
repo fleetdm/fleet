@@ -326,6 +326,9 @@ This interval is **not configurable yet**; making it configurable (for example v
 | `android_logcat` | Recent logcat entries | `SELECT timestamp, level, tag, message FROM android_logcat LIMIT 100;` |
 | `time` | Current local time/timezone snapshot | `SELECT weekday, hour, minutes, local_timezone, unix_time FROM time;` |
 | `uptime` | Device uptime duration snapshot | `SELECT days, hours, minutes, seconds, total_seconds FROM uptime;` |
+| `system_info` | Host identity, hardware, and memory summary snapshot | `SELECT hostname, uuid, hardware_vendor, hardware_model, physical_memory FROM system_info;` |
+| `kernel_info` | Kernel and runtime version snapshot | `SELECT version, release, build, platform FROM kernel_info;` |
+| `memory_info` | Current memory totals and low-memory state | `SELECT total_bytes, available_bytes, threshold_bytes, low_memory FROM memory_info;` |
 
 ### Quick start (5 minutes)
 
@@ -354,6 +357,25 @@ SELECT name, version, platform, security_patch FROM os_version;
 ```bash
 adb logcat | rg "fleet-ApiClient|fleet-distributed|Successfully enrolled host|distributed/read"
 ```
+
+### QA quick checks for new cross-OS tables
+
+Run these in Fleet live query and confirm exactly 1 row each:
+
+```sql
+SELECT * FROM time;
+SELECT * FROM uptime;
+SELECT * FROM system_info;
+SELECT * FROM kernel_info;
+SELECT * FROM memory_info;
+```
+
+Expected sanity checks:
+- `time.unix_time` is close to current epoch time, and `local_timezone` is non-empty.
+- `uptime.total_seconds` is non-negative and consistent with `days/hours/minutes/seconds`.
+- `system_info.uuid` is non-empty.
+- `kernel_info.platform` is `android`.
+- `memory_info.total_bytes`/`available_bytes`/`threshold_bytes` are non-negative.
 
 ### Architecture at a glance
 
