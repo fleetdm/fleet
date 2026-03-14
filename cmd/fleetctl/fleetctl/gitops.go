@@ -494,10 +494,11 @@ func gitopsCommand() *cli.Command {
 				// before the CA itself is deleted (by the global config).
 				// During dry run, no actual deletions happen, so there's no FK ordering issue
 				// and CAs can be processed inline for validation.
+				// We capture deferredCAs before DoGitOps because DoGitOps deletes the key from OrgSettings.
 				var deferredCAs any
 				if isGlobalConfig && !flDryRun {
 					deferredCAs = config.OrgSettings["certificate_authorities"]
-					delete(config.OrgSettings, "certificate_authorities")
+					config.SkipCertificateAuthorities = true
 				}
 
 				assumptions, err := fleetClient.DoGitOps(
@@ -521,16 +522,12 @@ func gitopsCommand() *cli.Command {
 				// Certificate authority deletions may fail if certificate templates still reference
 				// them, so we defer CA processing until after team configs have cleaned up their
 				// certificate templates.
-				if isGlobalConfig && deferredCAs != nil {
-					config.OrgSettings["certificate_authorities"] = deferredCAs
+				if isGlobalConfig && !flDryRun {
 					caFilename := flFilename
 					allPostOps = append(allPostOps, func() error {
 						groupedCAs, caErr := fleet.ValidateCertificateAuthoritiesSpec(deferredCAs)
 						if caErr != nil {
 							return fmt.Errorf("invalid certificate_authorities: %w", caErr)
-						}
-						if groupedCAs == nil {
-							return nil
 						}
 						if caErr = fleetClient.ApplyCertificateAuthoritiesSpec(*groupedCAs, fleet.ApplySpecOptions{}); caErr != nil {
 							if caErr.Error() == "missing or invalid license" {

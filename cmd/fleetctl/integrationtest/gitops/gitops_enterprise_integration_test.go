@@ -809,7 +809,7 @@ controls:
     certificates:
       - name: TestCert
         certificate_authority_name: TestSCEP
-        subject_name: "CN=$FLEET_VAR_HOST_END_USER_EMAIL_IDP,O=Fleet"
+        subject_name: "CN=test,O=Fleet"
 settings:
   secrets:
     - secret: ca_test_team_secret
