@@ -33,8 +33,8 @@ const getOSSettingsNavItems = (
       Card: DiskEncryption,
     },
     {
-      title: "Custom settings",
-      urlSection: "custom-settings",
+      title: "Configuration profiles",
+      urlSection: "configuration-profiles",
       path: PATHS.CONTROLS_CUSTOM_SETTINGS,
       Card: CustomSettings,
     },

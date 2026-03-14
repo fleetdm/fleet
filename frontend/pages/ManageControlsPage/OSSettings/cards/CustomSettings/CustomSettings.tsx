@@ -34,7 +34,7 @@ import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 
 const PROFILES_PER_PAGE = 10;
 
-const baseClass = "custom-settings";
+const baseClass = "configuration-profiles";
 
 export type ICustomSettingsProps = IOSSettingsCommonProps & {
   currentPage?: number;
@@ -226,13 +226,13 @@ const CustomSettings = ({
 
   return (
     <div className={baseClass}>
-      <SectionHeader title="Custom settings" alignLeftHeaderVertically />
+      <SectionHeader title="Configuration profiles" alignLeftHeaderVertically />
       <PageDescription
         variant="right-panel"
         content={
           <>
             {isTechnician
-              ? "View configuration profiles that apply custom settings."
+              ? "View configuration profiles."
               : "Create and upload configuration profiles to apply custom settings."}{" "}
             <CustomLink
               newTab
@@ -244,11 +244,11 @@ const CustomSettings = ({
       />
       {!mdmEnabled ? (
         <GenericMsgWithNavButton
-          header="Manage your hosts"
+          header="Additional configuration required"
           buttonText="Turn on"
           path={PATHS.ADMIN_INTEGRATIONS_MDM}
           router={router}
-          info="MDM must be turned on to apply custom settings."
+          info="MDM must be turned on to add configuration profiles."
         />
       ) : (
         renderProfileList()
