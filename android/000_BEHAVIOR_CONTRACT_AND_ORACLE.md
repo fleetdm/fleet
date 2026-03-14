@@ -5,6 +5,14 @@
 ## Why this file exists
 This PR is large. The goal of this document is to give reviewers a stable behavior contract and a practical oracle, so humans review expected system behavior and safety invariants instead of diff volume.
 
+## Enrollment scenario (high-level)
+1. Device is enrolled into Android MDM and this app is installed via managed distribution policy.
+2. MDM provides managed app config with `server_url`, `enroll_secret`, and `host_uuid`.
+3. App starts (install/boot/worker wake), reads managed config, and sets enrollment credentials.
+4. App enrolls to Fleet Orbit via `POST /api/fleet/orbit/enroll` using managed credentials.
+5. Fleet returns `orbit_node_key`; app stores it and uses it for follow-up Fleet API calls.
+6. App runs distributed loop (`/api/v1/osquery/distributed/read` -> local execute -> `/api/v1/osquery/distributed/write`) and appears as an enrolled Android host.
+
 ## Provenance and ordering note
 This document was created by AI, but it was created **after** the implementation (reverse-extracted from the code in this PR branch).  
 So this is not the historical authoring order; it is a post-hoc contract/oracle reconstruction for human review and accountability.
