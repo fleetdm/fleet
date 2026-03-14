@@ -2806,9 +2806,12 @@ func (ds *Datastore) cleanupUnusedSoftware(ctx context.Context) error {
 		LIMIT ?
 	`
 
+	// Use the reader for the first SELECT to reduce writer load. Subsequent iterations use the writer
+	// so that we see our own deletes and don't re-select the same rows due to replica lag.
+	db := ds.reader(ctx)
 	for range cleanupMaxIterations {
 		var ids []uint
-		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &ids, findUnusedSoftwareStmt, cleanupBatchSize); err != nil {
+		if err := sqlx.SelectContext(ctx, db, &ids, findUnusedSoftwareStmt, cleanupBatchSize); err != nil {
 			return ctxerr.Wrap(ctx, err, "find unused software for cleanup")
 		}
 		if len(ids) == 0 {
@@ -2822,6 +2825,7 @@ func (ds *Datastore) cleanupUnusedSoftware(ctx context.Context) error {
 		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete unused software batch")
 		}
+		db = ds.writer(ctx)
 	}
 	return nil
 }
