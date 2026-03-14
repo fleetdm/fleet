@@ -4,7 +4,7 @@ All SysAdmins have been there. It’s Friday afternoon - you make a few wrong cl
 
 It’s a tough lesson to learn. 
 
-But, what if there was a way, through GitOps and change management best practices, you could avoid all this? A modern change management methodology typically reserved for developers has now arrived for your IT team. 🛬
+But, what if there was a way, through GitOps and change management best practices, you could avoid all this? A "you can just do things" methodology typically reserved for developers has now arrived for your IT team. 🛬
 
 ## What is “GitOps”?
 
