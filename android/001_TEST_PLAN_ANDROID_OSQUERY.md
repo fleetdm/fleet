@@ -174,6 +174,14 @@ Verify behavior from automated tests (A1) and code paths:
 - Non-debug requires HTTPS
 - Reject path/query/fragment/userinfo in base URL
 
+### S1b. Negative URL/config path (P0)
+Command:
+```bash
+./gradlew :app:testDebugUnitTest --tests com.fleetdm.agent.SecurityNegativePathsTest --console=plain --no-daemon
+```
+Expected:
+- Missing enrollment config fails closed (`Credentials not set`)
+
 ### S2. Re-enrollment control (P0)
 Simulate/validate:
 - 401 -> clear key -> re-enroll -> retry
@@ -196,6 +204,14 @@ Release-like behavior:
 ### S6. Accepted minor risk verification (P2)
 - Enrollment secret currently in app-private DataStore (not Keystore-encrypted)
 - Confirm risk remains documented in contract + PR QA
+
+### S7. Negative SQL parser path (P1)
+Command:
+```bash
+./gradlew :app:testDebugUnitTest --tests com.fleetdm.agent.SecurityNegativePathsTest --console=plain --no-daemon
+```
+Expected:
+- Malformed SQL is rejected and does not crash worker/query engine path
 
 ## Lifecycle and corner-case tests (P1/P2)
 
