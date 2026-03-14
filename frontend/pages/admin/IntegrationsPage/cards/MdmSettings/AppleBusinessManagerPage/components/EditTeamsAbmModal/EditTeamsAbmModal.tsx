@@ -64,9 +64,9 @@ export const getSelectedTeamIds = (
     return acc;
   }, {} as Record<string, number>);
   return {
-    ios_team_id: byName[ios_team],
-    ipados_team_id: byName[ipados_team],
-    macos_team_id: byName[macos_team],
+    ios_fleet_id: byName[ios_team],
+    ipados_fleet_id: byName[ipados_team],
+    macos_fleet_id: byName[macos_team],
   };
 };
 

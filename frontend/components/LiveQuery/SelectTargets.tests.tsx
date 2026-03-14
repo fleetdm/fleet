@@ -23,7 +23,7 @@ const labelSummariesHandler = http.get(baseUrl("/labels/summary"), () => {
   return HttpResponse.json({ labels: MOCK_LABELS });
 });
 
-const teamsHandler = http.get(baseUrl("/teams"), () => {
+const teamsHandler = http.get(baseUrl("/fleets"), () => {
   return HttpResponse.json({ teams: MOCK_TEAMS });
 });
 

@@ -33,7 +33,7 @@ const BootstrapAdvancedOptions = ({
     setIsSaving(true);
     try {
       await mdmAPI.updateSetupExperienceSettings({
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
         manual_agent_install: selectManualAgentInstall,
       });
       renderFlash("success", "Successfully updated.");

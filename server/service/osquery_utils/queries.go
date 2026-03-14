@@ -1721,6 +1721,9 @@ func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *flee
 		return ctxerr.Errorf(ctx, "directIngestOSUnixLike invalid number of rows: %d", len(rows))
 	}
 	name := rows[0]["name"]
+	if strings.HasPrefix(name, "Arch Linux") {
+		name = strings.TrimSuffix(name, " ARM")
+	}
 	version := rows[0]["version"]
 	major := rows[0]["major"]
 	minor := rows[0]["minor"]

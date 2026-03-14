@@ -18,7 +18,7 @@
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 name: "📱🔐 Personal mobile devices"
 controls:
-  apple_setup:
+  setup_experience:
     ###########################################################
     # Uncomment to use single-sign on (SSO) to authenticate 
     # end users enrolling their personal device.

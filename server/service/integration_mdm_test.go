@@ -13841,7 +13841,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		"team_id",
 		fmt.Sprint(team.ID))
 	s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?team_id=%d", "team_id": %d, "fleet_id": %d, "platform": "%s"}`, team.Name, team.Name,
+		fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", "team_id": %d, "fleet_id": %d, "platform": "%s"}`, team.Name, team.Name,
 			addedApp.Name, addedApp.AdamID, macOSTitleID, team.ID, team.ID, team.ID, addedApp.Platform), 0)
 
 	var count int
@@ -14583,7 +14583,7 @@ func (s *integrationMDMTestSuite) TestNoTeamVPPAppIcons() {
 		"team_id",
 		fmt.Sprint(fleet.PolicyNoTeamID))
 	s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": null, "fleet_name": null, "software_title": "%s", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?team_id=%d", "team_id": %d, "fleet_id": %d, "platform": "%s"}`,
+		fmt.Sprintf(`{"team_name": null, "fleet_name": null, "software_title": "%s", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", "team_id": %d, "fleet_id": %d, "platform": "%s"}`,
 			addedApp.Name, addedApp.AdamID, macOSTitleID, fleet.PolicyNoTeamID, fleet.PolicyNoTeamID, fleet.PolicyNoTeamID, addedApp.Platform), 0)
 
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -19631,25 +19631,20 @@ func (s *integrationMDMTestSuite) TestCancelLockWipeUpcomingActivity() {
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.EqualValues(t, fleet.PendingActionNone, *getHostResp.Host.MDM.PendingAction)
 
-	// past lock/wipe actions have been cleared
+	// original lock/wipe activities are preserved in the audit log, with the cancelation as the latest activity
 	var listAct listActivitiesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", h3.ID), nil, http.StatusOK, &listAct)
-	// latest activity is the cancelation
-	require.True(t, len(listAct.Activities) > 0)
+	require.True(t, len(listAct.Activities) > 1)
 	require.Equal(t, fleet.ActivityTypeCanceledRunScript{}.ActivityName(), listAct.Activities[0].Type)
-	if len(listAct.Activities) > 1 {
-		require.NotEqual(t, lockActID, listAct.Activities[1].ID)
-		require.NotEqual(t, fleet.ActivityTypeLockedHost{}.ActivityName(), listAct.Activities[1].Type)
-	}
+	require.Equal(t, lockActID, listAct.Activities[1].ID)
+	require.Equal(t, fleet.ActivityTypeLockedHost{}.ActivityName(), listAct.Activities[1].Type)
 
 	listAct = listActivitiesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", h4.ID), nil, http.StatusOK, &listAct)
-	require.True(t, len(listAct.Activities) > 0)
+	require.True(t, len(listAct.Activities) > 1)
 	require.Equal(t, fleet.ActivityTypeCanceledRunScript{}.ActivityName(), listAct.Activities[0].Type)
-	if len(listAct.Activities) > 1 {
-		require.NotEqual(t, wipeActID, listAct.Activities[1].ID)
-		require.NotEqual(t, fleet.ActivityTypeWipedHost{}.ActivityName(), listAct.Activities[1].Type)
-	}
+	require.Equal(t, wipeActID, listAct.Activities[1].ID)
+	require.Equal(t, fleet.ActivityTypeWipedHost{}.ActivityName(), listAct.Activities[1].Type)
 }
 
 func (s *integrationMDMTestSuite) TestSoftwareCategories() {

@@ -493,7 +493,7 @@ spec:
     name: team1
     mdm:
       macos_updates:
-      macos_settings:
+      apple_settings:
 `)
 
 	require.Equal(t, "[+] applied 1 fleet\n", RunAppForTest(t, []string{"apply", "-f", filename}))
@@ -2477,7 +2477,7 @@ spec:
 		// appconfig not .json
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", "no_such_file.txt"))
 		_, err = RunAppNoChecks([]string{"apply", "-f", name})
-		require.ErrorContains(t, err, `Couldn’t edit macos_setup_assistant. The file should be a .json file.`)
+		require.ErrorContains(t, err, `Couldn’t edit apple_setup_assistant. The file should be a .json file.`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.SaveAppConfigFuncInvoked)
 
@@ -2498,7 +2498,7 @@ spec:
 		// team not .json
 		name = writeTmpYml(t, fmt.Sprintf(team1Spec, "", "no_such_file.txt"))
 		_, err = RunAppNoChecks([]string{"apply", "-f", name})
-		require.ErrorContains(t, err, `Couldn’t edit macos_setup_assistant. The file should be a .json file.`)
+		require.ErrorContains(t, err, `Couldn’t edit apple_setup_assistant. The file should be a .json file.`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.SaveTeamFuncInvoked)
 
@@ -2676,8 +2676,8 @@ spec:
 			expectedErr error
 		}{
 			{"signed.pkg", nil},
-			{"unsigned.pkg", errors.New("applying fleet config: Couldn’t edit bootstrap_package. The bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/learn-more-about/setup-experience/bootstrap-package")},
-			{"invalid.tar.gz", errors.New("applying fleet config: Couldn’t edit bootstrap_package. The file must be a package (.pkg).")},
+			{"unsigned.pkg", errors.New("applying fleet config: Couldn’t edit macos_bootstrap_package. The macos_bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/learn-more-about/setup-experience/bootstrap-package")},
+			{"invalid.tar.gz", errors.New("applying fleet config: Couldn’t edit macos_bootstrap_package. The file must be a package (.pkg).")},
 			{"wrong-toc.pkg", errors.New("applying fleet config: checking package signature: decompressing TOC: unexpected EOF")},
 		}
 
@@ -4012,7 +4012,7 @@ spec:
       macos_settings:
         enable_disk_encryption: true
 `,
-			wantErr: `Couldn't update macos_settings because MDM features aren't turned on in Fleet.`,
+			wantErr: `Couldn't update apple_settings because MDM features aren't turned on in Fleet.`,
 		},
 		{
 			desc: "team config macos_settings.enable_disk_encryption false",

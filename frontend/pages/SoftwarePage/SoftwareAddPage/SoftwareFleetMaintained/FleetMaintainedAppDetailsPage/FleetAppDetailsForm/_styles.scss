@@ -62,12 +62,7 @@
     gap: $pad-small;
   }
 
-  .info-banner {
-    margin-top: $pad-small;
-  }
-
   .form-fields--disabled {
     @include disabled;
   }
-  
 }

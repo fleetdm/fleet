@@ -192,7 +192,7 @@ const SelectTargets = ({
     ({ queryKey }) => {
       const { query_id, query, selected } = queryKey[0];
       return targetsAPI.search({
-        query_id: query_id || null,
+        report_id: query_id || null,
         query: query || "",
         excluded_host_ids: selected?.hosts || null,
       });
@@ -223,7 +223,10 @@ const SelectTargets = ({
     ],
     ({ queryKey }) => {
       const { query_id, selected } = queryKey[0];
-      return targetsAPI.count({ query_id, selected: selected || null });
+      return targetsAPI.count({
+        report_id: query_id,
+        selected: selected || null,
+      });
     },
     {
       enabled: !!selectedTargets.length,
