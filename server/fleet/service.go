@@ -1438,7 +1438,7 @@ type Service interface {
 	UpdateCertificateAuthority(ctx context.Context, id uint, p CertificateAuthorityUpdatePayload) error
 	RequestCertificate(ctx context.Context, p RequestCertificatePayload) (*string, error)
 	// BatchApplyCertificateAuthorities applies the given certificate authorities spec
-	BatchApplyCertificateAuthorities(ctx context.Context, groupedCAs GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error
+	BatchApplyCertificateAuthorities(ctx context.Context, groupedCAs GroupedCertificateAuthorities, opts BatchApplyCertificateAuthoritiesOpts) error
 	// GetGroupedCertificateAuthorities retrieves the grouped certificate authorities
 	GetGroupedCertificateAuthorities(ctx context.Context, includeSecrets bool) (*GroupedCertificateAuthorities, error)
 

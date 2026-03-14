@@ -453,14 +453,18 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		if len(ops.Delete) > 0 {
 			storedCAs = fleet.GroupedCertificateAuthorities{}
 		}
-		upserts := make([]*fleet.CertificateAuthority, 0, len(ops.Add)+len(ops.Update))
-		upserts = append(upserts, ops.Add...)
-		upserts = append(upserts, ops.Update...)
-		g, err := fleet.GroupCertificateAuthoritiesByType(upserts)
-		if err != nil {
-			return err
+		// Adds replace the stored CAs entirely (like the first apply).
+		// Updates are a no-op for the mock since the data is already stored.
+		if len(ops.Add) > 0 {
+			all := make([]*fleet.CertificateAuthority, 0, len(ops.Add)+len(ops.Update))
+			all = append(all, ops.Add...)
+			all = append(all, ops.Update...)
+			g, err := fleet.GroupCertificateAuthoritiesByType(all)
+			if err != nil {
+				return err
+			}
+			storedCAs = *g
 		}
-		storedCAs = *g
 		return nil
 	}
 

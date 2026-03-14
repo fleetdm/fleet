@@ -490,10 +490,9 @@ func gitopsCommand() *cli.Command {
 				}
 
 				// Capture CAs before DoGitOps (which deletes the key from OrgSettings).
-				// CAs are processed inline by DoGitOps — creates/updates always succeed because
-				// the datastore uses separate transactions for upserts and deletes.
-				// If a CA deletion fails due to FK constraints (certificate templates still reference it),
-				// we schedule a retry as a post-op that runs after team configs have cleaned up their templates.
+				// DoGitOps processes CA creates/updates inline (with skipDeletes=true).
+				// CA deletions are always deferred to a post-op so that team configs can
+				// clean up certificate templates (which have FK references to CAs) first.
 				var deferredCAs any
 				if isGlobalConfig && !flDryRun {
 					deferredCAs = config.OrgSettings["certificate_authorities"]
@@ -513,32 +512,21 @@ func gitopsCommand() *cli.Command {
 					&iconSettings,
 				)
 				if err != nil {
-					// If CA deletion failed due to FK constraints, schedule a retry after team configs.
-					if isGlobalConfig && !flDryRun && strings.Contains(err.Error(), "Certificate templates still reference it") {
-						logf("[-] CA deletion deferred until after team configs process\n")
-						caFilename := flFilename
-						allPostOps = append(allPostOps, func() error {
-							groupedCAs, caErr := fleet.ValidateCertificateAuthoritiesSpec(deferredCAs)
-							if caErr != nil {
-								return fmt.Errorf("invalid certificate_authorities: %w", caErr)
-							}
-							if caErr = fleetClient.ApplyCertificateAuthoritiesSpec(*groupedCAs, fleet.ApplySpecOptions{}); caErr != nil {
-								if caErr.Error() == "missing or invalid license" {
-									return fmt.Errorf(
-										"Couldn't edit %q at \"certificate_authorities\": Missing or invalid license. Certificate authorities are available in Fleet Premium only.",
-										filepath.Base(caFilename),
-									)
-								}
-								return fmt.Errorf("applying certificate authorities: %w", caErr)
-							}
-							logf("[+] applied certificate authorities\n")
-							return nil
-						})
-						err = nil
-					}
-					if err != nil {
-						return err
-					}
+					return err
+				}
+
+				// Schedule CA deletions as a post-op after all team configs have been processed.
+				if isGlobalConfig && !flDryRun {
+					allPostOps = append(allPostOps, func() error {
+						groupedCAs, caErr := fleet.ValidateCertificateAuthoritiesSpec(deferredCAs)
+						if caErr != nil {
+							return fmt.Errorf("invalid certificate_authorities: %w", caErr)
+						}
+						if caErr = fleetClient.ApplyCertificateAuthoritiesSpec(*groupedCAs, fleet.ApplySpecOptions{}, fleet.BatchApplyCertificateAuthoritiesOpts{}); caErr != nil {
+							return fmt.Errorf("applying certificate authorities: %w", caErr)
+						}
+						return nil
+					})
 				}
 
 				if config.TeamName != nil {

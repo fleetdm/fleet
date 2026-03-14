@@ -148,9 +148,12 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 	t := s.T()
 	ctx := context.Background()
 
-	// Delete certificate templates before teams and CAs to avoid FK constraints.
 	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `DELETE FROM certificate_templates;`)
+		// Delete certificate templates before CAs and teams to avoid FK constraints.
+		if _, err := q.ExecContext(ctx, `DELETE FROM certificate_templates`); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `DELETE FROM certificate_authorities`)
 		return err
 	})
 
@@ -160,12 +163,6 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 		err := s.DS.DeleteTeam(ctx, tm.ID)
 		require.NoError(t, err)
 	}
-
-	// Delete certificate authorities after teams and templates are cleaned up.
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `DELETE FROM certificate_authorities;`)
-		return err
-	})
 
 	// Delete policies in "No team" (the others are deleted in ts.DS.DeleteTeam above).
 	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
@@ -859,7 +856,7 @@ reports:
 		"-f", globalFileWithoutCA,
 	})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "Certificate templates still reference it")
+	require.Contains(t, err.Error(), fleet.DeleteCAReferencedByTemplatesErrMsg)
 
 	// Verify CA and certificate template still exist.
 	groupedCAs, err = s.DS.GetGroupedCertificateAuthorities(t.Context(), false)

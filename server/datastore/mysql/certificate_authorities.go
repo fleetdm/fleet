@@ -352,7 +352,7 @@ func batchDeleteCertificateAuthorities(ctx context.Context, tx sqlx.ExtContext, 
 	if err != nil {
 		if isMySQLForeignKey(err) {
 			return &fleet.ConflictError{
-				Message: "Couldn't delete certificate authority. Certificate templates still reference it. Please remove the certificate templates first.",
+				Message: "Couldn't delete certificate authority. " + fleet.DeleteCAReferencedByTemplatesErrMsg + ". Please remove the certificate templates first.",
 			}
 		}
 		return ctxerr.Wrap(ctx, err, "deleting certificate authorities")
@@ -367,24 +367,19 @@ func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops f
 	upserts = append(upserts, ops.Add...)
 	upserts = append(upserts, ops.Update...)
 
-	// Upserts and deletes are in separate transactions so that creates/updates succeed even if
-	// deletes fail due to FK constraints (e.g., certificate templates still reference a CA).
-	// This is important for GitOps where CAs are applied before team configs that clean up templates.
-	if len(upserts) > 0 {
-		if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			return batchUpsertCertificateAuthorities(ctx, tx, ds.serverPrivateKey, upserts)
-		}); err != nil {
-			return err
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if len(upserts) > 0 {
+			if err := batchUpsertCertificateAuthorities(ctx, tx, ds.serverPrivateKey, upserts); err != nil {
+				return err
+			}
 		}
-	}
-	if len(ops.Delete) > 0 {
-		if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			return batchDeleteCertificateAuthorities(ctx, tx, ops.Delete)
-		}); err != nil {
-			return err
+		if len(ops.Delete) > 0 {
+			if err := batchDeleteCertificateAuthorities(ctx, tx, ops.Delete); err != nil {
+				return err
+			}
 		}
-	}
-	return nil
+		return nil
+	})
 }
 
 func (ds *Datastore) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) (*fleet.CertificateAuthoritySummary, error) {
@@ -410,7 +405,7 @@ func (ds *Datastore) DeleteCertificateAuthority(ctx context.Context, certificate
 	if err != nil {
 		if isMySQLForeignKey(err) {
 			return nil, fleet.ConflictError{
-				Message: "Couldn't delete certificate authority. Certificate templates still reference it. Please remove the certificate templates first.",
+				Message: "Couldn't delete certificate authority. " + fleet.DeleteCAReferencedByTemplatesErrMsg + ". Please remove the certificate templates first.",
 			}
 		}
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("deleting certificate authority with id %d", certificateAuthorityID))

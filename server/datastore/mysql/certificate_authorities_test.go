@@ -402,7 +402,7 @@ func testDeleteCertificateAuthority(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	var conflictErr fleet.ConflictError
 	require.ErrorAs(t, err, &conflictErr)
-	require.Contains(t, conflictErr.Error(), "Certificate templates still reference it")
+	require.Contains(t, conflictErr.Error(), fleet.DeleteCAReferencedByTemplatesErrMsg)
 }
 
 func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
