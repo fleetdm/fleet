@@ -1,10 +1,4 @@
-import React, {
-  FormEvent,
-  useState,
-  useEffect,
-  useContext,
-  useRef,
-} from "react";
+import React, { FormEvent, useState, useEffect, useContext } from "react";
 import PATHS from "router/paths";
 
 import { PRIMO_TOOLTIP } from "utilities/constants";
@@ -350,8 +344,8 @@ const UserForm = ({
     return (
       <>
         {isPremiumTier && (
-          <InfoBanner 
-            color="grey" 
+          <InfoBanner
+            color="grey"
             className={`${baseClass}__user-permissions-info`}
           >
             <p>
@@ -409,7 +403,10 @@ const UserForm = ({
         {!!availableTeams.length &&
           (isModifiedByGlobalAdmin ? (
             <>
-              <InfoBanner color="grey" className={`${baseClass}__user-permissions-info`}>
+              <InfoBanner
+                color="grey"
+                className={`${baseClass}__user-permissions-info`}
+              >
                 <p>
                   Users can manage or observe fleet-specific users, entities,
                   and settings in Fleet.
