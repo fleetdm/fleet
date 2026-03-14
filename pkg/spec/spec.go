@@ -193,7 +193,13 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			if err := yaml.Unmarshal(s.Spec, &rawTeam); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
-			specs.Teams = append(specs.Teams, rawTeam["team"])
+			teamRaw := rawTeam["team"]
+			var err error
+			teamRaw, deprecatedKeysMap, err = rewriteNewToOldKeys(teamRaw, fleet.TeamSpec{})
+			if err != nil {
+				return nil, fmt.Errorf("in %s spec: %w", kind, err)
+			}
+			specs.Teams = append(specs.Teams, teamRaw)
 
 		default:
 			return nil, fmt.Errorf("unknown kind %q", s.Kind)
