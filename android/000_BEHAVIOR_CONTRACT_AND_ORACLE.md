@@ -247,31 +247,3 @@ How to verify:
 4. Validate C9/O6/O7 with `SELECT * FROM time;` and `SELECT * FROM uptime;` plus basic value sanity checks.
 5. Validate C10/O9/O10/O11 with `SELECT * FROM system_info;`, `SELECT * FROM kernel_info;`, and `SELECT * FROM memory_info;`.
 6. Approve only if behavior and safety expectations match this contract, even if implementation details change later.
-
----
-
-## Process standardization (implemented in this PR)
-
-### P2: Reusable AI workflow instruction file for all developers
-Goal achieved: one copy/paste instruction file makes Codex/Claude follow contract-first development on every task.
-
-#### Contract additions
-- Add a human-readable, AI-targeted instruction file in this repo for developers to paste into terminal AI sessions before work starts.
-- The instruction file must define the concepts for AI systems with no prior context:
-  - **Behavior contract**: the human-reviewable description of what the system must do and what must remain true.
-  - **Oracle**: the concrete, observable checks used to decide if implementation behavior is acceptable.
-  - **Contract-first step**: update/create contract + oracle before any code change.
-- The instruction file must require this sequence for every task:
-  1. restate human intent
-  2. create/update behavior contract + oracle first
-  3. ask human to review and approve
-  4. only after explicit approval, implement code
-  5. run verification and map results back to oracle checks
-  6. update PR/summary with tested vs untested oracle items
-- The instruction file must include strict truthfulness rules:
-  - do not claim contract-first history when work was reverse-extracted
-  - separate confidence statements from proof
-  - clearly label AI-performed validation
-
-#### Oracle additions
-- See O8 above.
