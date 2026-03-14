@@ -606,6 +606,18 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 		}
 	}
 
+	// The NVD CPE dictionary contains an invalid CPE for Ipswitch WhatsUp with product="whatsup",
+	// but CVE-2006-2354 references product="whatsup_professional".
+	// See https://github.com/fleetdm/fleet/issues/32662.
+	for _, cpeItem := range cpeItems {
+		if cpeItem.Vendor == "ipswitch" && cpeItem.Product == "whatsup" && cpeItem.Language == "premium" {
+			cpeItem2 := *cpeItem
+			cpeItem2.Product = "whatsup_professional"
+			cpeItem2.Language = wfn.Any
+			cpeItems = append(cpeItems, &cpeItem2)
+		}
+	}
+
 	// pgAdmin CVEs in NVD use target_sw=postgresql and product=pgadmin_4, but Fleet generates
 	// CPEs with platform-based target_sw (macos, windows) and may use different product
 	// names (pgadmin, pgadmin4). Add aliases with target_sw=postgresql and product name

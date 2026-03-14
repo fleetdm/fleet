@@ -1247,6 +1247,16 @@ func TestExpandCPEAliases(t *testing.T) {
 	python3130RC1Alias.Version = "3.13.0rc1"
 	python3130RC1Alias.Update = ""
 
+	ipswitchWhatsup := &wfn.Attributes{
+		Vendor:   "ipswitch",
+		Product:  "whatsup",
+		Version:  "2006",
+		Language: "premium",
+	}
+	ipswitchWhatsupAlias := *ipswitchWhatsup
+	ipswitchWhatsupAlias.Product = "whatsup_professional"
+	ipswitchWhatsupAlias.Language = ""
+
 	pgadminMacOS := &wfn.Attributes{
 		Vendor:   "pgadmin",
 		Product:  "pgadmin",
@@ -1316,6 +1326,11 @@ func TestExpandCPEAliases(t *testing.T) {
 			name:            "pre-release python: 3.13.0 rc1",
 			cpeItem:         python3130RC1,
 			expectedAliases: []*wfn.Attributes{python3130RC1, &python3130RC1Alias},
+		},
+		{
+			name:            "ipswitch whatsup alias",
+			cpeItem:         ipswitchWhatsup,
+			expectedAliases: []*wfn.Attributes{ipswitchWhatsup, &ipswitchWhatsupAlias},
 		},
 		{
 			name:    "pgadmin on macos",
