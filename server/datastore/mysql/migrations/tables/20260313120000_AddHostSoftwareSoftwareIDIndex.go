@@ -17,6 +17,6 @@ func Up_20260313120000(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260313120000(tx *sql.Tx) error {
+func Down_20260313120000(_ *sql.Tx) error {
 	return nil
 }
