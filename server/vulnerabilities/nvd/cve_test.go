@@ -453,6 +453,13 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		// 	},
 		// 	continuesToUpdate: true,
 		// },
+		// Ensure malformed ipswitch whatsup cpe is successfully matched to CVE
+		// See https://github.com/fleetdm/fleet/issues/32662.
+		"cpe:2.3:a:ipswitch:whatsup:2006:-:professional:premium:*:*:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2006-2354"},
+			},
+		},
 		// Tests the expandCPEAliases rule for virtualbox on macOS
 		"cpe:2.3:a:oracle:virtualbox:7.0.6:*:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
