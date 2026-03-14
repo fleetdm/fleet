@@ -11,7 +11,7 @@ So this is not the historical authoring order; it is a post-hoc contract/oracle 
 As part of this PR, the contracts/oracle approach from the book was adopted during the work: some sections were extracted from already-implemented code, and some sections were defined contract-first and then implemented according to that contract.
 
 ## Compliance statement
-The implementation in this PR was checked against the currently implemented contract/oracle rules (C1-C11 and O1-O12), and it appears to respect them based on current unit tests and manual validation performed by this AI agent in this branch.  
+The implementation in this PR was checked against the currently implemented contract/oracle rules (C1-C12 and O1-O18), and it appears to respect them based on current unit tests and manual validation performed by this AI agent in this branch.  
 This is an engineering confidence statement, not a formal proof of correctness.  
 
 ## System behavior contract
@@ -25,6 +25,7 @@ This contract covers Android osquery behavior implemented in this PR branch:
 - security-sensitive behavior for transport and logging
 - cross-OS parity table behavior for `time` and `uptime`
 - cross-OS parity table behavior for `system_info`, `kernel_info`, and `memory_info`
+- cross-OS parity table behavior for `processes`, `interface_addresses`, `routes`, `users`, `mounts`, and `cpu_info`
 
 ### Actors and interfaces
 - Fleet server endpoints:
@@ -127,6 +128,15 @@ All security-relevant checks below must hold:
 - Broadcast trigger abuse risk: boot receiver is non-exported to reduce external-trigger surface. Status: good.
 - Minor accepted risk: enrollment secret is stored in app-private DataStore (not Keystore-encrypted). Rationale: low practical risk after backup disable + app sandbox; full secret-encryption migration is possible but adds compatibility and rotation complexity. Status: accepted minor.
 
+#### C12. Additional core parity tables
+Android must expose additional osquery-style tables with stable snapshot behavior:
+- `processes`: best-effort process list snapshot for visible app processes.
+- `interface_addresses`: one row per discovered interface address.
+- `routes`: best-effort route snapshot from local system route output.
+- `users`: current app/profile identity snapshot (non-privileged view).
+- `mounts`: mount-point snapshot from `/proc/mounts`.
+- `cpu_info`: CPU capability snapshot (ABI/core count/model best effort).
+
 ### Contracted Android table set
 Current registered tables:
 - `installed_apps`
@@ -145,6 +155,12 @@ Current registered tables:
 - `system_info`
 - `kernel_info`
 - `memory_info`
+- `processes`
+- `interface_addresses`
+- `routes`
+- `users`
+- `mounts`
+- `cpu_info`
 
 ## Oracle for reviewers
 An oracle is the set of observable truths used to decide whether implementation behavior is acceptable.  
@@ -266,6 +282,54 @@ How to verify:
 - manifest inspection: `android:allowBackup=\"false\"`, boot receiver `android:exported=\"false\"`
 - runtime/log review on release-like build
 
+### O13. `processes` table behavior
+Human rule:
+- `SELECT * FROM processes;` returns zero or more rows without crash.
+- Rows include stable process identity columns (`pid`, `name`) for visible processes.
+How to verify:
+- manual Fleet query on Android host
+- unit assertion for query success and required key presence on returned rows
+
+### O14. `interface_addresses` table behavior
+Human rule:
+- `SELECT * FROM interface_addresses;` returns zero or more rows without crash.
+- Rows include interface and address fields.
+How to verify:
+- manual Fleet query on Android host
+- unit assertion for query success and required keys on returned rows
+
+### O15. `routes` table behavior
+Human rule:
+- `SELECT * FROM routes;` returns zero or more rows without crash.
+- Route parsing is best effort; missing platform data must degrade safely to empty results.
+How to verify:
+- manual Fleet query on Android host
+- unit assertion for query success and safe empty behavior
+
+### O16. `users` table behavior
+Human rule:
+- `SELECT * FROM users;` returns exactly one row for current app/profile context.
+- Identity fields are present and parseable (`uid`, `username`).
+How to verify:
+- manual Fleet query on Android host
+- unit assertion for one-row shape and parseability
+
+### O17. `mounts` table behavior
+Human rule:
+- `SELECT * FROM mounts;` returns zero or more rows from `/proc/mounts` parsing.
+- Parser failures must not crash the table path.
+How to verify:
+- manual Fleet query on Android host
+- unit assertion for query success and key presence on returned rows
+
+### O18. `cpu_info` table behavior
+Human rule:
+- `SELECT * FROM cpu_info;` returns exactly one row.
+- Core count is parseable and non-negative; model/arch fields are present.
+How to verify:
+- manual Fleet query on Android host
+- unit assertion for one-row shape and numeric parseability
+
 ## Reviewer checklist (fast path)
 1. Validate C1-C4 against unit test evidence (`ApiClientReenrollTest`).
 2. Validate C5-C7 by one end-to-end run: query from Fleet UI and inspect writeback results.
@@ -273,4 +337,5 @@ How to verify:
 4. Validate C9/O6/O7 with `SELECT * FROM time;` and `SELECT * FROM uptime;` plus basic value sanity checks.
 5. Validate C10/O9/O10/O11 with `SELECT * FROM system_info;`, `SELECT * FROM kernel_info;`, and `SELECT * FROM memory_info;`.
 6. Validate C11/O12 security baseline checks (URL policy, manifest flags, no unsafe TLS path).
-7. Approve only if behavior and safety expectations match this contract, even if implementation details change later.
+7. Validate C12/O13-O18 with query success and shape checks for new parity tables.
+8. Approve only if behavior and safety expectations match this contract, even if implementation details change later.

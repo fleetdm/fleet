@@ -17,6 +17,12 @@ import com.fleetdm.agent.osquery.tables.UptimeTable
 import com.fleetdm.agent.osquery.tables.SystemInfoTable
 import com.fleetdm.agent.osquery.tables.KernelInfoTable
 import com.fleetdm.agent.osquery.tables.MemoryInfoTable
+import com.fleetdm.agent.osquery.tables.ProcessesTable
+import com.fleetdm.agent.osquery.tables.InterfaceAddressesTable
+import com.fleetdm.agent.osquery.tables.RoutesTable
+import com.fleetdm.agent.osquery.tables.UsersTable
+import com.fleetdm.agent.osquery.tables.MountsTable
+import com.fleetdm.agent.osquery.tables.CpuInfoTable
 
 
 
@@ -38,6 +44,12 @@ object OsqueryTables {
         TableRegistry.register(SystemInfoTable(context))
         TableRegistry.register(KernelInfoTable())
         TableRegistry.register(MemoryInfoTable(context))
+        TableRegistry.register(ProcessesTable(context))
+        TableRegistry.register(InterfaceAddressesTable())
+        TableRegistry.register(RoutesTable())
+        TableRegistry.register(UsersTable())
+        TableRegistry.register(MountsTable())
+        TableRegistry.register(CpuInfoTable())
 
     }
 }

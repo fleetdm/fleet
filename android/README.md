@@ -329,6 +329,12 @@ This interval is **not configurable yet**; making it configurable (for example v
 | `system_info` | Host identity, hardware, and memory summary snapshot | `SELECT hostname, uuid, hardware_vendor, hardware_model, physical_memory FROM system_info;` |
 | `kernel_info` | Kernel and runtime version snapshot | `SELECT version, release, build, platform FROM kernel_info;` |
 | `memory_info` | Current memory totals and low-memory state | `SELECT total_bytes, available_bytes, threshold_bytes, low_memory FROM memory_info;` |
+| `processes` | Visible process snapshot | `SELECT pid, name, uid, package_name, importance FROM processes LIMIT 50;` |
+| `interface_addresses` | Interface-to-address rows | `SELECT interface, address, family FROM interface_addresses LIMIT 50;` |
+| `routes` | Best-effort route snapshot | `SELECT destination, gateway, interface FROM routes LIMIT 50;` |
+| `users` | Current app/profile identity row | `SELECT uid, gid, username, directory FROM users;` |
+| `mounts` | Filesystem mount snapshot | `SELECT device, path, type, flags FROM mounts LIMIT 50;` |
+| `cpu_info` | CPU capability snapshot | `SELECT cores, arch, model, hardware, vendor FROM cpu_info;` |
 
 ### Quick start (5 minutes)
 
@@ -368,6 +374,12 @@ SELECT * FROM uptime;
 SELECT * FROM system_info;
 SELECT * FROM kernel_info;
 SELECT * FROM memory_info;
+SELECT * FROM processes LIMIT 20;
+SELECT * FROM interface_addresses LIMIT 20;
+SELECT * FROM routes LIMIT 20;
+SELECT * FROM users;
+SELECT * FROM mounts LIMIT 20;
+SELECT * FROM cpu_info;
 ```
 
 Expected sanity checks:
@@ -376,6 +388,8 @@ Expected sanity checks:
 - `system_info.uuid` is non-empty.
 - `kernel_info.platform` is `android`.
 - `memory_info.total_bytes`/`available_bytes`/`threshold_bytes` are non-negative.
+- `users.uid` is parseable and non-negative.
+- `cpu_info.cores` is parseable and non-negative.
 
 ### Architecture at a glance
 

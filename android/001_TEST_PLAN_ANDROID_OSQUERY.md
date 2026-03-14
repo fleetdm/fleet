@@ -86,6 +86,7 @@ Command:
   --tests com.fleetdm.agent.ApiClientReenrollTest \
   --tests com.fleetdm.agent.osquery.TimeAndUptimeTableTest \
   --tests com.fleetdm.agent.osquery.SystemKernelMemoryTableTest \
+  --tests com.fleetdm.agent.osquery.AdditionalParityTablesTest \
   --console=plain --no-daemon
 ```
 Expected:
@@ -132,6 +133,12 @@ SELECT * FROM uptime;
 SELECT * FROM system_info;
 SELECT * FROM kernel_info;
 SELECT * FROM memory_info;
+SELECT * FROM processes LIMIT 20;
+SELECT * FROM interface_addresses LIMIT 20;
+SELECT * FROM routes LIMIT 20;
+SELECT * FROM users;
+SELECT * FROM mounts LIMIT 20;
+SELECT * FROM cpu_info;
 ```
 Expected:
 - Exactly one row per table
@@ -141,6 +148,8 @@ Expected:
   - `system_info.uuid` non-empty
   - `kernel_info.platform='android'`
   - memory numeric fields non-negative
+  - `users.uid` parseable and non-negative
+  - `cpu_info.cores` parseable and non-negative
 
 ### M4. Logcat table gating (P1)
 1. Query with flag OFF:
