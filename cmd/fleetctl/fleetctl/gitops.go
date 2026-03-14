@@ -489,16 +489,14 @@ func gitopsCommand() *cli.Command {
 					return err
 				}
 
-				// Defer certificate authority processing to after all team configs are processed.
-				// This ensures certificate templates referencing a CA are deleted (by team configs)
-				// before the CA itself is deleted (by the global config).
-				// During dry run, no actual deletions happen, so there's no FK ordering issue
-				// and CAs can be processed inline for validation.
-				// We capture deferredCAs before DoGitOps because DoGitOps deletes the key from OrgSettings.
+				// Capture CAs before DoGitOps (which deletes the key from OrgSettings).
+				// CAs are processed inline by DoGitOps — creates/updates always succeed because
+				// the datastore uses separate transactions for upserts and deletes.
+				// If a CA deletion fails due to FK constraints (certificate templates still reference it),
+				// we schedule a retry as a post-op that runs after team configs have cleaned up their templates.
 				var deferredCAs any
 				if isGlobalConfig && !flDryRun {
 					deferredCAs = config.OrgSettings["certificate_authorities"]
-					config.SkipCertificateAuthorities = true
 				}
 
 				assumptions, err := fleetClient.DoGitOps(
@@ -515,13 +513,19 @@ func gitopsCommand() *cli.Command {
 					&iconSettings,
 				)
 				if err != nil {
-					return err
+					// If CA deletion failed due to FK constraints, schedule a retry after team configs.
+					if isGlobalConfig && !flDryRun && strings.Contains(err.Error(), "certificate authority") &&
+						strings.Contains(err.Error(), "Certificate templates still reference it") {
+						logf("[-] CA deletion deferred until after team configs process\n")
+						err = nil
+					}
+					if err != nil {
+						return err
+					}
 				}
 
-				// Schedule CA application as a post-op so it runs after all team configs.
-				// Certificate authority deletions may fail if certificate templates still reference
-				// them, so we defer CA processing until after team configs have cleaned up their
-				// certificate templates.
+				// If we have deferred CAs and this is the global config, schedule a post-op to retry
+				// CA application after team configs have cleaned up their certificate templates.
 				if isGlobalConfig && !flDryRun {
 					caFilename := flFilename
 					allPostOps = append(allPostOps, func() error {

@@ -333,8 +333,6 @@ type GitOps struct {
 	Software GitOpsSoftware
 	// FleetSecrets is a map of secret names to their values, extracted from FLEET_SECRET_ environment variables used in profiles and scripts.
 	FleetSecrets map[string]string
-	// SkipCertificateAuthorities is set when CA processing is deferred (e.g., to run after team configs in gitops).
-	SkipCertificateAuthorities bool
 }
 
 type GitOpsSoftware struct {

@@ -1894,15 +1894,11 @@ func (c *Client) DoGitOps(
 
 		// Certificate authorities are managed separately in Client.ApplyGroup, so we remove them from the
 		// OrgSettings so that they are not applied as part of the AppConfig.
-		// When SkipCertificateAuthorities is set (e.g., CAs are deferred by gitops for ordering),
-		// we skip validation and leave group.CertificateAuthorities nil so ApplyGroup won't process them.
-		if !incoming.SkipCertificateAuthorities {
-			groupedCAs, err := fleet.ValidateCertificateAuthoritiesSpec(incoming.OrgSettings["certificate_authorities"])
-			if err != nil {
-				return nil, fmt.Errorf("invalid certificate_authorities: %w", err)
-			}
-			group.CertificateAuthorities = groupedCAs
+		groupedCAs, err := fleet.ValidateCertificateAuthoritiesSpec(incoming.OrgSettings["certificate_authorities"])
+		if err != nil {
+			return nil, fmt.Errorf("invalid certificate_authorities: %w", err)
 		}
+		group.CertificateAuthorities = groupedCAs
 		delete(incoming.OrgSettings, "certificate_authorities")
 
 		// Labels

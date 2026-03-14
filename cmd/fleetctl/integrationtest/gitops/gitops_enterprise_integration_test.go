@@ -774,16 +774,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestDeleteCAWithCertificateTempla
 
 	t.Setenv("FLEET_URL", s.Server.URL)
 
-	// Step 1: Create a CA and a team with a certificate template referencing it.
-	challenge := "challenge"
-	ca, err := s.DS.NewCertificateAuthority(t.Context(), &fleet.CertificateAuthority{
-		Type:      string(fleet.CATypeCustomSCEPProxy),
-		Name:      ptr.String("TestSCEP"),
-		URL:       &scepServer.URL,
-		Challenge: &challenge,
-	})
-	require.NoError(t, err)
-
+	// Step 1: Create a CA and a team with a certificate template referencing it via GitOps.
 	globalFileWithCA := s.writeConfigFile(t, fmt.Sprintf(`
 agent_options:
 controls:
@@ -819,11 +810,17 @@ reports:
 software:
 `)
 
-	// Apply both files to create the team and certificate template.
+	// Apply both files to create the CA, team, and certificate template.
 	fleetctl.RunAppForTest(t, []string{
 		"gitops", "--config", fleetctlConfig.Name(),
 		"-f", globalFileWithCA, "-f", teamFileWithCert,
 	})
+
+	// Verify the CA was created via GitOps.
+	groupedCAs, err := s.DS.GetGroupedCertificateAuthorities(t.Context(), false)
+	require.NoError(t, err)
+	require.Len(t, groupedCAs.CustomScepProxy, 1)
+	require.Equal(t, "TestSCEP", groupedCAs.CustomScepProxy[0].Name)
 
 	// Verify the team was created and the certificate template exists.
 	teams, err := s.DS.ListTeams(t.Context(), fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
@@ -841,7 +838,6 @@ software:
 	require.NoError(t, err)
 	require.Len(t, certTemplates, 1)
 	require.Equal(t, "TestCert", certTemplates[0].Name)
-	require.Equal(t, ca.ID, certTemplates[0].CertificateAuthorityId)
 
 	// Step 2: Run gitops removing the CA but WITHOUT the team file.
 	// This should fail because the team's certificate templates still reference the CA.
@@ -863,10 +859,10 @@ reports:
 		"-f", globalFileWithoutCA,
 	})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "certificate authority")
+	require.Contains(t, err.Error(), "Certificate templates still reference it")
 
 	// Verify CA and certificate template still exist.
-	groupedCAs, err := s.DS.GetGroupedCertificateAuthorities(t.Context(), false)
+	groupedCAs, err = s.DS.GetGroupedCertificateAuthorities(t.Context(), false)
 	require.NoError(t, err)
 	require.Len(t, groupedCAs.CustomScepProxy, 1)
 
