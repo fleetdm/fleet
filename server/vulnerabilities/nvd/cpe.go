@@ -121,6 +121,7 @@ type cpeSearchQuery struct {
 }
 
 const cpeSelectColumns = `SELECT c.rowid, c.product, c.vendor, c.deprecated FROM cpe_2 c`
+const cpeOrderBy = ` ORDER BY c.vendor, c.product`
 
 // cpeSearchQueries returns individual search queries in priority order for finding CPE matches.
 // Query 1 (vendor+product) and 2 (product-only) are cheap index lookups. Query 3 (full-text search)
@@ -138,12 +139,12 @@ func cpeSearchQueries(software *fleet.Software) []cpeSearchQuery {
 		productPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(products)), ",")
 		if len(vendors) > 0 {
 			vendorPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(vendors)), ",")
-			stm = cpeSelectColumns + " WHERE vendor IN (" + vendorPlaceholders + ") AND product IN (" + productPlaceholders + ")"
+			stm = cpeSelectColumns + " WHERE vendor IN (" + vendorPlaceholders + ") AND product IN (" + productPlaceholders + ")" + cpeOrderBy
 			for _, v := range vendors {
 				args = append(args, v)
 			}
 		} else {
-			stm = cpeSelectColumns + " WHERE product IN (" + productPlaceholders + ")"
+			stm = cpeSelectColumns + " WHERE product IN (" + productPlaceholders + ")" + cpeOrderBy
 		}
 		for _, p := range products {
 			args = append(args, p)
@@ -153,7 +154,7 @@ func cpeSearchQueries(software *fleet.Software) []cpeSearchQuery {
 
 	// 2 - Try to match product by sanitized name
 	queries = append(queries, cpeSearchQuery{
-		stm:  cpeSelectColumns + " WHERE product = ?",
+		stm:  cpeSelectColumns + " WHERE product = ?" + cpeOrderBy,
 		args: []any{sanitizeSoftwareName(software)},
 	})
 
@@ -161,7 +162,7 @@ func cpeSearchQueries(software *fleet.Software) []cpeSearchQuery {
 	sanitizedName := sanitizeMatch(software.Name)
 	if strings.TrimSpace(sanitizedName) != "" {
 		queries = append(queries, cpeSearchQuery{
-			stm:  cpeSelectColumns + " JOIN cpe_search cs ON cs.rowid = c.rowid WHERE cs.title MATCH ?",
+			stm:  cpeSelectColumns + " JOIN cpe_search cs ON cs.rowid = c.rowid WHERE cs.title MATCH ?" + cpeOrderBy,
 			args: []any{sanitizedName},
 		})
 	}
@@ -170,12 +171,20 @@ func cpeSearchQueries(software *fleet.Software) []cpeSearchQuery {
 	bundleParts := strings.Split(software.BundleIdentifier, ".")
 	if len(bundleParts) == 3 {
 		queries = append(queries, cpeSearchQuery{
-			stm:  cpeSelectColumns + " WHERE vendor = ? AND product = ?",
+			stm:  cpeSelectColumns + " WHERE vendor = ? AND product = ?" + cpeOrderBy,
 			args: []any{strings.ToLower(bundleParts[1]), strings.ToLower(bundleParts[2])},
 		})
 	}
 
 	return queries
+}
+
+// cpeVendorMatchesSoftware returns true when the CPE item's vendor appears in
+// the software's vendor field. Used as a tiebreaker when multiple CPE candidates
+// pass cpeItemMatchesSoftware.
+func cpeVendorMatchesSoftware(item *IndexedCPEItem, software *fleet.Software) bool {
+	sVendor := strings.ToLower(software.Vendor)
+	return sVendor != "" && strings.Contains(sVendor, item.Vendor)
 }
 
 // cpeItemMatchesSoftware checks whether a CPE result's vendor/product terms all appear in the
@@ -626,22 +635,35 @@ func CPEFromSoftware(ctx context.Context, logger *slog.Logger, db *sqlx.DB, soft
 				return "", fmt.Errorf("getting cpes for: %s: %w", software.Name, err)
 			}
 
+			// Collect all matching candidates for this query, then pick the best one.
+			// This avoids nondeterministic results when multiple CPE entries match
+			// (e.g. "ge:line" vs "linecorp:line" for the "Line" app).
+			var bestMatch *IndexedCPEItem
+			var deprecatedMatches []IndexedCPEItem
 			for i := range results {
 				if !cpeItemMatchesSoftware(&results[i], software) {
 					continue
 				}
-				if !results[i].Deprecated {
-					return results[i].FmtStr(software), nil
+				if results[i].Deprecated {
+					deprecatedMatches = append(deprecatedMatches, results[i])
+					continue
 				}
-				// Match is deprecated; try to resolve via deprecation chain
-				cpe, err := resolveDeprecatedCPE(db, results, software)
+				if bestMatch == nil || (!cpeVendorMatchesSoftware(bestMatch, software) && cpeVendorMatchesSoftware(&results[i], software)) {
+					bestMatch = &results[i]
+				}
+			}
+			if bestMatch != nil {
+				return bestMatch.FmtStr(software), nil
+			}
+			// All matches are deprecated; try to resolve via deprecation chain
+			if len(deprecatedMatches) > 0 {
+				cpe, err := resolveDeprecatedCPE(db, deprecatedMatches, software)
 				if err != nil {
 					return "", err
 				}
 				if cpe != "" {
 					return cpe, nil
 				}
-				continue // deprecation unresolved for this result, try next result
 			}
 		}
 	}
