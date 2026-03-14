@@ -87,6 +87,7 @@ Command:
   --tests com.fleetdm.agent.osquery.TimeAndUptimeTableTest \
   --tests com.fleetdm.agent.osquery.SystemKernelMemoryTableTest \
   --tests com.fleetdm.agent.osquery.AdditionalParityTablesTest \
+  --tests com.fleetdm.agent.osquery.ManagementVisibilityTablesTest \
   --console=plain --no-daemon
 ```
 Expected:
@@ -139,6 +140,9 @@ SELECT * FROM routes LIMIT 20;
 SELECT * FROM users;
 SELECT * FROM mounts LIMIT 20;
 SELECT * FROM cpu_info;
+SELECT * FROM app_signatures LIMIT 20;
+SELECT * FROM mdm_status;
+SELECT * FROM startup_items LIMIT 20;
 ```
 Expected:
 - Exactly one row per table
@@ -150,6 +154,7 @@ Expected:
   - memory numeric fields non-negative
   - `users.uid` parseable and non-negative
   - `cpu_info.cores` parseable and non-negative
+  - `mdm_status` boolean fields are parseable as `0`/`1`
 
 ### M4. Logcat table gating (P1)
 1. Query with flag OFF:

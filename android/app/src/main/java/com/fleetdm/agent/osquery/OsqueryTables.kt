@@ -23,6 +23,9 @@ import com.fleetdm.agent.osquery.tables.RoutesTable
 import com.fleetdm.agent.osquery.tables.UsersTable
 import com.fleetdm.agent.osquery.tables.MountsTable
 import com.fleetdm.agent.osquery.tables.CpuInfoTable
+import com.fleetdm.agent.osquery.tables.AppSignaturesTable
+import com.fleetdm.agent.osquery.tables.MdmStatusTable
+import com.fleetdm.agent.osquery.tables.StartupItemsTable
 
 
 
@@ -50,6 +53,9 @@ object OsqueryTables {
         TableRegistry.register(UsersTable())
         TableRegistry.register(MountsTable())
         TableRegistry.register(CpuInfoTable())
+        TableRegistry.register(AppSignaturesTable(context))
+        TableRegistry.register(MdmStatusTable(context))
+        TableRegistry.register(StartupItemsTable(context))
 
     }
 }

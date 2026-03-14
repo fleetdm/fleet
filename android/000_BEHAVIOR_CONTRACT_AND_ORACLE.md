@@ -11,7 +11,7 @@ So this is not the historical authoring order; it is a post-hoc contract/oracle 
 As part of this PR, the contracts/oracle approach from the book was adopted during the work: some sections were extracted from already-implemented code, and some sections were defined contract-first and then implemented according to that contract.
 
 ## Compliance statement
-The implementation in this PR was checked against the currently implemented contract/oracle rules (C1-C12 and O1-O18), and it appears to respect them based on current unit tests and manual validation performed by this AI agent in this branch.  
+The implementation in this PR was checked against the currently implemented contract/oracle rules (C1-C13 and O1-O21), and it appears to respect them based on current unit tests and manual validation performed by this AI agent in this branch.  
 This is an engineering confidence statement, not a formal proof of correctness.  
 
 ## System behavior contract
@@ -26,6 +26,7 @@ This contract covers Android osquery behavior implemented in this PR branch:
 - cross-OS parity table behavior for `time` and `uptime`
 - cross-OS parity table behavior for `system_info`, `kernel_info`, and `memory_info`
 - cross-OS parity table behavior for `processes`, `interface_addresses`, `routes`, `users`, `mounts`, and `cpu_info`
+- management/visibility table behavior for `app_signatures`, `mdm_status`, and `startup_items`
 
 ### Actors and interfaces
 - Fleet server endpoints:
@@ -137,6 +138,12 @@ Android must expose additional osquery-style tables with stable snapshot behavio
 - `mounts`: mount-point snapshot from `/proc/mounts`.
 - `cpu_info`: CPU capability snapshot (ABI/core count/model best effort).
 
+#### C13. Management and startup visibility tables
+Android must expose:
+- `app_signatures`: installed app signing-certificate fingerprint metadata (best effort, visibility-scoped).
+- `mdm_status`: one-row MDM/work-profile/restrictions presence snapshot.
+- `startup_items`: boot-receiver/launcher component visibility snapshot (best effort).
+
 ### Contracted Android table set
 Current registered tables:
 - `installed_apps`
@@ -161,6 +168,9 @@ Current registered tables:
 - `users`
 - `mounts`
 - `cpu_info`
+- `app_signatures`
+- `mdm_status`
+- `startup_items`
 
 ## Oracle for reviewers
 An oracle is the set of observable truths used to decide whether implementation behavior is acceptable.  
@@ -330,6 +340,30 @@ How to verify:
 - manual Fleet query on Android host
 - unit assertion for one-row shape and numeric parseability
 
+### O19. `app_signatures` table behavior
+Human rule:
+- `SELECT * FROM app_signatures;` returns zero or more rows without crash.
+- If rows exist, `package_name` and `sha256` are present; `sha256` is hex-encoded digest.
+How to verify:
+- manual Fleet query on Android host
+- unit assertion for query success and key presence on returned rows
+
+### O20. `mdm_status` table behavior
+Human rule:
+- `SELECT * FROM mdm_status;` returns exactly one row.
+- Presence/state fields are parseable booleans (`0`/`1`) and reflect current local status best effort.
+How to verify:
+- manual Fleet query on Android host
+- unit assertion for one-row shape and boolean parseability
+
+### O21. `startup_items` table behavior
+Human rule:
+- `SELECT * FROM startup_items;` returns zero or more rows without crash.
+- Rows represent discovered startup-related components (boot receivers / launcher activities).
+How to verify:
+- manual Fleet query on Android host
+- unit assertion for query success and key presence on returned rows
+
 ## Reviewer checklist (fast path)
 1. Validate C1-C4 against unit test evidence (`ApiClientReenrollTest`).
 2. Validate C5-C7 by one end-to-end run: query from Fleet UI and inspect writeback results.
@@ -337,5 +371,6 @@ How to verify:
 4. Validate C9/O6/O7 with `SELECT * FROM time;` and `SELECT * FROM uptime;` plus basic value sanity checks.
 5. Validate C10/O9/O10/O11 with `SELECT * FROM system_info;`, `SELECT * FROM kernel_info;`, and `SELECT * FROM memory_info;`.
 6. Validate C11/O12 security baseline checks (URL policy, manifest flags, no unsafe TLS path).
-7. Validate C12/O13-O18 with query success and shape checks for new parity tables.
-8. Approve only if behavior and safety expectations match this contract, even if implementation details change later.
+7. Validate C12/O13-O18 with query success and shape checks for parity tables.
+8. Validate C13/O19-O21 with query success and shape checks for management/startup tables.
+9. Approve only if behavior and safety expectations match this contract, even if implementation details change later.

@@ -335,6 +335,9 @@ This interval is **not configurable yet**; making it configurable (for example v
 | `users` | Current app/profile identity row | `SELECT uid, gid, username, directory FROM users;` |
 | `mounts` | Filesystem mount snapshot | `SELECT device, path, type, flags FROM mounts LIMIT 50;` |
 | `cpu_info` | CPU capability snapshot | `SELECT cores, arch, model, hardware, vendor FROM cpu_info;` |
+| `app_signatures` | Installed app signing certificate fingerprint metadata | `SELECT package_name, sha256, subject, issuer FROM app_signatures LIMIT 50;` |
+| `mdm_status` | MDM/restrictions presence snapshot | `SELECT has_device_owner, has_work_profile, restrictions_present, enroll_secret_present FROM mdm_status;` |
+| `startup_items` | Boot/launcher component visibility snapshot | `SELECT package_name, component, type, enabled, exported FROM startup_items LIMIT 50;` |
 
 ### Quick start (5 minutes)
 
@@ -380,6 +383,9 @@ SELECT * FROM routes LIMIT 20;
 SELECT * FROM users;
 SELECT * FROM mounts LIMIT 20;
 SELECT * FROM cpu_info;
+SELECT * FROM app_signatures LIMIT 20;
+SELECT * FROM mdm_status;
+SELECT * FROM startup_items LIMIT 20;
 ```
 
 Expected sanity checks:
@@ -390,6 +396,7 @@ Expected sanity checks:
 - `memory_info.total_bytes`/`available_bytes`/`threshold_bytes` are non-negative.
 - `users.uid` is parseable and non-negative.
 - `cpu_info.cores` is parseable and non-negative.
+- `mdm_status` boolean fields are `0`/`1`.
 
 ### Architecture at a glance
 
