@@ -437,7 +437,23 @@ var hostDetailQueries = map[string]DetailQuery{
 		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
 					 (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts %s) AS gigs_all_disk_space
 		FROM mounts WHERE path = '/' LIMIT 1;`, linuxGigsAllDiskSpaceSubQueryConditions),
-		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
+		Platforms:        fleet.HostLinuxOSs,
+		DirectIngestFunc: directIngestDiskSpace,
+	},
+
+	// disk_space_darwin uses the fleet_disk_space fleetd table (macOS only) which
+	// reports available capacity including purgeable space, matching what macOS
+	// shows in Finder's "Get Info" dialog and System Settings → General → Storage.
+	// This query requires fleetd >= 1.54.0.
+	"disk_space_darwin": {
+		Query: `
+SELECT
+    ROUND(bytes_available * 100.0 / bytes_total, 2) AS percent_disk_space_available,
+    ROUND(bytes_available * 10e-10, 2) AS gigs_disk_space_available,
+    ROUND(bytes_total * 10e-10, 2) AS gigs_total_disk_space
+FROM fleet_disk_space LIMIT 1;`,
+		Platforms:        []string{"darwin"},
+		Discovery:        discoveryTable("fleet_disk_space"),
 		DirectIngestFunc: directIngestDiskSpace,
 	},
 

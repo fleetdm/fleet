@@ -460,6 +460,7 @@ func TestGetDetailQueries(t *testing.T) {
 		"system_info",
 		"uptime",
 		"disk_space_unix",
+		"disk_space_darwin",
 		"disk_space_windows",
 		"mdm",
 		"mdm_windows",
@@ -484,7 +485,7 @@ func TestGetDetailQueries(t *testing.T) {
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithoutWinOSVuln := GetDetailQueries(t.Context(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, nil, Integrations{}, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 27)
+	require.Len(t, queriesWithoutWinOSVuln, 28)
 
 	queriesWithUsers := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
 	qs := baseQueries
