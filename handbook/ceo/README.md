@@ -13,6 +13,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 ## Contact us
 
+You can send `@mikermcneil` a DM in Fleet Slack, at-mention him in the [#help-leadership channel](https://fleetdm.slack.com/archives/C02HWSTJ17Z), or [schedule time with the CEO](https://fleetdm.com/handbook/company/leadership#schedule-time-with-the-ceo).
 
 ## Responsibilities
 
