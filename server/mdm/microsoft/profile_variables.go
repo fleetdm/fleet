@@ -105,7 +105,8 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 			}
 
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostHardwareSerialRegexp, result, hostLite.HardwareSerial)
-		case slices.Contains(fleet.IDPFleetVariables, fleet.FleetVarName(fleetVar)):
+		case slices.Contains(fleet.IDPFleetVariables, fleet.FleetVarName(fleetVar)) ||
+			strings.HasPrefix(fleetVar, string(fleet.FleetVarHostEndUserIDPCustomPrefix)):
 			replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserIDPVariables(deps.Context, deps.DataStore, fleetVar, result, params.HostUUID, deps.HostIDForUUIDCache, func(errMsg string) error {
 				return &MicrosoftProfileProcessingError{message: errMsg}
 			})

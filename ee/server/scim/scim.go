@@ -27,6 +27,94 @@ const (
 	maxResults = 100
 )
 
+// contextKey is a private type for context keys in this package.
+type contextKey int
+
+const (
+	// rawBodyContextKey stores the raw request body bytes in context so that
+	// handlers can access attributes that the SCIM library's schema validation
+	// may have stripped (e.g. unknown enterprise extension attributes).
+	rawBodyContextKey contextKey = iota
+)
+
+// RawBodyMiddleware reads the request body, stores it in the context, and
+// replaces the body with a new reader so downstream handlers (including the
+// SCIM library) can read it normally.
+func RawBodyMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Body != nil && (r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch) {
+			bodyBytes, err := io.ReadAll(r.Body)
+			r.Body.Close()
+			if err == nil {
+				r = r.WithContext(context.WithValue(r.Context(), rawBodyContextKey, bodyBytes))
+				r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// rawBodyFromContext returns the raw request body stored by RawBodyMiddleware,
+// or nil if not available.
+func rawBodyFromContext(ctx context.Context) []byte {
+	if v, ok := ctx.Value(rawBodyContextKey).([]byte); ok {
+		return v
+	}
+	return nil
+}
+
+// enterpriseUserSchemaAttributes returns the schema attributes for the
+// urn:ietf:params:scim:schemas:extension:enterprise:2.0:User extension.
+// This includes the standard RFC 7643 Section 4.3 attributes plus additional
+// attributes commonly sent by IdPs like Okta. The SCIM library strips any
+// attributes not defined in the schema, so we need to be comprehensive here.
+// For truly unknown attributes, the RawBodyMiddleware captures them from the
+// raw request body during Create/Replace operations.
+func enterpriseUserSchemaAttributes() []schema.CoreAttribute {
+	return []schema.CoreAttribute{
+		// Standard RFC 7643 §4.3 attributes
+		schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
+			Description: optional.NewString("Identifies the name of a department."),
+			Name:        "department",
+		})),
+		schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
+			Description: optional.NewString("Numeric or alphanumeric identifier assigned to a person."),
+			Name:        "employeeNumber",
+		})),
+		schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
+			Description: optional.NewString("Identifies the name of a cost center."),
+			Name:        "costCenter",
+		})),
+		schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
+			Description: optional.NewString("Identifies the name of an organization."),
+			Name:        "organization",
+		})),
+		schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
+			Description: optional.NewString("Identifies the name of a division."),
+			Name:        "division",
+		})),
+		schema.ComplexCoreAttribute(schema.ComplexParams{
+			Description: optional.NewString("The user's manager. A complex type that optionally allows service providers to represent organizational hierarchy by referencing the 'id' attribute of another User."),
+			Name:        "manager",
+			SubAttributes: []schema.SimpleParams{
+				schema.SimpleStringParams(schema.StringParams{
+					Description: optional.NewString("The id of the SCIM resource representing the User's manager."),
+					Name:        "value",
+				}),
+				schema.SimpleStringParams(schema.StringParams{
+					Description: optional.NewString("The displayName of the User's manager."),
+					Name:        "displayName",
+				}),
+				schema.SimpleReferenceParams(schema.ReferenceParams{
+					Description:    optional.NewString("The URI of the SCIM resource representing the User's manager."),
+					Name:           "$ref",
+					ReferenceTypes: []schema.AttributeReferenceType{"User"},
+				}),
+			},
+		}),
+	}
+}
+
 func RegisterSCIM(
 	mux *http.ServeMux,
 	ds fleet.Datastore,
@@ -169,12 +257,7 @@ func RegisterSCIM(
 			SchemaExtensions: []scim.SchemaExtension{
 				{
 					Schema: schema.Schema{
-						Attributes: []schema.CoreAttribute{
-							schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
-								Name:     "department",
-								Required: false,
-							})),
-						},
+						Attributes:  enterpriseUserSchemaAttributes(),
 						Description: optional.NewString("Enterprise User"),
 						ID:          "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User",
 						Name:        optional.NewString("Enterprise User"),
@@ -224,6 +307,10 @@ func RegisterSCIM(
 		handler = LastRequestMiddleware(ds, scimLogger, handler)
 		handler = log.LogResponseEndMiddleware(scimLogger, handler)
 		handler = auth.SetRequestsContextMiddleware(svc, handler)
+		// Capture the raw request body before the SCIM library strips unknown
+		// extension attributes during schema validation. This enables handlers
+		// to extract custom enterprise extension attributes from the raw JSON.
+		handler = RawBodyMiddleware(handler)
 		return handler
 	}
 

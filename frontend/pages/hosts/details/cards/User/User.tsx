@@ -63,7 +63,18 @@ const User = ({
   if (endUser?.idp_department) {
     userDepartment.push(endUser.idp_department);
   }
+  const userManager = [];
+  if (endUser?.idp_manager) {
+    userManager.push(endUser.idp_manager);
+  }
   const groupsTipContent = generateGroupsTipContent(endUsers);
+
+  // Get custom attributes sorted by name
+  const customAttributes = endUser?.idp_custom_attributes
+    ? Object.entries(endUser.idp_custom_attributes).sort(([a], [b]) =>
+        a.localeCompare(b)
+      )
+    : [];
 
   return (
     <Card
@@ -124,6 +135,27 @@ const User = ({
           }
           value={<UserValue values={userDepartment} />}
         />
+        <DataSet
+          title={
+            <TooltipWrapper tipContent='This is the "manager" collected from your IdP.'>
+              Manager (IdP)
+            </TooltipWrapper>
+          }
+          value={<UserValue values={userManager} />}
+        />
+        {customAttributes.map(([attrName, attrValue]) => (
+          <DataSet
+            key={attrName}
+            title={
+              <TooltipWrapper
+                tipContent={`This is the custom attribute "${attrName}" collected from your IdP.`}
+              >
+                {attrName} (IdP)
+              </TooltipWrapper>
+            }
+            value={<UserValue values={[attrValue]} />}
+          />
+        ))}
         {showChromeProfiles && (
           <DataSet
             title="Google Chrome profiles"

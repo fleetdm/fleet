@@ -268,6 +268,8 @@ export interface IHostEndUser {
   idp_info_updated_at: string | null;
   idp_groups?: string[];
   idp_department?: string;
+  idp_manager?: string;
+  idp_custom_attributes?: Record<string, string>;
   other_emails?: Array<{
     email: string;
     source: string;

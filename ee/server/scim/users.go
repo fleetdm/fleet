@@ -2,6 +2,7 @@ package scim
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -40,6 +41,7 @@ const (
 
 	extensionEnterpriseUserAttributes = "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"
 	departmentAttr                    = "department"
+	managerAttr                       = "manager"
 )
 
 type UserHandler struct {
@@ -185,44 +187,144 @@ func (u *UserHandler) createUserFromAttributes(
 	// Attempt to get extension enterprise user attributes.
 	extendedAttributes := u.getExtensionEnterpriseUserAttributes(ctx, user.UserName, attributes)
 	user.Department = extendedAttributes.department
+	user.Manager = extendedAttributes.manager
+	user.CustomAttributes = extendedAttributes.customAttributes
 
 	return &user, nil
 }
 
 type extendedAttributes struct {
-	department *string
+	department       *string
+	manager          *string
+	customAttributes []fleet.ScimUserCustomAttribute
 }
 
 func (u *UserHandler) getExtensionEnterpriseUserAttributes(
 	ctx context.Context, userName string, attributes scim.ResourceAttributes,
 ) extendedAttributes {
 	var attrs extendedAttributes
-	m_, ok := attributes[extensionEnterpriseUserAttributes]
-	if !ok {
-		return attrs
-	}
-	m, ok := m_.(map[string]any)
-	if !ok {
-		u.logger.ErrorContext(ctx,
-			fmt.Sprintf("unexpected type for %s: %T", extensionEnterpriseUserAttributes, m_),
-			userNameAttr, userName,
-		)
-		return attrs
-	}
 
-	// Attempt to get department attribute.
-	if department_, ok := m[departmentAttr]; ok {
-		if department, ok := department_.(string); ok {
-			attrs.department = &department
+	// The SCIM library's schema validation strips any enterprise extension
+	// attributes that are not explicitly defined in the schema (currently only
+	// "department"). We get department from the validated attributes but extract
+	// custom attributes from the raw request body stored by RawBodyMiddleware.
+
+	// Get department and manager from the library-validated attributes (they ARE in the schema).
+	m_, ok := attributes[extensionEnterpriseUserAttributes]
+	if ok {
+		m, ok := m_.(map[string]any)
+		if ok {
+			if department_, ok := m[departmentAttr]; ok {
+				if department, ok := department_.(string); ok {
+					attrs.department = &department
+				} else {
+					u.logger.ErrorContext(ctx,
+						fmt.Sprintf("unexpected type for %s.department: %T", extensionEnterpriseUserAttributes, department_),
+						userNameAttr, userName,
+					)
+				}
+			}
+			// manager is a complex attribute with sub-attributes; extract displayName
+			if manager_, ok := m[managerAttr]; ok {
+				if managerMap, ok := manager_.(map[string]any); ok {
+					if dn, ok := managerMap[displayNameAttr]; ok {
+						if displayName, ok := dn.(string); ok && displayName != "" {
+							attrs.manager = &displayName
+						}
+					}
+				}
+			}
 		} else {
 			u.logger.ErrorContext(ctx,
-				fmt.Sprintf("unexpected type for %s.department: %T", extensionEnterpriseUserAttributes, department_),
+				fmt.Sprintf("unexpected type for %s: %T", extensionEnterpriseUserAttributes, m_),
 				userNameAttr, userName,
 			)
 		}
 	}
 
+	// Extract custom attributes from the raw request body since the SCIM
+	// library strips unknown extension attributes during schema validation.
+	customAttrs, rawManager := u.extractCustomAttributesFromRawBody(ctx, userName)
+	attrs.customAttributes = customAttrs
+
+	// If manager wasn't found in validated attributes (e.g., raw body fallback),
+	// use the displayName extracted from raw body parsing.
+	if attrs.manager == nil && rawManager != nil {
+		attrs.manager = rawManager
+	}
+
 	return attrs
+}
+
+// extractCustomAttributesFromRawBody parses the raw request body (stored in
+// context by RawBodyMiddleware) to extract enterprise extension attributes
+// that are not "department" or "manager". This is necessary because the
+// elimity-com/scim library validates incoming requests against the registered
+// schema and silently drops any attributes not defined in it.
+//
+// It also extracts the manager displayName from the raw body as a fallback
+// when the validated attributes don't contain it.
+func (u *UserHandler) extractCustomAttributesFromRawBody(
+	ctx context.Context, userName string,
+) ([]fleet.ScimUserCustomAttribute, *string) {
+	rawBody := rawBodyFromContext(ctx)
+	if rawBody == nil {
+		return nil, nil
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(rawBody, &raw); err != nil {
+		u.logger.ErrorContext(ctx, "failed to parse raw body for custom attributes",
+			userNameAttr, userName, "err", err)
+		return nil, nil
+	}
+
+	extensionRaw, ok := raw[extensionEnterpriseUserAttributes]
+	if !ok {
+		return nil, nil
+	}
+
+	var extensionMap map[string]json.RawMessage
+	if err := json.Unmarshal(extensionRaw, &extensionMap); err != nil {
+		u.logger.ErrorContext(ctx, "failed to parse enterprise extension from raw body",
+			userNameAttr, userName, "err", err)
+		return nil, nil
+	}
+
+	var customAttrs []fleet.ScimUserCustomAttribute
+	var managerDisplayName *string
+	for key, valRaw := range extensionMap {
+		if key == departmentAttr {
+			continue // department is handled via the validated attributes
+		}
+		if key == managerAttr {
+			// Extract displayName from the manager complex object
+			var mgr map[string]json.RawMessage
+			if err := json.Unmarshal(valRaw, &mgr); err == nil {
+				if dnRaw, ok := mgr[displayNameAttr]; ok {
+					var dn string
+					if err := json.Unmarshal(dnRaw, &dn); err == nil && dn != "" {
+						managerDisplayName = &dn
+					}
+				}
+			}
+			continue // manager is a first-class field, not a custom attribute
+		}
+		// Try to unmarshal as a simple string first.
+		var strVal string
+		if err := json.Unmarshal(valRaw, &strVal); err != nil {
+			// Not a string — convert the raw JSON to a string representation.
+			strVal = string(valRaw)
+		}
+		if len(key) > 0 && len(strVal) <= fleet.SCIMCustomAttributeMaxValueLength {
+			customAttrs = append(customAttrs, fleet.ScimUserCustomAttribute{
+				Name:  key,
+				Value: strVal,
+			})
+		}
+	}
+
+	return customAttrs, managerDisplayName
 }
 
 func getRequiredResource[T string | bool](attributes scim.ResourceAttributes, key string) (T, error) {
@@ -353,9 +455,20 @@ func createUserResource(user *fleet.ScimUser) scim.Resource {
 		}
 		userResource.Attributes[groupsAttr] = groups
 	}
-	if user.Department != nil {
+	hasEnterpriseExtension := user.Department != nil || user.Manager != nil || len(user.CustomAttributes) > 0
+	if hasEnterpriseExtension {
 		extensionEnterpriseUserAttributesMap := make(scim.ResourceAttributes)
-		extensionEnterpriseUserAttributesMap[departmentAttr] = *user.Department
+		if user.Department != nil {
+			extensionEnterpriseUserAttributesMap[departmentAttr] = *user.Department
+		}
+		if user.Manager != nil {
+			extensionEnterpriseUserAttributesMap[managerAttr] = map[string]any{
+				displayNameAttr: *user.Manager,
+			}
+		}
+		for _, attr := range user.CustomAttributes {
+			extensionEnterpriseUserAttributesMap[attr.Name] = attr.Value
+		}
 		userResource.Attributes[extensionEnterpriseUserAttributes] = extensionEnterpriseUserAttributesMap
 	}
 	return userResource
@@ -726,9 +839,26 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 					if err != nil {
 						return scim.Resource{}, err
 					}
+				case extensionEnterpriseUserAttributes + ":" + managerAttr:
+					err = u.patchManager(ctx, op.Op, v, user)
+					if err != nil {
+						return scim.Resource{}, err
+					}
 				default:
-					u.logger.InfoContext(ctx, "unsupported patch value field", "field", k)
-					return scim.Resource{}, scimerrors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+					// Check if this is a custom enterprise extension attribute (e.g., "urn:...:User:costCenter")
+					if customAttrName, found := strings.CutPrefix(k, extensionEnterpriseUserAttributes+":"); found {
+						// Skip manager sub-attribute paths — they should be handled above
+						if strings.HasPrefix(customAttrName, managerAttr+".") {
+							continue
+						}
+						err = u.patchCustomAttribute(ctx, op.Op, customAttrName, v, user)
+						if err != nil {
+							return scim.Resource{}, err
+						}
+					} else {
+						u.logger.InfoContext(ctx, "unsupported patch value field", "field", k)
+						return scim.Resource{}, scimerrors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+					}
 				}
 			}
 		case op.Path.String() == externalIdAttr:
@@ -776,9 +906,29 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 			if err != nil {
 				return scim.Resource{}, err
 			}
+		case op.Path.AttributePath.String() == extensionEnterpriseUserAttributes+":"+managerAttr,
+			op.Path.AttributePath.String() == extensionEnterpriseUserAttributes+":"+managerAttr+"."+displayNameAttr:
+			err = u.patchManager(ctx, op.Op, op.Value, user)
+			if err != nil {
+				return scim.Resource{}, err
+			}
 		default:
-			u.logger.InfoContext(ctx, "unsupported patch path", "path", op.Path)
-			return scim.Resource{}, scimerrors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			// Check if this is a custom enterprise extension attribute path
+			pathStr := op.Path.AttributePath.String()
+			if customAttrName, found := strings.CutPrefix(pathStr, extensionEnterpriseUserAttributes+":"); found {
+				// Skip manager sub-attribute paths — they should be handled above
+				if strings.HasPrefix(customAttrName, managerAttr+".") {
+					u.logger.InfoContext(ctx, "ignoring unsupported manager sub-attribute path", "path", pathStr)
+					continue
+				}
+				err = u.patchCustomAttribute(ctx, op.Op, customAttrName, op.Value, user)
+				if err != nil {
+					return scim.Resource{}, err
+				}
+			} else {
+				u.logger.InfoContext(ctx, "unsupported patch path", "path", op.Path)
+				return scim.Resource{}, scimerrors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			}
 		}
 	}
 
@@ -841,7 +991,7 @@ func (u *UserHandler) patchEmailsWithPathFiltering(
 		case []interface{}:
 			// Direct array of members
 			emailsList = val
-		case map[string]interface{}:
+		case map[string]any:
 			// Single member as a map
 			emailsList = []interface{}{val}
 		default:
@@ -1060,6 +1210,77 @@ func (u *UserHandler) patchDepartment(ctx context.Context, op string, v any, use
 		return err
 	}
 	user.Department = &department
+	return nil
+}
+
+func (u *UserHandler) patchManager(ctx context.Context, op string, v any, user *fleet.ScimUser) error {
+	if op == scim.PatchOperationRemove || v == nil {
+		user.Manager = nil
+		return nil
+	}
+	// manager can come as a complex object with displayName sub-attribute
+	switch val := v.(type) {
+	case string:
+		user.Manager = &val
+	case map[string]any:
+		if dn, ok := val[displayNameAttr]; ok {
+			if displayName, ok := dn.(string); ok {
+				user.Manager = &displayName
+				return nil
+			}
+		}
+		u.logger.InfoContext(ctx, "manager object missing displayName", "value", v)
+		return nil
+	default:
+		u.logger.InfoContext(ctx, fmt.Sprintf("unsupported '%s' value type: %T", managerAttr, v), "value", v)
+		return nil
+	}
+	return nil
+}
+
+func (u *UserHandler) patchCustomAttribute(ctx context.Context, op string, attrName string, v any, user *fleet.ScimUser) error {
+	if op == scim.PatchOperationRemove || v == nil {
+		// Remove the custom attribute
+		for i, attr := range user.CustomAttributes {
+			if attr.Name == attrName {
+				user.CustomAttributes = append(user.CustomAttributes[:i], user.CustomAttributes[i+1:]...)
+				break
+			}
+		}
+		return nil
+	}
+
+	// Convert value to string
+	var strVal string
+	switch val := v.(type) {
+	case string:
+		strVal = val
+	default:
+		// For complex types (e.g., manager), produce a JSON string
+		jsonBytes, err := json.Marshal(val)
+		if err != nil {
+			strVal = fmt.Sprintf("%v", val)
+		} else {
+			strVal = string(jsonBytes)
+		}
+	}
+
+	if len(strVal) > fleet.SCIMCustomAttributeMaxValueLength {
+		u.logger.InfoContext(ctx, "custom attribute value too long", "attribute", attrName, "length", len(strVal))
+		return scimerrors.ScimErrorBadParams([]string{attrName})
+	}
+
+	// Update existing or add new
+	for i, attr := range user.CustomAttributes {
+		if attr.Name == attrName {
+			user.CustomAttributes[i].Value = strVal
+			return nil
+		}
+	}
+	user.CustomAttributes = append(user.CustomAttributes, fleet.ScimUserCustomAttribute{
+		Name:  attrName,
+		Value: strVal,
+	})
 	return nil
 }
 

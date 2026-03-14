@@ -47,6 +47,8 @@ func TestScim(t *testing.T) {
 		{"TriggerResendIdPProfiles", testTriggerResendIdPProfiles},
 		{"TriggerResendIdPProfilesOnTeam", testTriggerResendIdPProfilesOnTeam},
 		{"SetOrUpdateHostSCIMUserMapping", testSetOrUpdateHostSCIMUserMapping},
+		{"ScimUserCreateWithManagerAndCustomAttrs", testScimUserCreateWithManagerAndCustomAttrs},
+		{"ReplaceScimUserWithManagerAndCustomAttrs", testReplaceScimUserWithManagerAndCustomAttrs},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2722,4 +2724,188 @@ func testSetOrUpdateHostSCIMUserMapping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, user1.ID, result.ID)
 	assert.Equal(t, "mapping-test-user1", result.UserName)
+}
+
+func testScimUserCreateWithManagerAndCustomAttrs(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Test 1: Create user with manager and custom attributes
+	user := fleet.ScimUser{
+		UserName:   "mgr-test-user1",
+		ExternalID: ptr.String("ext-mgr-001"),
+		GivenName:  ptr.String("Jane"),
+		FamilyName: ptr.String("Doe"),
+		Active:     ptr.Bool(true),
+		Department: ptr.String("Engineering"),
+		Manager:    ptr.String("Alice LeaderPerson"),
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "jane.doe@example.com",
+				Primary: ptr.Bool(true),
+				Type:    ptr.String("work"),
+			},
+		},
+		CustomAttributes: []fleet.ScimUserCustomAttribute{
+			{Name: "costCenter", Value: "CC-1234"},
+			{Name: "division", Value: "R&D"},
+			{Name: "employeeNumber", Value: "EMP-5678"},
+		},
+	}
+
+	var err error
+	user.ID, err = ds.CreateScimUser(ctx, &user)
+	require.NoError(t, err)
+	require.NotZero(t, user.ID)
+
+	// Verify the created user
+	verify, err := ds.ScimUserByID(ctx, user.ID)
+	require.NoError(t, err)
+	assert.Equal(t, user.UserName, verify.UserName)
+	assert.Equal(t, user.Department, verify.Department)
+	assert.Equal(t, user.Manager, verify.Manager)
+
+	// Verify custom attributes
+	require.Len(t, verify.CustomAttributes, 3)
+	sort.Slice(verify.CustomAttributes, func(i, j int) bool {
+		return verify.CustomAttributes[i].Name < verify.CustomAttributes[j].Name
+	})
+	assert.Equal(t, "costCenter", verify.CustomAttributes[0].Name)
+	assert.Equal(t, "CC-1234", verify.CustomAttributes[0].Value)
+	assert.Equal(t, "division", verify.CustomAttributes[1].Name)
+	assert.Equal(t, "R&D", verify.CustomAttributes[1].Value)
+	assert.Equal(t, "employeeNumber", verify.CustomAttributes[2].Name)
+	assert.Equal(t, "EMP-5678", verify.CustomAttributes[2].Value)
+
+	// Test 2: Create user without manager or custom attributes (nil)
+	user2 := fleet.ScimUser{
+		UserName:   "mgr-test-user2",
+		GivenName:  ptr.String("Bob"),
+		FamilyName: ptr.String("Smith"),
+		Active:     ptr.Bool(true),
+		Emails:     []fleet.ScimUserEmail{},
+	}
+
+	user2.ID, err = ds.CreateScimUser(ctx, &user2)
+	require.NoError(t, err)
+
+	verify2, err := ds.ScimUserByID(ctx, user2.ID)
+	require.NoError(t, err)
+	assert.Nil(t, verify2.Manager)
+	assert.Empty(t, verify2.CustomAttributes)
+
+	// Test 3: Verify that custom attrs for user 1 are correct when fetching by userName
+	verifyByName, err := ds.ScimUserByUserName(ctx, "mgr-test-user1")
+	require.NoError(t, err)
+	assert.Equal(t, ptr.String("Alice LeaderPerson"), verifyByName.Manager)
+	require.Len(t, verifyByName.CustomAttributes, 3)
+}
+
+func testReplaceScimUserWithManagerAndCustomAttrs(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create initial user with manager and custom attributes
+	user := fleet.ScimUser{
+		UserName:   "replace-mgr-user",
+		ExternalID: ptr.String("ext-replace-mgr-001"),
+		GivenName:  ptr.String("Original"),
+		FamilyName: ptr.String("Person"),
+		Active:     ptr.Bool(true),
+		Department: ptr.String("Engineering"),
+		Manager:    ptr.String("Original Manager"),
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "original.person@example.com",
+				Primary: ptr.Bool(true),
+				Type:    ptr.String("work"),
+			},
+		},
+		CustomAttributes: []fleet.ScimUserCustomAttribute{
+			{Name: "costCenter", Value: "CC-1000"},
+			{Name: "division", Value: "R&D"},
+		},
+	}
+
+	var err error
+	user.ID, err = ds.CreateScimUser(ctx, &user)
+	require.NoError(t, err)
+
+	// Verify initial state
+	created, err := ds.ScimUserByID(ctx, user.ID)
+	require.NoError(t, err)
+	assert.Equal(t, ptr.String("Original Manager"), created.Manager)
+	require.Len(t, created.CustomAttributes, 2)
+
+	// Replace: change manager, update one custom attr, add one, remove one
+	updatedUser := fleet.ScimUser{
+		ID:         user.ID,
+		UserName:   "replace-mgr-user",
+		ExternalID: ptr.String("ext-replace-mgr-001"),
+		GivenName:  ptr.String("Updated"),
+		FamilyName: ptr.String("Person"),
+		Active:     ptr.Bool(true),
+		Department: ptr.String("Security"),
+		Manager:    ptr.String("New Manager"),
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "original.person@example.com",
+				Primary: ptr.Bool(true),
+				Type:    ptr.String("work"),
+			},
+		},
+		CustomAttributes: []fleet.ScimUserCustomAttribute{
+			{Name: "costCenter", Value: "CC-2000"},     // Updated value
+			{Name: "organization", Value: "Acme Corp"}, // New attribute
+			// "division" is removed
+		},
+	}
+
+	err = ds.ReplaceScimUser(ctx, &updatedUser)
+	require.NoError(t, err)
+
+	// Verify the replacement
+	replaced, err := ds.ScimUserByID(ctx, user.ID)
+	require.NoError(t, err)
+	assert.Equal(t, ptr.String("New Manager"), replaced.Manager)
+	assert.Equal(t, ptr.String("Security"), replaced.Department)
+	assert.Equal(t, ptr.String("Updated"), replaced.GivenName)
+
+	// Verify custom attributes were replaced
+	require.Len(t, replaced.CustomAttributes, 2)
+	sort.Slice(replaced.CustomAttributes, func(i, j int) bool {
+		return replaced.CustomAttributes[i].Name < replaced.CustomAttributes[j].Name
+	})
+	assert.Equal(t, "costCenter", replaced.CustomAttributes[0].Name)
+	assert.Equal(t, "CC-2000", replaced.CustomAttributes[0].Value)
+	assert.Equal(t, "organization", replaced.CustomAttributes[1].Name)
+	assert.Equal(t, "Acme Corp", replaced.CustomAttributes[1].Value)
+
+	// Replace again: remove manager and all custom attributes
+	clearedUser := fleet.ScimUser{
+		ID:         user.ID,
+		UserName:   "replace-mgr-user",
+		ExternalID: ptr.String("ext-replace-mgr-001"),
+		GivenName:  ptr.String("Cleared"),
+		FamilyName: ptr.String("Person"),
+		Active:     ptr.Bool(true),
+		Department: nil,
+		Manager:    nil,
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "original.person@example.com",
+				Primary: ptr.Bool(true),
+				Type:    ptr.String("work"),
+			},
+		},
+		CustomAttributes: []fleet.ScimUserCustomAttribute{}, // Empty
+	}
+
+	err = ds.ReplaceScimUser(ctx, &clearedUser)
+	require.NoError(t, err)
+
+	// Verify manager and custom attributes were cleared
+	cleared, err := ds.ScimUserByID(ctx, user.ID)
+	require.NoError(t, err)
+	assert.Nil(t, cleared.Manager)
+	assert.Nil(t, cleared.Department)
+	assert.Empty(t, cleared.CustomAttributes)
 }
