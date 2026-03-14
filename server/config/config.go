@@ -597,6 +597,7 @@ type VulnerabilitiesConfig struct {
 	RecentVulnerabilityMaxAge   time.Duration `json:"recent_vulnerability_max_age" yaml:"recent_vulnerability_max_age"`
 	DisableWinOSVulnerabilities bool          `json:"disable_win_os_vulnerabilities" yaml:"disable_win_os_vulnerabilities"`
 	MaxConcurrency              int           `json:"max_concurrency" yaml:"max_concurrency"`
+	OSVForUbuntu                bool          `json:"osv_for_ubuntu" yaml:"osv_for_ubuntu"`
 }
 
 // UpgradesConfig defines configs related to fleet server upgrades.
@@ -1538,6 +1539,11 @@ func (man Manager) addConfigs() {
 		1,
 		"Maximum number of concurrent database queries to use for processing vulnerabilities.",
 	)
+	man.addConfigBool(
+		"vulnerabilities.osv_for_ubuntu",
+		false,
+		"Use OSV (Open Source Vulnerability) format instead of OVAL for Ubuntu vulnerability detection.",
+	)
 
 	// Upgrades
 	man.addConfigBool("upgrades.allow_missing_migrations", false,
@@ -1877,6 +1883,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			RecentVulnerabilityMaxAge:   man.getConfigDuration("vulnerabilities.recent_vulnerability_max_age"),
 			DisableWinOSVulnerabilities: man.getConfigBool("vulnerabilities.disable_win_os_vulnerabilities"),
 			MaxConcurrency:              man.getConfigInt("vulnerabilities.max_concurrency"),
+			OSVForUbuntu:                man.getConfigBool("vulnerabilities.osv_for_ubuntu"),
 		},
 		Upgrades: UpgradesConfig{
 			AllowMissingMigrations: man.getConfigBool("upgrades.allow_missing_migrations"),
