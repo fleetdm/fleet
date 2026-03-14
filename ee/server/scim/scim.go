@@ -257,7 +257,7 @@ func RegisterSCIM(
 			SchemaExtensions: []scim.SchemaExtension{
 				{
 					Schema: schema.Schema{
-						Attributes: enterpriseUserSchemaAttributes(),
+						Attributes:  enterpriseUserSchemaAttributes(),
 						Description: optional.NewString("Enterprise User"),
 						ID:          "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User",
 						Name:        optional.NewString("Enterprise User"),

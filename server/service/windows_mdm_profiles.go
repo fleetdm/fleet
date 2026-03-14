@@ -147,6 +147,7 @@ var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
 	fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 	fleet.FleetVarHostEndUserIDPFullname,
 	fleet.FleetVarHostEndUserIDPDepartment,
+	fleet.FleetVarHostEndUserIDPManager,
 	fleet.FleetVarHostEndUserIDPGroups,
 	fleet.FleetVarHostPlatform,
 	fleet.FleetVarNDESSCEPChallenge,

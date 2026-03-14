@@ -63,6 +63,10 @@ const User = ({
   if (endUser?.idp_department) {
     userDepartment.push(endUser.idp_department);
   }
+  const userManager = [];
+  if (endUser?.idp_manager) {
+    userManager.push(endUser.idp_manager);
+  }
   const groupsTipContent = generateGroupsTipContent(endUsers);
 
   // Get custom attributes sorted by name
@@ -130,6 +134,14 @@ const User = ({
             </TooltipWrapper>
           }
           value={<UserValue values={userDepartment} />}
+        />
+        <DataSet
+          title={
+            <TooltipWrapper tipContent='This is the "manager" collected from your IdP.'>
+              Manager (IdP)
+            </TooltipWrapper>
+          }
+          value={<UserValue values={userManager} />}
         />
         {customAttributes.map(([attrName, attrValue]) => (
           <DataSet

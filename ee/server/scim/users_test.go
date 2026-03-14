@@ -867,6 +867,229 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 	})
 }
 
+func TestExtractCustomAttributesFromRawBody(t *testing.T) {
+	handler := newTestMocks().newTestHandler()
+
+	t.Run("extracts simple string attributes, skips department and manager", func(t *testing.T) {
+		rawBody := []byte(`{
+			"userName": "user@example.com",
+			"urn:ietf:params:scim:schemas:extension:enterprise:2.0:User": {
+				"department": "Engineering",
+				"manager": {"value": "mgr-001", "displayName": "Jane Manager"},
+				"costCenter": "CC-1234",
+				"position": "Staff Engineer"
+			}
+		}`)
+		ctx := context.WithValue(context.Background(), rawBodyContextKey, rawBody)
+		customAttrs, managerDN := handler.extractCustomAttributesFromRawBody(ctx, "user@example.com")
+
+		// department and manager should be skipped from custom attributes
+		attrMap := make(map[string]string)
+		for _, attr := range customAttrs {
+			attrMap[attr.Name] = attr.Value
+		}
+		assert.Equal(t, "CC-1234", attrMap["costCenter"])
+		assert.Equal(t, "Staff Engineer", attrMap["position"])
+		assert.NotContains(t, attrMap, "department")
+		assert.NotContains(t, attrMap, "manager")
+
+		// manager displayName should be extracted
+		require.NotNil(t, managerDN)
+		assert.Equal(t, "Jane Manager", *managerDN)
+	})
+
+	t.Run("returns nil manager when manager has no displayName", func(t *testing.T) {
+		rawBody := []byte(`{
+			"userName": "user@example.com",
+			"urn:ietf:params:scim:schemas:extension:enterprise:2.0:User": {
+				"manager": {"value": "mgr-001"}
+			}
+		}`)
+		ctx := context.WithValue(context.Background(), rawBodyContextKey, rawBody)
+		_, managerDN := handler.extractCustomAttributesFromRawBody(ctx, "user@example.com")
+		assert.Nil(t, managerDN)
+	})
+
+	t.Run("returns nil when no enterprise extension", func(t *testing.T) {
+		rawBody := []byte(`{"userName": "user@example.com"}`)
+		ctx := context.WithValue(context.Background(), rawBodyContextKey, rawBody)
+		customAttrs, managerDN := handler.extractCustomAttributesFromRawBody(ctx, "user@example.com")
+		assert.Nil(t, customAttrs)
+		assert.Nil(t, managerDN)
+	})
+
+	t.Run("returns nil when no raw body in context", func(t *testing.T) {
+		customAttrs, managerDN := handler.extractCustomAttributesFromRawBody(context.Background(), "user@example.com")
+		assert.Nil(t, customAttrs)
+		assert.Nil(t, managerDN)
+	})
+}
+
+func TestPatchManager(t *testing.T) {
+	handler := newTestMocks().newTestHandler()
+
+	t.Run("sets manager from string value", func(t *testing.T) {
+		user := newTestScimUser(&scimUserOpts{givenName: "John", familyName: "Doe"})
+		err := handler.patchManager(context.Background(), "Replace", "Jane Boss", user)
+		require.NoError(t, err)
+		require.NotNil(t, user.Manager)
+		assert.Equal(t, "Jane Boss", *user.Manager)
+	})
+
+	t.Run("sets manager from complex object with displayName", func(t *testing.T) {
+		user := newTestScimUser(&scimUserOpts{givenName: "John", familyName: "Doe"})
+		err := handler.patchManager(context.Background(), "Replace", map[string]any{
+			"value":       "mgr-001",
+			"displayName": "Jane Manager",
+		}, user)
+		require.NoError(t, err)
+		require.NotNil(t, user.Manager)
+		assert.Equal(t, "Jane Manager", *user.Manager)
+	})
+
+	t.Run("removes manager on Remove operation", func(t *testing.T) {
+		user := newTestScimUser(&scimUserOpts{givenName: "John", familyName: "Doe"})
+		user.Manager = ptr.String("Old Manager")
+		err := handler.patchManager(context.Background(), "Remove", nil, user)
+		require.NoError(t, err)
+		assert.Nil(t, user.Manager)
+	})
+
+	t.Run("does not error on complex object without displayName", func(t *testing.T) {
+		user := newTestScimUser(&scimUserOpts{givenName: "John", familyName: "Doe"})
+		err := handler.patchManager(context.Background(), "Replace", map[string]any{
+			"value": "mgr-001",
+		}, user)
+		require.NoError(t, err)
+		assert.Nil(t, user.Manager)
+	})
+}
+
+func TestPatchCustomAttribute(t *testing.T) {
+	handler := newTestMocks().newTestHandler()
+
+	t.Run("adds new custom attribute", func(t *testing.T) {
+		user := newTestScimUser(&scimUserOpts{givenName: "John", familyName: "Doe"})
+		err := handler.patchCustomAttribute(context.Background(), "Replace", "costCenter", "CC-1234", user)
+		require.NoError(t, err)
+		require.Len(t, user.CustomAttributes, 1)
+		assert.Equal(t, "costCenter", user.CustomAttributes[0].Name)
+		assert.Equal(t, "CC-1234", user.CustomAttributes[0].Value)
+	})
+
+	t.Run("updates existing custom attribute", func(t *testing.T) {
+		user := newTestScimUser(&scimUserOpts{givenName: "John", familyName: "Doe"})
+		user.CustomAttributes = []fleet.ScimUserCustomAttribute{
+			{Name: "costCenter", Value: "CC-OLD"},
+		}
+		err := handler.patchCustomAttribute(context.Background(), "Replace", "costCenter", "CC-NEW", user)
+		require.NoError(t, err)
+		require.Len(t, user.CustomAttributes, 1)
+		assert.Equal(t, "CC-NEW", user.CustomAttributes[0].Value)
+	})
+
+	t.Run("removes custom attribute", func(t *testing.T) {
+		user := newTestScimUser(&scimUserOpts{givenName: "John", familyName: "Doe"})
+		user.CustomAttributes = []fleet.ScimUserCustomAttribute{
+			{Name: "costCenter", Value: "CC-1234"},
+			{Name: "position", Value: "Engineer"},
+		}
+		err := handler.patchCustomAttribute(context.Background(), "Remove", "costCenter", nil, user)
+		require.NoError(t, err)
+		require.Len(t, user.CustomAttributes, 1)
+		assert.Equal(t, "position", user.CustomAttributes[0].Name)
+	})
+
+	t.Run("rejects value exceeding max length", func(t *testing.T) {
+		user := newTestScimUser(&scimUserOpts{givenName: "John", familyName: "Doe"})
+		longValue := make([]byte, fleet.SCIMCustomAttributeMaxValueLength+1)
+		for i := range longValue {
+			longValue[i] = 'x'
+		}
+		err := handler.patchCustomAttribute(context.Background(), "Replace", "tooLong", string(longValue), user)
+		require.Error(t, err)
+	})
+}
+
+func TestCreateUserResourceWithManager(t *testing.T) {
+	t.Run("includes manager in enterprise extension as complex object", func(t *testing.T) {
+		user := &fleet.ScimUser{
+			ID:         1,
+			UserName:   "user@example.com",
+			GivenName:  ptr.String("John"),
+			FamilyName: ptr.String("Doe"),
+			Department: ptr.String("Engineering"),
+			Manager:    ptr.String("Jane Manager"),
+			Active:     ptr.Bool(true),
+		}
+		resource := createUserResource(user)
+
+		ext, ok := resource.Attributes[extensionEnterpriseUserAttributes]
+		require.True(t, ok)
+		extMap, ok := ext.(scim.ResourceAttributes)
+		require.True(t, ok)
+
+		assert.Equal(t, "Engineering", extMap[departmentAttr])
+
+		managerVal, ok := extMap[managerAttr]
+		require.True(t, ok)
+		managerMap, ok := managerVal.(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "Jane Manager", managerMap[displayNameAttr])
+	})
+
+	t.Run("omits manager when nil", func(t *testing.T) {
+		user := &fleet.ScimUser{
+			ID:         1,
+			UserName:   "user@example.com",
+			GivenName:  ptr.String("John"),
+			FamilyName: ptr.String("Doe"),
+			Department: ptr.String("Engineering"),
+			Active:     ptr.Bool(true),
+		}
+		resource := createUserResource(user)
+
+		ext, ok := resource.Attributes[extensionEnterpriseUserAttributes]
+		require.True(t, ok)
+		extMap, ok := ext.(scim.ResourceAttributes)
+		require.True(t, ok)
+		_, hasManager := extMap[managerAttr]
+		assert.False(t, hasManager)
+	})
+
+	t.Run("includes custom attributes alongside manager and department", func(t *testing.T) {
+		user := &fleet.ScimUser{
+			ID:         1,
+			UserName:   "user@example.com",
+			GivenName:  ptr.String("John"),
+			FamilyName: ptr.String("Doe"),
+			Department: ptr.String("Engineering"),
+			Manager:    ptr.String("Jane Manager"),
+			Active:     ptr.Bool(true),
+			CustomAttributes: []fleet.ScimUserCustomAttribute{
+				{Name: "costCenter", Value: "CC-1234"},
+				{Name: "position", Value: "Staff Engineer"},
+			},
+		}
+		resource := createUserResource(user)
+
+		ext, ok := resource.Attributes[extensionEnterpriseUserAttributes]
+		require.True(t, ok)
+		extMap, ok := ext.(scim.ResourceAttributes)
+		require.True(t, ok)
+
+		assert.Equal(t, "Engineering", extMap[departmentAttr])
+		assert.Equal(t, "CC-1234", extMap["costCenter"])
+		assert.Equal(t, "Staff Engineer", extMap["position"])
+
+		managerVal, ok := extMap[managerAttr]
+		require.True(t, ok)
+		managerMap, ok := managerVal.(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "Jane Manager", managerMap[displayNameAttr])
+	})
+}
+
 func TestUserHandlerCreateReactivation(t *testing.T) {
 	t.Run("reactivates deactivated user via Create", func(t *testing.T) {
 		mocks := newTestMocks()

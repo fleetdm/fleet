@@ -92,8 +92,7 @@ func ReplaceHostEndUserIDPVariables(ctx context.Context, ds fleet.Datastore,
 	}
 
 	// Handle custom IdP attribute variables ($FLEET_VAR_HOST_END_USER_IDP_CUSTOM_<KEY>)
-	if strings.HasPrefix(fleetVar, string(fleet.FleetVarHostEndUserIDPCustomPrefix)) {
-		attrName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarHostEndUserIDPCustomPrefix))
+	if attrName, found := strings.CutPrefix(fleetVar, string(fleet.FleetVarHostEndUserIDPCustomPrefix)); found {
 		value := ""
 		if user.IdpCustomAttributes != nil {
 			value = user.IdpCustomAttributes[attrName]
@@ -128,6 +127,9 @@ func ReplaceHostEndUserIDPVariables(ctx context.Context, ds fleet.Datastore,
 	case string(fleet.FleetVarHostEndUserIDPDepartment):
 		rx = fleet.FleetVarHostEndUserIDPDepartmentRegexp
 		value = user.Department
+	case string(fleet.FleetVarHostEndUserIDPManager):
+		rx = fleet.FleetVarHostEndUserIDPManagerRegexp
+		value = user.Manager
 	case string(fleet.FleetVarHostEndUserIDPFullname):
 		rx = fleet.FleetVarHostEndUserIDPFullnameRegexp
 		value = strings.TrimSpace(user.IdpFullName)
@@ -166,6 +168,7 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore,
 
 	noGroupsErr := fmt.Sprintf("There are no IdP groups for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPGroups)
 	noDepartmentErr := fmt.Sprintf("There is no IdP department for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPDepartment)
+	noManagerErr := fmt.Sprintf("There is no IdP manager for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPManager)
 	noFullnameErr := fmt.Sprintf("There is no IdP full name for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPFullname)
 	if len(users) > 0 && users[0].IdpUserName != "" {
 		idpUser := users[0]
@@ -175,6 +178,9 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore,
 		}
 		if fleetVar == string(fleet.FleetVarHostEndUserIDPDepartment) && idpUser.Department == "" {
 			return nil, false, onError(noDepartmentErr)
+		}
+		if fleetVar == string(fleet.FleetVarHostEndUserIDPManager) && idpUser.Manager == "" {
+			return nil, false, onError(noManagerErr)
 		}
 		if fleetVar == string(fleet.FleetVarHostEndUserIDPFullname) && strings.TrimSpace(idpUser.IdpFullName) == "" {
 			return nil, false, onError(noFullnameErr)
@@ -194,6 +200,8 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore,
 		detail = noGroupsErr
 	case fleetVar == string(fleet.FleetVarHostEndUserIDPDepartment):
 		detail = noDepartmentErr
+	case fleetVar == string(fleet.FleetVarHostEndUserIDPManager):
+		detail = noManagerErr
 	case fleetVar == string(fleet.FleetVarHostEndUserIDPFullname):
 		detail = noFullnameErr
 	case strings.HasPrefix(fleetVar, string(fleet.FleetVarHostEndUserIDPCustomPrefix)):

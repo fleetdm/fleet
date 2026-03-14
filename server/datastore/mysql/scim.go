@@ -30,8 +30,8 @@ func (ds *Datastore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		const insertUserQuery = `
 		INSERT INTO scim_users (
-			external_id, user_name, given_name, family_name, department, active
-		) VALUES (?, ?, ?, ?, ?, ?)`
+			external_id, user_name, given_name, family_name, department, manager, active
+		) VALUES (?, ?, ?, ?, ?, ?, ?)`
 		result, err := tx.ExecContext(
 			ctx,
 			insertUserQuery,
@@ -40,6 +40,7 @@ func (ds *Datastore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (
 			user.GivenName,
 			user.FamilyName,
 			user.Department,
+			user.Manager,
 			user.Active,
 		)
 		if err != nil {
@@ -78,7 +79,7 @@ func (ds *Datastore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (
 func (ds *Datastore) ScimUserByID(ctx context.Context, id uint) (*fleet.ScimUser, error) {
 	const query = `
 		SELECT
-			id, external_id, user_name, given_name, family_name, department, active, updated_at
+			id, external_id, user_name, given_name, family_name, department, manager, active, updated_at
 		FROM scim_users
 		WHERE id = ?
 	`
@@ -123,7 +124,7 @@ func (ds *Datastore) ScimUserByUserName(ctx context.Context, userName string) (*
 func scimUserByUserName(ctx context.Context, q sqlx.QueryerContext, userName string) (*fleet.ScimUser, error) {
 	const query = `
 		SELECT
-			id, external_id, user_name, given_name, family_name, department, active, updated_at
+			id, external_id, user_name, given_name, family_name, department, manager, active, updated_at
 		FROM scim_users
 		WHERE user_name = ?
 	`
@@ -194,7 +195,7 @@ func scimUserByUserNameOrEmail(ctx context.Context, q sqlx.QueryerContext, logge
 	// Next, to find the user by email
 	const query = `
 		SELECT
-			scim_users.id, external_id, user_name, given_name, family_name, department, active, scim_users.updated_at
+			scim_users.id, external_id, user_name, given_name, family_name, department, manager, active, scim_users.updated_at
 		FROM scim_users
 		JOIN scim_user_emails ON scim_users.id = scim_user_emails.scim_user_id
 		WHERE scim_user_emails.email = ?
@@ -255,7 +256,7 @@ func (ds *Datastore) ScimUserByHostID(ctx context.Context, hostID uint) (*fleet.
 func getScimUserLiteByHostID(ctx context.Context, q sqlx.QueryerContext, hostID uint) (*fleet.ScimUser, error) {
 	const query = `
 		SELECT
-			su.id, su.external_id, su.user_name, su.given_name, su.family_name, su.department, su.active, su.updated_at
+			su.id, su.external_id, su.user_name, su.given_name, su.family_name, su.department, su.manager, su.active, su.updated_at
 		FROM scim_users su
 		JOIN host_scim_user ON su.id = host_scim_user.scim_user_id
 		WHERE host_scim_user.host_id = ?
@@ -304,14 +305,15 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 	customAttrsNeedUpdate := customAttributesRequireUpdate(currentCustomAttrs, user.CustomAttributes)
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// load the username and department before updating the user, to check if it changed
+		// load the username, department, and manager before updating the user, to check if they changed
 		old := struct {
 			UserName   string  `db:"user_name"`
 			Department *string `db:"department"`
+			Manager    *string `db:"manager"`
 			GivenName  *string `db:"given_name"`
 			FamilyName *string `db:"family_name"`
 		}{}
-		err := sqlx.GetContext(ctx, tx, &old, `SELECT user_name, department, given_name, family_name FROM scim_users WHERE id = ?`, user.ID)
+		err := sqlx.GetContext(ctx, tx, &old, `SELECT user_name, department, manager, given_name, family_name FROM scim_users WHERE id = ?`, user.ID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return notFound("scim user").WithID(user.ID)
@@ -327,6 +329,7 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 			given_name = ?,
 			family_name = ?,
 			department = ?,
+			manager = ?,
 			active = ?
 		WHERE id = ?`
 		result, err := tx.ExecContext(
@@ -337,6 +340,7 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 			user.GivenName,
 			user.FamilyName,
 			user.Department,
+			user.Manager,
 			user.Active,
 			user.ID,
 		)
@@ -357,6 +361,7 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 
 		usernameChanged := old.UserName != user.UserName
 		departmentChanged := !cmp.Equal(old.Department, user.Department)
+		managerChanged := !cmp.Equal(old.Manager, user.Manager)
 		nameChanged := !cmp.Equal(old.GivenName, user.GivenName) || !cmp.Equal(old.FamilyName, user.FamilyName)
 
 		// Only update emails if they've changed
@@ -400,7 +405,7 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		user.Groups = groups
 
 		// resend profiles that depend on this username if it changed
-		if usernameChanged || departmentChanged || nameChanged {
+		if usernameChanged || departmentChanged || managerChanged || nameChanged {
 			err = triggerResendProfilesForIDPUserChange(ctx, tx, user.ID)
 			if err != nil {
 				return err
@@ -495,7 +500,7 @@ func (ds *Datastore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersList
 	// Build the base query
 	baseQuery := `
 		SELECT DISTINCT
-			scim_users.id, external_id, user_name, given_name, family_name, department, active, scim_users.updated_at
+			scim_users.id, external_id, user_name, given_name, family_name, department, manager, active, scim_users.updated_at
 		FROM scim_users
 	`
 
@@ -702,6 +707,9 @@ func validateScimUserFields(user *fleet.ScimUser) error {
 	}
 	if user.Department != nil && len(*user.Department) > fleet.SCIMMaxFieldLength {
 		return &fleet.SCIMValidationError{Field: "department", Message: fmt.Sprintf("exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)}
+	}
+	if user.Manager != nil && len(*user.Manager) > fleet.SCIMMaxFieldLength {
+		return fmt.Errorf("manager exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
 	}
 	return nil
 }
@@ -1263,6 +1271,7 @@ func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtConte
 			fleet.FleetVarHostEndUserIDPUsername,
 			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 			fleet.FleetVarHostEndUserIDPDepartment,
+			fleet.FleetVarHostEndUserIDPManager,
 			fleet.FleetVarHostEndUserIDPFullname,
 		})
 }
@@ -1278,6 +1287,7 @@ func triggerResendProfilesForIDPUserDeleted(ctx context.Context, tx sqlx.ExtCont
 			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 			fleet.FleetVarHostEndUserIDPGroups,
 			fleet.FleetVarHostEndUserIDPDepartment,
+			fleet.FleetVarHostEndUserIDPManager,
 			fleet.FleetVarHostEndUserIDPFullname,
 			fleet.FleetVarHostEndUserIDPCustomPrefix,
 		})
@@ -1342,6 +1352,7 @@ func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.Ext
 			fleet.FleetVarHostEndUserIDPUsername,
 			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 			fleet.FleetVarHostEndUserIDPDepartment,
+			fleet.FleetVarHostEndUserIDPManager,
 			fleet.FleetVarHostEndUserIDPGroups,
 			fleet.FleetVarHostEndUserIDPFullname,
 			fleet.FleetVarHostEndUserIDPCustomPrefix,
@@ -1529,7 +1540,7 @@ func insertCustomAttributes(ctx context.Context, tx sqlx.ExtContext, user *fleet
 		return nil
 	}
 	valueStrings := make([]string, 0, len(user.CustomAttributes))
-	valueArgs := make([]interface{}, 0, len(user.CustomAttributes)*3)
+	valueArgs := make([]any, 0, len(user.CustomAttributes)*3)
 	for _, attr := range user.CustomAttributes {
 		valueStrings = append(valueStrings, "(?, ?, ?)")
 		valueArgs = append(valueArgs, user.ID, attr.Name, attr.Value)
@@ -1544,15 +1555,15 @@ func insertCustomAttributes(ctx context.Context, tx sqlx.ExtContext, user *fleet
 	return nil
 }
 
-func customAttributesRequireUpdate(current, new []fleet.ScimUserCustomAttribute) bool {
-	if len(current) != len(new) {
+func customAttributesRequireUpdate(current, updated []fleet.ScimUserCustomAttribute) bool {
+	if len(current) != len(updated) {
 		return true
 	}
 	currentMap := make(map[string]string, len(current))
 	for _, attr := range current {
 		currentMap[attr.Name] = attr.Value
 	}
-	for _, attr := range new {
+	for _, attr := range updated {
 		if val, ok := currentMap[attr.Name]; !ok || val != attr.Value {
 			return true
 		}

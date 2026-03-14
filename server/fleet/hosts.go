@@ -894,14 +894,15 @@ type HostDetail struct {
 }
 
 type HostEndUser struct {
-	IdpID              string              `json:"idp_id,omitempty"`
-	IdpUserName        string              `json:"idp_username,omitempty"`
-	IdpFullName        string              `json:"idp_full_name,omitempty"`
-	IdpGroups          []string            `json:"idp_groups,omitempty"`
-	Department         string              `json:"idp_department,omitempty"`
-	IdpCustomAttributes map[string]string  `json:"idp_custom_attributes,omitempty"`
-	IdpInfoUpdatedAt   *time.Time          `json:"idp_info_updated_at"`
-	OtherEmails        []HostDeviceMapping `json:"other_emails,omitempty"`
+	IdpID               string              `json:"idp_id,omitempty"`
+	IdpUserName         string              `json:"idp_username,omitempty"`
+	IdpFullName         string              `json:"idp_full_name,omitempty"`
+	IdpGroups           []string            `json:"idp_groups,omitempty"`
+	Department          string              `json:"idp_department,omitempty"`
+	Manager             string              `json:"idp_manager,omitempty"`
+	IdpCustomAttributes map[string]string   `json:"idp_custom_attributes,omitempty"`
+	IdpInfoUpdatedAt    *time.Time          `json:"idp_info_updated_at"`
+	OtherEmails         []HostDeviceMapping `json:"other_emails,omitempty"`
 }
 
 type HostMaintenanceWindow struct {
@@ -1630,6 +1631,9 @@ func GetEndUsers(ctx context.Context, ds Datastore, hostID uint) ([]HostEndUser,
 		}
 		if scimUser.Department != nil {
 			endUser.Department = *scimUser.Department
+		}
+		if scimUser.Manager != nil {
+			endUser.Manager = *scimUser.Manager
 		}
 		if len(scimUser.CustomAttributes) > 0 {
 			endUser.IdpCustomAttributes = make(map[string]string, len(scimUser.CustomAttributes))
