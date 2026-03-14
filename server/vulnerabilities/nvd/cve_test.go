@@ -457,7 +457,13 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		// See https://github.com/fleetdm/fleet/issues/32662.
 		"cpe:2.3:a:ipswitch:whatsup:2006:-:professional:premium:*:*:*:*": {
 			includedCVEs: []cve{
+				{ID: "CVE-2006-2351"},
+				{ID: "CVE-2006-2352"},
+				{ID: "CVE-2006-2353"},
 				{ID: "CVE-2006-2354"},
+				{ID: "CVE-2006-2355"},
+				{ID: "CVE-2006-2356"},
+				{ID: "CVE-2006-2357"},
 			},
 		},
 		// Tests the expandCPEAliases rule for virtualbox on macOS
@@ -1255,14 +1261,12 @@ func TestExpandCPEAliases(t *testing.T) {
 	python3130RC1Alias.Update = ""
 
 	ipswitchWhatsup := &wfn.Attributes{
-		Vendor:   "ipswitch",
-		Product:  "whatsup",
-		Version:  "2006",
-		Language: "premium",
+		Vendor:  "ipswitch",
+		Product: "whatsup",
+		Version: "2006",
 	}
 	ipswitchWhatsupAlias := *ipswitchWhatsup
 	ipswitchWhatsupAlias.Product = "whatsup_professional"
-	ipswitchWhatsupAlias.Language = ""
 
 	pgadminMacOS := &wfn.Attributes{
 		Vendor:   "pgadmin",

@@ -610,10 +610,9 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 	// but CVE-2006-2354 references product="whatsup_professional".
 	// See https://github.com/fleetdm/fleet/issues/32662.
 	for _, cpeItem := range cpeItems {
-		if cpeItem.Vendor == "ipswitch" && cpeItem.Product == "whatsup" && cpeItem.Language == "premium" {
+		if cpeItem.Vendor == "ipswitch" && cpeItem.Product == "whatsup" {
 			cpeItem2 := *cpeItem
 			cpeItem2.Product = "whatsup_professional"
-			cpeItem2.Language = wfn.Any
 			cpeItems = append(cpeItems, &cpeItem2)
 		}
 	}
