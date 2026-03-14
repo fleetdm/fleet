@@ -1,60 +1,31 @@
 package com.fleetdm.agent.osquery
 
 import android.util.Log
-import com.fleetdm.agent.BuildConfig
 import com.fleetdm.agent.ApiClient
 import com.fleetdm.agent.osquery.core.TableQueryContext
 import com.fleetdm.agent.osquery.core.TableRegistry
 import com.fleetdm.agent.osquery.core.WhereCond
 import com.fleetdm.agent.osquery.core.WhereOp
 import com.fleetdm.agent.osquery.core.parseSelectSql
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONArray
-import org.json.JSONObject
-import java.security.SecureRandom
-import java.security.cert.X509Certificate
-import javax.net.ssl.HostnameVerifier
-import javax.net.ssl.SSLContext
-import javax.net.ssl.SSLSession
-import javax.net.ssl.TrustManager
-import javax.net.ssl.X509TrustManager
 
 object FleetDistributedQueryRunner {
 
     private const val tag = "FleetOsquery"
 
-    // Base URL comes from existing debug config
-    private val fleetBaseUrl: String = BuildConfig.DEBUG_FLEET_SERVER_URL
-
     // If true, when we cannot run a query, we still answer it with [] so Fleet stops sending it.
     var clearUnknownQueries: Boolean = true
-    private val warnedUnknownTables = mutableSetOf<String>()
-
-    // Debug builds allow self-signed TLS, release builds do not
-    private val client: OkHttpClient =
-        if (BuildConfig.DEBUG) unsafeOkHttpClient() else OkHttpClient()
 
     suspend fun runOnce() {
         val startMs = System.currentTimeMillis()
-
-        val nodeKey = ApiClient.getApiKey()
-            ?: throw RuntimeException("No node key yet (enrollment not complete)")
-
-        val readResp = fleetDistributedRead(nodeKey)
-
-        val queriesObj = readResp.optJSONObject("queries") ?: JSONObject()
-        val queryNames = queriesObj.keys().asSequence().toList().sorted()
+        val readResp = ApiClient.distributedRead()
+            .getOrElse { throw RuntimeException("distributed/read failed: ${it.message}") }
+        val queryNames = readResp.queries.keys.sorted()
 
         val resultsToWrite = linkedMapOf<String, List<Map<String, String>>>()
         var handled = 0
 
         for (qName in queryNames) {
-            val sql = queriesObj.optString(qName, "")
+            val sql = readResp.queries[qName].orEmpty()
             if (sql.isBlank()) continue
 
             try {
@@ -73,74 +44,13 @@ object FleetDistributedQueryRunner {
         }
 
         if (resultsToWrite.isNotEmpty()) {
-            fleetDistributedWrite(nodeKey, resultsToWrite)
+            ApiClient.distributedWrite(resultsToWrite)
+                .getOrElse { throw RuntimeException("distributed/write failed: ${it.message}") }
         }
 
         val took = System.currentTimeMillis() - startMs
         Log.i(tag, "runOnce handled=$handled wrote=${resultsToWrite.size} tookMs=$took")
     }
-
-    private suspend fun fleetDistributedRead(nodeKey: String): JSONObject =
-        withContext(Dispatchers.IO) {
-
-            val payload = JSONObject().apply {
-                put("node_key", nodeKey)
-                put("queries", JSONObject())
-            }
-
-            val base = fleetBaseUrl.trimEnd('/')
-
-            val req = Request.Builder()
-                .url("$base/api/v1/osquery/distributed/read")
-                .post(payload.toString().toRequestBody("application/json".toMediaType()))
-                .build()
-
-            client.newCall(req).execute().use { resp ->
-                val body = resp.body?.string().orEmpty()
-                if (!resp.isSuccessful) {
-                    throw RuntimeException("distributed/read HTTP ${resp.code}: $body")
-                }
-                JSONObject(body)
-            }
-        }
-
-    private suspend fun fleetDistributedWrite(
-        nodeKey: String,
-        queryResults: Map<String, List<Map<String, String>>>
-    ): JSONObject =
-        withContext(Dispatchers.IO) {
-
-            val queriesObj = JSONObject()
-            for ((queryName, rows) in queryResults) {
-                val arr = JSONArray()
-                for (row in rows) {
-                    val o = JSONObject()
-                    for ((k, v) in row) o.put(k, v)
-                    arr.put(o)
-                }
-                queriesObj.put(queryName, arr)
-            }
-
-            val payload = JSONObject().apply {
-                put("node_key", nodeKey)
-                put("queries", queriesObj)
-            }
-
-            val base = fleetBaseUrl.trimEnd('/')
-
-            val req = Request.Builder()
-                .url("$base/api/v1/osquery/distributed/write")
-                .post(payload.toString().toRequestBody("application/json".toMediaType()))
-                .build()
-
-            client.newCall(req).execute().use { resp ->
-                val body = resp.body?.string().orEmpty()
-                if (!resp.isSuccessful) {
-                    throw RuntimeException("distributed/write HTTP ${resp.code}: $body")
-                }
-                if (body.isBlank()) JSONObject() else JSONObject(body)
-            }
-        }
 
     private suspend fun executeSqlViaTables(sql: String): List<Map<String, String>> {
         val parsed = parseSelectSql(sql)
@@ -198,35 +108,5 @@ object FleetDistributedQueryRunner {
             .replace("_", ".")
         val re = Regex("^$escaped$", RegexOption.IGNORE_CASE)
         return re.matches(actual)
-    }
-
-    private fun unsafeOkHttpClient(): OkHttpClient {
-        val trustAllCerts = arrayOf<TrustManager>(
-            object : X509TrustManager {
-                override fun checkClientTrusted(
-                    chain: Array<X509Certificate>,
-                    authType: String
-                ) {}
-
-                override fun checkServerTrusted(
-                    chain: Array<X509Certificate>,
-                    authType: String
-                ) {}
-
-                override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
-            }
-        )
-
-        val sslContext = SSLContext.getInstance("TLS")
-        sslContext.init(null, trustAllCerts, SecureRandom())
-
-        val trustManager = trustAllCerts[0] as X509TrustManager
-        val hostnameVerifier =
-            HostnameVerifier { _: String?, _: SSLSession? -> true }
-
-        return OkHttpClient.Builder()
-            .sslSocketFactory(sslContext.socketFactory, trustManager)
-            .hostnameVerifier(hostnameVerifier)
-            .build()
     }
 }

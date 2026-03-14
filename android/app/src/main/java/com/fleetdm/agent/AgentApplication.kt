@@ -46,9 +46,11 @@ class AgentApplication : Application() {
         FleetLog.initialize(this)
         Storage.init(this)
 
-        // Log device id (safe; not a secret)
+        // Device ID is useful for local debugging; avoid logging full identifier in non-debug builds.
         val deviceId = DeviceIdManager.getOrCreateDeviceId()
-        Log.i(TAG, "DeviceId=$deviceId")
+        if (BuildConfig.DEBUG) {
+            Log.i(TAG, "DeviceId=${deviceId.take(8)}...")
+        }
 
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->

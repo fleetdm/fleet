@@ -11,7 +11,7 @@ So this is not the historical authoring order; it is a post-hoc contract/oracle 
 As part of this PR, the contracts/oracle approach from the book was adopted during the work: some sections were extracted from already-implemented code, and some sections were defined contract-first and then implemented according to that contract.
 
 ## Compliance statement
-The implementation in this PR was checked against the currently implemented contract/oracle rules (C1-C10 and O1-O11), and it appears to respect them based on current unit tests and manual validation performed by this AI agent in this branch.  
+The implementation in this PR was checked against the currently implemented contract/oracle rules (C1-C11 and O1-O12), and it appears to respect them based on current unit tests and manual validation performed by this AI agent in this branch.  
 This is an engineering confidence statement, not a formal proof of correctness.  
 
 ## System behavior contract
@@ -113,6 +113,19 @@ Android must expose `system_info`, `kernel_info`, and `memory_info` using osquer
 - exactly one row per query
 - exposes memory snapshot fields derived from Android memory APIs
 - total/available/threshold fields are non-negative numeric values
+
+#### C11. Security assessment baseline (enrollment + distributed query path)
+All security-relevant checks below must hold:
+- Transport policy: release builds enforce HTTPS and reject malformed origins. Status: good.
+- Re-enrollment safety: 401 clears node key and retries once; non-401 does not trigger re-enroll. Status: good.
+- Node key at rest: stored encrypted via Android Keystore-backed key. Status: good.
+- Distributed loop network path: both worker paths now use hardened `ApiClient` request policy (no legacy unsafe TLS path). Status: good.
+- Debug-only behaviors: debug fallback enrollment credentials and fast polling remain debug-gated. Status: good.
+- Log exposure control: `android_logcat` is opt-in, tag-filtered, bounded, and token-redacted. Status: good.
+- Identifier logging: full Device ID is not logged in non-debug builds. Status: good.
+- Backup exfiltration risk: app backup is disabled (`allowBackup=false`) to reduce managed-config/token leakage risk. Status: good.
+- Broadcast trigger abuse risk: boot receiver is non-exported to reduce external-trigger surface. Status: good.
+- Minor accepted risk: enrollment secret is stored in app-private DataStore (not Keystore-encrypted). Rationale: low practical risk after backup disable + app sandbox; full secret-encryption migration is possible but adds compatibility and rotation complexity. Status: accepted minor.
 
 ### Contracted Android table set
 Current registered tables:
@@ -240,10 +253,24 @@ How to verify:
 - manual Fleet query on Android host
 - unit assertion for one-row shape and numeric parseability
 
+### O12. Security baseline regression checks
+Human rule:
+- Release path rejects non-HTTPS origins and malformed base URLs.
+- 401 behavior triggers controlled re-enrollment; non-401 does not.
+- Distributed query execution path does not use unsafe TLS bypass logic.
+- Non-debug logs do not expose full Device ID.
+- Backup remains disabled and boot receiver remains non-exported.
+How to verify:
+- unit suite: `ApiClientReenrollTest` (URL and re-enrollment invariants)
+- code inspection: `FleetDistributedQueryRunner` delegates network calls to `ApiClient`
+- manifest inspection: `android:allowBackup=\"false\"`, boot receiver `android:exported=\"false\"`
+- runtime/log review on release-like build
+
 ## Reviewer checklist (fast path)
 1. Validate C1-C4 against unit test evidence (`ApiClientReenrollTest`).
 2. Validate C5-C7 by one end-to-end run: query from Fleet UI and inspect writeback results.
 3. Validate C8 by running `android_logcat` once with flag off (expect empty), then on (expect filtered/redacted rows).
 4. Validate C9/O6/O7 with `SELECT * FROM time;` and `SELECT * FROM uptime;` plus basic value sanity checks.
 5. Validate C10/O9/O10/O11 with `SELECT * FROM system_info;`, `SELECT * FROM kernel_info;`, and `SELECT * FROM memory_info;`.
-6. Approve only if behavior and safety expectations match this contract, even if implementation details change later.
+6. Validate C11/O12 security baseline checks (URL policy, manifest flags, no unsafe TLS path).
+7. Approve only if behavior and safety expectations match this contract, even if implementation details change later.
