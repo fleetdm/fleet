@@ -11,9 +11,8 @@ So this is not the historical authoring order; it is a post-hoc contract/oracle 
 As part of this PR, the contracts/oracle approach from the book was adopted during the work: some sections were extracted from already-implemented code, and some sections were defined contract-first and then implemented according to that contract.
 
 ## Compliance statement
-The implementation in this PR was checked against the currently implemented contract/oracle rules (C1-C9 and O1-O8), and it appears to respect them based on current unit tests and manual validation performed by this AI agent in this branch.  
+The implementation in this PR was checked against the currently implemented contract/oracle rules (C1-C10 and O1-O11), and it appears to respect them based on current unit tests and manual validation performed by this AI agent in this branch.  
 This is an engineering confidence statement, not a formal proof of correctness.  
-The newly approved `system_info`/`kernel_info`/`memory_info` additions (C10 and O9-O11) define the next implementation target.
 
 ## System behavior contract
 
