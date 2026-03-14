@@ -9,6 +9,7 @@ import Backblaze from "./Backblaze";
 import BetterDisplay from "./BetterDisplay";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
+import KarabinerElements from "./KarabinerElements";
 import Iina from "./Iina";
 import LastPass from "./LastPass";
 import Nextcloud from "./Nextcloud";
@@ -304,6 +305,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
+  "karabiner-elements": KarabinerElements,
   iina: Iina,
   lastpass: LastPass,
   "microsoft.companyportal": IntuneCompanyPortal,
