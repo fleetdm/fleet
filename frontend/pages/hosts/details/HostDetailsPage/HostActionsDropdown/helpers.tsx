@@ -70,6 +70,12 @@ const DEFAULT_OPTIONS = [
     disabled: false,
   },
   {
+    label: "Clear passcode",
+    value: "clear_passcode",
+    disabled: false,
+    premiumOnly: true,
+  },
+  {
     label: "Delete",
     disabled: false,
     value: "delete",
@@ -103,6 +109,7 @@ interface IHostActionConfigOptions {
   isRecoveryLockPasswordEnabled: boolean;
   diskEncryptionProfileStatus: string | undefined;
   recoveryLockPasswordProfileStatus: string | undefined;
+  unlockTokenAvailable: boolean;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -258,6 +265,31 @@ const canUnlock = ({
   );
 };
 
+// Clear passcode is only available for iOS and iPadOS hosts enrolled via ADE (not personal/manual).
+// The option is shown (but may be disabled) for eligible hosts; it is removed entirely for ineligible ones.
+const canShowClearPasscode = ({
+  isPremiumTier,
+  hostPlatform,
+  isConnectedToFleetMdm,
+  isMacMdmEnabledAndConfigured,
+  isEnrolledInMdm,
+  hostMdmEnrollmentStatus,
+  isGlobalAdmin,
+  isGlobalMaintainer,
+  isTeamAdmin,
+  isTeamMaintainer,
+}: IHostActionConfigOptions) => {
+  return (
+    isPremiumTier &&
+    isIPadOrIPhone(hostPlatform) &&
+    isAutomaticDeviceEnrollment(hostMdmEnrollmentStatus) &&
+    isConnectedToFleetMdm &&
+    isMacMdmEnabledAndConfigured &&
+    isEnrolledInMdm &&
+    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
+  );
+};
+
 const canDeleteHost = (config: IHostActionConfigOptions) => {
   const {
     isGlobalAdmin,
@@ -380,6 +412,10 @@ const removeUnavailableOptions = (
     options = options.filter((option) => option.value !== "unlock");
   }
 
+  if (!canShowClearPasscode(config)) {
+    options = options.filter((option) => option.value !== "clear_passcode");
+  }
+
   // TODO: refactor to filter in one pass using predefined filters specified for each of the
   // DEFAULT_OPTIONS. Note that as currently, structured the default is to include all options.
   // This is a bit confusing since we remove options instead of add options
@@ -443,6 +479,7 @@ const modifyOptions = (
     scriptsGloballyDisabled,
     diskEncryptionProfileStatus,
     recoveryLockPasswordProfileStatus,
+    unlockTokenAvailable,
   }: IHostActionConfigOptions
 ) => {
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
@@ -547,6 +584,23 @@ const modifyOptions = (
           Recovery Lock password is unavailable
           <br />
           while pending or has failed.
+        </>
+      );
+    }
+  }
+
+  // Disable clear passcode when the unlock token has not yet been received from the device.
+  if (!unlockTokenAvailable) {
+    const clearPasscodeOption = options.find(
+      (option) => option.value === "clear_passcode"
+    );
+    if (clearPasscodeOption) {
+      clearPasscodeOption.disabled = true;
+      clearPasscodeOption.tooltipContent = (
+        <>
+          Clear passcode is unavailable until
+          <br />
+          the host sends its unlock token.
         </>
       );
     }

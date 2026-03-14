@@ -939,6 +939,8 @@ type GetMDMAppleEnrollmentProfileByTypeFunc func(ctx context.Context, typ fleet.
 
 type ListMDMAppleEnrollmentProfilesFunc func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error)
 
+type GetMDMAppleDeviceUnlockTokenFunc func(ctx context.Context, hostUUID string) ([]byte, error)
+
 type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
 
 type GetVPPCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
@@ -3179,6 +3181,9 @@ type DataStore struct {
 
 	ListMDMAppleEnrollmentProfilesFunc        ListMDMAppleEnrollmentProfilesFunc
 	ListMDMAppleEnrollmentProfilesFuncInvoked bool
+
+	GetMDMAppleDeviceUnlockTokenFunc        GetMDMAppleDeviceUnlockTokenFunc
+	GetMDMAppleDeviceUnlockTokenFuncInvoked bool
 
 	GetMDMAppleCommandResultsFunc        GetMDMAppleCommandResultsFunc
 	GetMDMAppleCommandResultsFuncInvoked bool
@@ -7686,6 +7691,13 @@ func (s *DataStore) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*flee
 	s.ListMDMAppleEnrollmentProfilesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListMDMAppleEnrollmentProfilesFunc(ctx)
+}
+
+func (s *DataStore) GetMDMAppleDeviceUnlockToken(ctx context.Context, hostUUID string) ([]byte, error) {
+	s.mu.Lock()
+	s.GetMDMAppleDeviceUnlockTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleDeviceUnlockTokenFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {

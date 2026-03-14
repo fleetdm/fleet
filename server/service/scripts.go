@@ -1685,3 +1685,33 @@ func (svc *Service) WipeHost(ctx context.Context, _ uint, _ *fleet.MDMWipeMetada
 
 	return fleet.ErrMissingLicense
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Clear host passcode
+////////////////////////////////////////////////////////////////////////////////
+
+type clearHostPasscodeRequest struct {
+	HostID uint `url:"id"`
+}
+
+type clearHostPasscodeResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r clearHostPasscodeResponse) Error() error { return r.Err }
+
+func clearHostPasscodeEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*clearHostPasscodeRequest)
+	if err := svc.ClearHostPasscode(ctx, req.HostID); err != nil {
+		return clearHostPasscodeResponse{Err: err}, nil
+	}
+	return clearHostPasscodeResponse{}, nil
+}
+
+func (svc *Service) ClearHostPasscode(ctx context.Context, _ uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}

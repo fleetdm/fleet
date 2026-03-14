@@ -154,6 +154,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeLockedHost{},
 	ActivityTypeUnlockedHost{},
 	ActivityTypeWipedHost{},
+	ActivityTypeClearedPasscode{},
 
 	ActivityTypeCreatedDeclarationProfile{},
 	ActivityTypeDeletedDeclarationProfile{},
@@ -967,6 +968,19 @@ func (a ActivityTypeWipedHost) ActivityName() string {
 }
 
 func (a ActivityTypeWipedHost) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type ActivityTypeClearedPasscode struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeClearedPasscode) ActivityName() string {
+	return "cleared_passcode"
+}
+
+func (a ActivityTypeClearedPasscode) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 

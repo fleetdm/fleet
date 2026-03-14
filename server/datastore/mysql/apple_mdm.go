@@ -7240,6 +7240,20 @@ func (ds *Datastore) DeleteHostLocationData(ctx context.Context, hostID uint) er
 	return ctxerr.Wrap(ctx, err, "delete host location data")
 }
 
+// GetMDMAppleDeviceUnlockToken returns the unlock token stored in nano_devices for the given host UUID.
+// Returns nil if no token has been received yet.
+func (ds *Datastore) GetMDMAppleDeviceUnlockToken(ctx context.Context, hostUUID string) ([]byte, error) {
+	var token []byte
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &token, `SELECT unlock_token FROM nano_devices WHERE id = ? AND unlock_token IS NOT NULL`, hostUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get MDM Apple device unlock token")
+	}
+	return token, nil
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Apple MDM Recovery Lock Password
 

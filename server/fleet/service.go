@@ -1308,6 +1308,7 @@ type Service interface {
 	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
 	WipeHost(ctx context.Context, hostID uint, metadata *MDMWipeMetadata) error
+	ClearHostPasscode(ctx context.Context, hostID uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Software installers

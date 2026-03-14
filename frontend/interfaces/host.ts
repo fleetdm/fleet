@@ -166,6 +166,7 @@ export interface IHostMdmData {
   device_status: HostMdmDeviceStatus;
   pending_action: HostMdmPendingAction;
   connected_to_fleet?: boolean;
+  unlock_token_available?: boolean;
 }
 
 export interface IHostMaintenanceWindow {
