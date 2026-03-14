@@ -1662,6 +1662,7 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 // This interface is implemented by MDMAppleCommander and allows for testing.
 type RecoveryLockCommander interface {
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	ClearRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 }
 
 // SendRecoveryLockCommands is the cron job function that sends SetRecoveryLock MDM commands
@@ -1679,6 +1680,27 @@ func SendRecoveryLockCommands(
 }
 
 func sendRecoveryLockCommandsWithCommander(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander RecoveryLockCommander,
+	logger *slog.Logger,
+) error {
+	var result *multierror.Error
+
+	// 1. Handle SET password operations (hosts that need a recovery lock password)
+	if err := sendSetRecoveryLockCommands(ctx, ds, commander, logger); err != nil {
+		result = multierror.Append(result, err)
+	}
+
+	// 2. Handle CLEAR password operations (hosts that need their recovery lock cleared)
+	if err := sendClearRecoveryLockCommands(ctx, ds, commander, logger); err != nil {
+		result = multierror.Append(result, err)
+	}
+
+	return result.ErrorOrNil()
+}
+
+func sendSetRecoveryLockCommands(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander RecoveryLockCommander,
@@ -1754,12 +1776,69 @@ func sendRecoveryLockCommandsWithCommander(
 				"host_count", len(hostUUIDs),
 				"error", clearErr,
 			)
+			err = multierror.Append(err, clearErr)
 		}
 		return ctxerr.Wrap(ctx, err, "enqueue SetRecoveryLock commands")
 	}
 
 	logger.InfoContext(ctx, "sent SetRecoveryLock commands",
 		"host_count", len(hostUUIDs),
+		"command_uuid", cmdUUID,
+	)
+
+	return nil
+}
+
+func sendClearRecoveryLockCommands(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander RecoveryLockCommander,
+	logger *slog.Logger,
+) error {
+	hosts, err := ds.ClaimHostsForRecoveryLockClear(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get hosts for recovery lock clear action")
+	}
+
+	if len(hosts) == 0 {
+		logger.DebugContext(ctx, "no hosts need ClearRecoveryLock")
+		return nil
+	}
+
+	logger.InfoContext(ctx, "sending ClearRecoveryLock commands", "count", len(hosts))
+
+	// Enqueue clear command. The CurrentPassword placeholder will be expanded at
+	// delivery time by ExpandHostSecrets (which looks up by host UUID).
+	cmdUUID := uuid.NewString()
+	if err := commander.ClearRecoveryLock(ctx, hosts, cmdUUID); err != nil {
+		var apnsErr *APNSDeliveryError
+		if errors.As(err, &apnsErr) {
+			// Command was persisted but push notification failed - log warning but don't fail.
+			logger.WarnContext(ctx, "ClearRecoveryLock commands enqueued but APNs push failed",
+				"host_count", len(hosts),
+				"command_uuid", cmdUUID,
+				"error", err,
+			)
+			return nil
+		}
+
+		// Persistence failed - reset status to NULL so hosts will be picked up again.
+		logger.ErrorContext(ctx, "failed to enqueue ClearRecoveryLock commands",
+			"host_count", len(hosts),
+			"error", err,
+		)
+		if clearErr := ds.ClearRecoveryLockPendingStatus(ctx, hosts); clearErr != nil {
+			logger.ErrorContext(ctx, "failed to clear recovery lock pending status after enqueue failure",
+				"host_count", len(hosts),
+				"error", clearErr,
+			)
+			err = multierror.Append(err, clearErr)
+		}
+		return ctxerr.Wrap(ctx, err, "enqueue ClearRecoveryLock commands")
+	}
+
+	logger.InfoContext(ctx, "sent ClearRecoveryLock commands",
+		"host_count", len(hosts),
 		"command_uuid", cmdUUID,
 	)
 
