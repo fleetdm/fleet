@@ -1041,7 +1041,7 @@ func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, lo
 			}
 		}
 		return reqErr
-	}))
+	}), godep.WithLogger(logging.NewNanoDEPLogger(kitlog.With(logger, "component", "godep-syncer"))))
 }
 
 var funcMap = map[string]any{
