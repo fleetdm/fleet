@@ -11,7 +11,7 @@ So this is not the historical authoring order; it is a post-hoc contract/oracle 
 As part of this PR, the contracts/oracle approach from the book was adopted during the work: some sections were extracted from already-implemented code, and some sections were defined contract-first and then implemented according to that contract.
 
 ## Compliance statement
-The implementation in this PR was checked against the currently implemented contract/oracle rules (C1-C13 and O1-O21), and it appears to respect them based on current unit tests and manual validation performed by this AI agent in this branch.  
+The implementation in this PR was checked against the currently implemented contract/oracle rules (C1-C14 and O1-O22), and it appears to respect them based on current unit tests and manual validation performed by this AI agent in this branch.  
 This is an engineering confidence statement, not a formal proof of correctness.  
 
 ## System behavior contract
@@ -143,6 +143,13 @@ Android must expose:
 - `app_signatures`: installed app signing-certificate fingerprint metadata (best effort, visibility-scoped).
 - `mdm_status`: one-row MDM/work-profile/restrictions presence snapshot.
 - `startup_items`: boot-receiver/launcher component visibility snapshot (best effort).
+
+#### C14. Quality gate process requirements
+PR quality must include:
+- oracle-to-evidence mapping table in PR description.
+- reviewer split: one behavioral/oracle reviewer and one implementation reviewer.
+- scope freeze after quality gate definition (no new feature without contract/oracle delta).
+- explicit list of environment-limited checks not executed (for example: second OEM pass, release signing when keystore absent).
 
 ### Contracted Android table set
 Current registered tables:
@@ -364,6 +371,14 @@ How to verify:
 - manual Fleet query on Android host
 - unit assertion for query success and key presence on returned rows
 
+### O22. PR quality evidence and transparency
+Human rule:
+- PR description must include an oracle evidence table mapping each oracle group to concrete evidence.
+- PR description must include reviewer split and scope freeze notes.
+- PR description must explicitly call out high-value checks that were not executed in current environment.
+How to verify:
+- inspect PR sections: `Test Plan`, `QA`, `Oracle evidence table`, `Reviewer split`, `Scope freeze`, `Not tested`.
+
 ## Reviewer checklist (fast path)
 1. Validate C1-C4 against unit test evidence (`ApiClientReenrollTest`).
 2. Validate C5-C7 by one end-to-end run: query from Fleet UI and inspect writeback results.
@@ -373,4 +388,5 @@ How to verify:
 6. Validate C11/O12 security baseline checks (URL policy, manifest flags, no unsafe TLS path).
 7. Validate C12/O13-O18 with query success and shape checks for parity tables.
 8. Validate C13/O19-O21 with query success and shape checks for management/startup tables.
-9. Approve only if behavior and safety expectations match this contract, even if implementation details change later.
+9. Validate C14/O22 by checking PR evidence mapping, reviewer split, scope freeze, and explicit untested list.
+10. Approve only if behavior and safety expectations match this contract, even if implementation details change later.
