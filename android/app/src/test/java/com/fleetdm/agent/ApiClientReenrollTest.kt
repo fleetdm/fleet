@@ -1,12 +1,15 @@
 package com.fleetdm.agent
 
 import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.RecordedRequest
 import okhttp3.mockwebserver.MockWebServer
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -15,6 +18,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import kotlinx.coroutines.test.runTest
+import java.util.concurrent.TimeUnit
 
 /**
  * Integration tests for ApiClient 401 re-enrollment logic using MockWebServer.
@@ -88,6 +92,12 @@ class ApiClientReenrollTest {
         )
     }
 
+    private fun takeRequestOrFail(): RecordedRequest {
+        val request = mockWebServer.takeRequest(2, TimeUnit.SECONDS)
+        assertNotNull("Expected request but none arrived within timeout", request)
+        return request!!
+    }
+
     @Test
     fun `getOrbitConfig re-enrolls on 401 and retries with new key`() = runTest {
         // First call: no key exists, so enrollment happens, then config succeeds
@@ -99,12 +109,12 @@ class ApiClientReenrollTest {
         assertEquals(2, mockWebServer.requestCount) // enroll + config
 
         // Verify first enrollment used the enroll secret
-        val firstEnroll = mockWebServer.takeRequest()
+        val firstEnroll = takeRequestOrFail()
         assertEquals("/api/fleet/orbit/enroll", firstEnroll.path)
         assertTrue(firstEnroll.body.readUtf8().contains("test-enroll-secret"))
 
         // Verify first config used first-node-key
-        val firstConfig = mockWebServer.takeRequest()
+        val firstConfig = takeRequestOrFail()
         assertEquals("/api/fleet/orbit/config", firstConfig.path)
         assertTrue(firstConfig.body.readUtf8().contains("first-node-key"))
 
@@ -118,17 +128,17 @@ class ApiClientReenrollTest {
         assertEquals(5, mockWebServer.requestCount) // +3: config(401) + enroll + config
 
         // Verify: config with old key returned 401
-        val rejectedConfig = mockWebServer.takeRequest()
+        val rejectedConfig = takeRequestOrFail()
         assertEquals("/api/fleet/orbit/config", rejectedConfig.path)
         assertTrue(rejectedConfig.body.readUtf8().contains("first-node-key"))
 
         // Verify: re-enrollment happened
-        val reEnroll = mockWebServer.takeRequest()
+        val reEnroll = takeRequestOrFail()
         assertEquals("/api/fleet/orbit/enroll", reEnroll.path)
         assertTrue(reEnroll.body.readUtf8().contains("test-enroll-secret"))
 
         // Verify: retry used new key
-        val retryConfig = mockWebServer.takeRequest()
+        val retryConfig = takeRequestOrFail()
         assertEquals("/api/fleet/orbit/config", retryConfig.path)
         assertTrue(retryConfig.body.readUtf8().contains("second-node-key"))
     }
@@ -139,8 +149,8 @@ class ApiClientReenrollTest {
         enqueueEnrollmentSuccess("first-node-key")
         enqueueConfigSuccess()
         ApiClient.getOrbitConfig()
-        mockWebServer.takeRequest() // enroll
-        mockWebServer.takeRequest() // config
+        takeRequestOrFail() // enroll
+        takeRequestOrFail() // config
 
         // Now test getCertificateTemplate with 401
         enqueue401()
@@ -169,7 +179,7 @@ class ApiClientReenrollTest {
         assertTrue("Expected success but got: ${result.exceptionOrNull()}", result.isSuccess)
 
         // Verify the flow: cert request (401) -> enroll -> cert request (success)
-        val rejectedRequest = mockWebServer.takeRequest()
+        val rejectedRequest = takeRequestOrFail()
         assertEquals("/api/fleetd/certificates/123", rejectedRequest.path)
         // GET requests send node key in Authorization header, not body
         assertTrue(
@@ -177,10 +187,10 @@ class ApiClientReenrollTest {
             rejectedRequest.getHeader("Authorization")?.contains("first-node-key") == true,
         )
 
-        val enrollRequest = mockWebServer.takeRequest()
+        val enrollRequest = takeRequestOrFail()
         assertEquals("/api/fleet/orbit/enroll", enrollRequest.path)
 
-        val retryRequest = mockWebServer.takeRequest()
+        val retryRequest = takeRequestOrFail()
         assertEquals("/api/fleetd/certificates/123", retryRequest.path)
         // Verify retry uses new key in Authorization header
         assertTrue(
@@ -198,7 +208,7 @@ class ApiClientReenrollTest {
         val initialRequestCount = mockWebServer.requestCount
 
         // Clear recorded requests
-        repeat(initialRequestCount) { mockWebServer.takeRequest() }
+        repeat(initialRequestCount) { takeRequestOrFail() }
 
         // Return 500 error
         mockWebServer.enqueue(
@@ -238,5 +248,77 @@ class ApiClientReenrollTest {
 
         // 2 requests: config(401) + failed enrollment (no retry after failed enrollment)
         assertEquals(2, mockWebServer.requestCount - initialRequestCount)
+    }
+
+    @Test
+    fun `changing enrollment identity clears node key and re-enrolls`() = runTest {
+        // Initial enrollment with old identity
+        enqueueEnrollmentSuccess("old-node-key")
+        enqueueConfigSuccess()
+        val first = ApiClient.getOrbitConfig()
+        assertTrue(first.isSuccess)
+        takeRequestOrFail() // enroll
+        takeRequestOrFail() // config
+
+        // Change identity in credentials (simulates updated managed config)
+        val serverUrl = mockWebServer.url("/").toString().trimEnd('/')
+        ApiClient.setEnrollmentCredentials(
+            enrollSecret = "new-enroll-secret",
+            hardwareUUID = "new-hardware-uuid",
+            computerName = "test-device",
+            serverUrl = serverUrl,
+        )
+
+        // Next config call should re-enroll before config
+        enqueueEnrollmentSuccess("new-node-key")
+        enqueueConfigSuccess()
+        val second = ApiClient.getOrbitConfig()
+        assertTrue(second.isSuccess)
+
+        val enrollReq = takeRequestOrFail()
+        assertEquals("/api/fleet/orbit/enroll", enrollReq.path)
+        val body = enrollReq.body.readUtf8()
+        assertTrue(body.contains("new-enroll-secret"))
+        assertTrue(body.contains("new-hardware-uuid"))
+
+        val configReq = takeRequestOrFail()
+        assertEquals("/api/fleet/orbit/config", configReq.path)
+        assertTrue(configReq.body.readUtf8().contains("new-node-key"))
+    }
+
+    @Test
+    fun `base url with path is rejected before request`() = runTest {
+        // Configure credentials with invalid base URL containing path
+        context.prefDataStore.edit {
+            it[serverUrlPref] = "http://example.com/dashboard"
+            it[enrollSecretPref] = "test-enroll-secret"
+            it[hardwareUuidPref] = "test-hardware-uuid"
+            it[computerNamePref] = "test-device"
+        }
+
+        val result = ApiClient.getOrbitConfig()
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull()?.message?.contains("must not include a path") == true)
+        assertEquals(0, mockWebServer.requestCount)
+    }
+
+    @Test
+    fun `base url validator enforces https when required`() {
+        val httpRejected = ApiClient.validateBaseUrl("http://example.com", requireHttps = true)
+        assertTrue(httpRejected.isFailure)
+
+        val httpsAccepted = ApiClient.validateBaseUrl("https://example.com", requireHttps = true)
+        assertTrue(httpsAccepted.isSuccess)
+
+        val httpAcceptedInDebugPolicy = ApiClient.validateBaseUrl("http://example.com", requireHttps = false)
+        assertTrue(httpAcceptedInDebugPolicy.isSuccess)
+    }
+
+    @Test
+    fun `base url validator rejects query fragment and user info`() {
+        assertFalse(ApiClient.validateBaseUrl("https://user:pass@example.com", requireHttps = true).isSuccess)
+        assertFalse(ApiClient.validateBaseUrl("https://example.com?x=1", requireHttps = true).isSuccess)
+        assertFalse(ApiClient.validateBaseUrl("https://example.com#frag", requireHttps = true).isSuccess)
     }
 }

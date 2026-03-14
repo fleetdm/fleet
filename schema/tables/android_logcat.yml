@@ -1,0 +1,31 @@
+name: android_logcat
+evented: false
+platforms:
+  - android
+description: Recent Android logcat entries exposed as queryable rows.
+examples: |-
+  View recent error-level log messages.
+
+  ```
+  SELECT timestamp, level, tag, message
+  FROM android_logcat
+  WHERE level = 'E'
+  LIMIT 100;
+  ```
+columns:
+  - name: timestamp
+    type: text
+    required: false
+    description: Log entry timestamp.
+  - name: level
+    type: text
+    required: false
+    description: Log level (for example V, D, I, W, E).
+  - name: tag
+    type: text
+    required: false
+    description: Log tag.
+  - name: message
+    type: text
+    required: false
+    description: Log message body.

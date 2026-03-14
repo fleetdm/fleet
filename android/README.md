@@ -291,3 +291,149 @@ See `gradle/libs.versions.toml` for complete list.
 **Delete device from Android MDM:**
 - Delete Work profile on Android device
 - Using `tools/android/android.go`, delete the device and delete the associated policy (as of 2025/11/21, Fleet server does not do this)
+
+## Osquery on Android
+
+This project extends the Fleet Android agent toward an Android osquery runtime that executes distributed queries and reports results back to Fleet.  
+The goal is to make Android hosts first-class query targets with osquery-style tables and behavior.
+
+### Enrollment summary
+
+The app reads `server_url`, `enroll_secret`, and `host_uuid` from Android managed configuration.  
+It enrolls with Fleet Orbit and stores the node key securely on device for future API calls.  
+In debug builds, if managed configuration is missing, it can fall back to debug-provided server URL and enroll secret.
+
+### Query polling cadence
+
+For distributed queries, the app checks in with Fleet on a loop using WorkManager.  
+In the current implementation, the debug polling interval is hardcoded to **15 seconds** in `DistributedCheckinWorker`.  
+This interval is **not configurable yet**; making it configurable (for example via managed config or a build setting) is a good next step.
+
+### Android table reference
+
+| Table | Summary | Quick query |
+| --- | --- | --- |
+| `installed_apps` | Installed app inventory and versions | `SELECT app_name, package_name, version_name FROM installed_apps LIMIT 25;` |
+| `app_permissions` | App permissions and grant state | `SELECT app_name, permission, granted FROM app_permissions LIMIT 50;` |
+| `os_version` | Android version/build/security patch info | `SELECT name, version, build, security_patch FROM os_version;` |
+| `osquery_info` | Agent runtime metadata | `SELECT uuid, instance_id, version FROM osquery_info;` |
+| `certificates` | Certificate records visible to the agent | `SELECT alias, subject, issuer, not_after FROM certificates LIMIT 50;` |
+| `device_info` | Device model/manufacturer/hardware metadata | `SELECT manufacturer, brand, model, device FROM device_info;` |
+| `network_interfaces` | Interface and addressing details | `SELECT name, mac, mtu, addresses FROM network_interfaces;` |
+| `battery` | Battery state and health | `SELECT percent_remaining, charging, health FROM battery;` |
+| `wifi_networks` | Wi-Fi connection/network details | `SELECT ssid, bssid, rssi, is_connected FROM wifi_networks;` |
+| `system_properties` | Android system property key/value pairs | `SELECT key, value FROM system_properties LIMIT 50;` |
+| `android_logcat` | Recent logcat entries | `SELECT timestamp, level, tag, message FROM android_logcat LIMIT 100;` |
+| `time` | Current local time/timezone snapshot | `SELECT weekday, hour, minutes, local_timezone, unix_time FROM time;` |
+| `uptime` | Device uptime duration snapshot | `SELECT days, hours, minutes, seconds, total_seconds FROM uptime;` |
+| `system_info` | Host identity, hardware, and memory summary snapshot | `SELECT hostname, uuid, hardware_vendor, hardware_model, physical_memory FROM system_info;` |
+| `kernel_info` | Kernel and runtime version snapshot | `SELECT version, release, build, platform FROM kernel_info;` |
+| `memory_info` | Current memory totals and low-memory state | `SELECT total_bytes, available_bytes, threshold_bytes, low_memory FROM memory_info;` |
+| `processes` | Visible process snapshot | `SELECT pid, name, uid, package_name, importance FROM processes LIMIT 50;` |
+| `interface_addresses` | Interface-to-address rows | `SELECT interface, address, family FROM interface_addresses LIMIT 50;` |
+| `routes` | Best-effort route snapshot | `SELECT destination, gateway, interface FROM routes LIMIT 50;` |
+| `users` | Current app/profile identity row | `SELECT uid, gid, username, directory FROM users;` |
+| `mounts` | Filesystem mount snapshot | `SELECT device, path, type, flags FROM mounts LIMIT 50;` |
+| `cpu_info` | CPU capability snapshot | `SELECT cores, arch, model, hardware, vendor FROM cpu_info;` |
+| `app_signatures` | Installed app signing certificate fingerprint metadata | `SELECT package_name, sha256, subject, issuer FROM app_signatures LIMIT 50;` |
+| `mdm_status` | MDM/restrictions presence snapshot | `SELECT has_device_owner, has_work_profile, restrictions_present, enroll_secret_present FROM mdm_status;` |
+| `startup_items` | Boot/launcher component visibility snapshot | `SELECT package_name, component, type, enabled, exported FROM startup_items LIMIT 50;` |
+
+### Quick start (5 minutes)
+
+Run these commands from `android/`:
+
+```bash
+adb devices
+adb reverse tcp:8080 tcp:8080
+export FLEET_ENROLL_SECRET='YOUR_ENROLL_SECRET'
+FLEET_SERVER_URL='http://127.0.0.1:8080' ./gradlew installDebug
+adb shell pm clear com.fleetdm.agent
+adb shell monkey -p com.fleetdm.agent -c android.intent.category.LAUNCHER 1
+```
+
+### Verify it works
+
+1. Open Fleet UI and check that the Android host appears in **Hosts**.
+2. Run a simple live query:
+
+```sql
+SELECT name, version, platform, security_patch FROM os_version;
+```
+
+3. Confirm logs show successful read/write loop:
+
+```bash
+adb logcat | rg "fleet-ApiClient|fleet-distributed|Successfully enrolled host|distributed/read"
+```
+
+### QA quick checks for new cross-OS tables
+
+Run these in Fleet live query and confirm exactly 1 row each:
+
+```sql
+SELECT * FROM time;
+SELECT * FROM uptime;
+SELECT * FROM system_info;
+SELECT * FROM kernel_info;
+SELECT * FROM memory_info;
+SELECT * FROM processes LIMIT 20;
+SELECT * FROM interface_addresses LIMIT 20;
+SELECT * FROM routes LIMIT 20;
+SELECT * FROM users;
+SELECT * FROM mounts LIMIT 20;
+SELECT * FROM cpu_info;
+SELECT * FROM app_signatures LIMIT 20;
+SELECT * FROM mdm_status;
+SELECT * FROM startup_items LIMIT 20;
+```
+
+Expected sanity checks:
+- `time.unix_time` is close to current epoch time, and `local_timezone` is non-empty.
+- `uptime.total_seconds` is non-negative and consistent with `days/hours/minutes/seconds`.
+- `system_info.uuid` is non-empty.
+- `kernel_info.platform` is `android`.
+- `memory_info.total_bytes`/`available_bytes`/`threshold_bytes` are non-negative.
+- `users.uid` is parseable and non-negative.
+- `cpu_info.cores` is parseable and non-negative.
+- `mdm_status` boolean fields are `0`/`1`.
+
+### Architecture at a glance
+
+```text
+Managed config (server_url + enroll_secret + host_uuid)
+  -> AgentApplication refreshes credentials
+  -> ApiClient enrolls via /api/fleet/orbit/enroll (node key persisted)
+  -> DistributedCheckinWorker polls /api/v1/osquery/distributed/read
+  -> OsqueryQueryEngine runs SQL on Android-backed tables
+  -> Results posted to /api/v1/osquery/distributed/write
+```
+
+### Current limitations
+
+- SQL support is intentionally limited (basic `SELECT` + simple `WHERE`).
+- Debug distributed polling interval is currently hardcoded to 15 seconds.
+- Debug builds allow cleartext HTTP for local development; production should use managed secure config.
+
+### Roadmap / next steps
+
+- Make distributed polling interval configurable (managed config or build config).
+- Add explicit platform validation updates for Android query targeting.
+- Add more Android-specific tables and improve schema/docs coverage.
+- Expand integration tests for distributed query loop behavior.
+
+### Troubleshooting by symptom
+
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| Host not appearing in Fleet | Wrong `server_url` or enroll secret | Use `adb reverse`, set `FLEET_SERVER_URL=http://127.0.0.1:8080`, reinstall debug build |
+| `localhost` does not work from phone | Phone resolves localhost to itself | Use `adb reverse tcp:8080 tcp:8080` or LAN IP |
+| Query returns no rows | Unsupported table/columns or no local data | Start with `os_version` and `device_info` queries |
+| No distributed logs | App not started after install/clear | Launch with `adb shell monkey -p com.fleetdm.agent -c android.intent.category.LAUNCHER 1` |
+| Build/install fails | Missing execute bit or SDK/JDK setup | Run `chmod +x ./gradlew` and verify SDK/JDK requirements |
+
+### Security model (summary)
+
+- Enrollment uses managed config (`server_url`, `enroll_secret`, `host_uuid`) or debug fallback in debug builds only.
+- Node key and API credentials are stored encrypted on-device using Android Keystore-backed encryption.
+- Network access is restricted by build type; debug permits local development workflows, while production is expected to use secure managed configuration.
