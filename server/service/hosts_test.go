@@ -4542,3 +4542,78 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		require.Equal(t, string(fleet.DeviceStatusUnlocked), *hosts[1].MDM.DeviceStatus)
 	})
 }
+
+func TestGetHostRecoveryLockPassword(t *testing.T) {
+	t.Run("rejects non-darwin platform", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		windowsHost := &fleet.Host{
+			ID:       1,
+			Platform: "windows",
+			UUID:     "windows-uuid",
+			CPUType:  "x86_64",
+		}
+		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return windowsHost, nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		_, err := svc.GetHostRecoveryLockPassword(userCtx, 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "recovery lock is only available on Apple Silicon macOS hosts")
+	})
+
+	t.Run("rejects darwin host with non-ARM CPU", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		intelMacHost := &fleet.Host{
+			ID:       2,
+			Platform: "darwin",
+			UUID:     "intel-mac-uuid",
+			CPUType:  "x86_64",
+		}
+		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return intelMacHost, nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		_, err := svc.GetHostRecoveryLockPassword(userCtx, 2)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "recovery lock is only available on Apple Silicon macOS hosts")
+	})
+
+	t.Run("accepts darwin host with ARM CPU", func(t *testing.T) {
+		ds := new(mock.Store)
+		opts := &TestServerOpts{}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+		appleSiliconHost := &fleet.Host{
+			ID:       3,
+			Platform: "darwin",
+			UUID:     "apple-silicon-uuid",
+			CPUType:  "arm64e",
+		}
+		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return appleSiliconHost, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{
+					EnabledAndConfigured: true,
+				},
+			}, nil
+		}
+		ds.GetHostRecoveryLockPasswordFunc = func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
+			return &fleet.HostRecoveryLockPassword{
+				Password: "test-password",
+			}, nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		password, err := svc.GetHostRecoveryLockPassword(userCtx, 3)
+		require.NoError(t, err)
+		assert.Equal(t, "test-password", password.Password)
+	})
+}
