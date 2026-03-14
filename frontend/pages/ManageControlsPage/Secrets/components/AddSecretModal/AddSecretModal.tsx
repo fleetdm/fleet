@@ -6,7 +6,8 @@ import secretsAPI from "services/entities/secrets";
 import { NotificationContext } from "context/notification";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import { validateFormData, IAddSecretModalFormValidation } from "./helpers";
+import { useFormValidation } from "hooks/useFormValidation";
+import ADD_SECRET_VALIDATIONS from "./helpers";
 
 const baseClass = "fleet-add-secret-modal";
 
@@ -15,103 +16,94 @@ interface AddSecretModalProps {
   onSave: () => void;
 }
 
-export interface IAddSecretModalScheduleFormData {
+export interface IAddSecretFormData {
   name: string;
   value: string;
 }
 
 const AddSecretModal = ({ onCancel, onSave }: AddSecretModalProps) => {
-  const [secretName, setSecretName] = useState("");
-  const [secretValue, setSecretValue] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-
   const { renderFlash } = useContext(NotificationContext);
 
-  const [
-    formValidation,
-    setFormValidation,
-  ] = useState<IAddSecretModalFormValidation>(() =>
-    validateFormData({ name: secretName, value: secretValue })
-  );
+  const {
+    formData,
+    isValid,
+    getFieldError,
+    setField,
+    validateAll,
+    handleSubmit,
+  } = useFormValidation<IAddSecretFormData>({
+    initialFormData: { name: "", value: "" },
+    validationConfig: ADD_SECRET_VALIDATIONS,
+  });
 
   const onInputChange = (update: { name: string; value: string }) => {
-    const name = update.name;
-    let value = update.value;
-    if (name === "name") {
-      value = value.trimRight().toUpperCase();
-      setSecretName(value);
-    } else if (name === "value") {
-      setSecretValue(value);
-    }
-    setFormValidation(
-      validateFormData({
-        name: secretName,
-        value: secretValue,
-        [update.name]: value,
-      })
-    );
+    const processedValue =
+      update.name === "name"
+        ? update.value.trimEnd().toUpperCase()
+        : update.value;
+    setField(update.name as keyof IAddSecretFormData, processedValue);
   };
 
-  const onClickSave = async (name: string, value: string) => {
-    const validation = validateFormData({ name, value }, true);
-    if (validation.isValid) {
-      setIsSaving(true);
-      const newSecret: ISecretPayload = {
-        name: secretName,
-        value: secretValue,
-      };
-      try {
-        await secretsAPI.addSecret(newSecret);
-        renderFlash("success", "Variable created.");
-        onSave();
-      } catch (error: any) {
-        if (error.status === 409) {
-          renderFlash("error", "A secret with this name already exists.");
-        } else {
-          renderFlash(
-            "error",
-            "An error occurred while saving the secret. Please try again."
-          );
-        }
-      } finally {
-        setIsSaving(false);
+  const onSaveSecret = async (data: IAddSecretFormData) => {
+    setIsSaving(true);
+    const newSecret: ISecretPayload = {
+      name: data.name,
+      value: data.value,
+    };
+    try {
+      await secretsAPI.addSecret(newSecret);
+      renderFlash("success", "Variable created.");
+      onSave();
+    } catch (error: unknown) {
+      const apiError = error as { status?: number };
+      if (apiError.status === 409) {
+        renderFlash("error", "A secret with this name already exists.");
+      } else {
+        renderFlash(
+          "error",
+          "An error occurred while saving the secret. Please try again."
+        );
       }
-    } else {
-      setFormValidation(validation);
+    } finally {
+      setIsSaving(false);
     }
   };
 
   return (
     <Modal title="Add custom variable" onExit={onCancel} className={baseClass}>
-      <form className={`${baseClass}__add-secret-form`}>
+      <form
+        className={`${baseClass}__add-secret-form`}
+        onSubmit={handleSubmit(onSaveSecret)}
+      >
         <InputField
           onChange={onInputChange}
-          value={secretName}
+          onBlur={validateAll}
+          value={formData.name}
           label="Name"
           name="name"
           parseTarget
           helpText={
             <span>
               You can use this in your script or configuration profile as
-              &ldquo;$FLEET_SECRET_{secretName}&rdquo;.
+              &ldquo;$FLEET_SECRET_{formData.name}&rdquo;.
             </span>
           }
-          error={formValidation.name?.message}
+          error={getFieldError("name")}
         />
         <InputField
           onChange={onInputChange}
-          value={secretValue}
+          onBlur={validateAll}
+          value={formData.value}
           label="Value"
           name="value"
           parseTarget
-          error={formValidation.value?.message}
+          error={getFieldError("value")}
         />
         <div className="modal-cta-wrap">
           <Button
-            onClick={() => {
-              onClickSave(secretName, secretValue);
-            }}
-            disabled={!formValidation.isValid || isSaving}
+            type="submit"
+            disabled={!isValid || isSaving}
             isLoading={isSaving}
           >
             Save
