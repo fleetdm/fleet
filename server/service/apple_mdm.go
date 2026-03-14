@@ -2499,7 +2499,7 @@ func batchSetMDMAppleProfilesEndpoint(ctx context.Context, request interface{}, 
 
 func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tmName *string, profiles [][]byte, dryRun, skipBulkPending bool) error {
 	var err error
-	tmID, tmName, err = svc.authorizeBatchProfiles(ctx, tmID, tmName)
+	tmID, tmName, err = svc.authorizeBatchProfiles(ctx, tmID, tmName, dryRun)
 	if err != nil {
 		return err
 	}

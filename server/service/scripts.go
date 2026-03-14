@@ -1042,7 +1042,11 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 		teamName = &team.Name
 	}
 
-	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionWrite); err != nil {
+	action := fleet.ActionWrite
+	if dryRun {
+		action = fleet.ActionValidate
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, action); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
