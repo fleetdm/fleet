@@ -2093,6 +2093,18 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 			return nil, ctxerr.Wrap(ctx, err, "get host for activity")
 		}
 
+		// Check if the email has changed; if not, return early to avoid
+		// unnecessary database updates and profile resends.
+		emails, err := svc.ds.GetHostEmails(ctx, host.UUID, fleet.DeviceMappingIDP)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host emails for idempotency check")
+		}
+		for _, e := range emails {
+			if strings.EqualFold(e, email) {
+				return svc.ds.ListHostDeviceMapping(ctx, hostID)
+			}
+		}
+
 		// Store the IDP username for display (accept any value)
 		// This will appear in the host details API under the idp_username field
 		if err := svc.ds.SetOrUpdateIDPHostDeviceMapping(ctx, hostID, email); err != nil {

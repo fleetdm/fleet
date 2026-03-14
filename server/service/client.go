@@ -836,7 +836,7 @@ func (c *Client) ApplyGroup(
 			tmSoftwarePackagesPayloads[tmName] = softwarePayloads
 			for _, swSpec := range software {
 				if swSpec.ReferencedYamlPath != "" {
-					// can be referenced by macos_setup.software.package_path
+					// can be referenced by setup_experience.software.package_path
 					if tmSoftwarePackagesWithPaths[tmName] == nil {
 						tmSoftwarePackagesWithPaths[tmName] = make(map[string]struct{}, len(software))
 					}
@@ -912,7 +912,7 @@ func (c *Client) ApplyGroup(
 				}
 				appPayloads = append(appPayloads, payload)
 
-				// can be referenced by macos_setup.software.app_store_id
+				// can be referenced by setup_experience.software.app_store_id
 				if tmSoftwareAppsByAppID[tmName] == nil {
 					tmSoftwareAppsByAppID[tmName] = make(map[string]fleet.TeamSpecAppStoreApp, len(apps))
 				}
@@ -921,7 +921,7 @@ func (c *Client) ApplyGroup(
 			tmSoftwareAppsPayloads[tmName] = appPayloads
 		}
 
-		// if macos_setup.software has some values, they must exist in the software
+		// if setup_experience.software has some values, they must exist in the software
 		// packages or vpp apps.
 		for tmName, setupSw := range tmMacSetupSoftware {
 			if err := validateTeamOrNoTeamMacOSSetupSoftware(tmName, setupSw, tmSoftwarePackagesWithPaths[tmName], tmSoftwareAppsByAppID[tmName]); err != nil {
@@ -1003,7 +1003,7 @@ func (c *Client) ApplyGroup(
 									return nil, nil, nil, nil, fmt.Errorf("unexpected error while uploading macOS setup assistant for fleet %q: %w",
 										tmName, err)
 								}
-								return nil, nil, nil, nil, fmt.Errorf("Couldn't edit macos_setup_assistant. Response from Apple: %s. Learn more at %s",
+								return nil, nil, nil, nil, fmt.Errorf("Couldn't edit apple_setup_assistant. Response from Apple: %s. Learn more at %s",
 									strings.Trim(parts[1], " "), "https://fleetdm.com/learn-more-about/dep-profile")
 							}
 							return nil, nil, nil, nil, fmt.Errorf("uploading macOS setup assistant for fleet %q: %w", tmName, err)
@@ -1129,7 +1129,7 @@ func extractTeamOrNoTeamMacOSSetupSoftware(baseDir string, software []*fleet.Mac
 }
 
 func validateTeamOrNoTeamMacOSSetupSoftware(teamName string, macOSSetupSoftware []*fleet.MacOSSetupSoftware, pathsWithPackages map[string]struct{}, vppAppsByAppID map[string]fleet.TeamSpecAppStoreApp) error {
-	// if macos_setup.software has some values, they must exist in the software
+	// if setup_experience.software has some values, they must exist in the software
 	// packages or vpp apps.
 	for _, ssw := range macOSSetupSoftware {
 		var valid bool
@@ -2514,12 +2514,12 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 	}
 	macOSSetup = *config.Controls.MacOSSetup
 
-	// load the no-team macos_setup.script if any
+	// load the no-team setup_experience.macos_script if any
 	var macosSetupScript *fileContent
 	if macOSSetup.Script.Value != "" {
 		b, err := c.validateMacOSSetupScript(resolveApplyRelativePath(baseDir, macOSSetup.Script.Value))
 		if err != nil {
-			return nil, nil, fmt.Errorf("applying macos_setup.script for unassigned hosts: %w", err)
+			return nil, nil, fmt.Errorf("applying setup_experience.macos_script for unassigned hosts: %w", err)
 		}
 		macosSetupScript = &fileContent{Filename: filepath.Base(macOSSetup.Script.Value), Content: b}
 	}
@@ -2537,7 +2537,7 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 		if software != nil {
 			packages = append(packages, *software)
 			if software.ReferencedYamlPath != "" {
-				// can be referenced by macos_setup.software
+				// can be referenced by setup_experience.software
 				packagesWithPaths[software.ReferencedYamlPath] = struct{}{}
 			}
 		}
@@ -2552,7 +2552,7 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 	appsByAppID := make(map[string]fleet.TeamSpecAppStoreApp, len(config.Software.AppStoreApps))
 	for _, appStoreApp := range config.Software.AppStoreApps {
 		if appStoreApp != nil {
-			// can be referenced by macos_setup.software
+			// can be referenced by setup_experience.software
 			appsByAppID[appStoreApp.AppStoreID] = *appStoreApp
 
 			_, installDuringSetup := noTeamSoftwareMacOSSetup[fleet.MacOSSetupSoftware{AppStoreID: appStoreApp.AppStoreID}]
@@ -2777,6 +2777,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		softwareTitleIDsByInstallerURL := make(map[string]uint)
 		softwareTitleIDsByAppStoreAppID := make(map[string]uint)
 		softwareTitleIDsByHash := make(map[string]uint)
+		softwareTitleIDsBySlug := make(map[string]uint)
 		for _, softwareInstaller := range teamSoftwareInstallers {
 			if softwareInstaller.TitleID == nil {
 				// Should not happen, but to not panic we just log a warning.
@@ -2790,6 +2791,10 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			}
 			softwareTitleIDsByInstallerURL[softwareInstaller.URL] = *softwareInstaller.TitleID
 			softwareTitleIDsByHash[softwareInstaller.HashSHA256] = *softwareInstaller.TitleID
+
+			if softwareInstaller.Slug != "" {
+				softwareTitleIDsBySlug[softwareInstaller.Slug] = *softwareInstaller.TitleID
+			}
 		}
 		for _, vppApp := range teamVPPApps {
 			if vppApp.Platform != fleet.MacOSPlatform {
@@ -2811,7 +2816,20 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		for i := range config.Policies {
 			config.Policies[i].SoftwareTitleID = ptr.Uint(0) // 0 unsets the installer
 
-			if config.Policies[i].InstallSoftware == nil {
+			if !config.Policies[i].InstallSoftware.IsOther && config.Policies[i].InstallSoftware.Bool {
+				fmt.Printf("softwareTitleIDsBySlug: %v\n", softwareTitleIDsBySlug)
+				softwareTitleID, ok := softwareTitleIDsBySlug[config.Policies[i].FleetMaintainedAppSlug]
+				if !ok {
+					// Should not happen because FMAs are uploaded first.
+					if !dryRun {
+						logFn("[!] fleet-maintained app slug without software title ID: %s\n", config.Policies[i].FleetMaintainedAppSlug)
+					}
+					continue
+				}
+				config.Policies[i].SoftwareTitleID = &softwareTitleID
+			}
+
+			if config.Policies[i].InstallSoftware.Other == nil {
 				continue
 			}
 			if config.Policies[i].InstallSoftwareURL != "" {
@@ -2825,23 +2843,23 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				}
 				config.Policies[i].SoftwareTitleID = &softwareTitleID
 			}
-			if config.Policies[i].InstallSoftware.AppStoreID != "" {
-				softwareTitleID, ok := softwareTitleIDsByAppStoreAppID[config.Policies[i].InstallSoftware.AppStoreID]
+			if config.Policies[i].InstallSoftware.Other.AppStoreID != "" {
+				softwareTitleID, ok := softwareTitleIDsByAppStoreAppID[config.Policies[i].InstallSoftware.Other.AppStoreID]
 				if !ok {
 					// Should not happen because app store apps are uploaded first.
 					if !dryRun {
-						logFn("[!] software app store app ID without software title ID: %s\n", config.Policies[i].InstallSoftware.AppStoreID)
+						logFn("[!] software app store app ID without software title ID: %s\n", config.Policies[i].InstallSoftware.Other.AppStoreID)
 					}
 					continue
 				}
 				config.Policies[i].SoftwareTitleID = &softwareTitleID
 			}
-			if config.Policies[i].InstallSoftware.HashSHA256 != "" {
-				softwareTitleID, ok := softwareTitleIDsByHash[config.Policies[i].InstallSoftware.HashSHA256]
+			if config.Policies[i].InstallSoftware.Other.HashSHA256 != "" {
+				softwareTitleID, ok := softwareTitleIDsByHash[config.Policies[i].InstallSoftware.Other.HashSHA256]
 				if !ok {
 					// Should not happen because software packages are uploaded first.
 					if !dryRun {
-						logFn("[!] software hash without software title ID: %s\n", config.Policies[i].InstallSoftware.HashSHA256)
+						logFn("[!] software hash without software title ID: %s\n", config.Policies[i].InstallSoftware.Other.HashSHA256)
 					}
 					continue
 				}

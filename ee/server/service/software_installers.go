@@ -472,6 +472,13 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			payloadForNewInstallerFile = nil
 			payload.InstallerFile = nil
 		}
+
+		if existingInstaller.FleetMaintainedAppID != nil {
+			return nil, &fleet.BadRequestError{
+				Message:     "Couldn't update. The package can't be changed for Fleet-maintained apps.",
+				InternalErr: ctxerr.Wrap(ctx, err, "installer file changed for fleet maintained app installer"),
+			}
+		}
 	}
 
 	if payload.InstallerFile == nil { // fill in existing existingInstaller data to payload
@@ -2586,7 +2593,7 @@ func (svc *Service) softwareBatchUpload(
 			}
 
 			if fleet.IsMacOSPlatform(installer.Platform) && ptr.ValOrZero(installer.InstallDuringSetup) && manualAgentInstall {
-				return errors.New(`Couldn't edit software. "setup_experience" cannot be used for macOS software if "manual_agent_install" is enabled.`)
+				return errors.New(`Couldn't edit software. "setup_experience" cannot be used for macOS software if "macos_manual_agent_install" is enabled.`)
 			}
 
 			// Update $PACKAGE_ID/$UPGRADE_CODE in uninstall script
