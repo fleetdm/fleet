@@ -514,37 +514,31 @@ func gitopsCommand() *cli.Command {
 				)
 				if err != nil {
 					// If CA deletion failed due to FK constraints, schedule a retry after team configs.
-					if isGlobalConfig && !flDryRun && strings.Contains(err.Error(), "certificate authority") &&
-						strings.Contains(err.Error(), "Certificate templates still reference it") {
+					if isGlobalConfig && !flDryRun && strings.Contains(err.Error(), "Certificate templates still reference it") {
 						logf("[-] CA deletion deferred until after team configs process\n")
+						caFilename := flFilename
+						allPostOps = append(allPostOps, func() error {
+							groupedCAs, caErr := fleet.ValidateCertificateAuthoritiesSpec(deferredCAs)
+							if caErr != nil {
+								return fmt.Errorf("invalid certificate_authorities: %w", caErr)
+							}
+							if caErr = fleetClient.ApplyCertificateAuthoritiesSpec(*groupedCAs, fleet.ApplySpecOptions{}); caErr != nil {
+								if caErr.Error() == "missing or invalid license" {
+									return fmt.Errorf(
+										"Couldn't edit %q at \"certificate_authorities\": Missing or invalid license. Certificate authorities are available in Fleet Premium only.",
+										filepath.Base(caFilename),
+									)
+								}
+								return fmt.Errorf("applying certificate authorities: %w", caErr)
+							}
+							logf("[+] applied certificate authorities\n")
+							return nil
+						})
 						err = nil
 					}
 					if err != nil {
 						return err
 					}
-				}
-
-				// If we have deferred CAs and this is the global config, schedule a post-op to retry
-				// CA application after team configs have cleaned up their certificate templates.
-				if isGlobalConfig && !flDryRun {
-					caFilename := flFilename
-					allPostOps = append(allPostOps, func() error {
-						groupedCAs, caErr := fleet.ValidateCertificateAuthoritiesSpec(deferredCAs)
-						if caErr != nil {
-							return fmt.Errorf("invalid certificate_authorities: %w", caErr)
-						}
-						if caErr = fleetClient.ApplyCertificateAuthoritiesSpec(*groupedCAs, fleet.ApplySpecOptions{}); caErr != nil {
-							if caErr.Error() == "missing or invalid license" {
-								return fmt.Errorf(
-									"Couldn't edit %q at \"certificate_authorities\": Missing or invalid license. Certificate authorities are available in Fleet Premium only.",
-									filepath.Base(caFilename),
-								)
-							}
-							return fmt.Errorf("applying certificate authorities: %w", caErr)
-						}
-						logf("[+] applied certificate authorities\n")
-						return nil
-					})
 				}
 
 				if config.TeamName != nil {
