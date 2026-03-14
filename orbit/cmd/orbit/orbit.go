@@ -1196,13 +1196,11 @@ func main() {
 			}
 		}
 
-		if c.Bool("fleet-desktop") {
-			// Ensure that the token rotation checker is started,
-			// so that we have a valid token to launch the
-			// My Device page.
-			stopRotation := trw.StartRotation()
-			defer stopRotation()
-		}
+		// Always keep the device identifier (e.g. /opt/orbit/identifier) up to date
+		// with periodic rotation, so it's valid for refetch-host, device auth, and
+		// Fleet Desktop when enabled.
+		stopRotation := trw.StartRotation()
+		defer stopRotation()
 
 		switch runtime.GOOS {
 		case "darwin":
