@@ -368,15 +368,11 @@ func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops f
 	upserts = append(upserts, ops.Update...)
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if len(upserts) > 0 {
-			if err := batchUpsertCertificateAuthorities(ctx, tx, ds.serverPrivateKey, upserts); err != nil {
-				return err
-			}
+		if err := batchUpsertCertificateAuthorities(ctx, tx, ds.serverPrivateKey, upserts); err != nil {
+			return err
 		}
-		if len(ops.Delete) > 0 {
-			if err := batchDeleteCertificateAuthorities(ctx, tx, ops.Delete); err != nil {
-				return err
-			}
+		if err := batchDeleteCertificateAuthorities(ctx, tx, ops.Delete); err != nil {
+			return err
 		}
 		return nil
 	})

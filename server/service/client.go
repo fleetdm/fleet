@@ -578,7 +578,7 @@ func (c *Client) ApplyGroup(
 	}
 
 	if specs.CertificateAuthorities != nil {
-		// Skip deletes here — CA deletions are deferred to a post-op in GitOps so that team configs
+		// Skip deletes here. CA deletions are deferred to a post-op in GitOps so that team configs
 		// can clean up certificate templates (which have FK references to CAs) first.
 		if err := c.ApplyCertificateAuthoritiesSpec(*specs.CertificateAuthorities, opts.ApplySpecOptions, fleet.BatchApplyCertificateAuthoritiesOpts{SkipDeletes: true}); err != nil {
 			// only do this custom message for gitops as we reference the applying filename which only makes sense in gitops
