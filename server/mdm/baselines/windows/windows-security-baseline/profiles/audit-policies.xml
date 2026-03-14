@@ -1,0 +1,176 @@
+<Replace>
+  <CmdID>1</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogon_AuditCredentialValidation</LocURI></Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>2</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountManagement_AuditSecurityGroupManagement</LocURI></Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>3</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountManagement_AuditUserAccountManagement</LocURI></Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>4</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/DetailedTracking_AuditPNPActivity</LocURI></Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>5</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/DetailedTracking_AuditProcessCreation</LocURI></Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>6</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/ObjectAccess_AuditDetailedFileShare</LocURI></Target>
+    <Data>2</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>7</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/ObjectAccess_AuditFileShare</LocURI></Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>8</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/ObjectAccess_AuditOtherObjectAccessEvents</LocURI></Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>9</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PolicyChange_AuditAuthenticationPolicyChange</LocURI></Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>10</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PolicyChange_AuditMPSSVCRuleLevelPolicyChange</LocURI></Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>11</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PolicyChange_AuditOtherPolicyChangeEvents</LocURI></Target>
+    <Data>2</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>12</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PolicyChange_AuditPolicyChange</LocURI></Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>13</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PrivilegeUse_AuditSensitivePrivilegeUse</LocURI></Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>14</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/System_AuditOtherSystemEvents</LocURI></Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>15</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/System_AuditSecurityStateChange</LocURI></Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>16</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/System_AuditSecuritySystemExtension</LocURI></Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>17</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/System_AuditSystemIntegrity</LocURI></Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>18</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogon_AuditKerberosAuthenticationService</LocURI></Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>19</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/LogonLogoff_AuditAccountLockout</LocURI></Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>20</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/LogonLogoff_AuditLogon</LocURI></Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>21</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/LogonLogoff_AuditLogoff</LocURI></Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>22</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/LogonLogoff_AuditSpecialLogon</LocURI></Target>
+    <Data>1</Data>
+  </Item>
+</Replace>

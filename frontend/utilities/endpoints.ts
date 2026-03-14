@@ -158,6 +158,12 @@ export default {
   MDM_PROFILES: `/${API_VERSION}/fleet/mdm/profiles`,
   MDM_PROFILE: (id: string) => `/${API_VERSION}/fleet/mdm/profiles/${id}`,
 
+  // MDM baseline endpoints
+  MDM_BASELINES: `/${API_VERSION}/fleet/mdm/baselines`,
+  MDM_BASELINES_APPLY: `/${API_VERSION}/fleet/mdm/baselines/apply`,
+  MDM_BASELINE_REMOVE: (baselineId: string, teamId: number) =>
+    `/${API_VERSION}/fleet/mdm/baselines/${baselineId}/teams/${teamId}`,
+
   MDM_UPDATE_APPLE_SETTINGS: `/${API_VERSION}/fleet/mdm/apple/settings`,
   PROFILES_STATUS_SUMMARY: `/${API_VERSION}/fleet/configuration_profiles/summary`,
   DISK_ENCRYPTION: `/${API_VERSION}/fleet/disk_encryption`,

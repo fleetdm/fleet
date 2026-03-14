@@ -1,0 +1,56 @@
+.baselines {
+  &__card {
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+
+  &__card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+
+    h3 {
+      margin: 0;
+      font-size: $small;
+      font-weight: $bold;
+    }
+  }
+
+  &__version {
+    font-size: $xx-small;
+    color: $ui-fleet-black-50;
+  }
+
+  &__description {
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+    margin-bottom: 12px;
+  }
+
+  &__stats {
+    display: flex;
+    gap: 16px;
+    font-size: $xx-small;
+    color: $ui-fleet-black-50;
+    margin-bottom: 16px;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  &__team-required {
+    font-size: $xx-small;
+    color: $ui-fleet-black-50;
+    margin-top: 8px;
+  }
+
+  &__list {
+    margin-top: 16px;
+  }
+}

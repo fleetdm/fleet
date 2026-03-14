@@ -1,0 +1,48 @@
+<Replace>
+  <CmdID>1</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/DenyAccessFromNetwork</LocURI></Target>
+    <Data><![CDATA[S-1-0-0]]></Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>2</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/DenyRemoteDesktopServicesLogOn</LocURI></Target>
+    <Data><![CDATA[S-1-0-0]]></Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>3</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/AccessFromNetwork</LocURI></Target>
+    <Data><![CDATA[S-1-5-32-544&#xF000;S-1-5-32-555&#xF000;S-1-5-19&#xF000;S-1-5-20]]></Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>4</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/AllowLocalLogOn</LocURI></Target>
+    <Data><![CDATA[S-1-5-32-544&#xF000;S-1-5-32-545]]></Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>5</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/BackupFilesAndDirectories</LocURI></Target>
+    <Data><![CDATA[S-1-5-32-544]]></Data>
+  </Item>
+</Replace>
+<Replace>
+  <CmdID>6</CmdID>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ManageAuditingAndSecurityLog</LocURI></Target>
+    <Data><![CDATA[S-1-5-32-544]]></Data>
+  </Item>
+</Replace>
