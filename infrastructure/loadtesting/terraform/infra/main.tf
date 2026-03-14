@@ -138,6 +138,12 @@ module "loadtest" {
       local.extra_secrets
     )
     private_key_secret_name = "${local.customer}-fleet-server-private-key"
+    software_installers = {
+      # bucket_prefix shortened to allow for terraform.workspace values with longer names
+      bucket_prefix  = "${terraform.workspace}-sw-inst-"
+      create_kms_key = true
+      kms_alias      = "${terraform.workspace}-software-installers"
+    }
     volumes = [
       {
         name = "rds-tls-certs"
