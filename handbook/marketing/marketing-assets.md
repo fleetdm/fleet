@@ -144,9 +144,9 @@ Series on why legacy endpoint management is failing and what modern teams are do
 
 | Part | Article | Author | Date |
 | --- | --- | --- | --- |
-| 1 of 3 | [The confidence gap: why IT leaders are abandoning legacy endpoint management](https://fleetdm.com/articles/the-confidence-gap) | Ashish Kuthiala | <nobr>2026‑02‑25</nobr> |
-| 2 of 3 | [Rethinking endpoint management: Fleet, osquery and Infrastructure as Code](https://fleetdm.com/articles/rethinking-endpoint-management) | Ashish Kuthiala | <nobr>2026‑02‑26</nobr> |
-| 3 of 3 | *Coming soon* | — | — |
+| <nobr>1 of 3</nobr> | [The confidence gap: why IT leaders are abandoning legacy endpoint management](https://fleetdm.com/articles/the-confidence-gap) | Ashish Kuthiala | <nobr>2026‑02‑25</nobr> |
+| <nobr>2 of 3</nobr> | [Rethinking endpoint management: Fleet, osquery and Infrastructure as Code](https://fleetdm.com/articles/rethinking-endpoint-management) | Ashish Kuthiala | <nobr>2026‑02‑26</nobr> |
+| <nobr>3 of 3</nobr> | *Coming soon* | — | — |
 
 #### 📚 Protecting Linux Endpoints (3-part series)
 
@@ -154,9 +154,9 @@ Why Linux is now a critical enterprise platform and how to manage and secure it 
 
 | Part | Article | Author | Date |
 | --- | --- | --- | --- |
-| 1 of 3 | [Why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026) | Ashish Kuthiala | <nobr>2026‑01‑21</nobr> |
-| 2 of 3 | [Automated provisioning for Linux desktop in the enterprise](https://fleetdm.com/articles/automated-provisioning-for-Linux-desktop-in-the-enterprise) | Ashish Kuthiala | <nobr>2026‑02‑16</nobr> |
-| 3 of 3 | [Security baselines for Linux: closing the gap on exemptions](https://fleetdm.com/articles/security-baselines-for-linux) | Ashish Kuthiala | <nobr>2026‑02‑23</nobr> |
+| <nobr>1 of 3</nobr> | [Why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026) | Ashish Kuthiala | <nobr>2026‑01‑21</nobr> |
+| <nobr>2 of 3</nobr> | [Automated provisioning for Linux desktop in the enterprise](https://fleetdm.com/articles/automated-provisioning-for-Linux-desktop-in-the-enterprise) | Ashish Kuthiala | <nobr>2026‑02‑16</nobr> |
+| <nobr>3 of 3</nobr> | [Security baselines for Linux: closing the gap on exemptions](https://fleetdm.com/articles/security-baselines-for-linux) | Ashish Kuthiala | <nobr>2026‑02‑23</nobr> |
 
 #### 📚 OpenClaw — Governing Autonomous AI Agents (3-part series)
 
@@ -164,9 +164,9 @@ Security risks of autonomous AI agents running on managed endpoints, and what IT
 
 | Part | Article | Author | Date |
 | --- | --- | --- | --- |
-| 1 of 3 | [OpenClaw: Open for work?](https://fleetdm.com/articles/openclaw-open-for-work) | Brock Walters | <nobr>2026‑02‑04</nobr> |
-| 2 of 3 | [Detecting AI agents like OpenClaw with automated tooling](https://fleetdm.com/articles/detecting-ai-agents-like-openclaw-with-automated-tooling) | Dhruv Majumdar | <nobr>2026‑02‑18</nobr> |
-| 3 of 3 | [Mitigation assets and detection patterns for AI agents like OpenClaw](https://fleetdm.com/guides/mitigation-assets-and-detection-patterns-for-ai-agents-like-openclaw) *(Guide)* | Adam Baali | <nobr>2026‑02‑19</nobr> |
+| <nobr>1 of 3</nobr> | [OpenClaw: Open for work?](https://fleetdm.com/articles/openclaw-open-for-work) | Brock Walters | <nobr>2026‑02‑04</nobr> |
+| <nobr>2 of 3</nobr> | [Detecting AI agents like OpenClaw with automated tooling](https://fleetdm.com/articles/detecting-ai-agents-like-openclaw-with-automated-tooling) | Dhruv Majumdar | <nobr>2026‑02‑18</nobr> |
+| <nobr>3 of 3</nobr> | [Mitigation assets and detection patterns for AI agents like OpenClaw](https://fleetdm.com/guides/mitigation-assets-and-detection-patterns-for-ai-agents-like-openclaw) *(Guide)* | Adam Baali | <nobr>2026‑02‑19</nobr> |
 
 #### 📚 Deploy Santa with Fleet GitOps (2-part series)
 
@@ -174,8 +174,8 @@ Managing the Santa binary authorization tool using Fleet's GitOps workflow, with
 
 | Part | Article | Author | Date |
 | --- | --- | --- | --- |
-| 1 of 2 | [Deploy Santa with Fleet GitOps and skip the sync server](https://fleetdm.com/articles/deploy-santa-with-fleet-gitops-and-skip-the-sync-server) | Allen Houchins | <nobr>2026‑02‑04</nobr> |
-| 2 of 2 | [How we deployed Santa at Fleet](https://fleetdm.com/guides/how-we-deployed-santa-at-fleet) *(Guide)* | Allen Houchins | <nobr>2026‑02‑24</nobr> |
+| <nobr>1 of 2</nobr> | [Deploy Santa with Fleet GitOps and skip the sync server](https://fleetdm.com/articles/deploy-santa-with-fleet-gitops-and-skip-the-sync-server) | Allen Houchins | <nobr>2026‑02‑04</nobr> |
+| <nobr>2 of 2</nobr> | [How we deployed Santa at Fleet](https://fleetdm.com/guides/how-we-deployed-santa-at-fleet) *(Guide)* | Allen Houchins | <nobr>2026‑02‑24</nobr> |
 
 ### Standalone Articles
 
