@@ -453,17 +453,27 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		if len(ops.Delete) > 0 {
 			storedCAs = fleet.GroupedCertificateAuthorities{}
 		}
-		// Only overwrite storedCAs when new CAs are being added to avoid losing data
-		// on subsequent calls that only contain updates.
-		if len(ops.Add) > 0 {
-			all := make([]*fleet.CertificateAuthority, 0, len(ops.Add)+len(ops.Update))
-			all = append(all, ops.Add...)
-			all = append(all, ops.Update...)
-			g, err := fleet.GroupCertificateAuthoritiesByType(all)
+		upserts := make([]*fleet.CertificateAuthority, 0, len(ops.Add)+len(ops.Update))
+		upserts = append(upserts, ops.Add...)
+		upserts = append(upserts, ops.Update...)
+		if len(upserts) > 0 {
+			g, err := fleet.GroupCertificateAuthoritiesByType(upserts)
 			if err != nil {
 				return err
 			}
-			storedCAs = *g
+			// Merge into stored state per CA type, like a real DB upsert.
+			if g.NDESSCEP != nil {
+				storedCAs.NDESSCEP = g.NDESSCEP
+			}
+			if len(g.DigiCert) > 0 {
+				storedCAs.DigiCert = g.DigiCert
+			}
+			if len(g.CustomScepProxy) > 0 {
+				storedCAs.CustomScepProxy = g.CustomScepProxy
+			}
+			if len(g.Hydrant) > 0 {
+				storedCAs.Hydrant = g.Hydrant
+			}
 		}
 		return nil
 	}
