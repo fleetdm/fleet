@@ -73,6 +73,6 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="authorFullName" value="Irena Reedy">
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="case study">
-<meta name="publishedOn" value="2026-03-03">
+<meta name="publishedOn" value="2026-03-14">
 <meta name="description" value="A global entertainment company manages thousands of devices with Fleet using GitOps workflows and unified device management."> 
 <meta name="useBasicArticleTemplate" value="true">
