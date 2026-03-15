@@ -148,19 +148,54 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
 
 The following steps show how to deploy [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview) certificates.
 
-### Prerequisites for Windows hosts
+### Step 1: Prerequisties for Windows hosts
 
-Before deploying NDES certificates to Windows hosts, verify the following:
+If you're deploying NDES certificates to Windows hosts, complete the following prequestites. If you're deploying certificates to hosts on other platforms, you can skip this and head to [step 2](#step-2-connect-fleet-to-ndes).
 
-- **Root CA certificate must be trusted on the device.** Domain-joined devices already receive the enterprise root CA via Group Policy. Non-domain-joined devices do not, so SCEP enrollment will fail because the device can't validate the RA certificate chain. For non-domain-joined devices, deploy the root CA certificate via a separate MDM profile before or alongside the SCEP profile. You can use a [RootCATrustedCertificates CSP](https://learn.microsoft.com/en-us/windows/client-management/mdm/rootcacertificates-csp) profile to install the root CA cert.
+#### Deploy root CA certificate
 
-- **CA must have an HTTP-accessible CRL Distribution Point.** By default, AD CS only embeds LDAP URLs in certificates for CRL distribution. Non-domain-joined devices cannot reach LDAP endpoints and will reject the SCEP response with a certificate validity error. Configure your CA to publish CRLs via HTTP. See Microsoft's [PKI design considerations](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/pki-design-considerations) and [Configure the CDP and AIA extensions on CA1](https://learn.microsoft.com/en-us/windows-server/networking/core-network-guide/cncg/server-certs/configure-the-cdp-and-aia-extensions-on-ca1) for instructions. For testing, you can use the [quick CRL workaround](#quick-crl-workaround-for-testing-ndes-on-windows) instead.
+Windows hosts joined to Active Directory (AD) automatically receive the enterprise root CA certificate through Group Policy (GPO). Hosts that aren’t joined to AD (e.g. cloud-only or BYOD devices) won’t get this certificate automatically, so certificate delivery will fail because the host can’t validate the registration authority (RA) certificate chain.
 
-  > This requirement is specific to NDES and does not apply to custom SCEP servers. Custom SCEP servers typically use self-signed certificates that do not contain CRL Distribution Point extensions, so Windows skips revocation checking entirely.
+To deploy the root CA certificate automatically, we're going to add a configuration profile and scope it only to hosts that aren't joined to AD.
 
-- **CA server clock must be synchronized.** If the CA server's clock drifts, certificates may have `notBefore` timestamps in the future. The Windows SCEP client will reject them with a validity-period error even though the CA issued the certificate successfully.
+1. In Fleet, in the top-right corner select your avatar and **Labels**.
+2. Select **Add label**. Use "Windows hosts not Active Directory (AD) joined" for the name, choose **Dynamic** as the **Type**, **Windows** as the **Platform**, and paste in the following query:
 
-### Step 1: Connect Fleet to NDES
+```sql
+SELECT 1
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM ntdomains
+  WHERE domain_name != ''
+);
+```
+
+3. Copy the configuration profile contents below into a `.xml` file.
+4. Head to the **Controls > OS settings > Configuration profiles** page.
+5. Select Add profile and select your `.xml` configuration profile.
+6. Under **Targets** select **Custom**, choose **Include all**, and select your new label.
+
+Here's the configuration profile:
+
+```xml
+TODO
+```
+
+#### Make the CRL reachable over HTTP
+
+By default, NDES puts LDAP URLs in certificates for the CRL (certificate revocation list) location. Hosts that are joined to AD can reach these LDAP endpoints, but hosts that aren’t joined to AD cannot. When a host can’t reach the CRL location, it can’t validate the certificate and will reject the SCEP response with a certificate validity error.
+
+To fix this, configure NDES to publish the CRL over HTTP so any device can reach it. See Microsoft's [documentation](https://learn.microsoft.com/en-us/windows-server/networking/core-network-guide/cncg/server-certs/configure-the-cdp-and-aia-extensions-on-ca1) for instructions. 
+
+For testing, you can use the [quick CRL workaround](#quick-crl-workaround-for-testing-ndes-on-windows).
+
+#### Make sure the CA server clock is correct
+
+If the CA server’s clock is incorrect, certificates may have `notBefore` timestamps in the future. When this happens, the host rejects the certificate because it appears not valid yet, even though the CA issued it successfully.
+
+To avoid this issue, make sure the CA server’s clock is synchronized with a reliable time source (for example, NTP). TODO: How do I make sure? If it's not synchronized how do I fix it?
+
+### Step 2: Connect Fleet to NDES
 
 1. In Fleet, head to **Settings > **Integrations > Certificates**.
 2. Select the **Add CA** button and select **Okta CA or Microsoft NDES** in the dropdown.
@@ -173,7 +208,7 @@ When saving the configuration, Fleet will attempt to connect to the SCEP server 
 
 > The default NDES password cache holds only 5 one-time challenge passwords. Each failed enrollment attempt consumes a password. We recommend increasing the cache size on the NDES server for production use.
 
-### Step 2: Add SCEP configuration profile to Fleet
+### Step 3: Add SCEP configuration profile to Fleet
 
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_NDES_SCEP_CHALLENGE`. For `URL`, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
 
