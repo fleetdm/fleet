@@ -41,8 +41,12 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 | Asset | Competitor | Use case | Date updated |
 | --- | --- | --- | --- |
 | [Fleet vs. Jamf vs. Intune: Comparing fleet management software](https://fleetdm.com/articles/fleet-management-software) | Jamf / Intune | Full feature comparison across all three platforms. | <nobr>Feb‑26‑2026</nobr> |
+| [Fleet vs. Jamf Pro and NinjaOne: MDM Solution Comparison 2026](https://fleetdm.com/articles/fleet-vs-jamf-pro-ninjaone-mdm-comparison) | Jamf / NinjaOne | Three-way comparison of Fleet, Jamf Pro, and NinjaOne on enrollment, security, API, and pricing. | <nobr>Mar‑09‑2026</nobr> |
 | [Fleet vs. Jamf](https://fleetdm.com/compare/jamf) | Jamf | Direct comparison of Fleet and Jamf Pro product offerings. | <nobr>Jan‑10‑2026</nobr> |
-| [A comparative look at VMware Workspace ONE and Fleet](https://fleetdm.com/announcements/a-comparative-look-at-vmware-workspace-one-and-fleet) | Workspace ONE | Side-by-side comparison with VMware Workspace ONE. | <nobr>Feb‑01‑2024</nobr> |
+| [MDM Providers Compared: Fleet vs Workspace ONE](https://fleetdm.com/articles/mdm-providers-compared) | Workspace ONE | Feature-by-feature comparison of Fleet and VMware Workspace ONE. | <nobr>Feb‑27‑2026</nobr> |
+| [A comparative look at VMware Workspace ONE and Fleet](https://fleetdm.com/articles/comparative-look-at-ws1-and-fleet) | Workspace ONE | Side-by-side comparison with VMware Workspace ONE. | <nobr>Feb‑01‑2024</nobr> |
+| [A comparative look at VMware Workspace ONE and Fleet (announcement)](https://fleetdm.com/announcements/a-comparative-look-at-vmware-workspace-one-and-fleet) | Workspace ONE | Original announcement post — side-by-side comparison with VMware Workspace ONE. | <nobr>Feb‑01‑2024</nobr> |
+| [Apple Push Notification Service: How APNs Works in MDM](https://fleetdm.com/articles/apple-push-notification-service-apns-mdm) | — | How APNs enables MDM communication with Apple devices. | <nobr>Mar‑09‑2026</nobr> |
 | [Battle card — Workspace ONE](https://docs.google.com/document/d/1dV9zooPnCnHa0UfZqXKWAi6Zmye2jfqRIr_UnX70Sq4/edit) | Workspace ONE | Strategic talking points for VMware competitive scenarios. | <nobr>Sep‑12‑2023</nobr> |
 | [Jamf vs. Fleet terminology](https://docs.google.com/document/d/1RKojfpUMUiITPce5O7znYmxdQR9U6f5sVnVzQpPpp8Y/edit) | Jamf | Concept mapping between Jamf and Fleet for migration conversations. | <nobr>Sep‑09‑2025</nobr> |
 | [Death to Extension Attributes](https://github.com/allenhouchins/death-to-extension-attributes) | Jamf | Compares Fleet queries to Jamf extension attributes for technical audiences. | <nobr>Jun‑15‑2023</nobr> |
@@ -63,6 +67,8 @@ Champion stories and case studies showing real customers achieving real outcomes
 | [Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually](https://fleetdm.com/case-study/stripe) | FinTech | ✓ |  |  | Fleetdm | <nobr>2025‑12‑11</nobr> |
 | [Foursquare cut costs and gained 114% ROI with Fleet](https://fleetdm.com/case-study/foursquare) | Software / SaaS | ✓ | ✓ | ✓ | Fleetdm | <nobr>2025‑12‑11</nobr> |
 | [Faire secures Macs with CIS benchmarks and Fleet](https://fleetdm.com/case-study/faire) | E-Commerce / Retail | ✓ |  |  | Fleetdm | <nobr>2025‑12‑11</nobr> |
+| [Thumbtack migrates more than 90% of Macs with no IT intervention](https://fleetdm.com/case-study/thumbtack) | Software / SaaS | ✓ |  |  | Fleetdm | <nobr>2026‑03‑26</nobr> |
+| [How Deputy achieved compliance and clarity with Fleet](https://fleetdm.com/articles/deputy-achieves-compliance-and-clarity-with-fleet) | Software / SaaS | ✓ |  | ✓ | Harrison Ravazzolo | <nobr>2024‑12‑17</nobr> |
 | [Fastly gains visibility into all endpoints and critical infrastructure worldwide](https://fleetdm.com/case-study/fastly) | Networking / CDN | ✓ | ✓ | ✓ | Fleetdm | <nobr>2025‑01‑29</nobr> |
 
 ### Anonymous stories — Financial Services
@@ -71,6 +77,9 @@ Champion stories and case studies showing real customers achieving real outcomes
 | --- | --- | --- | --- | --- | --- |
 | [Financial technology company manages 15,000 devices with GitOps](https://fleetdm.com/case-study/financial-technology-company) | ✓ | ✓ | ✓ | Irena Reedy | <nobr>2026‑02‑22</nobr> |
 | [Financial services platform manages 6,000+ hosts with continuous compliance visibility](https://fleetdm.com/case-study/financial-services-platform) | ✓ | ✓ | ✓ | Irena Reedy | <nobr>2026‑02‑22</nobr> |
+| [Fintech company manages a global remote workforce with Fleet](https://fleetdm.com/articles/fintech-company) | ✓ | ✓ | ✓ | Irena Reedy | <nobr>2026‑03‑14</nobr> |
+| [Fintech company strengthens infrastructure visibility with Fleet](https://fleetdm.com/articles/fintech-company-strengthens-infrastructure-visibility) | ✓ | ✓ | ✓ | Irena Reedy | <nobr>2026‑03‑14</nobr> |
+| [Financial data company scales endpoint visibility with Fleet](https://fleetdm.com/articles/financial-data-company) | ✓ | ✓ | ✓ | Irena Reedy | <nobr>2026‑03‑04</nobr> |
 | [Banking platform guarantees script execution and audit-ready compliance](https://fleetdm.com/case-study/banking-platform) | ✓ | ✓ |  | Irena Reedy | <nobr>2026‑02‑22</nobr> |
 | [American financial services company migrates to Fleet for MDM and next-gen change management](https://fleetdm.com/case-study/financial-services-company) | ✓ | ✓ |  | Andrew Baker | <nobr>2024‑12‑19</nobr> |
 | [Digital bank strengthens security and compliance with Fleet](https://fleetdm.com/case-study/digital-bank) | ✓ | ✓ | ✓ | Fleetdm | <nobr>2024‑06‑01</nobr> |
@@ -81,6 +90,8 @@ Champion stories and case studies showing real customers achieving real outcomes
 | --- | --- | --- | --- | --- | --- |
 | [Workspace software company consolidates Kandji and Intune across 1,465 devices](https://fleetdm.com/case-study/workspace-software-company) | ✓ | ✓ |  | Irena Reedy | <nobr>2026‑02‑22</nobr> |
 | [Communications platform unifies device management across 3,000 devices](https://fleetdm.com/case-study/communications-platform) | ✓ | ✓ | ✓ | Irena Reedy | <nobr>2026‑02‑22</nobr> |
+| [Global technology platform improves vulnerability intelligence with Fleet](https://fleetdm.com/articles/global-technology-platform) | ✓ | ✓ | ✓ | Irena Reedy | <nobr>2026‑03‑03</nobr> |
+| [Online marketplace simplifies multi-OS device management with Fleet](https://fleetdm.com/articles/online-marketplace) | ✓ | ✓ | ✓ | Irena Reedy | <nobr>2026‑03‑14</nobr> |
 | [Establishing visibility in a distributed hybrid environment](https://fleetdm.com/case-study/global-saas-company) | ✓ | ✓ | ✓ | Irena Reedy | <nobr>2025‑10‑07</nobr> |
 | [Cloud-based data leader chooses Fleet for orchestration](https://fleetdm.com/case-study/cloud-data-platform) | ✓ | ✓ | ✓ | Andrew Baker | <nobr>2024‑12‑20</nobr> |
 | [How a global workforce management company achieved compliance and clarity with Fleet](https://fleetdm.com/case-study/global-workforce-management-company) | ✓ | ✓ | ✓ | Harrison Ravazzolo | <nobr>2024‑12‑17</nobr> |
@@ -93,6 +104,10 @@ Champion stories and case studies showing real customers achieving real outcomes
 | --- | --- | --- | --- | --- | --- | --- |
 | [AI security company runs live queries to verify CVEs in seconds](https://fleetdm.com/case-study/ai-security-company) | Security |  |  | ✓ | Irena Reedy | <nobr>2026‑02‑22</nobr> |
 | [Worldwide security and authentication platform chooses Fleet for Linux management](https://fleetdm.com/case-study/worldwide-security-and-authentication-platform) | Security |  |  | ✓ | Andrew Baker | <nobr>2024‑12‑10</nobr> |
+| [Cybersecurity company improves endpoint visibility with Fleet](https://fleetdm.com/articles/cybersecurity-company) | Security | ✓ | ✓ | ✓ | Irena Reedy | <nobr>2026‑03‑14</nobr> |
+| [Cybersecurity company improves Linux management with Fleet](https://fleetdm.com/articles/cybersecurity-company-1) | Security |  |  | ✓ | Irena Reedy | <nobr>2026‑03‑14</nobr> |
+| [Identity security company unifies cross-platform device management with Fleet](https://fleetdm.com/articles/identity-security-company) | Identity / Security | ✓ | ✓ |  | Irena Reedy | <nobr>2026‑03‑14</nobr> |
+| [Identity platform improves Linux visibility with Fleet](https://fleetdm.com/articles/identity-platform) | Identity / Security |  |  | ✓ | Irena Reedy | <nobr>2026‑03‑14</nobr> |
 | [IT service provider scales to 8,000+ devices with GitOps](https://fleetdm.com/case-study/it-service-provider) | IT / MSP | ✓ | ✓ | ✓ | Irena Reedy | <nobr>2026‑02‑22</nobr> |
 | [IT platform provider automates patching across thousands of Mac, Windows, and Linux devices](https://fleetdm.com/case-study/it-platform-provider) | IT / MSP | ✓ | ✓ | ✓ | Irena Reedy | <nobr>2026‑02‑22</nobr> |
 | [Enforcing security policies in minutes across a regulated healthcare environment](https://fleetdm.com/case-study/healthcare-technology-organization) | Healthcare | ✓ | ✓ | ✓ | Irena Reedy | <nobr>2026‑02‑22</nobr> |
@@ -102,10 +117,15 @@ Champion stories and case studies showing real customers achieving real outcomes
 | [Agritech producer replaces manual tracking across 273 devices](https://fleetdm.com/case-study/agritech-producer) | Agriculture / AgriTech | ✓ | ✓ | ✓ | Irena Reedy | <nobr>2026‑02‑23</nobr> |
 | [Cannabis technology company consolidates Jamf and Intune with Fleet](https://fleetdm.com/case-study/cannabis-technology-company) | Cannabis / Retail Tech | ✓ | ✓ |  | Irena Reedy | <nobr>2026‑02‑22</nobr> |
 | [Gaming technology company runs GitOps-driven device management on-prem](https://fleetdm.com/case-study/gaming-technology-company) | Gaming / Entertainment | ✓ | ✓ | ✓ | Irena Reedy | <nobr>2026‑02‑22</nobr> |
+| [Gaming platform gains production visibility with Fleet](https://fleetdm.com/articles/gaming-platform) | Gaming / Entertainment |  |  | ✓ | Irena Reedy | <nobr>2026‑03‑04</nobr> |
+| [Global entertainment company manages thousands of devices with GitOps workflows](https://fleetdm.com/articles/global-entertainment-company) | Gaming / Entertainment | ✓ | ✓ | ✓ | Irena Reedy | <nobr>2026‑03‑14</nobr> |
 | [Leading interactive entertainment company adopts Fleet for MDM](https://fleetdm.com/case-study/interactive-entertainment-company) | Gaming / Entertainment | ✓ | ✓ |  | Andrew Baker | <nobr>2024‑12‑23</nobr> |
 | [Large gaming company enhances server observability with Fleet](https://fleetdm.com/case-study/online-gaming-platform) | Gaming / Entertainment |  |  | ✓ | Andrew Baker | <nobr>2024‑12‑11</nobr> |
 | [Vehicle manufacturer transitions to Fleet for endpoint security](https://fleetdm.com/case-study/electric-vehicle-manufacturer) | Automotive / Manufacturing | ✓ | ✓ | ✓ | Andrew Baker | <nobr>2024‑12‑12</nobr> |
 | [EV manufacturer brings Linux workstations under centralized management with Fleet](https://fleetdm.com/case-study/ev-manufacturer) | Automotive / Manufacturing |  |  | ✓ | Fleetdm | <nobr>2024‑06‑01</nobr> |
+| [Medical research institution brings Linux devices into compliance with Fleet](https://fleetdm.com/articles/medical-research-institution) | Healthcare / Research |  |  | ✓ | Irena Reedy | <nobr>2026‑03‑14</nobr> |
+| [National research organization improves Linux automation with Fleet](https://fleetdm.com/articles/national-research-organization) | Research / Nonprofit |  |  | ✓ | Irena Reedy | <nobr>2026‑03‑14</nobr> |
+| [Technology platform manages 15,000 iPads with Fleet](https://fleetdm.com/articles/technology-platform) | Technology |  |  |  | Irena Reedy | <nobr>2026‑03‑14</nobr> |
 
 ---
 
@@ -134,29 +154,35 @@ Opinion, industry analysis, executive POV, named-series articles, and standalone
 | [Endpoint management's crucial role in healthcare](https://fleetdm.com/announcements/endpoint-managements-crucial-role-in-healthcare) | Healthcare | Why robust endpoint management is essential for securing healthcare data, ensuring compliance, and building patient trust. | Alex Mitchell | <nobr>2024‑05‑24</nobr> |
 | [The device security tightrope: balancing cost and protection in K-12 schools](https://fleetdm.com/announcements/the-device-security-tightrope-balancing-cost-and-protection-in-k-12-schools) | K-12 / EDU | How K-12 schools can balance tight budgets with the need for strong device security and compliance. | Keith Barnes | <nobr>2024‑03‑01</nobr> |
 | [Government agencies need to ditch the MDM thicket](https://fleetdm.com/announcements/government-agencies-need-to-ditch-the-mdm-thicket) | Government | Why consolidating MDM tools saves government agencies time, money, and security risk. | Keith Barnes | <nobr>2024‑02‑09</nobr> |
+| [How Fleet helps federal agencies meet CISA BOD 23-01](https://fleetdm.com/articles/how-fleet-helps-federal-agencies-meet-cisa-bod-23-01) | Government | How Fleet enables federal agencies to achieve continuous visibility into internet-exposed assets per CISA BOD 23-01. | Chris McGillicuddy | <nobr>2022‑10‑28</nobr> |
+| [Optimizing government cybersecurity strategies with Fleet](https://fleetdm.com/articles/optimizing-government-cybersecurity-strategies) | Government | How Fleet helps government agencies build a stronger cybersecurity posture. | Keith Barnes | <nobr>2023‑11‑14</nobr> |
+| [Vulnerability management: advantages of Fleet to support government agencies](https://fleetdm.com/articles/vulnerability-management-the-advantages-of-fleet-to-support-government-agencies) | Government | How Fleet's vulnerability management capabilities address the needs of government IT and security teams. | Keith Barnes | <nobr>2023‑12‑26</nobr> |
 | [Embracing the future: Declarative Device Management](https://fleetdm.com/announcements/embracing-the-future-declarative-device-management) | Apple / IT | Explore the transformative impact of Declarative Device Management (DDM), Fleet, and osquery for MacAdmins. | JD Strong | <nobr>2023‑07‑06</nobr> |
 
 ### Named Series
 
-#### 📚 Supercharging Modern Endpoint Management (2 of 3-part series)
+#### 📚 Supercharging Modern Endpoint Management (3-part series)
 
-Series on why legacy endpoint management is failing and what modern teams are doing instead.
+Executive series by Ashish Kuthiala (CMO) on why legacy endpoint management is failing and what modern teams are doing instead.
 
 | Part | Article | Author | Date |
 | --- | --- | --- | --- |
-| <nobr>1 of 3</nobr> | [The confidence gap: why IT leaders are abandoning legacy endpoint management](https://fleetdm.com/articles/the-confidence-gap) | Ashish Kuthiala | <nobr>2026‑02‑25</nobr> |
-| <nobr>2 of 3</nobr> | [Rethinking endpoint management: Fleet, osquery and Infrastructure as Code](https://fleetdm.com/articles/rethinking-endpoint-management) | Ashish Kuthiala | <nobr>2026‑02‑26</nobr> |
-| <nobr>3 of 3</nobr> | *Coming soon* | — | — |
+| 1 of 3 | [The confidence gap: why IT leaders are abandoning legacy endpoint management](https://fleetdm.com/articles/the-confidence-gap) | Ashish Kuthiala | <nobr>2026‑02‑25</nobr> |
+| 2 of 3 | [Rethinking endpoint management: Fleet, osquery and Infrastructure as Code](https://fleetdm.com/articles/rethinking-endpoint-management) | Ashish Kuthiala | <nobr>2026‑02‑26</nobr> |
+| 3 of 3 | [Modern endpoint management: Managing devices as code](https://fleetdm.com/articles/modern-endpoint-management-managing-devices-as-code) | Ashish Kuthiala | <nobr>2026‑03‑09</nobr> |
 
-#### 📚 Protecting Linux Endpoints (3-part series)
+#### 📚 Protecting Linux Endpoints (6-part series)
 
 Why Linux is now a critical enterprise platform and how to manage and secure it properly.
 
 | Part | Article | Author | Date |
 | --- | --- | --- | --- |
-| <nobr>1 of 3</nobr> | [Why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026) | Ashish Kuthiala | <nobr>2026‑01‑21</nobr> |
-| <nobr>2 of 3</nobr> | [Automated provisioning for Linux desktop in the enterprise](https://fleetdm.com/articles/automated-provisioning-for-Linux-desktop-in-the-enterprise) | Ashish Kuthiala | <nobr>2026‑02‑16</nobr> |
-| <nobr>3 of 3</nobr> | [Security baselines for Linux: closing the gap on exemptions](https://fleetdm.com/articles/security-baselines-for-linux) | Ashish Kuthiala | <nobr>2026‑02‑23</nobr> |
+| 1 of 6 | [Why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026) | Ashish Kuthiala | <nobr>2026‑01‑21</nobr> |
+| 2 of 6 | [Automated provisioning for Linux desktop in the enterprise](https://fleetdm.com/articles/automated-provisioning-for-Linux-desktop-in-the-enterprise) | Ashish Kuthiala | <nobr>2026‑02‑16</nobr> |
+| 3 of 6 | [Security baselines for Linux: closing the gap on exemptions](https://fleetdm.com/articles/security-baselines-for-linux) | Ashish Kuthiala | <nobr>2026‑02‑23</nobr> |
+| 4 of 6 | [Unlocking Linux productivity: securing apps and updating certificates](https://fleetdm.com/articles/unlocking-linux-productivity-securing-apps-and-updating-certificates) | Ashish Kuthiala | <nobr>2026‑03‑04</nobr> |
+| 5 of 6 | [Protecting the Linux device: remote wipe, USB & sudo](https://fleetdm.com/articles/protecting-the-linux-device-remote-wipe-usb-sudo) | Ashish Kuthiala | <nobr>2026‑03‑10</nobr> |
+| 6 of 6 | [Owning your Linux destiny with open source](https://fleetdm.com/articles/owning-your-linux-destiny-with-open-source) | Ashish Kuthiala | <nobr>2026‑03‑06</nobr> |
 
 #### 📚 OpenClaw — Governing Autonomous AI Agents (3-part series)
 
@@ -164,9 +190,9 @@ Security risks of autonomous AI agents running on managed endpoints, and what IT
 
 | Part | Article | Author | Date |
 | --- | --- | --- | --- |
-| <nobr>1 of 3</nobr> | [OpenClaw: Open for work?](https://fleetdm.com/articles/openclaw-open-for-work) | Brock Walters | <nobr>2026‑02‑04</nobr> |
-| <nobr>2 of 3</nobr> | [Detecting AI agents like OpenClaw with automated tooling](https://fleetdm.com/articles/detecting-ai-agents-like-openclaw-with-automated-tooling) | Dhruv Majumdar | <nobr>2026‑02‑18</nobr> |
-| <nobr>3 of 3</nobr> | [Mitigation assets and detection patterns for AI agents like OpenClaw](https://fleetdm.com/guides/mitigation-assets-and-detection-patterns-for-ai-agents-like-openclaw) *(Guide)* | Adam Baali | <nobr>2026‑02‑19</nobr> |
+| 1 of 3 | [OpenClaw: Open for work?](https://fleetdm.com/articles/openclaw-open-for-work) | Brock Walters | <nobr>2026‑02‑04</nobr> |
+| 2 of 3 | [Detecting AI agents like OpenClaw with automated tooling](https://fleetdm.com/articles/detecting-ai-agents-like-openclaw-with-automated-tooling) | Dhruv Majumdar | <nobr>2026‑02‑18</nobr> |
+| 3 of 3 | [Mitigation assets and detection patterns for AI agents like OpenClaw](https://fleetdm.com/guides/mitigation-assets-and-detection-patterns-for-ai-agents-like-openclaw) *(Guide)* | Adam Baali | <nobr>2026‑02‑19</nobr> |
 
 #### 📚 Deploy Santa with Fleet GitOps (2-part series)
 
@@ -174,8 +200,23 @@ Managing the Santa binary authorization tool using Fleet's GitOps workflow, with
 
 | Part | Article | Author | Date |
 | --- | --- | --- | --- |
-| <nobr>1 of 2</nobr> | [Deploy Santa with Fleet GitOps and skip the sync server](https://fleetdm.com/articles/deploy-santa-with-fleet-gitops-and-skip-the-sync-server) | Allen Houchins | <nobr>2026‑02‑04</nobr> |
-| <nobr>2 of 2</nobr> | [How we deployed Santa at Fleet](https://fleetdm.com/guides/how-we-deployed-santa-at-fleet) *(Guide)* | Allen Houchins | <nobr>2026‑02‑24</nobr> |
+| 1 of 2 | [Deploy Santa with Fleet GitOps and skip the sync server](https://fleetdm.com/articles/deploy-santa-with-fleet-gitops-and-skip-the-sync-server) | Allen Houchins | <nobr>2026‑02‑04</nobr> |
+| 2 of 2 | [How we deployed Santa at Fleet](https://fleetdm.com/guides/how-we-deployed-santa-at-fleet) *(Guide)* | Allen Houchins | <nobr>2026‑02‑24</nobr> |
+
+#### 📚 Tales from Fleet Security (8-part series)
+
+How Fleet's own security team secures the company — a window into Fleet's internal security practices useful for security-minded evaluators.
+
+| Part | Article | Author | Date |
+| --- | --- | --- | --- |
+| 1 of 8 | [Tales from Fleet security: securing the startup](https://fleetdm.com/articles/tales-from-fleet-security-securing-the-startup) | Guillaume Ross | <nobr>2022‑03‑17</nobr> |
+| 2 of 8 | [Tales from Fleet security: securing Google Workspace](https://fleetdm.com/articles/tales-from-fleet-security-securing-google-workspace) | Guillaume Ross | <nobr>2022‑03‑25</nobr> |
+| 3 of 8 | [Tales from Fleet security: GitHub configuration and OpenSSF Scorecards](https://fleetdm.com/articles/tales-from-fleet-security-github-configuration-and-openssf-scorecards) | Guillaume Ross | <nobr>2022‑04‑15</nobr> |
+| 4 of 8 | [Tales from Fleet security: securing 1Password](https://fleetdm.com/articles/tales-from-fleet-security-securing-1password) | Guillaume Ross | <nobr>2022‑05‑06</nobr> |
+| 5 of 8 | [Tales from Fleet security: how we achieved our SOC 2 type 1 rapidly](https://fleetdm.com/articles/tales-from-fleet-security-soc2) | Guillaume Ross | <nobr>2022‑06‑24</nobr> |
+| 6 of 8 | [Tales from Fleet security: speeding up macOS updates with Nudge](https://fleetdm.com/articles/tales-from-fleet-security-speeding-up-macos-updates-with-nudge) | Guillaume Ross | <nobr>2022‑07‑05</nobr> |
+| 7 of 8 | [Tales from Fleet security: securing bank accounts from business email compromise](https://fleetdm.com/articles/tales-from-fleet-security-securing-bank-accounts-from-business-email-compromise) | Guillaume Ross | <nobr>2022‑07‑15</nobr> |
+| 8 of 8 | [Tales from Fleet security: scams targeting Google Groups](https://fleetdm.com/articles/tales-from-fleet-security-google-groups-scams) | Guillaume Ross | <nobr>2022‑08‑05</nobr> |
 
 ### Standalone Articles
 
@@ -187,6 +228,8 @@ Managing the Santa binary authorization tool using Fleet's GitOps workflow, with
 | [Mac Zero-Touch Deployment: Complete Enterprise Guide 2026](https://fleetdm.com/articles/mac-zero-touch-deployment-guide) | Complete guide to Mac zero-touch deployment using Apple Business Manager and MDM. | Brock Walters | <nobr>2026‑02‑26</nobr> |
 | [Mac Inventory Management: Device Tracking Guide](https://fleetdm.com/articles/mac-inventory-management) | How Mac inventory combines MDM and osquery to track hardware, software, and security configs. | Brock Walters | <nobr>2026‑02‑25</nobr> |
 | [Mac device security: Apple's native protections and third-party tools](https://fleetdm.com/articles/mac-device-security) | How Mac endpoint security works, from Apple's protections (SIP, XProtect, TCC) to third-party tools. | Brock Walters | <nobr>2026‑02‑25</nobr> |
+| [How to manage company laptops: a complete guide](https://fleetdm.com/articles/how-to-manage-company-laptops-a-complete-guide) | A complete guide to managing company laptops across macOS, Windows, and Linux at scale. | Brock Walters | <nobr>2026‑03‑07</nobr> |
+| [Migrating Intune policies to Fleet with the CSP converter](https://fleetdm.com/articles/migrating-intune-policies-to-fleet-csp-converter) | How to translate Intune configuration policies to Fleet using the CSP converter tool. | Mitch Francese | <nobr>2026‑03‑06</nobr> |
 | [Why work laptops don't work on plane wifi](https://fleetdm.com/articles/why-work-laptops-dont-work-on-plane-wifi) | VPNs, DNS filters, and captive portals — and why IT teams should fix this by default. | Mike McNeil | <nobr>2026‑02‑13</nobr> |
 | [The GitOps idea](https://fleetdm.com/articles/the-gitops-idea) | An introduction to GitOps concepts and components. | Brock Walters | <nobr>2026‑02‑04</nobr> |
 | [iPad MDM: a complete guide](https://fleetdm.com/articles/ipad-mdm-a-complete-guide) | A complete guide to iPad MDM, covering deployment models, enrollment methods, and enterprise management at scale. | Brock Walters | <nobr>2026‑01‑13</nobr> |
@@ -201,6 +244,14 @@ Managing the Santa binary authorization tool using Fleet's GitOps workflow, with
 | [One agent, fewer tools, fewer gaps](https://fleetdm.com/articles/one-agent-fewer-tools-fewer-gaps) | Managing devices and vulnerabilities shouldn't mean installing two agents or paying for two platforms. | Harrison Ravazzolo | <nobr>2025‑06‑23</nobr> |
 | [I work in operations. I deployed Fleet in minutes.](https://fleetdm.com/articles/i-work-in-operations-i-deployed-fleet-in-minutes) | Self-hosting Fleet is easier than you think — even for non-technical roles. | Nate Holliday | <nobr>2025‑06‑05</nobr> |
 | [Not everything runs in Kubernetes](https://fleetdm.com/articles/not-everything-runs-in-kubernete) | Why Fleet goes beyond Kubernetes to manage real-world infrastructure. | Zach Wasserman | <nobr>2025‑05‑27</nobr> |
+| [Work may be watching, but it might not be as bad as you think](https://fleetdm.com/articles/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think) | A clear-eyed look at employee monitoring, what IT teams actually collect, and how to set expectations. | Mike Thomas | <nobr>2021‑10‑22</nobr> |
+| [eBPF & the future of osquery on Linux](https://fleetdm.com/articles/ebpf-the-future-of-osquery-on-linux) | How eBPF extends osquery's visibility on Linux and what it means for endpoint security. | Zach Wasserman | <nobr>2021‑01‑25</nobr> |
+| [Does osquery violate the New York employee monitoring law?](https://fleetdm.com/articles/does-osquery-violate-the-new-york-employee-monitoring-law) | Legal analysis of whether osquery-based monitoring triggers New York's employee monitoring disclosure requirements. | JD Strong | <nobr>2023‑04‑18</nobr> |
+| [Apply BYOD to soothe supply chain pain](https://fleetdm.com/articles/apply-byod-to-soothe-supply-chain-pain) | How a well-structured BYOD program can reduce hardware dependency and procurement delays. | Guillaume Ross | <nobr>2022‑02‑10</nobr> |
+| [Vulnerability management at scale: a presentation from osquery co-creator Zach Wasserman](https://fleetdm.com/articles/osquery-vulnerability-management-at-scale) | How to use osquery and Fleet for vulnerability management across large, heterogeneous device fleets. | Chris McGillicuddy | <nobr>2022‑10‑05</nobr> |
+| [State of Device Management report 2022](https://fleetdm.com/articles/state-of-device-management) | Fleet's 2022 industry report on the state of device management practices and tooling. | Mike McNeil | <nobr>2022‑07‑07</nobr> |
+| [Stay on course with your security compliance goals](https://fleetdm.com/articles/stay-on-course-with-your-security-compliance-goals) | How to maintain momentum on security compliance programs without losing sight of the goal. | Chris McGillicuddy | <nobr>2022‑07‑18</nobr> |
+| [Fleet & osquery: Unlocking the value of Axonius with open-source telemetry](https://fleetdm.com/articles/fleet-osquery-unlocking-the-value-of-axonius-with-open-source-telemetry) | How Fleet and osquery enrich Axonius with real-time, open-source device telemetry. | Brad Macdowall | <nobr>2023‑12‑28</nobr> |
 
 ---
 
@@ -415,6 +466,12 @@ Command-line tools for managing Fleet configurations, running queries, and deplo
 | --- | --- | --- | --- |
 | [Fleet troubleshooting for IT admins](https://fleetdm.com/guides/fleet-troubleshooting-for-it-admins) | A practical guide to diagnosing and resolving common Fleet issues for IT administrators. | Steven Palmesano | <nobr>2026‑02‑13</nobr> |
 | [Set a device hostname via the Fleet API](https://fleetdm.com/guides/set-device-hostname-via-fleet-api) | Use Fleet's API to set device hostnames on macOS, iOS, and iPadOS. | Kitzy | <nobr>2026‑01‑26</nobr> |
+| [Delete macOS local user accounts with Fleet](https://fleetdm.com/articles/delete-macos-local-user-accounts-with-fleet) | How to use Fleet scripts to remove local user accounts from macOS devices at scale. | Steven Palmesano | <nobr>2026‑03‑06</nobr> |
+| [Monitor DNS traffic on macOS](https://fleetdm.com/articles/monitor-dns-traffic-on-macos) | How to use Fleet and osquery to monitor DNS queries on macOS endpoints. | Victor Lyuboslavsky | <nobr>2026‑03‑08</nobr> |
+| [Deploying custom osquery extensions in Fleet](https://fleetdm.com/articles/deploying-custom-osquery-extensions-in-fleet) | How to deploy custom osquery extensions to managed devices using Fleet. | Allen Houchins | <nobr>2026‑03‑05</nobr> |
+| [Deploying custom osquery extensions in Fleet: A step-by-step guide](https://fleetdm.com/articles/deploying-custom-osquery-extensions-in-fleet-a-step-by-step-guide) | Step-by-step walkthrough for deploying custom osquery extensions across your Fleet-managed devices. | Allen Houchins | <nobr>2026‑03‑06</nobr> |
+| [What are Fleet policies?](https://fleetdm.com/articles/what-are-fleet-policies) | An introduction to Fleet policies — what they are, how they work, and how to use them for compliance and automation. | Andrew Baker | <nobr>2022‑05‑20</nobr> |
+| [End-user self remediation: empower your employees to fix security issues](https://fleetdm.com/articles/end-user-self-remediation) | How Fleet Desktop enables end users to self-remediate failing policies without IT intervention. | Chris McGillicuddy | <nobr>2022‑12‑15</nobr> |
 | [Labels in Fleet](https://fleetdm.com/guides/managing-labels-in-fleet) | Learn how to use labels in Fleet to organize and target hosts for policies, queries, and software. | Noah Talerman | <nobr>2025‑10‑24</nobr> |
 | [View and manage MDM configuration profile status](https://fleetdm.com/guides/configuration-profile-status) | Learn how to view and manage the status of MDM configuration profiles across your Fleet-enrolled devices. | Gabe Hernandez | <nobr>2025‑05‑26</nobr> |
 | [View certificates in host vitals](https://fleetdm.com/guides/view-certificates-in-host-vitals) | Learn about certificates in host vitals. | Sarah Gillespie | <nobr>2025‑03‑04</nobr> |
@@ -497,20 +554,19 @@ ExpedITioners is Fleet's podcast, hosted by Zach Wasserman. Episodes feature gue
 | [Rich Trouton: Declarative Device Management and a promising future for Mac Admins](https://expeditioners.podbean.com/e/rich-trouton-declarative-device-management-and-a-promising-future-for-mac-admins/) | Rich Trouton — IT Technology Services Expert at SAP; author of Der Flounder blog | Apple's Declarative Device Management (DDM) framework and what it means for the future of Mac administration. | <nobr>2023‑08‑31</nobr> |
 | [Niels Hofmans: Threat modeling, open-source collaboration, and bug bounties](https://expeditioners.podbean.com/e/niels-hofmans-threat-modeling-open-source-collaboration-and-bug-bounties/) | Niels Hofmans — Head of Security at Intigriti | Threat modeling methodologies, open-source security collaboration, and the bug bounty ecosystem across 90,000+ security researchers. | <nobr>2023‑08‑18</nobr> |
 | [Bradley Chambers: The bright future and golden era of macOS](https://expeditioners.podbean.com/e/bradley-chambers-the-bright-future-and-golden-era-of-macos/) | Bradley Chambers — Enterprise technology writer for 9to5Mac; author of Apple @ Work | Why macOS is entering a golden era for enterprise, and how Apple's platform strategy is reshaping workplace IT. | <nobr>2023‑07‑14</nobr> |
-| [Mat X — Organizing community insights for industry growth with MacAdmin tools](https://expeditioners.podbean.com/e/mat-x-organizing-community-insights-for-industry-growth-with-macadmin-tools/) | Mat X — Storage, workflow, and broadcast systems engineer in film & VFX | How the MacAdmin community can better organize and share knowledge to accelerate industry growth. | <nobr>2022‑11‑03</nobr> |
-| [Whitney Champion — Scaling infrastructure automation with open source tools](https://expeditioners.podbean.com/e/ep-6-whitney-champion-scaling-infrastructure-automation-with-open-source-tools/) | Whitney Champion — Infrastructure and open-source automation engineer | Scaling infrastructure automation using open source tools and the culture of contributing back to the community. | <nobr>2022‑09‑23</nobr> |
-| [Jesse Peterson — Open source communities for better MDM and career growth](https://expeditioners.podbean.com/e/jesse-peterson-open-source-communities-for-better-mdm-and-career-growth/) | Jesse Peterson — Client Platform Engineer at Meta; creator of NanoMDM; contributor to MicroMDM | How open-source communities drive better MDM tooling and create career growth opportunities for contributors. | <nobr>2022‑09‑01</nobr> |
-| [Nick Anderson — Endpoint security for osquery](https://expeditioners.podbean.com/e/ep-4-nick-anderson-endpoint-security-for-osquery/) | Nick Anderson — Security Engineer at Meta; osquery Technical Steering Committee member | How osquery enables robust endpoint security and detection at scale in large enterprise environments. | <nobr>2022‑08‑12</nobr> |
-| [Chris Long — From osquery skeptic to believer](https://expeditioners.podbean.com/e/ep-3-chris-long-from-osquery-sceptic-to-believer/) | Chris Long — Staff Security Engineer at Material Security; creator of Detection Lab | The journey from skepticism to conviction on osquery, and how Detection Lab accelerates security team onboarding. | <nobr>2022‑07‑21</nobr> |
-| [Prima Virani — Improving endpoint monitoring and visibility with osquery](https://expeditioners.podbean.com/e/prima-virani-improving-endpoint-monitoring-and-visibility-with-osquery/) | Prima Virani — Detection & Response Engineering Lead at Twilio | Using osquery to improve endpoint monitoring, detection, and security visibility across a distributed fleet. | <nobr>2022‑06‑28</nobr> |
-| [Mike Arpaia — The story behind the creation of osquery](https://expeditioners.podbean.com/e/ep-1-mike-arpaia-the-story-behind-the-creation-of-osquery/) | Mike Arpaia — Co-creator of osquery; Partner at Moonfire Ventures | The origin story of osquery, the philosophy behind its design, and its lasting impact on endpoint security and observability. | <nobr>2022‑06‑02</nobr> |
+| [EP 7: Mat X — Organizing community insights for industry growth with MacAdmin tools](https://expeditioners.podbean.com/e/mat-x-organizing-community-insights-for-industry-growth-with-macadmin-tools/) | Mat X — Storage, workflow, and broadcast systems engineer in film & VFX | How the MacAdmin community can better organize and share knowledge to accelerate industry growth. | <nobr>2022‑11‑03</nobr> |
+| [EP 6: Whitney Champion — Scaling infrastructure automation with open source tools](https://expeditioners.podbean.com/e/ep-6-whitney-champion-scaling-infrastructure-automation-with-open-source-tools/) | Whitney Champion — Infrastructure and open-source automation engineer | Scaling infrastructure automation using open source tools and the culture of contributing back to the community. | <nobr>2022‑09‑23</nobr> |
+| [EP 5: Jesse Peterson — Open source communities for better MDM and career growth](https://expeditioners.podbean.com/e/jesse-peterson-open-source-communities-for-better-mdm-and-career-growth/) | Jesse Peterson — Client Platform Engineer at Meta; creator of NanoMDM; contributor to MicroMDM | How open-source communities drive better MDM tooling and create career growth opportunities for contributors. | <nobr>2022‑09‑01</nobr> |
+| [EP 4: Nick Anderson — Endpoint security for osquery](https://expeditioners.podbean.com/e/ep-4-nick-anderson-endpoint-security-for-osquery/) | Nick Anderson — Security Engineer at Meta; osquery Technical Steering Committee member | How osquery enables robust endpoint security and detection at scale in large enterprise environments. | <nobr>2022‑08‑12</nobr> |
+| [EP 3: Chris Long — From osquery skeptic to believer](https://expeditioners.podbean.com/e/ep-3-chris-long-from-osquery-sceptic-to-believer/) | Chris Long — Staff Security Engineer at Material Security; creator of Detection Lab | The journey from skepticism to conviction on osquery, and how Detection Lab accelerates security team onboarding. | <nobr>2022‑07‑21</nobr> |
+| [EP 2: Prima Virani — Improving endpoint monitoring and visibility with osquery](https://expeditioners.podbean.com/e/prima-virani-improving-endpoint-monitoring-and-visibility-with-osquery/) | Prima Virani — Detection & Response Engineering Lead at Twilio | Using osquery to improve endpoint monitoring, detection, and security visibility across a distributed fleet. | <nobr>2022‑06‑28</nobr> |
+| [EP 1: Mike Arpaia — The story behind the creation of osquery](https://expeditioners.podbean.com/e/ep-1-mike-arpaia-the-story-behind-the-creation-of-osquery/) | Mike Arpaia — Co-creator of osquery; Partner at Moonfire Ventures | The origin story of osquery, the philosophy behind its design, and its lasting impact on endpoint security and observability. | <nobr>2022‑06‑02</nobr> |
 
 ---
 
 ## Release Notes
 
 See: https://fleetdm.com/releases
-
 
 
 <meta name="maintainedBy" value="akuthiala">
