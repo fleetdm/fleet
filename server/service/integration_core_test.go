@@ -3401,6 +3401,7 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	policies := *hd.Policies
 	require.Len(t, policies, 2)
 	// Policies that did not run are listed before passing policies
+	// TODO(JVE): verify that this passes once JK merges his code
 	require.True(t, reflect.DeepEqual(tpResp.Policy.PolicyData, policies[0].PolicyData))
 	require.Equal(t, policies[0].Response, "") // policy didn't "run"
 
@@ -8059,7 +8060,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 			"mdm": { "macos_settings": { "custom_settings": ["foo", "bar"] } }
 	  }`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
+	assert.Contains(t, errMsg, "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
 
 	// test setting the default app config we use for new installs (this check
 	// ensures that the default config passes the validation)

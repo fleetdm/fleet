@@ -1,0 +1,2 @@
+- Trimmed incoming " ARM" suffix for Arch Linux hosts so Arch OSs are grouped together in the
+database and UI.
