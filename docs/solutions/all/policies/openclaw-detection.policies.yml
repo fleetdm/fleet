@@ -112,7 +112,7 @@
   resolution: |-
     If this policy fails, the device has indicators of an OpenClaw installation.
     Check with the device owner and your organisation's policy on personal AI assistants.
-    Run the OpenClaw investigation queries in Fleet to determine what is installed.
+    Run the OpenClaw investigation reports in Fleet to determine what is installed.
     On the device itself, running 'openclaw security audit --deep' produces a
     detailed security posture report including exposed credentials, insecure
     permissions, and misconfigured bindings.
@@ -226,7 +226,7 @@
   resolution: |-
     If this policy fails, the device has indicators of an OpenClaw installation.
     Check with the device owner and your organisation's policy on personal AI assistants.
-    Run the OpenClaw investigation queries in Fleet to determine what is installed.
+    Run the OpenClaw investigation reports in Fleet to determine what is installed.
     On the device itself, running 'openclaw security audit --deep' produces a
     detailed security posture report including exposed credentials, insecure
     permissions, and misconfigured bindings.
@@ -339,9 +339,8 @@
   resolution: |-
     If this policy fails, the device has indicators of an OpenClaw installation.
     Check with the device owner and your organisation's policy on personal AI assistants.
-    Run the OpenClaw investigation queries in Fleet to determine what is installed.
+    Run the OpenClaw investigation reports in Fleet to determine what is installed.
     On the device itself, running 'openclaw security audit --deep' produces a
     detailed security posture report including exposed credentials, insecure
     permissions, and misconfigured bindings.
   platform: windows
-  

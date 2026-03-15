@@ -41,7 +41,7 @@ spec:
             domain='com.apple.screensaver' AND 
             name='askForPasswordDelay' AND 
             value > 5
-        );  
+        );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, premium,
   contributors: sharon-fdm,ddribeiro
@@ -104,7 +104,7 @@ spec:
             domain='com.apple.SoftwareUpdate' AND 
             name='AutomaticCheckEnabled' AND 
             (value != 1 AND value != 'true')
-        );  
+        );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, premium
   contributors: sharon-fdm,ddribeiro
@@ -200,7 +200,7 @@ spec:
   description: Presence of authorized SSH keys may be unusual on laptops. Could be completely normal on servers, but may be worth auditing for unusual keys and/or changes.
   query: SELECT username, authorized_keys. * FROM users CROSS JOIN authorized_keys USING (uid);
   purpose: Informational
-  remediation: Check out the linked table (https://github.com/fleetdm/fleet/blob/32b4d53e7f1428ce43b0f9fa52838cbe7b413eed/handbook/queries/detect-hosts-with-high-severity-vulnerable-versions-of-openssl.md#table-of-vulnerable-openssl-versions) to determine if the installed version is a high severity vulnerability and view the corresponding CVE(s)
+  remediation: Check out the linked table (https://github.com/fleetdm/fleet/blob/32b4d53e7f1428ce43b0f9fa52838cbe7b413eed/handbook/reports/detect-hosts-with-high-severity-vulnerable-versions-of-openssl.md#table-of-vulnerable-openssl-versions) to determine if the installed version is a high severity vulnerability and view the corresponding CVE(s)
   tags: built-in, ssh
   contributors: mike-j-thomas
 ---
@@ -469,7 +469,7 @@ kind: query
 spec:
   name: Get local administrator accounts on macOS
   platform: darwin
-  description: The query allows you to check macOS systems for local administrator accounts.
+  description: The report allows you to check macOS systems for local administrator accounts.
   query: SELECT uid, username, type FROM users u JOIN groups g ON g.gid = u.gid;
   purpose: Informational
   tags: hunting, inventory
@@ -766,7 +766,7 @@ kind: policy
 spec:
   name: Automatic login disabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'DisableFDEAutoLogin' AND value = 1 LIMIT 1;
-  bash: "[ \"$(defaults read '/Library/Managed Preferences/com.apple.loginwindow' 'com.apple.login.mcx.DisableAutoLoginClient' 2>/dev/null)\" = \"1\" ] && echo 1 || echo 0"
+  bash: '[ "$(defaults read ''/Library/Managed Preferences/com.apple.loginwindow'' ''com.apple.login.mcx.DisableAutoLoginClient'' 2>/dev/null)" = "1" ] && echo 1 || echo 0'
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent login in without a password. Note: This policy will not report a value if FileVault is disabled."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables automatic login."
   tags: MDM required, compliance, hardening, built-in, critical
@@ -992,7 +992,7 @@ spec:
   name: Docker application is up to date or not present (macOS)
   query: SELECT 1 WHERE EXISTS (SELECT 1 FROM apps a1 WHERE a1.bundle_identifier = 'com.electron.dockerdesktop' AND a1.bundle_short_version>='4.6.1') OR NOT EXISTS (SELECT 1 FROM apps a2 WHERE a2.bundle_identifier = 'com.electron.dockerdesktop');
   bash: app=$(mdfind "kMDItemCFBundleIdentifier == 'com.electron.dockerdesktop'" | head -n1); [ -z "$app" ] && echo 1 || { ver=$(defaults read "$app/Contents/Info" CFBundleShortVersionString 2>/dev/null); [ "$(printf '%s\n' 4.6.1 "$ver" | sort -V | head -n1)" = "4.6.1" ] && echo 1 || echo 0; }
-  description: "Checks if the application (Docker Desktop example) is installed and up to date, or not installed. Fails if the application is installed and on a lower version. You can copy this query and replace the bundle_identifier and bundle_version values to apply the same type of policy to other applications."
+  description: "Checks if the application (Docker Desktop example) is installed and up to date, or not installed. Fails if the application is installed and on a lower version. You can copy this report and replace the bundle_identifier and bundle_version values to apply the same type of policy to other applications."
   resolution: "Update Docker or remove it if not used."
   tags: inventory, vulnerability, built-in
   platform: darwin
@@ -1334,9 +1334,9 @@ kind: policy
 spec:
   name: Automatic installation of application updates is enabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallAppUpdates' AND value=1 LIMIT 1;
-  bash: "[ \"$(defaults read '/Library/Managed
-    Preferences/com.apple.SoftwareUpdate' AutomaticallyInstallAppUpdates
-    2>/dev/null)\" = \"1\" ] && echo 1 || echo 0"
+  bash: '[ "$(defaults read ''/Library/Managed
+    Preferences/com.apple.SoftwareUpdate'' AutomaticallyInstallAppUpdates
+    2>/dev/null)" = "1" ] && echo 1 || echo 0'
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically install updates to App Store applications."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of application updates."
   tags: MDM required, compliance, CIS, CIS1.4
@@ -2095,11 +2095,11 @@ spec:
     Manual method: 
     Navigate to System Settings > Apple Intelligence & Siri > Toggle Apple Intelligence to off
     Automatic method:
-    Ask your system administrator to deploy a configuration profile to disable this feature. 
+    Ask your system administrator to deploy a configuration profile to disable this feature.
   query: |
     SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM plist WHERE path LIKE '/Users/%/Library/Preferences/com.apple.CloudSubscriptionFeatures.optIn.plist' AND value = 1);
   purpose: Informational
-  tags: 
+  tags:
   contributors: allenhouchins
   configuration_profile: |
     <?xml version="1.0" encoding="UTF-8"?>
@@ -2166,5 +2166,5 @@ spec:
   contributors: spalmesano0
   script: |
     #!/bin/sh
-    
+
     /Applications/Falcon.app/Contents/Resources/falconctl load

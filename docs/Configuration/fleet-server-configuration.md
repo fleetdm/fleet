@@ -368,7 +368,7 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
 
 ### redis_duplicate_results
 
-Whether or not to duplicate Live Query results to another Redis channel named `LQDuplicate`. This is useful in a scenario involving shipping the Live Query results outside of Fleet, near real-time.
+Whether or not to duplicate live report results to another Redis channel named `LQDuplicate`. This is useful in a scenario involving shipping the live report results outside of Fleet, near real-time.
 
 - Default value: `false`
 - Environment variable: `FLEET_REDIS_DUPLICATE_RESULTS`
@@ -942,18 +942,18 @@ How long invite tokens should be valid for.
     invite_token_validity_period: 1d
   ```
 
-### app_enable_scheduled_query_stats
+### app_enable_scheduled_report_stats
 
-Determines whether Fleet collects performance impact statistics for scheduled queries.
+Determines whether Fleet collects performance impact statistics for scheduled reports.
 
-If set to `false`, stats are still collected for live queries.
+If set to `false`, stats are still collected for live reports.
 
 - Default value: `true`
-- Environment variable: `FLEET_APP_ENABLE_SCHEDULED_QUERY_STATS`
+- Environment variable: `FLEET_APP_ENABLE_SCHEDULED_REPORT_STATS`
 - Config file format:
   ```yaml
   app:
-    enable_scheduled_query_stats: true
+    enable_scheduled_report_stats: true
   ```
 
 ## License

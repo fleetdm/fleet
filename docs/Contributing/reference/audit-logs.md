@@ -68,8 +68,8 @@ Generated when creating policies.
 This activity contains the following fields:
 - "policy_id": the ID of the created policy.
 - "policy_name": the name of the created policy.
-- "team_id": the ID of the team the policy belongs to. Use -1 for global policies, 0 for "No Team" policies.
-- "team_name": the name of the team the policy belongs to. null for global policies and "No Team" policies.
+- "fleet_id": the ID of the fleet the policy belongs to. Use -1 for global policies, 0 for "No Fleet" policies.
+- "fleet_name": the name of the fleet the policy belongs to. null for global policies and "No Fleet" policies.
 
 #### Example
 
@@ -77,8 +77,8 @@ This activity contains the following fields:
 {
 	"policy_id": 123,
 	"policy_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations"
+	"fleet_id": 1,
+	"fleet_name": "Workstations"
 }
 ```
 
@@ -89,8 +89,8 @@ Generated when editing policies.
 This activity contains the following fields:
 - "policy_id": the ID of the edited policy.
 - "policy_name": the name of the edited policy.
-- "team_id": the ID of the team the policy belongs to. Use -1 for global policies, 0 for "No Team" policies.
-- "team_name": the name of the team the policy belongs to. null for global policies and "No Team" policies.
+- "fleet_id": the ID of the fleet the policy belongs to. Use -1 for global policies, 0 for "No Fleet" policies.
+- "fleet_name": the name of the fleet the policy belongs to. null for global policies and "No Fleet" policies.
 
 #### Example
 
@@ -98,8 +98,8 @@ This activity contains the following fields:
 {
 	"policy_id": 123,
 	"policy_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations"
+	"fleet_id": 1,
+	"fleet_name": "Workstations"
 }
 ```
 
@@ -110,8 +110,8 @@ Generated when deleting policies.
 This activity contains the following fields:
 - "policy_id": the ID of the deleted policy.
 - "policy_name": the name of the deleted policy.
-- "team_id": the ID of the team the policy belonged to. Use -1 for global policies, 0 for "No Team" policies.
-- "team_name": the name of the team the policy belonged to. null for global policies and "No Team" policies.
+- "fleet_id": the ID of the fleet the policy belonged to. Use -1 for global policies, 0 for "No Fleet" policies.
+- "fleet_name": the name of the fleet the policy belonged to. null for global policies and "No Fleet" policies.
 
 #### Example
 
@@ -119,8 +119,8 @@ This activity contains the following fields:
 {
 	"policy_id": 123,
 	"policy_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations"
+	"fleet_id": 1,
+	"fleet_name": "Workstations"
 }
 ```
 
@@ -134,7 +134,7 @@ This activity contains a field "policies" where each item is a policy spec with 
 - "description": Description of the policy.
 - "critical": Marks the policy as high impact.
 - "resolution": Describes how to solve a failing policy.
-- "team": Name of the team this policy belongs to.
+- "fleet": Name of the fleet this policy belongs to.
 - "platform": Comma-separated string to indicate the target platforms.
 
 
@@ -163,93 +163,93 @@ This activity contains a field "policies" where each item is a policy spec with 
 }
 ```
 
-## created_saved_query
+## created_saved_report
 
-Generated when creating a new query.
+Generated when creating a new report.
 
 This activity contains the following fields:
-- "query_id": the ID of the created query.
-- "query_name": the name of the created query.
-- "team_id": the ID of the team the query belongs to.
-- "team_name": the name of the team the query belongs to.
+- "report_id": the ID of the created report.
+- "report_name": the name of the created report.
+- "fleet_id": the ID of the fleet the report belongs to.
+- "fleet_name": the name of the fleet the report belongs to.
 
 #### Example
 
 ```json
 {
-	"query_id": 123,
-	"query_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations"
+	"report_id": 123,
+	"report_name": "foo",
+	"fleet_id": 1,
+	"fleet_name": "Workstations"
 }
 ```
 
-## edited_saved_query
+## edited_saved_report
 
-Generated when editing a saved query.
+Generated when editing a saved report.
 
 This activity contains the following fields:
-- "query_id": the ID of the query being edited.
-- "query_name": the name of the query being edited.
-- "team_id": the ID of the team the query belongs to.
-- "team_name": the name of the team the query belongs to.
+- "report_id": the ID of the report being edited.
+- "report_name": the name of the report being edited.
+- "fleet_id": the ID of the fleet the report belongs to.
+- "fleet_name": the name of the fleet the report belongs to.
 
 #### Example
 
 ```json
 {
-	"query_id": 123,
-	"query_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations"
+	"report_id": 123,
+	"report_name": "foo",
+	"fleet_id": 1,
+	"fleet_name": "Workstations"
 }
 ```
 
-## deleted_saved_query
+## deleted_saved_report
 
-Generated when deleting a saved query.
+Generated when deleting a saved report.
 
 This activity contains the following fields:
-- "query_name": the name of the query being deleted.
-- "team_id": the ID of the team the query belongs to.
-- "team_name": the name of the team the query belongs to.
+- "report_name": the name of the report being deleted.
+- "fleet_id": the ID of the fleet the report belongs to.
+- "fleet_name": the name of the fleet the report belongs to.
 
 #### Example
 
 ```json
 {
-	"query_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations"
+	"report_name": "foo",
+	"fleet_id": 1,
+	"fleet_name": "Workstations"
 }
 ```
 
-## deleted_multiple_saved_query
+## deleted_multiple_saved_report
 
-Generated when deleting multiple saved queries.
+Generated when deleting multiple saved reports.
 
 This activity contains the following fields:
-- "query_ids": list of IDs of the deleted saved queries.
-- "team_id": the ID of the team the queries belonged to. -1 for global queries, null for no team.
-- "team_name": the name of the team the queries belonged to. null for global or no team queries.
+- "report_ids": list of IDs of the deleted saved reports.
+- "fleet_id": the ID of the fleet the reports belonged to. -1 for global reports, null for no fleet.
+- "fleet_name": the name of the fleet the reports belonged to. null for global or no fleet reports.
 
 #### Example
 
 ```json
 {
-	"query_ids": [1, 42, 100],
-	"team_id": 123,
-	"team_name": "Workstations"
+	"report_ids": [1, 42, 100],
+	"fleet_id": 123,
+	"fleet_name": "Workstations"
 }
 ```
 
-## applied_spec_saved_query
+## applied_spec_saved_report
 
-Generated when applying a query spec.
+Generated when applying a report spec.
 
-This activity contains a field "specs" where each item is a query spec with the following fields:
-- "name": Name of the query.
-- "description": Description of the query.
+This activity contains a field "specs" where each item is a report spec with the following fields:
+- "name": Name of the report.
+- "description": Description of the report.
 - "query": SQL query.
 
 #### Example
@@ -266,53 +266,53 @@ This activity contains a field "specs" where each item is a query spec with the 
 }
 ```
 
-## created_team
+## created_fleet
 
-Generated when creating teams.
+Generated when creating fleets.
 
 This activity contains the following fields:
-- "team_id": unique ID of the created team.
-- "team_name": the name of the created team.
+- "fleet_id": unique ID of the created fleet.
+- "fleet_name": the name of the created fleet.
 
 #### Example
 
 ```json
 {
-	"team_id": 123,
-	"team_name": "Workstations"
+	"fleet_id": 123,
+	"fleet_name": "Workstations"
 }
 ```
 
-## deleted_team
+## deleted_fleet
 
-Generated when deleting teams.
+Generated when deleting fleets.
 
 This activity contains the following fields:
-- "team_id": unique ID of the deleted team.
-- "team_name": the name of the deleted team.
+- "fleet_id": unique ID of the deleted fleet.
+- "fleet_name": the name of the deleted fleet.
 
 #### Example
 
 ```json
 {
-	"team_id": 123,
-	"team_name": "Workstations"
+	"fleet_id": 123,
+	"fleet_name": "Workstations"
 }
 ```
 
-## applied_spec_team
+## applied_spec_fleet
 
-Generated when applying team specs.
+Generated when applying fleet specs.
 
-This activity contains a field "teams" where each item contains the team details with the following fields:
-- "id": Unique ID of the team.
-- "name": Name of the team.
+This activity contains a field "fleets" where each item contains the fleet details with the following fields:
+- "id": Unique ID of the fleet.
+- "name": Name of the fleet.
 
 #### Example
 
 ```json
 {
-	"teams": [
+	"fleets": [
 		{
 			"id": 123,
 			"name": "foo"
@@ -323,11 +323,11 @@ This activity contains a field "teams" where each item contains the team details
 
 ## transferred_hosts
 
-Generated when a user transfers a host (or multiple hosts) to a team (or no team).
+Generated when a user transfers a host (or multiple hosts) to a fleet (or no fleet).
 
 This activity contains the following fields:
-- "team_id": The ID of the team that the hosts were transferred to, `null` if transferred to no team.
-- "team_name": The name of the team that the hosts were transferred to, `null` if transferred to no team.
+- "fleet_id": The ID of the fleet that the hosts were transferred to, `null` if transferred to no fleet.
+- "fleet_name": The name of the fleet that the hosts were transferred to, `null` if transferred to no fleet.
 - "host_ids": The list of identifiers of the hosts that were transferred.
 - "host_display_names": The list of display names of the hosts that were transferred (in the same order as the "host_ids").
 
@@ -335,8 +335,8 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations",
   "host_ids": [1, 2, 3],
   "host_display_names": ["alice-macbook-air", "bob-macbook-pro", "linux-server"]
 }
@@ -344,39 +344,39 @@ This activity contains the following fields:
 
 ## edited_agent_options
 
-Generated when agent options are edited (either globally or for a team).
+Generated when agent options are edited (either globally or for a fleet).
 
 This activity contains the following fields:
-- "global": "true" if the user updated the global agent options, "false" if the agent options of a team were updated.
-- "team_id": unique ID of the team for which the agent options were updated (`null` if global is true).
-- "team_name": the name of the team for which the agent options were updated (`null` if global is true).
+- "global": "true" if the user updated the global agent options, "false" if the agent options of a fleet were updated.
+- "fleet_id": unique ID of the fleet for which the agent options were updated (`null` if global is true).
+- "fleet_name": the name of the fleet for which the agent options were updated (`null` if global is true).
 
 #### Example
 
 ```json
 {
-	"team_id": 123,
-	"team_name": "Workstations",
+	"fleet_id": 123,
+	"fleet_name": "Workstations",
 	"global": false
 }
 ```
 
-## live_query
+## live_report
 
-Generated when running live queries.
+Generated when running live reports.
 
 This activity contains the following fields:
-- "targets_count": Number of hosts where the live query was targeted to run.
-- "query_sql": The SQL query to run on hosts.
-- "query_name": Name of the query (this field is not set if this was not a saved query).
+- "targets_count": Number of hosts where the live report was targeted to run.
+- "report_sql": The SQL query to run on hosts.
+- "report_name": Name of the report (this field is not set if this was not a saved report).
 
 #### Example
 
 ```json
 {
 	"targets_count": 5000,
-	"query_sql": "SELECT * from osquery_info;",
-	"query_name": "foo"
+	"report_sql": "SELECT * from osquery_info;",
+	"report_name": "foo"
 }
 ```
 
@@ -521,17 +521,17 @@ This activity contains the following fields:
 }
 ```
 
-## changed_user_team_role
+## changed_user_fleet_role
 
-Generated when user team roles are changed.
+Generated when user fleet roles are changed.
 
 This activity contains the following fields:
 - "user_id": Unique ID of the edited user in Fleet.
 - "user_name": Name of the edited user.
 - "user_email": E-mail of the edited user.
-- "role": Team role set to the edited user.
-- "team_id": Unique ID of the team of the changed role.
-- "team_name": Name of the team of the changed role.
+- "role": Fleet role set to the edited user.
+- "fleet_id": Unique ID of the fleet of the changed role.
+- "fleet_name": Name of the fleet of the changed role.
 
 #### Example
 
@@ -541,22 +541,22 @@ This activity contains the following fields:
 	"user_name": "Foo",
 	"user_email": "foo@example.com",
 	"role": "Maintainer",
-	"team_id": 5,
-	"team_name": "Bar"
+	"fleet_id": 5,
+	"fleet_name": "Bar"
 }
 ```
 
-## deleted_user_team_role
+## deleted_user_fleet_role
 
-Generated when user team roles are deleted.
+Generated when user fleet roles are deleted.
 
 This activity contains the following fields:
 - "user_id": Unique ID of the edited user in Fleet.
 - "user_name": Name of the edited user.
 - "user_email": E-mail of the edited user.
-- "role": Team role deleted from the edited user.
-- "team_id": Unique ID of the team of the deleted role.
-- "team_name": Name of the team of the deleted role.
+- "role": Fleet role deleted from the edited user.
+- "fleet_id": Unique ID of the fleet of the deleted role.
+- "fleet_name": Name of the fleet of the deleted role.
 
 #### Example
 
@@ -566,8 +566,8 @@ This activity contains the following fields:
 	"user_name": "Foo",
 	"user_email": "foo@example.com",
 	"role": "Observer",
-	"team_id": 2,
-	"team_name": "Zoo"
+	"fleet_id": 2,
+	"fleet_name": "Zoo"
 }
 ```
 
@@ -643,8 +643,8 @@ This activity contains the following fields:
 Generated when the minimum required macOS version or deadline is modified.
 
 This activity contains the following fields:
-- "team_id": The ID of the team that the minimum macOS version applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the minimum macOS version applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the minimum macOS version applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the minimum macOS version applies to, `null` if it applies to devices that are not in a fleet.
 - "minimum_version": The minimum macOS version required, empty if the requirement was removed.
 - "deadline": The deadline by which the minimum version requirement must be applied, empty if the requirement was removed.
 
@@ -652,8 +652,8 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 3,
-  "team_name": "Workstations",
+  "fleet_id": 3,
+  "fleet_name": "Workstations",
   "minimum_version": "13.0.1",
   "deadline": "2023-06-01"
 }
@@ -664,8 +664,8 @@ This activity contains the following fields:
 Generated when the minimum required iOS version or deadline is modified.
 
 This activity contains the following fields:
-- "team_id": The ID of the team that the minimum iOS version applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the minimum iOS version applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the minimum iOS version applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the minimum iOS version applies to, `null` if it applies to devices that are not in a fleet.
 - "minimum_version": The minimum iOS version required, empty if the requirement was removed.
 - "deadline": The deadline by which the minimum version requirement must be applied, empty if the requirement was removed.
 
@@ -673,8 +673,8 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 3,
-  "team_name": "iPhones",
+  "fleet_id": 3,
+  "fleet_name": "iPhones",
   "minimum_version": "17.5.1",
   "deadline": "2023-06-01"
 }
@@ -685,8 +685,8 @@ This activity contains the following fields:
 Generated when the minimum required iPadOS version or deadline is modified.
 
 This activity contains the following fields:
-- "team_id": The ID of the team that the minimum iPadOS version applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the minimum iPadOS version applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the minimum iPadOS version applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the minimum iPadOS version applies to, `null` if it applies to devices that are not in a fleet.
 - "minimum_version": The minimum iPadOS version required, empty if the requirement was removed.
 - "deadline": The deadline by which the minimum version requirement must be applied, empty if the requirement was removed.
 
@@ -694,8 +694,8 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 3,
-  "team_name": "iPads",
+  "fleet_id": 3,
+  "fleet_name": "iPads",
   "minimum_version": "17.5.1",
   "deadline": "2023-06-01"
 }
@@ -706,8 +706,8 @@ This activity contains the following fields:
 Generated when the Windows OS updates deadline or grace period is modified.
 
 This activity contains the following fields:
-- "team_id": The ID of the team that the Windows OS updates settings applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the Windows OS updates settings applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the Windows OS updates settings applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the Windows OS updates settings applies to, `null` if it applies to devices that are not in a fleet.
 - "deadline_days": The number of days before updates are installed, `null` if the requirement was removed.
 - "grace_period_days": The number of days after the deadline before the host is forced to restart, `null` if the requirement was removed.
 
@@ -715,8 +715,8 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 3,
-  "team_name": "Workstations",
+  "fleet_id": 3,
+  "fleet_name": "Workstations",
   "deadline_days": 5,
   "grace_period_days": 2
 }
@@ -727,15 +727,15 @@ This activity contains the following fields:
 Generated when a user turns on updates during macOS Setup Assistant for hosts that automatically enroll (ADE).
 
 This activity contains the following fields:
-- "team_id": The ID of the team that the setting applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the setting applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the setting applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -744,15 +744,15 @@ This activity contains the following fields:
 Generated when a user turns off updates during macOS Setup Assistant for hosts that automatically enroll (ADE).
 
 This activity contains the following fields:
-- "team_id": The ID of the team that the setting applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the setting applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the setting applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -775,13 +775,13 @@ This activity contains the following fields:
 
 ## created_macos_profile
 
-Generated when a user adds a new macOS profile to a team (or no team).
+Generated when a user adds a new macOS profile to a fleet (or no fleet).
 
 This activity contains the following fields:
 - "profile_name": Name of the profile.
 - "profile_identifier": Identifier of the profile.
-- "team_id": The ID of the team that the profile applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the profile applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the profile applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the profile applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
@@ -789,20 +789,20 @@ This activity contains the following fields:
 {
   "profile_name": "Custom settings 1",
   "profile_identifier": "com.my.profile",
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## deleted_macos_profile
 
-Generated when a user deletes a macOS profile from a team (or no team).
+Generated when a user deletes a macOS profile from a fleet (or no fleet).
 
 This activity contains the following fields:
 - "profile_name": Name of the deleted profile.
 - "profile_identifier": Identifier of deleted the profile.
-- "team_id": The ID of the team that the profile applied to, `null` if it applied to devices that are not in a team.
-- "team_name": The name of the team that the profile applied to, `null` if it applied to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet.
 
 #### Example
 
@@ -810,97 +810,97 @@ This activity contains the following fields:
 {
   "profile_name": "Custom settings 1",
   "profile_identifier": "com.my.profile",
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## edited_macos_profile
 
-Generated when a user edits the macOS profiles of a team (or no team) via the fleetctl CLI.
+Generated when a user edits the macOS profiles of a fleet (or no fleet) via the fleetctl CLI.
 
 This activity contains the following fields:
-- "team_id": The ID of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
-- "team_name": The name of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## changed_macos_setup_assistant
 
-Generated when a user sets the macOS setup assistant for a team (or no team).
+Generated when a user sets the macOS setup assistant for a fleet (or no fleet).
 
 This activity contains the following fields:
 - "name": Name of the macOS setup assistant file.
-- "team_id": The ID of the team that the setup assistant applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the setup assistant applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the setup assistant applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the setup assistant applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
   "name": "dep_profile.json",
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## deleted_macos_setup_assistant
 
-Generated when a user deletes the macOS setup assistant for a team (or no team).
+Generated when a user deletes the macOS setup assistant for a fleet (or no fleet).
 
 This activity contains the following fields:
 - "name": Name of the deleted macOS setup assistant file.
-- "team_id": The ID of the team that the setup assistant applied to, `null` if it applied to devices that are not in a team.
-- "team_name": The name of the team that the setup assistant applied to, `null` if it applied to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the setup assistant applied to, `null` if it applied to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the setup assistant applied to, `null` if it applied to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
   "name": "dep_profile.json",
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## enabled_macos_disk_encryption
 
-Generated when a user turns on macOS disk encryption for a team (or no team).
+Generated when a user turns on macOS disk encryption for a fleet (or no fleet).
 
 This activity contains the following fields:
-- "team_id": The ID of the team that disk encryption applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that disk encryption applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that disk encryption applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that disk encryption applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## disabled_macos_disk_encryption
 
-Generated when a user turns off macOS disk encryption for a team (or no team).
+Generated when a user turns off macOS disk encryption for a fleet (or no fleet).
 
 This activity contains the following fields:
-- "team_id": The ID of the team that disk encryption applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that disk encryption applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that disk encryption applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that disk encryption applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -918,73 +918,73 @@ This activity does not contain any detail fields.
 
 ## added_bootstrap_package
 
-Generated when a user adds a new bootstrap package to a team (or no team).
+Generated when a user adds a new bootstrap package to a fleet (or no fleet).
 
 This activity contains the following fields:
 - "package_name": Name of the package.
-- "team_id": The ID of the team that the package applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the package applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the package applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the package applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
   "bootstrap_package_name": "bootstrap-package.pkg",
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## deleted_bootstrap_package
 
-Generated when a user deletes a bootstrap package from a team (or no team).
+Generated when a user deletes a bootstrap package from a fleet (or no fleet).
 
 This activity contains the following fields:
 - "package_name": Name of the package.
-- "team_id": The ID of the team that the package applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the package applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the package applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the package applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
   "package_name": "bootstrap-package.pkg",
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## enabled_macos_setup_end_user_auth
 
-Generated when a user turns on end user authentication for macOS hosts that automatically enroll to a team (or no team).
+Generated when a user turns on end user authentication for macOS hosts that automatically enroll to a fleet (or no fleet).
 
 This activity contains the following fields:
-- "team_id": The ID of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that end user authentication applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that end user authentication applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## disabled_macos_setup_end_user_auth
 
-Generated when a user turns off end user authentication for macOS hosts that automatically enroll to a team (or no team).
+Generated when a user turns off end user authentication for macOS hosts that automatically enroll to a fleet (or no fleet).
 
 This activity contains the following fields:
-- "team_id": The ID of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that end user authentication applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that end user authentication applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -1055,56 +1055,56 @@ This activity contains the following fields:
 
 ## added_script
 
-Generated when a script is added to a team (or no team).
+Generated when a script is added to a fleet (or no fleet).
 
 This activity contains the following fields:
 - "script_name": Name of the script.
-- "team_id": The ID of the team that the script applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the script applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the script applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the script applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
   "script_name": "set-timezones.sh",
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## deleted_script
 
-Generated when a script is deleted from a team (or no team).
+Generated when a script is deleted from a fleet (or no fleet).
 
 This activity contains the following fields:
 - "script_name": Name of the script.
-- "team_id": The ID of the team that the script applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the script applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the script applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the script applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
   "script_name": "set-timezones.sh",
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## edited_script
 
-Generated when a user edits the scripts of a team (or no team) via the fleetctl CLI.
+Generated when a user edits the scripts of a fleet (or no fleet) via the fleetctl CLI.
 
 This activity contains the following fields:
-- "team_id": The ID of the team that the scripts apply to, `null` if they apply to devices that are not in a team.
-- "team_name": The name of the team that the scripts apply to, `null` if they apply to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the scripts apply to, `null` if they apply to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the scripts apply to, `null` if they apply to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -1114,71 +1114,71 @@ Generated when a script is updated.
 
 This activity contains the following fields:
 - "script_name": Name of the script.
-- "team_id": The ID of the team that the script applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the script applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the script applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the script applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
   "script_name": "set-timezones.sh",
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## created_windows_profile
 
-Generated when a user adds a new Windows profile to a team (or no team).
+Generated when a user adds a new Windows profile to a fleet (or no fleet).
 
 This activity contains the following fields:
 - "profile_name": Name of the profile.
-- "team_id": The ID of the team that the profile applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the profile applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the profile applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the profile applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
   "profile_name": "Custom settings 1",
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## deleted_windows_profile
 
-Generated when a user deletes a Windows profile from a team (or no team).
+Generated when a user deletes a Windows profile from a fleet (or no fleet).
 
 This activity contains the following fields:
 - "profile_name": Name of the deleted profile.
-- "team_id": The ID of the team that the profile applied to, `null` if it applied to devices that are not in a team.
-- "team_name": The name of the team that the profile applied to, `null` if it applied to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
   "profile_name": "Custom settings 1",
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## edited_windows_profile
 
-Generated when a user edits the Windows profiles of a team (or no team) via the fleetctl CLI.
+Generated when a user edits the Windows profiles of a fleet (or no fleet) via the fleetctl CLI.
 
 This activity contains the following fields:
-- "team_id": The ID of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
-- "team_name": The name of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -1239,13 +1239,13 @@ This activity contains the following fields:
 
 ## created_declaration_profile
 
-Generated when a user adds a new macOS declaration to a team (or no team).
+Generated when a user adds a new macOS declaration to a fleet (or no fleet).
 
 This activity contains the following fields:
 - "profile_name": Name of the declaration.
 - "identifier": Identifier of the declaration.
-- "team_id": The ID of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the declaration applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the declaration applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
@@ -1253,20 +1253,20 @@ This activity contains the following fields:
 {
   "profile_name": "Passcode requirements",
   "profile_identifier": "com.my.declaration",
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## deleted_declaration_profile
 
-Generated when a user removes a macOS declaration from a team (or no team).
+Generated when a user removes a macOS declaration from a fleet (or no fleet).
 
 This activity contains the following fields:
 - "profile_name": Name of the declaration.
 - "identifier": Identifier of the declaration.
-- "team_id": The ID of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the declaration applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the declaration applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
@@ -1274,97 +1274,97 @@ This activity contains the following fields:
 {
   "profile_name": "Passcode requirements",
   "profile_identifier": "com.my.declaration",
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## edited_declaration_profile
 
-Generated when a user edits the macOS declarations of a team (or no team) via the fleetctl CLI.
+Generated when a user edits the macOS declarations of a fleet (or no fleet) via the fleetctl CLI.
 
 This activity contains the following fields:
-- "team_id": The ID of the team that the declarations apply to, `null` if they apply to devices that are not in a team.
-- "team_name": The name of the team that the declarations apply to, `null` if they apply to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the declarations apply to, `null` if they apply to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the declarations apply to, `null` if they apply to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## created_android_profile
 
-Generated when a user adds a new Android profile to a team (or no team).
+Generated when a user adds a new Android profile to a fleet (or no fleet).
 
 This activity contains the following fields:
 - "profile_name": Name of the profile.
-- "team_id": The ID of the team that the profile applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the profile applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the profile applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the profile applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
   "profile_name": "Custom settings 1",
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## deleted_android_profile
 
-Generated when a user deletes an Android profile from a team (or no team).
+Generated when a user deletes an Android profile from a fleet (or no fleet).
 
 This activity contains the following fields:
 - "profile_name": Name of the deleted profile.
-- "team_id": The ID of the team that the profile applied to, `null` if it applied to devices that are not in a team.
-- "team_name": The name of the team that the profile applied to, `null` if it applied to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
   "profile_name": "Custom settings 1",
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## edited_android_profile
 
-Generated when a user edits the Android profiles of a team (or no team) via the fleetctl CLI.
+Generated when a user edits the Android profiles of a fleet (or no fleet) via the fleetctl CLI.
 
 This activity contains the following fields:
-- "team_id": The ID of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
-- "team_name": The name of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## edited_android_certificate
 
-Generated when a user adds or removes Android certificate templates of a team (or no team) via the fleetctl CLI.
+Generated when a user adds or removes Android certificate templates of a fleet (or no fleet) via the fleetctl CLI.
 
 This activity contains the following fields:
-- "team_id": The ID of the team that the certificate templates apply to, `null` if they apply to devices that are not in a team.
-- "team_name": The name of the team that the certificate templates apply to, `null` if they apply to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the certificate templates apply to, `null` if they apply to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the certificate templates apply to, `null` if they apply to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations"
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -1473,8 +1473,8 @@ Generated when a Fleet-maintained app or custom package is added to Fleet.
 This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
-- "team_name": Name of the team to which this software was added. `null` if it was added to no team." +
-- "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
+- "fleet_name": Name of the fleet to which this software was added. `null` if it was added to no fleet." +
+- "fleet_id": The ID of the fleet to which this software was added. `null` if it was added to no fleet.
 - "self_service": Whether the software is available for installation by the end user.
 - "software_title_id": ID of the added software title.
 - "labels_include_any": Target hosts that have any label in the array.
@@ -1486,8 +1486,8 @@ This activity contains the following fields:
 {
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
-  "team_name": "Workstations",
-  "team_id": 123,
+  "fleet_name": "Workstations",
+  "fleet_id": 123,
   "self_service": true,
   "software_title_id": 2234,
   "labels_include_any": [
@@ -1510,8 +1510,8 @@ Generated when a Fleet-maintained app or custom package is edited in Fleet.
 This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer as of this update (including if unchanged).
-- "team_name": Name of the team on which this software was updated. `null` if it was updated on no team.
-- "team_id": The ID of the team on which this software was updated. `null` if it was updated on no team.
+- "fleet_name": Name of the fleet on which this software was updated. `null` if it was updated on no fleet.
+- "fleet_id": The ID of the fleet on which this software was updated. `null` if it was updated on no fleet.
 - "self_service": Whether the software is available for installation by the end user.
 - "software_title_id": ID of the added software title.
 - "labels_include_any": Target hosts that have any label in the array.
@@ -1524,11 +1524,11 @@ This activity contains the following fields:
 {
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
-  "team_name": "Workstations",
-  "team_id": 123,
+  "fleet_name": "Workstations",
+  "fleet_id": 123,
   "self_service": true,
   "software_title_id": 2234,
-  "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
+  "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?fleet_id=123",
   "software_display_name": "Crowdstrike Falcon",
   "labels_include_any": [
     {
@@ -1550,8 +1550,8 @@ Generated when a Fleet maintained app or custom package is deleted from Fleet.
 This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
-- "team_name": Name of the team to which this software was added. `null` if it was added to no team.
-- "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
+- "fleet_name": Name of the fleet to which this software was added. `null` if it was added to no fleet.
+- "fleet_id": The ID of the fleet to which this software was added. `null` if it was added to no fleet.
 - "self_service": Whether the software was available for installation by the end user.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
@@ -1562,8 +1562,8 @@ This activity contains the following fields:
 {
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
-  "team_name": "Workstations",
-  "team_id": 123,
+  "fleet_name": "Workstations",
+  "fleet_id": 123,
   "self_service": true,
   "software_icon_url": "",
   "labels_include_any": [
@@ -1619,8 +1619,8 @@ This activity contains the following fields:
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
 - "self_service": App installation can be initiated by device owner.
-- "team_name": Name of the team to which this App Store app was added, or `null` if it was added to no team.
-- "team_id": ID of the team to which this App Store app was added, or `null`if it was added to no team.
+- "fleet_name": Name of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
+- "fleet_id": ID of the fleet to which this App Store app was added, or `null`if it was added to no fleet.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 
@@ -1633,8 +1633,8 @@ This activity contains the following fields:
   "app_store_id": "1234567",
   "platform": "darwin",
   "self_service": false,
-  "team_name": "Workstations",
-  "team_id": 1,
+  "fleet_name": "Workstations",
+  "fleet_id": 1,
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1656,8 +1656,8 @@ This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
-- "team_name": Name of the team from which this App Store app was deleted, or `null` if it was deleted from no team.
-- "team_id": ID of the team from which this App Store app was deleted, or `null`if it was deleted from no team.
+- "fleet_name": Name of the fleet from which this App Store app was deleted, or `null` if it was deleted from no fleet.
+- "fleet_id": ID of the fleet from which this App Store app was deleted, or `null`if it was deleted from no fleet.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array
 
@@ -1668,8 +1668,8 @@ This activity contains the following fields:
   "software_title": "Logic Pro",
   "app_store_id": "1234567",
   "platform": "darwin",
-  "team_name": "Workstations",
-  "team_id": 1,
+  "fleet_name": "Workstations",
+  "fleet_id": 1,
   "software_icon_url": "",
   "labels_include_any": [
     {
@@ -1724,8 +1724,8 @@ This activity contains the following fields:
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
 - "self_service": App installation can be initiated by device owner.
-- "team_name": Name of the team on which this App Store app was updated, or `null` if it was updated on no team.
-- "team_id": ID of the team on which this App Store app was updated, or `null`if it was updated on no team.
+- "fleet_name": Name of the fleet on which this App Store app was updated, or `null` if it was updated on no fleet.
+- "fleet_id": ID of the fleet on which this App Store app was updated, or `null`if it was updated on no fleet.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 - "software_display_name": Display name of the software title.
@@ -1743,9 +1743,9 @@ This activity contains the following fields:
   "app_store_id": "1234567",
   "platform": "darwin",
   "self_service": true,
-  "team_name": "Workstations",
-  "team_id": 1,
-  "software_icon_url": "/api/latest/fleet/software/titles/123/icon?team_id=1",
+  "fleet_name": "Workstations",
+  "fleet_id": 1,
+  "software_icon_url": "/api/latest/fleet/software/titles/123/icon?fleet_id=1",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -2211,35 +2211,35 @@ This activity does not contain any detail fields.
 
 ## enabled_conditional_access_automations
 
-Generated when conditional access automations are enabled for a team.
+Generated when conditional access automations are enabled for a fleet.
 
 This activity contains the following field:
-- "team_id": The ID of the team  ("null" for "No team").
-- "team_name": The name of the team (empty for "No team").
+- "fleet_id": The ID of the fleet  ("null" for "No fleet").
+- "fleet_name": The name of the fleet (empty for "No fleet").
 
 #### Example
 
 ```json
 {
-  "team_id": 5,
-  "team_name": "Workstations"
+  "fleet_id": 5,
+  "fleet_name": "Workstations"
 }
 ```
 
 ## disabled_conditional_access_automations
 
-Generated when conditional access automations are disabled for a team.
+Generated when conditional access automations are disabled for a fleet.
 
 This activity contains the following field:
-- "team_id": The ID of the team (`null` for "No team").
-- "team_name": The name of the team (empty for "No team").
+- "fleet_id": The ID of the fleet (`null` for "No fleet").
+- "fleet_name": The name of the fleet (empty for "No fleet").
 
 #### Example
 
 ```json
 {
-  "team_id": 5,
-  "team_name": "Workstations"
+  "fleet_id": 5,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -2300,16 +2300,16 @@ Generated when a user edits setup experience software.
 
 This activity contains the following fields:
 - "platform": the platform of the host ("darwin", "android", "windows", or "linux").
-- "team_id": the ID of the team associated with the setup experience (0 for "No team").
-- "team_name": the name of the team associated with the setup experience (empty for "No team").
+- "fleet_id": the ID of the fleet associated with the setup experience (0 for "No fleet").
+- "fleet_name": the name of the fleet associated with the setup experience (empty for "No fleet").
 
 #### Example
 
 ```json
 {
 	"platform": "darwin",
-	"team_id": 1,
-	"team_name": "Workstations"
+	"fleet_id": 1,
+	"fleet_name": "Workstations"
 }
 ```
 
@@ -2334,18 +2334,18 @@ This activity contains the following fields:
 
 ## edited_enroll_secrets
 
-Generated when global or team enroll secrets are edited.
+Generated when global or fleet enroll secrets are edited.
 
 This activity contains the following fields:
-- "team_id": The ID of the team that the enroll secret applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the enroll secret applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the enroll secret applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the enroll secret applies to, `null` if it applies to devices that are not in a fleet.
 
 #### Example
 
 ```json
 {
-  "team_id": 1,
-  "team_name": "Workstations",
+  "fleet_id": 1,
+  "fleet_name": "Workstations",
 }
 ```
 

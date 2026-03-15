@@ -16,7 +16,7 @@ The DDM profiles are managed either via Fleet's UI, the API or `fleetctl gitops`
 
 ### Managing DDM profiles
 
-As for other types of custom settings, DDM profiles are associated with a team (or "No team") and can be applied to the team's hosts conditionally via labels.
+As for other types of custom settings, DDM profiles are associated with a fleet (or "No fleet") and can be applied to the fleet's hosts conditionally via labels.
 
 Via the UI, all custom settings are set in the "Controls -> OS settings -> Custom settings" page. Apple's "traditional" profiles (`.mobileconfig` files), Apple's DDM `.json` profiles and Windows' `.xml` profiles can all be uploaded and managed here.
 
@@ -123,7 +123,7 @@ Note that the host may also initiate a `DeclarativeManagement` session itself fr
 
 The DDM profiles are stored in the `mdm_apple_declarations` table which closely resembles the `mdm_apple_configuration_profiles` table but uses `declaration_uuid` instead of `profile_uuid` as primary key. Note that for historical reasons, the `uuid` primary key column of both these tables and the `mdm_windows_configuration_profiles` table is `VARCHAR(37)` even though a UUID is 36 characters long. This is because a prefix is prepended to the generated UUID to distinguish the type of the profile, so that if you have its UUID, you know in which table to look for it. The [prefixes](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/mdm.go#L18-L20) are "d" for a DDM, "a" for an Apple `.mobileconfig` profile and "w" for a Windows profile.
 
-The profiles names must be unique across all platforms and profile types for a given team (or "no team"), so [the SQL statement to insert new profiles is a bit unusual](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/datastore/mysql/apple_mdm.go#L5078-L5096). That's because distinct tables are used to store the different profile types, so a standard database constraint cannot be used.
+The profiles names must be unique across all platforms and profile types for a given fleet (or "no fleet"), so [the SQL statement to insert new profiles is a bit unusual](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/datastore/mysql/apple_mdm.go#L5078-L5096). That's because distinct tables are used to store the different profile types, so a standard database constraint cannot be used.
 
 ## Supported features and limitations
 

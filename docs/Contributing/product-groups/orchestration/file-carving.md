@@ -40,13 +40,13 @@ File carves are initiated with osquery queries. Issue a query to the `carves` ta
 For example, to extract the `/etc/hosts` file on a host with hostname `mac-workstation`:
 
 ```sh
-fleetctl query --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path = "/etc/hosts"'
+fleetctl report --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path = "/etc/hosts"'
 ```
 
 The standard osquery file globbing syntax is also supported to carve entire directories or more:
 
 ```sh
-fleetctl query --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path LIKE "/etc/%%"'
+fleetctl report --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path LIKE "/etc/%%"'
 ```
 
 #### Retrieving carves
@@ -98,7 +98,7 @@ Osquery can report on the status of carves through queries to the `carves` table
 The details provided by
 
 ```sh
-fleetctl query --labels 'All Hosts' --query 'SELECT * FROM carves'
+fleetctl report --labels 'All Hosts' --query 'SELECT * FROM carves'
 ```
 
 can be helpful to debug carving problems.

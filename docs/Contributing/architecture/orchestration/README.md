@@ -9,11 +9,11 @@ Fleet's Orchestration architecture is designed to manage and query devices at sc
 ## Contents
 
 - [Orchestration Overview](orchestration-overview.md) - Overview of Fleet's Orchestration architecture
-- [Live Queries](live-queries.md) - Architecture for live queries
-- [Scheduled Queries](scheduled-queries.md) - Architecture for scheduled queries
-- [Query Packs](query-packs.md) - Architecture for query packs
+- [Live Reports](live-queries.md) - Architecture for live reports
+- [Scheduled Reports](scheduled-queries.md) - Architecture for scheduled reports
+- [Report Packs](query-packs.md) - Architecture for report packs
 - [Host Vitals](host-vitals.md) - Architecture for host vitals
-- [Teams and Access Control](teams-and-access-control.md) - Architecture for teams and access control
+- [Fleets and Access Control](teams-and-access-control.md) - Architecture for fleets and access control
 
 ## Related resources
 

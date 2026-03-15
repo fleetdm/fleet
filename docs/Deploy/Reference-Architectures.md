@@ -10,7 +10,7 @@ The `fleet` binary contains:
 - The Fleet application management [REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 - The Fleet osquery API endpoints
 
-The `fleetctl` binary is the CLI interface which allows management of your deployment, scriptable live queries, and easy integration into your existing logging, alerting, reporting, and management infrastructure.
+The `fleetctl` binary is the CLI interface which allows management of your deployment, scriptable live reports, and easy integration into your existing logging, alerting, reporting, and management infrastructure.
 
 Both binaries are available for download from our [repo](https://github.com/fleetdm/fleet/releases).
 
@@ -43,7 +43,7 @@ Fleet supports single-writer database setups: one writable primary with read rep
 
 ### Redis
 
-Fleet uses Redis to ingest and queue the results of distributed queries, cache data, etc. Many cloud providers (such as [AWS](https://aws.amazon.com/elasticache/) and [GCP](https://console.cloud.google.com/launcher/details/click-to-deploy-images/redis)) host reliable Redis services which you may consider for this purpose. A well supported Redis [Docker image](https://hub.docker.com/_/redis/) also exists if you would rather run Redis in a container. For more information on how to configure the `fleet` binary to use the correct Redis instance, see the [Redis configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#redis) documentation.
+Fleet uses Redis to ingest and queue the results of distributed reports, cache data, etc. Many cloud providers (such as [AWS](https://aws.amazon.com/elasticache/) and [GCP](https://console.cloud.google.com/launcher/details/click-to-deploy-images/redis)) host reliable Redis services which you may consider for this purpose. A well supported Redis [Docker image](https://hub.docker.com/_/redis/) also exists if you would rather run Redis in a container. For more information on how to configure the `fleet` binary to use the correct Redis instance, see the [Redis configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#redis) documentation.
 
 ## Systemd
 
@@ -344,7 +344,7 @@ GCP reference architecture can be found in [the Fleet repository](https://github
 
 - Cloud Run (Fleet backend)
 - Cloud SQL MySQL 8.0 (Fleet database)
-- Memorystore Redis (Fleet cache & live query orchestrator)
+- Memorystore Redis (Fleet cache & live report orchestrator)
 
 GCP support for add/install software and file carve features is coming soon. Get [community support](https://chat.osquery.io/c/fleet).
 

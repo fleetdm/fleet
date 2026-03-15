@@ -1,76 +1,76 @@
-# Query packs architecture
+# Report packs architecture
 
-This document provides an overview of Fleet's Query Packs architecture.
+This document provides an overview of Fleet's Report Packs architecture.
 
 ## Introduction
 
-Query packs in Fleet allow users to group related queries together for easier management and distribution. This document provides insights into the design decisions, system components, and interactions specific to the Query Packs functionality.
+Report packs in Fleet allow users to group related reports together for easier management and distribution. This document provides insights into the design decisions, system components, and interactions specific to the Report Packs functionality.
 
 ## Architecture overview
 
-The Query Packs architecture enables the organization, configuration, and distribution of groups of queries across a fleet of devices. It leverages osquery's pack capabilities to execute multiple queries on devices and return results to the Fleet server.
+The Report Packs architecture enables the organization, configuration, and distribution of groups of reports across a fleet of devices. It leverages osquery's pack capabilities to execute multiple reports on devices and return results to the Fleet server.
 
 ## Key components
 
-- **Pack Definition**: The definition of a pack, including the queries it contains and their schedules.
+- **Pack Definition**: The definition of a pack, including the reports it contains and their schedules.
 - **Pack Distribution**: The mechanism for distributing packs to devices.
-- **Query Execution**: The process of executing queries within a pack.
-- **Result Collection**: The process of collecting and processing query results.
+- **Report Execution**: The process of executing reports within a pack.
+- **Result Collection**: The process of collecting and processing report results.
 
 ## Architecture diagram
 
 ```
-[Placeholder for Query Packs Architecture Diagram]
+[Placeholder for Report Packs Architecture Diagram]
 ```
 
 ## Pack execution flow
 
-### 1 - Fleet user creates a query pack
+### 1 - Fleet user creates a report pack
 
 ```
 Fleet User -> API Client (Frontend or Fleetctl) -> Server -> DB
 ```
 
-1. Fleet user creates a query pack for a team or globally through the UI or API.
+1. Fleet user creates a report pack for a fleet or globally through the UI or API.
 2. Server stores the pack configuration in the database.
 
-### 2 - Agent gets config file (with the query pack)
+### 2 - Agent gets config file (with the report pack)
 
 ```
 osquery agent -> Server -> DB
 ```
 
 1. osquery agent requests the configuration file from the server.
-2. Server merges team and global configurations, including packs.
+2. Server merges fleet and global configurations, including packs.
 3. Server returns the merged configuration to the agent.
 
-### 3 - Agent executes queries and returns results
+### 3 - Agent executes reports and returns results
 
 ```
 osquery agent -> Server -> Optional External Log
 ```
 
-1. osquery agent runs the queries in the pack according to their schedules.
+1. osquery agent runs the reports in the pack according to their schedules.
 2. osquery agent sends the results to the server.
 3. Server optionally forwards the results to an external logging system.
 
 ## Pack configuration
 
-Query packs have several configuration options:
+Report packs have several configuration options:
 
 - **Name**: The name of the pack.
 - **Description**: A description of the pack's purpose.
-- **Queries**: The queries included in the pack.
-- **Targets**: The devices or teams targeted by the pack.
-- **Schedules**: The schedules for each query in the pack.
+- **Reports**: The reports included in the pack.
+- **Targets**: The devices or fleets targeted by the pack.
+- **Schedules**: The schedules for each report in the pack.
 
 ## Performance considerations
 
-Query packs can impact device performance, especially for packs with complex queries or queries that run frequently. The following considerations should be taken into account:
+Report packs can impact device performance, especially for packs with complex reports or reports that run frequently. The following considerations should be taken into account:
 
-- **Query Complexity**: Complex queries can consume significant CPU resources on devices.
-- **Query Frequency**: Queries that run frequently can impact device performance.
-- **Pack Size**: Packs with many queries can impact device performance.
+- **Report Complexity**: Complex reports can consume significant CPU resources on devices.
+- **Report Frequency**: Reports that run frequently can impact device performance.
+- **Pack Size**: Packs with many reports can impact device performance.
 
 ## Related resources
 

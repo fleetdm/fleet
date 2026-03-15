@@ -4,15 +4,15 @@ This directory contains documentation specific to Fleet's Orchestration product 
 
 ## Overview
 
-Fleet's Orchestration functionality allows organizations to manage and query devices at scale using osquery, providing visibility into device status, configuration, and security posture.
+Fleet's Orchestration functionality allows organizations to manage and report on devices at scale using osquery, providing visibility into device status, configuration, and security posture.
 
 ## Contents
 
 - [Understanding Host Vitals](understanding-host-vitals.md)
-- [Teams](teams.md)
+- [Fleets](teams.md)
 - [File Carving](file-carving.md)
 
 ## Related Resources
 
 - [Orchestration Architecture](../../architecture/orchestration/)
-- [Troubleshooting Live Queries](../../guides/troubleshooting-live-queries.md)
+- [Troubleshooting Live Reports](../../guides/troubleshooting-live-queries.md)

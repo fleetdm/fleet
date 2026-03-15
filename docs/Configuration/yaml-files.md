@@ -2,21 +2,21 @@
 
 Use Fleet's best practice GitOps workflow to manage your computers as code. To learn how to set up a GitOps workflow see the [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
 
-> When changing a team's name, you must first change it in the UI and then update your YAML. If you only update your YAML, the team will be deleted and the team's hosts will lose their settings. This happens because the hosts are transferred to "No team".
+> When changing a fleet's name, you must first change it in the UI and then update your YAML. If you only update your YAML, the fleet will be deleted and the fleet's hosts will lose their settings. This happens because the hosts are transferred to "Unassigned".
 
 Any settings not defined in your YAML files (including missing or misspelled keys) will be reset to the default values or deleted (e.g. software packages).
 
-The following are the required keys in the `default.yml` and any `teams/team-name.yml` files:
+The following are the required keys in the `default.yml` and any `fleets/fleet-name.yml` files:
 
 ```yaml
-name: # Only teams/team-name.yml.
+name: # Only fleets/fleet-name.yml.
 policies:
-queries:
+reports:
 agent_options:
-controls: # Can be defined in teams/no-team.yml too.
-software: # Can be defined in teams/no-team.yml too
+controls: # Can be defined in fleets/no-fleet.yml too.
+software: # Can be defined in fleets/no-fleet.yml too
 org_settings: # Only default.yml
-team_settings: # Required in teams/team-name.yml, but can be defined in teams/no-team.yml, where it is limited to webhook_settings
+settings: # Required in fleets/fleet-name.yml, but can be defined in fleets/no-fleet.yml, where it is limited to webhook_settings
 ```
 Paths in YAML files are always relative to the file you’re editing.
 
@@ -29,13 +29,13 @@ package_path: package_name.yml
 package_path: ../software/package_name.yml
 ```
 
-Specialized API-only users, who can modify configurations via GitOps but cannot access the Fleet UI, can be created through `fleetctl user create` with the `--api-only` flag. Best practice is to assign these users the `GitOps` role and specify global or team scope in the UI.
+Specialized API-only users, who can modify configurations via GitOps but cannot access the Fleet UI, can be created through `fleetctl user create` with the `--api-only` flag. Best practice is to assign these users the `GitOps` role and specify global or fleet scope in the UI.
 
 ## labels
 
-Labels can be specified in your `default.yml` and `teams/team-name.yml` files using inline configuration or references to separate files in your `lib/` folder. Labels cannot be specified in `teams/no-team.yml`.
+Labels can be specified in your `default.yml` and `fleets/fleet-name.yml` files using inline configuration or references to separate files in your `lib/` folder. Labels cannot be specified in `fleets/no-fleet.yml`.
 
-- `name` specifies the label's name. Must be unique across all global and team labels.
+- `name` specifies the label's name. Must be unique across all global and fleet labels.
     + Changing a label's `name` in GitOps will delete and re-create the label, temporarily clearing its membership. To avoid this, update the label name in the UI before making the change in YAML. 
 - `description` specifies the label's description.
 - `platform` specifies platforms for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. Only supported if `label_membership_type` is `dynamic`.
@@ -48,9 +48,9 @@ Only one of `query`, `hosts`, or `criteria` can be specified. If none are specif
 
 The `hostname` host identifier is deprecated. Please use a host's `id`, `hardware_serial`, or `uuid` instead.
 
-> `labels` is an optional key: if included in `default.yml`, existing global labels not listed will be deleted. If included in `teams/team-name.yml`, the team's existing labels not listed will be deleted. If the `label` key is omitted, existing labels will stay intact. For this reason, enabling [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) _does not_ restrict creating/editing labels via the UI.
+> `labels` is an optional key: if included in `default.yml`, existing global labels not listed will be deleted. If included in `fleets/fleet-name.yml`, the fleet's existing labels not listed will be deleted. If the `label` key is omitted, existing labels will stay intact. For this reason, enabling [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) _does not_ restrict creating/editing labels via the UI.
 >
-> Any labels referenced in other sections (like [policies](https://fleetdm.com/docs/configuration/yaml-files#policies), [queries](https://fleetdm.com/docs/configuration/yaml-files#queries) or [software](https://fleetdm.com/docs/configuration/yaml-files#software)) _must_ be specified in the `labels` section.
+> Any labels referenced in other sections (like [policies](https://fleetdm.com/docs/configuration/yaml-files#policies), [reports](https://fleetdm.com/docs/configuration/yaml-files#reports) or [software](https://fleetdm.com/docs/configuration/yaml-files#software)) _must_ be specified in the `labels` section.
 
 ### Example
 
@@ -112,7 +112,7 @@ labels:
 
 ## policies
 
-Policies can be specified inline in your `default.yml`, `teams/team-name.yml`, or `teams/no-team.yml` files. They can also be specified in separate files in your `lib/` folder.
+Policies can be specified inline in your `default.yml`, `fleets/fleet-name.yml`, or `fleets/no-fleet.yml` files. They can also be specified in separate files in your `lib/` folder.
 
 ### Options
 
@@ -129,7 +129,7 @@ In Fleet Premium you can trigger software installs or script runs on policy fail
 
 #### Inline
 
-`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
+`default.yml`, `fleets/fleet-name.yml`, or `fleets/no-fleet.yml`
 
 ```yaml
 policies:
@@ -185,33 +185,33 @@ policies:
     # app_store_id: "1487937127" (for App Store apps)
 ```
 
-`default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
+`default.yml` (for policies that neither install software nor run scripts), `fleets/fleet-name.yml`, or `fleets/no-fleet.yml`
 
 ```yaml
 policies:
   - path: ../lib/policies-name.policies.yml
 ```
 
-> Currently, the `run_script` and `install_software` policy automations can only be configured for a team (`teams/team-name.yml`) or "No team" (`teams/no-team.yml`). The automations can only be added to policies in which the script (or software) is defined in the same team (or "No team"). `calendar_events_enabled` can only be configured for policies on a team.
+> Currently, the `run_script` and `install_software` policy automations can only be configured for a fleet (`fleets/fleet-name.yml`) or "Unassigned" (`fleets/no-fleet.yml`). The automations can only be added to policies in which the script (or software) is defined in the same fleet (or "Unassigned"). `calendar_events_enabled` can only be configured for policies on a fleet.
 
-## queries
+## reports
 
-Queries can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
+Reports can be specified inline in your `default.yml` file or `fleets/fleet-name.yml` files. They can also be specified in separate files in your `lib/` folder.
 
-Note that the `team_id` option isn't supported in GitOps.
+Note that the `fleet_id` option isn't supported in GitOps.
 
 ### Options
 
-For possible options, see the parameters for the [Create query API endpoint](https://fleetdm.com/docs/rest-api/rest-api#create-query).
+For possible options, see the parameters for the [Create report API endpoint](https://fleetdm.com/docs/rest-api/rest-api#create-report).
 
 ### Example
 
 #### Inline
 
-`default.yml` or `teams/team-name.yml`
+`default.yml` or `fleets/fleet-name.yml`
 
 ```yaml
-queries:
+reports:
   - name: Collect failed login attempts
     description: Lists the users at least one failed login attempt and timestamp of failed login. Number of failed login attempts reset to zero after a user successfully logs in.
     query: SELECT users.username, account_policy_data.failed_login_count, account_policy_data.failed_login_timestamp FROM users INNER JOIN account_policy_data using (uid) WHERE account_policy_data.failed_login_count > 0;
@@ -226,7 +226,7 @@ queries:
 
 #### Separate file
 
-`lib/queries-name.queries.yml`
+`lib/reports-name.reports.yml`
 
 ```yaml
 - name: Collect failed login attempts
@@ -245,11 +245,11 @@ queries:
   automations_enabled: false
 ```
 
-`default.yml` or `teams/team-name.yml`
+`default.yml` or `fleets/fleet-name.yml`
 
 ```yaml
-queries:
-  - path: ../lib/queries-name.queries.yml
+reports:
+  - path: ../lib/reports-name.reports.yml
     labels_include_any:
       - Engineering
       - Customer Support
@@ -257,7 +257,7 @@ queries:
 
 ## agent_options
 
-Agent options can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
+Agent options can be specified inline in your `default.yml` file or `fleets/fleet-name.yml` files. They can also be specified in separate files in your `lib/` folder.
 
 See "[Agent configuration](https://fleetdm.com/docs/configuration/agent-configuration)" to find all possible options.
 
@@ -265,7 +265,7 @@ See "[Agent configuration](https://fleetdm.com/docs/configuration/agent-configur
 
 #### Inline
 
-`default.yml` or `teams/team-name.yml`
+`default.yml` or `fleets/fleet-name.yml`
 
 ```yaml
 agent_options:
@@ -304,9 +304,9 @@ config:
     pack_delimiter: /
 ```
 
-`default.yml` or `teams/team-name.yml`
+`default.yml` or `fleets/fleet-name.yml`
 
-> We want `-` for policies and queries because it’s an array. Agent Options we do not use `-` for `path`.
+> We want `-` for policies and reports because it’s an array. Agent Options we do not use `-` for `path`.
 
 ```yaml
 agent_options:
@@ -318,10 +318,10 @@ agent_options:
 The `controls` section allows you to configure scripts and device management (MDM) features in Fleet.
 
 - `scripts` is a list of paths to macOS, Windows, or Linux scripts.
-- `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configured for all teams (`default.yml`).
-- `windows_entra_tenant_ids` is a list of Microsoft Entra tenant IDs to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Can only be configured for all teams (`default.yml`). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home).
-- `enable_turn_on_windows_mdm_manually` specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school** (default: `false`). If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. Can only be configured for all teams (`default.yml`).
-- `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. (default: `false`). Can only be configured for all teams (`default.yml`).
+- `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configured for all fleets (`default.yml`).
+- `windows_entra_tenant_ids` is a list of Microsoft Entra tenant IDs to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Can only be configured for all fleets (`default.yml`). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home).
+- `enable_turn_on_windows_mdm_manually` specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school** (default: `false`). If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. Can only be configured for all fleets (`default.yml`).
+- `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. (default: `false`). Can only be configured for all fleets (`default.yml`).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS, Windows, and Linux hosts (default: `false`).
 - `windows_require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows host during startup. `enable_disk_encryption` must be set to `true`. (default: `false`).
 
@@ -480,7 +480,7 @@ The `macos_setup` section lets you control the out-of-the-box [setup experience]
 
 #### Example
 
-`teams/team-name.yml`, or `teams/no-team.yml`
+`fleets/fleet-name.yml`, or `fleets/no-fleet.yml`
 
 ```yaml
 macos_setup:
@@ -500,7 +500,7 @@ The `macos_migration` section lets you control the [end user migration workflow]
 - `mode` specifies whether the end user initiates migration (`voluntary`) or they're nudged every 15-20 minutes to migrate (`forced`) (default: `""`).
 - `webhook_url` is the URL that Fleet sends a webhook to when the end user selects **Start**. Receive this webhook using your automation tool (ex. Tines) to unenroll your end users from your old MDM solution.
 
-Can only be configured for all teams (`default.yml`).
+Can only be configured for all fleets (`default.yml`).
 
 ## software
 
@@ -520,7 +520,7 @@ Currently, when a `.ipa` file is added in `packages`, Fleet adds software for bo
 
 #### Example
 
-`teams/team-name.yml`, or `teams/no-team.yml`
+`fleets/fleet-name.yml`, or `fleets/no-fleet.yml`
 
 ```yaml
 software:
@@ -589,7 +589,7 @@ software:
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg). Not supported for `.sh` and `.ps1` files.
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg). Not supported for `.sh` and `.ps1` files.
 - `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default. Not supported for `.sh` and `.ps1` files.
-- `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon built into Fleet. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
+- `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon built into Fleet. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
 
 #### Example
 
@@ -621,7 +621,7 @@ You can view the hash for existing software in the software detail page in the F
 - `app_store_id` is the ID of the Apple App Store or Android Play Store app. You can find this ID at the end of the app's URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" making the `app_store_id` is "1016366447". Similarly, the URL for "Google Chrome" on Android is "https://play.google.com/store/apps/details?id=com.android.chrome," so the `app_store_id` is "com.android.chrome."
   + For Apple App Store apps, make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 - `platform` is the platform of the app (`darwin`, `ios`, `ipados`, or `android`). If not specified, and `app_store_id` is Apple App Store ID, one app for each of the Apple App Store app's supported platforms is added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet.
-- `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
+- `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
 - `configuration.path` is the Android Play Store app's managed configuration in JSON format. Currently only supported for Android.
   + `managedConfiguration` and `workProfileWidgets` are supported from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy).
   + Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790) or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
@@ -632,7 +632,7 @@ When you update an Android app's configuration via GitOps, the app's settings ar
 
 ### fleet_maintained_apps
 
-- `fleet_maintained_apps` is a list of Fleet-maintained apps. Provide the `slug` field to include a Fleet-maintained app on a team. To find the `slug`, head to **Software > Add software** and select a Fleet-maintained app, then select **Show details**. You can also see the [list of app slugs on GitHub](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json).
+- `fleet_maintained_apps` is a list of Fleet-maintained apps. Provide the `slug` field to include a Fleet-maintained app on a fleet. To find the `slug`, head to **Software > Add software** and select a Fleet-maintained app, then select **Show details**. You can also see the [list of app slugs on GitHub](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json).
 
 Currently, Fleet-maintained apps will be updated to the latest version published by Fleet when GitOps runs.
 
@@ -641,7 +641,7 @@ The below fields are all optional.
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service**.
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `post_install_script.path` is the script that, if supplied, Fleet will run on hosts after the software installs.
-- `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
+- `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
 
 The below fields are optional, and if omitted will default to values specified in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs).
 
@@ -649,7 +649,7 @@ The below fields are optional, and if omitted will default to values specified i
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software.
 - `categories` is an array of categories, from [supported categories](#labels-and-categories).
 
-## org_settings and team_settings
+## org_settings and settings
 
 Currently, managing users and ticket destinations (Jira and Zendesk) are only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api).
 
@@ -660,7 +660,7 @@ The `features` section of the configuration YAML lets you define what predefined
 - `enable_host_users` specifies whether or not Fleet collects user data from hosts (default: `true`).
 - `enable_software_inventory` specifies whether or not Fleet collects software inventory from hosts (default: `true`).
 
-Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
+Can only be configured for all fleets (`org_settings`) and custom fleets (`settings`).
 
 #### Example
 
@@ -680,7 +680,7 @@ The `fleet_desktop` section lets you customize the Fleet Desktop experience by o
 - `transparency_url` directs end users to a custom URL when they select **About Fleet** in the Fleet Desktop dropdown (default: [https://fleetdm.com/transparency](https://fleetdm.com/transparency)).
 - `alternative_browser_host` is a custom hostname that my hosts will access Fleet Desktop from.
 
-Can only be configured for all teams (`org_settings`).
+Can only be configured for all fleets (`org_settings`).
 
 #### Example
 
@@ -699,7 +699,7 @@ The `host_expiry_settings` section lets you define if and when hosts should be a
 
 If this setting is not defined in your YAML files, unlike all other settings, it will not get reset to the default values.
 
-Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
+Can only be configured for all fleets (`org_settings`) and custom fleets (`settings`).
 
 #### Example
 
@@ -717,7 +717,7 @@ org_settings:
 - `org_logo_url_light_background` is a public URL of the logo for your organization that can be used with light backgrounds (default: Fleet logo).
 - `contact_url` is a URL or [file URI](https://en.wikipedia.org/wiki/File_URI_scheme) that appears in error messages presented to end users (default: `"https://fleetdm.com/company/contact"`)
 
-Can only be configured for all teams (`org_settings`).
+Can only be configured for all fleets (`org_settings`).
 
 To get the best results for your logos (`org_logo_url` and `org_logo_url_light_background`), use the following sizes:
 - For square logos, use a PNG that's 256x256 pixels (px).
@@ -738,7 +738,7 @@ org_settings:
 
 The `secrets` section defines the valid secrets that hosts can use to enroll to Fleet. Supply one of these secrets when generating the fleetd agent you'll use to [enroll hosts](https://fleetdm.com/docs/using-fleet/enroll-hosts).
 
-Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
+Can only be configured for all fleets (`org_settings`) and custom fleets (`settings`).
 
 #### Example
 
@@ -752,14 +752,14 @@ org_settings:
 
 - `ai_features_disabled` disables AI-assisted policy descriptions and resolutions. (default: `false`)
 - `enable_analytics` specifies whether or not to enable Fleet's [usage statistics](https://fleetdm.com/docs/using-fleet/usage-statistics). (default: `true`)
-- `live_query_disabled` disables the ability to run live queries (ad hoc queries executed via the UI or fleetctl). (default: `false`)
-- `query_reports_disabled` disables query reports and deletes existing reports. (default: `false`)
-- `query_report_cap` sets the maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at a time and monitoring your infrastructure. (default: `1000`)
+- `live_reporting_disabled` disables the ability to run live reports (ad hoc reports executed via the UI or fleetctl). (default: `false`)
+- `discard_reports_data` disables reports data and deletes existing reports. (default: `false`)
+- `report_cap` sets the maximum number of results to store per report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at a time and monitoring your infrastructure. (default: `1000`)
 - `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI. (default: `false`)
 - `server_url` is the base URL of the Fleet instance. If this URL changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features. (default: provided during Fleet setup)
 
 
-Can only be configured for all teams (`org_settings`).
+Can only be configured for all fleets (`org_settings`).
 
 #### Example
 
@@ -768,8 +768,8 @@ org_settings:
   server_settings:
     ai_features_disabled: false
     enable_analytics: true
-    live_query_disabled: false
-    query_reports_disabled: false
+    live_reporting_disabled: false
+    discard_reports_data: false
     scripts_disabled: false
     server_url: https://instance.fleet.com
 ```
@@ -789,7 +789,7 @@ The `sso_settings` section lets you define [single sign-on (SSO)](https://fleetd
 - `enable_sso_idp_login` specifies whether or not to allow single sign-on login initiated by identity provider (default: `false`).
 - `sso_server_url` is used if the URL your Fleet users (admins, maintainers, observers) use to login to Fleet via SSO is different than the base URL of your Fleet instance. If not configured, login via SSO will use the base URL of the Fleet instance.
 
-Can only be configured for all teams (`org_settings`).
+Can only be configured for all fleets (`org_settings`).
 
 #### Example
 
@@ -808,9 +808,9 @@ org_settings:
 
 ### integrations
 
-The `integrations` section lets you configure your Google Calendar, Conditional access (enabling/disabling for hosts in "No team"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
+The `integrations` section lets you configure your Google Calendar, Conditional access (enabling/disabling for hosts in "Unassigned"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
-Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
+Can only be configured for all fleets (`org_settings`) and custom fleets (`settings`).
 
 #### Example
 
@@ -835,9 +835,9 @@ org_settings:
         group_id: 1234
 ```
 
-`/teams/team-name.yml`
+`/fleets/fleet-name.yml`
 
-At the team level, there is the additional option to enable conditional access, which blocks third party app sign-ins on hosts failing policies. (Available in Fleet Premium. Must have Microsoft Entra connected.)
+At the fleet level, there is the additional option to enable conditional access, which blocks third party app sign-ins on hosts failing policies. (Available in Fleet Premium. Must have Microsoft Entra connected.)
 
 ```yaml
 integrations:
@@ -846,14 +846,14 @@ integrations:
 
 #### google_calendar
 
-For all teams (`org_settings`):
+For all fleets (`org_settings`):
 
 - `api_key_json` is the contents of the JSON file downloaded when you create your Google Workspace service account API key (default: `""`).
 - `domain` is the primary domain used to identify your end user's work calendar (default: `""`).
 
-For custom teams (`team_settings`):
+For custom fleets (`settings`):
 
-- `enable_calendar_events` to enable calendar events for a team (default: `false`).
+- `enable_calendar_events` to enable calendar events for a fleet (default: `false`).
 - `webhook_url` is the webhook URL triggered during a user's calendar event (default: `""`).
 
 #### jira
@@ -863,7 +863,7 @@ For custom teams (`team_settings`):
 - `api_token` is the Jira API token (default: `""`).
 - `project_key` is the project key location in your Jira project's URL. For example, in "jira.example.com/projects/EXMPL," "EXMPL" is the project key (default: `""`).
 
-Can only be configured for all teams (`org_settings`). Use API to configure Jira for custom teams and default "No team".
+Can only be configured for all fleets (`org_settings`). Use API to configure Jira for custom fleets and default "Unassigned".
 
 #### zendesk
 
@@ -872,7 +872,7 @@ Can only be configured for all teams (`org_settings`). Use API to configure Jira
 - `api_token` is the Zendesk API token (default: `""`).
 - `group_id`is found by selecting **Admin > People > Groups** in Zendesk. Find your group and select it. The group ID will appear in the search field.
 
-Can only be configured for all teams (`org_settings`). Use API to configure Zendesk for custom teams and default "No team".
+Can only be configured for all fleets (`org_settings`). Use API to configure Zendesk for custom fleets and default "Unassigned".
 
 ### certificate_authorities
 
@@ -940,7 +940,7 @@ org_settings:
 - `certificate_user_principal_names` is the certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN).
 - `certificate_seat_id` is the ID of the DigiCert's seat. Seats are license units in DigiCert.
 
-Can only be configured for all teams (`org_settings`).
+Can only be configured for all fleets (`org_settings`).
 
 #### ndes_scep_proxy
 
@@ -949,7 +949,7 @@ Can only be configured for all teams (`org_settings`).
 - `username` is the username of the NDES admin endpoint (default: `""`).
 - `password` is the password of the NDES admin endpoint (default: `""`).
 
-Can only be configured for all teams (`org_settings`).
+Can only be configured for all fleets (`org_settings`).
 
 #### custom_scep_proxy
 
@@ -986,7 +986,7 @@ Can only be configured for all teams (`org_settings`).
 - `username` is the **Challenge Basic Authentication Username** from Smallstep.
 - `password` is the **Challenge Basic Authentication Password** from Smallstep.
 
-Can only be configured for all teams (`org_settings`).
+Can only be configured for all fleets (`org_settings`).
 
 ### webhook_settings
 
@@ -999,7 +999,7 @@ The `webhook_settings` section lets you define webhook settings for failing poli
 - `enable_activities_webhook` (default: `false`)
 - `destination_url` is the URL to `POST` to when an activity is generated (default: `""`)
 
-Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
+Can only be configured for all fleets (`org_settings`) and custom fleets (`settings`).
 
 ### Example
 
@@ -1013,7 +1013,7 @@ org_settings:
 
 #### failing_policies_webhook
 
-> These settings can also be configured per-team when nested under `team_settings`.
+> These settings can also be configured per-fleet when nested under `settings`.
 
 - `enable_failing_policies_webhook` (default: `false`)
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
@@ -1042,7 +1042,7 @@ org_settings:
 - `days_count` is the number of days that hosts need to be offline to count as part of the percentage (default: `0`).
 - `host_percentage` is the percentage of hosts that need to be offline to trigger the webhook. (default: `0`).
 
-Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
+Can only be configured for all fleets (`org_settings`) and custom fleets (`settings`).
 
 #### Example
 
@@ -1062,7 +1062,7 @@ org_settings:
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
 - `host_batch_size` is the maximum number of host identifiers to send in one webhook request. A value of `0` means all host identifiers with a detected vulnerability will be sent in a single request.
 
-Can only be configured for all teams (`org_settings`).
+Can only be configured for all fleets (`org_settings`).
 
 #### Example
 
@@ -1079,14 +1079,14 @@ org_settings:
 
 #### apple_business_manager
 
-After [adding an Apple Business Manager (ABM) token via the UI](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager), the `apple_business_manager` section lets you determine which team Apple hosts are assigned to in Fleet when they appear in Apple Business Manager.
+After [adding an Apple Business Manager (ABM) token via the UI](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager), the `apple_business_manager` section lets you determine which fleet Apple hosts are assigned to in Fleet when they appear in Apple Business Manager.
 
 - `organization_name` is the organization name associated with the Apple Business Manager account.
-- `macos_team` is the team where macOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
-- `ios_team` is the the team where iOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
-- `ipados_team` is the team where iPadOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
+- `macos_fleet` is the fleet where macOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "Unassigned".
+- `ios_fleet` is the fleet where iOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "Unassigned".
+- `ipados_fleet` is the fleet where iPadOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "Unassigned".
 
-Can only be configured for all teams (`org_settings`).
+Can only be configured for all fleets (`org_settings`).
 
 #### Example
 
@@ -1095,19 +1095,19 @@ org_settings:
   mdm:
     apple_business_manager: # Available in Fleet Premium
     - organization_name: Fleet Device Management Inc.
-      macos_team: 💻 Workstations
-      ios_team: 📱🏢 Company-owned iPhones
-      ipados_team: 🔳🏢 Company-owned iPads
+      macos_fleet: 💻 Workstations
+      ios_fleet: 📱🏢 Company-owned iPhones
+      ipados_fleet: 🔳🏢 Company-owned iPads
 ```
 
 #### volume_purchasing_program
 
-After you've uploaded a [Volume Purchasing Program](https://fleetdm.com/guides/macos-mdm-setup#volume-purchasing-program-vpp) (VPP) token, the  `volume_purchasing_program` section lets you configure the teams in Fleet that have access to that VPP token's App Store apps. Currently, adding a VPP token is only available using Fleet's UI.
+After you've uploaded a [Volume Purchasing Program](https://fleetdm.com/guides/macos-mdm-setup#volume-purchasing-program-vpp) (VPP) token, the  `volume_purchasing_program` section lets you configure the fleets in Fleet that have access to that VPP token's App Store apps. Currently, adding a VPP token is only available using Fleet's UI.
 
 - `location` is the name of the location in the Apple Business Manager account.
-- `teams` is a list of team names. If you choose specific teams, App Store apps in this VPP account will only be available to install on hosts in these teams. If not specified, App Store apps will not be available to install on any team. To apply it to all teams, use `- All teams`. 
+- `fleets` is a list of fleet names. If you choose specific fleets, App Store apps in this VPP account will only be available to install on hosts in these fleets. If not specified, App Store apps will not be available to install on any fleet. To apply it to all fleets, use `- All fleets`. 
 
-Can only be configured for all teams (`org_settings`).
+Can only be configured for all fleets (`org_settings`).
 
 #### Example
 
@@ -1116,7 +1116,7 @@ org_settings:
   mdm:
     volume_purchasing_program: # Available in Fleet Premium
     - location: Fleet Device Management Inc.
-      teams:
+      fleets:
       - 💻 Workstations
       - 💻🐣 Workstations (canary)
       - 📱🏢 Company-owned iPhones
@@ -1134,7 +1134,7 @@ Once the IdP settings are configured, you can use the [`controls.macos_setup.ena
 - `metadata` is the metadata (in XML format) provided by the identity provider. (default: `""`)
 - `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: `""`).
 
-Can only be configured for all teams (`org_settings`):
+Can only be configured for all fleets (`org_settings`):
 
 #### Example
 
@@ -1154,7 +1154,7 @@ You can require an end user to agree to an end user license agreement (EULA) bef
 
 - `end_user_license_agreement` is the path to the PDF document.
 
-Can only be configured for all teams (`org_settings`).
+Can only be configured for all fleets (`org_settings`).
 
 ##### Example
 
@@ -1170,7 +1170,7 @@ Update this URL if you're self-hosting Fleet and you want your hosts to talk to 
 
 If this URL changes and hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
 
-Can only be configured for all teams (`org_settings`).
+Can only be configured for all fleets (`org_settings`).
 
 ##### Example
 
@@ -1185,8 +1185,8 @@ org_settings:
 The `yara_rules` section lets you define [YARA rules](https://virustotal.github.io/yara/) that will be served by Fleet's [authenticated
 YARA rule](https://fleetdm.com/guides/remote-yara-rules) functionality.
 
-Can only be configured for all teams (`org_settings`). To target rules to specific teams, target the
-queries referencing the rules to the desired teams.
+Can only be configured for all fleets (`org_settings`). To target rules to specific fleets, target the
+reports referencing the rules to the desired fleets.
 
 ##### Example
 
@@ -1206,7 +1206,7 @@ If you're using Fleet's managed-cloud offering, an SMTP server is already setup 
 
 For possible options, see the parameters for the [smtp_settings object in the API](https://fleetdm.com/docs/rest-api/rest-api#smtp-settings).
 
-Can only be configured for all teams (`org_settings`).
+Can only be configured for all fleets (`org_settings`).
 
 ##### Example
 
@@ -1220,7 +1220,7 @@ org_settings:
     authentication_type: none
 ```
 
-Can only be configured for all teams (`org_settings`).
+Can only be configured for all fleets (`org_settings`).
 
 Unlike other options, omitting `smtp_settings` or leaving it blank won't reset the values back to the default.
 

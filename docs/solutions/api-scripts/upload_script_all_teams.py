@@ -57,17 +57,17 @@ def get_all_results(endpoint, key, headers=None, params=None, per_page=10):
     return all_results
 
 
-def upload_script(script_path, team_id):
+def upload_script(script_path, fleet_id):
     """
-    Upload a script to team if not already present.
+    Upload a script to fleet if not already present.
     Patch it if present
     """
     headers = {"Authorization": f"Bearer {api_token}"}
     script_name = os.path.basename(script_path)
 
-    # Check if script already exists in this team
+    # Check if script already exists in this fleet
     existing_scripts = get_all_results(
-        "scripts", "scripts", params={"team_id": team_id}
+        "scripts", "scripts", params={"fleet_id": fleet_id}
     )
 
     existing_script_id = None
@@ -93,18 +93,18 @@ def upload_script(script_path, team_id):
         else:
             # Script doesn't exist - POST to create
             endpoint = f"{base_url}/{api_path}/scripts"
-            files["team_id"] = (None, str(team_id))  # Add team_id to form data
+            files["fleet_id"] = (None, str(fleet_id))  # Add fleet_id to form data
             response = requests.post(endpoint, headers=headers, files=files)
             action = "created"
 
     response.raise_for_status()
-    print(f"Script '{script_name}' {action} for team_id {team_id}")
+    print(f"Script '{script_name}' {action} for fleet_id {fleet_id}")
 
     return response
 
 
 if __name__ == "__main__":
-    all_teams = get_all_results("teams", "teams")
-    all_team_ids = {team["id"]: team["name"] for team in all_teams}
-    for team_id in all_team_ids:
-        response = upload_script(script_path, team_id)
+    all_fleets = get_all_results("fleets", "fleets")
+    all_fleet_ids = {fleet["id"]: fleet["name"] for fleet in all_fleets}
+    for fleet_id in all_fleet_ids:
+        response = upload_script(script_path, fleet_id)

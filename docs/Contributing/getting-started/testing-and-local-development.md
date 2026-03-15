@@ -399,8 +399,8 @@ Email: sso_user_3_global_admin@example.com
 Password: user123#
 Display name: SSO User 3
 
-# sso_user_4_team_maintainer is automatically added as maintainer of Team with ID = 1.
-# If a team with ID 1 doesn't exist then the login with this user will fail.
+# sso_user_4_team_maintainer is automatically added as maintainer of Fleet with ID = 1.
+# If a fleet with ID 1 doesn't exist then the login with this user will fail.
 Username: sso_user_4_team_maintainer
 Email: sso_user_4_team_maintainer@example.com
 Password: user123#
@@ -554,7 +554,7 @@ make fleet && FLEET_OSQUERY_RESULT_LOG_PLUGIN=kinesis FLEET_OSQUERY_STATUS_LOG_P
 Fleet will now be relaying "status" and "result" logs from osquery agents to the LocalStack's
 kinesis.
 
-Let's work on inspecting "status" logs received by Kinesis ("status" logs are easier to verify, to generate "result" logs so you need to configure "schedule queries").
+Let's work on inspecting "status" logs received by Kinesis ("status" logs are easier to verify, to generate "result" logs so you need to configure "schedule reports").
 
 Get "status" logging stream shard ID:
 ```

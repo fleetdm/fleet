@@ -9,11 +9,11 @@ Fleet's architecture follows a client-server model designed for scalability, sec
 
 At a high level, Fleet consists of:
 
-1. **Fleet Server**: The central component that handles API requests, manages the database, processes queries, and coordinates communication between all parts of the system. It provides both REST and GraphQL APIs for clients to interact with.
+1. **Fleet Server**: The central component that handles API requests, manages the database, processes reports, and coordinates communication between all parts of the system. It provides both REST and GraphQL APIs for clients to interact with.
 
 2. **Agent (fleetd)**: A lightweight agent installed on managed devices that includes:
    - **orbit**: The core agent component that manages communication with the Fleet server
-   - **osqueryd**: The osquery daemon that executes queries and returns results
+   - **osqueryd**: The osquery daemon that executes reports and returns results
    - **Fleet Desktop**: An optional component that provides a local UI for end users
 
 3. **Clients**: Various ways to interact with Fleet:
@@ -22,8 +22,8 @@ At a high level, Fleet consists of:
    - **Raw API**: Direct API access for custom integrations
 
 4. **Storage**:
-   - **MySQL**: Primary database for storing configuration, device information, and query results
-   - **Redis**: Used for caching and managing live query results
+   - **MySQL**: Primary database for storing configuration, device information, and report results
+   - **Redis**: Used for caching and managing live report results
    - **S3/object storage**: Used for storing software installers and file carve results
 
 5. **External Services**:
@@ -31,7 +31,7 @@ At a high level, Fleet consists of:
    - **Telemetry**: Optional monitoring via Prometheus, OpenTelemetry, or Elastic APM
    - **External Logging**: Optional integration with external logging systems
 
-The diagrams below illustrate how these components interact and the data flow for different operations like live queries, scheduled queries, and vulnerability management.
+The diagrams below illustrate how these components interact and the data flow for different operations like live reports, scheduled reports, and vulnerability management.
 
 ## Main system components
 
@@ -54,7 +54,7 @@ graph LR;
     subgraph Customer Cloud
         fleet_server[Fleet<br>Server];
         db[(MySQL)];
-        redis[Redis<br>Live queries' results, etc. <br>go here];
+        redis[Redis<br>Live reports' results, etc. <br>go here];
         subgraph Telemetry
             prometheus[Prometheus Server];
             opentel[Open Telemetry]
@@ -97,7 +97,7 @@ graph LR;
     fleet_server ==> Telemetry;
     fleet_server -- "metrics" --> heroku;
     fleet_server -- "fleetdm API" --> fleetdm
-    fleet_server -- "queries/log results" --> log;
+    fleet_server -- "reports/log results" --> log;
 
     Customer == "API" ==> fleet_server;
 
@@ -105,12 +105,12 @@ graph LR;
 
 
 
-## The path of live query
+## The path of live report
 
-### 1 - Fleet User initiates the query
+### 1 - Fleet User initiates the report
 ```mermaid
 graph LR;
-    it_person[Fleet User<br>Starts a live query];
+    it_person[Fleet User<br>Starts a live report];
     api[API Client Frontend or Fleetctl];
 
     subgraph Cloud
@@ -138,20 +138,20 @@ graph LR;
         dbredis[DB / Redis];
     end
 
-    osquery -- 1 ask for queries --> server;
+    osquery -- 1 ask for reports --> server;
     osquery -- 2 return results --> server;
 
-    server <-- 1 return queries if found --> dbredis;
+    server <-- 1 return reports if found --> dbredis;
     server -- 2 put results in Redis --> dbredis;
 
 ```
 
-## The path of a scheduled query
+## The path of a scheduled report
 
-### 1 - Fleet User initiates the query
+### 1 - Fleet User initiates the report
 ```mermaid
 graph LR;
-    it_person[Fleet User<br>Creates a scheduled<br>for a team / global];
+    it_person[Fleet User<br>Creates a scheduled report<br>for a fleet / global];
     api[API Client Frontend or Fleetctl];
 
     subgraph Cloud
@@ -161,9 +161,9 @@ graph LR;
 
     it_person --> api;
     api --> server;
-    server -- Query stored in DB--> db;
+    server -- Report stored in DB--> db;
 ```
-### 2 - Agent gets config file (with the scheduled query)
+### 2 - Agent gets config file (with the scheduled report)
 ```mermaid
 graph LR;
     agent[Osquery Agent];
@@ -174,14 +174,14 @@ graph LR;
     end
 
     agent -- request download config file --> server;
-    agent <-- teams and global cfg are merged --> server;
+    agent <-- fleets and global cfg are merged --> server;
     server -- ask for cfg file--> db;
 ```
 
 ### 3 - Agent returns results to be (optionally) logged
 ```mermaid
 graph LR;
-    agent[Osquery Agent<br>Runs query and sends results];
+    agent[Osquery Agent<br>Runs report and sends results];
 
     subgraph Cloud
         server(Server);
@@ -195,15 +195,15 @@ graph LR;
 
 ## Agent  config options
 1 - Config TLS refresh 
-(Typical period 10 secs) OSQuery pulls down a config file that includes instructions for Scheduled Queries. 
-If both GLOBAL and TEAM is configured, there will be a config merge done on the Server side. 
+(Typical period 10 secs) OSQuery pulls down a config file that includes instructions for Scheduled Reports. 
+If both GLOBAL and FLEET is configured, there will be a config merge done on the Server side. 
 
 2 - Logger TLS
-(Typical period10 secs) Frequency of sending the results. (different than the frequency of running the queries)
+(Typical period10 secs) Frequency of sending the results. (different than the frequency of running the reports)
 To be improved: Currently the config file gets downloaded every time even if no change was done.
 
 3 - Distributed (Typical interval 10 sec)
-(Typical period10 secs) OSQuery asks for any Live query to run.
+(Typical period10 secs) OSQuery asks for any Live report to run.
 
 
 ## Vulnerability dashboard

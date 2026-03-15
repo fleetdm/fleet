@@ -6,7 +6,7 @@
 #   ╚████╔╝ ██║   ██║   ██║  ██║███████╗███████║
 #    ╚═══╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚══════╝
 #                                               
-# Host vital queries (from `server/service/osquery_utils/queries.go`)
+# Host vital reports (from `server/service/osquery_utils/queries.go`)
 apiVersion: v1
 kind: built-in
 spec:
@@ -349,7 +349,7 @@ spec:
         de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
         fl AS (SELECT line FROM file_lines WHERE path = '/var/db/FileVaultPRK.dat')
       SELECT encrypted, hex(line) as hex_line FROM de LEFT JOIN fl;
-  discovery: filevault_prk # TODO: this query's discovery query also checks for file_lines.
+  discovery: filevault_prk # TODO: this report's discovery query also checks for file_lines.
   purpose: Informational
   tags: built-in
 ---
@@ -847,7 +847,7 @@ kind: built-in
 spec:
   name: Scheduled osquery statistics
   platform: darwin, windows, linux
-  description: Retrieves statistics about queries that are scheduled on a device.
+  description: Retrieves statistics about reports that are scheduled on a device.
   query: |
     SELECT *,
             (SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
@@ -1054,7 +1054,7 @@ kind: built-in
 spec:
   name: Software codesign
   platform: darwin
-  description: A software override query to append codesign information to macOS software entries. Requires fleetd
+  description: A software override report to append codesign information to macOS software entries. Requires fleetd
   query: |
     SELECT c.*
         FROM apps a
@@ -1068,7 +1068,7 @@ kind: built-in
 spec:
   name: Software Firefox
   platform: darwin
-  description: A software override query to differentiate between Firefox and Firefox ESR on macOS. Requires fleetd
+  description: A software override report to differentiate between Firefox and Firefox ESR on macOS. Requires fleetd
   query: |
     WITH app_paths AS (
             SELECT path
@@ -1664,7 +1664,7 @@ kind: built-in
 spec:
   name: Software last opened at (Windows)
   platform: windows
-  description: A software override query to append last_opened_at information to Windows software entries.
+  description: A software override report to append last_opened_at information to Windows software entries.
   query: |
     SELECT
       MAX(last_run_time) AS last_opened_at,
@@ -1679,7 +1679,7 @@ kind: built-in
 spec:
   name: Software last opened at (Linux)
   platform: linux
-  description: A software override query to append last_opened_at information to Linux DEB software entries. The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.
+  description: A software override report to append last_opened_at information to Linux DEB software entries. The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.
   query: |
     SELECT
         package,
@@ -1700,7 +1700,7 @@ spec:
 #  ╚██████╔╝╚██████╔╝███████╗██║  ██║██║███████╗███████║
 #   ╚══▀▀═╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝
 #                                                       
-# From docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
+# From docs/01-Using-Fleet/standard-report-library/standard-report-library.yml
 ---
 apiVersion: v1
 kind: query
@@ -2531,7 +2531,7 @@ kind: query
 spec:
   name: Get local administrator accounts on macOS
   platform: darwin
-  description: The query allows you to check macOS systems for local administrator accounts.
+  description: The report allows you to check macOS systems for local administrator accounts.
   query: SELECT uid, username, type FROM users u JOIN groups g ON g.gid = u.gid;
   printf "uid,username,type\n"; for u in $(dscl . -list /Users); do uid=$(dscl . -read /Users/"$u" UniqueID 2>/dev/null | awk '{print $2}'); pgid=$(dscl . -read /Users/"$u" PrimaryGroupID 2>/dev/null | awk '{print $2}'); grp=$(dscl . -list /Groups PrimaryGroupID | awk -v id="$pgid" '$2==id{print $1}'); [ -n "$uid" ] && [ -n "$pgid" ] && [ -n "$grp" ] && echo "$uid,$u,$grp"; done
   bash: dscl . -read /Groups/admin GroupMembership
@@ -2740,7 +2740,7 @@ kind: query
 spec:
   name: Detect active processes with Log4j running
   platform: darwin, linux
-  description: "Returns a list of active processes and the Jar paths which are using Log4j. Version numbers are usually within the Jar filename. Note: This query is resource intensive and has caused problems on systems with limited swap space. Test on some systems before running this widely."
+  description: "Returns a list of active processes and the Jar paths which are using Log4j. Version numbers are usually within the Jar filename. Note: This report is resource intensive and has caused problems on systems with limited swap space. Test on some systems before running this widely."
   query: |
     WITH target_jars AS (
       SELECT DISTINCT path
@@ -4510,7 +4510,7 @@ kind: query
 spec:
   name: MITRE - Services Snapshot
   platform: linux, darwin, windows
-  description: Snapshot Services query
+  description: Snapshot Services report
   query: SELECT * FROM services;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection

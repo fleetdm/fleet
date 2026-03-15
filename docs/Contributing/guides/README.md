@@ -8,7 +8,7 @@ This directory contains guides for common development tasks in Fleet.
 - [Committing Changes](committing-changes.md) - Guide for committing changes to Fleet
 - [Fleetctl Apply](cli/fleetctl-apply.md) - Guide for using fleetctl apply
 - [Simulate Slow Network](simulate-slow-network.md) - Guide for simulating a slow network
-- [Troubleshooting Live Queries](troubleshooting-live-queries.md) - Guide for troubleshooting live queries
+- [Troubleshooting Live Reports](troubleshooting-live-queries.md) - Guide for troubleshooting live reports
 - [Enroll hosts with plain osquery](enroll-hosts-with-plain-osquery.md) - Guide for enrolling hosts with plain osquery
 - [Upcoming activities](upcoming-activities.md) - Guide for managing upcoming host activities
 - [mTLS reverse proxy setup](mtls-reverse-proxy-setup.md) - Guide for setting up an mTLS reverse proxy for testing

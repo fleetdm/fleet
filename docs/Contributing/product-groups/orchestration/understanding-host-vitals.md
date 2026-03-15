@@ -1,7 +1,7 @@
 <!-- DO NOT EDIT. This document is automatically generated. -->
 # Understanding host vitals
 
-Following is a summary of the detail queries hardcoded in Fleet used to populate the device details:
+Following is a summary of the detail reports hardcoded in Fleet used to populate the device details:
 
 ## battery
 
@@ -626,7 +626,7 @@ FROM chrome_extensions
 
 ## software_deb_last_opened_at
 
-- Description: A software override query[^1] to append last_opened_at information to Linux DEB software entries. The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.
+- Description: A software override report[^1] to append last_opened_at information to Linux DEB software entries. The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.
 
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm
 
@@ -882,7 +882,7 @@ AND NOT EXISTS (SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages
 
 ## software_macos_codesign
 
-- Description: A software override query[^1] to append codesign information to macOS software entries. Requires `fleetd`
+- Description: A software override report[^1] to append codesign information to macOS software entries. Requires `fleetd`
 
 - Platforms: darwin
 
@@ -900,7 +900,7 @@ SELECT c.*
 
 ## software_macos_executable_sha256
 
-- Description: A software override query[^1] to append the sha256 hash of app bundle executables to macOS software entries. Requires `fleetd`
+- Description: A software override report[^1] to append the sha256 hash of app bundle executables to macOS software entries. Requires `fleetd`
 
 - Platforms: darwin
 
@@ -918,7 +918,7 @@ SELECT eh.*
 
 ## software_macos_firefox
 
-- Description: A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS. Requires `fleetd`
+- Description: A software override report[^1] to differentiate between Firefox and Firefox ESR on macOS. Requires `fleetd`
 
 - Platforms: darwin
 
@@ -1020,7 +1020,7 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
 
 ## software_rpm_last_opened_at
 
-- Description: A software override query[^1] to append last_opened_at information to Linux RPM software entries.  The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.
+- Description: A software override report[^1] to append last_opened_at information to Linux RPM software entries.  The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.
 
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm
 
@@ -1134,7 +1134,7 @@ FROM chocolatey_packages
 
 ## software_windows_acrobat_dc
 
-- Description: Software override query used to determine whether the Adobe Acrobat Reader program name needs to include the DC postfix
+- Description: Software override report used to determine whether the Adobe Acrobat Reader program name needs to include the DC postfix
 
 - Platforms: windows
 
@@ -1145,7 +1145,7 @@ SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Adobe\Adobe Acro
 
 ## software_windows_last_opened_at
 
-- Description: A software override query[^1] to append last_opened_at information to Windows software entries.
+- Description: A software override report[^1] to append last_opened_at information to Windows software entries.
 
 - Platforms: windows
 
@@ -1211,6 +1211,6 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded'
 ```
 
-<br /><br />[^1]: Software override queries write over the default queries. They are used to populate the software inventory.
+<br /><br />[^1]: Software override reports write over the default reports. They are used to populate the software inventory.
 <meta name="navSection" value="Dig deeper">
 <meta name="pageOrderInSection" value="1600">

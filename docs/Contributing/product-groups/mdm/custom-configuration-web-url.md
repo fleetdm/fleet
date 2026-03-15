@@ -6,7 +6,7 @@ Some customers require end users to authenticate with a custom web application i
 
 How to require end users to authenticate with a custom web application:
 
-1. Use Fleet's `team` YAML to create a "Workstations" team.
+1. Use Fleet's `team` YAML to create a "Workstations" fleet.
 
 2. Create an automatic enrollment (DEP) profile w/ the `configuration_web_url` set to the URL of the custom web application and `await_device_configured` set to `true`.
 

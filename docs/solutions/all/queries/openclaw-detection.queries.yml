@@ -1,4 +1,4 @@
-# === Investigation queries ===
+# === Investigation reports ===
 # Run these when a host fails an OpenClaw detection policy to see what's installed.
 - name: OpenClaw - Running processes
   description: "Collects running processes matching OpenClaw, Clawdbot, Moltbot, or Clawd by name or command line"
@@ -169,7 +169,7 @@
   automations_enabled: false
   logging: differential
   platform: darwin,linux,windows
-# === Threat hunting queries ===
+# === Threat hunting reports ===
 # These detect active exploitation, misconfiguration, and ClawHavoc campaign indicators.
 - name: OpenClaw - Shell spawning from AI process
   description: "Detects if an OpenClaw or Node.js process spawns a shell (sh, zsh, bash, sudo, python3). This is a strong indicator of prompt injection or malicious skill execution."
@@ -390,4 +390,3 @@
   automations_enabled: false
   logging: differential
   platform: darwin,linux
-  

@@ -23,11 +23,11 @@ Fleet has built-in [audit logging](https://fleetdm.com/docs/rest-api/rest-api#ac
 
 In addition, you can do GitOps because you can control your Fleet instance through a git repo, allowing you to use your standard CI/CD and approval process.  This also tracks the history of changes as commits.
 
-## Does Fleet include pre-built queries?
+## Does Fleet include pre-built reports?
 
-Fleet comes with a [built-in query library](https://fleetdm.com/queries) for reporting device health and also includes over 400 optional [built-in CIS policies](https://fleetdm.com/docs/using-fleet/cis-benchmarks) for Mac and Windows.
+Fleet comes with a [built-in report library](https://fleetdm.com/reports) for reporting device health and also includes over 400 optional [built-in CIS policies](https://fleetdm.com/docs/using-fleet/cis-benchmarks) for Mac and Windows.
 
-You can easily write queries yourself with query auto-complete, as well as import query packs for HID to detect IOCs using Yara or other intrusion detection mechanisms from the community or other vendors. Or, you can import policies to monitor for high-impact vulnerabilities such as a particular TPM chip; for example, a large vehicle manufacturer uses Fleet to do this.
+You can easily write reports yourself with report auto-complete, as well as import query packs for HID to detect IOCs using Yara or other intrusion detection mechanisms from the community or other vendors. Or, you can import policies to monitor for high-impact vulnerabilities such as a particular TPM chip; for example, a large vehicle manufacturer uses Fleet to do this.
 
 Customers can build on these built-in policies to monitor ongoing compliance with regulatory standards like NIST, PCI, ISO, SOC, and HIPAA.
 
@@ -41,7 +41,7 @@ It’s standard deployment practice to have multiple Fleet servers behind a load
 
 Unlike legacy systems, Fleet gives you complete control over how frequent and labor-intensive the scanning is.
 
-When you collect data with Fleet, the [performance impact](https://fleetdm.com/releases/fleet-4.5.0) is automatically reported.  You can analyze CPU, memory, and network usage or just compare whether a query's performance impact is “minimal,” “considerable,” or “excessive.”  You can easily compare the average performance of a scan across all systems or troubleshoot performance on an individual host.  If one of your queries gets too rowdy on a particular host, Fleet will [temporarily disable it](https://fleetdm.com/docs/using-fleet/osquery-process).
+When you collect data with Fleet, the [performance impact](https://fleetdm.com/releases/fleet-4.5.0) is automatically reported.  You can analyze CPU, memory, and network usage or just compare whether a report's performance impact is “minimal,” “considerable,” or “excessive.”  You can easily compare the average performance of a scan across all systems or troubleshoot performance on an individual host.  If one of your reports gets too rowdy on a particular host, Fleet will [temporarily disable it](https://fleetdm.com/docs/using-fleet/osquery-process).
 
 You can test changes on a small subset of hosts first, then roll them out to the rest of your organization.
 
@@ -175,11 +175,11 @@ It’s standard deployment practice to have multiple Fleet servers behind a load
 
 ### Can I target my hosts using their enroll secrets?
 
-No, currently, there’s no way to retrieve the name of the enroll secret with a query. This means that there's no way to create a label using your hosts' enroll secrets and then use this label as a target for live queries or scheduled queries.
+No, currently, there's no way to retrieve the name of the enroll secret with a query. This means that there's no way to create a label using your hosts' enroll secrets and then use this label as a target for live reports or scheduled reports.
 
-Typically, folks will use some other unique identifier to create labels that distinguish each type of device. As a workaround, [Fleet's manual labels](https://fleetdm.com/docs/using-fleet/fleetctl-cli#host-labels) provide a way to create groups of hosts without a query. These manual labels can then be used as targets for queries.
+Typically, folks will use some other unique identifier to create labels that distinguish each type of device. As a workaround, [Fleet's manual labels](https://fleetdm.com/docs/using-fleet/fleetctl-cli#host-labels) provide a way to create groups of hosts without a query. These manual labels can then be used as targets for reports.
 
-There is, however, a way to accomplish this even though the answer to the question remains "no": Teams. As of Fleet v4.0.0, you can group hosts in Teams either by enrolling them with a team-specific secret or by transferring hosts to a team. One the hosts you want to target are part of a team, you can create a query and target the team in question.
+There is, however, a way to accomplish this even though the answer to the question remains "no": Fleets. As of Fleet v4.0.0, you can group hosts in Fleets either by enrolling them with a fleet-specific secret or by transferring hosts to a fleet. One the hosts you want to target are part of a fleet, you can create a report and target the fleet in question.
 
 ### How often do labels refresh? Is the refresh frequency configurable?
 
@@ -193,9 +193,9 @@ No, [built-in labels cannot be modified](https://github.com/fleetdm/fleet/issues
 
 Authorization tokens are revoked when the “require password reset” action is selected for that user. User-initiated password resets do not expire the existing tokens.
 
-### How do I monitor the performance of my queries?
+### How do I monitor the performance of my reports?
 
-Fleet can live query the `osquery_schedule` table. Performing this live query allows you to get the performance data for your scheduled queries. Also, consider scheduling a query to the `osquery_schedule` table to get these logs into your logging pipeline.
+Fleet can live report the `osquery_schedule` table. Performing this live report allows you to get the performance data for your scheduled reports. Also, consider scheduling a report to the `osquery_schedule` table to get these logs into your logging pipeline.
 
 ### How do I monitor a Fleet server?
 
@@ -216,22 +216,22 @@ However, users that have SSO enabled in Fleet will not be able to log in via pas
 
 If a user has SSO enabled, the Login page in the Fleet UI displays the “Email” and “Password” fields, but on attempted password-based login, this user will receive an “Authentication failed” message.
 
-### Where are my query results?
+### Where are my report results?
 
-#### Live queries
+#### Live reports
 
-Live query results (executed in the web UI or `fleetctl query`) are pushed directly to the UI where the query is running. The results never go to a file unless you as the user manually save them.
+Live report results (executed in the web UI or `fleetctl report`) are pushed directly to the UI where the report is running. The results never go to a file unless you as the user manually save them.
 
-#### Scheduled queries
+#### Scheduled reports
 
-Scheduled query results from enrolled hosts can be logged by Fleet.
+Scheduled report results from enrolled hosts can be logged by Fleet.
 For results to go to Fleet, the osquery `--logger_plugin` flag must be set to `tls`.
 
 #### What are my options for storing the osquery logs?
 
 Folks typically use Fleet to ship logs to data lakes and SIEMs like Splunk, the ELK stack, and Graylog.
 
-Fleet supports multiple logging destinations for scheduled query results and status logs. The `--osquery_result_log_plugin` and `--osquery_status_log_plugin` can be set to:
+Fleet supports multiple logging destinations for scheduled report results and status logs. The `--osquery_result_log_plugin` and `--osquery_status_log_plugin` can be set to:
 `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
 See:
   - https://fleetdm.com/docs/deploying/configuration#osquery-result-log-plugin.
@@ -241,38 +241,38 @@ See:
 
 Expecting results but not seeing anything in the logs?
 
-- Try scheduling a query that always returns results (eg. `SELECT * FROM time`).
-- Check whether the query is scheduled in differential mode. If so, new results will only be logged when the result set changes.
-- Ensure that the query is scheduled to run on the intended platforms and that the tables queried are supported by those platforms.
-- Use live query to `SELECT * FROM osquery_schedule` to check whether the query has been scheduled on the host.
+- Try scheduling a report that always returns results (eg. `SELECT * FROM time`).
+- Check whether the report is scheduled in differential mode. If so, new results will only be logged when the result set changes.
+- Ensure that the report is scheduled to run on the intended platforms and that the tables queried are supported by those platforms.
+- Use live report to `SELECT * FROM osquery_schedule` to check whether the report has been scheduled on the host.
 - Look at the status logs provided by osquery. In a standard configuration, these are available on the filesystem of the Fleet server at the path configurable by [`--filesystem_status_log_file`](https://fleetdm.com/docs/deploying/configuration#filesystem-status-log-file). This defaults to `/tmp/osquery_status`. The host will output a status log each time it executes the query.
 
-### Why does the same query come back faster sometimes?
+### Why does the same report come back faster sometimes?
 
 Don't worry; this behavior is expected. It's part of how osquery works.
 
 Fleet and osquery work together by communicating with heartbeats. Depending on how close the next heartbeat is, Fleet might return results a few seconds faster or slower.
 >To get around what's known as the "[thundering herd problem](https://en.wikipedia.org/wiki/Thundering_herd_problem#:~:text=In%20computer%20science%2C%20the%20thundering,but%20only%20one%20will%20win.)," these heartbeats aren't exactly the same number of seconds apart each time. Osquery implements a "splay", a few ± milliseconds that are added to or subtracted from the heartbeat interval to prevent these thundering herds. This helps prevent situations where many thousands of devices might unnecessarily attempt to communicate with the Fleet server at exactly the same time. (If you've ever used Socket.io, a similar phenomenon can occur with that tool's automatic WebSocket reconnects.)
 
-### Why don't my query results appear sorted based on the ORDER BY clause I specified in my SQL query?
+### Why don't my report results appear sorted based on the ORDER BY clause I specified in my SQL query?
 
-When a query executes in Fleet, the query is sent to all hosts at the same time, but results are returned from hosts at different times. In Fleet, results are shown as soon as Fleet receives a response from a host. Fleet does not sort the overall results across all hosts (the sort UI toggle is used for this). Instead, Fleet prioritizes speed when displaying the results.  This means that if you use an `ORDER BY` clause selection criteria in a query, the results may not initially appear with your desired order. However, the sort UI toggle allows you to sort by ascending or descending order for any of the displayed columns.
+When a report executes in Fleet, the query is sent to all hosts at the same time, but results are returned from hosts at different times. In Fleet, results are shown as soon as Fleet receives a response from a host. Fleet does not sort the overall results across all hosts (the sort UI toggle is used for this). Instead, Fleet prioritizes speed when displaying the results.  This means that if you use an `ORDER BY` clause selection criteria in a query, the results may not initially appear with your desired order. However, the sort UI toggle allows you to sort by ascending or descending order for any of the displayed columns.
 
-### What happens if I have a query on a team policy and I also have it scheduled to run separately?
+### What happens if I have a report on a fleet policy and I also have it scheduled to run separately?
 
-Both queries will run as scheduled on applicable hosts. If there are any hosts that both the scheduled run and the policy apply to, they will be queried twice.
+Both reports will run as scheduled on applicable hosts. If there are any hosts that both the scheduled run and the policy apply to, they will be queried twice.
 
-### Why aren’t my live queries being logged?
+### Why aren’t my live reports being logged?
 
-Live query results are never logged to the filesystem of the Fleet server. See [Where are my query results?](#where-are-my-query-results).
+Live report results are never logged to the filesystem of the Fleet server. See [Where are my report results?](#where-are-my-report-results).
 
 ### Why does my query work locally with osquery but not in Fleet?
 
 If you're seeing query results using `osqueryi` but not through Fleet, the most likely culprit is a permissions issue. Check out the [osquery docs](https://osquery.readthedocs.io/en/stable/deployment/process-auditing/#full-disk-access) for more details and instructions for setting up Full Disk Access.
 
-### Can I use the Fleet API to fetch results from a scheduled query?
+### Can I use the Fleet API to fetch results from a scheduled report?
 
-You cannot. Scheduled query results are logged to whatever logging plugin you have configured and are not stored in the Fleet DB.
+You cannot. Scheduled report results are logged to whatever logging plugin you have configured and are not stored in the Fleet DB.
 
 However, the Fleet API exposes a significant amount of host information via the [`api/v1/fleet/hosts`](https://fleetdm.com/docs/using-fleet/rest-api#list-hosts) and the [`api/v1/fleet/hosts/{id}`](https://fleetdm.com/docs/using-fleet/rest-api#get-host) API endpoints. The `api/v1/fleet/hosts` [can even be configured to return additional host information](https://github.com/fleetdm/fleet/blob/9fb9da31f5462fa7dda4819a114bbdbc0252c347/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options).
 
@@ -282,9 +282,9 @@ Each host’s OS version is available using the `api/v1/fleet/hosts` API endpoin
 
 It’s possible in Fleet to retrieve each host’s kernel version, using the Fleet API, through `additional_queries`. The Fleet configuration options YAML file includes an `additional_queries` property that allows you to append custom query results to the host details returned by the `api/v1/fleet/hosts` endpoint. For more information on setting up `additional_queries`, see the [configuration documentation](https://fleetdm.com/docs/configuration/configuration-files#features-additional-queries).
 
-### How does Fleet set the `name` attribute in query automations?
+### How does Fleet set the `name` attribute in report automations?
 
-Query automations use the format `pack/Global/<Your query name>` to set the `name` attribute, where `<Your query name>` is the exact name you assign to your query. 
+Report automations use the format `pack/Global/<Your report name>` to set the `name` attribute, where `<Your report name>` is the exact name you assign to your report. 
 
 ### Why is my host not updating a policy's response?
 
@@ -292,7 +292,7 @@ The following are reasons why a host may not be updating a policy's response:
 
 * The policy's query includes tables that are not compatible with this host's platform. For example, if your policy's query contains the [`apps` table](https://osquery.io/schema/5.0.1/#apps), which is only compatible with hosts running macOS, this policy will not update its response if this host is running Windows or Linux.
 
-* The policy's query includes invalid SQL syntax. If your policy's query includes invalid syntax, this policy will not update its response. You can check the syntax of your query by heading to the **Queries** page, selecting your query, and then selecting "Save."
+* The policy's query includes invalid SQL syntax. If your policy's query includes invalid syntax, this policy will not update its response. You can check the syntax of your query by heading to the **Reports** page, selecting your report, and then selecting "Save."
 
 ### What should I do if my computer is showing up as an offline host?
 
@@ -302,7 +302,7 @@ If your device is showing up as an offline host in the Fleet instance, and you'r
 
 ### How does Fleet deal with IP duplication?
 
-Fleet relies on UUIDs, so any overlap with host IP addresses should not cause a problem. The only time this might be an issue is if you are running a query that involves a specific IP address that exists in multiple locations, as it might return multiple results - [Fleet's teams feature](https://fleetdm.com/docs/using-fleet/teams) can be used to restrict queries to specific hosts.
+Fleet relies on UUIDs, so any overlap with host IP addresses should not cause a problem. The only time this might be an issue is if you are running a query that involves a specific IP address that exists in multiple locations, as it might return multiple results - [Fleet's fleets feature](https://fleetdm.com/docs/using-fleet/fleets) can be used to restrict reports to specific hosts.
 
 ### Can fleetd run alongside osquery?
 
@@ -370,7 +370,7 @@ The [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) is built for human
 
 ### Can I audit actions taken in Fleet?
 
-The [REST API `activities` endpoint](https://fleetdm.com/docs/using-fleet/rest-api#activities) provides a full breakdown of actions taken on queries, policies, and teams (Available in Fleet Premium) through the UI, the REST API, or `fleetctl`.
+The [REST API `activities` endpoint](https://fleetdm.com/docs/using-fleet/rest-api#activities) provides a full breakdown of actions taken on reports, policies, and fleets (Available in Fleet Premium) through the UI, the REST API, or `fleetctl`.
 
 ### How often is the software inventory updated?
 
@@ -397,29 +397,29 @@ $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
 
 > If you'd like to renew your Fleet Premium license key, please [contact us](https://fleetdm.com/company/contact).
 
-**Back up your users and update all team-level users to global users**
+**Back up your users and update all fleet-level users to global users**
 
 1. Run the `fleetctl get user_roles > user_roles.yml` command. Save the `user_roles.yml` file so that, if you choose to upgrade later, you can restore user roles.
 2. Head to the **Settings > Users** page in the Fleet UI.
-3. For each user that has any team listed under the **Teams** column, select **Actions > Edit**, then select **Global user**, and then select **Save**. If a user shouldn't have global access, delete this user.
+3. For each user that has any fleet listed under the **Fleets** column, select **Actions > Edit**, then select **Global user**, and then select **Save**. If a user shouldn't have global access, delete this user.
 
-**Move all team-level scheduled queries to the global level**
+**Move all fleet-level scheduled reports to the global level**
 
 1. Head to the **Schedule** page in the Fleet UI.
-2. For each scheduled query that belongs to a team, copy the name in the **Query** column, select **All teams** in the top dropdown, select **Schedule a query**, past the name in the **Select query** field, choose the frequency, and select **Schedule**.
-3. Delete each scheduled query that belongs to a team because they will no longer run on any hosts following the downgrade process.
+2. For each scheduled report that belongs to a fleet, copy the name in the **Report** column, select **All fleets** in the top dropdown, select **Schedule a report**, past the name in the **Select report** field, choose the frequency, and select **Schedule**.
+3. Delete each scheduled report that belongs to a fleet because they will no longer run on any hosts following the downgrade process.
 
-**Move all team-level policies to the global level**
+**Move all fleet-level policies to the global level**
 
 1. Head to the **Policies** page in the Fleet UI.
-2. For each policy that belongs to a team, copy the **Name**, **Description**, **Resolve**, and **Query**. Then, select **All teams** in the top dropdown, select **Add a policy**, select **Create your own policy**, paste each item in the appropriate field, and select **Save**.
-3. Delete each policy that belongs to a team because they will no longer run on any hosts following the downgrade process.
+2. For each policy that belongs to a fleet, copy the **Name**, **Description**, **Resolve**, and **Query**. Then, select **All fleets** in the top dropdown, select **Add a policy**, select **Create your own policy**, paste each item in the appropriate field, and select **Save**.
+3. Delete each policy that belongs to a fleet because they will no longer run on any hosts following the downgrade process.
 
-**Back up your teams**
+**Back up your fleets**
 
-1. Run the `fleetctl get teams > teams.yml` command. Save the `teams.yml` file so that, if you choose to upgrade later, you can restore teams.
-2. Head to the **Settings > Teams** page in the Fleet UI.
-3. Delete all teams. This will move all hosts to the global level.
+1. Run the `fleetctl get fleets > fleets.yml` command. Save the `fleets.yml` file so that, if you choose to upgrade later, you can restore fleets.
+2. Head to the **Settings > Fleets** page in the Fleet UI.
+3. Delete all fleets. This will move all hosts to the global level.
 
 **Remove your Fleet Premium license key**
 
@@ -434,12 +434,12 @@ No. The agent options set using your software orchestration tool will override t
 
 #### Online hosts
 
-**Online** hosts will respond to a live query.
+**Online** hosts will respond to a live report.
 
 A host is online if it has connected successfully in a window of time set by `distributed_interval` (or `config_tls_refresh`, whichever is smaller).
 A buffer of 60 seconds is added to the calculation to avoid unnecessary flapping between online/offline status (in case hosts take a bit longer than expected to connect to Fleet).
 The values for `distributed_interval` and `config_tls_refresh` can be found in the **Settings > Organization settings > Agent options** page for global hosts
-and in the **Settings > Teams > TEAM NAME > Agent options** page for hosts that belong to a team.
+and in the **Settings > Fleets > FLEET NAME > Agent options** page for hosts that belong to a fleet.
 
 For example:
 
@@ -451,12 +451,12 @@ A host is considered online if it has connected to Fleet in the last 80 (20+60) 
 
 #### Offline hosts
 
-**Offline** hosts won't respond to a live query. These hosts may be shut down, asleep, or not connected to the internet.
+**Offline** hosts won't respond to a live report. These hosts may be shut down, asleep, or not connected to the internet.
 A host could also be offline if there is a connection issue between the osquery agent running in the host and Fleet (see [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)).
 
-### Why aren't "additional queries" being applied to hosts enrolled in a team?
+### Why aren't "additional queries" being applied to hosts enrolled in a fleet?
 
-Changes were introduced in Fleet v4.20.0 that caused the `features.additional_queries` set in at the global level to no longer apply to hosts assigned to a team. If you would like those queries to be applied to hosts assigned to a team, you will need to include these queries under `features.additional_queries` in each team's [configuration](https://fleetdm.com/docs/using-fleet/configuration-files#teams).
+Changes were introduced in Fleet v4.20.0 that caused the `features.additional_queries` set in at the global level to no longer apply to hosts assigned to a fleet. If you would like those queries to be applied to hosts assigned to a fleet, you will need to include these queries under `features.additional_queries` in each fleet's [configuration](https://fleetdm.com/docs/using-fleet/configuration-files#fleets).
 
 ### Why am I seeing an error when using the `after` key in `api/v1/fleet/hosts`?
 
@@ -470,7 +470,7 @@ There is a [bug](https://github.com/fleetdm/fleet/issues/8443) in MySQL validati
 
 Depending on your infrastructure capabilities and the number of hosts enrolled in your Fleet instance, Fleet might be slow or unresponsive after globally enabling a feature like [software inventory](https://fleetdm.com/docs/deploying/configuration#software-inventory).
 
-In those cases, we recommend a slow rollout by partially enabling the feature by teams using the `features` key of the [teams configuration](https://fleetdm.com/docs/using-fleet/configuration-files#teams).
+In those cases, we recommend a slow rollout by partially enabling the feature by fleets using the `features` key of the [fleets configuration](https://fleetdm.com/docs/using-fleet/configuration-files#fleets).
 
 ### Why am I getting errors when generating a .msi package on my M1 Mac?
 
@@ -480,9 +480,9 @@ There are many challenges to generating .msi packages on any OS but Windows. Err
 
 Packs are a function of osquery that provide a portable format to import/export queries in and out of platforms like Fleet. The "Packs" section of the UI that began with `kolide/fleet` c. 2017 was an early attempt at fulfilling this vision, but it soon became clear that it wasn't the right interface for segmenting and targeting hosts in Fleet.
 
-Instead, 2017 "packs" functionality has been combined with the concept of queries. Queries now have built-in schedule features and (in Fleet Premium) can target specific groups of hosts via teams.
+Instead, 2017 "packs" functionality has been combined with the concept of reports. Reports now have built-in schedule features and (in Fleet Premium) can target specific groups of hosts via fleets.
 
-The "Packs" section of the UI has been removed, but [access to query packs via the API and CLI is still available](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs). The `fleetctl upgrade-packs` command can be used to convert existing 2017 "packs" to queries.
+The "Packs" section of the UI has been removed, but [access to query packs via the API and CLI is still available](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs). The `fleetctl upgrade-packs` command can be used to convert existing 2017 "packs" to reports.
 
 ### What happens when I turn off MDM?
 
@@ -568,9 +568,9 @@ The exact solution to this depends on the request client you are using. For exam
 NODE_TLS_REJECT_UNAUTHORIZED=0 sails console
 ```
 
-### I'm only getting partial results from live queries
+### I'm only getting partial results from live reports
 
-Redis has an internal buffer limit for pubsub that Fleet uses to communicate query results. If this buffer is filled, extra data is dropped. To fix this, we recommend disabling the [pubsub buffer size limit in redis.conf](https://github.com/bertramdev/redis-lab/blob/6b764063013d6d5df0a902bdfea802c526a13881/redis.conf#L564). Most installs of Redis should have plenty of spare memory to not run into issues.
+Redis has an internal buffer limit for pubsub that Fleet uses to communicate report results. If this buffer is filled, extra data is dropped. To fix this, we recommend disabling the [pubsub buffer size limit in redis.conf](https://github.com/bertramdev/redis-lab/blob/6b764063013d6d5df0a902bdfea802c526a13881/redis.conf#L564). Most installs of Redis should have plenty of spare memory to not run into issues.
 
 We recommend a config like the following:
 
@@ -707,21 +707,21 @@ To migrate from Fleet Free to Fleet Premium, once you get a Fleet license, set i
 Fleet is tested with Redis 6. Any version of Redis after version 6 will typically work well.
 
 ## What happened to the "Schedule" page?
-Scheduled queries are not gone! Instead, the concept of a scheduled query has been merged with a saved query. After 4.35, scheduling now happens on the queries page: a query can be scheduled (via familiar attributes such as "interval" and "platform"), or it can simply be saved to be run ad-hoc. A query can now belong to a team, or it can be a global query that every team inherits. This greatly simplifies the mental model of the product and enables us to build [exciting features](https://github.com/fleetdm/fleet/issues/7766) on top of the new unified query concept.
+Scheduled reports are not gone! Instead, the concept of a scheduled report has been merged with a saved report. After 4.35, scheduling now happens on the reports page: a report can be scheduled (via familiar attributes such as "interval" and "platform"), or it can simply be saved to be run ad-hoc. A report can now belong to a fleet, or it can be a global report that every fleet inherits. This greatly simplifies the mental model of the product and enables us to build [exciting features](https://github.com/fleetdm/fleet/issues/7766) on top of the new unified report concept.
 
-To achieve the above, 4.35 implemented an automatic migration which transitions any pre-existing scheduled query and [2017 pack](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs) into the new merged query concept:
-- Any global scheduled query will have its query converted into a global query with the relevant schedule attributes (frequency, min. osquery version, logging, etc.).
-- Any team-specific scheduled query will be converted into a query on that team with the relevant schedule characteristics.
-- Any query that is referenced by a 2017 pack will be converted into a global query, and the 2017 pack will reference it. The 2017 packs should continue functioning as before.
+To achieve the above, 4.35 implemented an automatic migration which transitions any pre-existing scheduled report and [2017 pack](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs) into the new merged report concept:
+- Any global scheduled report will have its query converted into a global report with the relevant schedule attributes (frequency, min. osquery version, logging, etc.).
+- Any fleet-specific scheduled report will be converted into a report on that fleet with the relevant schedule characteristics.
+- Any report that is referenced by a 2017 pack will be converted into a global report, and the 2017 pack will reference it. The 2017 packs should continue functioning as before.
 
-Important: To avoid naming conflicts, a query must have a unique name within its team. Therefore, the migration will add a timestamp after each migrated query. If you are using gitops for queries, we recommend that you run `fleetctl get queries --yaml` after the migration to get the latest set of yaml files. Otherwise, if you run `fleetctl apply -f queries.yml`, it will result in the creation of new queries rather than updating the existing ones. To prevent this issue, we recommend you use `PATCH /api/v1/fleet/queries/{id}` for updating or changing query names.
+Important: To avoid naming conflicts, a report must have a unique name within its fleet. Therefore, the migration will add a timestamp after each migrated report. If you are using gitops for reports, we recommend that you run `fleetctl get reports --yaml` after the migration to get the latest set of yaml files. Otherwise, if you run `fleetctl apply -f reports.yml`, it will result in the creation of new reports rather than updating the existing ones. To prevent this issue, we recommend you use `PATCH /api/v1/fleet/reports/{id}` for updating or changing report names.
 
-For any automated workflows that use the schedule endpoints on the API, we recommend consolidating to the query endpoints, which now accept the scheduled query attributes. The schedule endpoints in the API still function but are deprecated. To accommodate the new unified query concept, the schedule endpoints behave differently under the hood:
-- The POST endpoints will create a new query with the specified attributes
-- The PATCH endpoint will modify the specified query with the specified attributes
-- The DELETE endpoint will delete the specified query.
+For any automated workflows that use the schedule endpoints on the API, we recommend consolidating to the report endpoints, which now accept the scheduled report attributes. The schedule endpoints in the API still function but are deprecated. To accommodate the new unified report concept, the schedule endpoints behave differently under the hood:
+- The POST endpoints will create a new report with the specified attributes
+- The PATCH endpoint will modify the specified report with the specified attributes
+- The DELETE endpoint will delete the specified report.
 
-Finally, "shard" has been retired as an option for queries. In its place, we recommend using a canary team or a live query to test the impact of a query before deploying it more broadly.
+Finally, "shard" has been retired as an option for reports. In its place, we recommend using a canary fleet or a live report to test the impact of a report before deploying it more broadly.
 -->
 
 

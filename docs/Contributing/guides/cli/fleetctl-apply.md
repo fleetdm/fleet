@@ -4,13 +4,13 @@ The `fleectl apply` command and YAML interface is used for one-off imports and b
 
 To use Fleet's best practice GitOps, check out the [GitOps docs](https://fleetdm.com/docs/using-fleet/gitops).
 
-## Queries
+## Reports
 
-The `queries` YAML file controls queries in Fleet.
+The `reports` YAML file controls reports in Fleet.
 
-You can define one or more queries in the same file with `---`.
+You can define one or more reports in the same file with `---`.
 
-The following example file includes several queries:
+The following example file includes several reports:
 
 ```yaml
 ---
@@ -20,7 +20,7 @@ spec:
   name: osquery_info
   description: A heartbeat counter that reports general performance (CPU, memory) and version.
   query: select i.*, p.resident_size, p.user_time, p.system_time, time.minutes as counter from osquery_info i, processes p, time where p.pid = i.pid;
-  team: ""
+  fleet: ""
   interval: 3600 # 1 hour
   observer_can_run: true
   automations_enabled: true
@@ -32,7 +32,7 @@ spec:
   name: Get serial number of a laptop 
   description: Returns the serial number of a laptop, which can be useful for asset tracking.
   query: SELECT hardware_serial FROM system_info; 
-  team: Workstations
+  fleet: Workstations
   interval: 0
   observer_can_run: true
   discard_data: false
@@ -48,7 +48,7 @@ spec:
     LEFT JOIN mounts 
       ON mounts.device = disk_events.device
     ;
-  team: Workstations (Canary)
+  fleet: Workstations (Canary)
   interval: 86400 # 24 hours
   observer_can_run: false
   min_osquery_version: 5.4.0
@@ -58,9 +58,9 @@ spec:
   discard_data: true
 ```
 
-Continued edits and applications to this file will update the queries.
+Continued edits and applications to this file will update the reports.
 
-If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name via the UI or API.
+If you want to change the name of a report, you must first create a new report with the new name and then delete the report with the old name via the UI or API.
 
 ## Labels
 
@@ -119,7 +119,7 @@ Deploying a new enroll secret cannot be done centrally from Fleet.
 ### Multiple enroll secrets
 
 Fleet allows the abiility to maintain multiple enroll secrets. Some organizations have internal goals  around rotating secrets. Having multiple secrets allows some of them to work at the same time the rotation is happening.
-Another reason you might want to use multiple enroll secrets is to use a certain [team enroll secret](#team-enroll-secrets) to auto-enroll hosts into a specific [team](https://fleetdm.com/docs/using-fleet/teams) (Fleet Premium).
+Another reason you might want to use multiple enroll secrets is to use a certain [fleet enroll secret](#fleet-enroll-secrets) to auto-enroll hosts into a specific [fleet](https://fleetdm.com/docs/using-fleet/fleets) (Fleet Premium).
 
 ### Rotating enroll secrets
 
@@ -127,21 +127,21 @@ Another reason you might want to use multiple enroll secrets is to use a certain
 2. Create a fleetd agent with the new enroll secret and install it on hosts.
 3. Delete the old enroll secret.
 
-## Teams
+## Fleets
 
 **Applies only to Fleet Premium**.
 
-The `team` YAML file controls a team in Fleet.
+The `fleet` YAML file controls a fleet in Fleet.
 
-You can define one or more teams in the same file with `---`.
+You can define one or more fleets in the same file with `---`.
 
-The following example file includes one team:
+The following example file includes one fleet:
 
 ```yaml
 apiVersion: v1
 kind: team
 spec:
-  team:
+  fleet:
     name: "💻 Workstations"
     agent_options:
       config:
@@ -214,7 +214,7 @@ spec:
     secrets:
     - created_at: "2026-02-08T05:25:21Z"
       secret: tTavYeEwmUYzdnRlPICwVcFtPszkIvkf
-      team_id: 310
+      fleet_id: 310
     software:
       app_store_apps: null
       fleet_maintained_apps:
@@ -296,7 +296,7 @@ During an import with `fleetctl apply`, if you have an empty `macos.custom_setti
 
 ## Organization settings
 
-The `config` YAML file controls Fleet's organization settings and MDM features for hosts assigned to "No team."
+The `config` YAML file controls Fleet's organization settings and MDM features for hosts assigned to "No fleet."
 
 The following example file shows the default organization settings:
 
@@ -339,8 +339,8 @@ spec:
   server_settings:
     deferred_save_host: false
     enable_analytics: true
-    live_query_disabled: false
-    query_reports_disabled: false
+    live_report_disabled: false
+    report_reports_disabled: false
     scripts_disabled: false
     server_url: ""
   smtp_settings:
@@ -393,7 +393,7 @@ spec:
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
   mdm:
-    apple_bm_default_team: ""
+    apple_bm_default_fleet: ""
     windows_enabled_and_configured: false
     macos_updates:
       minimum_version: ""
