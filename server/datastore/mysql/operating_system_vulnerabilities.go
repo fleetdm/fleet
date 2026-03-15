@@ -551,7 +551,6 @@ func (ds *Datastore) InsertKernelSoftwareMapping(ctx context.Context) error {
 	if err := rows.Err(); err != nil {
 		return ctxerr.Wrap(ctx, err, "iterate kernel host count rows")
 	}
-	rows.Close()
 
 	// Atomic table swap.
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
