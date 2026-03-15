@@ -180,14 +180,6 @@ type batchApplyCertificateAuthoritiesRequest struct {
 	SkipDeletes            bool                                `json:"skip_deletes"`
 }
 
-func (r *batchApplyCertificateAuthoritiesRequest) opts() fleet.BatchApplyCertificateAuthoritiesOpts {
-	return fleet.BatchApplyCertificateAuthoritiesOpts{
-		DryRun:      r.DryRun,
-		ViaGitOps:   true,
-		SkipDeletes: r.SkipDeletes,
-	}
-}
-
 // TODO(hca): do we need to return anything to facilitate logging by the gitops client?
 type batchApplyCertificateAuthoritiesResponse struct {
 	Err error `json:"error,omitempty"`
@@ -198,8 +190,11 @@ func (r batchApplyCertificateAuthoritiesResponse) Error() error { return r.Err }
 func batchApplyCertificateAuthoritiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchApplyCertificateAuthoritiesRequest)
 
-	// Call the service method to apply the certificate authorities spec
-	err := svc.BatchApplyCertificateAuthorities(ctx, req.CertificateAuthorities, req.opts())
+	err := svc.BatchApplyCertificateAuthorities(ctx, req.CertificateAuthorities, fleet.BatchApplyCertificateAuthoritiesOpts{
+		DryRun:      req.DryRun,
+		ViaGitOps:   true,
+		SkipDeletes: req.SkipDeletes,
+	})
 	if err != nil {
 		return &batchApplyCertificateAuthoritiesResponse{Err: err}, nil
 	}
