@@ -1,6 +1,6 @@
 # Marketing team
 
-This page outlines the different roles in the marketing team and the DRIs executing the responsibilities of that role
+This page outlines the different roles in the marketing team and the DRIs executing the responsibilities of that role.
 
 | Role | Person | Github ID | Responsibilities |
 | ----- | ----- | ----- | ----- |
