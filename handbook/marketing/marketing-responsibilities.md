@@ -2,7 +2,7 @@
 
 This page outlines the different roles in the marketing team and the DRIs executing the responsibilities of that role.
 
-| Role | Person | Github ID | Responsibilities |
+| Role | Person | GitHub ID | Responsibilities |
 | ----- | ----- | ----- | ----- |
 | Chief marketing officer | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala)  | [*@akuthiala*](https://github.com/akuthiala) | Set, lead, and manage Fleet’s marketing strategy and execution across all aspects of marketing  Lead or own various functions of marketing as appropriate. |
 | Content specialist | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/)  | [*@irenareedy*](https://github.com/irenareedy) | Manage and scale the Fleet Champions Community program by expanding the size and diversity of customer advocates while increasing the number of Fleet peer reviews across multiple platforms. Lead event execution in close collaboration with the Campaign Manager to ensure conferences, meetups, and community events are planned, coordinated, and delivered successfully. Oversee Fleet’s social media program by working with the Social Media Manager to coordinate content, messaging, and publishing across channels. Maintain the marketing operations board to ensure tasks are assigned, actively worked on, and completed so marketing initiatives remain organized and on track. Own and report on weekly marketing KPIs, tracking progress across initiatives and ensuring visibility into performance and outcomes  |
