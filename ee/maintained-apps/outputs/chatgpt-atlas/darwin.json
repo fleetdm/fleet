@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "1.2026.63.7",
+      "version": "1.2026.63.9",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.atlas';"
       },
-      "installer_url": "https://persistent.oaistatic.com/atlas/public/ChatGPT_Atlas_Desktop_public_1.2026.63.7_20260309220323000.dmg",
+      "installer_url": "https://persistent.oaistatic.com/atlas/public/ChatGPT_Atlas_Desktop_public_1.2026.63.9_20260313050914000.dmg",
       "install_script_ref": "289abde8",
       "uninstall_script_ref": "eb68389d",
-      "sha256": "b02b89f43a226773152efdb0a71ef13b5a4cfa65f9ea0decb82952b318f3315c",
+      "sha256": "eb675a4ebc192106ddffd2b823ac9f82e64b33bd2b80885a85c585b27257f4f8",
       "default_categories": [
         "Browsers"
       ]
