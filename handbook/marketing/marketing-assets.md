@@ -167,9 +167,9 @@ Executive series by Ashish Kuthiala (CMO) on why legacy endpoint management is f
 
 | Part | Article | Author | Date |
 | --- | --- | --- | --- |
-| 1 of 3 | [The confidence gap: why IT leaders are abandoning legacy endpoint management](https://fleetdm.com/articles/the-confidence-gap) | Ashish Kuthiala | <nobr>2026‑02‑25</nobr> |
-| 2 of 3 | [Rethinking endpoint management: Fleet, osquery and Infrastructure as Code](https://fleetdm.com/articles/rethinking-endpoint-management) | Ashish Kuthiala | <nobr>2026‑02‑26</nobr> |
-| 3 of 3 | [Modern endpoint management: Managing devices as code](https://fleetdm.com/articles/modern-endpoint-management-managing-devices-as-code) | Ashish Kuthiala | <nobr>2026‑03‑09</nobr> |
+| <nobr>1 of 3</nobr> | [The confidence gap: why IT leaders are abandoning legacy endpoint management](https://fleetdm.com/articles/the-confidence-gap) | Ashish Kuthiala | <nobr>2026‑02‑25</nobr> |
+| <nobr>2 of 3</nobr> | [Rethinking endpoint management: Fleet, osquery and Infrastructure as Code](https://fleetdm.com/articles/rethinking-endpoint-management) | Ashish Kuthiala | <nobr>2026‑02‑26</nobr> |
+| <nobr>3 of 3</nobr> | [Modern endpoint management: Managing devices as code](https://fleetdm.com/articles/modern-endpoint-management-managing-devices-as-code) | Ashish Kuthiala | <nobr>2026‑03‑09</nobr> |
 
 #### 📚 Protecting Linux Endpoints (6-part series)
 
@@ -177,12 +177,12 @@ Why Linux is now a critical enterprise platform and how to manage and secure it 
 
 | Part | Article | Author | Date |
 | --- | --- | --- | --- |
-| 1 of 6 | [Why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026) | Ashish Kuthiala | <nobr>2026‑01‑21</nobr> |
-| 2 of 6 | [Automated provisioning for Linux desktop in the enterprise](https://fleetdm.com/articles/automated-provisioning-for-Linux-desktop-in-the-enterprise) | Ashish Kuthiala | <nobr>2026‑02‑16</nobr> |
-| 3 of 6 | [Security baselines for Linux: closing the gap on exemptions](https://fleetdm.com/articles/security-baselines-for-linux) | Ashish Kuthiala | <nobr>2026‑02‑23</nobr> |
-| 4 of 6 | [Unlocking Linux productivity: securing apps and updating certificates](https://fleetdm.com/articles/unlocking-linux-productivity-securing-apps-and-updating-certificates) | Ashish Kuthiala | <nobr>2026‑03‑04</nobr> |
-| 5 of 6 | [Protecting the Linux device: remote wipe, USB & sudo](https://fleetdm.com/articles/protecting-the-linux-device-remote-wipe-usb-sudo) | Ashish Kuthiala | <nobr>2026‑03‑10</nobr> |
-| 6 of 6 | [Owning your Linux destiny with open source](https://fleetdm.com/articles/owning-your-linux-destiny-with-open-source) | Ashish Kuthiala | <nobr>2026‑03‑06</nobr> |
+| <nobr>1 of 6</nobr> | [Why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026) | Ashish Kuthiala | <nobr>2026‑01‑21</nobr> |
+| <nobr>2 of 6</nobr> | [Automated provisioning for Linux desktop in the enterprise](https://fleetdm.com/articles/automated-provisioning-for-Linux-desktop-in-the-enterprise) | Ashish Kuthiala | <nobr>2026‑02‑16</nobr> |
+| <nobr>3 of 6</nobr> | [Security baselines for Linux: closing the gap on exemptions](https://fleetdm.com/articles/security-baselines-for-linux) | Ashish Kuthiala | <nobr>2026‑02‑23</nobr> |
+| <nobr>4 of 6</nobr> | [Unlocking Linux productivity: securing apps and updating certificates](https://fleetdm.com/articles/unlocking-linux-productivity-securing-apps-and-updating-certificates) | Ashish Kuthiala | <nobr>2026‑03‑04</nobr> |
+| <nobr>5 of 6</nobr> | [Protecting the Linux device: remote wipe, USB & sudo](https://fleetdm.com/articles/protecting-the-linux-device-remote-wipe-usb-sudo) | Ashish Kuthiala | <nobr>2026‑03‑10</nobr> |
+| <nobr>6 of 6</nobr> | [Owning your Linux destiny with open source](https://fleetdm.com/articles/owning-your-linux-destiny-with-open-source) | Ashish Kuthiala | <nobr>2026‑03‑06</nobr> |
 
 #### 📚 OpenClaw — Governing Autonomous AI Agents (3-part series)
 
@@ -190,9 +190,9 @@ Security risks of autonomous AI agents running on managed endpoints, and what IT
 
 | Part | Article | Author | Date |
 | --- | --- | --- | --- |
-| 1 of 3 | [OpenClaw: Open for work?](https://fleetdm.com/articles/openclaw-open-for-work) | Brock Walters | <nobr>2026‑02‑04</nobr> |
-| 2 of 3 | [Detecting AI agents like OpenClaw with automated tooling](https://fleetdm.com/articles/detecting-ai-agents-like-openclaw-with-automated-tooling) | Dhruv Majumdar | <nobr>2026‑02‑18</nobr> |
-| 3 of 3 | [Mitigation assets and detection patterns for AI agents like OpenClaw](https://fleetdm.com/guides/mitigation-assets-and-detection-patterns-for-ai-agents-like-openclaw) *(Guide)* | Adam Baali | <nobr>2026‑02‑19</nobr> |
+| <nobr>1 of 3</nobr> | [OpenClaw: Open for work?](https://fleetdm.com/articles/openclaw-open-for-work) | Brock Walters | <nobr>2026‑02‑04</nobr> |
+| <nobr>2 of 3</nobr> | [Detecting AI agents like OpenClaw with automated tooling](https://fleetdm.com/articles/detecting-ai-agents-like-openclaw-with-automated-tooling) | Dhruv Majumdar | <nobr>2026‑02‑18</nobr> |
+| <nobr>3 of 3</nobr> | [Mitigation assets and detection patterns for AI agents like OpenClaw](https://fleetdm.com/guides/mitigation-assets-and-detection-patterns-for-ai-agents-like-openclaw) *(Guide)* | Adam Baali | <nobr>2026‑02‑19</nobr> |
 
 #### 📚 Deploy Santa with Fleet GitOps (2-part series)
 
@@ -200,8 +200,8 @@ Managing the Santa binary authorization tool using Fleet's GitOps workflow, with
 
 | Part | Article | Author | Date |
 | --- | --- | --- | --- |
-| 1 of 2 | [Deploy Santa with Fleet GitOps and skip the sync server](https://fleetdm.com/articles/deploy-santa-with-fleet-gitops-and-skip-the-sync-server) | Allen Houchins | <nobr>2026‑02‑04</nobr> |
-| 2 of 2 | [How we deployed Santa at Fleet](https://fleetdm.com/guides/how-we-deployed-santa-at-fleet) *(Guide)* | Allen Houchins | <nobr>2026‑02‑24</nobr> |
+| <nobr>1 of 2</nobr> | [Deploy Santa with Fleet GitOps and skip the sync server](https://fleetdm.com/articles/deploy-santa-with-fleet-gitops-and-skip-the-sync-server) | Allen Houchins | <nobr>2026‑02‑04</nobr> |
+| <nobr>2 of 2</nobr> | [How we deployed Santa at Fleet](https://fleetdm.com/guides/how-we-deployed-santa-at-fleet) *(Guide)* | Allen Houchins | <nobr>2026‑02‑24</nobr> |
 
 #### 📚 Tales from Fleet Security (8-part series)
 
@@ -209,14 +209,14 @@ How Fleet's own security team secures the company — a window into Fleet's inte
 
 | Part | Article | Author | Date |
 | --- | --- | --- | --- |
-| 1 of 8 | [Tales from Fleet security: securing the startup](https://fleetdm.com/articles/tales-from-fleet-security-securing-the-startup) | Guillaume Ross | <nobr>2022‑03‑17</nobr> |
-| 2 of 8 | [Tales from Fleet security: securing Google Workspace](https://fleetdm.com/articles/tales-from-fleet-security-securing-google-workspace) | Guillaume Ross | <nobr>2022‑03‑25</nobr> |
-| 3 of 8 | [Tales from Fleet security: GitHub configuration and OpenSSF Scorecards](https://fleetdm.com/articles/tales-from-fleet-security-github-configuration-and-openssf-scorecards) | Guillaume Ross | <nobr>2022‑04‑15</nobr> |
-| 4 of 8 | [Tales from Fleet security: securing 1Password](https://fleetdm.com/articles/tales-from-fleet-security-securing-1password) | Guillaume Ross | <nobr>2022‑05‑06</nobr> |
-| 5 of 8 | [Tales from Fleet security: how we achieved our SOC 2 type 1 rapidly](https://fleetdm.com/articles/tales-from-fleet-security-soc2) | Guillaume Ross | <nobr>2022‑06‑24</nobr> |
-| 6 of 8 | [Tales from Fleet security: speeding up macOS updates with Nudge](https://fleetdm.com/articles/tales-from-fleet-security-speeding-up-macos-updates-with-nudge) | Guillaume Ross | <nobr>2022‑07‑05</nobr> |
-| 7 of 8 | [Tales from Fleet security: securing bank accounts from business email compromise](https://fleetdm.com/articles/tales-from-fleet-security-securing-bank-accounts-from-business-email-compromise) | Guillaume Ross | <nobr>2022‑07‑15</nobr> |
-| 8 of 8 | [Tales from Fleet security: scams targeting Google Groups](https://fleetdm.com/articles/tales-from-fleet-security-google-groups-scams) | Guillaume Ross | <nobr>2022‑08‑05</nobr> |
+| <nobr>1 of 8</nobr> | [Tales from Fleet security: securing the startup](https://fleetdm.com/articles/tales-from-fleet-security-securing-the-startup) | Guillaume Ross | <nobr>2022‑03‑17</nobr> |
+| <nobr>2 of 8</nobr> | [Tales from Fleet security: securing Google Workspace](https://fleetdm.com/articles/tales-from-fleet-security-securing-google-workspace) | Guillaume Ross | <nobr>2022‑03‑25</nobr> |
+| <nobr>3 of 8</nobr> | [Tales from Fleet security: GitHub configuration and OpenSSF Scorecards](https://fleetdm.com/articles/tales-from-fleet-security-github-configuration-and-openssf-scorecards) | Guillaume Ross | <nobr>2022‑04‑15</nobr> |
+| <nobr>4 of 8</nobr> | [Tales from Fleet security: securing 1Password](https://fleetdm.com/articles/tales-from-fleet-security-securing-1password) | Guillaume Ross | <nobr>2022‑05‑06</nobr> |
+| <nobr>5 of 8</nobr> | [Tales from Fleet security: how we achieved our SOC 2 type 1 rapidly](https://fleetdm.com/articles/tales-from-fleet-security-soc2) | Guillaume Ross | <nobr>2022‑06‑24</nobr> |
+| <nobr>6 of 8</nobr> | [Tales from Fleet security: speeding up macOS updates with Nudge](https://fleetdm.com/articles/tales-from-fleet-security-speeding-up-macos-updates-with-nudge) | Guillaume Ross | <nobr>2022‑07‑05</nobr> |
+| <nobr>7 of 8</nobr> | [Tales from Fleet security: securing bank accounts from business email compromise](https://fleetdm.com/articles/tales-from-fleet-security-securing-bank-accounts-from-business-email-compromise) | Guillaume Ross | <nobr>2022‑07‑15</nobr> |
+| <nobr>8 of 8</nobr> | [Tales from Fleet security: scams targeting Google Groups](https://fleetdm.com/articles/tales-from-fleet-security-google-groups-scams) | Guillaume Ross | <nobr>2022‑08‑05</nobr> |
 
 ### Standalone Articles
 
@@ -554,19 +554,20 @@ ExpedITioners is Fleet's podcast, hosted by Zach Wasserman. Episodes feature gue
 | [Rich Trouton: Declarative Device Management and a promising future for Mac Admins](https://expeditioners.podbean.com/e/rich-trouton-declarative-device-management-and-a-promising-future-for-mac-admins/) | Rich Trouton — IT Technology Services Expert at SAP; author of Der Flounder blog | Apple's Declarative Device Management (DDM) framework and what it means for the future of Mac administration. | <nobr>2023‑08‑31</nobr> |
 | [Niels Hofmans: Threat modeling, open-source collaboration, and bug bounties](https://expeditioners.podbean.com/e/niels-hofmans-threat-modeling-open-source-collaboration-and-bug-bounties/) | Niels Hofmans — Head of Security at Intigriti | Threat modeling methodologies, open-source security collaboration, and the bug bounty ecosystem across 90,000+ security researchers. | <nobr>2023‑08‑18</nobr> |
 | [Bradley Chambers: The bright future and golden era of macOS](https://expeditioners.podbean.com/e/bradley-chambers-the-bright-future-and-golden-era-of-macos/) | Bradley Chambers — Enterprise technology writer for 9to5Mac; author of Apple @ Work | Why macOS is entering a golden era for enterprise, and how Apple's platform strategy is reshaping workplace IT. | <nobr>2023‑07‑14</nobr> |
-| [EP 7: Mat X — Organizing community insights for industry growth with MacAdmin tools](https://expeditioners.podbean.com/e/mat-x-organizing-community-insights-for-industry-growth-with-macadmin-tools/) | Mat X — Storage, workflow, and broadcast systems engineer in film & VFX | How the MacAdmin community can better organize and share knowledge to accelerate industry growth. | <nobr>2022‑11‑03</nobr> |
-| [EP 6: Whitney Champion — Scaling infrastructure automation with open source tools](https://expeditioners.podbean.com/e/ep-6-whitney-champion-scaling-infrastructure-automation-with-open-source-tools/) | Whitney Champion — Infrastructure and open-source automation engineer | Scaling infrastructure automation using open source tools and the culture of contributing back to the community. | <nobr>2022‑09‑23</nobr> |
-| [EP 5: Jesse Peterson — Open source communities for better MDM and career growth](https://expeditioners.podbean.com/e/jesse-peterson-open-source-communities-for-better-mdm-and-career-growth/) | Jesse Peterson — Client Platform Engineer at Meta; creator of NanoMDM; contributor to MicroMDM | How open-source communities drive better MDM tooling and create career growth opportunities for contributors. | <nobr>2022‑09‑01</nobr> |
-| [EP 4: Nick Anderson — Endpoint security for osquery](https://expeditioners.podbean.com/e/ep-4-nick-anderson-endpoint-security-for-osquery/) | Nick Anderson — Security Engineer at Meta; osquery Technical Steering Committee member | How osquery enables robust endpoint security and detection at scale in large enterprise environments. | <nobr>2022‑08‑12</nobr> |
-| [EP 3: Chris Long — From osquery skeptic to believer](https://expeditioners.podbean.com/e/ep-3-chris-long-from-osquery-sceptic-to-believer/) | Chris Long — Staff Security Engineer at Material Security; creator of Detection Lab | The journey from skepticism to conviction on osquery, and how Detection Lab accelerates security team onboarding. | <nobr>2022‑07‑21</nobr> |
-| [EP 2: Prima Virani — Improving endpoint monitoring and visibility with osquery](https://expeditioners.podbean.com/e/prima-virani-improving-endpoint-monitoring-and-visibility-with-osquery/) | Prima Virani — Detection & Response Engineering Lead at Twilio | Using osquery to improve endpoint monitoring, detection, and security visibility across a distributed fleet. | <nobr>2022‑06‑28</nobr> |
-| [EP 1: Mike Arpaia — The story behind the creation of osquery](https://expeditioners.podbean.com/e/ep-1-mike-arpaia-the-story-behind-the-creation-of-osquery/) | Mike Arpaia — Co-creator of osquery; Partner at Moonfire Ventures | The origin story of osquery, the philosophy behind its design, and its lasting impact on endpoint security and observability. | <nobr>2022‑06‑02</nobr> |
+| [Mat X — Organizing community insights for industry growth with MacAdmin tools](https://expeditioners.podbean.com/e/mat-x-organizing-community-insights-for-industry-growth-with-macadmin-tools/) | Mat X — Storage, workflow, and broadcast systems engineer in film & VFX | How the MacAdmin community can better organize and share knowledge to accelerate industry growth. | <nobr>2022‑11‑03</nobr> |
+| [Whitney Champion — Scaling infrastructure automation with open source tools](https://expeditioners.podbean.com/e/ep-6-whitney-champion-scaling-infrastructure-automation-with-open-source-tools/) | Whitney Champion — Infrastructure and open-source automation engineer | Scaling infrastructure automation using open source tools and the culture of contributing back to the community. | <nobr>2022‑09‑23</nobr> |
+| [Jesse Peterson — Open source communities for better MDM and career growth](https://expeditioners.podbean.com/e/jesse-peterson-open-source-communities-for-better-mdm-and-career-growth/) | Jesse Peterson — Client Platform Engineer at Meta; creator of NanoMDM; contributor to MicroMDM | How open-source communities drive better MDM tooling and create career growth opportunities for contributors. | <nobr>2022‑09‑01</nobr> |
+| [Nick Anderson — Endpoint security for osquery](https://expeditioners.podbean.com/e/ep-4-nick-anderson-endpoint-security-for-osquery/) | Nick Anderson — Security Engineer at Meta; osquery Technical Steering Committee member | How osquery enables robust endpoint security and detection at scale in large enterprise environments. | <nobr>2022‑08‑12</nobr> |
+| [Chris Long — From osquery skeptic to believer](https://expeditioners.podbean.com/e/ep-3-chris-long-from-osquery-sceptic-to-believer/) | Chris Long — Staff Security Engineer at Material Security; creator of Detection Lab | The journey from skepticism to conviction on osquery, and how Detection Lab accelerates security team onboarding. | <nobr>2022‑07‑21</nobr> |
+| [Prima Virani — Improving endpoint monitoring and visibility with osquery](https://expeditioners.podbean.com/e/prima-virani-improving-endpoint-monitoring-and-visibility-with-osquery/) | Prima Virani — Detection & Response Engineering Lead at Twilio | Using osquery to improve endpoint monitoring, detection, and security visibility across a distributed fleet. | <nobr>2022‑06‑28</nobr> |
+| [Mike Arpaia — The story behind the creation of osquery](https://expeditioners.podbean.com/e/ep-1-mike-arpaia-the-story-behind-the-creation-of-osquery/) | Mike Arpaia — Co-creator of osquery; Partner at Moonfire Ventures | The origin story of osquery, the philosophy behind its design, and its lasting impact on endpoint security and observability. | <nobr>2022‑06‑02</nobr> |
 
 ---
 
 ## Release Notes
 
 See: https://fleetdm.com/releases
+
 
 
 <meta name="maintainedBy" value="akuthiala">
