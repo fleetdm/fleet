@@ -1,0 +1,1 @@
+- Fixed a crash (500 error) on the "My device" page for Fleet Free instances caused by accessing undefined policies data.
