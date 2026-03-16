@@ -2,16 +2,10 @@
 
 package com.fleetdm.agent
 
-import android.app.admin.DevicePolicyManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.Context.DEVICE_POLICY_SERVICE
-import android.content.Context.RESTRICTIONS_SERVICE
 import android.content.Intent
-import android.content.RestrictionsManager
-import android.content.pm.PackageInfo
-import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
 import android.widget.Toast
@@ -36,7 +30,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -96,6 +89,17 @@ fun AppNavigation() {
         composable<MainDestination> {
             MainScreen(
                 onNavigateToDebug = { navController.navigate(DebugDestination) },
+            )
+        }
+        composable<DebugDestination> {
+            DebugScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToLogs = { navController.navigate(LogsDestination) },
+            )
+        }
+        composable<LogsDestination> {
+            LogsScreen(
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     }
