@@ -1256,6 +1256,14 @@ allow {
   action == [read, write, list][_]
 }
 
+# Team admins, maintainers and gitops can read and list certificate authorities
+# so they can add certificate templates to their teams.
+allow {
+  object.type == "certificate_authority"
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops][_]
+  action == [read, list][_]
+}
+
 # Global admins and maintainers can write a certificate request
 allow {
   object.type == "certificate_request"
