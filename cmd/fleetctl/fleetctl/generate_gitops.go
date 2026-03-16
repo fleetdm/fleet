@@ -150,10 +150,25 @@ var aliasRules = map[string]string{
 	"team_ids":             "fleet_ids",
 	"team_name":            "fleet_name",
 	"teams":                "fleets",
+
+	// MDM settings renames
+	"bootstrap_package":              "macos_bootstrap_package",
+	"custom_settings":                "configuration_profiles",
+	"enable_release_device_manually": "apple_enable_release_device_manually",
+	"macos_settings":                 "apple_settings",
+	"macos_setup":                    "setup_experience",
+	"macos_setup_assistant":          "apple_setup_assistant",
+	"manual_agent_install":           "macos_manual_agent_install",
+	"script":                         "macos_script",
 }
 
 // Replace deprecated keys with their new canonical names.
 // If deleteOld is true, the old keys are removed; otherwise both old and new keys are present.
+//
+// When deleteOld is false and a renamed key's value is a map, the old key keeps
+// its original child keys untouched and the new key receives a deep copy with
+// children recursively renamed (old child keys removed). This avoids duplicating
+// every nested key under both the old and new parent.
 func replaceAliasKeys(v any, rules map[string]string, deleteOld bool) {
 	switch val := v.(type) {
 	case map[string]any:
@@ -167,19 +182,60 @@ func replaceAliasKeys(v any, rules map[string]string, deleteOld bool) {
 				renames = append(renames, rename{k, newKey})
 			}
 		}
+
+		// Track keys whose subtrees we've already fully processed so the
+		// general recursion below can skip them.
+		handled := make(map[string]bool, len(renames)*2)
+
 		for _, r := range renames {
-			val[r.newKey] = val[r.oldKey]
 			if deleteOld {
+				val[r.newKey] = val[r.oldKey]
 				delete(val, r.oldKey)
+			} else if childMap, ok := val[r.oldKey].(map[string]any); ok {
+				// Container key: old copy keeps original children,
+				// new copy gets a deep copy with children renamed.
+				copied := deepCopyAny(childMap).(map[string]any)
+				replaceAliasKeys(copied, rules, true)
+				val[r.newKey] = copied
+				handled[r.oldKey] = true
+				handled[r.newKey] = true
+			} else {
+				// Leaf/non-map value: just duplicate the key.
+				val[r.newKey] = val[r.oldKey]
 			}
 		}
-		for _, v := range val {
+
+		for k, v := range val {
+			if handled[k] {
+				continue
+			}
 			replaceAliasKeys(v, rules, deleteOld)
 		}
 	case []any:
 		for _, item := range val {
 			replaceAliasKeys(item, rules, deleteOld)
 		}
+	}
+}
+
+// deepCopyAny returns a deep copy of a value produced by json.Unmarshal
+// (maps, slices, and primitives).
+func deepCopyAny(v any) any {
+	switch val := v.(type) {
+	case map[string]any:
+		m := make(map[string]any, len(val))
+		for k, v := range val {
+			m[k] = deepCopyAny(v)
+		}
+		return m
+	case []any:
+		s := make([]any, len(val))
+		for i, v := range val {
+			s[i] = deepCopyAny(v)
+		}
+		return s
+	default:
+		return v
 	}
 }
 

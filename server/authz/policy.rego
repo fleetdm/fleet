@@ -17,6 +17,7 @@ create := "create" # only for labels right now
 write_host_label := "write_host_label"
 cancel_host_activity := "cancel_host_activity"
 resend := "resend" # only for profiles, and to a single host
+read_secrets := "read_secrets"
 
 # User specific actions
 write_role := "write_role"
@@ -1260,11 +1261,27 @@ allow {
 ##
 # Certificate Authorities
 ##
-# Global admins and GitOps can configure, read and list certificate Authorities
+# Global admins and GitOps can configure, read, list, and read secrets of certificate authorities.
 allow {
   object.type == "certificate_authority"
   subject.global_role == [admin, gitops][_]
-  action == [read, write, list][_]
+  action == [read, write, list, read_secrets][_]
+}
+
+# Global maintainers can read and list certificate authorities
+# so they can create certificate templates.
+allow {
+  object.type == "certificate_authority"
+  subject.global_role == maintainer
+  action == [read, list][_]
+}
+
+# Team admins, maintainers and gitops can read and list certificate authorities
+# so they can add certificate templates to their teams.
+allow {
+  object.type == "certificate_authority"
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops][_]
+  action == [read, list][_]
 }
 
 # Global admins and maintainers can write a certificate request

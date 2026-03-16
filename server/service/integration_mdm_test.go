@@ -6202,6 +6202,7 @@ func (s *integrationMDMTestSuite) setTokenForTest(t *testing.T, email, password 
 
 func (s *integrationMDMTestSuite) TestSSO() {
 	t := s.T()
+	s.setSkipWorkerJobs(t)
 
 	lastSubmittedProfile := &godep.Profile{}
 	mdmDevice, wantSettings := s.setUpEndUserAuthentication(t, lastSubmittedProfile, true)

@@ -2059,6 +2059,54 @@ func TestReplaceAliasKeys(t *testing.T) {
 		require.Equal(t, "in_array", item["old_key"])
 	})
 
+	t.Run("container key deleteOld=false: old keeps old children, new gets new children", func(t *testing.T) {
+		rules := map[string]string{
+			"old_container": "new_container",
+			"child_old":     "child_new",
+		}
+		data := map[string]any{
+			"old_container": map[string]any{
+				"child_old": "val",
+				"unchanged": "stays",
+			},
+		}
+		replaceAliasKeys(data, rules, false)
+
+		// Old container keeps original child keys only.
+		oldC := data["old_container"].(map[string]any)
+		require.Equal(t, "val", oldC["child_old"])
+		_, exists := oldC["child_new"]
+		require.False(t, exists, "old container should not gain new child key")
+		require.Equal(t, "stays", oldC["unchanged"])
+
+		// New container has children renamed.
+		newC := data["new_container"].(map[string]any)
+		require.Equal(t, "val", newC["child_new"])
+		_, exists = newC["child_old"]
+		require.False(t, exists, "new container should not have old child key")
+		require.Equal(t, "stays", newC["unchanged"])
+	})
+
+	t.Run("container key deleteOld=true: children renamed, old container removed", func(t *testing.T) {
+		rules := map[string]string{
+			"old_container": "new_container",
+			"child_old":     "child_new",
+		}
+		data := map[string]any{
+			"old_container": map[string]any{
+				"child_old": "val",
+			},
+		}
+		replaceAliasKeys(data, rules, true)
+
+		_, exists := data["old_container"]
+		require.False(t, exists)
+		newC := data["new_container"].(map[string]any)
+		require.Equal(t, "val", newC["child_new"])
+		_, exists = newC["child_old"]
+		require.False(t, exists)
+	})
+
 	t.Run("nil map is safe", func(t *testing.T) {
 		replaceAliasKeys(nil, rules, true)
 		replaceAliasKeys(nil, rules, false)

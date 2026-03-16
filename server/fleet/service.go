@@ -503,6 +503,9 @@ type Service interface {
 
 	// ListHostCertificates lists the certificates installed on the specified host.
 	ListHostCertificates(ctx context.Context, hostID uint, opts ListOptions) ([]*HostCertificatePayload, *PaginationMetadata, error)
+	// GetHostRecoveryLockPassword retrieves the recovery lock password for the specified host.
+	// Requires admin or maintainer role and MDM to be enabled.
+	GetHostRecoveryLockPassword(ctx context.Context, hostID uint) (*HostRecoveryLockPassword, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
