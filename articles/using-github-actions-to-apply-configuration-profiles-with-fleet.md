@@ -19,8 +19,8 @@ Fleet maintains a GitHub Action for applying the latest configuration profiles i
 
 1. Overview:
     1. Create a `.github/workflows` directory in your repo if it does not already exist.
-    2. Inside the `.github/workflows` directory, create a new file named `fleetctl-team.yml`
-    3. In the `fleetctl-team.yml`, add the [minimum recommended workflow](https://github.com/fleetdm/fleet/blob/main/.github/workflows/example-workflow.yaml): 
+    2. Inside the `.github/workflows` directory, create a new file named `fleetctl-fleet.yml`
+    3. In the `fleetctl-fleet.yml`, add the [minimum recommended workflow](https://github.com/fleetdm/fleet/blob/main/.github/workflows/example-workflow.yaml): 
 
 
 ``` 
@@ -61,7 +61,7 @@ name: Apply latest configuration profiles (example)
             with:
               FLEET_API_TOKEN: $FLEET_API_TOKEN
               FLEET_URL: $FLEET_URL
-              FLEET_TEAM_NAME: Workstations
+              FLEET_FLEET_NAME: Workstations
               MDM_CONFIG_REPO: fleetdm/fleet
               MDM_CONFIG_DIRECTORY: mdm_profiles
               MAC_OS_MIN_VERSION: 13.3.2
@@ -87,7 +87,7 @@ name: Apply latest configuration profiles (example)
 
         2. Clicking the add new button.
 
-    7. Name your yaml file `fleetctl-team.yml`
+    7. Name your yaml file `fleetctl-fleet.yml`
     ![Name your yaml file.](../website/assets/images/articles/using-github-actions-to-apply-configuration-profiles-with-fleet10-604x225@2x.png "Name your yaml file.")
 
     8. Under _Marketplace_ in the right column, search for “Fleet.”  
@@ -113,7 +113,7 @@ name: Apply latest configuration profiles (example)
 
   `FLEET_URL:` This is the URL of your Fleet instance.
 
-  `FLEET_TEAM_NAME:` Fleet team name to apply MDM configuration profiles to. The default is _Workstations_.
+  `FLEET_FLEET_NAME:` Fleet name to apply MDM configuration profiles to. The default is _Workstations_.
 
   `MDM_CONFIG_REPO:` Repository containing MDM configuration profiles. The default is _fleetdm/fleet_.
 

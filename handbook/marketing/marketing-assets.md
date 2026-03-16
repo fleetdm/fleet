@@ -1,294 +1,574 @@
 # Marketing Assets
 
-This is the single source of truth of all marketing assets created or co-created by the marketing team.  Any collateral listed on this page should be treated as the latest and most updated collateral.  
+This is the single source of truth of all marketing assets created or co-created by the marketing team. Any collateral listed on this page should be treated as the latest and most updated collateral.
 
+Need a new collateral, need an updated collateral, found a mistake or a duplicate collateral? Please open an issue for the marketing team with the details of your request and it will be responded to with a timeline.
 
-##  Need a new collateral, need an updated collateral, found a mistake or a duplicate collateral?
+If you find a piece of collateral that is duplicate to one listed below, please deprecate that collateral (start the title with `DEPRECATE:` and link the first line to this page for everyone to find the most updated copy).
 
-Please open an issue for the marketing team with the details of your request and it will be responded to with a timeline.
-If you find a piece of collateral that is duplicate to one listed below, please deprecate that collateral (start the title with DEPRECATE: and link the first line to this page for everyone to find the most updated copy.
+---
 
-### Marketing & Enablement Assets
+## 🟢 Sales & Enablement
 
-| Asset | Use case | Date updated |
-| :--- | :--- | :--- |
-| [Leave Behind Deck](https://docs.google.com/presentation/d/1Wxb4IedJ0cEXJQwvKCdYf8OatXk4sG1QTkiNLB3h11E/edit) | Presentation tool for internal teams to present Fleet's value. | Feb 18, 2026 |
-| [Additional slides for pitch deck](https://docs.google.com/presentation/d/1l6eh1ow4Izi9lv-IrrYV1UjNT4VKbfk5lJHDJUgnDVM/edit) | Customizable slides for tailored prospect presentations. | Feb 18, 2026 |
-| [Sagetap Deck](https://docs.google.com/presentation/d/10DbaNaMBxeYN8PcrxE-5XNX04N_v_lKJxSxHbPjoCXc/edit) | Messaging and positioning test deck for market validation. | Feb 18, 2026 |
-| [Safe Enough to Switch](https://docs.google.com/document/d/1JsHEzUru2KKs6h7SKYEI6OjunwrRWmeUDTOtl57Shv4/edit) | Overview of Fleet’s maturity for organizations switching tools. | Sep 15, 2025 |
-| [Jamf vs. Fleet terminology](https://docs.google.com/document/d/1RKojfpUMUiITPce5O7znYmxdQR9U6f5sVnVzQpPpp8Y/edit) | Mapping concepts between Jamf and Fleet for easier migration. | Sep 09, 2025 |
-| [Gartner IT Symposium Summary](https://drive.google.com/file/d/1HK1QXA2kOCeOoOG1E0-tk7-xwBhQ2QMa/view) | Executive summary of outcomes and value achieved via GitOps. | Oct 21, 2024 |
-| [ROI Spreadsheet](https://docs.google.com/spreadsheets/d/14Cfj77ynOB6z4pmb9DD7HNRGo0kcKJuEIifgnz-YO50/edit) | Financial value justification and ROI calculator. | Aug 14, 2023 |
-| [Battle card - Workspace ONE](https://docs.google.com/document/d/1dV9zooPnCnHa0UfZqXKWAi6Zmye2jfqRIr_UnX70Sq4/edit) | Strategic insights for VMware Workspace ONE competitive scenarios. | Sep 12, 2023 |
-| [Death to Extension Attributes](https://github.com/allenhouchins/death-to-extension-attributes) | Comparing Fleet queries to Jamf EA for technical simplicity. | Jun 15, 2023 |
-| [Fleet capabilities one-pager](https://docs.google.com/document/d/15nVnn2dalLnyJgfX3o-96jvFAzZPS9vrTaNo_lYNick/edit) | High-level summary of the platform's core capabilities. | Feb 14, 2022 |
-| [Fleet for IT Product Brochure](https://docs.google.com/document/d/1d_53iYU6O-uzaXnzjlXXGwByGRmpz3VMG6kWT6hMCkU/edit) | Marketing overview for IT teams in early sales cycles. | Oct 20, 2021 |
-| [Fleet for Security Product Brochure](https://docs.google.com/document/d/18ocTpuQlwd8RwZA-KsqzEmQkAEvKvV8LngeFbkJdFj4/edit) | Marketing overview for security teams in early sales cycles. | Oct 20, 2021 |
-| [Product Roadmap](https://docs.google.com/document/d/16si8Nkh0F25opUMpZYm6XwU8LEhGd7H4eOzPKFz8jGw/edit) | Future development vision and open roadmap opportunities. | Jan 20, 2021 |
-|[Fleet in 3 Minutes VIDEO](https://www.youtube.com/watch?v=q1Tm3IBcx24)| A short 3 minute demo video of how fleet works. | May 13, 2026 |
+Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle — from first touch through close. Audience: AEs, SDRs, SEs, and customer success.
 
-### Case Studies & Success Stories
+### Pitch & Presentation
 
-| Date updated | Asset | Description | Author |
-| :--- | :--- | :--- | :--- |
-| 2026-02-23 | [Scaling financial security with GitOps and RBAC](https://fleetdm.com/announcements/scaling-financial-security-with-gitops) | A digital payments provider scaled secure device management with Fleet Cloud, GitOps, and granular RBAC to unify compliance and audits. | Irena Reedy |
-| 2026-02-23 | [Agritech producer replaces manual tracking across 273 devices](https://fleetdm.com/case-study/agritech-producer) | An African agritech producer unified its devices with Fleet, eliminating manual tracking and securing cold-chain logistics. | Irena Reedy |
-| 2026-02-22 | [Workspace software company consolidates Kandji and Intune across 1,465 devices](https://fleetdm.com/case-study/workspace-software-company) | A workspace software company unified 1,400+ devices with Fleet, replacing Kandji and Intune and adopting GitOps for proactive auditing. | Irena Reedy |
-| 2026-02-22 | [Robotics company unifies Mac, Windows, Linux, and Android devices](https://fleetdm.com/case-study/robotics-company) | A robotics company unified Mac, Windows, Linux, and Android with Fleet, enabling GitOps, proactive security, and real-time device control. | Irena Reedy |
-| 2026-02-22 | [Open-source organization manages 1,556 devices with real-time compliance](https://fleetdm.com/case-study/open-source-organization) | Open-source org manages 1,556 devices with equal Mac, Windows, and Linux support, real-time compliance, and unified threat visibility. | Irena Reedy |
-| 2026-02-22 | [Journalism nonprofit manages Mac and Linux devices with GitOps](https://fleetdm.com/case-study/journalism-nonprofit) | Journalism nonprofit manages Mac and Linux devices with open source, GitOps workflows, and transparent, real-time compliance visibility. | Irena Reedy |
-| 2026-02-22 | [IT service provider scales to 8,000+ devices with GitOps](https://fleetdm.com/case-study/it-service-provider) | As an IT-as-a-Service provider, managing over 8,000 laptops across 120 SME customers. | Irena Reedy |
-| 2026-02-22 | [IT platform provider automates patching across thousands of Mac, Windows, and Linux devices](https://fleetdm.com/case-study/it-platform-provider) | An IT platform provider used Fleet and GitOps to automate patching, unify Mac, Windows, and Linux, and replace legacy tools. | Irena Reedy |
-| 2026-02-22 | [Gaming technology company runs GitOps-driven device management on-prem](https://fleetdm.com/case-study/gaming-technology-company) | Gaming tech company manages 1,600+ devices with GitOps automation, on-prem control, and faster vulnerability response across Mac, Windows, and Linux. | Irena Reedy |
-| 2026-02-22 | [Financial technology company manages 15,000 devices with GitOps](https://fleetdm.com/case-study/financial-technology-company) | A financial technology company manages a massive environment of roughly 15,000 endpoints. | Irena Reedy |
-| 2026-02-22 | [Financial services platform manages 6,000+ hosts with continuous compliance visibility](https://fleetdm.com/case-study/financial-services-platform) | Financial services platform manages 6,000+ hosts with cross-platform support, continuous auditing, and open, flexible device management. | Irena Reedy |
-| 2026-02-22 | [Enforcing security policies in minutes across a regulated healthcare environment](https://fleetdm.com/case-study/healthcare-technology-organization) | Healthcare tech org enforces policies in minutes, not weeks, with self-hosted, multi-OS management and clear compliance visibility. | Irena Reedy |
-| 2026-02-22 | [Cannabis technology company consolidates Jamf and Intune with Fleet](https://fleetdm.com/case-study/cannabis-technology-company) | A cannabis tech company consolidated Jamf and Intune with Fleet, unified macOS and Windows, and adopted GitOps with Okta integration. | Irena Reedy |
-| 2026-02-22 | [Banking platform guarantees script execution and audit-ready compliance](https://fleetdm.com/case-study/banking-platform) | A banking platform replaced legacy tools with Fleet to guarantee script execution, unify Mac and Windows, and prove compliance in audits. | Irena Reedy |
-| 2026-02-22 | [AI security company runs live queries to verify CVEs in seconds](https://fleetdm.com/case-study/ai-security-company) | An AI security company replaced legacy MDMs with Fleet for Linux visibility, security as code, and instant CVE response. | Irena Reedy |
-| 2026-02-20 | [Communications platform unifies device management across 3,000 devices](https://fleetdm.com/case-study/communications-platform) | Communications platform unifies 3,000 devices with real-time visibility, GitOps automation, and transparent cross-platform management. | Irena Reedy |
-| 2026-01-23 | [Redefining endpoint management at scale: Fleetâs momentum in the 2026 Gartner reports](https://fleetdm.com/announcements/redefining-endpoint-management-at-scale) | Fleetâs open approach to device management is validated in Gartnerâs 2026 reports, highlighting GitOps, scale, transparency, and real-time data. | Ashish Kuthiala |
-| 2026-01-05 | [Roadmap preview, January 2026](https://fleetdm.com/announcements/roadmap-preview-january-2026) | The product improvements Fleet is currently working on and the 3 biggest open opportunities in the product in the near future. | Noah Talerman |
-| 2025-12-11 | [Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually](https://fleetdm.com/case-study/stripe) |  | Fleetdm |
-| 2025-12-11 | [Foursquare cut costs and gained 114% ROI with Fleet](https://fleetdm.com/case-study/foursquare) |  | Fleetdm |
-| 2025-12-11 | [Faire secures Macs with CIS benchmarks and Fleet](https://fleetdm.com/case-study/faire) |  | Fleetdm |
-| 2025-11-27 | [A new chapter for device management](https://fleetdm.com/announcements/a-new-chapter-for-device-management) | Jamfâs acquisition marks a shift in device management. Fleet provides an open, cross-platform alternative for IT and security teams. | Ashish Kuthiala |
-| 2025-10-07 | [Roadmap preview, October 2025](https://fleetdm.com/announcements/roadmap-preview-october-2025) | The product improvements Fleet is currently working on and the 3 biggest open opportunities in the product in the near future. | Noah Talerman |
-| 2025-10-07 | [Establishing visibility in a distributed hybrid environment](https://fleetdm.com/announcements/establishing-visibility-in-a-distributed-hybrid-environment) | AI tech company gains instant visibility across 140 devices with cross-platform management, Fleet Cloud, and automated compliance sync. | Irena Reedy |
-| 2025-09-15 | [Fleet supports Appleâs latest operating systems: macOS Tahoe 26, iOS 26, and iPadOS 26](https://fleetdm.com/announcements/fleet-supports-macos-26-tahoe-ios-26-and-ipados-26) | Fleet is pleased to announce full support for macOS Tahoe 26, iOS 26, and iPadOS 26. | Andrey Kizimenko |
-| 2025-08-06 | [Live office hours: Ask Fleet engineers anything](https://fleetdm.com/announcements/live-office-hours-announcement) | Join Fleet engineers every two weeks for live Q&A sessions about device management, deployment, and contributing to Fleet's open-source platform. | Victor Lyuboslavsky |
-| 2025-07-18 | [Roadmap preview, July 2025](https://fleetdm.com/announcements/roadmap-preview-july-2025) | The product improvements Fleet is currently working on and the 3 biggest open opportunities in the product in the near future. | Noah Talerman |
-| 2025-07-10 | [Secureframe adopts Fleet as its default agent for security compliance](https://fleetdm.com/announcements/secureframe-adopts-fleet-as-its-default-agent-for-security-compliance) |  | Mike McNeil |
-| 2025-06-11 | [MDM just got better: Appleâs biggest IT updates at WWDC25](https://fleetdm.com/announcements/mdm-just-got-better) | Key WWDC25 updates for Apple ITâand how Fleet supports them today. | Adam Baali |
-| 2025-04-01 | [Roadmap preview, April 2025](https://fleetdm.com/announcements/roadmap-preview-april-2025) | The product improvements Fleet is currently working on and the 3 biggest open opportunities in the product in the near future. | Noah Talerman |
-| 2025-01-29 | [Fastly gains visibility into all endpoints and critical infrastructure worldwide](https://fleetdm.com/case-study/fastly) |  | Fleetdm |
-| 2025-01-08 | [Roadmap preview, January 2025](https://fleetdm.com/announcements/roadmap-preview-january-2025) | The product improvements Fleet is currently working on and the 3 biggest open opportunities in the product in the near future. | Noah Talerman |
-| 2024-12-23 | [Leading interactive entertainment company adopts Fleet for MDM](https://fleetdm.com/case-study/interactive-entertainment-company) | Leading interactive entertainment company adopts Fleet for MDM | Andrew Baker |
-| 2024-12-20 | [Cloud-based data leader chooses Fleet for orchestration](https://fleetdm.com/case-study/cloud-data-platform) | Cloud-based data leader chooses Fleet for orchestration | Andrew Baker |
-| 2024-12-19 | [American financial services company migrates to Fleet for MDM and next-gen change management](https://fleetdm.com/case-study/financial-services-company) | American financial services company migrates to Fleet for MDM and next-gen change management | Andrew Baker |
-| 2024-12-17 | [How a global workforce management company achieved compliance and clarity with Fleetâkeeping shift work in sync](https://fleetdm.com/case-study/global-workforce-management-company) | How a global workforce management company achieved compliance and clarity with Fleetâkeeping shift work in sync | Harrison Ravazzolo |
-| 2024-12-16 | [Global social media platform migrates to Fleet](https://fleetdm.com/case-study/global-social-media-platform) | Global social media platform migrates to Fleet | Andrew Baker |
-| 2024-12-12 | [Vehicle manufacturer transitions to Fleet for endpoint security](https://fleetdm.com/case-study/electric-vehicle-manufacturer) | Vehicle manufacturer transitions to Fleet for endpoint security | Andrew Baker |
-| 2024-12-11 | [Large gaming company enhances server observability with Fleet](https://fleetdm.com/case-study/online-gaming-platform) | Large gaming company enhances server observability with Fleet | Andrew Baker |
-| 2024-12-10 | [Worldwide security and authentication platform chooses Fleet for Linux management](https://fleetdm.com/case-study/worldwide-security-and-authentication-platform) | Worldwide security and authentication platform switches to Fleet for Linux device management | Andrew Baker |
-| 2024-11-14 | [Fleet reimagines observability with DevOps teams at Roblox, Atlassian, Dropbox](https://fleetdm.com/announcements/fleet-reimagines-observability-with-devops-teams) | Fleet speeds up compliance audits and enables next-gen intrusion detection in large production infrastructures | Mike McNeil |
-| 2024-09-27 | [Fleet supports Appleâs latest operating systems: macOS 15 Sequoia, iOS 18, and iPadOS 18](https://fleetdm.com/announcements/fleet-supports-macos-15-sequoia-ios-18-and-ipados-18) | Fleet is pleased to announce full support for macOS 15 Sequoia, iOS 18, and iPadOS 18. | JD Strong |
-| 2024-09-26 | [Fleet now supports iOS and iPadOS, software deployment, and automated patch management.](https://fleetdm.com/announcements/fleet-now-supports-ios-and-ipados-software-deployment-and-automated-patch-management) | Fleet announces support for iOS and iPadOS, software deployment, and automated patch management | Andrew Baker |
-| 2024-08-27 | [Debunk the cross-platform myth](https://fleetdm.com/announcements/debunk-the-cross-platform-myth) | Debunk the cross-platform myth with MDM | Mike McNeil |
-| 2024-07-25 | [Enhancing K-12 cybersecurity with FCC funds and Fleet](https://fleetdm.com/announcements/enhancing-k-12-cybersecurity-with-fcc-funds-and-fleet) |  | Alex Mitchell |
-| 2024-05-24 | [Endpoint management's crucial role in healthcare](https://fleetdm.com/announcements/endpoint-managements-crucial-role-in-healthcare) | Discover how robust endpoint management is essential for securing healthcare data, ensuring compliance, and building patient trust. | Alex Mitchell |
-| 2024-04-30 | [Fleet in your calendar: introducing maintenance windows](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows) | Like any good colleague, when Fleet needs some of your time, it puts it on your calendar. | JD Strong |
-| 2024-04-23 | [Enhancing Fleet's vulnerability management with VulnCheck integration](https://fleetdm.com/announcements/enhancing-fleets-vulnerability-management-with-vulncheck-integration) |  | JD Strong |
-| 2024-03-01 | [The device security tightrope: balancing cost and protection in K-12 schools](https://fleetdm.com/announcements/the-device-security-tightrope-balancing-cost-and-protection-in-K-12-schools) |  | Keith Barnes |
-| 2024-02-09 | [Government agencies need to ditch the MDM thicket: multiple solutions cost you more than you think](https://fleetdm.com/announcements/government-agencies-need-to-dith-the-mdm-thicket) |  | Keith Barnes |
-| 2024-02-01 | [A comparative look at VMware Workspace ONE and Fleet Device Management](https://fleetdm.com/announcements/comparative-look-at-ws1-and-fleet) |  | JD Strong |
-| 2024-01-24 | [Fleet introduces Windows MDM](https://fleetdm.com/announcements/fleet-introduces-windows-mdm) |  | JD Strong |
-| 2023-11-28 | [NVD API 2.0: An important update for Fleet users](https://fleetdm.com/announcements/nvd-api-2.0) |  | JD Strong |
-| 2023-10-17 | [Introducing cross-platform script execution](https://fleetdm.com/announcements/introducing-cross-platform-script-execution) |  | JD Strong |
-| 2023-08-02 | [Fleet takes on Vegas: Exploring cybersecurity's future at Black Hat, B-Sides, and DEF CON 31](https://fleetdm.com/announcements/fleet-in-vegas-2023) | Explore cybersecurity's cutting edge with Fleet at three top-tier conferences - Black Hat, Security B-Sides, and DEF CON. | JD Strong |
-| 2023-07-13 | [Mac admins summer camp âº at PSU MacAdmins Conference 2023](https://fleetdm.com/announcements/psu-macadmins-conference-2023) | A look ahead to PSU MacAdmin Conference July 18-21, 2023 | JD Strong |
-| 2023-07-06 | [Embracing the future: Declarative Device Management](https://fleetdm.com/announcements/embracing-the-future-declarative-device-management) | Explore the transformative impact of Declarative Device Management (DDM), Fleet, and osquery for MacAdmins. | JD Strong |
-| 2023-06-13 | [Fleet enhances device management with ChromeOS support](https://fleetdm.com/announcements/fleet-adds-support-for-chrome-os) | We're thrilled to announce that Fleet has expanded support to include ChromeOS and ChromeOS Flex! | JD Strong |
-| 2023-06-07 | [Fleet is abuzz ð for MacDevOps:YVR](https://fleetdm.com/announcements/fleet-is-abuzz-for-macdevops-yvr-2023) | Fleet is a proud sponsor of MacDevOps:YVR which is back in person in Vancouver, B.C. June 21-22, 2023 | JD Strong |
-| 2023-03-02 | [Join Fleet at Cyber Security Summit Seattle/Bellevue](https://fleetdm.com/announcements/seattle-bellevue-cyber-security-summit-march-8-2023) |  | JD Strong |
-| 2023-01-09 | [Keep Fleet running smoothly on AWS with the new Terraform module](https://fleetdm.com/announcements/fleet-terraform-module) |  | Zachary Winnerman |
-| 2022-08-24 | [Introducing Sandbox, the fastest way to play with Fleet](https://fleetdm.com/announcements/introducing-sandbox-the-fastest-way-to-play-with-fleet) |  | Chris McGillicuddy |
-| 2022-08-18 | [Introducing Orbit, your Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager) |  | Mo Zhu |
-| 2022-08-02 | [Fleet Desktop says âHello, world!â](https://fleetdm.com/announcements/fleet-desktop-says-hello-world) |  | Mo Zhu |
-| 2022-01-20 | [The next step for Fleet: our $5M seed round ð±](https://fleetdm.com/announcements/from-osquery-to-fleet-planting-the-seed) |  | Zach Wasserman |
-| 2021-10-08 | [Happy 1st anniversary, Fleet.](https://fleetdm.com/announcements/happy-1st-anniversary-fleet) |  | Mike Thomas |
-| 2020-01-05 | [A new Fleet](https://fleetdm.com/announcements/a-new-fleet) |  | Zach Wasserman |
+| Asset | Format | Use case | Date updated |
+| --- | --- | --- | --- |
+| [Leave Behind Deck](https://docs.google.com/presentation/d/1Wxb4IedJ0cEXJQwvKCdYf8OatXk4sG1QTkiNLB3h11E/edit) | Slides | Presentation tool for internal teams to present Fleet's value. | <nobr>Feb‑18‑2026</nobr> |
+| [Additional slides for pitch deck](https://docs.google.com/presentation/d/1l6eh1ow4Izi9lv-IrrYV1UjNT4VKbfk5lJHDJUgnDVM/edit) | Slides | Customizable slides for tailored prospect presentations. | <nobr>Feb‑18‑2026</nobr> |
+| [Fleet in 3 Minutes (VIDEO)](https://www.youtube.com/watch?v=q1Tm3IBcx24) | Video | A short 3-minute demo of how Fleet works. | <nobr>May‑13‑2026</nobr> |
 
-### Articles & Blog Posts
+### One-Pagers & Brochures
 
-| Date updated | Asset | Description | Author |
-| :--- | :--- | :--- | :--- |
-| 2026-02-26 | [What is Apple's Device Enrollment Program (DEP)?](https://fleetdm.com/articles/apple-device-enrollment-program) | Apple's Automated Device Enrollment (ADE), previously DEP, automatically enrolls devices into MDM. Learn how it works, its benefits, and requirements. | Brock Walters |
-| 2026-02-26 | [Rethinking endpoint management: Fleet, osquery and Infrastructure as Code](https://fleetdm.com/articles/rethinking-endpoint-management) | Part 2 of 3 - Article series on supercharging modern endpoint management. | Ashish Kuthiala, CMO, Fleet Device Management |
-| 2026-02-26 | [Managing Macs Globally: Enterprise Apple MDM Best Practices 2026](https://fleetdm.com/articles/managing-macs-globally-apple-ecosystem-deployment-security) | Scale Mac management across global teams with zero-touch deployment, automated compliance, and unified device visibility. | Brock Walters |
-| 2026-02-26 | [Mac Zero-Touch Deployment: Complete Enterprise Guide 2026](https://fleetdm.com/articles/mac-zero-touch-deployment-guide) | Complete guide to Mac zero-touch deployment using Apple Business Manager and MDM. Learn setup and best practices for remote Mac fleet management. | Brock Walters |
-| 2026-02-26 | [Fleet vs. Jamf vs. Intune: Comparing fleet management software](https://fleetdm.com/articles/fleet-management-software) | Compare the Fleet, Jamf Pro, and Microsoft Intune product offerings. | Brock Walters |
-| 2026-02-25 | [What is Apple MDM? How Mobile Device Management Works in 2026](https://fleetdm.com/articles/what-is-apple-mdm) | Apple MDM enables IT teams to remotely configure, secure, and manage iOS, macOS, and iPadOS devices at scale. | Brock Walters |
-| 2026-02-25 | [The confidence gap: why IT leaders are abandoning legacy endpoint management](https://fleetdm.com/articles/the-confidence-gap) | Part 1 of 3 - Article series on supercharging modern endpoint management. | Ashish Kuthiala, CMO, Fleet Device Management |
-| 2026-02-25 | [Mac Inventory Management: Device Tracking Guide](https://fleetdm.com/articles/mac-inventory-management) | Mac inventory combines MDM frameworks with osquery to track hardware, software, and security configs. Learn how to implement zero-touch deployment. | Brock Walters |
-| 2026-02-25 | [Mac device security: Apple's native protections and third-party tools](https://fleetdm.com/articles/mac-device-security) | Learn how Mac endpoint security works, from Apple's protections (SIP, XProtect, TCC) to third-party tools for enterprise visibility and compliance. | Brock Walters |
-| 2026-02-23 | [Security baselines for Linux: closing the gap on exemptions](https://fleetdm.com/articles/security-baselines-for-linux) | Chapter 3 of Protecting Linux endpoints series | Ashish Kuthiala |
-| 2026-02-18 | [Detecting AI agents like OpenClaw with automated tooling](https://fleetdm.com/articles/detecting-ai-agents-like-openclaw-with-automated-tooling) | Part 2 of 3 - OpenClaw: What governance over autonomous AI agents looks like and what IT leaders should know about them. | Dhruv Majumdar |
-| 2026-02-16 | [Automated provisioning for Linux desktop in the enterprise](https://fleetdm.com/articles/automated-provisioning-for-Linux-desktop-in-the-enterprise) | Chapter 2 of Protecting Linux endpoints series | Ashish Kuthiala |
-| 2026-02-13 | [Why work laptops don't work on plane wifi](https://fleetdm.com/articles/why-work-laptops-dont-work-on-plane-wifi) | Work laptops often break on plane wifi due to VPNs, DNS filters, and captive portal conflicts. Maybe IT teams should make them work by default. | Mike McNeil |
-| 2026-02-04 | [The GitOps idea](https://fleetdm.com/articles/the-gitops-idea) | An introduction to GitOps concepts and components. | Brock Walters |
-| 2026-02-04 | [OpenClaw: Open for work?](https://fleetdm.com/articles/openclaw-open-for-work) | Part 1 of 3 - OpenClaw: An overview, how it works, and the security risks of autonomous AI agents on user devices. | Brock Walters |
-| 2026-02-04 | [Deploy Santa with Fleet GitOps and skip the sync server](https://fleetdm.com/articles/deploy-santa-with-fleet-gitops-and-skip-the-sync-server) | Part 1 of 2 - Learn to manage Santa in a whole new way with less complexity and overhead. | Allen Houchins |
-| 2026-01-21 | [Why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026) | Why enterprise Linux is important in 2026 Chapter 1 of Protecting Linux endpoints series | Ashish Kuthiala |
-| 2026-01-13 | [iPad MDM: a complete guide](https://fleetdm.com/articles/ipad-mdm-a-complete-guide) | A complete guide to iPad MDM, covering deployment models, enrollment methods, and the features organizations use to manage iPads securely at scale. | Brock Walters |
-| 2026-01-12 | [What is Apple Business Manager? A complete guide](https://fleetdm.com/articles/what-is-apple-business-manager-a-complete-guide) | A complete guide to Apple Business Manager, how it works with MDM, and how organizations use it for automated enrollment and app management. | Brock Walters |
-| 2026-01-11 | [What is application management?](https://fleetdm.com/articles/what-is-application-management) | An introduction to application management, what it includes, why it matters, and how tools automate software deployment, updates, and compliance. | Brock Walters |
-| 2026-01-11 | [Declarative device management: a primer](https://fleetdm.com/articles/declarative-device-management-a-primer) | An introduction to declarative device management (DDM), how it differs from legacy MDM, and why Apple built it for scalable device management. | Brock Walters |
-| 2026-01-11 | [6 business benefits of Apple MDM, explained](https://fleetdm.com/articles/6-business-benefits-of-apple-mdm-explained) | An overview of Apple MDM, how it works, and the practical business benefits it delivers for security, deployment, and IT operations. | Brock Walters |
-| 2025-11-26 | [The MDM migration reality: easier, but not easy](https://fleetdm.com/articles/the-mdm-mirgration-reality) | MDM migration is less disruptive than before, but still demands careful planning. | Allen Houchins |
-| 2025-11-04 | [When iCloud backups break MDM enrollment](https://fleetdm.com/articles/when-icloud-backups-break-mdm-enrollment) | Why iCloud restores can cause MDM enrollment failures and how to prevent them with the right Apple device management practices. | Irena Reedy |
-| 2025-10-06 | [Free migration from Jamf to Fleet](https://fleetdm.com/articles/free-migration-from-jamf-to-fleet) | Switch from Jamf to Fleet for free. Fleet follows Appleâs new macOS Tahoe 26.0 migration flow for a seamless move. | Alex Mitchell |
-| 2025-10-03 | [The taxonomy of compute.](https://fleetdm.com/articles/the-taxonomy-of-compute) | An overview of todayâs complex device landscape and how Fleet unifies open, transparent management across every platform. | Mike McNeil |
-| 2025-09-19 | [Device enrollment lifecycle](https://fleetdm.com/articles/device-enrollment-lifecycle) | The five stages of a device enrollment lifecycle. | Brock Walters |
-| 2025-09-10 | [Fleet goes to GopherCon 2025](https://fleetdm.com/articles/fleet-goes-to-gophercon-2025) | Engineering Fleeties made it out to New York for the 2025 edition of GopherCon, and brought back learnings to make Fleet even better | Ian Littman |
-| 2025-07-02 | [How Fleet raised a $27M Series B without a pitch deck](https://fleetdm.com/articles/how-fleet-raised-a-27m-series-b-without-a-pitch-deck) | Fleet raised $27M without a pitch deck. Instead, we wrote a memo on growth, vision, and whatâs next. | Irena Reedy |
-| 2025-06-23 | [One agent, fewer tools, fewer gaps](https://fleetdm.com/articles/one-agent-fewer-tools-fewer-gaps) | Managing devices and vulnerabilities shouldn't mean installing two different agentsâor paying for two different platforms. | Harrison Ravazzolo |
-| 2025-06-05 | [I work in operations. I deployed Fleet in minutes.](https://fleetdm.com/articles/i-work-in-operations-i-deployed-fleet-in-minutes) | Self-hosting Fleet is easier than you thinkâeven for non-technical roles. One of our ops team members shares how they got it running in minutes. | Nate Holliday |
-| 2025-05-27 | [Not everything runs in Kubernetes](https://fleetdm.com/articles/not-everything-runs-in-kubernete) | Why Fleet goes beyond Kubernetes to manage real-world infrastructure. | Zach Wasserman |
+| Asset | Audience | Use case | Date updated |
+| --- | --- | --- | --- |
+| [Fleet capabilities one-pager](https://docs.google.com/document/d/15nVnn2dalLnyJgfX3o-96jvFAzZPS9vrTaNo_lYNick/edit) | All | High-level summary of the platform's core capabilities. | <nobr>Feb‑14‑2022</nobr> |
+| [Fleet for IT Product Brochure](https://docs.google.com/document/d/1d_53iYU6O-uzaXnzjlXXGwByGRmpz3VMG6kWT6hMCkU/edit) | IT teams | Marketing overview for IT teams in early sales cycles. | <nobr>Oct‑20‑2021</nobr> |
+| [Fleet for Security Product Brochure](https://docs.google.com/document/d/18ocTpuQlwd8RwZA-KsqzEmQkAEvKvV8LngeFbkJdFj4/edit) | Security | Marketing overview for security teams in early sales cycles. | <nobr>Oct‑20‑2021</nobr> |
+| [Safe Enough to Switch](https://docs.google.com/document/d/1JsHEzUru2KKs6h7SKYEI6OjunwrRWmeUDTOtl57Shv4/edit) | All | Overview of Fleet's maturity for organizations switching tools. | <nobr>Sep‑15‑2025</nobr> |
 
-### Guides
+### Sales Enablement
 
-| Date updated | Asset | Description | Author |
-| :--- | :--- | :--- | :--- |
-| 2026-02-24 | [How we deployed Santa at Fleet](https://fleetdm.com/guides/how-we-deployed-santa-at-fleet) | Part 2 of 2 - Learn to manage Santa in a whole new way with less complexity and overhead. | Allen Houchins |
-| 2026-02-19 | [Mitigation assets and detection patterns for AI agents like OpenClaw](https://fleetdm.com/guides/mitigation-assets-and-detection-patterns-for-ai-agents-like-openclaw) | Part 3 of 3 - OpenClaw: Mitigations and patterns to help investigate autonomous AI agent use on managed endpoints. | Adam Baali |
-| 2026-02-13 | [Secure local admin passwords with LAPS and 1Password](https://fleetdm.com/guides/secure-local-admin-passwords) | A guide to implementing LAPS (Local Administrator Password Solution) with Fleet and 1Password Connect | Josh Roskos |
-| 2026-02-13 | [Fleet troubleshooting for IT admins](https://fleetdm.com/guides/fleet-troubleshooting-for-it-admins) |  | Steven Palmesano |
-| 2026-02-06 | [Migrate Fleet server to a new deployment](https://fleetdm.com/guides/migrate-fleet-server) | Migrate your Fleet server to a new deployment with this step-by-step guide. | Kitzy |
-| 2026-02-06 | [Deploying Okta Desktop MFA for Windows](https://fleetdm.com/guides/deploying-okta-desktop-mfa-with-fleet) | Learn how to deploy Okta Desktop MFA to Windows devices using Fleet MDM | Mitch Francese |
-| 2026-02-04 | [Deploy custom Android apps (APK)](https://fleetdm.com/guides/deploy-custom-android-app-apk) | This guide will walk you through deploying custom Android apps to your organization's Android hosts using Google Play Console and Fleet. | Marko Lisica |
-| 2026-01-26 | [Set a device hostname via the Fleet API](https://fleetdm.com/guides/set-device-hostname-via-fleet-api) | Use Fleet's API to set device hostnames on macOS, iOS, and iPadOS. This guide walks through building and sending the MDM command to rename devices. | Kitzy |
-| 2026-01-23 | [Enable Okta Verify on Windows](https://fleetdm.com/guides/enable-okta-verify-on-windows-using-a-scep-configuration-profile) | Enable Okta Verify on Windows using a SCEP configuration profile | Adam Baali |
-| 2026-01-20 | [Android BYOD MDM migration](https://fleetdm.com/guides/android-byod-mdm-migration) | Instructions for migrating Android BYOD hosts away from an old MDM solution to Fleet. | Steven Palmesano |
-| 2026-01-12 | [Manage bootstrap packages with GitOps](https://fleetdm.com/guides/manage-boostrap-package-with-gitops) | Learn how to manage bootstrap packages across teams using Fleet's GitOps workflow and API endpoints for automated device enrollment. | Kitzy |
-| 2026-01-08 | [Install app store apps](https://fleetdm.com/guides/install-app-store-apps) | This guide will walk you through installing Apple App Store and Google Play Store apps on macOS, iOS, iPadOS, and Android hosts. | Jahziel Villasana-Espinoza |
-| 2025-12-04 | [Conditional access: Okta](https://fleetdm.com/guides/okta-conditional-access-integration) | Learn how to enforce conditional access with Fleet and Okta. | Rachael Shaw |
-| 2025-12-01 | [Deploy Fleet with Docker Compose](https://fleetdm.com/guides/deploy-fleet-on-docker-compose) | Learn how to deploy Fleet using Docker Compose. | Kitzy |
-| 2025-11-06 | [Prevent tampering of Fleet Orbit on Windows](https://fleetdm.com/guides/prevent-tampering-of-fleet-agent) | Combine a Fleet policy, a PowerShell script, and a Windows configuration profile to prevent tampering with Fleet Orbit. | Adam Baali |
-| 2025-11-05 | [Foreign vitals: map IdP users to hosts](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts) |  | Marko Lisica |
-| 2025-11-05 | [Deploy CrowdStrike with Fleet](https://fleetdm.com/guides/deploying-crowdstrike-with-fleet) | Deploy CrowdStrike with Fleet | Harrison Ravazzolo |
-| 2025-10-30 | [Deploying Platform SSO with Okta Device Access](https://fleetdm.com/guides/deploying-okta-platform-sso-with-fleet) | Learn how to use Fleet to deploy the Okta Platform SSO Extension | Mitch Francese |
-| 2025-10-24 | [Labels in Fleet](https://fleetdm.com/guides/managing-labels-in-fleet) | Using labels in the Fleet | Noah Talerman |
-| 2025-09-24 | [Windows & Linux setup experience](https://fleetdm.com/guides/windows-linux-setup-experience) | Install software when Linux and Windows workstations enroll to Fleet | Dante Catalfamo |
-| 2025-08-08 | [Account-driven User Enrollment for personal Apple devices (BYOD)](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) | Enroll personal (BYOD) iPhones and iPads with Managed Apple Account | Marko Lisica |
-| 2025-07-17 | [Deploy Fleet on Render](https://fleetdm.com/guides/deploy-fleet-on-render) | Learn how to deploy Fleet on Render. | Ben Edwards |
-| 2025-07-17 | [Deploy Fleet on AWS with Terraform](https://fleetdm.com/guides/deploy-fleet-on-aws-with-terraform) | Learn how to deploy Fleet on AWS. | Ben Edwards |
-| 2025-06-26 | [Deploy Fleet on GCP](https://fleetdm.com/guides/deploy-fleet-on-gcp) | Learn how to deploy Fleet on GCP. | Ben Edwards |
-| 2025-06-20 | [Software self-service](https://fleetdm.com/guides/software-self-service) | This guide will walk you through adding apps to Fleet for user self-service. | Jahziel Villasana-Espinoza |
-| 2025-06-20 | [Conditional access: Entra](https://fleetdm.com/guides/entra-conditional-access-integration) | Learn how to enforce conditional access with Fleet and Microsoft Entra. | Lucas Manuel Rodriguez |
-| 2025-05-26 | [View and manage MDM configuration profile status](https://fleetdm.com/guides/configuration-profile-status) |  | Gabe Hernandez |
-| 2025-05-22 | [Migrating to GitOps using fleetctl](https://fleetdm.com/guides/migrating-to-gitops-using-fleetctl) | Instructions for migrating your Fleet configuration to GitOps. | Scott Gress |
-| 2025-05-15 | [Using maintenance windows (Fleet in your calendar)](https://fleetdm.com/guides/using-maintenance-windows) | How to schedule time for self-remediation when your end users are free using Fleet's maintenance windows. | Noah Talerman |
-| 2025-05-05 | [Deploy software](https://fleetdm.com/guides/deploy-software-packages) | This guide will walk you through adding and editing software packages in Fleet. | Roberto Dip |
-| 2025-04-30 | [Manage software in GitOps mode](https://fleetdm.com/guides/gitops-mode-software) | Learn how to use Fleet's YAML to manage software in GitOps mode. | Noah Talerman |
-| 2025-04-15 | [Deploying SentinelOne with Fleet](https://fleetdm.com/guides/deploying-sentinelone-with-fleet) | Deploying SentinelOne with Fleet | Harrison Ravazzolo |
-| 2025-04-11 | [Effortless onboarding: Fleetâs SAML integration for macOS Setup](https://fleetdm.com/guides/end-user-authentication) | Using single sign-on (SSO) to handle identities automatically during device enrollment | Victor Lyuboslavsky |
-| 2025-04-05 | [Android MDM setup](https://fleetdm.com/guides/android-mdm-setup) | Learn how to turn on Android MDM in Fleet. | Marko Lisica |
-| 2025-04-03 | [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps) |  | Gabriel Hernandez |
-| 2025-04-03 | [Behind the Scenes of an Account Development Representative (ADR)](https://fleetdm.com/guides/behind-the-scenes-of-an-adr) | Behind the Scenes of an Account Development Representative (ADR) | Patricia Ambrus |
-| 2025-04-01 | [Enabling Fleet Desktop on Fedora, Debian, and openSUSE](https://fleetdm.com/guides/fleet-desktop-on-fedora-and-debian) |  | Lucas Rodriguez |
-| 2025-03-31 | [Becoming an ADR (Account Development Representative) at Fleet. A look at what I've learned.](https://fleetdm.com/guides/becoming-an-adr-at-fleet) |  | Onasis Munro |
-| 2025-03-28 | [What I have learned from managing devices with GitOps](https://fleetdm.com/guides/what-i-have-learned-from-managing-devices-with-gitops) | GitOps changes more than just technology. | Allen Houchins |
-| 2025-03-21 | [GitOps mode](https://fleetdm.com/guides/gitops-mode) | Help users avoid unexpected changes by preventing manual updates of GitOps-configurable features | Jacob Shandling |
-| 2025-03-19 | [How Fleet uses EscrowBuddy to generate and collect FileVault Personal Recovery Keys](https://fleetdm.com/guides/escrowbudy-basics) | Learn how Fleet's EscrowBuddy integration makes sure your FileVault Personal Recovery Keys are always escrowed | Dale Ribeiro |
-| 2025-03-04 | [View certificates in host vitals](https://fleetdm.com/guides/view-certificates-in-host-vitals) | Learn about certificates in host vitals | Sarah Gillespie |
-| 2025-02-28 | [Automatically install software](https://fleetdm.com/guides/automatic-software-install-in-fleet) | A guide to workflows using automatic software installation in Fleet. | Sharon Katz |
-| 2025-02-25 | [Configuring full names in Google Workspace](https://fleetdm.com/guides/configuring-full-names-in-google-workspace) | Populating full name during macOS setup experience from Google Workspace | Allen Houchins |
-| 2025-02-12 | [Preventing Mistakes with GitOps](https://fleetdm.com/guides/preventing-mistakes-with-gitops) | Use GitOps to manage your infrastructure in code and prevent mistakes | Harrison Ravazzolo |
-| 2025-02-04 | [Deploying Platform SSO with Microsoft Entra ID](https://fleetdm.com/guides/deploying-entra-platform-sso-with-fleet) | Learn how to use Fleet to deploy the Microsoft Entra ID Platfrom SSO Extension | Dale Ribeiro |
-| 2025-02-03 | [How to use CloudFront signed URLs with Fleet](https://fleetdm.com/guides/cdn-signed-urls) | A guide on using signed URLs with MDM bootstrap packages and software installers. | Victor Lyuboslavsky |
-| 2025-01-28 | [Prevent tampering of Fleet agent and other login items](https://fleetdm.com/guides/prevent-tampering-login-items) | Learn how to build a mobileconfig to prevent users from tampering with Login Items. | Harrison Ravazzolo |
-| 2025-01-14 | [Fleet software attestation](https://fleetdm.com/guides/fleet-software-attestation) |  | Scott Gress |
-| 2025-01-13 | [Translating Jamf Pro terminology & capabilities](https://fleetdm.com/guides/translating-jamf-pro-terminology) | Translate Jamf Pro terminology and capabilities to Fleet | Allen Houchins |
-| 2025-01-02 | [Variables in scripts and configuration profiles](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) | A guide on using variables in scripts and configuration profiles. | Victor Lyuboslavsky |
-| 2025-01-01 | [Queries](https://fleetdm.com/guides/queries) | Learn how to create, run, and schedule queries, as well as update agent options in the Fleet user interface. | Noah Talerman |
-| 2024-12-29 | [Using bioutil to verify Touch ID/biometric utilization](https://fleetdm.com/guides/using-bioutil-cmd) | Streamline Biometric Security with bioutil and Fleet | Harrison Ravazzolo |
-| 2024-12-20 | [Deploying Cloudflare WARP with Fleet](https://fleetdm.com/guides/deploying-cloudflare-warp-with-fleet) |  | Harrison Ravazzolo |
-| 2024-12-12 | [Creating Windows configuration profiles (CSPs)](https://fleetdm.com/guides/creating-windows-csps) | Learn how to deploy Windows configuration profiles (CSPs) with Fleet | Harrison Ravazzolo |
-| 2024-12-09 | [Remote deployment of YARA rules](https://fleetdm.com/guides/remote-yara-rules) |  | Zach Wasserman |
-| 2024-12-06 | [mTLS support in fleetd](https://fleetdm.com/guides/fleetd-mtls) |  | Lucas Rodriguez |
-| 2024-12-04 | [Resolving a critical Firefox vulnerability using Fleet's new automation features](https://fleetdm.com/guides/resolving-a-critical-firefox-vulnerability-using-fleets-new-automation-features) | This guide outlines the process of using Fleet policies to automatically remediate software vulnerabillities. | Luke Heath |
-| 2024-12-03 | [How Fleet empowers Linux device management](https://fleetdm.com/guides/empower-linux-device-management) | This guide explores how Fleet empowers Linux MDM. | Allen Houchins |
-| 2024-11-25 | [Encrypt your Fleet-managed Linux device](https://fleetdm.com/guides/linux-disk-encryption-end-user) | Instructions for end users to encrypt Linux devices enrolled in Fleet. | Rachael Shaw |
-| 2024-11-14 | [Fleetd authentication](https://fleetdm.com/guides/fleetd-authentication) |  | Lucas Rodriguez |
-| 2024-11-07 | [How to use policies for patch management in Fleet](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet) | This guide explores automating patching across your environment. | Harrison Ravazzolo |
-| 2024-11-01 | [Configuring an Alternative Apple MDM URL](https://fleetdm.com/guides/alternate-apple-mdm-url) | A guide on configuring an alternative Apple MDM URL in Fleet for better traffic management. | Tim Lee |
-| 2024-10-31 | [Role-based access](https://fleetdm.com/guides/role-based-access) | Learn about the different roles and permissions in Fleet. | Noah Talerman |
-| 2024-10-30 | [Connect end users to Wi-Fi or VPN with a certificate (DigiCert, NDES, Hydrant, Smallstep, or custom SCEP)](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate) | Learn how to automatically connect a device to a Wi-Fi by adding your certificate authority and issuing a certificate from it. | Victor Lyuboslavsky |
-| 2024-10-16 | [Battery health](https://fleetdm.com/guides/battery-health) | Monitor and assess battery health in macOS and Windows devices using Fleet and osquery to maintain optimal device performance. | Tim Lee |
-| 2024-10-07 | [Scripts](https://fleetdm.com/guides/scripts) | Learn how to execute a custom script on macOS, Windows, and Linux hosts in Fleet. | Noah Talerman |
-| 2024-10-07 | [Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script) | A guide to workflows using automatic script execution in Fleet. | Ian Littman |
-| 2024-09-27 | [GitOps: A strategic advantage for automation, collaboration, and cost savings](https://fleetdm.com/guides/sysadmin-diaries-gitops-a-strategic-advantage) | This diary entry explores why GitOps will save time, money and effort. | Allen Houchins |
-| 2024-09-23 | [Enable Okta Verify on macOS using configuration profile](https://fleetdm.com/guides/enable-okta-verify-on-macOS-with-configuration-profile) | This guide will walk you through enabling Okta verify on macOS hosts using a configuration profile. | Roberto Dip |
-| 2024-09-20 | [Windows EXE install scripts](https://fleetdm.com/guides/exe-install-scripts) | This guide will walk you through adding software to Fleet using EXE installers. | Victor Lyuboslavsky |
-| 2024-09-20 | [Enrolling BYOD iPad/iOS devices in Fleet](https://fleetdm.com/guides/enroll-byod-ios-ipados-hosts) | This guide will walk you through the process of inviting BYOD iPhones and iPads to enroll in Fleet. | Roberto Dip |
-| 2024-09-12 | [Configuring default teams for macOS, iOS, and iPadOS devices in Fleet](https://fleetdm.com/guides/configuring-default-teams-for-devices-in-fleet) | This guide will walk you through configuring default teams for devices using the Fleet web UI. | JD Strong |
-| 2024-09-06 | [Discovering Chrome AI using Fleet](https://fleetdm.com/guides/discovering-chrome-ai-using-fleet) | Use Fleet to detect and monitor settings enabled in Google Chrome by querying Chrome's preferences JSON file. | Brock Walters |
-| 2024-08-30 | [Filtering software by vulnerability in Fleet](https://fleetdm.com/guides/filtering-software-by-vulnerability) | Filter software by vulnerability in Fleet to prioritize critical patches and enhance your organization's security posture. | Tim Lee |
-| 2024-08-14 | [macOS MDM migration](https://fleetdm.com/guides/mdm-migration) | Instructions for migrating macOS hosts away from an old MDM solution to Fleet. | Mo Zhu |
-| 2024-08-14 | [Enforce disk encryption](https://fleetdm.com/guides/enforce-disk-encryption) | Learn how to enforce disk encryption on macOS, Windows, and Linux hosts and manage encryption keys with Fleet Premium. | Noah Talerman |
-| 2024-08-13 | [Fleet usage statistics](https://fleetdm.com/guides/fleet-usage-statistics) | Learn about Fleet's usage statistics and what information is collected. | Noah Talerman |
-| 2024-08-10 | [Enforce OS updates](https://fleetdm.com/guides/enforce-os-updates) | Learn how to manage OS updates on macOS, Windows, iOS, and iPadOS hosts | Noah Talerman |
-| 2024-08-08 | [Seamless MDM migrations to Fleet](https://fleetdm.com/guides/seamless-mdm-migration) | This guide provides a process for seamlessly migrating macOS devices from an existing MDM solution to Fleet. | Zach Wasserman |
-| 2024-08-08 | [Enroll hosts](https://fleetdm.com/guides/enroll-hosts) | Learn how to enroll hosts to Fleet. | Noah Talerman |
-| 2024-07-27 | [Custom OS settings](https://fleetdm.com/guides/custom-os-settings) | Learn how to enforce custom settings on macOS and Window hosts using Fleet's configuration profiles. | Noah Talerman |
-| 2024-07-12 | [Vulnerability processing](https://fleetdm.com/guides/vulnerability-processing) | Find out how Fleet detects vulnerabilities and what software it covers. | Noah Talerman |
-| 2024-07-11 | [Teams](https://fleetdm.com/guides/teams) | Learn how to group hosts in Fleet to apply specific queries, policies, and agent options using teams. | Noah Talerman |
-| 2024-07-09 | [Lock and wipe hosts](https://fleetdm.com/guides/lock-wipe-hosts) |  | JD Strong |
-| 2024-07-09 | [Certificates in fleetd](https://fleetdm.com/guides/certificates-in-fleetd) | TLS certificates in fleetd | Lucas Manuel Rodriguez |
-| 2024-07-04 | [Fleetctl](https://fleetdm.com/guides/fleetctl) | Read about fleetctl, a CLI tool for managing Fleet and osquery configurations, running queries, generating Fleet's agent (fleetd), and more. | Noah Talerman |
-| 2024-07-03 | [Setup experience](https://fleetdm.com/guides/setup-experience) | Customize the out-of-the-box macOS, Windows, Linux, iOS, iPadOS, and Android setup | Noah Talerman |
-| 2024-07-03 | [Automations](https://fleetdm.com/guides/automations) | Configure Fleet automations to trigger webhooks or create tickets in Jira and Zendesk for vulnerability, policy, and host status events. | Noah Talerman |
-| 2024-07-02 | [Apple MDM setup](https://fleetdm.com/guides/apple-mdm-setup) | Learn how to turn on MDM features for Apple hosts in Fleet. | Mo Zhu |
-| 2024-06-28 | [Sysadmin diaries: exporting policies](https://fleetdm.com/guides/sysadmin-diaries-exporting-policies) | In this sysadmin diary, we explore extracting existing policies to enable gitops. | JD Strong |
-| 2024-06-28 | [How to configure logging destinations](https://fleetdm.com/guides/how-to-configure-logging-destinations) |  | Grant Bilstad |
-| 2024-06-14 | [Sysadmin diaries: restoring fleetd](https://fleetdm.com/guides/sysadmin-diaries-restoring-fleetd) | In this sysadmin diary, we explore restoring fleetd deleted by a surly employee. | JD Strong |
-| 2024-06-12 | [MDM commands](https://fleetdm.com/guides/mdm-commands) | Learn how to run custom MDM commands on hosts using Fleet. | Brock Walters |
-| 2024-06-12 | [Deploy Fleet on Ubuntu](https://fleetdm.com/guides/deploy-fleet-on-ubuntu-with-elastic) | A guide to deploy Fleet and Elastic on Ubuntu. | Josh Brower |
-| 2024-06-03 | [Remediating the xz vulnerability with Fleet](https://fleetdm.com/guides/remediating-the-xz-vulnerability-with-fleet) | Discover and create a comprehensive end-to-end remediation workflow for the xz vulnerability (CVE-2024-3094) with Fleet. | Brock Walters |
-| 2024-05-30 | [Building webhook flows with Fleet and Tines](https://fleetdm.com/guides/building-webhook-flows-with-fleet-and-tines) | A guide to workflows using Tines and Fleet via webhook to update outdated OS versions. | Victor Lyuboslavsky |
-| 2024-05-20 | [Fleetâs AI-assisted policy descriptions and resolutions](https://fleetdm.com/guides/fleet-ai-assisted-policy-descriptions-and-resolutions) | AI guides our way, Policies clear, secure paths, Compliance shines bright. | Rachel Perkins |
-| 2024-05-03 | [Sysadmin diaries: device enrollment](https://fleetdm.com/guides/sysadmin-diaries-device-enrollment) | In this sysadmin diary, we explore a the differences in device enrollment. | JD Strong |
-| 2024-04-30 | [Fleetd updates](https://fleetdm.com/guides/fleetd-updates) | Information on how to manage and secure Fleet agent updates. | Noah Talerman |
-| 2024-04-19 | [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop) | Learn about Fleet Desktop's features for self-remediation and transparency. | Mo Zhu |
-| 2024-04-17 | [Driving company culture through AI haiku poetry](https://fleetdm.com/guides/driving-company-culture-through-ai-haiku-poetry) | Code and verse entwine, Silicon sparks, haikus shine, Art meets design line. | Luke Heath |
-| 2024-04-04 | [Standard query library](https://fleetdm.com/guides/standard-query-library) | Learn how to use and contribute to Fleet's standard query library. | Noah Talerman |
-| 2024-04-02 | [CIS Benchmarks](https://fleetdm.com/guides/cis-benchmarks) | Read about how Fleet's implementation of CIS Benchmarks offers consensus-based cybersecurity guidance. | Lucas Rodriguez |
-| 2024-04-01 | [Sysadmin diaries: passcode profiles](https://fleetdm.com/guides/sysadmin-diaries-passcode-profiles) | In this sysadmin diary, we explore a missapplied passcode policy. | JD Strong |
-| 2024-03-06 | [Apple developer certificates on Linux for configuration profile signing](https://fleetdm.com/guides/apple-developer-certificates-on-linux-for-configuration-profile-signing) | This guide walks through the process of adding an Apple signing certificate to a Linux host. | Brock Walters |
-| 2024-01-31 | [Config-less fleetd agent deployment](https://fleetdm.com/guides/config-less-fleetd-agent-deployment) | Config-less `fleetd` agent deployment | Noah Talerman |
-| 2024-01-09 | [Downgrade from Fleet Premium](https://fleetdm.com/guides/downgrade-fleet) | Learn how to downgrade from Fleet Premium. | Eric Shaw |
-| 2023-12-29 | [Understanding the intricacies of Fleet policies](https://fleetdm.com/guides/understanding-the-intricacies-of-fleet-policies) | Learn how Fleet policies work behind the scenes. | Victor Lyuboslavsky |
-| 2023-12-27 | [Get current telemetry from your devices with live queries](https://fleetdm.com/guides/get-current-telemetry-from-your-devices-with-live-queries) | Learn how live queries work under the hood. | Victor Lyuboslavsky |
-| 2023-12-04 | [Catch missed authorization checks during software development](https://fleetdm.com/guides/catch-missed-authorization-checks-during-software-development) | How to perform authorization checks in a golang codebase for cybersecurity | Victor Lyuboslavsky |
-| 2023-11-21 | [ChromeOS](https://fleetdm.com/guides/chrome-os) | Learn about ChromeOS and Fleet. | Mo Zhu |
-| 2023-11-13 | [Which API endpoints to expose to the public internet?](https://fleetdm.com/guides/what-api-endpoints-to-expose-to-the-public-internet) |  | Mike Thomas |
-| 2023-11-02 | [Log destinations](https://fleetdm.com/guides/log-destinations) | Learn about supported log destinations in Fleet, including Amazon Kinesis, AWS Lambda Snowflake, Splunk, and more. | Rachael Shaw |
-| 2023-10-23 | [Windows MDM setup](https://fleetdm.com/guides/windows-mdm-setup) | Configuring Windows MDM in Fleet. | Noah Talerman |
-| 2023-09-01 | [Using the Fleet Terraform module with an existing VPC](https://fleetdm.com/guides/fleet-terraform-byo-vpc-module) |  | Robert Fairburn |
-| 2023-07-28 | [Osquery watchdog](https://fleetdm.com/guides/osquery-watchdog) | Learn about how osquery process manages child processes and managed extensions in Fleet. | Juan Fernandes |
-| 2023-07-17 | [Querying process_file_events on CentOS 7](https://fleetdm.com/guides/querying-process-file-events-table-on-centos-7) | Learn how to configure and query the process_file_events table on CentOS 7 with Fleet. | Lucas Rodriguez |
-| 2023-05-31 | [Using GitHub Actions to apply configuration profiles with Fleet](https://fleetdm.com/guides/using-github-actions-to-apply-configuration-profiles-with-fleet) | A guide on using GitHub Actions with Fleet for efficient and automated application of the latest configuration profiles for a GitOps workflow. | JD Strong |
-| 2023-05-22 | [Building an effective dashboard with Fleet's REST API, Flask, and Plotly: A step-by-step guide](https://fleetdm.com/guides/building-an-effective-dashboard-with-fleet-rest-api-flask-and-plotly) | Step-by-step guide on building a dynamic dashboard with Fleet's REST API, Flask, and Plotly. Master data visualization with open-source tools! | Dave Herder |
-| 2023-05-18 | [Discovering Geacon using Fleet](https://fleetdm.com/guides/discovering-geacon-using-fleet) | Enterprise security teams can use Fleet to identify and locate Geacon payloads and protect their macOS devices from this threat. | JD Strong |
-| 2023-05-09 | [Using Fleet and Okta Workflows to generate a daily OS report](https://fleetdm.com/guides/using-fleet-and-okta-workflows-to-generate-a-daily-os-report) | Learn how to use Fleet to query device OS information through the Fleet REST API and automate daily Slack notifications using Okta Workflows. | Harrison Ravazzolo |
-| 2023-03-08 | [Using Fleet and Tines together](https://fleetdm.com/guides/using-fleet-and-tines-together) |  | Dave Herder |
-| 2022-10-14 | [How to use Fleet for zero trust attestation](https://fleetdm.com/guides/zero-trust-attestation-with-fleet) |  | Mo Zhu |
-| 2022-09-21 | [How to use osquery evented tables](https://fleetdm.com/guides/osquery-evented-tables-overview) |  | Mo Zhu |
-| 2022-09-08 | [Deploy Fleet on Cloud.gov](https://fleetdm.com/guides/deploy-fleet-on-cloudgov) | Information for deploying Fleet on Cloud.gov. | John Jediny |
-| 2022-06-27 | [Deploy Fleet on Hetzner Cloud](https://fleetdm.com/guides/deploy-fleet-on-hetzner-cloud) | Learn how to deploy Fleet on Hetzner Cloud using cloud-init and Docker. | Kathy Satterlee |
-| 2022-05-26 | [Enrolling a DigitalOcean Droplet on a Fleet instance](https://fleetdm.com/guides/enrolling-a-digital-ocean-droplet-on-a-fleet-instance) |  | Kelvin Omereshone |
-| 2022-04-04 | [Osquery: a tool to easily ask questions about operating systems](https://fleetdm.com/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems) |  | Kelvin Omereshone |
-| 2022-03-19 | [How to install osquery and enroll Linux devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-linux-devices-into-fleet) |  | Kathy Satterlee |
-| 2022-02-03 | [How to install osquery and enroll Windows devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-windows-devices-into-fleet) |  | Kelvin Omereshone |
-| 2022-02-01 | [Delivering data to Snowflake from Fleet and osquery.](https://fleetdm.com/guides/delivering-data-to-snowflake-from-fleet-and-osquery) |  | Tom Larkin |
-| 2022-01-13 | [How to install osquery and enroll macOS devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-macos-devices-into-fleet) |  | Kelvin Omereshone |
-| 2021-10-06 | [Deploy Fleet on AWS ECS](https://fleetdm.com/guides/deploy-fleet-on-aws-ecs) | Information for deploying Fleet on AWS ECS. | Ben Edwards |
-| 2021-09-08 | [How to uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd) |  | Eric Shaw |
-| 2021-06-15 | [Converting unix timestamps with osquery](https://fleetdm.com/guides/converting-unix-timestamps-with-osquery) |  | Mike Thomas |
-| 2021-06-02 | [Correlate network connections with community ID in osquery.](https://fleetdm.com/guides/correlate-network-connections-with-community-id-in-osquery) |  | Zach Wasserman |
-| 2021-05-26 | [Using Elasticsearch and Kibana to visualize osquery performance](https://fleetdm.com/guides/using-elasticsearch-and-kibana-to-visualize-osquery-performance) |  | Zach Wasserman |
-| 2021-05-11 | [Locate device assets in the event of an emergency.](https://fleetdm.com/guides/locate-assets-with-osquery) |  | Zach Wasserman |
-| 2021-05-11 | [Fleet quick tips â identify systems where the ProcDump EULA has been accepted](https://fleetdm.com/guides/fleet-quick-tips-querying-procdump-eula-has-been-accepted) |  | Mike Thomas |
-| 2021-05-06 | [Osquery: Consider joining against the users table](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table) |  | Zach Wasserman |
-| 2021-02-16 | [Import and export queries in Fleet](https://fleetdm.com/guides/import-and-export-queries-in-fleet) |  | Noah Talerman |
-| 2020-03-17 | [Generate process trees with osquery](https://fleetdm.com/guides/generate-process-trees-with-osquery) |  | Zach Wasserman |
-| 2017-11-18 | [Deploy Fleet on Kubernetes](https://fleetdm.com/guides/deploy-fleet-on-kubernetes) | Learn how to deploy Fleet on Kubernetes | Mike Arpaia |
-| 2017-09-22 | [Deploy Fleet on CentOS](https://fleetdm.com/guides/deploy-fleet-on-centos) | A guide to deploy Fleet on CentOS. | Mike Arpaia |
+| Asset | Audience | Use case | Date updated |
+| --- | --- | --- | --- |
+| [Fleet pain points guide](https://docs.google.com/document/d/1h8N9Icow6g-08EZPQMnbH-bDKDbXoPy-lwlUm9DiPJA/edit) | Fleet sales and channel teams | Typical pain points Fleet solves and how to uncover them. | <nobr>Mar‑06‑2026</nobr> |
+| [Fleet ideal customer profile and persona guide](https://docs.google.com/document/d/1ffsPCS6KGrHQFF7EgRLz1z2mOvtZwMSGyfDezOuOUwc/edit) | Fleet sales and channel teams | Typical Fleet buyer profiles. | <nobr>Jan‑18‑2026</nobr> |
 
-### Release Notes
+### Competitive & ROI
+
+| Asset | Competitor | Use case | Date updated |
+| --- | --- | --- | --- |
+| [Fleet vs. Jamf vs. Intune: Comparing fleet management software](https://fleetdm.com/articles/fleet-management-software) | Jamf / Intune | Full feature comparison across all three platforms. | <nobr>Feb‑26‑2026</nobr> |
+| [Fleet vs. Jamf Pro and NinjaOne: MDM Solution Comparison 2026](https://fleetdm.com/articles/fleet-vs-jamf-pro-ninjaone-mdm-comparison) | Jamf / NinjaOne | Three-way comparison of Fleet, Jamf Pro, and NinjaOne on enrollment, security, API, and pricing. | <nobr>Mar‑09‑2026</nobr> |
+| [Fleet vs. Jamf](https://fleetdm.com/compare/jamf) | Jamf | Direct comparison of Fleet and Jamf Pro product offerings. | <nobr>Jan‑10‑2026</nobr> |
+| [MDM Providers Compared: Fleet vs Workspace ONE](https://fleetdm.com/articles/mdm-providers-compared) | Workspace ONE | Feature-by-feature comparison of Fleet and VMware Workspace ONE. | <nobr>Feb‑27‑2026</nobr> |
+| [A comparative look at VMware Workspace ONE and Fleet](https://fleetdm.com/articles/comparative-look-at-ws1-and-fleet) | Workspace ONE | Side-by-side comparison with VMware Workspace ONE. | <nobr>Feb‑01‑2024</nobr> |
+| [A comparative look at VMware Workspace ONE and Fleet (announcement)](https://fleetdm.com/announcements/a-comparative-look-at-vmware-workspace-one-and-fleet) | Workspace ONE | Original announcement post — side-by-side comparison with VMware Workspace ONE. | <nobr>Feb‑01‑2024</nobr> |
+| [Apple Push Notification Service: How APNs Works in MDM](https://fleetdm.com/articles/apple-push-notification-service-apns-mdm) | — | How APNs enables MDM communication with Apple devices. | <nobr>Mar‑09‑2026</nobr> |
+| [Battle card — Workspace ONE](https://docs.google.com/document/d/1dV9zooPnCnHa0UfZqXKWAi6Zmye2jfqRIr_UnX70Sq4/edit) | Workspace ONE | Strategic talking points for VMware competitive scenarios. | <nobr>Sep‑12‑2023</nobr> |
+| [Jamf vs. Fleet terminology](https://docs.google.com/document/d/1RKojfpUMUiITPce5O7znYmxdQR9U6f5sVnVzQpPpp8Y/edit) | Jamf | Concept mapping between Jamf and Fleet for migration conversations. | <nobr>Sep‑09‑2025</nobr> |
+| [Death to Extension Attributes](https://github.com/allenhouchins/death-to-extension-attributes) | Jamf | Compares Fleet queries to Jamf extension attributes for technical audiences. | <nobr>Jun‑15‑2023</nobr> |
+| [ROI Spreadsheet](https://docs.google.com/spreadsheets/d/14Cfj77ynOB6z4pmb9DD7HNRGo0kcKJuEIifgnz-YO50/edit) | — | Financial value justification and ROI calculator for deals. | <nobr>Aug‑14‑2023</nobr> |
+| [Product Roadmap](https://docs.google.com/document/d/16si8Nkh0F25opUMpZYm6XwU8LEhGd7H4eOzPKFz8jGw/edit) | — | Future development vision for open roadmap conversations. | <nobr>Jan‑20‑2021</nobr> |
+| [Gartner IT Symposium 2025 Presentation](https://drive.google.com/file/d/1HK1QXA2kOCeOoOG1E0-tk7-xwBhQ2QMa/view) | — | Outcomes and value achieved via GitOps. (by Allen Houchins) | <nobr>Oct‑21‑2024</nobr> |
+
+---
+
+## 🟠 Social Proof
+
+Champion stories and case studies showing real customers achieving real outcomes. Use in late-stage sales, objection handling, vertical campaigns, and website. Audience: AEs, demand gen, content team.
+
+### Named customers
+
+| Story | Industry | Mac | Windows | Linux | Date |
+| --- | --- | --- | --- | --- | --- |
+| [Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually](https://fleetdm.com/case-study/stripe) | FinTech | ✓ |  |  | <nobr>2025‑12‑11</nobr> |
+| [Foursquare cut costs and gained 114% ROI with Fleet](https://fleetdm.com/case-study/foursquare) | Software / SaaS | ✓ | ✓ | ✓ | <nobr>2025‑12‑11</nobr> |
+| [Faire secures Macs with CIS benchmarks and Fleet](https://fleetdm.com/case-study/faire) | E-Commerce / Retail | ✓ |  |  | <nobr>2025‑12‑11</nobr> |
+| [Thumbtack migrates more than 90% of Macs with no IT intervention](https://fleetdm.com/case-study/thumbtack) | Software / SaaS | ✓ |  |  | <nobr>2026‑03‑26</nobr> |
+| [How Deputy achieved compliance and clarity with Fleet](https://fleetdm.com/articles/deputy-achieves-compliance-and-clarity-with-fleet) | Software / SaaS | ✓ |  | ✓ | <nobr>2024‑12‑17</nobr> |
+| [Fastly gains visibility into all endpoints and critical infrastructure worldwide](https://fleetdm.com/case-study/fastly) | Networking / CDN | ✓ | ✓ | ✓ | <nobr>2025‑01‑29</nobr> |
+
+### Anonymous stories — Financial Services
+
+| Story | Mac | Windows | Linux | Date |
+| --- | --- | --- | --- | --- |
+| [Financial technology company manages 15,000 devices with GitOps](https://fleetdm.com/case-study/financial-technology-company) | ✓ | ✓ | ✓ | <nobr>2026‑02‑22</nobr> |
+| [Financial services platform manages 6,000+ hosts with continuous compliance visibility](https://fleetdm.com/case-study/financial-services-platform) | ✓ | ✓ | ✓ | <nobr>2026‑02‑22</nobr> |
+| [Fintech company manages a global remote workforce with Fleet](https://fleetdm.com/articles/fintech-company) | ✓ | ✓ | ✓ | <nobr>2026‑03‑14</nobr> |
+| [Fintech company strengthens infrastructure visibility with Fleet](https://fleetdm.com/articles/fintech-company-strengthens-infrastructure-visibility) | ✓ | ✓ | ✓ | <nobr>2026‑03‑14</nobr> |
+| [Financial data company scales endpoint visibility with Fleet](https://fleetdm.com/articles/financial-data-company) | ✓ | ✓ | ✓ | <nobr>2026‑03‑04</nobr> |
+| [Banking platform guarantees script execution and audit-ready compliance](https://fleetdm.com/case-study/banking-platform) | ✓ | ✓ |  | <nobr>2026‑02‑22</nobr> |
+| [American financial services company migrates to Fleet for MDM and next-gen change management](https://fleetdm.com/case-study/financial-services-company) | ✓ | ✓ |  | <nobr>2024‑12‑19</nobr> |
+| [Digital bank strengthens security and compliance with Fleet](https://fleetdm.com/case-study/digital-bank) | ✓ | ✓ | ✓ | <nobr>2024‑06‑01</nobr> |
+
+### Anonymous stories — Technology & SaaS
+
+| Story | Mac | Windows | Linux | Date |
+| --- | --- | --- | --- | --- |
+| [Workspace software company consolidates Kandji and Intune across 1,465 devices](https://fleetdm.com/case-study/workspace-software-company) | ✓ | ✓ |  | <nobr>2026‑02‑22</nobr> |
+| [Communications platform unifies device management across 3,000 devices](https://fleetdm.com/case-study/communications-platform) | ✓ | ✓ | ✓ | <nobr>2026‑02‑22</nobr> |
+| [Global technology platform improves vulnerability intelligence with Fleet](https://fleetdm.com/articles/global-technology-platform) | ✓ | ✓ | ✓ | <nobr>2026‑03‑03</nobr> |
+| [Online marketplace simplifies multi-OS device management with Fleet](https://fleetdm.com/articles/online-marketplace) | ✓ | ✓ | ✓ | <nobr>2026‑03‑14</nobr> |
+| [Establishing visibility in a distributed hybrid environment](https://fleetdm.com/case-study/global-saas-company) | ✓ | ✓ | ✓ | <nobr>2025‑10‑07</nobr> |
+| [Cloud-based data leader chooses Fleet for orchestration](https://fleetdm.com/case-study/cloud-data-platform) | ✓ | ✓ | ✓ | <nobr>2024‑12‑20</nobr> |
+| [How a global workforce management company achieved compliance and clarity with Fleet](https://fleetdm.com/case-study/global-workforce-management-company) | ✓ | ✓ | ✓ | <nobr>2024‑12‑17</nobr> |
+| [Global social media platform migrates to Fleet](https://fleetdm.com/case-study/global-social-media-platform) | ✓ | ✓ | ✓ | <nobr>2024‑12‑16</nobr> |
+| [Global collaboration platform consolidates device management with Fleet](https://fleetdm.com/case-study/collaboration-platform) | ✓ | ✓ | ✓ | <nobr>2024‑06‑01</nobr> |
+
+### Anonymous stories — Security, IT Services, Healthcare & Other
+
+| Story | Vertical | Mac | Windows | Linux | Date |
+| --- | --- | --- | --- | --- | --- |
+| [AI security company runs live queries to verify CVEs in seconds](https://fleetdm.com/case-study/ai-security-company) | Security |  |  | ✓ | <nobr>2026‑02‑22</nobr> |
+| [Worldwide security and authentication platform chooses Fleet for Linux management](https://fleetdm.com/case-study/worldwide-security-and-authentication-platform) | Security |  |  | ✓ | <nobr>2024‑12‑10</nobr> |
+| [Cybersecurity company improves endpoint visibility with Fleet](https://fleetdm.com/articles/cybersecurity-company) | Security | ✓ | ✓ | ✓ | <nobr>2026‑03‑14</nobr> |
+| [Cybersecurity company improves Linux management with Fleet](https://fleetdm.com/articles/cybersecurity-company-1) | Security |  |  | ✓ | <nobr>2026‑03‑14</nobr> |
+| [Identity security company unifies cross-platform device management with Fleet](https://fleetdm.com/articles/identity-security-company) | Identity / Security | ✓ | ✓ |  | <nobr>2026‑03‑14</nobr> |
+| [Identity platform improves Linux visibility with Fleet](https://fleetdm.com/articles/identity-platform) | Identity / Security |  |  | ✓ | <nobr>2026‑03‑14</nobr> |
+| [IT service provider scales to 8,000+ devices with GitOps](https://fleetdm.com/case-study/it-service-provider) | IT / MSP | ✓ | ✓ | ✓ | <nobr>2026‑02‑22</nobr> |
+| [IT platform provider automates patching across thousands of Mac, Windows, and Linux devices](https://fleetdm.com/case-study/it-platform-provider) | IT / MSP | ✓ | ✓ | ✓ | <nobr>2026‑02‑22</nobr> |
+| [Enforcing security policies in minutes across a regulated healthcare environment](https://fleetdm.com/case-study/healthcare-technology-organization) | Healthcare | ✓ | ✓ | ✓ | <nobr>2026‑02‑22</nobr> |
+| [Robotics company unifies Mac, Windows, Linux, and Android devices](https://fleetdm.com/case-study/robotics-company) | Robotics / Hardware | ✓ | ✓ | ✓ | <nobr>2026‑02‑22</nobr> |
+| [Open-source organization manages 1,556 devices with real-time compliance](https://fleetdm.com/case-study/open-source-organization) | Open Source / Nonprofit | ✓ | ✓ | ✓ | <nobr>2026‑02‑22</nobr> |
+| [Journalism nonprofit manages Mac and Linux devices with GitOps](https://fleetdm.com/case-study/journalism-nonprofit) | Media / Journalism | ✓ |  | ✓ | <nobr>2026‑02‑22</nobr> |
+| [Agritech producer replaces manual tracking across 273 devices](https://fleetdm.com/case-study/agritech-producer) | Agriculture / AgriTech | ✓ | ✓ | ✓ | <nobr>2026‑02‑23</nobr> |
+| [Cannabis technology company consolidates Jamf and Intune with Fleet](https://fleetdm.com/case-study/cannabis-technology-company) | Cannabis / Retail Tech | ✓ | ✓ |  | <nobr>2026‑02‑22</nobr> |
+| [Gaming technology company runs GitOps-driven device management on-prem](https://fleetdm.com/case-study/gaming-technology-company) | Gaming / Entertainment | ✓ | ✓ | ✓ | <nobr>2026‑02‑22</nobr> |
+| [Gaming platform gains production visibility with Fleet](https://fleetdm.com/articles/gaming-platform) | Gaming / Entertainment |  |  | ✓ | <nobr>2026‑03‑04</nobr> |
+| [Global entertainment company manages thousands of devices with GitOps workflows](https://fleetdm.com/articles/global-entertainment-company) | Gaming / Entertainment | ✓ | ✓ | ✓ | <nobr>2026‑03‑14</nobr> |
+| [Leading interactive entertainment company adopts Fleet for MDM](https://fleetdm.com/case-study/interactive-entertainment-company) | Gaming / Entertainment | ✓ | ✓ |  | <nobr>2024‑12‑23</nobr> |
+| [Large gaming company enhances server observability with Fleet](https://fleetdm.com/case-study/online-gaming-platform) | Gaming / Entertainment |  |  | ✓ | <nobr>2024‑12‑11</nobr> |
+| [Vehicle manufacturer transitions to Fleet for endpoint security](https://fleetdm.com/case-study/electric-vehicle-manufacturer) | Automotive / Manufacturing | ✓ | ✓ | ✓ | <nobr>2024‑12‑12</nobr> |
+| [EV manufacturer brings Linux workstations under centralized management with Fleet](https://fleetdm.com/case-study/ev-manufacturer) | Automotive / Manufacturing |  |  | ✓ | <nobr>2024‑06‑01</nobr> |
+| [Medical research institution brings Linux devices into compliance with Fleet](https://fleetdm.com/articles/medical-research-institution) | Healthcare / Research |  |  | ✓ | <nobr>2026‑03‑14</nobr> |
+| [National research organization improves Linux automation with Fleet](https://fleetdm.com/articles/national-research-organization) | Research / Nonprofit |  |  | ✓ | <nobr>2026‑03‑14</nobr> |
+| [Technology platform manages 15,000 iPads with Fleet](https://fleetdm.com/articles/technology-platform) | Technology |  |  |  | <nobr>2026‑03‑14</nobr> |
+
+---
+
+## 🔵 Editorial & Thought Leadership
+
+Opinion, industry analysis, executive POV, named-series articles, and standalone blog posts published on fleetdm.com. Use for PR, social amplification, ABM campaigns, and brand awareness. Audience: content team, PMM, PR.
+
+### Executive POV & Industry Analysis
+
+| Asset | Description | Author | Date updated |
+| --- | --- | --- | --- |
+| [Redefining endpoint management at scale: Fleet's momentum in the 2026 Gartner reports](https://fleetdm.com/announcements/redefining-endpoint-management-at-scale) | Fleet's open approach to device management is validated in Gartner's 2026 reports, highlighting GitOps, scale, transparency, and real-time data. | Ashish Kuthiala | <nobr>2026‑01‑23</nobr> |
+| [A new chapter for device management](https://fleetdm.com/announcements/a-new-chapter-for-device-management) | Jamf's acquisition marks a shift in device management. Fleet provides an open, cross-platform alternative for IT and security teams. | Ashish Kuthiala | <nobr>2025‑11‑27</nobr> |
+| [Fleet reimagines observability with DevOps teams at Roblox, Atlassian, Dropbox](https://fleetdm.com/announcements/fleet-reimagines-observability-with-devops-teams) | Fleet speeds up compliance audits and enables next-gen intrusion detection in large production infrastructures. | Mike McNeil | <nobr>2024‑11‑14</nobr> |
+| [Debunk the cross-platform myth](https://fleetdm.com/announcements/debunk-the-cross-platform-myth) | Why cross-platform MDM is achievable with the right tooling. | Mike McNeil | <nobr>2024‑08‑27</nobr> |
+| [The taxonomy of compute](https://fleetdm.com/articles/the-taxonomy-of-compute) | An overview of today's complex device landscape and how Fleet unifies open, transparent management across every platform. | Mike McNeil | <nobr>2025‑10‑03</nobr> |
+| [How Fleet raised a $27M Series B without a pitch deck](https://fleetdm.com/articles/how-fleet-raised-a-27m-series-b-without-a-pitch-deck) | Fleet raised $27M by writing a growth memo instead of building a deck. | Irena Reedy | <nobr>2025‑07‑02</nobr> |
+| [Fleet goes to GopherCon 2025](https://fleetdm.com/articles/fleet-goes-to-gophercon-2025) | Engineering Fleeties made it out to New York for GopherCon 2025 and brought back learnings to make Fleet even better. | Ian Littman | <nobr>2025‑09‑10</nobr> |
+
+### Vertical Thought Leadership
+
+| Asset | Vertical | Description | Author | Date updated |
+| --- | --- | --- | --- | --- |
+| [MDM just got better: Apple's biggest IT updates at WWDC25](https://fleetdm.com/announcements/mdm-just-got-better-apples-biggest-it-updates-at-wwdc25) | Apple / IT | Key WWDC25 updates for Apple IT and how Fleet supports them today. | Adam Baali | <nobr>2025‑06‑11</nobr> |
+| [Enhancing K-12 cybersecurity with FCC funds and Fleet](https://fleetdm.com/announcements/enhancing-k-12-cybersecurity-with-fcc-funds-and-fleet) | K-12 / EDU | How Fleet helps K-12 schools leverage FCC cybersecurity funding to strengthen device management and student data protection. | Alex Mitchell | <nobr>2024‑07‑25</nobr> |
+| [Endpoint management's crucial role in healthcare](https://fleetdm.com/announcements/endpoint-managements-crucial-role-in-healthcare) | Healthcare | Why robust endpoint management is essential for securing healthcare data, ensuring compliance, and building patient trust. | Alex Mitchell | <nobr>2024‑05‑24</nobr> |
+| [The device security tightrope: balancing cost and protection in K-12 schools](https://fleetdm.com/announcements/the-device-security-tightrope-balancing-cost-and-protection-in-k-12-schools) | K-12 / EDU | How K-12 schools can balance tight budgets with the need for strong device security and compliance. | Keith Barnes | <nobr>2024‑03‑01</nobr> |
+| [Government agencies need to ditch the MDM thicket](https://fleetdm.com/announcements/government-agencies-need-to-ditch-the-mdm-thicket) | Government | Why consolidating MDM tools saves government agencies time, money, and security risk. | Keith Barnes | <nobr>2024‑02‑09</nobr> |
+| [How Fleet helps federal agencies meet CISA BOD 23-01](https://fleetdm.com/articles/how-fleet-helps-federal-agencies-meet-cisa-bod-23-01) | Government | How Fleet enables federal agencies to achieve continuous visibility into internet-exposed assets per CISA BOD 23-01. | Chris McGillicuddy | <nobr>2022‑10‑28</nobr> |
+| [Optimizing government cybersecurity strategies with Fleet](https://fleetdm.com/articles/optimizing-government-cybersecurity-strategies) | Government | How Fleet helps government agencies build a stronger cybersecurity posture. | Keith Barnes | <nobr>2023‑11‑14</nobr> |
+| [Vulnerability management: advantages of Fleet to support government agencies](https://fleetdm.com/articles/vulnerability-management-the-advantages-of-fleet-to-support-government-agencies) | Government | How Fleet's vulnerability management capabilities address the needs of government IT and security teams. | Keith Barnes | <nobr>2023‑12‑26</nobr> |
+| [Embracing the future: Declarative Device Management](https://fleetdm.com/announcements/embracing-the-future-declarative-device-management) | Apple / IT | Explore the transformative impact of Declarative Device Management (DDM), Fleet, and osquery for MacAdmins. | JD Strong | <nobr>2023‑07‑06</nobr> |
+
+### Named Series
+
+#### 📚 Supercharging Modern Endpoint Management (3-part series)
+
+Executive series by Ashish Kuthiala (CMO) on why legacy endpoint management is failing and what modern teams are doing instead.
+
+| Part | Article | Author | Date |
+| --- | --- | --- | --- |
+| <nobr>1 of 3</nobr> | [The confidence gap: why IT leaders are abandoning legacy endpoint management](https://fleetdm.com/articles/the-confidence-gap) | Ashish Kuthiala | <nobr>2026‑02‑25</nobr> |
+| <nobr>2 of 3</nobr> | [Rethinking endpoint management: Fleet, osquery and Infrastructure as Code](https://fleetdm.com/articles/rethinking-endpoint-management) | Ashish Kuthiala | <nobr>2026‑02‑26</nobr> |
+| <nobr>3 of 3</nobr> | [Coming soon]| Ashish Kuthiala | <nobr>March 2026</nobr> |
+
+#### 📚 Protecting Linux Endpoints (6-part series)
+
+Why Linux is now a critical enterprise platform and how to manage and secure it properly.
+
+| Part | Article | Author | Date |
+| --- | --- | --- | --- |
+| <nobr>1 of 6</nobr> | [Why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026) | Ashish Kuthiala | <nobr>2026‑01‑21</nobr> |
+| <nobr>2 of 6</nobr> | [Automated provisioning for Linux desktop in the enterprise](https://fleetdm.com/articles/automated-provisioning-for-Linux-desktop-in-the-enterprise) | Ashish Kuthiala | <nobr>2026‑02‑16</nobr> |
+| <nobr>3 of 6</nobr> | [Security baselines for Linux: closing the gap on exemptions](https://fleetdm.com/articles/security-baselines-for-linux) | Ashish Kuthiala | <nobr>2026‑02‑23</nobr> |
+| <nobr>4 of 6</nobr> | [Unlocking Linux productivity: securing apps and updating certificates](https://fleetdm.com/articles/unlocking-linux-productivity-securing-apps-and-updating-certificates) | Ashish Kuthiala | <nobr>2026‑03‑04</nobr> |
+| <nobr>5 of 6</nobr> | [Protecting the Linux device: remote wipe, USB & sudo](https://fleetdm.com/articles/protecting-the-linux-device-remote-wipe-usb-sudo) | Ashish Kuthiala | <nobr>2026‑03‑10</nobr> |
+| <nobr>6 of 6</nobr> | [Owning your Linux destiny with open source](https://fleetdm.com/articles/owning-your-linux-destiny-with-open-source) | Ashish Kuthiala | <nobr>2026‑03‑06</nobr> |
+
+#### 📚 OpenClaw — Governing Autonomous AI Agents (3-part series)
+
+Security risks of autonomous AI agents running on managed endpoints, and what IT leaders can do about them.
+
+| Part | Article | Author | Date |
+| --- | --- | --- | --- |
+| <nobr>1 of 3</nobr> | [OpenClaw: Open for work?](https://fleetdm.com/articles/openclaw-open-for-work) | Brock Walters | <nobr>2026‑02‑04</nobr> |
+| <nobr>2 of 3</nobr> | [Detecting AI agents like OpenClaw with automated tooling](https://fleetdm.com/articles/detecting-ai-agents-like-openclaw-with-automated-tooling) | Dhruv Majumdar | <nobr>2026‑02‑18</nobr> |
+| <nobr>3 of 3</nobr> | [Mitigation assets and detection patterns for AI agents like OpenClaw](https://fleetdm.com/guides/mitigation-assets-and-detection-patterns-for-ai-agents-like-openclaw) *(Guide)* | Adam Baali | <nobr>2026‑02‑19</nobr> |
+
+#### 📚 Deploy Santa with Fleet GitOps (2-part series)
+
+Managing the Santa binary authorization tool using Fleet's GitOps workflow, without a dedicated sync server.
+
+| Part | Article | Author | Date |
+| --- | --- | --- | --- |
+| <nobr>1 of 2</nobr> | [Deploy Santa with Fleet GitOps and skip the sync server](https://fleetdm.com/articles/deploy-santa-with-fleet-gitops-and-skip-the-sync-server) | Allen Houchins | <nobr>2026‑02‑04</nobr> |
+| <nobr>2 of 2</nobr> | [How we deployed Santa at Fleet](https://fleetdm.com/guides/how-we-deployed-santa-at-fleet) *(Guide)* | Allen Houchins | <nobr>2026‑02‑24</nobr> |
+
+#### 📚 Tales from Fleet Security (8-part series)
+
+How Fleet's own security team secures the company — a window into Fleet's internal security practices useful for security-minded evaluators.
+
+| Part | Article | Author | Date |
+| --- | --- | --- | --- |
+| <nobr>1 of 8</nobr> | [Tales from Fleet security: securing the startup](https://fleetdm.com/articles/tales-from-fleet-security-securing-the-startup) | Guillaume Ross | <nobr>2022‑03‑17</nobr> |
+| <nobr>2 of 8</nobr> | [Tales from Fleet security: securing Google Workspace](https://fleetdm.com/articles/tales-from-fleet-security-securing-google-workspace) | Guillaume Ross | <nobr>2022‑03‑25</nobr> |
+| <nobr>3 of 8</nobr> | [Tales from Fleet security: GitHub configuration and OpenSSF Scorecards](https://fleetdm.com/articles/tales-from-fleet-security-github-configuration-and-openssf-scorecards) | Guillaume Ross | <nobr>2022‑04‑15</nobr> |
+| <nobr>4 of 8</nobr> | [Tales from Fleet security: securing 1Password](https://fleetdm.com/articles/tales-from-fleet-security-securing-1password) | Guillaume Ross | <nobr>2022‑05‑06</nobr> |
+| <nobr>5 of 8</nobr> | [Tales from Fleet security: how we achieved our SOC 2 type 1 rapidly](https://fleetdm.com/articles/tales-from-fleet-security-soc2) | Guillaume Ross | <nobr>2022‑06‑24</nobr> |
+| <nobr>6 of 8</nobr> | [Tales from Fleet security: speeding up macOS updates with Nudge](https://fleetdm.com/articles/tales-from-fleet-security-speeding-up-macos-updates-with-nudge) | Guillaume Ross | <nobr>2022‑07‑05</nobr> |
+| <nobr>7 of 8</nobr> | [Tales from Fleet security: securing bank accounts from business email compromise](https://fleetdm.com/articles/tales-from-fleet-security-securing-bank-accounts-from-business-email-compromise) | Guillaume Ross | <nobr>2022‑07‑15</nobr> |
+| <nobr>8 of 8</nobr> | [Tales from Fleet security: scams targeting Google Groups](https://fleetdm.com/articles/tales-from-fleet-security-google-groups-scams) | Guillaume Ross | <nobr>2022‑08‑05</nobr> |
+
+### Standalone Articles
+
+| Asset | Description | Author | Date updated |
+| --- | --- | --- | --- |
+| [What is Apple MDM? How Mobile Device Management Works in 2026](https://fleetdm.com/articles/what-is-apple-mdm) | How Apple MDM works across iOS, macOS, and iPadOS at scale. | Brock Walters | <nobr>2026‑02‑26</nobr> |
+| [What is Apple's Device Enrollment Program (DEP)?](https://fleetdm.com/articles/apple-device-enrollment-program) | How ADE/DEP works, its benefits, and what organizations need to set it up. | Brock Walters | <nobr>2026‑02‑26</nobr> |
+| [Managing Macs Globally: Enterprise Apple MDM Best Practices 2026](https://fleetdm.com/articles/managing-macs-globally-apple-ecosystem-deployment-security) | Scale Mac management across global teams with zero-touch deployment, automated compliance, and unified device visibility. | Brock Walters | <nobr>2026‑02‑26</nobr> |
+| [Mac Zero-Touch Deployment: Complete Enterprise Guide 2026](https://fleetdm.com/articles/mac-zero-touch-deployment-guide) | Complete guide to Mac zero-touch deployment using Apple Business Manager and MDM. | Brock Walters | <nobr>2026‑02‑26</nobr> |
+| [Mac Inventory Management: Device Tracking Guide](https://fleetdm.com/articles/mac-inventory-management) | How Mac inventory combines MDM and osquery to track hardware, software, and security configs. | Brock Walters | <nobr>2026‑02‑25</nobr> |
+| [Mac device security: Apple's native protections and third-party tools](https://fleetdm.com/articles/mac-device-security) | How Mac endpoint security works, from Apple's protections (SIP, XProtect, TCC) to third-party tools. | Brock Walters | <nobr>2026‑02‑25</nobr> |
+| [How to manage company laptops: a complete guide](https://fleetdm.com/articles/how-to-manage-company-laptops-a-complete-guide) | A complete guide to managing company laptops across macOS, Windows, and Linux at scale. | Brock Walters | <nobr>2026‑03‑07</nobr> |
+| [Migrating Intune policies to Fleet with the CSP converter](https://fleetdm.com/articles/migrating-intune-policies-to-fleet-csp-converter) | How to translate Intune configuration policies to Fleet using the CSP converter tool. | Mitch Francese | <nobr>2026‑03‑06</nobr> |
+| [Why work laptops don't work on plane wifi](https://fleetdm.com/articles/why-work-laptops-dont-work-on-plane-wifi) | VPNs, DNS filters, and captive portals — and why IT teams should fix this by default. | Mike McNeil | <nobr>2026‑02‑13</nobr> |
+| [The GitOps idea](https://fleetdm.com/articles/the-gitops-idea) | An introduction to GitOps concepts and components. | Brock Walters | <nobr>2026‑02‑04</nobr> |
+| [iPad MDM: a complete guide](https://fleetdm.com/articles/ipad-mdm-a-complete-guide) | A complete guide to iPad MDM, covering deployment models, enrollment methods, and enterprise management at scale. | Brock Walters | <nobr>2026‑01‑13</nobr> |
+| [What is Apple Business Manager? A complete guide](https://fleetdm.com/articles/what-is-apple-business-manager-a-complete-guide) | How ABM works with MDM for automated enrollment and app management. | Brock Walters | <nobr>2026‑01‑12</nobr> |
+| [Declarative device management: a primer](https://fleetdm.com/articles/declarative-device-management-a-primer) | What DDM is, how it differs from legacy MDM, and why Apple built it. | Brock Walters | <nobr>2026‑01‑11</nobr> |
+| [6 business benefits of Apple MDM, explained](https://fleetdm.com/articles/6-business-benefits-of-apple-mdm-explained) | An overview of Apple MDM and the practical business benefits it delivers for security and IT ops. | Brock Walters | <nobr>2026‑01‑11</nobr> |
+| [What is application management?](https://fleetdm.com/articles/what-is-application-management) | What app management includes, why it matters, and how tools automate software deployment, updates, and compliance. | Brock Walters | <nobr>2026‑01‑11</nobr> |
+| [The MDM migration reality: easier, but not easy](https://fleetdm.com/articles/the-mdm-mirgration-reality) | MDM migration is less disruptive than before, but still demands careful planning. | Allen Houchins | <nobr>2025‑11‑26</nobr> |
+| [When iCloud backups break MDM enrollment](https://fleetdm.com/articles/when-icloud-backups-break-mdm-enrollment) | Why iCloud restores can cause MDM enrollment failures and how to prevent them. | Irena Reedy | <nobr>2025‑11‑04</nobr> |
+| [Free migration from Jamf to Fleet](https://fleetdm.com/articles/free-migration-from-jamf-to-fleet) | Switch from Jamf to Fleet for free using Apple's new macOS migration flow. | Alex Mitchell | <nobr>2025‑10‑06</nobr> |
+| [Device enrollment lifecycle](https://fleetdm.com/articles/device-enrollment-lifecycle) | The five stages of a device enrollment lifecycle. | Brock Walters | <nobr>2025‑09‑19</nobr> |
+| [One agent, fewer tools, fewer gaps](https://fleetdm.com/articles/one-agent-fewer-tools-fewer-gaps) | Managing devices and vulnerabilities shouldn't mean installing two agents or paying for two platforms. | Harrison Ravazzolo | <nobr>2025‑06‑23</nobr> |
+| [I work in operations. I deployed Fleet in minutes.](https://fleetdm.com/articles/i-work-in-operations-i-deployed-fleet-in-minutes) | Self-hosting Fleet is easier than you think — even for non-technical roles. | Nate Holliday | <nobr>2025‑06‑05</nobr> |
+| [Not everything runs in Kubernetes](https://fleetdm.com/articles/not-everything-runs-in-kubernete) | Why Fleet goes beyond Kubernetes to manage real-world infrastructure. | Zach Wasserman | <nobr>2025‑05‑27</nobr> |
+| [Work may be watching, but it might not be as bad as you think](https://fleetdm.com/articles/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think) | A clear-eyed look at employee monitoring, what IT teams actually collect, and how to set expectations. | Mike Thomas | <nobr>2021‑10‑22</nobr> |
+| [eBPF & the future of osquery on Linux](https://fleetdm.com/articles/ebpf-the-future-of-osquery-on-linux) | How eBPF extends osquery's visibility on Linux and what it means for endpoint security. | Zach Wasserman | <nobr>2021‑01‑25</nobr> |
+| [Does osquery violate the New York employee monitoring law?](https://fleetdm.com/articles/does-osquery-violate-the-new-york-employee-monitoring-law) | Legal analysis of whether osquery-based monitoring triggers New York's employee monitoring disclosure requirements. | JD Strong | <nobr>2023‑04‑18</nobr> |
+| [Apply BYOD to soothe supply chain pain](https://fleetdm.com/articles/apply-byod-to-soothe-supply-chain-pain) | How a well-structured BYOD program can reduce hardware dependency and procurement delays. | Guillaume Ross | <nobr>2022‑02‑10</nobr> |
+| [Vulnerability management at scale: a presentation from osquery co-creator Zach Wasserman](https://fleetdm.com/articles/osquery-vulnerability-management-at-scale) | How to use osquery and Fleet for vulnerability management across large, heterogeneous device fleets. | Chris McGillicuddy | <nobr>2022‑10‑05</nobr> |
+| [State of Device Management report 2022](https://fleetdm.com/articles/state-of-device-management) | Fleet's 2022 industry report on the state of device management practices and tooling. | Mike McNeil | <nobr>2022‑07‑07</nobr> |
+| [Stay on course with your security compliance goals](https://fleetdm.com/articles/stay-on-course-with-your-security-compliance-goals) | How to maintain momentum on security compliance programs without losing sight of the goal. | Chris McGillicuddy | <nobr>2022‑07‑18</nobr> |
+| [Fleet & osquery: Unlocking the value of Axonius with open-source telemetry](https://fleetdm.com/articles/fleet-osquery-unlocking-the-value-of-axonius-with-open-source-telemetry) | How Fleet and osquery enrich Axonius with real-time, open-source device telemetry. | Brad Macdowall | <nobr>2023‑12‑28</nobr> |
+
+---
+
+## 🟡 Practitioner Resources
+
+How-to guides, step-by-step walkthroughs, and reference material for IT admins and engineers using Fleet day-to-day. Audience: practitioners, developers, and technical evaluators.
+
+### Deployment & Server Setup
+
+> **Platform key:** ☁️ Cloud platform  |  🐧 Linux self-hosted  |  🐳 Container / orchestration  |  🔧 Server ops
+
+| Platform | Asset | Description | Author | Date updated |
+| --- | --- | --- | --- | --- |
+| 🔧 Ops | [Migrate Fleet server to a new deployment](https://fleetdm.com/guides/migrate-fleet-server) | Step-by-step guide to migrating your Fleet server to a new deployment. | Kitzy | <nobr>2026‑02‑06</nobr> |
+| 🐳 Container | [Deploy Fleet with Docker Compose](https://fleetdm.com/guides/deploy-fleet-on-docker-compose) | Learn how to deploy Fleet using Docker Compose. | Kitzy | <nobr>2025‑12‑01</nobr> |
+| ☁️ AWS | [Deploy Fleet on AWS with Terraform](https://fleetdm.com/guides/deploy-fleet-on-aws-with-terraform) | Learn how to deploy Fleet on AWS. | Ben Edwards | <nobr>2025‑07‑17</nobr> |
+| ☁️ PaaS | [Deploy Fleet on Render](https://fleetdm.com/guides/deploy-fleet-on-render) | Learn how to deploy Fleet on Render. | Ben Edwards | <nobr>2025‑07‑17</nobr> |
+| ☁️ GCP | [Deploy Fleet on GCP](https://fleetdm.com/guides/deploy-fleet-on-gcp) | Learn how to deploy Fleet on GCP. | Ben Edwards | <nobr>2025‑06‑26</nobr> |
+| 🐧 Linux | [Deploy Fleet on Ubuntu](https://fleetdm.com/guides/deploy-fleet-on-ubuntu-with-elastic) | A guide to deploy Fleet and Elastic on Ubuntu. | Josh Brower | <nobr>2024‑06‑12</nobr> |
+| ☁️ AWS | [Using the Fleet Terraform module with an existing VPC](https://fleetdm.com/guides/fleet-terraform-byo-vpc-module) | How to integrate the Fleet Terraform module into an existing VPC for a custom AWS deployment. | Robert Fairburn | <nobr>2023‑09‑01</nobr> |
+| ☁️ GovCloud | [Deploy Fleet on Cloud.gov](https://fleetdm.com/guides/deploy-fleet-on-cloudgov) | Information for deploying Fleet on Cloud.gov. | John Jediny | <nobr>2022‑09‑08</nobr> |
+| ☁️ VPS | [Deploy Fleet on Hetzner Cloud](https://fleetdm.com/guides/deploy-fleet-on-hetzner-cloud) | Learn how to deploy Fleet on Hetzner Cloud using cloud-init and Docker. | Kathy Satterlee | <nobr>2022‑06‑27</nobr> |
+| ☁️ AWS | [Deploy Fleet on AWS ECS](https://fleetdm.com/guides/deploy-fleet-on-aws-ecs) | Information for deploying Fleet on AWS ECS. | Ben Edwards | <nobr>2021‑10‑06</nobr> |
+| 🐳 Container | [Deploy Fleet on Kubernetes](https://fleetdm.com/guides/deploy-fleet-on-kubernetes) | Learn how to deploy Fleet on Kubernetes. | Mike Arpaia | <nobr>2017‑11‑18</nobr> |
+| 🐧 Linux | [Deploy Fleet on CentOS](https://fleetdm.com/guides/deploy-fleet-on-centos) | A guide to deploy Fleet on CentOS. | Mike Arpaia | <nobr>2017‑09‑22</nobr> |
+
+### MDM Setup & Enrollment
+
+#### Platform setup
+
+Turn on MDM for each platform — start here if Fleet MDM is not yet configured.
+
+| Asset | Description | Author | Date updated |
+| --- | --- | --- | --- |
+| [Android MDM setup](https://fleetdm.com/guides/android-mdm-setup) | Learn how to turn on Android MDM in Fleet. | Marko Lisica | <nobr>2025‑04‑05</nobr> |
+| [Apple MDM setup](https://fleetdm.com/guides/apple-mdm-setup) | Learn how to turn on MDM features for Apple hosts in Fleet. | Mo Zhu | <nobr>2024‑07‑02</nobr> |
+| [Setup experience](https://fleetdm.com/guides/setup-experience) | Customize the out-of-the-box macOS, Windows, Linux, iOS, iPadOS, and Android setup. | Noah Talerman | <nobr>2024‑07‑03</nobr> |
+| [Configuring default teams for macOS, iOS, and iPadOS devices in Fleet](https://fleetdm.com/guides/configuring-default-teams-for-devices-in-fleet) | Walk through configuring default teams for devices using the Fleet web UI. | JD Strong | <nobr>2024‑09‑12</nobr> |
+| [Windows MDM setup](https://fleetdm.com/guides/windows-mdm-setup) | Configuring Windows MDM in Fleet. | Noah Talerman | <nobr>2023‑10‑23</nobr> |
+| [Windows & Linux setup experience](https://fleetdm.com/guides/windows-linux-setup-experience) | Install software when Linux and Windows workstations enroll to Fleet. | Dante Catalfamo | <nobr>2025‑09‑24</nobr> |
+
+#### Enrolling devices
+
+Add hosts to Fleet — corporate-owned and personal (BYOD) devices.
+
+| Asset | Description | Author | Date updated |
+| --- | --- | --- | --- |
+| [Enroll hosts](https://fleetdm.com/guides/enroll-hosts) | Learn how to enroll hosts to Fleet. | Noah Talerman | <nobr>2024‑08‑08</nobr> |
+| [Account-driven User Enrollment for personal Apple devices (BYOD)](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) | Enroll personal (BYOD) iPhones and iPads with Managed Apple Account. | Marko Lisica | <nobr>2025‑08‑08</nobr> |
+| [Android BYOD MDM migration](https://fleetdm.com/guides/android-byod-mdm-migration) | Instructions for migrating Android BYOD hosts away from an old MDM solution to Fleet. | Steven Palmesano | <nobr>2026‑01‑20</nobr> |
+| [Enrolling BYOD iPad/iOS devices in Fleet](https://fleetdm.com/guides/enroll-byod-ios-ipados-hosts) | Walk through the process of inviting BYOD iPhones and iPads to enroll in Fleet. | Roberto Dip | <nobr>2024‑09‑20</nobr> |
+| [Config-less fleetd agent deployment](https://fleetdm.com/guides/config-less-fleetd-agent-deployment) | Deploy the Fleet agent without a configuration file using environment variables or flags. | Noah Talerman | <nobr>2024‑01‑31</nobr> |
+| [Enrolling a DigitalOcean Droplet on a Fleet instance](https://fleetdm.com/guides/enrolling-a-digital-ocean-droplet-on-a-fleet-instance) | How to enroll a DigitalOcean Droplet as a managed host in a Fleet instance. | Kelvin Omereshone | <nobr>2022‑05‑26</nobr> |
+| [How to install osquery and enroll Linux devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-linux-devices-into-fleet) | Step-by-step guide to installing osquery and enrolling Linux devices into a Fleet instance. | Kathy Satterlee | <nobr>2022‑03‑19</nobr> |
+| [How to install osquery and enroll Windows devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-windows-devices-into-fleet) | Step-by-step guide to installing osquery and enrolling Windows devices into a Fleet instance. | Kelvin Omereshone | <nobr>2022‑02‑03</nobr> |
+| [How to install osquery and enroll macOS devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-macos-devices-into-fleet) | Step-by-step guide to installing osquery and enrolling macOS devices into a Fleet instance. | Kelvin Omereshone | <nobr>2022‑01‑13</nobr> |
+| [How to uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd) | Steps to cleanly uninstall the Fleet agent (fleetd) from a managed device. | Eric Shaw | <nobr>2021‑09‑08</nobr> |
+
+#### Migrating from another MDM
+
+Moving devices from an existing MDM solution to Fleet.
+
+| Asset | Description | Author | Date updated |
+| --- | --- | --- | --- |
+| [macOS MDM migration](https://fleetdm.com/guides/mdm-migration) | Instructions for migrating macOS hosts away from an old MDM solution to Fleet. | Mo Zhu | <nobr>2024‑08‑14</nobr> |
+| [Seamless MDM migrations to Fleet](https://fleetdm.com/guides/seamless-mdm-migration) | A process for seamlessly migrating macOS devices from an existing MDM to Fleet. | Zach Wasserman | <nobr>2024‑08‑08</nobr> |
+
+#### Coming from Jamf
+
+Terminology guides and migration references for teams switching from Jamf Pro.
+
+| Asset | Description | Author | Date updated |
+| --- | --- | --- | --- |
+| [Translating Jamf Pro terminology & capabilities](https://fleetdm.com/guides/translating-jamf-pro-terminology) | Translate Jamf Pro terminology and capabilities to Fleet. | Allen Houchins | <nobr>2025‑01‑13</nobr> |
+| [Sysadmin diaries: device enrollment](https://fleetdm.com/guides/sysadmin-diaries-device-enrollment) | Explores the differences in device enrollment across platforms. | JD Strong | <nobr>2024‑05‑03</nobr> |
+
+### GitOps & Configuration Management
+
+#### Getting started with GitOps
+
+Concepts, rationale, and first-time setup for teams adopting GitOps with Fleet.
+
+| Asset | Description | Author | Date updated |
+| --- | --- | --- | --- |
+| [GitOps mode](https://fleetdm.com/guides/gitops-mode) | Help users avoid unexpected changes by preventing manual updates of GitOps-configurable features. | Jacob Shandling | <nobr>2025‑03‑21</nobr> |
+| [Migrating to GitOps using fleetctl](https://fleetdm.com/guides/migrating-to-gitops-using-fleetctl) | Instructions for migrating your Fleet configuration to GitOps. | Scott Gress | <nobr>2025‑05‑22</nobr> |
+| [Preventing mistakes with GitOps](https://fleetdm.com/guides/preventing-mistakes-with-gitops) | Use GitOps to manage your infrastructure in code and prevent mistakes. | Harrison Ravazzolo | <nobr>2025‑02‑12</nobr> |
+| [What I have learned from managing devices with GitOps](https://fleetdm.com/guides/what-i-have-learned-from-managing-devices-with-gitops) | GitOps changes more than just technology. | Allen Houchins | <nobr>2025‑03‑28</nobr> |
+| [GitOps: A strategic advantage for automation, collaboration, and cost savings](https://fleetdm.com/guides/sysadmin-diaries-gitops-a-strategic-advantage) | Why GitOps saves time, money, and effort. | Allen Houchins | <nobr>2024‑09‑27</nobr> |
+
+#### Managing configuration with GitOps
+
+Day-to-day workflows for managing Fleet resources — software, profiles, policies, and packages — through GitOps.
+
+| Asset | Description | Author | Date updated |
+| --- | --- | --- | --- |
+| [Manage bootstrap packages with GitOps](https://fleetdm.com/guides/manage-boostrap-package-with-gitops) | Learn how to manage bootstrap packages across teams using Fleet's GitOps workflow and API endpoints. | Kitzy | <nobr>2026‑01‑12</nobr> |
+| [Manage software in GitOps mode](https://fleetdm.com/guides/gitops-mode-software) | Learn how to use Fleet's YAML to manage software in GitOps mode. | Noah Talerman | <nobr>2025‑04‑30</nobr> |
+| [Custom OS settings](https://fleetdm.com/guides/custom-os-settings) | Learn how to enforce custom settings on macOS and Windows hosts using Fleet's configuration profiles. | Noah Talerman | <nobr>2024‑07‑27</nobr> |
+| [Sysadmin diaries: exporting policies](https://fleetdm.com/guides/sysadmin-diaries-exporting-policies) | Extracting existing policies to enable GitOps. | JD Strong | <nobr>2024‑06‑28</nobr> |
+| [Using GitHub Actions to apply configuration profiles with Fleet](https://fleetdm.com/guides/using-github-actions-to-apply-configuration-profiles-with-fleet) | A guide on using GitHub Actions with Fleet for automated application of the latest configuration profiles. | JD Strong | <nobr>2023‑05‑31</nobr> |
+
+#### CLI & tooling reference
+
+Command-line tools for managing Fleet configurations, running queries, and deploying the Fleet agent.
+
+| Asset | Description | Author | Date updated |
+| --- | --- | --- | --- |
+| [Fleetctl](https://fleetdm.com/guides/fleetctl) | CLI tool for managing Fleet and osquery configurations, running queries, generating Fleet's agent (fleetd), and more. | Noah Talerman | <nobr>2024‑07‑04</nobr> |
+| [Fleetd updates](https://fleetdm.com/guides/fleetd-updates) | Information on how to manage and secure Fleet agent updates. | Noah Talerman | <nobr>2024‑04‑30</nobr> |
+| [Fleetd authentication](https://fleetdm.com/guides/fleetd-authentication) | How fleetd authenticates with the Fleet server, including token management and certificate-based auth. | Lucas Rodriguez | <nobr>2024‑11‑14</nobr> |
+| [mTLS support in fleetd](https://fleetdm.com/guides/fleetd-mtls) | How to configure mutual TLS (mTLS) authentication in the Fleet agent (fleetd). | Lucas Rodriguez | <nobr>2024‑12‑06</nobr> |
+| [Certificates in fleetd](https://fleetdm.com/guides/certificates-in-fleetd) | Learn about TLS certificates in fleetd and how they are used for secure communication. | Lucas Manuel Rodriguez | <nobr>2024‑07‑09</nobr> |
+
+### Software & Patch Management
+
+| Asset | Description | Author | Date updated |
+| --- | --- | --- | --- |
+| [Deploy software](https://fleetdm.com/guides/deploy-software-packages) | This guide will walk you through adding and editing software packages in Fleet. | Roberto Dip | <nobr>2025‑05‑05</nobr> |
+| [Automatically install software](https://fleetdm.com/guides/automatic-software-install-in-fleet) | A guide to workflows using automatic software installation in Fleet. | Sharon Katz | <nobr>2025‑02‑28</nobr> |
+| [Install app store apps](https://fleetdm.com/guides/install-app-store-apps) | This guide will walk you through installing Apple App Store and Google Play Store apps on managed hosts. | Jahziel Villasana-Espinoza | <nobr>2026‑01‑08</nobr> |
+| [Software self-service](https://fleetdm.com/guides/software-self-service) | This guide will walk you through adding apps to Fleet for user self-service. | Jahziel Villasana-Espinoza | <nobr>2025‑06‑20</nobr> |
+| [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps) | Learn how Fleet-maintained apps work and how to deploy pre-packaged software to your managed devices. | Gabriel Hernandez | <nobr>2025‑04‑03</nobr> |
+| [Windows EXE install scripts](https://fleetdm.com/guides/exe-install-scripts) | This guide will walk you through adding software to Fleet using EXE installers. | Victor Lyuboslavsky | <nobr>2024‑09‑20</nobr> |
+| [How to use policies for patch management in Fleet](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet) | This guide explores automating patching across your environment. | Harrison Ravazzolo | <nobr>2024‑11‑07</nobr> |
+| [Enforce OS updates](https://fleetdm.com/guides/enforce-os-updates) | Learn how to manage OS updates on macOS, Windows, iOS, and iPadOS hosts. | Noah Talerman | <nobr>2024‑08‑10</nobr> |
+| [Using maintenance windows (Fleet in your calendar)](https://fleetdm.com/guides/using-maintenance-windows) | How to schedule time for self-remediation when your end users are free. | Noah Talerman | <nobr>2025‑05‑15</nobr> |
+| [Resolving a critical Firefox vulnerability using Fleet's new automation features](https://fleetdm.com/guides/resolving-a-critical-firefox-vulnerability-using-fleets-new-automation-features) | This guide outlines using Fleet policies to automatically remediate software vulnerabilities. | Luke Heath | <nobr>2024‑12‑04</nobr> |
+| [Filtering software by vulnerability in Fleet](https://fleetdm.com/guides/filtering-software-by-vulnerability) | Filter software by vulnerability in Fleet to prioritize critical patches. | Tim Lee | <nobr>2024‑08‑13</nobr> |
+| [Vulnerability processing](https://fleetdm.com/guides/vulnerability-processing) | Find out how Fleet detects vulnerabilities and what software it covers. | Noah Talerman | <nobr>2024‑07‑12</nobr> |
+
+### Security, Compliance & Access Control
+
+| Asset | Description | Author | Date updated |
+| --- | --- | --- | --- |
+| [CIS Benchmarks](https://fleetdm.com/guides/cis-benchmarks) | Read about how Fleet's implementation of CIS Benchmarks offers consensus-based cybersecurity guidance. | Lucas Rodriguez | <nobr>2024‑04‑02</nobr> |
+| [Enforce disk encryption](https://fleetdm.com/guides/enforce-disk-encryption) | Learn how to enforce disk encryption on macOS, Windows, and Linux hosts and manage encryption keys with Fleet Premium. | Noah Talerman | <nobr>2024‑08‑14</nobr> |
+| [How Fleet uses EscrowBuddy to generate and collect FileVault Personal Recovery Keys](https://fleetdm.com/guides/escrowbudy-basics) | Learn how Fleet's EscrowBuddy integration makes sure your FileVault Personal Recovery Keys are always escrowed. | Dale Ribeiro | <nobr>2025‑03‑19</nobr> |
+| [Encrypt your Fleet-managed Linux device](https://fleetdm.com/guides/linux-disk-encryption-end-user) | Instructions for end users to encrypt Linux devices enrolled in Fleet. | Rachael Shaw | <nobr>2024‑11‑25</nobr> |
+| [Secure local admin passwords with LAPS and 1Password](https://fleetdm.com/guides/secure-local-admin-passwords) | A guide to implementing LAPS (Local Administrator Password Solution) with Fleet and 1Password Connect. | Josh Roskos | <nobr>2026‑02‑13</nobr> |
+| [Conditional access: Okta](https://fleetdm.com/guides/okta-conditional-access-integration) | Learn how to enforce conditional access with Fleet and Okta. | Rachael Shaw | <nobr>2025‑12‑04</nobr> |
+| [Conditional access: Entra](https://fleetdm.com/guides/entra-conditional-access-integration) | Learn how to enforce conditional access with Fleet and Microsoft Entra. | Lucas Manuel Rodriguez | <nobr>2025‑06‑20</nobr> |
+| [How to use Fleet for zero trust attestation](https://fleetdm.com/guides/zero-trust-attestation-with-fleet) | Learn how to implement zero trust device attestation using Fleet's policy and query capabilities. | Mo Zhu | <nobr>2022‑10‑14</nobr> |
+| [Role-based access](https://fleetdm.com/guides/role-based-access) | Learn about the different roles and permissions in Fleet. | Noah Talerman | <nobr>2024‑10‑31</nobr> |
+| [Prevent tampering of Fleet Orbit on Windows](https://fleetdm.com/guides/prevent-tampering-of-fleet-agent) | Combine a Fleet policy, a PowerShell script, and a Windows configuration profile to prevent tampering with Fleet Orbit. | Adam Baali | <nobr>2025‑11‑05</nobr> |
+| [Prevent tampering of Fleet agent and other login items](https://fleetdm.com/guides/prevent-tampering-login-items) | Learn how to build a mobileconfig to prevent users from tampering with Login Items. | Harrison Ravazzolo | <nobr>2025‑01‑28</nobr> |
+| [Remote deployment of YARA rules](https://fleetdm.com/guides/remote-yara-rules) | How to remotely deploy YARA rules to managed endpoints using Fleet for threat detection. | Zach Wasserman | <nobr>2024‑12‑09</nobr> |
+| [Discovering Geacon using Fleet](https://fleetdm.com/guides/discovering-geacon-using-fleet) | Enterprise security teams can use Fleet to identify and locate Geacon payloads on macOS devices. | JD Strong | <nobr>2023‑05‑18</nobr> |
+| [Lock and wipe hosts](https://fleetdm.com/guides/lock-wipe-hosts) | Learn how to remotely lock or wipe hosts enrolled in Fleet to protect lost or compromised devices. | JD Strong | <nobr>2024‑07‑09</nobr> |
+| [Locate device assets in the event of an emergency](https://fleetdm.com/guides/locate-assets-with-osquery) | How to use Fleet live queries to quickly locate and inventory devices during a security incident. | Zach Wasserman | <nobr>2021‑05‑11</nobr> |
+| [Fleet software attestation](https://fleetdm.com/guides/fleet-software-attestation) | Learn how Fleet software attestation works and how to verify the integrity of Fleet-distributed software. | Scott Gress | <nobr>2025‑01‑14</nobr> |
+
+### Identity & SSO Integrations
+
+| Asset | Description | Author | Date updated |
+| --- | --- | --- | --- |
+| [Deploying Okta Desktop MFA for Windows](https://fleetdm.com/guides/deploying-okta-desktop-mfa-with-fleet) | Learn how to deploy Okta Desktop MFA to Windows devices using Fleet MDM. | Mitch Francese | <nobr>2026‑02‑06</nobr> |
+| [Enable Okta Verify on Windows](https://fleetdm.com/guides/enable-okta-verify-on-windows-using-a-scep-configuration-profile) | Enable Okta Verify on Windows using a SCEP configuration profile. | Adam Baali | <nobr>2026‑01‑23</nobr> |
+| [Enable Okta Verify on macOS using configuration profile](https://fleetdm.com/guides/enable-okta-verify-on-macOS-with-configuration-profile) | This guide will walk you through enabling Okta Verify on macOS hosts using a configuration profile. | Roberto Dip | <nobr>2024‑09‑23</nobr> |
+| [Deploying Platform SSO with Okta Device Access](https://fleetdm.com/guides/deploying-okta-platform-sso-with-fleet) | Learn how to use Fleet to deploy the Okta Platform SSO Extension. | Mitch Francese | <nobr>2025‑10‑30</nobr> |
+| [Deploying Platform SSO with Microsoft Entra ID](https://fleetdm.com/guides/deploying-entra-platform-sso-with-fleet) | Learn how to use Fleet to deploy the Microsoft Entra ID Platform SSO Extension. | Dale Ribeiro | <nobr>2025‑02‑04</nobr> |
+| [Effortless onboarding: Fleet's SAML integration for macOS Setup](https://fleetdm.com/guides/end-user-authentication) | Using single sign-on (SSO) to handle identities automatically during device enrollment. | Victor Lyuboslavsky | <nobr>2025‑04‑11</nobr> |
+| [Foreign vitals: map IdP users to hosts](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts) | Learn how to map identity provider (IdP) users to their managed hosts using Fleet's foreign vitals feature. | Marko Lisica | <nobr>2025‑11‑05</nobr> |
+| [Connect end users to Wi-Fi or VPN with a certificate](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate) | Learn how to automatically connect a device to Wi-Fi by adding your certificate authority and issuing a certificate from it. | Victor Lyuboslavsky | <nobr>2024‑10‑30</nobr> |
+
+### Third-Party Agent Deployment
+
+| Asset | Description | Author | Date updated |
+| --- | --- | --- | --- |
+| [Deploy CrowdStrike with Fleet](https://fleetdm.com/guides/deploying-crowdstrike-with-fleet) | Step-by-step guide to deploying the CrowdStrike agent to managed devices using Fleet. | Harrison Ravazzolo | <nobr>2025‑11‑05</nobr> |
+| [Deploying SentinelOne with Fleet](https://fleetdm.com/guides/deploying-sentinelone-with-fleet) | Step-by-step guide to deploying the SentinelOne agent to managed devices using Fleet. | Harrison Ravazzolo | <nobr>2025‑04‑15</nobr> |
+| [Deploying Cloudflare WARP with Fleet](https://fleetdm.com/guides/deploying-cloudflare-warp-with-fleet) | Step-by-step guide to deploying and managing the Cloudflare WARP client on devices managed by Fleet. | Harrison Ravazzolo | <nobr>2024‑12‑20</nobr> |
+| [Deploy custom Android apps (APK)](https://fleetdm.com/guides/deploy-custom-android-app-apk) | This guide will walk you through deploying custom Android apps to your organization's Android hosts using Google Play Console and Fleet. | Marko Lisica | <nobr>2026‑02‑04</nobr> |
+
+### osquery, Queries & Policies
+
+| Asset | Description | Author | Date updated |
+| --- | --- | --- | --- |
+| [Queries](https://fleetdm.com/guides/queries) | Learn how to create, run, and schedule queries, as well as update agent options in the Fleet user interface. | Noah Talerman | <nobr>2025‑01‑01</nobr> |
+| [Standard query library](https://fleetdm.com/guides/standard-query-library) | Learn how to use and contribute to Fleet's standard query library. | Noah Talerman | <nobr>2024‑04‑04</nobr> |
+| [Get current telemetry from your devices with live queries](https://fleetdm.com/guides/get-current-telemetry-from-your-devices-with-live-queries) | Learn how live queries work under the hood. | Victor Lyuboslavsky | <nobr>2023‑12‑27</nobr> |
+| [Understanding the intricacies of Fleet policies](https://fleetdm.com/guides/understanding-the-intricacies-of-fleet-policies) | Learn how Fleet policies work behind the scenes. | Victor Lyuboslavsky | <nobr>2023‑12‑29</nobr> |
+| [How to use osquery evented tables](https://fleetdm.com/guides/osquery-evented-tables-overview) | Learn how to use osquery evented tables for real-time event monitoring in Fleet. | Mo Zhu | <nobr>2022‑09‑21</nobr> |
+| [Osquery watchdog](https://fleetdm.com/guides/osquery-watchdog) | Learn about how the osquery process manages child processes and managed extensions in Fleet. | Juan Fernandes | <nobr>2023‑07‑28</nobr> |
+| [Querying process\_file\_events on CentOS 7](https://fleetdm.com/guides/querying-process-file-events-table-on-centos-7) | Learn how to configure and query the process\_file\_events table on CentOS 7 with Fleet. | Lucas Rodriguez | <nobr>2023‑07‑17</nobr> |
+| [Osquery: a tool to easily ask questions about operating systems](https://fleetdm.com/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems) | An introduction to osquery and how it enables SQL-based queries across operating system data. | Kelvin Omereshone | <nobr>2022‑04‑04</nobr> |
+| [Converting unix timestamps with osquery](https://fleetdm.com/guides/converting-unix-timestamps-with-osquery) | How to convert and interpret unix timestamps when writing osquery queries in Fleet. | Mike Thomas | <nobr>2021‑06‑15</nobr> |
+| [Correlate network connections with community ID in osquery](https://fleetdm.com/guides/correlate-network-connections-with-community-id-in-osquery) | How to use community ID hashing in osquery to correlate network events across different log sources. | Zach Wasserman | <nobr>2021‑06‑02</nobr> |
+| [Osquery: Consider joining against the users table](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table) | Tips for enriching osquery query results by joining against the users table for better context. | Zach Wasserman | <nobr>2021‑05‑06</nobr> |
+| [Import and export queries in Fleet](https://fleetdm.com/guides/import-and-export-queries-in-fleet) | How to import and export saved queries in Fleet for sharing or backup purposes. | Noah Talerman | <nobr>2021‑02‑16</nobr> |
+| [Generate process trees with osquery](https://fleetdm.com/guides/generate-process-trees-with-osquery) | How to use osquery in Fleet to generate parent-child process trees for forensic investigation. | Zach Wasserman | <nobr>2020‑03‑17</nobr> |
+| [Fleet quick tips — identify systems where the ProcDump EULA has been accepted](https://fleetdm.com/guides/fleet-quick-tips-querying-procdump-eula-has-been-accepted) | Use Fleet to query which systems have accepted the ProcDump EULA, a potential indicator of investigation activity. | Mike Thomas | <nobr>2021‑05‑11</nobr> |
+
+### Integrations & Automations
+
+| Asset | Description | Author | Date updated |
+| --- | --- | --- | --- |
+| [Automations](https://fleetdm.com/guides/automations) | Configure Fleet automations to trigger webhooks or create tickets in Jira and Zendesk for vulnerability, policy, and host status events. | Noah Talerman | <nobr>2024‑07‑03</nobr> |
+| [Building webhook flows with Fleet and Tines](https://fleetdm.com/guides/building-webhook-flows-with-fleet-and-tines) | A guide to workflows using Tines and Fleet via webhook to update outdated OS versions. | Victor Lyuboslavsky | <nobr>2024‑05‑30</nobr> |
+| [Using Fleet and Tines together](https://fleetdm.com/guides/using-fleet-and-tines-together) | How to integrate Fleet with Tines for automated security workflows and device management event responses. | Dave Herder | <nobr>2023‑03‑08</nobr> |
+| [Using Fleet and Okta Workflows to generate a daily OS report](https://fleetdm.com/guides/using-fleet-and-okta-workflows-to-generate-a-daily-os-report) | Learn how to use Fleet to query device OS information through the Fleet REST API and automate daily Slack notifications using Okta Workflows. | Harrison Ravazzolo | <nobr>2023‑05‑09</nobr> |
+| [How to configure logging destinations](https://fleetdm.com/guides/how-to-configure-logging-destinations) | Learn how to configure supported log destinations in Fleet, including Kinesis, Lambda, Snowflake, and Splunk. | Grant Bilstad | <nobr>2024‑06‑28</nobr> |
+| [Log destinations](https://fleetdm.com/guides/log-destinations) | Learn about supported log destinations in Fleet, including Amazon Kinesis, AWS Lambda, Snowflake, Splunk, and more. | Rachael Shaw | <nobr>2023‑11‑02</nobr> |
+| [Delivering data to Snowflake from Fleet and osquery](https://fleetdm.com/guides/delivering-data-to-snowflake-from-fleet-and-osquery) | How to stream Fleet and osquery telemetry data into Snowflake for analysis and reporting. | Tom Larkin | <nobr>2022‑01‑13</nobr> |
+| [Using Elasticsearch and Kibana to visualize osquery performance](https://fleetdm.com/guides/using-elasticsearch-and-kibana-to-visualize-osquery-performance) | How to pipe Fleet and osquery data into Elasticsearch and build Kibana dashboards for performance monitoring. | Zach Wasserman | <nobr>2021‑05‑26</nobr> |
+| [Building an effective dashboard with Fleet's REST API, Flask, and Plotly](https://fleetdm.com/guides/building-an-effective-dashboard-with-fleet-rest-api-flask-and-plotly) | Step-by-step guide on building a dynamic dashboard with Fleet's REST API, Flask, and Plotly. | Dave Herder | <nobr>2023‑05‑22</nobr> |
+| [Fleet's AI-assisted policy descriptions and resolutions](https://fleetdm.com/guides/fleet-ai-assisted-policy-descriptions-and-resolutions) | Learn how Fleet uses AI to generate policy descriptions and remediation steps to speed up compliance workflows. | Rachel Perkins | <nobr>2024‑05‑20</nobr> |
+
+### Additional Guides
+
+| Asset | Description | Author | Date updated |
+| --- | --- | --- | --- |
+| [Fleet troubleshooting for IT admins](https://fleetdm.com/guides/fleet-troubleshooting-for-it-admins) | A practical guide to diagnosing and resolving common Fleet issues for IT administrators. | Steven Palmesano | <nobr>2026‑02‑13</nobr> |
+| [Set a device hostname via the Fleet API](https://fleetdm.com/guides/set-device-hostname-via-fleet-api) | Use Fleet's API to set device hostnames on macOS, iOS, and iPadOS. | Kitzy | <nobr>2026‑01‑26</nobr> |
+| [Delete macOS local user accounts with Fleet](https://fleetdm.com/articles/delete-macos-local-user-accounts-with-fleet) | How to use Fleet scripts to remove local user accounts from macOS devices at scale. | Steven Palmesano | <nobr>2026‑03‑06</nobr> |
+| [Monitor DNS traffic on macOS](https://fleetdm.com/articles/monitor-dns-traffic-on-macos) | How to use Fleet and osquery to monitor DNS queries on macOS endpoints. | Victor Lyuboslavsky | <nobr>2026‑03‑08</nobr> |
+| [Deploying custom osquery extensions in Fleet](https://fleetdm.com/articles/deploying-custom-osquery-extensions-in-fleet) | How to deploy custom osquery extensions to managed devices using Fleet. | Allen Houchins | <nobr>2026‑03‑05</nobr> |
+| [Deploying custom osquery extensions in Fleet: A step-by-step guide](https://fleetdm.com/articles/deploying-custom-osquery-extensions-in-fleet-a-step-by-step-guide) | Step-by-step walkthrough for deploying custom osquery extensions across your Fleet-managed devices. | Allen Houchins | <nobr>2026‑03‑06</nobr> |
+| [What are Fleet policies?](https://fleetdm.com/articles/what-are-fleet-policies) | An introduction to Fleet policies — what they are, how they work, and how to use them for compliance and automation. | Andrew Baker | <nobr>2022‑05‑20</nobr> |
+| [End-user self remediation: empower your employees to fix security issues](https://fleetdm.com/articles/end-user-self-remediation) | How Fleet Desktop enables end users to self-remediate failing policies without IT intervention. | Chris McGillicuddy | <nobr>2022‑12‑15</nobr> |
+| [Labels in Fleet](https://fleetdm.com/guides/managing-labels-in-fleet) | Learn how to use labels in Fleet to organize and target hosts for policies, queries, and software. | Noah Talerman | <nobr>2025‑10‑24</nobr> |
+| [View and manage MDM configuration profile status](https://fleetdm.com/guides/configuration-profile-status) | Learn how to view and manage the status of MDM configuration profiles across your Fleet-enrolled devices. | Gabe Hernandez | <nobr>2025‑05‑26</nobr> |
+| [View certificates in host vitals](https://fleetdm.com/guides/view-certificates-in-host-vitals) | Learn about certificates in host vitals. | Sarah Gillespie | <nobr>2025‑03‑04</nobr> |
+| [Variables in scripts and configuration profiles](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) | A guide on using variables in scripts and configuration profiles. | Victor Lyuboslavsky | <nobr>2025‑01‑02</nobr> |
+| [Using bioutil to verify Touch ID/biometric utilization](https://fleetdm.com/guides/using-bioutil-cmd) | Streamline biometric security verification with bioutil and Fleet. | Harrison Ravazzolo | <nobr>2024‑12‑29</nobr> |
+| [Creating Windows configuration profiles (CSPs)](https://fleetdm.com/guides/creating-windows-csps) | Learn how to deploy Windows configuration profiles (CSPs) with Fleet. | Harrison Ravazzolo | <nobr>2024‑12‑12</nobr> |
+| [How Fleet empowers Linux device management](https://fleetdm.com/guides/empower-linux-device-management) | This guide explores how Fleet empowers Linux MDM. | Allen Houchins | <nobr>2024‑12‑03</nobr> |
+| [Configuring an Alternative Apple MDM URL](https://fleetdm.com/guides/alternate-apple-mdm-url) | A guide on configuring an alternative Apple MDM URL in Fleet for better traffic management. | Tim Lee | <nobr>2024‑11‑01</nobr> |
+| [Battery health](https://fleetdm.com/guides/battery-health) | Monitor and assess battery health in macOS and Windows devices using Fleet and osquery to maintain optimal device performance. | Tim Lee | <nobr>2024‑10‑16</nobr> |
+| [Scripts](https://fleetdm.com/guides/scripts) | Learn how to execute a custom script on macOS, Windows, and Linux hosts in Fleet. | Noah Talerman | <nobr>2024‑10‑07</nobr> |
+| [Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script) | A guide to workflows using automatic script execution in Fleet. | Ian Littman | <nobr>2024‑10‑07</nobr> |
+| [Fleet usage statistics](https://fleetdm.com/guides/fleet-usage-statistics) | Learn about Fleet's usage statistics and what information is collected. | Noah Talerman | <nobr>2024‑09‑27</nobr> |
+| [Discovering Chrome AI using Fleet](https://fleetdm.com/guides/discovering-chrome-ai-using-fleet) | Use Fleet to detect and monitor settings enabled in Google Chrome by querying Chrome's preferences JSON file. | Brock Walters | <nobr>2024‑09‑06</nobr> |
+| [Teams](https://fleetdm.com/guides/teams) | Learn how to group hosts in Fleet to apply specific queries, policies, and agent options using teams. | Noah Talerman | <nobr>2024‑07‑11</nobr> |
+| [MDM commands](https://fleetdm.com/guides/mdm-commands) | Learn how to run custom MDM commands on hosts using Fleet. | Brock Walters | <nobr>2024‑06‑12</nobr> |
+| [Sysadmin diaries: restoring fleetd](https://fleetdm.com/guides/sysadmin-diaries-restoring-fleetd) | In this sysadmin diary, we explore restoring fleetd deleted by a surly employee. | JD Strong | <nobr>2024‑06‑14</nobr> |
+| [Remediating the xz vulnerability with Fleet](https://fleetdm.com/guides/remediating-the-xz-vulnerability-with-fleet) | Discover and create a comprehensive end-to-end remediation workflow for the xz vulnerability (CVE-2024-3094) with Fleet. | Brock Walters | <nobr>2024‑06‑03</nobr> |
+| [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop) | Learn about Fleet Desktop's features for self-remediation and transparency. | Mo Zhu | <nobr>2024‑04‑19</nobr> |
+| [Sysadmin diaries: passcode profiles](https://fleetdm.com/guides/sysadmin-diaries-passcode-profiles) | In this sysadmin diary, we explore a misapplied passcode policy. | JD Strong | <nobr>2024‑04‑01</nobr> |
+| [Apple developer certificates on Linux for configuration profile signing](https://fleetdm.com/guides/apple-developer-certificates-on-linux-for-configuration-profile-signing) | This guide walks through the process of adding an Apple signing certificate to a Linux host. | Brock Walters | <nobr>2024‑03‑06</nobr> |
+| [Configuring full names in Google Workspace](https://fleetdm.com/guides/configuring-full-names-in-google-workspace) | Populating full name during macOS setup experience from Google Workspace. | Allen Houchins | <nobr>2025‑02‑25</nobr> |
+| [How to use CloudFront signed URLs with Fleet](https://fleetdm.com/guides/cdn-signed-urls) | A guide on using signed URLs with MDM bootstrap packages and software installers. | Victor Lyuboslavsky | <nobr>2025‑02‑03</nobr> |
+| [Driving company culture through AI haiku poetry](https://fleetdm.com/guides/driving-company-culture-through-ai-haiku-poetry) | How Fleet uses creative AI experiments like haiku generation to build culture and spark team engagement. | Luke Heath | <nobr>2024‑04‑17</nobr> |
+| [Behind the Scenes of an Account Development Representative (ADR)](https://fleetdm.com/guides/behind-the-scenes-of-an-adr) | A look at the day-to-day role of an ADR at Fleet and what to expect in the position. | Patricia Ambrus | <nobr>2025‑04‑03</nobr> |
+| [Becoming an ADR (Account Development Representative) at Fleet](https://fleetdm.com/guides/becoming-an-adr-at-fleet) | A look at what I've learned becoming an ADR at Fleet. | Onasis Munro | <nobr>2025‑03‑31</nobr> |
+| [Enabling Fleet Desktop on Fedora, Debian, and openSUSE](https://fleetdm.com/guides/fleet-desktop-on-fedora-and-debian) | How to enable and configure Fleet Desktop on Fedora, Debian, and openSUSE Linux distributions. | Lucas Rodriguez | <nobr>2025‑04‑01</nobr> |
+| [Downgrade from Fleet Premium](https://fleetdm.com/guides/downgrade-fleet) | Learn how to downgrade from Fleet Premium. | Eric Shaw | <nobr>2024‑01‑09</nobr> |
+| [Catch missed authorization checks during software development](https://fleetdm.com/guides/catch-missed-authorization-checks-during-software-development) | How to perform authorization checks in a golang codebase for cybersecurity. | Victor Lyuboslavsky | <nobr>2023‑12‑04</nobr> |
+| [ChromeOS](https://fleetdm.com/guides/chrome-os) | Learn about ChromeOS and Fleet. | Mo Zhu | <nobr>2023‑11‑21</nobr> |
+| [Which API endpoints to expose to the public internet?](https://fleetdm.com/guides/what-api-endpoints-to-expose-to-the-public-internet) | Guidance on which Fleet API endpoints are safe to expose publicly and which should stay internal. | Mike Thomas | <nobr>2023‑11‑13</nobr> |
+
+---
+
+## ⬛ Product News
+
+Feature launches, OS support announcements, integration announcements, and roadmap previews. Use for PR, email nurture, and social. Audience: content team, PMM.
+
+### Feature & Integration Announcements
+
+| Asset | Description | Author | Date updated |
+| --- | --- | --- | --- |
+| [Fleet supports Apple's latest operating systems: macOS Tahoe 26, iOS 26, and iPadOS 26](https://fleetdm.com/announcements/fleet-supports-apples-latest-operating-systems-macos-tahoe-26) | Fleet is pleased to announce full support for macOS Tahoe 26, iOS 26, and iPadOS 26. | Andrey Kizimenko | <nobr>2025‑09‑15</nobr> |
+| [Secureframe adopts Fleet as its default agent for security compliance](https://fleetdm.com/announcements/secureframe-adopts-fleet-as-its-default-agent) | Secureframe has selected Fleet as its default agent for collecting device compliance data across customer environments. | Mike McNeil | <nobr>2025‑07‑10</nobr> |
+| [Fleet supports Apple's latest operating systems: macOS 15 Sequoia, iOS 18, and iPadOS 18](https://fleetdm.com/announcements/fleet-supports-apples-latest-operating-systems-macos-15-sequoia) | Fleet is pleased to announce full support for macOS 15 Sequoia, iOS 18, and iPadOS 18. | JD Strong | <nobr>2024‑09‑27</nobr> |
+| [Fleet now supports iOS and iPadOS, software deployment, and automated patch management](https://fleetdm.com/announcements/fleet-now-supports-ios-and-ipados) | Fleet announces support for iOS and iPadOS, software deployment, and automated patch management. | Andrew Baker | <nobr>2024‑09‑26</nobr> |
+| [Fleet in your calendar: introducing maintenance windows](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows) | Like any good colleague, when Fleet needs some of your time, it puts it on your calendar. | JD Strong | <nobr>2024‑04‑30</nobr> |
+| [Enhancing Fleet's vulnerability management with VulnCheck integration](https://fleetdm.com/announcements/enhancing-fleets-vulnerability-management-with-vulncheck-integration) | Fleet integrates with VulnCheck to enhance vulnerability detection coverage and accuracy across managed devices. | JD Strong | <nobr>2024‑04‑23</nobr> |
+| [Fleet introduces Windows MDM](https://fleetdm.com/announcements/fleet-introduces-windows-mdm) | Fleet announces native Windows MDM support, enabling unified management of macOS, Windows, and Linux devices. | JD Strong | <nobr>2024‑01‑24</nobr> |
+| [NVD API 2.0: An important update for Fleet users](https://fleetdm.com/announcements/nvd-api-2-0-an-important-update-for-fleet-users) | What Fleet users need to know about the NVD API 2.0 migration and how it affects vulnerability data in Fleet. | JD Strong | <nobr>2023‑11‑28</nobr> |
+| [Introducing cross-platform script execution](https://fleetdm.com/announcements/introducing-cross-platform-script-execution) | Fleet now supports running scripts on macOS, Windows, and Linux hosts directly from the Fleet UI or API. | JD Strong | <nobr>2023‑10‑17</nobr> |
+| [Fleet enhances device management with ChromeOS support](https://fleetdm.com/announcements/fleet-enhances-device-management-with-chromeos-support) | Fleet has expanded support to include ChromeOS and ChromeOS Flex! | JD Strong | <nobr>2023‑06‑13</nobr> |
+| [Keep Fleet running smoothly on AWS with the new Terraform module](https://fleetdm.com/announcements/keep-fleet-running-smoothly-on-aws-with-the-new-terraform-module) | Fleet releases an official Terraform module to simplify and standardize AWS deployments. | Zachary Winnerman | <nobr>2023‑01‑09</nobr> |
+| [Introducing Sandbox, the fastest way to play with Fleet](https://fleetdm.com/announcements/introducing-sandbox-the-fastest-way-to-play-with-fleet) | Fleet Sandbox lets you explore Fleet's features instantly without any installation or setup required. | Chris McGillicuddy | <nobr>2022‑08‑24</nobr> |
+| [Introducing Orbit, your Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager) | Orbit is Fleet's new agent manager that simplifies osquery deployment, updates, and configuration at scale. | Mo Zhu | <nobr>2022‑08‑18</nobr> |
+| [Fleet Desktop says "Hello, world!"](https://fleetdm.com/announcements/fleet-desktop-says-hello-world) | Announcing Fleet Desktop, a menu bar app that gives end users visibility into the security state of their own device. | Mo Zhu | <nobr>2022‑08‑02</nobr> |
+
+### Roadmap Previews
+
+| Asset | Description | Author | Date updated |
+| --- | --- | --- | --- |
+| [Roadmap preview, January 2026](https://fleetdm.com/announcements/roadmap-preview-january-2026) | The product improvements Fleet is currently working on and the 3 biggest open opportunities in the product in the near future. | Noah Talerman | <nobr>2026‑01‑05</nobr> |
+| [Roadmap preview, October 2025](https://fleetdm.com/announcements/roadmap-preview-october-2025) | The product improvements Fleet is currently working on and the 3 biggest open opportunities in the product in the near future. | Noah Talerman | <nobr>2025‑10‑07</nobr> |
+| [Roadmap preview, July 2025](https://fleetdm.com/announcements/roadmap-preview-july-2025) | The product improvements Fleet is currently working on and the 3 biggest open opportunities in the product in the near future. | Noah Talerman | <nobr>2025‑07‑18</nobr> |
+| [Roadmap preview, April 2025](https://fleetdm.com/announcements/roadmap-preview-april-2025) | The product improvements Fleet is currently working on and the 3 biggest open opportunities in the product in the near future. | Noah Talerman | <nobr>2025‑04‑01</nobr> |
+| [Roadmap preview, January 2025](https://fleetdm.com/announcements/roadmap-preview-january-2025) | The product improvements Fleet is currently working on and the 3 biggest open opportunities in the product in the near future. | Noah Talerman | <nobr>2025‑01‑08</nobr> |
+
+---
+
+## 🔴 Community & Podcast
+
+ExpedITioners is Fleet's podcast, hosted by Zach Wasserman. Episodes feature guests from the IT, security, and open-source communities discussing device management, osquery, MDM, GitOps, and the future of endpoint infrastructure.
+
+| Episode | Guest & role | Description | Date |
+| --- | --- | --- | --- |
+| [Huxley Barbee: The modern divergence of environments and security methodologies](https://expeditioners.podbean.com/e/huxley-barbee-the-modern-divergence-of-environments-and-security-methodologies/) | Huxley Barbee — Security Evangelist at RunZero; organizer of BSides NYC | The modern divergence of environments and security methodologies, improving the industry for newcomers, and comprehensive security tooling. | <nobr>2024‑01‑30</nobr> |
+| [Marcus Ransom: The positive future of collaboration between vendors and Apple for enterprise](https://expeditioners.podbean.com/e/marcus-ransom-the-positive-future-of-collaboration-between-vendors-and-apple-for-enterprise/) | Marcus Ransom — Sales Engineer at Jamf; co-host of the Mac Admins Podcast | The exciting future of Apple for enterprise, vendor collaboration, and the MacAdmin community that supports it. | <nobr>2023‑12‑11</nobr> |
+| [Jeff Chao: Configuration as code for efficiency and automation](https://expeditioners.podbean.com/e/jeff-chao-configuration-as-code-for-efficiency-and-automation/) | Jeff Chao — Co-Founder & CTO at Abbey Labs | Implementing configuration as code for access management, efficiency, and automation in modern engineering teams. | <nobr>2023‑11‑15</nobr> |
+| [Charles Edge: The past, present, and future of all things computing and device management](https://expeditioners.podbean.com/e/charles-edge-the-past-present-and-future-of-all-things-computing-and-device-management/) | Charles Edge — "Old School Mac Guy"; host of the MacAdmins Podcast | The history and future of computing and device management, and what the MacAdmin community can expect next. | <nobr>2023‑10‑23</nobr> |
+| [John Reynolds: Rehumanizing interactions between IT and end users](https://expeditioners.podbean.com/e/john-reynolds-rehumanizing-interactions-between-it-and-end-users/) | John Reynolds — IT professional and community advocate | How IT teams can rehumanize their interactions with end users and build better workplace technology experiences. | <nobr>2023‑09‑21</nobr> |
+| [Rich Trouton: Declarative Device Management and a promising future for Mac Admins](https://expeditioners.podbean.com/e/rich-trouton-declarative-device-management-and-a-promising-future-for-mac-admins/) | Rich Trouton — IT Technology Services Expert at SAP; author of Der Flounder blog | Apple's Declarative Device Management (DDM) framework and what it means for the future of Mac administration. | <nobr>2023‑08‑31</nobr> |
+| [Niels Hofmans: Threat modeling, open-source collaboration, and bug bounties](https://expeditioners.podbean.com/e/niels-hofmans-threat-modeling-open-source-collaboration-and-bug-bounties/) | Niels Hofmans — Head of Security at Intigriti | Threat modeling methodologies, open-source security collaboration, and the bug bounty ecosystem across 90,000+ security researchers. | <nobr>2023‑08‑18</nobr> |
+| [Bradley Chambers: The bright future and golden era of macOS](https://expeditioners.podbean.com/e/bradley-chambers-the-bright-future-and-golden-era-of-macos/) | Bradley Chambers — Enterprise technology writer for 9to5Mac; author of Apple @ Work | Why macOS is entering a golden era for enterprise, and how Apple's platform strategy is reshaping workplace IT. | <nobr>2023‑07‑14</nobr> |
+| [Mat X — Organizing community insights for industry growth with MacAdmin tools](https://expeditioners.podbean.com/e/mat-x-organizing-community-insights-for-industry-growth-with-macadmin-tools/) | Mat X — Storage, workflow, and broadcast systems engineer in film & VFX | How the MacAdmin community can better organize and share knowledge to accelerate industry growth. | <nobr>2022‑11‑03</nobr> |
+| [Whitney Champion — Scaling infrastructure automation with open source tools](https://expeditioners.podbean.com/e/ep-6-whitney-champion-scaling-infrastructure-automation-with-open-source-tools/) | Whitney Champion — Infrastructure and open-source automation engineer | Scaling infrastructure automation using open source tools and the culture of contributing back to the community. | <nobr>2022‑09‑23</nobr> |
+| [Jesse Peterson — Open source communities for better MDM and career growth](https://expeditioners.podbean.com/e/jesse-peterson-open-source-communities-for-better-mdm-and-career-growth/) | Jesse Peterson — Client Platform Engineer at Meta; creator of NanoMDM; contributor to MicroMDM | How open-source communities drive better MDM tooling and create career growth opportunities for contributors. | <nobr>2022‑09‑01</nobr> |
+| [Nick Anderson — Endpoint security for osquery](https://expeditioners.podbean.com/e/ep-4-nick-anderson-endpoint-security-for-osquery/) | Nick Anderson — Security Engineer at Meta; osquery Technical Steering Committee member | How osquery enables robust endpoint security and detection at scale in large enterprise environments. | <nobr>2022‑08‑12</nobr> |
+| [Chris Long — From osquery skeptic to believer](https://expeditioners.podbean.com/e/ep-3-chris-long-from-osquery-sceptic-to-believer/) | Chris Long — Staff Security Engineer at Material Security; creator of Detection Lab | The journey from skepticism to conviction on osquery, and how Detection Lab accelerates security team onboarding. | <nobr>2022‑07‑21</nobr> |
+| [Prima Virani — Improving endpoint monitoring and visibility with osquery](https://expeditioners.podbean.com/e/prima-virani-improving-endpoint-monitoring-and-visibility-with-osquery/) | Prima Virani — Detection & Response Engineering Lead at Twilio | Using osquery to improve endpoint monitoring, detection, and security visibility across a distributed fleet. | <nobr>2022‑06‑28</nobr> |
+| [Mike Arpaia — The story behind the creation of osquery](https://expeditioners.podbean.com/e/ep-1-mike-arpaia-the-story-behind-the-creation-of-osquery/) | Mike Arpaia — Co-creator of osquery; Partner at Moonfire Ventures | The origin story of osquery, the philosophy behind its design, and its lasting impact on endpoint security and observability. | <nobr>2022‑06‑02</nobr> |
+
+---
+
+## Release Notes
 
 See: https://fleetdm.com/releases
 
+
+
 <meta name="maintainedBy" value="akuthiala">
-<meta name="title" value="🫧 Marketing Assets">
+<meta name="title" value="🫧 Marketing Assets New">

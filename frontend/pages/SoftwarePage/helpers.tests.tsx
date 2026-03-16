@@ -73,6 +73,7 @@ const makePolicies = (count: number): ISoftwareInstallPolicy[] =>
   Array.from({ length: count }, (_, i) => ({
     id: i + 1,
     name: `Policy ${i + 1}`,
+    type: i % 2 === 0 ? "patch" : "dynamic" /* alternate types for variety */,
   }));
 
 describe("getAutomaticInstallPoliciesCount", () => {

@@ -18,6 +18,7 @@ interface IPoliciesApiQueryParams {
   orderKey?: string;
   orderDirection?: "asc" | "desc";
   query?: string;
+  automationType?: string;
 }
 
 export interface IPoliciesApiParams extends IPoliciesApiQueryParams {
@@ -67,6 +68,8 @@ export default {
       software_title_id,
       labels_include_any,
       labels_exclude_any,
+      type,
+      patch_software_title_id,
       // note absence of automations-related fields, which are only set by the UI via update
     } = data;
     const { TEAMS } = endpoints;
@@ -82,6 +85,8 @@ export default {
       software_title_id,
       labels_include_any,
       labels_exclude_any,
+      type,
+      patch_software_title_id,
     });
   },
   // TODO - response type Promise<IPolicy>
@@ -97,7 +102,6 @@ export default {
       // automations-related fields
       calendar_events_enabled,
       conditional_access_enabled,
-      conditional_access_bypass_enabled,
       software_title_id,
       script_id,
       labels_include_any,
@@ -115,7 +119,6 @@ export default {
       critical,
       calendar_events_enabled,
       conditional_access_enabled,
-      conditional_access_bypass_enabled,
       software_title_id,
       script_id,
       labels_include_any,
@@ -153,6 +156,7 @@ export default {
     orderDirection: orderDir = ORDER_DIRECTION,
     query,
     mergeInherited,
+    automationType,
   }: IPoliciesApiParams): Promise<ILoadTeamPoliciesResponse> => {
     const { TEAMS } = endpoints;
 
@@ -163,6 +167,7 @@ export default {
       orderDirection: orderDir,
       query,
       mergeInherited,
+      automationType,
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);

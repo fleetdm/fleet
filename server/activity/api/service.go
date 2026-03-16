@@ -10,4 +10,5 @@ type Service interface {
 	StreamActivitiesService
 	NewActivityService
 	CleanupExpiredActivitiesService
+	CleanupHostActivitiesService
 }

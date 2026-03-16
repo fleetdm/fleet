@@ -185,7 +185,7 @@ func (t *Team) UnmarshalJSON(b []byte) error {
 		x.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
 	if !x.MDM.MacOSSetup.LockEndUserInfo.Valid {
-		x.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+		x.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(x.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
 	*t = Team{
 		ID:          x.ID,
@@ -305,8 +305,8 @@ type TeamMDM struct {
 	IOSUpdates                 AppleOSUpdateSettings `json:"ios_updates"`
 	IPadOSUpdates              AppleOSUpdateSettings `json:"ipados_updates"`
 	WindowsUpdates             WindowsUpdates        `json:"windows_updates"`
-	MacOSSettings              MacOSSettings         `json:"macos_settings"`
-	MacOSSetup                 MacOSSetup            `json:"macos_setup"`
+	MacOSSettings              MacOSSettings         `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSetup                 MacOSSetup            `json:"macos_setup" renameto:"setup_experience"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
@@ -391,8 +391,8 @@ type TeamSpecMDM struct {
 	// custom_settings key is specified but empty, then we need to clear the
 	// value, but if it isn't provided, we need to leave the existing value
 	// unmodified.
-	MacOSSettings map[string]interface{} `json:"macos_settings"`
-	MacOSSetup    MacOSSetup             `json:"macos_setup"`
+	MacOSSettings map[string]any `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSetup    MacOSSetup     `json:"macos_setup" renameto:"setup_experience"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
@@ -629,6 +629,11 @@ type TeamFilter struct {
 	// specified, they must met too (e.g. if a User is provided, that team ID
 	// must be part of their teams).
 	TeamID *uint
+	// ObserverTeamID, when set, restricts observer-role access to only this team.
+	// Used for live queries where observer_can_run is scoped to the query's own team,
+	// so that a user who is observer on multiple teams only sees hosts from the query's team.
+	// Non-observer roles (admin, maintainer, etc.) are not affected.
+	ObserverTeamID *uint
 }
 
 func (f TeamFilter) UserCanAccessSelectedTeam() bool {

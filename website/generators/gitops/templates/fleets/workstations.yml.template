@@ -96,9 +96,6 @@ controls:
   #   deadline_days: 7
   #   grace_period_days: 2
 
-  # TODO: mike: Go add documentation links for each section below
-  # (and write up the software section in here and the personal mobile devices fleet manifest)
-
   ###########################################################
   # Script library
   # 

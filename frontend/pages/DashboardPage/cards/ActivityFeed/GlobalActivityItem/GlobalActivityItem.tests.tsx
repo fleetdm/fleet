@@ -712,6 +712,122 @@ describe("Activity Feed", () => {
     expect(screen.queryByText("assigned to the")).toBeNull();
   });
 
+  it("renders a 'viewed_host_recovery_lock_password' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.ViewedHostRecoveryLockPassword,
+      details: { host_display_name: "Anna's MacBook Pro" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("viewed the Recovery Lock password for", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
+  });
+
+  it("renders a 'set_host_recovery_lock_password' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.SetHostRecoveryLockPassword,
+      details: { host_display_name: "Anna's MacBook Pro" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("set a Recovery Lock password for", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
+  });
+
+  it("renders a 'rotated_host_recovery_lock_password' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.RotatedHostRecoveryLockPassword,
+      details: { host_display_name: "Alex's Macbook Air" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("rotated the Recovery Lock password for", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alex's Macbook Air")).toBeInTheDocument();
+  });
+
+  it("renders an 'enabled_recovery_lock_passwords' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledRecoveryLockPasswords,
+      details: { team_name: "Alphas" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "enforced Recovery Lock passwords for hosts assigned to the",
+        {
+          exact: false,
+        }
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
+  });
+
+  it("renders an 'enabled_recovery_lock_passwords' type activity for unassigned hosts", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledRecoveryLockPasswords,
+      details: {},
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "enforced Recovery Lock passwords for hosts that are unassigned."
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText("assigned to the")).toBeNull();
+  });
+
+  it("renders a 'disabled_recovery_lock_passwords' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledRecoveryLockPasswords,
+      details: { team_name: "Alphas" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "removed Recovery Lock password enforcement for hosts assigned to the",
+        {
+          exact: false,
+        }
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
+  });
+
+  it("renders a 'disabled_recovery_lock_passwords' type activity for unassigned hosts", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledRecoveryLockPasswords,
+      details: {},
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "removed Recovery Lock password enforcement for hosts that are unassigned.",
+        {
+          exact: false,
+        }
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText("assigned to the")).toBeNull();
+  });
+
   it("renders a 'changed_macos_setup_assistant' type activity for no team", () => {
     const activity = createMockActivity({
       type: ActivityType.ChangedMacOSSetupAssistant,

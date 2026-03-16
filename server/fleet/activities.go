@@ -8,6 +8,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 )
 
+// ActivityWriteService is the subset of the activity bounded context service
+// used by the legacy service layer for write operations.
+type ActivityWriteService interface {
+	api.NewActivityService
+	api.CleanupHostActivitiesService
+}
+
 // NewActivityFunc is the function signature for creating a new activity.
 type NewActivityFunc func(ctx context.Context, user *User, activity ActivityDetails) error
 
