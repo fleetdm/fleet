@@ -17,10 +17,10 @@ func TestUp_20260315000000(t *testing.T) {
 	// "Support" stays, " Support " gets disambiguated.
 	execNoErr(t, db, `INSERT INTO teams (name) VALUES ('Support')`)
 	execNoErr(t, db, `INSERT INTO teams (name) VALUES (' Support ')`)
-	// "Finance " and "Finance  " — both need trimming, both conflict after trim.
+	// "  Finance" and "Finance  " — both need trimming, both conflict after trim.
 	// Both should get disambiguated with their IDs.
 	execNoErr(t, db, `INSERT INTO teams (name) VALUES ('Finance ')`)
-	execNoErr(t, db, `INSERT INTO teams (name) VALUES ('Finance  ')`)
+	execNoErr(t, db, `INSERT INTO teams (name) VALUES ('  Finance')`)
 	// Tab and newline whitespace — should be trimmed to "DevOps" and "QA".
 	execNoErr(t, db, "INSERT INTO teams (name) VALUES ('\tDevOps\t')")
 	execNoErr(t, db, "INSERT INTO teams (name) VALUES ('\nQA\n')")

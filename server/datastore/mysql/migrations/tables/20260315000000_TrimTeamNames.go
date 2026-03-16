@@ -29,6 +29,11 @@ func Up_20260315000000(tx *sql.Tx) error {
 	trimT1 := fmt.Sprintf(rtrim, "t1.name")
 	trimTName := fmt.Sprintf(rtrim, "t.name")
 
+	// needsTrim matches names with leading or trailing whitespace (including
+	// tabs, newlines, etc.). Used instead of comparing trimmed != original to
+	// avoid PAD SPACE collation issues where "Finance " = "Finance".
+	const needsTrim = `%s REGEXP '^[[:space:]]|[[:space:]]$'`
+
 	// Step 1: Rename whitespace-only team names to "Unnamed team (<id>)".
 	_, err := tx.Exec(fmt.Sprintf(`
 		UPDATE teams
@@ -44,16 +49,21 @@ func Up_20260315000000(tx *sql.Tx) error {
 	// fully contained inside the subquery to avoid MySQL's restriction on
 	// updating a table referenced in a subquery.
 	// Note: we avoid CREATE TEMPORARY TABLE as it can fail with GTID replication.
+	//
+	// The join compares trimmed(t1) = trimmed(t2) instead of t2.name = trimmed(t1)
+	// so that two teams that both need trimming to the same value (e.g.,
+	// "Finance " and "  Finance" → both "Finance") are both caught.
+	trimT2 := fmt.Sprintf(rtrim, "t2.name")
 	_, err = tx.Exec(fmt.Sprintf(`
 		UPDATE teams t
 		JOIN (
 			SELECT DISTINCT t1.id
 			FROM teams t1
-			INNER JOIN teams t2 ON t2.id != t1.id AND t2.name = %s
-			WHERE %s != t1.name
+			INNER JOIN teams t2 ON t2.id != t1.id AND %s = %s
+			WHERE `+needsTrim+`
 		) AS conflicting ON t.id = conflicting.id
 		SET t.name = CONCAT(%s, ' (', t.id, ')')
-	`, trimT1, trimT1, trimTName))
+	`, trimT2, trimT1, "t1.name", trimTName))
 	if err != nil {
 		return fmt.Errorf("resolve conflicting trimmed team names: %w", err)
 	}
@@ -62,8 +72,7 @@ func Up_20260315000000(tx *sql.Tx) error {
 	_, err = tx.Exec(fmt.Sprintf(`
 		UPDATE teams
 		SET name = %s
-		WHERE %s != name
-	`, trimExpr, trimExpr))
+		WHERE `+needsTrim, trimExpr, "name"))
 	if err != nil {
 		return fmt.Errorf("trim team names: %w", err)
 	}
