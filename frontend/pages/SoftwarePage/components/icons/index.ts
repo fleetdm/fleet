@@ -471,6 +471,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   utm: Utm,
   virtualbox: VirtualBox,
   viscosity: Viscosity,
+  vivaldi: Vivaldi,
   "vnc viewer": VncViewer,
   "visual studio code": VisualStudioCode,
   vivaldi: Vivaldi,
