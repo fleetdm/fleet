@@ -44,17 +44,24 @@ func getDiskSpace(ctx context.Context) (bytesAvailable, bytesTotal int64, err er
 	script := `
 ObjC.import('Foundation');
 var url = $.NSURL.fileURLWithPath('/');
+var err = Ref();
 var availRef = Ref();
-url.getResourceValueForKeyError(availRef, $.NSURLVolumeAvailableCapacityForImportantUsageKey, null);
+if (!url.getResourceValueForKeyError(availRef, $.NSURLVolumeAvailableCapacityForImportantUsageKey, err)) {
+    throw new Error('failed to get available capacity: ' + ObjC.unwrap(err[0].localizedDescription));
+}
 var totalRef = Ref();
-url.getResourceValueForKeyError(totalRef, $.NSURLVolumeTotalCapacityKey, null);
+if (!url.getResourceValueForKeyError(totalRef, $.NSURLVolumeTotalCapacityKey, err)) {
+    throw new Error('failed to get total capacity: ' + ObjC.unwrap(err[0].localizedDescription));
+}
 JSON.stringify({available: availRef[0].js, total: totalRef[0].js})
 `
 	cmd := exec.CommandContext(ctx, "osascript", "-l", "JavaScript", "-e", script)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		log.Debug().Err(err).Msg("failed to get disk space via osascript")
-		return 0, 0, fmt.Errorf("failed to run osascript: %w", err)
+		log.Debug().Err(err).Str("stderr", stderr.String()).Msg("failed to get disk space via osascript")
+		return 0, 0, fmt.Errorf("failed to run osascript: %w (stderr: %s)", err, stderr.String())
 	}
 
 	var result struct {
@@ -62,7 +69,7 @@ JSON.stringify({available: availRef[0].js, total: totalRef[0].js})
 		Total     int64 `json:"total"`
 	}
 	if err := json.Unmarshal(bytes.TrimSpace(out), &result); err != nil {
-		return 0, 0, fmt.Errorf("failed to parse disk space result %q: %w", out, err)
+		return 0, 0, fmt.Errorf("failed to parse disk space result (stdout: %q, stderr: %q): %w", out, stderr.String(), err)
 	}
 
 	return result.Available, result.Total, nil
