@@ -256,7 +256,7 @@ func testDeleteSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	var teamID, titleID, installerID uint
+	var teamID, titleID, installerID, installer2ID uint
 	var err error
 	testCases := []struct {
 		name     string
@@ -513,7 +513,7 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			// Create installer in team 2 for the same title
 			tfr2, err := fleet.NewTempFileReader(strings.NewReader("world"), t.TempDir)
 			require.NoError(t, err)
-			installer2ID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			installer2ID, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 				InstallScript:    "world",
 				InstallerFile:    tfr2,
 				StorageID:        "storage2",
@@ -527,7 +527,6 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 				ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			})
 			require.NoError(t, err)
-			_ = installer2ID
 
 			// Create icons in both teams
 			_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
@@ -565,6 +564,7 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			activity2, err := ds.ActivityDetailsForSoftwareTitleIcon(ctx, tm2ID, titleID)
 			require.NoError(t, err)
 			require.NotNil(t, activity2.SoftwareInstallerID)
+			require.Equal(t, installer2ID, *activity2.SoftwareInstallerID)
 			require.Equal(t, "team2", *activity2.TeamName)
 			require.Equal(t, tm2ID, activity2.TeamID)
 		}},
