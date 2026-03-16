@@ -193,8 +193,8 @@ func TestWindowsMDMDefaultTeamAuth(t *testing.T) {
 
 	t.Run("GetWindowsMDMDefaultTeam", func(t *testing.T) {
 		cases := []struct {
-			desc              string
-			user              *fleet.User
+			desc               string
+			user               *fleet.User
 			shouldFailWithAuth bool
 		}{
 			{"no role", test.UserNoRoles, true},
@@ -215,8 +215,8 @@ func TestWindowsMDMDefaultTeamAuth(t *testing.T) {
 
 	t.Run("UpdateWindowsMDMDefaultTeam", func(t *testing.T) {
 		cases := []struct {
-			desc              string
-			user              *fleet.User
+			desc               string
+			user               *fleet.User
 			shouldFailWithAuth bool
 		}{
 			{"no role", test.UserNoRoles, true},
