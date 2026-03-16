@@ -129,6 +129,42 @@ func TestValidateUnknownKeys(t *testing.T) {
 		assert.Len(t, errs, 2)
 	})
 
+	t.Run("ValidKeysProvider accepts declared keys", func(t *testing.T) {
+		// GoogleCalendarApiKey implements ValidKeysProvider to declare accepted
+		// keys for its custom JSON marshaling.
+		data := map[string]any{
+			"google_calendar": []any{
+				map[string]any{
+					"domain": "example.com",
+					"api_key_json": map[string]any{
+						"client_email": "test@example.com",
+						"private_key":  "some value",
+					},
+				},
+			},
+		}
+		errs := validateUnknownKeys(data, reflect.TypeFor[fleet.Integrations](), []string{"org_settings", "integrations"}, "test.yml")
+		assert.Empty(t, errs)
+	})
+
+	t.Run("ValidKeysProvider rejects undeclared keys", func(t *testing.T) {
+		data := map[string]any{
+			"google_calendar": []any{
+				map[string]any{
+					"domain": "example.com",
+					"api_key_json": map[string]any{
+						"client_email": "test@example.com",
+						"private_key":  "nothing to see here",
+						"bad_field":    "unknown",
+					},
+				},
+			},
+		}
+		errs := validateUnknownKeys(data, reflect.TypeFor[fleet.Integrations](), []string{"org_settings", "integrations"}, "test.yml")
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), "bad_field")
+	})
+
 	t.Run("scalar data no errors", func(t *testing.T) {
 		errs := validateUnknownKeys("just a string", reflect.TypeFor[fleet.QuerySpec](), nil, "test.yml")
 		assert.Empty(t, errs)
@@ -308,6 +344,26 @@ func TestAnyFieldTypeRegistry(t *testing.T) {
 		assert.Contains(t, overrides, "windows_settings")
 		assert.Contains(t, overrides, "android_settings")
 	})
+
+	t.Run("org_settings certificate_authorities any-field recursion", func(t *testing.T) {
+		data := map[string]any{
+			"certificate_authorities": map[string]any{
+				"ndes_scep_proxy": map[string]any{},
+				"digicert":        []any{},
+				"unknown_ca_type": "bad",
+			},
+		}
+		errs := validateUnknownKeys(data, reflect.TypeFor[GitOpsOrgSettings](), []string{"org_settings"}, "test.yml")
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), "unknown_ca_type")
+		assert.Contains(t, errs[0].Error(), "org_settings.certificate_authorities")
+	})
+
+	t.Run("org_settings registered types present", func(t *testing.T) {
+		overrides, ok := anyFieldTypes[reflect.TypeFor[GitOpsOrgSettings]()]
+		require.True(t, ok)
+		assert.Contains(t, overrides, "certificate_authorities")
+	})
 }
 
 func TestValidateRawKeys(t *testing.T) {
@@ -331,6 +387,12 @@ func TestValidateRawKeys(t *testing.T) {
 		errs := validateRawKeys(raw, reflect.TypeFor[fleet.QuerySpec](), "test.yml", []string{"reports"})
 		require.Len(t, errs, 1)
 		assert.Contains(t, errs[0].Error(), "invalid")
+	})
+
+	t.Run("bool or", func(t *testing.T) {
+		raw := []byte(`{"install_software": {"package_path": "./lib/ruby.yml"}}`)
+		errs := validateRawKeys(raw, reflect.TypeFor[GitOpsPolicySpec](), "test.yml", []string{"policies"})
+		assert.Empty(t, errs)
 	})
 }
 

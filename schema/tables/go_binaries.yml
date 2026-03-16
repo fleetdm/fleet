@@ -1,0 +1,67 @@
+name: go_binaries
+platforms:
+  - darwin
+  - linux
+  - windows
+description: Go binaries installed via `go install` in `$HOME/go/bin`.
+evented: false
+columns:
+  - name: name
+    type: text
+    required: false
+    description: |-
+      The filename of the Go binary.
+  - name: version
+    type: text
+    required: false
+    description: |-
+      The module version of the binary (e.g. v1.2.3). Shows "(devel)" for binaries built with `go build`.
+  - name: module_path
+    type: text
+    required: false
+    description: |-
+      The Go module path that produced this binary (e.g. github.com/user/repo).
+  - name: import_path
+    type: text
+    required: false
+    description: |-
+      The import path of the main package (e.g. github.com/user/repo/cmd/tool).
+  - name: go_version
+    type: text
+    required: false
+    description: |-
+      The version of the Go toolchain used to build this binary (e.g. go1.22.3).
+  - name: installed_path
+    type: text
+    required: false
+    description: |-
+      The absolute filesystem path to the binary.
+examples: |-
+  List all Go binaries:
+
+  ```
+  SELECT * FROM go_binaries;
+  ```
+
+  List Go binaries with real versions (installed via `go install`):
+
+  ```
+  SELECT * FROM go_binaries WHERE version <> '(devel)';
+  ```
+
+  Find all Go binaries for a specific module:
+
+  ```
+  SELECT * FROM go_binaries WHERE module_path LIKE 'github.com/hashicorp/%';
+  ```
+
+notes: |-
+  This table is not a core osquery table. It is included as part of Fleet's agent
+  ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+
+  Go binaries compiled with Go 1.18+ embed build information that this table extracts
+  using Go's debug/buildinfo package. Binaries built with `go build` will show "(devel)"
+  as the version, while those installed via `go install module@version` will show the
+  actual version.
+
+  The table scans each user's ~/go/bin directory for Go binaries.

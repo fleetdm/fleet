@@ -510,9 +510,10 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 	require.Equal(t, "ABCH2", buf.String())
 }
 
-func TestWriteBrowserSecurityHeaders(t *testing.T) {
+func TestWriteBrowserSecurityHeadersNoCSP(t *testing.T) {
 	w := httptest.NewRecorder()
-	endpointer.WriteBrowserSecurityHeaders(w)
+	_, err := endpointer.WriteBrowserSecurityHeaders(w, false, false)
+	require.NoError(t, err)
 	headers := w.Header()
 	require.Equal(
 		t,
@@ -521,6 +522,42 @@ func TestWriteBrowserSecurityHeaders(t *testing.T) {
 			"X-Frame-Options":           {"SAMEORIGIN"},
 			"Strict-Transport-Security": {"max-age=31536000; includeSubDomains;"},
 			"Referrer-Policy":           {"strict-origin-when-cross-origin"},
+		},
+		headers,
+	)
+}
+
+func TestWriteBrowserSecurityHeadersCSPNoNonce(t *testing.T) {
+	w := httptest.NewRecorder()
+	_, err := endpointer.WriteBrowserSecurityHeaders(w, true, false)
+	require.NoError(t, err)
+	headers := w.Header()
+	require.Equal(
+		t,
+		http.Header{
+			"X-Content-Type-Options":    {"nosniff"},
+			"X-Frame-Options":           {"SAMEORIGIN"},
+			"Strict-Transport-Security": {"max-age=31536000; includeSubDomains;"},
+			"Referrer-Policy":           {"strict-origin-when-cross-origin"},
+			"Content-Security-Policy":   {"default-src 'none'; base-uri 'self'; connect-src 'self' www.gravatar.com ws: wss:; img-src 'self' www.gravatar.com data: https:; style-src 'self'; font-src 'self'; script-src 'self'"},
+		},
+		headers,
+	)
+}
+
+func TestWriteBrowserSecurityHeadersCSPAndNonce(t *testing.T) {
+	w := httptest.NewRecorder()
+	nonce, err := endpointer.WriteBrowserSecurityHeaders(w, true, true)
+	require.NoError(t, err)
+	headers := w.Header()
+	require.Equal(
+		t,
+		http.Header{
+			"X-Content-Type-Options":    {"nosniff"},
+			"X-Frame-Options":           {"SAMEORIGIN"},
+			"Strict-Transport-Security": {"max-age=31536000; includeSubDomains;"},
+			"Referrer-Policy":           {"strict-origin-when-cross-origin"},
+			"Content-Security-Policy":   {"default-src 'none'; base-uri 'self'; connect-src 'self' www.gravatar.com ws: wss:; img-src 'self' www.gravatar.com data: https:; style-src 'self' 'nonce-" + nonce + "'; font-src 'self'; script-src 'self' 'nonce-" + nonce + "'"},
 		},
 		headers,
 	)

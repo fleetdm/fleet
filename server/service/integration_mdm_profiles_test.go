@@ -579,7 +579,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 		"mdm": {
 			"macos_updates": {
 				"deadline": "2023-12-31",
-				"minimum_version": "13.3.7"
+				"minimum_version": "14.6.1"
 			}
 		}
 	}`), http.StatusOK)
@@ -587,7 +587,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 		MDM: &fleet.TeamPayloadMDM{
 			MacOSUpdates: &fleet.AppleOSUpdateSettings{
 				Deadline:       optjson.SetString("1992-01-01"),
-				MinimumVersion: optjson.SetString("13.1.1"),
+				MinimumVersion: optjson.SetString("14.6.1"),
 			},
 		},
 	}, http.StatusOK)
@@ -5275,7 +5275,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 			},
 			"macos_updates": {
 				"deadline": "2023-12-31",
-				"minimum_version": "13.3.7"
+				"minimum_version": "14.6.1"
 			}
 		}
 	}`), http.StatusOK, &acResp)
@@ -5328,7 +5328,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 				},
 				MacOSUpdates: &fleet.AppleOSUpdateSettings{
 					Deadline:       optjson.SetString("2023-12-31"),
-					MinimumVersion: optjson.SetString("13.3.8"),
+					MinimumVersion: optjson.SetString("14.6.1"),
 					UpdateNewHosts: optjson.SetBool(true),
 				},
 			},
@@ -5340,7 +5340,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	require.Equal(t, 4, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Value)
 	require.Equal(t, 1, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Value)
 	require.Equal(t, "2023-12-31", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
-	require.Equal(t, "13.3.8", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "14.6.1", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, true, tmResp.Team.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
 
 	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger))
@@ -8663,6 +8663,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAndroidProfilesStatus() {
 // hosts when OS update settings are initially set or when deadline/minimum version changes.
 func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 	t := s.T()
+	s.setSkipWorkerJobs(t)
 	ctx := context.Background()
 
 	// Create a team via the API so agent ops are initialized.
@@ -8813,15 +8814,15 @@ func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
 			MacOSUpdates: fleet.AppleOSUpdateSettings{
-				MinimumVersion: optjson.SetString("14.1.0"),
+				MinimumVersion: optjson.SetString("14.6.1"),
 				Deadline:       optjson.SetString("2024-03-01"),
 			},
 			IOSUpdates: fleet.AppleOSUpdateSettings{
-				MinimumVersion: optjson.SetString("17.1.0"),
+				MinimumVersion: optjson.SetString("17.6.1"),
 				Deadline:       optjson.SetString("2024-03-01"),
 			},
 			IPadOSUpdates: fleet.AppleOSUpdateSettings{
-				MinimumVersion: optjson.SetString("17.1.0"),
+				MinimumVersion: optjson.SetString("17.6.1"),
 				Deadline:       optjson.SetString("2024-03-01"),
 			},
 			WindowsUpdates: fleet.WindowsUpdates{
@@ -8877,11 +8878,11 @@ func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 				Deadline:       optjson.SetString("2025-06-01"),
 			},
 			IOSUpdates: fleet.AppleOSUpdateSettings{
-				MinimumVersion: optjson.SetString("17.3.0"),
+				MinimumVersion: optjson.SetString("16.7.2"),
 				Deadline:       optjson.SetString("2025-06-01"),
 			},
 			IPadOSUpdates: fleet.AppleOSUpdateSettings{
-				MinimumVersion: optjson.SetString("17.3.0"),
+				MinimumVersion: optjson.SetString("16.7.2"),
 				Deadline:       optjson.SetString("2025-06-01"),
 			},
 			WindowsUpdates: fleet.WindowsUpdates{

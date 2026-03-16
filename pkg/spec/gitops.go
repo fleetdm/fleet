@@ -14,6 +14,7 @@ import (
 	"unicode"
 
 	"github.com/bmatcuk/doublestar/v4"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
@@ -207,8 +208,8 @@ type Policy struct {
 
 type GitOpsPolicySpec struct {
 	fleet.PolicySpec
-	RunScript       *PolicyRunScript       `json:"run_script"`
-	InstallSoftware *PolicyInstallSoftware `json:"install_software"`
+	RunScript       *PolicyRunScript                       `json:"run_script"`
+	InstallSoftware optjson.BoolOr[*PolicyInstallSoftware] `json:"install_software"`
 	// InstallSoftwareURL is populated after parsing the software installer yaml
 	// referenced by InstallSoftware.PackagePath.
 	InstallSoftwareURL string `json:"-"`
@@ -290,6 +291,29 @@ type Software struct {
 	Packages            []SoftwarePackage           `json:"packages"`
 	AppStoreApps        []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
 	FleetMaintainedApps []fleet.MaintainedAppSpec   `json:"fleet_maintained_apps"`
+}
+
+// GitOpsMDM extends fleet.MDM with gitops-only fields that are not part of the server type.
+type GitOpsMDM struct {
+	fleet.MDM
+	EndUserLicenseAgreement any `json:"end_user_license_agreement,omitempty"`
+}
+
+// GitOpsOrgSettings defines the valid keys for the top-level `org_settings:` section.
+// It embeds fleet.AppConfig for all standard settings and adds gitops-only keys
+// that are extracted before the config is sent to the server API.
+type GitOpsOrgSettings struct {
+	fleet.AppConfig
+	Secrets                any `json:"secrets"`
+	CertificateAuthorities any `json:"certificate_authorities"`
+}
+
+// GitOpsFleetSettings defines the valid keys for the top-level `settings:` section (fleet-level).
+// It embeds fleet.TeamConfig for all standard settings and adds gitops-only keys
+// that are extracted before the config is sent to the server API.
+type GitOpsFleetSettings struct {
+	fleet.TeamConfig
+	Secrets any `json:"secrets"`
 }
 
 type GitOps struct {
@@ -527,7 +551,9 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"org_settings"}, err))
 	}
 	noError := true
+	settingsFilePath := filePath
 	if orgSettingsTop.Path != nil {
+		settingsFilePath = *orgSettingsTop.Path
 		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *orgSettingsTop.Path))
 		if err != nil {
 			noError = false
@@ -568,6 +594,8 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 		} else {
 			multiError = parseSecrets(result, multiError)
 		}
+		// Validate unknown keys in org_settings section.
+		multiError = multierror.Append(multiError, validateYAMLKeys(raw, reflect.TypeFor[GitOpsOrgSettings](), settingsFilePath, []string{"org_settings"})...)
 		// TODO: Validate that integrations.(jira|zendesk)[].api_token is not empty or fleet.MaskedPassword
 	}
 	return multiError
@@ -579,7 +607,9 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, file
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"settings"}, err))
 	}
 	noError := true
+	settingsFilePath := filePath
 	if teamSettingsTop.Path != nil {
+		settingsFilePath = *teamSettingsTop.Path
 		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *teamSettingsTop.Path))
 		if err != nil {
 			noError = false
@@ -622,6 +652,8 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, file
 			// Validate webhook settings for regular teams
 			multiError = validateTeamWebhookSettings(result.TeamSettings, multiError)
 		}
+		// Validate unknown keys in team settings section.
+		multiError = multierror.Append(multiError, validateYAMLKeys(raw, reflect.TypeFor[GitOpsFleetSettings](), settingsFilePath, []string{"settings"})...)
 	}
 	return multiError
 }
@@ -1332,6 +1364,12 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	if err := json.Unmarshal(policiesRaw, &policies); err != nil {
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"policies"}, err))
 	}
+
+	// make an index of all FMAs by slug
+	fmasBySlug := make(map[string]struct{}, len(result.Software.FleetMaintainedApps))
+	for _, s := range result.Software.FleetMaintainedApps {
+		fmasBySlug[s.Slug] = struct{}{}
+	}
 	var errs []error
 	if policies, errs = expandBaseItems(policies, baseDir, "policy", GlobExpandOptions{
 		LogFn: logFn,
@@ -1401,8 +1439,23 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		} else {
 			item.Name = norm.NFC.String(item.Name)
 		}
-		if item.Query == "" {
+		if item.Type == "" {
+			item.Type = fleet.PolicyTypeDynamic
+		}
+		if item.Query == "" && item.Type != fleet.PolicyTypePatch {
 			multiError = multierror.Append(multiError, errors.New("policy query is required for each policy"))
+		}
+		if item.Type == fleet.PolicyTypePatch {
+			if _, ok := fmasBySlug[item.FleetMaintainedAppSlug]; !ok {
+				multiError = multierror.Append(
+					multiError,
+					fmt.Errorf(
+						`Couldn't apply "%s": "%s" is specified in the patch policy, but it isn't specified under "software.fleet_maintained_apps."`,
+						filepath.Base(parentFilePath),
+						item.FleetMaintainedAppSlug,
+					),
+				)
+			}
 		}
 		if result.TeamName != nil {
 			item.Team = *result.TeamName
@@ -1464,7 +1517,8 @@ func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *strin
 }
 
 func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec, appStoreApps []*fleet.TeamSpecAppStoreApp) []error {
-	if policy.InstallSoftware == nil {
+	installSoftwareObj := policy.InstallSoftware.Other
+	if installSoftwareObj == nil {
 		policy.SoftwareTitleID = ptr.Uint(0) // unset the installer
 		return nil
 	}
@@ -1475,43 +1529,43 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	wrapErrs := func(err error) []error {
 		return []error{wrapErr(err)}
 	}
-	if policy.InstallSoftware != nil && (policy.InstallSoftware.PackagePath != "" || policy.InstallSoftware.AppStoreID != "") && teamName == nil {
+	if (installSoftwareObj.PackagePath != "" || installSoftwareObj.AppStoreID != "") && teamName == nil {
 		return wrapErrs(errors.New("install_software can only be set on team policies"))
 	}
-	if policy.InstallSoftware.PackagePath == "" && policy.InstallSoftware.AppStoreID == "" && policy.InstallSoftware.HashSHA256 == "" {
+	if installSoftwareObj.PackagePath == "" && installSoftwareObj.AppStoreID == "" && installSoftwareObj.HashSHA256 == "" {
 		return wrapErrs(errors.New("install_software must include either a package_path, an app_store_id or a hash_sha256"))
 	}
-	if policy.InstallSoftware.PackagePath != "" && policy.InstallSoftware.AppStoreID != "" {
+	if installSoftwareObj.PackagePath != "" && installSoftwareObj.AppStoreID != "" {
 		return wrapErrs(errors.New("install_software must have only one of package_path or app_store_id"))
 	}
 
 	var errs []error
-	if policy.InstallSoftware.PackagePath != "" {
-		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, policy.InstallSoftware.PackagePath))
+	if installSoftwareObj.PackagePath != "" {
+		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, installSoftwareObj.PackagePath))
 		if err != nil {
-			return wrapErrs(fmt.Errorf("failed to read install_software.package_path file %q: %v", policy.InstallSoftware.PackagePath, err))
+			return wrapErrs(fmt.Errorf("failed to read install_software.package_path file %q: %v", installSoftwareObj.PackagePath, err))
 		}
 		// Replace $var and ${var} with env values.
 		fileBytes, err = ExpandEnvBytes(fileBytes)
 		if err != nil {
-			return wrapErrs(fmt.Errorf("failed to expand environment in file %q: %v", policy.InstallSoftware.PackagePath, err))
+			return wrapErrs(fmt.Errorf("failed to expand environment in file %q: %v", installSoftwareObj.PackagePath, err))
 		}
 		var policyInstallSoftwareSpec fleet.SoftwarePackageSpec
 		if err := YamlUnmarshal(fileBytes, &policyInstallSoftwareSpec); err != nil {
 			// see if the issue is that a package path was passed in that references multiple packages
 			var multiplePackages []fleet.SoftwarePackageSpec
 			if err := YamlUnmarshal(fileBytes, &multiplePackages); err != nil || len(multiplePackages) == 0 {
-				return wrapErrs(fmt.Errorf("file %q does not contain a valid software package definition", policy.InstallSoftware.PackagePath))
+				return wrapErrs(fmt.Errorf("file %q does not contain a valid software package definition", installSoftwareObj.PackagePath))
 			}
 
 			if len(multiplePackages) > 1 {
-				return wrapErrs(fmt.Errorf("file %q contains multiple packages, so cannot be used as a target for policy automation", policy.InstallSoftware.PackagePath))
+				return wrapErrs(fmt.Errorf("file %q contains multiple packages, so cannot be used as a target for policy automation", installSoftwareObj.PackagePath))
 			}
 
-			errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), policy.InstallSoftware.PackagePath, []string{"software", "packages"})...)
+			errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), installSoftwareObj.PackagePath, []string{"software", "packages"})...)
 			policyInstallSoftwareSpec = multiplePackages[0]
 		} else {
-			errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[fleet.SoftwarePackageSpec](), policy.InstallSoftware.PackagePath, []string{"software", "packages"})...)
+			errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[fleet.SoftwarePackageSpec](), installSoftwareObj.PackagePath, []string{"software", "packages"})...)
 		}
 		installerOnTeamFound := false
 		for _, pkg := range packages {
@@ -1522,27 +1576,27 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		}
 		if !installerOnTeamFound {
 			if policyInstallSoftwareSpec.URL != "" {
-				errs = append(errs, wrapErr(fmt.Errorf("install_software.package_path URL %s not found on team: %s", policyInstallSoftwareSpec.URL, policy.InstallSoftware.PackagePath)))
+				errs = append(errs, wrapErr(fmt.Errorf("install_software.package_path URL %s not found on team: %s", policyInstallSoftwareSpec.URL, installSoftwareObj.PackagePath)))
 			} else {
-				errs = append(errs, wrapErr(fmt.Errorf("install_software.package_path SHA256 %s not found on team: %s", policyInstallSoftwareSpec.SHA256, policy.InstallSoftware.PackagePath)))
+				errs = append(errs, wrapErr(fmt.Errorf("install_software.package_path SHA256 %s not found on team: %s", policyInstallSoftwareSpec.SHA256, installSoftwareObj.PackagePath)))
 			}
 			return errs
 		}
 
 		policy.InstallSoftwareURL = policyInstallSoftwareSpec.URL
-		policy.InstallSoftware.HashSHA256 = policyInstallSoftwareSpec.SHA256
+		policy.InstallSoftware.Other.HashSHA256 = policyInstallSoftwareSpec.SHA256
 	}
 
-	if policy.InstallSoftware.AppStoreID != "" {
+	if policy.InstallSoftware.Other.AppStoreID != "" {
 		appOnTeamFound := false
 		for _, app := range appStoreApps {
-			if app.AppStoreID == policy.InstallSoftware.AppStoreID {
+			if app.AppStoreID == policy.InstallSoftware.Other.AppStoreID {
 				appOnTeamFound = true
 				break
 			}
 		}
 		if !appOnTeamFound {
-			errs = append(errs, wrapErr(fmt.Errorf("install_software.app_store_id %s not found on team %s", policy.InstallSoftware.AppStoreID, *teamName)))
+			errs = append(errs, wrapErr(fmt.Errorf("install_software.app_store_id %s not found on team %s", policy.InstallSoftware.Other.AppStoreID, *teamName)))
 		}
 	}
 

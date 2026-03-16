@@ -72,12 +72,14 @@ export const generateLinuxDiskEncryptionSetting = (
   };
 };
 
+export const REC_LOCK_SYNTHETIC_PROFILE_UUID = "rec_lock_dummy";
+
 export const generateRecoveryLockPasswordSetting = (
   status: RecoveryLockPasswordStatus,
   detail: string
 ): IHostMdmProfile => {
   return {
-    profile_uuid: "rec_lock_dummy",
+    profile_uuid: REC_LOCK_SYNTHETIC_PROFILE_UUID,
     platform: "darwin",
     name: "Recovery Lock password",
     status,

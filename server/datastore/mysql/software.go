@@ -67,6 +67,11 @@ var softwareInventoryInsertBatchSize = 100
 // Smaller batches hold locks for shorter durations, reducing contention with concurrent software ingestion.
 var cleanupBatchSize = 1000
 
+// cleanupMaxIterations caps the number of batches per cleanup invocation to prevent the loop from running indefinitely.
+// With cleanupBatchSize=1000, this allows up to 100K orphaned software rows to be cleaned up per cron run.
+// Any remaining orphans will be processed on the next hourly cron cycle.
+var cleanupMaxIterations = 100
+
 func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Software {
 	result := make(map[string]fleet.Software, len(softwareItems))
 	for _, s := range softwareItems {
@@ -2773,6 +2778,8 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 }
 
 // cleanupUnusedSoftware deletes orphaned software rows (not referenced by any host) in batches.
+// It processes at most cleanupMaxIterations batches per invocation to avoid monopolizing the database.
+// Any remaining orphans will be cleaned up on the next cron run.
 func (ds *Datastore) cleanupUnusedSoftware(ctx context.Context) error {
 	// findUnusedSoftwareStmt finds software rows not referenced by any host and absent from software_host_counts.
 	// The NOT EXISTS check on host_software reduces (but does not fully prevent) the chance of deleting software that
@@ -2787,9 +2794,12 @@ func (ds *Datastore) cleanupUnusedSoftware(ctx context.Context) error {
 		LIMIT ?
 	`
 
-	for {
+	// Use the reader for the first SELECT to reduce writer load. Subsequent iterations use the writer
+	// so that we see our own deletes and don't re-select the same rows due to replica lag.
+	db := ds.reader(ctx)
+	for range cleanupMaxIterations {
 		var ids []uint
-		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &ids, findUnusedSoftwareStmt, cleanupBatchSize); err != nil {
+		if err := sqlx.SelectContext(ctx, db, &ids, findUnusedSoftwareStmt, cleanupBatchSize); err != nil {
 			return ctxerr.Wrap(ctx, err, "find unused software for cleanup")
 		}
 		if len(ids) == 0 {
@@ -2803,7 +2813,9 @@ func (ds *Datastore) cleanupUnusedSoftware(ctx context.Context) error {
 		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete unused software batch")
 		}
+		db = ds.writer(ctx)
 	}
+	return nil
 }
 
 func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {

@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2.7.11",
+      "version": "2.7.12",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'KeePassXC' AND publisher = 'KeePassXC Team';"
       },
-      "installer_url": "https://github.com/keepassxreboot/keepassxc/releases/download/2.7.11/KeePassXC-2.7.11-Win64.msi",
+      "installer_url": "https://github.com/keepassxreboot/keepassxc/releases/download/2.7.12/KeePassXC-2.7.12-Win64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "c4832864",
-      "sha256": "74abea9e12282cc2b0feb51ebc6db65299eb4ef0086e89cfad8dcaafc94a6f67",
+      "sha256": "feee096c1d5d0d7bb7b36b18174818f7bac889be7668c550ff0e5ef9206ea9a5",
       "default_categories": [
         "Productivity"
       ],

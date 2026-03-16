@@ -85,6 +85,7 @@ INNER JOIN software_titles st
 	ON si.title_id = st.id
 WHERE install_during_setup = true
 AND global_or_team_id = ?
+AND si.is_active = TRUE
 AND (
 	-- installer platform matches the host's fleet platform (darwin, linux or windows)
 	si.platform = ?
@@ -535,7 +536,7 @@ SELECT
     END AS error
 FROM setup_experience_status_results sesr
 LEFT JOIN setup_experience_scripts ses ON ses.id = sesr.setup_experience_script_id
-LEFT JOIN software_installers si ON si.id = sesr.software_installer_id
+LEFT JOIN software_installers si ON si.id = sesr.software_installer_id AND si.is_active = TRUE
 LEFT JOIN host_software_installs hsi ON hsi.execution_id = sesr.host_software_installs_execution_id
 LEFT JOIN host_script_results hsr ON hsr.execution_id = sesr.script_execution_id
 LEFT JOIN vpp_apps_teams vat ON vat.id = sesr.vpp_app_team_id

@@ -701,6 +701,13 @@ func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertifica
 	return &groupedCAs, nil
 }
 
+// BatchApplyCertificateAuthoritiesOpts controls which operations the batch apply endpoint performs.
+type BatchApplyCertificateAuthoritiesOpts struct {
+	DryRun      bool
+	ViaGitOps   bool
+	SkipDeletes bool // Process creates/updates only; skip deletions.
+}
+
 // CertificateAuthoritiesBatchOperations groups the operations for batch processing of certificate authorities.
 type CertificateAuthoritiesBatchOperations struct {
 	Delete []*CertificateAuthority
