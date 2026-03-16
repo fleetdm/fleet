@@ -676,7 +676,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 		}
 		// if we are deferring host updates, we return at this point and do the change outside of the tx
 		if !deferredSaveHost {
-			if _, err := ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET policy_updated_at = ? WHERE id=?`, updated, host.ID); err != nil {
+			if _, err := tx.ExecContext(ctx, `UPDATE hosts SET policy_updated_at = ? WHERE id=?`, updated, host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating hosts policy updated at")
 			}
 		}
