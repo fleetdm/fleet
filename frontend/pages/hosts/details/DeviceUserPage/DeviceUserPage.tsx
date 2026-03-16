@@ -674,7 +674,7 @@ const DeviceUserPage = ({
       );
     }
 
-    const hasAnyCriticalFailingCAPolicy = host?.policies.some(
+    const hasAnyCriticalFailingCAPolicy = host?.policies?.some(
       (p) => p.response === "fail" && p.conditional_access_enabled && p.critical
     );
 
