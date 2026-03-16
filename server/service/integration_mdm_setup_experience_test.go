@@ -4885,4 +4885,32 @@ func (s *integrationMDMTestSuite) TestLinuxSetupExperienceEnqueueSoftwareInstall
 
 	// TODO(mna): implement...
 	_ = ctx
+
+	// add a macOS software to install
+	payloadDummy := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "dummy_installer.pkg",
+		Title:         "DummyApp",
+		TeamID:        nil,
+	}
+	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
+	macTitleID := getSoftwareTitleID(t, s.ds, payloadDummy.Title, "apps")
+	require.NotZero(t, macTitleID)
+
+	// add a .deb custom package
+	payloadRuby := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "ruby.deb",
+		Title:         "ruby",
+		Platform:      "linux",
+		TeamID:        nil,
+	}
+	s.uploadSoftwareInstaller(t, payloadRuby, http.StatusOK, "")
+	debTitleID := getSoftwareTitleID(t, s.ds, payloadRuby.Title, "deb_packages")
+	require.NotZero(t, debTitleID)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "software_titles", "id", "name", "source", "extension_for")
+		return nil
+	})
 }
