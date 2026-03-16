@@ -11864,6 +11864,31 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firmwarepasswd.yml"
   },
   {
+    "name": "fleet_disk_space",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Returns available and total disk capacity on macOS using NSURLVolumeAvailableCapacityForImportantUsageKey, which includes purgeable space and matches what macOS reports in Finder's \"Get Info\" dialog.",
+    "columns": [
+      {
+        "name": "bytes_available",
+        "type": "bigint",
+        "required": false,
+        "description": "Available disk capacity in bytes, including purgeable space (matches macOS \"Get Info\" available space)."
+      },
+      {
+        "name": "bytes_total",
+        "type": "bigint",
+        "required": false,
+        "description": "Total disk capacity in bytes."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). Requires fleetd 1.54.0 or later.",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/fleet_disk_space",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/fleet_disk_space.yml"
+  },
+  {
     "name": "fleetd_logs",
     "evented": false,
     "platforms": [
