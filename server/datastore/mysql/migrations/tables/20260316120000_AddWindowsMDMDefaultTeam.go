@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS windows_mdm_default_team (
 		return fmt.Errorf("creating windows_mdm_default_team table: %w", err)
 	}
 
-	if _, err := tx.Exec(`INSERT INTO windows_mdm_default_team (id, team_id) VALUES (1, NULL)`); err != nil {
+	if _, err := tx.Exec(`INSERT INTO windows_mdm_default_team (id, team_id, created_at, updated_at) VALUES (1, NULL, '2020-01-01 00:00:00', '2020-01-01 00:00:00')`); err != nil {
 		return fmt.Errorf("inserting default row into windows_mdm_default_team: %w", err)
 	}
 

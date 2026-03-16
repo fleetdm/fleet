@@ -3122,7 +3122,7 @@ CREATE TABLE `windows_mdm_default_team` (
   CONSTRAINT `fk_windows_mdm_default_team_team_id` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `windows_mdm_default_team` VALUES (1,NULL,'2026-03-16 16:55:55.356228','2026-03-16 16:55:55.356228');
+INSERT INTO `windows_mdm_default_team` VALUES (1,NULL,'2020-01-01 00:00:00.000000','2020-01-01 00:00:00.000000');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `windows_mdm_responses` (
