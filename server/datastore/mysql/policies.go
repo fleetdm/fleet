@@ -2004,22 +2004,20 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 
 	// We perform a policies clean when running gitops outside the apply transaction, the following is a 'fail-safe'
 	// in case the cleanup process couldn't complete due to server crashes or other unexpected events.
-	var fullCleanupPols []struct {
-		ID uint `db:"id"`
-	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &fullCleanupPols,
+	var fullCleanupPolIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &fullCleanupPolIDs,
 		`SELECT id FROM policies WHERE needs_full_membership_cleanup = 1`,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "select policies needing full membership cleanup")
 	}
-	for _, pol := range fullCleanupPols {
-		if err := cleanupPolicyMembershipForPolicy(ctx, ds.reader(ctx), ds.writer(ctx), pol.ID); err != nil {
-			return ctxerr.Wrapf(ctx, err, "full membership cleanup for policy %d", pol.ID)
+	for _, polID := range fullCleanupPolIDs {
+		if err := cleanupPolicyMembershipForPolicy(ctx, ds.reader(ctx), ds.writer(ctx), polID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "full membership cleanup for policy %d", polID)
 		}
 		if _, err := ds.writer(ctx).ExecContext(ctx,
-			`UPDATE policies SET needs_full_membership_cleanup = 0 WHERE id = ?`, pol.ID,
+			`UPDATE policies SET needs_full_membership_cleanup = 0 WHERE id = ?`, polID,
 		); err != nil {
-			return ctxerr.Wrapf(ctx, err, "clear full membership cleanup flag for policy %d", pol.ID)
+			return ctxerr.Wrapf(ctx, err, "clear full membership cleanup flag for policy %d", polID)
 		}
 	}
 
