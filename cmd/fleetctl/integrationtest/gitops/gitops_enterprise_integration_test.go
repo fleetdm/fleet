@@ -4050,6 +4050,8 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestFMALabelsIncludeAll() {
 	require.NoError(t, err)
 	require.NotZero(t, lbl.ID)
 
+	slug := fmt.Sprintf("foo%s/darwin", t.Name())
+
 	const (
 		globalTemplate = `
 agent_options:
@@ -4068,14 +4070,14 @@ controls:
 policies:
 software:
   fleet_maintained_apps:
-    - slug: foo/darwin
+    - slug: %s
 %s
 `
 		teamTemplate = `
 controls:
 software:
   fleet_maintained_apps:
-    - slug: foo/darwin
+    - slug: %s
 %s
 reports:
 policies:
@@ -4101,7 +4103,7 @@ settings:
 
 	noTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = noTeamFile.WriteString(fmt.Sprintf(noTeamTemplate, withLabelsIncludeAll))
+	_, err = fmt.Fprintf(noTeamFile, noTeamTemplate, slug, withLabelsIncludeAll)
 	require.NoError(t, err)
 	err = noTeamFile.Close()
 	require.NoError(t, err)
@@ -4112,7 +4114,7 @@ settings:
 	teamName := uuid.NewString()
 	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = teamFile.WriteString(fmt.Sprintf(teamTemplate, withLabelsIncludeAll, teamName))
+	_, err = fmt.Fprintf(teamFile, teamTemplate, slug, withLabelsIncludeAll, teamName)
 	require.NoError(t, err)
 	err = teamFile.Close()
 	require.NoError(t, err)
@@ -4156,7 +4158,7 @@ settings:
 	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			`INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
-			 VALUES ('foo', 'foo/darwin', 'darwin', 'com.example.foo')`)
+			 VALUES (?, ?, 'darwin', ?)`, "foo"+t.Name(), slug, `com.example.foo`+t.Name())
 		return err
 	})
 
@@ -4206,9 +4208,9 @@ settings:
 	require.Equal(t, lbl.Name, teamMeta.LabelsIncludeAll[0].LabelName)
 
 	// Now re-apply without labels_include_all and confirm they are cleared
-	err = os.WriteFile(noTeamFilePath, fmt.Appendf(nil, noTeamTemplate, noLabels), 0o644)
+	err = os.WriteFile(noTeamFilePath, fmt.Appendf(nil, noTeamTemplate, slug, noLabels), 0o644)
 	require.NoError(t, err)
-	err = os.WriteFile(teamFile.Name(), fmt.Appendf(nil, teamTemplate, noLabels, teamName), 0o644)
+	err = os.WriteFile(teamFile.Name(), fmt.Appendf(nil, teamTemplate, slug, noLabels, teamName), 0o644)
 	require.NoError(t, err)
 
 	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{
