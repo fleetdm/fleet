@@ -4084,12 +4084,13 @@ name: %s
 settings:
   secrets: [{"secret":"enroll_secret"}]
 `
-		withLabelsIncludeAll = `
-      labels_include_all:
-        - Label1
-`
 	)
 	const noLabels = ""
+
+	withLabelsIncludeAll := fmt.Sprintf(`
+      labels_include_all:
+        - %s
+`, lbl.Name)
 
 	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -4187,7 +4188,7 @@ settings:
 	require.Empty(t, noTeamMeta.LabelsIncludeAny)
 	require.Empty(t, noTeamMeta.LabelsExcludeAny)
 	require.Len(t, noTeamMeta.LabelsIncludeAll, 1)
-	require.Equal(t, "Label1", noTeamMeta.LabelsIncludeAll[0].LabelName)
+	require.Equal(t, lbl.Name, noTeamMeta.LabelsIncludeAll[0].LabelName)
 
 	// Locate the FMA installer for the team and assert labels_include_all is set
 	teamTitles, _, _, err := s.DS.ListSoftwareTitles(ctx,
@@ -4202,12 +4203,12 @@ settings:
 	require.Empty(t, teamMeta.LabelsIncludeAny)
 	require.Empty(t, teamMeta.LabelsExcludeAny)
 	require.Len(t, teamMeta.LabelsIncludeAll, 1)
-	require.Equal(t, "Label1", teamMeta.LabelsIncludeAll[0].LabelName)
+	require.Equal(t, lbl.Name, teamMeta.LabelsIncludeAll[0].LabelName)
 
 	// Now re-apply without labels_include_all and confirm they are cleared
-	err = os.WriteFile(noTeamFilePath, []byte(fmt.Sprintf(noTeamTemplate, noLabels)), 0o644)
+	err = os.WriteFile(noTeamFilePath, fmt.Appendf(nil, noTeamTemplate, noLabels), 0o644)
 	require.NoError(t, err)
-	err = os.WriteFile(teamFile.Name(), []byte(fmt.Sprintf(teamTemplate, noLabels, teamName)), 0o644)
+	err = os.WriteFile(teamFile.Name(), fmt.Appendf(nil, teamTemplate, noLabels, teamName), 0o644)
 	require.NoError(t, err)
 
 	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{
