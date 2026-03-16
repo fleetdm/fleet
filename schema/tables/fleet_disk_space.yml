@@ -1,7 +1,7 @@
 name: fleet_disk_space
 platforms:
   - darwin
-description: Returns available and total disk capacity on macOS using NSURLVolumeAvailableCapacityForOpportunisticUsageKey, which includes purgeable space and matches what macOS reports in Finder's "Get Info" dialog.
+description: Returns available and total disk capacity on macOS using NSURLVolumeAvailableCapacityForImportantUsageKey, which includes purgeable space and matches what macOS reports in Finder's "Get Info" dialog.
 columns:
   - name: bytes_available
     type: bigint

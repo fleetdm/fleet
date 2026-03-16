@@ -2,7 +2,7 @@
 // +build darwin
 
 // Package disk_space_info provides a fleetd table that reports available and
-// total disk capacity on macOS using NSURLVolumeAvailableCapacityForOpportunisticUsageKey,
+// total disk capacity on macOS using NSURLVolumeAvailableCapacityForImportantUsageKey,
 // which matches the "Available" space shown in macOS Finder's "Get Info" dialog.
 package disk_space_info
 
@@ -45,14 +45,14 @@ func getDiskSpace(ctx context.Context) (bytesAvailable, bytesTotal int64, err er
 	defer cancel()
 
 	// Use JXA (JavaScript for Automation) to call macOS Foundation APIs.
-	// NSURLVolumeAvailableCapacityForOpportunisticUsageKey returns available
+	// NSURLVolumeAvailableCapacityForImportantUsageKey returns available
 	// capacity including purgeable space, which matches what macOS reports in
 	// Finder's "Get Info" dialog and System Settings → General → Storage.
 	script := `
 ObjC.import('Foundation');
 var url = $.NSURL.fileURLWithPath('/');
 var availRef = Ref();
-url.getResourceValueForKeyError(availRef, $.NSURLVolumeAvailableCapacityForOpportunisticUsageKey, null);
+url.getResourceValueForKeyError(availRef, $.NSURLVolumeAvailableCapacityForImportantUsageKey, null);
 var totalRef = Ref();
 url.getResourceValueForKeyError(totalRef, $.NSURLVolumeTotalCapacityKey, null);
 JSON.stringify({available: availRef[0].js, total: totalRef[0].js})
