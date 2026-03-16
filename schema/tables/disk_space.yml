@@ -1,11 +1,11 @@
-name: fleet_disk_space
+name: disk_space
 platforms:
   - darwin
 description: |-
   Returns available and total disk capacity on macOS using NSURLVolumeAvailableCapacityForImportantUsageKey, which includes purgeable space and matches what macOS reports in Finder's "Get Info" dialog.
 examples: |-
   ```
-  SELECT * FROM fleet_disk_space;
+  SELECT * FROM disk_space;
   ```
 columns:
   - name: bytes_available

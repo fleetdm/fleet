@@ -447,9 +447,9 @@ SELECT
     ROUND(bytes_available * 100.0 / bytes_total, 2) AS percent_disk_space_available,
     ROUND(bytes_available * 10e-10, 2) AS gigs_disk_space_available,
     ROUND(bytes_total * 10e-10, 2) AS gigs_total_disk_space
-FROM fleet_disk_space LIMIT 1;`,
+FROM disk_space LIMIT 1;`,
 		Platforms:        []string{"darwin"},
-		Discovery:        discoveryTable("fleet_disk_space"),
+		Discovery:        discoveryTable("disk_space"),
 		DirectIngestFunc: directIngestDiskSpace,
 	},
 

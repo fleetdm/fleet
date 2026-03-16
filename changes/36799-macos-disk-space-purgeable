@@ -1,1 +1,1 @@
-* Added a new `fleet_disk_space` fleetd table for macOS that reports available disk space including purgeable storage, matching the value shown in Finder's "Get Info" dialog and System Settings → General → Storage.
+* Added a new `disk_space` fleetd table for macOS that reports available disk space including purgeable storage, matching the value shown in Finder's "Get Info" dialog and System Settings → General → Storage.

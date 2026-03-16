@@ -1,5 +1,4 @@
 //go:build darwin
-// +build darwin
 
 // Package disk_space_info provides a fleetd table that reports available and
 // total disk capacity on macOS using NSURLVolumeAvailableCapacityForImportantUsageKey,

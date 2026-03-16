@@ -70,7 +70,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("filevault_prk", filevault_prk.Columns(), filevault_prk.Generate),
 		table.NewPlugin("find_cmd", find_cmd.Columns(), find_cmd.Generate),
 		table.NewPlugin("macos_user_profiles", macos_user_profiles.Columns(), macos_user_profiles.Generate),
-		table.NewPlugin("fleet_disk_space", disk_space_info.Columns(), disk_space_info.Generate),
+		table.NewPlugin("disk_space", disk_space_info.Columns(), disk_space_info.Generate),
 
 		// Macadmins extension tables
 		table.NewPlugin("filevault_users", filevaultusers.FileVaultUsersColumns(), filevaultusers.FileVaultUsersGenerate),
