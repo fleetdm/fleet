@@ -2827,21 +2827,38 @@ func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
 		)
 	}(time.Now())
 
-	const deleteOrphanedSoftwareTitlesStmt = `
-	DELETE st FROM software_titles st
-	LEFT JOIN software s ON st.id = s.title_id
-	LEFT JOIN software_installers si ON st.id = si.title_id
-	LEFT JOIN in_house_apps iha ON st.id = iha.title_id
-	LEFT JOIN vpp_apps vap ON st.id = vap.title_id
-	WHERE s.title_id IS NULL AND si.title_id IS NULL AND iha.title_id IS NULL AND vap.title_id IS NULL`
+	const findOrphanedSoftwareTitlesStmt = `
+		SELECT st.id
+		FROM software_titles st
+		LEFT JOIN software s ON st.id = s.title_id
+		LEFT JOIN software_installers si ON st.id = si.title_id
+		LEFT JOIN in_house_apps iha ON st.id = iha.title_id
+		LEFT JOIN vpp_apps vap ON st.id = vap.title_id
+		WHERE s.title_id IS NULL AND si.title_id IS NULL AND iha.title_id IS NULL AND vap.title_id IS NULL
+		LIMIT ?`
 
-	res, err := ds.writer(ctx).ExecContext(ctx, deleteOrphanedSoftwareTitlesStmt)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "executing delete of software titles")
+	db := ds.reader(ctx)
+	for range cleanupMaxIterations {
+		var ids []uint
+		if err := sqlx.SelectContext(ctx, db, &ids, findOrphanedSoftwareTitlesStmt, cleanupBatchSize); err != nil {
+			return ctxerr.Wrap(ctx, err, "find orphaned software titles for cleanup")
+		}
+		if len(ids) == 0 {
+			return nil
+		}
+
+		stmt, args, err := sqlx.In(`DELETE FROM software_titles WHERE id IN (?)`, ids)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build delete orphaned software titles query")
+		}
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete orphaned software titles batch")
+		}
+		ra, _ := res.RowsAffected()
+		n += ra
+		db = ds.writer(ctx)
 	}
-	ra, _ := res.RowsAffected()
-	n += ra
-
 	return nil
 }
 
