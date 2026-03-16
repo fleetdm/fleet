@@ -76,6 +76,7 @@ Staff Client Platform Engineer
 
 <meta name="category" value="case study">
 <meta name="articleTitle" value="Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually">
+<meta name="description" value="Stripe migrated 10,000 Macs to Fleet in 10 days, automated MDM workflows, and saved hundreds of thousands annually.">
 
 
 <meta name="publishedOn" value="2025-12-11">

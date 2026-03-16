@@ -233,7 +233,11 @@ func getCertificateAuthoritiesSpecEndpoint(ctx context.Context, request interfac
 }
 
 func (svc *Service) GetGroupedCertificateAuthorities(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, fleet.ActionRead); err != nil {
+	action := fleet.ActionRead
+	if includeSecrets {
+		action = fleet.ActionReadSecrets
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, action); err != nil {
 		return nil, err
 	}
 

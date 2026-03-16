@@ -302,6 +302,10 @@ func (c *TestAppleMDMClient) SetDEPToken(tok string) {
 // profile from the Fleet server and then runs the SCEP enrollment, Authenticate and TokenUpdate
 // steps.
 func (c *TestAppleMDMClient) Enroll() error {
+	return c.enrollDevice(true)
+}
+
+func (c *TestAppleMDMClient) enrollDevice(awaitingConfiguration bool) error {
 	switch {
 	case c.fetchEnrollmentProfileFromDesktop:
 		if err := c.fetchEnrollmentProfileFromDesktopURL(); err != nil {
@@ -346,10 +350,15 @@ func (c *TestAppleMDMClient) Enroll() error {
 	if err := c.Authenticate(); err != nil {
 		return fmt.Errorf("authenticate: %w", err)
 	}
-	if err := c.TokenUpdate(true); err != nil {
+	if err := c.TokenUpdate(awaitingConfiguration); err != nil {
 		return fmt.Errorf("token update: %w", err)
 	}
 	return nil
+}
+
+// Re-enroll runs the MDM enroll protocol on the simulated device, but TokenUpdate is not set as AwaitingConfiguration
+func (c *TestAppleMDMClient) Reenroll() error {
+	return c.enrollDevice(false)
 }
 
 func (c *TestAppleMDMClient) UserEnroll() error {

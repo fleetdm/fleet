@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/gdmf"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
@@ -1397,7 +1398,8 @@ func (pb *ProfileBimap) add(wantedProfile, currentProfile *fleet.MDMAppleProfile
 type NewActivityFunc = fleet.NewActivityFunc
 
 func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger *slog.Logger,
-	newActivityFn NewActivityFunc) error {
+	newActivityFn NewActivityFunc,
+) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching app config")
@@ -1511,7 +1513,8 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 // turnOffMDMIfAPNSFailed checks if the error is an APNSDeliveryError and turns off MDM for the failed devices.
 // Returns a boolean value to indicate whether or not MDM was turned off.
 func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, logger *slog.Logger, newActivityFn NewActivityFunc) (bool,
-	error) {
+	error,
+) {
 	var e *APNSDeliveryError
 	if !errors.As(err, &e) {
 		return false, nil
@@ -1604,6 +1607,55 @@ func IOSiPadOSRevive(ctx context.Context, ds fleet.Datastore, commander *MDMAppl
 		return ctxerr.Wrap(ctx, err, "sending push notifications")
 	}
 	return nil
+}
+
+func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](settings T, excludeNonPublicAssetSets bool) map[string]error {
+	var macOSUpdates, iOSUpdates, iPadOSUpdates fleet.AppleOSUpdateSettings
+	if m, ok := any(settings).(fleet.MDM); ok {
+		macOSUpdates = m.MacOSUpdates
+		iOSUpdates = m.IOSUpdates
+		iPadOSUpdates = m.IPadOSUpdates
+	} else if t, ok := any(settings).(fleet.TeamMDM); ok {
+		macOSUpdates = t.MacOSUpdates
+		iOSUpdates = t.IOSUpdates
+		iPadOSUpdates = t.IPadOSUpdates
+	} else {
+		return nil
+	}
+
+	if macOSUpdates.MinimumVersion.Value == "" && iOSUpdates.MinimumVersion.Value == "" && iPadOSUpdates.MinimumVersion.Value == "" {
+		return nil
+	}
+
+	am, err := gdmf.GetAssetMetadata()
+	if err != nil {
+		return map[string]error{"mdm": fmt.Errorf("fetching Apple asset metadata: %w", err)}
+	} else if am == nil {
+		// this should never happen, but just in case, return an error indicating that the metadata is not available instead of panicking with a nil pointer dereference
+		return map[string]error{"mdm": errors.New("Apple asset metadata is not available")}
+	}
+
+	errs := make(map[string]error, 3)
+	if macOSUpdates.MinimumVersion.Value != "" {
+		if ok := am.IsSupportedMacOSVersion(macOSUpdates.MinimumVersion.Value, excludeNonPublicAssetSets); !ok {
+			errs["mdm.macos_updates.minimum_version"] = errors.New(fleet.AppleOSVersionUnsupportedMessage)
+		}
+	}
+	if iOSUpdates.MinimumVersion.Value != "" {
+		// NOTE: iPod generally falls in the category of iOS in Fleet, but we're only validating against iPhone here
+		// because we assume Apple will eventually remove iPod versions from the Apple Software Lookup Service
+		// and we want to avoid breaking workflows for users in that event
+		if ok := am.IsSupportedIOSVersion(iOSUpdates.MinimumVersion.Value, "iphone", excludeNonPublicAssetSets); !ok {
+			errs["mdm.ios_updates.minimum_version"] = errors.New(fleet.AppleOSVersionUnsupportedMessage)
+		}
+	}
+	if iPadOSUpdates.MinimumVersion.Value != "" {
+		if ok := am.IsSupportedIOSVersion(iPadOSUpdates.MinimumVersion.Value, "ipad", excludeNonPublicAssetSets); !ok {
+			errs["mdm.ipados_updates.minimum_version"] = errors.New(fleet.AppleOSVersionUnsupportedMessage)
+		}
+	}
+
+	return errs
 }
 
 // RecoveryLockCommander defines the interface for sending recovery lock commands.

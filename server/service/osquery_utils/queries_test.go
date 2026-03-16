@@ -495,7 +495,7 @@ func TestGetDetailQueries(t *testing.T) {
 	queriesWithUsersAndSoftware := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{}, nil)
 	qs = baseQueries
 	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_linux_fleetd_pacman",
-		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc")
+		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc", "software_go_binaries")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -1513,6 +1513,46 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				Version:       "7.9.2009",
 				Arch:          "x86_64",
 				KernelVersion: "5.10.76-linuxkit",
+			},
+		},
+		{
+			data: []map[string]string{
+				{
+					"name":           "Arch Linux ARM",
+					"version":        "",
+					"major":          "1",
+					"minor":          "2",
+					"patch":          "3",
+					"build":          "",
+					"arch":           "aarch64",
+					"kernel_version": "6.6.10-1-ARCH",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "Arch Linux",
+				Version:       "1.2.3",
+				Arch:          "aarch64",
+				KernelVersion: "6.6.10-1-ARCH",
+			},
+		},
+		{
+			data: []map[string]string{
+				{
+					"name":           "Arch Linux",
+					"version":        "",
+					"major":          "1",
+					"minor":          "2",
+					"patch":          "3",
+					"build":          "",
+					"arch":           "x86_64",
+					"kernel_version": "6.6.10-1-ARCH",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "Arch Linux",
+				Version:       "1.2.3",
+				Arch:          "x86_64",
+				KernelVersion: "6.6.10-1-ARCH",
 			},
 		},
 	} {
