@@ -10,7 +10,7 @@ This page outlines the different roles in the marketing team and the DRIs execut
 | Head of demand generation | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/)  | [*@johnjeremiah*](https://github.com/johnjeremiah) | Build pipeline,  Marketing ops |
 | Campaign manager | Hired (to be announced) |  | Build, run and measure all marketing campaigns.   Own Fleet swag strategy and execution |
 | Content specialist (Consultant) | [Anthony Critelli](https://www.linkedin.com/in/anthonycritelli/) | [@acritelli](https://github.com/acritelli) | Build out Fleet linux management capabilities content |
-| Content specialist (Consultant) | [Adrian Kok](https://www.linkedin.com/in/adriankok/) |  | Consult on Fleet technical content |
+| Content specialist (Consultant) | [Adrian Kok](https://www.linkedin.com/in/adriankok/) | [@adriankok](https://github.com/adriankok) | Consult on Fleet technical content |
 | Technical product marketing and content specialist (Consultant) | [Dan Gordon](https://www.linkedin.com/in/dangordon/) | [@danbgordon](https://github.com/danbgordon) | Create core technical marketing strategy, positioning, messaging and assets for IT technical teams Market Fleet releases  Create, drive and manage analyst relations for Fleet |
 | Product marketing (Consultant) | [Erin Miska](https://www.linkedin.com/in/erinmiska/) | [@miskaek](https://github.com/miskaek) | Positioning and messaging  Leadership marketing facing assets,  Sales and partner enablement  Content strategy |
 | Social media strategy and management (Consultant) | [Thomas Basgil Jr.](https://www.linkedin.com/in/tombasgil/)  | [*@tombasgil*](https://github.com/tombasgil) | Establish, manage and grow Fleet’s social media presence across all appropriate channels |
