@@ -6948,7 +6948,7 @@ func TestMDMTokenUpdateSCEPRenewal(t *testing.T) {
 			scepRenewalInProgress = false
 			return nil
 		}
-		ds.EnqueueSetupExperienceItemsFunc = func(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
+		ds.EnqueueSetupExperienceItemsFunc = func(ctx context.Context, hostPlatform, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
 			require.Equal(t, "darwin", hostPlatformLike)
 			require.Equal(t, uuid, hostUUID)
 			require.Equal(t, wantTeamID, teamID)
