@@ -326,6 +326,7 @@ software:
         - Security
     - slug: claude/darwin # Claude for macOS
       self_service: true
+      setup_experience: true
       categories:
         - Productivity
     # Windows apps
@@ -338,8 +339,7 @@ software:
         - "x86-based Windows hosts"
     - slug: claude/windows # Claude for Windows
       self_service: true
-      labels_include_any:
-        - "x86-based Windows hosts"
+      setup_experience: true
       categories:
         - Productivity
       labels_include_any:
