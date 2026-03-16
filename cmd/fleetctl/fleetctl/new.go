@@ -34,18 +34,26 @@ func renderTemplate(content []byte, vars map[string]string) []byte {
 
 func newCommand() *cli.Command {
 	var (
-		orgName string
-		force   bool
+		orgName   string
+		outputDir string
+		force     bool
 	)
 	return &cli.Command{
 		Name:      "new",
 		Usage:     "Create a new Fleet GitOps repository structure",
-		UsageText: "fleetctl new [options] [dir_name]",
+		UsageText: "fleetctl new [options]",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "org-name",
 				Usage:       "The name of your organization",
 				Destination: &orgName,
+			},
+			&cli.StringFlag{
+				Name:        "dir",
+				Aliases:     []string{"d"},
+				Usage:       "Output directory path",
+				Value:       "it-and-security",
+				Destination: &outputDir,
 			},
 			&cli.BoolFlag{
 				Name:        "force",
@@ -55,10 +63,6 @@ func newCommand() *cli.Command {
 			},
 		},
 		Action: func(c *cli.Context) error {
-			outputDir := c.Args().First()
-			if outputDir == "" {
-				outputDir = "it-and-security"
-			}
 			if !force {
 				if _, err := os.Stat(outputDir); err == nil {
 					return fmt.Errorf("%s already exists; use --force to write into an existing directory", outputDir)
@@ -69,9 +73,7 @@ func newCommand() *cli.Command {
 				fmt.Print(`Enter your organization name (default: "My organization"): `)
 				reader := bufio.NewReader(os.Stdin)
 				line, err := reader.ReadString('\n')
-				if err != nil {
-					orgName = "My organization"
-				} else {
+				if err == nil {
 					orgName = strings.TrimSpace(line)
 				}
 				if orgName == "" {
