@@ -7364,14 +7364,15 @@ func NewSetRecoveryLockResultsHandler(
 		switch status {
 		case fleet.MDMAppleStatusAcknowledged:
 			// ACK means the password was successfully applied - mark as verified
-			hostID, err := ds.SetRecoveryLockVerified(ctx, hostUUID)
+			hostID, displayName, err := ds.SetRecoveryLockVerified(ctx, hostUUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock verified")
 			}
 
 			// Log the activity (no user context, this is a system action)
 			if err := newActivityFn(ctx, nil, fleet.ActivityTypeSetHostRecoveryLockPassword{
-				HostID: hostID,
+				HostID:          hostID,
+				HostDisplayName: displayName,
 			}); err != nil {
 				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: create activity")
 			}

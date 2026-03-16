@@ -743,7 +743,8 @@ func (a ActivityTypeDisabledMacosDiskEncryption) ActivityName() string {
 }
 
 type ActivityTypeSetHostRecoveryLockPassword struct {
-	HostID uint `json:"host_id"`
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
 }
 
 func (a ActivityTypeSetHostRecoveryLockPassword) ActivityName() string {
@@ -752,6 +753,10 @@ func (a ActivityTypeSetHostRecoveryLockPassword) ActivityName() string {
 
 func (a ActivityTypeSetHostRecoveryLockPassword) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+func (a ActivityTypeSetHostRecoveryLockPassword) WasFromAutomation() bool {
+	return true
 }
 
 type ActivityTypeEnabledRecoveryLockPasswords struct {

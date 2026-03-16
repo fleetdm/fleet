@@ -296,19 +296,21 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 		ds := new(mock.DataStore)
 
 		var verifiedCalled bool
-		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, hUUID string) (uint, error) {
+		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, hUUID string) (uint, string, error) {
 			verifiedCalled = true
 			assert.Equal(t, hostUUID, hUUID)
-			return 1, nil
+			return 1, "Test Host", nil
 		}
 
 		var activityCalled bool
 		var capturedHostID uint
+		var capturedDisplayName string
 		newActivityFn := func(_ context.Context, _ *fleet.User, activity fleet.ActivityDetails) error {
 			activityCalled = true
 			act, ok := activity.(fleet.ActivityTypeSetHostRecoveryLockPassword)
 			require.True(t, ok)
 			capturedHostID = act.HostID
+			capturedDisplayName = act.HostDisplayName
 			return nil
 		}
 
@@ -328,6 +330,7 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 		assert.True(t, verifiedCalled)
 		assert.True(t, activityCalled)
 		assert.Equal(t, uint(1), capturedHostID)
+		assert.Equal(t, "Test Host", capturedDisplayName)
 	})
 
 	t.Run("error status sets failed", func(t *testing.T) {

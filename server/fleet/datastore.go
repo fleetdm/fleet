@@ -1509,8 +1509,8 @@ type Datastore interface {
 	// - No password saved or status is NULL (ready for command)
 	GetHostsForRecoveryLockAction(ctx context.Context) ([]string, error)
 
-	// SetRecoveryLockVerified marks the recovery lock as verified and returns the host_id.
-	SetRecoveryLockVerified(ctx context.Context, hostUUID string) (uint, error)
+	// SetRecoveryLockVerified marks the recovery lock as verified and returns the host_id and display_name.
+	SetRecoveryLockVerified(ctx context.Context, hostUUID string) (hostID uint, displayName string, err error)
 
 	// SetRecoveryLockFailed marks the recovery lock as failed with the given error message.
 	SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error
