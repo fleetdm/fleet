@@ -509,8 +509,8 @@ func (m *mockRecoveryLockCommander) ClearRecoveryLock(ctx context.Context, hostU
 }
 
 func TestSendClearRecoveryLockCommands(t *testing.T) {
-	ctx := context.Background()
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
 
 	t.Run("hosts needing clear get ClearRecoveryLock command", func(t *testing.T) {
 		ds := new(mock.Store)
