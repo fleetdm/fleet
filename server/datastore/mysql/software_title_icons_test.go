@@ -481,6 +481,93 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			require.Nil(t, activity.LabelsExcludeAny)
 			require.Nil(t, activity.LabelsIncludeAny)
 		}},
+		{"multi-team software installer", func(ds *Datastore) {
+			// Create two teams sharing the same software title with installers in both teams.
+			// This verifies that the query returns exactly one row per team instead of N rows.
+			user := test.NewUser(t, ds, "user1", "user1@example.com", false)
+			teamID, titleID, err = createTeamAndSoftwareTitle(t, ctx, ds)
+			require.NoError(t, err)
+
+			// Create a second team
+			tm2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+			require.NoError(t, err)
+
+			// Create installer in team 1
+			tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+			require.NoError(t, err)
+			installerID, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+				InstallScript:    "hello",
+				InstallerFile:    tfr1,
+				StorageID:        "storage1",
+				Filename:         "foo.pkg",
+				Title:            "foo",
+				Version:          "0.0.3",
+				Source:           "apps",
+				TeamID:           &teamID,
+				UserID:           user.ID,
+				BundleIdentifier: "foo.bundle.id",
+				ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			})
+			require.NoError(t, err)
+
+			// Create installer in team 2 for the same title
+			tfr2, err := fleet.NewTempFileReader(strings.NewReader("world"), t.TempDir)
+			require.NoError(t, err)
+			installer2ID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+				InstallScript:    "world",
+				InstallerFile:    tfr2,
+				StorageID:        "storage2",
+				Filename:         "foo.pkg",
+				Title:            "foo",
+				Version:          "0.0.3",
+				Source:           "apps",
+				TeamID:           &tm2.ID,
+				UserID:           user.ID,
+				BundleIdentifier: "foo.bundle.id",
+				ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			})
+			require.NoError(t, err)
+			_ = installer2ID
+
+			// Create icons in both teams
+			_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+				TeamID:    teamID,
+				TitleID:   titleID,
+				StorageID: "icon-storage-1",
+				Filename:  "icon1.png",
+			})
+			require.NoError(t, err)
+			_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+				TeamID:    tm2.ID,
+				TitleID:   titleID,
+				StorageID: "icon-storage-2",
+				Filename:  "icon2.png",
+			})
+			require.NoError(t, err)
+		}, func(t *testing.T, ds *Datastore) {
+			// Query for team 1 should return exactly one row with team 1's installer
+			activity1, err := ds.ActivityDetailsForSoftwareTitleIcon(ctx, teamID, titleID)
+			require.NoError(t, err)
+			require.Equal(t, installerID, *activity1.SoftwareInstallerID)
+			require.Equal(t, "team1", *activity1.TeamName)
+			require.Equal(t, teamID, activity1.TeamID)
+
+			// Query for team 2 should also succeed (not produce multiple rows)
+			tm2s, err := ds.TeamsSummary(ctx)
+			require.NoError(t, err)
+			var tm2ID uint
+			for _, tm := range tm2s {
+				if tm.Name == "team2" {
+					tm2ID = tm.ID
+				}
+			}
+			require.NotZero(t, tm2ID)
+			activity2, err := ds.ActivityDetailsForSoftwareTitleIcon(ctx, tm2ID, titleID)
+			require.NoError(t, err)
+			require.NotNil(t, activity2.SoftwareInstallerID)
+			require.Equal(t, "team2", *activity2.TeamName)
+			require.Equal(t, tm2ID, activity2.TeamID)
+		}},
 		{"in house app", func(ds *Datastore) {
 			user := test.NewUser(t, ds, "user1", "user1@example.com", false)
 			teamID, titleID, err = createTeamAndSoftwareTitle(t, ctx, ds)
