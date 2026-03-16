@@ -552,21 +552,16 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			require.Equal(t, teamID, activity1.TeamID)
 
 			// Query for team 2 should also succeed (not produce multiple rows)
-			tm2s, err := ds.TeamsSummary(ctx)
+			tm2, err := ds.TeamByName(ctx, "team2")
 			require.NoError(t, err)
-			var tm2ID uint
-			for _, tm := range tm2s {
-				if tm.Name == "team2" {
-					tm2ID = tm.ID
-				}
-			}
-			require.NotZero(t, tm2ID)
-			activity2, err := ds.ActivityDetailsForSoftwareTitleIcon(ctx, tm2ID, titleID)
+			require.NotZero(t, tm2.ID)
+
+			activity2, err := ds.ActivityDetailsForSoftwareTitleIcon(ctx, tm2.ID, titleID)
 			require.NoError(t, err)
 			require.NotNil(t, activity2.SoftwareInstallerID)
 			require.Equal(t, installer2ID, *activity2.SoftwareInstallerID)
 			require.Equal(t, "team2", *activity2.TeamName)
-			require.Equal(t, tm2ID, activity2.TeamID)
+			require.Equal(t, tm2.ID, activity2.TeamID)
 		}},
 		{"in house app", func(ds *Datastore) {
 			user := test.NewUser(t, ds, "user1", "user1@example.com", false)
