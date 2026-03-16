@@ -128,8 +128,23 @@ func newCommand() *cli.Command {
 			fmt.Fprintf(c.App.Writer, "Organization name: %s\n", orgName)
 
 			if _, err := exec.LookPath("git"); err == nil {
-				if out, err := exec.Command("git", "init", outputDir).CombinedOutput(); err != nil {
+				gitInitArgs := []string{"init", outputDir}
+				if _, err := os.Stat(filepath.Join(outputDir, ".git")); os.IsNotExist(err) {
+					gitInitArgs = []string{"init", "-b", "main", outputDir}
+				}
+				if out, err := exec.Command("git", gitInitArgs...).CombinedOutput(); err != nil {
 					fmt.Fprintf(c.App.ErrWriter, "Error running git: %s\n", strings.TrimSpace(string(out)))
+				} else {
+					// Stage all files and create initial commit.
+					for _, args := range [][]string{
+						{"-C", outputDir, "add", "."},
+						{"-C", outputDir, "commit", "-m", "Created Fleet GitOps structure"},
+					} {
+						if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
+							fmt.Fprintf(c.App.ErrWriter, "Error running git: %s\n", strings.TrimSpace(string(out)))
+							break
+						}
+					}
 				}
 			} else {
 				fmt.Fprintln(c.App.ErrWriter, "Git not found in PATH; skipping git init.\nMake sure git is installed, and initialize the repository later by running 'git init' in the output directory.")
