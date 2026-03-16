@@ -53,6 +53,7 @@ Manager, IT Endpoint Engineering, Thumbtack
 
 <meta name="category" value="case study">
 <meta name="articleTitle" value="Thumbtack migrates more than 90% of Macs with no IT intervention">
+<meta name="description" value="Thumbtack migrated more than 90% of Macs to Fleet with no IT intervention and now manages devices with GitOps and fast Slack support.">
 
 
 <meta name="publishedOn" value="2026-03-26">
