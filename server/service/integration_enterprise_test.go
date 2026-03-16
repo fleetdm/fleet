@@ -12083,6 +12083,21 @@ func checkSoftwareInstaller(t *testing.T, ds *mysql.Datastore, payload *fleet.Up
 		require.True(t, ok)
 	}
 
+	// check labels include all
+	require.Len(t, meta2.LabelsIncludeAll, len(payload.LabelsIncludeAll))
+	byName = make(map[string]struct{}, len(meta2.LabelsIncludeAll))
+	for _, l := range meta2.LabelsIncludeAll {
+		byName[l.LabelName] = struct{}{}
+		require.Equal(t, *meta2.TitleID, l.TitleID)
+		require.False(t, l.Exclude)
+		require.True(t, l.RequireAll)
+	}
+	require.Len(t, byName, len(payload.LabelsIncludeAll))
+	for _, l := range payload.LabelsIncludeAll {
+		_, ok := byName[l]
+		require.True(t, ok)
+	}
+
 	return meta.InstallerID, *meta.TitleID
 }
 
@@ -12249,6 +12264,68 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
 		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}]}`,
 			labelResp.Label.ID, labelResp.Label.Name)
+		s.lastActivityMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), activityData, 0)
+	})
+
+	t.Run("upload no team software installer with labels_include_all", func(t *testing.T) {
+		// create a label to use for include_all scoping
+		var labelResp createLabelResponse
+		s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+			Name:  t.Name(),
+			Query: "select 1",
+		}}, http.StatusOK, &labelResp)
+		require.NotZero(t, labelResp.Label.ID)
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "some install script",
+			PreInstallQuery:  "some pre install query",
+			Filename:         "ruby.deb",
+			Title:            "ruby",
+			Version:          "1:2.5.1",
+			Source:           "deb_packages",
+			StorageID:        "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+			Platform:         "linux",
+			LabelsIncludeAll: []string{labelResp.Label.Name},
+		}
+
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		// check the software installer metadata: LabelsIncludeAll should be persisted
+		_, titleID := checkSoftwareInstaller(t, s.ds, payload)
+
+		// check that the added-software activity carries labels_include_all
+		activityData := fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
+		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": false, "software_title_id": %d, "labels_include_all": [{"id": %d, "name": %q}]}`,
+			titleID, labelResp.Label.ID, t.Name())
+		s.lastActivityMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
+
+		// patch the installer to update an unrelated field; labels_include_all should be preserved
+		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+			SelfService:     ptr.Bool(true),
+			InstallScript:   ptr.String("some install script"),
+			PreInstallQuery: ptr.String("some pre install query"),
+			Filename:        "ruby.deb",
+			TitleID:         titleID,
+			TeamID:          nil,
+		}, http.StatusOK, "")
+
+		// the edited-software activity should still carry labels_include_all
+		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
+		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "software_title_id": %d, "labels_include_all": [{"id": %d, "name": %q}], "software_display_name": ""}`,
+			titleID, labelResp.Label.ID, t.Name())
+		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
+
+		// create a host and assign the label — install should succeed since host has all required labels
+		host := createOrbitEnrolledHost(t, "linux", "include_all_label_host", s.ds)
+		err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{labelResp.Label.ID: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), nil, http.StatusAccepted)
+
+		// delete the installer; the deleted-software activity should carry labels_include_all
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
+		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
+		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "labels_include_all": [{"id": %d, "name": %q}]}`,
+			labelResp.Label.ID, t.Name())
 		s.lastActivityMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), activityData, 0)
 	})
 

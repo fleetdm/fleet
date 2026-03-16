@@ -303,10 +303,17 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 				"INSERT INTO software_installer_labels (software_installer_id, label_id, exclude) VALUES (?, ?, ?)",
 				installerID, label1.ID, true)
 			require.NoError(t, err)
-			// Insert include label
+			// Insert include any label
 			_, err = ds.writer(ctx).ExecContext(ctx,
 				"INSERT INTO software_installer_labels (software_installer_id, label_id, exclude) VALUES (?, ?, ?)",
 				installerID, label2.ID, false)
+			require.NoError(t, err)
+			// Insert include all label
+			label3, err := ds.NewLabel(ctx, &fleet.Label{Name: "label3"})
+			require.NoError(t, err)
+			_, err = ds.writer(ctx).ExecContext(ctx,
+				"INSERT INTO software_installer_labels (software_installer_id, label_id, exclude, require_all) VALUES (?, ?, ?, ?)",
+				installerID, label3.ID, false, true)
 			require.NoError(t, err)
 
 			_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
@@ -335,6 +342,8 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			require.Equal(t, "label1", activity.LabelsExcludeAny[0].Name)
 			require.Len(t, activity.LabelsIncludeAny, 1)
 			require.Equal(t, "label2", activity.LabelsIncludeAny[0].Name)
+			require.Len(t, activity.LabelsIncludeAll, 1)
+			require.Equal(t, "label3", activity.LabelsIncludeAll[0].Name)
 		}},
 		{"vpp app", func(ds *Datastore) {
 			teamID, titleID, err = createTeamAndSoftwareTitle(t, ctx, ds)
@@ -381,10 +390,17 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 				"INSERT INTO vpp_app_team_labels (vpp_app_team_id, label_id, exclude) VALUES (?, ?, ?)",
 				vppApp.VPPAppTeam.AppTeamID, label1.ID, true)
 			require.NoError(t, err)
-			// Insert include label
+			// Insert include any label
 			_, err = ds.writer(ctx).ExecContext(ctx,
 				"INSERT INTO vpp_app_team_labels (vpp_app_team_id, label_id, exclude) VALUES (?, ?, ?)",
 				vppApp.VPPAppTeam.AppTeamID, label2.ID, false)
+			require.NoError(t, err)
+			// Insert include all label
+			label3, err := ds.NewLabel(ctx, &fleet.Label{Name: "label3"})
+			require.NoError(t, err)
+			_, err = ds.writer(ctx).ExecContext(ctx,
+				"INSERT INTO vpp_app_team_labels (vpp_app_team_id, label_id, exclude, require_all) VALUES (?, ?, ?, ?)",
+				vppApp.VPPAppTeam.AppTeamID, label3.ID, false, true)
 			require.NoError(t, err)
 
 			_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
@@ -413,6 +429,8 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			require.Equal(t, "label1", activity.LabelsExcludeAny[0].Name)
 			require.Len(t, activity.LabelsIncludeAny, 1)
 			require.Equal(t, "label2", activity.LabelsIncludeAny[0].Name)
+			require.Len(t, activity.LabelsIncludeAll, 1)
+			require.Equal(t, "label3", activity.LabelsIncludeAll[0].Name)
 		}},
 		{"team id 0", func(ds *Datastore) {
 			user := test.NewUser(t, ds, "user1", "user1@example.com", false)
@@ -520,10 +538,17 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 				"INSERT INTO in_house_app_labels (in_house_app_id, label_id, exclude) VALUES (?, ?, ?)",
 				installerID, label1.ID, true)
 			require.NoError(t, err)
-			// Insert include label
+			// Insert include any label
 			_, err = ds.writer(ctx).ExecContext(ctx,
 				"INSERT INTO in_house_app_labels (in_house_app_id, label_id, exclude) VALUES (?, ?, ?)",
 				installerID, label2.ID, false)
+			require.NoError(t, err)
+			// Insert include all label
+			label3, err := ds.NewLabel(ctx, &fleet.Label{Name: "label3"})
+			require.NoError(t, err)
+			_, err = ds.writer(ctx).ExecContext(ctx,
+				"INSERT INTO in_house_app_labels (in_house_app_id, label_id, exclude, require_all) VALUES (?, ?, ?, ?)",
+				installerID, label3.ID, false, true)
 			require.NoError(t, err)
 
 			_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
@@ -552,6 +577,8 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			require.Equal(t, "label1", activity.LabelsExcludeAny[0].Name)
 			require.Len(t, activity.LabelsIncludeAny, 1)
 			require.Equal(t, "label2", activity.LabelsIncludeAny[0].Name)
+			require.Len(t, activity.LabelsIncludeAll, 1)
+			require.Equal(t, "label3", activity.LabelsIncludeAll[0].Name)
 		}},
 	}
 
