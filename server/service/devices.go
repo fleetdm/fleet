@@ -196,7 +196,12 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	if resp.TeamID != nil {
 		// load the team to get the device's team's software inventory config.
 		tm, err := svc.GetTeam(ctx, *resp.TeamID)
-		if err != nil && !fleet.IsNotFound(err) {
+		if errors.Is(err, fleet.ErrMissingLicense) {
+			// Fleet Free does not support teams, so team-specific config
+			// (software inventory, conditional access, etc.) falls back to
+			// the global defaults set above.
+			tm = nil
+		} else if err != nil && !fleet.IsNotFound(err) {
 			return getDeviceHostResponse{Err: err}, nil
 		}
 		if tm != nil {
