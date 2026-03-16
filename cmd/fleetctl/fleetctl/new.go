@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -123,8 +124,16 @@ func newCommand() *cli.Command {
 				return fmt.Errorf("creating GitOps directory structure: %w", err)
 			}
 
-			fmt.Fprintf(c.App.Writer, "Created %s/ — Fleet GitOps directory structure\n", outputDir)
+			fmt.Fprintf(c.App.Writer, "Created new Fleet GitOps repository at %s\n", outputDir)
 			fmt.Fprintf(c.App.Writer, "Organization name: %s\n", orgName)
+
+			if _, err := exec.LookPath("git"); err == nil {
+				if out, err := exec.Command("git", "init", outputDir).CombinedOutput(); err != nil {
+					fmt.Fprintf(c.App.ErrWriter, "Error running git: %s\n", strings.TrimSpace(string(out)))
+				}
+			} else {
+				fmt.Fprintln(c.App.ErrWriter, "Git not found in PATH; skipping git init.\nMake sure git is installed, and initialize the repository later by running 'git init' in the output directory.")
+			}
 
 			return nil
 		},
