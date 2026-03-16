@@ -4,8 +4,8 @@ import { renderWithSetup } from "test/test-utils";
 
 import RevealButton from "./RevealButton";
 
-const SHOW_TEXT = "Show advanced options";
-const HIDE_TEXT = "Hide advanced options";
+const SHOW_TEXT = "Advanced options";
+const HIDE_TEXT = "Advanced options";
 const TOOLTIP_CONTENT = "Customize logging type and platforms";
 
 describe("Reveal button", () => {
@@ -15,7 +15,7 @@ describe("Reveal button", () => {
         isShowing={false}
         hideText={HIDE_TEXT}
         showText={SHOW_TEXT}
-      />
+      />,
     );
 
     const showText = screen.getByText(SHOW_TEXT);
@@ -24,7 +24,7 @@ describe("Reveal button", () => {
 
   it("renders hide text", async () => {
     render(
-      <RevealButton isShowing hideText={HIDE_TEXT} showText={SHOW_TEXT} />
+      <RevealButton isShowing hideText={HIDE_TEXT} showText={SHOW_TEXT} />,
     );
 
     const hideText = screen.getByText(HIDE_TEXT);
@@ -37,7 +37,7 @@ describe("Reveal button", () => {
         isShowing={false}
         hideText={HIDE_TEXT}
         showText={SHOW_TEXT}
-      />
+      />,
     );
 
     const icon = screen.queryByTestId("chevron-down-icon");
@@ -52,7 +52,7 @@ describe("Reveal button", () => {
         hideText={HIDE_TEXT}
         showText={SHOW_TEXT}
         caretPosition="before"
-      />
+      />,
     );
 
     const icon = screen.queryByTestId("chevron-right-icon");
@@ -66,7 +66,7 @@ describe("Reveal button", () => {
         hideText={HIDE_TEXT}
         showText={SHOW_TEXT}
         caretPosition="after"
-      />
+      />,
     );
 
     const icon = screen.queryByTestId("chevron-down-icon");
@@ -82,7 +82,7 @@ describe("Reveal button", () => {
         showText={SHOW_TEXT}
         caretPosition="before"
         tooltipContent={TOOLTIP_CONTENT}
-      />
+      />,
     );
 
     await user.hover(screen.getByText(SHOW_TEXT));

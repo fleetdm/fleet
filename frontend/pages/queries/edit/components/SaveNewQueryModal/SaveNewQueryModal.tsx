@@ -82,44 +82,40 @@ const SaveNewQueryModal = ({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedFrequency, setSelectedFrequency] = useState(
-    existingQuery?.interval ?? 3600
+    existingQuery?.interval ?? 3600,
   );
   const [
     selectedMinOsqueryVersionOptions,
     setSelectedMinOsqueryVersionOptions,
   ] = useState(existingQuery?.min_osquery_version ?? "");
-  const [
-    selectedLoggingType,
-    setSelectedLoggingType,
-  ] = useState<QueryLoggingOption>(existingQuery?.logging ?? "snapshot");
+  const [selectedLoggingType, setSelectedLoggingType] =
+    useState<QueryLoggingOption>(existingQuery?.logging ?? "snapshot");
   const [observerCanRun, setObserverCanRun] = useState(false);
   const [automationsEnabled, setAutomationsEnabled] = useState(false);
   const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
   const [selectedLabels, setSelectedLabels] = useState({});
   const [discardData, setDiscardData] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
-    backendValidators
+    backendValidators,
   );
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
-  const {
-    data: { labels } = { labels: [] },
-    isFetching: isFetchingLabels,
-  } = useQuery<ILabelsSummaryResponse, Error>(
-    ["custom_labels"],
-    () => labelsAPI.summary(currentTeam?.id, true),
-    {
-      ...DEFAULT_USE_QUERY_OPTIONS,
-      // Wait for the current team to load from context before pulling labels, otherwise on a page load
-      // directly on the page this gets called with currentTeam not set, then again
-      // with the correct team value. If we don't trigger on currentTeam changes we'll just start with a
-      // null team ID here and never populate with the correct team unless we navigate from another page
-      // where team context is already set prior to navigation.
-      enabled: isPremiumTier && !!currentTeam,
-      staleTime: 10000,
-      select: (res) => ({ labels: getCustomLabels(res.labels) }),
-    }
-  );
+  const { data: { labels } = { labels: [] }, isFetching: isFetchingLabels } =
+    useQuery<ILabelsSummaryResponse, Error>(
+      ["custom_labels"],
+      () => labelsAPI.summary(currentTeam?.id, true),
+      {
+        ...DEFAULT_USE_QUERY_OPTIONS,
+        // Wait for the current team to load from context before pulling labels, otherwise on a page load
+        // directly on the page this gets called with currentTeam not set, then again
+        // with the correct team value. If we don't trigger on currentTeam changes we'll just start with a
+        // null team ID here and never populate with the correct team unless we navigate from another page
+        // where team context is already set prior to navigation.
+        enabled: isPremiumTier && !!currentTeam,
+        staleTime: 10000,
+        select: (res) => ({ labels: getCustomLabels(res.labels) }),
+      },
+    );
 
   const onSelectLabel = ({
     name: labelName,
@@ -311,8 +307,8 @@ const SaveNewQueryModal = ({
         <RevealButton
           isShowing={showAdvancedOptions}
           className="advanced-options-toggle"
-          hideText="Hide advanced options"
-          showText="Show advanced options"
+          hideText="Advanced options"
+          showText="Advanced options"
           caretPosition="after"
           onClick={toggleAdvancedOptions}
         />
