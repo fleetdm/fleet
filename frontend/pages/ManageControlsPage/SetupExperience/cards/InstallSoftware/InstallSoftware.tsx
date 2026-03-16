@@ -189,8 +189,10 @@ const InstallSoftware = ({
               platform={platform}
               savedRequireAllSoftwareMacOS={
                 currentTeamId
-                  ? teamConfig?.mdm?.macos_setup?.require_all_software_macos
-                  : globalConfig?.mdm?.macos_setup?.require_all_software_macos
+                  ? teamConfig?.mdm?.setup_experience
+                      ?.require_all_software_macos
+                  : globalConfig?.mdm?.setup_experience
+                      ?.require_all_software_macos
               }
               router={router}
               refetchSoftwareTitles={refetchSoftwareTitles}

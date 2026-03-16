@@ -31,11 +31,14 @@ const getEnabledEndUserAuth = (
   // team is "No team" when currentTeamId === 0
   if (currentTeamId === 0) {
     return (
-      globalConfig?.mdm?.macos_setup.enable_end_user_authentication ?? false
+      globalConfig?.mdm?.setup_experience.enable_end_user_authentication ??
+      false
     );
   }
 
-  return teamConfig?.mdm?.macos_setup.enable_end_user_authentication ?? false;
+  return (
+    teamConfig?.mdm?.setup_experience.enable_end_user_authentication ?? false
+  );
 };
 
 const getLockEndUserInfo = (
@@ -49,10 +52,10 @@ const getLockEndUserInfo = (
 
   // team is "No team" when currentTeamId === 0
   if (currentTeamId === 0) {
-    return globalConfig?.mdm?.macos_setup.lock_end_user_info ?? false;
+    return globalConfig?.mdm?.setup_experience.lock_end_user_info ?? false;
   }
 
-  return teamConfig?.mdm?.macos_setup.lock_end_user_info ?? false;
+  return teamConfig?.mdm?.setup_experience.lock_end_user_info ?? false;
 };
 
 const isIdPConfigured = ({
