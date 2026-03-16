@@ -914,6 +914,7 @@ type enrichedAppConfigFields struct {
 	License         *LicenseInfo           `json:"license,omitempty"`
 	Logging         *Logging               `json:"logging,omitempty"`
 	Email           *EmailConfig           `json:"email,omitempty"`
+	Partnerships    *Partnerships          `json:"partnerships,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize

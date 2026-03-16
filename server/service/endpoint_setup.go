@@ -193,14 +193,21 @@ func ApplyStarterLibrary(
 	}
 	client.SetToken(token)
 
-	// Always check if license is free and skip teams for free licenses
+	// Always check if license is free and skip teams for free licenses.
+	// Also skip teams if partnerships (Primo) mode is enabled, as team
+	// capabilities are cosmetically disabled in the UI (#40791).
 	appConfig, err := client.GetAppConfig()
 	if err != nil {
 		logger.DebugContext(ctx, "Error getting app config", "err", err)
 		// Continue even if there's an error getting the app config
-	} else if appConfig.License == nil || !appConfig.License.IsPremium() {
+	} else if appConfig.License == nil || !appConfig.License.IsPremium() ||
+		(appConfig.Partnerships != nil && appConfig.Partnerships.EnablePrimo) {
+		reason := "Free license"
+		if appConfig.Partnerships != nil && appConfig.Partnerships.EnablePrimo {
+			reason = "Primo partnership mode"
+		}
 		// Remove teams from specs to avoid applying them
-		logger.DebugContext(ctx, "Free license detected, skipping teams and team-related content in starter library")
+		logger.DebugContext(ctx, reason+" detected, skipping teams and team-related content in starter library")
 		specs.Teams = nil
 
 		// Filter out policies that reference teams

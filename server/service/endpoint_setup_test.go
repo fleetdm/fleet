@@ -702,6 +702,125 @@ func TestApplyStarterLibraryWithFreeLicense(t *testing.T) {
 	assert.Contains(t, mockRT.calls, starterLibraryURL, "The starter library URL should have been requested")
 }
 
+func TestApplyStarterLibraryWithPrimoPartnership(t *testing.T) {
+	// Read the real production starter library YAML file
+	starterLibraryPath := "../../docs/01-Using-Fleet/starter-library/starter-library.yml"
+	starterLibraryContent, err := os.ReadFile(starterLibraryPath)
+	require.NoError(t, err, "Should be able to read starter library YAML file")
+
+	// Create mock HTTP client for downloading the starter library and scripts
+	mockRT := &testRoundTripper2{
+		calls: []string{},
+		RoundTripFunc: func(req *http.Request) (*http.Response, error) {
+			switch {
+			case req.URL.String() == starterLibraryURL:
+				// Return the real starter library content
+				return createTestResponse(200, string(starterLibraryContent)), nil
+			case strings.Contains(req.URL.String(), "uninstall-fleetd"):
+				// Return a simple script for any script URL
+				return createTestResponse(200, "#!/bin/bash\necho ok"), nil
+			default:
+				// For any other URL, return a 404
+				return createTestResponse(404, "Not found"), nil
+			}
+		},
+	}
+
+	httpClientFactory := func(opts ...fleethttp.ClientOpt) *http.Client {
+		client := fleethttp.NewClient(opts...)
+		client.Transport = mockRT
+		return client
+	}
+
+	// Create a mock client that returns a premium license with Primo partnership enabled
+	mockEnrichedAppConfig := &fleet.EnrichedAppConfig{}
+	configJSON := []byte(`{"license":{"tier":"premium"},"partnerships":{"enable_primo":true}}`)
+	if err := json.Unmarshal(configJSON, mockEnrichedAppConfig); err != nil {
+		t.Fatal("Failed to unmarshal mock config:", err)
+	}
+
+	// Create a mock client factory
+	clientFactory := func(serverURL string, insecureSkipVerify bool, rootCA, urlPrefix string, options ...ClientOption) (*Client, error) {
+		mockClient := &Client{}
+
+		mockHTTP := &mockHTTPClient{
+			DoFunc: func(req *http.Request) (*http.Response, error) {
+				// Mock the GetAppConfig response
+				if req.URL.Path == "/api/v1/fleet/config" && req.Method == http.MethodGet {
+					respBody, _ := json.Marshal(mockEnrichedAppConfig)
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(bytes.NewBuffer(respBody)),
+						Header:     make(http.Header),
+					}, nil
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader("{}")),
+					Header:     make(http.Header),
+				}, nil
+			},
+		}
+
+		baseURL, _ := url.Parse(serverURL)
+		mockClient.baseClient = &baseClient{
+			http:    mockHTTP,
+			baseURL: baseURL,
+		}
+
+		return mockClient, nil
+	}
+
+	// Track if ApplyGroup was called and capture the specs
+	applyGroupCalled := false
+	var capturedSpecs *spec.Group
+	mockApplyGroup := func(ctx context.Context, specs *spec.Group) error {
+		applyGroupCalled = true
+		capturedSpecs = specs
+		return nil
+	}
+
+	// Call the function under test - teams should be skipped for Primo partnership
+	testErr := ApplyStarterLibrary(
+		context.Background(),
+		"https://example.com",
+		"test-token",
+		slog.New(slog.DiscardHandler),
+		httpClientFactory,
+		clientFactory,
+		mockApplyGroup,
+	)
+
+	// Verify results
+	require.NoError(t, testErr)
+	assert.True(t, applyGroupCalled, "ApplyGroup should have been called")
+
+	// Verify that the specs were correctly parsed
+	require.NotNil(t, capturedSpecs, "Specs should not be nil")
+
+	// Verify that teams were removed (Primo partnership disables team capabilities)
+	require.Empty(t, capturedSpecs.Teams, "Teams should be empty for Primo partnership")
+
+	// Verify that policies referencing teams were filtered out
+	if capturedSpecs.Policies != nil {
+		for _, policy := range capturedSpecs.Policies {
+			assert.Empty(t, policy.Team, "Policies should not reference teams for Primo partnership")
+		}
+	}
+
+	// Verify that scripts were removed from AppConfig
+	if capturedSpecs.AppConfig != nil {
+		appConfigMap, ok := capturedSpecs.AppConfig.(map[string]interface{})
+		if ok {
+			_, hasScripts := appConfigMap["scripts"]
+			assert.False(t, hasScripts, "AppConfig should not contain scripts for Primo partnership")
+		}
+	}
+
+	// Verify that the starter library URL was requested
+	assert.Contains(t, mockRT.calls, starterLibraryURL, "The starter library URL should have been requested")
+}
+
 // mockHTTPClient is a mock implementation of the http.Client
 type mockHTTPClient struct {
 	DoFunc func(req *http.Request) (*http.Response, error)
