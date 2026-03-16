@@ -2213,6 +2213,10 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 		return nil
 	}
 
+	ds.GetWindowsMDMDefaultTeamFunc = func(ctx context.Context) (*fleet.WindowsMDMDefaultTeam, error) {
+		return &fleet.WindowsMDMDefaultTeam{TeamName: fleet.TeamNameNoTeam}, nil
+	}
+
 	testCases := []struct {
 		name                                                 string
 		rows                                                 []map[string]string

@@ -374,6 +374,29 @@ func (t *HostLifecycle) getDefaultTeamForABMToken(ctx context.Context, host *fle
 	return abmDefaultTeamID, nil
 }
 
+func (t *HostLifecycle) getDefaultTeamForWindowsMDM(ctx context.Context) (*uint, error) {
+	defaultTeam, err := t.ds.GetWindowsMDMDefaultTeam(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting windows mdm default team")
+	}
+	if defaultTeam.TeamID == nil {
+		return nil, nil
+	}
+
+	exists, err := t.ds.TeamExists(ctx, *defaultTeam.TeamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking windows mdm default team exists")
+	}
+	if !exists {
+		t.logger.InfoContext(ctx, "windows mdm default team no longer exists, host won't be assigned to a team",
+			"team_id", *defaultTeam.TeamID,
+		)
+		return nil, nil
+	}
+
+	return defaultTeam.TeamID, nil
+}
+
 func (t *HostLifecycle) createActivities(ctx context.Context, users []*fleet.User, acts []fleet.ActivityDetails) error {
 	if len(users) != len(acts) {
 		return ctxerr.New(ctx, "number of users and activities must match, this is a Fleet development bug")
