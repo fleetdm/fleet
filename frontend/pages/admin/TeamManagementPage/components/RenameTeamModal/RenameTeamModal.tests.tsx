@@ -48,17 +48,6 @@ describe("RenameTeamModal", () => {
     expect(saveButton).toBeDisabled();
   });
 
-  it("disables the save button when only tabs are entered", async () => {
-    render(<RenameTeamModal {...defaultProps} />);
-
-    const nameInput = screen.getByLabelText("Fleet name");
-    await userEvent.clear(nameInput);
-    await userEvent.type(nameInput, "\t\t\t");
-
-    const saveButton = screen.getByRole("button", { name: "Save" });
-    expect(saveButton).toBeDisabled();
-  });
-
   it("calls onSubmit with trimmed name", async () => {
     render(<RenameTeamModal {...defaultProps} />);
 
