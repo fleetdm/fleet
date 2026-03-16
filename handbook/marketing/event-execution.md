@@ -1,8 +1,104 @@
-# **Event execution process**
+
+# Fleet events
+We sponsor and participate in events so that we can support, connect, engage, and grow the Fleet community. We need to be thoughtful about what events we sponsor or host, and we need to be disciplined in how we run events so we can be efficient and effective.
+
+## How to propose an event:  
+It's simple Open an issue: **[Propose an event](https://github.com/fleetdm/confidential/issues/new?template=propose-an-event.md)**
+
+
+## Current Events
+
+
+| QTR | Event Name | Date | Location |
+| :---- | :---- | :---- | :---- |
+| Q1 | [GitOps Workshop](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.kgy1oagh9dvl) | 2026-03-12 | Chicago |
+| Q1 | * **[Gartner Digital Workspace](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.tvvzxp6efa6s)** | 2026-03-23 | San Diego |
+| Q2 | [GitOps Workshop](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.9bojminke8bt) | 2026-04-07 | Minneapolis |
+| Q2 | [HappyHour-Apple](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.2lh2oum4rxur) | 2026-04-TBD | Austin |
+| Q2 | * **[MACAd-UK](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.u1lwe72sguc3)** | 2026-04-21 | Brighton, UK |
+| Q2 | * **[MacAdmins Europe](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.qg7ymw2g9ui8)** | 2026-04-30 | Leiden, Netherlands |
+| Q2 | * **[MacDevOpsYVR](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.afz38t4pwdka)** | 2026-06-25 | Montreal |
+| Q2 | * **[PSU MacAdmin](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.yibj67h9z2xz)** | 2026-07-07 | PennState |
+| Q3 | * **[JNUC 2026 Gurrilla](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.tk8t9mud265j)** | 2026-09-23 | Kansas City |
+| Q4 | * **[MacSysAdmin](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.tk8t9mud265j)** |2026-09-29 | XX |
+
+
+## Event Process
+There are three phases to running an event at FleetDM,
+- **Phase 1:** Propose, review and approve new events
+- **Phase 2:** Manage and and execute approved events
+- **Phase 3:** Event postgame
+
+
+#### Phase 1 Propose, review and approve new events
+**Objective:**  To ensure that the organization is aligned with the investment of time and resources to execute an event
+This process is managed through Fleet Issues and is summarized in a detailed tracking spreadsheet.
+
+See the section "Settle event strategy" below for the process.
+
+##### Settle event strategy (approve proposed events)
+
+Anyone at Fleet can propose a future event.
+Fleet's [Head of DemandGen](https://fleetdm.com/handbook/marketing#team) serves as the project manager for managing the event approval process. Events are settled in advance to provide ample time for strategy and planning. This includes any event that Fleet pays to attend or sponsor. 
+
+- Field/sales events and GitOps workshops are settled 1 sprint in advance.
+- Conferences are settled 1 quarter in advance. 
+
+Once events have been settled for a particular time frame, i.e, decided in a previous event strategy session, Fleet does not make changes except in extreme circumstances.
+
+1. Add all upcoming proposed in issues using the template (Propose an event: EVENT_NAME - CITY - YYYY-MM-DD). Approval is tracked and recorded in the ["🫧 Proposed events (not yet settled)" tab](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1411322737#gid=1411322737) of the 🎪 Events spreadsheet (confidential doc). 
+2. Proposed events will include the following information:
+  - Event Priority (Scale 1 - 10) where 1 is a top priority
+  - Event Name
+  - Event Location
+  - Event DRI
+  - Event Dates
+  - Type of Event
+  - Theme
+  - Event Registration
+  - Who from Fleet will attend?
+  - Which talk proposal will Fleet submit?
+  - Estimated budget, including sponsorship or airfare, and lodging for attendees.
+2. Set up and attend a 30m meeting with the CMO, Head of Demand Generation, or Manager of Training and Enablement.
+  - First, during this meeting, Marketing will decide which field/sales events and GitOps workshops Fleet will execute in the **following sprint**.
+  - Next, Marketing will decide which conferences in the **following quarter** the company will invest time or money into. 
+3. After the meeting, the Content Specialist will communicate the settled events by
+  - Moving all settled events to the "All 🎪 Official (planned & settled events)" tab of the 🎪 Events spreadsheet (confidential doc).
+  - Using the following template, post a message in the [#oooh-events Slack channel](https://fleetdm.slack.com/archives/C054TGK0H7X).
+
+4. Close all proposed event issues that weren't able to be prioritized with a comment explaining why.
+
+#### Phase 2 Manage and and execute approved events
+**Objective** To efficiently plan, organize,track and complete the tasks in order to execute an event. This covers everything from once an event is approved to when the event is finished.  From detail planning to promotion, staff assignments to logistics, events can be complicated projects that need focused attention.
+
+Event execution needs to plan and track the detail decisions supporting:
+
+1. **All Event Logistics.** (Location, Venue, Start and End Date/Time, Event Website, Shipping, Staff schedules, costs, and more)
+2. **Speaking sessions:** (Location, time, talk metadata(title, abstract, etc), av requirements, and more)
+3. **Event Pre Promotion:** (landing page, blog, social, email, customers, prospects, etc)
+4. **Lead capture plans and process:** (scanning process, qualifying questions)
+5. **Booth:** Design, messaging, staffing hours and assignments, attire, swag, power, etc.)
+6. **Key vendor relationships:** (Event Organizer, booth builder, site logisitcs, scanning tech, av tech)
+
+This will be managed in a structure central document for each event so that attendees and organizers have a central place to find information and collaborate. 
+
+[Planning Doc/Tracking Template](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.uych0uenb12p#heading=h.qhf7mkrao68w0
+
+#### Phase 3 Event postgame
+**Objective** To consistently wrap up an event, gather lessons learned, and ensure the organization follows through with our new relationships.  
+
+After the event there are three important activites that need to be completed.
+
+1. **Update CRM:** The CRM is our single source of truth about our relationships. So, it is critical that all the information from what happened at the event is promptly updated in the CRM.
+2. **Follow up:** When we make new friends and connections at an event, we must be prompt in follow through and connecting with them after the event. The CRM is the main way to prompt the right person at Fleet to reach back out and follow up.
+3. **Post Mortem:** Learn and improve from the previous event. (gather feedback, review lessons learned, and update processes and strategy)
+
+
+## **Event execution process**
 
 This page outlines the execution process for Fleet events. It builds upon our general event strategy and goals outlined in the [Fleet events](https://fleetdm.com/handbook/marketing#fleet-events) section of the handbook.
 
-## **Tools and single source of truth**
+### **Tools and single source of truth**
 
 To keep event planning organized, we separate event information from actionable tasks:
 
@@ -11,7 +107,7 @@ To keep event planning organized, we separate event information from actionable 
 
 All child tasks in GitHub (e.g., draft and finalize talk title/abstract, design booth, order swag, ship booth kit, promote event) should reference back to the event overview document.
 
-## **GitHub labels**
+### **GitHub labels**
 
 We use GitHub labels to organize the difference between overall event issues and detailed execution tasks, allowing us to filter and track between overview issues only, and specific events only.  The color coding will help us to visually tell the difference between events.  Note the specific event labels have 6 possible colors defined. These should get re-used, as events are completed.
 
@@ -28,25 +124,27 @@ We use GitHub labels to organize the difference between overall event issues and
 | **:mktg-event:YYMM-eventname-city** | Salmon | \#FA8072 | 5th color custom lable for specific events |
 | **:mktg-event:YYMM-eventname-city** | Brick | \#B91C1C | 6th color custom lable for specific events |
 
-## **Event plans**
+
+
+### **Event plans**
 
 We utilize two general event plans, which act as templates depending on the scale and type of the event:
 
 1. **Conference:** Used for large conferences and events where we have a booth, speaking slots, lead scanning, and other major logistical needs.  
 2. **Workshop/Happy hour:** Used for our GitOps workshop series (which often includes happy hours). This smaller template can be used for the full workshop or for bespoke, standalone happy hours.
 
-## **Execution process**
+### **Execution process**
 
 Once an event is approved, a Marketing directly responsible individual (DRI) is assigned. From there, the process is divided between the Marketing DRI and the Onsite DRI.
 
-### **Marketing DRI responsibilities**
+#### **Marketing DRI responsibilities**
 
 * Create the event overview planning doc.  
 * Create the parent and child execution issues in GitHub.  
 * Assign the execution issues to themselves or the Onsite DRI for parts of the plan. (In many cases, a workshop has been planned locally by the Account Executive; this is where specific issues would be assigned out).  
 * Ensure leads are uploaded and properly accounted for in Salesforce (SFDC) post-event.
 
-### **Onsite DRI responsibilities**
+#### **Onsite DRI responsibilities**
 
 * Manage the details of the facility.  
 * Set up and configure the booth, swag, and lead capture tools.  
@@ -55,15 +153,15 @@ Once an event is approved, a Marketing directly responsible individual (DRI) is 
 * Pack up the event kit and ship it back.  
 * Coordinate with the Marketing DRI to get leads uploaded and processed.
 
-## **Definition of done**
+### **Definition of done**
 
 An event's execution is not complete until the **Definition of Done** is met: the Event Overview Doc must be fully updated with post-event outcomes, notes, and final details.
 
-## **How to automate event creation**
+### **How to automate event creation**
 
 Since the tracking process uses github issues and subissues to track tasks, it can be tedious to create the structure for a new event. Here are the steps to automate the creation of the event execution issues in github.
 
-### Setup
+#### Setup
 We will use a local script that executes commands on the local GitHub command line interface (CLI).  In order to get started you need to have the GitHub CLI installed.
 
 1. **Install Homebrew.**  *Homebrew is a package installer and the simplest way to get the GitHub CLI installed.*.  
@@ -82,7 +180,7 @@ We will use a local script that executes commands on the local GitHub command li
 TODO - add a test set up section where a user has a simple issue script they test
 
 
-### Event Template Process and Script
+#### Event Template Process and Script
 Creating a new event group is now simple.
 1. copy the script below and save as **NewEvent.sh**
 2. Edit the script.
@@ -673,6 +771,96 @@ create_sub_issue "6. Post-Mortem & Follow-Up"
 
 echo "Done."
 ```
+
+## **Connecting Eventbrite Registrations to Salesforce Campaigns (Event ID Key)**
+
+#### **Purpose**
+
+We need a reliable, repeatable way to associate each Eventbrite registration with the correct Salesforce Campaign **without adding any visible fields to the attendee experience**. This approach uses the Eventbrite **Event ID** as the canonical key to map registrations to Campaigns in Salesforce.
+
+#### **Core Idea**
+
+Each Eventbrite event has a unique identifier (`event_id`). We store that identifier on the corresponding Salesforce Campaign. When a new registration occurs, our integration (e.g., Clay) reads the `event_id` from the registration payload, finds the matching Campaign, then creates/updates the Campaign Member.
+
+This creates a clean 1:1 relationship:
+
+**1 Eventbrite Event → 1 Salesforce Campaign → Many Campaign Members (registrants)**
+
+#### **Why This Approach**
+
+* **Invisible to attendees:** No hidden checkout questions or user-facing “tags.”  
+* **Stable and unambiguous:** Event IDs are unique and don’t depend on event names.  
+* **Easy to operationalize:** Simple to document and enforce as a process.  
+* **Scalable to other platforms:** The same pattern could be extended to Lu.ma later using a platform-specific ID or key (if we ever want to use Lu.ma)
+
+### **Data Model (Salesforce)**
+
+#### **Campaign Fields**
+
+Add the following field to **Campaign**:
+
+* **Event Key** (Text) \= composite key of the platform and event id:  
+  * `eventbrite:{event_id}`  
+  * `luma:{event_id}`
+
+The composite key pattern lets us use one matching field across platforms and avoid collisions if we ever want to use [Lu.ma](http://Lu.ma) or others.
+
+
+### **Operational Workflow**
+
+##### **1\) Capture the Eventbrite Event ID**
+
+The Event ID can be sourced from:
+
+* Eventbrite event page URL (contains the ID), or  
+* Event settings / Event details in Eventbrite, or  
+* Eventbrite API / integration payload
+
+**Important:** Do not use event name as a key (names can change and are not guaranteed unique).
+
+##### **2\) Create the Salesforce Campaign**
+
+* Create a Campaign for the event.  
+* Set:  
+  * **Event Key** `eventbrite:{event_id}`
+
+##### **3\) Integration Logic (Clay)**
+
+When Clay receives a new Eventbrite registration/attendee record:
+
+1. **Extract** `event_id` from the Eventbrite payload  
+   * Clay knows it’s coming from Eventbrite, so it looks up the event\_id and then is able to create the composite key “eventbrite:{event\_id}”  
+2. **Find Campaign** in Salesforce where:  
+   * *`Event Key = eventbrite:{event_id}`*  
+3. **Create/update Person Record**  
+   * Match/Create the Contact  
+4. **Create/Update Campaign Member**  
+   * Add the person as a Campaign Member on the matched Campaign  
+   * Optionally set Campaign Member Status (e.g., `Registered`, `Attended`, `No Show`) if we later sync those states
+
+
+### **Assumptions / Scope**
+* **One ticket type per Campaign** (i.e., we do not need ticket-type-level mapping).  
+* **One event maps to exactly one Salesforce Campaign**.  
+* We are focusing on **registrations** (Campaign Members). 
+
+### **Governance & Quality Controls**
+To keep the system clean and prevent broken mappings:
+
+* **Required fields:** Ensure Campaigns intended for Eventbrite syncing have `Event Key` populated.  
+* **Uniqueness guardrails:** Prevent multiple Campaigns from sharing the same Event Key (via process, reporting, or validation rules).  
+* **Monitoring:** Have a Clay/Salesforce report for “registrations received with no matching Campaign” to catch missing IDs early.
+
+### **(FUTURE) Extending This to Lu.ma (Future)**
+If we adopt Lu.ma later, we can follow the same model:
+
+* Store Lu.ma’s stable event identifier (ID or slug) on the Salesforce Campaign.  
+* Use `Event Key` to map inbound registrations to the correct Campaign.  
+* No attendee-visible fields required.
+
+### **Summary**
+
+This approach “connects” Eventbrite to Salesforce Campaigns by using the **Eventbrite Event ID as the system-of-record key**. Salesforce Campaigns store that key, and Clay uses it to automatically route registrations to the right Campaign and create/update Campaign Members—cleanly, invisibly, and in a way that can later support additional event platforms.
 
 
 <meta name="maintainedBy" value="johnjeremiah">

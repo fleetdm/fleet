@@ -47,45 +47,43 @@ const WipeModal = ({
 
   return (
     <Modal className={baseClass} title="Wipe" onExit={onClose}>
-      <>
-        <div className={`${baseClass}__modal-content`}>
-          <p>All content will be erased on this host.</p>
-          {isWindowsHost && (
-            <p>
-              To use the host again, you will have to do a Windows reinstall
-              from a USB drive.
-            </p>
-          )}
-          <div className={`${baseClass}__confirm-message`}>
-            <span>
-              <b>Please check to confirm:</b>
-            </span>
-            <Checkbox
-              wrapperClassName={`${baseClass}__wipe-checkbox`}
-              value={lockChecked}
-              onChange={(value: boolean) => setLockChecked(value)}
-            >
-              I wish to wipe <b>{hostName}</b>
-            </Checkbox>
-          </div>
-        </div>
-
-        <div className="modal-cta-wrap">
-          <Button
-            type="button"
-            onClick={onWipe}
-            variant="alert"
-            className="delete-loading"
-            disabled={!lockChecked}
-            isLoading={isWiping}
+      <div className={`${baseClass}__modal-content`}>
+        <p>All content will be erased on this host.</p>
+        {isWindowsHost && (
+          <p>
+            To use the host again, you will have to do a Windows reinstall from
+            a USB drive.
+          </p>
+        )}
+        <div className={`${baseClass}__confirm-message`}>
+          <span>
+            <b>Please check to confirm:</b>
+          </span>
+          <Checkbox
+            wrapperClassName={`${baseClass}__wipe-checkbox`}
+            value={lockChecked}
+            onChange={(value: boolean) => setLockChecked(value)}
           >
-            Wipe
-          </Button>
-          <Button onClick={onClose} variant="inverse-alert">
-            Cancel
-          </Button>
+            I wish to wipe <b>{hostName}</b>
+          </Checkbox>
         </div>
-      </>
+      </div>
+
+      <div className="modal-cta-wrap">
+        <Button
+          type="button"
+          onClick={onWipe}
+          variant="alert"
+          className="delete-loading"
+          disabled={!lockChecked}
+          isLoading={isWiping}
+        >
+          Wipe
+        </Button>
+        <Button onClick={onClose} variant="inverse-alert">
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

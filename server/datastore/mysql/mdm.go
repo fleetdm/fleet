@@ -424,6 +424,9 @@ func (ds *Datastore) getMDMCommand(ctx context.Context, q sqlx.QueryerContext, c
 
 	var cmd fleet.MDMCommand
 	if err := sqlx.GetContext(ctx, q, &cmd, stmt, cmdUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMCommand").WithName(cmdUUID))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "get mdm command by UUID")
 	}
 	return &cmd, nil

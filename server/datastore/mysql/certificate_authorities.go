@@ -394,6 +394,11 @@ func (ds *Datastore) DeleteCertificateAuthority(ctx context.Context, certificate
 	stmt = "DELETE FROM certificate_authorities WHERE id = ?"
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, certificateAuthorityID)
 	if err != nil {
+		if isMySQLForeignKey(err) {
+			return nil, fleet.ConflictError{
+				Message: "Couldn't delete. This certificate authority is used in a certificate. Please remove the certificate first.",
+			}
+		}
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("deleting certificate authority with id %d", certificateAuthorityID))
 	}
 

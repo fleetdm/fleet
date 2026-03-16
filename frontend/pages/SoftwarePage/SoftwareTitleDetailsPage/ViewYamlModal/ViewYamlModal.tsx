@@ -56,41 +56,39 @@ const ViewYamlModal = ({
 
   return (
     <Modal className={baseClass} title="YAML" onExit={onExit}>
-      <>
-        {repositoryUrl && (
-          <p>
-            Manage in <CustomLink url={repositoryUrl} text="YAML" newTab />.
-          </p>
-        )}
-        <div className={`${baseClass}__form-fields`}>
-          <InputField
-            enableCopy
-            readOnly
-            name="filename"
-            label="Filename"
-            value={`${hyphenatedSoftwareTitle}.package.yml`}
-          />
-          <Editor
-            label="Contents"
-            value={packageYaml}
-            enableCopy
-            helpText={
-              <>
-                If you added advanced options, learn how to{" "}
-                <CustomLink
-                  url={`${LEARN_MORE_ABOUT_BASE_LINK}/yaml-packages`}
-                  text="add them to your YAML"
-                  newTab
-                />
-                .
-              </>
-            }
-          />
-        </div>
-        <div className="modal-cta-wrap">
-          <Button onClick={onExit}>Done</Button>
-        </div>
-      </>
+      {repositoryUrl && (
+        <p>
+          Manage in <CustomLink url={repositoryUrl} text="YAML" newTab />.
+        </p>
+      )}
+      <div className={`${baseClass}__form-fields`}>
+        <InputField
+          enableCopy
+          readOnly
+          name="filename"
+          label="Filename"
+          value={`${hyphenatedSoftwareTitle}.package.yml`}
+        />
+        <Editor
+          label="Contents"
+          value={packageYaml}
+          enableCopy
+          helpText={
+            <>
+              If you added advanced options, learn how to{" "}
+              <CustomLink
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/yaml-packages`}
+                text="add them to your YAML"
+                newTab
+              />
+              .
+            </>
+          }
+        />
+      </div>
+      <div className="modal-cta-wrap">
+        <Button onClick={onExit}>Done</Button>
+      </div>
     </Modal>
   );
 };
