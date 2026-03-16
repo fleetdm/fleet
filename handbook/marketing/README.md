@@ -15,15 +15,6 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Product education manager | [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/)  | [*@nonpunctual*](https://github.com/nonpunctual) | Create core technical assets to train internal, partners, prospects, and customer teams including Fleet certification program and teaching GitOps workshops.  Be the technical expert in validating all things marketing produces, be the Fleet relationship expert with Macadmins community |
 | Head of demand generation | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/)  | [*@johnjeremiah*](https://github.com/johnjeremiah) | Build pipeline,  Marketing ops |
 | Campaign manager | Hired (to be announced) |  | Build, run and measure all marketing campaigns.   Own Fleet swag strategy and execution |
-| Content specialist (Consultant) | [Anthony Critelli](https://www.linkedin.com/in/anthonycritelli/) | [@acritelli](https://github.com/acritelli) | Build out Fleet linux management capabilities content |
-| Technical product marketing and content specialist (Consultant) | [Dan Gordon](https://www.linkedin.com/in/dangordon/) | [@dbgordon](https://github.com/dbgordon) | Create core technical marketing strategy, positioning, messaging and assets for IT technical teams Market Fleet releases  Create, drive and manage analyst relations for Fleet |
-| Product marketing (Consultant) | [Erin Miska](https://www.linkedin.com/in/erinmiska/) | [@miskaek](https://github.com/miskaek) | Positioning and messaging  Leadership marketing facing assets,  Sales and partner enablement  Content strategy |
-| Analyst relations (Consultant) | [Preston Death](https://www.linkedin.com/in/preston-death/)  | [*@pfd76*](https://github.com/pfd76) | Manage analyst relations (with analysts) and drive program internally in Fleet |
-| Social media strategy and management (Consultant) | [Thomas Basgil Jr.](https://www.linkedin.com/in/tombasgil/)  | [*@tombasgil*](https://github.com/tombasgil) | Establish, manage and grow Fleet’s social media presence across all appropriate channels |
-| Public relations (Consultant) | [TBD]  |  | Establish Fleet PR program Identify and train key Fleet employees on PR interactions Establish, measure and improve Fleet share of voice with press, analysts, and media.   Manage Fleet submissions for industry awards |
-
-
-
 
 
 
@@ -39,7 +30,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 The Marketing department is directly responsible for achieving revenue pipeline targets, increasing market awareness about Fleet, customer training curriculums, prospect enablement, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
 
 
-### Marketing Assets
+### Marketing assets
 
 The complete list of all marketing assets is listed on [this handbook page](https://fleetdm.com/handbook/marketing/marketing-assets).
 
