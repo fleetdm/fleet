@@ -53,9 +53,10 @@ type FileToWrite struct {
 }
 
 type Software struct {
-	Hash       string
-	AppStoreId string
-	Comment    string
+	Hash            string
+	AppStoreId      string
+	Comment         string
+	MaintainedAppID uint
 }
 
 type teamToProcess struct {
@@ -87,6 +88,7 @@ type generateGitopsClient interface {
 	GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error)
 	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
 	GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error)
+	GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error)
 }
 
 // Given a struct type and a field name, return the JSON field name.
@@ -147,10 +149,25 @@ var aliasRules = map[string]string{
 	"team_ids":             "fleet_ids",
 	"team_name":            "fleet_name",
 	"teams":                "fleets",
+
+	// MDM settings renames
+	"bootstrap_package":              "macos_bootstrap_package",
+	"custom_settings":                "configuration_profiles",
+	"enable_release_device_manually": "apple_enable_release_device_manually",
+	"macos_settings":                 "apple_settings",
+	"macos_setup":                    "setup_experience",
+	"macos_setup_assistant":          "apple_setup_assistant",
+	"manual_agent_install":           "macos_manual_agent_install",
+	"script":                         "macos_script",
 }
 
 // Replace deprecated keys with their new canonical names.
 // If deleteOld is true, the old keys are removed; otherwise both old and new keys are present.
+//
+// When deleteOld is false and a renamed key's value is a map, the old key keeps
+// its original child keys untouched and the new key receives a deep copy with
+// children recursively renamed (old child keys removed). This avoids duplicating
+// every nested key under both the old and new parent.
 func replaceAliasKeys(v any, rules map[string]string, deleteOld bool) {
 	switch val := v.(type) {
 	case map[string]any:
@@ -164,19 +181,60 @@ func replaceAliasKeys(v any, rules map[string]string, deleteOld bool) {
 				renames = append(renames, rename{k, newKey})
 			}
 		}
+
+		// Track keys whose subtrees we've already fully processed so the
+		// general recursion below can skip them.
+		handled := make(map[string]bool, len(renames)*2)
+
 		for _, r := range renames {
-			val[r.newKey] = val[r.oldKey]
 			if deleteOld {
+				val[r.newKey] = val[r.oldKey]
 				delete(val, r.oldKey)
+			} else if childMap, ok := val[r.oldKey].(map[string]any); ok {
+				// Container key: old copy keeps original children,
+				// new copy gets a deep copy with children renamed.
+				copied := deepCopyAny(childMap).(map[string]any)
+				replaceAliasKeys(copied, rules, true)
+				val[r.newKey] = copied
+				handled[r.oldKey] = true
+				handled[r.newKey] = true
+			} else {
+				// Leaf/non-map value: just duplicate the key.
+				val[r.newKey] = val[r.oldKey]
 			}
 		}
-		for _, v := range val {
+
+		for k, v := range val {
+			if handled[k] {
+				continue
+			}
 			replaceAliasKeys(v, rules, deleteOld)
 		}
 	case []any:
 		for _, item := range val {
 			replaceAliasKeys(item, rules, deleteOld)
 		}
+	}
+}
+
+// deepCopyAny returns a deep copy of a value produced by json.Unmarshal
+// (maps, slices, and primitives).
+func deepCopyAny(v any) any {
+	switch val := v.(type) {
+	case map[string]any:
+		m := make(map[string]any, len(val))
+		for k, v := range val {
+			m[k] = deepCopyAny(v)
+		}
+		return m
+	case []any:
+		s := make([]any, len(val))
+		for i, v := range val {
+			s[i] = deepCopyAny(v)
+		}
+		return s
+	default:
+		return v
 	}
 }
 
@@ -1444,12 +1502,29 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			jsonFieldName(t, "Name"):                     policy.Name,
 			jsonFieldName(t, "Description"):              policy.Description,
 			jsonFieldName(t, "Resolution"):               policy.Resolution,
-			jsonFieldName(t, "Query"):                    policy.Query,
 			jsonFieldName(t, "Platform"):                 policy.Platform,
 			jsonFieldName(t, "Critical"):                 policy.Critical,
 			jsonFieldName(t, "CalendarEventsEnabled"):    policy.CalendarEventsEnabled,
 			jsonFieldName(t, "ConditionalAccessEnabled"): policy.ConditionalAccessEnabled,
 		}
+
+		if policy.Type == fleet.PolicyTypeDynamic {
+			policySpec[jsonFieldName(t, "Query")] = policy.Query
+		}
+
+		if policy.PatchSoftware != nil {
+			cachedSWTitle := cmd.SoftwareList[policy.PatchSoftware.SoftwareTitleID]
+
+			fma, err := cmd.Client.GetFleetMaintainedApp(cachedSWTitle.MaintainedAppID)
+			if err != nil {
+				return nil, err
+			}
+			policySpec["fleet_maintained_app_slug"] = fma.Slug
+		}
+		if policy.Type != "" {
+			policySpec["type"] = policy.Type
+		}
+
 		// This is derived from the failing_policies_webhook.policy_ids field, which is being deprecated.
 		policySpec["webhooks_and_tickets_enabled"] = failingPolicyIDs[policy.ID]
 		// Handle software automation.
@@ -1638,10 +1713,15 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				softwareSpec["hash_sha256"] = cmd.AddComment(filePath, "TODO: Add your hash_sha256 here")
 			} else {
 				softwareSpec["hash_sha256"] = *sw.HashSHA256 + " " + comment
-				cmd.SoftwareList[sw.ID] = Software{
+				swEntry := Software{
 					Hash:    *sw.HashSHA256,
 					Comment: comment,
 				}
+				if sw.SoftwarePackage != nil && sw.SoftwarePackage.FleetMaintainedAppID != nil {
+					swEntry.MaintainedAppID = *sw.SoftwarePackage.FleetMaintainedAppID
+				}
+
+				cmd.SoftwareList[sw.ID] = swEntry
 			}
 		case sw.AppStoreApp != nil:
 			softwareSpec["app_store_id"] = sw.AppStoreApp.AppStoreID

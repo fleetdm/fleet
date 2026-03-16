@@ -21,6 +21,7 @@ import EditIconModal from "../EditIconModal";
 import EditSoftwareModal from "../EditSoftwareModal";
 import EditConfigurationModal from "../EditConfigurationModal";
 import EditAutoUpdateConfigModal from "../EditAutoUpdateConfigModal";
+import AddPatchPolicyModal from "../AddPatchPolicyModal";
 
 interface ISoftwareSummaryCard {
   softwareTitle: ISoftwareTitleDetails;
@@ -50,6 +51,7 @@ const SoftwareSummaryCard = ({
   const [iconUploadedAt, setIconUploadedAt] = useState("");
   const [showEditIconModal, setShowEditIconModal] = useState(false);
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
+  const [showAddPatchPolicyModal, setShowAddPatchPolicyModal] = useState(false);
   const [showEditConfigurationModal, setShowEditConfigurationModal] = useState(
     false
   );
@@ -121,6 +123,7 @@ const SoftwareSummaryCard = ({
   /** Permission to manage software + Google Playstore app that's not a web app */
   const canEditConfiguration =
     canManageSoftware && isAndroidPlayStoreApp && !isAndroidPlayStoreWebApp;
+  const canPatchSoftware = canManageSoftware && isFleetMaintainedApp;
   /** Installer modals require a specific team; hidden from "All Teams" */
   const hasValidTeamId = typeof teamId === "number" && teamId >= 0;
   const softwareInstallerOnTeam = hasValidTeamId && softwareInstaller;
@@ -130,6 +133,7 @@ const SoftwareSummaryCard = ({
 
   const onClickEditAppearance = () => setShowEditIconModal(true);
   const onClickEditSoftware = () => setShowEditSoftwareModal(true);
+  const onClickAddPatchPolicy = () => setShowAddPatchPolicyModal(true);
   const onClickEditConfiguration = () => setShowEditConfigurationModal(true);
   const onClickEditAutoUpdateConfig = () =>
     setShowEditAutoUpdateConfigModal(true);
@@ -158,12 +162,16 @@ const SoftwareSummaryCard = ({
           onClickEditSoftware={
             canEditSoftware ? onClickEditSoftware : undefined
           }
+          onClickAddPatchPolicy={
+            canPatchSoftware ? onClickAddPatchPolicy : undefined
+          }
           onClickEditConfiguration={
             canEditConfiguration ? onClickEditConfiguration : undefined
           }
           onClickEditAutoUpdateConfig={
             canEditAutoUpdateConfig ? onClickEditAutoUpdateConfig : undefined
           }
+          patchPolicyId={softwareTitle.software_package?.patch_policy?.id}
         />
         {showVersionsTable && (
           <TitleVersionsTable
@@ -215,6 +223,14 @@ const SoftwareSummaryCard = ({
           displayName={softwareDisplayName}
           source={softwareTitle.source}
           iconUrl={softwareTitle.icon_url}
+        />
+      )}
+      {showAddPatchPolicyModal && softwareInstallerOnTeam && (
+        <AddPatchPolicyModal
+          softwareId={softwareTitle.id}
+          teamId={teamId}
+          onSuccess={refetchSoftwareTitle}
+          onExit={() => setShowAddPatchPolicyModal(false)}
         />
       )}
       {showEditConfigurationModal && softwareInstallerOnTeam && (

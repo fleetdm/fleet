@@ -193,7 +193,7 @@ func downloadRemoteMacosBootstrapPackage(pkgURL string) (*fleet.MDMAppleBootstra
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New("the URL to the bootstrap_package doesn't exist. Please make this URL publicly accessible to the internet.")
+		return nil, errors.New("the URL to the macos_bootstrap_package doesn't exist. Please make this URL publicly accessible to the internet.")
 	}
 
 	// try to extract the name from a header
@@ -227,9 +227,9 @@ func downloadRemoteMacosBootstrapPackage(pkgURL string) (*fleet.MDMAppleBootstra
 	if err := file.CheckPKGSignature(pkgReader); err != nil {
 		switch {
 		case errors.Is(err, file.ErrInvalidType):
-			return nil, errors.New("Couldn’t edit bootstrap_package. The file must be a package (.pkg).")
+			return nil, errors.New("Couldn’t edit macos_bootstrap_package. The file must be a package (.pkg).")
 		case errors.Is(err, file.ErrNotSigned):
-			return nil, errors.New("Couldn’t edit bootstrap_package. The bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/learn-more-about/setup-experience/bootstrap-package")
+			return nil, errors.New("Couldn’t edit macos_bootstrap_package. The macos_bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/learn-more-about/setup-experience/bootstrap-package")
 		default:
 			return nil, fmt.Errorf("checking package signature: %w", err)
 		}
@@ -248,7 +248,7 @@ func (c *Client) validateMacOSSetupAssistant(fileName string) ([]byte, error) {
 	}
 
 	if strings.ToLower(filepath.Ext(fileName)) != ".json" {
-		return nil, errors.New("Couldn’t edit macos_setup_assistant. The file should be a .json file.")
+		return nil, errors.New("Couldn’t edit apple_setup_assistant. The file should be a .json file.")
 	}
 
 	b, err := os.ReadFile(fileName)
@@ -257,7 +257,7 @@ func (c *Client) validateMacOSSetupAssistant(fileName string) ([]byte, error) {
 	}
 	var raw json.RawMessage
 	if err := json.Unmarshal(b, &raw); err != nil {
-		return nil, fmt.Errorf("Couldn’t edit macos_setup_assistant. The file should include valid JSON: %w", err)
+		return nil, fmt.Errorf("Couldn’t edit apple_setup_assistant. The file should include valid JSON: %w", err)
 	}
 
 	return b, nil
