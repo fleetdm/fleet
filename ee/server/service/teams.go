@@ -213,7 +213,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 		}
 
-		// Always check whether specified versions are supported by Apple (even if they weren't updated)
+		// Only check whether specified versions are supported by Apple if they were updated in this request.
 		// Note that we're validating against the full, non-public asset set of OS versions here because
 		// in our DEP flow the minimum version just acts as the threshold for whether or not to update
 		// the host to the latest, public version. We don't need to install the specified version on the

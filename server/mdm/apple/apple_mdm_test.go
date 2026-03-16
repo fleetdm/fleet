@@ -503,6 +503,29 @@ func TestValidateMDMSettingsAppleSupportedOSVersion(t *testing.T) {
 			checkErr("ipados", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported iPadOS version to return error when excluding non-public asset sets")
 		})
 	})
+
+	// These subtests are placed last so that the dev_mode override cleanup for the error server
+	// doesn't interfere with the earlier subtests that rely on the valid mock server.
+	t.Run("GetAssetMetadata error", func(t *testing.T) {
+		// Use a server that returns invalid JSON so GetAssetMetadata returns an error.
+		errSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte("not valid json"))
+			require.NoError(t, err)
+		}))
+		t.Cleanup(errSrv.Close)
+		dev_mode.SetOverride("FLEET_DEV_GDMF_URL", errSrv.URL, t)
+
+		ac := mockAppConfigMDM()
+		got, err := ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+		require.Error(t, err)
+		assert.Nil(t, got)
+
+		tm := mockTeamMDM()
+		got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+		require.Error(t, err)
+		assert.Nil(t, got)
+	})
 }
 
 type notFoundError struct{}
