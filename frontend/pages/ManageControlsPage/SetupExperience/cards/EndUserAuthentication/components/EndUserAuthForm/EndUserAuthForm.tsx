@@ -36,14 +36,14 @@ const EndUserAuthForm = ({
   defaultLockEndUserInfo,
 }: IEndUserAuthFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
-    .gitops_mode_enabled;
+  const gitOpsModeEnabled =
+    useContext(AppContext).config?.gitops.gitops_mode_enabled;
 
   const [isEndUserAuthEnabled, setEndUserAuthEnabled] = useState(
-    defaultIsEndUserAuthEnabled
+    defaultIsEndUserAuthEnabled,
   );
   const [lockEndUserInfo, setLockEndUserInfo] = useState(
-    defaultLockEndUserInfo
+    defaultLockEndUserInfo,
   );
   const [isUpdating, setIsUpdating] = useState(false);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
@@ -65,7 +65,7 @@ const EndUserAuthForm = ({
       await mdmAPI.updateEndUserAuthentication(
         currentTeamId,
         isEndUserAuthEnabled,
-        canLockEndUserInfo
+        canLockEndUserInfo,
       );
       renderFlash("success", "Successfully updated.");
     } catch {
@@ -104,8 +104,8 @@ const EndUserAuthForm = ({
         </Checkbox>
         <RevealButton
           isShowing={showAdvancedOptions}
-          showText="Advanced options"
-          hideText="Advanced options"
+          showText="Show advanced"
+          hideText="Show advanced"
           caretPosition="after"
           onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
         />
