@@ -62,14 +62,14 @@ Champion stories and case studies showing real customers achieving real outcomes
 
 ### Named customers
 
-| Story | Industry | Mac | Windows | Linux | Author | Date |
-| --- | --- | --- | --- | --- | --- | --- |
-| [Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually](https://fleetdm.com/case-study/stripe) | FinTech | ✓ |  |  | Fleetdm | <nobr>2025‑12‑11</nobr> |
-| [Foursquare cut costs and gained 114% ROI with Fleet](https://fleetdm.com/case-study/foursquare) | Software / SaaS | ✓ | ✓ | ✓ | Fleetdm | <nobr>2025‑12‑11</nobr> |
-| [Faire secures Macs with CIS benchmarks and Fleet](https://fleetdm.com/case-study/faire) | E-Commerce / Retail | ✓ |  |  | Fleetdm | <nobr>2025‑12‑11</nobr> |
-| [Thumbtack migrates more than 90% of Macs with no IT intervention](https://fleetdm.com/case-study/thumbtack) | Software / SaaS | ✓ |  |  | Fleetdm | <nobr>2026‑03‑26</nobr> |
-| [How Deputy achieved compliance and clarity with Fleet](https://fleetdm.com/articles/deputy-achieves-compliance-and-clarity-with-fleet) | Software / SaaS | ✓ |  | ✓ | Harrison Ravazzolo | <nobr>2024‑12‑17</nobr> |
-| [Fastly gains visibility into all endpoints and critical infrastructure worldwide](https://fleetdm.com/case-study/fastly) | Networking / CDN | ✓ | ✓ | ✓ | Fleetdm | <nobr>2025‑01‑29</nobr> |
+| Story | Industry | Mac | Windows | Linux | Date |
+| --- | --- | --- | --- | --- | --- |
+| [Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually](https://fleetdm.com/case-study/stripe) | FinTech | ✓ |  |  | <nobr>2025‑12‑11</nobr> |
+| [Foursquare cut costs and gained 114% ROI with Fleet](https://fleetdm.com/case-study/foursquare) | Software / SaaS | ✓ | ✓ | ✓ | <nobr>2025‑12‑11</nobr> |
+| [Faire secures Macs with CIS benchmarks and Fleet](https://fleetdm.com/case-study/faire) | E-Commerce / Retail | ✓ |  |  | <nobr>2025‑12‑11</nobr> |
+| [Thumbtack migrates more than 90% of Macs with no IT intervention](https://fleetdm.com/case-study/thumbtack) | Software / SaaS | ✓ |  |  | <nobr>2026‑03‑26</nobr> |
+| [How Deputy achieved compliance and clarity with Fleet](https://fleetdm.com/articles/deputy-achieves-compliance-and-clarity-with-fleet) | Software / SaaS | ✓ |  | ✓ | <nobr>2024‑12‑17</nobr> |
+| [Fastly gains visibility into all endpoints and critical infrastructure worldwide](https://fleetdm.com/case-study/fastly) | Networking / CDN | ✓ | ✓ | ✓ | <nobr>2025‑01‑29</nobr> |
 
 ### Anonymous stories — Financial Services
 
