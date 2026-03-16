@@ -17,4 +17,4 @@ This page outlines the different roles in the marketing team and the DRIs execut
 | Public relations (Consultant) | [TBD]  |  | Establish Fleet PR program Identify and train key Fleet employees on PR interactions Establish, measure and improve Fleet share of voice with press, analysts, and media.   Manage Fleet submissions for industry awards |
 
 <meta name="maintainedBy" value="akuthiala">
-<meta name="title" value="🫧 Fleet marketing team roles and responsibilities">
+<meta name="title" value="Fleet marketing team roles and responsibilities">
