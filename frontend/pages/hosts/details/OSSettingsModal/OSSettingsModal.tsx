@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from "react";
+import React, { useMemo } from "react";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { IHostMdmData } from "interfaces/host";
