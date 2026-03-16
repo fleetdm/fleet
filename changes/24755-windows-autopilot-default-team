@@ -1,0 +1,1 @@
+* Added support for configuring a default team for Windows Autopilot-enrolled hosts, matching the existing behavior for Apple Business Manager

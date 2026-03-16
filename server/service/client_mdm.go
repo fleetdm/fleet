@@ -47,6 +47,16 @@ func (c *Client) CountABMTokens() (int, error) {
 	return responseBody.Count, err
 }
 
+// GetWindowsMDMDefaultTeam returns the current Windows MDM default team configuration.
+func (c *Client) GetWindowsMDMDefaultTeam() (*fleet.WindowsMDMDefaultTeam, error) {
+	verb, path := "GET", "/api/latest/fleet/windows_mdm/default_team"
+	var responseBody getWindowsMDMDefaultTeamResponse
+	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, ""); err != nil {
+		return nil, err
+	}
+	return responseBody.DefaultTeam, nil
+}
+
 // UpdateWindowsMDMDefaultTeam resolves the given team name to a team ID from
 // allTeams and calls PATCH /windows_mdm/default_team. Pass an empty teamName
 // to clear the default team (sets team_id to null).
