@@ -674,17 +674,16 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 				}
 			}
 		}
+		// if we are deferring host updates, we return at this point and do the change outside of the tx
+		if !deferredSaveHost {
+			if _, err := ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET policy_updated_at = ? WHERE id=?`, updated, host.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating hosts policy updated at")
+			}
+		}
 		return nil
 	})
 	if err != nil {
 		return err
-	}
-
-	// if we are deferring host updates, we return at this point and do the change outside of the tx
-	if !deferredSaveHost {
-		if _, err := ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET policy_updated_at = ? WHERE id=?`, updated, host.ID); err != nil {
-			return ctxerr.Wrap(ctx, err, "updating hosts policy updated at")
-		}
 	}
 
 	// ds.UpdateHostIssuesFailingPoliciesForSingleHost should be executed even if len(results) == 0
