@@ -437,8 +437,7 @@ var hostDetailQueries = map[string]DetailQuery{
 		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
 					 (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts %s) AS gigs_all_disk_space
 		FROM mounts WHERE path = '/' LIMIT 1;`, linuxGigsAllDiskSpaceSubQueryConditions),
-		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
-		Discovery:        fmt.Sprintf(`SELECT 1 WHERE NOT EXISTS (%s);`, discoveryTable("disk_space")),
+		Platforms:        fleet.HostLinuxOSs,
 		DirectIngestFunc: directIngestDiskSpace,
 	},
 
@@ -451,6 +450,18 @@ SELECT
 FROM disk_space LIMIT 1;`,
 		Platforms:        []string{"darwin"},
 		Discovery:        discoveryTable("disk_space"),
+		DirectIngestFunc: directIngestDiskSpace,
+	},
+
+	"disk_space_darwin_legacy": {
+		Query: fmt.Sprintf(`
+		SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
+		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
+					 (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts %s) AS gigs_all_disk_space
+		FROM mounts WHERE path = '/' LIMIT 1;`, linuxGigsAllDiskSpaceSubQueryConditions),
+		Platforms:        []string{"darwin"},
+		Discovery:        fmt.Sprintf(`SELECT 1 WHERE NOT EXISTS (%s);`, discoveryTable("disk_space")),
 		DirectIngestFunc: directIngestDiskSpace,
 	},
 
