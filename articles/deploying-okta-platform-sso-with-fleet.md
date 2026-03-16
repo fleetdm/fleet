@@ -162,18 +162,12 @@ On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). 
 - **Allow All Apps Access:** Checked
 - **Certificate Expiration Notification:** Set to 14 days before expiration
 
-**Important:** Okta doesn't support automatic certificate renewal. You must redeploy the profile before the certificate expires to replace it. Use the osquery policy below to identify hosts with certificates expiring within 14 days.
-
-```sql
--- Returns 1 if all Okta certs are valid for >14 days (PASSING)
--- Returns 0 if any Okta certs expire within 14 days (FAILING)
+**Important:** Okta doesn't support automatic certificate renewal. You must redeploy the profile before the certificate expires to replace it.
 SELECT 1
-WHERE NOT EXISTS (
-  SELECT 1
-  FROM certificates
-  WHERE issuer LIKE '%/DC=com/DC=okta%'
-    AND CAST((not_valid_after - strftime('%s', 'now')) / 86400 AS INTEGER) <= 14
-    AND CAST((not_valid_after - strftime('%s', 'now')) / 86400 AS INTEGER) >= 0
+FROM certificates
+WHERE issuer LIKE '%/DC=com/DC=okta%'
+  AND ca=0
+  AND CAST((not_valid_after - strftime('%s', 'now')) / 86400 AS INTEGER) >= 14;
 );
 ```
 
@@ -183,7 +177,7 @@ WHERE NOT EXISTS (
 
 ## Install Okta Verify via Fleet
 
-On your Fleet server, select the team you want to deploy Platform SSO to. Navigate to **Software** → **Add software** → **Custom package** → **Choose file**.
+On your Fleet server, select the fleet you want to deploy Platform SSO to. Navigate to **Software** → **Add software** → **Custom package** → **Choose file**.
 
 Select the `OktaVerify-Installer.pkg` file on your computer, then click the **Add software** button.
 
@@ -298,7 +292,7 @@ Save as `okta-security-restrictions.mobileconfig`.
 
 Now deploy all the configuration profiles to your Fleet hosts:
 
-1. On your Fleet server, select the team you want to deploy Platform SSO to
+1. On your Fleet server, select the fleet you want to deploy Platform SSO to
 2. Navigate to **Controls** → **OS Settings** → **Custom settings**
 3. Upload each profile in this order:
    - `okta-device-access-scep.mobileconfig` (macOS 14+ only)
@@ -307,9 +301,9 @@ Now deploy all the configuration profiles to your Fleet hosts:
    - `okta-app-config.mobileconfig`
    - `okta-security-restrictions.mobileconfig` (optional)
 
-Uploading the profiles to a team in Fleet will automatically deliver them to all macOS hosts enrolled in that team. If you wish to have more control over which hosts receive the profiles, you can use labels to target or exclude specific hosts.
+Uploading the profiles to a fleet will automatically deliver them to all macOS hosts enrolled in that fleet. If you wish to have more control over which hosts receive the profiles, you can use labels to target or exclude specific hosts.
 
-**Important:** For organizations with both macOS 13 and macOS 14+ devices, you'll need to create separate teams or use labels to deploy the appropriate profile versions to each macOS version.
+**Important:** For organizations with both macOS 13 and macOS 14+ devices, you'll need to create separate fleets or use labels to deploy the appropriate profile versions to each macOS version.
 
 ## End User Experience
 

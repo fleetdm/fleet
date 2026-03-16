@@ -28,6 +28,7 @@ export interface SoftwareInstallerMeta {
   isIosOrIpadosApp: boolean;
   sha256?: string;
   androidPlayStoreId?: string;
+  patchPolicy?: ISoftwarePackage["patch_policy"]; // Only available on FMA packages
   automaticInstallPolicies:
     | ISoftwarePackage["automatic_install_policies"]
     | IAppStoreApp["automatic_install_policies"];
@@ -111,6 +112,11 @@ export const useSoftwareInstaller = (
       automatic_install_policies: automaticInstallPolicies,
     } = softwareInstaller;
 
+    const patchPolicy =
+      "patch_policy" in softwareInstaller
+        ? softwareInstaller.patch_policy
+        : undefined;
+
     const {
       isGlobalAdmin,
       isGlobalMaintainer,
@@ -146,6 +152,7 @@ export const useSoftwareInstaller = (
         isIosOrIpadosApp,
         sha256,
         androidPlayStoreId,
+        patchPolicy,
         automaticInstallPolicies,
         gitOpsModeEnabled,
         repoURL,
