@@ -621,7 +621,7 @@ func MakeDecoder(
 			}
 
 			// Log deprecation warnings when deprecated field names are used.
-			if rewriter != nil {
+			if rewriter != nil && platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
 				if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
 					newNames := make([]string, len(deprecated))
 					for i, old := range deprecated {
@@ -712,7 +712,7 @@ func MakeDecoder(
 
 			// Log deprecation warnings when deprecated field names are used
 			// (bodyDecoder path).
-			if rewriter != nil {
+			if rewriter != nil && platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
 				if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
 					logging.WithLevel(ctx, slog.LevelWarn)
 					logging.WithExtras(ctx,
