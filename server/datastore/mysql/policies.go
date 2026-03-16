@@ -644,34 +644,40 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 	// semantically equivalent, even though here it processes a single host and
 	// in async mode it processes a batch of hosts).
 
-	if len(results) > 0 {
-		query := fmt.Sprintf(
-			`INSERT INTO policy_membership (updated_at, policy_id, host_id, passes)
+	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if len(results) > 0 {
+			query := fmt.Sprintf(
+				`INSERT INTO policy_membership (updated_at, policy_id, host_id, passes)
 			VALUES %s ON DUPLICATE KEY UPDATE updated_at=VALUES(updated_at), passes=VALUES(passes)`,
-			strings.Join(bindvars, ","),
-		)
-		if _, err := ds.writer(ctx).ExecContext(ctx, query, vals...); err != nil {
-			return ctxerr.Wrapf(ctx, err, "insert policy_membership (%v)", vals)
-		}
-
-		// Reset attempt_number to 0 only for policies that flipped failing -> passing.
-		if len(newPassing) > 0 {
-			query, args, err := sqlx.In(resetScriptAttemptsStmt, host.ID, newPassing)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "building reset script attempts query")
-			}
-			if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
-				return ctxerr.Wrap(ctx, err, "reset script attempt numbers")
+				strings.Join(bindvars, ","),
+			)
+			if _, err := tx.ExecContext(ctx, query, vals...); err != nil {
+				return ctxerr.Wrapf(ctx, err, "insert policy_membership (%v)", vals)
 			}
 
-			query, args, err = sqlx.In(resetInstallAttemptsStmt, host.ID, newPassing)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "building reset install attempts query")
-			}
-			if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
-				return ctxerr.Wrap(ctx, err, "reset install attempt numbers")
+			// Reset attempt_number to 0 only for policies that flipped failing -> passing.
+			if len(newPassing) > 0 {
+				query, args, err := sqlx.In(resetScriptAttemptsStmt, host.ID, newPassing)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "building reset script attempts query")
+				}
+				if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+					return ctxerr.Wrap(ctx, err, "reset script attempt numbers")
+				}
+
+				query, args, err = sqlx.In(resetInstallAttemptsStmt, host.ID, newPassing)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "building reset install attempts query")
+				}
+				if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+					return ctxerr.Wrap(ctx, err, "reset install attempt numbers")
+				}
 			}
 		}
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
 	// if we are deferring host updates, we return at this point and do the change outside of the tx
@@ -1820,7 +1826,7 @@ func cleanupPolicyMembershipOnPolicyUpdate(
 				INNER JOIN hosts h ON pm.host_id = h.id
 				WHERE pm.policy_id = ? AND FIND_IN_SET(h.platform, ?) = 0
 				  AND pm.host_id > ?
-				ORDER BY pm.host_id
+				ORDER BY pm.host_id ASC
 				LIMIT ?`, policyID, expandedPlatformsStr, afterHostID, policyMembershipDeleteBatchSize)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "select batch of hosts to cleanup policy membership for platform")
@@ -1883,7 +1889,7 @@ func cleanupPolicyMembershipOnPolicyUpdate(
 			      WHERE pl.policy_id = pm.policy_id AND pl.exclude = 1
 			    )
 			  )
-			ORDER BY pm.host_id
+			ORDER BY pm.host_id ASC
 			LIMIT ?`, policyID, afterLabelHostID, policyMembershipDeleteBatchSize)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "select batch of hosts to cleanup policy membership for labels")
@@ -1930,7 +1936,7 @@ func cleanupPolicyMembershipForPolicy(
 			FROM policy_membership pm
 			INNER JOIN hosts h ON pm.host_id = h.id
 			WHERE pm.policy_id = ? AND pm.host_id > ?
-			ORDER BY pm.host_id
+			ORDER BY pm.host_id ASC
 			LIMIT ?`, policyID, afterHostID, policyMembershipDeleteBatchSize)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "select batch of hosts for policy membership cleanup")
@@ -2000,11 +2006,10 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 	// We perform a policies clean when running gitops outside the apply transaction, the following is a 'fail-safe'
 	// in case the cleanup process couldn't complete due to server crashes or other unexpected events.
 	var fullCleanupPols []struct {
-		ID       uint   `db:"id"`
-		Platform string `db:"platforms"`
+		ID uint `db:"id"`
 	}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &fullCleanupPols,
-		`SELECT id, platforms FROM policies WHERE needs_full_membership_cleanup = 1`,
+		`SELECT id FROM policies WHERE needs_full_membership_cleanup = 1`,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "select policies needing full membership cleanup")
 	}

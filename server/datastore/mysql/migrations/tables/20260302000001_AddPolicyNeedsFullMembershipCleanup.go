@@ -16,6 +16,5 @@ func Up_20260302000001(tx *sql.Tx) error {
 }
 
 func Down_20260302000001(tx *sql.Tx) error {
-	_, err := tx.Exec(`ALTER TABLE policies DROP COLUMN needs_full_membership_cleanup, ALGORITHM=INSTANT`)
-	return err
+	return nil
 }
