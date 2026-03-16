@@ -26,14 +26,14 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
     deadline: "",
   },
   apple_settings: {
-    custom_settings: null,
+    configuration_profiles: null,
     enable_disk_encryption: false,
   },
   setup_experience: {
     macos_bootstrap_package: "",
     macos_manual_agent_install: false,
     enable_end_user_authentication: false,
-    macos_setup_assistant: null,
+    apple_setup_assistant: null,
     apple_enable_release_device_manually: false,
     require_all_software_macos: false,
     lock_end_user_info: false,

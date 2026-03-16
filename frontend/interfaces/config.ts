@@ -71,13 +71,13 @@ export interface IMdmConfig {
   ios_updates: IAppleDeviceUpdates;
   ipados_updates: IAppleDeviceUpdates;
   apple_settings: {
-    custom_settings: null | ICustomSetting[];
+    configuration_profiles: null | ICustomSetting[];
     enable_disk_encryption: boolean;
   };
   setup_experience: {
     macos_bootstrap_package: string | null;
     enable_end_user_authentication: boolean;
-    macos_setup_assistant: string | null;
+    apple_setup_assistant: string | null;
     apple_enable_release_device_manually: boolean | null;
     macos_manual_agent_install: boolean | null;
     require_all_software_macos: boolean | null;
