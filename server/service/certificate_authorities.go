@@ -199,7 +199,11 @@ func batchApplyCertificateAuthoritiesEndpoint(ctx context.Context, request inter
 }
 
 func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incoming fleet.GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error {
-	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, fleet.ActionWrite); err != nil {
+	action := fleet.ActionWrite
+	if dryRun {
+		action = fleet.ActionValidate
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, action); err != nil {
 		return err
 	}
 

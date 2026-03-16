@@ -13,14 +13,15 @@ import (
 )
 
 const (
-	RoleAdmin        = "admin"
-	RoleMaintainer   = "maintainer"
-	RoleObserver     = "observer"
-	RoleObserverPlus = "observer_plus"
-	RoleGitOps       = "gitops"
-	RoleTechnician   = "technician"
-	TeamNameNoTeam   = "No team"
-	TeamNameAllTeams = "All teams"
+	RoleAdmin           = "admin"
+	RoleMaintainer      = "maintainer"
+	RoleObserver        = "observer"
+	RoleObserverPlus    = "observer_plus"
+	RoleGitOps          = "gitops"
+	RoleGitOpsValidator = "gitops_validator"
+	RoleTechnician      = "technician"
+	TeamNameNoTeam      = "No team"
+	TeamNameAllTeams    = "All teams"
 )
 
 const (
@@ -492,18 +493,20 @@ type TeamUser struct {
 }
 
 var teamRoles = map[string]struct{}{
-	RoleAdmin:        {},
-	RoleObserver:     {},
-	RoleMaintainer:   {},
-	RoleTechnician:   {},
-	RoleObserverPlus: {},
-	RoleGitOps:       {},
+	RoleAdmin:           {},
+	RoleObserver:        {},
+	RoleMaintainer:      {},
+	RoleTechnician:      {},
+	RoleObserverPlus:    {},
+	RoleGitOps:          {},
+	RoleGitOpsValidator: {},
 }
 
 var premiumTeamRoles = map[string]struct{}{
-	RoleTechnician:   {},
-	RoleObserverPlus: {},
-	RoleGitOps:       {},
+	RoleTechnician:      {},
+	RoleObserverPlus:    {},
+	RoleGitOps:          {},
+	RoleGitOpsValidator: {},
 }
 
 // ValidTeamRole returns whether the role provided is valid for a team user.
@@ -513,18 +516,20 @@ func ValidTeamRole(role string) bool {
 }
 
 var globalRoles = map[string]struct{}{
-	RoleObserver:     {},
-	RoleMaintainer:   {},
-	RoleAdmin:        {},
-	RoleTechnician:   {},
-	RoleObserverPlus: {},
-	RoleGitOps:       {},
+	RoleObserver:        {},
+	RoleMaintainer:      {},
+	RoleAdmin:           {},
+	RoleTechnician:      {},
+	RoleObserverPlus:    {},
+	RoleGitOps:          {},
+	RoleGitOpsValidator: {},
 }
 
 var premiumGlobalRoles = map[string]struct{}{
-	RoleTechnician:   {},
-	RoleObserverPlus: {},
-	RoleGitOps:       {},
+	RoleTechnician:      {},
+	RoleObserverPlus:    {},
+	RoleGitOps:          {},
+	RoleGitOpsValidator: {},
 }
 
 // ValidGlobalRole returns whether the role provided is valid for a global user.
@@ -589,7 +594,7 @@ func ValidateUserRoles(createNew bool, payload UserPayload, license LicenseInfo)
 	premiumRolesPresent := false
 	gitOpsRolePresent := false
 	if payload.GlobalRole != nil {
-		if *payload.GlobalRole == RoleGitOps {
+		if *payload.GlobalRole == RoleGitOps || *payload.GlobalRole == RoleGitOpsValidator {
 			gitOpsRolePresent = true
 		}
 		if _, ok := premiumGlobalRoles[*payload.GlobalRole]; ok {
@@ -597,7 +602,7 @@ func ValidateUserRoles(createNew bool, payload UserPayload, license LicenseInfo)
 		}
 	}
 	for _, teamUser := range teamUsers_ {
-		if teamUser.Role == RoleGitOps {
+		if teamUser.Role == RoleGitOps || teamUser.Role == RoleGitOpsValidator {
 			gitOpsRolePresent = true
 		}
 		if _, ok := premiumTeamRoles[teamUser.Role]; ok {
@@ -612,7 +617,7 @@ func ValidateUserRoles(createNew bool, payload UserPayload, license LicenseInfo)
 		((createNew && (payload.APIOnly == nil || !*payload.APIOnly)) ||
 			// Removing API only status from existing user.
 			(!createNew && payload.APIOnly != nil && !*payload.APIOnly)) {
-		return NewErrorf(ErrAPIOnlyRole, "role GitOps can only be set for API only users")
+		return NewErrorf(ErrAPIOnlyRole, "role GitOps/GitOps Validator can only be set for API only users")
 	}
 
 	return nil

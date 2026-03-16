@@ -50,4 +50,7 @@ const (
 	ActionSelectiveRead = "selective_read"
 	// ActionSelectiveList allows targeted list access of an entity.
 	ActionSelectiveList = "selective_list"
+
+	// ActionValidate permits dry-run validation of gitops configurations without mutation.
+	ActionValidate = "validate"
 )
