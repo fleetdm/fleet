@@ -11869,6 +11869,7 @@
       "darwin"
     ],
     "description": "Returns available and total disk capacity on macOS using NSURLVolumeAvailableCapacityForImportantUsageKey, which includes purgeable space and matches what macOS reports in Finder's \"Get Info\" dialog.",
+    "examples": "```\nSELECT * FROM fleet_disk_space;\n```",
     "columns": [
       {
         "name": "bytes_available",
@@ -11883,7 +11884,7 @@
         "description": "Total disk capacity in bytes."
       }
     ],
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). Requires fleetd 1.54.0 or later.",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
     "evented": false,
     "url": "https://fleetdm.com/tables/fleet_disk_space",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/fleet_disk_space.yml"

@@ -441,10 +441,6 @@ var hostDetailQueries = map[string]DetailQuery{
 		DirectIngestFunc: directIngestDiskSpace,
 	},
 
-	// disk_space_darwin uses the fleet_disk_space fleetd table (macOS only) which
-	// reports available capacity including purgeable space, matching what macOS
-	// shows in Finder's "Get Info" dialog and System Settings → General → Storage.
-	// This query requires fleetd >= 1.54.0.
 	"disk_space_darwin": {
 		Query: `
 SELECT

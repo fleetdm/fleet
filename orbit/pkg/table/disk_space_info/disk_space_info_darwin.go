@@ -18,7 +18,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Columns is the schema of the table.
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
 		table.BigIntColumn("bytes_available"),
@@ -26,7 +25,6 @@ func Columns() []table.ColumnDefinition {
 	}
 }
 
-// Generate is called to return the results for the table at query time.
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 	bytesAvailable, bytesTotal, err := getDiskSpace(ctx)
 	if err != nil {
@@ -44,10 +42,6 @@ func getDiskSpace(ctx context.Context) (bytesAvailable, bytesTotal int64, err er
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	// Use JXA (JavaScript for Automation) to call macOS Foundation APIs.
-	// NSURLVolumeAvailableCapacityForImportantUsageKey returns available
-	// capacity including purgeable space, which matches what macOS reports in
-	// Finder's "Get Info" dialog and System Settings → General → Storage.
 	script := `
 ObjC.import('Foundation');
 var url = $.NSURL.fileURLWithPath('/');
