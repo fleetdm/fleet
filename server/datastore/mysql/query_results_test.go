@@ -32,6 +32,7 @@ func TestQueryResults(t *testing.T) {
 		{"CleanupQueryResultRows", testCleanupQueryResultRows},
 		{"CleanupExcessQueryResultRows", testCleanupExcessQueryResultRows},
 		{"CleanupExcessQueryResultRowsManyQueries", testCleanupExcessQueryResultRowsManyQueries},
+		{"ListHostReports", testListHostReports},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -815,4 +816,286 @@ func testCleanupExcessQueryResultRowsManyQueries(t *testing.T, ds *Datastore) {
 	queryCounts, err := ds.CleanupExcessQueryResultRows(t.Context(), fleet.DefaultMaxQueryReportRows)
 	require.NoError(t, err)
 	require.Len(t, queryCounts, numQueries)
+}
+
+func testListHostReports(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Test User", "list@example.com", true)
+	host := test.NewHost(t, ds, "host1", "192.168.1.1", "key1", "serial1", time.Now())
+
+	now := time.Now().UTC().Truncate(time.Second)
+	earlier := now.Add(-time.Hour)
+
+	// Create queries: two that save results, one that discards them.
+	qSave1 := test.NewQuery(t, ds, nil, "Save Query Alpha", "SELECT 1", user.ID, true)
+	// Override DiscardData so it saves results (default is false, which is correct already).
+
+	_ = test.NewQuery(t, ds, nil, "Save Query Beta", "SELECT 2", user.ID, true)
+
+	// Create a query that discards results with non-snapshot logging, so it matches
+	// the "don't store results" condition (discard_data=1 AND logging_type != 'snapshot').
+	qDiscard, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:        "Discard Query Gamma",
+		Query:       "SELECT 3",
+		AuthorID:    &user.ID,
+		Saved:       true,
+		DiscardData: true,
+		Logging:     fleet.LoggingDifferential,
+	})
+	require.NoError(t, err)
+
+	// Insert results for qSave1 on our host: two rows.
+	rows1 := []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     qSave1.ID,
+			HostID:      host.ID,
+			LastFetched: earlier,
+			Data:        ptr.RawMessage([]byte(`{"col":"row1"}`)),
+		},
+		{
+			QueryID:     qSave1.ID,
+			HostID:      host.ID,
+			LastFetched: now,
+			Data:        ptr.RawMessage([]byte(`{"col":"row2"}`)),
+		},
+	}
+	_, err = ds.OverwriteQueryResultRows(ctx, rows1, fleet.DefaultMaxQueryReportRows)
+	require.NoError(t, err)
+
+	// qSave2 has no results yet (should still be returned when SaveResults=true).
+
+	// Insert a result for qDiscard (to confirm it's excluded by default).
+	rowsDiscard := []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     qDiscard.ID,
+			HostID:      host.ID,
+			LastFetched: now,
+			Data:        ptr.RawMessage([]byte(`{"col":"discarded"}`)),
+		},
+	}
+	_, err = ds.OverwriteQueryResultRows(ctx, rowsDiscard, fleet.DefaultMaxQueryReportRows)
+	require.NoError(t, err)
+
+	t.Run("default_excludes_dont_store_results_queries", func(t *testing.T) {
+		opts := fleet.ListHostReportsOptions{
+			// IncludeReportsDontStoreResults defaults to false: exclude discard+non-snapshot queries.
+			ListOptions: fleet.ListOptions{OrderKey: "name", IncludeMetadata: true},
+		}
+		reports, total, meta, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		require.NoError(t, err)
+		// Should get qSave1 and qSave2 but NOT qDiscard (discard_data=1, logging=differential).
+		assert.Equal(t, 2, total)
+		require.Len(t, reports, 2)
+		assert.NotNil(t, meta)
+		// Sorted by name ASC: "Save Query Alpha", "Save Query Beta".
+		assert.Equal(t, "Save Query Alpha", reports[0].Name)
+		assert.Equal(t, "Save Query Beta", reports[1].Name)
+	})
+
+	t.Run("include_reports_dont_store_results_returns_all_queries", func(t *testing.T) {
+		opts := fleet.ListHostReportsOptions{
+			IncludeReportsDontStoreResults: true,
+			ListOptions:                    fleet.ListOptions{OrderKey: "name", IncludeMetadata: true},
+		}
+		reports, total, _, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		require.NoError(t, err)
+		// All 3 queries are returned including the don't-store-results one.
+		assert.Equal(t, 3, total)
+		require.Len(t, reports, 3)
+		assert.Equal(t, "Discard Query Gamma", reports[0].Name)
+		assert.Equal(t, "Save Query Alpha", reports[1].Name)
+		assert.Equal(t, "Save Query Beta", reports[2].Name)
+	})
+
+	t.Run("first_result_is_most_recent_non_null_row", func(t *testing.T) {
+		opts := fleet.ListHostReportsOptions{
+			ListOptions: fleet.ListOptions{OrderKey: "name"},
+		}
+		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		require.NoError(t, err)
+		require.Len(t, reports, 2)
+
+		// qSave1 has 2 results; first result should be the most recent one.
+		alpha := reports[0]
+		assert.Equal(t, "Save Query Alpha", alpha.Name)
+		require.NotNil(t, alpha.FirstResult)
+		assert.Equal(t, "row2", alpha.FirstResult["col"])
+		// LastFetched should be MAX(last_fetched) = now.
+		require.NotNil(t, alpha.LastFetched)
+		assert.Equal(t, now.Unix(), alpha.LastFetched.Unix())
+		assert.Equal(t, 2, alpha.NHostResults)
+	})
+
+	t.Run("query_with_no_results_has_nil_first_result", func(t *testing.T) {
+		opts := fleet.ListHostReportsOptions{
+			ListOptions: fleet.ListOptions{OrderKey: "name"},
+		}
+		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		require.NoError(t, err)
+		require.Len(t, reports, 2)
+
+		// qSave2 has no results.
+		beta := reports[1]
+		assert.Equal(t, "Save Query Beta", beta.Name)
+		assert.Nil(t, beta.FirstResult)
+		assert.Nil(t, beta.LastFetched)
+		assert.Equal(t, 0, beta.NHostResults)
+	})
+
+	t.Run("name_filter", func(t *testing.T) {
+		opts := fleet.ListHostReportsOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:   "name",
+				MatchQuery: "Alpha",
+			},
+		}
+		reports, total, _, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		require.NoError(t, err)
+		assert.Equal(t, 1, total)
+		require.Len(t, reports, 1)
+		assert.Equal(t, "Save Query Alpha", reports[0].Name)
+	})
+
+	t.Run("order_by_last_fetched_nulls_last", func(t *testing.T) {
+		// qSave1 has results (non-null last_fetched), qSave2 has none (null).
+		// NULLs should sort last regardless of ASC/DESC direction.
+
+		// ASC: non-null values first (oldest to newest), NULLs at bottom.
+		opts := fleet.ListHostReportsOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "last_fetched",
+				OrderDirection: fleet.OrderAscending,
+			},
+		}
+		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		require.NoError(t, err)
+		require.Len(t, reports, 2)
+		assert.Equal(t, "Save Query Alpha", reports[0].Name) // has results
+		assert.Equal(t, "Save Query Beta", reports[1].Name)  // no results → NULL last
+
+		// DESC: non-null values first (newest to oldest), NULLs at bottom.
+		opts.ListOptions.OrderDirection = fleet.OrderDescending
+		reports, _, _, err = ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		require.NoError(t, err)
+		require.Len(t, reports, 2)
+		assert.Equal(t, "Save Query Alpha", reports[0].Name) // has results
+		assert.Equal(t, "Save Query Beta", reports[1].Name)  // no results → NULL last
+	})
+
+	t.Run("pagination", func(t *testing.T) {
+		// Use PerPage:1 over the 2 save queries to exercise both pages.
+		opts := fleet.ListHostReportsOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:        "name",
+				PerPage:         1,
+				Page:            0,
+				IncludeMetadata: true,
+			},
+		}
+		reports, total, meta, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		require.NoError(t, err)
+		assert.Equal(t, 2, total)
+		require.Len(t, reports, 1)
+		require.NotNil(t, meta)
+		assert.True(t, meta.HasNextResults)
+		assert.False(t, meta.HasPreviousResults)
+
+		// Second page.
+		opts.ListOptions.Page = 1
+		reports2, total2, meta2, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		require.NoError(t, err)
+		assert.Equal(t, 2, total2)
+		require.Len(t, reports2, 1)
+		require.NotNil(t, meta2)
+		assert.False(t, meta2.HasNextResults)
+		assert.True(t, meta2.HasPreviousResults)
+	})
+
+	t.Run("team_scoping_excludes_other_team_queries", func(t *testing.T) {
+		// Create a team first, then a query for that team.
+		// Since host has no team, only global queries (team_id IS NULL) should be shown.
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "scoping-test-team"})
+		require.NoError(t, err)
+		_, err = ds.NewQuery(ctx, &fleet.Query{
+			Name:     "Team-Only Query",
+			Query:    "SELECT 4",
+			AuthorID: &user.ID,
+			Saved:    true,
+			TeamID:   &team.ID,
+			Logging:  fleet.LoggingSnapshot,
+		})
+		require.NoError(t, err)
+
+		opts := fleet.ListHostReportsOptions{
+			ListOptions: fleet.ListOptions{OrderKey: "name"},
+		}
+		reports, total, _, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		require.NoError(t, err)
+		// Team-Only query should not appear because host has no team.
+		assert.Equal(t, 2, total)
+		for _, r := range reports {
+			assert.NotEqual(t, "Team-Only Query", r.Name)
+		}
+	})
+
+	t.Run("team_host_sees_global_and_team_queries", func(t *testing.T) {
+		// Create a team, a team host, and a team-scoped query.
+		// The host should see both global queries and its own team's queries.
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-host-test-team"})
+		require.NoError(t, err)
+		teamHost := test.NewHost(t, ds, "team-host1", "10.0.0.1", "key-team1", "serial-team1", time.Now())
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{teamHost.ID}))
+		require.NoError(t, err)
+
+		_ = test.NewQuery(t, ds, &team.ID, "Team Query Zeta", "SELECT 5", user.ID, true)
+
+		opts := fleet.ListHostReportsOptions{
+			ListOptions: fleet.ListOptions{OrderKey: "name"},
+		}
+		reports, total, _, err := ds.ListHostReports(ctx, teamHost.ID, &team.ID, opts, fleet.DefaultMaxQueryReportRows)
+		require.NoError(t, err)
+		// Should see the 2 global save queries plus the team-scoped query.
+		assert.Equal(t, 3, total)
+		names := make([]string, 0, len(reports))
+		for _, r := range reports {
+			names = append(names, r.Name)
+		}
+		assert.Contains(t, names, "Save Query Alpha")
+		assert.Contains(t, names, "Save Query Beta")
+		assert.Contains(t, names, "Team Query Zeta")
+	})
+
+	t.Run("report_clipped_when_total_results_reach_cap", func(t *testing.T) {
+		// Insert exactly maxQueryReportRows results for qSave1 across multiple hosts
+		// so that n_query_results >= capacity, making report_clipped=true.
+		capacity := 3
+		extraHost := test.NewHost(t, ds, "extra-host", "192.168.2.1", "key2", "serial2", time.Now())
+		_, err := ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
+			{QueryID: qSave1.ID, HostID: extraHost.ID, LastFetched: now, Data: ptr.RawMessage([]byte(`{"col":"extra"}`))},
+		}, fleet.DefaultMaxQueryReportRows)
+		require.NoError(t, err)
+		// At this point qSave1 has 2 rows on host + 1 on extraHost = 3 total, which equals cap.
+
+		opts := fleet.ListHostReportsOptions{
+			ListOptions: fleet.ListOptions{OrderKey: "name"},
+		}
+		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, opts, capacity)
+		require.NoError(t, err)
+		require.Len(t, reports, 2)
+
+		alpha := reports[0]
+		assert.Equal(t, "Save Query Alpha", alpha.Name)
+		assert.True(t, alpha.ReportClipped)
+
+		// qSave2 has no results, so it should not be clipped.
+		beta := reports[1]
+		assert.Equal(t, "Save Query Beta", beta.Name)
+		assert.False(t, beta.ReportClipped)
+
+		// Clean up extra row so other tests are unaffected.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM query_results WHERE host_id = ?`, extraHost.ID)
+			return err
+		})
+	})
 }

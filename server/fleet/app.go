@@ -1367,6 +1367,16 @@ type ListQueryOptions struct {
 	Platform *string
 }
 
+// ListHostReportsOptions defines options for listing reports (queries) associated with a host.
+type ListHostReportsOptions struct {
+	ListOptions
+	// IncludeReportsDontStoreResults controls whether queries that don't store
+	// results (discard_data=1 AND logging_type != 'snapshot') are included.
+	// false (default): those queries are excluded from the results.
+	// true: all queries are returned, including ones that don't store results.
+	IncludeReportsDontStoreResults bool
+}
+
 // ApplySpecOptions are the options available when applying a YAML or JSON spec.
 type ApplySpecOptions struct {
 	// Force indicates that any validation error in the incoming payload should

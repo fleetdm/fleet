@@ -191,6 +191,8 @@ type GetHostQueryReportResultsFunc func(ctx context.Context, hid uint, queryID u
 
 type QueryReportIsClippedFunc func(ctx context.Context, queryID uint, maxQueryReportRows int) (bool, error)
 
+type ListHostReportsFunc func(ctx context.Context, hostID uint, opts fleet.ListHostReportsOptions) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, bool, error)
+
 type NewQueryFunc func(ctx context.Context, p fleet.QueryPayload) (*fleet.Query, error)
 
 type ModifyQueryFunc func(ctx context.Context, id uint, p fleet.QueryPayload) (*fleet.Query, error)
@@ -1149,6 +1151,9 @@ type Service struct {
 
 	QueryReportIsClippedFunc        QueryReportIsClippedFunc
 	QueryReportIsClippedFuncInvoked bool
+
+	ListHostReportsFunc        ListHostReportsFunc
+	ListHostReportsFuncInvoked bool
 
 	NewQueryFunc        NewQueryFunc
 	NewQueryFuncInvoked bool
@@ -2803,6 +2808,13 @@ func (s *Service) QueryReportIsClipped(ctx context.Context, queryID uint, maxQue
 	s.QueryReportIsClippedFuncInvoked = true
 	s.mu.Unlock()
 	return s.QueryReportIsClippedFunc(ctx, queryID, maxQueryReportRows)
+}
+
+func (s *Service) ListHostReports(ctx context.Context, hostID uint, opts fleet.ListHostReportsOptions) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, bool, error) {
+	s.mu.Lock()
+	s.ListHostReportsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostReportsFunc(ctx, hostID, opts)
 }
 
 func (s *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.Query, error) {

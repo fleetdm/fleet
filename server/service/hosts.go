@@ -1930,6 +1930,119 @@ func (svc *Service) GetHostQueryReportResults(ctx context.Context, hostID uint, 
 	return result, lastFetched, nil
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// List Host Reports
+////////////////////////////////////////////////////////////////////////////////
+
+type listHostReportsRequest struct {
+	ID          uint              `url:"id"`
+	ListOptions fleet.ListOptions `url:"list_options"`
+	// IncludeReportsDontStoreResults if true, include queries that don't store results
+	// (discard_data=1 AND logging_type != 'snapshot'). Defaults to false when omitted.
+	IncludeReportsDontStoreResults *bool `query:"include_reports_dont_store_results,optional"`
+}
+
+type listHostReportsFeatures struct {
+	SavedReportsDisabled bool `json:"save_reports_disabled"`
+}
+
+type listHostReportsResponse struct {
+	Reports  []*fleet.HostReport       `json:"reports"`
+	Count    int                       `json:"count"`
+	Meta     *fleet.PaginationMetadata `json:"meta,omitempty"`
+	Features listHostReportsFeatures   `json:"features"`
+	Err      error                     `json:"error,omitempty"`
+}
+
+func (r listHostReportsResponse) Error() error { return r.Err }
+
+func listHostReportsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*listHostReportsRequest)
+
+	var includeReportsDontStoreResults bool
+	if req.IncludeReportsDontStoreResults != nil {
+		includeReportsDontStoreResults = *req.IncludeReportsDontStoreResults
+	}
+
+	opts := fleet.ListHostReportsOptions{
+		ListOptions:                    req.ListOptions,
+		IncludeReportsDontStoreResults: includeReportsDontStoreResults,
+	}
+
+	reports, count, meta, savedReportsDisabled, err := svc.ListHostReports(ctx, req.ID, opts)
+	if err != nil {
+		return listHostReportsResponse{Err: err}, nil
+	}
+
+	return listHostReportsResponse{
+		Reports: reports,
+		Count:   count,
+		Meta:    meta,
+		Features: listHostReportsFeatures{
+			SavedReportsDisabled: savedReportsDisabled,
+		},
+	}, nil
+}
+
+func (svc *Service) ListHostReports(
+	ctx context.Context,
+	hostID uint,
+	opts fleet.ListHostReportsOptions,
+) (
+	[]*fleet.HostReport,
+	int,
+	*fleet.PaginationMetadata,
+	bool,
+	error,
+) {
+	// Load host to get team ID and authorize.
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return nil, 0, nil, false, ctxerr.Wrap(ctx, err, "get host")
+	}
+
+	// Verify the caller can read this specific host.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{ID: host.ID, TeamID: host.TeamID}, fleet.ActionRead); err != nil {
+		return nil, 0, nil, false, err
+	}
+
+	// Authorize against the host's team. Global queries (team_id IS NULL) are
+	// intentionally visible to all users who can read queries in this context —
+	// team-scoped users see global queries in addition to their own team's queries.
+	if err := svc.authz.Authorize(ctx, &fleet.Query{TeamID: host.TeamID}, fleet.ActionRead); err != nil {
+		return nil, 0, nil, false, err
+	}
+
+	appConfig, err := svc.AppConfigObfuscated(ctx)
+	if err != nil {
+		return nil, 0, nil, false, ctxerr.Wrap(ctx, err, "get app config")
+	}
+	maxQueryReportRows := appConfig.ServerSettings.GetQueryReportCap()
+	savedReportsDisabled := appConfig.ServerSettings.QueryReportsDisabled
+
+	// This end-point is always paginated; metadata is required for HasNextResults.
+	opts.ListOptions.IncludeMetadata = true
+	// Default page size for this endpoint is 50 (not the global default).
+	if opts.ListOptions.PerPage == 0 {
+		opts.ListOptions.PerPage = 50
+	}
+	// Default: sort by newest results first. Applies only when the caller has
+	// not specified an order key; explicit sorts (e.g. order_key=name) are
+	// passed through unchanged.
+	if opts.ListOptions.OrderKey == "" {
+		opts.ListOptions.OrderKey = "last_fetched"
+		opts.ListOptions.OrderDirection = fleet.OrderDescending
+	}
+
+	reports, total, meta, err := svc.ds.ListHostReports(ctx, hostID, host.TeamID, opts, maxQueryReportRows)
+	if err != nil {
+		return nil, 0, nil, false, ctxerr.Wrap(ctx, err, "list host reports from datastore")
+	}
+
+	return reports, total, meta, savedReportsDisabled, nil
+}
+
 func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) ([]uint, []string, []*fleet.Host, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {

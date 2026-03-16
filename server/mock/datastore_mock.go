@@ -443,6 +443,8 @@ type CleanupDiscardedQueryResultsFunc func(ctx context.Context) error
 
 type CleanupExcessQueryResultRowsFunc func(ctx context.Context, maxQueryReportRows int, opts ...fleet.CleanupExcessQueryResultRowsOptions) (map[uint]int, error)
 
+type ListHostReportsFunc func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error)
+
 type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
 type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
@@ -2445,6 +2447,9 @@ type DataStore struct {
 
 	CleanupExcessQueryResultRowsFunc        CleanupExcessQueryResultRowsFunc
 	CleanupExcessQueryResultRowsFuncInvoked bool
+
+	ListHostReportsFunc        ListHostReportsFunc
+	ListHostReportsFuncInvoked bool
 
 	NewTeamFunc        NewTeamFunc
 	NewTeamFuncInvoked bool
@@ -5975,6 +5980,13 @@ func (s *DataStore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryRe
 	s.CleanupExcessQueryResultRowsFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupExcessQueryResultRowsFunc(ctx, maxQueryReportRows, opts...)
+}
+
+func (s *DataStore) ListHostReports(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListHostReportsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostReportsFunc(ctx, hostID, teamID, opts, maxQueryReportRows)
 }
 
 func (s *DataStore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
