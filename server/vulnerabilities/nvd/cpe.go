@@ -184,7 +184,12 @@ func cpeSearchQueries(software *fleet.Software) []cpeSearchQuery {
 // pass cpeItemMatchesSoftware.
 func cpeVendorMatchesSoftware(item *IndexedCPEItem, software *fleet.Software) bool {
 	sVendor := strings.ToLower(software.Vendor)
-	return sVendor != "" && strings.Contains(sVendor, item.Vendor)
+	if sVendor == "" {
+		return false
+	}
+	pattern := `\b` + regexp.QuoteMeta(item.Vendor) + `\b`
+	matched, _ := regexp.MatchString(pattern, sVendor)
+	return matched
 }
 
 // cpeItemMatchesSoftware checks whether a CPE result's vendor/product terms all appear in the
