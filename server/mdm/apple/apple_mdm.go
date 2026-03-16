@@ -1397,7 +1397,8 @@ func (pb *ProfileBimap) add(wantedProfile, currentProfile *fleet.MDMAppleProfile
 type NewActivityFunc = fleet.NewActivityFunc
 
 func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger *slog.Logger,
-	newActivityFn NewActivityFunc) error {
+	newActivityFn NewActivityFunc,
+) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching app config")
@@ -1511,7 +1512,8 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 // turnOffMDMIfAPNSFailed checks if the error is an APNSDeliveryError and turns off MDM for the failed devices.
 // Returns a boolean value to indicate whether or not MDM was turned off.
 func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, logger *slog.Logger, newActivityFn NewActivityFunc) (bool,
-	error) {
+	error,
+) {
 	var e *APNSDeliveryError
 	if !errors.As(err, &e) {
 		return false, nil
@@ -1635,7 +1637,7 @@ func sendRecoveryLockCommandsWithCommander(
 ) error {
 	var result *multierror.Error
 
-	// 0. Restore hosts that were in "pending remove" state but feature was re-enabled.
+	// Restore hosts that were in "pending remove" state but feature was re-enabled.
 	// This transitions them back to "verified install" to preserve the existing password.
 	restored, err := ds.RestoreRecoveryLockForReenabledHosts(ctx)
 	if err != nil {
@@ -1644,12 +1646,12 @@ func sendRecoveryLockCommandsWithCommander(
 		logger.InfoContext(ctx, "restored recovery lock for re-enabled hosts", "count", restored)
 	}
 
-	// 1. Handle SET password operations (hosts that need a recovery lock password)
+	// Handle SET password operations (hosts that need a recovery lock password)
 	if err := sendSetRecoveryLockCommands(ctx, ds, commander, logger); err != nil {
 		result = multierror.Append(result, err)
 	}
 
-	// 2. Handle CLEAR password operations (hosts that need their recovery lock cleared)
+	// Handle CLEAR password operations (hosts that need their recovery lock cleared)
 	if err := sendClearRecoveryLockCommands(ctx, ds, commander, logger); err != nil {
 		result = multierror.Append(result, err)
 	}

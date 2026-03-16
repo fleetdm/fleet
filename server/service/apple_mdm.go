@@ -7408,12 +7408,14 @@ func NewSetRecoveryLockResultsHandler(
 
 			if opType == fleet.MDMOperationTypeRemove {
 				// CLEAR operation failed
-				if apple_mdm.IsRecoveryLockPasswordMismatchError(rlResult.cmdResult.ErrorChain) {
-					// Password mismatch is a terminal error - requires admin intervention
+				// Command format errors are terminal - command is malformed and won't succeed on retry.
+				// Password mismatch errors are also terminal - requires admin intervention.
+				if rlResult.cmdResult.Status == fleet.MDMAppleStatusCommandFormatError ||
+					apple_mdm.IsRecoveryLockPasswordMismatchError(rlResult.cmdResult.ErrorChain) {
 					if err := ds.SetRecoveryLockFailed(ctx, hostUUID, errorMsg); err != nil {
 						return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock failed")
 					}
-					logger.WarnContext(ctx, "ClearRecoveryLock failed due to password mismatch",
+					logger.WarnContext(ctx, "ClearRecoveryLock failed with terminal error",
 						"host_uuid", hostUUID,
 						"error", errorMsg,
 					)

@@ -511,4 +511,38 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 
 		assert.True(t, resetCalled, "ResetRecoveryLockForRetry should be called for transient errors")
 	})
+
+	t.Run("command format error clear sets failed not retry", func(t *testing.T) {
+		ds := new(mock.DataStore)
+
+		ds.GetRecoveryLockOperationTypeFunc = func(_ context.Context, hUUID string) (fleet.MDMOperationType, error) {
+			return fleet.MDMOperationTypeRemove, nil
+		}
+		var failedCalled bool
+		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
+			failedCalled = true
+			assert.Equal(t, hostUUID, hUUID)
+			return nil
+		}
+		// ResetRecoveryLockForRetry should NOT be called for command format errors
+		ds.ResetRecoveryLockForRetryFunc = func(_ context.Context, hUUID string) error {
+			t.Fatal("ResetRecoveryLockForRetry should not be called for command format errors")
+			return nil
+		}
+
+		handler := NewSetRecoveryLockResultsHandler(ds, logger)
+
+		// CommandFormatError is terminal - command is malformed and will never succeed
+		result := NewRecoveryLockResult(&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: cmdUUID,
+			Status:      fleet.MDMAppleStatusCommandFormatError,
+			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
+		})
+
+		err := handler(ctx, result)
+		require.NoError(t, err)
+
+		assert.True(t, failedCalled, "SetRecoveryLockFailed should be called for command format errors")
+	})
 }

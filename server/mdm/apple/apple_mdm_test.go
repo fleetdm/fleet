@@ -447,7 +447,6 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
-
 		hostUUID := "host-uuid-1"
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
 			return []string{hostUUID}, nil
@@ -519,7 +518,6 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
-
 		// No hosts need SET
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
 			return nil, nil
@@ -552,7 +550,6 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
-
 		// No hosts need SET
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
 			return nil, nil
