@@ -76,7 +76,7 @@ describe("SaveNewQueryModal", () => {
     expect(screen.getByText("Interval")).toBeInTheDocument();
     expect(screen.getByText("Observers can run")).toBeInTheDocument();
     expect(screen.getByText("Automations off")).toBeInTheDocument();
-    expect(screen.getByText("Show advanced options")).toBeInTheDocument();
+    expect(screen.getByText("Show advanced")).toBeInTheDocument();
 
     const nameInput = screen.getByLabelText("Name");
     await user.type(nameInput, "Test Query");
@@ -97,7 +97,7 @@ describe("SaveNewQueryModal", () => {
 
     const { user } = render(<SaveNewQueryModal {...defaultProps} />);
 
-    const advancedOptionsButton = screen.getByText("Show advanced options");
+    const advancedOptionsButton = screen.getByText("Show advanced");
     await user.click(advancedOptionsButton);
 
     expect(screen.getByText("Minimum osquery version")).toBeInTheDocument();

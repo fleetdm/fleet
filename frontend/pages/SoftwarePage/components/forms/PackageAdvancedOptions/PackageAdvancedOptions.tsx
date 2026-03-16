@@ -266,8 +266,8 @@ const PackageAdvancedOptions = ({
       <RevealButton
         className={`${baseClass}__accordion-title`}
         isShowing={showAdvancedOptions}
-        showText="Advanced options"
-        hideText="Advanced options"
+        showText="Show advanced"
+        hideText="Hide advanced"
         caretPosition="after"
         onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
         disabled={!selectedPackage || requiresAdvancedOptions}

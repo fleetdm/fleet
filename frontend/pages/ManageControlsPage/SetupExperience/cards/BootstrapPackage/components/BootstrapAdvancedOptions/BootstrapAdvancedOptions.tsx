@@ -57,8 +57,8 @@ const BootstrapAdvancedOptions = ({
       <RevealButton
         className={`${baseClass}__accordion-title`}
         isShowing={showAdvancedOptions}
-        showText="Show advanced options"
-        hideText="Hide advanced options"
+        showText="Show advanced"
+        hideText="Hide advanced"
         caretPosition="after"
         onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
       />
