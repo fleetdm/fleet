@@ -7889,7 +7889,7 @@ _Available in Fleet Premium_
 | query                 | string | query | Search query keywords. Searchable fields include `name`. |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
 | per_page                | integer | query | Results per page. |
-| automation_type         | string  | query | Filters by automation type. Supported values are "software", "scripts", "calendar", "conditional_access", "other". |
+| automation_type         | string  | query | Filters by automation type. Supported values are "software", "scripts", "calendar", "conditional_access", and "other". |
 
 
 #### Example (default usage)
