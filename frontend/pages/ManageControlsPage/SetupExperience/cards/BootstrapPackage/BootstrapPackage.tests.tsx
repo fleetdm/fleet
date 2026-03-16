@@ -33,14 +33,14 @@ const setupDefaultBackendMocks = () => {
 
   // default will be a bootstrap package already uploaded
   mockServer.use(
-    createSetupExperienceBootstrapMetadataHandler({ name: "foo-package.pkg" }),
+    createSetupExperienceBootstrapMetadataHandler({ name: "foo-package.pkg" })
   );
   mockServer.use(
     createSetuUpExperienceBootstrapSummaryHandler({
       installed: 1,
       pending: 2,
       failed: 3,
-    }),
+    })
   );
 };
 
@@ -50,7 +50,7 @@ describe("BootstrapPackage", () => {
     mockServer.use(
       createGetConfigHandler({
         mdm: createMockMdmConfig({ enabled_and_configured: false }),
-      }),
+      })
     );
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -60,7 +60,7 @@ describe("BootstrapPackage", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/turn on automatic enrollment/),
+        screen.getByText(/turn on automatic enrollment/)
       ).toBeInTheDocument();
     });
   });
@@ -72,7 +72,7 @@ describe("BootstrapPackage", () => {
           enabled_and_configured: true,
           apple_bm_enabled_and_configured: false,
         }),
-      }),
+      })
     );
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -82,7 +82,7 @@ describe("BootstrapPackage", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/turn on automatic enrollment/),
+        screen.getByText(/turn on automatic enrollment/)
       ).toBeInTheDocument();
     });
   });
@@ -120,8 +120,8 @@ describe("BootstrapPackage", () => {
     // upload description is showing
     expect(
       screen.getByText(
-        /Upload a bootstrap package to install a configuration/gi,
-      ),
+        /Upload a bootstrap package to install a configuration/gi
+      )
     ).toBeVisible();
 
     // uploader is showing
@@ -138,14 +138,14 @@ describe("BootstrapPackage", () => {
     });
 
     const { user } = render(
-      <BootstrapPackage router={createMockRouter()} currentTeamId={0} />,
+      <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
     );
 
     await screen.findByText("Advanced options");
     await user.click(screen.getByText("Advanced options"));
 
     expect(
-      screen.getByLabelText("Install Fleet's agent (fleetd) manually"),
+      screen.getByLabelText("Install Fleet's agent (fleetd) manually")
     ).toBeDisabled();
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
@@ -161,7 +161,7 @@ describe("BootstrapPackage", () => {
             }),
           }),
         ],
-      }),
+      })
     );
 
     const render = createCustomRenderer({
@@ -169,14 +169,14 @@ describe("BootstrapPackage", () => {
     });
 
     const { user } = render(
-      <BootstrapPackage router={createMockRouter()} currentTeamId={0} />,
+      <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
     );
 
     await screen.findByText("Advanced options");
     await user.click(screen.getByText("Advanced options"));
 
     expect(
-      screen.getByLabelText("Install Fleet's agent (fleetd) manually"),
+      screen.getByLabelText("Install Fleet's agent (fleetd) manually")
     ).toBeDisabled();
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
@@ -190,14 +190,14 @@ describe("BootstrapPackage", () => {
     });
 
     const { user } = render(
-      <BootstrapPackage router={createMockRouter()} currentTeamId={0} />,
+      <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
     );
 
     await screen.findByText("Advanced options");
     await user.click(screen.getByText("Advanced options"));
 
     expect(
-      screen.getByLabelText("Install Fleet's agent (fleetd) manually"),
+      screen.getByLabelText("Install Fleet's agent (fleetd) manually")
     ).toBeDisabled();
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });

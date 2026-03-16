@@ -118,7 +118,7 @@ const validateQuerySQL = (query: string) => {
 const getLabelsIncludeAny = (
   isPremiumTier: boolean | undefined,
   selectedTargetType: string,
-  selectedLabels: Record<string, boolean>,
+  selectedLabels: Record<string, boolean>
 ): string[] | undefined => {
   if (!isPremiumTier) {
     return undefined;
@@ -205,7 +205,7 @@ const EditQueryForm = ({
   // handles saving a brand new query
   const [showSaveNewQueryModal, setShowSaveNewQueryModal] = useState(false);
   const [showQueryEditor, setShowQueryEditor] = useState(
-    isObserverPlus || isAnyTeamObserverPlus || false,
+    isObserverPlus || isAnyTeamObserverPlus || false
   );
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -219,7 +219,7 @@ const EditQueryForm = ({
     baseClass,
     false,
     undefined,
-    undefined,
+    undefined
   );
   const updateQueryData = {
     name: lastEditedQueryName.trim(),
@@ -237,7 +237,7 @@ const EditQueryForm = ({
     labels_include_any: getLabelsIncludeAny(
       isPremiumTier,
       selectedTargetType,
-      selectedLabels,
+      selectedLabels
     ),
   };
 
@@ -245,7 +245,7 @@ const EditQueryForm = ({
     setSelectedTargetType(
       storedQuery?.labels_include_any?.length && isPremiumTier
         ? "Custom"
-        : "All hosts",
+        : "All hosts"
     );
     setSelectedLabels(
       storedQuery?.labels_include_any?.reduce((acc, label) => {
@@ -253,22 +253,24 @@ const EditQueryForm = ({
           ...acc,
           [label.name]: true,
         };
-      }, {}) || {},
+      }, {}) || {}
     );
   }, [storedQuery]);
 
-  const { data: { labels } = { labels: [] }, isFetching: isFetchingLabels } =
-    useQuery<ILabelsSummaryResponse, Error>(
-      ["custom_labels"],
-      // All-teams queries can only be assigned global labels
-      () => labelsAPI.summary(currentTeamId, true),
-      {
-        ...DEFAULT_USE_QUERY_OPTIONS,
-        enabled: isPremiumTier,
-        staleTime: 10000,
-        select: (res) => ({ labels: getCustomLabels(res.labels) }),
-      },
-    );
+  const {
+    data: { labels } = { labels: [] },
+    isFetching: isFetchingLabels,
+  } = useQuery<ILabelsSummaryResponse, Error>(
+    ["custom_labels"],
+    // All-teams queries can only be assigned global labels
+    () => labelsAPI.summary(currentTeamId, true),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isPremiumTier,
+      staleTime: 10000,
+      select: (res) => ({ labels: getCustomLabels(res.labels) }),
+    }
+  );
 
   const platformCompatibility = usePlatformCompatibility();
   const { setCompatiblePlatforms } = platformCompatibility;
@@ -339,11 +341,11 @@ const EditQueryForm = ({
         FREQUENCY_DROPDOWN_OPTIONS,
         lastEditedQueryFrequency,
         // it's safe to assume that frequency is a number
-        (frequency) => `Every ${secondsToDhms(frequency as number)}`,
+        (frequency) => `Every ${secondsToDhms(frequency as number)}`
       ),
     // intentionally leave lastEditedQueryFrequency out of the dependencies, so that the custom
     // options are maintained even if the user changes the frequency in the UI
-    [],
+    []
   );
 
   const onSelectLabel = ({
@@ -363,7 +365,7 @@ const EditQueryForm = ({
     (value: number) => {
       setLastEditedQueryFrequency(value);
     },
-    [setLastEditedQueryFrequency],
+    [setLastEditedQueryFrequency]
   );
 
   const toggleAdvancedOptions = () => {
@@ -374,14 +376,14 @@ const EditQueryForm = ({
     (value: string) => {
       setLastEditedQueryMinOsqueryVersion(value);
     },
-    [setLastEditedQueryMinOsqueryVersion],
+    [setLastEditedQueryMinOsqueryVersion]
   );
 
   const onChangeSelectLoggingType = useCallback(
     (value: QueryLoggingOption) => {
       setLastEditedQueryLoggingType(value);
     },
-    [setLastEditedQueryLoggingType],
+    [setLastEditedQueryLoggingType]
   );
 
   const handleSaveQuery = () => (evt: React.MouseEvent<HTMLButtonElement>) => {
@@ -402,7 +404,7 @@ const EditQueryForm = ({
     if (canSave) {
       if (!savedQueryMode) {
         platformSelector.setSelectedPlatforms(
-          platformCompatibility.getCompatiblePlatforms(),
+          platformCompatibility.getCompatiblePlatforms()
         );
         setShowSaveNewQueryModal(true);
       } else {
@@ -474,7 +476,7 @@ const EditQueryForm = ({
     queryDescriptionWrapperClass,
     {
       [`${baseClass}--editing`]: isEditingDescription,
-    },
+    }
   );
 
   const renderName = () => {
@@ -485,8 +487,7 @@ const EditQueryForm = ({
           tipOffset={16}
           renderChildren={(disableChildren) => {
             const classes = classnames(queryNameWrapperClasses, {
-              [`${queryNameWrapperClass}--disabled-by-gitops-mode`]:
-                disableChildren,
+              [`${queryNameWrapperClass}--disabled-by-gitops-mode`]: disableChildren,
             });
             return (
               <div
@@ -542,8 +543,7 @@ const EditQueryForm = ({
           tipOffset={16}
           renderChildren={(disableChildren) => {
             const classes = classnames(queryDescriptionWrapperClasses, {
-              [`${queryDescriptionWrapperClass}--disabled-by-gitops-mode`]:
-                disableChildren,
+              [`${queryDescriptionWrapperClass}--disabled-by-gitops-mode`]: disableChildren,
             });
             return (
               <div
@@ -655,7 +655,7 @@ const EditQueryForm = ({
                   getPathWithQueryParams(PATHS.LIVE_REPORT(queryIdForEdit), {
                     host_id: hostId,
                     fleet_id: apiTeamIdForQuery,
-                  }),
+                  })
                 );
               }}
               disabled={disabledLiveQuery}
@@ -675,7 +675,7 @@ const EditQueryForm = ({
     storedQuery &&
     !storedQuery.discard_data &&
     !["differential", "differential_ignore_removals"].includes(
-      storedQuery.logging,
+      storedQuery.logging
     );
   const changedSQL = storedQuery && lastEditedQueryBody !== storedQuery.query;
   const changedLoggingToDifferential = [
@@ -772,7 +772,7 @@ const EditQueryForm = ({
               <Slider
                 onChange={() =>
                   setLastEditedQueryAutomationsEnabled(
-                    !lastEditedQueryAutomationsEnabled,
+                    !lastEditedQueryAutomationsEnabled
                   )
                 }
                 value={lastEditedQueryAutomationsEnabled}
@@ -950,7 +950,7 @@ const EditQueryForm = ({
                     getPathWithQueryParams(PATHS.LIVE_REPORT(queryIdForEdit), {
                       host_id: hostId,
                       fleet_id: currentTeamId,
-                    }),
+                    })
                   );
                 }}
                 disabled={disabledLiveQuery}
