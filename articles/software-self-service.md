@@ -1,4 +1,4 @@
-# Self-service
+# Self-service 
 
 _Available in Fleet Premium_
 
@@ -122,10 +122,10 @@ When an install, uninstall, or update is triggered by an IT admin or end user in
 - If the host is online, Fleet will poll automatically every 5 seconds to check for completion. When the install, uninstall, or update completes or fails, the status will update without the IT admin or end user having to reload the page.
 - If the host is offline, IT admins see a pending status. When pending, the action has not started on the host. IT admins can cancel pending actions on **Host details > Activity > Upcoming** tab.
 
-<meta name="articleTitle" value="Software self-service">
+<meta name="articleTitle" value="Self-service">
 <meta name="authorFullName" value="Jahziel Villasana-Espinoza">
 <meta name="authorGitHubUsername" value="jahzielv">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2025-06-20">
 <meta name="articleImageUrl" value="../website/assets/images/articles/software-self-service-1600x900@2x.png">
-<meta name="description" value="This guide will walk you through adding apps to Fleet for user self-service.">
+<meta name="description" value="Adding apps and scripts to Fleet for end user self-service.">
