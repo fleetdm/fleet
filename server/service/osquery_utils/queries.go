@@ -454,12 +454,11 @@ FROM disk_space LIMIT 1;`,
 	},
 
 	"disk_space_darwin_legacy": {
-		Query: fmt.Sprintf(`
+		Query: `
 		SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
 		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
-		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
-					 (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts %s) AS gigs_all_disk_space
-		FROM mounts WHERE path = '/' LIMIT 1;`, linuxGigsAllDiskSpaceSubQueryConditions),
+		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
+		FROM mounts WHERE path = '/' LIMIT 1;`,
 		Platforms:        []string{"darwin"},
 		Discovery:        fmt.Sprintf(`SELECT 1 WHERE NOT EXISTS (%s);`, discoveryTable("disk_space")),
 		DirectIngestFunc: directIngestDiskSpace,

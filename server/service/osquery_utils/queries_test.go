@@ -578,6 +578,22 @@ func TestGetDetailQueries(t *testing.T) {
 	}
 }
 
+func TestDiskSpaceDarwinLegacyQueryExcludesGigsAll(t *testing.T) {
+	queries := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, nil, Integrations{}, nil)
+
+	// disk_space_darwin_legacy targets darwin where the `disk_space`` table is
+	// unavailable. gigs_all_disk_space is only ingested for Linux hosts, so the
+	// legacy darwin query should not include it.
+	legacy, ok := queries["disk_space_darwin_legacy"]
+	require.True(t, ok)
+	assert.NotContains(t, legacy.Query, "gigs_all_disk_space")
+
+	// disk_space_unix targets Linux and should include gigs_all_disk_space.
+	unix, ok := queries["disk_space_unix"]
+	require.True(t, ok)
+	assert.Contains(t, unix.Query, "gigs_all_disk_space")
+}
+
 func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
