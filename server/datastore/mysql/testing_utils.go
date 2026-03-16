@@ -461,6 +461,7 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 		"migration_status_tables":          true,
 		"osquery_options":                  true,
 		"software_categories":              true,
+		"windows_mdm_default_team":         true,
 	}
 	testing_utils.TruncateTables(t, ds.writer(context.Background()), ds.logger, nonEmptyTables, tables...)
 }

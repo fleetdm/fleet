@@ -2870,7 +2870,7 @@ type getWindowsMDMDefaultTeamResponse struct {
 
 func (r getWindowsMDMDefaultTeamResponse) Error() error { return r.Err }
 
-func getWindowsMDMDefaultTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getWindowsMDMDefaultTeamEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	result, err := svc.GetWindowsMDMDefaultTeam(ctx)
 	if err != nil {
 		return &getWindowsMDMDefaultTeamResponse{Err: err}, nil
@@ -2895,7 +2895,7 @@ type updateWindowsMDMDefaultTeamResponse struct {
 
 func (r updateWindowsMDMDefaultTeamResponse) Error() error { return r.Err }
 
-func updateWindowsMDMDefaultTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func updateWindowsMDMDefaultTeamEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateWindowsMDMDefaultTeamRequest)
 	result, err := svc.UpdateWindowsMDMDefaultTeam(ctx, req.TeamID)
 	if err != nil {

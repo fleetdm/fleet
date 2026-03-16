@@ -3125,6 +3125,18 @@ CREATE TABLE `windows_mdm_responses` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `windows_mdm_default_team` (
+  `id` int unsigned NOT NULL DEFAULT '1',
+  `team_id` int unsigned DEFAULT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  CONSTRAINT `fk_windows_mdm_default_team_team_id` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT INTO `windows_mdm_default_team` VALUES (1,NULL,'2020-01-01 00:00:00.000000','2020-01-01 00:00:00.000000');
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `windows_updates` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `host_id` int unsigned NOT NULL,
