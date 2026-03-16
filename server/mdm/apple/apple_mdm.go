@@ -1635,6 +1635,15 @@ func sendRecoveryLockCommandsWithCommander(
 ) error {
 	var result *multierror.Error
 
+	// 0. Restore hosts that were in "pending remove" state but feature was re-enabled.
+	// This transitions them back to "verified install" to preserve the existing password.
+	restored, err := ds.RestoreRecoveryLockForReenabledHosts(ctx)
+	if err != nil {
+		result = multierror.Append(result, ctxerr.Wrap(ctx, err, "restore recovery lock for re-enabled hosts"))
+	} else if restored > 0 {
+		logger.InfoContext(ctx, "restored recovery lock for re-enabled hosts", "count", restored)
+	}
+
 	// 1. Handle SET password operations (hosts that need a recovery lock password)
 	if err := sendSetRecoveryLockCommands(ctx, ds, commander, logger); err != nil {
 		result = multierror.Append(result, err)

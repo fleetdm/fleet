@@ -10460,6 +10460,71 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
 	assert.False(t, slices.Contains(hosts, hostUnenrolled.UUID), "host with MDM turned off should NOT be eligible")
+
+	// Test host in "pending remove" state is NOT picked up by GetHostsForRecoveryLockAction
+	// Instead, RestoreRecoveryLockForReenabledHosts should handle this case
+	// This tests the scenario where:
+	// 1. Feature is disabled, host goes to operation_type='remove', status='pending'
+	// 2. Feature is re-enabled
+	// 3. RestoreRecoveryLockForReenabledHosts restores it to "verified install"
+	// 4. GetHostsForRecoveryLockAction should NOT pick it up (it's already verified)
+	teamReEnable := createTeamWithRecoveryLock("team-reenable", true)
+	hostReEnable := test.NewHost(t, ds, "reenable-host", "1.2.5.11", "rekey", "reuuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(teamReEnable.ID))
+	setHostCPUType(hostReEnable.ID, "arm64e")
+	nanoEnrollAndSetHostMDMData(t, ds, hostReEnable, false)
+
+	// Set and verify the password
+	reEnablePW := apple_mdm.GenerateRecoveryLockPassword()
+	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: hostReEnable.UUID, Password: reEnablePW}})
+	require.NoError(t, err)
+	err = ds.SetRecoveryLockVerified(ctx, hostReEnable.UUID)
+	require.NoError(t, err)
+
+	// Disable recovery lock for team (triggers pending remove state)
+	teamReEnable.Config.MDM.EnableRecoveryLockPassword = false
+	_, err = ds.SaveTeam(ctx, teamReEnable)
+	require.NoError(t, err)
+
+	// Claim for clear - this sets operation_type to "remove" and status to "pending"
+	_, err = ds.ClaimHostsForRecoveryLockClear(ctx)
+	require.NoError(t, err)
+
+	// Host should NOT be eligible while feature is disabled
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.False(t, slices.Contains(hosts, hostReEnable.UUID), "host in pending remove state should NOT be eligible while feature is disabled")
+
+	// Re-enable recovery lock for team
+	teamReEnable.Config.MDM.EnableRecoveryLockPassword = true
+	_, err = ds.SaveTeam(ctx, teamReEnable)
+	require.NoError(t, err)
+
+	// Host should still NOT be eligible for GetHostsForRecoveryLockAction
+	// (it needs to be restored first by RestoreRecoveryLockForReenabledHosts)
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.False(t, slices.Contains(hosts, hostReEnable.UUID), "host in pending remove state should NOT be picked up by GetHostsForRecoveryLockAction")
+
+	// RestoreRecoveryLockForReenabledHosts should restore the host to "verified install"
+	restored, err := ds.RestoreRecoveryLockForReenabledHosts(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), restored, "should restore one host")
+
+	// Verify the host is now in "verified install" state
+	var opType, status string
+	err = ds.writer(ctx).GetContext(ctx, &opType, "SELECT operation_type FROM host_recovery_key_passwords WHERE host_uuid = ?", hostReEnable.UUID)
+	require.NoError(t, err)
+	assert.Equal(t, string(fleet.MDMOperationTypeInstall), opType)
+
+	err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_uuid = ?", hostReEnable.UUID)
+	require.NoError(t, err)
+	assert.Equal(t, string(fleet.MDMDeliveryVerified), status)
+
+	// Host should STILL not be eligible (it's verified, not pending)
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	assert.False(t, slices.Contains(hosts, hostReEnable.UUID), "verified host should NOT be eligible")
 }
 
 func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
@@ -10523,8 +10588,55 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 
 	t.Run("claims verified host when config disabled", func(t *testing.T) {
 		// Create team with recovery lock enabled initially
-		team := createTeamWithRecoveryLock(t, "clear-test-team", true)
-		host := test.NewHost(t, ds, "clear-host", "1.2.6.1", "clearkey", "clearuuid", time.Now(),
+		team := createTeamWithRecoveryLock(t, "removing-status-team", true)
+		host := test.NewHost(t, ds, "removing-rlp-host", "1.2.6.4", "removingrlpkey", "removingrlpuuid", time.Now(),
+			test.WithPlatform("darwin"), test.WithTeamID(team.ID))
+		setHostCPUType(t, host.ID, "arm64")
+		nanoEnrollAndSetHostMDMData(t, ds, host, false)
+
+		// Set password and verify
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		err = ds.SetRecoveryLockVerified(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Disable recovery lock for team to trigger clear
+		team.Config.MDM.EnableRecoveryLockPassword = false
+		_, err = ds.SaveTeam(ctx, team)
+		require.NoError(t, err)
+
+		// Claim for clear - this sets operation_type to "remove" and status to "pending"
+		_, err = ds.ClaimHostsForRecoveryLockClear(ctx)
+		require.NoError(t, err)
+
+		// Verify state is now operation_type=remove, status=pending
+		opType, status, found := getPasswordRecord(t, host.UUID)
+		require.True(t, found)
+		assert.Equal(t, "remove", opType)
+		assert.Equal(t, "pending", status)
+	})
+
+	t.Run("returns pending when operation_type is install and status is NULL", func(t *testing.T) {
+		host := test.NewHost(t, ds, "install-null-host", "1.2.6.5", "installnullkey", "installnulluuid", time.Now())
+
+		// Insert a record with operation_type=install and status=NULL directly
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO host_recovery_key_passwords (host_uuid, encrypted_password, operation_type, status)
+			 VALUES (?, 'test', 'install', NULL)`, host.UUID)
+		require.NoError(t, err)
+
+		// Verify state is operation_type=install, status=NULL
+		opType, status, found := getPasswordRecord(t, host.UUID)
+		require.True(t, found)
+		assert.Equal(t, "install", opType)
+		assert.Equal(t, "", status, "status should be empty (NULL) when operation_type is install and status is NULL")
+	})
+
+	t.Run("returns verified status", func(t *testing.T) {
+		// Create team with recovery lock enabled
+		team := createTeamWithRecoveryLock(t, "verified-status-team", true)
+		host := test.NewHost(t, ds, "verified-rlp-host", "1.2.6.3", "verifiedrlpkey", "verifiedrlpuuid", time.Now(),
 			test.WithPlatform("darwin"), test.WithTeamID(team.ID))
 		setHostCPUType(t, host.ID, "arm64")
 		nanoEnrollAndSetHostMDMData(t, ds, host, false)

@@ -1029,6 +1029,8 @@ type GetHostRecoveryLockPasswordFunc func(ctx context.Context, hostUUID string) 
 
 type GetHostsForRecoveryLockActionFunc func(ctx context.Context) ([]string, error)
 
+type RestoreRecoveryLockForReenabledHostsFunc func(ctx context.Context) (int64, error)
+
 type SetRecoveryLockVerifiedFunc func(ctx context.Context, hostUUID string) error
 
 type SetRecoveryLockFailedFunc func(ctx context.Context, hostUUID string, errorMsg string) error
@@ -3320,6 +3322,9 @@ type DataStore struct {
 
 	GetHostsForRecoveryLockActionFunc        GetHostsForRecoveryLockActionFunc
 	GetHostsForRecoveryLockActionFuncInvoked bool
+
+	RestoreRecoveryLockForReenabledHostsFunc        RestoreRecoveryLockForReenabledHostsFunc
+	RestoreRecoveryLockForReenabledHostsFuncInvoked bool
 
 	SetRecoveryLockVerifiedFunc        SetRecoveryLockVerifiedFunc
 	SetRecoveryLockVerifiedFuncInvoked bool
@@ -8016,6 +8021,13 @@ func (s *DataStore) GetHostsForRecoveryLockAction(ctx context.Context) ([]string
 	s.GetHostsForRecoveryLockActionFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostsForRecoveryLockActionFunc(ctx)
+}
+
+func (s *DataStore) RestoreRecoveryLockForReenabledHosts(ctx context.Context) (int64, error) {
+	s.mu.Lock()
+	s.RestoreRecoveryLockForReenabledHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.RestoreRecoveryLockForReenabledHostsFunc(ctx)
 }
 
 func (s *DataStore) SetRecoveryLockVerified(ctx context.Context, hostUUID string) error {
