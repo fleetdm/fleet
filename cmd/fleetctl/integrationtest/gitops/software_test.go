@@ -58,6 +58,7 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 		},
 		{"testdata/gitops/team_software_installer_valid_include.yml", ""},
 		{"testdata/gitops/team_software_installer_valid_exclude.yml", ""},
+		{"testdata/gitops/team_software_installer_valid_include_all.yml", ""},
 		{
 			"testdata/gitops/team_software_installer_invalid_unknown_label.yml",
 			"Please create the missing labels, or update your settings to not refer to these labels.",
@@ -364,6 +365,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		},
 		{"testdata/gitops/no_team_software_installer_valid_include.yml", ""},
 		{"testdata/gitops/no_team_software_installer_valid_exclude.yml", ""},
+		{"testdata/gitops/no_team_software_installer_valid_include_all.yml", ""},
 		{
 			"testdata/gitops/no_team_software_installer_invalid_unknown_label.yml",
 			"Please create the missing labels, or update your settings to not refer to these labels.",
@@ -503,6 +505,10 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 		},
 		{
 			"testdata/gitops/team_vpp_valid_app_labels_include_any.yml", "", time.Now().Add(24 * time.Hour),
+			map[string]uint{"label 1": 1, "label 2": 2},
+		},
+		{
+			"testdata/gitops/team_vpp_valid_app_labels_include_all.yml", "", time.Now().Add(24 * time.Hour),
 			map[string]uint{"label 1": 1, "label 2": 2},
 		},
 		{
