@@ -327,6 +327,7 @@ func TestValidateMDMSettingsAppleSupportedOSVersion(t *testing.T) {
 			assert.Empty(t, gotErrs, msg+": expected no error for platform %s but got: %v", platform, gotErrs)
 		} else {
 			assert.Len(t, gotErrs, 1, msg+": expected error for platform %s but got no errors", platform)
+			assert.Contains(t, gotErrs, platform, msg+": expected error for platform %s but key not found in error map: %v", platform, gotErrs)
 			assert.Contains(t, gotErrs[platform], wantErr, msg+": expected error for platform %s but got: %v", platform, gotErrs[platform])
 		}
 	}
