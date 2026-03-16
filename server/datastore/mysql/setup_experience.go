@@ -23,6 +23,35 @@ func (ds *Datastore) ResetSetupExperienceItemsAfterFailure(ctx context.Context, 
 }
 
 func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatform, hostPlatformLike, hostUUID string, teamID uint, resetFailedSetupSteps bool) (bool, error) {
+	// NOTE: there are 3 different "platform" values in play here: host platform,
+	// host platform-like and fleet-platform-like.
+	//
+	// The host platform is the most specific, e.g. "darwin", "windows", "ios",
+	// "ubuntu", "arch", "fedora", etc.
+	//
+	// Platform-like is the "generic platform" to which the specific platform belongs,
+	// e.g. "debian" for "ubuntu", "rhel" for "fedora", etc. For Apple or Windows, it
+	// is typically the same as platform. It may be empty in some cases (e.g. for "arch"
+	// as it doesn't have a "ID_LIKE" set in /etc/os-release by default, but also "ios").
+	//
+	// Fleet-platform-like is the even-more-generic platform, and is implemented in
+	// fleet.PlatformFromHost: "windows", "darwin", "linux", "ios", etc.
+	//
+	// So for many platforms, all three are the same, but for linux distros, those can be
+	// 3 different values. There is no harm - at least in this function - in filling
+	// hostPlatformLike to hostPlatform if it is empty (e.g. for "ios" or "arch").
+	//
+	// From my tests enrolling such hosts, results are:
+	// - host platform - host platform like - fleet platform like -
+	//   ios             <empty>              ios
+	//   darwin          darwin               darwin
+	//   arch            <empty>              linux
+	//   ubuntu          debian               linux
+	//   windows         windows              windows
+	if hostPlatformLike == "" {
+		hostPlatformLike = hostPlatform
+	}
+
 	if hostPlatformLike != "darwin" && hostPlatformLike != "ios" && hostPlatformLike != "ipados" {
 		// Find the host with the given UUID and platform. If it's already been enrolled for > the cutoff,
 		// don't enqueue any items. This handles the edge case where an enrolled host upgrades from an
@@ -36,11 +65,11 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 		WHERE uuid = ? AND platform = ?
 		`
 		var lastEnrolledAt sql.NullTime
-		if err := sqlx.GetContext(ctx, ds.reader(ctx), &lastEnrolledAt, stmtHost, hostUUID, hostPlatformLike); err != nil {
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &lastEnrolledAt, stmtHost, hostUUID, hostPlatform); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				// This shouldn't happen but we don't check for it elsewhere,
 				// so we'll log a warning and continue.
-				ds.logger.WarnContext(ctx, "Host not found while enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike)
+				ds.logger.WarnContext(ctx, "Host not found while enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "platform", hostPlatform)
 			} else {
 				return false, ctxerr.Wrap(ctx, err, "finding host for enqueueing setup experience items")
 			}
