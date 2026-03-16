@@ -1,12 +1,14 @@
 package fleetctl
 
 import (
+	"bufio"
 	"embed"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/urfave/cli/v2"
 )
@@ -35,7 +37,7 @@ func newCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "new",
 		Usage:     "Create a new Fleet GitOps repository structure",
-		UsageText: "fleetctl new [options]",
+		UsageText: "fleetctl new [options] [dir_name]",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "org-name",
@@ -44,15 +46,24 @@ func newCommand() *cli.Command {
 			},
 		},
 		Action: func(c *cli.Context) error {
-			outputDir := "it-and-security"
+			outputDir := c.Args().First()
+			if outputDir == "" {
+				outputDir = "it-and-security"
+			}
 			if _, err := os.Stat(outputDir); err == nil {
 				return fmt.Errorf("%s already exists; please remove it or run from a different directory", outputDir)
 			}
 
 			if orgName == "" {
 				fmt.Print(`Enter your organization name (default: "My organization"): `)
-				_, err := fmt.Scanln(&orgName)
-				if err != nil || orgName == "" {
+				reader := bufio.NewReader(os.Stdin)
+				line, err := reader.ReadString('\n')
+				if err != nil {
+					orgName = "My organization"
+				} else {
+					orgName = strings.TrimSpace(line)
+				}
+				if orgName == "" {
 					orgName = "My organization"
 				}
 			}
