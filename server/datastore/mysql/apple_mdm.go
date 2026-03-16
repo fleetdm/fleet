@@ -7360,6 +7360,11 @@ func (ds *Datastore) RestoreRecoveryLockForReenabledHosts(ctx context.Context) (
 	// 1. Feature was disabled → host marked operation_type='remove'
 	// 2. ClearRecoveryLock command queued but not yet acknowledged
 	// 3. Feature re-enabled → we restore to verified instead of trying to set new password
+	//
+	// We only restore records in recoverable states (pending or NULL status).
+	// Records with status='failed' (e.g., password mismatch) are NOT restored because:
+	// - They represent terminal errors that require admin intervention
+	// - Restoring them would mask the real problem and clear diagnostic error_message
 	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords rkp
 		JOIN hosts h ON h.uuid = rkp.host_uuid
@@ -7370,12 +7375,13 @@ func (ds *Datastore) RestoreRecoveryLockForReenabledHosts(ctx context.Context) (
 		    rkp.error_message = NULL
 		WHERE rkp.deleted = 0
 		  AND rkp.operation_type = '%s'
+		  AND (rkp.status = '%s' OR rkp.status IS NULL)
 		  AND (
 		      (h.team_id IS NOT NULL AND JSON_EXTRACT(t.config, '$.mdm.enable_recovery_lock_password') = true)
 		      OR
 		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.enable_recovery_lock_password') = true)
 		  )
-	`, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeRemove)
+	`, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending)
 
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt)
 	if err != nil {

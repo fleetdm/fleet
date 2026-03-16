@@ -10525,6 +10525,73 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
 	require.NoError(t, err)
 	assert.False(t, slices.Contains(hosts, hostReEnable.UUID), "verified host should NOT be eligible")
+
+	// Test that RestoreRecoveryLockForReenabledHosts does NOT restore failed records
+	// This tests the scenario where:
+	// 1. Feature is disabled, host goes to operation_type='remove'
+	// 2. ClearRecoveryLock fails with terminal error (e.g., password mismatch)
+	// 3. Host is now in (remove, failed) state with error_message
+	// 4. Feature is re-enabled
+	// 5. RestoreRecoveryLockForReenabledHosts should NOT restore this host
+	//    because it's a terminal error requiring admin intervention
+	teamFailed := createTeamWithRecoveryLock("team-failed", true)
+	hostFailed := test.NewHost(t, ds, "failed-host", "1.2.5.12", "failkey", "failuuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(teamFailed.ID))
+	setHostCPUType(hostFailed.ID, "arm64e")
+	nanoEnrollAndSetHostMDMData(t, ds, hostFailed, false)
+
+	// Set and verify the password
+	failedPW := apple_mdm.GenerateRecoveryLockPassword()
+	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: hostFailed.UUID, Password: failedPW}})
+	require.NoError(t, err)
+	err = ds.SetRecoveryLockVerified(ctx, hostFailed.UUID)
+	require.NoError(t, err)
+
+	// Disable recovery lock for team
+	teamFailed.Config.MDM.EnableRecoveryLockPassword = false
+	_, err = ds.SaveTeam(ctx, teamFailed)
+	require.NoError(t, err)
+
+	// Claim for clear - sets operation_type to "remove" and status to "pending"
+	_, err = ds.ClaimHostsForRecoveryLockClear(ctx)
+	require.NoError(t, err)
+
+	// Simulate ClearRecoveryLock failing with terminal error (password mismatch)
+	err = ds.SetRecoveryLockFailed(ctx, hostFailed.UUID, "Password mismatch: The provided recovery password failed to validate.")
+	require.NoError(t, err)
+
+	// Verify host is in (remove, failed) state
+	var failedOpType, failedStatus, failedErrorMsg string
+	err = ds.writer(ctx).GetContext(ctx, &failedOpType, "SELECT operation_type FROM host_recovery_key_passwords WHERE host_uuid = ?", hostFailed.UUID)
+	require.NoError(t, err)
+	assert.Equal(t, string(fleet.MDMOperationTypeRemove), failedOpType)
+	err = ds.writer(ctx).GetContext(ctx, &failedStatus, "SELECT status FROM host_recovery_key_passwords WHERE host_uuid = ?", hostFailed.UUID)
+	require.NoError(t, err)
+	assert.Equal(t, string(fleet.MDMDeliveryFailed), failedStatus)
+	err = ds.writer(ctx).GetContext(ctx, &failedErrorMsg, "SELECT error_message FROM host_recovery_key_passwords WHERE host_uuid = ?", hostFailed.UUID)
+	require.NoError(t, err)
+	assert.Contains(t, failedErrorMsg, "Password mismatch")
+
+	// Re-enable recovery lock for team
+	teamFailed.Config.MDM.EnableRecoveryLockPassword = true
+	_, err = ds.SaveTeam(ctx, teamFailed)
+	require.NoError(t, err)
+
+	// RestoreRecoveryLockForReenabledHosts should NOT restore the failed host
+	restored, err = ds.RestoreRecoveryLockForReenabledHosts(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), restored, "should NOT restore failed hosts")
+
+	// Verify host is STILL in (remove, failed) state with error_message preserved
+	err = ds.writer(ctx).GetContext(ctx, &failedOpType, "SELECT operation_type FROM host_recovery_key_passwords WHERE host_uuid = ?", hostFailed.UUID)
+	require.NoError(t, err)
+	assert.Equal(t, string(fleet.MDMOperationTypeRemove), failedOpType, "operation_type should still be 'remove'")
+	err = ds.writer(ctx).GetContext(ctx, &failedStatus, "SELECT status FROM host_recovery_key_passwords WHERE host_uuid = ?", hostFailed.UUID)
+	require.NoError(t, err)
+	assert.Equal(t, string(fleet.MDMDeliveryFailed), failedStatus, "status should still be 'failed'")
+	err = ds.writer(ctx).GetContext(ctx, &failedErrorMsg, "SELECT error_message FROM host_recovery_key_passwords WHERE host_uuid = ?", hostFailed.UUID)
+	require.NoError(t, err)
+	assert.Contains(t, failedErrorMsg, "Password mismatch", "error_message should be preserved")
 }
 
 func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
