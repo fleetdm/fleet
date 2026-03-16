@@ -205,13 +205,17 @@ Here are some links that filter relevant conversations on each platform:
 
 ### Publish sprint demo video
 
-After each sprint demo, the marketing team is responsible for doing a quick post-production pass on the recording before publishing it. Because different presenters have different microphone setups and speaking volumes, the raw recording often has inconsistent audio levels. To fix this:
+After each sprint demo, the marketing team is responsible for doing a quick post-production pass on the recording and publishing it. 
 
 1. Download the sprint demo recording.
-2. Upload the recording to [Kapwing](https://www.kapwing.com), a free browser-based video editor.
-3. Apply audio compression to even out the volume levels across all presenters.
-4. Export and download the processed video.
-5. Follow the steps to [upload the video to YouTube](#upload-to-youtube).
+2. Fix audio levels - because different presenters have different microphone setups and speaking volumes, the raw recording often has inconsistent audio levels:
+  - Upload the recording to [Kapwing](https://www.kapwing.com), a free browser-based video editor. (need to revisit this. No longer a free option)
+  - Apply "Auto Level Volume" (under the "Audio" section) to even out the volume levels across all presenters.
+  - Export and download the processed video.
+3. Follow the steps to [upload the video to YouTube](#upload-to-youtube).
+4. Make sure the YouTube title follows the pattern `Sprint-demo - <version #.##.#>` (eg. "Sprint demo - 4.82.0").
+5. Add a brief description highlighting the new features.
+6. Add the new video to the "Releases" playlist.
 
 
 ### Upload to YouTube
