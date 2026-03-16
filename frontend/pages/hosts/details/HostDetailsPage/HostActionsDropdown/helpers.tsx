@@ -573,10 +573,7 @@ const modifyOptions = (
     }
   }
 
-  if (
-    recoveryLockPasswordProfileStatus === "pending" ||
-    recoveryLockPasswordProfileStatus === "failed"
-  ) {
+  if (recoveryLockPasswordProfileStatus !== "verified") {
     const rlpOption = options.find(
       (option) => option.value === "recoveryLockPassword"
     );

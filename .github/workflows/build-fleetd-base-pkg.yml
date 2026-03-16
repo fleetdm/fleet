@@ -68,7 +68,7 @@ jobs:
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
           AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          PACKAGE_SIGNING_IDENTITY_SHA1: D52080FD1F0941DE31346F06DA0F08AED6FACBBF
+          PACKAGE_SIGNING_IDENTITY_SHA1: 4608F71FB42E1845C7FC9B2D2B6A7A8D11BBD940
         run: |
           fleetctl package --type pkg --fleet-desktop \
             --use-system-configuration --sign-identity $PACKAGE_SIGNING_IDENTITY_SHA1 --notarize \

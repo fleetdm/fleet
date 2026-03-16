@@ -80,6 +80,10 @@ func collectFields(t reflect.Type, keys map[string]fieldInfo) {
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 
+		if strings.Contains(t.Name(), "BoolOr") && field.Name == "Other" {
+			collectFields(field.Type, keys)
+		}
+
 		// Handle embedded structs: inline their fields.
 		if field.Anonymous {
 			ft := field.Type

@@ -484,6 +484,7 @@ func (ds *Datastore) createAutomaticPolicy(ctx context.Context, tx sqlx.ExtConte
 		Description:         policyData.Description,
 		SoftwareInstallerID: softwareInstallerID,
 		VPPAppsTeamsID:      vppAppsTeamsID,
+		Type:                fleet.PolicyTypeDynamic,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create automatic policy query")
@@ -563,8 +564,8 @@ func (ds *Datastore) addSoftwareTitleToMatchingSoftware(ctx context.Context, tit
 	whereClause := "WHERE (s.name, s.source, s.extension_for) = (?, ?, '')"
 	whereArgs := []any{payload.Title, payload.Source}
 	if payload.BundleIdentifier != "" {
-		whereClause = "WHERE s.bundle_identifier = ?"
-		whereArgs = []any{payload.BundleIdentifier}
+		whereClause = "WHERE s.bundle_identifier = ? AND source = ?"
+		whereArgs = []any{payload.BundleIdentifier, payload.Source}
 	}
 	if payload.UpgradeCode != "" {
 		// match only by upgrade code
@@ -680,10 +681,9 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 	}
 
 	var touchUploaded string
-	var clearFleetMaintainedAppID string // FMA becomes custom package when uploading a new installer file
 	if payload.InstallerFile != nil {
+		// installer cannot be changed when associated with an FMA
 		touchUploaded = ", uploaded_at = NOW()"
-		clearFleetMaintainedAppID = ", fleet_maintained_app_id = NULL"
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -700,8 +700,8 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 			upgrade_code = ?,
 			user_id = ?,
 			user_name = (SELECT name FROM users WHERE id = ?),
-			user_email = (SELECT email FROM users WHERE id = ?)%s%s
-			WHERE id = ?`, touchUploaded, clearFleetMaintainedAppID)
+			user_email = (SELECT email FROM users WHERE id = ?)%s
+			WHERE id = ?`, touchUploaded)
 
 		args := []interface{}{
 			payload.StorageID,
@@ -1002,7 +1002,8 @@ SELECT
   si.uploaded_at,
   si.self_service,
   si.url,
-  COALESCE(st.name, '') AS software_title
+  COALESCE(st.name, '') AS software_title,
+  COALESCE(st.bundle_identifier, '') AS bundle_identifier
   %s
 FROM
   software_installers si
@@ -1110,14 +1111,29 @@ WHERE
 }
 
 var (
-	errDeleteInstallerWithAssociatedPolicy = &fleet.ConflictError{Message: "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again."}
-	errDeleteInstallerInstalledDuringSetup = &fleet.ConflictError{Message: "Couldn't delete. This software is installed during new host setup. Please remove software in Controls > Setup experience and try again."}
+	errDeleteInstallerWithAssociatedInstallPolicy = &fleet.ConflictError{Message: "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again."}
+	errDeleteInstallerInstalledDuringSetup        = &fleet.ConflictError{Message: "Couldn't delete. This software is installed during new host setup. Please remove software in Controls > Setup experience and try again."}
+	errDeleteInstallerWithAssociatedPatchPolicy   = &fleet.ConflictError{Message: "Couldn’t delete. This software has a patch policy. Please remove the patch policy and try again."}
 )
 
 func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
 	var activateAffectedHostIDs []uint
 
-	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	// check if there is a patch policy that uses this title
+	var policyExists bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &policyExists, `SELECT EXISTS (
+		SELECT 1 FROM policies p
+		JOIN software_installers si ON si.title_id = p.patch_software_title_id AND si.global_or_team_id = p.team_id
+		WHERE si.id = ?
+	)`, id)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if patch policy exists for software installer")
+	}
+	if policyExists {
+		return errDeleteInstallerWithAssociatedPatchPolicy
+	}
+
+	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		affectedHostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, id, true, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "clean up related installs and uninstalls")
@@ -1134,7 +1150,7 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 					return ctxerr.Wrapf(ctx, err, "getting reference from policies")
 				}
 				if count > 0 {
-					return errDeleteInstallerWithAssociatedPolicy
+					return errDeleteInstallerWithAssociatedInstallPolicy
 				}
 			}
 			return ctxerr.Wrap(ctx, err, "delete software installer")
