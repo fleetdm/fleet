@@ -4877,3 +4877,12 @@ func (s *integrationMDMTestSuite) createAndEnrollAndroidDevice(t *testing.T, nam
 
 	return hostResp.Host, deviceInfo, pubsubToken
 }
+
+func (s *integrationMDMTestSuite) TestLinuxSetupExperienceEnqueueSoftwareInstalls() {
+	t := s.T()
+	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
+
+	// TODO(mna): implement...
+	_ = ctx
+}

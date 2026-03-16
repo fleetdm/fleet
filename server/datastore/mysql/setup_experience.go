@@ -69,9 +69,7 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 			if errors.Is(err, sql.ErrNoRows) {
 				// This shouldn't happen but we don't check for it elsewhere,
 				// so we'll log a warning and continue.
-				fmt.Println(">>>>>>>>")
 				ds.logger.WarnContext(ctx, "Host not found while enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "platform", hostPlatform)
-				fmt.Println("<<<<<<<<")
 			} else {
 				return false, ctxerr.Wrap(ctx, err, "finding host for enqueueing setup experience items")
 			}
@@ -261,9 +259,6 @@ WHERE global_or_team_id = ?`
 	}); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "enqueue setup experience")
 	}
-	fmt.Println(">>>>>>>>")
-	fmt.Println("DID ENROLL HOST IN 	SETUP EXPERIENCE WITH", totalInsertions, hostPlatform, hostPlatformLike, hostUUID)
-	fmt.Println("<<<<<<<<")
 
 	return totalInsertions > 0, nil
 }
