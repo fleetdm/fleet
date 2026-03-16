@@ -132,6 +132,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleetctl` docker image
 
+### [GHSA-72hv-8253-57qq](https://nvd.nist.gov/vuln/detail/GHSA-72hv-8253-57qq)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Vulnerability only affects Java/JVM web applications that use Jackson's asynchronous (non-blocking) JSON parser.
+- **Products:**: `fleetctl`,`pkg:maven/com.fasterxml.jackson.core/jackson-core@2.18.0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-03-13 12:30:33
+
+### [CVE-2026-27465](https://nvd.nist.gov/vuln/detail/CVE-2026-27465)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** This is a vulnerability in Fleet, not fleetctl.
+- **Products:**: `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-03-13 12:33:34
+
 ### [CVE-2026-24515](https://nvd.nist.gov/vuln/detail/CVE-2026-24515)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`

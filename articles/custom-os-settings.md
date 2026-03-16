@@ -18,7 +18,7 @@ Fleet UI:
 
 1. In the Fleet UI, head to the **Controls > OS settings > Configuration profiles** page.
 
-2. Choose which team you want to add a configuration profile to by selecting the desired team in the teams dropdown in the upper left corner. Teams are available in Fleet Premium.
+2. Choose which fleet you want to add a configuration profile to by selecting the desired fleet in the fleets dropdown in the upper left corner. Fleets are available in Fleet Premium.
 
 3. Select **Add profile** and choose your configuration profile.
 
@@ -85,7 +85,8 @@ Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 
 
 Hosts that applied all OS settings.
 
-For macOS configuration profiles, Fleet verified by running an osquery query. It can take up to 1 hour ([configurable](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-detail-update-interval)) for these profiles to move from "Verifying" to "Verified".
+For macOS configuration profiles, Fleet verified by running an osquery query. It can take up to 1 hour ([configurable](https://fleetdm.com/docs/
+Hosts that applied all OS settings. 
 
 macOS declarations profiles are verified with a [DDM StatusReport](https://developer.apple.com/documentation/devicemanagement/statusreport).
 
@@ -109,7 +110,27 @@ macOS, iOS, or iPadOS hosts may display OS settings as "Failed" even when MDM is
 
 To resolve this issue, turn MDM back on, then select **Actions > Turn off MDM** while the host is online.
 
-### Special Android behavior
+### Special Windows behavior
+
+For Windows configuration profiles with the [Win32 and Desktop Bridge app ADMX policies](https://learn.microsoft.com/en-us/windows/client-management/win32-and-centennial-app-policy-configuration), Fleet only verifies that the host returned a success status code in response to the MDM command to install the configuration profile. You can report on the registry keys defined by the ADMX policy. For instance, if an ADMX file defines the following policy:
+```
+      <policy name="Subteam" class="Machine" displayName="Subteam" key="Software\Policies\employee\Attributes" explainText="Subteam" presentation="String">
+         <parentCategory ref="DefaultCategory" />
+         <supportedOn ref="SUPPORTED_WIN10" />
+         <elements>
+            <text id="Subteam" valueName="Subteam" />
+         </elements>
+      </policy>
+```
+
+To verify that the OS setting is applied, run the following report:
+```
+SELECT data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Policies\employee\Attributes\Subteam';
+```
+
+> If your Windows profile fails with the following error: "The MDM protocol returned a success but the result couldn’t be verified by osquery", and the profile includes `[!CDATA []]` sections, [escape the XML](https://www.freeformatter.com/xml-escape.html) instead of using CDATA. For example, `[!CDATA[<enabled/>]]>` should be changed to `&lt;enabled/&gt;`.
+
+### Special Android behvaior
 
 On Android, if some settings from the profile fail (e.g. incompatible device), other settings from the profile will still be applied. Failed settings will be surfaced on **Host > OS settings**.
 Also, some settings from the profile might be overridden by another configuration profile, which means if multiple profiles include the same setting, the profile that is delivered most recently will be applied.

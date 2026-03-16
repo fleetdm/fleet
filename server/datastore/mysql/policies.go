@@ -37,7 +37,8 @@ const policyCols = `
 	p.id, p.team_id, p.resolution, p.name, p.query, p.description,
 	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical,
 	p.calendar_events_enabled, p.software_installer_id, p.script_id,
-	p.vpp_apps_teams_id, p.conditional_access_enabled
+	p.vpp_apps_teams_id, p.conditional_access_enabled, p.type, 
+	p.patch_software_title_id
 `
 
 const (
@@ -298,7 +299,7 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 	}
 
 	if err := loadLabelsForPolicies(ctx, q, []*fleet.Policy{&policy}); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "laoding policy labels")
+		return nil, ctxerr.Wrap(ctx, err, "loading policy labels")
 	}
 
 	return &policy, nil
@@ -747,14 +748,14 @@ WHERE
 }
 
 func (ds *Datastore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
-	return listPoliciesDB(ctx, ds.reader(ctx), nil, opts)
+	return listPoliciesDB(ctx, ds.reader(ctx), nil, opts, "", nil)
 }
 
 // returns the list of policies associated with the provided teamID, or the
 // global policies if teamID is nil. The pass/fail host counts are the totals
 // regardless of hosts' team if countsForTeamID is nil, or the totals just for
 // hosts that belong to the provided countsForTeamID if it is not nil.
-func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, opts fleet.ListOptions, filterClause string, filterArgs []any) ([]*fleet.Policy, error) {
 	var args []interface{}
 
 	query := `
@@ -774,6 +775,11 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 		args = append(args, *teamID)
 	} else {
 		query += " WHERE team_id IS NULL"
+	}
+
+	query += filterClause
+	if len(filterArgs) > 0 {
+		args = append(args, filterArgs...)
 	}
 
 	// We must normalize the name for full Unicode support (Unicode equivalence).
@@ -1018,6 +1024,29 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 
 func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (policy *fleet.Policy, err error) {
 	var newPolicy *fleet.Policy
+	if args.Type != fleet.PolicyTypePatch {
+		// type should already be set to dynamic when called from the service layer
+		args.Type = fleet.PolicyTypeDynamic
+	}
+	if args.Type == fleet.PolicyTypePatch {
+		generated, err := ds.generatePatchPolicy(ctx, teamID, *args.PatchSoftwareTitleID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "generating patch policy fields")
+		}
+
+		if args.Name == "" {
+			args.Name = generated.Name
+		}
+		if args.Description == "" {
+			args.Description = generated.Description
+		}
+		if args.Resolution == "" {
+			args.Resolution = generated.Resolution
+		}
+		args.Platform = generated.Platform
+		args.Query = generated.Query
+	}
+
 	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		p, err := newTeamPolicy(ctx, tx, teamID, authorID, args)
 		if err != nil {
@@ -1066,16 +1095,22 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 			`INSERT INTO policies (
 				name, query, description, team_id, resolution, author_id,
 				platforms, critical, calendar_events_enabled, software_installer_id,
-				script_id, vpp_apps_teams_id, conditional_access_enabled, checksum
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
+				script_id, vpp_apps_teams_id, conditional_access_enabled, checksum,
+				type, patch_software_title_id
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?)`,
 			policiesChecksumComputedColumn(),
 		),
 		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
-		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID, args.ConditionalAccessEnabled,
+		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID,
+		args.ConditionalAccessEnabled, args.Type, args.PatchSoftwareTitleID,
 	)
 	switch {
 	case err == nil:
 		// OK
+	case IsDuplicate(err) && args.Type == fleet.PolicyTypePatch:
+		return nil, &fleet.ConflictError{
+			Message: "Couldn't add. Specified \"patch_software_title_id\" already has a policy with \"type\" set to \"patch\".",
+		}
 	case IsDuplicate(err):
 		return nil, ctxerr.Wrap(ctx, alreadyExists("Policy", nameUnicode))
 	default:
@@ -1109,8 +1144,13 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 	return policyDB(ctx, db, policyID, &teamID)
 }
 
-func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
-	teamPolicies, err = listPoliciesDB(ctx, ds.reader(ctx), &teamID, opts)
+func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
+	filterClause, filterArgs, err := ds.createAutomationClause(ctx, automationFilter, teamID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "build automation filter clause")
+	}
+
+	teamPolicies, err = listPoliciesDB(ctx, ds.reader(ctx), &teamID, opts, filterClause, filterArgs)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1122,12 +1162,17 @@ func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fle
 	return teamPolicies, inheritedPolicies, err
 }
 
-func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, error) {
 	var args []interface{}
 
-	query := `
+	automationClause, filterArgs, err := ds.createAutomationClause(ctx, automationFilter, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build automation filter clause")
+	}
+
+	query := fmt.Sprintf(`
 		SELECT
-			` + policyCols + `,
+			`+policyCols+`,
 			COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
 			ps.updated_at as host_count_updated_at,
@@ -1138,14 +1183,18 @@ func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, op
 		LEFT JOIN policy_stats ps ON p.id = ps.policy_id
 		AND (p.team_id IS NOT NULL OR ps.inherited_team_id = ?)
 		WHERE (p.team_id = ? OR p.team_id IS NULL)
-    `
+		%s
+    `, automationClause)
 
 	args = append(args, teamID, teamID)
+	if len(filterArgs) > 0 {
+		args = append(args, filterArgs...)
+	}
 
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	match := norm.NFC.String(opts.MatchQuery)
 	query, args = searchLike(query, args, match, policySearchColumns...)
-	query, _, err := appendListOptionsToSQLSecure(query, &opts, policyAllowedOrderKeys)
+	query, _, err = appendListOptionsToSQLSecure(query, &opts, policyAllowedOrderKeys)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "apply list options")
 	}
@@ -1196,6 +1245,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 	teamIDToPolicies := make(map[*uint][]*fleet.PolicySpec, 1)
 	softwareInstallerIDs := make(map[*uint]map[uint]*uint) // teamID -> titleID -> softwareInstallerID
 	vppAppsTeamsIDs := make(map[*uint]map[uint]*uint)      // teamID -> titleID -> vppAppsTeamsID
+	fmaTitleIDs := make(map[*uint]map[string]*uint)        // teamID -> FMA slug -> titleID
 	vppTitleIDs := make(map[uint]struct{})                 // set when a title is a VPP app rather than a software installer
 
 	// Get the team IDs
@@ -1227,6 +1277,25 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 	// Get software installer ids + VPP apps teams IDs from software title IDs.
 	for _, spec := range specs {
+
+		if spec.FleetMaintainedAppSlug != "" {
+			var fmaTitleID *uint
+			err := sqlx.GetContext(ctx, queryerContext, &fmaTitleID, `
+			SELECT si.title_id FROM software_installers si
+						JOIN fleet_maintained_apps fma ON si.fleet_maintained_app_id = fma.id
+						WHERE fma.slug = ?
+						AND si.global_or_team_id = ?
+			`, spec.FleetMaintainedAppSlug, teamNameToID[spec.Team])
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get fma title id")
+			}
+			if len(fmaTitleIDs[teamNameToID[spec.Team]]) == 0 {
+				fmaTitleIDs[teamNameToID[spec.Team]] = make(map[string]*uint)
+			}
+			fmaTitleIDs[teamNameToID[spec.Team]][spec.FleetMaintainedAppSlug] = fmaTitleID
+
+		}
+
 		if spec.SoftwareTitleID == nil || *spec.SoftwareTitleID == 0 {
 			continue
 		}
@@ -1322,8 +1391,10 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		    vpp_apps_teams_id,
 		    script_id,
 			conditional_access_enabled,
-			checksum
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)
+			checksum,
+			type,
+			patch_software_title_id
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
@@ -1335,7 +1406,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			software_installer_id = VALUES(software_installer_id),
 			vpp_apps_teams_id = VALUES(vpp_apps_teams_id),
 			script_id = VALUES(script_id),
-			conditional_access_enabled = VALUES(conditional_access_enabled)
+			conditional_access_enabled = VALUES(conditional_access_enabled),
+			type = VALUES(type),
+			patch_software_title_id = VALUES(patch_software_title_id)
 		`, policiesChecksumComputedColumn(),
 		)
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -1355,11 +1428,33 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					scriptID = nil
 				}
 
+				fmaTitleID := fmaTitleIDs[teamNameToID[spec.Team]][spec.FleetMaintainedAppSlug]
+
+				// generate new up-to-date query and other fields for patch policy
+				if spec.Type == fleet.PolicyTypePatch {
+					patch, err := ds.generatePatchPolicy(ctx, ptr.ValOrZero(teamID), *fmaTitleID)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "generating patch policy fields")
+					}
+					if spec.Name == "" {
+						spec.Name = patch.Name
+					}
+					if spec.Description == "" {
+						spec.Description = patch.Description
+					}
+					if spec.Resolution == "" {
+						spec.Resolution = patch.Resolution
+					}
+					spec.Platform = patch.Platform
+					spec.Query = patch.Query
+				}
+
 				res, err := tx.ExecContext(
 					ctx,
 					query,
 					spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamID, spec.Platform, spec.Critical,
 					spec.CalendarEventsEnabled, softwareInstallerID, vppAppsTeamsID, scriptID, spec.ConditionalAccessEnabled,
+					spec.Type, fmaTitleID,
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
@@ -2383,7 +2478,8 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 	SELECT
 		p.id AS id,
 		p.name AS name,
-		COALESCE(si.title_id, va.title_id) AS software_title_id
+		COALESCE(si.title_id, va.title_id) AS software_title_id,
+		p.type AS type
 	FROM policies p
 	LEFT JOIN software_installers si ON p.software_installer_id = si.id
 	LEFT JOIN vpp_apps_teams vat ON p.vpp_apps_teams_id = vat.id
@@ -2413,4 +2509,98 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 	}
 
 	return policies, nil
+}
+
+type patchPolicy struct {
+	Name        string
+	Query       string
+	Platform    string
+	Description string
+	Resolution  string
+}
+
+func (ds *Datastore) generatePatchPolicy(ctx context.Context, teamID uint, titleID uint) (*patchPolicy, error) {
+	installer, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &teamID, titleID, false)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting software installer")
+	}
+	if installer.FleetMaintainedAppID == nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for team ID %d", titleID, teamID),
+		})
+	}
+
+	var policy patchPolicy
+	switch {
+	case installer.Platform == string(fleet.MacOSPlatform):
+		policy.Query = fmt.Sprintf(
+			"SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') >= 0;",
+			installer.BundleIdentifier,
+			installer.Version,
+		)
+		policy.Platform = string(fleet.MacOSPlatform)
+		policy.Name = fmt.Sprintf("macOS - %s up to date", installer.SoftwareTitle)
+	case installer.Platform == "windows":
+		// TODO: use upgrade code to improve accuracy?
+		policy.Query = fmt.Sprintf(
+			"SELECT 1 FROM programs WHERE name = '%s' AND version_compare(bundle_short_version, '%s') >= 0;",
+			installer.SoftwareTitle,
+			installer.Version,
+		)
+		policy.Platform = "windows"
+		policy.Name = fmt.Sprintf("Windows - %s up to date", installer.SoftwareTitle)
+	default:
+	}
+	policy.Description = "Outdated software might introduce security vulnerabilities or compatibility issues."
+	policy.Resolution = "Install the latest version from self-service."
+
+	return &policy, nil
+}
+
+func (ds *Datastore) GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*fleet.PatchPolicyData, error) {
+	query := `SELECT id, name FROM policies WHERE team_id = ? AND patch_software_title_id = ?`
+	var policy fleet.PatchPolicyData
+
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &policy, query, ptr.ValOrZero(teamID), titleID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("PatchPolicy"), "get patch policy")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get patch policy")
+	}
+
+	return &policy, nil
+}
+
+func (ds *Datastore) createAutomationClause(ctx context.Context, automationFilter string, teamID uint) (string, []any, error) {
+	// TODO: improve filtering by "other"
+	if automationFilter == "other" {
+		team, err := ds.TeamLite(ctx, teamID)
+		if err != nil {
+			return "", nil, ctxerr.Wrap(ctx, err, "getting team config")
+		}
+
+		policyIDs := team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs
+		if len(policyIDs) == 0 {
+			return " AND FALSE", nil, nil
+		}
+
+		clause, args, err := sqlx.In(` AND p.id IN (?)`, policyIDs)
+		if err != nil {
+			return "", nil, ctxerr.Wrap(ctx, err, "building in statement for automation filter")
+		}
+		return clause, args, nil
+	}
+
+	switch automationFilter {
+	case "software":
+		return " AND (p.software_installer_id IS NOT NULL OR p.vpp_apps_teams_id IS NOT NULL)", nil, nil
+	case "scripts":
+		return " AND p.script_id IS NOT NULL", nil, nil
+	case "calendar":
+		return " AND p.calendar_events_enabled = true", nil, nil
+	case "conditional_access":
+		return " AND p.conditional_access_enabled = true", nil, nil
+	}
+	return "", nil, nil
 }

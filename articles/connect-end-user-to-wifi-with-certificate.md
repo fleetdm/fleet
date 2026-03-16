@@ -965,7 +965,7 @@ fetch_cert -ca <EST-CA-ID> -fleeturl "<Fleet-server-URL>" -csr CustomerUserNetwo
 * On **Windows**, SCEP challenge strings should NOT include `base64` encoding or special characters such as `! @ # $ % ^ & * _`, and Common Names (CN) should NOT include `+` characters.
 * The Windows SCEP client adds ⁠/pkiclient.exe to the SCEP server URL. When using Fleet's custom SCEP proxy to deploy certificates, Fleet removes it, allowing you to use non-NDES SCEP servers.
 * On **Windows** hosts, Fleet will not verify the SCEP profile via osquery. Fleet will mark it as verified, if a successful request went through, even if the certificate is not present.
-* On **Windows** hosts, Fleet will not remove deployed certificate, when respective configuration profile is removed from Fleet, or when host is transfered to another team.
+* On **Windows** hosts, Fleet will not remove deployed certificates when configuration profiles are removed from Fleet or when host is transfered to another team.
 
 ### Troubleshooting NDES on Windows
 

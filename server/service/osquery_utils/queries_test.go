@@ -1515,6 +1515,46 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				KernelVersion: "5.10.76-linuxkit",
 			},
 		},
+		{
+			data: []map[string]string{
+				{
+					"name":           "Arch Linux ARM",
+					"version":        "",
+					"major":          "1",
+					"minor":          "2",
+					"patch":          "3",
+					"build":          "",
+					"arch":           "aarch64",
+					"kernel_version": "6.6.10-1-ARCH",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "Arch Linux",
+				Version:       "1.2.3",
+				Arch:          "aarch64",
+				KernelVersion: "6.6.10-1-ARCH",
+			},
+		},
+		{
+			data: []map[string]string{
+				{
+					"name":           "Arch Linux",
+					"version":        "",
+					"major":          "1",
+					"minor":          "2",
+					"patch":          "3",
+					"build":          "",
+					"arch":           "x86_64",
+					"kernel_version": "6.6.10-1-ARCH",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "Arch Linux",
+				Version:       "1.2.3",
+				Arch:          "x86_64",
+				KernelVersion: "6.6.10-1-ARCH",
+			},
+		},
 	} {
 		t.Run(tc.expected.Name, func(t *testing.T) {
 			ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {

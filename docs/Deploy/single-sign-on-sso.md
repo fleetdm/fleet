@@ -202,11 +202,11 @@ Fleet will attempt to parse SAML custom attributes with the following format:
 - `FLEET_JIT_USER_ROLE_GLOBAL`: Specifies the global role to use when creating the user.
 - `FLEET_JIT_USER_ROLE_FLEET_<FLEET_ID>`: Specifies fleet-level role for fleet with ID `<FLEET_ID>` to use when creating the user.
 
-Currently supported values for the above attributes are: `admin`, `maintainer`, `observer`, `observer_plus` and `null`.
+Currently supported values for the above attributes are: `admin`, `maintainer`, `observer`, `observer_plus`, `technician` and `null`.
 A role attribute with value `null` will be ignored by Fleet. (This is to support limitations on some IdPs which do not allow you to choose what keys are sent to Fleet when creating a new user.)
 SAML supports multi-valued attributes, Fleet will always use the last value.
 
-NOTE: Setting both `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_FLEET_<FLEET_ID>` will cause an error during login as users cannot be both Global users and belong to fleets.
+NOTE: Setting both `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_FLEET_<FLEET_ID>` will cause an error during login as users cannot be both global users and belong to fleets.
 
 Following is the behavior that will take place on every SSO login:
 

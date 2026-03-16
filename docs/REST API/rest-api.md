@@ -510,7 +510,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 | Name            | Type    | In    | Description                                                 |
 |:--------------- |:------- |:----- |:------------------------------------------------------------|
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
-| per_page        | integer | query | Results per page.                                                                                                             |
+| per_page        | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.                    |
 | order_key       | string  | query | What to order results by. Can be any column in the `activities` table.                                                         |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | query | string | query | Search query keywords. Searchable fields include `actor_full_name` and `actor_email`.
@@ -2437,7 +2437,7 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                   | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be prompted to update when their OS is below this version. |
-| deadline                          | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be forced to update their OS after this deadline (noon local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions). |
+| deadline                          | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be forced to update their OS after this deadline (7PM local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions). |
 | update_new_hosts                          | string  | macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](https://fleetdm.com/guides/enforce-os-updates) during macOS Setup Assistant. For backwards compatibility, if not specified, and `deadline` and `minimum_version` are set, `update_new_hosts` is set to `true`. Otherwise, `update_new_hosts` defaults to `false`. |
 
 <br/>
@@ -2451,7 +2451,7 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                   | string  | Hosts that belong to no team will be prompted to update when their OS is below this version. |
-| deadline                          | string  | Hosts that belong to no team will be forced to update their OS after this deadline (noon local time). |
+| deadline                          | string  | Hosts that belong to no team will be forced to update their OS after this deadline (7PM local time). |
 
 <br/>
 
@@ -2464,7 +2464,7 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                   | string  | Hosts that belong to no team will be prompted to update when their OS is below this version. |
-| deadline                          | string  | Hosts that belong to no team will be forced to update their OS after this deadline (noon local time). |
+| deadline                          | string  | Hosts that belong to no team will be forced to update their OS after this deadline (7PM local time). |
 
 <br/>
 
@@ -4385,6 +4385,8 @@ Request (`filters` is specified and empty, to delete all hosts):
 
 Updates the email for the data source in the human-device mapping. This source can only have one email.
 
+> If you're using the `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` variable in Apple (macOS, iOS, iPadOS) and Windows configuration profiles, overriding the `idp` data source resends the configuraiton profile even if the value is unchanged. This causes performance issues. In the future, Fleet will only resend profiles if the value changes ([coming soon](https://github.com/fleetdm/fleet/issues/41239)). In the interim, please only update the `idp` data source when the value changes.
+
 #### Parameters
 
 | Name       | Type              | In   | Description                                                                   |
@@ -5253,7 +5255,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 | ---- | ------- | ---- | ---------------------------- |
 | id   | integer | path | **Required**. The host's ID. |
 | page | integer | query | Page number of the results to fetch.|
-| per_page | integer | query | Results per page.|
+| per_page | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.|
 
 #### Example
 
@@ -6377,7 +6379,7 @@ solely on the response status code returned by this endpoint.
 
 ### Resend custom OS setting (configuration profile)
 
-Resends a configuration profile for the specified host. Currently, only macOS configuration profiles (.mobileconfig) are supported.
+Resends a configuration profile for the specified host. Currently, macOS, iOS, iPadOS configuration profiles (.mobileconfig) are supported, as well as Windows (.xml) configuration profiles.
 
 `POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/resend`
 
@@ -6458,7 +6460,7 @@ For each `profile`, only one of `labels_include_all`, `labels_include_any`, or `
 
 ### Resend custom OS setting (configuration profile) by Fleet Desktop token
 
-Resends a configuration profile for the specified host. Currently, only macOS configuration profiles (.mobileconfig) are supported.
+Resends a configuration profile for the specified host. Currently, macOS, iOS, iPadOS configuration profiles (.mobileconfig) are supported, as well as Windows (.xml) configuration profiles.
 
 `POST /api/v1/fleet/device/:token/configuration_profiles/:profile_uuid/resend`
 
@@ -8554,6 +8556,7 @@ _Available in Fleet Premium_
 | critical                | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. Critical policies can never bypass conditional access. |
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
+| conditional_access_bypass_enabled | boolean | body | _Available in Fleet Premium_. Additional option to allow end users to bypass conditional access for this policy for a single Okta login. This setting is ignored if `conditional_access_enabled` is `false`, if Okta conditional access is not configured, or if bypass is disabled in org settings. (Default: `true`.) |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 | labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
@@ -9593,7 +9596,7 @@ Returns a summary of a batch-run script, including host counts and current statu
 
 Returns a list hosts targeted in a batch script run, along with their script execution status.
 
-`GET /api/v1/fleet/scripts/batch/:batch_execution_id/host-results`
+`GET /api/v1/fleet/scripts/batch/:batch_execution_id/host_results`
 
 #### Parameters
 
@@ -10358,17 +10361,27 @@ Returns information about the specified software. By default, `versions` are sor
 {
   "software_title": {
     "id": 12,
-    "name": "Falcon.app",
-    "display_name": "Crowdstrike Falcon",
+    "name": "Google Chrome.app",
+    "display_name": "Google Chrome",
     "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
     "display_name": "",
-    "bundle_identifier": "crowdstrike.falcon.Agent",
+    "bundle_identifier": "com.google.Chrome",
     "software_package": {
-      "name": "FalconSensor-6.44.pkg",
-      "version": "6.44",
+      "name": "GoogleChrome.pkg",
+      "version": "143.0.7499.193",
       "categories": ["Productivity"],
       "platform": "darwin",
       "fleet_maintained_app_id": 42,
+      "fleet_maintained_versions": [
+        {
+          "id": 1,
+          "version": "143.0.7499.193"
+        },
+        {
+          "id": 2,
+          "version": "142.0.7444.176"
+        },
+      ],
       "installer_id": 23,
       "team_id": 3,
       "uploaded_at": "2024-04-01T14:22:58Z",
@@ -10406,19 +10419,19 @@ Returns information about the specified software. By default, `versions` are sor
     "versions": [
       {
         "id": 123,
-        "version": "117.0",
+        "version": "142.0.7444.176",
         "vulnerabilities": ["CVE-2023-1234"],
         "hosts_count": 37
       },
       {
         "id": 124,
-        "version": "116.0",
+        "version": "141.0.7444.170",
         "vulnerabilities": ["CVE-2023-4321"],
         "hosts_count": 7
       },
       {
         "id": 127,
-        "version": "115.5",
+        "version": "138.0.7655.171",
         "vulnerabilities": ["CVE-2023-7654"],
         "hosts_count": 4
       }
@@ -12413,7 +12426,7 @@ _Available in Fleet Premium_
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                 | string  | Hosts that belong to this team and are enrolled into Fleet's MDM will be prompted to update when their OS is below this version.                                                                           |
-| deadline                        | string  | Hosts that belong to this team and are enrolled into Fleet's MDM will be forced to update their OS after this deadline (noon local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions).                                                                    |
+| deadline                        | string  | Hosts that belong to this team and are enrolled into Fleet's MDM will be forced to update their OS after this deadline (7PM local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions).                                                                    |
 | update_new_hosts                          | string  | macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](https://fleetdm.com/guides/enforce-os-updates) during macOS Setup Assistant. For backwards compatibility, if not specified, and `deadline` and `minimum_version` are set, `update_new_hosts` is set to `true`. Otherwise, `update_new_hosts` defaults to `false`. |
 
 <br/>
@@ -12425,7 +12438,7 @@ _Available in Fleet Premium_
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                 | string  | Hosts that belong to this team will be prompted to update when their OS is below this version.                                                                            |
-| deadline                        | string  | Hosts that belong to this team will be forced to update their OS after this deadline (noon local time).                                                                    |
+| deadline                        | string  | Hosts that belong to this team will be forced to update their OS after this deadline (7PM local time).                                                                    |
 
 
 <br/>
@@ -12437,7 +12450,7 @@ _Available in Fleet Premium_
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                 | string  | Hosts that belong to this team will be prompted to update when their OS is below this version.                                                                            |
-| deadline                        | string  | Hosts that belong to this team will be forced to update their OS after this deadline (noon local time).                                                                    |
+| deadline                        | string  | Hosts that belong to this team will be forced to update their OS after this deadline (7PM local time).                                                                    |
 
 
 <br/>

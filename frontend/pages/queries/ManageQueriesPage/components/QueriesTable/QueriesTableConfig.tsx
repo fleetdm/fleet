@@ -36,7 +36,7 @@ import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import InheritedBadge from "components/InheritedBadge";
+import PillBadge from "components/PillBadge";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
@@ -171,7 +171,10 @@ const generateColumnConfigs = ({
                 {viewingTeamScope &&
                   // inherited
                   team_id !== currentTeamId && (
-                    <InheritedBadge tooltipContent="This report runs on all hosts." />
+                    <PillBadge
+                      text="Inherited"
+                      tipContent="This report runs on all hosts."
+                    />
                   )}
               </>
             }

@@ -48,111 +48,25 @@ describe("SoftwareOptionsSelector", () => {
     expect(onToggleSelfService).toHaveBeenCalledWith();
   });
 
-  it("calls onToggleAutomaticInstall when the automatic install slider is toggled", () => {
-    const onToggleAutomaticInstall = jest.fn();
-    renderComponent({ onToggleAutomaticInstall });
-
-    const automaticInstallSwitch = getSwitchByLabelText("Automatic install");
-    fireEvent.click(automaticInstallSwitch);
-
-    expect(onToggleAutomaticInstall).toHaveBeenCalledTimes(1);
-    expect(onToggleAutomaticInstall).toHaveBeenCalledWith();
-  });
-
-  it("enables self-service and disables automatic install sliders for iOS", () => {
+  it("enables self-service sliders for iOS", () => {
     renderComponent({ platform: "ios" });
 
     const selfServiceSwitch = getSwitchByLabelText("Self-service");
-    const automaticInstallSwitch = getSwitchByLabelText("Automatic install");
-
     expect(selfServiceSwitch.disabled).toBe(false);
-    expect(automaticInstallSwitch.disabled).toBe(true);
   });
 
-  it("enables self-service and disables automatic install sliders for iPadOS", () => {
+  it("enables self-service  for iPadOS", () => {
     renderComponent({ platform: "ipados" });
 
     const selfServiceSwitch = getSwitchByLabelText("Self-service");
-    const automaticInstallSwitch = getSwitchByLabelText("Automatic install");
-
     expect(selfServiceSwitch.disabled).toBe(false);
-    expect(automaticInstallSwitch.disabled).toBe(true);
   });
 
-  it("disables sliders when disableOptions is true", () => {
+  it("disables self-service when disableOptions is true", () => {
     renderComponent({ disableOptions: true });
 
     const selfServiceSwitch = getSwitchByLabelText("Self-service");
-    const automaticInstallSwitch = getSwitchByLabelText("Automatic install");
 
     expect(selfServiceSwitch.disabled).toBe(true);
-    expect(automaticInstallSwitch.disabled).toBe(true);
-  });
-
-  it("renders the InfoBanner when automaticInstall is true and isCustomPackage is true", () => {
-    renderComponent({
-      formData: { ...defaultProps.formData, automaticInstall: true },
-      isCustomPackage: true,
-    });
-
-    expect(
-      screen.getByText(
-        /Installing software over existing installations might cause issues/i
-      )
-    ).toBeInTheDocument();
-  });
-
-  it("does not render the InfoBanner when automaticInstall is false", () => {
-    renderComponent({
-      formData: { ...defaultProps.formData, automaticInstall: false },
-      isCustomPackage: true,
-    });
-
-    expect(
-      screen.queryByText(
-        /Installing software over existing installations might cause issues/i
-      )
-    ).not.toBeInTheDocument();
-  });
-
-  it("does not render the InfoBanner when isCustomPackage is false", () => {
-    renderComponent({
-      formData: { ...defaultProps.formData, automaticInstall: true },
-      isCustomPackage: false,
-    });
-
-    expect(
-      screen.queryByText(
-        /Installing software over existing installations might cause issues/i
-      )
-    ).not.toBeInTheDocument();
-  });
-
-  it("does not render automatic install slider when isEditingSoftware is true", () => {
-    renderComponent({ isEditingSoftware: true });
-
-    expect(screen.queryByText("Automatic install")).not.toBeInTheDocument();
-  });
-
-  it("displays platform-specific message for iOS", () => {
-    renderComponent({ platform: "ios" });
-
-    expect(
-      screen.getByText(/Automatic install for iOS and iPadOS is coming soon./i)
-    ).toBeInTheDocument();
-  });
-
-  it("displays platform-specific message for iPadOS", () => {
-    renderComponent({ platform: "ipados" });
-
-    expect(
-      screen.getByText(/Automatic install for iOS and iPadOS is coming soon./i)
-    ).toBeInTheDocument();
-  });
-
-  it("does not render automatic install slider in edit mode", () => {
-    renderComponent({ isEditingSoftware: true });
-
-    expect(screen.queryByText("Automatic install")).not.toBeInTheDocument();
   });
 });

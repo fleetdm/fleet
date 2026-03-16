@@ -2,6 +2,10 @@
 
 Use Fleet's best practice GitOps workflow to manage your computers as code. To learn how to set up a GitOps workflow see the [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
 
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/wgqI_lHnGJc" allowfullscreen></iframe>
+</div>
+
 > When changing a team's name, you must first change it in the UI and then update your YAML. If you only update your YAML, the team will be deleted and the team's hosts will lose their settings. This happens because the hosts are transferred to "No team".
 
 Any settings not defined in your YAML files (including missing or misspelled keys) will be reset to the default values or deleted (e.g. software packages).
@@ -181,6 +185,7 @@ policies:
   critical: false
   calendar_events_enabled: false
   conditional_access_enabled: true
+  conditional_access_bypass_enabled: true
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
   resolution: As an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
@@ -418,18 +423,18 @@ controls:
 
 ### macos_updates
 
-- `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time for hosts on macOS 14 and above, 20:00 UTC for hosts on older macOS versions. (default: `""`).
+- `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to 7PM local time for hosts on macOS 14 and above, 20:00 UTC for hosts on older macOS versions. (default: `""`).
 - `minimum_version` specifies the minimum required macOS version (default: `""`).
 - `update_new_hosts` - macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](https://fleetdm.com/guides/enforce-os-updates) during macOS Setup Assistant. For backwards compatibility, if not specified, and `deadline` and `minimum_version` are set, `update_new_hosts` is set to `true`. Otherwise, `update_new_hosts` defaults to `false`.
 
 ### ios_updates
 
-- `deadline` specifies the deadline in `YYYY-MM-DD` format; the exact deadline is set to noon local time. (default: `""`).
+- `deadline` specifies the deadline in `YYYY-MM-DD` format; the exact deadline is set to 7PM local time. (default: `""`).
 - `minimum_version` specifies the minimum required iOS version (default: `""`).
 
 ### ipados_updates
 
-- `deadline` specifies the deadline in `YYYY-MM-DD` format; the exact deadline is set to noon local time. (default: `""`).
+- `deadline` specifies the deadline in `YYYY-MM-DD` format; the exact deadline is set to 7PM local time. (default: `""`).
 - `minimum_version` specifies the minimum required iPadOS version (default: `""`).
 
 ### windows_updates
@@ -581,6 +586,7 @@ software:
         path: ../lib/software/zoom-config.json
   fleet_maintained_apps:
     - slug: slack/darwin
+      version: "4.47.65"
       install_script:
         path: ../lib/software/slack-install-script.sh
       uninstall_script:
@@ -664,16 +670,17 @@ When you update an Android app's configuration via GitOps, the app's settings ar
 
 - `fleet_maintained_apps` is a list of Fleet-maintained apps. Provide the `slug` field to include a Fleet-maintained app on a team. To find the `slug`, head to **Software > Add software** and select a Fleet-maintained app, then select **Show details**. You can also see the [list of app slugs on GitHub](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json).
 
-Currently, Fleet-maintained apps will be updated to the latest version published by Fleet when GitOps runs.
+By default, Fleet-maintained apps will be updated to the latest version published by Fleet when GitOps runs.
 
-The below fields are all optional.
+The fields below are all optional.
 
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service**.
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `post_install_script.path` is the script that, if supplied, Fleet will run on hosts after the software installs.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
+- `⁠version` specifies the app version. Available versions are listed in the Fleet UI under Actions > Edit software. If omitted, Fleet automatically downloads the latest version found in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). The `version` must be wrapped in quotes (e.g. "147.0.1") so that it is processed as a string.
 
-The below fields are optional, and if omitted will default to values specified in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs).
+If the fields below are omitted, they default to values specified in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs).
 
 - `install_script.path` specifies the command Fleet will run on hosts to install software.
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software.
@@ -989,7 +996,7 @@ Can only be configured for all teams (`org_settings`).
 
 #### custom_est_proxy
 
-- `name` is the name of the certificate authority. Only letters, numbers, and underscores are allowed.
+- `name` is the name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
 - `url` is the EST (Enrollment Over Secure Transport) endpoint's URL.
 - `username` is the username used to authenticate with the EST endpoint.
 - `password` is the password used to authenticate with the EST endpoint.
@@ -1000,13 +1007,6 @@ Can only be configured for all teams (`org_settings`).
 - `url` is the EST (Enrollment Over Secure Transport) endpoint provided by Hydrant.
 - `client_id` is the client ID provided by Hydrant.
 - `client_secret` is the client secret provided by Hydrant.
-
-#### custom_est_proxy
-
-- `name` is the name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
-- `url` is the EST (Enrollment Over Secure Transport) endpoint.
-- `username` is the username for the EST server.
-- `password` is the password for the EST server.
 
 #### smallstep
 

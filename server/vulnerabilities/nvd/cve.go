@@ -723,6 +723,10 @@ func getMatchingVersionEndExcluding(ctx context.Context, cve string, hostSoftwar
 		if attr.Product != hostSoftwareMeta.Product || attr.Vendor != hostSoftwareMeta.Vendor {
 			continue
 		}
+		if attr.SWEdition != wfn.Any && attr.SWEdition != hostSoftwareMeta.SWEdition &&
+			!(hostSoftwareMeta.SWEdition == wfn.Any && attr.SWEdition == wfn.NA) {
+			continue
+		}
 
 		// versionEnd is the version string that the vulnerable host software version must be less than
 		versionEnd, err := checkVersion(rule, hostSoftwareVersion)

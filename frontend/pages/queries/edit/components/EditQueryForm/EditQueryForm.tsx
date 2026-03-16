@@ -963,7 +963,7 @@ const EditQueryForm = ({
             location={location}
             initialQueryData={{
               ...updateQueryData,
-              team_id: apiTeamIdForQuery,
+              fleet_id: apiTeamIdForQuery,
             }}
             hostId={hostId}
             onExit={toggleSaveAsNewQueryModal}

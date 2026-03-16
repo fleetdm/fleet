@@ -49,11 +49,10 @@ jobs:
           path: fleet-gitops
 
       - name: Apply latest configuration to Fleet
-        uses: ./fleet-gitops/.github/gitops-action-rc
+        uses: ./fleet-gitops/.github/gitops-action-fleets
         with:
           working-directory: ${{ github.workspace }}/fleet-gitops
           dry-run-only: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
-          fleet-branch: rc-minor-fleet-v4.82.0
         env:
           FLEET_GITOPS_DIR: ${{ github.workspace }}/it-and-security
           FLEET_URL: https://dogfood.fleetdm.com
