@@ -220,7 +220,7 @@ describe("RunScriptBatchModal", () => {
           filters: {
             query: "hi",
             label_id: 16,
-            team_id: 1,
+            fleet_id: 1,
             status: "",
           },
         });
@@ -364,7 +364,7 @@ describe("RunScriptBatchModal", () => {
         expect(body).toEqual({
           script_id: windowsScript.id,
           not_before: "2099-12-31T23:59:00.000Z",
-          filters: { query: "hi", label_id: 16, status: "", team_id: 1 },
+          filters: { query: "hi", label_id: 16, status: "", fleet_id: 1 },
         });
       });
     });

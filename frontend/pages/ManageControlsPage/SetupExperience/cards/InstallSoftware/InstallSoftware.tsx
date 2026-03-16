@@ -82,7 +82,7 @@ const InstallSoftware = ({
     () =>
       mdmAPI.getSetupExperienceSoftware({
         platform: selectedPlatform,
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
         per_page: PER_PAGE_SIZE,
       }),
     {

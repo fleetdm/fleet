@@ -349,7 +349,7 @@ settings:
 
 	// Check that all the teams exist
 	teamsJSON := fleetctl.RunAppForTest(t, []string{"get", "teams", "--config", fleetctlConfig.Name(), "--json"})
-	assert.Equal(t, 6, strings.Count(teamsJSON, "fleet_id"))
+	assert.Equal(t, 3, strings.Count(teamsJSON, "fleet_id"))
 
 	// Real run with all the files, and delete other teams
 	args = []string{"gitops", "--config", fleetctlConfig.Name(), "--delete-other-teams", "-f", globalFile}
@@ -360,7 +360,7 @@ settings:
 
 	// Check that only the right teams exist
 	teamsJSON = fleetctl.RunAppForTest(t, []string{"get", "teams", "--config", fleetctlConfig.Name(), "--json"})
-	assert.Equal(t, 4, strings.Count(teamsJSON, "fleet_id"))
+	assert.Equal(t, 2, strings.Count(teamsJSON, "fleet_id"))
 	assert.NotContains(t, teamsJSON, deletedTeamName)
 
 	// Real run with one file at a time
@@ -3726,7 +3726,7 @@ settings:
 	installer, err := s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, titles[0].ID, false)
 	require.NoError(t, err)
 
-	tmPols, err := s.DS.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{})
+	tmPols, err := s.DS.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, tmPols, 1)
 	require.Equal(t, "Install ruby", tmPols[0].Name)
@@ -3746,7 +3746,7 @@ settings:
 	installer, err = s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &tm.ID, titles[0].ID, false)
 	require.NoError(t, err)
 
-	tmPols, err = s.DS.ListMergedTeamPolicies(ctx, tm.ID, fleet.ListOptions{})
+	tmPols, err = s.DS.ListMergedTeamPolicies(ctx, tm.ID, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, tmPols, 1)
 	require.Equal(t, "Install team ruby", tmPols[0].Name)
@@ -3926,7 +3926,7 @@ software:
 	fl, err := s.DS.TeamByName(ctx, fleetName)
 	require.NoError(t, err)
 
-	flPols, err := s.DS.ListMergedTeamPolicies(ctx, fl.ID, fleet.ListOptions{})
+	flPols, err := s.DS.ListMergedTeamPolicies(ctx, fl.ID, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, flPols, 1)
 	require.Equal(t, "Test Fleet Policy", flPols[0].Name)
@@ -3967,7 +3967,7 @@ name: %s
 	}))
 
 	// Verify policies were cleared.
-	flPols, err = s.DS.ListMergedTeamPolicies(ctx, fl.ID, fleet.ListOptions{})
+	flPols, err = s.DS.ListMergedTeamPolicies(ctx, fl.ID, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, flPols, 0)
 
