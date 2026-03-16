@@ -53,7 +53,6 @@ When migrating Windows hosts from another MDM, devices may fail to report MDM as
 
 These issues are caused by residual enrollment data or third-party management agents from the previous MDM solution. To fix this, [run script](https://fleetdm.com/guides/scripts#manually-run-scripts) below on the affected hosts, then **reboot the device** and select **Refetch** on the host details.
 
-[Post migration script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/fix-windows-mdm-migration.ps1).
 
 **Conflicting RMM or management agents:** Third-party RMM agents (such as N-able/SolarWinds, ConnectWise, or Kaseya) installed alongside the previous MDM solution can interfere with Fleet's MDM enrollment and may cause Windows Update to stop functioning. Check for and remove any RMM agents that are no longer needed before or after migrating to Fleet.
 
