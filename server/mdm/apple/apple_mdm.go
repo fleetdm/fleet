@@ -1609,7 +1609,7 @@ func IOSiPadOSRevive(ctx context.Context, ds fleet.Datastore, commander *MDMAppl
 	return nil
 }
 
-func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](settings T, excludeNonPublicAssetSets bool) map[string]error {
+func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](settings T, excludeNonPublicAssetSets bool) (map[string]string, error) {
 	var macOSUpdates, iOSUpdates, iPadOSUpdates fleet.AppleOSUpdateSettings
 	if m, ok := any(settings).(fleet.MDM); ok {
 		macOSUpdates = m.MacOSUpdates
@@ -1620,25 +1620,25 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 		iOSUpdates = t.IOSUpdates
 		iPadOSUpdates = t.IPadOSUpdates
 	} else {
-		return nil
+		return nil, errors.New("invalid settings type")
 	}
 
 	if macOSUpdates.MinimumVersion.Value == "" && iOSUpdates.MinimumVersion.Value == "" && iPadOSUpdates.MinimumVersion.Value == "" {
-		return nil
+		return nil, nil
 	}
 
 	am, err := gdmf.GetAssetMetadata()
 	if err != nil {
-		return map[string]error{"mdm": fmt.Errorf("fetching Apple asset metadata: %w", err)}
+		return nil, fmt.Errorf("fetching Apple asset metadata: %w", err)
 	} else if am == nil {
 		// this should never happen, but just in case, return an error indicating that the metadata is not available instead of panicking with a nil pointer dereference
-		return map[string]error{"mdm": errors.New("Apple asset metadata is not available")}
+		return nil, errors.New("Apple asset metadata is not available")
 	}
 
-	errs := make(map[string]error, 3)
+	invalid := make(map[string]string, 3)
 	if macOSUpdates.MinimumVersion.Value != "" {
 		if ok := am.IsSupportedMacOSVersion(macOSUpdates.MinimumVersion.Value, excludeNonPublicAssetSets); !ok {
-			errs["mdm.macos_updates.minimum_version"] = errors.New(fleet.AppleOSVersionUnsupportedMessage)
+			invalid["macos"] = fleet.AppleOSVersionUnsupportedMessage
 		}
 	}
 	if iOSUpdates.MinimumVersion.Value != "" {
@@ -1646,16 +1646,16 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 		// because we assume Apple will eventually remove iPod versions from the Apple Software Lookup Service
 		// and we want to avoid breaking workflows for users in that event
 		if ok := am.IsSupportedIOSVersion(iOSUpdates.MinimumVersion.Value, "iphone", excludeNonPublicAssetSets); !ok {
-			errs["mdm.ios_updates.minimum_version"] = errors.New(fleet.AppleOSVersionUnsupportedMessage)
+			invalid["ios"] = fleet.AppleOSVersionUnsupportedMessage
 		}
 	}
 	if iPadOSUpdates.MinimumVersion.Value != "" {
 		if ok := am.IsSupportedIOSVersion(iPadOSUpdates.MinimumVersion.Value, "ipad", excludeNonPublicAssetSets); !ok {
-			errs["mdm.ipados_updates.minimum_version"] = errors.New(fleet.AppleOSVersionUnsupportedMessage)
+			invalid["ipados"] = fleet.AppleOSVersionUnsupportedMessage
 		}
 	}
 
-	return errs
+	return invalid, nil
 }
 
 // RecoveryLockCommander defines the interface for sending recovery lock commands.
