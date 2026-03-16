@@ -1690,7 +1690,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 		Description: "Team2 description",
 		Secrets:     []*fleet.EnrollSecret{{Secret: "GHI"}},
 	}
-	tmResp.Team = nil
 	s.DoJSON("POST", "/api/latest/fleet/teams", team2, http.StatusConflict, &tmResp)
 
 	// create a team with reserved team names; should be case-insensitive
@@ -1722,13 +1721,11 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 		Description: "description",
 		Secrets:     []*fleet.EnrollSecret{{Secret: "padded-team"}},
 	}
-	tmResp.Team = nil
 	s.DoJSON("POST", "/api/latest/fleet/teams", teamPadded, http.StatusOK, &tmResp)
 	require.Equal(t, "Padded Team", tmResp.Team.Name)
 	paddedTeamID := tmResp.Team.ID
 
 	// rename with leading/trailing whitespace — name should be trimmed
-	tmResp.Team = nil
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), fleet.TeamPayload{Name: ptr.String("  Renamed Padded  ")}, http.StatusOK, &tmResp)
 	require.Equal(t, "Renamed Padded", tmResp.Team.Name)
 
