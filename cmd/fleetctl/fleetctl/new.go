@@ -33,7 +33,10 @@ func renderTemplate(content []byte, vars map[string]string) []byte {
 }
 
 func newCommand() *cli.Command {
-	var orgName string
+	var (
+		orgName string
+		force   bool
+	)
 	return &cli.Command{
 		Name:      "new",
 		Usage:     "Create a new Fleet GitOps repository structure",
@@ -44,14 +47,22 @@ func newCommand() *cli.Command {
 				Usage:       "The name of your organization",
 				Destination: &orgName,
 			},
+			&cli.BoolFlag{
+				Name:        "force",
+				Aliases:     []string{"f"},
+				Usage:       "Write files into an existing directory",
+				Destination: &force,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			outputDir := c.Args().First()
 			if outputDir == "" {
 				outputDir = "it-and-security"
 			}
-			if _, err := os.Stat(outputDir); err == nil {
-				return fmt.Errorf("%s already exists; please remove it or run from a different directory", outputDir)
+			if !force {
+				if _, err := os.Stat(outputDir); err == nil {
+					return fmt.Errorf("%s already exists; use --force to write into an existing directory", outputDir)
+				}
 			}
 
 			if orgName == "" {
