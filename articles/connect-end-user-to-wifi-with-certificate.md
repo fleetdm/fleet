@@ -148,38 +148,49 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
 
 The following steps show how to deploy [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview) certificates.
 
-### Step 1: Prerequisties for Windows hosts
+### Step 1: Prerequisites for Windows hosts
 
-If you're deploying NDES certificates to Windows hosts, complete the following prequestites. If you're deploying certificates to hosts on other platforms, you can skip this and head to [step 2](#step-2-connect-fleet-to-ndes).
+If you’re deploying NDES certificates to Windows hosts, complete the following prerequisites. If you’re deploying certificates to hosts on other platforms, you can skip this and head to [step 2](#step-2-connect-fleet-to-ndes).
 
 #### Deploy root CA certificate
 
 Windows hosts joined to Active Directory (AD) automatically receive the enterprise root CA certificate through Group Policy (GPO). Hosts that aren’t joined to AD (e.g. cloud-only or BYOD devices) won’t get this certificate automatically, so certificate delivery will fail because the host can’t validate the registration authority (RA) certificate chain.
 
-To deploy the root CA certificate automatically, we're going to add a configuration profile and scope it only to hosts that aren't joined to AD.
+For non-AD-joined hosts, deploy the root CA certificate using the configuration profile below. Scope it to only non-AD-joined hosts using a label or other targeting method.
 
-1. In Fleet, in the top-right corner select your avatar and **Labels**.
-2. Select **Add label**. Use "Windows hosts not Active Directory (AD) joined" for the name, choose **Dynamic** as the **Type**, **Windows** as the **Platform**, and paste in the following query:
+Replace `<BASE64_ENCODED_ROOT_CA_CERT>` with your root CA certificate encoded as a Base64 string. You can retrieve it from your NDES server using the SCEP `GetCACert` operation:
 
-```sql
-SELECT 1
-WHERE NOT EXISTS (
-  SELECT 1
-  FROM ntdomains
-  WHERE domain_name != ''
-);
+```
+curl -o ca-certs.p7b "https://<NDES_SERVER>/certsrv/mscep/mscep.dll?operation=GetCACert"
+openssl pkcs7 -inform DER -in ca-certs.p7b -print_certs -out certs.pem
 ```
 
-3. Copy the configuration profile contents below into a `.xml` file.
-4. Head to the **Controls > OS settings > Configuration profiles** page.
-5. Select Add profile and select your `.xml` configuration profile.
-6. Under **Targets** select **Custom**, choose **Include all**, and select your new label.
+This returns a bundle with multiple certificates. Open `certs.pem` and copy the root CA certificate (the one where subject and issuer are the same). Save it to `root-ca.pem` and Base64-encode the DER form:
 
-Here's the configuration profile:
+```
+openssl x509 -in root-ca.pem -outform DER -out root-ca.der
+base64 -i root-ca.der
+```
+
+You can also export the root CA certificate from the Certification Authority MMC snap-in.
+
+Here’s the configuration profile:
 
 ```xml
-TODO
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/RootCATrustedCertificates/Root/YOURCA/EncodedCertificate</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">b64</Format>
+        </Meta>
+        <Data><BASE64_ENCODED_ROOT_CA_CERT></Data>
+    </Item>
+</Add>
 ```
+
+> Replace `YOURCA` in the `LocURI` with a unique identifier for your CA (e.g. `MyOrgRootCA`). See the [RootCATrustedCertificates CSP documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/rootcacertificates-csp) for more details.
 
 #### Make the CRL reachable over HTTP
 
@@ -193,7 +204,13 @@ For testing, you can use the [quick CRL workaround](#quick-crl-workaround-for-te
 
 If the CA server’s clock is incorrect, certificates may have `notBefore` timestamps in the future. When this happens, the host rejects the certificate because it appears not valid yet, even though the CA issued it successfully.
 
-To avoid this issue, make sure the CA server’s clock is synchronized with a reliable time source (for example, NTP). TODO: How do I make sure? If it's not synchronized how do I fix it?
+There are many reasons a CA server’s clock can drift (e.g. misconfigured time sources, virtualization clock skew, Group Policy conflicts). We recommend working with your infrastructure team to ensure the CA server is using a reliable time synchronization method (e.g. NTP).
+
+For testing, you can force the clock to the current time by running the following on the CA server in PowerShell:
+
+```powershell
+Set-Date -Date "2026-03-16 12:00:00"
+```
 
 ### Step 2: Connect Fleet to NDES
 
@@ -1007,10 +1024,10 @@ fetch_cert -ca <EST-CA-ID> -fleeturl "<Fleet-server-URL>" -csr CustomerUserNetwo
 If SCEP enrollment fails on a Windows device, the error `0x800B0101` ("A required certificate is not within its validity period") can indicate any of three issues:
 
 1. **Root CA not trusted**: The device doesn't trust the CA that issued the NDES RA certificates. Fix: deploy the root CA certificate to the device's Trusted Root Certification Authorities store via an MDM profile.
-2. **CRL not reachable**: The device can't fetch the Certificate Revocation List because the CA only publishes CRLs via LDAP. Fix: configure the CA to publish CRLs via an HTTP endpoint. See [Prerequisites for Windows hosts](#prerequisites-for-windows-hosts).
+2. **CRL not reachable**: The device can't fetch the Certificate Revocation List because the CA only publishes CRLs via LDAP. Fix: configure the CA to publish CRLs via an HTTP endpoint. See [Step 1: Prerequisites for Windows hosts](#step-1-prerequisites-for-windows-hosts).
 3. **CA clock skew**: The CA server's clock is ahead of the device, causing certificates to have `notBefore` timestamps in the future. Fix: synchronize the CA server's clock via NTP.
 
-If NDES returns `pkiStatus=FAILURE, failInfo=badRequest`, the NDES password cache may be full. Increase the cache size on the NDES server (see [Prerequisites for Windows hosts](#prerequisites-for-windows-hosts)).
+If NDES returns `pkiStatus=FAILURE, failInfo=badRequest`, the NDES password cache may be full. Increase the cache size on the NDES server (see [Step 1: Prerequisites for Windows hosts](#step-1-prerequisites-for-windows-hosts)).
 
 ### How the SCEP proxy works
 
@@ -1049,7 +1066,7 @@ An example CAThumprint looks like this: `2133EC6A3CFB8418837BB395188D1A62CA2B96A
 
 ### Quick CRL workaround for testing NDES on Windows
 
-For production, your CA should publish CRLs via HTTP (see [Prerequisites for Windows hosts](#prerequisites-for-windows-hosts)). For testing, you can manually distribute the CRL to the device instead.
+For production, your CA should publish CRLs via HTTP (see [Step 1: Prerequisites for Windows hosts](#step-1-prerequisites-for-windows-hosts)). For testing, you can manually distribute the CRL to the device instead.
 
 1. On the NDES/CA server, find the CRL files at `C:\Windows\System32\CertSrv\CertEnroll\`. You'll see a base CRL (`<CA-name>.crl`) and possibly a delta CRL (`<CA-name>+.crl`).
 
