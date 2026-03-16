@@ -291,7 +291,7 @@ export const reconcileMutuallyExclusiveHostParams = ({
     case !!diskEncryptionStatus:
       return { [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: diskEncryptionStatus };
     case !!bootstrapPackageStatus:
-      return { bootstrap_package: bootstrapPackageStatus };
+      return { macos_bootstrap_package: bootstrapPackageStatus };
     case !!configProfileUUID:
       return {
         profile_status: configProfileStatus,

@@ -302,7 +302,7 @@ const ManageHostsPage = ({
   const diskEncryptionStatus: DiskEncryptionStatus | undefined =
     queryParams?.[PARAMS.DISK_ENCRYPTION];
   const bootstrapPackageStatus: BootstrapPackageStatus | undefined =
-    queryParams?.bootstrap_package;
+    queryParams?.macos_bootstrap_package ?? queryParams?.bootstrap_package;
   const configProfileStatus = queryParams?.profile_status;
   const configProfileUUID = queryParams?.profile_uuid;
   const scriptBatchExecutionId =
@@ -836,7 +836,7 @@ const ManageHostsPage = ({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: { ...queryParams, bootstrap_package: newStatus },
+        queryParams: { ...queryParams, macos_bootstrap_package: newStatus },
       })
     );
   };
@@ -1096,7 +1096,7 @@ const ManageHostsPage = ({
         // Premium feature only
         newQueryParams[PARAMS.DISK_ENCRYPTION] = diskEncryptionStatus;
       } else if (bootstrapPackageStatus && isPremiumTier) {
-        newQueryParams.bootstrap_package = bootstrapPackageStatus;
+        newQueryParams.macos_bootstrap_package = bootstrapPackageStatus;
       } else if (configProfileStatus && configProfileUUID) {
         newQueryParams.profile_status = configProfileStatus;
         newQueryParams.profile_uuid = configProfileUUID;

@@ -62,7 +62,7 @@ export interface ITeam extends ITeamSummary {
     setup_experience: {
       macos_bootstrap_package: string | null;
       enable_end_user_authentication: boolean;
-      macos_setup_assistant: string | null;
+      apple_setup_assistant: string | null;
       apple_enable_release_device_manually: boolean | null;
       macos_manual_agent_install: boolean | null;
       require_all_software_macos: boolean | null;
