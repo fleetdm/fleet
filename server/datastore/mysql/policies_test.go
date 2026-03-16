@@ -7317,7 +7317,7 @@ func testApplyPolicySpecsNeedsFullMembershipCleanupFlag(t *testing.T, ds *Datast
 
 	// Create the policy for the first time.
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
-		{Name: "flag test policy", Query: "select 1;", Platform: ""},
+		{Name: "flag test policy", Query: "select 1;", Platform: "", Type: fleet.PolicyTypeDynamic},
 	}))
 
 	// Find the policy by name so the test is not sensitive to other global policies created by concurrent tests.
@@ -7361,7 +7361,7 @@ func testApplyPolicySpecsNeedsFullMembershipCleanupFlag(t *testing.T, ds *Datast
 
 	// Update the query — this triggers shouldRemoveAllPolicyMemberships = true.
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
-		{Name: "flag test policy", Query: "select 2;", Platform: ""},
+		{Name: "flag test policy", Query: "select 2;", Platform: "", Type: fleet.PolicyTypeDynamic},
 	}))
 
 	// The flag must be 0 after successful completion (set inside TX, cleared after cleanup).
@@ -7419,7 +7419,7 @@ func testCleanupPolicyMembershipCrashRecovery(t *testing.T, ds *Datastore) {
 	t.Run("gitops retry re-triggers cleanup", func(t *testing.T) {
 		// Create policy via ApplyPolicySpecs so it exists in the DB.
 		require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
-			{Name: "retry recovery policy", Query: "select 1;"},
+			{Name: "retry recovery policy", Query: "select 1;", Type: fleet.PolicyTypeDynamic},
 		}))
 		pols, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
 		require.NoError(t, err)
@@ -7448,7 +7448,7 @@ func testCleanupPolicyMembershipCrashRecovery(t *testing.T, ds *Datastore) {
 		// Retry GitOps with the same spec. ApplyPolicySpecs must detect the flag and
 		// re-run the full cleanup — no cron needed.
 		require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
-			{Name: "retry recovery policy", Query: "select 1;"},
+			{Name: "retry recovery policy", Query: "select 1;", Type: fleet.PolicyTypeDynamic},
 		}))
 
 		// Flag must be cleared by the retry.
