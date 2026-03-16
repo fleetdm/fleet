@@ -35,10 +35,10 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 | Product group                                         | Goal _(value for customers and/or community)_                                                                          | Capacity |
 |:------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------|:---------|
-| [MDM](#mdm-group)                                     | Increase and exceed maturity in the [device management](https://fleetdm.com/device-management) product category.       | 80       |
+| [MDM](#mdm-group)                                     | Increase and exceed maturity in the [device management](https://fleetdm.com/device-management) product category.       | 102       |
 | [Software](#software-group)                           | Increase and exceed maturity in the [software management](https://fleetdm.com/software-management) product category.   | 102      |
 | [Orchestration](#orchestration-group)                 | Increase and exceed maturity in the [orchestration](https://fleetdm.com/orchestration) product category.               | 49       |
-| [Security & Compliance](#security-compliance-group)   | Increase and exceed maturity in the security and compliance product category.                                          | 104      |
+| [Security & Compliance](#security-compliance-group)   | Increase and exceed maturity in the security and compliance product category.                                          | 102      |
 
 \* The number of [estimated story points](https://fleetdm.com/handbook/product-groups#estimation-points) this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
 
@@ -53,7 +53,7 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
 | Tech Lead                         | [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_
 | Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
-| Software Engineer                 | Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) ([@MagnusHJensen](https://github.com/magnushjensen))
+| Software Engineer                 | Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) ([@MagnusHJensen](https://github.com/magnushjensen)), [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_
 
 **Areas of expertise**:
 - MDM protocol & configuration
@@ -76,7 +76,7 @@ The goal of the software group is to increase and exceed [Fleet's product maturi
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
 | Tech Lead                         | [Carlo DiCelico](https://www.linkedin.com/in/carlodicelico/) _([@cdcme](https://github.com/cdcme))_
 | Quality Assurance                 | [Reed Haynes](https://www.linkedin.com/in/reed-haynes-633a69a3/) _([@xpkoala](https://github.com/xpkoala))_
-| Software Engineer                 | [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Jahziel Villasana-Espinoza](https://www.linkedin.com/in/jahziel-v/) _([@jahzielv](https://github.com/jahzielv))_, [Jonathan Katz](https://www.linkedin.com/in/jonathan-katz-494362237/) _([@jkatz01](https://github.com/jkatz01))_, [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_
+| Software Engineer                 | [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Jahziel Villasana-Espinoza](https://www.linkedin.com/in/jahziel-v/) _([@jahzielv](https://github.com/jahzielv))_, [Jonathan Katz](https://www.linkedin.com/in/jonathan-katz-494362237/) _([@jkatz01](https://github.com/jkatz01))_, [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_
 
 **Areas of expertise**:
 - Software Install / uninstall / patch
@@ -173,18 +173,6 @@ The goal of the website group is to increase and exceed Fleet's product maturity
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/92), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-website) for this product group is `#g-website`.
 
-### Engineering Operations group
-
-The goal of the Engineering Operations working group is to make changes that promote engineering velocity, quality, and stability. 
-
-| Responsibility                    | Human(s)                  |
-|:----------------------------------|:--------------------------|
-| Product Designer                  | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_, [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_
-| Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
-| Quality Assurance                 | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_, [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_
-| Software Engineer                 | [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_
-
-> The [Slack channel](https://fleetdm.slack.com/archives/C0A91KW6Q0G), [kanban board](https://github.com/orgs/fleetdm/projects/103), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-eng-ops) for this product group is `#g-eng-ops`.
 
 ### First Impressions group
 
