@@ -10176,10 +10176,8 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		host := setupHost(t, "verified-host", "1.2.3.9", "verifiedkey", "verifieduuid")
 
 		// Set verified status
-		hostID, displayName, err := ds.SetRecoveryLockVerified(ctx, host.UUID)
+		err := ds.SetRecoveryLockVerified(ctx, host.UUID)
 		require.NoError(t, err)
-		assert.Equal(t, host.ID, hostID)
-		assert.NotEmpty(t, displayName)
 
 		// Verify status
 		var status string
@@ -10229,7 +10227,7 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		host := setupHost(t, "no-clear-verified-host", "1.2.3.12", "ncvkey", "ncvuuid")
 
 		// Set to verified
-		_, _, err := ds.SetRecoveryLockVerified(ctx, host.UUID)
+		err := ds.SetRecoveryLockVerified(ctx, host.UUID)
 		require.NoError(t, err)
 
 		// Try to clear - should not affect verified status
@@ -10357,7 +10355,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	verifiedPW := apple_mdm.GenerateRecoveryLockPassword()
 	err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: hostVerified.UUID, Password: verifiedPW}})
 	require.NoError(t, err)
-	_, _, err = ds.SetRecoveryLockVerified(ctx, hostVerified.UUID)
+	err = ds.SetRecoveryLockVerified(ctx, hostVerified.UUID)
 	require.NoError(t, err)
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)

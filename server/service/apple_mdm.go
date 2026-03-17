@@ -7347,17 +7347,33 @@ func NewSetRecoveryLockResultsHandler(
 		switch status {
 		case fleet.MDMAppleStatusAcknowledged:
 			// ACK means the password was successfully applied - mark as verified
-			hostID, displayName, err := ds.SetRecoveryLockVerified(ctx, hostUUID)
-			if err != nil {
+			if err := ds.SetRecoveryLockVerified(ctx, hostUUID); err != nil {
 				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock verified")
 			}
 
-			// Log the activity (no user context, this is a system action)
+			// Get host info for activity logging - don't fail the operation if this fails
+			var hostID uint
+			var displayName string
+			host, err := ds.HostLiteByIdentifier(ctx, hostUUID)
+			if err != nil {
+				logger.WarnContext(ctx, "SetRecoveryLock handler: failed to get host for activity logging",
+					"host_uuid", hostUUID,
+					"err", err,
+				)
+			} else {
+				hostID = host.ID
+				displayName = host.Hostname
+			}
+
+			// Log the activity (fleet-initiated via WasFromAutomation)
 			if err := newActivityFn(ctx, nil, fleet.ActivityTypeSetHostRecoveryLockPassword{
 				HostID:          hostID,
 				HostDisplayName: displayName,
 			}); err != nil {
-				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: create activity")
+				logger.WarnContext(ctx, "SetRecoveryLock handler: failed to create activity",
+					"host_uuid", hostUUID,
+					"err", err,
+				)
 			}
 
 			logger.InfoContext(ctx, "SetRecoveryLock acknowledged, marked verified",

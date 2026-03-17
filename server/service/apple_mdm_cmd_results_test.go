@@ -296,10 +296,15 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 		ds := new(mock.DataStore)
 
 		var verifiedCalled bool
-		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, hUUID string) (uint, string, error) {
+		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, hUUID string) error {
 			verifiedCalled = true
 			assert.Equal(t, hostUUID, hUUID)
-			return 1, "Test Host", nil
+			return nil
+		}
+
+		ds.HostLiteByIdentifierFunc = func(_ context.Context, identifier string) (*fleet.HostLite, error) {
+			assert.Equal(t, hostUUID, identifier)
+			return &fleet.HostLite{ID: 1, Hostname: "Test Host"}, nil
 		}
 
 		var activityCalled bool
