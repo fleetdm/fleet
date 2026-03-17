@@ -25,7 +25,9 @@ unmount_network_filesystems() {
         | awk '{print length, $0}' \
         | sort -nr \
         | cut -d" " -f2- \
-        | while read -r mnt; do
+        | while read -r mnt_esc; do
+        # Unescape mountpoint in case it contains octal escapes like \040 for space.
+        mnt=$(printf '%b' "$mnt_esc")
         # Never unmount critical mountpoints that may contain required userland.
         case "$mnt" in
             /|/usr|/bin|/sbin|/lib|/lib64|/usr/bin|/usr/sbin|/usr/lib|/usr/lib64)
@@ -41,11 +43,13 @@ unmount_network_filesystems() {
 # Returns 0 (true) if the given path resides on a network filesystem.
 is_network_mount() {
     if [ ! -f /proc/mounts ]; then
-        return 1
+        echo "Warning: /proc/mounts not found, conservatively treating mounts as network-backed"
+        return 0
     fi
     _target="$1"
     # Walk up to find the mount point that contains this path.
-    _match=$(awk '$3 ~ /^('"$NETWORK_FS_TYPES"')$/ {print $2}' /proc/mounts | while read -r mnt; do
+    _match=$(awk '$3 ~ /^('"$NETWORK_FS_TYPES"')$/ {print $2}' /proc/mounts | while read -r mnt_esc; do
+        mnt=$(printf '%b' "$mnt_esc")
         case "$_target" in
             "$mnt"|"$mnt"/*) echo "$mnt"; break ;;
         esac
