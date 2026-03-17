@@ -603,8 +603,9 @@ type HostMDMDiskEncryption struct {
 }
 
 type HostMDMRecoveryLockPassword struct {
-	Status *MDMDeliveryStatus `json:"status" db:"-" csv:"-"`
-	Detail string             `json:"detail" db:"-" csv:"-"`
+	Status            *MDMDeliveryStatus `json:"status" db:"-" csv:"-"`
+	Detail            string             `json:"detail" db:"-" csv:"-"`
+	PasswordAvailable bool               `json:"password_available" db:"-" csv:"-"`
 }
 
 type DiskEncryptionStatus string

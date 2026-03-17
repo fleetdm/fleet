@@ -1014,8 +1014,9 @@ const HostDetailsPage = ({
           mdmConfig?.enable_recovery_lock_password ?? false
         }
         diskEncryptionProfileStatus={diskEncryptionProfile?.status}
-        recoveryLockPasswordProfileStatus={
-          host.mdm.os_settings?.recovery_lock_password?.status
+        recoveryLockPasswordAvailable={
+          host.mdm.os_settings?.recovery_lock_password?.password_available ??
+          false
         }
       />
     );

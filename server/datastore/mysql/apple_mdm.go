@@ -7347,11 +7347,18 @@ func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID s
 }
 
 func (ds *Datastore) GetHostRecoveryLockPasswordStatus(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
-	const stmt = `SELECT status, COALESCE(error_message, '') AS detail FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`
+	const stmt = `
+		SELECT
+			status,
+			COALESCE(error_message, '') AS detail,
+			encrypted_password IS NOT NULL AS password_available
+		FROM host_recovery_key_passwords
+		WHERE host_uuid = ? AND deleted = 0`
 
 	var row struct {
-		Status *fleet.MDMDeliveryStatus `db:"status"`
-		Detail string                   `db:"detail"`
+		Status            *fleet.MDMDeliveryStatus `db:"status"`
+		Detail            string                   `db:"detail"`
+		PasswordAvailable bool                     `db:"password_available"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -7367,8 +7374,9 @@ func (ds *Datastore) GetHostRecoveryLockPasswordStatus(ctx context.Context, host
 	}
 
 	return &fleet.HostMDMRecoveryLockPassword{
-		Status: status,
-		Detail: row.Detail,
+		Status:            status,
+		Detail:            row.Detail,
+		PasswordAvailable: row.PasswordAvailable,
 	}, nil
 }
 
