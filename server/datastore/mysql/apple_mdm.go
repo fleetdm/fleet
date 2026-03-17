@@ -7665,15 +7665,18 @@ func (ds *Datastore) FailRecoveryLockRotation(ctx context.Context, hostUUID stri
 
 func (ds *Datastore) ClearRecoveryLockRotation(ctx context.Context, hostUUID string) error {
 	// Clear pending rotation (e.g., if command enqueue fails).
-	// Also clears status back to its previous state.
-	stmt := `
+	// Only affects rows that were modified by InitiateRecoveryLockRotation
+	// (status = pending AND has pending password). Restores status to verified.
+	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
 		SET pending_encrypted_password = NULL,
 		    pending_error_message = NULL,
-		    status = NULL
+		    status = '%s'
 		WHERE host_uuid = ?
 		  AND deleted = 0
-	`
+		  AND status = '%s'
+		  AND pending_encrypted_password IS NOT NULL
+	`, fleet.MDMDeliveryVerified, fleet.MDMDeliveryPending)
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "clear recovery lock rotation")
