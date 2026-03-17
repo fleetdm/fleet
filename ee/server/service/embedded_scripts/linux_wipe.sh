@@ -43,8 +43,8 @@ unmount_network_filesystems() {
 # Returns 0 (true) if the given path resides on a network filesystem.
 is_network_mount() {
     if [ ! -f /proc/mounts ]; then
-        echo "Warning: /proc/mounts not found, conservatively treating mounts as network-backed"
-        return 0
+        echo "Warning: /proc/mounts not found, falling back to treating mounts as local"
+        return 1
     fi
     _target="$1"
     # Walk up to find the mount point that contains this path.
