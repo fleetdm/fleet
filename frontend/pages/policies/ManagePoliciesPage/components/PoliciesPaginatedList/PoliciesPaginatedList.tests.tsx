@@ -51,14 +51,14 @@ const globalPoliciesCountHandler = http.get(baseUrl("/policies/count"), () => {
   });
 });
 
-const teamPoliciesHandler = http.get(baseUrl("/teams/2/policies"), () => {
+const teamPoliciesHandler = http.get(baseUrl("/fleets/2/policies"), () => {
   return HttpResponse.json({
     policies: teamPolicies,
   });
 });
 
 const teamPoliciesCountHandler = http.get(
-  baseUrl("/teams/2/policies/count"),
+  baseUrl("/fleets/2/policies/count"),
   () => {
     return HttpResponse.json({
       count: teamPolicies.length,

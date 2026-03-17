@@ -24,7 +24,7 @@ export default {
     const params = {
       interval: Number(interval),
       platform,
-      query_id: Number(queryID),
+      report_id: Number(queryID),
       removed,
       snapshot,
       shard: Number(shard),

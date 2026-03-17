@@ -71,8 +71,6 @@ const (
 
 var (
 	fleetVarHostEndUserEmailIDPRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserEmailIDP))
-	fleetVarNDESSCEPChallengeRegexp   = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarNDESSCEPChallenge))
-	fleetVarNDESSCEPProxyURLRegexp    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarNDESSCEPProxyURL))
 	fleetVarSCEPRenewalIDRegexp       = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarSCEPRenewalID))
 	fleetVarHostUUIDRegexp            = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostUUID))
 
@@ -1692,6 +1690,11 @@ func (svc *Service) EnqueueMDMAppleCommand(
 		return nil, ctxerr.Wrap(ctx, err, "decode base64 command")
 	}
 
+	// Validate the command before enqueueing
+	if err := svc.validateAppleMDMCommand(ctx, rawXMLCmd, hosts); err != nil {
+		return nil, err
+	}
+
 	return svc.enqueueAppleMDMCommand(ctx, rawXMLCmd, deviceIDs)
 }
 
@@ -2078,16 +2081,17 @@ func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Cont
 		return nil, nil
 	}
 
-	needsUpdate, err := svc.needsOSUpdateForDEPEnrollment(ctx, *m)
+	// shouldUpdate depends on the app_config settings for minimum_version and update_new_hosts
+	shouldUpdate, err := svc.shouldOSUpdateForDEPEnrollment(ctx, *m)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "checking os updates settings", "serial", m.Serial)
-	}
-
-	if !needsUpdate {
+	} else if !shouldUpdate {
 		svc.logger.DebugContext(ctx, "device is above minimum or update new host not checked, skipping os version check", "serial", m.Serial)
 		return nil, nil
 	}
 
+	// if the device should update based on appconfig settings, we also need to check what versions
+	// are actually available for the device from Apple
 	sur, err := svc.getAppleSoftwareUpdateRequiredForDEPEnrollment(*m)
 	if err != nil {
 		// log for debugging but allow enrollment to proceed
@@ -2098,7 +2102,7 @@ func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Cont
 	return sur, nil
 }
 
-func (svc *Service) needsOSUpdateForDEPEnrollment(ctx context.Context, m fleet.MDMAppleMachineInfo) (bool, error) {
+func (svc *Service) shouldOSUpdateForDEPEnrollment(ctx context.Context, m fleet.MDMAppleMachineInfo) (bool, error) {
 	// NOTE: Under the hood, the datastore is joining host_dep_assignments to the hosts table to
 	// look up DEP hosts by serial number. It grabs the team id and platform from the
 	// hosts table. Then it uses the team id to get either the global config or team config.
@@ -2121,35 +2125,40 @@ func (svc *Service) needsOSUpdateForDEPEnrollment(ctx context.Context, m fleet.M
 	}
 
 	minVersion := settings.MinimumVersion.Value
-	hasMinVersion := settings.MinimumVersion.Set && settings.MinimumVersion.Valid && minVersion != ""
-
-	// For macOS hosts, whether to update new hosts during DEP enrollment is determined solely by UpdateNewHosts
-	if platform == "darwin" {
-		updateNewHosts := settings.UpdateNewHosts.Set && settings.UpdateNewHosts.Valid && settings.UpdateNewHosts.Value
-
-		svc.logger.InfoContext(ctx, "checking os updates settings for macos, update will be forced if UpdateNewHosts is set",
-			"update_new_hosts", updateNewHosts,
-			"serial", m.Serial,
-		)
-		return updateNewHosts, nil
+	isSetMinVersion := settings.MinimumVersion.Set && settings.MinimumVersion.Valid && minVersion != ""
+	logs := []any{
+		"platform", platform,
+		"minimum_version", minVersion,
+		"current_version", m.OSVersion,
+		"serial", m.Serial,
 	}
 
-	// TODO: confirm what this check should do
-	if !hasMinVersion {
-		svc.logger.InfoContext(ctx, "checking os updates settings, minimum version not set",
-			"serial", m.Serial,
-			"current_version", m.OSVersion,
-			"minimum_version", minVersion,
-		)
+	if platform != "darwin" && !isSetMinVersion {
+		svc.logger.InfoContext(ctx, "checking os updates settings for non-macos platform, minimum version not set, skipping version check", logs...)
+		return false, nil
+	}
+
+	if platform == "darwin" {
+		updateNewHosts := settings.UpdateNewHosts.Set && settings.UpdateNewHosts.Valid && settings.UpdateNewHosts.Value
+		logs = append(logs, "update_new_hosts", updateNewHosts)
+		switch {
+		case !updateNewHosts:
+			// never update macos if updateNewHosts is false
+			svc.logger.InfoContext(ctx, "checking os updates settings for macos, new hosts should not update", logs...)
+			return false, nil
+		case !isSetMinVersion:
+			// always update macos if updateNewHosts is true and minimum version is not set
+			svc.logger.InfoContext(ctx, "checking os updates settings for macos, new hosts should always update to latest", logs...)
+			return true, nil
+		default:
+			// default to normal version check (require update if less than minimum version)
+			svc.logger.InfoContext(ctx, "checking os updates settings for macos, new hosts should update to latest if below minimum version", logs...)
+		}
 	}
 
 	needsUpdate, err := apple_mdm.IsLessThanVersion(m.OSVersion, minVersion)
 	if err != nil {
-		svc.logger.InfoContext(ctx, "checking os updates settings, cannot compare versions",
-			"serial", m.Serial,
-			"current_version", m.OSVersion,
-			"minimum_version", minVersion,
-		)
+		svc.logger.InfoContext(ctx, "checking os updates settings, cannot compare versions", logs...)
 		return false, nil
 	}
 
@@ -2565,14 +2574,14 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 
 		if byName[mdmProf.Name] {
 			return ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), fmt.Sprintf("Couldn't edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmProf.Name)),
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), fmt.Sprintf("Couldn't edit configuration_profiles. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmProf.Name)),
 				"duplicate mobileconfig profile by name")
 		}
 		byName[mdmProf.Name] = true
 
 		if byIdent[mdmProf.Identifier] {
 			return ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), fmt.Sprintf("Couldn't edit custom_settings. More than one configuration profile have the same identifier (PayloadIdentifier): %q", mdmProf.Identifier)),
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), fmt.Sprintf("Couldn't edit configuration_profiles. More than one configuration profile have the same identifier (PayloadIdentifier): %q", mdmProf.Identifier)),
 				"duplicate mobileconfig profile by identifier")
 		}
 		byIdent[mdmProf.Identifier] = true
@@ -2596,11 +2605,11 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 					continue
 				case strings.HasPrefix(p.ProfileUUID, "w"):
 					err := fleet.NewInvalidArgumentError("PayloadDisplayName", fmt.Sprintf(
-						"Couldn't edit custom_settings. A Windows configuration profile shares the same name as a macOS configuration profile (PayloadDisplayName): %q", p.Name))
+						"Couldn't edit configuration_profiles. A Windows configuration profile shares the same name as a macOS configuration profile (PayloadDisplayName): %q", p.Name))
 					return ctxerr.Wrap(ctx, err, "duplicate xml and mobileconfig by name")
 				default:
 					err := fleet.NewInvalidArgumentError("PayloadDisplayName", fmt.Sprintf(
-						"Couldn't edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", p.Name))
+						"Couldn't edit configuration_profiles. More than one configuration profile have the same name (PayloadDisplayName): %q", p.Name))
 					return ctxerr.Wrap(ctx, err, "duplicate json and mobileconfig by name")
 				}
 			}
@@ -3443,12 +3452,21 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	// much more difficult to reason about the state of the host. We should try instead
 	// to centralize the flow control in the lifecycle methods.
 	if info.SCEPRenewalInProgress {
-		svc.logger.InfoContext(r.Context, "token update received for a SCEP renewal in process, cleaning SCEP refs", "host_uuid", r.ID)
+		svc.logger.InfoContext(r.Context, "token update received with known SCEP renewal in process, cleaning SCEP refs", "host_uuid", r.ID)
 		if err := svc.ds.CleanSCEPRenewRefs(r.Context, r.ID); err != nil {
 			return ctxerr.Wrap(r.Context, err, "cleaning SCEP refs")
 		}
-		svc.logger.InfoContext(r.Context, "cleaned SCEP refs, skipping setup experience and mdm lifecycle turn on action", "host_uuid", r.ID)
-		return nil
+
+		if !m.AwaitingConfiguration {
+			// Normal SCEP renewal - device is NOT at Setup Assistant. Clean refs and short-circuit.
+			svc.logger.InfoContext(r.Context, "cleaned SCEP refs, skipping setup experience and mdm lifecycle turn on action", "host_uuid", r.ID)
+			return nil
+		}
+
+		// Device is awaiting configuration (wiped DEP device re-enrolling). The pending SCEP
+		// renewal was from the previous enrollment. Continue the normal enrollment flow so
+		// the device gets released from the setup assistant.
+		svc.logger.InfoContext(r.Context, "continuing with token update, due to awaiting configuration from new enrollment", "host_uuid", r.ID)
 	}
 
 	var hasSetupExpItems bool
@@ -5565,26 +5583,7 @@ func preprocessProfileContents(
 					// Insert the SCEP challenge into the profile contents
 					challenge, err := scepConfig.GetNDESSCEPChallenge(ctx, *ndesConfig)
 					if err != nil {
-						detail := ""
-						switch {
-						case errors.As(err, &eeservice.NDESInvalidError{}):
-							detail = fmt.Sprintf("Invalid NDES admin credentials. "+
-								"Fleet couldn't populate $FLEET_VAR_%s. "+
-								"Please update credentials in Settings > Integrations > Mobile Device Management > Simple Certificate Enrollment Protocol.",
-								fleet.FleetVarNDESSCEPChallenge)
-						case errors.As(err, &eeservice.NDESPasswordCacheFullError{}):
-							detail = fmt.Sprintf("The NDES password cache is full. "+
-								"Fleet couldn't populate $FLEET_VAR_%s. "+
-								"Please increase the number of cached passwords in NDES and try again.",
-								fleet.FleetVarNDESSCEPChallenge)
-						case errors.As(err, &eeservice.NDESInsufficientPermissionsError{}):
-							detail = fmt.Sprintf("This account does not have sufficient permissions to enroll with SCEP. "+
-								"Fleet couldn't populate $FLEET_VAR_%s. "+
-								"Please update the account with NDES SCEP enroll permissions and try again.",
-								fleet.FleetVarNDESSCEPChallenge)
-						default:
-							detail = fmt.Sprintf("Fleet couldn't populate $FLEET_VAR_%s. %s", fleet.FleetVarNDESSCEPChallenge, err.Error())
-						}
+						detail := ndesChallengeErrorToDetail(err)
 						err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 							CommandUUID:        target.cmdUUID,
 							HostUUID:           hostUUID,
@@ -5608,13 +5607,11 @@ func preprocessProfileContents(
 					}
 					managedCertificatePayloads = append(managedCertificatePayloads, payload)
 
-					hostContents = profiles.ReplaceFleetVariableInXML(fleetVarNDESSCEPChallengeRegexp, hostContents, challenge)
+					hostContents = profiles.ReplaceFleetVariableInXML(fleet.FleetVarNDESSCEPChallengeRegexp, hostContents, challenge)
 
 				case fleetVar == string(fleet.FleetVarNDESSCEPProxyURL):
 					// Insert the SCEP URL into the profile contents
-					proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
-						url.PathEscape(fmt.Sprintf("%s,%s,NDES", hostUUID, profUUID)))
-					hostContents = profiles.ReplaceFleetVariableInXML(fleetVarNDESSCEPProxyURLRegexp, hostContents, proxyURL)
+					hostContents = profiles.ReplaceNDESSCEPProxyURLVariable(appConfig.MDMUrl(), hostUUID, profUUID, hostContents)
 
 				case fleetVar == string(fleet.FleetVarSCEPRenewalID):
 					// Insert the SCEP renewal ID into the SCEP Payload CN or OU

@@ -60,7 +60,7 @@ spec:
 
 Continued edits and applications to this file will update the queries.
 
-If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name via the UI or API.
+If you want to change the name of a report, you must first create a new report with the new name and then delete the report with the old name via the UI or API.
 
 ## Labels
 
@@ -119,7 +119,7 @@ Deploying a new enroll secret cannot be done centrally from Fleet.
 ### Multiple enroll secrets
 
 Fleet allows the abiility to maintain multiple enroll secrets. Some organizations have internal goals  around rotating secrets. Having multiple secrets allows some of them to work at the same time the rotation is happening.
-Another reason you might want to use multiple enroll secrets is to use a certain [team enroll secret](#team-enroll-secrets) to auto-enroll hosts into a specific [team](https://fleetdm.com/docs/using-fleet/teams) (Fleet Premium).
+Another reason you might want to use multiple enroll secrets is to use a certain [fleet enroll secret](#fleet-enroll-secrets) to auto-enroll hosts into a specific [fleet](https://fleetdm.com/docs/using-fleet/teams) (Fleet Premium).
 
 ### Rotating enroll secrets
 
@@ -127,15 +127,15 @@ Another reason you might want to use multiple enroll secrets is to use a certain
 2. Create a fleetd agent with the new enroll secret and install it on hosts.
 3. Delete the old enroll secret.
 
-## Teams
+## Fleets
 
 **Applies only to Fleet Premium**.
 
-The `team` YAML file controls a team in Fleet.
+The `team` YAML file controls a fleet of hosts.
 
-You can define one or more teams in the same file with `---`.
+You can define one or more fleet in the same file with `---`.
 
-The following example file includes one team:
+The following example file includes one fleet:
 
 ```yaml
 apiVersion: v1
@@ -292,11 +292,108 @@ spec:
         host_percentage: 0
 ```
 
-During an import with `fleetctl apply`, if you have an empty `macos.custom_settings`, `windows.custome_settings`, or `android.custom_settings`, all OS settings (configuration profiles) will be removed. To import other options without touching configuration profiles, remove `macos.custom_settings`, `windows.custome_settings`, and `android.custom_settings` from your YAML.
+### Fleet-level agent options
+
+The fleet-level agent options specify options that only apply to this fleet. When fleet-specific agent options have been specified, the agent options specified at the organization level are ignored for this fleet.
+
+The documentation for this section is identical to the [Agent options](#agent-options) documentation for the organization settings, except that the YAML section where it is set must be as follows. (Note the `kind: team` key and the location of the `agent_options` key under `team` must have a `name` key to identify the team to configure.)
+
+```yaml
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: Client Platform Engineering
+    agent_options:
+      # the team-specific options go here
+```
+
+### Fleet-level secrets
+
+The `secrets` section provides the list of enroll secrets that will be valid for this fleet. When a new fleet is created via `fleetctl apply`, an enroll secret is automatically generated for it. If the section is missing, the existing secrets are left unmodified. Otherwise, they are replaced with this list of secrets for this fleet.
+
+- Optional setting (array of dictionaries)
+- Default value: none (empty)
+- Config file format:
+  ```yaml
+  team:
+    name: Client Platform Engineering
+    secrets:
+      - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
+      - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
+  ```
+
+### Modify an existing fleet
+
+You can modify an existing fleet by applying a new fleet configuration file with the same `name` as an existing fleet. The new fleet configuration will completely replace the previous configuration. In order to avoid overriding existing settings, we recommend retrieving the existing configuration and modifying it.
+
+Retrieve the fleet configuration and output to a YAML file:
+
+```sh
+% fleetctl get teams --name Workstations --yaml > workstation_config.yml
+```
+After updating the generated YAML, apply the changes:
+
+```sh
+% fleetctl apply -f workstation_config.yml
+```
+
+Depending on your Fleet version, you may see `unsupported key` errors for the following keys when applying the new fleet configuration:
+
+```text
+id
+user_count
+host_count
+integrations
+webhook_settings
+description
+agent_options
+created_at
+user_count
+host_count
+integrations
+webhook_settings
+```
+
+You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will apply the changes without validation and should be used with caution.
+
+### Mobile device management (MDM) settings for fleets
+
+The `mdm` section of this configuration YAML lets you control MDM settings for each fleet.
+
+To specify fleet MDM configuration, as opposed to [Organization-wide MDM configuration](#mobile-device-management-mdm-settings), follow the below YAML format. Note the `kind: team` field, as well as the  `name` and `mdm` fields under `team`.
+
+```yaml
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: Client Platform Engineering
+    mdm:
+      # the team-specific mdm options go here
+```
+
+### Fleet-level scripts
+
+List of saved scripts that can be run on hosts that are part of the fleet.
+
+- Default value: none
+- Config file format:
+
+```yaml
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: Client Platform Engineering
+    scripts:
+      - path/to/script1.sh
+      - path/to/script2.sh
+```
 
 ## Organization settings
 
-The `config` YAML file controls Fleet's organization settings and MDM features for hosts assigned to "No team."
+The `config` YAML file controls Fleet's organization settings and MDM features for hosts that are "Unassigned."
 
 The following example file shows the default organization settings:
 

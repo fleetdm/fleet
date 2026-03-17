@@ -7300,11 +7300,11 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 			encrypted_password = VALUES(encrypted_password),
 			status = VALUES(status),
 			operation_type = VALUES(operation_type),
-			error_message = NULL
+			error_message = NULL,
+			deleted = 0
 	`
 
-	placeholders := strings.Repeat("(?, ?, ?, ?),", len(passwords))
-	placeholders = placeholders[:len(placeholders)-1] // remove trailing comma
+	placeholders := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?),", len(passwords)), ",")
 	stmt = fmt.Sprintf(stmt, placeholders)
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
@@ -7315,7 +7315,7 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 }
 
 func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
-	const stmt = `SELECT encrypted_password, updated_at FROM host_recovery_key_passwords WHERE host_uuid = ?`
+	const stmt = `SELECT encrypted_password, updated_at FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`
 
 	var row struct {
 		EncryptedPassword []byte    `db:"encrypted_password"`
@@ -7341,7 +7341,7 @@ func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID s
 }
 
 func (ds *Datastore) GetHostRecoveryLockPasswordStatus(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
-	const stmt = `SELECT status, COALESCE(error_message, '') AS detail FROM host_recovery_key_passwords WHERE host_uuid = ?`
+	const stmt = `SELECT status, COALESCE(error_message, '') AS detail FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`
 
 	var row struct {
 		Status *fleet.MDMDeliveryStatus `db:"status"`
@@ -7374,7 +7374,7 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]strin
 		JOIN host_mdm hm ON hm.host_id = h.id
 		LEFT JOIN teams t ON t.id = h.team_id
 		CROSS JOIN app_config_json ac
-		LEFT JOIN host_recovery_key_passwords rkp ON rkp.host_uuid = h.uuid
+		LEFT JOIN host_recovery_key_passwords rkp ON rkp.host_uuid = h.uuid AND rkp.deleted = 0
 		WHERE h.platform = 'darwin'
 		  AND h.cpu_type LIKE '%arm%'
 		  AND ne.enabled = 1
@@ -7405,6 +7405,7 @@ func (ds *Datastore) SetRecoveryLockVerified(ctx context.Context, hostUUID strin
 		SET status = '%s',
 		    error_message = NULL
 		WHERE host_uuid = ?
+		  AND deleted = 0
 	`, fleet.MDMDeliveryVerified)
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
@@ -7420,6 +7421,7 @@ func (ds *Datastore) SetRecoveryLockFailed(ctx context.Context, hostUUID string,
 		SET status = '%s',
 		    error_message = ?
 		WHERE host_uuid = ?
+		  AND deleted = 0
 	`, fleet.MDMDeliveryFailed)
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, errorMsg, hostUUID); err != nil {
@@ -7442,6 +7444,7 @@ func (ds *Datastore) ClearRecoveryLockPendingStatus(ctx context.Context, hostUUI
 		SET status = NULL
 		WHERE host_uuid IN (?)
 		  AND status = '%s'
+		  AND deleted = 0
 	`, fleet.MDMDeliveryPending)
 
 	query, args, err := sqlx.In(stmt, hostUUIDs)

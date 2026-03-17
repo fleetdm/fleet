@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
@@ -378,15 +379,15 @@ func TestValidGitOpsYaml(t *testing.T) {
 					assert.NotNil(t, gitops.Policies[5].InstallSoftware)
 
 					if name == "team_config_with_paths_and_only_sha256" {
-						assert.Equal(t, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", gitops.Policies[5].InstallSoftware.HashSHA256)
+						assert.Equal(t, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", gitops.Policies[5].InstallSoftware.Other.HashSHA256)
 					} else {
-						assert.Equal(t, "./microsoft-teams.pkg.software.yml", gitops.Policies[5].InstallSoftware.PackagePath)
+						assert.Equal(t, "./microsoft-teams.pkg.software.yml", gitops.Policies[5].InstallSoftware.Other.PackagePath)
 						assert.Equal(t, "https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg", gitops.Policies[5].InstallSoftwareURL)
 					}
 
 					assert.Equal(t, "Slack on macOS is installed", gitops.Policies[6].Name)
 					assert.NotNil(t, gitops.Policies[6].InstallSoftware)
-					assert.Equal(t, "123456", gitops.Policies[6].InstallSoftware.AppStoreID)
+					assert.Equal(t, "123456", gitops.Policies[6].InstallSoftware.Other.AppStoreID)
 
 					assert.Equal(t, "Script run policy", gitops.Policies[7].Name)
 					assert.NotNil(t, gitops.Policies[7].RunScript)
@@ -2445,6 +2446,160 @@ software:
 		assert.Contains(t, err.Error(), "unknown_array_field")
 	})
 
+	t.Run("unknown key in org_settings", func(t *testing.T) {
+		t.Parallel()
+		config := `
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+  unknown_org_field: true
+  secrets:
+controls:
+agent_options:
+reports:
+policies:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_org_field")
+	})
+
+	t.Run("unknown nested key in org_settings", func(t *testing.T) {
+		t.Parallel()
+		config := `
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+    unknown_server_field: true
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+  secrets:
+controls:
+agent_options:
+reports:
+policies:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `unknown key "org_settings.server_settings.unknown_server_field"`)
+	})
+
+	t.Run("unknown key in org_settings with typo suggestion", func(t *testing.T) {
+		t.Parallel()
+		config := `
+org_settings:
+  server_settigns:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+  secrets:
+controls:
+agent_options:
+reports:
+policies:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "org_settings.server_settigns")
+		assert.Contains(t, err.Error(), `did you mean "server_settings"?`)
+	})
+
+	t.Run("unknown key in fleet settings", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: FleetName
+settings:
+  secrets:
+  unknown_fleet_field: true
+agent_options:
+controls:
+reports:
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown_fleet_field")
+	})
+
+	t.Run("unknown nested key in fleet settings webhook_settings", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: FleetName
+settings:
+  secrets:
+  webhook_settings:
+    unknown_webhook_field: true
+agent_options:
+controls:
+reports:
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `unknown key "settings.webhook_settings.unknown_webhook_field"`)
+	})
+
+	t.Run("unknown key in org_settings via path", func(t *testing.T) {
+		t.Parallel()
+		config := `
+org_settings:
+  path: org_settings.yml
+controls:
+agent_options:
+reports:
+policies:
+`
+		path, basePath := createTempFile(t, "", config)
+		orgSettingsYAML := `
+server_settings:
+  server_url: https://fleet.example.com
+org_info:
+  contact_url: https://example.com/contact
+  org_name: Test Org
+unknown_org_path_field: true
+secrets:
+`
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "org_settings.yml"), []byte(orgSettingsYAML), 0o644))
+		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `unknown key "org_settings.unknown_org_path_field" in "org_settings.yml"`)
+	})
+
+	t.Run("unknown key in fleet settings via path", func(t *testing.T) {
+		t.Parallel()
+		config := `
+name: FleetName
+settings:
+  path: fleet_settings.yml
+agent_options:
+controls:
+reports:
+policies:
+software:
+`
+		path, basePath := createTempFile(t, "", config)
+		fleetSettingsYAML := `
+secrets:
+unknown_fleet_path_field: true
+`
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "fleet_settings.yml"), []byte(fleetSettingsYAML), 0o644))
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `unknown key "settings.unknown_fleet_path_field" in "fleet_settings.yml"`)
+	})
+
 	t.Run("unknown key in policy install_software package_path", func(t *testing.T) {
 		t.Parallel()
 		config := getTeamConfig([]string{"policies", "software"})
@@ -2473,7 +2628,8 @@ unknown_policy_pkg_field: bad
 }
 
 // TestControlsNewKeyNames verifies that the new multi-platform key names
-// (apple_settings, setup_experience, configuration_profiles, apple_setup_assistant)
+// (apple_settings, setup_experience, configuration_profiles, apple_setup_assistant,
+// macos_bootstrap_package, apple_enable_release_device_manually, macos_script, macos_manual_agent_install)
 // are accepted in controls parsing and produce the same result as the old names.
 func TestControlsNewKeyNames(t *testing.T) {
 	t.Parallel()
@@ -2501,9 +2657,11 @@ controls:
     - path: ./lib/collect-fleetd-logs.sh
   enable_disk_encryption: true
   setup_experience:
-    bootstrap_package: null
+    macos_bootstrap_package: null
     enable_end_user_authentication: false
     apple_setup_assistant: null
+    apple_enable_release_device_manually: null
+    macos_manual_agent_install: null
   macos_updates:
     deadline: null
     minimum_version: null
@@ -2566,9 +2724,11 @@ scripts:
   - path: ./lib/collect-fleetd-logs.sh
 enable_disk_encryption: true
 setup_experience:
-  bootstrap_package: null
+  macos_bootstrap_package: null
   enable_end_user_authentication: false
   apple_setup_assistant: null
+  apple_enable_release_device_manually: null
+  macos_manual_agent_install: null
 macos_updates:
   deadline: null
   minimum_version: null
@@ -2752,6 +2912,106 @@ controls:
 		require.Contains(t, err.Error(), "Conflicting field names")
 		require.Contains(t, err.Error(), "setup_experience")
 		require.Contains(t, err.Error(), "`macos_setup` (deprecated)")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_bootstrap_package", func(t *testing.T) {
+		dir := t.TempDir()
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:
+controls:
+  setup_experience:
+    bootstrap_package: ""
+    macos_bootstrap_package: ""
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "macos_bootstrap_package")
+		require.Contains(t, err.Error(), "`bootstrap_package` (deprecated)")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_enable_release_device_manually", func(t *testing.T) {
+		dir := t.TempDir()
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:
+controls:
+  setup_experience:
+    enable_release_device_manually: false
+    apple_enable_release_device_manually: false
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "apple_enable_release_device_manually")
+		require.Contains(t, err.Error(), "`enable_release_device_manually` (deprecated)")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_script", func(t *testing.T) {
+		dir := t.TempDir()
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:
+controls:
+  setup_experience:
+    script: null
+    macos_script: null
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "macos_script")
+		require.Contains(t, err.Error(), "`script` (deprecated)")
+	})
+
+	t.Run("duplicate_old_and_new_keys_error_manual_agent_install", func(t *testing.T) {
+		dir := t.TempDir()
+		config := `
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+  org_info:
+  secrets:
+controls:
+  setup_experience:
+    manual_agent_install: false
+    macos_manual_agent_install: false
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "macos_manual_agent_install")
+		require.Contains(t, err.Error(), "`manual_agent_install` (deprecated)")
 	})
 
 	t.Run("duplicate_keys_external_file", func(t *testing.T) {
@@ -2941,12 +3201,14 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 
 	t.Run("wrapErrs prefixes errors", func(t *testing.T) {
 		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{}
+
 		policy := &Policy{
 			GitOpsPolicySpec: GitOpsPolicySpec{
 				PolicySpec:      fleet.PolicySpec{Name: "my policy"},
-				InstallSoftware: &PolicyInstallSoftware{
-					// no package_path, app_store_id, or hash_sha256
-				},
+				InstallSoftware: installSoftware, // no package_path, app_store_id, or hash_sha256
 			},
 		}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil)
@@ -2962,12 +3224,13 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		path := filepath.Join(dir, "pkg.yml")
 		require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
 
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{PackagePath: path}
+
 		policy := &Policy{
 			GitOpsPolicySpec: GitOpsPolicySpec{
-				PolicySpec: fleet.PolicySpec{Name: "typo policy"},
-				InstallSoftware: &PolicyInstallSoftware{
-					PackagePath: path,
-				},
+				PolicySpec:      fleet.PolicySpec{Name: "typo policy"},
+				InstallSoftware: installSoftware,
 			},
 		}
 		packages := []*fleet.SoftwarePackageSpec{{SHA256: sha}}
