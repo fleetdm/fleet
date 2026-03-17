@@ -59,7 +59,7 @@ const EndUserAuthSection = ({
 
   const onInputChange = useCallback(
     ({ name, value }: { name: keyof IFormDataIdp; value: string }) => {
-      const newData = { ...formData, [name]: value?.trim() || "" };
+      const newData = { ...formData, [name]: value };
       setFormData(newData);
       setDirty(true);
 
@@ -143,7 +143,7 @@ const EndUserAuthSection = ({
           }`}
         >
           <InputField
-            label="Identity provider name"
+            label="Identity provider names"
             onChange={onInputChange}
             onBlur={onBlur}
             name="idp_name"
