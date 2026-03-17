@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,12 +24,12 @@ func TestAddFleetMaintainedAppDecodeRequest(t *testing.T) {
 		{
 			name:       "fleet_id accepted",
 			body:       `{"fleet_id": 42, "fleet_maintained_app_id": 1}`,
-			wantTeamID: uintPtr(42),
+			wantTeamID: ptr.Uint(42),
 		},
 		{
 			name:       "team_id still accepted",
 			body:       `{"team_id": 7, "fleet_maintained_app_id": 1}`,
-			wantTeamID: uintPtr(7),
+			wantTeamID: ptr.Uint(7),
 		},
 		{
 			name:       "neither provided",
@@ -69,8 +70,4 @@ func TestAddFleetMaintainedAppDecodeRequest(t *testing.T) {
 			assert.Nil(t, req.FleetID)
 		})
 	}
-}
-
-func uintPtr(v uint) *uint {
-	return &v
 }
