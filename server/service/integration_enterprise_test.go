@@ -15295,6 +15295,18 @@ func genDistributedReqWithEntraIDDetails(host *fleet.Host, deviceID, userPrincip
 	}
 }
 
+func genDistributedReqWithEntraIDDetailsForWindows(host *fleet.Host, deviceID string) submitDistributedQueryResultsRequestShim {
+	results := make(map[string]json.RawMessage)
+	results["fleet_detail_query_conditional_access_microsoft_device_id_windows"] = json.RawMessage(fmt.Sprintf(`[{"device_id": "%s"}]`, deviceID))
+	return submitDistributedQueryResultsRequestShim{
+		NodeKey:  *host.NodeKey,
+		Results:  results,
+		Statuses: make(map[string]any),
+		Messages: make(map[string]string),
+		Stats:    map[string]*fleet.Stats{},
+	}
+}
+
 func triggerAndWait(ctx context.Context, t *testing.T, ds fleet.Datastore, s *schedule.Schedule, timeout time.Duration) {
 	// Following code assumes (for simplicity) only triggered runs.
 	stats, err := ds.GetLatestCronStats(ctx, s.Name())
@@ -21397,7 +21409,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	p3 := pr.Policy
 
 	ctx := context.Background()
-	newHost := func(name string, teamID *uint) *fleet.Host {
+	newHost := func(name string, teamID *uint, platform string) *fleet.Host {
 		h, err := s.ds.NewHost(ctx, &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -21407,7 +21419,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 			NodeKey:         ptr.String(t.Name() + name),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%s.%s.local", name, t.Name()),
-			Platform:        "darwin",
+			Platform:        platform,
 			TeamID:          teamID,
 		})
 		require.NoError(t, err)
@@ -21418,9 +21430,12 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	// Test A: host h1 in team t1.
 	//
 
-	h1 := newHost("h1", &t1.ID)
+	h1 := newHost("h1", &t1.ID, "darwin")
 	orbitKey := setOrbitEnrollment(t, h1, s.ds)
 	h1.OrbitNodeKey = &orbitKey
+	windowsHost1 := newHost("windowsHost1", &t1.ID, "windows")
+	windowsHostorbitKey := setOrbitEnrollment(t, windowsHost1, s.ds)
+	windowsHost1.OrbitNodeKey = &windowsHostorbitKey
 
 	// Feature is disabled on the host's team.
 	distributedResp := submitDistributedQueryResultsResponse{}
@@ -21445,6 +21460,15 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	require.Equal(t, "entraUserPrincipalName", h1s.UserPrincipalName)
 	require.Nil(t, h1s.Managed)
 	require.Nil(t, h1s.Compliant)
+
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithEntraIDDetailsForWindows(windowsHost1, "entraDeviceIDWindows"), http.StatusOK, &distributedResp)
+	wh1s, err := s.ds.LoadHostConditionalAccessStatus(ctx, windowsHost1.ID)
+	require.NoError(t, err)
+	require.Equal(t, "entraDeviceIDWindows", wh1s.DeviceID)
+	require.Equal(t, "", wh1s.UserPrincipalName)
+	require.Nil(t, wh1s.Managed)
+	require.Nil(t, wh1s.Compliant)
 
 	// override value to reduce test time.
 	conditionalAccessSetWaitTime = 250 * time.Millisecond
@@ -21591,7 +21615,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	// Test B: host h2 in "No team".
 	//
 
-	h2 := newHost("h2", nil)
+	h2 := newHost("h2", nil, "darwin")
 	orbitKey2 := setOrbitEnrollment(t, h2, s.ds)
 	h2.OrbitNodeKey = &orbitKey2
 
@@ -26529,7 +26553,8 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		// remove patch policy and delete installer
 		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/delete", teamID), deleteTeamPoliciesRequest{
 			TeamID: teamID,
-			IDs:    []uint{policyResp.Policy.ID}}, http.StatusOK, &deleteTeamPoliciesResponse{})
+			IDs:    []uint{policyResp.Policy.ID},
+		}, http.StatusOK, &deleteTeamPoliciesResponse{})
 
 		// can delete installer successfully
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", strconv.Itoa(int(teamID))) //nolint:gosec // dismiss G115
@@ -26603,7 +26628,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 		title := getActiveTitleForTeam(team.ID, "zoom")
 
-		var listPolResp = listTeamPoliciesResponse{}
+		listPolResp := listTeamPoliciesResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
@@ -26710,7 +26735,6 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
-
 	})
 }
 

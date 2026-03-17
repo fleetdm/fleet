@@ -36,5 +36,37 @@ const XmlCPETestDict = `
     <title xml:lang="en-US">Vendor2 Product4 999 for MacOS</title>
     <cpe-23:cpe23-item name="cpe:2.3:a:vendor2:product4:999:*:*:*:*:macos:*:*"/>
   </cpe-item>
+  <cpe-item name="cpe:/a:ge:line:1.0">
+    <title xml:lang="en-US">GE Line 1.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:ge:line:1.0:*:*:*:*:*:*:*"/>
+  </cpe-item>
+  <cpe-item name="cpe:/a:linecorp:line:1.0">
+    <title xml:lang="en-US">LINE Corporation Line 1.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:linecorp:line:1.0:*:*:*:*:*:*:*"/>
+  </cpe-item>
+  <cpe-item name="cpe:/a:badvendor:widget:1.0" deprecated="true" deprecation_date="2021-06-10T15:28:05.490Z">
+    <title xml:lang="en-US">Bad Vendor Widget 1.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:badvendor:widget:1.0:*:*:*:*:*:*:*">
+      <cpe-23:deprecation date="2021-06-10T11:28:05.490-04:00">
+        <cpe-23:deprecated-by name="cpe:2.3:a:badvendor:wrong_result:1.0:*:*:*:*:*:*:*" type="NAME_CORRECTION"/>
+      </cpe-23:deprecation>
+    </cpe-23:cpe23-item>
+  </cpe-item>
+  <cpe-item name="cpe:/a:badvendor:wrong_result:1.0">
+    <title xml:lang="en-US">Bad Vendor Wrong Result 1.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:badvendor:wrong_result:1.0:*:*:*:*:*:*:*"/>
+  </cpe-item>
+  <cpe-item name="cpe:/a:goodcorp:widget:1.0" deprecated="true" deprecation_date="2021-06-10T15:28:05.490Z">
+    <title xml:lang="en-US">Good Corp Widget 1.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:goodcorp:widget:1.0:*:*:*:*:*:*:*">
+      <cpe-23:deprecation date="2021-06-10T11:28:05.490-04:00">
+        <cpe-23:deprecated-by name="cpe:2.3:a:goodcorp:correct_result:1.0:*:*:*:*:*:*:*" type="NAME_CORRECTION"/>
+      </cpe-23:deprecation>
+    </cpe-23:cpe23-item>
+  </cpe-item>
+  <cpe-item name="cpe:/a:goodcorp:correct_result:1.0">
+    <title xml:lang="en-US">Good Corp Correct Result 1.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:goodcorp:correct_result:1.0:*:*:*:*:*:*:*"/>
+  </cpe-item>
 </cpe-list>
 `
