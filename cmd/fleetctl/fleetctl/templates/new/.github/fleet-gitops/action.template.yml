@@ -21,7 +21,7 @@ runs:
       run: |
         FLEET_URL="${FLEET_URL%/}"
         FLEET_VERSION="$(curl "$FLEET_URL/api/v1/fleet/version" --header "Authorization: Bearer $FLEET_API_TOKEN" --fail --silent | jq --raw-output '.version')"
-        DEFAULT_FLEETCTL_VERSION="4.80.2"
+        DEFAULT_FLEETCTL_VERSION="<%= FleetctlVersion %>"
 
         # Decide which fleetctl version to install:
         # If the server returns a clean version (e.g. 4.74.0), use that.

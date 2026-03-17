@@ -1,17 +1,17 @@
-name: 'Apply latest configuration to Fleet'
+name: "Apply latest configuration to Fleet"
 
 on:
   push:
     branches:
       - main
     paths:
-      - '**'
+      - "**"
   pull_request:
     paths:
-      - '**'
+      - "**"
   workflow_dispatch: # allows manual triggering
   schedule:
-  - cron: '0 6 * * *' # Nightly 6AM UTC
+    - cron: "0 6 * * *" # Nightly 6AM UTC
 
 # Prevent concurrent runs of this workflow.
 concurrency:
@@ -45,7 +45,6 @@ jobs:
         # These environment variables can be set as repository secrets,
         # alongside any other environment variables mentioned in your .yml files.
         env:
-
           ###########################################################
           # The server URL where Fleet is running.
           #
@@ -60,7 +59,7 @@ jobs:
           # will have to take action to restore MDM functionality (due
           # to the way Apple's device management protocol works.)
           ###########################################################
-          FLEET_URL: ${{ secrets.FLEET_URL && secrets.FLEET_URL || "https://fleet.example.com" }}
+          FLEET_URL: ${{ secrets.FLEET_URL && secrets.FLEET_URL || 'https://fleet.example.com' }}
 
           ###########################################################
           # A Fleet API token that your CI/CD builds will use
@@ -74,4 +73,3 @@ jobs:
           # or that never expires.)
           ###########################################################
           FLEET_API_TOKEN: ${{ secrets.FLEET_API_TOKEN }}
-
