@@ -1,4 +1,4 @@
-# Owning your Linux destiny with open source
+# Data and Endpoint Sovereignty: Owning Your Destiny
 
 ### Links to article series:
 
