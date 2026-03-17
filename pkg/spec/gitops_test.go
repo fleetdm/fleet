@@ -605,7 +605,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config = getConfig([]string{"settings"})
 					config += fmt.Sprintf("%s:\n  path: %s\n", "settings", tmpFile.Name())
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "expected type spec.BaseItem but got array")
+					assert.ErrorContains(t, err, "expected type fleet.BaseItem but got array")
 
 					// Invalid secrets 1
 					config = getConfig([]string{"settings"})
@@ -777,7 +777,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config = getConfig([]string{"org_settings"})
 					config += fmt.Sprintf("%s:\n  path: %s\n", "org_settings", tmpFile.Name())
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "expected type spec.BaseItem but got array")
+					assert.ErrorContains(t, err, "expected type fleet.BaseItem but got array")
 
 					// Invalid secrets 1
 					config = getConfig([]string{"org_settings"})
@@ -832,7 +832,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"agent_options"})
 				config += fmt.Sprintf("%s:\n  path: %s\n", "agent_options", tmpFile.Name())
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "expected type spec.BaseItem but got array")
+				assert.ErrorContains(t, err, "expected type fleet.BaseItem but got array")
 
 				// Invalid controls
 				config = getConfig([]string{"controls"})
@@ -1752,7 +1752,7 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.yml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "c.txt"), []byte(""), 0o644))
 
-		items := []BaseItem{{Paths: ptr.String("*.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("*.yml")}}
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
 		require.Empty(t, errs)
 		require.Len(t, result, 2)
@@ -1770,7 +1770,7 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "top.yml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(subdir, "nested.yml"), []byte(""), 0o644))
 
-		items := []BaseItem{{Paths: ptr.String("**/*.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("**/*.yml")}}
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
 		require.Empty(t, errs)
 		require.Len(t, result, 2)
@@ -1785,7 +1785,7 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "glob1.yaml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "glob2.yaml"), []byte(""), 0o644))
 
-		items := []BaseItem{
+		items := []fleet.BaseItem{
 			{Path: ptr.String("single.yml")},
 			{Paths: ptr.String("*.yaml")},
 		}
@@ -1799,28 +1799,28 @@ func TestExpandBaseItems(t *testing.T) {
 
 	t.Run("paths_without_glob_error", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{Paths: ptr.String("foo.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("foo.yml")}}
 		_, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{})
 		requireErrorContains(t, errs, `does not contain glob characters`)
 	})
 
 	t.Run("path_with_glob_error", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{Path: ptr.String("*.yml")}}
+		items := []fleet.BaseItem{{Path: ptr.String("*.yml")}}
 		_, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{})
 		requireErrorContains(t, errs, `contains glob characters`)
 	})
 
 	t.Run("both_path_and_paths_error", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{Path: ptr.String("foo.yml"), Paths: ptr.String("*.yml")}}
+		items := []fleet.BaseItem{{Path: ptr.String("foo.yml"), Paths: ptr.String("*.yml")}}
 		_, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{})
 		requireErrorContains(t, errs, `cannot have both "path" and "paths"`)
 	})
 
 	t.Run("inline_items_passed_through", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{}}
+		items := []fleet.BaseItem{{}}
 		result, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{})
 		require.Empty(t, errs)
 		require.Len(t, result, 1)
@@ -1830,7 +1830,7 @@ func TestExpandBaseItems(t *testing.T) {
 
 	t.Run("require_file_reference_error", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{}}
+		items := []fleet.BaseItem{{}}
 		_, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{
 			RequireFileReference: true,
 		})
@@ -1844,7 +1844,7 @@ func TestExpandBaseItems(t *testing.T) {
 		logFn := func(format string, args ...any) {
 			warnings = append(warnings, fmt.Sprintf(format, args...))
 		}
-		items := []BaseItem{{Paths: ptr.String("*.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("*.yml")}}
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{LogFn: logFn})
 		require.Empty(t, errs)
 		assert.Empty(t, result)
@@ -1862,7 +1862,7 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(sub1, "dup.yml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(sub2, "dup.yml"), []byte(""), 0o644))
 
-		items := []BaseItem{{Paths: ptr.String("**/*.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("**/*.yml")}}
 		_, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{
 			RequireUniqueBasenames: true,
 		})
@@ -1877,7 +1877,7 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "item.yml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(sub, "item.yml"), []byte(""), 0o644))
 
-		items := []BaseItem{
+		items := []fleet.BaseItem{
 			{Path: ptr.String("item.yml")},
 			{Paths: ptr.String("sub/*.yml")},
 		}
@@ -1900,7 +1900,7 @@ func TestExpandBaseItems(t *testing.T) {
 			warnings = append(warnings, fmt.Sprintf(format, args...))
 		}
 
-		items := []BaseItem{{Paths: ptr.String("*")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("*")}}
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{
 			AllowedExtensions: map[string]bool{".sh": true},
 			LogFn:             logFn,
@@ -1918,7 +1918,7 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.yml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "m.yml"), []byte(""), 0o644))
 
-		items := []BaseItem{{Paths: ptr.String("*.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("*.yml")}}
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
 		require.Empty(t, errs)
 		require.Len(t, result, 3)
@@ -1929,7 +1929,7 @@ func TestExpandBaseItems(t *testing.T) {
 
 	t.Run("multiple_errors_collected", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{Path: ptr.String("*.yml")}, {Paths: ptr.String("noglob.yml")}}
+		items := []fleet.BaseItem{{Path: ptr.String("*.yml")}, {Paths: ptr.String("noglob.yml")}}
 		_, errs := expandBaseItems(items, "", "test", GlobExpandOptions{})
 		require.Len(t, errs, 2)
 		assert.Contains(t, errs[0].Error(), `contains glob characters`)
@@ -1945,7 +1945,7 @@ func TestResolveScriptPaths(t *testing.T) {
 		dir := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "script.sh"), []byte("#!/bin/bash"), 0o644))
 
-		items := []BaseItem{{Path: ptr.String("script.sh")}}
+		items := []fleet.BaseItem{{Path: ptr.String("script.sh")}}
 		result, errs := resolveScriptPaths(items, dir, nopLogf)
 		require.Empty(t, errs)
 		require.Len(t, result, 1)
@@ -1958,7 +1958,7 @@ func TestResolveScriptPaths(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.sh"), []byte("#!/bin/bash"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.sh"), []byte("#!/bin/bash"), 0o644))
 
-		items := []BaseItem{{Paths: ptr.String("*.sh")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("*.sh")}}
 		result, errs := resolveScriptPaths(items, dir, nopLogf)
 		require.Empty(t, errs)
 		require.Len(t, result, 2)
@@ -1966,7 +1966,7 @@ func TestResolveScriptPaths(t *testing.T) {
 
 	t.Run("inline_not_allowed", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{}}
+		items := []fleet.BaseItem{{}}
 		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
 		require.NotEmpty(t, errs)
 		assert.Contains(t, errs[0].Error(), `no "path" or "paths" field`)
@@ -2150,124 +2150,6 @@ func TestGitOpsGlobScripts(t *testing.T) {
 	assert.Equal(t, filepath.Join(scriptsDir, "alpha.sh"), *result.Controls.Scripts[0].Path)
 	assert.Equal(t, filepath.Join(scriptsDir, "beta.sh"), *result.Controls.Scripts[1].Path)
 	assert.Equal(t, filepath.Join(scriptsDir, "gamma.ps1"), *result.Controls.Scripts[2].Path)
-}
-
-func TestExpandGlobPatternsInProfiles(t *testing.T) {
-	t.Parallel()
-
-	t.Run("basic_glob", func(t *testing.T) {
-		t.Parallel()
-		dir := t.TempDir()
-		profilesDir := filepath.Join(dir, "profiles")
-		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "alpha.mobileconfig"), []byte("<plist/>"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "beta.mobileconfig"), []byte("<plist/>"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "skip.txt"), []byte("nope"), 0o644))
-
-		profiles := []fleet.MDMProfileSpec{
-			{Paths: "profiles/*.mobileconfig"},
-		}
-		result, errs := expandGlobPatternsInProfiles(profiles, map[string]bool{".mobileconfig": true}, dir, nopLogf)
-		require.Empty(t, errs)
-		require.Len(t, result, 2)
-		assert.Equal(t, filepath.Join(profilesDir, "alpha.mobileconfig"), result[0].Path)
-		assert.Equal(t, filepath.Join(profilesDir, "beta.mobileconfig"), result[1].Path)
-		assert.Empty(t, result[0].Paths)
-		assert.Empty(t, result[1].Paths)
-	})
-
-	t.Run("labels_propagated", func(t *testing.T) {
-		t.Parallel()
-		dir := t.TempDir()
-		profilesDir := filepath.Join(dir, "profiles")
-		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "a.xml"), []byte("<xml/>"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "b.xml"), []byte("<xml/>"), 0o644))
-
-		profiles := []fleet.MDMProfileSpec{
-			{
-				Paths:            "profiles/*.xml",
-				LabelsIncludeAll: []string{"label1"},
-				LabelsIncludeAny: []string{"label2"},
-				LabelsExcludeAny: []string{"label3"},
-			},
-		}
-		result, errs := expandGlobPatternsInProfiles(profiles, map[string]bool{".xml": true}, dir, nopLogf)
-		require.Empty(t, errs)
-		require.Len(t, result, 2)
-		for _, p := range result {
-			assert.Equal(t, []string{"label1"}, p.LabelsIncludeAll)
-			assert.Equal(t, []string{"label2"}, p.LabelsIncludeAny)
-			assert.Equal(t, []string{"label3"}, p.LabelsExcludeAny)
-		}
-	})
-
-	t.Run("non_glob_passthrough", func(t *testing.T) {
-		t.Parallel()
-		dir := t.TempDir()
-		profiles := []fleet.MDMProfileSpec{
-			{Path: "profiles/explicit.mobileconfig"},
-		}
-		result, errs := expandGlobPatternsInProfiles(profiles, map[string]bool{".mobileconfig": true}, dir, nopLogf)
-		require.Empty(t, errs)
-		require.Len(t, result, 1)
-		assert.Equal(t, "profiles/explicit.mobileconfig", result[0].Path)
-	})
-
-	t.Run("mixed_glob_and_explicit", func(t *testing.T) {
-		t.Parallel()
-		dir := t.TempDir()
-		profilesDir := filepath.Join(dir, "profiles")
-		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "alpha.xml"), []byte("<xml/>"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "beta.xml"), []byte("<xml/>"), 0o644))
-
-		profiles := []fleet.MDMProfileSpec{
-			{Paths: "profiles/*.xml"},
-			{Path: "profiles/explicit.xml"},
-		}
-		result, errs := expandGlobPatternsInProfiles(profiles, map[string]bool{".xml": true}, dir, nopLogf)
-		require.Empty(t, errs)
-		require.Len(t, result, 3)
-		// Glob results first (sorted), then explicit
-		assert.Equal(t, filepath.Join(profilesDir, "alpha.xml"), result[0].Path)
-		assert.Equal(t, filepath.Join(profilesDir, "beta.xml"), result[1].Path)
-		assert.Equal(t, "profiles/explicit.xml", result[2].Path)
-	})
-
-	t.Run("invalid_glob_error", func(t *testing.T) {
-		t.Parallel()
-		dir := t.TempDir()
-		profiles := []fleet.MDMProfileSpec{
-			{Paths: "profiles/[invalid"},
-		}
-		result, errs := expandGlobPatternsInProfiles(profiles, map[string]bool{".xml": true}, dir, nopLogf)
-		require.Len(t, errs, 1)
-		assert.Contains(t, errs[0].Error(), "failed to expand glob pattern")
-		assert.Empty(t, result)
-	})
-
-	t.Run("extension_filtering", func(t *testing.T) {
-		t.Parallel()
-		dir := t.TempDir()
-		profilesDir := filepath.Join(dir, "profiles")
-		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "good.mobileconfig"), []byte("<plist/>"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "good.json"), []byte("{}"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "bad.txt"), []byte("nope"), 0o644))
-
-		profiles := []fleet.MDMProfileSpec{
-			{Paths: "profiles/*"},
-		}
-		result, errs := expandGlobPatternsInProfiles(profiles, map[string]bool{
-			".mobileconfig": true,
-			".json":         true,
-		}, dir, nopLogf)
-		require.Empty(t, errs)
-		require.Len(t, result, 2)
-		assert.Equal(t, filepath.Join(profilesDir, "good.json"), result[0].Path)
-		assert.Equal(t, filepath.Join(profilesDir, "good.mobileconfig"), result[1].Path)
-	})
 }
 
 func TestGitOpsGlobProfiles(t *testing.T) {

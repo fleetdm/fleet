@@ -160,13 +160,8 @@ func YamlUnmarshal(yamlBytes []byte, out any) error {
 	return nil
 }
 
-type BaseItem struct {
-	Path  *string `json:"path"`
-	Paths *string `json:"paths"`
-}
-
 type GitOpsControls struct {
-	BaseItem
+	fleet.BaseItem
 	MacOSUpdates   any               `json:"macos_updates"`
 	IOSUpdates     any               `json:"ios_updates"`
 	IPadOSUpdates  any               `json:"ipados_updates"`
@@ -184,10 +179,10 @@ type GitOpsControls struct {
 	AndroidEnabledAndConfigured any `json:"android_enabled_and_configured"`
 	AndroidSettings             any `json:"android_settings"`
 
-	EnableDiskEncryption       any        `json:"enable_disk_encryption"`
-	EnableRecoveryLockPassword any        `json:"enable_recovery_lock_password"`
-	RequireBitLockerPIN        any        `json:"windows_require_bitlocker_pin,omitempty"`
-	Scripts                    []BaseItem `json:"scripts"`
+	EnableDiskEncryption       any              `json:"enable_disk_encryption"`
+	EnableRecoveryLockPassword any              `json:"enable_recovery_lock_password"`
+	RequireBitLockerPIN        any              `json:"windows_require_bitlocker_pin,omitempty"`
+	Scripts                    []fleet.BaseItem `json:"scripts"`
 
 	Defined bool
 }
@@ -202,7 +197,7 @@ func (c GitOpsControls) Set() bool {
 }
 
 type Policy struct {
-	BaseItem
+	fleet.BaseItem
 	GitOpsPolicySpec
 }
 
@@ -233,37 +228,18 @@ type PolicyInstallSoftware struct {
 }
 
 type Query struct {
-	BaseItem
+	fleet.BaseItem
 	fleet.QuerySpec
 }
 
 type Label struct {
-	BaseItem
+	fleet.BaseItem
 	fleet.LabelSpec
 }
 
 type SoftwarePackage struct {
-	BaseItem
+	fleet.BaseItem
 	fleet.SoftwarePackageSpec
-}
-
-// SupportsFileInclude is implemented by types that embed BaseItem and can
-// reference external files via path/paths fields.
-type SupportsFileInclude interface {
-	GetBaseItem() BaseItem
-	SetBaseItem(v BaseItem)
-}
-
-// GetBaseItem returns the current BaseItem value.
-// Types that embed BaseItem inherit this method via promotion.
-func (b *BaseItem) GetBaseItem() BaseItem {
-	return *b
-}
-
-// SetBaseItem sets the BaseItem value.
-// Types that embed BaseItem inherit this method via promotion.
-func (b *BaseItem) SetBaseItem(v BaseItem) {
-	*b = v
 }
 
 func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePackageSpec) (fleet.SoftwarePackageSpec, error) {
@@ -546,7 +522,7 @@ const (
 )
 
 func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
-	var orgSettingsTop BaseItem
+	var orgSettingsTop fleet.BaseItem
 	if err := json.Unmarshal(raw, &orgSettingsTop); err != nil {
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"org_settings"}, err))
 	}
@@ -567,7 +543,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 					multiError, fmt.Errorf("failed to expand environment in file %s: %v", *orgSettingsTop.Path, err),
 				)
 			} else {
-				var pathOrgSettings BaseItem
+				var pathOrgSettings fleet.BaseItem
 				if err := YamlUnmarshal(fileBytes, &pathOrgSettings); err != nil {
 					noError = false
 					multiError = multierror.Append(
@@ -602,7 +578,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 }
 
 func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
-	var teamSettingsTop BaseItem
+	var teamSettingsTop fleet.BaseItem
 	if err := json.Unmarshal(raw, &teamSettingsTop); err != nil {
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"settings"}, err))
 	}
@@ -623,7 +599,7 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, file
 					multiError, fmt.Errorf("failed to expand environment in file %s: %v", *teamSettingsTop.Path, err),
 				)
 			} else {
-				var pathTeamSettings BaseItem
+				var pathTeamSettings fleet.BaseItem
 				if err := YamlUnmarshal(fileBytes, &pathTeamSettings); err != nil {
 					noError = false
 					multiError = multierror.Append(
@@ -818,7 +794,7 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 	} else if !ok {
 		return multierror.Append(multiError, errors.New("'agent_options' is required"))
 	}
-	var agentOptionsTop BaseItem
+	var agentOptionsTop fleet.BaseItem
 	if err := json.Unmarshal(agentOptionsRaw, &agentOptionsTop); err != nil {
 		multiError = multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"agent_options"}, err))
 	} else {
@@ -836,7 +812,7 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 					multiError, fmt.Errorf("failed to expand environment in file %s: %v", *agentOptionsTop.Path, err),
 				)
 			} else {
-				var pathAgentOptions BaseItem
+				var pathAgentOptions fleet.BaseItem
 				if err := YamlUnmarshal(fileBytes, &pathAgentOptions); err != nil {
 					return multierror.Append(
 						multiError, MaybeParseTypeError(*agentOptionsTop.Path, []string{"agent_options"}, err),
@@ -936,17 +912,17 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "macos_settings"}, err))
 		}
 
-		// Do an initial loop over the settings to expand globs.
+		// Expand globs in profile paths.
 		var errs []error
-		macOSSettings.CustomSettings, errs = expandGlobPatternsInProfiles(macOSSettings.CustomSettings, map[string]bool{
-			".mobileconfig": true,
-			".json":         true,
-		}, controlsDir, logFn)
+		macOSSettings.CustomSettings, errs = expandBaseItems(macOSSettings.CustomSettings, controlsDir, "profile", GlobExpandOptions{
+			AllowedExtensions: map[string]bool{".mobileconfig": true, ".json": true},
+			LogFn:             logFn,
+		})
 		multiError = multierror.Append(multiError, errs...)
 		// Then resolve the paths to absolute and find Fleet secrets in the profile files.
 		for i := range macOSSettings.CustomSettings {
 
-			err := resolveAndUpdateProfilePathToAbsolute(controlsDir, &macOSSettings.CustomSettings[i], result)
+			err := resolveAndUpdateProfilePath(&macOSSettings.CustomSettings[i], result)
 			if err != nil {
 				return multierror.Append(multiError, err)
 			}
@@ -972,13 +948,15 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		}
 		if windowsSettings.CustomSettings.Valid {
 			var errs []error
-			windowsSettings.CustomSettings.Value, errs = expandGlobPatternsInProfiles(windowsSettings.CustomSettings.Value, map[string]bool{
-				".xml": true,
-			}, controlsDir, logFn)
+			windowsSettings.CustomSettings.Value, errs = expandBaseItems(windowsSettings.CustomSettings.Value, controlsDir, "profile", GlobExpandOptions{
+				AllowedExtensions: map[string]bool{".xml": true},
+
+				LogFn: logFn,
+			})
 			multiError = multierror.Append(multiError, errs...)
 
 			for i := range windowsSettings.CustomSettings.Value {
-				err := resolveAndUpdateProfilePathToAbsolute(controlsDir, &windowsSettings.CustomSettings.Value[i], result)
+				err := resolveAndUpdateProfilePath(&windowsSettings.CustomSettings.Value[i], result)
 				if err != nil {
 					return multierror.Append(multiError, err)
 				}
@@ -1007,13 +985,13 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 
 		if androidSettings.CustomSettings.Valid {
 			var errs []error
-			androidSettings.CustomSettings.Value, errs = expandGlobPatternsInProfiles(androidSettings.CustomSettings.Value, map[string]bool{
-				".xml":  true,
-				".json": true,
-			}, controlsDir, logFn)
+			androidSettings.CustomSettings.Value, errs = expandBaseItems(androidSettings.CustomSettings.Value, controlsDir, "profile", GlobExpandOptions{
+				AllowedExtensions: map[string]bool{".xml": true, ".json": true},
+				LogFn:             logFn,
+			})
 			multiError = multierror.Append(multiError, errs...)
 			for i := range androidSettings.CustomSettings.Value {
-				err := resolveAndUpdateProfilePathToAbsolute(controlsDir, &androidSettings.CustomSettings.Value[i], result)
+				err := resolveAndUpdateProfilePath(&androidSettings.CustomSettings.Value[i], result)
 				if err != nil {
 					return multierror.Append(multiError, err)
 				}
@@ -1083,18 +1061,16 @@ func processControlsPathIfNeeded(controlsTop GitOpsControls, result *GitOps, con
 	return errs
 }
 
-func resolveAndUpdateProfilePathToAbsolute(controlsDir string, profile *fleet.MDMProfileSpec, result *GitOps) error {
-	resolvedPath := resolveApplyRelativePath(controlsDir, profile.Path)
-	// We switch to absolute path so that we don't have to keep track of the base directory.
-	// This is useful because controls section can come from either the global config file or the no-team file.
+func resolveAndUpdateProfilePath(profile *fleet.MDMProfileSpec, result *GitOps) error {
+	// Path has already been resolved by expandBaseItems; just ensure it's absolute.
 	var err error
-	profile.Path, err = filepath.Abs(resolvedPath)
+	profile.Path, err = filepath.Abs(profile.Path)
 	if err != nil {
-		return fmt.Errorf("failed to resolve profile path %s: %v", resolvedPath, err)
+		return fmt.Errorf("failed to resolve profile path %s: %v", profile.Path, err)
 	}
-	fileBytes, err := os.ReadFile(resolvedPath)
+	fileBytes, err := os.ReadFile(profile.Path)
 	if err != nil {
-		return fmt.Errorf("failed to read profile file %s: %v", resolvedPath, err)
+		return fmt.Errorf("failed to read profile file %s: %v", profile.Path, err)
 	}
 	err = LookupEnvSecrets(string(fileBytes), result.FleetSecrets)
 	if err != nil {
@@ -1177,35 +1153,6 @@ func expandGlobPattern(pattern string, baseDir string, entityType string, opts G
 	return result, nil
 }
 
-func expandGlobPatternsInProfiles(profiles []fleet.MDMProfileSpec, allowedExtensions map[string]bool, baseDir string, logFn Logf) ([]fleet.MDMProfileSpec, []error) {
-	var result []fleet.MDMProfileSpec
-	var errs []error
-	for i := range profiles {
-		profile := profiles[i]
-		if profile.Paths != "" {
-			expandedPaths, err := expandGlobPattern(profile.Paths, baseDir, "profile", GlobExpandOptions{
-				LogFn:             logFn,
-				AllowedExtensions: allowedExtensions,
-			})
-			if err != nil {
-				errs = append(errs, fmt.Errorf("failed to expand glob pattern '%s' in profile: %v", profile.Paths, err))
-				continue
-			}
-			for _, expandedPath := range expandedPaths {
-				result = append(result, fleet.MDMProfileSpec{
-					Path:             expandedPath,
-					LabelsIncludeAll: profile.LabelsIncludeAll,
-					LabelsIncludeAny: profile.LabelsIncludeAny,
-					LabelsExcludeAny: profile.LabelsExcludeAny,
-				})
-			}
-		} else {
-			result = append(result, profile)
-		}
-	}
-	return result, errs
-}
-
 // expandBaseItems validates path/paths fields on each entity (e.g. Label), expands glob
 // patterns in "paths" entries, and returns a flat list where every entity with
 // a file reference has only Path set (resolved to an absolute path). Entities
@@ -1215,7 +1162,7 @@ func expandGlobPatternsInProfiles(profiles []fleet.MDMProfileSpec, allowedExtens
 // problems in one pass.
 func expandBaseItems[T any, PT interface {
 	*T
-	SupportsFileInclude
+	fleet.SupportsFileInclude
 }](inputEntities []T, baseDir string, entityType string, opts GlobExpandOptions) ([]T, []error) {
 	opts.setDefaults()
 	var result []T
@@ -1254,7 +1201,7 @@ func expandBaseItems[T any, PT interface {
 				}
 				seenBasenames[base] = *baseItem.Path
 			}
-			PT(&entity).SetBaseItem(BaseItem{Path: &resolved})
+			PT(&entity).SetBaseItem(fleet.BaseItem{Path: &resolved})
 			result = append(result, entity)
 		// Glob -- expand and add files to result.
 		case hasPaths:
@@ -1281,8 +1228,8 @@ func expandBaseItems[T any, PT interface {
 					}
 					seenBasenames[base] = *baseItem.Paths
 				}
-				var newItem T
-				PT(&newItem).SetBaseItem(BaseItem{Path: &p})
+				newItem := entity // clone to preserve non-BaseItem fields (e.g. labels)
+				PT(&newItem).SetBaseItem(fleet.BaseItem{Path: &p})
 				result = append(result, newItem)
 			}
 		}
@@ -1291,7 +1238,7 @@ func expandBaseItems[T any, PT interface {
 	return result, errs
 }
 
-func resolveScriptPaths(input []BaseItem, baseDir string, logFn Logf) ([]BaseItem, []error) {
+func resolveScriptPaths(input []fleet.BaseItem, baseDir string, logFn Logf) ([]fleet.BaseItem, []error) {
 	return expandBaseItems(input, baseDir, "script", GlobExpandOptions{
 		AllowedExtensions:      allowedScriptExtensions,
 		RequireUniqueBasenames: true,
@@ -1527,7 +1474,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	return multiError
 }
 
-func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *string, policy *Policy, scripts []BaseItem) error {
+func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *string, policy *Policy, scripts []fleet.BaseItem) error {
 	if policy.RunScript == nil {
 		policy.ScriptID = ptr.Uint(0) // unset the script
 		return nil
