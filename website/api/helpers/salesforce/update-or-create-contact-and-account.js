@@ -61,6 +61,7 @@ module.exports = {
       type: 'string',
       isIn: [
         'Subscribed to the Fleet newsletter',
+        'Registered for a conference',
         // 'Signed up for a fleetdm.com account',//
         // 'Submitted the "Talk to us" form',
         // 'Submitted the "Send a message" form',
