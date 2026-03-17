@@ -1,3 +1,15 @@
+## Fleet 4.82.1 (Mar 18, 2026)
+
+### Bug fixes
+
+- Fixed a crash on the "My device" page for Fleet Free instances. The page returned a 402 error when the host was assigned to a team because the device endpoint called a premium-only API, and also crashed when accessing undefined policies data.
+- Stopped duplicate Fleet-maintained app entries from showing up in setup experience.
+- Reduced database contention during the vulnerability cron.
+- Added a secondary index on `host_software(software_id)` to improve query performance.
+- Fixed an issue where the "add Fleet-maintained app" endpoint incorrectly added software to the Unassigned fleet.
+- Muted deprecation warnings for body params when the "deprecated-field-names" topic is not enabled.
+Fixed custom app icons not getting set via GitOps when the same software title exists in multiple teams.
+
 ## Fleet 4.82.0 (Mar 11, 2026)
 
 ### IT Admins
@@ -16,6 +28,7 @@
 - Added AWS GovCloud RDS CA certificates to the RDS MySQL TLS bundle, enabling IAM authentication for Fleet deployments connecting to RDS in AWS GovCloud regions (us-gov-east-1, us-gov-west-1).
 - Added CVE alias for python visual studio code extension.
 - Added new activity for edited enroll secrets.
+- Added deny list for checking external urls the Fleet server will attempt to contact that are user submitted. Refer to pkg/fleethttp/ssrf.go for full list. In development, the --dev flag skips this check so that testing locally is not impacted. Certificate authorities is the first place this is implemented. 
 
 ### Other improvements and bug fixes
 - Renamed teams and queries to fleets and reports in the UI, API, CLI, and GitOps.
@@ -217,19 +230,6 @@
 - Fixed unnecessary error logging when no CPE match is found for software items like VSCode extensions and JetBrains plugins.
 - Fixed created_at and updated_at timestamps on API responses for Label and Team creation.
 - Fixed issues where different variations of the same software weren't linked to the same software title.
-
-## Fleet 4.80.3 (Feb 20, 2026)
-
-### Bug fixes
-
-- Fixed validation and error handling issues.
-
-## Fleet 4.80.2 (Feb 11, 2026)
-
-### Bug fixes
-
-- Updated to Go 1.25.7.
-- Fix issue where MySQL read replicas were not using TLS.
 
 ## Fleet 4.80.1 (Feb 06, 2026)
 
