@@ -131,7 +131,7 @@ Champion stories and case studies showing real customers achieving real outcomes
 
 > All quotes sourced from [fleetdm.com/customers](https://fleetdm.com/customers)
 
-| # | Company | Industry | Name | Title | Quote |
+| # | Company | Industry | Name | Title | <div style="min-width:500px">Quote</div> |
 |---|---------|----------|------|-------|-------|
 | 1 | Foursquare | Technology & Geospatial Intelligence | Mike Meyer | Senior Manager, Corporate Engineer | "One of the easiest, quickest, smoothest migrations I've ever done." |
 | 2 | NVIDIA | Semiconductor / GPU Manufacturing | Kenny Botelho | Client Platform IT Engineer / Leader | "We wanted an open-source MDM to easily use configuration-as-code, deliver the best possible experience for our employees, and make security happy." |
