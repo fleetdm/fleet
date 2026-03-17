@@ -2685,7 +2685,7 @@ func (ds *Datastore) createAutomationClause(ctx context.Context, automationFilte
 
 	switch automationFilter {
 	case "software":
-		return " AND (p.software_installer_id IS NOT NULL OR p.vpp_apps_teams_id IS NOT NULL)", nil, nil
+		return " AND (p.software_installer_id IS NOT NULL OR p.vpp_apps_teams_id IS NOT NULL OR p.type = 'patch')", nil, nil
 	case "scripts":
 		return " AND p.script_id IS NOT NULL", nil, nil
 	case "calendar":
