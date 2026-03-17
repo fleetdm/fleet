@@ -542,8 +542,6 @@ func (svc *Service) enqueueWipeHostRequest(
 }
 
 func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint) error {
-	// First ensure the user has access to list hosts, then check the specific
-	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return err
 	}

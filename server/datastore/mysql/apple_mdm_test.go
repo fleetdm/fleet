@@ -11108,6 +11108,39 @@ func testRecoveryLockRotation(t *testing.T, ds *Datastore) {
 		pending, err := ds.HasPendingRecoveryLockRotation(ctx, host.UUID)
 		require.NoError(t, err)
 		assert.False(t, pending)
+
+		// Verify status restored to verified (since it was verified before rotation)
+		status, err := ds.GetRecoveryLockRotationStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status.Status)
+		assert.Equal(t, string(fleet.MDMDeliveryVerified), *status.Status)
+	})
+
+	t.Run("ClearRecoveryLockRotation restores failed status", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "clear-failed-rotate-host", "clearfailedrotuuid")
+
+		// Set to failed status
+		err := ds.SetRecoveryLockFailed(ctx, host.UUID, "previous failure")
+		require.NoError(t, err)
+
+		// Initiate rotation from failed state
+		newPassword := apple_mdm.GenerateRecoveryLockPassword()
+		err = ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword)
+		require.NoError(t, err)
+
+		// Clear rotation
+		err = ds.ClearRecoveryLockRotation(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Verify pending is cleared
+		hasPending, _ := getPendingRotationState(t, host.UUID)
+		assert.False(t, hasPending)
+
+		// Verify status restored to failed (since error_message still exists from previous failure)
+		status, err := ds.GetRecoveryLockRotationStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status.Status)
+		assert.Equal(t, string(fleet.MDMDeliveryFailed), *status.Status)
 	})
 
 	t.Run("GetRecoveryLockRotationStatus returns all fields", func(t *testing.T) {
