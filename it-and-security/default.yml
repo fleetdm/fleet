@@ -98,6 +98,8 @@ controls:
     mode: voluntary
     webhook_url: $DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL
   windows_enabled_and_configured: true
+  windows_entra_tenant_ids:
+    - $DOGFOOD_ENTRA_TENANT_ID
   windows_migration_enabled: true
 labels:
   - path: ./lib/all/labels/arm-based-windows-hosts.yml

@@ -63,7 +63,7 @@ const BootstrapPackage = ({
     () =>
       mdmAPI.getSetupExperienceSoftware({
         platform: "macos",
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
         per_page: PER_PAGE_SIZE,
       }),
     {
@@ -140,7 +140,7 @@ const BootstrapPackage = ({
     try {
       await mdmAPI.deleteBootstrapPackage(currentTeamId);
       await mdmAPI.updateSetupExperienceSettings({
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
         manual_agent_install: false,
       });
       renderFlash("success", "Successfully deleted.");

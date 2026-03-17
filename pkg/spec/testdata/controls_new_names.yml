@@ -12,9 +12,11 @@ macos_migration:
   mode: ""
   webhook_url: ""
 setup_experience:
-  bootstrap_package: null
+  macos_bootstrap_package: null
   enable_end_user_authentication: false
   apple_setup_assistant: null
+  apple_enable_release_device_manually: null
+  macos_manual_agent_install: null
 macos_updates:
   deadline: null
   minimum_version: null

@@ -322,6 +322,7 @@ export const generateCustomDropdownStyles = (
 
       return {
         ...provided,
+        fontSize: "13px",
         ...(variant === "button" && buttonVariantPlaceholder),
       };
     },

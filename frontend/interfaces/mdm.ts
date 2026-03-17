@@ -243,6 +243,12 @@ export const FLEET_RECOVERY_LOCK_PASSWORD_DISPLAY_NAME =
 export const FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID =
   "fleet-host-certificate-template";
 
+export type RecoveryLockPasswordStatus =
+  | "verified"
+  | "pending"
+  | "removing_enforcement"
+  | "failed";
+
 export interface IMdmSSOReponse {
   url: string;
 }
