@@ -3691,3 +3691,89 @@ func (svc *Service) ListHostCertificates(ctx context.Context, hostID uint, opts 
 	}
 	return payload, meta, nil
 }
+
+// //////////////////////////////////////////////////////////////////////////////
+// Get Host Recovery Lock Password
+// //////////////////////////////////////////////////////////////////////////////
+
+type getHostRecoveryLockPasswordRequest struct {
+	ID uint `url:"id"`
+}
+
+type recoveryLockPasswordPayload struct {
+	Password  string    `json:"password"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type getHostRecoveryLockPasswordResponse struct {
+	HostID               uint                         `json:"host_id"`
+	RecoveryLockPassword *recoveryLockPasswordPayload `json:"recovery_lock_password"`
+	Err                  error                        `json:"error,omitempty"`
+}
+
+func (r getHostRecoveryLockPasswordResponse) Error() error { return r.Err }
+
+func getHostRecoveryLockPasswordEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getHostRecoveryLockPasswordRequest)
+	password, err := svc.GetHostRecoveryLockPassword(ctx, req.ID)
+	if err != nil {
+		return getHostRecoveryLockPasswordResponse{Err: err}, nil
+	}
+	return getHostRecoveryLockPasswordResponse{
+		HostID: req.ID,
+		RecoveryLockPassword: &recoveryLockPasswordPayload{
+			Password:  password.Password,
+			UpdatedAt: password.UpdatedAt,
+		},
+	}, nil
+}
+
+func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint) (*fleet.HostRecoveryLockPassword, error) {
+	// First ensure the user has access to list hosts, then check the specific
+	// host once team_id is loaded.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.Host(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host")
+	}
+
+	// Require admin or maintainer role (ActionWrite) for this sensitive data
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	// Recovery lock is only supported on Apple Silicon macOS hosts
+	if host.Platform != "darwin" || !strings.Contains(strings.ToLower(host.CPUType), "arm") {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "recovery lock is only available on Apple Silicon macOS hosts"), "check host platform and cpu type")
+	}
+
+	// Check that MDM is enabled
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+	if !appConfig.MDM.EnabledAndConfigured {
+		return nil, fleet.ErrMDMNotConfigured
+	}
+
+	password, err := svc.ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host recovery lock password")
+	}
+
+	if err := svc.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeViewedHostRecoveryLockPassword{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+		},
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create activity for viewed host recovery lock password")
+	}
+
+	return password, nil
+}
