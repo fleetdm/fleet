@@ -7473,11 +7473,6 @@ func NewSetRecoveryLockResultsHandler(
 					"error", errorMsg,
 				)
 			}
-			logger.WarnContext(ctx, "SetRecoveryLock command failed",
-				"host_uuid", hostUUID,
-				"operation_type", opType,
-				"error", errorMsg,
-			)
 		}
 
 		return nil

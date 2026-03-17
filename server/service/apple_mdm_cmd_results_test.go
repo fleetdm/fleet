@@ -471,6 +471,10 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 		ds.GetRecoveryLockOperationTypeFunc = func(_ context.Context, hUUID string) (fleet.MDMOperationType, error) {
 			return fleet.MDMOperationTypeRemove, nil
 		}
+		// Mock HasPendingRecoveryLockRotation to return false (no rotation pending)
+		ds.HasPendingRecoveryLockRotationFunc = func(_ context.Context, hUUID string) (bool, error) {
+			return false, nil
+		}
 		var failedCalled bool
 		var capturedError string
 		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
@@ -502,6 +506,10 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 
 		ds.GetRecoveryLockOperationTypeFunc = func(_ context.Context, hUUID string) (fleet.MDMOperationType, error) {
 			return fleet.MDMOperationTypeRemove, nil
+		}
+		// Mock HasPendingRecoveryLockRotation to return false (no rotation pending)
+		ds.HasPendingRecoveryLockRotationFunc = func(_ context.Context, hUUID string) (bool, error) {
+			return false, nil
 		}
 		var resetCalled bool
 		ds.ResetRecoveryLockForRetryFunc = func(_ context.Context, hUUID string) error {
@@ -537,6 +545,10 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 
 		ds.GetRecoveryLockOperationTypeFunc = func(_ context.Context, hUUID string) (fleet.MDMOperationType, error) {
 			return fleet.MDMOperationTypeRemove, nil
+		}
+		// Mock HasPendingRecoveryLockRotation to return false (no rotation pending)
+		ds.HasPendingRecoveryLockRotationFunc = func(_ context.Context, hUUID string) (bool, error) {
+			return false, nil
 		}
 		var failedCalled bool
 		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
