@@ -56,7 +56,7 @@ import {
   isPlatformLabelNameFromAPI,
 } from "utilities/constants";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { IRegistrationFormData } from "interfaces/registration_form_data";
+import type { IRegistrationFormData } from "interfaces/registration_form_data";
 import CustomLink from "components/CustomLink";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
