@@ -123,6 +123,8 @@ func newCommand() *cli.Command {
 					return nil
 				}
 
+				// Strip .template from filenames (e.g. foo.template.yml -> foo.yml).
+				relPath = strings.Replace(relPath, ".template.", ".", 1)
 				outPath := filepath.Join(outputDir, relPath)
 
 				if d.IsDir() {
