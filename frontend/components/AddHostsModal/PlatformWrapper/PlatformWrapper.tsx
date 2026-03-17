@@ -240,7 +240,7 @@ const PlatformWrapper = ({
       <>
         {packageType !== "plain-osquery" && (
           <span className={`${baseClass}__cta`}>
-            Use this command to generate Fleet's agent.{" "}
+            Use this command to generate Fleet&apos;s agent.{" "}
             <CustomLink
               className={`${baseClass}__command-line-tool`}
               url={`${LEARN_MORE_ABOUT_BASE_LINK}/generate-fleets-agent`}
