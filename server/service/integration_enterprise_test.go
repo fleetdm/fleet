@@ -26429,7 +26429,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.NotNil(t, policy.PatchSoftware)
 		require.Equal(t, titleID, policy.PatchSoftware.SoftwareTitleID)
 		require.Equal(t, fleet.PolicyTypePatch, policy.Type)
-		require.Equal(t, fmt.Sprintf(`SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND version_compare(bundle_short_version, '%s') >= 0;`, version), policy.Query)
+		require.Equal(t, fmt.Sprintf(`SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND version_compare(bundle_short_version, '%s') < 0);`, version), policy.Query)
 		require.Equal(t, name, policy.Name)
 	}
 
@@ -26515,7 +26515,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Equal(t, "macOS - DummyApp up to date", policyResp.Policy.Name)
 		require.Equal(t, "Outdated software might introduce security vulnerabilities or compatibility issues.", policyResp.Policy.Description)
 		require.Equal(t, "Install the latest version from self-service.", *policyResp.Policy.Resolution)
-		require.Contains(t, policyResp.Policy.Query, "SELECT 1 FROM apps WHERE bundle_identifier =")
+		require.Equal(t, policyResp.Policy.Query, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.dummy' AND version_compare(bundle_short_version, '1.0.0') < 0);")
 		require.NotNil(t, policyResp.Policy.PatchSoftware)
 		require.Equal(t, titleID, policyResp.Policy.PatchSoftware.SoftwareTitleID)
 		policyID := policyResp.Policy.ID
