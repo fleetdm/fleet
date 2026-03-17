@@ -17,8 +17,8 @@ logout_users() {
 # Unmount all network filesystems to prevent remote data deletion.
 unmount_network_filesystems() {
     if [ ! -f /proc/mounts ]; then
-        echo "Warning: /proc/mounts not found, cannot detect network mounts"
-        return
+        echo "Error: /proc/mounts not found; aborting wipe to avoid unsafe network data deletion" >&2
+        exit 1
     fi
 
     awk '$3 ~ /^('"$NETWORK_FS_TYPES"')$/ {print $2}' /proc/mounts \
@@ -43,10 +43,16 @@ unmount_network_filesystems() {
 # Returns 0 (true) if the given path resides on a network filesystem.
 is_network_mount() {
     if [ ! -f /proc/mounts ]; then
-        echo "Warning: /proc/mounts not found, falling back to treating mounts as local"
-        return 1
+        echo "Error: /proc/mounts not found; aborting wipe to avoid unsafe network data deletion" >&2
+        exit 1
     fi
     _target="$1"
+    # Resolve the target to a canonical path if possible, so that symlinks
+    # (e.g. /home -> /mnt/nfs/home) do not hide network mounts.
+    if command -v readlink >/dev/null 2>&1; then
+        _resolved=$(readlink -f -- "$_target" 2>/dev/null || printf '%s\n' "$_target")
+        _target="$_resolved"
+    fi
     # Walk up to find the mount point that contains this path.
     _match=$(awk '$3 ~ /^('"$NETWORK_FS_TYPES"')$/ {print $2}' /proc/mounts | while read -r mnt_esc; do
         mnt=$(printf '%b' "$mnt_esc")
