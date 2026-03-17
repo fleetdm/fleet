@@ -80,6 +80,7 @@ export const getTargetType = (
   if (!softwareInstaller) return "All hosts";
 
   return !softwareInstaller.labels_include_any &&
+    !softwareInstaller.labels_include_all &&
     !softwareInstaller.labels_exclude_any
     ? "All hosts"
     : "Custom";
@@ -91,9 +92,9 @@ export const getCustomTarget = (
 ) => {
   if (!softwareInstaller) return "labelsIncludeAny";
 
-  return softwareInstaller.labels_include_any
-    ? "labelsIncludeAny"
-    : "labelsExcludeAny";
+  if (softwareInstaller.labels_include_any) return "labelsIncludeAny";
+  if (softwareInstaller.labels_include_all) return "labelsIncludeAll";
+  return "labelsExcludeAny";
 };
 
 // Used in EditSoftwareModal and PackageForm
@@ -103,14 +104,23 @@ export const generateSelectedLabels = (
   if (
     !softwareInstaller ||
     (!softwareInstaller.labels_include_any &&
+      !softwareInstaller.labels_include_all &&
       !softwareInstaller.labels_exclude_any)
   ) {
     return {};
   }
 
-  const customTypeKey = softwareInstaller.labels_include_any
-    ? "labels_include_any"
-    : "labels_exclude_any";
+  let customTypeKey:
+    | "labels_include_any"
+    | "labels_include_all"
+    | "labels_exclude_any";
+  if (softwareInstaller.labels_include_any) {
+    customTypeKey = "labels_include_any";
+  } else if (softwareInstaller.labels_include_all) {
+    customTypeKey = "labels_include_all";
+  } else {
+    customTypeKey = "labels_exclude_any";
+  }
 
   return (
     softwareInstaller[customTypeKey]?.reduce<Record<string, boolean>>(
@@ -142,7 +152,21 @@ export const generateHelpText = (
     );
   }
 
-  // this is the case for labelsExcludeAny
+  if (customTarget === "labelsIncludeAll") {
+    return !automaticInstall ? (
+      <>
+        Software will only be available for install on hosts that{" "}
+        <b>have all</b> of these labels:
+      </>
+    ) : (
+      <>
+        Software will only be installed on hosts that <b>have all</b> of these
+        labels:
+      </>
+    );
+  }
+
+  // labelsExcludeAny
   return !automaticInstall ? (
     <>
       Software will only be available for install on hosts that{" "}
@@ -161,11 +185,19 @@ export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
   {
     value: "labelsIncludeAny",
     label: "Include any",
+    helpText: "Hosts that have any of the selected labels.",
+    disabled: false,
+  },
+  {
+    value: "labelsIncludeAll",
+    label: "Include all",
+    helpText: "Hosts that have all of the selected labels.",
     disabled: false,
   },
   {
     value: "labelsExcludeAny",
     label: "Exclude any",
+    helpText: "Hosts that don't have any of the selected labels.",
     disabled: false,
   },
 ];
