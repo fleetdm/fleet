@@ -149,6 +149,7 @@ func newCommand() *cli.Command {
 				Name:        "extra",
 				Usage:       "[Experimental] Interactively set up git repo, GitHub/GitLab remote, and Fleet GitOps user",
 				Destination: &extra,
+				Hidden:      true,
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -264,6 +265,7 @@ func newCommand() *cli.Command {
 
 			if _, err := exec.LookPath("git"); err == nil {
 				gitInitArgs := []string{"init", outputDir}
+				// Initialize git repo if necessary.
 				if !hadExistingRepo {
 					gitInitArgs = []string{"init", "-b", "main", outputDir}
 				}
@@ -292,7 +294,7 @@ func newCommand() *cli.Command {
 
 			// Ask which provider the user wants to push to.
 			providerSel := promptui.Select{
-				Label: "Where is your code hosted",
+				Label: "Where will you be hosting your GitOps repository",
 				Items: []string{providerGitHub, providerGitLab},
 			}
 			_, provider, err := providerSel.Run()

@@ -48,7 +48,7 @@ controls:
   ###########################################################
   # Configuration profiles
   #
-  # # Note: This requires activating MDM in your Fleet instance.
+  # Note: This requires activating MDM in your Fleet instance.
   #
   # For more, see:
   #   • https://fleetdm.com/guides/apple-mdm-setup    
@@ -58,11 +58,11 @@ controls:
   ###########################################################
   apple_settings:
     configuration_profiles:
-      # - path: ../platforms/macos/declaration-profiles/Passcide settings.json
-      # - path: ../platforms/macos/configuration-profiles/chrome-enrollment.mobileconfig
+      - paths: ../platforms/macos/declaration-profiles/*.json
+      - paths: ../platforms/macos/configuration-profiles/*.mobileconfig
   windows_settings:
     configuration_profiles:
-      # - path: ../platforms/windows/configuration-profiles/Enable firewall.xml
+      - paths: ../platforms/windows/configuration-profiles/*.xml
 
   ###########################################################
   # Managed disk encryption
