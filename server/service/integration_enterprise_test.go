@@ -1343,6 +1343,92 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	require.Len(t, ts.Policies, 0)
 }
 
+func (s *integrationEnterpriseTestSuite) TestListTeamPoliciesAutomationTypeSoftware() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a team
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: "team_automation_type_" + t.Name(),
+	})
+	require.NoError(t, err)
+
+	// Upload a software installer for the software install policy
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "some install script",
+		Filename:      "ruby.deb",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+	rubyTitleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
+
+	// Upload a second software installer for the patch policy (supported for FMAs)
+	payload2 := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "some install script",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, payload2, http.StatusOK, "")
+	dummyTitleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
+	// Create a Fleet Maintained App and associate it with the dummy installer
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
+			VALUES ('DummyApp', 'dummy-autofilter/darwin', 'darwin', 'com.example.dummy-autofilter')`)
+		require.NoError(t, err)
+		id, err := res.LastInsertId()
+		require.NoError(t, err)
+		_, err = q.ExecContext(ctx, `UPDATE software_installers SET fleet_maintained_app_id = ? WHERE global_or_team_id = ? AND title_id = ?`, id, team.ID, dummyTitleID)
+		require.NoError(t, err)
+		return nil
+	})
+
+	// Create a regular policy (no automation)
+	regularPolicy := teamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), teamPolicyRequest{
+		Name:  "regular policy",
+		Query: "SELECT 1;",
+	}, http.StatusOK, &regularPolicy)
+
+	// Create a software install policy
+	installPolicy := teamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), teamPolicyRequest{
+		Name:            "install software policy",
+		Query:           "SELECT 1 FROM some_table;",
+		SoftwareTitleID: &rubyTitleID,
+	}, http.StatusOK, &installPolicy)
+	require.NotNil(t, installPolicy.Policy.InstallSoftware)
+
+	// Create a patch policy
+	patchPolicy := teamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), teamPolicyRequest{
+		Type:                 ptr.String("patch"),
+		PatchSoftwareTitleID: &dummyTitleID,
+	}, http.StatusOK, &patchPolicy)
+	require.NotNil(t, patchPolicy.Policy.PatchSoftware)
+	require.Equal(t, fleet.PolicyTypePatch, patchPolicy.Policy.Type)
+
+	// List all policies (no filter) - should return all 3
+	listResp := listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Policies, 3)
+
+	// List with automation_type=software - should return install policy and patch policy only
+	listResp = listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, &listResp, "automation_type", "software")
+	require.Len(t, listResp.Policies, 2)
+	policyIDs := []uint{listResp.Policies[0].ID, listResp.Policies[1].ID}
+	assert.Contains(t, policyIDs, installPolicy.Policy.ID)
+	assert.Contains(t, policyIDs, patchPolicy.Policy.ID)
+
+	// List with merge_inherited and automation_type=software
+	listResp = listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, &listResp, "merge_inherited", "true", "automation_type", "software")
+	require.Len(t, listResp.Policies, 2)
+	policyIDs = []uint{listResp.Policies[0].ID, listResp.Policies[1].ID}
+	assert.Contains(t, policyIDs, installPolicy.Policy.ID)
+	assert.Contains(t, policyIDs, patchPolicy.Policy.ID)
+}
+
 func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
 	t := s.T()
 	ctx := context.Background()
@@ -26529,7 +26615,8 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		// remove patch policy and delete installer
 		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/delete", teamID), deleteTeamPoliciesRequest{
 			TeamID: teamID,
-			IDs:    []uint{policyResp.Policy.ID}}, http.StatusOK, &deleteTeamPoliciesResponse{})
+			IDs:    []uint{policyResp.Policy.ID},
+		}, http.StatusOK, &deleteTeamPoliciesResponse{})
 
 		// can delete installer successfully
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", strconv.Itoa(int(teamID))) //nolint:gosec // dismiss G115
@@ -26603,7 +26690,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 		title := getActiveTitleForTeam(team.ID, "zoom")
 
-		var listPolResp = listTeamPoliciesResponse{}
+		listPolResp := listTeamPoliciesResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
@@ -26710,7 +26797,6 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
-
 	})
 }
 
