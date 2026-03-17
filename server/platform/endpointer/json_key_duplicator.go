@@ -131,25 +131,31 @@ func DuplicateJSONKeys(data []byte, rules []AliasRule, opts ...DuplicateJSONKeys
 						return data
 					}
 
-					// Read the value, capturing it for deferred duplication.
+					// Read the raw value.
 					val, err := dec.ReadValue()
 					if err != nil {
 						return data
 					}
 
-					// Recursively duplicate keys within the value.
-					processedVal := DuplicateJSONKeys([]byte(val), rules, opts...)
-
-					// Write the value for the old key.
-					if err := enc.WriteValue(jsontext.Value(processedVal)); err != nil {
+					// Write the original value as-is for the old key — it
+					// already uses old names from json.Marshal, so no
+					// transformation is needed.
+					if err := enc.WriteValue(val); err != nil {
 						return data
+					}
+
+					// For the new key, rename nested keys to new names only
+					// (removing old names) so the new-name subtree is clean.
+					newVal, renameErr := RewriteOldToNewKeys([]byte(val), rules)
+					if renameErr != nil {
+						newVal = []byte(val) // fall back to original value on error
 					}
 
 					// Defer the duplicate for emission at '}'.
 					if len(scopes) > 0 {
 						scopes[len(scopes)-1].pending = append(
 							scopes[len(scopes)-1].pending,
-							pendingDup{newKey: newKey, value: jsontext.Value(processedVal)},
+							pendingDup{newKey: newKey, value: jsontext.Value(newVal)},
 						)
 					}
 				} else { // !shouldDuplicate (no old key match) — just write the key as-is

@@ -36,6 +36,7 @@ const RECOVERY_LOCK_TOOLTIP_CONTENT = (
       text="Learn more"
       url={`${LEARN_MORE_ABOUT_BASE_LINK}/recovery-lock-passwords`}
       newTab
+      variant="tooltip-link"
     />
   </>
 );

@@ -169,8 +169,8 @@ const Advanced = ({
     // Formatting of API not UI
     const formDataToSubmit = {
       server_settings: {
-        live_query_disabled: disableLiveQuery,
-        query_reports_disabled: disableQueryReports,
+        live_reporting_disabled: disableLiveQuery,
+        discard_reports_data: disableQueryReports,
         scripts_disabled: disableScripts,
         deferred_save_host: appConfig.server_settings.deferred_save_host,
         ai_features_disabled: disableAIFeatures,
