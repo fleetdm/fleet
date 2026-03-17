@@ -59,7 +59,7 @@ type PolicyPayload struct {
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type string
-	// PatchSoftwareTitleID is the title id of the Fleet maintained app chcked by a patch policy.
+	// PatchSoftwareTitleID is the title id of the Fleet maintained app checked by a patch policy.
 	//
 	// Only applies to team policies with the patch type.
 	PatchSoftwareTitleID *uint

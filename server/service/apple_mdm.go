@@ -3463,6 +3463,11 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 			return nil
 		}
 
+		svc.logger.InfoContext(r.Context, "resetting mdm enrollment for old SCEP renewal", "host_uuid", r.ID)
+		if err := svc.ds.MDMResetEnrollment(r.Context, r.ID, false); err != nil {
+			return ctxerr.Wrap(r.Context, err, "failed resetting enrollment for device with old SCEP renewal", "host_uuid", r.ID)
+		}
+
 		// Device is awaiting configuration (wiped DEP device re-enrolling). The pending SCEP
 		// renewal was from the previous enrollment. Continue the normal enrollment flow so
 		// the device gets released from the setup assistant.
@@ -3495,7 +3500,9 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	//         We do check the license before actually _running_ setup experience items.
 	if enqueueSetupExperienceItems {
 		// Enqueue setup experience items and mark the host as being in setup experience
-		hasSetupExpItems, err = svc.ds.EnqueueSetupExperienceItems(r.Context, info.Platform, r.ID, info.TeamID)
+		// NOTE: we don't have PlatformLike field for `info`, but that's fine as this is Apple-specific
+		// flow and the platform is always the same as platform-like.
+		hasSetupExpItems, err = svc.ds.EnqueueSetupExperienceItems(r.Context, info.Platform, info.Platform, r.ID, info.TeamID)
 		if err != nil {
 			return ctxerr.Wrap(r.Context, err, "queueing setup experience tasks")
 		}
