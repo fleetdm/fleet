@@ -1047,6 +1047,18 @@ type DeleteHostRecoveryLockPasswordFunc func(ctx context.Context, hostUUID strin
 
 type GetRecoveryLockOperationTypeFunc func(ctx context.Context, hostUUID string) (fleet.MDMOperationType, error)
 
+type InitiateRecoveryLockRotationFunc func(ctx context.Context, hostUUID string, newPassword string) error
+
+type CompleteRecoveryLockRotationFunc func(ctx context.Context, hostUUID string) error
+
+type FailRecoveryLockRotationFunc func(ctx context.Context, hostUUID string, errorMsg string) error
+
+type ClearRecoveryLockRotationFunc func(ctx context.Context, hostUUID string) error
+
+type GetRecoveryLockRotationStatusFunc func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockRotationStatus, error)
+
+type HasPendingRecoveryLockRotationFunc func(ctx context.Context, hostUUID string) (bool, error)
+
 type ResetRecoveryLockForRetryFunc func(ctx context.Context, hostUUID string) error
 
 type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error
@@ -3353,6 +3365,24 @@ type DataStore struct {
 
 	GetRecoveryLockOperationTypeFunc        GetRecoveryLockOperationTypeFunc
 	GetRecoveryLockOperationTypeFuncInvoked bool
+
+	InitiateRecoveryLockRotationFunc        InitiateRecoveryLockRotationFunc
+	InitiateRecoveryLockRotationFuncInvoked bool
+
+	CompleteRecoveryLockRotationFunc        CompleteRecoveryLockRotationFunc
+	CompleteRecoveryLockRotationFuncInvoked bool
+
+	FailRecoveryLockRotationFunc        FailRecoveryLockRotationFunc
+	FailRecoveryLockRotationFuncInvoked bool
+
+	ClearRecoveryLockRotationFunc        ClearRecoveryLockRotationFunc
+	ClearRecoveryLockRotationFuncInvoked bool
+
+	GetRecoveryLockRotationStatusFunc        GetRecoveryLockRotationStatusFunc
+	GetRecoveryLockRotationStatusFuncInvoked bool
+
+	HasPendingRecoveryLockRotationFunc        HasPendingRecoveryLockRotationFunc
+	HasPendingRecoveryLockRotationFuncInvoked bool
 
 	ResetRecoveryLockForRetryFunc        ResetRecoveryLockForRetryFunc
 	ResetRecoveryLockForRetryFuncInvoked bool
@@ -8094,6 +8124,48 @@ func (s *DataStore) GetRecoveryLockOperationType(ctx context.Context, hostUUID s
 	s.GetRecoveryLockOperationTypeFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetRecoveryLockOperationTypeFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) InitiateRecoveryLockRotation(ctx context.Context, hostUUID string, newPassword string) error {
+	s.mu.Lock()
+	s.InitiateRecoveryLockRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.InitiateRecoveryLockRotationFunc(ctx, hostUUID, newPassword)
+}
+
+func (s *DataStore) CompleteRecoveryLockRotation(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.CompleteRecoveryLockRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.CompleteRecoveryLockRotationFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) FailRecoveryLockRotation(ctx context.Context, hostUUID string, errorMsg string) error {
+	s.mu.Lock()
+	s.FailRecoveryLockRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.FailRecoveryLockRotationFunc(ctx, hostUUID, errorMsg)
+}
+
+func (s *DataStore) ClearRecoveryLockRotation(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.ClearRecoveryLockRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearRecoveryLockRotationFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetRecoveryLockRotationStatus(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockRotationStatus, error) {
+	s.mu.Lock()
+	s.GetRecoveryLockRotationStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetRecoveryLockRotationStatusFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) HasPendingRecoveryLockRotation(ctx context.Context, hostUUID string) (bool, error) {
+	s.mu.Lock()
+	s.HasPendingRecoveryLockRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasPendingRecoveryLockRotationFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error {

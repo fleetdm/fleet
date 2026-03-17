@@ -1546,6 +1546,25 @@ type Datastore interface {
 	// Used by the result handler to determine if this was a set or clear operation.
 	GetRecoveryLockOperationType(ctx context.Context, hostUUID string) (MDMOperationType, error)
 
+	// InitiateRecoveryLockRotation stores a new pending password for rotation.
+	// Validates: has verified/failed install password, no pending rotation, not in remove operation.
+	InitiateRecoveryLockRotation(ctx context.Context, hostUUID string, newPassword string) error
+
+	// CompleteRecoveryLockRotation moves pending password to active after MDM acknowledgment.
+	// Sets: encrypted_password = pending_encrypted_password, clears pending columns, status = verified.
+	CompleteRecoveryLockRotation(ctx context.Context, hostUUID string) error
+
+	// FailRecoveryLockRotation marks rotation as failed, keeps pending password for potential retry.
+	FailRecoveryLockRotation(ctx context.Context, hostUUID string, errorMsg string) error
+
+	// ClearRecoveryLockRotation removes pending rotation (e.g., if command enqueue fails).
+	ClearRecoveryLockRotation(ctx context.Context, hostUUID string) error
+
+	// GetRecoveryLockRotationStatus returns current rotation state for API validation.
+	GetRecoveryLockRotationStatus(ctx context.Context, hostUUID string) (*HostRecoveryLockRotationStatus, error)
+
+	// HasPendingRecoveryLockRotation returns true if the host has a pending recovery lock rotation.
+	HasPendingRecoveryLockRotation(ctx context.Context, hostUUID string) (bool, error)
 	// ResetRecoveryLockForRetry resets a failed clear operation back to install/verified
 	// so it will be picked up by ClaimHostsForRecoveryLockClear on the next cron cycle.
 	// This is used when a clear command fails with a transient error (not password mismatch).
