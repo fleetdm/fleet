@@ -3663,6 +3663,8 @@ func sqlJoinRecoveryLockStatus() string {
 			MAX(IF(status = ` + verified + `, 1, 0)) AS rl_verified
 		FROM
 			host_recovery_key_passwords
+		WHERE
+			deleted = 0
 		GROUP BY
 			host_uuid) hrlp ON h.uuid = hrlp.host_uuid
 `
