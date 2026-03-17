@@ -21,7 +21,11 @@ unmount_network_filesystems() {
         return
     fi
 
-    awk '$3 ~ /^('"$NETWORK_FS_TYPES"')$/ {print $2}' /proc/mounts | while read -r mnt; do
+    awk '$3 ~ /^('"$NETWORK_FS_TYPES"')$/ {print $2}' /proc/mounts \
+        | awk '{print length, $0}' \
+        | sort -nr \
+        | cut -d" " -f2- \
+        | while read -r mnt; do
         echo "Unmounting network filesystem: $mnt"
         umount -f -l "$mnt" 2>/dev/null || echo "Warning: failed to unmount $mnt"
     done
