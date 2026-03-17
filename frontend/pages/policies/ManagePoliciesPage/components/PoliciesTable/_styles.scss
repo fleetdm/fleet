@@ -26,6 +26,18 @@
   }
 }
 
+.automations-cell {
+  display: block;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &--none {
+    color: $ui-fleet-black-50;
+  }
+}
+
 .no-team-policy {
   border: 1px solid #e2e4ea;
   box-sizing: border-box;

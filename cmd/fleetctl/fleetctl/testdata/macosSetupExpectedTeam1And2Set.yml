@@ -16,22 +16,22 @@ spec:
       enable_disk_encryption: false
       enable_recovery_lock_password: false
       windows_require_bitlocker_pin: null
-      macos_settings:
-        custom_settings: null
+      apple_settings:
+        configuration_profiles: null
       windows_settings:
-        custom_settings: null
+        configuration_profiles: null
       android_settings:
-        custom_settings: null
+        configuration_profiles: null
         certificates: null
-      macos_setup:
-        bootstrap_package: %s
+      setup_experience:
+        macos_bootstrap_package: %s
         enable_end_user_authentication: false
         lock_end_user_info: false
-        macos_setup_assistant: %s
-        manual_agent_install: null
-        enable_release_device_manually: false
+        apple_setup_assistant: %s
+        macos_manual_agent_install: null
+        apple_enable_release_device_manually: false
         require_all_software_macos: false
-        script: null
+        macos_script: null
         software: null
       macos_updates:
         deadline: null
@@ -124,20 +124,20 @@ spec:
       enable_disk_encryption: false
       enable_recovery_lock_password: false
       windows_require_bitlocker_pin: null
-      macos_settings:
-        custom_settings: null
+      apple_settings:
+        configuration_profiles: null
       windows_settings:
-        custom_settings: null
+        configuration_profiles: null
       android_settings:
-        custom_settings: null
+        configuration_profiles: null
         certificates: null
-      macos_setup:
-        bootstrap_package: %s
-        macos_setup_assistant: %s
-        manual_agent_install: null
-        enable_release_device_manually: false
+      setup_experience:
+        macos_bootstrap_package: %s
+        apple_setup_assistant: %s
+        macos_manual_agent_install: null
+        apple_enable_release_device_manually: false
         lock_end_user_info: false
-        script: null
+        macos_script: null
         software: null
       macos_updates:
         deadline: null

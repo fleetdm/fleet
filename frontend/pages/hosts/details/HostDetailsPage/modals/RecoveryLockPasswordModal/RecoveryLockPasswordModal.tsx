@@ -60,10 +60,11 @@ const RecoveryLockPasswordModal = ({
       );
       onCancel();
     } catch (e) {
-      renderFlash(
-        "error",
-        "Couldn't send request to rotate Recovery Lock password. Please try again."
-      );
+      const msg = getErrorReason(e).includes("already in progress")
+        ? "Recovery lock password rotation is already in progress for this host."
+        : "Couldn't send request to rotate Recovery Lock password. Please try again.";
+
+      renderFlash("error", msg);
     }
     setIsRotating(false);
   };
@@ -109,9 +110,7 @@ const RecoveryLockPasswordModal = ({
     >
       {isLoading && <Spinner />}
       {recoveryLockPasswordError ? (
-        <DataError
-          description={getErrorReason(recoveryLockPasswordError) || undefined}
-        />
+        <DataError />
       ) : (
         !isLoading && (
           <>

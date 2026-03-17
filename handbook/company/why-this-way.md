@@ -178,6 +178,14 @@ Here are a few of the drawbacks that we have experienced when generating docs vi
 - Autogenerating docs from code comments is not always the best way to make sure reference docs accurately reflect the API.
 - As the Fleet REST API, documentation, and tools mature, a more declarative format such as OpenAPI might become the source of truth, but only after investing in a format and processes to make it continually accurate as well as visible, accessible, and modifiable for all contributors.
 
+## Why no YAML schema for GitOps? 
+
+Fleet intentionally doesn’t use a formal YAML schema (ex. [JSON Schema](https://json-schema.org/)) for GitOps. While a schema might appear cleaner, it adds tooling, automation, and maintenance overhead that slows development. For the problem we’re solving, catching extraneous or misplaced keys, it’s simpler and faster to [validate directly in code](https://github.com/fleetdm/fleet/blob/49a6598acdb0c296bd85307614c3cce7be510017/pkg/spec/gitops_validate_test.go) with explicit checks at each level of the YAML.
+
+This approach also produces better error messages. Most of our users encounter validation failures in CI logs or GitHub Actions, not in an editor with autocomplete. Generic schema errors can be confusing, especially for people new to GitOps or YAML. Procedural validation lets Fleet return clear, specific messages: a key is misspelled, it’s in the wrong section, or these are the valid keys allowed here.
+
+Keeping validation in code also makes the behavior easier to understand and change. Engineers can see exactly when validation runs and what conditions are checked, and each validation can return a tailored message that teaches the user how to fix the configuration.
+
 
 ## Why group Slack channels?
 
