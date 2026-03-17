@@ -4753,11 +4753,25 @@ func (s *integrationTestSuite) TestLabels() {
 			&fleet.LabelPayload{
 				Name:     "amazing label",
 				Query:    "select 1",
-				Platform: "linux",
+				Platform: "bados",
 			},
 			http.StatusUnprocessableEntity,
 			&createResp,
 		)
+
+		// "linux" is a valid platform (matches all Linux distros)
+		s.DoJSON(
+			"POST",
+			"/api/latest/fleet/labels",
+			&fleet.LabelPayload{
+				Name:     "linux label",
+				Query:    "select 1",
+				Platform: "linux",
+			},
+			http.StatusOK,
+			&createResp,
+		)
+		assert.NotZero(t, createResp.Label.ID)
 
 		// create a valid dynamic label
 		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name(), Query: "select 1"}, http.StatusOK, &createResp)
@@ -5487,7 +5501,7 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 				{
 					Name:                name,
 					Query:               "select 1",
-					Platform:            "linux",
+					Platform:            "bados",
 					LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 				},
 			},
