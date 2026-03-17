@@ -3655,9 +3655,10 @@ func sqlJoinRecoveryLockStatus() string {
 	return `
 	LEFT JOIN (
 		-- recovery lock statuses grouped by host uuid
+		-- NULL status is treated as pending (retry state after failed enqueue)
 		SELECT
 			host_uuid,
-			MAX(IF(status = ` + pending + `, 1, 0)) AS rl_pending,
+			MAX(IF(status IS NULL OR status = ` + pending + `, 1, 0)) AS rl_pending,
 			MAX(IF(status = ` + failed + `, 1, 0)) AS rl_failed,
 			MAX(IF(status = ` + verifying + `, 1, 0)) AS rl_verifying,
 			MAX(IF(status = ` + verified + `, 1, 0)) AS rl_verified
