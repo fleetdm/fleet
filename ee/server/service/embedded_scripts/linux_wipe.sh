@@ -53,7 +53,11 @@ safe_rm() {
     if rm --one-file-system -rf "$_path" 2>/dev/null; then
         return
     fi
-    find "$_path" -xdev -mindepth 1 -exec rm -rf {} + 2>/dev/null
+    # Fallback for non-GNU rm (e.g. BusyBox): use find -xdev to stay on the
+    # same filesystem. Avoid rm -rf so we never recurse into nested mounts
+    # whose mountpoint entries live on the local device.
+    find "$_path" -xdev -depth -mindepth 1 ! -type d -exec rm -f {} + 2>/dev/null
+    find "$_path" -xdev -depth -mindepth 1 -type d -exec rmdir {} + 2>/dev/null
     rmdir "$_path" 2>/dev/null
 }
 
@@ -112,7 +116,7 @@ wipe_all_files() {
 }
 
 if [ "$1" = "wipe" ]; then
-    # We are in the detatched child process
+    # We are in the detached child process
     wipe_all_files
 else
     # We are in the parent shell, logout users and begin the detached
