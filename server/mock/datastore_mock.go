@@ -641,7 +641,7 @@ type GetPoliciesWithAssociatedScriptFunc func(ctx context.Context, teamID uint, 
 
 type GetCalendarPoliciesFunc func(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error)
 
-type GetPoliciesForConditionalAccessFunc func(ctx context.Context, teamID uint) ([]uint, error)
+type GetPoliciesForConditionalAccessFunc func(ctx context.Context, teamID uint, platform string) ([]uint, error)
 
 type GetPatchPolicyFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.PatchPolicyData, error)
 
@@ -6670,11 +6670,11 @@ func (s *DataStore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fle
 	return s.GetCalendarPoliciesFunc(ctx, teamID)
 }
 
-func (s *DataStore) GetPoliciesForConditionalAccess(ctx context.Context, teamID uint) ([]uint, error) {
+func (s *DataStore) GetPoliciesForConditionalAccess(ctx context.Context, teamID uint, platform string) ([]uint, error) {
 	s.mu.Lock()
 	s.GetPoliciesForConditionalAccessFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetPoliciesForConditionalAccessFunc(ctx, teamID)
+	return s.GetPoliciesForConditionalAccessFunc(ctx, teamID, platform)
 }
 
 func (s *DataStore) GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*fleet.PatchPolicyData, error) {
