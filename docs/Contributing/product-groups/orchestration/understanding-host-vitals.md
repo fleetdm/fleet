@@ -87,6 +87,15 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';
 ```
 
+## conditional_access_microsoft_device_id_windows
+
+- Platforms: windows
+
+- Query:
+```sql
+SELECT subject AS device_id FROM certificates WHERE issuer LIKE 'net + windows + MS-Organization-Access%' LIMIT 1;
+```
+
 ## disk_encryption_darwin
 
 - Platforms: darwin
