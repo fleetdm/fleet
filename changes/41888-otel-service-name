@@ -1,0 +1,1 @@
+* Allow OTEL service name to be overridden with standard OTEL OTEL_SERVICE_NAME env var.
