@@ -1,3 +1,15 @@
+## Fleet 4.82.1 (Mar 18, 2026)
+
+### Bug fixes
+
+- Fixed a crash on the "My device" page for Fleet Free instances. The page returned a 402 error when the host was assigned to a team because the device endpoint called a premium-only API, and also crashed when accessing undefined policies data.
+- Stopped duplicate Fleet-maintained app entries from showing up in setup experience.
+- Reduced database contention during the vulnerability cron.
+- Added a secondary index on `host_software(software_id)` to improve query performance.
+- Fixed an issue where the "add Fleet-maintained app" endpoint incorrectly added software to the Unassigned fleet.
+- Muted deprecation warnings for body params when the "deprecated-field-names" topic is not enabled.
+Fixed custom app icons not getting set via GitOps when the same software title exists in multiple teams.
+
 ## Fleet 4.82.0 (Mar 11, 2026)
 
 ### IT Admins
