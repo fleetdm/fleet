@@ -55,6 +55,15 @@ controls:
   #   • https://fleetdm.com/guides/windows-mdm-setup
   #   • https://fleetdm.com/docs/configuration/yaml-files#apple-settings-and-windows-settings
   #
+  # Profiles can be scoped using labels.  For example:
+  # ```
+  # - path: ../platforms/macos/configuration-profiles/1password-managed-settings.mobileconfig
+  #   labels_include_any:
+  #     - "Macs with 1Password installed"
+  # - paths: ../platforms/windows/configuration-profiles/*.xml
+  #   labels_include_all:
+  #     - "x86-based Windows hosts"
+  # ```  
   ###########################################################
   apple_settings:
     configuration_profiles:
