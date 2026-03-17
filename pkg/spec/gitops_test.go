@@ -2332,6 +2332,36 @@ func TestGitOpsGlobProfiles(t *testing.T) {
 		assert.Contains(t, winSettings.CustomSettings.Value[1].Path, "beta.xml")
 	})
 
+	t.Run("android_profiles", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		profilesDir := filepath.Join(dir, "profiles")
+		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "alpha.xml"), []byte("<xml/>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "beta.json"), []byte("{}"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "skip.txt"), []byte("nope"), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  android_settings:
+    configuration_profiles:
+      - paths: profiles/*
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+		androidSettings, ok := result.Controls.AndroidSettings.(fleet.AndroidSettings)
+		require.True(t, ok)
+		require.True(t, androidSettings.CustomSettings.Valid)
+		require.Len(t, androidSettings.CustomSettings.Value, 2)
+
+		// Sorted alphabetically by path
+		assert.Contains(t, androidSettings.CustomSettings.Value[0].Path, "alpha.xml")
+		assert.Contains(t, androidSettings.CustomSettings.Value[1].Path, "beta.json")
+	})
+
 	t.Run("macos_profiles_with_labels", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()

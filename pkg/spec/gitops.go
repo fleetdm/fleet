@@ -1008,7 +1008,8 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		if androidSettings.CustomSettings.Valid {
 			var errs []error
 			androidSettings.CustomSettings.Value, errs = expandGlobPatternsInProfiles(androidSettings.CustomSettings.Value, map[string]bool{
-				".xml": true,
+				".xml":  true,
+				".json": true,
 			}, controlsDir, logFn)
 			multiError = multierror.Append(multiError, errs...)
 			for i := range androidSettings.CustomSettings.Value {
