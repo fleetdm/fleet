@@ -107,14 +107,15 @@ jobs:
               versionsToCheck.push({ version: orbitVersion, type: 'orbit' });
             }
 
+            // Special case: "4.x" means all 4.x versions, which is released
+            if (reportedVersion === '4.x') {
+              return;
+            }
+
             // If no valid versions to check, tag as unreleased
             if (versionsToCheck.length === 0) {
               await tagAsUnreleased();
               return;
-            }
-
-            if (reportedVersion === '4.x') {
-              return; // this is "all 4.x versions" so it's released
             }
 
             // Determine what we need to fetch based on versions present
@@ -124,11 +125,10 @@ jobs:
             // Fetch Fleet releases only if we have a Fleet version to check
             let releasedFleetVersions = [];
             if (needsFleetReleases) {
-              const { data: allReleases } = await github.rest.repos.listReleases({
+              const allReleases = await github.paginate(github.rest.repos.listReleases, {
                 owner: "fleetdm",
                 repo: "fleet",
-                per_page: 100,
-                page: 1
+                per_page: 100
               });
 
               // Extract version numbers from Fleet releases
@@ -147,11 +147,10 @@ jobs:
             // Fetch tags only if we have an orbit/fleetd version to check
             let releasedOrbitVersions = [];
             if (needsOrbitTags) {
-              const { data: allTags } = await github.rest.repos.listTags({
+              const allTags = await github.paginate(github.rest.repos.listTags, {
                 owner: "fleetdm",
                 repo: "fleet",
-                per_page: 100,
-                page: 1
+                per_page: 100
               });
 
               // Extract orbit/fleetd versions from tags
