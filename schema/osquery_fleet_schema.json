@@ -7480,7 +7480,7 @@
     "platforms": [
       "darwin"
     ],
-    "description": "Returns available and total disk capacity on macOS using NSURLVolumeAvailableCapacityForImportantUsageKey, which includes purgeable space and matches what macOS reports in Finder's \"Get Info\" dialog.",
+    "description": "Returns available and total disk capacity on macOS using NSURLVolumeAvailableCapacityForImportantUsageKey, which includes purgeable space and matches what macOS reports in Finder's \"Get Info\" dialog. For Windows disk space, use the [`logical_drives`](https://fleetdm.com/tables/logical_drives) table. For Linux, use the [`mounts`](https://fleetdm.com/tables/mounts) table.",
     "examples": "```\nSELECT * FROM disk_space;\n```",
     "columns": [
       {
