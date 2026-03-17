@@ -63,9 +63,14 @@ is_network_mount() {
                 esac
                 ;;
             *)
-                case "$_target" in
-                    "$mnt"|"$mnt"/*) echo "$mnt"; break ;;
-                esac
+                # Normalize mountpoint by removing any trailing slash (except for root,
+                # which is already handled above) and perform literal prefix checks
+                # so that glob metacharacters in $mnt do not affect matching.
+                mnt_no_slash=${mnt%/}
+                if [ "$_target" = "$mnt_no_slash" ] || [ "${_target#"$mnt_no_slash"/}" != "$_target" ]; then
+                    echo "$mnt_no_slash"
+                    break
+                fi
                 ;;
         esac
     done)
