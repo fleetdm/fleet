@@ -299,6 +299,7 @@ All campaigns must utilize the following status values. Custom statuses outside 
 | **Sent** | No | Awareness | 2 \- Aware | The email was sent, the ad was displayed, or the post was published. |
 | **Interacted** | **Yes** | Interest | **3 \- Intrigued**  | **(Light Touch)** Passive engagement. They clicked a link, liked a post, or visited a high-value page, but **did not exchange contact** info. |
 | **Registered** | **Yes** | Consideration | **3 \- Intrigued** | **(Conversion)** The individual explicitly exchanged data for access (Form Fill, Sign Up, RSVP). |
+| **Registered for a conference** | **Yes** | Consideration | **3 \- Intrigued** | The individual registered for a conference where Fleet has a presence (Booth, Speaking Session, Sponsored Event). |
 | **Attended** | **Yes** | Evaluation | 3 \- Intrigued | The individual showed up to a synchronous event (Booth Scan, Webinar, Live Event, Dinner). |
 | **Engaged** | **Yes** | Intent | **4 \- Has use case** | **(Deep Interaction)** High-effort engagement. They asked a question, made a meaningful comment, or engaged in a conversation. Hot Lead from Event |
 | **Meeting Requested** | **Yes** | Purchase | 5 \- Personally confident | The individual explicitly requested a sales contact or a demo. |
