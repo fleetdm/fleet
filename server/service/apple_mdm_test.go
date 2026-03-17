@@ -6984,6 +6984,7 @@ func TestMDMTokenUpdateSCEPRenewal(t *testing.T) {
 		require.True(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
 		require.True(t, ds.NewJobFuncInvoked)
 		require.True(t, newActivityFuncInvoked)
+		require.True(t, ds.MDMResetEnrollmentFuncInvoked)
 	})
 
 	t.Run("not awaiting configuration short-circuits", func(t *testing.T) {

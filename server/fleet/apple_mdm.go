@@ -1145,12 +1145,3 @@ type HostRecoveryLockPasswordPayload struct {
 	HostUUID string
 	Password string
 }
-
-// Determines if the given identifiers correspond to a personal enrollment (as opposed to a device enrollment) and returns the appropriate UUID and serial values to use for the host record.
-func DetermineAppleUUID(udid string, hardwareSerial string, enrollmentId string) (uuid string, serial string, isPersonalEnrollment bool) {
-	if udid == "" && hardwareSerial == "" && enrollmentId != "" {
-		return enrollmentId, enrollmentId, true
-	}
-
-	return udid, hardwareSerial, false
-}
