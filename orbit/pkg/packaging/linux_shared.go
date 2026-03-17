@@ -207,6 +207,23 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		},
 	}
 
+	// If Fleet Desktop is enabled, add a stable symlink for the systemd user service.
+	// The service unit references /opt/orbit/bin/desktop/fleet-desktop which symlinks
+	// to the actual versioned binary under the TUF target directory.
+	if opt.Desktop {
+		desktopTarget := updateOpt.Targets[constant.DesktopTUFTargetName]
+		contents = append(contents,
+			&files.Content{
+				Source:      "/opt/orbit/bin/desktop/" + desktopTarget.Platform + "/" + opt.DesktopChannel + "/fleet-desktop/" + constant.DesktopAppExecName,
+				Destination: "/opt/orbit/bin/desktop/fleet-desktop",
+				Type:        "symlink",
+				FileInfo: &files.ContentFileInfo{
+					Mode: constant.DefaultExecutableMode | os.ModeSymlink,
+				},
+			},
+		)
+	}
+
 	// Add empty folders to be created.
 	for _, emptyFolder := range []string{"/var/log/osquery", "/var/log/orbit"} {
 		contents = append(contents, (&files.Content{
@@ -339,6 +356,37 @@ WantedBy=multi-user.target
 		return fmt.Errorf("write file: %w", err)
 	}
 
+	// If Fleet Desktop is enabled, install a systemd user service unit.
+	// This runs fleet-desktop in the user's own session context, inheriting
+	// DISPLAY, WAYLAND_DISPLAY, DBUS_SESSION_BUS_ADDRESS, etc. naturally.
+	if opt.Desktop {
+		userUnitRoot := filepath.Join(rootPath, "usr", "lib", "systemd", "user")
+		if err := secure.MkdirAll(userUnitRoot, constant.DefaultDirMode); err != nil {
+			return fmt.Errorf("create user systemd dir: %w", err)
+		}
+		if err := os.WriteFile(
+			filepath.Join(userUnitRoot, "fleet-desktop.service"),
+			[]byte(`[Unit]
+Description=Fleet Desktop
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+EnvironmentFile=/opt/orbit/desktop.env
+ExecStart=/opt/orbit/bin/desktop/fleet-desktop
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target
+`),
+			constant.DefaultSystemdUnitMode,
+		); err != nil {
+			return fmt.Errorf("write fleet-desktop user service file: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -403,6 +451,25 @@ if command -v systemctl >/dev/null 2>&1; then
   ` + postInstallSafeRestart + `
   systemctl enable orbit.service 2>&1
 {{- end}}
+{{ if .Desktop -}}
+  # Enable Fleet Desktop as a systemd user service for all users.
+  # --global means it will auto-start for every user who logs into a graphical session.
+  systemctl --global enable fleet-desktop.service 2>&1 || true
+
+  # Start fleet-desktop for any currently logged-in GUI users.
+  for uid in $(loginctl list-users --no-legend --no-pager | awk '{print $1}'); do
+    username=$(id -nu "$uid" 2>/dev/null) || continue
+    # Skip system users
+    case "$username" in
+      root|gdm|gdm-greeter|lightdm|sddm) continue ;;
+    esac
+    # Check if user has a runtime dir (indicating active session)
+    if [ -d "/run/user/$uid" ]; then
+      runuser -u "$username" -- env XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user daemon-reload 2>&1 || true
+      runuser -u "$username" -- env XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user start fleet-desktop.service 2>&1 || true
+    fi
+  done
+{{- end}}
 fi
 `))
 
@@ -441,14 +508,27 @@ func writePreRemove(pkger nfpm.Packager, path string) error {
 	// https://docs.fedoraproject.org/en-US/packaging-guidelines/Scriptlets/#_syntax
 	// https://docs.fedoraproject.org/en-US/packaging-guidelines/Scriptlets/#ordering
 	//
-	// "pkill fleet-desktop" is required because the application
-	// runs as user (separate from sudo command that launched it),
-	// so on some systems it's not killed properly.
+	// "pkill fleet-desktop" is kept as a fallback for older installations that may
+	// still run desktop via the old sudo/runuser approach. For newer installs, the
+	// systemd user service is stopped via systemctl --global disable.
 	preRemoveScript := `#!/bin/sh
 
 case "${1:-}" in
   1|remove|deconfigure)
+    # Disable the fleet-desktop user service for all users.
+    systemctl --global disable fleet-desktop.service 2>/dev/null || true
+    # Stop fleet-desktop for any currently logged-in users.
+    for uid in $(loginctl list-users --no-legend --no-pager 2>/dev/null | awk '{print $1}'); do
+      username=$(id -nu "$uid" 2>/dev/null) || continue
+      case "$username" in
+        root|gdm|gdm-greeter|lightdm|sddm) continue ;;
+      esac
+      if [ -d "/run/user/$uid" ]; then
+        runuser -u "$username" -- env XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user stop fleet-desktop.service 2>/dev/null || true
+      fi
+    done
     systemctl disable --now orbit.service || true
+    # Fallback for old-style desktop process.
     pkill fleet-desktop || true
     ;;
   0|upgrade)
@@ -461,7 +541,20 @@ esac
 	if isArchLinux {
 		preRemoveScript = `#!/bin/sh
 
+# Disable the fleet-desktop user service for all users.
+systemctl --global disable fleet-desktop.service 2>/dev/null || true
+# Stop fleet-desktop for any currently logged-in users.
+for uid in $(loginctl list-users --no-legend --no-pager 2>/dev/null | awk '{print $1}'); do
+  username=$(id -nu "$uid" 2>/dev/null) || continue
+  case "$username" in
+    root|gdm|gdm-greeter|lightdm|sddm) continue ;;
+  esac
+  if [ -d "/run/user/$uid" ]; then
+    runuser -u "$username" -- env XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user stop fleet-desktop.service 2>/dev/null || true
+  fi
+done
 systemctl disable --now orbit.service || true
+# Fallback for old-style desktop process.
 pkill fleet-desktop || true
 
 `
@@ -479,7 +572,7 @@ func writePostRemove(path string) error {
 # For RPM during uninstall, $1 is 0
 # For Debian during remove, $1 is "remove"
 if [ "$1" = 0 ] || [ "$1" = "remove" ]; then
-	rm -rf /var/lib/orbit /var/log/orbit /usr/local/bin/orbit /etc/default/orbit /usr/lib/systemd/system/orbit.service /opt/orbit
+	rm -rf /var/lib/orbit /var/log/orbit /usr/local/bin/orbit /etc/default/orbit /usr/lib/systemd/system/orbit.service /usr/lib/systemd/user/fleet-desktop.service /opt/orbit
 fi
 `), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
@@ -510,6 +603,10 @@ if ! systemctl is-enabled orbit >/dev/null 2>&1; then
 {{- end}}
 	fi
 fi
+{{ if .Desktop -}}
+# Ensure fleet-desktop user service is enabled for all users.
+systemctl --global enable fleet-desktop.service 2>&1 || true
+{{- end}}
 `))
 
 // writeRPMPostTrans sets the posttrans scriptlets necessary to support RPM upgrades.
@@ -533,7 +630,18 @@ func writeArchLinuxPreUpgrade(path string) error {
 	// script might return non-zero exit code.
 	const preUpgradeScript = `#!/bin/sh
 
+# Stop fleet-desktop user service for any currently logged-in users.
+for uid in $(loginctl list-users --no-legend --no-pager 2>/dev/null | awk '{print $1}'); do
+  username=$(id -nu "$uid" 2>/dev/null) || continue
+  case "$username" in
+    root|gdm|gdm-greeter|lightdm|sddm) continue ;;
+  esac
+  if [ -d "/run/user/$uid" ]; then
+    runuser -u "$username" -- env XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user stop fleet-desktop.service 2>/dev/null || true
+  fi
+done
 systemctl disable --now orbit.service || true
+# Fallback for old-style desktop process.
 pkill fleet-desktop || true
 
 `

@@ -1419,42 +1419,63 @@ func main() {
 				rawClientCrt = fleetClientCrt.RawCrt
 				rawClientKey = fleetClientCrt.RawKey
 			}
-			desktopRunner := newDesktopRunner(
-				desktopPath,
-				fleetURL,
-				c.String("fleet-certificate"),
-				c.Bool("insecure"),
-				trw,
-				rawClientCrt,
-				rawClientKey,
-				c.String("fleet-desktop-alternative-browser-host"),
-				opt.RootDirectory,
-			)
-			go func() {
-				for {
-					msg := <-desktopRunner.errorNotifyCh
-					log.Error().Err(errors.New(msg)).Msg("fleet-desktop runner error")
-					// Vital errors are always sent to Fleet, regardless of the error reporting setting FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS.
-					fleetdErr := fleet.FleetdError{
-						Vital:              true,
-						ErrorSource:        "fleet-desktop",
-						ErrorSourceVersion: desktopVersion,
-						ErrorTimestamp:     time.Now(),
-						ErrorMessage:       msg,
-						ErrorAdditionalInfo: map[string]interface{}{
-							"orbit_version":    build.Version,
-							"osquery_version":  osqueryHostInfo.OsqueryVersion,
-							"os_platform":      osqueryHostInfo.Platform,
-							"os_platform_like": osqueryHostInfo.PlatformLike,
-							"os_version":       osqueryHostInfo.OSVersion,
-						},
+
+			if runtime.GOOS == "linux" {
+				// On Linux, manage Fleet Desktop as a systemd user service instead of
+				// launching it directly via sudo/runuser. This ensures the desktop process
+				// inherits the user's full environment (DISPLAY, WAYLAND_DISPLAY, DBUS, SELinux
+				// context, etc.) naturally, avoiding the many browser-launch bugs caused by the
+				// old approach.
+				svcManager := newDesktopUserServiceManager(
+					desktopPath,
+					fleetURL,
+					c.String("fleet-certificate"),
+					c.Bool("insecure"),
+					trw,
+					rawClientCrt,
+					rawClientKey,
+					c.String("fleet-desktop-alternative-browser-host"),
+					opt.RootDirectory,
+				)
+				addSubsystem(&g, "desktop user service manager", svcManager)
+			} else {
+				desktopRunner := newDesktopRunner(
+					desktopPath,
+					fleetURL,
+					c.String("fleet-certificate"),
+					c.Bool("insecure"),
+					trw,
+					rawClientCrt,
+					rawClientKey,
+					c.String("fleet-desktop-alternative-browser-host"),
+					opt.RootDirectory,
+				)
+				go func() {
+					for {
+						msg := <-desktopRunner.errorNotifyCh
+						log.Error().Err(errors.New(msg)).Msg("fleet-desktop runner error")
+						// Vital errors are always sent to Fleet, regardless of the error reporting setting FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS.
+						fleetdErr := fleet.FleetdError{
+							Vital:              true,
+							ErrorSource:        "fleet-desktop",
+							ErrorSourceVersion: desktopVersion,
+							ErrorTimestamp:     time.Now(),
+							ErrorMessage:       msg,
+							ErrorAdditionalInfo: map[string]interface{}{
+								"orbit_version":    build.Version,
+								"osquery_version":  osqueryHostInfo.OsqueryVersion,
+								"os_platform":      osqueryHostInfo.Platform,
+								"os_platform_like": osqueryHostInfo.PlatformLike,
+								"os_version":       osqueryHostInfo.OSVersion,
+							},
+						}
+						if err = deviceClient.ReportError(trw.GetCached(), fleetdErr); err != nil {
+							log.Error().Err(err).Msg(fmt.Sprintf("failed to send error report to Fleet: %s", msg))
+						}
 					}
-					if err = deviceClient.ReportError(trw.GetCached(), fleetdErr); err != nil {
-						log.Error().Err(err).Msg(fmt.Sprintf("failed to send error report to Fleet: %s", msg))
-					}
-				}
-			}()
-			addSubsystem(&g, "desktop runner", desktopRunner)
+				}()
+				addSubsystem(&g, "desktop runner", desktopRunner)
+			}
 		}
 
 		// --end-user-email is only supported on Windows and Linux (for macOS it gets the
