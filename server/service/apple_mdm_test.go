@@ -6966,6 +6966,9 @@ func TestMDMTokenUpdateSCEPRenewal(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, j *fleet.Job) (*fleet.Job, error) {
 			return j, nil
 		}
+		ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
+			return nil
+		}
 
 		err := svc.TokenUpdate(
 			&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: uuid}},
