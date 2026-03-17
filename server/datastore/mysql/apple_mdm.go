@@ -7357,8 +7357,14 @@ func (ds *Datastore) GetHostRecoveryLockPasswordStatus(ctx context.Context, host
 		return nil, ctxerr.Wrap(ctx, err, "getting recovery lock password status")
 	}
 
+	// Treat NULL status as pending (retry state after failed command enqueue)
+	status := row.Status
+	if status == nil {
+		status = ptr.T(fleet.MDMDeliveryPending)
+	}
+
 	return &fleet.HostMDMRecoveryLockPassword{
-		Status: row.Status,
+		Status: status,
 		Detail: row.Detail,
 	}, nil
 }

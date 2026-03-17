@@ -11009,19 +11009,21 @@ func testGetHostRecoveryLockPasswordStatus(t *testing.T, ds *Datastore) {
 		assert.Empty(t, status.Detail)
 	})
 
-	t.Run("returns nil status when status column is NULL", func(t *testing.T) {
+	t.Run("returns pending status when status column is NULL (retry state)", func(t *testing.T) {
 		host := test.NewHost(t, ds, "null-status-host", "1.2.6.6", "nullstatuskey", "nullstatusuuid", time.Now())
 		pw := apple_mdm.GenerateRecoveryLockPassword()
 		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
 		require.NoError(t, err)
-		// Clear status to NULL
+		// Clear status to NULL (simulates retry state after failed enqueue)
 		err = ds.ClearRecoveryLockPendingStatus(ctx, []string{host.UUID})
 		require.NoError(t, err)
 
 		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
 		require.NoError(t, err)
 		require.NotNil(t, status)
-		assert.Nil(t, status.Status)
+		// NULL status is coalesced to pending for API response
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.MDMDeliveryPending, *status.Status)
 		assert.Empty(t, status.Detail)
 	})
 }
