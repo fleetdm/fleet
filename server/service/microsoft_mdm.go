@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -2123,7 +2124,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 	displayName := reqDeviceName
 	var serial string
 	if hostUUID != "" {
-		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, newActivity)
+		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, svc.NewActivity)
 		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 			Action:   mdmlifecycle.HostActionTurnOn,
 			Platform: "windows",
@@ -2522,6 +2523,25 @@ func (svc *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 	return ps, nil
 }
 
+// ndesChallengeErrorToDetail translates NDES-specific error types into user-friendly messages
+// for profile failure details. Used by both Apple and Windows NDES profile processing.
+func ndesChallengeErrorToDetail(err error) string {
+	varName := fleet.FleetVarNDESSCEPChallenge.WithPrefix()
+	switch {
+	case errors.As(err, &eeservice.NDESInvalidError{}):
+		return fmt.Sprintf("Invalid NDES admin credentials. Fleet couldn't populate %s. "+
+			"Please update credentials in Settings > Integrations > Mobile Device Management > Simple Certificate Enrollment Protocol.", varName)
+	case errors.As(err, &eeservice.NDESPasswordCacheFullError{}):
+		return fmt.Sprintf("The NDES password cache is full. Fleet couldn't populate %s. "+
+			"Please increase the number of cached passwords in NDES and try again.", varName)
+	case errors.As(err, &eeservice.NDESInsufficientPermissionsError{}):
+		return fmt.Sprintf("This account does not have sufficient permissions to enroll with SCEP. Fleet couldn't populate %s. "+
+			"Please update the account with NDES SCEP enroll permissions and try again.", varName)
+	default:
+		return fmt.Sprintf("Fleet couldn't populate %s. %s", varName, err.Error())
+	}
+}
+
 func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -2608,17 +2628,19 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		return ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
 	}
 
+	scepConfigSvc := eeservice.NewSCEPConfigService(logger, nil)
 	managedCertificatePayloads := &[]*fleet.MDMManagedCertificate{}
-	deps := microsoft_mdm.ProfilePreprocessDependenciesForDeploy{
-		ProfilePreprocessDependenciesForVerify: microsoft_mdm.ProfilePreprocessDependenciesForVerify{
-			Context:            ctx,
-			Logger:             logger,
-			DataStore:          ds,
-			HostIDForUUIDCache: make(map[string]uint),
-		},
+	deps := microsoft_mdm.ProfilePreprocessDependencies{
+		Context:                    ctx,
+		Logger:                     logger,
+		DataStore:                  ds,
+		HostIDForUUIDCache:         make(map[string]uint),
 		AppConfig:                  appConfig,
 		CustomSCEPCAs:              groupedCAs.ToCustomSCEPProxyCAMap(),
 		ManagedCertificatePayloads: managedCertificatePayloads,
+		NDESConfig:                 groupedCAs.NDESSCEP,
+		GetNDESSCEPChallenge:       scepConfigSvc.GetNDESSCEPChallenge,
+		NDESChallengeErrorToDetail: ndesChallengeErrorToDetail,
 	}
 
 	for profUUID, target := range installTargets {

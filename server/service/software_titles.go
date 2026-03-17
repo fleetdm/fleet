@@ -152,7 +152,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 		} else if !exists {
-			return nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+			return nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 				WithStatus(http.StatusNotFound)
 		}
 	}
@@ -176,7 +176,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 				return nil, ctxerr.Wrap(ctx, err, "checked using a global admin")
 			}
 
-			return nil, fleet.NewPermissionError("Error: You don't have permission to view specified software. It is installed on hosts that belong to team you don't have permissions to view.")
+			return nil, fleet.NewPermissionError("Error: You don't have permission to view specified software. It is installed on hosts that belong to a fleet you don't have permissions to view.")
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
 	}
@@ -208,6 +208,13 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					return nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
 				}
 				meta.FleetMaintainedVersions = fmaVersions
+
+				// Populate PatchPolicy if there is one
+				patchPolicy, err := svc.ds.GetPatchPolicy(ctx, teamID, id)
+				if err != nil && !fleet.IsNotFound(err) {
+					return nil, ctxerr.Wrap(ctx, err, "get patch policy")
+				}
+				meta.PatchPolicy = patchPolicy
 			}
 		}
 

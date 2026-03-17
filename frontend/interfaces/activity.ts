@@ -46,6 +46,11 @@ export enum ActivityType {
   EnabledMacosUpdateNewHosts = "enabled_macos_update_new_hosts",
   DisabledMacosUpdateNewHosts = "disabled_macos_update_new_hosts",
   ReadHostDiskEncryptionKey = "read_host_disk_encryption_key",
+  ViewedHostRecoveryLockPassword = "viewed_host_recovery_lock_password",
+  SetHostRecoveryLockPassword = "set_host_recovery_lock_password",
+  RotatedHostRecoveryLockPassword = "rotated_host_recovery_lock_password",
+  EnabledRecoveryLockPasswords = "enabled_recovery_lock_passwords",
+  DisabledRecoveryLockPasswords = "disabled_recovery_lock_passwords",
   /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
   CreatedAppleOSProfile = "created_macos_profile",
   /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
@@ -165,6 +170,9 @@ export type IHostPastActivityType =
   | ActivityType.LockedHost
   | ActivityType.WipedHost
   | ActivityType.ReadHostDiskEncryptionKey
+  | ActivityType.ViewedHostRecoveryLockPassword
+  | ActivityType.SetHostRecoveryLockPassword
+  | ActivityType.RotatedHostRecoveryLockPassword
   | ActivityType.UnlockedHost
   | ActivityType.InstalledSoftware
   | ActivityType.UninstalledSoftware
@@ -293,7 +301,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   added_software: "Added software",
   applied_spec_pack: "GitOps: edited packs",
   applied_spec_policy: "GitOps: edited policies",
-  applied_spec_saved_query: "GitOps: edited queries",
+  applied_spec_saved_query: "GitOps: edited reports",
   applied_spec_team: "GitOps: edited fleets",
   applied_spec_software: "GitOps: edited software",
   canceled_install_app_store_app:
@@ -308,7 +316,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   created_macos_profile: "Added configuration profile: Apple",
   created_pack: "Created pack",
   created_policy: "Created policy",
-  created_saved_query: "Added query",
+  created_saved_query: "Added report",
   created_team: "Added fleet",
   created_user: "Added user",
   created_windows_profile: "Added configuration profile: Windows",
@@ -321,11 +329,11 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   deleted_macos_profile: "Deleted configuration profile: Apple",
   deleted_macos_setup_assistant: "Deleted macOS automatic enrollment profile",
   deleted_microsoft_entra_tenant: "Deleted Microsoft Entra tenant",
-  deleted_multiple_saved_query: "Bulk deleted queries",
+  deleted_multiple_saved_query: "Bulk deleted reports",
   deleted_ndes_scep_proxy: "Deleted certificate authority (CA): NDES",
   deleted_pack: "Deleted pack",
   deleted_policy: "Deleted policy",
-  deleted_saved_query: "Deleted query",
+  deleted_saved_query: "Deleted report",
   deleted_script: "Deleted script",
   deleted_software: "Deleted software",
   deleted_team: "Deleted fleet",
@@ -360,7 +368,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   edited_ndes_scep_proxy: "Edited certificate authority (CA): NDES",
   edited_pack: "Edited pack",
   edited_policy: "Edited policy",
-  edited_saved_query: "Edited query",
+  edited_saved_query: "Edited report",
   edited_script: "Edited script",
   edited_software: "Edited software",
   edited_windows_profile: "GitOps: edited configuration profiles: Windows",
@@ -381,7 +389,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   fleet_enrolled: "Host enrolled",
   installed_app_store_app: "Installed App Store (VPP) app",
   installed_software: "Install software",
-  live_query: "Ran live query",
+  live_query: "Ran live report",
   locked_host: "Locked host",
   mdm_enrolled: "MDM turned on",
   mdm_unenrolled: "MDM turned off",
@@ -390,6 +398,11 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   scheduled_script_batch: "Scheduled script batch",
   canceled_script_batch: "Canceled script batch",
   read_host_disk_encryption_key: "Viewed disk encryption key",
+  viewed_host_recovery_lock_password: "Viewed Recovery Lock password",
+  set_host_recovery_lock_password: "Set Recovery Lock password",
+  rotated_host_recovery_lock_password: "Rotated Recovery Lock password",
+  enabled_recovery_lock_passwords: "Turned on Recovery Lock passwords",
+  disabled_recovery_lock_passwords: "Turned off Recovery Lock passwords",
   resent_configuration_profile: "Resent configuration profile",
   resent_configuration_profile_batch: "Bulk resent configuration profile",
   transferred_hosts: "Transferred hosts",

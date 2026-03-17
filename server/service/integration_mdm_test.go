@@ -79,12 +79,10 @@ import (
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
-	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -128,7 +126,7 @@ type integrationMDMTestSuite struct {
 	// Flag to skip jobs processing by worker
 	skipWorkerJobs            atomic.Bool
 	mdmCommander              *apple_mdm.MDMAppleCommander
-	logger                    *logging.Logger
+	logger                    *slog.Logger
 	scepChallenge             string
 	appleVPPConfigSrv         *httptest.Server
 	appleVPPConfigSrvConfig   *appleVPPConfigSrvConf
@@ -141,6 +139,7 @@ type integrationMDMTestSuite struct {
 	androidSvc                android.Service
 	proxyCallbackURL          string
 	jwtSigningKey             *rsa.PrivateKey
+	softwareInstallerStore    fleet.SoftwareInstallerStore
 }
 
 // appleVPPConfigSrvConf is used to configure the mock server that mocks Apple's VPP endpoints.
@@ -201,9 +200,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	scepStorage, err := s.ds.NewSCEPDepot()
 	require.NoError(s.T(), err)
 
-	pushLog := logging.NewJSONLogger(os.Stdout)
+	pushLog := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		pushLog = logging.NewNopLogger()
+		pushLog = slog.New(slog.DiscardHandler)
 	}
 	pushFactory, pushProvider := newMockAPNSPushProviderFactory()
 	mdmPushService := nanomdm_pushsvc.New(
@@ -216,20 +215,22 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.redisPool = redistest.SetupRedis(s.T(), "zz", false, false, false)
 	s.withServer.lq = live_query_mock.New(s.T())
 
-	wlog := logging.NewJSONLogger(os.Stdout)
+	wlog := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		wlog = logging.NewNopLogger()
+		wlog = slog.New(slog.DiscardHandler)
 	}
 
-	activityModule := activities.NewActivityModule(s.ds, wlog)
 	androidMockClient := &android_mock.Client{}
 	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error {
 		return nil
 	}
-	androidSvc, err := android_service.NewServiceWithClient(wlog.SlogLogger(), s.ds, androidMockClient, "test-private-key", s.ds, activityModule, config.AndroidAgentConfig{
-		Package:       "com.fleetdm.agent",
-		SigningSHA256: "abc123def456",
-	})
+	androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, "test-private-key", s.ds,
+		func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			return s.fleetSvc.NewActivity(ctx, user, activity)
+		}, config.AndroidAgentConfig{
+			Package:       "com.fleetdm.agent",
+			SigningSHA256: "abc123def456",
+		})
 	if err != nil {
 		panic(err)
 	}
@@ -238,26 +239,26 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	macosJob := &worker.MacosSetupAssistant{
 		Datastore:  s.ds,
-		Log:        wlog.SlogLogger(),
-		DEPService: apple_mdm.NewDEPService(s.ds, depStorage, wlog.SlogLogger()),
-		DEPClient:  apple_mdm.NewDEPClient(depStorage, s.ds, wlog.SlogLogger()),
+		Log:        wlog,
+		DEPService: apple_mdm.NewDEPService(s.ds, depStorage, wlog),
+		DEPClient:  apple_mdm.NewDEPClient(depStorage, s.ds, wlog),
 	}
 	appleMDMJob := &worker.AppleMDM{
 		Datastore: s.ds,
-		Log:       wlog.SlogLogger(),
+		Log:       wlog,
 		Commander: mdmCommander,
 	}
 	vppVerifyJob := &worker.AppleSoftware{
 		Datastore: s.ds,
-		Log:       wlog.SlogLogger(),
+		Log:       wlog,
 		Commander: mdmCommander,
 	}
 	softwareWorker := &worker.SoftwareWorker{
 		Datastore:     s.ds,
-		Log:           wlog.SlogLogger(),
+		Log:           wlog,
 		AndroidModule: androidSvc,
 	}
-	workr := worker.NewWorker(s.ds, wlog.SlogLogger())
+	workr := worker.NewWorker(s.ds, wlog)
 	workr.TestIgnoreUnknownJobs = true
 	workr.Register(macosJob, appleMDMJob, vppVerifyJob, softwareWorker)
 
@@ -273,13 +274,13 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	var profileSchedule *schedule.Schedule
 	var cleanupsSchedule *schedule.Schedule
 	var androidProfileSchedule *schedule.Schedule
-	cronLog := logging.NewJSONLogger(os.Stdout)
+	cronLog := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		cronLog = logging.NewNopLogger()
+		cronLog = slog.New(slog.DiscardHandler)
 	}
-	serverLogger := logging.NewJSONLogger(os.Stdout)
+	serverLogger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		serverLogger = logging.NewNopLogger()
+		serverLogger = slog.New(slog.DiscardHandler)
 	}
 
 	var softwareInstallerStore fleet.SoftwareInstallerStore
@@ -292,6 +293,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		softwareInstallerStore = s3.SetupTestSoftwareInstallerStore(s.T(), "integration-tests", "")
 		bootstrapPackageStore = s3.SetupTestBootstrapPackageStore(s.T(), "integration-tests", "")
 	}
+	s.softwareInstallerStore = softwareInstallerStore
 	scepTimeout := ptr.Duration(10 * time.Second)
 	s.scepConfig = eeservice.NewSCEPConfigService(serverLogger, scepTimeout).(*eeservice.SCEPConfigService)
 
@@ -314,7 +316,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		Pool:                   s.redisPool,
 		Rs:                     pubsub.NewInmemQueryResults(),
 		Lq:                     s.lq,
-		SoftwareInstallStore:   softwareInstallerStore,
+		SoftwareInstallStore:   s.softwareInstallerStore,
 		SoftwareTitleIconStore: softwareTitleIconStore,
 		BootstrapPackageStore:  bootstrapPackageStore,
 		androidMockClient:      androidMockClient,
@@ -328,10 +330,10 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
-							logger.Log("msg", "Starting manage_apple_profiles job", "test", s.T().Name(), "time", time.Now().Format(time.RFC3339))
+							logger.InfoContext(ctx, "Starting manage_apple_profiles job", "test", s.T().Name(), "time", time.Now().Format(time.RFC3339))
 							if s.onProfileJobDone != nil {
 								defer func() {
-									logger.Log("msg", "Completing manage_apple_profiles job", "test", s.T().Name(), "time",
+									logger.InfoContext(ctx, "Completing manage_apple_profiles job", "test", s.T().Name(), "time",
 										time.Now().Format(time.RFC3339))
 									s.onProfileJobDone()
 								}()
@@ -341,10 +343,10 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 							return err
 						}),
 						schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
-							logger.Log("msg", "Starting manage_apple_declarations job", "test", s.T().Name(), "time", time.Now().Format(time.RFC3339))
+							logger.InfoContext(ctx, "Starting manage_apple_declarations job", "test", s.T().Name(), "time", time.Now().Format(time.RFC3339))
 							if s.onProfileJobDone != nil {
 								defer func() {
-									logger.Log("msg", "Completing manage_apple_declarations job", "test", s.T().Name(), "time",
+									logger.InfoContext(ctx, "Completing manage_apple_declarations job", "test", s.T().Name(), "time",
 										time.Now().Format(time.RFC3339))
 									s.onProfileJobDone()
 								}()
@@ -354,15 +356,15 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 							return err
 						}),
 						schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
-							logger.Log("msg", "Starting manage_windows_profiles job", "test", s.T().Name(), "time", time.Now().Format(time.RFC3339))
+							logger.InfoContext(ctx, "Starting manage_windows_profiles job", "test", s.T().Name(), "time", time.Now().Format(time.RFC3339))
 							if s.onProfileJobDone != nil {
 								defer func() {
-									logger.Log("msg", "Completing manage_windows_profiles job", "test", s.T().Name(), "time",
+									logger.InfoContext(ctx, "Completing manage_windows_profiles job", "test", s.T().Name(), "time",
 										time.Now().Format(time.RFC3339))
 									s.onProfileJobDone()
 								}()
 							}
-							err := ReconcileWindowsProfiles(ctx, ds, logger.SlogLogger())
+							err := ReconcileWindowsProfiles(ctx, ds, logger)
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -391,7 +393,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 								defer s.onIntegrationsScheduleDone()
 							}
 
-							return worker.ProcessDEPCooldowns(ctx, ds, logger.SlogLogger())
+							return worker.ProcessDEPCooldowns(ctx, ds, logger)
 						}),
 					)
 					return integrationsSchedule, nil
@@ -411,7 +413,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 							if s.onCleanupScheduleDone != nil {
 								defer s.onCleanupScheduleDone()
 							}
-							return android_service.RenewCertificateTemplates(ctx, ds, logger.SlogLogger())
+							return android_service.RenewCertificateTemplates(ctx, ds, logger)
 						}),
 					)
 					return cleanupsSchedule, nil
@@ -425,15 +427,15 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
-							logger.Log("msg", "Starting manage_android_profiles job", "test", s.T().Name(), "time", time.Now().Format(time.RFC3339))
+							logger.InfoContext(ctx, "Starting manage_android_profiles job", "test", s.T().Name(), "time", time.Now().Format(time.RFC3339))
 							if s.onAndroidProfileJobDone != nil {
 								defer func() {
-									logger.Log("msg", "Completing manage_android_profiles job", "test", s.T().Name(), "time",
+									logger.InfoContext(ctx, "Completing manage_android_profiles job", "test", s.T().Name(), "time",
 										time.Now().Format(time.RFC3339))
 									s.onAndroidProfileJobDone()
 								}()
 							}
-							err := android_service.ReconcileProfilesWithClient(ctx, ds, logger.SlogLogger(), "", androidMockClient, config.AndroidAgentConfig{
+							err := android_service.ReconcileProfilesWithClient(ctx, ds, logger, "", androidMockClient, config.AndroidAgentConfig{
 								Package:       "com.fleetdm.agent",
 								SigningSHA256: "abc123def456",
 							})
@@ -452,9 +454,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger.SlogLogger(), func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
-								return newActivity(ctx, user, act, ds, logger)
-							})
+							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger, s.fleetSvc.NewActivity)
 						}),
 					)
 					return refetcherSchedule, nil
@@ -484,6 +484,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	s.server = server
 	s.users = users
+	s.fleetSvc = svc
 	s.token = s.getTestAdminToken()
 	s.cachedAdminToken = s.token
 	s.fleetCfg = fleetCfg
@@ -708,8 +709,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		_, err = w.Write(b)
 		require.NoError(s.T(), err)
 	}))
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", s.appleGDMFSrv.URL, s.T())
 
-	s.T().Setenv("FLEET_DEV_GDMF_URL", s.appleGDMFSrv.URL)
 	s.T().Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
 	s.T().Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", s.appleVPPProxySrv.URL)
 
@@ -784,6 +785,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.T().Cleanup(jwksServer.Close)
 	s.jwtSigningKey = testKey
 	s.T().Setenv("FLEET_DEV_AZURE_JWT_JWKS_URI", jwksServer.URL+"/jwks.json")
+
+	dev_mode.SetOverride("FLEET_DEV_BATCH_RETRY_INTERVAL", "1s")
 }
 
 func (s *integrationMDMTestSuite) TearDownSuite() {
@@ -792,6 +795,8 @@ func (s *integrationMDMTestSuite) TearDownSuite() {
 	appConf.MDM.EnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
+
+	dev_mode.ClearOverride("FLEET_DEV_BATCH_RETRY_INTERVAL")
 }
 
 func (s *integrationMDMTestSuite) FailNextCSRRequestWith(status int) {
@@ -935,7 +940,7 @@ func (s *integrationMDMTestSuite) mockDEPResponse(orgName string, handler http.H
 	t := s.T()
 	srv := httptest.NewServer(handler)
 	err := s.depStorage.StoreConfig(context.Background(), orgName, &nanodep_client.Config{BaseURL: srv.URL})
-	depSvc := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger.SlogLogger())
+	depSvc := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
 	require.NoError(t, depSvc.CreateDefaultAutomaticProfile(context.Background()))
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -1317,7 +1322,7 @@ func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 	require.False(t, config.MDM.AppleBMTermsExpired)
 
 	ctx := context.Background()
-	fleetSyncer := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger.SlogLogger())
+	fleetSyncer := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
 
 	// not signed error flips the AppleBMTermsExpired flag
 	returnType = "not_signed"
@@ -1720,7 +1725,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 	t := s.T()
 	// Clear out all activities to other test leaking activities into this one.
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(context.Background(), `DELETE FROM activities`)
+		_, err := q.ExecContext(context.Background(), `DELETE FROM activity_past`)
 		return err
 	})
 
@@ -2942,6 +2947,62 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
 }
 
+func (s *integrationMDMTestSuite) TestAppConfigMDMRecoveryLockPassword() {
+	t := s.T()
+
+	// by default, recovery lock password is disabled
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.EnableRecoveryLockPassword.Value)
+
+	// enable recovery lock password
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_recovery_lock_password": true }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableRecoveryLockPassword.Value)
+	enabledActID := s.lastActivityMatches(fleet.ActivityTypeEnabledRecoveryLockPassword{}.ActivityName(),
+		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+
+	// check that it's returned by GET /config
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableRecoveryLockPassword.Value)
+
+	// patch without specifying recovery lock password should not alter it
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"org_info": { "org_name": "test-org" }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableRecoveryLockPassword.Value)
+	// verify no new recovery lock password activity was created
+	s.lastActivityMatches(fleet.ActivityTypeEnabledRecoveryLockPassword{}.ActivityName(),
+		``, enabledActID)
+
+	// patch with same value should not create new activity
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_recovery_lock_password": true }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableRecoveryLockPassword.Value)
+	s.lastActivityMatches(fleet.ActivityTypeEnabledRecoveryLockPassword{}.ActivityName(),
+		``, enabledActID)
+
+	// disable recovery lock password
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_recovery_lock_password": false }
+  }`), http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.EnableRecoveryLockPassword.Value)
+	s.lastActivityMatches(fleet.ActivityTypeDisabledRecoveryLockPassword{}.ActivityName(),
+		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+
+	// check that it's returned by GET /config
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.EnableRecoveryLockPassword.Value)
+}
+
 func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	t := s.T()
 	ctx := context.Background()
@@ -3287,6 +3348,112 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
+}
+
+func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
+	t := s.T()
+
+	// create a team
+	teamName := t.Name()
+	team := &fleet.Team{
+		Name:        teamName,
+		Description: "team for testing recovery lock password",
+	}
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	require.NotZero(t, createTeamResp.Team.ID)
+	team = createTeamResp.Team
+
+	// enable recovery lock password via modify team endpoint
+	var modResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			EnableRecoveryLockPassword: optjson.SetBool(true),
+		},
+	}, http.StatusOK, &modResp)
+	require.True(t, modResp.Team.Config.MDM.EnableRecoveryLockPassword)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledRecoveryLockPassword{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
+
+	// check it's returned by GET
+	teamResp := getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
+
+	// patch with same value should not create new activity
+	lastActID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledRecoveryLockPassword{}.ActivityName(),
+		``, 0)
+	modResp = teamResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			EnableRecoveryLockPassword: optjson.SetBool(true),
+		},
+	}, http.StatusOK, &modResp)
+	require.True(t, modResp.Team.Config.MDM.EnableRecoveryLockPassword)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledRecoveryLockPassword{}.ActivityName(),
+		``, lastActID)
+
+	// disable recovery lock password
+	modResp = teamResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			EnableRecoveryLockPassword: optjson.SetBool(false),
+		},
+	}, http.StatusOK, &modResp)
+	require.False(t, modResp.Team.Config.MDM.EnableRecoveryLockPassword)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledRecoveryLockPassword{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
+
+	// check it's returned by GET
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.False(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
+
+	// test via apply team specs
+	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			EnableRecoveryLockPassword: optjson.SetBool(true),
+		},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	// check it's enabled
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
+
+	// apply with recovery lock password disabled
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			EnableRecoveryLockPassword: optjson.SetBool(false),
+		},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	// check it's disabled
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.False(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
+
+	// create a new team via spec with recovery lock password enabled
+	newTeamName := teamName + "2"
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: newTeamName,
+		MDM: fleet.TeamSpecMDM{
+			EnableRecoveryLockPassword: optjson.SetBool(true),
+		},
+	}}}
+	var specResp applyTeamSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+	newTeamID := specResp.TeamIDsByName[newTeamName]
+	require.NotZero(t, newTeamID)
+
+	// check the new team has recovery lock password enabled
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", newTeamID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
 }
 
 func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
@@ -4125,7 +4292,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	var summaryResp getMDMAppleBootstrapPackageSummaryResponse
 	s.DoJSON("GET", "/api/latest/fleet/bootstrap/summary", nil, http.StatusOK, &summaryResp)
 	// We don't count the "skipped" device as it is pending migration and will not install the bootstrap package
-	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(noTeamDevices) - 1)}, summaryResp.MDMAppleBootstrapPackageSummary)
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(noTeamDevices) - 1)}, summaryResp.MDMAppleBootstrapPackageSummary) //nolint:gosec // dismiss G115
 
 	var lhr listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &lhr, "team_id", "0", "bootstrap_package", "pending")
@@ -4157,7 +4324,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 	summaryResp = getMDMAppleBootstrapPackageSummaryResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/bootstrap/summary?team_id=%d", team.ID), nil, http.StatusOK, &summaryResp)
-	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(teamDevices) - 1)}, summaryResp.MDMAppleBootstrapPackageSummary)
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(teamDevices) - 1)}, summaryResp.MDMAppleBootstrapPackageSummary) //nolint:gosec // dismiss G115
 
 	mockErrorChain := []mdm.ErrorChain{
 		{ErrorCode: 12021, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "Unknown command", USEnglishDescription: "Unknown command"},
@@ -4667,18 +4834,24 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 	require.NoError(t, err)
 
 	endUserAuthCases := []struct {
-		raw      string
-		expected bool
+		raw            string
+		expectedEUA    bool // expected end user authentication value
+		expectedLEUI   bool // expected lock end user info value
+		expectedStatus int  // expected HTTP status code from the API response
 	}{
 		{
-			raw:      `"mdm": {}`,
-			expected: false,
+			raw:            `"mdm": {}`,
+			expectedEUA:    false,
+			expectedLEUI:   false,
+			expectedStatus: http.StatusOK,
 		},
 		{
 			raw: `"mdm": {
 				"macos_setup": {}
 			}`,
-			expected: false,
+			expectedEUA:    false,
+			expectedLEUI:   false,
+			expectedStatus: http.StatusOK,
 		},
 		{
 			raw: `"mdm": {
@@ -4686,7 +4859,29 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 					"enable_end_user_authentication": true
 				}
 			}`,
-			expected: true,
+			expectedEUA:    true,
+			expectedLEUI:   true, // enabling EUA auto-enables LockEndUserInfo
+			expectedStatus: http.StatusOK,
+		},
+		{
+			raw: `"mdm": {
+				"macos_setup": {
+					"enable_end_user_authentication": true, "lock_end_user_info": false
+				}
+			}`,
+			expectedEUA:    true,
+			expectedLEUI:   false,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			raw: `"mdm": {
+				"macos_setup": {
+					"enable_end_user_authentication": true, "lock_end_user_info": true
+				}
+			}`,
+			expectedEUA:    true,
+			expectedLEUI:   true,
+			expectedStatus: http.StatusOK,
 		},
 		{
 			raw: `"mdm": {
@@ -4694,7 +4889,19 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 					"enable_end_user_authentication": false
 				}
 			}`,
-			expected: false,
+			expectedEUA:    false,
+			expectedLEUI:   false, // EUA->false clears LEUI as well
+			expectedStatus: http.StatusOK,
+		},
+		{
+			raw: `"mdm": {
+				"macos_setup": {
+					"enable_end_user_authentication": false, "lock_end_user_info": true
+				}
+			}`,
+			expectedEUA:    false,
+			expectedLEUI:   false, // Returns an error because LEUI cannot be true if EUA is false
+			expectedStatus: http.StatusUnprocessableEntity,
 		},
 	}
 
@@ -4783,12 +4990,16 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		for i, c := range endUserAuthCases {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
 				acResp = appConfigResponse{}
-				s.DoJSON("PATCH", path, fmtJSON(c.raw), http.StatusOK, &acResp)
-				require.Equal(t, c.expected, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+				s.DoJSON("PATCH", path, fmtJSON(c.raw), c.expectedStatus, &acResp)
+				if c.expectedStatus == http.StatusOK {
+					require.Equal(t, c.expectedEUA, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+					require.Equal(t, c.expectedLEUI, acResp.MDM.MacOSSetup.LockEndUserInfo.Value)
+				}
 
 				acResp = appConfigResponse{}
 				s.DoJSON("GET", path, nil, http.StatusOK, &acResp)
-				require.Equal(t, c.expected, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+				require.Equal(t, c.expectedEUA, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+				require.Equal(t, c.expectedLEUI, acResp.MDM.MacOSSetup.LockEndUserInfo.Value)
 			})
 		}
 
@@ -4847,12 +5058,16 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		for i, c := range endUserAuthCases {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
 				teamResp = teamResponse{}
-				s.DoJSON("PATCH", path, json.RawMessage(fmt.Sprintf(fmtJSON, tm.Name, c.raw)), http.StatusOK, &teamResp)
-				require.Equal(t, c.expected, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+				s.DoJSON("PATCH", path, json.RawMessage(fmt.Sprintf(fmtJSON, tm.Name, c.raw)), c.expectedStatus, &teamResp)
+				if c.expectedStatus == http.StatusOK {
+					require.Equal(t, c.expectedEUA, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+					require.Equal(t, c.expectedLEUI, teamResp.Team.Config.MDM.MacOSSetup.LockEndUserInfo.Value)
+				}
 
 				teamResp = teamResponse{}
 				s.DoJSON("GET", path, nil, http.StatusOK, &teamResp)
-				require.Equal(t, c.expected, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+				require.Equal(t, c.expectedEUA, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+				require.Equal(t, c.expectedLEUI, teamResp.Team.Config.MDM.MacOSSetup.LockEndUserInfo.Value)
 			})
 		}
 
@@ -4925,12 +5140,23 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 				``, lastActivityID) // no new activity
 
 			s.Do("PATCH", "/api/latest/fleet/setup_experience",
+				fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), LockEndUserInfo: ptr.Bool(true)}, http.StatusNoContent)
+			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+			require.True(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+			require.True(t, acResp.MDM.MacOSSetup.LockEndUserInfo.Value)
+
+			s.Do("PATCH", "/api/latest/fleet/setup_experience",
 				fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), EnableEndUserAuthentication: ptr.Bool(false)}, http.StatusNoContent)
 			acResp = appConfigResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 			require.False(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+			require.False(t, acResp.MDM.MacOSSetup.LockEndUserInfo.Value)
 			require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledMacosSetupEndUserAuth{}.ActivityName(),
 				`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0), lastActivityID)
+
+			// Can't enable Lock End User Info when EUA is disabled
+			s.Do("PATCH", "/api/latest/fleet/setup_experience",
+				fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), LockEndUserInfo: ptr.Bool(true)}, http.StatusUnprocessableEntity)
 		})
 
 		t.Run("TestTeam", func(t *testing.T) {
@@ -4954,18 +5180,31 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 				``, lastActivityID) // no new activity
 
 			s.Do("PATCH", "/api/latest/fleet/setup_experience",
+				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, LockEndUserInfo: ptr.Bool(true)}, http.StatusNoContent)
+			s.DoJSON("GET", tmConfigPath, nil, http.StatusOK, &tmResp)
+			require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+			require.True(t, tmResp.Team.Config.MDM.MacOSSetup.LockEndUserInfo.Value)
+
+			s.Do("PATCH", "/api/latest/fleet/setup_experience",
 				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableEndUserAuthentication: ptr.Bool(false)}, http.StatusNoContent)
 			tmResp = teamResponse{}
 			s.DoJSON("GET", tmConfigPath, nil, http.StatusOK, &tmResp)
 			require.False(t, tmResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+			require.False(t, tmResp.Team.Config.MDM.MacOSSetup.LockEndUserInfo.Value)
 			require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledMacosSetupEndUserAuth{}.ActivityName(),
 				expectedActivityDetail, 0), lastActivityID)
+
+			// Can't enable Lock End User Info when EUA is disabled
+			s.Do("PATCH", "/api/latest/fleet/setup_experience",
+				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, LockEndUserInfo: ptr.Bool(true)}, http.StatusUnprocessableEntity)
 		})
 	})
 
 	t.Run("ValidateEnableEndUserAuthentication", func(t *testing.T) {
 		// ensure the test is setup correctly
 		var acResp appConfigResponse
+		var errResp validationErrResp
+		var teamResp teamResponse
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
 				"end_user_authentication": {
@@ -4980,7 +5219,30 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		}`), http.StatusOK, &acResp)
 		require.NotEmpty(t, acResp.MDM.EndUserAuthentication)
 
-		// ok to disable end user authentication without a configured IdP
+		// can't clear IdP settings while end user authentication is enabled (global)
+		errResp = validationErrResp{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "",
+					"idp_name": "",
+					"metadata_url": ""
+				}
+			}
+		}`), http.StatusUnprocessableEntity, &errResp)
+		require.Len(t, errResp.Errors, 1)
+		require.Equal(t, errResp.Errors[0].Reason, "End user authentication is enabled. Please disable end user authentication in Controls > Setup experience and try again")
+
+		//  disable end user authentication before clearing IdP settings
+		acResp = appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"macos_setup": {
+					"enable_end_user_authentication": false
+				}
+			}
+		}`), http.StatusOK, &acResp)
+		require.Equal(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication, false)
 		acResp = appConfigResponse{}
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
@@ -4988,13 +5250,70 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 					"entity_id": "",
 					"idp_name": "",
 					"metadata_url": ""
-				},
+				}
+			}
+		}`), http.StatusOK, &acResp)
+		require.True(t, acResp.MDM.EndUserAuthentication.IsEmpty())
+
+		// can't clear IdP settings while end user authentication is enabled on a team
+		// 1. configure IdP globally
+		acResp = appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "https://localhost:8080",
+					"idp_name": "SimpleSAML",
+					"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+				}
+			}
+		}`), http.StatusOK, &acResp)
+		require.NotEmpty(t, acResp.MDM.EndUserAuthentication)
+		require.False(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+
+		// 2. enable EUA on a team
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
+			"name": %q,
+			"mdm": {
+				"macos_setup": {
+					"enable_end_user_authentication": true
+				}
+			}
+		}`, tm.Name)), http.StatusOK, &teamResp)
+		require.True(t, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+
+		// 3. clearing IdP while team EUA is enabled should fail
+		errResp = validationErrResp{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "",
+					"idp_name": "",
+					"metadata_url": ""
+				}
+			}
+		}`), http.StatusUnprocessableEntity, &errResp)
+		require.Len(t, errResp.Errors, 1)
+		require.Equal(t, errResp.Errors[0].Reason, "End user authentication is enabled. Please disable end user authentication in Controls > Setup experience and try again")
+
+		// 4. disable team EUA, then clear IdP
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
+			"name": %q,
+			"mdm": {
 				"macos_setup": {
 					"enable_end_user_authentication": false
 				}
 			}
+		}`, tm.Name)), http.StatusOK, &teamResp)
+		acResp = appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "",
+					"idp_name": "",
+					"metadata_url": ""
+				}
+			}
 		}`), http.StatusOK, &acResp)
-		require.Equal(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication, false)
 		require.True(t, acResp.MDM.EndUserAuthentication.IsEmpty())
 
 		// can't enable end user authentication without a configured IdP
@@ -5016,7 +5335,6 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 			fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusUnprocessableEntity)
 
 		// can't enable end user authentication on team config without a configured IdP already on app config
-		var teamResp teamResponse
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
 			"name": %q,
 			"mdm": {
@@ -5884,9 +6202,10 @@ func (s *integrationMDMTestSuite) setTokenForTest(t *testing.T, email, password 
 
 func (s *integrationMDMTestSuite) TestSSO() {
 	t := s.T()
+	s.setSkipWorkerJobs(t)
 
 	lastSubmittedProfile := &godep.Profile{}
-	mdmDevice, wantSettings := s.setUpEndUserAuthentication(t, lastSubmittedProfile)
+	mdmDevice, wantSettings := s.setUpEndUserAuthentication(t, lastSubmittedProfile, true)
 	di, err := mdmtest.EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
 		Serial: mdmDevice.SerialNumber,
 		UDID:   mdmDevice.UUID,
@@ -5967,7 +6286,8 @@ func (s *integrationMDMTestSuite) TestSSO() {
 				"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
 			},
 			"macos_setup": {
-				"enable_end_user_authentication": true
+				"enable_end_user_authentication": true,
+				"lock_end_user_info": true
 			}
 		}
 	}`), http.StatusOK, &acResp)
@@ -6350,7 +6670,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	s.setSkipWorkerJobs(t)
 
 	lastSubmittedProfile := &godep.Profile{}
-	mdmDevice, _ := s.setUpEndUserAuthentication(t, lastSubmittedProfile)
+	mdmDevice, _ := s.setUpEndUserAuthentication(t, lastSubmittedProfile, false)
 	di, err := mdmtest.EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
 		Serial: mdmDevice.SerialNumber,
 		UDID:   mdmDevice.UUID,
@@ -6443,7 +6763,11 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 
 	var fullAccCmd *micromdm.CommandPayload
 	require.NoError(t, plist.Unmarshal(accCmd.Raw, &fullAccCmd))
-	assert.True(t, fullAccCmd.Command.AccountConfiguration.LockPrimaryAccountInfo)
+	// We setup the test with Lock End User Account info disabled, so this should be false
+	require.NotNil(t, fullAccCmd)
+	require.NotNil(t, fullAccCmd.Command)
+	require.NotNil(t, fullAccCmd.Command.AccountConfiguration)
+	assert.False(t, fullAccCmd.Command.AccountConfiguration.LockPrimaryAccountInfo)
 	assert.Equal(t, displayName, fullAccCmd.Command.AccountConfiguration.PrimaryAccountFullName)
 	assert.Equal(t, "sso_user_no_displayname", fullAccCmd.Command.AccountConfiguration.PrimaryAccountUserName)
 
@@ -6742,7 +7066,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 // things in your test to fail. Either change the SSO Server URL back after doing SSO or make changes
 // in your test to account for the hardcoded, wrong server URL of https://localhost:8080 being used
 // in places like enrollment profiles
-func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T) appConfigResponse {
+func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T, lockEndUserInfo bool) appConfigResponse {
 	// MDM SSO fields are empty by default
 	acResp := appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
@@ -6761,7 +7085,8 @@ func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T) appConfigResponse {
 					"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
 				},
 				"macos_setup": {
-					"enable_end_user_authentication": true
+					"enable_end_user_authentication": true,
+					"lock_end_user_info": `+fmt.Sprintf("%t", lockEndUserInfo)+`
 				}
 			}
 		}`), http.StatusOK, &acResp)
@@ -6784,7 +7109,8 @@ func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T) appConfigResponse {
 						"metadata_url": ""
 					},
 					"macos_setup": {
-						"enable_end_user_authentication": false
+						"enable_end_user_authentication": false,
+						"lock_end_user_info": false
 					}
 				}
 			}`), http.StatusOK, &acResp)
@@ -6798,7 +7124,7 @@ func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T) appConfigResponse {
 }
 
 // If you call this function see note on setUpMDMSSO() about server URL changes
-func (s *integrationMDMTestSuite) setUpEndUserAuthentication(t *testing.T, lastSubmittedProfile *godep.Profile) (*mdmtest.TestAppleMDMClient,
+func (s *integrationMDMTestSuite) setUpEndUserAuthentication(t *testing.T, lastSubmittedProfile *godep.Profile, lockEndUserInfo bool) (*mdmtest.TestAppleMDMClient,
 	fleet.SSOProviderSettings,
 ) {
 	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
@@ -6853,7 +7179,7 @@ func (s *integrationMDMTestSuite) setUpEndUserAuthentication(t *testing.T, lastS
 	// sync the list of ABM devices
 	s.runDEPSchedule()
 
-	acResp := s.setUpMDMSSO(t)
+	acResp := s.setUpMDMSSO(t, lockEndUserInfo)
 
 	// trigger the worker to process the job and wait for result before continuing.
 	s.runWorker()
@@ -7625,7 +7951,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
   mdm:
     macos_updates:
       deadline: 2022-01-04
-      minimum_version: 12.1.3
+      minimum_version: 14.6.1
  `))
 
 	// still empty if MDM is turned off for the host
@@ -7646,7 +7972,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	wantCfg, err := fleet.NewNudgeConfig(fleet.AppleOSUpdateSettings{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("12.1.3")})
+	wantCfg, err := fleet.NewNudgeConfig(fleet.AppleOSUpdateSettings{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("14.6.1")})
 	require.NoError(t, err)
 	require.Equal(t, wantCfg, resp.NudgeConfig)
 	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 20:00:00 +0000 UTC")
@@ -7676,7 +8002,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 		MDM: &fleet.TeamPayloadMDM{
 			MacOSUpdates: &fleet.AppleOSUpdateSettings{
 				Deadline:       optjson.SetString("1992-01-01"),
-				MinimumVersion: optjson.SetString("13.1.1"),
+				MinimumVersion: optjson.SetString("13.6.9"),
 			},
 		},
 	}, http.StatusOK, &tmResp)
@@ -7684,7 +8010,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	wantCfg, err = fleet.NewNudgeConfig(fleet.AppleOSUpdateSettings{Deadline: optjson.SetString("1992-01-01"), MinimumVersion: optjson.SetString("13.1.1")})
+	wantCfg, err = fleet.NewNudgeConfig(fleet.AppleOSUpdateSettings{Deadline: optjson.SetString("1992-01-01"), MinimumVersion: optjson.SetString("13.6.9")})
 	require.NoError(t, err)
 	require.Equal(t, wantCfg, resp.NudgeConfig)
 	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "1992-01-01 20:00:00 +0000 UTC")
@@ -7706,7 +8032,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h2.OrbitNodeKey)), http.StatusOK, &resp)
-	wantCfg, err = fleet.NewNudgeConfig(fleet.AppleOSUpdateSettings{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("12.1.3")})
+	wantCfg, err = fleet.NewNudgeConfig(fleet.AppleOSUpdateSettings{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("14.6.1")})
 	require.NoError(t, err)
 	require.Equal(t, wantCfg, resp.NudgeConfig)
 	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 20:00:00 +0000 UTC")
@@ -10259,6 +10585,14 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 				// disk encryption does not require mdm enabled and configured
 				http.StatusOK,
 			},
+			{
+				"enable recovery lock password",
+				&fleet.TeamSpecMDM{
+					EnableRecoveryLockPassword: optjson.SetBool(true),
+				},
+				// recovery lock password requires mdm enabled and configured
+				http.StatusUnprocessableEntity,
+			},
 			// Ian - this test still passes, that is, returns 4xx – perhaps related to one of the endpoints we still need to update
 			{
 				"enable end user auth",
@@ -10339,7 +10673,7 @@ func (s *integrationMDMTestSuite) runWorkerUntilDoneWithChecks(failIfFailedJobs 
 
 func (s *integrationMDMTestSuite) runDEPSchedule() {
 	ctx := context.Background()
-	fleetSyncer := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger.SlogLogger())
+	fleetSyncer := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
 	err := fleetSyncer.RunAssigner(ctx)
 	require.NoError(s.T(), err)
 }
@@ -10649,19 +10983,10 @@ func (s *integrationMDMTestSuite) TestWindowsFreshEnrollEmptyQuery() {
 	req := getDistributedQueriesRequest{NodeKey: *host.NodeKey}
 	var dqResp getDistributedQueriesResponse
 	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+	// We no longer read profiles via osquery
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_mdm_config_profiles_windows")
-
-	// add two profiles
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
-		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
-		{Name: "N2", Contents: syncMLForTest("./Foo/Bar")},
-	}}, http.StatusNoContent)
-
-	req = getDistributedQueriesRequest{NodeKey: *host.NodeKey}
-	dqResp = getDistributedQueriesResponse{}
-	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
-	require.Contains(t, dqResp.Queries, "fleet_detail_query_mdm_config_profiles_windows")
-	require.NotEmpty(t, dqResp.Queries, "fleet_detail_query_mdm_config_profiles_windows")
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_mdm_device_id_windows")
+	require.NotEmpty(t, dqResp.Queries, "fleet_detail_query_mdm_device_id_windows")
 }
 
 func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
@@ -10976,6 +11301,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 
 	t.Cleanup(func() {
 		acResp.MDM.MacOSSetup.EnableEndUserAuthentication = false
+		acResp.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
 		err := s.ds.SaveAppConfig(context.Background(), &acResp.AppConfig)
 		require.NoError(t, err)
 	})
@@ -11425,7 +11751,7 @@ func (s *integrationMDMTestSuite) enableABM(orgName string) *fleet.ABMToken {
 			_, _ = w.Write([]byte(`{}`))
 		}
 	}))
-	depClient := apple_mdm.NewDEPClient(s.depStorage, s.ds, s.logger.SlogLogger())
+	depClient := apple_mdm.NewDEPClient(s.depStorage, s.ds, s.logger)
 	_, err = depClient.AccountDetail(ctx, orgName)
 	require.NoError(t, err)
 	return tok
@@ -11663,8 +11989,8 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	require.NoError(t, err)
 	fleetCfg := config.TestConfig()
 	config.SetTestMDMConfig(s.T(), &fleetCfg, cert, key, "")
-	logger := logging.NewJSONLogger(os.Stdout)
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	scepLogger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	err = RenewSCEPCertificates(ctx, scepLogger, s.ds, &fleetCfg, s.mdmCommander)
 	require.NoError(t, err)
 
 	// no new commands were enqueued
@@ -13516,7 +13842,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		"team_id",
 		fmt.Sprint(team.ID))
 	s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?team_id=%d", "team_id": %d, "fleet_id": %d, "platform": "%s"}`, team.Name, team.Name,
+		fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", "team_id": %d, "fleet_id": %d, "platform": "%s"}`, team.Name, team.Name,
 			addedApp.Name, addedApp.AdamID, macOSTitleID, team.ID, team.ID, team.ID, addedApp.Platform), 0)
 
 	var count int
@@ -14258,7 +14584,7 @@ func (s *integrationMDMTestSuite) TestNoTeamVPPAppIcons() {
 		"team_id",
 		fmt.Sprint(fleet.PolicyNoTeamID))
 	s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": null, "fleet_name": null, "software_title": "%s", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?team_id=%d", "team_id": %d, "fleet_id": %d, "platform": "%s"}`,
+		fmt.Sprintf(`{"team_name": null, "fleet_name": null, "software_title": "%s", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", "team_id": %d, "fleet_id": %d, "platform": "%s"}`,
 			addedApp.Name, addedApp.AdamID, macOSTitleID, fleet.PolicyNoTeamID, fleet.PolicyNoTeamID, fleet.PolicyNoTeamID, addedApp.Platform), 0)
 
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -15345,7 +15671,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	// to the proper value and then fetch the enrollment profiles and do the enrollments.
 	// TODO: Is there a better way to do this?
 	originalServerUrl := s.server.URL
-	s.setUpMDMSSO(t)
+	s.setUpMDMSSO(t, true)
 
 	getSSOAccessToken := func(username, password string) string {
 		ssoResult := s.LoginAccountDrivenEnrollUser(username, password)
@@ -15509,7 +15835,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMActionsOnPersonalHost() {
 	// to the proper value and then fetch the enrollment profiles and do the enrollments.
 	// TODO: Is there a better way to do this?
 	originalServerUrl := s.server.URL
-	s.setUpMDMSSO(t)
+	s.setUpMDMSSO(t, true)
 
 	getSSOAccessToken := func(username, password string) string {
 		ssoResult := s.LoginAccountDrivenEnrollUser(username, password)
@@ -18770,7 +19096,7 @@ func (s *integrationMDMTestSuite) TestRecreateDeletedIPhoneBYOD() {
 		pushMutex.Unlock()
 		return mockSuccessfulPush(ctx, pushes)
 	}
-	err := apple_mdm.IOSiPadOSRevive(context.Background(), s.ds, s.mdmCommander, s.logger.SlogLogger())
+	err := apple_mdm.IOSiPadOSRevive(context.Background(), s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	pushMutex.Lock()
 	require.Len(t, recordedPushes, 1)
@@ -19306,25 +19632,20 @@ func (s *integrationMDMTestSuite) TestCancelLockWipeUpcomingActivity() {
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.EqualValues(t, fleet.PendingActionNone, *getHostResp.Host.MDM.PendingAction)
 
-	// past lock/wipe actions have been cleared
+	// original lock/wipe activities are preserved in the audit log, with the cancelation as the latest activity
 	var listAct listActivitiesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", h3.ID), nil, http.StatusOK, &listAct)
-	// latest activity is the cancelation
-	require.True(t, len(listAct.Activities) > 0)
+	require.True(t, len(listAct.Activities) > 1)
 	require.Equal(t, fleet.ActivityTypeCanceledRunScript{}.ActivityName(), listAct.Activities[0].Type)
-	if len(listAct.Activities) > 1 {
-		require.NotEqual(t, lockActID, listAct.Activities[1].ID)
-		require.NotEqual(t, fleet.ActivityTypeLockedHost{}.ActivityName(), listAct.Activities[1].Type)
-	}
+	require.Equal(t, lockActID, listAct.Activities[1].ID)
+	require.Equal(t, fleet.ActivityTypeLockedHost{}.ActivityName(), listAct.Activities[1].Type)
 
 	listAct = listActivitiesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", h4.ID), nil, http.StatusOK, &listAct)
-	require.True(t, len(listAct.Activities) > 0)
+	require.True(t, len(listAct.Activities) > 1)
 	require.Equal(t, fleet.ActivityTypeCanceledRunScript{}.ActivityName(), listAct.Activities[0].Type)
-	if len(listAct.Activities) > 1 {
-		require.NotEqual(t, wipeActID, listAct.Activities[1].ID)
-		require.NotEqual(t, fleet.ActivityTypeWipedHost{}.ActivityName(), listAct.Activities[1].Type)
-	}
+	require.Equal(t, wipeActID, listAct.Activities[1].ID)
+	require.Equal(t, fleet.ActivityTypeWipedHost{}.ActivityName(), listAct.Activities[1].Type)
 }
 
 func (s *integrationMDMTestSuite) TestSoftwareCategories() {
@@ -19595,7 +19916,7 @@ func (s *integrationMDMTestSuite) TestBYODEnrollmentWithIdPEnabled() {
 	ctx := t.Context()
 	s.setSkipWorkerJobs(t)
 
-	s.setUpMDMSSO(t)
+	s.setUpMDMSSO(t, true)
 
 	// create a couple teams, one with IdP enabled and one without
 	teamNoIdP, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team without idp"})
@@ -19744,9 +20065,7 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 		return nil, errors.New("unknown device")
 	}
 
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
-		return newActivity(ctx, user, act, s.ds, s.logger)
-	})
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, s.fleetSvc.NewActivity)
 	require.NoError(s.T(), err) // Verify it not longer throws an error
 
 	// Verify successful is still enrolled
@@ -20760,9 +21079,7 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	checkExpectedCommands(mdmClientDEP, false, 1)
 
 	// run the cron-based refetch, will not do anything as the devices were just refetched
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
-		return newActivity(ctx, user, act, s.ds, s.logger)
-	})
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, s.fleetSvc.NewActivity)
 	require.NoError(t, err)
 
 	checkExpectedCommands(mdmClientBYOD, true, 0)
@@ -20775,9 +21092,7 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	require.NoError(t, s.ds.UpdateHost(ctx, hostDEP))
 
 	// run the cron-based refetch again, will enqueue the commands with the correct managed only flag
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
-		return newActivity(ctx, user, act, s.ds, s.logger)
-	})
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, s.fleetSvc.NewActivity)
 	require.NoError(t, err)
 
 	checkExpectedCommands(mdmClientBYOD, true, 1)

@@ -9,6 +9,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -27,7 +28,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -920,7 +920,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NoError(t, err)
 	fleetCfg := config.TestConfig()
 	config.SetTestMDMConfig(s.T(), &fleetCfg, cert, key, "")
-	logger := logging.NewJSONLogger(os.Stdout)
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	// run without expired certs, no command enqueued
 	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
@@ -1042,11 +1042,11 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.Nil(t, cmd)
 
 	// devices renew their SCEP cert by re-enrolling.
-	require.NoError(t, manualEnrolledDevice.Enroll())
-	require.NoError(t, automaticEnrolledDevice.Enroll())
-	require.NoError(t, automaticEnrolledDeviceWithRef.Enroll())
-	require.NoError(t, migratedDevice.Enroll())
-	require.NoError(t, iPhoneMdmDevice.Enroll())
+	require.NoError(t, manualEnrolledDevice.Reenroll())
+	require.NoError(t, automaticEnrolledDevice.Reenroll())
+	require.NoError(t, automaticEnrolledDeviceWithRef.Reenroll())
+	require.NoError(t, migratedDevice.Reenroll())
+	require.NoError(t, iPhoneMdmDevice.Reenroll())
 
 	// no new commands are enqueued right after enrollment
 	cmd, err = manualEnrolledDevice.Idle()
@@ -1116,7 +1116,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.Empty(t, getEnrollRef(iPadMdmDevice.UUID))
 
 	// enqueue refetch commands and report results
-	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}))
 	require.True(t, existsRefetchCmd(iPadMdmDevice.UUID))
@@ -1212,7 +1212,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	})
 
 	// enqueue refetch commands and report results
-	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}))
 	require.True(t, existsRefetchCmd(iPadMdmDevice.UUID))

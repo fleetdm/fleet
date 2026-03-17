@@ -56,11 +56,13 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool
-	// ConditionalAccessBypassEnabled indicates if a conditional access policy can be one-time
-	// bypased by end users.
+
+	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
+	Type string
+	// PatchSoftwareTitleID is the title id of the Fleet maintained app chcked by a patch policy.
 	//
-	// Only applies to team policies.
-	ConditionalAccessBypassEnabled *bool
+	// Only applies to team policies with the patch type.
+	PatchSoftwareTitleID *uint
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
@@ -99,17 +101,24 @@ type NewTeamPolicyPayload struct {
 	LabelsExcludeAny []string
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	ConditionalAccessEnabled bool
-	// ConditionalAccessBypassEnabled indicates if a conditional access policy can be one-time
-	// bypassed by the end user
-	ConditionalAccessBypassEnabled *bool
+
+	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
+	Type *string
+	// PatchSoftwareTitleID is the title id of the Fleet maintained app checked by a patch policy.
+	PatchSoftwareTitleID *uint
 }
 
 var (
-	errPolicyEmptyName         = errors.New("policy name cannot be empty")
-	errPolicyEmptyQuery        = errors.New("policy query cannot be empty")
-	errPolicyIDAndQuerySet     = errors.New("both fields \"queryID\" and \"query\" cannot be set")
-	errPolicyInvalidPlatform   = errors.New("invalid policy platform")
-	errPolicyConflictingLabels = errors.New("policy cannot include both labels_include_any and labels_exclude_any")
+	errPolicyEmptyName           = errors.New("policy name cannot be empty")
+	errPolicyEmptyQuery          = errors.New("policy query cannot be empty")
+	errPolicyIDAndQuerySet       = errors.New("both fields \"queryID\" and \"query\" cannot be set")
+	errPolicyInvalidPlatform     = errors.New("invalid policy platform")
+	errPolicyConflictingLabels   = errors.New("policy cannot include both labels_include_any and labels_exclude_any")
+	errPolicyPatchAndQuerySet    = errors.New("If the \"type\" is \"patch\", the \"query\" field is not supported.")
+	errPolicyPatchAndPlatformSet = errors.New("If the \"type\" is \"patch\", the \"platform\" field is not supported.")
+	errPolicyPatchNoTitleID      = errors.New("If the \"type\" is \"patch\", the \"patch_software_title_id\" field is required.")
+	errPolicyQueryUpdated        = errors.New("\"query\" can't be updated")
+	errPolicyPlatformUpdated     = errors.New("\"platform\" can't be updated")
 )
 
 // PolicyNoTeamID is the team ID of "No team" policies.
@@ -120,6 +129,25 @@ const MaxPolicyAutomationRetries = 3
 
 // Verify verifies the policy payload is valid.
 func (p PolicyPayload) Verify() error {
+	if p.Type == PolicyTypePatch {
+		if p.QueryID != nil {
+			return errPolicyPatchAndQuerySet
+		}
+		if !emptyString(p.Query) {
+			return errPolicyPatchAndQuerySet
+		}
+		if !emptyString(p.Platform) {
+			return errPolicyPatchAndPlatformSet
+		}
+		if p.PatchSoftwareTitleID == nil {
+			return errPolicyPatchNoTitleID
+		}
+		if len(p.LabelsIncludeAny) > 0 && len(p.LabelsExcludeAny) > 0 {
+			return errPolicyConflictingLabels
+		}
+		return nil
+	}
+
 	if p.QueryID != nil {
 		if p.Query != "" {
 			return errPolicyIDAndQuerySet
@@ -128,7 +156,7 @@ func (p PolicyPayload) Verify() error {
 		if err := verifyPolicyName(p.Name); err != nil {
 			return err
 		}
-		if err := verifyPolicyQuery(p.Query); err != nil {
+		if err := verifyPolicyQuery(p.Query, p.Type); err != nil {
 			return err
 		}
 	}
@@ -152,8 +180,8 @@ func emptyString(s string) bool {
 	return len(strings.TrimSpace(s)) == 0
 }
 
-func verifyPolicyQuery(query string) error {
-	if emptyString(query) {
+func verifyPolicyQuery(query string, typ string) error {
+	if emptyString(query) && typ != PolicyTypePatch {
 		return errPolicyEmptyQuery
 	}
 	return nil
@@ -211,22 +239,35 @@ type ModifyPolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled *bool `json:"conditional_access_enabled" premium:"true"`
-	// ConditionalAccessBypassEnabled indicates if a conditional access policy can be one-time
-	// bypased by end users.
-	//
-	// Only applies to team policies.
-	ConditionalAccessBypassEnabled *bool `json:"conditional_access_bypass_enabled" premium:"true"`
+
+	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
+	Type string `json:"-"`
 }
 
 // Verify verifies the policy payload is valid.
 func (p ModifyPolicyPayload) Verify() error {
+	if p.Type == PolicyTypePatch {
+		if p.Name != nil {
+			if err := verifyPolicyName(*p.Name); err != nil {
+				return err
+			}
+		}
+		if p.Query != nil {
+			return errPolicyQueryUpdated
+		}
+		if p.Platform != nil {
+			return errPolicyPlatformUpdated
+		}
+		return nil
+	}
+
 	if p.Name != nil {
 		if err := verifyPolicyName(*p.Name); err != nil {
 			return err
 		}
 	}
 	if p.Query != nil {
-		if err := verifyPolicyQuery(*p.Query); err != nil {
+		if err := verifyPolicyQuery(*p.Query, PolicyTypeDynamic); err != nil {
 			return err
 		}
 	}
@@ -285,11 +326,13 @@ type PolicyData struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool `json:"conditional_access_enabled" db:"conditional_access_enabled"`
-	// ConditionalAccessBypassEnabled indicates if a conditional access policy can be one-time
-	// bypased by end users.
+
+	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
+	Type string `json:"type" db:"type"`
+	// PatchSoftwareTitleID is the title id of the Fleet maintained app chcked by a patch policy.
 	//
-	// Only applies to team policies.
-	ConditionalAccessBypassEnabled *bool `json:"conditional_access_bypass_enabled" db:"conditional_access_bypass_enabled"`
+	// Only applies to team policies with the patch type.
+	PatchSoftwareTitleID *uint `json:"-" db:"patch_software_title_id"`
 
 	UpdateCreateTimestamps
 }
@@ -318,6 +361,14 @@ type Policy struct {
 	//
 	// This field is populated from PolicyData.ScriptID
 	RunScript *PolicyScript `json:"run_script,omitempty"`
+
+	// PatchSoftware is used to check the installed version of a Fleet
+	// maintaind app.
+	//
+	// Only applies to team policies with the patch type.
+	//
+	// This field is populated from PolicyData.PatchSoftwareTitleID
+	PatchSoftware *PolicySoftwareTitle `json:"patch_software,omitempty"`
 }
 
 type PolicyCalendarData struct {
@@ -407,11 +458,9 @@ type PolicySpec struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
-	// ConditionalAccessBypassEnabled indicates if a conditional access policy can be one-time
-	// bypased by end users.
-	//
-	// Only applies to team policies.
-	ConditionalAccessBypassEnabled *bool `json:"conditional_access_bypass_enabled"`
+
+	Type                   string `json:"type"`
+	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug"`
 }
 
 // PolicySoftwareTitle contains software title data for policies.
@@ -437,7 +486,7 @@ func (p PolicySpec) Verify() error {
 	if err := verifyPolicyName(p.Name); err != nil {
 		return err
 	}
-	if err := verifyPolicyQuery(p.Query); err != nil {
+	if err := verifyPolicyQuery(p.Query, p.Type); err != nil {
 		return err
 	}
 	if err := verifyPolicyPlatforms(p.Platform); err != nil {
@@ -491,3 +540,8 @@ type PolicyMembershipResult struct {
 	PolicyID uint
 	Passes   *bool
 }
+
+const (
+	PolicyTypeDynamic = "dynamic"
+	PolicyTypePatch   = "patch"
+)

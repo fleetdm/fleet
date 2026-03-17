@@ -23,32 +23,34 @@ func (ds *Datastore) ResetSetupExperienceItemsAfterFailure(ctx context.Context, 
 }
 
 func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint, resetFailedSetupSteps bool) (bool, error) {
-	// Find the host with the given UUID and platform. If it's already been enrolled for > the cutoff,
-	// don't enqueue any items. This handles the edge case where an enrolled host upgrades from an
-	// Orbit version that didn't support setup experience to one that does.
-	// See https://github.com/fleetdm/fleet/issues/35717
-	stmtHost := `
-	SELECT
-		last_enrolled_at
-	FROM
-		hosts
-	WHERE uuid = ? AND platform = ?
-	`
-	var lastEnrolledAt sql.NullTime
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &lastEnrolledAt, stmtHost, hostUUID, hostPlatformLike); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// This shouldn't happen but we don't check for it elsewhere,
-			// so we'll log a warning and continue.
-			ds.logger.WarnContext(ctx, "Host not found while enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike)
-		} else {
-			return false, ctxerr.Wrap(ctx, err, "finding host for enqueueing setup experience items")
+	if hostPlatformLike != "darwin" && hostPlatformLike != "ios" && hostPlatformLike != "ipados" {
+		// Find the host with the given UUID and platform. If it's already been enrolled for > the cutoff,
+		// don't enqueue any items. This handles the edge case where an enrolled host upgrades from an
+		// Orbit version that didn't support setup experience to one that does.
+		// See https://github.com/fleetdm/fleet/issues/35717
+		stmtHost := `
+		SELECT
+			last_enrolled_at
+		FROM
+			hosts
+		WHERE uuid = ? AND platform = ?
+		`
+		var lastEnrolledAt sql.NullTime
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &lastEnrolledAt, stmtHost, hostUUID, hostPlatformLike); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				// This shouldn't happen but we don't check for it elsewhere,
+				// so we'll log a warning and continue.
+				ds.logger.WarnContext(ctx, "Host not found while enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike)
+			} else {
+				return false, ctxerr.Wrap(ctx, err, "finding host for enqueueing setup experience items")
+			}
 		}
-	}
-	// If the host was enrolled more than 24 hours ago, don't enqueue any items.
-	// Note: if the last enroll date is our "zero date" (1/1/2000), treat it as if it's never enrolled.
-	if lastEnrolledAt.Valid && lastEnrolledAt.Time.Before(time.Now().Add(-24*time.Hour)) && lastEnrolledAt.Time.After(time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)) {
-		ds.logger.DebugContext(ctx, "Host enrolled more than 24 hours ago, skipping enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "last_enrolled_at", lastEnrolledAt.Time)
-		return false, nil
+		// If the host was enrolled more than 24 hours ago, don't enqueue any items.
+		// Note: if the last enroll date is our "zero date" (1/1/2000), treat it as if it's never enrolled.
+		if lastEnrolledAt.Valid && lastEnrolledAt.Time.Before(time.Now().Add(-24*time.Hour)) && lastEnrolledAt.Time.After(time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)) {
+			ds.logger.DebugContext(ctx, "Host enrolled more than 24 hours ago, skipping enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "last_enrolled_at", lastEnrolledAt.Time)
+			return false, nil
+		}
 	}
 
 	// NOTE: currently, the Android platform does not use the "enqueue setup experience items" flow as it
@@ -83,6 +85,7 @@ INNER JOIN software_titles st
 	ON si.title_id = st.id
 WHERE install_during_setup = true
 AND global_or_team_id = ?
+AND si.is_active = TRUE
 AND (
 	-- installer platform matches the host's fleet platform (darwin, linux or windows)
 	si.platform = ?
@@ -533,7 +536,7 @@ SELECT
     END AS error
 FROM setup_experience_status_results sesr
 LEFT JOIN setup_experience_scripts ses ON ses.id = sesr.setup_experience_script_id
-LEFT JOIN software_installers si ON si.id = sesr.software_installer_id
+LEFT JOIN software_installers si ON si.id = sesr.software_installer_id AND si.is_active = TRUE
 LEFT JOIN host_software_installs hsi ON hsi.execution_id = sesr.host_software_installs_execution_id
 LEFT JOIN host_script_results hsr ON hsr.execution_id = sesr.script_execution_id
 LEFT JOIN vpp_apps_teams vat ON vat.id = sesr.vpp_app_team_id

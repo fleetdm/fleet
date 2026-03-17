@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -132,6 +133,9 @@ type SoftwareInstaller struct {
 
 	// DisplayName is an end-user friendly name.
 	DisplayName string `json:"display_name"`
+
+	// PatchPolicy is present for Fleet maintained apps with an associated patch policy
+	PatchPolicy *PatchPolicyData `json:"patch_policy"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -725,6 +729,12 @@ type AutomaticInstallPolicy struct {
 	ID      uint   `json:"id" db:"id"`
 	Name    string `json:"name" db:"name"`
 	TitleID uint   `json:"-" db:"software_title_id"`
+	Type    string `json:"type" db:"type"`
+}
+
+type PatchPolicyData struct {
+	ID   uint   `json:"id" db:"id"`
+	Name string `json:"name" db:"name"`
 }
 
 // SoftwarePackageOrApp provides information about a software installer
@@ -789,7 +799,7 @@ type SoftwarePackageSpec struct {
 
 	// ReferencedYamlPath is the resolved path of the file used to fill the
 	// software package. Only present after parsing a GitOps file on the fleetctl
-	// side of processing. This is required to match a macos_setup.software to
+	// side of processing. This is required to match a setup_experience.software to
 	// its corresponding software package, as we do this matching by yaml path.
 	//
 	// It must be JSON-marshaled because it gets set during gitops file processing,
@@ -1116,4 +1126,24 @@ func (o HostSoftwareInstallOptions) Priority() int {
 		return 100
 	}
 	return 0
+}
+
+const (
+	BatchDownloadMaxRetries = 3
+	BatchUploadMaxRetries   = 3
+)
+
+func BatchSoftwareInstallerRetryInterval() time.Duration {
+	defaultInterval := 30 * time.Second
+	d := dev_mode.Env("FLEET_DEV_BATCH_RETRY_INTERVAL")
+	if d != "" {
+		t, err := time.ParseDuration(d)
+		if err != nil {
+			return defaultInterval
+		}
+
+		return t
+	}
+
+	return defaultInterval
 }

@@ -1482,8 +1482,11 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 		} else if mdmActions.UnlockRef != nil && hostPlatform != "darwin" {
 			// the unlock reference is an MDM command uuid
 			cmd, cmdRes, err := ds.getHostMDMAppleCommand(ctx, *mdmActions.UnlockRef, host.UUID)
-			if err != nil {
+			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "get unlock reference")
+			}
+			if fleet.IsNotFound(err) {
+				ds.logger.ErrorContext(ctx, "orphan unlock MDM command reference", "host_id", host.ID, "command_uuid", *mdmActions.UnlockRef)
 			}
 			status.UnlockMDMCommand = cmd
 			status.UnlockMDMCommandResult = cmdRes
@@ -1492,15 +1495,18 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 		if mdmActions.LockRef != nil {
 			// the lock reference is an MDM command
 			cmd, cmdRes, err := ds.getHostMDMAppleCommand(ctx, *mdmActions.LockRef, host.UUID)
-			if err != nil {
+			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "get lock reference")
+			}
+			if fleet.IsNotFound(err) {
+				ds.logger.ErrorContext(ctx, "orphan lock MDM command reference", "host_id", host.ID, "command_uuid", *mdmActions.LockRef)
 			}
 
 			status.LockMDMCommand = cmd
 			status.LockMDMCommandResult = cmdRes
 
 			// for ADE enrolled iDevices, we don't advance to "locked" until we have location data
-			if hostPlatform == "ios" || hostPlatform == "ipados" {
+			if status.LockMDMCommand != nil && (hostPlatform == "ios" || hostPlatform == "ipados") {
 				_, err = ds.GetHostLocationData(ctx, host.ID)
 				switch {
 				case fleet.IsNotFound(err):
@@ -1514,8 +1520,11 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 		if mdmActions.WipeRef != nil {
 			// the wipe reference is an MDM command
 			cmd, cmdRes, err := ds.getHostMDMAppleCommand(ctx, *mdmActions.WipeRef, host.UUID)
-			if err != nil {
+			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "get wipe reference")
+			}
+			if fleet.IsNotFound(err) {
+				ds.logger.ErrorContext(ctx, "orphan wipe MDM command reference", "host_id", host.ID, "command_uuid", *mdmActions.WipeRef)
 			}
 			status.WipeMDMCommand = cmd
 			status.WipeMDMCommandResult = cmdRes
@@ -1549,8 +1558,11 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 		if mdmActions.WipeRef != nil {
 			if hostPlatform == "windows" {
 				cmd, cmdRes, err := ds.getHostMDMWindowsCommand(ctx, *mdmActions.WipeRef, host.UUID)
-				if err != nil {
+				if err != nil && !fleet.IsNotFound(err) {
 					return nil, ctxerr.Wrap(ctx, err, "get wipe reference")
+				}
+				if fleet.IsNotFound(err) {
+					ds.logger.ErrorContext(ctx, "orphan wipe MDM command reference", "host_id", host.ID, "command_uuid", *mdmActions.WipeRef)
 				}
 				status.WipeMDMCommand = cmd
 				status.WipeMDMCommandResult = cmdRes
@@ -2516,7 +2528,7 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 		}
 
 		if !teamIDEq(host.TeamID, script.TeamID) {
-			return "", ctxerr.Errorf(ctx, "all hosts must be on the same team as the script")
+			return "", ctxerr.Errorf(ctx, "all hosts must be on the same fleet as the script")
 		}
 	}
 

@@ -324,7 +324,7 @@ func (svc *MDMAppleCommander) InstallEnterpriseApplicationWithEmbeddedManifest(
 	return svc.EnqueueCommand(ctx, hostUUIDs, string(raw))
 }
 
-func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string, uuid, fullName, userName string) error {
+func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string, uuid, fullName, userName string, lockPrimaryAccountInfo bool) error {
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -336,7 +336,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
       <key>PrimaryAccountUserName</key>
       <string>%s</string>
       <key>LockPrimaryAccountInfo</key>
-      <true />
+      <%t />
       <key>RequestType</key>
       <string>AccountConfiguration</string>
     </dict>
@@ -344,7 +344,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
     <key>CommandUUID</key>
     <string>%s</string>
   </dict>
-</plist>`, fullName, userName, uuid)
+</plist>`, fullName, userName, lockPrimaryAccountInfo, uuid)
 
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }
@@ -560,6 +560,33 @@ func (svc *MDMAppleCommander) SendNotifications(ctx context.Context, hostUUIDs [
 // BulkDeleteHostUserCommandsWithoutResults calls the storage method with the same name.
 func (svc *MDMAppleCommander) BulkDeleteHostUserCommandsWithoutResults(ctx context.Context, commandToIDs map[string][]string) error {
 	return svc.storage.BulkDeleteHostUserCommandsWithoutResults(ctx, commandToIDs)
+}
+
+// SetRecoveryLock sends the SetRecoveryLock MDM command to set the recovery lock password.
+// The password is not included in the command - instead, a placeholder is used that will be
+// expanded at delivery time by looking up the password from host_recovery_key_passwords.
+// The password must be stored (via SetHostsRecoveryLockPasswords) BEFORE calling this method.
+// See https://developer.apple.com/documentation/devicemanagement/set_recovery_lock
+func (svc *MDMAppleCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+	// Use the host secret placeholder - the actual password will be injected at delivery time
+	// by ExpandHostSecrets, which looks up the password from host_recovery_key_passwords.
+	cmdPayload := commandPayload{
+		CommandUUID: cmdUUID,
+		Command: map[string]any{
+			"RequestType": "SetRecoveryLock",
+			"NewPassword": "$" + fleet.HostSecretPrefix + fleet.HostSecretRecoveryLockPassword,
+		},
+	}
+	rawBytes, err := plist.MarshalIndent(cmdPayload, "    ")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshalling SetRecoveryLock payload")
+	}
+
+	if err := svc.EnqueueCommand(ctx, hostUUIDs, string(rawBytes)); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing SetRecoveryLock command")
+	}
+
+	return nil
 }
 
 // APNSDeliveryError records an error and the associated host UUIDs in which it

@@ -178,6 +178,14 @@ Here are a few of the drawbacks that we have experienced when generating docs vi
 - Autogenerating docs from code comments is not always the best way to make sure reference docs accurately reflect the API.
 - As the Fleet REST API, documentation, and tools mature, a more declarative format such as OpenAPI might become the source of truth, but only after investing in a format and processes to make it continually accurate as well as visible, accessible, and modifiable for all contributors.
 
+## Why no YAML schema for GitOps? 
+
+Fleet intentionally doesn’t use a formal YAML schema (ex. [JSON Schema](https://json-schema.org/)) for GitOps. While a schema might appear cleaner, it adds tooling, automation, and maintenance overhead that slows development. For the problem we’re solving, catching extraneous or misplaced keys, it’s simpler and faster to [validate directly in code](https://github.com/fleetdm/fleet/blob/49a6598acdb0c296bd85307614c3cce7be510017/pkg/spec/gitops_validate_test.go) with explicit checks at each level of the YAML.
+
+This approach also produces better error messages. Most of our users encounter validation failures in CI logs or GitHub Actions, not in an editor with autocomplete. Generic schema errors can be confusing, especially for people new to GitOps or YAML. Procedural validation lets Fleet return clear, specific messages: a key is misspelled, it’s in the wrong section, or these are the valid keys allowed here.
+
+Keeping validation in code also makes the behavior easier to understand and change. Engineers can see exactly when validation runs and what conditions are checked, and each validation can return a tailored message that teaches the user how to fix the configuration.
+
 
 ## Why group Slack channels?
 
@@ -317,6 +325,13 @@ Many companies encourage salespeople to ["spray and pray"](https://www.linkedin.
 - **Community-first.**  We go to conferences.  We write docs.  We are participants, not sponsors.  We don't write spammy articles and landing pages. We want people who choose Fleet to be successful, whether they are paying customers or not.  We are not pushy.  We are only as commercial as we have to be to help people out.
 - **Be genuine.**  No puffery. No impressive-sounding words.  We are [🟣 open and outsider friendly](https://fleetdm.com/handbook/company#openness).  We expand acronyms, and insist on using simple language that lets everyone understand and contribute.  We help the people we work with grow in their careers and learn from each other.  We are sincere, curious, and [🔵 fair to competitors](https://fleetdm.com/handbook/company#objectivity).
 - **Step up.** We look at the [🟠 big picture](https://fleetdm.com/handbook/company#ownership).  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or another solution altogether.  We think about our customer's needs like they are our own.
+
+
+## Why work with customer X?
+
+At Fleet, we inspire ourselves to be helpers to everyone, even if some might disagree with their personal beliefs or particular OKRs of their organization.  Fleet is open source so everyone can use it and contribute.  And the company is built by different contributors from many walks of life and with unique perspectives.
+
+That said, for example, if a Fleetie struggled with a gambling issue in their past, it might be hard for them to provide customer support to the IT team of a large chain of casinos. So when business allows, Fleet accommodates by pairing team members with the customers where they can provide the most value.
 
 
 ## Why does Fleet support query packs?

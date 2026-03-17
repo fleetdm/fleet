@@ -63,6 +63,7 @@ module.exports = {
         'Scheduled a "Let\'s get you set up" meeting',
         'Submitted the "GitOps workshop request" form',
         'Signed up for a fleetdm.com account',
+        'Submitted a form to download a whitepaper',
       ]
     },
     eventContent: {

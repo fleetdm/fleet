@@ -2349,13 +2349,54 @@ This activity contains the following fields:
 }
 ```
 
+## failed_enrollment_profile_renewal
+
+Generated when an enrollment profile renewal (SCEP or ACME) has failed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "command_uuid": Command ID we display details for.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_display_name": "PWNED-VM-123",
+  "command_uuid": "98765432-1234-1234-1234-1234567890ab"
+}
+```
+
+## resent_certificate
+
+Generated when a user resends a certificate to a host.
+
+This activity contains the following fields:
+- "host_id": The ID of the host.
+- "host_display_name": The display name of the host.
+- "certificate_template_id": The ID of the certificate template
+- "certificate_name": The name of the certificate
+
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "certificate_template_id": 123,
+  "certificate_name": "Zero trust certificate"
+}
+```
+
 ## canceled_setup_experience
 
 Generated when macOS setup experience is canceled due to software install failure.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
-- "host_display_name": Display name of the host.
+- "host_display_name": Display name of the host.Expand commentComment on line R2358
 - "software_title": Name of the software.
 - "software_title_id": ID of the software title.
 
@@ -2366,9 +2407,10 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
-  "software_title_id": 12334
+  "software_title_id": 1234
 }
 ```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">

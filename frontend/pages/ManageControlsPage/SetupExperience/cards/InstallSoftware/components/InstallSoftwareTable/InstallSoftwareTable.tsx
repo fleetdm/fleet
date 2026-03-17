@@ -8,15 +8,19 @@ import EmptyTable from "components/EmptyTable";
 
 import generateTableConfig from "./InstallSoftwareTableConfig";
 
+const DEFAULT_PAGE_SIZE = 10;
+
 const baseClass = "select-software-table";
 
 const generateSelectedRows = (softwareTitles: ISoftwareTitle[]) => {
-  return softwareTitles.reduce<Record<string, boolean>>((acc, software, i) => {
+  return softwareTitles.reduce<Record<string, boolean>>((acc, software) => {
     if (
       software.software_package?.install_during_setup ||
       software.app_store_app?.install_during_setup
     ) {
-      acc[i] = true;
+      if (software.id != null) {
+        acc[String(software.id)] = true; // key must match DataTable getRowId(row) for selection to persist
+      }
     }
     return acc;
   }, {});
@@ -66,8 +70,9 @@ const InstallSoftwareTable = ({
       defaultSelectedRows={initialSelectedSoftwareRows}
       showMarkAllPages
       isAllPagesSelected={false}
-      persistSelectedRows
-      disablePagination
+      persistSelectedRows // Keeps selected rows across pagination (client-side)
+      isClientSidePagination
+      pageSize={DEFAULT_PAGE_SIZE}
       searchable
       searchQueryColumn="name"
       isClientSideFilter

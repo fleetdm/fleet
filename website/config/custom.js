@@ -87,6 +87,7 @@ module.exports.custom = {
 
 
   // Other integrations:
+  // anthropicSecret: undefined,
   // openAiSecret: undefined,
   // iqSecret: undefined, // You gotta use the base64-encoded API secret.  (Get it in your account settings in LeadIQ.)
   // salesforceIntegrationUsername: undefined,
@@ -148,7 +149,8 @@ module.exports.custom = {
     'website/config': 'eashaw',
     'website/config/routes.js': 'eashaw',//« Website redirects and URLs
     'website/scripts': 'eashaw',
-    'website/package.json': 'eashaw',
+    'website/package.json': 'eashaw',// « This is where new website dependencies get added
+    'website/.sailsrc': 'eashaw', // «This gets changed automatically when docs are compiled, so it's easy to accidentally check in changes that shouldn't be checked in.
 
     // 🫧 Vulnerability dashboard
     'ee/vulnerability-dashboard': 'eashaw',// (catch-all)

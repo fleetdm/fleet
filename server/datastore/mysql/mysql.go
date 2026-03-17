@@ -32,15 +32,11 @@ import (
 	nano_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 )
-
-// Compile-time interface check
-var _ activities.ActivityStore = (*Datastore)(nil)
 
 const (
 	mySQLTimestampFormat = "2006-01-02 15:04:05" // %Y/%m/%d %H:%M:%S
@@ -907,6 +903,10 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 			return defaultAllowClause
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
+				if filter.ObserverTeamID != nil {
+					// Restrict global observer to only the specified team (e.g. the live query's own team).
+					return fmt.Sprintf("%s.team_id = %d", hostKey, *filter.ObserverTeamID)
+				}
 				return defaultAllowClause
 			}
 			return "FALSE"
@@ -922,11 +922,19 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 		if team.Role == fleet.RoleAdmin ||
 			team.Role == fleet.RoleMaintainer ||
 			team.Role == fleet.RoleTechnician ||
-			team.Role == fleet.RoleObserverPlus ||
-			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
+			team.Role == fleet.RoleObserverPlus {
 			idStrs = append(idStrs, fmt.Sprint(team.ID))
 			if filter.TeamID != nil && *filter.TeamID == team.ID {
 				teamIDSeen = true
+			}
+		} else if team.Role == fleet.RoleObserver && filter.IncludeObserver {
+			// When ObserverTeamID is set, restrict observer access to only that team.
+			// This scopes observer_can_run to the query's own team, not all observed teams.
+			if filter.ObserverTeamID == nil || *filter.ObserverTeamID == team.ID {
+				idStrs = append(idStrs, fmt.Sprint(team.ID))
+				if filter.TeamID != nil && *filter.TeamID == team.ID {
+					teamIDSeen = true
+				}
 			}
 		}
 	}

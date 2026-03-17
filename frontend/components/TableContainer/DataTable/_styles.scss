@@ -102,6 +102,7 @@ $shadow-transition-width: 10px;
         white-space: nowrap;
         border-left: 1px solid $ui-fleet-black-10;
         font-weight: $bold;
+        font-size: $xx-small;
         height: 40px; // Match body row height
 
         &:first-child {

@@ -50,7 +50,7 @@ const AdminWrapper = ({
     },
     {
       name: "Fleets",
-      pathname: PATHS.ADMIN_TEAMS,
+      pathname: PATHS.ADMIN_FLEETS,
       exclude: !isPremiumTier,
     },
   ];

@@ -52,25 +52,23 @@ const ResendConfigProfileModal = ({
       title="Resend configuration profile"
       onExit={onExit}
     >
-      <>
-        <p>
-          This action will resend the <b>{name}</b> configuration profile to{" "}
-          <b>{countText}</b>. To cancel after resending, delete and re-add the
-          profile.
-        </p>
-        <div className="modal-cta-wrap">
-          <Button
-            onClick={onClickResend}
-            isLoading={isResending}
-            disabled={isResending}
-          >
-            Resend
-          </Button>
-          <Button variant="inverse" onClick={onExit} disabled={isResending}>
-            Cancel
-          </Button>
-        </div>
-      </>
+      <p>
+        This action will resend the <b>{name}</b> configuration profile to{" "}
+        <b>{countText}</b>. To cancel after resending, delete and re-add the
+        profile.
+      </p>
+      <div className="modal-cta-wrap">
+        <Button
+          onClick={onClickResend}
+          isLoading={isResending}
+          disabled={isResending}
+        >
+          Resend
+        </Button>
+        <Button variant="inverse" onClick={onExit} disabled={isResending}>
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };
