@@ -25,12 +25,15 @@ controls:
     # and other aspects of the end user's experience during
     # their first few minutes with their new Mac.
     #
+    # Note: This requires activating MDM in your Fleet instance.
+    #
     # For more, see:
+    #   • https://fleetdm.com/guides/apple-mdm-setup
     #   • https://fleetdm.com/docs/configuration/yaml-files#macos-setup
     #   • https://developer.apple.com/documentation/devicemanagement/profile
     #   • https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web
     ###########################################################
-    apple_setup_assistant: ../platforms/macos/enrollment-profiles/automatic-enrollment.dep.json
+    # apple_setup_assistant: ../platforms/macos/enrollment-profiles/automatic-enrollment.dep.json
 
     ###########################################################
     # Uncomment to use single-sign on (SSO) to authenticate
@@ -45,26 +48,21 @@ controls:
   ###########################################################
   # Configuration profiles
   #
+  # # Note: This requires activating MDM in your Fleet instance.
+  #
   # For more, see:
+  #   • https://fleetdm.com/guides/apple-mdm-setup    
+  #   • https://fleetdm.com/guides/windows-mdm-setup
   #   • https://fleetdm.com/docs/configuration/yaml-files#apple-settings-and-windows-settings
   #
-  # Note: Instead of including all profiles with `paths`,
-  # you can also switch to using `path` and including each
-  # specific configuration profile one by one, which allows
-  # for scoping using labels.  For example:
-  # ```
-  # - path: ../platforms/macos/configuration-profiles/1password-managed-settings.mobileconfig
-  #   labels_include_any:
-  #     - "Macs with 1Password installed"
-  # ```
   ###########################################################
   apple_settings:
     configuration_profiles:
-      - paths: ../platforms/macos/declaration-profiles/*.json
-      - paths: ../platforms/macos/configuration-profiles/*.mobileconfig
+      # - path: ../platforms/macos/declaration-profiles/Passcide settings.json
+      # - path: ../platforms/macos/configuration-profiles/chrome-enrollment.mobileconfig
   windows_settings:
     configuration_profiles:
-      - paths: ../platforms/windows/configuration-profiles/*.xml
+      # - path: ../platforms/windows/configuration-profiles/Enable firewall.xml
 
   ###########################################################
   # Managed disk encryption
