@@ -56,8 +56,17 @@ is_network_mount() {
     # Walk up to find the mount point that contains this path.
     _match=$(awk '$3 ~ /^('"$NETWORK_FS_TYPES"')$/ {print $2}' /proc/mounts | while read -r mnt_esc; do
         mnt=$(printf '%b' "$mnt_esc")
-        case "$_target" in
-            "$mnt"|"$mnt"/*) echo "$mnt"; break ;;
+        case "$mnt" in
+            /)
+                case "$_target" in
+                    /*) echo "$mnt"; break ;;
+                esac
+                ;;
+            *)
+                case "$_target" in
+                    "$mnt"|"$mnt"/*) echo "$mnt"; break ;;
+                esac
+                ;;
         esac
     done)
     [ -n "$_match" ]
