@@ -26,6 +26,13 @@ unmount_network_filesystems() {
         | sort -nr \
         | cut -d" " -f2- \
         | while read -r mnt; do
+        # Never unmount critical mountpoints that may contain required userland.
+        case "$mnt" in
+            /|/usr|/bin|/sbin|/lib|/lib64|/usr/bin|/usr/sbin|/usr/lib|/usr/lib64)
+                echo "Skipping critical network-mounted filesystem: $mnt"
+                continue
+                ;;
+        esac
         echo "Unmounting network filesystem: $mnt"
         umount -f -l "$mnt" 2>/dev/null || echo "Warning: failed to unmount $mnt"
     done
@@ -61,8 +68,11 @@ safe_rm() {
         rm -f "$_path" 2>/dev/null
         return
     fi
-    find "$_path" -xdev -depth -mindepth 1 ! -type d -exec rm -f {} + 2>/dev/null
-    find "$_path" -xdev -depth -mindepth 1 -type d -exec rmdir {} + 2>/dev/null
+    (
+        cd "$_path" 2>/dev/null || exit 0
+        find . -xdev -depth ! -name . ! -type d -exec rm -f {} \; 2>/dev/null
+        find . -xdev -depth ! -name . -type d -exec rmdir {} \; 2>/dev/null
+    )
     rmdir "$_path" 2>/dev/null
 }
 
