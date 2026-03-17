@@ -127,7 +127,7 @@ After a software package is installed on a host, it can be uninstalled on the ho
 
 ## Delete the package
 
-* Navigate to the **Software** page, choose a fleet, and select the **Library** tab to view software available for install, including self-service software.
+* Navigate to the **Software** page, choose a fleet, and select the **Library** tab.
 * Select the software you want to delete.
 * On the **Software details** page, select the **Delete** icon next to the uploaded package file.
 
