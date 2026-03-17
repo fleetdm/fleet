@@ -125,3 +125,11 @@
   description: "Every week, go through Fleet's tagged posts on LinkedIn and through the Slack channels and add them to the testimonial.yml file. Ensure it's commented out & has all required fields in testimonial.yml file. Assign PR to website team."
   moreInfoUrl: "https://fleetdm.com/handbook/marketing/marketing-assets-new"
   dri: "irenareedy"
+
+-
+  task: "Review CTRs of recently boosted posts"
+  startedOn: "2026-03-17"
+  frequency: "Weekly"
+  description: "Review click-through rates (CTRs) of recently boosted posts on LinkedIn. The CEO will attend the first few sessions, then Irena and the CMO will continue running this ritual going forward."
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#review-ctrs-of-recently-boosted-posts"
+  dri: "irenareedy"
