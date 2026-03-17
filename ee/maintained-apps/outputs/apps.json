@@ -184,6 +184,13 @@
       "description": "Archaeology is a tool for digging into binary files."
     },
     {
+      "name": "Arduino IDE",
+      "slug": "arduino-ide/darwin",
+      "platform": "darwin",
+      "unique_identifier": "cc.arduino.IDE2",
+      "description": "Arduino IDE is the official development environment for programming Arduino microcontrollers."
+    },
+    {
       "name": "Asana",
       "slug": "asana/darwin",
       "platform": "darwin",
