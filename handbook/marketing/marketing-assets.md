@@ -127,6 +127,43 @@ Champion stories and case studies showing real customers achieving real outcomes
 | [National research organization improves Linux automation with Fleet](https://fleetdm.com/articles/national-research-organization) | Research / Nonprofit |  |  | ✓ | <nobr>2026‑03‑14</nobr> |
 | [Technology platform manages 15,000 iPads with Fleet](https://fleetdm.com/articles/technology-platform) | Technology |  |  |  | <nobr>2026‑03‑14</nobr> |
 
+### Fleet Customer Testimonials
+
+> All quotes sourced from [fleetdm.com/customers](https://fleetdm.com/customers)
+
+| # | Company | Industry | Name | Title | Quote |
+|---|---------|----------|------|-------|-------|
+| 1 | Foursquare | Technology & Geospatial Intelligence | Mike Meyer | Senior Manager, Corporate Engineer | "One of the easiest, quickest, smoothest migrations I've ever done." |
+| 2 | NVIDIA | Semiconductor / GPU Manufacturing | Kenny Botelho | Client Platform IT Engineer / Leader | "We wanted an open-source MDM to easily use configuration-as-code, deliver the best possible experience for our employees, and make security happy." |
+| 3 | Stripe | Financial Software | Scott MacVicar | Head of Developer Infrastructure & Corporate Technology | "We've been using Fleet for a few years at Stripe and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customise it to our needs, and seamlessly integrate it into our existing environment." |
+| 4 | Reddit | Internet Content & Social Media | Nick Fohs | Systems and Infrastructure Manager | "Context is king for device data, and Fleet provides a way to surface that information to our other teams and partners." |
+| 5 | Stripe | Financial Software | Wes Whetstone | Staff CPE at Stripe | "Mad props to how easy making a deploy pkg of the agent was. I wish everyone made stuff that easy." |
+| 6 | Stripe | Financial Software | Erik Gomez | Former Staff Client Platform Engineer | "Exciting. This is a team that listens to feedback." |
+| 7 | Robinhood | Financial Software | Matt Carr | CPE Manager | "I'm a huge fan of Fleet and their approach to GitOps." |
+| 8 | — (Community) | — | Nico Waisman | Former CISO of Lyft | "Having the freedom to take full advantage of the product is one of the reasons why I always support open-source products with a commercially-backed company, like Fleet." |
+| 9 | NVIDIA | Semiconductor / GPU Manufacturing | Kenny Botelho | Client Platform IT Engineer / Leader | "Fleet has been highly effective for our needs. We appreciate your team for always being so open to hearing our feedback." |
+| 10 | — (Community) | — | Dan Grzelak | Former Security Chief of Staff | "I love the steady and consistent delivery of features that help teams work how they want to work, not how your product dictates they work." |
+| 11 | Flock Safety | Public Safety Technology | Eric Tan | CIO & CSO | "This is not just production osquery, but actually a way bigger opportunity than even something like Airwatch or Jamf." |
+| 12 | ConductorOne | Identity Governance & Access Management | Chayce O'Neal | Head of IT | "Fleet is incredibly easy to deploy and perfect for lean IT teams. It's everything we need in a device management platform, simple, efficient, and powerful." |
+| 13 | Uber | Ride-Sharing & Mobility Technology | Luis Madrigal | Former Engineering Leader | "Fleet aligns with the strategies that enabled me to help scale Uber's global device deployments with a lean DevOps/systems engineering team." |
+| 14 | — (Community) | — | Andre Shields | Staff Cybersecurity Engineer, Vulnerability Management | "The visibility down into the assets covered by the agent is phenomenal. Fleet has become the central source for a lot of things." |
+| 15 | Rivian | Electric Vehicle Manufacturing | Austin Anderson | Cybersecurity Team Senior Manager | "We can build it exactly the way we want it. Which is just not possible on other platforms." |
+| 16 | — (Community) | Open Source / Cybersecurity | Mike Arpaia | Creator of osquery | "It's great to see the new release of Fleet containing some really cool new features that make osquery much more usable in practical environments. I'm really impressed with the work that Zach Wasserman and the crew are doing at Fleet." |
+| 17 | — (Community) | Cybersecurity | Ahmed Elshaer | DFIR, Blue Teaming, SecOps | "Osquery is one of the best tools out there and Fleet makes it even better. Highly recommend it if you want to monitor, detect and investigate threats on a scale and also for infra/sys admin. I have used it on 15k servers and it's really scalable." |
+| 18 | — (Community) | — | Charles Zaffery | Principal Computer Janitor | "Fleet has such a huge amount of use cases. My goal was to get telemetry on endpoints, but then our IR team, our TBM team, and multiple other folks in security started heavily utilizing the system in ways I didn't expect. It spread so naturally, even our corporate and infrastructure teams want to run it." |
+| 19 | Snowflake | Cloud Data Platform | Tom Larkin | Sr. Manager, Client Engineering & DevOps | "I just want to brag again about how awesome Fleet and Snowflake are together. Osquery alone isn't a big data tool, but it's a powerful data collector." |
+| 20 | Deloitte | Professional Services & Consulting | Chandra Majumdar | Partner — Cyber and Strategic Risk | "Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it." |
+| 21 | — (Community) | Cybersecurity | Arsenio Figueroa | Senior Systems Security Engineer | "Fleet helped us determine that Norton antivirus (pre-installed on some machines) was interfering with Crowdstrike's ability to detect downloaded malware." |
+| 22 | — (Community) | IT / Device Management | Justin LaBo | Head of Core BT Engineering | "I recently attended a GitOps workshop hosted by the team at Fleet—and WOW, it was truly inspiring! Seeing industry-standard tools like osquery and git combined with MDM and CI/CD to manage endpoints was impressive. With support for Linux, macOS, Windows, iOS, iPadOS, and Chrome OS, managing everything from a single codebase is a game-changer. Super cool. I've been a fan of Fleet, and the GitOps functionality showcased at the workshop added yet another dimension to an already exciting product. If you're in IT or device management/client platform engineering, I highly recommend checking out one of these sessions." |
+| 23 | Foursquare | Technology & Geospatial Intelligence | Mike Meyer | Senior Manager, Corporate Engineering | "Thanks for a great run Jamf... Foursquare has officially completed the migration to Fleet as our new device management platform." |
+| 24 | — (Community) | Open Source / Apple IT | Bart Reardon | Creator of swiftDialog | "My users love this. It's increasing security and compliance across our workforce." |
+| 25 | Reddit | Internet Content & Social Media | U/Heteronymous | Redditor | "If I needed a single pane of glass for all OS endpoints, starting fresh, I'd push for the paid version of FleetDM." |
+| 26 | — (Community) | IT Operations | Roger Cantrell | IT Operations Engineer | "We chose Fleet because they take Linux desktop management seriously. It was smooth as butter to set up and start deploying. Fleet gives me the peace of mind knowing that our Linux Fleet is properly managed, monitored, and secure." |
+| 27 | — (Community) | IT Systems | David Bodmer | IT Systems Engineer | "The customer support and care has been 'world class'. Even on the other side of the world." |
+| 28 | — (Community) | IT / Device Management | Fiona Skelton | Senior Technology Specialist | "Fleet is the best multi-OS MDM on the market currently and is improving daily. Fleet makes sense for me because of their amazing support, transparent and detailed reporting, app updating functionality, self-service, and macOS DDM support." |
+| 29 | Fastly | Cloud Computing & Edge Cloud Platform | Dan Jackson | Sr Manager, Systems Engineering | "Fleet enabled us to consolidate our patchwork of endpoint tools with a single platform, eliminating complexity and cutting licensing costs. The shift to GitOps has modernized our operations giving us the agility and change control we needed giving leadership real-time confidence in device health and compliance. The result is a more efficient, secure environment where IT can move faster on strategic projects instead of firefighting or maintaining multiple legacy systems." |
+| 30 | Ghost | Open-Source Software & Digital Publishing | John O'Nolan | Founder & CEO | "Fleet made the process of migrating fast, easy, and simple. We're excited to work with a team that's aligned with us on open source, and has fantastic technical support. Compared to Kandji, it's a night and day improvement." |
+
 ---
 
 ## 🔵 Editorial & Thought Leadership
@@ -158,6 +195,8 @@ Opinion, industry analysis, executive POV, named-series articles, and standalone
 | [Optimizing government cybersecurity strategies with Fleet](https://fleetdm.com/articles/optimizing-government-cybersecurity-strategies) | Government | How Fleet helps government agencies build a stronger cybersecurity posture. | Keith Barnes | <nobr>2023‑11‑14</nobr> |
 | [Vulnerability management: advantages of Fleet to support government agencies](https://fleetdm.com/articles/vulnerability-management-the-advantages-of-fleet-to-support-government-agencies) | Government | How Fleet's vulnerability management capabilities address the needs of government IT and security teams. | Keith Barnes | <nobr>2023‑12‑26</nobr> |
 | [Embracing the future: Declarative Device Management](https://fleetdm.com/announcements/embracing-the-future-declarative-device-management) | Apple / IT | Explore the transformative impact of Declarative Device Management (DDM), Fleet, and osquery for MacAdmins. | JD Strong | <nobr>2023‑07‑06</nobr> |
+
+
 
 ### Named Series
 
