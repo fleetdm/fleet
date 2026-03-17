@@ -660,8 +660,13 @@ func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint)
 	// Enqueue MDM command
 	cmdUUID := uuid.NewString()
 	if err := svc.mdmAppleCommander.RotateRecoveryLock(ctx, host.UUID, cmdUUID); err != nil {
-		// Clean up on failure
-		_ = svc.ds.ClearRecoveryLockRotation(ctx, host.UUID)
+		// Only clear the pending rotation if the enqueue itself failed.
+		// If it's an APNS delivery error, the command was successfully enqueued
+		// and will be delivered when the device checks in.
+		var apnsErr *apple_mdm.APNSDeliveryError
+		if !errors.As(err, &apnsErr) {
+			_ = svc.ds.ClearRecoveryLockRotation(ctx, host.UUID)
+		}
 		return ctxerr.Wrap(ctx, err, "enqueue recovery lock rotation command")
 	}
 
