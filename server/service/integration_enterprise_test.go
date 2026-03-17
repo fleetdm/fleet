@@ -15301,7 +15301,7 @@ func genDistributedReqWithEntraIDDetailsForWindows(host *fleet.Host, deviceID st
 	return submitDistributedQueryResultsRequestShim{
 		NodeKey:  *host.NodeKey,
 		Results:  results,
-		Statuses: make(map[string]interface{}),
+		Statuses: make(map[string]any),
 		Messages: make(map[string]string),
 		Stats:    map[string]*fleet.Stats{},
 	}
