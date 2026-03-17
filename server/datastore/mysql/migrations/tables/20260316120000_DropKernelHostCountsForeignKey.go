@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260315120000, Down_20260315120000)
+	MigrationClient.AddMigration(Up_20260316120000, Down_20260316120000)
 }
 
-func Up_20260315120000(tx *sql.Tx) error {
+func Up_20260316120000(tx *sql.Tx) error {
 	// The FK is unnecessary because kernel_host_counts is fully rebuilt on each vulnerability cron run via a swap table,
 	// and CREATE TABLE ... LIKE does not copy foreign keys. Keeping the FK would require restoring it after every swap,
 	// which can fail if a referenced software_title is deleted between the SELECT and the ALTER TABLE.
@@ -21,6 +21,6 @@ func Up_20260315120000(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260315120000(_ *sql.Tx) error {
+func Down_20260316120000(_ *sql.Tx) error {
 	return nil
 }
