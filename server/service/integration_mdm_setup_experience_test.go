@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -4883,15 +4884,11 @@ func (s *integrationMDMTestSuite) TestLinuxSetupExperienceEnqueueSoftwareInstall
 	ctx := context.Background()
 	s.setSkipWorkerJobs(t)
 
-	// TODO(mna): implement...
-	_ = ctx
-
 	// add a macOS software to install
 	payloadDummy := &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install",
-		Filename:      "dummy_installer.pkg",
-		Title:         "DummyApp",
-		TeamID:        nil,
+		Filename: "dummy_installer.pkg",
+		Title:    "DummyApp",
+		TeamID:   nil,
 	}
 	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
 	macTitleID := getSoftwareTitleID(t, s.ds, payloadDummy.Title, "apps")
@@ -4899,18 +4896,93 @@ func (s *integrationMDMTestSuite) TestLinuxSetupExperienceEnqueueSoftwareInstall
 
 	// add a .deb custom package
 	payloadRuby := &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install",
-		Filename:      "ruby.deb",
-		Title:         "ruby",
-		Platform:      "linux",
-		TeamID:        nil,
+		Filename: "ruby.deb",
+		Title:    "ruby",
+		Platform: "linux",
+		TeamID:   nil,
 	}
 	s.uploadSoftwareInstaller(t, payloadRuby, http.StatusOK, "")
 	debTitleID := getSoftwareTitleID(t, s.ds, payloadRuby.Title, "deb_packages")
 	require.NotZero(t, debTitleID)
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "software_titles", "id", "name", "source", "extension_for")
-		return nil
+	// add a .sh script-only package
+	payloadSh := &fleet.UploadSoftwareInstallerPayload{
+		Filename: "script.sh",
+		Title:    "script",
+		Platform: "linux",
+		TeamID:   nil,
+	}
+	s.uploadSoftwareInstaller(t, payloadSh, http.StatusOK, "")
+	shTitleID := getSoftwareTitleID(t, s.ds, payloadSh.Title, "sh_packages")
+	require.NotZero(t, shTitleID)
+
+	var putSetupExpResponse putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		TeamID: 0, Platform: "linux", TitleIDs: []uint{debTitleID, shTitleID},
+	}, http.StatusOK, &putSetupExpResponse)
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		TeamID: 0, Platform: "macos", TitleIDs: []uint{macTitleID},
+	}, http.StatusOK, &putSetupExpResponse)
+
+	// create an arch linux host (platform_like is empty)
+	hostArch := createOrbitEnrolledHost(t, "arch", "host1", s.ds)
+	createDeviceTokenForHost(t, s.ds, hostArch.ID, uuid.NewString())
+
+	// create a ubuntu host (platform_like is "debian")
+	hostUbuntu := createOrbitEnrolledHost(t, "ubuntu", "host2", s.ds)
+	hostUbuntu.PlatformLike = "debian"
+	require.NoError(t, s.ds.UpdateHost(ctx, hostUbuntu))
+	createDeviceTokenForHost(t, s.ds, hostUbuntu.ID, uuid.NewString())
+
+	// trigger setup experience for arch
+	var orbitInitResponse orbitSetupExperienceInitResponse
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+		OrbitNodeKey: *hostArch.OrbitNodeKey,
+	}, http.StatusOK, &orbitInitResponse)
+	require.True(t, orbitInitResponse.Result.Enabled)
+
+	// get status of the "Setup experience", only the .sh is compatible
+	var orbitStatusResponse getOrbitSetupExperienceStatusResponse
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", getOrbitSetupExperienceStatusRequest{
+		OrbitNodeKey: *hostArch.OrbitNodeKey,
+	}, http.StatusOK, &orbitStatusResponse)
+	require.Nil(t, orbitStatusResponse.Results.Script)
+	require.Nil(t, orbitStatusResponse.Results.BootstrapPackage)
+	require.Len(t, orbitStatusResponse.Results.ConfigurationProfiles, 0)
+	require.Nil(t, orbitStatusResponse.Results.AccountConfiguration)
+	require.False(t, orbitStatusResponse.Results.RequireAllSoftware)
+
+	require.Len(t, orbitStatusResponse.Results.Software, 1)
+	require.Equal(t, payloadSh.Title, orbitStatusResponse.Results.Software[0].Name)
+	require.NotNil(t, orbitStatusResponse.Results.Software[0].SoftwareTitleID)
+	require.Equal(t, shTitleID, *orbitStatusResponse.Results.Software[0].SoftwareTitleID)
+
+	// trigger setup experience for ubuntu
+	orbitInitResponse = orbitSetupExperienceInitResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+		OrbitNodeKey: *hostUbuntu.OrbitNodeKey,
+	}, http.StatusOK, &orbitInitResponse)
+	require.True(t, orbitInitResponse.Result.Enabled)
+
+	// get status of the "Setup experience", both the .sh and .deb are enqueued
+	orbitStatusResponse = getOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", getOrbitSetupExperienceStatusRequest{
+		OrbitNodeKey: *hostUbuntu.OrbitNodeKey,
+	}, http.StatusOK, &orbitStatusResponse)
+	require.Nil(t, orbitStatusResponse.Results.Script)
+	require.Nil(t, orbitStatusResponse.Results.BootstrapPackage)
+	require.Len(t, orbitStatusResponse.Results.ConfigurationProfiles, 0)
+	require.Nil(t, orbitStatusResponse.Results.AccountConfiguration)
+	require.False(t, orbitStatusResponse.Results.RequireAllSoftware)
+
+	require.Len(t, orbitStatusResponse.Results.Software, 2)
+	sort.Slice(orbitStatusResponse.Results.Software, func(i, j int) bool {
+		return orbitStatusResponse.Results.Software[i].Name < orbitStatusResponse.Results.Software[j].Name
 	})
+	require.Equal(t, payloadRuby.Title, orbitStatusResponse.Results.Software[0].Name)
+	require.NotNil(t, orbitStatusResponse.Results.Software[0].SoftwareTitleID)
+	require.Equal(t, debTitleID, *orbitStatusResponse.Results.Software[0].SoftwareTitleID)
+	require.Equal(t, payloadSh.Title, orbitStatusResponse.Results.Software[1].Name)
+	require.NotNil(t, orbitStatusResponse.Results.Software[1].SoftwareTitleID)
+	require.Equal(t, shTitleID, *orbitStatusResponse.Results.Software[1].SoftwareTitleID)
 }
