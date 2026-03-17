@@ -1029,6 +1029,8 @@ type SetHostsRecoveryLockPasswordsFunc func(ctx context.Context, passwords []fle
 
 type GetHostRecoveryLockPasswordFunc func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error)
 
+type GetHostRecoveryLockPasswordStatusFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error)
+
 type GetHostsForRecoveryLockActionFunc func(ctx context.Context) ([]string, error)
 
 type RestoreRecoveryLockForReenabledHostsFunc func(ctx context.Context) (int64, error)
@@ -3324,6 +3326,9 @@ type DataStore struct {
 
 	GetHostRecoveryLockPasswordFunc        GetHostRecoveryLockPasswordFunc
 	GetHostRecoveryLockPasswordFuncInvoked bool
+
+	GetHostRecoveryLockPasswordStatusFunc        GetHostRecoveryLockPasswordStatusFunc
+	GetHostRecoveryLockPasswordStatusFuncInvoked bool
 
 	GetHostsForRecoveryLockActionFunc        GetHostsForRecoveryLockActionFunc
 	GetHostsForRecoveryLockActionFuncInvoked bool
@@ -8026,6 +8031,13 @@ func (s *DataStore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID st
 	s.GetHostRecoveryLockPasswordFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostRecoveryLockPasswordFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetHostRecoveryLockPasswordStatus(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
+	s.mu.Lock()
+	s.GetHostRecoveryLockPasswordStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostRecoveryLockPasswordStatusFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetHostsForRecoveryLockAction(ctx context.Context) ([]string, error) {

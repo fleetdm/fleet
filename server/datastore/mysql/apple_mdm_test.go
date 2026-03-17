@@ -120,6 +120,7 @@ func TestMDMApple(t *testing.T) {
 		{"RecoveryLockPasswordUpdatedAtChanges", testRecoveryLockPasswordUpdatedAtChanges},
 		{"RecoveryLockStatusMethods", testRecoveryLockStatusMethods},
 		{"GetHostsForRecoveryLockAction", testGetHostsForRecoveryLockAction},
+		{"GetHostRecoveryLockPasswordStatus", testGetHostRecoveryLockPasswordStatus},
 		{"ClaimHostsForRecoveryLockClear", testClaimHostsForRecoveryLockClear},
 	}
 
@@ -10929,5 +10930,100 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 		require.True(t, found)
 		assert.Equal(t, "remove", opType)
 		assert.Equal(t, "pending", status)
+	})
+}
+
+func testGetHostRecoveryLockPasswordStatus(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("returns nil for host without recovery lock password", func(t *testing.T) {
+		host := test.NewHost(t, ds, "no-rlp-host", "1.2.6.1", "norlpkey", "norlpuuid", time.Now())
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.Nil(t, status)
+	})
+
+	t.Run("returns pending status", func(t *testing.T) {
+		host := test.NewHost(t, ds, "pending-rlp-host", "1.2.6.2", "pendingrlpkey", "pendingrlpuuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.MDMDeliveryPending, *status.Status)
+		assert.Empty(t, status.Detail)
+	})
+
+	t.Run("returns verified status", func(t *testing.T) {
+		host := test.NewHost(t, ds, "verified-rlp-host", "1.2.6.3", "verifiedrlpkey", "verifiedrlpuuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		err = ds.SetRecoveryLockVerified(ctx, host.UUID)
+		require.NoError(t, err)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.MDMDeliveryVerified, *status.Status)
+		assert.Empty(t, status.Detail)
+	})
+
+	t.Run("returns failed status with error message", func(t *testing.T) {
+		host := test.NewHost(t, ds, "failed-rlp-host", "1.2.6.4", "failedrlpkey", "failedrlpuuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		errMsg := "SetRecoveryLock command failed: device rejected"
+		err = ds.SetRecoveryLockFailed(ctx, host.UUID, errMsg)
+		require.NoError(t, err)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.MDMDeliveryFailed, *status.Status)
+		assert.Equal(t, errMsg, status.Detail)
+	})
+
+	t.Run("returns verifying status", func(t *testing.T) {
+		host := test.NewHost(t, ds, "verifying-rlp-host", "1.2.6.5", "verifyingrlpkey", "verifyingrlpuuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		// Set status to verifying directly via SQL (since there's no SetRecoveryLockVerifying method)
+		_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_recovery_key_passwords SET status = ? WHERE host_uuid = ?`,
+			fleet.MDMDeliveryVerifying, host.UUID)
+		require.NoError(t, err)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.MDMDeliveryVerifying, *status.Status)
+		assert.Empty(t, status.Detail)
+	})
+
+	t.Run("returns pending status when status column is NULL (retry state)", func(t *testing.T) {
+		host := test.NewHost(t, ds, "null-status-host", "1.2.6.6", "nullstatuskey", "nullstatusuuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		// Clear status to NULL (simulates retry state after failed enqueue)
+		err = ds.ClearRecoveryLockPendingStatus(ctx, []string{host.UUID})
+		require.NoError(t, err)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		// NULL status is coalesced to pending for API response
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.MDMDeliveryPending, *status.Status)
+		assert.Empty(t, status.Detail)
 	})
 }
