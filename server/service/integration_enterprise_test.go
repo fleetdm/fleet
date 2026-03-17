@@ -24670,7 +24670,7 @@ func (s *integrationEnterpriseTestSuite) TestDeviceAuthenticationMethods() {
 			}
 
 			_, err = db.ExecContext(ctx, `
-				INSERT INTO scep_certificates
+				INSERT INTO identity_certificates
 				(serial, name, not_valid_before, not_valid_after, certificate_pem, revoked)
 				VALUES (?, ?, ?, ?, ?, ?)
 			`,
