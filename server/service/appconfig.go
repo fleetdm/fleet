@@ -480,7 +480,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.EnableDiskEncryption = oldAppConfig.MDM.EnableDiskEncryption
 	}
 
-	// this is to handle the case where `enable_release_device_manually: null` is
+	// this is to handle the case where `apple_enable_release_device_manually: null` is
 	// passed in the request payload, which should be treated as "not present/not
 	// changed" by the PATCH. We should really try to find a more general way to
 	// handle this.
@@ -512,7 +512,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	if appConfig.MDM.MacOSSetup.ManualAgentInstall.Valid && appConfig.MDM.MacOSSetup.ManualAgentInstall.Value {
 		if !lic.IsPremium() {
-			invalid.Append("macos_setup.manual_agent_install", ErrMissingLicense.Error())
+			invalid.Append("setup_experience.macos_manual_agent_install", ErrMissingLicense.Error())
 			return nil, ctxerr.Wrap(ctx, invalid)
 		}
 	}
@@ -1351,22 +1351,22 @@ func (svc *Service) validateMDM(
 	invalid *fleet.InvalidArgumentError,
 ) error {
 	if mdm.EnableDiskEncryption.Value && !lic.IsPremium() {
-		invalid.Append("macos_settings.enable_disk_encryption", ErrMissingLicense.Error())
+		invalid.Append("apple_settings.enable_disk_encryption", ErrMissingLicense.Error())
 	}
 	if mdm.MacOSSetup.MacOSSetupAssistant.Value != "" && oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value && !lic.IsPremium() {
-		invalid.Append("macos_setup.macos_setup_assistant", ErrMissingLicense.Error())
+		invalid.Append("setup_experience.apple_setup_assistant", ErrMissingLicense.Error())
 	}
 	if mdm.MacOSSetup.EnableReleaseDeviceManually.Value && oldMdm.MacOSSetup.EnableReleaseDeviceManually.Value != mdm.MacOSSetup.EnableReleaseDeviceManually.Value && !lic.IsPremium() {
-		invalid.Append("macos_setup.enable_release_device_manually", ErrMissingLicense.Error())
+		invalid.Append("setup_experience.apple_enable_release_device_manually", ErrMissingLicense.Error())
 	}
 	if mdm.MacOSSetup.BootstrapPackage.Value != "" && oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value && !lic.IsPremium() {
-		invalid.Append("macos_setup.bootstrap_package", ErrMissingLicense.Error())
+		invalid.Append("setup_experience.macos_bootstrap_package", ErrMissingLicense.Error())
 	}
 	if mdm.MacOSSetup.EnableEndUserAuthentication && oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication && !lic.IsPremium() {
-		invalid.Append("macos_setup.enable_end_user_authentication", ErrMissingLicense.Error())
+		invalid.Append("setup_experience.enable_end_user_authentication", ErrMissingLicense.Error())
 	}
 	if mdm.MacOSSetup.ManualAgentInstall.Valid && oldMdm.MacOSSetup.ManualAgentInstall.Value != mdm.MacOSSetup.ManualAgentInstall.Value && !lic.IsPremium() {
-		invalid.Append("macos_setup.manual_agent_install", ErrMissingLicense.Error())
+		invalid.Append("setup_experience.macos_manual_agent_install", ErrMissingLicense.Error())
 	}
 	if mdm.WindowsMigrationEnabled && !lic.IsPremium() {
 		invalid.Append("windows_migration_enabled", ErrMissingLicense.Error())
@@ -1382,27 +1382,27 @@ func (svc *Service) validateMDM(
 	// server at startup and can't be modified by the user
 	if !oldMdm.EnabledAndConfigured {
 		if len(mdm.MacOSSettings.CustomSettings) > 0 && !fleet.MDMProfileSpecsMatch(mdm.MacOSSettings.CustomSettings, oldMdm.MacOSSettings.CustomSettings) {
-			invalid.Append("macos_settings.custom_settings",
-				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+			invalid.Append("apple_settings.configuration_profiles",
+				`Couldn't update apple_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 
 		if mdm.MacOSSetup.MacOSSetupAssistant.Value != "" && oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value {
-			invalid.Append("macos_setup.macos_setup_assistant",
-				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+			invalid.Append("setup_experience.apple_setup_assistant",
+				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 
 		if mdm.MacOSSetup.EnableReleaseDeviceManually.Value && oldMdm.MacOSSetup.EnableReleaseDeviceManually.Value != mdm.MacOSSetup.EnableReleaseDeviceManually.Value {
-			invalid.Append("macos_setup.enable_release_device_manually",
-				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+			invalid.Append("setup_experience.apple_enable_release_device_manually",
+				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 
 		if mdm.MacOSSetup.BootstrapPackage.Value != "" && oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value {
-			invalid.Append("macos_setup.bootstrap_package",
-				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+			invalid.Append("setup_experience.macos_bootstrap_package",
+				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 		if mdm.MacOSSetup.EnableEndUserAuthentication && oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication {
-			invalid.Append("macos_setup.enable_end_user_authentication",
-				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+			invalid.Append("setup_experience.enable_end_user_authentication",
+				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 	}
 	checkCustomSettings := func(prefix string, customSettings []fleet.MDMProfileSpec) {
@@ -1419,8 +1419,8 @@ func (svc *Service) validateMDM(
 				}
 			}
 			if count > 1 {
-				invalid.Append(fmt.Sprintf("%s_settings.custom_settings", prefix),
-					fmt.Sprintf(`Couldn't edit %s_settings.custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
+				invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
+					fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
 			}
 			if len(prof.Labels) > 0 {
 				customSettings[i].LabelsIncludeAll = customSettings[i].Labels
@@ -1434,8 +1434,8 @@ func (svc *Service) validateMDM(
 		if mdm.WindowsSettings.CustomSettings.Set &&
 			len(mdm.WindowsSettings.CustomSettings.Value) > 0 &&
 			!fleet.MDMProfileSpecsMatch(mdm.WindowsSettings.CustomSettings.Value, oldMdm.WindowsSettings.CustomSettings.Value) {
-			invalid.Append("windows_settings.custom_settings",
-				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
+			invalid.Append("windows_settings.configuration_profiles",
+				`Couldn’t edit windows_settings.configuration_profiles. Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
 		}
 	}
 	checkCustomSettings("windows", mdm.WindowsSettings.CustomSettings.Value)
@@ -1445,8 +1445,8 @@ func (svc *Service) validateMDM(
 		if mdm.AndroidSettings.CustomSettings.Set &&
 			len(mdm.AndroidSettings.CustomSettings.Value) > 0 &&
 			!fleet.MDMProfileSpecsMatch(mdm.AndroidSettings.CustomSettings.Value, oldMdm.AndroidSettings.CustomSettings.Value) {
-			invalid.Append("android_settings.custom_settings",
-				`Couldn’t edit android_settings.custom_settings. Android MDM isn’t turned on. This can be enabled by setting "controls.android_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/android-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
+			invalid.Append("android_settings.configuration_profiles",
+				`Couldn’t edit android_settings.configuration_profiles. Android MDM isn’t turned on. This can be enabled by setting "controls.android_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/android-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
 		}
 	}
 	checkCustomSettings("android", mdm.AndroidSettings.CustomSettings.Value)
@@ -1554,12 +1554,12 @@ func (svc *Service) validateMDM(
 	} else if mdm.MacOSSetup.EnableEndUserAuthentication && mdm.EndUserAuthentication.IsEmpty() {
 		// TODO: update this error message to include steps to resolve the issue once docs for IdP
 		// config are available
-		invalid.Append("macos_setup.enable_end_user_authentication",
-			`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`)
+		invalid.Append("setup_experience.enable_end_user_authentication",
+			`Couldn't enable setup_experience.enable_end_user_authentication because no IdP is configured for MDM features.`)
 	}
 
 	if mdm.MacOSSetup.LockEndUserInfo.Value && !mdm.MacOSSetup.EnableEndUserAuthentication {
-		invalid.Append("macos_setup.lock_end_user_info",
+		invalid.Append("setup_experience.lock_end_user_info",
 			`"enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info".`)
 	}
 

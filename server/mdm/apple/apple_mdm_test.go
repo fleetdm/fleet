@@ -483,7 +483,15 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 
 	t.Run("no hosts needing recovery lock does not send commands", func(t *testing.T) {
 		ds := new(mock.Store)
+		// Mock restore - no hosts to restore
+		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+		// Mock clear flow - no hosts need clearing
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
 			return nil, nil
 		}
 
@@ -503,9 +511,17 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 	t.Run("host needing recovery lock gets SetRecoveryLock and password stored with pending status", func(t *testing.T) {
 		ds := new(mock.Store)
 
+		// Mock restore - no hosts to restore
+		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
 		hostUUID := "host-uuid-1"
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
 			return []string{hostUUID}, nil
+		}
+		// Mock clear flow - no hosts need clearing
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
 		}
 
 		// Track call order to verify correct sequencing
@@ -544,9 +560,17 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 	t.Run("SetRecoveryLock failure clears pending status to allow retry", func(t *testing.T) {
 		ds := new(mock.Store)
 
+		// Mock restore - no hosts to restore
+		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
 		hostUUID := "host-uuid-1"
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
 			return []string{hostUUID}, nil
+		}
+		// Mock clear flow - no hosts need clearing
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
 		}
 
 		// Track call order to verify correct sequencing
@@ -585,9 +609,17 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 	t.Run("APNs delivery failure does not clear pending status", func(t *testing.T) {
 		ds := new(mock.Store)
 
+		// Mock restore - no hosts to restore
+		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
 		hostUUID := "host-uuid-1"
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
 			return []string{hostUUID}, nil
+		}
+		// Mock clear flow - no hosts need clearing
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
 		}
 
 		// Track call order to verify ClearRecoveryLockPendingStatus is NOT called
@@ -623,7 +655,8 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 
 // mockRecoveryLockCommander implements RecoveryLockCommander for testing.
 type mockRecoveryLockCommander struct {
-	setRecoveryLockFn func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	setRecoveryLockFn   func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	clearRecoveryLockFn func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 }
 
 func (m *mockRecoveryLockCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
@@ -631,4 +664,75 @@ func (m *mockRecoveryLockCommander) SetRecoveryLock(ctx context.Context, hostUUI
 		return m.setRecoveryLockFn(ctx, hostUUIDs, cmdUUID)
 	}
 	return nil
+}
+
+func (m *mockRecoveryLockCommander) ClearRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+	if m.clearRecoveryLockFn != nil {
+		return m.clearRecoveryLockFn(ctx, hostUUIDs, cmdUUID)
+	}
+	return nil
+}
+
+func TestSendClearRecoveryLockCommands(t *testing.T) {
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+
+	t.Run("hosts needing clear get ClearRecoveryLock command", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		// Mock restore - no hosts to restore
+		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
+		// No hosts need SET
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+
+		hostUUID := "host-uuid-1"
+		// ClaimHostsForRecoveryLockClear queries verified hosts where config is disabled and marks them pending
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return []string{hostUUID}, nil
+		}
+
+		var clearCalled bool
+		mockCommander := &mockRecoveryLockCommander{
+			clearRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+				clearCalled = true
+				require.Equal(t, []string{hostUUID}, hostUUIDs)
+				return nil
+			},
+		}
+
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
+		require.NoError(t, err)
+		require.True(t, clearCalled, "ClearRecoveryLock should have been called")
+	})
+
+	t.Run("no hosts needing clear does not send commands", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		// Mock restore - no hosts to restore
+		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
+		// No hosts need SET
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+
+		mockCommander := &mockRecoveryLockCommander{
+			clearRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+				t.Fatal("ClearRecoveryLock should not be called when no hosts need clearing")
+				return nil
+			},
+		}
+
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
+		require.NoError(t, err)
+	})
 }

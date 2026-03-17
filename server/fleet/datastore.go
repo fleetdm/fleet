@@ -849,6 +849,8 @@ type Datastore interface {
 	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
 	// GetPoliciesForConditionalAccess returns the team policies that are configured for "Conditional access".
 	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint) ([]uint, error)
+	// GetPatchPolicy returns the patch policy associated with the title id
+	GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*PatchPolicyData, error)
 
 	// ConditionalAccessBypassDevice lets the host skip the conditional access check next time it fails
 	ConditionalAccessBypassDevice(ctx context.Context, hostID uint) error
@@ -903,8 +905,8 @@ type Datastore interface {
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
-	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions) (teamPolicies, inheritedPolicies []*Policy, err error)
-	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions) ([]*Policy, error)
+	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, automationFilter string) (teamPolicies, inheritedPolicies []*Policy, err error)
+	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, automationFilter string) ([]*Policy, error)
 
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
@@ -1509,6 +1511,12 @@ type Datastore interface {
 	// - No password saved or status is NULL (ready for command)
 	GetHostsForRecoveryLockAction(ctx context.Context) ([]string, error)
 
+	// RestoreRecoveryLockForReenabledHosts transitions hosts from "pending remove" back to
+	// "verified install" when the recovery lock feature is re-enabled. This preserves the
+	// existing password instead of trying to set a new one (which would fail).
+	// Returns the number of hosts restored.
+	RestoreRecoveryLockForReenabledHosts(ctx context.Context) (int64, error)
+
 	// SetRecoveryLockVerified marks the recovery lock as verified.
 	SetRecoveryLockVerified(ctx context.Context, hostUUID string) error
 
@@ -1519,6 +1527,26 @@ type Datastore interface {
 	// that failed to have their SetRecoveryLock commands enqueued. This allows them to
 	// be picked up again on the next cron run.
 	ClearRecoveryLockPendingStatus(ctx context.Context, hostUUIDs []string) error
+
+	// ClaimHostsForRecoveryLockClear returns host UUIDs that need their recovery lock
+	// cleared and marks them as pending. Returns hosts where the team/appconfig has
+	// enable_recovery_lock_password=false and either:
+	// - operation_type='install' and status='verified' (new clears), or
+	// - operation_type='remove' and status=NULL (retries after failed enqueue)
+	ClaimHostsForRecoveryLockClear(ctx context.Context) ([]string, error)
+
+	// DeleteHostRecoveryLockPassword deletes the recovery lock password record for the given host.
+	// Called after a successful clear operation.
+	DeleteHostRecoveryLockPassword(ctx context.Context, hostUUID string) error
+
+	// GetRecoveryLockOperationType returns the current operation type for the host's recovery lock.
+	// Used by the result handler to determine if this was a set or clear operation.
+	GetRecoveryLockOperationType(ctx context.Context, hostUUID string) (MDMOperationType, error)
+
+	// ResetRecoveryLockForRetry resets a failed clear operation back to install/verified
+	// so it will be picked up by ClaimHostsForRecoveryLockClear on the next cron cycle.
+	// This is used when a clear command fails with a transient error (not password mismatch).
+	ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error
 
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).

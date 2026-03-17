@@ -111,6 +111,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeDisabledMacosUpdateNewHosts{},
 
 	ActivityTypeReadHostDiskEncryptionKey{},
+	ActivityTypeViewedHostRecoveryLockPassword{},
 
 	ActivityTypeCreatedMacosProfile{},
 	ActivityTypeDeletedMacosProfile{},
@@ -670,6 +671,19 @@ func (a ActivityTypeReadHostDiskEncryptionKey) ActivityName() string {
 }
 
 func (a ActivityTypeReadHostDiskEncryptionKey) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type ActivityTypeViewedHostRecoveryLockPassword struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeViewedHostRecoveryLockPassword) ActivityName() string {
+	return "viewed_host_recovery_lock_password"
+}
+
+func (a ActivityTypeViewedHostRecoveryLockPassword) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 

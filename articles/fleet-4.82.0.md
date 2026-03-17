@@ -29,7 +29,7 @@ GitHub issue: [#35696](https://github.com/fleetdm/fleet/issues/35696)
 
 ### Self-service scripts on macOS
 
-Fleet now supports self-service scripts through script-only packages on macOS. Upload a `.sh` script and make it available in self-service for end users on macOS hosts. [Learn how]().
+Fleet now supports self-service scripts through script-only packages on macOS. Upload a `.sh` script and make it available in self-service for end users on macOS hosts. [Learn how](https://fleetdm.com/guides/software-self-service).
 
 This makes it easier for IT admins to deliver quick fixes and utility scripts.
 

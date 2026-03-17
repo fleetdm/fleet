@@ -589,6 +589,31 @@ func (svc *MDMAppleCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []s
 	return nil
 }
 
+// ClearRecoveryLock sends the SetRecoveryLock MDM command to clear the recovery lock password.
+// The CurrentPassword is a placeholder that will be expanded at delivery time by looking up
+// the existing password from host_recovery_key_passwords. NewPassword is empty to clear the lock.
+// See https://developer.apple.com/documentation/devicemanagement/set_recovery_lock
+func (svc *MDMAppleCommander) ClearRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+	cmdPayload := commandPayload{
+		CommandUUID: cmdUUID,
+		Command: map[string]any{
+			"RequestType":     "SetRecoveryLock",
+			"CurrentPassword": "$" + fleet.HostSecretPrefix + fleet.HostSecretRecoveryLockPassword,
+			"NewPassword":     "",
+		},
+	}
+	rawBytes, err := plist.MarshalIndent(cmdPayload, "    ")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshalling ClearRecoveryLock payload")
+	}
+
+	if err := svc.EnqueueCommand(ctx, hostUUIDs, string(rawBytes)); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing ClearRecoveryLock command")
+	}
+
+	return nil
+}
+
 // APNSDeliveryError records an error and the associated host UUIDs in which it
 // occurred.
 type APNSDeliveryError struct {

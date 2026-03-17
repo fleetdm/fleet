@@ -2574,14 +2574,14 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 
 		if byName[mdmProf.Name] {
 			return ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), fmt.Sprintf("Couldn't edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmProf.Name)),
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), fmt.Sprintf("Couldn't edit configuration_profiles. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmProf.Name)),
 				"duplicate mobileconfig profile by name")
 		}
 		byName[mdmProf.Name] = true
 
 		if byIdent[mdmProf.Identifier] {
 			return ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), fmt.Sprintf("Couldn't edit custom_settings. More than one configuration profile have the same identifier (PayloadIdentifier): %q", mdmProf.Identifier)),
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), fmt.Sprintf("Couldn't edit configuration_profiles. More than one configuration profile have the same identifier (PayloadIdentifier): %q", mdmProf.Identifier)),
 				"duplicate mobileconfig profile by identifier")
 		}
 		byIdent[mdmProf.Identifier] = true
@@ -2605,11 +2605,11 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 					continue
 				case strings.HasPrefix(p.ProfileUUID, "w"):
 					err := fleet.NewInvalidArgumentError("PayloadDisplayName", fmt.Sprintf(
-						"Couldn't edit custom_settings. A Windows configuration profile shares the same name as a macOS configuration profile (PayloadDisplayName): %q", p.Name))
+						"Couldn't edit configuration_profiles. A Windows configuration profile shares the same name as a macOS configuration profile (PayloadDisplayName): %q", p.Name))
 					return ctxerr.Wrap(ctx, err, "duplicate xml and mobileconfig by name")
 				default:
 					err := fleet.NewInvalidArgumentError("PayloadDisplayName", fmt.Sprintf(
-						"Couldn't edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", p.Name))
+						"Couldn't edit configuration_profiles. More than one configuration profile have the same name (PayloadDisplayName): %q", p.Name))
 					return ctxerr.Wrap(ctx, err, "duplicate json and mobileconfig by name")
 				}
 			}
@@ -3452,12 +3452,21 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	// much more difficult to reason about the state of the host. We should try instead
 	// to centralize the flow control in the lifecycle methods.
 	if info.SCEPRenewalInProgress {
-		svc.logger.InfoContext(r.Context, "token update received for a SCEP renewal in process, cleaning SCEP refs", "host_uuid", r.ID)
+		svc.logger.InfoContext(r.Context, "token update received with known SCEP renewal in process, cleaning SCEP refs", "host_uuid", r.ID)
 		if err := svc.ds.CleanSCEPRenewRefs(r.Context, r.ID); err != nil {
 			return ctxerr.Wrap(r.Context, err, "cleaning SCEP refs")
 		}
-		svc.logger.InfoContext(r.Context, "cleaned SCEP refs, skipping setup experience and mdm lifecycle turn on action", "host_uuid", r.ID)
-		return nil
+
+		if !m.AwaitingConfiguration {
+			// Normal SCEP renewal - device is NOT at Setup Assistant. Clean refs and short-circuit.
+			svc.logger.InfoContext(r.Context, "cleaned SCEP refs, skipping setup experience and mdm lifecycle turn on action", "host_uuid", r.ID)
+			return nil
+		}
+
+		// Device is awaiting configuration (wiped DEP device re-enrolling). The pending SCEP
+		// renewal was from the previous enrollment. Continue the normal enrollment flow so
+		// the device gets released from the setup assistant.
+		svc.logger.InfoContext(r.Context, "continuing with token update, due to awaiting configuration from new enrollment", "host_uuid", r.ID)
 	}
 
 	var hasSetupExpItems bool
@@ -7321,8 +7330,9 @@ func NewRecoveryLockResult(cmdResult *mdm.CommandResults) fleet.MDMCommandResult
 }
 
 // NewSetRecoveryLockResultsHandler processes SetRecoveryLock command results.
-// When a SetRecoveryLock command is acknowledged, it marks the recovery lock as verified.
-// On error, it marks the recovery lock as failed.
+// It handles both SET (install) and CLEAR (remove) operations:
+// - SET: When acknowledged, marks the recovery lock as verified. On error, marks as failed.
+// - CLEAR: When acknowledged, deletes the recovery lock password record. On error, marks as failed.
 func NewSetRecoveryLockResultsHandler(
 	ds fleet.Datastore,
 	logger *slog.Logger,
@@ -7338,17 +7348,45 @@ func NewSetRecoveryLockResultsHandler(
 		hostUUID := results.HostUUID()
 		status := rlResult.cmdResult.Status
 
+		// Get the operation type to determine if this was a SET or CLEAR operation
+		opType, err := ds.GetRecoveryLockOperationType(ctx, hostUUID)
+		if err != nil {
+			// If the record doesn't exist, it may have been deleted already - nothing to do
+			if fleet.IsNotFound(err) {
+				logger.DebugContext(ctx, "SetRecoveryLock result received but no password record exists",
+					"host_uuid", hostUUID,
+					"status", status,
+				)
+				return nil
+			}
+			return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: get operation type")
+		}
+
 		logger.DebugContext(ctx, "SetRecoveryLock command result received",
 			"host_uuid", hostUUID,
 			"command_uuid", results.UUID(),
 			"status", status,
+			"operation_type", opType,
 		)
 
 		switch status {
 		case fleet.MDMAppleStatusAcknowledged:
-			// ACK means the password was successfully applied - mark as verified
-			if err := ds.SetRecoveryLockVerified(ctx, hostUUID); err != nil {
-				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock verified")
+			if opType == fleet.MDMOperationTypeRemove {
+				// CLEAR succeeded - delete the password record
+				if err := ds.DeleteHostRecoveryLockPassword(ctx, hostUUID); err != nil {
+					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: delete recovery lock password")
+				}
+				logger.InfoContext(ctx, "ClearRecoveryLock acknowledged, password record deleted",
+					"host_uuid", hostUUID,
+				)
+			} else {
+				// SET succeeded - mark as verified
+				if err := ds.SetRecoveryLockVerified(ctx, hostUUID); err != nil {
+					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock verified")
+				}
+				logger.InfoContext(ctx, "SetRecoveryLock acknowledged, marked verified",
+					"host_uuid", hostUUID,
+				)
 			}
 
 			// Get host info for activity logging - don't fail the operation if this fails
@@ -7384,15 +7422,46 @@ func NewSetRecoveryLockResultsHandler(
 		case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
 			errorMsg := apple_mdm.FmtErrorChain(rlResult.cmdResult.ErrorChain)
 			if errorMsg == "" {
-				errorMsg = "SetRecoveryLock command failed"
+				if opType == fleet.MDMOperationTypeRemove {
+					errorMsg = "ClearRecoveryLock command failed"
+				} else {
+					errorMsg = "SetRecoveryLock command failed"
+				}
 			}
-			if err := ds.SetRecoveryLockFailed(ctx, hostUUID, errorMsg); err != nil {
-				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock failed")
+
+			if opType == fleet.MDMOperationTypeRemove {
+				// CLEAR operation failed
+				// Command format errors are terminal - command is malformed and won't succeed on retry.
+				// Password mismatch errors are also terminal - requires admin intervention.
+				if rlResult.cmdResult.Status == fleet.MDMAppleStatusCommandFormatError ||
+					apple_mdm.IsRecoveryLockPasswordMismatchError(rlResult.cmdResult.ErrorChain) {
+					if err := ds.SetRecoveryLockFailed(ctx, hostUUID, errorMsg); err != nil {
+						return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock failed")
+					}
+					logger.WarnContext(ctx, "ClearRecoveryLock failed with terminal error",
+						"host_uuid", hostUUID,
+						"error", errorMsg,
+					)
+				} else {
+					// Transient error - reset to install/verified for retry on next cron cycle
+					if err := ds.ResetRecoveryLockForRetry(ctx, hostUUID); err != nil {
+						return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: reset recovery lock for retry")
+					}
+					logger.InfoContext(ctx, "ClearRecoveryLock failed with transient error, will retry",
+						"host_uuid", hostUUID,
+						"error", errorMsg,
+					)
+				}
+			} else {
+				// SET operation failed - mark as failed
+				if err := ds.SetRecoveryLockFailed(ctx, hostUUID, errorMsg); err != nil {
+					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock failed")
+				}
+				logger.WarnContext(ctx, "SetRecoveryLock command failed",
+					"host_uuid", hostUUID,
+					"error", errorMsg,
+				)
 			}
-			logger.WarnContext(ctx, "SetRecoveryLock command failed",
-				"host_uuid", hostUUID,
-				"error", errorMsg,
-			)
 		}
 
 		return nil
