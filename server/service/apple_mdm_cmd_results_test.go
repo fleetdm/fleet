@@ -427,7 +427,11 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger)
+		newActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+			return nil
+		}
+
+		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
 
 		result := NewRecoveryLockResult(&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
@@ -457,7 +461,11 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger)
+		newActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+			return nil
+		}
+
+		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
 
 		// Test MDMClientError 70 (password not provided)
 		result := NewRecoveryLockResult(&mdm.CommandResults{
@@ -489,7 +497,11 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger)
+		newActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+			return nil
+		}
+
+		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
 
 		// Test ROSLockoutServiceDaemonErrorDomain 8 (password failed to validate)
 		result := NewRecoveryLockResult(&mdm.CommandResults{
@@ -525,7 +537,11 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger)
+		newActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+			return nil
+		}
+
+		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
 
 		// Test a generic transient error (not password mismatch)
 		result := NewRecoveryLockResult(&mdm.CommandResults{
@@ -560,7 +576,11 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger)
+		newActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+			return nil
+		}
+
+		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
 
 		// CommandFormatError is terminal - command is malformed and will never succeed
 		result := NewRecoveryLockResult(&mdm.CommandResults{
