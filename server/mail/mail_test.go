@@ -25,8 +25,9 @@ var testSMTP4DevSMTPPort = getTestSMTP4DevSMTPPort()
 
 func getTestMailpitSMTPPort() uint {
 	if port := os.Getenv("FLEET_MAILPIT_SMTP_PORT"); port != "" {
-		p, _ := strconv.ParseUint(port, 10, 32)
-		return uint(p)
+		if p, err := strconv.ParseUint(port, 10, 32); err == nil && p > 0 {
+			return uint(p)
+		}
 	}
 	return 1026
 }
@@ -40,8 +41,9 @@ func getTestMailpitWebURL() string {
 
 func getTestSMTP4DevSMTPPort() uint {
 	if port := os.Getenv("FLEET_SMTP4DEV_SMTP_PORT"); port != "" {
-		p, _ := strconv.ParseUint(port, 10, 32)
-		return uint(p)
+		if p, err := strconv.ParseUint(port, 10, 32); err == nil && p > 0 {
+			return uint(p)
+		}
 	}
 	return 1027
 }
@@ -181,7 +183,7 @@ func testSMTPNoAuthWithTLS(t *testing.T, mailer fleet.MailService) {
 			SMTPEnableTLS:          true,
 			SMTPVerifySSLCerts:     true,
 			SMTPEnableStartTLS:     true,
-			SMTPPort:               1027,
+			SMTPPort:               testSMTP4DevSMTPPort,
 			SMTPServer:             "localhost",
 			SMTPSenderAddress:      "test@example.com",
 		},

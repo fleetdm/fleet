@@ -24,17 +24,18 @@ var testMailpitWebURL = getTestMailpitWebURL()
 
 func getTestMailpitSMTPPort() uint {
 	if port := os.Getenv("FLEET_MAILPIT_SMTP_PORT"); port != "" {
-		p, _ := strconv.ParseUint(port, 10, 32)
-		return uint(p)
+		if p, err := strconv.ParseUint(port, 10, 32); err == nil && p > 0 {
+			return uint(p)
+		}
 	}
 	return 1026
 }
 
 func getTestMailpitWebURL() string {
 	if port := os.Getenv("FLEET_MAILPIT_WEB_PORT"); port != "" {
-		return "http://localhost:" + port
+		return "http://127.0.0.1:" + port
 	}
-	return "http://localhost:8026"
+	return "http://127.0.0.1:8026"
 }
 
 type notTestFoundError struct{}

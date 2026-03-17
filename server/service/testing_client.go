@@ -38,7 +38,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// testSAMLIDPBaseURL returns the SAML IDP base URL from FLEET_SAML_IDP_HTTP_PORT or defaults to http://localhost:9080.
+// testSAMLIDPBaseURL is the SAML IDP base URL, read from FLEET_SAML_IDP_HTTP_PORT (defaults to http://localhost:9080).
 var testSAMLIDPBaseURL = getTestSAMLIDPBaseURL()
 var testSAMLIDPMetadataURL = testSAMLIDPBaseURL + "/simplesaml/saml2/idp/metadata.php"
 var testSAMLIDPSSOURL = testSAMLIDPBaseURL + "/simplesaml/saml2/idp/SSOService.php"
