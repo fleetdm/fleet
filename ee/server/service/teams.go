@@ -213,17 +213,23 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 		}
 
-		// Always check whether specified versions are supported by Apple (even if they weren't updated)
+		// Only check whether specified versions are supported by Apple if they were updated in this request.
 		// Note that we're validating against the full, non-public asset set of OS versions here because
 		// in our DEP flow the minimum version just acts as the threshold for whether or not to update
 		// the host to the latest, public version. We don't need to install the specified version on the
 		// host during DEP so it doesn't need to be in the public asset set.
-		if errs := apple_mdm.ValidateMDMSettingsAppleSupportedOSVersion(team.Config.MDM, false); len(errs) > 0 {
-			invalid := &fleet.InvalidArgumentError{}
-			for k, v := range errs {
-				invalid.Append(k, v.Error())
-			}
-			return nil, invalid
+		m, err := apple_mdm.ValidateMDMSettingsAppleSupportedOSVersion(team.Config.MDM, false)
+		if err != nil {
+			return nil, fleet.NewInvalidArgumentError("mdm", err.Error())
+		}
+		if v, ok := m["macos"]; ok && macOSMinVersionUpdated {
+			return nil, fleet.NewInvalidArgumentError("macos_updates.minimum_version", v)
+		}
+		if v, ok := m["ios"]; ok && iOSMinVersionUpdated {
+			return nil, fleet.NewInvalidArgumentError("ios_updates.minimum_version", v)
+		}
+		if v, ok := m["ipados"]; ok && iPadOSMinVersionUpdated {
+			return nil, fleet.NewInvalidArgumentError("ipados_updates.minimum_version", v)
 		}
 
 		if payload.MDM.WindowsUpdates != nil {
