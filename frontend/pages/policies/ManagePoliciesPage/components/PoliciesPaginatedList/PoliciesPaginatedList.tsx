@@ -129,29 +129,25 @@ function PoliciesPaginatedList(
 
   // When renderPlatform is enabled, compose renderItemRow to include platform
   // icons at the rightmost side of the row.
-  const composedRenderItemRow = useCallback(
-    (item: IFormPolicy, onChange: (item: IFormPolicy) => void) => {
-      const callerRow = renderItemRow ? renderItemRow(item, onChange) : null;
+  const composedRenderItemRow = (
+    item: IFormPolicy,
+    onChange: (item: IFormPolicy) => void
+  ) => {
+    const callerRow = renderItemRow ? renderItemRow(item, onChange) : null;
 
-      if (!renderPlatform) {
-        return callerRow;
-      }
+    const platforms = item.platform
+      ? (item.platform
+          .split(",")
+          .filter(isQueryablePlatform) as QueryablePlatform[])
+      : [];
 
-      const platforms = item.platform
-        ? (item.platform
-            .split(",")
-            .filter(isQueryablePlatform) as QueryablePlatform[])
-        : [];
-
-      return (
-        <>
-          {callerRow}
-          <PlatformCell platforms={platforms} />
-        </>
-      );
-    },
-    [renderItemRow, renderPlatform]
-  );
+    return (
+      <>
+        {callerRow}
+        <PlatformCell platforms={platforms} />
+      </>
+    );
+  };
 
   // Fetch a single page of policies.
   const DEFAULT_PAGE_SIZE = 10;
@@ -272,9 +268,7 @@ function PoliciesPaginatedList(
           getItemTooltipContent={getPolicyTooltipContent}
           onClickRow={onToggleItem}
           renderItemLabel={renderItemLabel}
-          renderItemRow={
-            renderPlatform || renderItemRow ? composedRenderItemRow : undefined
-          }
+          renderItemRow={renderPlatform ? composedRenderItemRow : renderItemRow}
           pageSize={DEFAULT_PAGE_SIZE}
           onUpdate={onUpdate}
           disabled={disableList || gitOpsModeEnabled}
