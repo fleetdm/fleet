@@ -8,6 +8,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 )
 
+// ActivityWriteService is the subset of the activity bounded context service
+// used by the legacy service layer for write operations.
+type ActivityWriteService interface {
+	api.NewActivityService
+	api.CleanupHostActivitiesService
+}
+
 // NewActivityFunc is the function signature for creating a new activity.
 type NewActivityFunc func(ctx context.Context, user *User, activity ActivityDetails) error
 
@@ -104,6 +111,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeDisabledMacosUpdateNewHosts{},
 
 	ActivityTypeReadHostDiskEncryptionKey{},
+	ActivityTypeViewedHostRecoveryLockPassword{},
 
 	ActivityTypeCreatedMacosProfile{},
 	ActivityTypeDeletedMacosProfile{},
@@ -662,6 +670,19 @@ func (a ActivityTypeReadHostDiskEncryptionKey) ActivityName() string {
 }
 
 func (a ActivityTypeReadHostDiskEncryptionKey) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type ActivityTypeViewedHostRecoveryLockPassword struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeViewedHostRecoveryLockPassword) ActivityName() string {
+	return "viewed_host_recovery_lock_password"
+}
+
+func (a ActivityTypeViewedHostRecoveryLockPassword) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 

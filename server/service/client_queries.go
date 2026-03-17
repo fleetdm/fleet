@@ -1,27 +1,37 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 )
 
 // ApplyQueries sends the list of Queries to be applied (upserted) to the
 // Fleet instance.
 func (c *Client) ApplyQueries(specs []*fleet.QuerySpec) error {
 	req := applyQuerySpecsRequest{Specs: specs}
-	verb, path := "POST", "/api/latest/fleet/spec/queries"
+	verb, path := "POST", "/api/latest/fleet/spec/reports"
 	var responseBody applyQuerySpecsResponse
-	return c.authenticatedRequest(req, verb, path, &responseBody)
+	data, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+	data, err = endpointer.RewriteOldToNewKeys(data, endpointer.ExtractAliasRules(req))
+	if err != nil {
+		return err
+	}
+	return c.authenticatedRequest(data, verb, path, &responseBody)
 }
 
 // GetQuerySpec returns the query spec of a query by its team+name.
 func (c *Client) GetQuerySpec(teamID *uint, name string) (*fleet.QuerySpec, error) {
-	verb, path := "GET", "/api/latest/fleet/spec/queries/"+url.PathEscape(name)
+	verb, path := "GET", "/api/latest/fleet/spec/reports/"+url.PathEscape(name)
 	query := url.Values{}
 	if teamID != nil {
-		query.Set("team_id", fmt.Sprint(*teamID))
+		query.Set("fleet_id", fmt.Sprint(*teamID))
 	}
 	var responseBody getQuerySpecResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode())
@@ -30,10 +40,10 @@ func (c *Client) GetQuerySpec(teamID *uint, name string) (*fleet.QuerySpec, erro
 
 // GetQueries retrieves the list of all Queries.
 func (c *Client) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) {
-	verb, path := "GET", "/api/latest/fleet/queries"
+	verb, path := "GET", "/api/latest/fleet/reports"
 	query := url.Values{}
 	if teamID != nil {
-		query.Set("team_id", fmt.Sprint(*teamID))
+		query.Set("fleet_id", fmt.Sprint(*teamID))
 	}
 	if name != nil {
 		query.Set("query", *name)
@@ -48,7 +58,7 @@ func (c *Client) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) {
 
 // DeleteQuery deletes the query with the matching name.
 func (c *Client) DeleteQuery(name string) error {
-	verb, path := "DELETE", "/api/latest/fleet/queries/"+url.PathEscape(name)
+	verb, path := "DELETE", "/api/latest/fleet/reports/"+url.PathEscape(name)
 	var responseBody deleteQueryResponse
 	return c.authenticatedRequest(nil, verb, path, &responseBody)
 }
@@ -56,7 +66,7 @@ func (c *Client) DeleteQuery(name string) error {
 // DeleteQueries deletes several queries.
 func (c *Client) DeleteQueries(ids []uint) error {
 	req := deleteQueriesRequest{IDs: ids}
-	verb, path := "POST", "/api/latest/fleet/queries/delete"
+	verb, path := "POST", "/api/latest/fleet/reports/delete"
 	var responseBody deleteQueriesResponse
 	return c.authenticatedRequest(req, verb, path, &responseBody)
 }

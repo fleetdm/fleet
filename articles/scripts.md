@@ -41,7 +41,7 @@ Fleet UI (multiple hosts):
 
 1. In Fleet, head to the **Controls > Scripts** tab and upload your script.
 
-2. Head to the **Hosts** page. If you're on Fleet Premium, select a team (or "no team").
+2. Head to the **Hosts** page. If you're on Fleet Premium, select a fleet (or "Unassigned").
 
 3. Click the checkbox next to one or more hosts you want to run the script on.
 
@@ -71,7 +71,7 @@ You can execute a script on a large number of hosts at the same time using the F
 
 Fleet UI:
 
-1. In Fleet, go to the **Hosts** page, and select a team.
+1. In Fleet, go to the **Hosts** page, and select a fleet.
 
 2. Select the hosts that you want to run the script on.
 

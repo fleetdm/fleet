@@ -51,10 +51,10 @@ sequenceDiagram
         desktop->>user: prompt user to logout
         user->>host: logout/login or create<br>initial user during setup
         host->>host: Store recovery key at <br>/var/db/filevaultprk.dat
-        fleetd->>fleet: request vitals queries
-        fleet->>fleetd: Return vitals queries including query<br>to read /var/db/filevaultprk.dat
-        fleetd->>fleetd: execute queries
-        fleetd->>fleet: return query data including recovery key
+        fleetd->>fleet: request vitals reports
+        fleet->>fleetd: Return vitals reports including query<br>to read /var/db/filevaultprk.dat
+        fleetd->>fleetd: execute reports
+        fleetd->>fleet: return report data including recovery key
         fleet->>fleet: Verify that recovery key is decryptable<br>(hourly cron job)
 ```
 
@@ -80,18 +80,18 @@ sequenceDiagram
         fleet->>host: Encryption and<br>escrow profile installed
         fleet->>host: Orbit/osquery installed
         fleetd->>fleet: request vitals queries
-        fleet->>fleetd: Return queries including encryption status query
-        fleetd->>fleet: return query data including encryption status
+        fleet->>fleetd: Return reports including encryption status
+        fleetd->>fleet: return report data including encryption status
         fleet->>fleetd: Enable notifs.RunDiskEncryptionEscrow in orbit<br>config because Host is encrypted but no<br>key is escrowed
         fleetd->>host: Install Escrow Buddy
         fleetd->>host: Set Escrow Buddy<br>GenerateNewKey=true
         desktop->>user: prompt user to logout
         user->>host: logout/login
         host->>host: Store recovery key at <br>/var/db/filevaultprk.dat<br>(triggered by Escrow Buddy)
-        fleetd->>fleet: request vitals queries
-        fleet->>fleetd: Return vitals queries including query<br>to read /var/db/filevaultprk.dat
-        fleetd->>fleetd: execute queries
-        fleetd->>fleet: return query data including recovery key
+        fleetd->>fleet: request vitals reports
+        fleet->>fleetd: Return vitals reports including query<br>to read /var/db/filevaultprk.dat
+        fleetd->>fleetd: execute reports
+        fleetd->>fleet: return report data including recovery key
         fleet->>fleetd: Disable notifs.RunDiskEncryptionEscrow in orbit<br>config because Host is encrypted and a<br>key is escrowed
         fleetd->>host: Set Escrow Buddy<br>GenerateNewKey=false
         fleet->>fleet: Verify that recovery key is decryptable<br>(hourly cron job)
@@ -100,11 +100,11 @@ sequenceDiagram
 #### Troubleshooting
 The key stored in host_disk_encryption_keys for a given host will be deleted under the following circumstances:
 - MDM re-enrollment or enrollment profile reinstallation, outside Fleet-initiated MDM SCEP certificate renewal
-- Disk encryption disabled for a host's team
-- Host moved to a team with disk encryption disabled
+- Disk encryption disabled for a host's fleet
+- Host moved to a fleet with disk encryption disabled
 
-If the host is still in an encrypted team after the MDM re-enrollment, or in the case of a team
-change, once the host is moved to a team with encryption enabled, Fleet will initiate one of the processes
+If the host is still in an encrypted fleet after the MDM re-enrollment, or in the case of a fleet
+change, once the host is moved to a fleet with encryption enabled, Fleet will initiate one of the processes
 described above, depending on the host's actual disk encryption status, to escrow a new encryption
 key. Until the process is complete no key will be listed in Fleet, however in the event of an
 emergency the latest key can be retrieved from the archive using the steps described in [Key Storage
@@ -135,8 +135,8 @@ sequenceDiagram
         host->>fleet: Enroll in Fleet MDM
         fleet->>host: Orbit/osquery installed
         fleetd->>fleet: request vitals queries
-        fleet->>fleetd: Return queries including encryption status query
-        fleetd->>fleet: return query data including encryption status
+        fleet->>fleetd: Return reports including encryption status
+        fleetd->>fleet: return report data including encryption status
         fleet->>fleetd: Enable notifs.EnforceBitLockerEncryption in orbit<br>config because Host is encrypted but no<br>key is escrowed or host is not encrypted
         fleetd->>host: Decrypt OS volume(if encrypted)
         fleetd->>fleetd: Wait for decryption
@@ -144,10 +144,10 @@ sequenceDiagram
         host->>fleetd: Return recovery key after creating protectors
         fleetd->>host: Encrypt OS volume
         fleetd->>fleet: Send recovery key
-        fleetd->>fleet: request vitals queries
-        fleet->>fleetd: Return vitals queries including query<br>to check encryption status
-        fleetd->>fleetd: execute queries
-        fleetd->>fleet: return query data including encryption status
+        fleetd->>fleet: request vitals reports
+        fleet->>fleetd: Return vitals reports including query<br>to check encryption status
+        fleetd->>fleetd: execute reports
+        fleetd->>fleet: return report data including encryption status
         fleet->>fleetd: Disable notifs.EnforceBitLockerEncryption in orbit<br>config because Host is encrypted and a<br>key is escrowed
         fleet->>fleet: Verify that recovery key is decryptable<br>(hourly cron job)
 ```
@@ -197,8 +197,8 @@ sequenceDiagram
         host->>fleet: Enroll in Fleet
         fleet->>host: Orbit/osquery installed
         fleetd->>fleet: request vitals queries
-        fleet->>fleetd: Return queries including encryption status query
-        fleetd->>fleet: return query data including encryption status
+        fleet->>fleetd: Return reports including encryption status
+        fleetd->>fleet: return report data including encryption status
         fleet->>fleetd: Enable notifs.RunDiskEncryptionEscrow in orbit<br>config because Host is encrypted but no<br>key is escrowed or host is not encrypted
         fleetd->>desktop: Trigger user key escrow dialog
         desktop->>user: Prompt user to enter passphrase

@@ -126,7 +126,12 @@ func (putSoftwareTitleIconRequest) DecodeRequest(ctx context.Context, r *http.Re
 	if titleIDUint64 > math.MaxUint {
 		return nil, &fleet.BadRequestError{Message: "title_id value too large"}
 	}
-	teamID := r.URL.Query().Get("team_id")
+	// Accept both fleet_id and team_id without deprecation warning, since
+	// persisted icon URLs may still contain team_id.
+	teamID := r.URL.Query().Get("fleet_id")
+	if teamID == "" {
+		teamID = r.URL.Query().Get("team_id")
+	}
 	if teamID == "" {
 		return nil, &fleet.BadRequestError{Message: "team_id is required"}
 	}

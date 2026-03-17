@@ -1,6 +1,8 @@
 agent_options:
   path: ./lib/all/agent-options/agent-options.yml
 org_settings:
+  conditional_access:
+    bypass_disabled: true
   features:
     enable_host_users: true
     enable_software_inventory: true
@@ -9,7 +11,9 @@ org_settings:
   host_expiry_settings:
     host_expiry_enabled: false
   integrations:
-    google_calendar: []
+    google_calendar:
+      - api_key_json: $DOGFOOD_CALENDAR_API_KEY
+        domain: fleetdm.com
     jira: []
     zendesk: []
   mdm:
@@ -21,32 +25,29 @@ org_settings:
       metadata_url: ""
     end_user_license_agreement: ../it-and-security/lib/macos/misc/eula.pdf
     apple_business_manager:
-    - organization_name: Fleet Device Management Inc.
-      macos_team: "💻 Workstations" 
-      ios_team: "📱🏢 Employee-issued mobile devices"
-      ipados_team: "📱🏢 Employee-issued mobile devices"
-    - organization_name: Mactivate LLC
-      macos_team: "🧪 Testing & QA" 
-      ios_team: "🧪 Testing & QA"
-      ipados_team: "🧪 Testing & QA"
+      - organization_name: Fleet Device Management Inc.
+        macos_fleet: "💻 Workstations"
+        ios_fleet: "📱🏢 Employee-issued mobile devices"
+        ipados_fleet: "📱🏢 Employee-issued mobile devices"
+      - organization_name: Mactivate LLC
+        macos_fleet: "🧪 Testing & QA"
+        ios_fleet: "🧪 Testing & QA"
+        ipados_fleet: "🧪 Testing & QA"
     volume_purchasing_program:
       - location: Fleet Device Management Inc.
-        teams:
+        fleets:
           - "💻 Workstations"
           - "📱🏢 Employee-issued mobile devices"
           - "📱🔐 Personal mobile devices"
           - "🧪 Testing & QA"
   org_info:
-    contact_url: https://fleetdm.slack.com/archives/C071NNMSP2R
+    contact_url: https://fleetdm.slack.com/archives/C09861YJUJ2
     org_logo_url: ""
     org_logo_url_light_background: ""
     org_name: Fleet
   secrets:
     - secret: $DOGFOOD_GLOBAL_ENROLL_SECRET
   server_settings:
-    debug_host_ids:
-      - 1
-      - 3
     deferred_save_host: false
     enable_analytics: true
     live_query_disabled: false
@@ -83,13 +84,13 @@ org_settings:
       destination_url: $DOGFOOD_ACTIVITIES_WEBHOOK_URL
       enable_activities_webhook: true
 policies:
-queries:
-  - path: ./lib/all/queries/collect-fleetd-information.yml
-  - path: ./lib/all/queries/collect-operating-system-information.yml
-  - path: ./lib/all/queries/collect-known-vulnerable-chrome-extensions.yml
-  - path: ./lib/macos/queries/detect-apns-certificate.yml
-  - path: ./lib/macos/queries/collect-macos-compatibility-data.yml
-  - path: ./lib/macos/queries/collect-xprotect-reports.yml
+reports:
+  - path: ./lib/all/reports/collect-fleetd-information.yml
+  - path: ./lib/all/reports/collect-operating-system-information.yml
+  - path: ./lib/all/reports/collect-known-vulnerable-chrome-extensions.yml
+  - path: ./lib/macos/reports/detect-apns-certificate.yml
+  - path: ./lib/macos/reports/collect-macos-compatibility-data.yml
+  - path: ./lib/macos/reports/collect-xprotect-reports.yml
 controls:
   enable_disk_encryption: true
   macos_migration:
@@ -97,6 +98,8 @@ controls:
     mode: voluntary
     webhook_url: $DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL
   windows_enabled_and_configured: true
+  windows_entra_tenant_ids:
+    - $DOGFOOD_ENTRA_TENANT_ID
   windows_migration_enabled: true
 labels:
   - path: ./lib/all/labels/arm-based-windows-hosts.yml
@@ -111,7 +114,6 @@ labels:
   - path: ./lib/all/labels/macos-compatibility-extension-installed.yml
   - path: ./lib/all/labels/team-g-mdm.yml
   - path: ./lib/all/labels/team-g-software.yml
-  - path: ./lib/all/labels/conditional-access-test-group.yml
   - path: ./lib/all/labels/nudge-test-devices.yml
   - path: ./lib/all/labels/macs-with-microsoft-autoupdate-installed.yml
   - path: ./lib/all/labels/department-information-technology.yml

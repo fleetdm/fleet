@@ -1,0 +1,1 @@
+- Most top-level keys can now be omitted from GitOps files in place of supplying them with an empty value.

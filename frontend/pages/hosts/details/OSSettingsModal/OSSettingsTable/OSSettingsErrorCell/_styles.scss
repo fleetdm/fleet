@@ -55,4 +55,32 @@
       }
     }
   }
+
+  &__rotate-button {
+    width: 106px;
+    display: flex;
+
+    .children-wrapper {
+      display: flex;
+
+      .icon {
+        vertical-align: middle;
+        margin-right: 8px;
+      }
+    }
+  }
+
+  &__rotating {
+    color: $core-vibrant-blue;
+    cursor: default;
+    font-size: $x-small;
+    height: 38px;
+    opacity: 50%;
+    filter: saturate(100%);
+
+    .icon {
+      vertical-align: middle;
+      animation: spin 2s linear infinite;
+    }
+  }
 }

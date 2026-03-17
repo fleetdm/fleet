@@ -302,13 +302,13 @@ func isDeviceReleasedManually(ctx context.Context, ds fleet.Datastore, host *fle
 	if host.TeamID == nil {
 		ac, err := ds.AppConfig(ctx)
 		if err != nil {
-			return false, ctxerr.Wrap(ctx, err, "get AppConfig to read enable_release_device_manually")
+			return false, ctxerr.Wrap(ctx, err, "get AppConfig to read apple_enable_release_device_manually")
 		}
 		manualRelease = ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 	} else {
 		tm, err := ds.TeamLite(ctx, *host.TeamID)
 		if err != nil {
-			return false, ctxerr.Wrap(ctx, err, "get Team to read enable_release_device_manually")
+			return false, ctxerr.Wrap(ctx, err, "get Team to read apple_enable_release_device_manually")
 		}
 		manualRelease = tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 	}

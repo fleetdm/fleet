@@ -222,7 +222,7 @@ export const formatScheduledQueryForServer = (
     query_id: queryID,
     shard,
   } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type"]);
+  const result = omit(scheduledQuery, ["logging_type", "query_id"]);
 
   if (platform === "all") {
     result.platform = "";
@@ -242,7 +242,7 @@ export const formatScheduledQueryForServer = (
   }
 
   if (queryID) {
-    result.query_id = Number(queryID);
+    (result as any).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -280,7 +280,7 @@ export const formatScheduledQueryForClient = (
 
 export const formatGlobalScheduledQueryForServer = (
   scheduledQuery: IScheduledQuery
-): IScheduledQuery => {
+) => {
   const {
     interval,
     logging_type: loggingType,
@@ -288,7 +288,7 @@ export const formatGlobalScheduledQueryForServer = (
     query_id: queryID,
     shard,
   } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type"]);
+  const result = omit(scheduledQuery, ["logging_type", "query_id"]);
 
   if (platform === "all") {
     result.platform = "";
@@ -304,7 +304,7 @@ export const formatGlobalScheduledQueryForServer = (
   }
 
   if (queryID) {
-    result.query_id = Number(queryID);
+    (result as any).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -351,7 +351,7 @@ export const formatTeamScheduledQueryForServer = (
     shard,
     team_id: teamID,
   } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type"]);
+  const result = omit(scheduledQuery, ["logging_type", "query_id", "team_id"]);
 
   if (platform === "all") {
     result.platform = "";
@@ -367,7 +367,7 @@ export const formatTeamScheduledQueryForServer = (
   }
 
   if (queryID) {
-    result.query_id = Number(queryID);
+    (result as any).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -375,7 +375,7 @@ export const formatTeamScheduledQueryForServer = (
   }
 
   if (teamID) {
-    result.query_id = Number(teamID);
+    (result as any).fleet_id = Number(teamID);
   }
 
   return result;

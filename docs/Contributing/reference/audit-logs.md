@@ -2368,6 +2368,28 @@ This activity contains the following fields:
 }
 ```
 
+## resent_certificate
+
+Generated when a user resends a certificate to a host.
+
+This activity contains the following fields:
+- "host_id": The ID of the host.
+- "host_display_name": The display name of the host.
+- "certificate_template_id": The ID of the certificate template
+- "certificate_name": The name of the certificate
+
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "certificate_template_id": 123,
+  "certificate_name": "Zero trust certificate"
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">

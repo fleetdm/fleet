@@ -245,10 +245,8 @@ const SelectQueryModal = ({
       className={baseClass}
       width="large"
     >
-      <>
-        {renderDescription()}
-        {renderQueries()}
-      </>
+      {renderDescription()}
+      {renderQueries()}
     </Modal>
   );
 };
