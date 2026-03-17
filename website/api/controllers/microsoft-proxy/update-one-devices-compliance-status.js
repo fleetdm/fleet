@@ -103,7 +103,7 @@ module.exports = {
 
       // Return a 200 response to the Fleet server.
       return {
-        message_id: "",// eslint-disable-line camelcase
+        message_id: '',// eslint-disable-line camelcase
       };
 
     } else {
