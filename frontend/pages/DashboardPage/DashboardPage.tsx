@@ -98,12 +98,8 @@ interface IDashboardProps {
 
 const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const { pathname } = location;
-  const {
-    isGlobalAdmin,
-    isGlobalMaintainer,
-    isPremiumTier,
-    isOnGlobalTeam,
-  } = useContext(AppContext);
+  const { isGlobalAdmin, isGlobalMaintainer, isPremiumTier, isOnGlobalTeam } =
+    useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const {
@@ -123,14 +119,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     includeNoTeam: false,
   });
 
-  const [
-    selectedPlatform,
-    setSelectedPlatform,
-  ] = useState<PlatformValueOptions>("all");
-  const [
-    selectedPlatformLabelId,
-    setSelectedPlatformLabelId,
-  ] = useState<number>();
+  const [selectedPlatform, setSelectedPlatform] =
+    useState<PlatformValueOptions>("all");
+  const [selectedPlatformLabelId, setSelectedPlatformLabelId] =
+    useState<number>();
   const [labels, setLabels] = useState<ILabelSummary[]>();
   const [macCount, setMacCount] = useState(0);
   const [windowsCount, setWindowsCount] = useState(0);
@@ -156,10 +148,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     showActivityFeedAutomationsModal,
     setShowActivityFeedAutomationsModal,
   ] = useState(false);
-  const [
-    updatingActivityFeedAutomations,
-    setUpdatingActivityFeedAutomations,
-  ] = useState(false);
+  const [updatingActivityFeedAutomations, setUpdatingActivityFeedAutomations] =
+    useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
   const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
   const [mdmStatusData, setMdmStatusData] = useState<IMdmStatusCardData[]>([]);
@@ -225,27 +215,27 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           setLowDiskSpaceCount(data.low_disk_space_count || 0);
         }
         const macHosts = data.platforms?.find(
-          (platform: IHostSummaryPlatforms) => platform.platform === "darwin"
+          (platform: IHostSummaryPlatforms) => platform.platform === "darwin",
         ) || { platform: "darwin", hosts_count: 0 };
 
         const windowsHosts = data.platforms?.find(
-          (platform: IHostSummaryPlatforms) => platform.platform === "windows"
+          (platform: IHostSummaryPlatforms) => platform.platform === "windows",
         ) || { platform: "windows", hosts_count: 0 };
 
         const chomeOSHosts = data.platforms?.find(
-          (platform: IHostSummaryPlatforms) => platform.platform === "chrome"
+          (platform: IHostSummaryPlatforms) => platform.platform === "chrome",
         ) || { platform: "chrome", hosts_count: 0 };
 
         const iOSHosts = data.platforms?.find(
-          (platform: IHostSummaryPlatforms) => platform.platform === "ios"
+          (platform: IHostSummaryPlatforms) => platform.platform === "ios",
         ) || { platform: "ios", hosts_count: 0 };
 
         const iPadOSHosts = data.platforms?.find(
-          (platform: IHostSummaryPlatforms) => platform.platform === "ipados"
+          (platform: IHostSummaryPlatforms) => platform.platform === "ipados",
         ) || { platform: "ipados", hosts_count: 0 };
 
         const androidHosts = data.platforms?.find(
-          (platform: IHostSummaryPlatforms) => platform.platform === "android"
+          (platform: IHostSummaryPlatforms) => platform.platform === "android",
         ) || { platform: "android", hosts_count: 0 };
 
         setMacCount(macHosts.hosts_count);
@@ -257,7 +247,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         setAndroidCount(androidHosts.hosts_count);
         setShowHostsUI(true);
       },
-    }
+    },
   );
 
   const { isLoading: isGlobalSecretsLoading, data: globalSecrets } = useQuery<
@@ -284,7 +274,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     {
       enabled: isRouteOk && isAnyTeamSelected && canEnrollHosts,
       select: (data: IEnrollSecretsResponse) => data.secrets,
-    }
+    },
   );
 
   const featuresConfig = isAnyTeamSelected
@@ -324,7 +314,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       // Don't use onSuccess for UI state: it won't run for cached data, only after a new fetch
-    }
+    },
   );
 
   // Keeps UI state in sync with both cached and freshly fetched query results
@@ -346,7 +336,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               hosts for the most up-to-date lists.
             </>
           }
-        />
+        />,
       );
     } else if (!isViewingVulnerableSoftware) {
       setShowSoftwareCard(false);
@@ -380,7 +370,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       onSuccess: (count) => {
         setShowSoftwareCard(!!count && count > 0);
       },
-    }
+    },
   );
 
   const { isFetching: isMdmFetching, error: errorMdm } = useQuery<
@@ -412,7 +402,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           <LastUpdatedText
             lastUpdatedAt={counts_updated_at}
             whatToRetrieve="MDM information"
-          />
+          />,
         );
         const statusData: IMdmStatusCardData[] = [
           {
@@ -438,7 +428,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         setMdmSolutions(mobile_device_management_solution);
         setShowMdmCard(true);
       },
-    }
+    },
   );
 
   const {
@@ -452,7 +442,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       select: (data) => data.macadmins,
       keepPreviousData: true,
       enabled: isRouteOk && selectedPlatform === "darwin",
-    }
+    },
   );
   const {
     munki_issues: munkiIssues,
@@ -465,7 +455,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     if (labels) {
       const getLabel = (
         labelString: string,
-        summaryLabels: ILabelSummary[]
+        summaryLabels: ILabelSummary[],
       ): ILabelSummary | undefined => {
         return Object.values(summaryLabels).find((label: ILabelSummary) => {
           return label.label_type === "builtin" && label.name === labelString;
@@ -500,7 +490,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     setSoftwareNavTabIndex(index);
     setSoftwareActionUrl &&
       setSoftwareActionUrl(
-        index === 1 ? `${SOFTWARE_TITLES}?vulnerable=true` : SOFTWARE_TITLES
+        index === 1 ? `${SOFTWARE_TITLES}?vulnerable=true` : SOFTWARE_TITLES,
       );
     setSoftwarePageIndex(0);
   };
@@ -534,13 +524,13 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         }
         renderFlash(
           "success",
-          "Successfully updated activity feed automations."
+          "Successfully updated activity feed automations.",
         );
         setShowActivityFeedAutomationsModal(false);
       } catch {
         renderFlash(
           "error",
-          "Couldn't update activity feed automations. Please try again."
+          "Couldn't update activity feed automations. Please try again.",
         );
       } finally {
         setUpdatingActivityFeedAutomations(false);
@@ -553,7 +543,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       config?.webhook_settings.activities_webhook.enable_activities_webhook,
       refetchConfig,
       renderFlash,
-    ]
+    ],
   );
 
   const HostCountCards = errorHosts ? (
@@ -667,7 +657,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         whatToRetrieve="Munki"
       />
     ),
-    [munkiCountsUpdatedAt]
+    [munkiCountsUpdatedAt],
   );
 
   const MunkiCard = useInfoCard({
@@ -734,7 +724,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const allLayout = () => {
     return (
       <div className={`${baseClass}__section`}>
-        {WelcomeHostCard}
         {!isAnyTeamSelected &&
           canEnrollGlobalHosts &&
           hostSummaryData &&
@@ -838,7 +827,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     }
 
     const selectedMdmSolutions = mdmSolutions?.filter(
-      (solution) => solution.name === selectedMdmSolutionName.current
+      (solution) => solution.name === selectedMdmSolutionName.current,
     );
 
     return (
@@ -896,12 +885,12 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             options={[...PLATFORM_DROPDOWN_OPTIONS]}
             onChange={(option: SingleValue<CustomOptionType>) => {
               const selectedPlatformOption = PLATFORM_DROPDOWN_OPTIONS.find(
-                (platform) => platform.value === option?.value
+                (platform) => platform.value === option?.value,
               );
               router.push(
                 (selectedPlatformOption?.path || paths.DASHBOARD)
                   .concat(location.search)
-                  .concat(location.hash || "")
+                  .concat(location.hash || ""),
               );
             }}
           />
