@@ -23,12 +23,31 @@ if (-not $exited) {
 }
 
 $exitCode = $process.ExitCode
-Write-Host "Install exit code: $exitCode"
+Write-Host "Installer raw exit code: $exitCode"
+
+# At this point RustDesk is typically installed even if the installer
+# process didn't exit cleanly. Treat installation directory presence as
+# source of truth and normalize the exit code accordingly.
+$installRoot = $env:INSTALLATION_SEARCH_DIRECTORY
+if ([string]::IsNullOrWhiteSpace($installRoot)) {
+  $installRoot = "C:\Program Files"
+}
+
+$rustdeskPath = Join-Path $installRoot "RustDesk"
+Write-Host "Checking for RustDesk installation at: $rustdeskPath"
+
+if (Test-Path $rustdeskPath) {
+  Write-Host "RustDesk installation directory found. Treating install as successful."
+  $exitCode = 0
+} else {
+  Write-Host "RustDesk installation directory not found."
+}
 
 # Stop the RustDesk background process spawned by the installer so the
 # script can return cleanly.
 Stop-Process -Name "rustdesk" -Force -ErrorAction SilentlyContinue
 
+Write-Host "Final exit code: $exitCode"
 Exit $exitCode
 
 } catch {
