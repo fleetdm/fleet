@@ -1511,6 +1511,12 @@ type Datastore interface {
 	// - No password saved or status is NULL (ready for command)
 	GetHostsForRecoveryLockAction(ctx context.Context) ([]string, error)
 
+	// RestoreRecoveryLockForReenabledHosts transitions hosts from "pending remove" back to
+	// "verified install" when the recovery lock feature is re-enabled. This preserves the
+	// existing password instead of trying to set a new one (which would fail).
+	// Returns the number of hosts restored.
+	RestoreRecoveryLockForReenabledHosts(ctx context.Context) (int64, error)
+
 	// SetRecoveryLockVerified marks the recovery lock as verified.
 	SetRecoveryLockVerified(ctx context.Context, hostUUID string) error
 
@@ -1556,6 +1562,10 @@ type Datastore interface {
 
 	// HasPendingRecoveryLockRotation returns true if the host has a pending recovery lock rotation.
 	HasPendingRecoveryLockRotation(ctx context.Context, hostUUID string) (bool, error)
+	// ResetRecoveryLockForRetry resets a failed clear operation back to install/verified
+	// so it will be picked up by ClaimHostsForRecoveryLockClear on the next cron cycle.
+	// This is used when a clear command fails with a transient error (not password mismatch).
+	ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error
 
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).

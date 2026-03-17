@@ -7315,6 +7315,7 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]strin
 	// - Are MDM enrolled (enabled = 1 and device enrollment type)
 	// - Have no recovery lock password record OR have a password with NULL status (command not yet enqueued)
 	// Note: hosts with status pending, verified, or failed are NOT included
+	// Note: hosts with operation_type='remove' are handled by RestoreRecoveryLockForReenabledHosts
 	const stmt = `
 		SELECT h.uuid
 		FROM hosts h
@@ -7345,6 +7346,49 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]strin
 	}
 
 	return hostUUIDs, nil
+}
+
+func (ds *Datastore) RestoreRecoveryLockForReenabledHosts(ctx context.Context) (int64, error) {
+	// When recovery lock feature is re-enabled for a host that was in "pending remove" state,
+	// we restore it to "verified install" state instead of trying to set a new password.
+	// This is because:
+	// 1. The device still has the old password (ClearRecoveryLock hasn't completed)
+	// 2. Setting a new password would fail (needs current password to change)
+	// 3. The existing password in our DB is still valid for the device
+	//
+	// This handles the edge case where:
+	// 1. Feature was disabled → host marked operation_type='remove'
+	// 2. ClearRecoveryLock command queued but not yet acknowledged
+	// 3. Feature re-enabled → we restore to verified instead of trying to set new password
+	//
+	// We only restore records in recoverable states (pending or NULL status).
+	// Records with status='failed' (e.g., password mismatch) are NOT restored because:
+	// - They represent terminal errors that require admin intervention
+	// - Restoring them would mask the real problem and clear diagnostic error_message
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords rkp
+		JOIN hosts h ON h.uuid = rkp.host_uuid
+		LEFT JOIN teams t ON t.id = h.team_id
+		CROSS JOIN app_config_json ac
+		SET rkp.operation_type = '%s',
+		    rkp.status = '%s',
+		    rkp.error_message = NULL
+		WHERE rkp.deleted = 0
+		  AND rkp.operation_type = '%s'
+		  AND (rkp.status = '%s' OR rkp.status IS NULL)
+		  AND (
+		      (h.team_id IS NOT NULL AND JSON_EXTRACT(t.config, '$.mdm.enable_recovery_lock_password') = true)
+		      OR
+		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.enable_recovery_lock_password') = true)
+		  )
+	`, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending)
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "restore recovery lock for re-enabled hosts")
+	}
+
+	return result.RowsAffected()
 }
 
 func (ds *Datastore) SetRecoveryLockVerified(ctx context.Context, hostUUID string) error {
@@ -7633,6 +7677,21 @@ func (ds *Datastore) ClearRecoveryLockRotation(ctx context.Context, hostUUID str
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "clear recovery lock rotation")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error {
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET operation_type = '%s', status = '%s', error_message = NULL
+		WHERE host_uuid = ?
+		  AND deleted = 0
+	`, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "reset recovery lock for retry")
 	}
 
 	return nil

@@ -1687,12 +1687,21 @@ func sendRecoveryLockCommandsWithCommander(
 ) error {
 	var result *multierror.Error
 
-	// 1. Handle SET password operations (hosts that need a recovery lock password)
+	// Restore hosts that were in "pending remove" state but feature was re-enabled.
+	// This transitions them back to "verified install" to preserve the existing password.
+	restored, err := ds.RestoreRecoveryLockForReenabledHosts(ctx)
+	if err != nil {
+		result = multierror.Append(result, ctxerr.Wrap(ctx, err, "restore recovery lock for re-enabled hosts"))
+	} else if restored > 0 {
+		logger.InfoContext(ctx, "restored recovery lock for re-enabled hosts", "count", restored)
+	}
+
+	// Handle SET password operations (hosts that need a recovery lock password)
 	if err := sendSetRecoveryLockCommands(ctx, ds, commander, logger); err != nil {
 		result = multierror.Append(result, err)
 	}
 
-	// 2. Handle CLEAR password operations (hosts that need their recovery lock cleared)
+	// Handle CLEAR password operations (hosts that need their recovery lock cleared)
 	if err := sendClearRecoveryLockCommands(ctx, ds, commander, logger); err != nil {
 		result = multierror.Append(result, err)
 	}
@@ -1776,6 +1785,7 @@ func sendSetRecoveryLockCommands(
 				"host_count", len(hostUUIDs),
 				"error", clearErr,
 			)
+			err = multierror.Append(err, clearErr)
 		}
 		return ctxerr.Wrap(ctx, err, "enqueue SetRecoveryLock commands")
 	}
@@ -1831,6 +1841,7 @@ func sendClearRecoveryLockCommands(
 				"host_count", len(hosts),
 				"error", clearErr,
 			)
+			err = multierror.Append(err, clearErr)
 		}
 		return ctxerr.Wrap(ctx, err, "enqueue ClearRecoveryLock commands")
 	}

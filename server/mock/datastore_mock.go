@@ -1031,6 +1031,8 @@ type GetHostRecoveryLockPasswordFunc func(ctx context.Context, hostUUID string) 
 
 type GetHostsForRecoveryLockActionFunc func(ctx context.Context) ([]string, error)
 
+type RestoreRecoveryLockForReenabledHostsFunc func(ctx context.Context) (int64, error)
+
 type SetRecoveryLockVerifiedFunc func(ctx context.Context, hostUUID string) error
 
 type SetRecoveryLockFailedFunc func(ctx context.Context, hostUUID string, errorMsg string) error
@@ -1054,6 +1056,8 @@ type ClearRecoveryLockRotationFunc func(ctx context.Context, hostUUID string) er
 type GetRecoveryLockRotationStatusFunc func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockRotationStatus, error)
 
 type HasPendingRecoveryLockRotationFunc func(ctx context.Context, hostUUID string) (bool, error)
+
+type ResetRecoveryLockForRetryFunc func(ctx context.Context, hostUUID string) error
 
 type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error
 
@@ -3336,6 +3340,9 @@ type DataStore struct {
 	GetHostsForRecoveryLockActionFunc        GetHostsForRecoveryLockActionFunc
 	GetHostsForRecoveryLockActionFuncInvoked bool
 
+	RestoreRecoveryLockForReenabledHostsFunc        RestoreRecoveryLockForReenabledHostsFunc
+	RestoreRecoveryLockForReenabledHostsFuncInvoked bool
+
 	SetRecoveryLockVerifiedFunc        SetRecoveryLockVerifiedFunc
 	SetRecoveryLockVerifiedFuncInvoked bool
 
@@ -3371,6 +3378,9 @@ type DataStore struct {
 
 	HasPendingRecoveryLockRotationFunc        HasPendingRecoveryLockRotationFunc
 	HasPendingRecoveryLockRotationFuncInvoked bool
+
+	ResetRecoveryLockForRetryFunc        ResetRecoveryLockForRetryFunc
+	ResetRecoveryLockForRetryFuncInvoked bool
 
 	InsertMDMAppleBootstrapPackageFunc        InsertMDMAppleBootstrapPackageFunc
 	InsertMDMAppleBootstrapPackageFuncInvoked bool
@@ -8055,6 +8065,13 @@ func (s *DataStore) GetHostsForRecoveryLockAction(ctx context.Context) ([]string
 	return s.GetHostsForRecoveryLockActionFunc(ctx)
 }
 
+func (s *DataStore) RestoreRecoveryLockForReenabledHosts(ctx context.Context) (int64, error) {
+	s.mu.Lock()
+	s.RestoreRecoveryLockForReenabledHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.RestoreRecoveryLockForReenabledHostsFunc(ctx)
+}
+
 func (s *DataStore) SetRecoveryLockVerified(ctx context.Context, hostUUID string) error {
 	s.mu.Lock()
 	s.SetRecoveryLockVerifiedFuncInvoked = true
@@ -8137,6 +8154,13 @@ func (s *DataStore) HasPendingRecoveryLockRotation(ctx context.Context, hostUUID
 	s.HasPendingRecoveryLockRotationFuncInvoked = true
 	s.mu.Unlock()
 	return s.HasPendingRecoveryLockRotationFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.ResetRecoveryLockForRetryFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResetRecoveryLockForRetryFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
