@@ -986,7 +986,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		if androidSettings.CustomSettings.Valid {
 			var errs []error
 			androidSettings.CustomSettings.Value, errs = expandBaseItems(androidSettings.CustomSettings.Value, controlsDir, "profile", GlobExpandOptions{
-				AllowedExtensions: map[string]bool{".xml": true, ".json": true},
+				AllowedExtensions: map[string]bool{".json": true},
 				LogFn:             logFn,
 			})
 			multiError = multierror.Append(multiError, errs...)

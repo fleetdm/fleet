@@ -2237,11 +2237,10 @@ func TestGitOpsGlobProfiles(t *testing.T) {
 		androidSettings, ok := result.Controls.AndroidSettings.(fleet.AndroidSettings)
 		require.True(t, ok)
 		require.True(t, androidSettings.CustomSettings.Valid)
-		require.Len(t, androidSettings.CustomSettings.Value, 2)
+		require.Len(t, androidSettings.CustomSettings.Value, 1)
 
 		// Sorted alphabetically by path
-		assert.Contains(t, androidSettings.CustomSettings.Value[0].Path, "alpha.xml")
-		assert.Contains(t, androidSettings.CustomSettings.Value[1].Path, "beta.json")
+		assert.Contains(t, androidSettings.CustomSettings.Value[0].Path, "beta.json")
 	})
 
 	t.Run("macos_profiles_with_labels", func(t *testing.T) {
