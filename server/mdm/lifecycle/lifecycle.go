@@ -143,12 +143,7 @@ func (t *HostLifecycle) resetWindows(ctx context.Context, opts HostOptions) erro
 
 func (t *HostLifecycle) resetApple(ctx context.Context, opts HostOptions) error {
 	isPersonalEnrollment := false
-	if opts.UUID == "" && opts.HardwareSerial == "" && opts.UserEnrollmentID != "" {
-		// We are doing user enrollment, where we don't have access to device hardware details
-		opts.UUID = opts.UserEnrollmentID
-		opts.HardwareSerial = opts.UserEnrollmentID
-		isPersonalEnrollment = true
-	}
+	opts.UUID, opts.HardwareSerial, isPersonalEnrollment = fleet.DetermineAppleUUID(opts.UUID, opts.HardwareSerial, opts.UserEnrollmentID)
 	if opts.UUID == "" || opts.HardwareSerial == "" || opts.HardwareModel == "" {
 		return ctxerr.New(ctx, "UUID, HardwareSerial and HardwareModel options are required for this action")
 	}

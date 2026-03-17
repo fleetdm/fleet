@@ -3463,6 +3463,12 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 			return nil
 		}
 
+		uuid, _, _ := fleet.DetermineAppleUUID(m.UDID, info.HardwareSerial, m.EnrollmentID)
+		svc.logger.InfoContext(r.Context, "resetting mdm enrollment for old SCEP renewal", "host_uuid", uuid)
+		if err := svc.ds.MDMResetEnrollment(r.Context, uuid, false); err != nil {
+			return ctxerr.Wrap(r.Context, err, "failed resetting enrollment for device with old SCEP renewal", "host_uuid", uuid)
+		}
+
 		// Device is awaiting configuration (wiped DEP device re-enrolling). The pending SCEP
 		// renewal was from the previous enrollment. Continue the normal enrollment flow so
 		// the device gets released from the setup assistant.
