@@ -41,6 +41,11 @@ export interface IMdmVppToken {
   teams: ITokenTeam[] | null; // null means token isn't configured to a team; empty array means all teams
 }
 
+export interface IWindowsMDMDefaultTeam {
+  team_id: number | null;
+  team_name: string;
+}
+
 export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {
   return server_url.concat("/mdm/apple/mdm");
 };

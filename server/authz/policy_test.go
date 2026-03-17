@@ -2030,6 +2030,55 @@ func TestAuthorizeMDMConfigProfile(t *testing.T) {
 	})
 }
 
+func TestAuthorizeMDMWindowsAutopilot(t *testing.T) {
+	t.Parallel()
+
+	autopilot := &fleet.WindowsMDMAutopilot{}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: autopilot, action: read, allow: false},
+		{user: nil, object: autopilot, action: write, allow: false},
+
+		{user: test.UserNoRoles, object: autopilot, action: read, allow: false},
+		{user: test.UserNoRoles, object: autopilot, action: write, allow: false},
+
+		{user: test.UserAdmin, object: autopilot, action: read, allow: true},
+		{user: test.UserAdmin, object: autopilot, action: write, allow: true},
+
+		{user: test.UserMaintainer, object: autopilot, action: read, allow: false},
+		{user: test.UserMaintainer, object: autopilot, action: write, allow: false},
+
+		{user: test.UserObserver, object: autopilot, action: read, allow: false},
+		{user: test.UserObserver, object: autopilot, action: write, allow: false},
+
+		{user: test.UserObserverPlus, object: autopilot, action: read, allow: false},
+		{user: test.UserObserverPlus, object: autopilot, action: write, allow: false},
+
+		{user: test.UserTechnician, object: autopilot, action: read, allow: false},
+		{user: test.UserTechnician, object: autopilot, action: write, allow: false},
+
+		{user: test.UserGitOps, object: autopilot, action: read, allow: false},
+		{user: test.UserGitOps, object: autopilot, action: write, allow: false},
+
+		{user: test.UserTeamAdminTeam1, object: autopilot, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: autopilot, action: write, allow: false},
+
+		{user: test.UserTeamMaintainerTeam1, object: autopilot, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: autopilot, action: write, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: autopilot, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: autopilot, action: write, allow: false},
+
+		{user: test.UserTeamObserverPlusTeam1, object: autopilot, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: autopilot, action: write, allow: false},
+
+		{user: test.UserTeamGitOpsTeam1, object: autopilot, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: autopilot, action: write, allow: false},
+
+		{user: test.UserTeamTechnicianTeam1, object: autopilot, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: autopilot, action: write, allow: false},
+	})
+}
+
 func TestAuthorizeMDMAppleSettings(t *testing.T) {
 	t.Parallel()
 

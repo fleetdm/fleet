@@ -89,6 +89,7 @@ type generateGitopsClient interface {
 	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
 	GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error)
 	GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error)
+	GetWindowsMDMDefaultTeam() (*fleet.WindowsMDMDefaultTeam, error)
 }
 
 // Given a struct type and a field name, return the JSON field name.
@@ -1124,6 +1125,15 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 			}
 		}
 		result[jsonFieldName(t, "EndUserLicenseAgreement")] = eulaPath
+
+		windowsAutopilotDefaultTeam, err := cmd.Client.GetWindowsMDMDefaultTeam()
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating Windows Autopilot default team: %s\n", err)
+			return nil, err
+		}
+		if windowsAutopilotDefaultTeam != nil && windowsAutopilotDefaultTeam.TeamName != "" {
+			result[jsonFieldName(t, "WindowsAutopilotDefaultTeam")] = windowsAutopilotDefaultTeam.TeamName
+		}
 	}
 
 	if !cmd.CLI.Bool("insecure") {

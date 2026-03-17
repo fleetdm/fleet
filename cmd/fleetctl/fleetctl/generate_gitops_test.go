@@ -323,6 +323,10 @@ func (MockClient) GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error) {
 	return &fleet.MaintainedApp{Slug: "foo/darwin"}, nil
 }
 
+func (MockClient) GetWindowsMDMDefaultTeam() (*fleet.WindowsMDMDefaultTeam, error) {
+	return nil, nil
+}
+
 func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 	if teamID == nil {
 		return []*fleet.Policy{
