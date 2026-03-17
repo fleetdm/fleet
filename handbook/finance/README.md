@@ -520,8 +520,9 @@ Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confid
 
 Every Friday, the Head of GTM Architecture will send an export/email to Primo's CRO with a list of [non-ICP contact form visitors](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000004GF2P2AW/view).
 
-1. Export a list of non-ICP contact form visitors from the CRM.
-2. Email the export to Primo's CRO.
+1. Export the list of [non-ICP contact form visitors](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000004GF2P2AW/view) from the CRM.
+2. Paste the values into the [SHARED EXTERNALLY - Leads for Primo](https://docs.google.com/spreadsheets/d/1bJt7e26gDqPbq5emM1Pn3yUWaFzUtXrqmAhS2p53_ws/edit?gid=0#gid=0) Google sheet.
+3. Email Primo's CRO and cc Zay Hanlon.
 
 
 ### Grant role-specific license to a team member
