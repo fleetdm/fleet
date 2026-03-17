@@ -56,6 +56,7 @@ import {
   isPlatformLabelNameFromAPI,
 } from "utilities/constants";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import { IRegistrationFormData } from "interfaces/registration_form_data";
 import CustomLink from "components/CustomLink";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
@@ -517,7 +518,7 @@ export const greyCell = (roleOrTeamText: string): boolean => {
   );
 };
 
-const setupData = (formData: any) => {
+const setupData = (formData: IRegistrationFormData) => {
   const orgInfo = pick(formData, ORG_INFO_ATTRS);
   const adminInfo = pick(formData, ADMIN_ATTRS);
 
@@ -525,6 +526,7 @@ const setupData = (formData: any) => {
     server_url: formData.server_url,
     org_info: {
       ...orgInfo,
+      org_logo_url_light_background: orgInfo.org_logo_url || "",
     },
     admin: {
       admin: true,
