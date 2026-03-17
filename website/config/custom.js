@@ -351,8 +351,18 @@ module.exports.custom = {
 
   },
 
+  fleetMdmGitopsRepoDRIByPath: {
+    '/': 'getvictor',
+  },
+
   fleetMdmGitopsGithubRepoMaintainersByPath: {
-    '/': ['lukeheath'] // Future update this
+    '/': ['lukeheath', 'noahtalerman', 'getvictor', 'harrisonravazzolo'],
+    'lib': ['harrisonravazzolo'] ,
+    'teams': [ 'harrisonravazzolo'] ,
+    'default.yml': [ 'harrisonravazzolo'] ,
+    '.github': ['lukeheath', 'noahtalerman', 'getvictor', 'harrisonravazzolo'],
+    '.github-ci.yml': ['lukeheath', 'noahtalerman', 'getvictor', 'harrisonravazzolo'],
+    '.gitops.sh': ['lukeheath', 'noahtalerman', 'getvictor', 'harrisonravazzolo'],
   },
 
   //  ███████╗ ██████╗██╗  ██╗███████╗███╗   ███╗ █████╗
