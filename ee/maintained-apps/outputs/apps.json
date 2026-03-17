@@ -184,6 +184,13 @@
       "description": "Archaeology is a tool for digging into binary files."
     },
     {
+      "name": "Arduino IDE",
+      "slug": "arduino-ide/darwin",
+      "platform": "darwin",
+      "unique_identifier": "cc.arduino.IDE2",
+      "description": "Arduino IDE is the official development environment for programming Arduino microcontrollers."
+    },
+    {
       "name": "Asana",
       "slug": "asana/darwin",
       "platform": "darwin",
@@ -336,6 +343,13 @@
       "platform": "darwin",
       "unique_identifier": "com.canva.CanvaDesktop",
       "description": "Canva is a popular online graphic design tool."
+    },
+    {
+      "name": "Charles",
+      "slug": "charles/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.xk72.Charles",
+      "description": "Charles is an HTTP proxy and monitor that lets developers view all HTTP and HTTPS traffic between their machine and the internet."
     },
     {
       "name": "ChatGPT Atlas",
@@ -917,6 +931,20 @@
       "platform": "darwin",
       "unique_identifier": "com.aone.keka",
       "description": "Keka is a file archiver."
+    },
+    {
+      "name": "Krita",
+      "slug": "krita/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.kde.krita",
+      "description": "Krita is a free and open-source digital painting application."
+    },
+    {
+      "name": "Krita",
+      "slug": "krita/windows",
+      "platform": "windows",
+      "unique_identifier": "Krita_x64",
+      "description": "Krita is a free and open-source digital painting application."
     },
     {
       "name": "LastPass",
@@ -1638,6 +1666,13 @@
       "platform": "darwin",
       "unique_identifier": "com.todoist.mac.Todoist",
       "description": "Todoist is a to do list and a planning center for individuals and teams."
+    },
+    {
+      "name": "Tor Browser",
+      "slug": "tor-browser/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.torproject.torbrowser",
+      "description": "Tor Browser is a privacy-focused web browser that protects against tracking, surveillance, and censorship by routing traffic through the Tor network."
     },
     {
       "name": "Tower",

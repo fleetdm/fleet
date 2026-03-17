@@ -4,12 +4,13 @@ import { useQuery } from "react-query";
 import PATHS from "router/paths";
 
 import classnames from "classnames";
+import { getPathWithQueryParams } from "utilities/url";
 
-import { Link } from "react-router";
 import Radio from "components/forms/fields/Radio";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
+import CustomLink from "components/CustomLink";
 
 import { NotificationContext } from "context/notification";
 
@@ -176,11 +177,16 @@ const RunScriptBatchModal = ({
             "success",
             <>
               Successfully scheduled script.{" "}
-              <Link
-                to={`${PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS}?status=scheduled&fleet_id=${teamId}`}
-              >
-                Show schedule
-              </Link>
+              <CustomLink
+                url={getPathWithQueryParams(
+                  PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS,
+                  {
+                    status: "scheduled",
+                    fleet_id: teamId,
+                  }
+                )}
+                text="Show schedule"
+              />
             </>
           );
         } else {
@@ -188,11 +194,16 @@ const RunScriptBatchModal = ({
             "success",
             <>
               Successfully ran script.{" "}
-              <Link
-                to={`${PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS}?status=started&fleet_id=${teamId}`}
-              >
-                Show script activity
-              </Link>
+              <CustomLink
+                url={getPathWithQueryParams(
+                  PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS,
+                  {
+                    status: "started",
+                    fleet_id: teamId,
+                  }
+                )}
+                text="Show script activity"
+              />
             </>
           );
         }
@@ -224,15 +235,13 @@ const RunScriptBatchModal = ({
           info={
             <>
               You can add saved scripts{" "}
-              <a
-                href={
-                  isFreeTier
-                    ? "/controls/scripts"
-                    : `/controls/scripts?fleet_id=${teamId}`
-                }
-              >
-                here
-              </a>
+              <CustomLink
+                url={getPathWithQueryParams(
+                  PATHS.CONTROLS_SCRIPTS,
+                  !isFreeTier ? { fleet_id: teamId } : undefined
+                )}
+                text="here"
+              />
               .
             </>
           }

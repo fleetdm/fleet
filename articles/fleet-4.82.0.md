@@ -29,7 +29,7 @@ GitHub issue: [#35696](https://github.com/fleetdm/fleet/issues/35696)
 
 ### Self-service scripts on macOS
 
-Fleet now supports self-service scripts through script-only packages on macOS. Upload a `.sh` script and make it available in self-service for end users on macOS hosts. [Learn how]().
+Fleet now supports self-service scripts through script-only packages on macOS. Upload a `.sh` script and make it available in self-service for end users on macOS hosts. [Learn how](https://fleetdm.com/guides/software-self-service).
 
 This makes it easier for IT admins to deliver quick fixes and utility scripts.
 
@@ -59,7 +59,6 @@ GitHub issue: [#36337](https://github.com/fleetdm/fleet/issues/36337)
 - Added AWS GovCloud RDS CA certificates to the RDS MySQL TLS bundle, enabling IAM authentication for Fleet deployments connecting to RDS in AWS GovCloud regions (us-gov-east-1, us-gov-west-1).
 - Added CVE alias for python visual studio code extension.
 - Added new activity for edited enroll secrets.
-- Added deny list for checking external urls the Fleet server will attempt to contact that are user submitted. Refer to pkg/fleethttp/ssrf.go for full list. In development, the --dev flag skips this check so that testing locally is not impacted. Certificate authorities is the first place this is implemented. 
 
 ### Other improvements and bug fixes
 - Renamed teams and queries to fleets and reports in the UI, API, CLI, and GitOps.

@@ -187,7 +187,7 @@ const SaveNewQueryModal = ({
         // from previous New query page
         query: queryValue,
         // from doubly previous ManageQueriesPage
-        team_id: apiTeamIdForQuery,
+        fleet_id: apiTeamIdForQuery,
         labels_include_any:
           selectedTargetType === "Custom"
             ? Object.entries(selectedLabels)
