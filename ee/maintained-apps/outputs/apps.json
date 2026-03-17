@@ -345,6 +345,13 @@
       "description": "Canva is a popular online graphic design tool."
     },
     {
+      "name": "Charles",
+      "slug": "charles/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.xk72.Charles",
+      "description": "Charles is an HTTP proxy and monitor that lets developers view all HTTP and HTTPS traffic between their machine and the internet."
+    },
+    {
       "name": "ChatGPT Atlas",
       "slug": "chatgpt-atlas/darwin",
       "platform": "darwin",
