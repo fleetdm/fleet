@@ -33,41 +33,13 @@
     <div purpose="sidebar-and-articles">
       <div purpose="sidebar">
         <div purpose="nav-links">
+          <a href="/articles">All</a>
           <a href="/announcements">News</a>
           <a href="/customers">Case studies</a>
           <a href="/guides">Guides</a>
-          <a href="/articles">Blog</a>
+          <a href="/whitepapers">Whitepapers</a>
           <a href="/releases">Releases</a>
         </div>
-        <!-- <div purpose="sidebar-cta">
-          <a href="<% if(typeof me === 'undefined') {%>/register<% } else { %>/start<% } %>">
-          <div purpose="cta-image"></div>
-          <div purpose="cta-text">
-            <% if(typeof me === 'undefined'){ %>
-              <h4>Try it out</h4>
-              <p>See what Fleet can do</p>
-              <a purpose="cta-button" class="btn btn-primary docs-cta-continue-button" href="/register">Start now</a>
-            <% } else if (['2 - Aware', '3 - Intrigued'].includes(me.psychologicalStage)) {%>
-              <h4>Tried Fleet yet?</h4>
-              <p>Continue getting started with Fleet</p>
-              <a purpose="cta-button" class="btn btn-primary" href="/start">Continue</a>
-            <% } else if (me.psychologicalStage === '4 - Has use case') {%>
-              <h4>Feeling confident?</h4>
-              <p>Get set up with Fleet</p>
-              <a purpose="cta-button" class="btn btn-primary" hredf="/start">Continue</a>
-            <% } else if (['5 - Personally confident', '6 - Has team buy-in'].includes(me.psychologicalStage)) {%>
-              <h4>Talk to the team</h4>
-              <p>Let’s get you set up!</p>
-              <a purpose="cta-button" class="btn btn-primary" href="/start">Continue</a>
-            <%}%>
-            <div purpose="cta-platform-icons" class="d-flex flex-row justify-content-between align-items-center">
-              <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS" />
-              <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows" />
-              <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux" />
-            </div>
-          </div>
-          </a>
-        </div> -->
       </div>
       <div purpose="article-rows">
         <a :href="article.url" purpose="article-row" class="d-flex flex-lg-row flex-row justify-content-between" v-for="article in articles">
@@ -87,27 +59,6 @@
         </a>
       </div>
     </div>
-<!--     <div purpose="articles" class="card-deck d-flex justify-content-center" v-else>
-      <div purpose="article-card" class="card" v-for="article in articles">
-        <a purpose="article-card-link" :href="article.url">
-          <img style="width: 100%; height: auto;" :src="[article.meta.articleImageUrl ? article.meta.articleImageUrl : '/images/blog-fleet-logo-white-background-800x450@2x.png']" alt="Article hero image">
-        </a>
-        <div purpose="article-card-body" class="card-body d-flex flex-column">
-          <p purpose="category-name" class="pb-2 mb-0">{{article.meta.category}}</p>
-          <a purpose="article-title" :href="article.url"><h5>{{article.meta.articleTitle}}</h5></a>
-          <div purpose="article-details" class="d-flex mt-auto flex-row align-items-center">
-            <img alt="The author's GitHub profile picture" style="height: 32px; width: 32px; border-radius: 100%;" :src="'https://github.com/'+article.meta.authorGitHubUsername+'.png?size=200'">
-            <p class="pl-2 font-weight-bold">{{article.meta.authorFullName}}</p>
-          </div>
-        </div>
-      </div>
-      <div purpose="article-card" class="card invisible mb-0 d-none d-sm-flex">
-      </div>
-      <div purpose="article-card" class="card invisible mb-0 d-none d-sm-flex">
-      </div>
-      <div purpose="article-card" class="card invisible mb-0 d-none d-sm-flex">
-      </div>
-    </div> -->
   </div>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

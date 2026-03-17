@@ -51,7 +51,7 @@ The goal of the 🌐 Buy online group is to provide the best possible customer e
 
 Go-To-Market tools at Fleet will be vetted by the Head of GTM Architecture, onboarded by IT, and made available to all necessary stakeholders.
 
-Any GTM tool, automation, or functionality that someone wants to explore using in Sales, Marketing, or Customer Success, including any tool we want to integrate with Salesforce or use its data in Salesforce, must first be evaluated and approved by the Head of GTM Architecture before being used by anyone at the company.
+Any GTM tool, automation, or functionality that someone wants to explore using in Sales, Marketing, or Customer Success, including any tool we want to integrate with Salesforce or use its data in Salesforce, must first be evaluated and approved by the Head of GTM Architecture before being used by anyone at the company. This includes demos of GTM tools — any demo of a tool used in Sales, Marketing, Customer Success, or that integrates with/uses data from Salesforce must be kicked off by the Head of GTM Architecture.
 
 To request approval for a new GTM tool/functionality, [create a GitHub issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&template=1-custom-request.md&labels=%3Ahelp-gtm-ops) and include a user story describing the goal of the added tool/automation.
 

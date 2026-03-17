@@ -674,7 +674,7 @@ const DeviceUserPage = ({
       );
     }
 
-    const hasAnyCriticalFailingCAPolicy = host?.policies.some(
+    const hasAnyCriticalFailingCAPolicy = host?.policies?.some(
       (p) => p.response === "fail" && p.conditional_access_enabled && p.critical
     );
 
@@ -700,6 +700,7 @@ const DeviceUserPage = ({
             diskIsEncrypted={host.disk_encryption_enabled}
             diskEncryptionKeyAvailable={host.mdm.encryption_key_available}
             mdmManualEnrolmentUrl={mdmManualEnrollUrl}
+            lastMdmEnrolledAt={host.last_mdm_enrolled_at}
           />
           <HostHeader
             summaryData={summaryData}

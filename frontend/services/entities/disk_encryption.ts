@@ -23,7 +23,7 @@ const diskEncryptionService = {
     let { DISK_ENCRYPTION: path } = endpoints;
 
     if (teamId) {
-      path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
+      path = `${path}?${buildQueryStringFromParams({ fleet_id: teamId })}`;
     }
     return sendRequest("GET", path);
   },
@@ -51,7 +51,7 @@ const diskEncryptionService = {
       // TODO - it would be good to be able to use an API_CONTEXT_NO_TEAM_ID here, but that is
       // currently set to 0, which should actually be undefined since the server expects teamId ==
       // nil for no teams, not 0.
-      team_id: teamId === APP_CONTEXT_NO_TEAM_ID ? undefined : teamId,
+      fleet_id: teamId === APP_CONTEXT_NO_TEAM_ID ? undefined : teamId,
     });
   },
   triggerLinuxDiskEncryptionKeyEscrow: (token: string) => {

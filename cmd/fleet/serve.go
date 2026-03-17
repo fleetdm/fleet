@@ -1291,6 +1291,13 @@ the way that the Fleet server works.
 				}); err != nil {
 					initFatal(err, "failed to register refresh vpp app versions schedule")
 				}
+
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+					return newRecoveryLockPasswordSchedule(ctx, instanceID, ds, commander, logger)
+				}); err != nil {
+					initFatal(err, "failed to register recovery lock password schedule")
+				}
 			}
 
 			if license.IsPremium() && config.Activity.EnableAuditLog {
@@ -1378,11 +1385,15 @@ the way that the Fleet server works.
 				}
 			}
 
+			// This is off by default for testing and development uses only.
+			cspEV := os.Getenv("FLEET_SERVER_ENABLE_CSP")
+			serveCSP := cspEV == "1" || cspEV == "true"
+
 			var apiHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
 			{
 				frontendHandler = service.PrometheusMetricsHandler(
 					"get_frontend",
-					service.ServeFrontend(config.Server.URLPrefix, config.Server.SandboxEnabled, httpLogger),
+					service.ServeFrontend(config.Server.URLPrefix, config.Server.SandboxEnabled, httpLogger, serveCSP),
 				)
 
 				frontendHandler = service.WithMDMEnrollmentMiddleware(svc, httpLogger, frontendHandler)
@@ -1395,6 +1406,11 @@ the way that the Fleet server works.
 
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 					[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes}, extra...)
+
+				if serveCSP {
+					// Only injecting this if CSP is turned on since the default security headers add some overhead to each request
+					apiHandler = endpointer.BrowserSecurityHeadersHandler(serveCSP, apiHandler)
+				}
 
 				setupRequired, err := svc.SetupRequired(baseCtx)
 				if err != nil {
@@ -1415,6 +1431,7 @@ the way that the Fleet server works.
 					config.Server.URLPrefix,
 					ds,
 					logger,
+					serveCSP,
 				)
 			}
 
@@ -1450,7 +1467,7 @@ the way that the Fleet server works.
 			rootMux := http.NewServeMux()
 			rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", otelmw.WrapHandler(health.Handler(httpLogger, healthCheckers), "/healthz", config)))
 			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", otelmw.WrapHandler(version.Handler(), "/version", config)))
-			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", otelmw.WrapHandlerDynamic(service.ServeStaticAssets("/assets/"), config)))
+			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", otelmw.WrapHandlerDynamic(service.ServeStaticAssets("/assets/", serveCSP), config)))
 
 			if len(config.Server.PrivateKey) > 0 {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
@@ -1468,6 +1485,7 @@ the way that the Fleet server works.
 
 				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay, svc.NewActivity))
 				mdmCheckinAndCommandService.RegisterResultsHandler(fleet.DeviceLocationCmdName, service.NewDeviceLocationResultsHandler(ds, commander, logger))
+				mdmCheckinAndCommandService.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, service.NewSetRecoveryLockResultsHandler(ds, logger))
 
 				hasSCEPChallenge, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
 				if err != nil {
@@ -1539,7 +1557,7 @@ the way that the Fleet server works.
 					}
 
 					// Conditional Access IdP (Okta)
-					if err = condaccess.RegisterIdP(rootMux, ds, logger, &config); err != nil {
+					if err = condaccess.RegisterIdP(rootMux, ds, logger, &config, limiterStore); err != nil {
 						initFatal(err, "setup conditional access IdP")
 					}
 				} else {
