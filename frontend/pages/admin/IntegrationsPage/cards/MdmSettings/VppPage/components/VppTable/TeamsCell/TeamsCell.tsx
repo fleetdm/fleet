@@ -2,6 +2,7 @@ import React from "react";
 import classnames from "classnames";
 
 import { ITokenTeam } from "interfaces/mdm";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { uniqueId } from "lodash";
@@ -10,6 +11,15 @@ import ReactTooltip from "react-tooltip";
 const baseClass = "teams-cell";
 
 const NUM_TEAMS_IN_TOOLTIP = 3;
+
+/** Returns the display name for a token team, normalizing "No team" (team_id 0)
+ *  to "Unassigned" to match Fleet's UI convention. */
+const getTeamDisplayName = (team: ITokenTeam): string => {
+  if (team.team_id === APP_CONTEXT_NO_TEAM_ID) {
+    return "Unassigned";
+  }
+  return team.name;
+};
 
 const generateCell = (teams: ITokenTeam[] | null) => {
   if (!teams) {
@@ -24,7 +34,7 @@ const generateCell = (teams: ITokenTeam[] | null) => {
   let italicize = true;
   if (teams.length === 1) {
     italicize = false;
-    text = teams[0].name;
+    text = getTeamDisplayName(teams[0]);
   } else {
     text = `${teams.length} fleets`;
   }
@@ -37,7 +47,7 @@ const condenseTeams = (teams: ITokenTeam[]) => {
     (teams?.length &&
       teams
         .slice(-NUM_TEAMS_IN_TOOLTIP)
-        .map((team) => team.name)
+        .map((team) => getTeamDisplayName(team))
         .reverse()) ||
     [];
 
@@ -87,7 +97,7 @@ const TeamsCell = ({ teams, className }: ITeamsCellProps) => {
   }
 
   if (teams.length === 1) {
-    return <TextCell value={teams[0].name} />;
+    return <TextCell value={getTeamDisplayName(teams[0])} />;
   }
 
   const cell = generateCell(teams);
