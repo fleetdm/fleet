@@ -143,7 +143,7 @@ const EndUserAuthSection = ({
           }`}
         >
           <InputField
-            label="Identity provider names"
+            label="Identity provider name"
             onChange={onInputChange}
             onBlur={onBlur}
             name="idp_name"
