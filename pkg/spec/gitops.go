@@ -937,34 +937,13 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		}
 
 		// Do an initial loop over the settings to expand globs.
-		var profiles []fleet.MDMProfileSpec
-		for i := range macOSSettings.CustomSettings {
-			profile := macOSSettings.CustomSettings[i]
-			if profile.Paths != "" {
-				expandedPaths, err := expandGlobPattern(profile.Paths, controlsDir, "profile", GlobExpandOptions{
-					LogFn: logFn,
-					AllowedExtensions: map[string]bool{
-						".mobileconfig": true,
-						".json":         true,
-					},
-				})
-				if err != nil {
-					return multierror.Append(multiError, fmt.Errorf("failed to expand glob pattern '%s' in profile '%s': %v", profile.Paths, profile.Name, err))
-				}
-				for _, expandedPath := range expandedPaths {
-					profiles = append(profiles, fleet.MDMProfileSpec{
-						Path:             expandedPath,
-						LabelsIncludeAll: profile.LabelsIncludeAll,
-						LabelsIncludeAny: profile.LabelsIncludeAny,
-						LabelsExcludeAny: profile.LabelsExcludeAny,
-					})
-				}
-			} else {
-				profiles = append(profiles, profile)
-			}
-			macOSSettings.CustomSettings = profiles
-		}
-
+		var errs []error
+		macOSSettings.CustomSettings, errs = expandGlobPatternsInProfiles(macOSSettings.CustomSettings, map[string]bool{
+			".mobileconfig": true,
+			".json":         true,
+		}, controlsDir, logFn)
+		multiError = multierror.Append(multiError, errs...)
+		// Then resolve the paths to absolute and find Fleet secrets in the profile files.
 		for i := range macOSSettings.CustomSettings {
 
 			err := resolveAndUpdateProfilePathToAbsolute(controlsDir, &macOSSettings.CustomSettings[i], result)
@@ -992,6 +971,12 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "windows_settings"}, err))
 		}
 		if windowsSettings.CustomSettings.Valid {
+			var errs []error
+			windowsSettings.CustomSettings.Value, errs = expandGlobPatternsInProfiles(windowsSettings.CustomSettings.Value, map[string]bool{
+				".xml": true,
+			}, controlsDir, logFn)
+			multiError = multierror.Append(multiError, errs...)
+
 			for i := range windowsSettings.CustomSettings.Value {
 				err := resolveAndUpdateProfilePathToAbsolute(controlsDir, &windowsSettings.CustomSettings.Value[i], result)
 				if err != nil {
@@ -1021,6 +1006,11 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		}
 
 		if androidSettings.CustomSettings.Valid {
+			var errs []error
+			androidSettings.CustomSettings.Value, errs = expandGlobPatternsInProfiles(androidSettings.CustomSettings.Value, map[string]bool{
+				".xml": true,
+			}, controlsDir, logFn)
+			multiError = multierror.Append(multiError, errs...)
 			for i := range androidSettings.CustomSettings.Value {
 				err := resolveAndUpdateProfilePathToAbsolute(controlsDir, &androidSettings.CustomSettings.Value[i], result)
 				if err != nil {
@@ -1184,6 +1174,35 @@ func expandGlobPattern(pattern string, baseDir string, entityType string, opts G
 
 	slices.Sort(result)
 	return result, nil
+}
+
+func expandGlobPatternsInProfiles(profiles []fleet.MDMProfileSpec, allowedExtensions map[string]bool, baseDir string, logFn Logf) ([]fleet.MDMProfileSpec, []error) {
+	var result []fleet.MDMProfileSpec
+	var errs []error
+	for i := range profiles {
+		profile := profiles[i]
+		if profile.Paths != "" {
+			expandedPaths, err := expandGlobPattern(profile.Paths, baseDir, "profile", GlobExpandOptions{
+				LogFn:             logFn,
+				AllowedExtensions: allowedExtensions,
+			})
+			if err != nil {
+				errs = append(errs, fmt.Errorf("failed to expand glob pattern '%s' in profile: %v", profile.Paths, err))
+				continue
+			}
+			for _, expandedPath := range expandedPaths {
+				result = append(result, fleet.MDMProfileSpec{
+					Path:             expandedPath,
+					LabelsIncludeAll: profile.LabelsIncludeAll,
+					LabelsIncludeAny: profile.LabelsIncludeAny,
+					LabelsExcludeAny: profile.LabelsExcludeAny,
+				})
+			}
+		} else {
+			result = append(result, profile)
+		}
+	}
+	return result, errs
 }
 
 // expandBaseItems validates path/paths fields on each entity (e.g. Label), expands glob

@@ -2152,6 +2152,216 @@ func TestGitOpsGlobScripts(t *testing.T) {
 	assert.Equal(t, filepath.Join(scriptsDir, "gamma.ps1"), *result.Controls.Scripts[2].Path)
 }
 
+func TestExpandGlobPatternsInProfiles(t *testing.T) {
+	t.Parallel()
+
+	t.Run("basic_glob", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		profilesDir := filepath.Join(dir, "profiles")
+		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "alpha.mobileconfig"), []byte("<plist/>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "beta.mobileconfig"), []byte("<plist/>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "skip.txt"), []byte("nope"), 0o644))
+
+		profiles := []fleet.MDMProfileSpec{
+			{Paths: "profiles/*.mobileconfig"},
+		}
+		result, errs := expandGlobPatternsInProfiles(profiles, map[string]bool{".mobileconfig": true}, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 2)
+		assert.Equal(t, filepath.Join(profilesDir, "alpha.mobileconfig"), result[0].Path)
+		assert.Equal(t, filepath.Join(profilesDir, "beta.mobileconfig"), result[1].Path)
+		assert.Empty(t, result[0].Paths)
+		assert.Empty(t, result[1].Paths)
+	})
+
+	t.Run("labels_propagated", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		profilesDir := filepath.Join(dir, "profiles")
+		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "a.xml"), []byte("<xml/>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "b.xml"), []byte("<xml/>"), 0o644))
+
+		profiles := []fleet.MDMProfileSpec{
+			{
+				Paths:            "profiles/*.xml",
+				LabelsIncludeAll: []string{"label1"},
+				LabelsIncludeAny: []string{"label2"},
+				LabelsExcludeAny: []string{"label3"},
+			},
+		}
+		result, errs := expandGlobPatternsInProfiles(profiles, map[string]bool{".xml": true}, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 2)
+		for _, p := range result {
+			assert.Equal(t, []string{"label1"}, p.LabelsIncludeAll)
+			assert.Equal(t, []string{"label2"}, p.LabelsIncludeAny)
+			assert.Equal(t, []string{"label3"}, p.LabelsExcludeAny)
+		}
+	})
+
+	t.Run("non_glob_passthrough", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		profiles := []fleet.MDMProfileSpec{
+			{Path: "profiles/explicit.mobileconfig"},
+		}
+		result, errs := expandGlobPatternsInProfiles(profiles, map[string]bool{".mobileconfig": true}, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 1)
+		assert.Equal(t, "profiles/explicit.mobileconfig", result[0].Path)
+	})
+
+	t.Run("mixed_glob_and_explicit", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		profilesDir := filepath.Join(dir, "profiles")
+		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "alpha.xml"), []byte("<xml/>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "beta.xml"), []byte("<xml/>"), 0o644))
+
+		profiles := []fleet.MDMProfileSpec{
+			{Paths: "profiles/*.xml"},
+			{Path: "profiles/explicit.xml"},
+		}
+		result, errs := expandGlobPatternsInProfiles(profiles, map[string]bool{".xml": true}, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 3)
+		// Glob results first (sorted), then explicit
+		assert.Equal(t, filepath.Join(profilesDir, "alpha.xml"), result[0].Path)
+		assert.Equal(t, filepath.Join(profilesDir, "beta.xml"), result[1].Path)
+		assert.Equal(t, "profiles/explicit.xml", result[2].Path)
+	})
+
+	t.Run("invalid_glob_error", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		profiles := []fleet.MDMProfileSpec{
+			{Paths: "profiles/[invalid"},
+		}
+		result, errs := expandGlobPatternsInProfiles(profiles, map[string]bool{".xml": true}, dir, nopLogf)
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), "failed to expand glob pattern")
+		assert.Empty(t, result)
+	})
+
+	t.Run("extension_filtering", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		profilesDir := filepath.Join(dir, "profiles")
+		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "good.mobileconfig"), []byte("<plist/>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "good.json"), []byte("{}"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "bad.txt"), []byte("nope"), 0o644))
+
+		profiles := []fleet.MDMProfileSpec{
+			{Paths: "profiles/*"},
+		}
+		result, errs := expandGlobPatternsInProfiles(profiles, map[string]bool{
+			".mobileconfig": true,
+			".json":         true,
+		}, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 2)
+		assert.Equal(t, filepath.Join(profilesDir, "good.json"), result[0].Path)
+		assert.Equal(t, filepath.Join(profilesDir, "good.mobileconfig"), result[1].Path)
+	})
+}
+
+func TestGitOpsGlobProfiles(t *testing.T) {
+	t.Parallel()
+
+	t.Run("macos_profiles", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		profilesDir := filepath.Join(dir, "profiles")
+		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "alpha.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "beta.json"), []byte("{}"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "gamma.mobileconfig"), []byte("<plist></plist>"), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  apple_settings:
+    configuration_profiles:
+      - paths: profiles/*.mobileconfig
+      - path: profiles/beta.json
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+		macSettings, ok := result.Controls.MacOSSettings.(fleet.MacOSSettings)
+		require.True(t, ok)
+		require.Len(t, macSettings.CustomSettings, 3)
+
+		// Glob results come first (sorted), then the explicit path
+		assert.Contains(t, macSettings.CustomSettings[0].Path, "alpha.mobileconfig")
+		assert.Contains(t, macSettings.CustomSettings[1].Path, "gamma.mobileconfig")
+		assert.Contains(t, macSettings.CustomSettings[2].Path, "beta.json")
+	})
+
+	t.Run("windows_profiles", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		profilesDir := filepath.Join(dir, "profiles")
+		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "alpha.xml"), []byte("<xml/>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "beta.xml"), []byte("<xml/>"), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  windows_settings:
+    configuration_profiles:
+      - paths: profiles/*.xml
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+		winSettings, ok := result.Controls.WindowsSettings.(fleet.WindowsSettings)
+		require.True(t, ok)
+		require.True(t, winSettings.CustomSettings.Valid)
+		require.Len(t, winSettings.CustomSettings.Value, 2)
+
+		assert.Contains(t, winSettings.CustomSettings.Value[0].Path, "alpha.xml")
+		assert.Contains(t, winSettings.CustomSettings.Value[1].Path, "beta.xml")
+	})
+
+	t.Run("macos_profiles_with_labels", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		profilesDir := filepath.Join(dir, "profiles")
+		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "a.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "b.mobileconfig"), []byte("<plist></plist>"), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  apple_settings:
+    configuration_profiles:
+      - paths: profiles/*.mobileconfig
+        labels_include_all:
+          - MyLabel
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+		macSettings, ok := result.Controls.MacOSSettings.(fleet.MacOSSettings)
+		require.True(t, ok)
+		require.Len(t, macSettings.CustomSettings, 2)
+		for _, p := range macSettings.CustomSettings {
+			assert.Equal(t, []string{"MyLabel"}, p.LabelsIncludeAll)
+		}
+	})
+}
+
 func TestUnknownKeyDetection(t *testing.T) {
 	t.Parallel()
 
