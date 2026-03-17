@@ -49,11 +49,10 @@ jobs:
           path: fleet-gitops
 
       - name: Apply latest configuration to Fleet
-        uses: ./fleet-gitops/.github/gitops-action-rc
+        uses: ./fleet-gitops/.github/gitops-action-fleets
         with:
           working-directory: ${{ github.workspace }}/fleet-gitops
           dry-run-only: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
-          fleet-branch: rc-minor-fleet-v4.82.0
         env:
           FLEET_GITOPS_DIR: ${{ github.workspace }}/it-and-security
           FLEET_URL: https://dogfood.fleetdm.com
@@ -84,6 +83,7 @@ jobs:
           DOGFOOD_TESTING_AND_QA_ENROLL_SECRET: ${{ secrets.DOGFOOD_TESTING_AND_QA_ENROLL_SECRET }}
           DOGFOOD_OKTA_CA_CERTIFICATE: ${{ secrets.DOGFOOD_OKTA_CA_CERTIFICATE }}
           DOGFOOD_OKTA_VERIFY_WINDOWS_URL: ${{ secrets.DOGFOOD_OKTA_VERIFY_WINDOWS_URL }}
+          DOGFOOD_ENTRA_TENANT_ID: ${{ secrets.DOGFOOD_ENTRA_TENANT_ID }}
 
       - name: Notify on Gitops failure
         if: failure() && github.ref_name == 'main'

@@ -49,6 +49,7 @@ Sr Manager Systems Engineering, Fastly
 
 <meta name="category" value="case study">
 <meta name="articleTitle" value="Fastly gains visibility into all endpoints and critical infrastructure worldwide">
+<meta name="description" value="Fastly unified visibility across employee devices and global infrastructure with Fleet, migrating 99.9% of Macs in 45 days and consolidating tools.">
 
 
 <meta name="publishedOn" value="2025-01-29">

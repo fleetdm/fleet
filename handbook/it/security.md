@@ -586,6 +586,22 @@ provider](https://github.com/integrations/terraform-provider-github) for GitHub.
 this will be similar to what [this blog post](https://oops.computer/posts/github_automation/) describes.
 
 
+### Requesting pull request deletion
+
+Only GitHub Support can permanently delete a pull request — this cannot be done through the GitHub UI or API. Follow these steps to request deletion:
+
+1. **Confirm the PR is closed.** The pull request must be closed (not merged) before GitHub Support can delete it.
+2. **Go to GitHub Support.** Visit https://support.github.com/ and sign in with an account that has admin access to the repository.
+3. **Open a support ticket.** Select "Contact Support" and choose the category most relevant to repository management or pull requests.
+4. **Provide the required details.** In the ticket, include:
+   - The full URL of the pull request to be deleted (e.g., `https://github.com/fleetdm/fleet/pull/12345`).
+   - A clear request asking GitHub Support to permanently delete the pull request.
+   - The reason for deletion (e.g., sensitive data was accidentally included, or the PR was created in error).
+5. **Wait for confirmation.** GitHub Support will review the request and confirm once the pull request has been permanently deleted. This may take a few business days.
+
+> **Important:** The requester must have admin access to the repository. Deletion is permanent and cannot be undone. Merged pull requests generally cannot be deleted.
+
+
 ## Google Workspace security
 
 Google Workspace is our collaboration tool and the source of truth for our user identities.
@@ -2063,7 +2079,7 @@ You can find the full report here: [2024-06-14-fleet-penetration-test.pdf](https
 | ------------------- | ----------------- |
 | Access controls     | Medium risk       |
 
-Software uploaded to a team's software library is accessible to any host via URL download. 
+Software uploaded to a fleet's software library is accessible to any host via URL download. 
 
 This was resolved in version release [4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) with [validation of agent access to installer package before returning it](https://github.com/fleetdm/fleet/pull/21337).
 
@@ -2135,7 +2151,7 @@ This was resolved in version release [4.33.0](https://github.com/fleetdm/fleet/r
 | ------------------- | -------------- |
 | Authorization issue | High risk      |
 
-Observers are not supposed to be able to add hosts to Fleet. Via specific endpoints, it becomes possible to retrieve the certificate chains and the secrets for all teams, and these are the information required to add a host. 
+Observers are not supposed to be able to add hosts to Fleet. Via specific endpoints, it becomes possible to retrieve the certificate chains and the secrets for all fleets, and these are the information required to add a host. 
 
 This was resolvedin version release [4.33.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.33.0) with [updating the observer permissions](https://github.com/fleetdm/fleet/pull/12216).
 
@@ -2158,7 +2174,7 @@ You can find the full report here: [2022-04-29-fleet-penetration-test.pdf](https
 | ------------------- | -------------- |
 | Authorization issue | High risk      |
 
-This section contains a few different authorization issues, allowing team members to access APIs out of the scope of their teams. The most significant problem was that a team administrator was able to add themselves to other teams. 
+This section contains a few different authorization issues, allowing fleet-level users to access APIs out of the scope of their fleets. The most significant problem was that a fleet administrator was able to add themselves to other fleets. 
 
 This is resolved in 4.13, and an [advisory](https://github.com/fleetdm/fleet/security/advisories/GHSA-pr2g-j78h-84cr) has been published before this report was made public.
 We are also planning to add [more testing](https://github.com/fleetdm/fleet/issues/5457) to catch potential future mistakes related to authorization.
@@ -2169,7 +2185,7 @@ We are also planning to add [more testing](https://github.com/fleetdm/fleet/issu
 | --------- | -------------- |
 | Injection | Medium risk    |
 
-It is possible to create or rename an existing team with a malicious name, which, once exported to CSV, could trigger code execution in Microsoft Excel. We assume there are other ways that inserting this type of data could have similar effects, including via osquery data. For this reason, we will evaluate the feasibility of [escaping CSV output](https://github.com/fleetdm/fleet/issues/5460).
+It is possible to create or rename an existing fleet with a malicious name, which, once exported to CSV, could trigger code execution in Microsoft Excel. We assume there are other ways that inserting this type of data could have similar effects, including via osquery data. For this reason, we will evaluate the feasibility of [escaping CSV output](https://github.com/fleetdm/fleet/issues/5460).
 
 Our current recommendation is to review CSV contents before opening in Excel or other programs that may execute commands.
 
@@ -2213,7 +2229,7 @@ The default password policy in Fleet requires passwords that are seven character
 | ----------- | -------------- |
 | Enumeration | Low risk       |
 
-User enumeration by a logged-in user is not a critical issue. Still, when done by a user with minimal privileges (such as a team observer), it is a leak of information, and might be a problem depending on how you use teams. For this reason, only team administrators are able to enumerate users as of Fleet 4.31.0.
+User enumeration by a logged-in user is not a critical issue. Still, when done by a user with minimal privileges (such as a fleet observer), it is a leak of information, and might be a problem depending on how you use fleets. For this reason, only fleet administrators are able to enumerate users as of Fleet 4.31.0.
 
 #### 9 - Information disclosure via default content
 
@@ -2243,7 +2259,7 @@ If this endpoint is a concern in your Fleet environment, consider that the infor
 
 [Add basic auth to /metrics endpoint #2322](https://github.com/fleetdm/fleet/issues/2322)
 
-[Ensure only team admins can list other users #5657](https://github.com/fleetdm/fleet/issues/5657)
+[Ensure only fleet admins can list other users #5657](https://github.com/fleetdm/fleet/issues/5657)
 
 
 ### August 2021 security of Orbit auto-updater

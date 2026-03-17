@@ -433,13 +433,11 @@ const PlatformWrapper = ({
               <div className={`${baseClass}__advanced--osqueryd`}>
                 <p className={`${baseClass}__advanced--heading`}>
                   With{" "}
-                  <a
-                    href="https://www.osquery.io/downloads"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    osquery
-                  </a>{" "}
+                  <CustomLink
+                    url="https://www.osquery.io/downloads"
+                    text="osquery"
+                    newTab
+                  />{" "}
                   installed:
                 </p>
                 <p className={`${baseClass}__advanced--text`}>

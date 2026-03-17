@@ -804,7 +804,7 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 }
 
 func (svc *Service) hostRequiresConditionalAccessMicrosoftIngestion(ctx context.Context, host *fleet.Host) bool {
-	if host.Platform != "darwin" {
+	if host.Platform != "darwin" && host.Platform != "windows" {
 		return false
 	}
 
@@ -1434,6 +1434,9 @@ func preProcessSoftwareResults(
 
 	jetbrainsPluginsExtraQuery := hostDetailQueryPrefix + "software_jetbrains_plugins"
 	preProcessSoftwareExtraResults(ctx, jetbrainsPluginsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+
+	goBinariesExtraQuery := hostDetailQueryPrefix + "software_go_binaries"
+	preProcessSoftwareExtraResults(ctx, goBinariesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	for name, query := range overrides {
 		fullQueryName := hostDetailQueryPrefix + "software_" + name

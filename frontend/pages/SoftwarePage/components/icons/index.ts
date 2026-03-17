@@ -3,15 +3,20 @@
 
 import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
+import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
+import Backblaze from "./Backblaze";
 import BetterDisplay from "./BetterDisplay";
+import Charles from "./Charles";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import Iina from "./Iina";
+import Krita from "./Krita";
 import LastPass from "./LastPass";
 import Nextcloud from "./Nextcloud";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
+import Ollama from "./Ollama";
 import Proxifier from "./Proxifier";
 import Putty from "./Putty";
 import SequelAce from "./SequelAce";
@@ -36,6 +41,7 @@ import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
 import Arc from "./Arc";
 import Archaeology from "./Archaeology";
+import ArduinoIde from "./ArduinoIde";
 import Asana from "./Asana";
 import Audacity from "./Audacity";
 import AvastSecureBrowser from "./AvastSecureBrowser";
@@ -208,6 +214,7 @@ import TextExpander from "./TextExpander";
 import TheUnarchiver from "./TheUnarchiver";
 import Thunderbird from "./Thunderbird";
 import Todoist from "./Todoist";
+import TorBrowser from "./TorBrowser";
 import Tower from "./Tower";
 import Transmit from "./Transmit";
 import Tunnelblick from "./Tunnelblick";
@@ -267,11 +274,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   appleAppStore: AppleAppStore,
   arc: Arc,
   archaeology: Archaeology,
+  "arduino ide": ArduinoIde,
   asana: Asana,
   audacity: Audacity,
   avast: AvastSecureBrowser,
   "aws vpn client": AwsVpnClient,
   "aws client vpn": AwsVpnClient,
+  backblaze: Backblaze,
   balenaetcher: BalenaEtcher,
   bbedit: BBEdit,
   betterdisplay: BetterDisplay,
@@ -284,6 +293,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   calibre: Calibre,
   camtasia: Camtasia,
   canva: Canva,
+  charles: Charles,
   "chatgpt atlas": ChatGptAtlas,
   chatgpt: ChatGpt,
   "cisco jabber": CiscoJabber,
@@ -301,6 +311,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
   iina: Iina,
+  krita: Krita,
   lastpass: LastPass,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
@@ -397,6 +408,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   obs: Obs,
   obsidian: Obsidian,
   "okta verify": OktaVerify,
+  ollama: Ollama,
   omnigraffle: OmniGraffle,
   "omnissa horizon client": OmnissaHorizonClient,
   onedrive: OneDrive,
@@ -459,6 +471,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "the unarchiver": TheUnarchiver,
   thunderbird: Thunderbird,
   todoist: Todoist,
+  "tor browser": TorBrowser,
   tower: Tower,
   transmit: Transmit,
   tunnelblick: Tunnelblick,
@@ -530,26 +543,6 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   vscode_extensions: Extension,
   jetbrains_plugins: Extension,
 } as const;
-
-/**
- * This attempts to loosely match the provided string to a key in a provided dictionary, returning the key if the
- * provided string starts with the key or undefined otherwise. Keys are sorted by length (longest first) to ensure
- * more specific matches are checked before shorter, more general ones (e.g., "archaeology" before "arc").
- */
-const matchLoosePrefixToKey = <T extends Record<string, unknown>>(
-  dict: T,
-  s: string
-) => {
-  s = s.trim().toLowerCase();
-  if (!s) {
-    return undefined;
-  }
-  // Sort keys by length (longest first) to prioritize more specific matches
-  const sortedKeys = Object.keys(dict).sort((a, b) => b.length - a.length);
-  const match = sortedKeys.find((k) => s.startsWith(k.trim().toLowerCase()));
-
-  return match ? (match as keyof T) : undefined;
-};
 
 /**
  * This strictly matches the provided name and source to a software icon, returning the icon if a match is found or

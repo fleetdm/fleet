@@ -184,6 +184,13 @@
       "description": "Archaeology is a tool for digging into binary files."
     },
     {
+      "name": "Arduino IDE",
+      "slug": "arduino-ide/darwin",
+      "platform": "darwin",
+      "unique_identifier": "cc.arduino.IDE2",
+      "description": "Arduino IDE is the official development environment for programming Arduino microcontrollers."
+    },
+    {
       "name": "Asana",
       "slug": "asana/darwin",
       "platform": "darwin",
@@ -217,6 +224,13 @@
       "platform": "darwin",
       "unique_identifier": "com.amazonaws.acvc.osx",
       "description": "AWS Client VPN is a managed client-based VPN service to securely access AWS resources."
+    },
+    {
+      "name": "Backblaze",
+      "slug": "backblaze/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.backblaze.bzbmenu",
+      "description": "Backblaze is a data backup and storage service."
     },
     {
       "name": "balenaEtcher",
@@ -329,6 +343,13 @@
       "platform": "darwin",
       "unique_identifier": "com.canva.CanvaDesktop",
       "description": "Canva is a popular online graphic design tool."
+    },
+    {
+      "name": "Charles",
+      "slug": "charles/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.xk72.Charles",
+      "description": "Charles is an HTTP proxy and monitor that lets developers view all HTTP and HTTPS traffic between their machine and the internet."
     },
     {
       "name": "ChatGPT Atlas",
@@ -912,6 +933,20 @@
       "description": "Keka is a file archiver."
     },
     {
+      "name": "Krita",
+      "slug": "krita/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.kde.krita",
+      "description": "Krita is a free and open-source digital painting application."
+    },
+    {
+      "name": "Krita",
+      "slug": "krita/windows",
+      "platform": "windows",
+      "unique_identifier": "Krita_x64",
+      "description": "Krita is a free and open-source digital painting application."
+    },
+    {
       "name": "LastPass",
       "slug": "lastpass/windows",
       "platform": "windows",
@@ -1162,6 +1197,20 @@
       "platform": "darwin",
       "unique_identifier": "com.okta.mobile",
       "description": "Okta Verify is a multi-factor authentication app that provides secure identity verification and passwordless sign-in for users accessing Okta-protected applications."
+    },
+    {
+      "name": "Ollama",
+      "slug": "ollama/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.ollama",
+      "description": "Ollama is a tool to get up and running with large language models locally."
+    },
+    {
+      "name": "Ollama",
+      "slug": "ollama/windows",
+      "platform": "windows",
+      "unique_identifier": "Ollama",
+      "description": "Ollama is a tool to get up and running with large language models locally."
     },
     {
       "name": "OmniGraffle",
@@ -1617,6 +1666,13 @@
       "platform": "darwin",
       "unique_identifier": "com.todoist.mac.Todoist",
       "description": "Todoist is a to do list and a planning center for individuals and teams."
+    },
+    {
+      "name": "Tor Browser",
+      "slug": "tor-browser/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.torproject.torbrowser",
+      "description": "Tor Browser is a privacy-focused web browser that protects against tracking, surveillance, and censorship by routing traffic through the Tor network."
     },
     {
       "name": "Tower",
