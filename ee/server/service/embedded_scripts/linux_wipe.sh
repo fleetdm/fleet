@@ -56,6 +56,11 @@ safe_rm() {
     # Fallback for non-GNU rm (e.g. BusyBox): use find -xdev to stay on the
     # same filesystem. Avoid rm -rf so we never recurse into nested mounts
     # whose mountpoint entries live on the local device.
+    # If the path is not a directory or is a symlink, just unlink it directly.
+    if [ ! -d "$_path" ] || [ -L "$_path" ]; then
+        rm -f "$_path" 2>/dev/null
+        return
+    fi
     find "$_path" -xdev -depth -mindepth 1 ! -type d -exec rm -f {} + 2>/dev/null
     find "$_path" -xdev -depth -mindepth 1 -type d -exec rmdir {} + 2>/dev/null
     rmdir "$_path" 2>/dev/null
