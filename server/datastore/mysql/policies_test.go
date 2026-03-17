@@ -7662,6 +7662,29 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// Add an FMA.
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{ID: 1})
+	require.NoError(t, err)
+
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "hello",
+		PreInstallQuery:      "SELECT 1",
+		PostInstallScript:    "world",
+		StorageID:            "storage1",
+		Filename:             "maintained1",
+		Title:                "Maintained1",
+		Version:              "1.0",
+		Source:               "apps",
+		Platform:             "darwin",
+		BundleIdentifier:     "fleet.maintained1",
+		UserID:               user1.ID,
+		TeamID:               nil,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: &fma.ID,
+	}
+	_, titleID2, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), payload)
+	require.NoError(t, err)
+
 	test.CreateInsertGlobalVPPToken(t, ds)
 
 	// create team1 app
@@ -7722,9 +7745,10 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	teamPatchPolicy, err := ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
-		Name:  "query 8",
-		Query: "SELECT 1;",
-		Type:  fleet.PolicyTypePatch,
+		Name:                 "query 8",
+		Query:                "SELECT 1;",
+		Type:                 fleet.PolicyTypePatch,
+		PatchSoftwareTitleID: &titleID2,
 	})
 	require.NoError(t, err)
 
