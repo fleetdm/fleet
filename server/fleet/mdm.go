@@ -678,7 +678,8 @@ func NewMDMConfigProfilePayloadFromAndroid(cp *MDMAndroidConfigProfile) *MDMConf
 // MDMProfileSpec represents the spec used to define configuration
 // profiles via yaml files.
 type MDMProfileSpec struct {
-	Path string `json:"path,omitempty"`
+	Path  string `json:"path,omitempty"`
+	Paths string `json:"paths,omitempty"`
 
 	// Deprecated: the Labels field is now deprecated, it is superseded by
 	// LabelsIncludeAll, so any value set via this field will be transferred to

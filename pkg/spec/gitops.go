@@ -936,7 +936,37 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "macos_settings"}, err))
 		}
 
+		// Do an initial loop over the settings to expand globs.
+		var profiles []fleet.MDMProfileSpec
 		for i := range macOSSettings.CustomSettings {
+			profile := macOSSettings.CustomSettings[i]
+			if profile.Paths != "" {
+				expandedPaths, err := expandGlobPattern(profile.Paths, controlsDir, "profile", GlobExpandOptions{
+					LogFn: logFn,
+					AllowedExtensions: map[string]bool{
+						".mobileconfig": true,
+						".json":         true,
+					},
+				})
+				if err != nil {
+					return multierror.Append(multiError, fmt.Errorf("failed to expand glob pattern '%s' in profile '%s': %v", profile.Paths, profile.Name, err))
+				}
+				for _, expandedPath := range expandedPaths {
+					profiles = append(profiles, fleet.MDMProfileSpec{
+						Path:             expandedPath,
+						LabelsIncludeAll: profile.LabelsIncludeAll,
+						LabelsIncludeAny: profile.LabelsIncludeAny,
+						LabelsExcludeAny: profile.LabelsExcludeAny,
+					})
+				}
+			} else {
+				profiles = append(profiles, profile)
+			}
+			macOSSettings.CustomSettings = profiles
+		}
+
+		for i := range macOSSettings.CustomSettings {
+
 			err := resolveAndUpdateProfilePathToAbsolute(controlsDir, &macOSSettings.CustomSettings[i], result)
 			if err != nil {
 				return multierror.Append(multiError, err)
