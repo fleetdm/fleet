@@ -238,6 +238,39 @@ func (svc *MDMAppleCommander) DisableLostMode(ctx context.Context, host *fleet.H
 	return nil
 }
 
+func (svc *MDMAppleCommander) ClearPasscode(ctx context.Context, host *fleet.Host, commandUUID string, unlockToken []byte) error {
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+	<key>CommandUUID</key>
+	<string>%s</string>
+	<key>Command</key>
+	<dict>
+		<key>RequestType</key>
+		<string>ClearPasscode</string>
+		<key>UnlockToken</key>
+		<data>%s</data>
+	</dict>
+</dict>
+</plist>`, commandUUID, base64.StdEncoding.EncodeToString(unlockToken))
+
+	cmd, err := mdm.DecodeCommand([]byte(raw))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding command for ClearPasscode")
+	}
+
+	if err := svc.storage.EnqueueDeviceClearPasscodeCommand(ctx, host, cmd); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing device clear passcode command")
+	}
+
+	if err := svc.SendNotifications(ctx, []string{host.UUID}); err != nil {
+		return ctxerr.Wrap(ctx, err, "sending notifications for ClearPasscode")
+	}
+
+	return nil
+}
+
 func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, host *fleet.Host, uuid string) error {
 	pin, err := GenerateRandomPin(6)
 	if err != nil {

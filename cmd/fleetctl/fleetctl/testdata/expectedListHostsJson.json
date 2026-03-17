@@ -50,7 +50,8 @@
             "encryption_key_available": false,
             "enrollment_status": null,
             "name": "",
-            "server_url": null
+            "server_url": null,
+            "unlock_token_available": false
         },
         "memory": 0,
         "orbit_version": null,
@@ -123,7 +124,8 @@
             "encryption_key_available": false,
             "enrollment_status": null,
             "name": "",
-            "server_url": null
+            "server_url": null,
+            "unlock_token_available": false
         },
         "memory": 0,
         "orbit_version": null,

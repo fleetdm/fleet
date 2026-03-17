@@ -77,6 +77,8 @@ type EnqueueDeviceUnlockCommandFunc func(ctx context.Context, host *fleet.Host, 
 
 type EnqueueDeviceWipeCommandFunc func(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error
 
+type EnqueueDeviceClearPasscodeCommandFunc func(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error
+
 type MDMAppleStore struct {
 	StoreAuthenticateFunc        StoreAuthenticateFunc
 	StoreAuthenticateFuncInvoked bool
@@ -170,6 +172,9 @@ type MDMAppleStore struct {
 
 	EnqueueDeviceWipeCommandFunc        EnqueueDeviceWipeCommandFunc
 	EnqueueDeviceWipeCommandFuncInvoked bool
+
+	EnqueueDeviceClearPasscodeCommandFunc        EnqueueDeviceClearPasscodeCommandFunc
+	EnqueueDeviceClearPasscodeCommandFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -389,4 +394,11 @@ func (fs *MDMAppleStore) EnqueueDeviceWipeCommand(ctx context.Context, host *fle
 	fs.EnqueueDeviceWipeCommandFuncInvoked = true
 	fs.mu.Unlock()
 	return fs.EnqueueDeviceWipeCommandFunc(ctx, host, cmd)
+}
+
+func (fs *MDMAppleStore) EnqueueDeviceClearPasscodeCommand(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error {
+	fs.mu.Lock()
+	fs.EnqueueDeviceClearPasscodeCommandFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.EnqueueDeviceClearPasscodeCommandFunc(ctx, host, cmd)
 }

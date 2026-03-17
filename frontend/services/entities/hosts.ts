@@ -634,6 +634,11 @@ export default {
     return sendRequest("POST", HOST_WIPE(id));
   },
 
+  clearPasscode: (id: number): Promise<void> => {
+    const { HOST_CLEAR_PASSCODE } = endpoints;
+    return sendRequest("POST", HOST_CLEAR_PASSCODE(id));
+  },
+
   resendProfile: (hostId: number, profileUUID: string): Promise<void> => {
     const { HOST_RESEND_PROFILE } = endpoints;
 

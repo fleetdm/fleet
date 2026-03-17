@@ -566,3 +566,82 @@ var (
 			</Item>
 		</Exec>`
 )
+
+func (svc *Service) ClearHostPasscode(ctx context.Context, hostID uint) error {
+	// First ensure the user has access to list hosts, then check the specific
+	// host once team_id is loaded.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+	host, err := svc.ds.Host(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host")
+	}
+
+	// Authorize again with team loaded now that we have the host's team_id.
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	// Only supported for iOS and iPadOS.
+	switch host.FleetPlatform() {
+	case "ios", "ipados":
+		// continue
+	default:
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Clear passcode is only supported for iOS and iPadOS hosts."))
+	}
+
+	// Personal (BYOD) enrollment is not supported.
+	if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
+		return &fleet.BadRequestError{
+			Message: "Can't clear passcode on a personal device.",
+		}
+	}
+
+	// Manual enrollment is not supported — requires ADE.
+	if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (manual)" {
+		return &fleet.BadRequestError{
+			Message: "Can't clear passcode on a manually enrolled device. The host must be enrolled via Automated Device Enrollment (ADE).",
+		}
+	}
+
+	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+		if errors.Is(err, fleet.ErrMDMNotConfigured) {
+			err = fleet.NewInvalidArgumentError("host_id", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+		}
+		return ctxerr.Wrap(ctx, err, "check Apple MDM enabled")
+	}
+
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet MDM")
+	}
+	if !connected {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't clear passcode because the host doesn't have MDM turned on."))
+	}
+
+	unlockToken, err := svc.ds.GetMDMAppleDeviceUnlockToken(ctx, host.UUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get device unlock token")
+	}
+	if len(unlockToken) == 0 {
+		return fleet.NewInvalidArgumentError("host_id", "Passcode cannot be cleared. The device unlock token is not yet available. Try again after the device checks in.")
+	}
+
+	if err := svc.mdmAppleCommander.ClearPasscode(ctx, host, uuid.NewString(), unlockToken); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueue clear passcode command")
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeClearedPasscode{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for clear passcode")
+	}
+
+	return nil
+}

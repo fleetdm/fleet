@@ -1775,4 +1775,139 @@ describe("Host Actions Dropdown", () => {
       });
     });
   });
+
+  describe("Clear passcode action", () => {
+    it("renders for an ADE-enrolled iOS host connected to Fleet MDM with unlock token available", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            isMacMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="ios"
+          hostMdmEnrollmentStatus="On (automatic)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled={false}
+          unlockTokenAvailable
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Clear passcode")).toBeInTheDocument();
+    });
+
+    it("renders for an ADE-enrolled iPadOS host connected to Fleet MDM with unlock token available", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            isMacMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="ipados"
+          hostMdmEnrollmentStatus="On (automatic)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled={false}
+          unlockTokenAvailable
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Clear passcode")).toBeInTheDocument();
+    });
+
+    it("does not render for a macOS host", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            isMacMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus="On (automatic)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          unlockTokenAvailable
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
+    });
+
+    it("disables the action when unlock token is not yet available and shows tooltip on hover", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            isMacMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="ios"
+          hostMdmEnrollmentStatus="On (automatic)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled={false}
+          unlockTokenAvailable={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      const option = screen.getByText("Clear passcode");
+      expect(option).toBeInTheDocument();
+      expect(option).toHaveAttribute("aria-disabled", "true");
+
+      await user.hover(option);
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Clear passcode is unavailable until/i)
+        ).toBeInTheDocument();
+      });
+    });
+  });
 });

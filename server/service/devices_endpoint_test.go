@@ -87,6 +87,9 @@ func TestGetDeviceHostEndpointScrubbing(t *testing.T) {
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
+	ds.GetMDMAppleDeviceUnlockTokenFunc = func(ctx context.Context, hostUUID string) ([]byte, error) {
+		return nil, nil
+	}
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 		return nil, nil
 	}

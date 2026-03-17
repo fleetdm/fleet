@@ -1323,6 +1323,10 @@ type Datastore interface {
 	// ListMDMAppleEnrollmentProfiles returns the list of all the enrollment profiles.
 	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
 
+	// GetMDMAppleDeviceUnlockToken returns the unlock token for the given host UUID
+	// as stored in nano_devices. Returns nil if no token has been received yet.
+	GetMDMAppleDeviceUnlockToken(ctx context.Context, hostUUID string) ([]byte, error)
+
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a
 	// CommandUUID. If a hostUUID is provided, it filters the results for that host.
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
@@ -2864,6 +2868,7 @@ type MDMAppleStore interface {
 	EnqueueDeviceLockCommand(ctx context.Context, host *Host, cmd *mdm.Command, pin string) error
 	EnqueueDeviceUnlockCommand(ctx context.Context, host *Host, cmd *mdm.Command) error
 	EnqueueDeviceWipeCommand(ctx context.Context, host *Host, cmd *mdm.Command) error
+	EnqueueDeviceClearPasscodeCommand(ctx context.Context, host *Host, cmd *mdm.Command) error
 }
 
 type MDMAssetRetriever interface {
