@@ -262,9 +262,8 @@ The `-p fleet-alt` flag gives the second instance separate containers and volume
 > **Important:** Both instances run on `localhost`, so browser session cookies are shared between them. Use an incognito
 > window or a different browser profile for the second instance to avoid getting logged out when switching between them.
 
-> **Tips:**
-> - You would typically run the second instance from a separate clone or git worktree of the Fleet repo (e.g. `~/fleet2`).
-> - To run a different code version, build from a different branch in your separate clone or worktree.
+> **Note:** You would typically run the second instance from a separate clone or git worktree (e.g. `~/fleet2`),
+> which also lets you build and run different code versions.
 
 ### Developing the Fleet UI
 
