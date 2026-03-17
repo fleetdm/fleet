@@ -273,56 +273,116 @@ func newCommand() *cli.Command {
 				return fmt.Errorf("Fleet server URL is required")
 			}
 
-			gitopsNamePrompt := promptui.Prompt{
-				Label:   "GitOps user name",
-				Default: "GitOps",
+			// Ask whether the user already has an API token or needs to create one.
+			tokenSel := promptui.Select{
+				Label: "Do you have a Fleet API token for GitOps",
+				Items: []string{
+					"Yes, I have an API token",
+					"No, create a new GitOps user for me",
+				},
 			}
-			gitopsName, err := gitopsNamePrompt.Run()
+			tokenChoice, _, err := tokenSel.Run()
 			if err != nil {
-				return fmt.Errorf("prompt failed: %w", err)
+				return fmt.Errorf("selection cancelled")
 			}
 
-			gitopsEmailPrompt := promptui.Prompt{
-				Label: "GitOps user email",
-			}
-			gitopsEmail, err := gitopsEmailPrompt.Run()
-			if err != nil || gitopsEmail == "" {
-				return fmt.Errorf("GitOps user email is required")
-			}
-
-			gitopsPasswordPrompt := promptui.Prompt{
-				Label: "GitOps user password",
-				Mask:  '*',
-			}
-			gitopsPassword, err := gitopsPasswordPrompt.Run()
-			if err != nil || gitopsPassword == "" {
-				return fmt.Errorf("GitOps user password is required")
-			}
-
-			// Create the GitOps user via fleetctl.
+			var apiToken string
 			fleetctlPath, err := os.Executable()
 			if err != nil {
 				return fmt.Errorf("finding fleetctl path: %w", err)
 			}
 
-			out, err := exec.Command(
-				fleetctlPath, "user", "create",
-				"--name", gitopsName,
-				"--email", gitopsEmail,
-				"--password", gitopsPassword,
-				"--global-role", "gitops",
-				"--api-only",
-			).CombinedOutput()
-			if err != nil {
-				return fmt.Errorf("creating GitOps user: %s", strings.TrimSpace(string(out)))
-			}
+			if tokenChoice == 0 {
+				// User has an existing API token.
+				tokenPrompt := promptui.Prompt{
+					Label: "Fleet API token",
+					Mask:  '*',
+				}
+				apiToken, err = tokenPrompt.Run()
+				if err != nil || apiToken == "" {
+					return fmt.Errorf("API token is required")
+				}
+			} else {
+				// Need to create a GitOps user. First ensure fleetctl is
+				// configured and logged in to the right server.
+				homeDir, _ := os.UserHomeDir()
+				configPath := filepath.Join(homeDir, ".fleet", "config")
 
-			// Parse the API token from the output.
-			matches := apiTokenPattern.FindSubmatch(out)
-			if len(matches) < 2 {
-				return fmt.Errorf("could not find API token in fleetctl output: %s", strings.TrimSpace(string(out)))
+				// Check if the default context address matches the Fleet URL.
+				needsLogin := true
+				if addr, err := getConfigValue(configPath, "default", "address"); err == nil {
+					if addrStr, ok := addr.(string); ok && strings.TrimRight(addrStr, "/") == strings.TrimRight(fleetURL, "/") {
+						// Address matches — check if we have a token (i.e. already logged in).
+						if tok, err := getConfigValue(configPath, "default", "token"); err == nil {
+							if tokStr, ok := tok.(string); ok && tokStr != "" {
+								needsLogin = false
+							}
+						}
+					}
+				}
+
+				if needsLogin {
+					// Set the address in the config so fleetctl login targets the right server.
+					if err := setConfigValue(configPath, "default", "address", strings.TrimRight(fleetURL, "/")); err != nil {
+						return fmt.Errorf("setting Fleet address in config: %w", err)
+					}
+
+					fmt.Fprintln(stdout, "\nLog in to Fleet so we can create the GitOps user.")
+					loginCmd := exec.Command(fleetctlPath, "login")
+					loginCmd.Stdin = os.Stdin
+					loginCmd.Stdout = os.Stdout
+					loginCmd.Stderr = os.Stderr
+					if err := loginCmd.Run(); err != nil {
+						return fmt.Errorf("fleetctl login failed: %w", err)
+					}
+				}
+
+				// Now create the GitOps user.
+				gitopsNamePrompt := promptui.Prompt{
+					Label:   "GitOps user name",
+					Default: "GitOps",
+				}
+				gitopsName, err := gitopsNamePrompt.Run()
+				if err != nil {
+					return fmt.Errorf("prompt failed: %w", err)
+				}
+
+				gitopsEmailPrompt := promptui.Prompt{
+					Label: "GitOps user email",
+				}
+				gitopsEmail, err := gitopsEmailPrompt.Run()
+				if err != nil || gitopsEmail == "" {
+					return fmt.Errorf("GitOps user email is required")
+				}
+
+				gitopsPasswordPrompt := promptui.Prompt{
+					Label: "GitOps user password",
+					Mask:  '*',
+				}
+				gitopsPassword, err := gitopsPasswordPrompt.Run()
+				if err != nil || gitopsPassword == "" {
+					return fmt.Errorf("GitOps user password is required")
+				}
+
+				out, err := exec.Command(
+					fleetctlPath, "user", "create",
+					"--name", gitopsName,
+					"--email", gitopsEmail,
+					"--password", gitopsPassword,
+					"--global-role", "gitops",
+					"--api-only",
+				).CombinedOutput()
+				if err != nil {
+					return fmt.Errorf("creating GitOps user: %s", strings.TrimSpace(string(out)))
+				}
+
+				// Parse the API token from the output.
+				matches := apiTokenPattern.FindSubmatch(out)
+				if len(matches) < 2 {
+					return fmt.Errorf("could not find API token in fleetctl output: %s", strings.TrimSpace(string(out)))
+				}
+				apiToken = string(matches[1])
 			}
-			apiToken := string(matches[1])
 
 			// Create the GitHub repo.
 			if out, err := exec.Command("gh", "repo", "create", repoName, "--private", "--source", outputDir, "--remote", "origin").CombinedOutput(); err != nil {
