@@ -2314,7 +2314,8 @@ type Datastore interface {
 	// It uses hostPlatformLike to cover scenarios where software items are not compatible with the target
 	// platform. E.g. "deb" packages can only be queued for hosts with platform_like = "debian" (Ubuntu, Debian, etc.).
 	// MacOS hosts have hosts.platform_like = 'darwin', Ubuntu and Debian hosts have hosts.platform_like = 'debian'
-	// Fedora hosts have hosts.platform_like = 'rhel'.
+	// Fedora hosts have hosts.platform_like = 'rhel'. The hostPlatform argument (e.g. "darwin", "arch", "ubuntu", etc.)
+	// is used for some validations, and to backfill hostPlatformLike if empty.
 	EnqueueSetupExperienceItems(ctx context.Context, hostPlatform, hostPlatformLike, hostUUID string, teamID uint) (bool, error)
 
 	// ResetSetupExperienceItemsAfterFailure resets any setup experience items that were canceled after
