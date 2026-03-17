@@ -121,7 +121,7 @@ func TestMailService(t *testing.T) {
 	ctx = test.UserContext(ctx, test.UserAdmin)
 
 	// (1) Modifying the app config `sender_address` field to trigger a test e-mail send.
-	_, err := svc.ModifyAppConfig(ctx, []byte(fmt.Sprintf(`{
+	_, err := svc.ModifyAppConfig(ctx, fmt.Appendf(nil, `{
   "org_info": {
 	"org_name": "Acme"
   },
@@ -141,7 +141,7 @@ func TestMailService(t *testing.T) {
     "server": "127.0.0.1",
     "sender_address": "foobar_updated@example.com"
   }
-}`, testMailpitSMTPPort)), fleet.ApplySpecOptions{})
+}`, testMailpitSMTPPort), fleet.ApplySpecOptions{})
 	require.NoError(t, err)
 
 	getLastMailPitMessage := func() map[string]interface{} {

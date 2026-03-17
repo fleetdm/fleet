@@ -403,7 +403,7 @@ func (s *integrationSSOTestSuite) TestSSOLoginWithMetadata() {
 	t := s.T()
 
 	acResp := appConfigResponse{}
-	metadata, err := json.Marshal([]byte(fmt.Sprintf(`<?xml version="1.0"?>
+	metadata, err := json.Marshal(fmt.Appendf(nil, `<?xml version="1.0"?>
 <md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" entityID="%s">
   <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
     <md:KeyDescriptor use="signing">
@@ -424,7 +424,7 @@ func (s *integrationSSOTestSuite) TestSSOLoginWithMetadata() {
     <md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:transient</md:NameIDFormat>
     <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="%s"/>
   </md:IDPSSODescriptor>
-</md:EntityDescriptor>`, testSAMLIDPMetadataURL, testSAMLIDPSLOURL, testSAMLIDPSSOURL)))
+</md:EntityDescriptor>`, testSAMLIDPMetadataURL, testSAMLIDPSLOURL, testSAMLIDPSSOURL))
 	require.NoError(t, err)
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"server_settings": {
