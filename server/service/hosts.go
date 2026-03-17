@@ -3766,3 +3766,34 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 
 	return password, nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Rotate Host Recovery Lock Password
+////////////////////////////////////////////////////////////////////////////////
+
+type rotateRecoveryLockPasswordRequest struct {
+	HostID uint `url:"id"`
+}
+
+type rotateRecoveryLockPasswordResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r rotateRecoveryLockPasswordResponse) Error() error { return r.Err }
+
+func rotateRecoveryLockPasswordEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*rotateRecoveryLockPasswordRequest)
+	err := svc.RotateRecoveryLockPassword(ctx, req.HostID)
+	if err != nil {
+		return rotateRecoveryLockPasswordResponse{Err: err}, nil
+	}
+	return rotateRecoveryLockPasswordResponse{}, nil
+}
+
+func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
