@@ -362,6 +362,8 @@ module.exports = {
         let DRI_BY_PATH = {};
         if (repo === 'fleet') {
           DRI_BY_PATH = sails.config.custom.githubRepoDRIByPath;
+        } else if(repo === 'fleet-gitops') {
+          DRI_BY_PATH = sails.config.custom.fleetMdmGitopsRepoDRIByPath;
         } else {
           // Other repos don't have this configured.
           // FUTURE: Configure it for them
@@ -425,6 +427,12 @@ module.exports = {
           }//ﬁ
 
         }//∞
+
+        let repoHasADriForAllPaths = DRI_BY_PATH['/'];
+        // If a PR has no expected reviewers, and the repo has a DRI for all paths ('/'), add that user as a reviewer.
+        if(expectedReviewers.length === 0 && repoHasADriForAllPaths) {
+          expectedReviewers.push(repoHasADriForAllPaths);
+        }//ﬁ
 
         // Now, if reviews should be requested for this PR, do so.
         //
