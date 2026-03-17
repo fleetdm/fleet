@@ -1371,8 +1371,8 @@ type ListQueryOptions struct {
 type ListHostReportsOptions struct {
 	ListOptions
 	// IncludeReportsDontStoreResults controls whether queries that don't store
-	// results (discard_data=1 AND logging_type != 'snapshot') are included.
-	// false (default): those queries are excluded from the results.
+	// results (discard_data=1 OR logging_type!='snapshot') are included.
+	// false (default): only queries with discard_data=0 AND logging_type='snapshot' are returned.
 	// true: all queries are returned, including ones that don't store results.
 	IncludeReportsDontStoreResults bool
 }

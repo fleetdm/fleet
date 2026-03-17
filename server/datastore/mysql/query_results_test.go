@@ -832,8 +832,8 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 
 	_ = test.NewQuery(t, ds, nil, "Save Query Beta", "SELECT 2", user.ID, true)
 
-	// Create a query that discards results with non-snapshot logging, so it matches
-	// the "don't store results" condition (discard_data=1 AND logging_type != 'snapshot').
+	// Create a query that discards results; excluded by default since it doesn't
+	// satisfy discard_data=0 AND logging_type='snapshot'.
 	qDiscard, err := ds.NewQuery(ctx, &fleet.Query{
 		Name:        "Discard Query Gamma",
 		Query:       "SELECT 3",
@@ -878,12 +878,12 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 
 	t.Run("default_excludes_dont_store_results_queries", func(t *testing.T) {
 		opts := fleet.ListHostReportsOptions{
-			// IncludeReportsDontStoreResults defaults to false: exclude discard+non-snapshot queries.
+			// IncludeReportsDontStoreResults defaults to false: only include discard_data=0 AND logging_type='snapshot'.
 			ListOptions: fleet.ListOptions{OrderKey: "name", IncludeMetadata: true},
 		}
 		reports, total, meta, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
 		require.NoError(t, err)
-		// Should get qSave1 and qSave2 but NOT qDiscard (discard_data=1, logging=differential).
+		// Should get qSave1 and qSave2 but NOT qDiscard (doesn't satisfy discard_data=0 AND logging_type='snapshot').
 		assert.Equal(t, 2, total)
 		require.Len(t, reports, 2)
 		assert.NotNil(t, meta)

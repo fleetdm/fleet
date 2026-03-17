@@ -321,11 +321,11 @@ func (ds *Datastore) ListHostReports(
 		whereClause += " AND q.team_id IS NULL"
 	}
 
-	// By default, exclude queries that don't store results (discard_data=1 AND
-	// logging_type != 'snapshot'). When IncludeReportsDontStoreResults is set,
-	// those queries are included alongside all others.
+	// By default, only include queries that store results (discard_data=0 AND
+	// logging_type='snapshot'). When IncludeReportsDontStoreResults is set,
+	// all queries are returned regardless of their storage settings.
 	if !opts.IncludeReportsDontStoreResults {
-		whereClause += " AND NOT (q.discard_data = 1 AND q.logging_type <> 'snapshot')"
+		whereClause += " AND q.discard_data = 0 AND q.logging_type = 'snapshot'"
 	}
 
 	matchQuery := strings.TrimSpace(opts.ListOptions.MatchQuery)
