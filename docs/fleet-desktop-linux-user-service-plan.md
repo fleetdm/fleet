@@ -31,11 +31,11 @@ Orbit's `desktopRunner` in `orbit/cmd/orbit/orbit.go`:
 ```
 systemd (system) → orbit.service (root)
                       └─ writes /opt/orbit/desktop.env (env vars for desktop)
-                      └─ systemctl --global enable fleet-desktop.service
 
 systemd (user)   → fleet-desktop.service (per-user, auto-started on login)
+                      └─ ConditionPathExists=/opt/orbit/desktop.env
                       └─ EnvironmentFile=/opt/orbit/desktop.env
-                      └─ ExecStart=/opt/orbit/bin/orbit/desktop/linux/stable/fleet-desktop
+                      └─ ExecStart=/opt/orbit/bin/desktop/fleet-desktop (symlink)
 ```
 
 ## Key design decisions
@@ -49,11 +49,13 @@ Install to `/usr/lib/systemd/user/fleet-desktop.service` during packaging. This 
 Description=Fleet Desktop
 After=graphical-session.target
 PartOf=graphical-session.target
+# Don't start until orbit has written the environment file.
+ConditionPathExists=/opt/orbit/desktop.env
 
 [Service]
 Type=simple
 EnvironmentFile=/opt/orbit/desktop.env
-ExecStart=/opt/orbit/bin/orbit/desktop/linux/stable/fleet-desktop
+ExecStart=/opt/orbit/bin/desktop/fleet-desktop
 Restart=on-failure
 RestartSec=5
 
@@ -63,6 +65,7 @@ WantedBy=graphical-session.target
 
 Key choices:
 - **`graphical-session.target`**: ensures desktop only starts when a graphical session is active — no more manual GUI user detection
+- **`ConditionPathExists`**: prevents the service from starting before orbit writes the env file (avoids errors on first install)
 - **`EnvironmentFile`**: orbit (root) writes config that user service reads — clean IPC boundary
 - **`Restart=on-failure`**: systemd handles restarts — no more orbit polling
 - **`PartOf=graphical-session.target`**: stops when user logs out
@@ -79,11 +82,11 @@ Orbit writes `/opt/orbit/desktop.env` with the env vars Fleet Desktop needs. Thi
 - `FLEET_DESKTOP_FLEET_ROOT_CA` (if set)
 - `FLEET_DESKTOP_INSECURE` (if set)
 
-Orbit refreshes this file whenever configuration changes, then signals the user service to restart via `systemctl --user restart fleet-desktop.service` for logged-in users.
+Orbit refreshes this file every 30s and ensures token permissions stay correct.
 
 ### 3. Token file permissions
 
-The token file at `/opt/orbit/identifier` is currently only readable by root (written by orbit). We need to make it readable by the user running desktop. Change permissions to `0644` so the user service can read it.
+The token file at `/opt/orbit/identifier` is currently only readable by root (written by orbit). We need to make it readable by the user running desktop. Change permissions to `0644` so the user service can read it. Orbit periodically checks and corrects these permissions.
 
 ### 4. Orbit changes (what gets removed / changed)
 
@@ -91,16 +94,17 @@ The token file at `/opt/orbit/identifier` is currently only readable by root (wr
 - On Linux, when `--fleet-desktop` is set, instead of creating a `desktopRunner`, orbit:
   1. Writes `/opt/orbit/desktop.env` with the required env vars
   2. Ensures the token file has proper permissions (0644)
-  3. On first run or config change, signals `systemctl --user daemon-reload` + restart for logged-in users
+  3. Calls `systemctl --user daemon-reload` + `restart` for logged-in users via `runuser`
 
-**The `desktopRunner` stays** for macOS/Windows (no changes to those platforms). On Linux, it's replaced by a simpler `desktopServiceManager` that just manages the env file and service state.
+**The `desktopRunner` stays** for macOS/Windows (no changes to those platforms). On Linux, it's replaced by a simpler `desktopUserServiceManager` that just manages the env file and service state.
 
 ### 5. Packaging changes (`linux_shared.go`)
 
 - Add `fleet-desktop.service` to `/usr/lib/systemd/user/` in the package
-- **postinstall**: `systemctl --global enable fleet-desktop.service` + start for logged-in users
+- Add a stable symlink `/opt/orbit/bin/desktop/fleet-desktop` → versioned binary
+- **postinstall**: `systemctl --global enable fleet-desktop.service` (no explicit start — orbit handles that after writing the env file)
 - **preremove**: `systemctl --global disable fleet-desktop.service` + stop for logged-in users
-- **postremove**: clean up `/usr/lib/systemd/user/fleet-desktop.service` and `/opt/orbit/desktop.env`
+- **postremove**: clean up `/usr/lib/systemd/user/fleet-desktop.service` and `/opt/orbit`
 
 ### 6. Migration from old to new (upgrade path)
 
@@ -113,19 +117,18 @@ When upgrading from a package that uses the old `desktopRunner` approach:
 ### 7. Desktop binary symlink
 
 Add a stable symlink for the service to reference:
-`/opt/orbit/bin/desktop/fleet-desktop` → actual versioned binary
+`/opt/orbit/bin/desktop/fleet-desktop` → actual versioned binary (e.g. `.../linux-arm64/stable/fleet-desktop/fleet-desktop`)
 
-This avoids hardcoding channel/platform paths in the service unit. Orbit updates this symlink when it updates the desktop binary (already handles this for the orbit binary itself).
+This avoids hardcoding channel/platform paths in the service unit file.
 
-## Files to modify
+## Files modified
 
 | File | Change |
 |------|--------|
-| `orbit/cmd/orbit/orbit.go` | Add `desktopServiceManager` for Linux; skip `desktopRunner` on Linux |
-| `orbit/pkg/packaging/linux_shared.go` | Add user service unit file, update post/pre scripts, add desktop symlink |
-| `orbit/pkg/packaging/packaging.go` | (if needed) Add desktop symlink to Options |
-| `orbit/cmd/orbit/desktopservice_linux.go` | New file: `desktopServiceManager` implementation |
-| `orbit/cmd/orbit/desktopservice_other.go` | New file: build tag stub for non-Linux |
+| `orbit/cmd/orbit/orbit.go` | On Linux, use `desktopUserServiceManager` instead of `desktopRunner` |
+| `orbit/pkg/packaging/linux_shared.go` | Add user service unit file, desktop symlink, update post/pre/posttrans scripts |
+| `orbit/cmd/orbit/desktop_service_linux.go` | New file: `desktopUserServiceManager` implementation |
+| `orbit/cmd/orbit/desktop_service_other.go` | New file: build tag stub for non-Linux |
 
 ## Files NOT modified (kept as-is)
 
@@ -148,4 +151,65 @@ This avoids hardcoding channel/platform paths in the service unit. Orbit updates
 
 5. **Older distros without user systemd**: Some minimal distros may not have user session support. We should detect this at install time and fall back (or document it as a requirement).
 
-6. **TUF updates**: When orbit updates the desktop binary, it needs to restart the user service. This is done by running `systemctl --user restart fleet-desktop.service` for each logged-in user.
+6. **TUF updates**: When orbit updates the desktop binary, orbit restarts itself. The new orbit calls `restartServiceForLoggedInUsers()` on startup, which restarts the user service with the updated binary.
+
+## Test plan
+
+### 1. Installation & Service Enablement
+
+**Note:** `fleetctl package` downloads the orbit binary from TUF, so it won't include local orbit code changes. To test the new `desktopUserServiceManager` code path:
+
+1. Cross-compile orbit locally: `GOOS=linux GOARCH=arm64 go build -o ./build/orbit-linux-arm64 ./orbit/cmd/orbit`
+2. Copy it to the target machine (e.g. `scp ./build/orbit-linux-arm64 user@host:~/`)
+3. Stop orbit: `sudo systemctl stop orbit`
+4. Replace the binary: `sudo cp ~/orbit-linux-arm64 /opt/orbit/bin/orbit/linux-arm64/stable/orbit`
+5. Disable TUF updates (otherwise TUF reverts the binary on startup): `echo 'ORBIT_DISABLE_UPDATES=true' | sudo tee -a /etc/default/orbit`
+6. Start orbit: `sudo systemctl start orbit`
+7. Verify the new code path: `journalctl -u orbit --since "1 min ago" | grep -i desktop` — should show `"managing fleet-desktop as systemd user service"` and `"restarted fleet-desktop user service"`
+
+- Install the updated Fleet package.
+- Verify `/usr/lib/systemd/user/fleet-desktop.service` exists.
+- Confirm `systemctl --global is-enabled fleet-desktop.service` shows enabled.
+- Verify the symlink exists and resolves: `ls -la /opt/orbit/bin/desktop/fleet-desktop` should point to the versioned binary.
+
+### 2. User Session Handling
+
+**Note:** On first install, `systemctl --user status fleet-desktop.service` may show `inactive (dead)` with a stale failure from before orbit wrote the env file. This is expected — the `ConditionPathExists=/opt/orbit/desktop.env` directive prevents premature startup, but systemd caches the failed attempt. Once orbit starts and calls `restartServiceForLoggedInUsers()` (which does `daemon-reload` + `restart`), the service starts successfully. Verify by checking orbit logs for `"managing fleet-desktop as systemd user service"` and `"restarted fleet-desktop user service"`.
+
+- Log in as a regular user with a graphical session (X11/Wayland).
+- Confirm Fleet Desktop is running: `systemctl --user status fleet-desktop.service` should show `active (running)`.
+- Log out and back in; verify the service stops/starts with the session.
+- SSH in as a user (no GUI session) and verify `systemctl --user status fleet-desktop.service` shows inactive — service should NOT start for SSH-only users.
+
+### 3. Environment Inheritance
+- Check that Fleet Desktop inherits `DISPLAY`, `WAYLAND_DISPLAY`, and `DBUS_SESSION_BUS_ADDRESS` from the user session.
+- Confirm `/opt/orbit/desktop.env` is readable and contains expected env vars.
+
+### 4. Browser Launch Verification
+- Trigger a browser launch from Fleet Desktop ("My device" link).
+- Confirm the browser opens in the user's session (not as root, no permission errors).
+
+### 5. Service Management
+- Manually stop/start/restart the service:
+  - `systemctl --user stop fleet-desktop.service`
+  - `systemctl --user start fleet-desktop.service`
+- Check `journalctl --user -u fleet-desktop` — confirm logs go to the user journal, not system journal.
+- Verify orbit logs (`journalctl -u orbit`) show `"managing fleet-desktop as systemd user service"` confirming the new code path is active.
+
+### 6. Edge Cases
+- **Multiple users**: Log in as two users with graphical sessions; confirm each gets their own Fleet Desktop instance.
+- **Token file**: Ensure `/opt/orbit/identifier` is `0644` and readable by users.
+- **Orbit restart**: Run `systemctl restart orbit`; confirm the fleet-desktop user service gets restarted too.
+- **Token refresh**: After orbit rotates the token, verify permissions stay `0644` (the periodic `ensureTokenReadable` check).
+- **Remove package**: Uninstall Fleet; verify service is disabled and removed, and processes are stopped.
+- **Upgrade**: Simulate upgrade from old package; confirm migration from old runner to user service.
+- **Headless/server distro**: Install on a minimal server with no graphical target — confirm the service is enabled but never starts (no errors from systemd).
+
+### 7. Negative/Failure Scenarios
+- Remove `/opt/orbit/desktop.env`; restart service, confirm failure and error logs in `journalctl --user -u fleet-desktop`.
+- Remove user's graphical session; confirm service stops.
+- Kill the `fleet-desktop` process with `kill -9` — confirm systemd restarts it automatically (`Restart=on-failure`).
+- Corrupt the symlink (`rm /opt/orbit/bin/desktop/fleet-desktop`) — confirm the service fails cleanly with a useful error in `journalctl --user`.
+
+### Out of scope (PoC)
+- TUF auto-updates of the desktop binary mid-session. The current flow requires an orbit restart to pick up a new binary, which is unchanged.

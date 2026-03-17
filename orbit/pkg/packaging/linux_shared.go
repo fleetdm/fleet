@@ -370,6 +370,8 @@ WantedBy=multi-user.target
 Description=Fleet Desktop
 After=graphical-session.target
 PartOf=graphical-session.target
+# Don't start until orbit has written the environment file.
+ConditionPathExists=/opt/orbit/desktop.env
 
 [Service]
 Type=simple
@@ -454,21 +456,8 @@ if command -v systemctl >/dev/null 2>&1; then
 {{ if .Desktop -}}
   # Enable Fleet Desktop as a systemd user service for all users.
   # --global means it will auto-start for every user who logs into a graphical session.
+  # We don't start the service here — orbit writes the env file first, then starts it.
   systemctl --global enable fleet-desktop.service 2>&1 || true
-
-  # Start fleet-desktop for any currently logged-in GUI users.
-  for uid in $(loginctl list-users --no-legend --no-pager | awk '{print $1}'); do
-    username=$(id -nu "$uid" 2>/dev/null) || continue
-    # Skip system users
-    case "$username" in
-      root|gdm|gdm-greeter|lightdm|sddm) continue ;;
-    esac
-    # Check if user has a runtime dir (indicating active session)
-    if [ -d "/run/user/$uid" ]; then
-      runuser -u "$username" -- env XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user daemon-reload 2>&1 || true
-      runuser -u "$username" -- env XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user start fleet-desktop.service 2>&1 || true
-    fi
-  done
 {{- end}}
 fi
 `))
