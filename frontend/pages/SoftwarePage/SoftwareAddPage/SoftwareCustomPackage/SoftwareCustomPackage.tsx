@@ -47,14 +47,10 @@ const SoftwareCustomPackage = ({
 
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadDetails, setUploadDetails] = useState<IFileDetails | null>(null);
-  const [
-    showPreviewEndUserExperience,
-    setShowPreviewEndUserExperience,
-  ] = useState(false);
-  const [
-    isIpadOrIphoneSoftwareSource,
-    setIsIpadOrIphoneSoftwareSource,
-  ] = useState(false);
+  const [showPreviewEndUserExperience, setShowPreviewEndUserExperience] =
+    useState(false);
+  const [isIpadOrIphoneSoftwareSource, setIsIpadOrIphoneSoftwareSource] =
+    useState(false);
 
   const {
     data: labels,
@@ -69,7 +65,7 @@ const SoftwareCustomPackage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isPremiumTier,
-    }
+    },
   );
 
   useEffect(() => {
@@ -102,7 +98,7 @@ const SoftwareCustomPackage = ({
     router.push(
       getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
         fleet_id: currentTeamId,
-      })
+      }),
     );
   };
 
@@ -110,7 +106,7 @@ const SoftwareCustomPackage = ({
     if (!formData.software) {
       renderFlash(
         "error",
-        `Couldn't add. Please refresh the page and try again.`
+        `Couldn't add. Please refresh the page and try again.`,
       );
       return;
     }
@@ -141,7 +137,7 @@ const SoftwareCustomPackage = ({
             {formData.selfService
               ? " The end user can install from Fleet Desktop."
               : ""}
-          </>
+          </>,
         );
       }
 
@@ -156,8 +152,8 @@ const SoftwareCustomPackage = ({
       router.push(
         getPathWithQueryParams(
           PATHS.SOFTWARE_TITLE_DETAILS(softwarePackageTitleId.toString()),
-          newQueryParams
-        )
+          newQueryParams,
+        ),
       );
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
@@ -177,7 +173,11 @@ const SoftwareCustomPackage = ({
     return (
       <>
         {gitOpsModeEnabled && (
-          <InfoBanner color="grey" borderRadius="medium">
+          <InfoBanner
+            className={`${baseClass}__gitops-banner`}
+            color="grey"
+            borderRadius="medium"
+          >
             Add custom packages in GitOps mode so Fleet can host your software.
             After adding, copy its SHA-256 hash into your YAML so the next
             GitOps workflow doesn&apos;t delete it.
