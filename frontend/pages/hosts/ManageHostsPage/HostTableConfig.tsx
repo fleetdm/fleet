@@ -42,7 +42,7 @@ import {
 } from "interfaces/datatable_config";
 import PATHS from "router/paths";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import getHostStatusTooltipText from "../helpers";
+import { getHostStatusTooltipText } from "../helpers";
 
 type IHostTableColumnConfig = Column<IHost> & {
   // This is used to prevent these columns from being hidden. This will be
@@ -412,9 +412,11 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
         isAppleDevice(cellProps.row.original.platform)
       ) {
         const tooltip = {
-          tooltipText: getHostStatusTooltipText("---"),
+          tooltipText: getHostStatusTooltipText(DEFAULT_EMPTY_CELL_VALUE),
         };
-        return <StatusIndicator value="---" tooltip={tooltip} />;
+        return (
+          <StatusIndicator value={DEFAULT_EMPTY_CELL_VALUE} tooltip={tooltip} />
+        );
       }
 
       const value = cellProps.cell.value;
