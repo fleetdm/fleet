@@ -673,8 +673,11 @@ const DeviceUserPage = ({
       );
     }
 
-    const hasAnyCriticalFailingCAPolicy = host?.policies?.some(
-      (p) => p.response === "fail" && p.conditional_access_enabled && p.critical
+    const hasAnyBypassDisabledFailingCAPolicy = host?.policies?.some(
+      (p) =>
+        p.response === "fail" &&
+        p.conditional_access_enabled &&
+        !p.conditional_access_bypass_enabled
     );
 
     return (
