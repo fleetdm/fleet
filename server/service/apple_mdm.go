@@ -3388,7 +3388,7 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		}
 	}
 	if existingDeviceInfo != nil {
-		scepRenewalInProgress = existingDeviceInfo.SCEPRenewalInProgress
+		scepRenewalInProgress = existingDeviceInfo.SCEPRenewalInProgress && !m.AwaitingConfiguration
 	}
 
 	// iPhones, iPads, and iPods send ProductName but not Model/ModelName,
