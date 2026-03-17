@@ -371,7 +371,7 @@ func (m AppleOSUpdateSettings) Validate() error {
 	}
 
 	if _, err := time.Parse("2006-01-02", m.Deadline.Value); err != nil {
-		return errors.New(`deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`)
+		return errors.New(AppleOSVersionDeadlineInvalidMessage)
 	}
 
 	return nil
@@ -532,14 +532,14 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 // MacOSSetup contains settings related to the setup of DEP enrolled devices.
 type MacOSSetup struct {
-	BootstrapPackage            optjson.String                     `json:"bootstrap_package"`
+	BootstrapPackage            optjson.String                     `json:"bootstrap_package" renameto:"macos_bootstrap_package"`
 	EnableEndUserAuthentication bool                               `json:"enable_end_user_authentication"`
 	LockEndUserInfo             optjson.Bool                       `json:"lock_end_user_info"`
 	MacOSSetupAssistant         optjson.String                     `json:"macos_setup_assistant" renameto:"apple_setup_assistant"`
-	EnableReleaseDeviceManually optjson.Bool                       `json:"enable_release_device_manually"`
-	Script                      optjson.String                     `json:"script"`
+	EnableReleaseDeviceManually optjson.Bool                       `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
+	Script                      optjson.String                     `json:"script" renameto:"macos_script"`
 	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
-	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install"`
+	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
 	RequireAllSoftware          bool                               `json:"require_all_software_macos"`
 }
 
@@ -549,7 +549,7 @@ func (mos *MacOSSetup) Validate() error {
 	}
 
 	if mos.ManualAgentInstall.Valid && mos.ManualAgentInstall.Value && (!mos.BootstrapPackage.Valid || mos.BootstrapPackage.Value == "") {
-		return NewInvalidArgumentError("macos_setup.manual_agent_install", `Couldn't enable manual_agent_install. To use this option, first specify a bootstrap package.`)
+		return NewInvalidArgumentError("setup_experience.macos_manual_agent_install", `Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.`)
 	}
 
 	return nil
@@ -569,7 +569,7 @@ func (mos *MacOSSetup) SetDefaultsIfNeeded() {
 		mos.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
 	if !mos.LockEndUserInfo.Valid {
-		mos.LockEndUserInfo = optjson.SetBool(false)
+		mos.LockEndUserInfo = optjson.SetBool(mos.EnableEndUserAuthentication)
 	}
 	if !mos.Script.Valid {
 		mos.Script = optjson.SetString("")
@@ -1124,7 +1124,7 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 		c.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
 	if !c.MDM.MacOSSetup.LockEndUserInfo.Valid {
-		c.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+		c.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(c.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)

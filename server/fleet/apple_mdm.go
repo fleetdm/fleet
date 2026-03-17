@@ -512,8 +512,8 @@ func (p MDMAppleSettingsPayload) AuthzType() string {
 type MDMAppleSetupPayload struct {
 	TeamID                      *uint `json:"team_id" renameto:"fleet_id"`
 	EnableEndUserAuthentication *bool `json:"enable_end_user_authentication"`
-	EnableReleaseDeviceManually *bool `json:"enable_release_device_manually"`
-	ManualAgentInstall          *bool `json:"manual_agent_install"`
+	EnableReleaseDeviceManually *bool `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
+	ManualAgentInstall          *bool `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
 	RequireAllSoftware          *bool `json:"require_all_software_macos"`
 	LockEndUserInfo             *bool `json:"lock_end_user_info"`
 }

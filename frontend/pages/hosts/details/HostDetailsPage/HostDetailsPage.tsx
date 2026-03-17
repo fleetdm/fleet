@@ -1122,7 +1122,6 @@ const HostDetailsPage = ({
       })
     );
   };
-
   const navigateToSoftwareTab = (i: number): void => {
     const navPath = hostSoftwareSubNav[i].pathname;
     router.push(
@@ -1308,6 +1307,7 @@ const HostDetailsPage = ({
               diskEncryptionOSSetting={host?.mdm.os_settings?.disk_encryption}
               diskIsEncrypted={host?.disk_encryption_enabled}
               diskEncryptionKeyAvailable={host?.mdm.encryption_key_available}
+              lastMdmEnrolledAt={host?.last_mdm_enrolled_at}
             />
           )}
           <div className={`${baseClass}__header-links`}>
