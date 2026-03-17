@@ -158,29 +158,13 @@ Windows hosts joined to Active Directory (AD) automatically receive the enterpri
 
 For non-AD-joined hosts, deploy the root CA certificate using the configuration profile below. Scope it to only non-AD-joined hosts using a label or other targeting method.
 
-Replace `<BASE64_ENCODED_ROOT_CA_CERT>` with your root CA certificate encoded as a Base64 string. You can retrieve it from your NDES server using the SCEP `GetCACert` operation:
-
-```
-curl -o ca-certs.p7b "https://<NDES_SERVER>/certsrv/mscep/mscep.dll?operation=GetCACert"
-openssl pkcs7 -inform DER -in ca-certs.p7b -print_certs -out certs.pem
-```
-
-This returns a bundle with multiple certificates. Open `certs.pem` and copy the root CA certificate (the one where subject and issuer are the same). Save it to `root-ca.pem` and Base64-encode the DER form:
-
-```
-openssl x509 -in root-ca.pem -outform DER -out root-ca.der
-base64 -i root-ca.der
-```
-
-You can also export the root CA certificate from the Certification Authority MMC snap-in.
-
-Here’s the configuration profile:
+Configuration profile:
 
 ```xml
 <Add>
     <Item>
         <Target>
-            <LocURI>./Device/Vendor/MSFT/RootCATrustedCertificates/Root/YOURCA/EncodedCertificate</LocURI>
+            <LocURI>./Device/Vendor/MSFT/RootCATrustedCertificates/Root/<YOURCA>/EncodedCertificate</LocURI>
         </Target>
         <Meta>
             <Format xmlns="syncml:metinf">b64</Format>
@@ -190,7 +174,21 @@ Here’s the configuration profile:
 </Add>
 ```
 
-> Replace `YOURCA` in the `LocURI` with a unique identifier for your CA (e.g. `MyOrgRootCA`). See the [RootCATrustedCertificates CSP documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/rootcacertificates-csp) for more details.
+Replace `<YOURCA>` in the `LocURI` with a unique identifier for your CA (e.g. `MyOrgRootCA`). See the [RootCATrustedCertificates CSP documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/rootcacertificates-csp) for more details.
+
+Replace `<BASE64_ENCODED_ROOT_CA_CERT>` with your root CA certificate encoded as a Base64 string by first retrieving the certificate from your NDES server using the SCEP `GetCACert` operation:
+
+```
+curl -o ca-certs.p7b "https://<NDES_SERVER>/certsrv/mscep/mscep.dll?operation=GetCACert"
+openssl pkcs7 -inform DER -in ca-certs.p7b -print_certs -out certs.pem
+```
+
+This returns a bundle with multiple certificates. Then, open `certs.pem` and copy the root CA certificate (the one where subject and issuer are the same). Last, save it to `root-ca.pem` and Base64-encode the DER form:
+
+```
+openssl x509 -in root-ca.pem -outform DER -out root-ca.der
+base64 -i root-ca.der
+```
 
 #### Make the CRL reachable over HTTP
 
