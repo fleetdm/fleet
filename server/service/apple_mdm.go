@@ -7337,6 +7337,7 @@ func NewRecoveryLockResult(cmdResult *mdm.CommandResults) fleet.MDMCommandResult
 func NewSetRecoveryLockResultsHandler(
 	ds fleet.Datastore,
 	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
 ) fleet.MDMCommandResultsHandler {
 	return func(ctx context.Context, results fleet.MDMCommandResults) error {
 		// Get the underlying result to access status and error chain
@@ -7425,8 +7426,35 @@ func NewSetRecoveryLockResultsHandler(
 				if err := ds.SetRecoveryLockVerified(ctx, hostUUID); err != nil {
 					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock verified")
 				}
+
+				// Get host info for activity logging - don't fail the operation if this fails
+				var hostID uint
+				var displayName string
+				host, err := ds.HostLiteByIdentifier(ctx, hostUUID)
+				if err != nil {
+					logger.WarnContext(ctx, "SetRecoveryLock handler: failed to get host for activity logging",
+						"host_uuid", hostUUID,
+						"err", err,
+					)
+				} else {
+					hostID = host.ID
+					displayName = host.Hostname
+
+					// Log the activity only if we could identify the host (fleet-initiated via WasFromAutomation)
+					if err := newActivityFn(ctx, nil, fleet.ActivityTypeSetHostRecoveryLockPassword{
+						HostID:          hostID,
+						HostDisplayName: displayName,
+					}); err != nil {
+						logger.WarnContext(ctx, "SetRecoveryLock handler: failed to create activity",
+							"host_uuid", hostUUID,
+							"err", err,
+						)
+					}
+				}
+
 				logger.InfoContext(ctx, "SetRecoveryLock acknowledged, marked verified",
 					"host_uuid", hostUUID,
+					"host_id", hostID,
 				)
 			}
 

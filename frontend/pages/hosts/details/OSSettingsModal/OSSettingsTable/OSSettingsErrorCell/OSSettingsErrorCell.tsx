@@ -330,8 +330,6 @@ const OSSettingsErrorCell = ({
         tooltipBreakOnWord
         tooltip={tooltip}
         value={value}
-        // we dont want the default "w250" class so we pass in empty string
-        classes=""
         className={
           isFailed || showRefetchButton || showRotateButton
             ? `${baseClass}__failed-message`

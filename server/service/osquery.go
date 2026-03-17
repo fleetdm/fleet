@@ -804,7 +804,7 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 }
 
 func (svc *Service) hostRequiresConditionalAccessMicrosoftIngestion(ctx context.Context, host *fleet.Host) bool {
-	if host.Platform != "darwin" {
+	if host.Platform != "darwin" && host.Platform != "windows" {
 		return false
 	}
 

@@ -437,7 +437,30 @@ var hostDetailQueries = map[string]DetailQuery{
 		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
 					 (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts %s) AS gigs_all_disk_space
 		FROM mounts WHERE path = '/' LIMIT 1;`, linuxGigsAllDiskSpaceSubQueryConditions),
-		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
+		Platforms:        fleet.HostLinuxOSs,
+		DirectIngestFunc: directIngestDiskSpace,
+	},
+
+	"disk_space_darwin": {
+		Query: `
+SELECT
+    ROUND(bytes_available * 100.0 / bytes_total, 2) AS percent_disk_space_available,
+    ROUND(bytes_available * 10e-10, 2) AS gigs_disk_space_available,
+    ROUND(bytes_total * 10e-10, 2) AS gigs_total_disk_space
+FROM disk_space LIMIT 1;`,
+		Platforms:        []string{"darwin"},
+		Discovery:        discoveryTable("disk_space"),
+		DirectIngestFunc: directIngestDiskSpace,
+	},
+
+	"disk_space_darwin_legacy": {
+		Query: `
+		SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
+		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
+		FROM mounts WHERE path = '/' LIMIT 1;`,
+		Platforms:        []string{"darwin"},
+		Discovery:        fmt.Sprintf(`SELECT 1 WHERE NOT EXISTS (%s);`, discoveryTable("disk_space")),
 		DirectIngestFunc: directIngestDiskSpace,
 	},
 
@@ -946,13 +969,21 @@ var windowsUpdateHistory = DetailQuery{
 	DirectIngestFunc: directIngestWindowsUpdateHistory,
 }
 
-// entraIDDetails holds the query and ingestion function for Microsoft "Conditional access" feature.
-var entraIDDetails = DetailQuery{
+// macOSEntraIDDetails holds the query and ingestion function for macOS for Microsoft "Conditional access" feature.
+var macOSEntraIDDetails = DetailQuery{
 	// The query ingests Entra's Device ID and User Principal Name of the account
 	// that logged in to the device (using Company Portal.app with the Platform SSO extension).
 	Query:            "SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';",
 	Discovery:        discoveryTable("app_sso_platform"),
 	Platforms:        []string{"darwin"},
+	DirectIngestFunc: directIngestEntraIDDetails,
+}
+
+// windowsEntraIDDetails holds the query and ingestion function for Windows for Microsoft "Conditional access" feature.
+var windowsEntraIDDetails = DetailQuery{
+	// The query ingests Entra's Device ID of Windows devices that logged in to Entra via "Access work or school".
+	Query:            "SELECT subject AS device_id FROM certificates WHERE issuer LIKE 'net + windows + MS-Organization-Access%' LIMIT 1;",
+	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestEntraIDDetails,
 }
 
@@ -1930,10 +1961,13 @@ func directIngestEntraIDDetails(
 	if deviceID == "" {
 		return ctxerr.New(ctx, "empty Entra ID device_id")
 	}
-	userPrincipalName := row["user_principal_name"]
+
 	// userPrincipalName can be empty on macOS workstations with e.g. two accounts:
-	// one logged in to Entra and the other one not logged in.
-	// While the second one is logged in, it would report the same Device ID but empty user principal name.
+	// One logged in to Entra and the other one not logged in. While the second one is
+	// logged in, it would report the same Device ID but empty user principal name.
+	//
+	// userPrincipalName is empty on Windows devices.
+	userPrincipalName := row["user_principal_name"]
 
 	if err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, deviceID, userPrincipalName); err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to create host conditional access status")
@@ -3170,7 +3204,8 @@ func GetDetailQueries(
 	}
 
 	if integrations.ConditionalAccessMicrosoft {
-		generatedMap["conditional_access_microsoft_device_id"] = entraIDDetails
+		generatedMap["conditional_access_microsoft_device_id"] = macOSEntraIDDetails
+		generatedMap["conditional_access_microsoft_device_id_windows"] = windowsEntraIDDetails
 	}
 
 	if appConfig != nil && appConfig.MDM.EnableDiskEncryption.Value {
