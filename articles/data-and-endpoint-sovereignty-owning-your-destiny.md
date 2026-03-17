@@ -61,7 +61,7 @@ This can reduce friction between development and deployment and give engineering
 
 ### Open source runs the enterprise
 
-Many organizations already depend these projects:
+Many organizations already depend on these projects:
 
 - Nginx and Apache together handle a large share of the world's web traffic
 - Chromium is the open-source browser project on which Chrome, Edge, Brave, and others are built
@@ -69,15 +69,15 @@ Many organizations already depend these projects:
 - PostgreSQL and MySQL and SQLite are commonly used in applications and enterprise database deployments
 - Kubernetes is a common choice for orchestrating container workloads
 
-These are familiar, foundational technologies, and they're all open-source. The broader pattern is worth noting: open-source already underpins critical workloads across the stack. 
+These are familiar, foundational technologies, and they're all open-source. The broader pattern worth noting is that open-source already underpins critical workloads, everywhere. 
 
-When that pattern extends to the desktop, Linux adoption can look less like a departure and more like a continuation of choices the organization has already made elsewhere. This doesn't mean every organization is ready for it, or that the transition is frictionless, but it does mean the conversation has shifted from whether open source belongs in the enterprise to how far it can extend.
+When that pattern extends to the desktop, Linux adoption can look less like a departure and more like a continuation of choices organizations and technology practitioners have already made elsewhere. This doesn't mean every organization is ready for it, or that the transition is frictionless, but it does mean the conversation has shifted from whether open source belongs in the enterprise to how far it can be extended.
 
 ## Managing Linux with Linux values
 
 Linux is often chosen for openness and transparency. For organizations that value those qualities, it's worth considering whether the management tooling applied to Linux devices reflects the same principles.
 
-The marketplace proves Linux adoption in the enterprise. The trend is growing and will likely increase. The only question is how will organizations plan to manage Linux adoption with Linux values at the enterprise scale?
+The marketplace has proven Linux adoption in the enterprise. The trend is growing and will likely increase. The only question is how will organizations plan to manage Linux adoption with Linux values at enterprise scale and what tools are available to achieve it?
 
 ### The visibility trade-off with proprietary management tools
 
