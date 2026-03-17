@@ -94,6 +94,7 @@ require (
 	github.com/kolide/launcher v1.0.12
 	github.com/lib/pq v1.10.9
 	github.com/macadmins/osquery-extension v1.3.2
+	github.com/manifoldco/promptui v0.9.0
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/micromdm/micromdm v1.9.0
 	github.com/micromdm/nanolib v0.2.0
@@ -292,7 +293,6 @@ require (
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/kolide/kit v0.0.0-20221107170827-fb85e3d59eab // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
-	github.com/manifoldco/promptui v0.9.0 // indirect
 	github.com/mattermost/xml-roundtrip-validator v0.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
