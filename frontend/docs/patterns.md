@@ -105,8 +105,8 @@ interface IGetHostsQueryParams {
   ...
 }
 
-// should be defined in service/entities/teams.ts
-interface ICreateTeamPostBody {
+// should be defined in service/entities/fleets.ts
+interface ICreateFleetPostBody {
   ...
 }
 
@@ -516,9 +516,8 @@ then the [app's context](#react-context) should be used.
 
 ### Reading and updating configs
 
-If you are dealing with a page that *updates* any kind of config, you'll want to access that config
-with a fresh API call to be sure you have the updated values. Otherwise, that is, you are dealing
-with a page that is only *reading* config values, get them from context.
+If you are dealing with a page that *updates* any kind of config, set the local
+config with the response of your update call to make sure it has the latest.
 
 ### Rendering flash messages
 

@@ -34,7 +34,7 @@ SELECT
 local_timestamp = 2021-06-11 8:12:52
 ```
 
-We can take this further by baking this idea into any of our queries. Let’s run a simple query to get all running processes on our host.
+We can take this further by baking this idea into any of our queries. Let’s run a simple report to get all running processes on our host.
 
 ```
 SELECT

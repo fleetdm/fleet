@@ -8,7 +8,6 @@ import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { IAppStoreApp, isIpadOrIphoneSoftware } from "interfaces/software";
 import { IVppApp } from "services/entities/mdm_apple";
 
-import Card from "components/Card";
 import CustomLink from "components/CustomLink";
 import Radio from "components/forms/fields/Radio";
 import Button from "components/buttons/Button";
@@ -27,6 +26,7 @@ import {
 } from "pages/SoftwarePage/helpers";
 
 import { generateFormValidation, getUniqueAppId } from "./helpers";
+import SoftwareDeploySlider from "../SoftwareDeploySelector";
 
 const baseClass = "software-vpp-form";
 
@@ -181,8 +181,8 @@ const SoftwareVppForm = ({
     }
   };
 
-  const onToggleSelfServiceCheckbox = (value: boolean) => {
-    const newData = { ...formData, selfService: value };
+  const onToggleSelfService = () => {
+    const newData = { ...formData, selfService: !formData.selfService };
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
   };
@@ -215,8 +215,11 @@ const SoftwareVppForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
-  const onToggleAutomaticInstall = (value: boolean) => {
-    const newData = { ...formData, automaticInstall: value };
+  const onToggleAutomaticInstall = () => {
+    const newData = {
+      ...formData,
+      automaticInstall: !formData.automaticInstall,
+    };
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
   };
@@ -259,46 +262,48 @@ const SoftwareVppForm = ({
             canEdit={false}
           />
           <div className={`${baseClass}__form-frame`}>
-            <Card paddingSize="medium" borderRadiusSize="medium">
-              <SoftwareOptionsSelector
-                platform={softwareVppForEdit.platform}
-                formData={formData}
-                onToggleAutomaticInstall={onToggleAutomaticInstall}
-                onToggleSelfService={onToggleSelfServiceCheckbox}
-                onSelectCategory={onSelectCategory}
-                isEditingSoftware
-                onClickPreviewEndUserExperience={() =>
-                  onClickPreviewEndUserExperience(isAppleMobile)
-                }
-              />
-            </Card>
-            <Card paddingSize="medium" borderRadiusSize="medium">
-              <TargetLabelSelector
-                selectedTargetType={formData.targetType}
-                selectedCustomTarget={formData.customTarget}
-                selectedLabels={formData.labelTargets}
-                customTargetOptions={CUSTOM_TARGET_OPTIONS}
-                className={`${baseClass}__target`}
-                onSelectTargetType={onSelectTargetType}
-                onSelectCustomTarget={onSelectCustomTargetOption}
-                onSelectLabel={onSelectLabel}
-                labels={labels || []}
-                dropdownHelpText={
-                  generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
-                }
-                subTitle={
-                  isAppleMobile
-                    ? "Changing this will also apply to targets for auto-updates."
-                    : ""
-                }
-              />
-            </Card>
+            <SoftwareOptionsSelector
+              platform={softwareVppForEdit.platform}
+              formData={formData}
+              onToggleSelfService={onToggleSelfService}
+              onSelectCategory={onSelectCategory}
+              isEditingSoftware
+              onClickPreviewEndUserExperience={() =>
+                onClickPreviewEndUserExperience(isAppleMobile)
+              }
+            />
+            <TargetLabelSelector
+              selectedTargetType={formData.targetType}
+              selectedCustomTarget={formData.customTarget}
+              selectedLabels={formData.labelTargets}
+              customTargetOptions={CUSTOM_TARGET_OPTIONS}
+              className={`${baseClass}__target`}
+              onSelectTargetType={onSelectTargetType}
+              onSelectCustomTarget={onSelectCustomTargetOption}
+              onSelectLabel={onSelectLabel}
+              labels={labels || []}
+              dropdownHelpText={
+                generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
+              }
+              subTitle={
+                isAppleMobile
+                  ? "Changing this will also apply to targets for auto-updates."
+                  : ""
+              }
+            />
           </div>
         </div>
       );
     }
 
+    // Hides deploy slider until app is selected
+    // Hides deploy slider for iOS/iPadOS apps
+    const showDeploySoftwareSlider =
+      !!formData.selectedApp &&
+      !isIpadOrIphoneSoftware(formData.selectedApp.platform);
+
     // Add VPP form
+    // 4.83+ has no additional options to select beyond the app
     if (vppApps) {
       return (
         <div className={`${baseClass}__form-fields`}>
@@ -312,43 +317,12 @@ const SoftwareVppForm = ({
             apps, head to{" "}
             <CustomLink url="https://business.apple.com" text="ABM" newTab />
           </div>
-          <div className={`${baseClass}__form-frame`}>
-            <Card paddingSize="medium" borderRadiusSize="large">
-              <SoftwareOptionsSelector
-                platform={
-                  ("selectedApp" in formData &&
-                    formData.selectedApp &&
-                    formData.selectedApp.platform) ||
-                  ""
-                }
-                formData={formData}
-                onToggleAutomaticInstall={onToggleAutomaticInstall}
-                onToggleSelfService={onToggleSelfServiceCheckbox}
-                onSelectCategory={onSelectCategory}
-                onClickPreviewEndUserExperience={() =>
-                  onClickPreviewEndUserExperience(
-                    isIpadOrIphoneSoftware(formData.selectedApp?.platform || "")
-                  )
-                }
-              />
-            </Card>
-            <Card paddingSize="medium" borderRadiusSize="large">
-              <TargetLabelSelector
-                selectedTargetType={formData.targetType}
-                selectedCustomTarget={formData.customTarget}
-                selectedLabels={formData.labelTargets}
-                customTargetOptions={CUSTOM_TARGET_OPTIONS}
-                className={`${baseClass}__target`}
-                onSelectTargetType={onSelectTargetType}
-                onSelectCustomTarget={onSelectCustomTargetOption}
-                onSelectLabel={onSelectLabel}
-                labels={labels || []}
-                dropdownHelpText={
-                  generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
-                }
-              />
-            </Card>
-          </div>
+          {showDeploySoftwareSlider && (
+            <SoftwareDeploySlider
+              deploySoftware={formData.automaticInstall}
+              onToggleDeploySoftware={onToggleAutomaticInstall}
+            />
+          )}
         </div>
       );
     }

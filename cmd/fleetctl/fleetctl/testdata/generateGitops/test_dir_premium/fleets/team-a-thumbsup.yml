@@ -23,7 +23,11 @@ controls:
     - certificate_authority_name: DIGIDOO
       name: my_certypoo
       subject_name: CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
+  apple_settings:
+    configuration_profiles:
+    - path: "../lib/team-a-👍/profiles/team-macos-mobileconfig-profile.mobileconfig"
   enable_disk_encryption: true
+  enable_recovery_lock_password: false
   ios_updates:
     deadline: "2021-12-31"
     minimum_version: "98.1"
@@ -32,9 +36,6 @@ controls:
     deadline: "2022-12-31"
     minimum_version: "98.2"
     update_new_hosts:
-  macos_settings:
-    custom_settings:
-    - path: "../lib/team-a-👍/profiles/team-macos-mobileconfig-profile.mobileconfig"
   macos_updates:
     deadline: "2020-12-31"
     minimum_version: "95.1"
@@ -50,7 +51,6 @@ labels:
 name: "Team A 👍"
 policies:
 - calendar_events_enabled: false
-  conditional_access_bypass_enabled: true
   conditional_access_enabled: true
   critical: false
   description: This is a team policy
@@ -58,6 +58,18 @@ policies:
   platform: linux,windows
   query: SELECT * FROM team_policy WHERE id = 1
   resolution: Do a team thing
+  type: dynamic
+  webhooks_and_tickets_enabled: true
+- calendar_events_enabled: false
+  conditional_access_enabled: true
+  critical: false
+  description: This is a team patch policy
+  fleet_maintained_app_slug: foo/darwin
+  name: Team patch policy
+  platform: linux,windows
+  resolution: Do a team thing
+  type: patch
+  webhooks_and_tickets_enabled: true
 reports:
 - automations_enabled: true
   description: This is a team query
@@ -88,10 +100,6 @@ settings:
       destination_url: https://some-team-failing_policies-webhook.com
       enable_failing_policies_webhook: false
       host_batch_size: 4
-      policy_ids:
-      - 1
-      - 2
-      - 3
     host_status_webhook:
       days_count: 3
       destination_url: https://some-team-host-status-webhook.com

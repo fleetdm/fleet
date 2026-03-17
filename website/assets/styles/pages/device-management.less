@@ -119,8 +119,8 @@
     [purpose='quote-image'] {
       margin-right: 16px;
       img {
-        width: 48px;
-        height: 48px;
+        width: 86px;
+        height: 72px;
       }
     }
     [purpose='quote-attribution'] {
@@ -625,6 +625,7 @@
   }
   [purpose='three-column-features'] {
     max-width: 1080px;
+    padding-top: 64px;
     h2 {
       font-size: 32px;
       line-height: 48px;
@@ -743,6 +744,7 @@
       }
     }
     iframe {
+      border-radius: 16px;
       width: 1140px;
       height: 641px;
     }
@@ -785,11 +787,11 @@
         max-width: 100%;
       }
       [purpose='modal-content'] {
-        max-width: 1072px;
+        max-width: 960px;
         height: 540px;
       }
       iframe {
-        width: 1072px;
+        width: 960px;
         height: 540px;
       }
     }
@@ -914,6 +916,20 @@
         }
       }
     }
+    [purpose='video-modal'] {
+      [purpose='modal-dialog'] {
+        width: 100%;
+        max-width: 100%;
+      }
+      [purpose='modal-content'] {
+        max-width: 720px;
+        height: 405px;
+      }
+      iframe {
+        width: 720px;
+        height: 405px;
+      }
+    }
   }
 
   @media (max-width: 767px) {
@@ -1024,8 +1040,8 @@
         height: 304px;
       }
       iframe {
-       width: 540px;
-       height: 304px;
+        width: 540px;
+        height: 304px;
       }
     }
     [purpose='three-column-features'] {

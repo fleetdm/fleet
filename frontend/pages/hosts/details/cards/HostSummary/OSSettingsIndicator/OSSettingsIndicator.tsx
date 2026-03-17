@@ -48,9 +48,13 @@ const countHostProfilesByStatus = (
       if (status === "failed") {
         acc.failed += 1;
       } else if (
-        ["pending", "action_required", "delivering", "delivered"].includes(
-          status
-        )
+        [
+          "pending",
+          "action_required",
+          "delivering",
+          "delivered",
+          "removing_enforcement",
+        ].includes(status)
       ) {
         acc.pending += 1;
       } else if (status === "verifying") {

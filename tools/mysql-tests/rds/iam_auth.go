@@ -35,7 +35,7 @@ func main() {
 		log.Fatal("Username is required (-user flag)")
 	}
 
-	logger := logging.NewLogfmtLogger(os.Stderr)
+	logger := logging.NewSlogLogger(logging.Options{Output: os.Stderr})
 
 	// Configure MySQL connection with IAM auth
 	mysqlConfig := &config.MysqlConfig{

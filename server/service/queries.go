@@ -8,11 +8,11 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -278,6 +278,11 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		p.Logging = ptr.String(fleet.LoggingSnapshot)
 	}
 
+	// Targeting queries by label is a premium feature only
+	if len(p.LabelsIncludeAny) > 0 && !license.IsPremium(ctx) {
+		return nil, fleet.ErrMissingLicense
+	}
+
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("query payload verification: %s", err),
@@ -414,6 +419,11 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		p.Logging = ptr.String(fleet.LoggingSnapshot)
 	}
 
+	// Targeting queries by label is a premium feature only.
+	if p.LabelsIncludeAny != nil && !license.IsPremium(ctx) {
+		return nil, fleet.ErrMissingLicense
+	}
+
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("query payload verification: %s", err),
@@ -497,7 +507,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		if err != nil {
 			// Log the error but don't fail the request; this will get cleaned up
 			// in the "query_results_cleanup" job.
-			level.Error(svc.logger).Log("msg", "failed to set query results count", "err", err, "query_id", query.ID)
+			svc.logger.ErrorContext(ctx, "failed to set query results count", "err", err, "query_id", query.ID)
 		}
 	}
 
@@ -593,7 +603,7 @@ func (svc *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) 
 		if err = svc.liveQueryStore.DeleteQueryResultsCount(query.ID); err != nil {
 			// Log the error but don't fail the request; this will get cleaned up
 			// in the "query_results_cleanup" job.
-			level.Error(svc.logger).Log("msg", "failed to delete query results count", "err", err, "query_id", query.ID)
+			svc.logger.ErrorContext(ctx, "failed to delete query results count", "err", err, "query_id", query.ID)
 		}
 	}
 
@@ -671,7 +681,7 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 		if err = svc.liveQueryStore.DeleteQueryResultsCount(query.ID); err != nil {
 			// Log the error but don't fail the request; this will get cleaned up
 			// in the "query_results_cleanup" job.
-			level.Error(svc.logger).Log("msg", "failed to delete query results count", "err", err, "query_id", query.ID)
+			svc.logger.ErrorContext(ctx, "failed to delete query results count", "err", err, "query_id", query.ID)
 		}
 	}
 
@@ -767,7 +777,7 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 			if err = svc.liveQueryStore.DeleteQueryResultsCount(id); err != nil {
 				// Log the error but don't fail the request; this will get cleaned up
 				// in the "query_results_cleanup" job.
-				level.Error(svc.logger).Log("msg", "failed to delete query results count", "err", err, "query_id", id)
+				svc.logger.ErrorContext(ctx, "failed to delete query results count", "err", err, "query_id", id)
 			}
 		}
 	}
@@ -814,6 +824,11 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 	// 1. Turn specs into queries.
 	queries := []*fleet.Query{}
 	for _, spec := range specs {
+		// Targeting queries by label is a premium feature only.
+		if spec.LabelsIncludeAny != nil && !license.IsPremium(ctx) {
+			setAuthCheckedOnPreAuthErr(ctx)
+			return fleet.ErrMissingLicense
+		}
 		query, err := svc.queryFromSpec(ctx, spec)
 		if err != nil {
 			setAuthCheckedOnPreAuthErr(ctx)
@@ -871,7 +886,7 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 			if err = svc.liveQueryStore.SetQueryResultsCount(queryID, 0); err != nil {
 				// Log the error but don't fail the request; this will get cleaned up
 				// in the "query_results_cleanup" job.
-				level.Error(svc.logger).Log("msg", "failed to set query results count", "err", err, "query_id", queryID)
+				svc.logger.ErrorContext(ctx, "failed to set query results count", "err", err, "query_id", queryID)
 			}
 		}
 	}

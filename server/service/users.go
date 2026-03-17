@@ -10,8 +10,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-kit/log/level"
-
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -82,7 +80,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 			_, ok := teamIDs[userTeam.Team.ID]
 			if !ok {
 				return nil, nil, ctxerr.Wrap(
-					ctx, fleet.NewInvalidArgumentError("teams.id", fmt.Sprintf("team with id %d does not exist", userTeam.Team.ID)),
+					ctx, fleet.NewInvalidArgumentError("teams.id", fmt.Sprintf("fleet with id %d does not exist", userTeam.Team.ID)),
 				)
 			}
 		}
@@ -135,7 +133,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 	if user.APIOnly && !user.SSOEnabled {
 		if p.Password == nil {
 			// Should not happen but let's log just in case.
-			level.Error(svc.logger).Log("err", err, "msg", "password not set during admin user creation")
+			svc.logger.ErrorContext(ctx, "password not set during admin user creation", "err", err)
 		} else {
 			// Create a session for the API-only user by logging in.
 			_, session, err := svc.Login(ctx, user.Email, *p.Password, false)
@@ -1282,7 +1280,7 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 
 	err = svc.mailService.SendEmail(ctx, resetEmail)
 	if err != nil {
-		level.Error(svc.logger).Log("err", err, "msg", "failed to send password reset request email")
+		svc.logger.ErrorContext(ctx, "failed to send password reset request email", "err", err)
 	}
 	return err
 }

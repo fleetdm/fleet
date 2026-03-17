@@ -1,0 +1,1 @@
+* Fixed dead rows accumulating in software host counts tables by using an atomic table swap instead of in-place updates during the sync process.

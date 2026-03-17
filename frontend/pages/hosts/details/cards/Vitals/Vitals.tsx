@@ -154,21 +154,19 @@ const Vitals = ({
         fleet_desktop_version,
       } = vitalsData;
 
-      if (isChromeHost) {
-        vitals.push({
-          sortKey: "Agent",
-          element: (
-            <DataSet key="agent" title="Agent" value={osquery_version} />
-          ),
-        });
-      } else if (orbit_version !== DEFAULT_EMPTY_CELL_VALUE) {
-        vitals.push({
-          sortKey: "Agent",
-          element: (
-            <DataSet
-              key="agent"
-              title="Agent"
-              value={
+      const isChromeOrVanillaOsqueryHost =
+        isChromeHost || orbit_version === DEFAULT_EMPTY_CELL_VALUE;
+
+      vitals.push({
+        sortKey: "Agent",
+        element: (
+          <DataSet
+            key="agent"
+            title="Agent"
+            value={
+              isChromeOrVanillaOsqueryHost ? (
+                osquery_version
+              ) : (
                 <TooltipWrapper
                   tipContent={
                     <>
@@ -186,18 +184,11 @@ const Vitals = ({
                 >
                   {orbit_version}
                 </TooltipWrapper>
-              }
-            />
-          ),
-        });
-      } else {
-        vitals.push({
-          sortKey: "Osquery",
-          element: (
-            <DataSet key="osquery" title="Osquery" value={osquery_version} />
-          ),
-        });
-      }
+              )
+            }
+          />
+        ),
+      });
     }
 
     // Battery condition

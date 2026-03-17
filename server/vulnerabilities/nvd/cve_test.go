@@ -3,6 +3,7 @@ package nvd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,8 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -146,7 +145,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		// download the CVEs once for all sub-tests, and then disable syncing
 		tempDir = t.TempDir()
 		err := nettest.RunWithNetRetry(t, func() error {
-			return DownloadCVEFeed(tempDir, "", false, log.NewNopLogger())
+			return DownloadCVEFeed(tempDir, "", false, slog.New(slog.DiscardHandler))
 		})
 		require.NoError(t, err)
 	} else {
@@ -430,13 +429,18 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			excludedCVEs:      []string{"CVE-2024-6286"},
 			continuesToUpdate: true,
 		},
-		// FIXME: https://github.com/fleetdm/fleet/issues/31303
-		// "cpe:2.3:a:citrix:workspace:2309.0:*:*:*:*:windows:*:*": {
-		// 	includedCVEs: []cve{
-		// 		{ID: "CVE-2024-6286", resolvedInVersion: "2402"},
-		// 	},
-		// 	continuesToUpdate: true,
-		// },
+		"cpe:2.3:a:citrix:workspace:2203.1:*:*:*:ltsr:windows:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2024-6286", resolvedInVersion: "2402"},
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:citrix:workspace:2311.1:*:*:*:*:windows:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2024-6286", resolvedInVersion: "2403.1"},
+			},
+			continuesToUpdate: true,
+		},
 		"cpe:2.3:a:python:python:3.9.6:*:*:*:*:macos:*:*": {
 			excludedCVEs:      []string{"CVE-2024-4030"},
 			continuesToUpdate: true,
@@ -449,6 +453,19 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		// 	},
 		// 	continuesToUpdate: true,
 		// },
+		// Ensure malformed ipswitch whatsup cpe is successfully matched to CVE
+		// See https://github.com/fleetdm/fleet/issues/32662.
+		"cpe:2.3:a:ipswitch:whatsup:2006:-:professional:premium:*:*:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2006-2351"},
+				{ID: "CVE-2006-2352"},
+				{ID: "CVE-2006-2353"},
+				{ID: "CVE-2006-2354"},
+				{ID: "CVE-2006-2355"},
+				{ID: "CVE-2006-2356"},
+				{ID: "CVE-2006-2357"},
+			},
+		},
 		// Tests the expandCPEAliases rule for virtualbox on macOS
 		"cpe:2.3:a:oracle:virtualbox:7.0.6:*:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
@@ -883,7 +900,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			return nil
 		}
 
-		_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewNopLogger(), false, time.Now().UTC().Add(-time.Hour))
+		_, err := TranslateCPEToCVE(ctx, ds, tempDir, slog.New(slog.DiscardHandler), false, time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
 
 		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
@@ -950,7 +967,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			return 0, nil
 		}
 
-		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, time.Now().Add(-time.Hour))
+		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, slog.New(slog.DiscardHandler), true, time.Now().Add(-time.Hour))
 		require.NoError(t, err)
 
 		byCPE := make(map[uint]int)
@@ -969,7 +986,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
 			return nil, nil
 		}
-		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, time.Now().UTC().Add(-time.Hour))
+		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, slog.New(slog.DiscardHandler), true, time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
 
 		// no recent vulnerability should be reported
@@ -991,7 +1008,7 @@ func TestSyncsCVEFromURL(t *testing.T) {
 
 	tempDir := t.TempDir()
 	cveFeedPrefixURL := ts.URL + "/feeds/json/cve/1.1/"
-	err := DownloadCVEFeed(tempDir, cveFeedPrefixURL, false, log.NewNopLogger())
+	err := DownloadCVEFeed(tempDir, cveFeedPrefixURL, false, slog.New(slog.DiscardHandler))
 	require.Error(t, err)
 	require.Contains(t,
 		err.Error(),
@@ -1243,6 +1260,14 @@ func TestExpandCPEAliases(t *testing.T) {
 	python3130RC1Alias.Version = "3.13.0rc1"
 	python3130RC1Alias.Update = ""
 
+	ipswitchWhatsup := &wfn.Attributes{
+		Vendor:  "ipswitch",
+		Product: "whatsup",
+		Version: "2006",
+	}
+	ipswitchWhatsupAlias := *ipswitchWhatsup
+	ipswitchWhatsupAlias.Product = "whatsup_professional"
+
 	pgadminMacOS := &wfn.Attributes{
 		Vendor:   "pgadmin",
 		Product:  "pgadmin",
@@ -1312,6 +1337,11 @@ func TestExpandCPEAliases(t *testing.T) {
 			name:            "pre-release python: 3.13.0 rc1",
 			cpeItem:         python3130RC1,
 			expectedAliases: []*wfn.Attributes{python3130RC1, &python3130RC1Alias},
+		},
+		{
+			name:            "ipswitch whatsup alias",
+			cpeItem:         ipswitchWhatsup,
+			expectedAliases: []*wfn.Attributes{ipswitchWhatsup, &ipswitchWhatsupAlias},
 		},
 		{
 			name:    "pgadmin on macos",

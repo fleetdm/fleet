@@ -275,7 +275,7 @@ Thanks,
 
 19. Click next to proceed to Step 3: Add buyers.
 
-20. Enter the customer's AWS account ID and click next to proceed to Step 4: Configurel egal terms and offer documents.
+20. Enter the customer's AWS account ID and click next to proceed to Step 4: Configure legal terms and offer documents.
 
 21. Select "custom legal terms" and upload the applicable terms. Note this could be two documents: an order form, and master subscription terms if separate from the order form.
 
@@ -284,7 +284,7 @@ Thanks,
 
 ### Obtain a copy of Fleet's W-9
 
-A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1bqGEl5w3En5wsgYotFD8RSYYjP6P1FDK/view?usp=sharing).
+A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1Gwd71dbo5mI_3CherBiiH9pZ3ANFMkfH/view?usp=sharing).
 
 
 ### Run US commission payroll
@@ -359,7 +359,7 @@ No later than the second month of every quarter, we check [Delaware divison of c
 
 Every quarter, we check Quickbooks Online (QBO) for discrepancies and follow up on quirks.
 1. Check to make sure [bookkeeping quirks](https://docs.google.com/spreadsheets/d/1nuUPMZb1z_lrbaQEcgjnxppnYv_GWOTTo4FMqLOlsWg/edit?usp=sharing) are all accounted for and resolved or in progress toward resolution.
-2. Check balance sheet and profit and loss statements (P&Ls) in QBO against the latest [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive. Ensure reports are in the "accural" accounting method.
+2. Check balance sheet and profit and loss statements (P&Ls) in QBO against the latest [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive. Ensure reports are in the "accrual" accounting method.
 3. Reach out to Pilot with any differences or quirks, and ask them to resolve/provide clarity.  This often will need to happen over a call to review sycnhronously.
 4. Once quirks are resolved, note the day it was resolved in the spreadsheet.
 
@@ -516,9 +516,18 @@ Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confid
 7. Verify that the principal record details match exactly what is on LinkedIn.
 
 
+### Send Primo CRO weekly export
+
+Every Friday, the Head of GTM Architecture will send an export/email to Primo's CRO with a list of [non-ICP contact form visitors](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000004GF2P2AW/view).
+
+1. Export the list of [non-ICP contact form visitors](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000004GF2P2AW/view) from the CRM.
+2. Paste the values into the [SHARED EXTERNALLY - Leads for Primo](https://docs.google.com/spreadsheets/d/1bJt7e26gDqPbq5emM1Pn3yUWaFzUtXrqmAhS2p53_ws/edit?gid=0#gid=0) Google sheet.
+3. Email Primo's CRO and cc Zay Hanlon.
+
+
 ### Grant role-specific license to a team member
 
-Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from the Head of People](https://fleetdm.com/handbook/people#contact-us) who will make sure there is no license redundancy in that department.
+Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from the Head of People](https://fleetdm.com/handbook/people#contact-us) who will make sure there is no license redundancy in that department.
 
 
 ### Add a seat to Salesforce

@@ -205,6 +205,16 @@ const ManagePolicyPage = ({
   const [sortDirection, setSortDirection] = useState<
     "asc" | "desc" | undefined
   >(initialSortDirection);
+  const [automationFilter, setAutomationFilter] = useState<string | null>(null);
+
+  // Maps frontend dropdown values to backend automation_type query param values
+  const AUTOMATION_FILTER_TO_API: Record<string, string> = {
+    install_software: "software",
+    run_script: "scripts",
+    calendar_events: "calendar",
+    conditional_access: "conditional_access",
+    other_workflows: "other",
+  };
 
   useEffect(() => {
     setLastEditedQueryPlatform(null);
@@ -317,6 +327,9 @@ const ManagePolicyPage = ({
         teamId: teamIdForApi || 0,
         // no teams does inherit
         mergeInherited: true,
+        automationType: automationFilter
+          ? AUTOMATION_FILTER_TO_API[automationFilter]
+          : undefined,
       },
     ],
     ({ queryKey }) => {
@@ -789,8 +802,6 @@ const ManagePolicyPage = ({
       const policyPromises = changedPolicies.map((changedPolicy) => {
         return teamPoliciesAPI.update(changedPolicy.id, {
           conditional_access_enabled: changedPolicy.conditional_access_enabled,
-          conditional_access_bypass_enabled:
-            changedPolicy.conditional_access_bypass_enabled,
           team_id: teamIdForApi,
         });
       });
@@ -998,6 +1009,63 @@ const ManagePolicyPage = ({
     );
   };
 
+  // Client-side filtering is still needed for global policies since the
+  // global policies endpoint does not support automation_type. Team policies
+  // use the server-side automation_type query param instead.
+  const filterGlobalPoliciesByAutomation = (
+    policies: IPolicyStats[]
+  ): IPolicyStats[] => {
+    if (!automationFilter) return policies;
+    return policies.filter((p) => {
+      switch (automationFilter) {
+        case "install_software":
+          return !!p.install_software;
+        case "run_script":
+          return !!p.run_script;
+        case "calendar_events":
+          return p.calendar_events_enabled;
+        case "conditional_access":
+          return p.conditional_access_enabled;
+        case "other_workflows":
+          return currentAutomatedPolicies.includes(p.id);
+        default:
+          return true;
+      }
+    });
+  };
+
+  const automationFilterOptions: CustomOptionType[] = [
+    { label: "All automations", value: "all" },
+    { label: "Software", value: "install_software" },
+    { label: "Scripts", value: "run_script" },
+    { label: "Calendar", value: "calendar_events" },
+    { label: "Conditional access", value: "conditional_access" },
+    { label: "Other", value: "other_workflows" },
+  ];
+
+  const renderAutomationFilter = isPremiumTier
+    ? () => (
+        <DropdownWrapper
+          className={`${baseClass}__filter-automation-dropdown`}
+          name="filter-by-automation"
+          onChange={(val: SingleValue<CustomOptionType>) => {
+            const newFilter =
+              val?.value && val.value !== "all" ? val.value : null;
+            setAutomationFilter(newFilter);
+            // Reset to first page when filter changes
+            const locationPath = getNextLocationPath({
+              pathPrefix: PATHS.MANAGE_POLICIES,
+              queryParams: { ...queryParams, page: "0" },
+            });
+            router?.push(locationPath);
+          }}
+          placeholder="Filter by automation"
+          options={automationFilterOptions}
+          variant="table-filter"
+        />
+      )
+    : undefined;
+
   const renderMainTable = () => {
     if (!isRouteOk || (isPremiumTier && !userTeams)) {
       return <Spinner />;
@@ -1008,9 +1076,15 @@ const ManagePolicyPage = ({
       if (globalPoliciesError) {
         return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
       }
+      const filteredGlobalPolicies = filterGlobalPoliciesByAutomation(
+        globalPolicies || []
+      );
+      const filteredGlobalCount = automationFilter
+        ? filteredGlobalPolicies.length
+        : globalPoliciesCount || 0;
       return (
         <PoliciesTable
-          policiesList={globalPolicies || []}
+          policiesList={filteredGlobalPolicies}
           isLoading={isFetchingGlobalPolicies || isFetchingGlobalConfig}
           onDeletePoliciesClick={onDeletePoliciesClick}
           canAddOrDeletePolicies={canAddOrDeletePolicies}
@@ -1020,16 +1094,18 @@ const ManagePolicyPage = ({
           isPremiumTier={isPremiumTier}
           renderPoliciesCount={() =>
             renderPoliciesCountAndLastUpdated(
-              globalPoliciesCount,
-              globalPolicies
+              filteredGlobalCount,
+              filteredGlobalPolicies
             )
           }
-          count={globalPoliciesCount || 0}
+          count={filteredGlobalCount}
           searchQuery={searchQuery}
           sortHeader={sortHeader}
           sortDirection={sortDirection}
           page={page}
           onQueryChange={onQueryChange}
+          customControl={renderAutomationFilter}
+          isFiltered={!!automationFilter}
         />
       );
     }
@@ -1038,10 +1114,16 @@ const ManagePolicyPage = ({
     if (teamPoliciesError) {
       return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
     }
+    const displayedTeamPolicies = teamPolicies || [];
+    // When a filter is active, use the returned array length as the count
+    // since the count endpoint doesn't support automation_type yet.
+    const displayedTeamCount = automationFilter
+      ? displayedTeamPolicies.length
+      : teamPoliciesCountMergeInherited || 0;
     return (
       <div>
         <PoliciesTable
-          policiesList={teamPolicies || []}
+          policiesList={displayedTeamPolicies}
           isLoading={
             isFetchingTeamPolicies ||
             isFetchingTeamConfig ||
@@ -1054,17 +1136,19 @@ const ManagePolicyPage = ({
           currentAutomatedPolicies={currentAutomatedPolicies}
           renderPoliciesCount={() =>
             renderPoliciesCountAndLastUpdated(
-              teamPoliciesCountMergeInherited,
-              teamPolicies
+              displayedTeamCount,
+              displayedTeamPolicies
             )
           }
           isPremiumTier={isPremiumTier}
-          count={teamPoliciesCountMergeInherited || 0}
+          count={displayedTeamCount}
           searchQuery={searchQuery}
           sortHeader={sortHeader}
           sortDirection={sortDirection}
           page={page}
           onQueryChange={onQueryChange}
+          customControl={renderAutomationFilter}
+          isFiltered={!!automationFilter}
         />
       </div>
     );
@@ -1127,7 +1211,7 @@ const ManagePolicyPage = ({
     } else if (teamIdForApi === API_NO_TEAM_ID) {
       disabledCalendarTooltipContent = (
         <>
-          Select a team to manage
+          Select a fleet to manage
           <br />
           calendar events.
         </>
@@ -1148,13 +1232,6 @@ const ManagePolicyPage = ({
 
     const options: CustomOptionType[] = [
       {
-        label: "Calendar",
-        value: "calendar_events",
-        isDisabled: !!disabledCalendarTooltipContent,
-        helpText: "Automatically reserve time to resolve failing policies.",
-        tooltipContent: disabledCalendarTooltipContent,
-      },
-      {
         label: "Software",
         value: "install_software",
         isDisabled: !!disabledInstallTooltipContent,
@@ -1167,6 +1244,13 @@ const ManagePolicyPage = ({
         isDisabled: !!disabledRunScriptTooltipContent,
         helpText: "Run script to resolve failing policies.",
         tooltipContent: disabledRunScriptTooltipContent,
+      },
+      {
+        label: "Calendar",
+        value: "calendar_events",
+        isDisabled: !!disabledCalendarTooltipContent,
+        helpText: "Automatically reserve time to resolve failing policies.",
+        tooltipContent: disabledCalendarTooltipContent,
       },
       {
         label: "Conditional access",

@@ -1044,7 +1044,7 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error) {
 		return []*fleet.MDMWindowsCommand{}, nil
 	}
-	ds.GetWindowsMDMCommandsForResendingFunc = func(ctx context.Context, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error) {
+	ds.GetWindowsMDMCommandsForResendingFunc = func(ctx context.Context, deviceID string, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error) {
 		return []*fleet.MDMWindowsCommand{}, nil
 	}
 

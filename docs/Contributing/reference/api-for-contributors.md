@@ -1,8 +1,10 @@
 # API for contributors
 
-Don't use these API endpoints. Please use the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api) instead.
+🚧 **Don't use these API endpoints.** Please use the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api) instead.
 
-These API endpoints in this document are only used when contributing to Fleet. They're for the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality.
+The API endpoints in this document are only used when contributing to Fleet. They're for the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality. Other usage of these endpoints will have unintended consequences.
+
+If you see an endpoint documented here that you'd like to use, please [file a feature request](https://github.com/fleetdm/fleet/issues/new/choose) to bring it into the stable API.
 
 - [Authentication](#authentication)
 - [Packs](#packs)
@@ -12,7 +14,6 @@ These API endpoints in this document are only used when contributing to Fleet. T
 - [Trigger cron schedule](#trigger-cron-schedule)
 - [Device-authenticated routes](#device-authenticated-routes)
 - [Orbit-authenticated routes](#orbit-authenticated-routes)
-- [Downloadable installers](#downloadable-installers)
 - [Setup](#setup)
 - [Scripts](#scripts)
 - [Software](#software)
@@ -1392,7 +1393,7 @@ This endpoint is used to delete Android Enterprise. Once deleted, hosts that bel
 ### Get Android enrollment token
 
 > **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-This endpoint is used to retrieve an Android enrollment token and enrollment URL using a Fleet enroll secret which opens the Android enrollment wizard (settings app) to enroll the Android host.
+This endpoint is used to retrieve an Android enrollment token and enrollment URL or QR Code contents using a Fleet enroll secret which opens the Android enrollment wizard (settings app) to enroll the Android host. The QR Code contents can only be used to trigger enrollment of an Android host that has been factory reset and is at the initial setup screen, and likewise if fully_managed is true, the host can only be enrolled at this initial setup screen.
 
 `GET /api/v1/fleet/android_enterprise/enrollment_token`
 
@@ -1401,6 +1402,7 @@ This endpoint is used to retrieve an Android enrollment token and enrollment URL
 | Name          | Type   | In    | Description                                         |
 |---------------|--------|-------|-----------------------------------------------------|
 | enroll_secret | string | query | **Required.** The enroll secret of a team in Fleet. |
+| fully_managed | bool   | query | **Optional.** If set to true, creates the enrollment token with AllowPersonalUsage set to PERSONAL_USAGE_DISALLOWED |
 
 #### Example
 
@@ -1413,7 +1415,8 @@ This endpoint is used to retrieve an Android enrollment token and enrollment URL
 ```json
 {
   "android_enrollment_token": "OJDDNCYSEZPAUZZOXHDF",
-  "android_enrollment_url": "https://enterprise.google.com/android/enroll?et=OJDDNCYSEZPAUZZOXHDF"
+  "android_enrollment_url": "https://enterprise.google.com/android/enroll?et=OJDDNCYSEZPAUZZOXHDF",
+  "android_enrollment_qrcode": "{\"android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME\":\"com.google.android.apps.work.clouddpc\/.receivers.CloudDeviceAdminReceiver\",\"android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM\":\"I9DvS1O5hXZ46mb01AlRjq4oJJGs2kuZcHvCkACEXlg\",\"android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION\":\"https:\/\/play.google.com\/managed\/downloadManagingApp?identifier=setup\",\"android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE\":{\"com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN\":\"OJDDNCYSEZPAUZZOXHDF\"}}"
 }
 ```
 
@@ -3149,7 +3152,6 @@ currently pending.
 
 Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, Fleet user's API token does not authenticate them. They use a device-specific token.
 
-- [Refetch device's host](#refetch-devices-host)
 - [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles)
 - [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
 - [Get Fleet Desktop information](#get-fleet-desktop-information)
@@ -3167,28 +3169,6 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
 - [Trigger Linux disk encryption escrow](#trigger-linux-disk-encryption-escrow)
 - [Report an agent error](#report-an-agent-error)
-
-#### Refetch device's host
-
-Same as [Refetch host route](https://fleetdm.com/docs/using-fleet/rest-api#refetch-host) for the current device.
-
-`POST /api/v1/fleet/device/{token}/refetch`
-
-##### Parameters
-
-| Name  | Type   | In   | Description                        |
-| ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The device's authentication token. |
-
-#### Request headers
-
-This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
-
-The `Authorization` header must be formatted as follows:
-
-```
-X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
-```
 
 #### Get device's Google Chrome profiles
 

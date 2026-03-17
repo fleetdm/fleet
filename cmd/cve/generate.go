@@ -2,11 +2,13 @@ package main
 
 import (
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,8 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	nvdsync "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/sync"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 const emptyData = `{
@@ -37,19 +37,20 @@ func main() {
 	debug := flag.Bool("debug", false, "Sets debug mode")
 	flag.Parse()
 
-	logger := log.NewJSONLogger(os.Stdout)
+	ctx := context.Background()
+
+	logLevel := slog.LevelInfo
 	if *debug {
-		logger = level.NewFilter(logger, level.AllowDebug())
-	} else {
-		logger = level.NewFilter(logger, level.AllowInfo())
+		logLevel = slog.LevelDebug
 	}
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
 
 	if err := os.MkdirAll(*dbDir, os.ModePerm); err != nil {
 		panic(err)
 	}
 
 	if os.Getenv(cleanEnvVar) == "false" {
-		logger.Log("msg", "Downloading latest release")
+		logger.InfoContext(ctx, "Downloading latest release")
 		maxRetries := 3
 		for i := 0; i < maxRetries; i++ {
 			err := downloadLatestRelease(*dbDir, *debug, logger)
@@ -58,11 +59,11 @@ func main() {
 			}
 
 			if i == maxRetries-1 {
-				logger.Log("msg", "Failed to download latest release. Continuing with full NVD Sync", "err", err)
+				logger.WarnContext(ctx, "Failed to download latest release. Continuing with full NVD Sync", "err", err)
 				break
 			}
 
-			logger.Log("msg", "Failed to download latest release. Retrying in 30 seconds", "err", err)
+			logger.WarnContext(ctx, "Failed to download latest release. Retrying in 30 seconds", "err", err)
 			time.Sleep(30 * time.Second)
 		}
 	}
@@ -74,12 +75,12 @@ func main() {
 
 	// Remove Vulncheck archive
 	if err := os.RemoveAll(filepath.Join(*dbDir, "vulncheck.zip")); err != nil {
-		logger.Log("msg", "Failed to remove vulncheck.zip", "err", err)
+		logger.WarnContext(ctx, "Failed to remove vulncheck.zip", "err", err)
 	}
 
 	// Read in every cpe file and create a corresponding metadata file
 	// nvd data feeds start in 2002
-	logger.Log("msg", "Generating metadata files ...")
+	logger.InfoContext(ctx, "Generating metadata files ...")
 	const startingYear = 2002
 	currentYear := time.Now().Year()
 	if currentYear < startingYear {
@@ -94,7 +95,7 @@ func main() {
 		metaName := filepath.Join(*dbDir, fileFmt(suffix, "meta", ""))
 		// skip if file does not exist
 		if _, err := os.Stat(fileNameRaw); os.IsNotExist(err) {
-			logger.Log("msg", "Skipping metadata generation for missing file", "file", fileNameRaw)
+			logger.InfoContext(ctx, "Skipping metadata generation for missing file", "file", fileNameRaw)
 			continue
 		}
 		err := nvdsync.CompressFile(fileNameRaw, fileName)
@@ -109,7 +110,7 @@ func main() {
 	createEmptyFiles(*dbDir, "recent")
 }
 
-func downloadLatestRelease(dbDir string, debug bool, logger log.Logger) error {
+func downloadLatestRelease(dbDir string, debug bool, logger *slog.Logger) error {
 	// Download the latest release
 	err := nvd.DownloadCVEFeed(dbDir, "", debug, logger)
 	if err != nil {
