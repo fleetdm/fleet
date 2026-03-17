@@ -338,6 +338,7 @@ module.exports.custom = {
     '.github/ISSUE_TEMPLATE/technical-evaluation.md': ['allenhouchins', 'sampfluger88'],
     '.github/ISSUE_TEMPLATE/solutions-consulting-task.md': ['allenhouchins'],
     '.github/ISSUE_TEMPLATE/new-nfr-request.yml': ['allenhouchins'],
+    'go-to-market': ['sampfluger88'],
 
 
     // Repo automation and change control settings
