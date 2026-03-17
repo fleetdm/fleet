@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -556,15 +555,8 @@ func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint)
 		return err
 	}
 
-	// Validate: must be macOS
-	if host.Platform != "darwin" {
-		return &fleet.BadRequestError{
-			Message: "Recovery lock password is only supported on macOS hosts.",
-		}
-	}
-
-	// Validate: must be Apple Silicon (ARM CPU)
-	if host.CPUType == "" || !strings.HasPrefix(strings.ToLower(host.CPUType), "arm") {
+	// Validate: must be Apple Silicon Mac (macOS with ARM CPU)
+	if !host.IsAppleSilicon() {
 		return &fleet.BadRequestError{
 			Message: "Recovery lock password rotation is only supported on Apple Silicon Macs.",
 		}
