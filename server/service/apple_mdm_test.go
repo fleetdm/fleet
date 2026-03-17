@@ -6966,6 +6966,9 @@ func TestMDMTokenUpdateSCEPRenewal(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, j *fleet.Job) (*fleet.Job, error) {
 			return j, nil
 		}
+		ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
+			return nil
+		}
 
 		err := svc.TokenUpdate(
 			&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: uuid}},
@@ -6981,6 +6984,7 @@ func TestMDMTokenUpdateSCEPRenewal(t *testing.T) {
 		require.True(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
 		require.True(t, ds.NewJobFuncInvoked)
 		require.True(t, newActivityFuncInvoked)
+		require.True(t, ds.MDMResetEnrollmentFuncInvoked)
 	})
 
 	t.Run("not awaiting configuration short-circuits", func(t *testing.T) {

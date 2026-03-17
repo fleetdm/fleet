@@ -4921,6 +4921,9 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 		}
 
 		// TODO: Add test coverage for scepRenewalInProgress branching logic.
+		// FIXME: When revisiting scep renewal paths, think about no clear indicator for new enrollment vs only SCEP renewal coming from Authenticate
+		// which is why we call this method, with a distinct false value in TokenUpdate, as that is only where we have a clear indicator
+		// on if it is an old device that was expected to renew but was wiped.
 		if scepRenewalInProgress {
 			// FIXME: We need to revisit this flow. Short-circuiting in random places means it is
 			// much more difficult to reason about the state of the host. We should try instead
