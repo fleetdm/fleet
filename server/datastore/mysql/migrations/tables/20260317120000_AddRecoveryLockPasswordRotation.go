@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260312095101, Down_20260312095101)
+	MigrationClient.AddMigration(Up_20260317120000, Down_20260317120000)
 }
 
-func Up_20260312095101(tx *sql.Tx) error {
+func Up_20260317120000(tx *sql.Tx) error {
 	// Add columns for pending password rotation:
 	// - pending_encrypted_password: Holds the new password during rotation until MDM confirms success
 	// - pending_error_message: Stores error if rotation fails (separate from main error_message for install/remove)
@@ -23,6 +23,6 @@ func Up_20260312095101(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260312095101(tx *sql.Tx) error {
+func Down_20260317120000(tx *sql.Tx) error {
 	return nil
 }
