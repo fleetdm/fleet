@@ -543,6 +543,8 @@ const SelectTargets = ({
   const shouldDisableForObserver = (teamId: number): boolean => {
     if (isLivePolicy) return true;
     if (!isObserverCanRunQuery) return true;
+    // observer_can_run is scoped to the query's own team; plain observers cannot
+    // target teams other than the one the query belongs to.
     if (queryTeamId != null && queryTeamId !== teamId) return true;
     return false;
   };

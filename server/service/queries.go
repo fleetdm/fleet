@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -277,6 +278,11 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		p.Logging = ptr.String(fleet.LoggingSnapshot)
 	}
 
+	// Targeting queries by label is a premium feature only
+	if len(p.LabelsIncludeAny) > 0 && !license.IsPremium(ctx) {
+		return nil, fleet.ErrMissingLicense
+	}
+
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("query payload verification: %s", err),
@@ -411,6 +417,11 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 
 	if p.Logging != nil && *p.Logging == "" {
 		p.Logging = ptr.String(fleet.LoggingSnapshot)
+	}
+
+	// Targeting queries by label is a premium feature only.
+	if p.LabelsIncludeAny != nil && !license.IsPremium(ctx) {
+		return nil, fleet.ErrMissingLicense
 	}
 
 	if err := p.Verify(); err != nil {
@@ -813,6 +824,11 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 	// 1. Turn specs into queries.
 	queries := []*fleet.Query{}
 	for _, spec := range specs {
+		// Targeting queries by label is a premium feature only.
+		if spec.LabelsIncludeAny != nil && !license.IsPremium(ctx) {
+			setAuthCheckedOnPreAuthErr(ctx)
+			return fleet.ErrMissingLicense
+		}
 		query, err := svc.queryFromSpec(ctx, spec)
 		if err != nil {
 			setAuthCheckedOnPreAuthErr(ctx)

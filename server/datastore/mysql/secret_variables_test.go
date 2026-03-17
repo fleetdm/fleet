@@ -287,6 +287,41 @@ func testExpandHostSecrets(t *testing.T, ds *Datastore) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "getting recovery lock password")
 	})
+
+	t.Run("expand recovery lock password with XML special characters", func(t *testing.T) {
+		// Create a host with a password containing XML special characters
+		hostXML, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String("host-xml-escape-test"),
+			NodeKey:         ptr.String("host-xml-escape-test-key"),
+			UUID:            "host-xml-escape-test-uuid",
+			Hostname:        "host-xml-escape-test-hostname",
+		})
+		require.NoError(t, err)
+
+		// Set a password with XML special characters: & < > " '
+		passwordWithSpecialChars := `Pass&word<with>special"chars'`
+		err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{
+			{HostUUID: hostXML.UUID, Password: passwordWithSpecialChars},
+		})
+		require.NoError(t, err)
+
+		// When expanded in an XML document, special characters should be escaped
+		doc := `<dict><key>NewPassword</key><string>$FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD</string></dict>`
+		expected := `<dict><key>NewPassword</key><string>Pass&amp;word&lt;with&gt;special&#34;chars&#39;</string></dict>`
+		expanded, err := ds.ExpandHostSecrets(ctx, doc, hostXML.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, expected, expanded)
+
+		// Non-XML documents should not escape the characters
+		docNonXML := `Password: $FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD`
+		expandedNonXML, err := ds.ExpandHostSecrets(ctx, docNonXML, hostXML.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, `Password: Pass&word<with>special"chars'`, expandedNonXML)
+	})
 }
 
 func testCreateSecretVariable(t *testing.T, ds *Datastore) {

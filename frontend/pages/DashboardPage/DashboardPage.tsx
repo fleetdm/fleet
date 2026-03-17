@@ -734,6 +734,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const allLayout = () => {
     return (
       <div className={`${baseClass}__section`}>
+        {WelcomeHostCard}
         {!isAnyTeamSelected &&
           canEnrollGlobalHosts &&
           hostSummaryData &&

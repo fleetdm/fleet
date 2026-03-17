@@ -55,6 +55,26 @@ func TestCPEFromSoftware(t *testing.T) {
 	_, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{Name: "[", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil,
 		reCache)
 	require.NoError(t, err)
+
+	// Does not error on names that sanitize to FTS5 reserved keywords (AND, OR, NOT).
+	// These names are composed of special characters surrounding a keyword, so after
+	// sanitizeMatch strips non-alphanumeric chars and quotes each token, the keyword
+	// becomes a quoted literal instead of an FTS5 operator.
+	ftsKeywordNames := []string{
+		"_OR_",       // sanitizes to `"OR"`
+		"(AND)",      // sanitizes to `"AND"`
+		"[NOT]",      // sanitizes to `"NOT"`
+		"--OR--",     // sanitizes to `"OR"`
+		"OR - Debug", // sanitizes to `"OR" "Debug"`
+		"foo - OR",   // sanitizes to `"foo" "OR"`
+	}
+	for _, name := range ftsKeywordNames {
+		_, err = CPEFromSoftware(
+			t.Context(), slog.New(slog.DiscardHandler), db,
+			&fleet.Software{Name: name, Version: "1.0", Source: "programs"}, nil, reCache,
+		)
+		require.NoError(t, err, "software name %q should not cause FTS5 syntax error", name)
+	}
 }
 
 func TestCPETranslations(t *testing.T) {
@@ -2464,6 +2484,86 @@ func TestMutateSoftware(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			require.NotPanics(t, func() { mutateSoftware(t.Context(), tc.s, slog.New(slog.DiscardHandler)) })
 			require.Equal(t, tc.sanitized, tc.s)
+		})
+	}
+}
+
+func TestCitrixWorkspaceLTSR(t *testing.T) {
+	item := &IndexedCPEItem{
+		Product: "workspace",
+		Vendor:  "citrix",
+	}
+
+	for _, tc := range []struct {
+		name     string
+		software fleet.Software
+		wantCPE  string
+	}{
+		{
+			name: "Citrix Workspace 2203 LTSR on Windows",
+			software: fleet.Software{
+				Name:    "Citrix Workspace 2203",
+				Version: "22.3.1.41",
+				Source:  "programs",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			wantCPE: "cpe:2.3:a:citrix:workspace:2203.1.41:*:*:*:ltsr:windows:*:*",
+		},
+		{
+			name: "Citrix Workspace 2402 LTSR on Windows",
+			software: fleet.Software{
+				Name:    "Citrix Workspace 2402",
+				Version: "24.2.0.65",
+				Source:  "programs",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			wantCPE: "cpe:2.3:a:citrix:workspace:2402.0.65:*:*:*:ltsr:windows:*:*",
+		},
+		{
+			name: "Citrix Workspace non-LTSR on Windows",
+			software: fleet.Software{
+				Name:    "Citrix Workspace 2309",
+				Version: "23.9.1.104",
+				Source:  "programs",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			wantCPE: "cpe:2.3:a:citrix:workspace:2309.1.104:*:*:*:*:windows:*:*",
+		},
+		{
+			name: "Citrix Workspace LTSR version on Mac (not programs source)",
+			software: fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "24.2.0.65",
+				Source:  "apps",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			wantCPE: "cpe:2.3:a:citrix:workspace:2402.0.65:*:*:*:*:macos:*:*",
+		},
+		{
+			name: "Citrix Workspace 1912 LTSR on Windows",
+			software: fleet.Software{
+				Name:    "Citrix Workspace 1912",
+				Version: "19.12.0.5",
+				Source:  "programs",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			wantCPE: "cpe:2.3:a:citrix:workspace:1912.0.5:*:*:*:ltsr:windows:*:*",
+		},
+		{
+			name: "Citrix Workspace 2507.1 LTSR on Windows",
+			software: fleet.Software{
+				Name:    "Citrix Workspace 2507",
+				Version: "25.7.1.50",
+				Source:  "programs",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			wantCPE: "cpe:2.3:a:citrix:workspace:2507.1.50:*:*:*:ltsr:windows:*:*",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mutateSoftware(t.Context(), &tc.software, slog.New(slog.DiscardHandler))
+			got := item.FmtStr(&tc.software)
+			require.Equal(t, tc.wantCPE, got)
 		})
 	}
 }

@@ -13,7 +13,7 @@ A prominent financial services company encountered substantial challenges with i
 
 ## Solution
 
-They selected Fleet as its new device management platform to unify its device ecosystem. Fleet's next-gen GitOps capabilities aligned with their commitment to configuration as code, enabling seamless integration with their existing automation workflows. Fleet's support and direct database schema [migration tool](https://github.com/fleetdm/fleet/blob/d563d09baca642d5e4f910759b71619333b500b9/tools/mdm/migration/micromdm/touchless/README.md) facilitated the migration process, ensuring a smooth transition. Additionally, [Fleet's open API](https://fleetdm.com/docs/rest-api/rest-api) and advanced features, such as live query execution, real-time insights, and configurable logging pipelines, provide their teams with real-time visibility and control over their endpoints.
+They selected Fleet as its new device management platform to unify its device ecosystem. Fleet's next-gen GitOps capabilities aligned with their commitment to configuration as code, enabling seamless integration with their existing automation workflows. Fleet's support and direct database schema [migration tool](https://github.com/fleetdm/fleet/blob/d563d09baca642d5e4f910759b71619333b500b9/tools/mdm/migration/micromdm/touchless/README.md) facilitated the migration process, ensuring a smooth transition. Additionally, [Fleet's open API](https://fleetdm.com/docs/rest-api/rest-api) and advanced features, such as live reports, real-time insights, and configurable logging pipelines, provide their teams with real-time visibility and control over their endpoints.
 
 ## Results
 

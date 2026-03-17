@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"mime/multipart"
@@ -265,6 +266,7 @@ func TestUniversalDecoderSizeLimit(t *testing.T) {
 	}
 	decoder := makeDecoder(universalStruct{}, platform_http.MaxRequestBodySize)
 
+	// Body larger than the limit should return PayloadTooLargeError.
 	largeBody := `{"key": "` + strings.Repeat("A", int(platform_http.MaxRequestBodySize)+1) + `"}`
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(largeBody))
 	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
@@ -272,6 +274,19 @@ func TestUniversalDecoderSizeLimit(t *testing.T) {
 	_, err := decoder(context.Background(), req)
 	require.Error(t, err)
 	require.IsType(t, platform_http.PayloadTooLargeError{}, err)
+
+	// Body within the limit but with broken JSON
+	incompleteBody := `{"key": "` + strings.Repeat("A", 100) // missing closing "}
+	req = httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(incompleteBody))
+	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+
+	_, err = decoder(context.Background(), req)
+	require.Error(t, err)
+	require.True(t, errors.Is(err, io.ErrUnexpectedEOF), "expected io.ErrUnexpectedEOF, got %T: %v", err, err)
+	_, isPayloadTooLarge := err.(platform_http.PayloadTooLargeError)
+	require.False(t, isPayloadTooLarge, "incomplete body within size limit must not produce PayloadTooLargeError, got %T: %v", err, err)
+
+	// Body within the limit and complete ... OK
 
 	largeBody = `{"key": "` + strings.Repeat("A", int(platform_http.MaxRequestBodySize)-11) + `"}` // -11 to account for the wrapping JSON
 	req = httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(largeBody))
@@ -495,9 +510,10 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 	require.Equal(t, "ABCH2", buf.String())
 }
 
-func TestWriteBrowserSecurityHeaders(t *testing.T) {
+func TestWriteBrowserSecurityHeadersNoCSP(t *testing.T) {
 	w := httptest.NewRecorder()
-	endpointer.WriteBrowserSecurityHeaders(w)
+	_, err := endpointer.WriteBrowserSecurityHeaders(w, false, false)
+	require.NoError(t, err)
 	headers := w.Header()
 	require.Equal(
 		t,
@@ -506,6 +522,42 @@ func TestWriteBrowserSecurityHeaders(t *testing.T) {
 			"X-Frame-Options":           {"SAMEORIGIN"},
 			"Strict-Transport-Security": {"max-age=31536000; includeSubDomains;"},
 			"Referrer-Policy":           {"strict-origin-when-cross-origin"},
+		},
+		headers,
+	)
+}
+
+func TestWriteBrowserSecurityHeadersCSPNoNonce(t *testing.T) {
+	w := httptest.NewRecorder()
+	_, err := endpointer.WriteBrowserSecurityHeaders(w, true, false)
+	require.NoError(t, err)
+	headers := w.Header()
+	require.Equal(
+		t,
+		http.Header{
+			"X-Content-Type-Options":    {"nosniff"},
+			"X-Frame-Options":           {"SAMEORIGIN"},
+			"Strict-Transport-Security": {"max-age=31536000; includeSubDomains;"},
+			"Referrer-Policy":           {"strict-origin-when-cross-origin"},
+			"Content-Security-Policy":   {"default-src 'none'; base-uri 'self'; connect-src 'self' www.gravatar.com ws: wss:; img-src 'self' www.gravatar.com data: https:; style-src 'self'; font-src 'self'; script-src 'self'"},
+		},
+		headers,
+	)
+}
+
+func TestWriteBrowserSecurityHeadersCSPAndNonce(t *testing.T) {
+	w := httptest.NewRecorder()
+	nonce, err := endpointer.WriteBrowserSecurityHeaders(w, true, true)
+	require.NoError(t, err)
+	headers := w.Header()
+	require.Equal(
+		t,
+		http.Header{
+			"X-Content-Type-Options":    {"nosniff"},
+			"X-Frame-Options":           {"SAMEORIGIN"},
+			"Strict-Transport-Security": {"max-age=31536000; includeSubDomains;"},
+			"Referrer-Policy":           {"strict-origin-when-cross-origin"},
+			"Content-Security-Policy":   {"default-src 'none'; base-uri 'self'; connect-src 'self' www.gravatar.com ws: wss:; img-src 'self' www.gravatar.com data: https:; style-src 'self' 'nonce-" + nonce + "'; font-src 'self'; script-src 'self' 'nonce-" + nonce + "'"},
 		},
 		headers,
 	)
