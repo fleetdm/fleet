@@ -1096,9 +1096,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if oldAppConfig.MDM.EnabledAndConfigured {
 			var act fleet.ActivityDetails
 			if appConfig.MDM.EnableRecoveryLockPassword.Value {
-				act = fleet.ActivityTypeEnabledRecoveryLockPassword{}
+				act = fleet.ActivityTypeEnabledRecoveryLockPasswords{}
 			} else {
-				act = fleet.ActivityTypeDisabledRecoveryLockPassword{}
+				act = fleet.ActivityTypeDisabledRecoveryLockPasswords{}
 			}
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "create activity for app config recovery lock password")

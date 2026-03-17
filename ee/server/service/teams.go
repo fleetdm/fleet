@@ -492,9 +492,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	if recoveryLockPasswordUpdated {
 		var act fleet.ActivityDetails
 		if team.Config.MDM.EnableRecoveryLockPassword {
-			act = fleet.ActivityTypeEnabledRecoveryLockPassword{TeamID: &team.ID, TeamName: &team.Name}
+			act = fleet.ActivityTypeEnabledRecoveryLockPasswords{TeamID: &team.ID, TeamName: &team.Name}
 		} else {
-			act = fleet.ActivityTypeDisabledRecoveryLockPassword{TeamID: &team.ID, TeamName: &team.Name}
+			act = fleet.ActivityTypeDisabledRecoveryLockPasswords{TeamID: &team.ID, TeamName: &team.Name}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team recovery lock password")
@@ -1407,6 +1407,16 @@ func (svc *Service) createTeamFromSpec(
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
 		}
 	}
+
+	if spec.MDM.EnableRecoveryLockPassword.Value && appCfg.MDM.EnabledAndConfigured {
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEnabledRecoveryLockPasswords{TeamID: &tm.ID, TeamName: &tm.Name},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for team recovery lock password")
+		}
+	}
 	return tm, nil
 }
 
@@ -1493,9 +1503,10 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.RequireBitLockerPIN = spec.MDM.RequireBitLockerPIN.Value
 	}
 
+	var didUpdateRecoveryLockPassword bool
 	if spec.MDM.EnableRecoveryLockPassword.Valid {
-		recoveryLockPasswordUpdated := team.Config.MDM.EnableRecoveryLockPassword != spec.MDM.EnableRecoveryLockPassword.Value
-		if recoveryLockPasswordUpdated && !appCfg.MDM.EnabledAndConfigured {
+		didUpdateRecoveryLockPassword = team.Config.MDM.EnableRecoveryLockPassword != spec.MDM.EnableRecoveryLockPassword.Value
+		if didUpdateRecoveryLockPassword && !appCfg.MDM.EnabledAndConfigured {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm.enable_recovery_lock_password",
 				`Couldn't update enable_recovery_lock_password because MDM features aren't turned on in Fleet.`))
 		}
@@ -1723,6 +1734,18 @@ func (svc *Service) editTeamFromSpec(
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
+		}
+	}
+
+	if appCfg.MDM.EnabledAndConfigured && didUpdateRecoveryLockPassword {
+		var act fleet.ActivityDetails
+		if team.Config.MDM.EnableRecoveryLockPassword {
+			act = fleet.ActivityTypeEnabledRecoveryLockPasswords{TeamID: &team.ID, TeamName: &team.Name}
+		} else {
+			act = fleet.ActivityTypeDisabledRecoveryLockPasswords{TeamID: &team.ID, TeamName: &team.Name}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for team recovery lock password")
 		}
 	}
 
