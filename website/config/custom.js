@@ -339,7 +339,6 @@ module.exports.custom = {
     '.github/ISSUE_TEMPLATE/solutions-consulting-task.md': ['allenhouchins'],
     '.github/ISSUE_TEMPLATE/new-nfr-request.yml': ['allenhouchins'],
 
-    
     // GTM
     'go-to-market': ['sampfluger88'],
 
