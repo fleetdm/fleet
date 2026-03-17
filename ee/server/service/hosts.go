@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -565,7 +566,7 @@ func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint)
 	}
 
 	// Validate: must be Apple Silicon (ARM CPU)
-	if host.CPUType == "" || !containsARM(host.CPUType) {
+	if host.CPUType == "" || !strings.HasPrefix(strings.ToLower(host.CPUType), "arm") {
 		return &fleet.BadRequestError{
 			Message: "Recovery lock password rotation is only supported on Apple Silicon Macs.",
 		}
@@ -680,13 +681,6 @@ func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint)
 	}
 
 	return nil
-}
-
-// containsARM checks if the CPU type string indicates an ARM processor
-func containsARM(cpuType string) bool {
-	return len(cpuType) >= 3 && (cpuType == "arm64" || cpuType == "arm" ||
-		(len(cpuType) >= 3 && cpuType[:3] == "arm") ||
-		(len(cpuType) >= 4 && cpuType[:4] == "ARM "))
 }
 
 var (
