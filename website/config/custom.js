@@ -205,6 +205,10 @@ module.exports.custom = {
     'ee/maintained-apps/inputs': 'allenhouchins',
   },
 
+  fleetMdmGitopsRepoDRIByPath: {// fleetdm/fleet-gitops
+    '/': 'getvictor',// All files in the repo.
+  },
+
   // FUTURE: Support DRIs for confidential and other repos (except see other note above about a consolidated way to do it, to reduce these 4-6 config keys into one)
 
 
@@ -351,18 +355,20 @@ module.exports.custom = {
 
   },
 
-  fleetMdmGitopsRepoDRIByPath: {
-    '/': 'getvictor',
-  },
 
-  fleetMdmGitopsGithubRepoMaintainersByPath: {
-    '/': ['lukeheath', 'noahtalerman', 'getvictor', 'harrisonravazzolo'],
-    'lib': ['harrisonravazzolo'] ,
-    'teams': [ 'harrisonravazzolo'] ,
-    'default.yml': [ 'harrisonravazzolo'] ,
-    '.github': ['lukeheath', 'noahtalerman', 'getvictor', 'harrisonravazzolo'],
-    '.github-ci.yml': ['lukeheath', 'noahtalerman', 'getvictor', 'harrisonravazzolo'],
-    '.gitops.sh': ['lukeheath', 'noahtalerman', 'getvictor', 'harrisonravazzolo'],
+  fleetMdmGitopsGithubRepoMaintainersByPath: {// fleetdm/fleet-gitops
+    // Best practice file structure
+    'lib': ['harrisonravazzolo'],
+    'teams': [ 'harrisonravazzolo'],
+    'default.yml': [ 'harrisonravazzolo'],
+
+    // GitHub Action and GitLab CI/CD
+    '.github': ['lukeheath', 'noahtalerman', 'getvictor', 'allenhouchins'],
+    '.gitlab-ci.yml': ['lukeheath', 'noahtalerman', 'getvictor', 'allenhouchins'],
+    '.gitops.sh': ['lukeheath', 'noahtalerman', 'getvictor', 'allenhouchins'],
+
+    // Everything else
+    '/': ['lukeheath', 'noahtalerman', 'getvictor', 'allenhouchins'],
   },
 
   //  ███████╗ ██████╗██╗  ██╗███████╗███╗   ███╗ █████╗
