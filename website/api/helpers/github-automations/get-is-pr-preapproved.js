@@ -8,7 +8,7 @@ module.exports = {
 
 
   inputs: {
-    repo: { type: 'string', example: 'fleet', required: true, isIn: ['fleet', 'confidential']},
+    repo: { type: 'string', example: 'fleet', required: true, isIn: ['fleet', 'confidential', 'fleet-gitops']},
     prNumber: { type: 'number', example: 382, required: true },
     githubUserToCheck: { type: 'string', example: 'mikermcneil', description: 'If excluded, then this returns `true` if all of the PRs changed paths are preapproved for SOMEONE.' },
     isGithubUserMaintainerOrDoesntMatter: { type: 'boolean', required: true, description: 'Whether (a) the user is a maintainer, or (b) it even matters for this check whether the user is a maintainer.' },// FUTURE: « this could be replaced with an extra GitHub API call herein, but doesn't seem worth it
@@ -85,8 +85,11 @@ module.exports = {
           numRemainingPathsToCheck--;
         }//∞
       });//∞
-
+      let repoHasMaintainersForTheEntireRepo = MAINTAINERS_BY_PATH['/'] || [];
       if (isMaintainerForAllChangedPathsStill && changedPaths.length < 100) {
+        return true;
+      } else if(repoHasMaintainersForTheEntireRepo.includes(githubUserToCheck)) {
+        // If this user is a maintainer for the entire repo, return true
         return true;
       } else {
         return false;
