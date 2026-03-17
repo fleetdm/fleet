@@ -61,15 +61,15 @@ func (s *integrationSSOTestSuite) TestGetSSOSettings() {
 	t := s.T()
 
 	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"sso_settings": {
 			"enable_sso": true,
 			"entity_id": "https://localhost:8080",
 			"idp_name": "SimpleSAML",
-			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
+			"metadata_url": "%s",
 			"enable_jit_provisioning": false
 		}
-	}`), http.StatusOK, &acResp)
+	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 
 	// double-check the settings
@@ -167,7 +167,7 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 	t := s.T()
 
 	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
         "server_settings": {
           "server_url": "https://localhost:8080"
         },
@@ -175,9 +175,9 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 			"enable_sso": true,
 			"entity_id": "https://localhost:8080",
 			"idp_name": "SimpleSAML",
-			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+			"metadata_url": "%s"
 		}
-	}`), http.StatusOK, &acResp)
+	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 
 	// Register current number of activities.
@@ -270,7 +270,7 @@ func (s *integrationSSOTestSuite) TestSSOLoginDisallowedWithPremiumRoles() {
 	t := s.T()
 
 	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
         "server_settings": {
           "server_url": "https://localhost:8080"
         },
@@ -278,9 +278,9 @@ func (s *integrationSSOTestSuite) TestSSOLoginDisallowedWithPremiumRoles() {
 			"enable_sso": true,
 			"entity_id": "https://localhost:8080",
 			"idp_name": "SimpleSAML",
-			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+			"metadata_url": "%s"
 		}
-	}`), http.StatusOK, &acResp)
+	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 
 	user, err := s.ds.UserByEmail(t.Context(), "sso_user2@example.com")
@@ -344,14 +344,14 @@ func (s *integrationSSOTestSuite) TestPerformRequiredPasswordResetWithSSO() {
 
 	// enable SSO
 	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"sso_settings": {
 			"enable_sso": true,
 			"entity_id": "https://localhost:8080",
 			"idp_name": "SimpleSAML",
-			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+			"metadata_url": "%s"
 		}
-	}`), http.StatusOK, &acResp)
+	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 
 	// perform a required password change using the non-SSO user, works
@@ -403,8 +403,8 @@ func (s *integrationSSOTestSuite) TestSSOLoginWithMetadata() {
 	t := s.T()
 
 	acResp := appConfigResponse{}
-	metadata, err := json.Marshal([]byte(`<?xml version="1.0"?>
-<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" entityID="http://localhost:9080/simplesaml/saml2/idp/metadata.php">
+	metadata, err := json.Marshal([]byte(fmt.Sprintf(`<?xml version="1.0"?>
+<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" entityID="%s">
   <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
     <md:KeyDescriptor use="signing">
       <ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
@@ -420,11 +420,11 @@ func (s *integrationSSOTestSuite) TestSSOLoginWithMetadata() {
         </ds:X509Data>
       </ds:KeyInfo>
     </md:KeyDescriptor>
-    <md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="http://localhost:9080/simplesaml/saml2/idp/SingleLogoutService.php"/>
+    <md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="%s"/>
     <md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:transient</md:NameIDFormat>
-    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="http://localhost:9080/simplesaml/saml2/idp/SSOService.php"/>
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="%s"/>
   </md:IDPSSODescriptor>
-</md:EntityDescriptor>`))
+</md:EntityDescriptor>`, testSAMLIDPMetadataURL, testSAMLIDPSLOURL, testSAMLIDPSSOURL)))
 	require.NoError(t, err)
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"server_settings": {
@@ -461,7 +461,7 @@ func (s *integrationSSOTestSuite) TestSSOLoginNoEntityID() {
 	t := s.T()
 
 	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
         "server_settings": {
           "server_url": "https://localhost:8080"
         },
@@ -469,9 +469,9 @@ func (s *integrationSSOTestSuite) TestSSOLoginNoEntityID() {
 			"enable_sso": true,
 			"entity_id": "localhost",
 			"idp_name": "SimpleSAML",
-			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+			"metadata_url": "%s"
 		}
-	}`), http.StatusOK, &acResp)
+	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 
 	ac, err := s.ds.AppConfig(context.Background())
@@ -506,7 +506,7 @@ func (s *integrationSSOTestSuite) TestSSOLoginSAMLResponseTampered() {
 	}
 
 	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
         "server_settings": {
           "server_url": "https://localhost:8080"
         },
@@ -514,9 +514,9 @@ func (s *integrationSSOTestSuite) TestSSOLoginSAMLResponseTampered() {
 			"enable_sso": true,
 			"entity_id": "sso.test.com",
 			"idp_name": "SimpleSAML",
-			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+			"metadata_url": "%s"
 		}
-	}`), http.StatusOK, &acResp)
+	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 
 	// Create sso_user2@example.com if it doesn't exist (because this is
@@ -588,9 +588,9 @@ func (s *integrationSSOTestSuite) TestSSOLoginSAMLResponseTampered() {
 func (s *integrationSSOTestSuite) TestSSOServerURL() {
 	t := s.T()
 
-	// Use the test metadata instead of trying to fetch from localhost:9080
-	testMetadata := `
-<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" entityID="http://localhost:9080/simplesaml/saml2/idp/metadata.php">
+	// Use the test metadata instead of trying to fetch from the SAML IDP
+	testMetadata := fmt.Sprintf(`
+<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" entityID="%s">
   <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
     <md:KeyDescriptor use="signing">
       <ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
@@ -599,11 +599,11 @@ func (s *integrationSSOTestSuite) TestSSOServerURL() {
         </ds:X509Data>
       </ds:KeyInfo>
     </md:KeyDescriptor>
-    <md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="http://localhost:9080/simplesaml/saml2/idp/SingleLogoutService.php"/>
+    <md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="%s"/>
     <md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:transient</md:NameIDFormat>
-    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="http://localhost:9080/simplesaml/saml2/idp/SSOService.php"/>
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="%s"/>
   </md:IDPSSODescriptor>
-</md:EntityDescriptor>`
+</md:EntityDescriptor>`, testSAMLIDPMetadataURL, testSAMLIDPSLOURL, testSAMLIDPSSOURL)
 
 	// Configure SSO with a specific SSO server URL and inline metadata
 	acResp := appConfigResponse{}

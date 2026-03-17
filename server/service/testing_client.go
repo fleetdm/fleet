@@ -38,6 +38,19 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+// testSAMLIDPBaseURL returns the SAML IDP base URL from FLEET_SAML_IDP_HTTP_PORT or defaults to http://localhost:9080.
+var testSAMLIDPBaseURL = getTestSAMLIDPBaseURL()
+var testSAMLIDPMetadataURL = testSAMLIDPBaseURL + "/simplesaml/saml2/idp/metadata.php"
+var testSAMLIDPSSOURL = testSAMLIDPBaseURL + "/simplesaml/saml2/idp/SSOService.php"
+var testSAMLIDPSLOURL = testSAMLIDPBaseURL + "/simplesaml/saml2/idp/SingleLogoutService.php"
+
+func getTestSAMLIDPBaseURL() string {
+	if port := os.Getenv("FLEET_SAML_IDP_HTTP_PORT"); port != "" {
+		return "http://localhost:" + port
+	}
+	return "http://localhost:9080"
+}
+
 type withDS struct {
 	s       *suite.Suite
 	ds      *mysql.Datastore
@@ -455,7 +468,7 @@ func (ts *withServer) LoginSSOUserIDPInitiated(username, password, entityID stri
 	res := ts.loginSSOUserIDPInitiated(
 		username, password,
 		"/api/v1/fleet/sso",
-		fmt.Sprintf("http://127.0.0.1:9080/simplesaml/saml2/idp/SSOService.php?spentityid=%s", entityID),
+		fmt.Sprintf("%s?spentityid=%s", testSAMLIDPSSOURL, entityID),
 		http.StatusOK,
 	)
 	defer res.Body.Close()
