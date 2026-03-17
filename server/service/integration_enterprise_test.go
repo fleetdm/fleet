@@ -24522,14 +24522,14 @@ func (s *integrationEnterpriseTestSuite) TestDeviceAuthenticationMethods() {
 	// Insert certificate into nanomdm tables
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		// Insert serial (scep_serials uses auto-increment but we can insert explicit value)
-		_, err := db.ExecContext(ctx, `INSERT INTO scep_serials (serial) VALUES (?)`, certSerial)
+		_, err := db.ExecContext(ctx, `INSERT INTO identity_serials (serial) VALUES (?)`, certSerial)
 		if err != nil {
 			return err
 		}
 
-		// Insert certificate into scep_certificates
+		// Insert certificate into identity_certificates
 		_, err = db.ExecContext(ctx, `
-			INSERT INTO scep_certificates
+			INSERT INTO identity_certificates
 			(serial, name, not_valid_before, not_valid_after, certificate_pem, revoked)
 			VALUES (?, ?, ?, ?, ?, ?)
 		`,
@@ -24640,7 +24640,7 @@ func (s *integrationEnterpriseTestSuite) TestDeviceAuthenticationMethods() {
 		ipadCertPEM, ipadCertHash, ipadCert := generateTestCertForDeviceAuth(t, ipadCertSerial, ipadHost.UUID)
 
 		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-			_, err := db.ExecContext(ctx, `INSERT INTO scep_serials (serial) VALUES (?)`, ipadCertSerial)
+			_, err := db.ExecContext(ctx, `INSERT INTO identity_serials (serial) VALUES (?)`, ipadCertSerial)
 			if err != nil {
 				return err
 			}
@@ -26529,7 +26529,8 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		// remove patch policy and delete installer
 		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/delete", teamID), deleteTeamPoliciesRequest{
 			TeamID: teamID,
-			IDs:    []uint{policyResp.Policy.ID}}, http.StatusOK, &deleteTeamPoliciesResponse{})
+			IDs:    []uint{policyResp.Policy.ID},
+		}, http.StatusOK, &deleteTeamPoliciesResponse{})
 
 		// can delete installer successfully
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", strconv.Itoa(int(teamID))) //nolint:gosec // dismiss G115
@@ -26603,7 +26604,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 		title := getActiveTitleForTeam(team.ID, "zoom")
 
-		var listPolResp = listTeamPoliciesResponse{}
+		listPolResp := listTeamPoliciesResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
@@ -26710,7 +26711,6 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), listTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
-
 	})
 }
 
