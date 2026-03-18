@@ -54,7 +54,7 @@ From there, the requests got a little more abstract. *"Make Slack and Zoom avail
 
 But here's where it started to surprise me. When I asked it to deploy Mozilla Firefox, I was thinking about the *deployment*. The AI was thinking further ahead than I was originally. It detected that the installer was x86 and automatically created a label so the software would be scoped only to compatible devices. I hadn't asked for that. I hadn't even thought about it. And in the old world, I probably wouldn't have until an IT ticket landed in my team's queue from a confused user on an incompatible machine. The AI caught the edge case before it became someone's problem. That shift from "AI does what I ask" to "AI thinks about what I actually need" is when I realized this was something different.
 
-## It delivers big
+## It delivers
 
 We started asking bigger questions. Not "configure this specific setting" but:
 
