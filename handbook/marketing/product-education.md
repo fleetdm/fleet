@@ -6,17 +6,21 @@
 
 ## Fleet training course certification standards
 
-*A Fleetie seeking certification to deliver an offically sanctioned Fleet training course must:*
+*A Fleeties seeking certification to deliver an offically-sanctioned Fleet training course must:*
 
 ```
-1. Take the course they intend to be certified to deliver.
+1. Sign up for & successfully complete the course they intend to be certified to deliver.
+
 2. Shadow a 2nd course:
   a. Attend a course delivered by a certified instructor.
   b. Help students with issues.
-  c. Understand what the instructor is doing.
-3. Teach part of a 3rd course:
+  c. Acknowledge & read any intstructor guides that exist for the course.
+  c. Demonstrate an understanding of how an instructor delivers the course.
+  
+3. Teach any part of a 3rd course:
   a. Attend a course delivered by a certified instructor.
   b. Deliver lessons.
+  
 4. Teach a course.
   a. Ideally with a certified instructor "in the room" (in-person or virtually).
 ```
@@ -26,4 +30,4 @@ If these steps are completed for any current online or in-person training, the F
 >This is a clear set of instructions, but it is also a system of honor, kind of like getting knighted. Once made a knight, you can knight other knights ("System admins" also tend to follow this pattern.) Use this power wisely. We want students to have great experiences. Great Experiences in classes are delvered by qualified instructors.
 
 <meta name="maintainedBy" value="nonpunctual">
-<meta name="title" value="Product Education">
+<meta name="title" value="Product education">
