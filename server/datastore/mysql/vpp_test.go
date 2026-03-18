@@ -1767,7 +1767,7 @@ func testDeleteVPPAssignedToPolicy(t *testing.T, ds *Datastore) {
 
 	err = ds.DeleteVPPAppFromTeam(ctx, ptr.Uint(0), va1.VPPAppID)
 	require.Error(t, err)
-	require.ErrorIs(t, err, errDeleteInstallerWithAssociatedPolicy)
+	require.ErrorIs(t, err, errDeleteInstallerWithAssociatedInstallPolicy)
 
 	_, err = ds.DeleteTeamPolicies(ctx, fleet.PolicyNoTeamID, []uint{p1.ID})
 	require.NoError(t, err)

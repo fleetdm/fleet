@@ -190,7 +190,7 @@ For each issue:
 
 ### Create a release candidate
 
-All minor releases go through the release candidate process before they are published. A release candidate for the next minor release is created on the last Friday of each sprint at 8:00 AM Pacific (see [Fleet's release calendar](https://calendar.google.com/calendar/u/0?cid=Y192Nzk0M2RlcW4xdW5zNDg4YTY1djJkOTRic0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t)). A release candidate branch is created at `rc-minor-fleet-v4.x.x` and no additional feature work or released bug fixes are merged without EM and QA approval.
+All minor releases go through the release candidate process before they are published. A release candidate for the next minor release is created on the first Monday of the next sprint at 8:00 AM Pacific (see [Fleet's release calendar](https://calendar.google.com/calendar/u/0?cid=Y192Nzk0M2RlcW4xdW5zNDg4YTY1djJkOTRic0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t)). A release candidate branch is created at `rc-minor-fleet-v4.x.x` and no additional feature work or released bug fixes are merged without EM and QA approval.
 
 1. [Run the first step](https://github.com/fleetdm/fleet/tree/main/tools/release#minor-release-typically-end-of-sprint) of the minor release section of the Fleet releases script to create the release candidate branch, the release QA issue, and announce the release candidate in Slack.
 
@@ -393,15 +393,17 @@ If the candidate passes all of these steps, then continue with scheduling a CEO 
 
 ### Perform an incident postmortem
 
-Conduct a postmortem meetings for every service or feature outage and every critical bug, whether it's a customer's environment or on fleetdm.com.
+Conduct a postmortem for every service or feature outage and every critical bug, whether in a customer's environment or on fleetdm.com.
 
-1. Copy this [postmortem template](https://docs.google.com/document/d/1Ajp2LfIclWfr4Bm77lnUggkYNQyfjePiWSnBv1b1nwM/edit?usp=sharing) document and pre-populate where possible.
+1. Copy this [postmortem template](https://docs.google.com/document/d/1Ajp2LfIclWfr4Bm77lnUggkYNQyfjePiWSnBv1b1nwM/edit?usp=sharing) document and pre-populate where possible to make the best use of time.
 2. Invite stakeholders. Typically the EM, PM, QA, and engineers involved. If a customer incident, include the CSM.
-3. Follow and populate document topic by topic. Determine the root cause (why it happened), as well as why our controls did not catch it before release.
-4. Assign each action item an owner that who is responsible for creating a Github issue promptly and working with with the relevant PM/EM to prioritize.
+3. Follow and populate the document topic by topic. Determine the root cause (why it happened), as well as why our controls did not catch it before release.
+4. Assign each action item an owner who is responsible for creating an [engineering-initiated story](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story) promptly, labeled `~postmortem-action-item`, and working with their EM to prioritize
+5. Share the completed postmortem with [Customer Success](https://fleetdm.com/handbook/customer-success) so they can share it with the affected customer if requested. All postmortems should be written in a state that they can be shared directly with affected customers.
 
 [Example finished document](https://docs.google.com/document/d/1J35KUdhEaayE8Xoytxf6aVVoCXHwk2IPGk2rXHJgRNk/edit?usp=sharing)
 
+> It is the EM of the affected product group's responsibility to conduct the postmortem and make sure action items are prioritized promptly.
 
 ### Maintain TUF repo for secure agent updates
 
@@ -643,7 +645,7 @@ To generate a new page, you'll need:
 
 ### Check for new versions of osquery schema
 
-When a new version of osquery is released, the Fleet website needs to be updated to use the latest version of the osquery schema. To do this, we update the website's `versionOfOsquerySchemaToUseWhenGeneratingDocumentation` configuration variable in [website/config/custom.js](https://github.com/fleetdm/fleet/blob/6eb6884c4f02dc24b49f394abe9dde5fd1875c55/website/config/custom.js#L327). The osquery schema is combined with Fleet's [YAML overrides](https://github.com/fleetdm/fleet/tree/main/schema/tables) to generate the [JSON schema](https://github.com/fleetdm/fleet/blob/main/schema/osquery_fleet_schema.json) used by the query side panel in Fleet, as well as Fleetdm.com's [osquery table documentation](/tables).
+When a new version of osquery is released, the Fleet website needs to be updated to use the latest version of the osquery schema. To do this, we update the website's `versionOfOsquerySchemaToUseWhenGeneratingDocumentation` configuration variable in [website/config/custom.js](https://github.com/fleetdm/fleet/blob/6eb6884c4f02dc24b49f394abe9dde5fd1875c55/website/config/custom.js#L327). The osquery schema is combined with Fleet's [YAML overrides](https://github.com/fleetdm/fleet/tree/main/schema/tables) to generate the [JSON schema](https://github.com/fleetdm/fleet/blob/main/schema/osquery_fleet_schema.json) used by the table schema side panel in Fleet, as well as fleetdm.com's [table schema](/tables).
 
 > Note: The version number used in the `versionOfOsquerySchemaToUseWhenGeneratingDocumentation` variable must correspond to a version of the JSON osquery schema in the [osquery/osquery-site repo](https://github.com/osquery/osquery-site/tree/main/src/data/osquery_schema_versions).
 

@@ -176,7 +176,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 			if payload.Platform == fleet.MacOSPlatform && ptr.ValOrZero(payload.InstallDuringSetup) && manualAgentInstall {
 				return nil, fleet.NewUserMessageError(
-					errors.New(`Couldn't edit software. "setup_experience" cannot be used for macOS software if "manual_agent_install" is enabled.`),
+					errors.New(`Couldn't edit software. "setup_experience" cannot be used for macOS software if "macos_manual_agent_install" is enabled.`),
 					http.StatusUnprocessableEntity)
 			}
 

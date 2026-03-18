@@ -1336,6 +1336,41 @@ func TestParser(t *testing.T) {
 			}
 		})
 
+		t.Run("should include Windows Server 2025 from 2026-Feb feed", func(t *testing.T) {
+			febSrcPath := filepath.Join("..", "testdata", "msrc-2026-feb.xml.bz2")
+			febDstPath := filepath.Join(t.TempDir(), "msrc-2026-feb.xml")
+			extractXMLFixtureFile(t, febSrcPath, febDstPath)
+
+			febF, err := os.Open(febDstPath)
+			require.NoError(t, err)
+			febXML, err := parseXML(febF)
+			febF.Close()
+			require.NoError(t, err)
+
+			febBulletins, err := mapToSecurityBulletins(febXML)
+			require.NoError(t, err)
+
+			// Windows Server 2025 bulletin should exist
+			winServer2025 := febBulletins["Windows Server 2025"]
+			require.NotNil(t, winServer2025, "expected a bulletin for Windows Server 2025")
+			require.Equal(t, "Windows Server 2025", winServer2025.ProductName)
+
+			// Should contain both base and Server Core products
+			require.Contains(t, winServer2025.Products, "12436", "expected product ID 12436 (Windows Server 2025)")
+			require.Contains(t, winServer2025.Products, "12437", "expected product ID 12437 (Windows Server 2025 Server Core)")
+
+			// Product names should be correctly normalized with version string
+			require.Equal(t, parsed.Product("Windows Server 2025 Version 24H2"), winServer2025.Products["12436"])
+			require.Equal(t,
+				parsed.Product("Windows Server 2025 (Server Core installation) Version 24H2"),
+				winServer2025.Products["12437"],
+			)
+
+			// Should have vulnerabilities with vendor fixes
+			require.NotEmpty(t, winServer2025.Vulnerabities, "expected vulnerabilities for Windows Server 2025")
+			require.NotEmpty(t, winServer2025.VendorFixes, "expected vendor fixes for Windows Server 2025")
+		})
+
 		t.Run("the remediations are parsed correctly", func(t *testing.T) {
 			// Check the remediations of a random CVE (CVE-2022-29126)
 			expectedRemediations := []msrcxml.VulnerabilityRemediation{

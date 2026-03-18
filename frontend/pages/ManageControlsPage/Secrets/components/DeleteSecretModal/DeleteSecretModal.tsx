@@ -56,35 +56,33 @@ const DeleteSecretModal = ({
       onExit={onExit}
       className={baseClass}
     >
-      <>
-        <div className={`${baseClass}__message`}>
-          <span>
-            This will delete the
-            <b>
-              <TooltipTruncatedText value={secret?.name} />
-            </b>
-            custom variable.
-          </span>
-          <br />
-          <br />
-          If this custom variable is used in any configuration profiles or
-          scripts, they will fail. To resolve, edit the configuration profile or
-          script.
-        </div>
-        <div className="modal-cta-wrap">
-          <Button
-            variant="alert"
-            onClick={onClickDelete}
-            isLoading={isDeleting}
-            disabled={isDeleting}
-          >
-            Delete
-          </Button>
-          <Button variant="inverse-alert" onClick={onExit}>
-            Cancel
-          </Button>
-        </div>
-      </>
+      <div className={`${baseClass}__message`}>
+        <span>
+          This will delete the
+          <b>
+            <TooltipTruncatedText value={secret?.name} />
+          </b>
+          custom variable.
+        </span>
+        <br />
+        <br />
+        If this custom variable is used in any configuration profiles or
+        scripts, they will fail. To resolve, edit the configuration profile or
+        script.
+      </div>
+      <div className="modal-cta-wrap">
+        <Button
+          variant="alert"
+          onClick={onClickDelete}
+          isLoading={isDeleting}
+          disabled={isDeleting}
+        >
+          Delete
+        </Button>
+        <Button variant="inverse-alert" onClick={onExit}>
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

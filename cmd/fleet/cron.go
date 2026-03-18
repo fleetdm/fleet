@@ -199,6 +199,17 @@ func scanVulnerabilities(
 
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 
+	// Clean up orphaned vulnerabilities (software/OS no longer associated with any host).
+	// This runs here (not in cleanups_then_aggregation) to stay in series with the scanners
+	// that write to the same tables, avoiding cross-schedule lock contention. The LEFT JOIN
+	// queries are index-backed on both sides, so execution time is fast for low orphan counts.
+	if err := ds.DeleteOrphanedSoftwareVulnerabilities(ctx); err != nil {
+		errHandler(ctx, logger, "deleting orphaned software vulnerabilities", err)
+	}
+	if err := ds.DeleteOrphanedOSVulnerabilities(ctx); err != nil {
+		errHandler(ctx, logger, "deleting orphaned OS vulnerabilities", err)
+	}
+
 	// If no automations enabled, then there is nothing else to do...
 	if vulnAutomationEnabled == "" {
 		return nil
@@ -1974,5 +1985,29 @@ func cronMigrateToPerHostPolicy(
 			return androidSvc.MigrateToPerDevicePolicy(ctx)
 		}),
 	)
+	return s, nil
+}
+
+func newRecoveryLockPasswordSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronSendRecoveryLockCommands)
+		defaultInterval = 5 * time.Minute
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("send_recovery_lock_commands", func(ctx context.Context) error {
+			return apple_mdm.SendRecoveryLockCommands(ctx, ds, commander, logger)
+		}),
+	)
+
 	return s, nil
 }

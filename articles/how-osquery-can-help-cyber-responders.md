@@ -47,14 +47,14 @@ Growing tool stacks that consist of endpoint detection and response (EDR), endpo
 
 Modern IT environments can feature a mix of on-premises and cloud endpoints across different flavors of Linux and Windows versions. Some devices will have a full suite of security agents installed; others will not. 
 
-This means incident responders can get relatively granular insights into some parts of their environment. A modern Windows workstation with an AV+EDR agent like Windows Defender for Endpoint installed will be much easier to query than a legacy Linux server. 
+This means incident responders can get relatively granular insights into some parts of their environment. A modern Windows workstation with an AV+EDR agent like Windows Defender for Endpoint installed will be much easier to report on than a legacy Linux server. 
 
 The same is true for mobile devices. Very few organizations are confident in their processes to inventory various assets connected to their networks. Only 23% of the organizations we surveyed in our [state of device management report](https://fleetdm.com/reports/state-of-device-management) successfully enroll all or nearly all of their devices into their Mobile Device Management (MDM) system. 
 
 
 ## Simplifying endpoint visibility with osquery and Fleet
 
-Incident responders’ jobs are much more manageable, and their companies are safer when they can query every device connected to their network. 
+Incident responders’ jobs are much more manageable, and their companies are safer when they can report on every device connected to their network. 
 
 Open-source and deployable on macOS, Windows, Linux, and Chromebook devices and servers, osquery agents can meet their challenges.
 

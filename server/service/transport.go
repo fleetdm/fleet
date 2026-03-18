@@ -4,13 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/gorilla/mux"
 )
@@ -140,10 +143,9 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.AdditionalFilters = strings.Split(additionalInfoFiltersString, ",")
 	}
 
-	teamID := r.URL.Query().Get("fleet_id")
-	if teamID == "" {
-		teamID = r.URL.Query().Get("team_id")
-		// TODO: warn about deprecated team_id parameter if team_id is used instead of fleet_id.
+	teamID, err := handleDeprecatedParams(r, "team_id", "fleet_id")
+	if err != nil {
+		return hopt, err
 	}
 	if teamID != "" {
 		id, err := strconv.ParseUint(teamID, 10, 32)
@@ -377,7 +379,10 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.ConnectedToFleetFilter = ptr.Bool(true)
 	}
 
-	macOSSettingsStatus := r.URL.Query().Get("macos_settings")
+	macOSSettingsStatus, err := handleDeprecatedParams(r, "macos_settings", "apple_settings")
+	if err != nil {
+		return hopt, err
+	}
 	switch fleet.OSSettingsStatus(macOSSettingsStatus) {
 	case fleet.OSSettingsFailed, fleet.OSSettingsPending, fleet.OSSettingsVerifying, fleet.OSSettingsVerified:
 		hopt.MacOSSettingsFilter = fleet.OSSettingsStatus(macOSSettingsStatus)
@@ -385,7 +390,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		// No error when unset
 	default:
 		return hopt, ctxerr.Wrap(
-			r.Context(), badRequest(fmt.Sprintf("Invalid macos_settings: %s", macOSSettingsStatus)),
+			r.Context(), badRequest(fmt.Sprintf("Invalid apple_settings: %s", macOSSettingsStatus)),
 		)
 	}
 
@@ -439,7 +444,10 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		)
 	}
 
-	mdmBootstrapPackageStatus := r.URL.Query().Get("bootstrap_package")
+	mdmBootstrapPackageStatus, err := handleDeprecatedParams(r, "bootstrap_package", "macos_bootstrap_package")
+	if err != nil {
+		return hopt, err
+	}
 	switch fleet.MDMBootstrapPackageStatus(mdmBootstrapPackageStatus) {
 	case fleet.MDMBootstrapPackageFailed, fleet.MDMBootstrapPackagePending, fleet.MDMBootstrapPackageInstalled:
 		bpf := fleet.MDMBootstrapPackageStatus(mdmBootstrapPackageStatus)
@@ -448,7 +456,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		// No error when unset
 	default:
 		return hopt, ctxerr.Wrap(
-			r.Context(), badRequest(fmt.Sprintf("Invalid bootstrap_package: %s", mdmBootstrapPackageStatus)),
+			r.Context(), badRequest(fmt.Sprintf("Invalid macos_bootstrap_package: %s", mdmBootstrapPackageStatus)),
 		)
 	}
 
@@ -618,8 +626,11 @@ func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) 
 	}
 
 	userOpts := fleet.UserListOptions{ListOptions: opt}
-
-	if tid := r.URL.Query().Get("team_id"); tid != "" {
+	tid, err := handleDeprecatedParams(r, "team_id", "fleet_id")
+	if err != nil {
+		return userOpts, err
+	}
+	if tid != "" {
 		teamID, err := strconv.ParseUint(tid, 10, 64)
 		if err != nil {
 			return userOpts, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid team_id: %s", tid)))
@@ -633,4 +644,29 @@ func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) 
 
 type getGenericSpecRequest struct {
 	Name string `url:"name"`
+}
+
+func handleDeprecatedParams(r *http.Request, deprecatedParam, newParam string) (string, error) {
+	ctx := r.Context()
+	query := r.URL.Query()
+	hasOld := query.Has(deprecatedParam)
+	hasNew := query.Has(newParam)
+
+	if hasOld && hasNew {
+		return "", ctxerr.Wrap(
+			ctx,
+			badRequest(fmt.Sprintf("Cannot specify both %s and %s parameters", deprecatedParam, newParam)),
+		)
+	}
+	if hasOld {
+		if platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+			logging.WithLevel(ctx, slog.LevelWarn)
+			logging.WithExtras(ctx,
+				"deprecated_param", deprecatedParam,
+				"deprecation_warning", fmt.Sprintf("'%s' is deprecated, use '%s' instead", deprecatedParam, newParam),
+			)
+		}
+		return query.Get(deprecatedParam), nil
+	}
+	return query.Get(newParam), nil
 }

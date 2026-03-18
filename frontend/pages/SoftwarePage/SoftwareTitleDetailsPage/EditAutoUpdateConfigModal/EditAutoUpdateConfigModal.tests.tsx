@@ -474,7 +474,7 @@ describe("Edit Auto Update Config Modal", () => {
           labels_include_any: [],
           labels_exclude_any: [],
           labels_include_all: [],
-          team_id: 1,
+          fleet_id: 1,
         });
       });
     });
@@ -516,7 +516,7 @@ describe("Edit Auto Update Config Modal", () => {
           labels_include_any: [],
           labels_exclude_any: [],
           labels_include_all: [],
-          team_id: 1,
+          fleet_id: 1,
         });
       });
     });
@@ -550,7 +550,7 @@ describe("Edit Auto Update Config Modal", () => {
           labels_include_any: [],
           labels_exclude_any: [],
           labels_include_all: [],
-          team_id: 1,
+          fleet_id: 1,
         });
       });
     });
@@ -581,7 +581,7 @@ describe("Edit Auto Update Config Modal", () => {
         expect(requestSpy).toHaveBeenCalledWith({
           auto_update_enabled: false,
           labels_include_any: [mockLabels[1].name],
-          team_id: 1,
+          fleet_id: 1,
         });
       });
     });
