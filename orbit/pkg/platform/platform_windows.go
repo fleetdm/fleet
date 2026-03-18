@@ -20,7 +20,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hectane/go-acl"
 	"github.com/rs/zerolog/log"
-	gopsutil_process "github.com/shirou/gopsutil/v3/process"
+	gopsutil_process "github.com/shirou/gopsutil/v4/process"
 	"golang.org/x/sys/windows"
 )
 
