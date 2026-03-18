@@ -2423,9 +2423,9 @@ func (ds *Datastore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fl
 	return policies, nil
 }
 
-func (ds *Datastore) GetPoliciesForConditionalAccess(ctx context.Context, teamID uint) ([]uint, error) {
+func (ds *Datastore) GetPoliciesForConditionalAccess(ctx context.Context, teamID uint, platform string) ([]uint, error) {
 	// Currently, the "Conditional access" feature is for macOS hosts only.
-	query := `SELECT id FROM policies WHERE team_id = ? AND conditional_access_enabled AND (platforms LIKE '%darwin%' OR platforms = '');`
+	query := `SELECT id FROM policies WHERE team_id = ? AND conditional_access_enabled AND (platforms LIKE '%` + platform + `%' OR platforms = '');`
 	var policyIDs []uint
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &policyIDs, query, teamID)
 	if err != nil {
@@ -2625,7 +2625,7 @@ func (ds *Datastore) generatePatchPolicy(ctx context.Context, teamID uint, title
 	switch {
 	case installer.Platform == string(fleet.MacOSPlatform):
 		policy.Query = fmt.Sprintf(
-			"SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') >= 0;",
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);",
 			installer.BundleIdentifier,
 			installer.Version,
 		)
@@ -2634,7 +2634,7 @@ func (ds *Datastore) generatePatchPolicy(ctx context.Context, teamID uint, title
 	case installer.Platform == "windows":
 		// TODO: use upgrade code to improve accuracy?
 		policy.Query = fmt.Sprintf(
-			"SELECT 1 FROM programs WHERE name = '%s' AND version_compare(bundle_short_version, '%s') >= 0;",
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '%s' AND version_compare(bundle_short_version, '%s') < 0);",
 			installer.SoftwareTitle,
 			installer.Version,
 		)

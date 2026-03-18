@@ -486,6 +486,25 @@ func TestUnicodeTeamName(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestWhitespaceOnlyTeamName(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"name"})
+	config += `name: "     "`
+	_, err := gitOpsFromString(t, config)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "team 'name' is required")
+}
+
+func TestPaddedTeamNameIsTrimmed(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"name"})
+	config += `name: "  Team Name  "`
+	gitOps, err := gitOpsFromString(t, config)
+	require.NoError(t, err)
+	require.NotNil(t, gitOps.TeamName)
+	require.Equal(t, "Team Name", *gitOps.TeamName)
+}
+
 func TestVarExpansion(t *testing.T) {
 	os.Setenv("MACOS_OS", "darwin")
 	os.Setenv("LINUX_OS", "linux")

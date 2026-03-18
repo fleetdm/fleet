@@ -578,6 +578,12 @@ type Datastore interface {
 	// Deletes are batched to avoid large binlogs and long lock times. This runs as a cron job.
 	// Returns a map of query IDs to their current row count after cleanup (for syncing Redis counters).
 	CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int, opts ...CleanupExcessQueryResultRowsOptions) (map[uint]int, error)
+	// ListHostReports returns the queries/reports associated with the given host, applying
+	// the provided options for filtering, sorting, and pagination. teamID is the team of the
+	// host (nil for global). maxQueryReportRows is the configured report cap used to determine
+	// whether each query's report has been clipped. It returns the list of reports, the total
+	// count (without pagination), optional pagination metadata, and any error.
+	ListHostReports(ctx context.Context, hostID uint, teamID *uint, opts ListHostReportsOptions, maxQueryReportRows int) ([]*HostReport, int, *PaginationMetadata, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore
@@ -848,7 +854,7 @@ type Datastore interface {
 	GetPoliciesWithAssociatedScript(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyScriptData, error)
 	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
 	// GetPoliciesForConditionalAccess returns the team policies that are configured for "Conditional access".
-	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint) ([]uint, error)
+	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint, platform string) ([]uint, error)
 	// GetPatchPolicy returns the patch policy associated with the title id
 	GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*PatchPolicyData, error)
 
@@ -1505,6 +1511,9 @@ type Datastore interface {
 	// for the given host UUID.
 	GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*HostRecoveryLockPassword, error)
 
+	// GetHostRecoveryLockPasswordStatus returns the recovery lock password status for a given host.
+	GetHostRecoveryLockPasswordStatus(ctx context.Context, hostUUID string) (*HostMDMRecoveryLockPassword, error)
+
 	// GetHostsForRecoveryLockAction returns host UUIDs that need recovery lock password action:
 	// - Teams with enable_recovery_lock_password = true
 	// - macOS Apple Silicon hosts that are MDM enrolled
@@ -1543,6 +1552,25 @@ type Datastore interface {
 	// Used by the result handler to determine if this was a set or clear operation.
 	GetRecoveryLockOperationType(ctx context.Context, hostUUID string) (MDMOperationType, error)
 
+	// InitiateRecoveryLockRotation stores a new pending password for rotation.
+	// Validates: has verified/failed install password, no pending rotation, not in remove operation.
+	InitiateRecoveryLockRotation(ctx context.Context, hostUUID string, newPassword string) error
+
+	// CompleteRecoveryLockRotation moves pending password to active after MDM acknowledgment.
+	// Sets: encrypted_password = pending_encrypted_password, clears pending columns, status = verified.
+	CompleteRecoveryLockRotation(ctx context.Context, hostUUID string) error
+
+	// FailRecoveryLockRotation marks rotation as failed, keeps pending password for potential retry.
+	FailRecoveryLockRotation(ctx context.Context, hostUUID string, errorMsg string) error
+
+	// ClearRecoveryLockRotation removes pending rotation (e.g., if command enqueue fails).
+	ClearRecoveryLockRotation(ctx context.Context, hostUUID string) error
+
+	// GetRecoveryLockRotationStatus returns current rotation state for API validation.
+	GetRecoveryLockRotationStatus(ctx context.Context, hostUUID string) (*HostRecoveryLockRotationStatus, error)
+
+	// HasPendingRecoveryLockRotation returns true if the host has a pending recovery lock rotation.
+	HasPendingRecoveryLockRotation(ctx context.Context, hostUUID string) (bool, error)
 	// ResetRecoveryLockForRetry resets a failed clear operation back to install/verified
 	// so it will be picked up by ClaimHostsForRecoveryLockClear on the next cron cycle.
 	// This is used when a clear command fails with a transient error (not password mismatch).

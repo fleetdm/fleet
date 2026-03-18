@@ -490,6 +490,31 @@ type HostQueryReportResult struct {
 	Columns map[string]string `json:"columns"`
 }
 
+// HostReport represents a query/report entry as returned by the list-reports-for-host endpoint.
+type HostReport struct {
+	// QueryID is the unique identifier of the query.
+	QueryID uint `json:"query_id" renameto:"report_id"`
+	// Name is the name of the query.
+	Name string `json:"name"`
+	// Description is the description of the query.
+	Description string `json:"description"`
+	// LastFetched is the time the most recent result was received from the host.
+	// It is nil if no results have been received.
+	LastFetched *time.Time `json:"last_fetched"`
+	// FirstResult contains the column key-value pairs of the most recent result row
+	// for this host and query. It is nil if no results have been received.
+	FirstResult map[string]string `json:"first_result"`
+	// NHostResults is the number of non-null result rows stored for this host
+	// and query.
+	NHostResults int `json:"n_host_results"`
+	// ReportClipped indicates whether this query has hit the report cap and
+	// paused saving new results across all hosts.
+	ReportClipped bool `json:"report_clipped"`
+	// StoreResults indicates that the query is configured to store results.
+	// It is true only when discard_data=0 AND logging_type='snapshot'.
+	StoreResults bool `json:"store_results"`
+}
+
 // ScheduledQueryResult holds results of a scheduled query received from a osquery agent.
 type ScheduledQueryResult struct {
 	// QueryName is the name of the query.
