@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"os"
+	"strings"
 
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/sirupsen/logrus"
@@ -14,6 +15,13 @@ func main() {
 	flag.Parse()
 
 	config := LoadConfig()
+
+	if strings.TrimSpace(config.FleetBaseURL) == "" {
+		logrus.Fatalf("FLEET_BASE_URL is required but is not set")
+	}
+	if strings.TrimSpace(config.FleetAPIKey) == "" {
+		logrus.Fatalf("FLEET_API_KEY is required but is not set")
+	}
 
 	// Stderr is required for stdio transport — logs must not corrupt the JSON-RPC stdout stream.
 	logrus.SetOutput(os.Stderr)
