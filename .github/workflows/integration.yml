@@ -328,7 +328,9 @@ jobs:
 
     - name: Check processes
       run: |
-        sudo systemctl status orbit.service | cat
+        sudo systemctl status orbit.service
+        sleep 30
+        sudo systemctl status orbit.service
 
         echo "Checking if osqueryd is running..."
         pgrep -x osqueryd || (echo "ERROR: osqueryd is not running" && exit 1)
