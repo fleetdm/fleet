@@ -44,7 +44,7 @@ Profiles with variables aren’t validated during a GitOps dry run because the v
 
 Some variables trigger a profile resend when their value changes. See which variables support this in the [YAML reference docs](https://fleetdm.com/docs/configuration/yaml-files#variables).
 
-If a variable is a secret (for example, an API token), prefix it with FLEET_SECRET_. This masks the value when viewed or downloaded from the Fleet UI or API. If a secret’s value changes, the profile is resent to hosts.
+If a variable is a secret (for example, an API token), prefix it with FLEET_SECRET_. This masks the value when viewed or downloaded from the Fleet UI or API.
 
 Variables aren't removed on GitOps runs. To remove a variable, delete it on the `Controls` > `Variables` page.
 

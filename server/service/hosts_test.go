@@ -811,10 +811,11 @@ func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 	t.Run("recovery lock password status populates for macOS", func(t *testing.T) {
 		failedStatus := fleet.MDMDeliveryFailed
 		ds.GetHostRecoveryLockPasswordStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
-			return &fleet.HostMDMRecoveryLockPassword{
-				Status: &failedStatus,
+			result := &fleet.HostMDMRecoveryLockPassword{
 				Detail: "SetRecoveryLock command failed",
-			}, nil
+			}
+			result.SetRawStatus(&failedStatus, fleet.MDMOperationTypeInstall)
+			return result, nil
 		}
 
 		ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
@@ -826,7 +827,7 @@ func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 		require.NotNil(t, hostDetail)
 		require.True(t, ds.GetHostRecoveryLockPasswordStatusFuncInvoked)
 		require.NotNil(t, hostDetail.MDM.OSSettings.RecoveryLockPassword.Status)
-		assert.Equal(t, fleet.MDMDeliveryFailed, *hostDetail.MDM.OSSettings.RecoveryLockPassword.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusFailed, *hostDetail.MDM.OSSettings.RecoveryLockPassword.Status)
 		assert.Equal(t, "SetRecoveryLock command failed", hostDetail.MDM.OSSettings.RecoveryLockPassword.Detail)
 	})
 
