@@ -569,7 +569,7 @@ func TestExtractDisplayVersionFromName(t *testing.T) {
 		{"Microsoft Windows 10 Pro", ""},
 		{"Microsoft Windows 11 Enterprise", ""},
 		{"Microsoft Windows Server 2022", ""},
-		{"", ""},
+		{"empty string", ""},
 	}
 
 	for _, tt := range tc {
