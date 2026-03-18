@@ -285,10 +285,6 @@ jobs:
     timeout-minutes: 5
     strategy:
       matrix:
-        # To run multiple VMs that have the same UUID we need to implement
-        # https://github.com/fleetdm/fleet/issues/8021 (otherwise orbit and osqueryd
-        # in the same host are enrolled as two hosts in Fleet).
-        # Until then we will just test the `stable` channel in all components.
         orbit-channel: [ 'stable', 'edge' ]
         osqueryd-channel: [ 'stable', 'edge' ]
         desktop-channel: [ 'stable', 'edge' ]
@@ -332,6 +328,8 @@ jobs:
 
     - name: Check processes
       run: |
+        sudo systemctl status orbit.service | cat
+
         echo "Checking if osqueryd is running..."
         pgrep -x osqueryd || (echo "ERROR: osqueryd is not running" && exit 1)
         echo "Checking if orbit is running..."
@@ -361,10 +359,6 @@ jobs:
     timeout-minutes: 5
     strategy:
       matrix:
-        # To run multiple VMs that have the same UUID we need to implement
-        # https://github.com/fleetdm/fleet/issues/8021 (otherwise orbit and osqueryd
-        # in the same host are enrolled as two hosts in Fleet).
-        # Until then we will just test the `stable` channel in all components.
         orbit-channel: [ 'stable', 'edge' ]
         osqueryd-channel: [ 'stable', 'edge' ]
         desktop-channel: [ 'stable', 'edge' ]
