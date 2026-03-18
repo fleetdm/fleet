@@ -2,7 +2,7 @@ import React from "react";
 import classnames from "classnames";
 
 import { ITokenTeam } from "interfaces/mdm";
-import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import { APP_CONTEXT_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_SUMMARY } from "interfaces/team";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { uniqueId } from "lodash";
@@ -16,7 +16,7 @@ const NUM_TEAMS_IN_TOOLTIP = 3;
  *  to "Unassigned" to match Fleet's UI convention. */
 const getTeamDisplayName = (team: ITokenTeam): string => {
   if (team.team_id === APP_CONTEXT_NO_TEAM_ID) {
-    return "Unassigned";
+    return APP_CONTEXT_NO_TEAM_SUMMARY.name;
   }
   return team.name;
 };
