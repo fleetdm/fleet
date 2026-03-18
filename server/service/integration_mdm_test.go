@@ -22287,3 +22287,619 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		HostIDs:  []uint{team1MacOSHost.ID},
 	}, http.StatusForbidden, &batchRes)
 }
+
+// TestRecoveryLockPasswordIntegration is a comprehensive test for the recovery lock password feature.
+// It tests various scenarios including:
+// - MDM on, feature on/off transitions
+// - Cron job sending commands and host state transitions
+// - MDM command acknowledgment (verified) and error (failed) handling
+// - Host details API returning correct recovery lock password information
+// - Activities being reported correctly
+// - Rotate password API (premium feature)
+// - Feature toggled off with hosts in different states
+func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Create a helper to create an Apple Silicon macOS host (required for recovery lock)
+	createAppleSiliconHost := func() (*fleet.Host, *mdmtest.TestAppleMDMClient) {
+		host, mdmClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+		// Set the CPU type to ARM (Apple Silicon) - required for recovery lock
+		host.CPUType = "arm64"
+		err := s.ds.UpdateHost(ctx, host)
+		require.NoError(t, err)
+		return host, mdmClient
+	}
+
+	// Helper to run the recovery lock cron job
+	runRecoveryLockCron := func() {
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		err := apple_mdm.SendRecoveryLockCommands(ctx, s.ds, s.mdmCommander, logger)
+		require.NoError(t, err)
+	}
+
+	// Helper to get host details and return recovery lock password status
+	getHostRecoveryLockStatus := func(hostID uint) *fleet.HostMDMRecoveryLockPassword {
+		var getHostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &getHostResp)
+		return &getHostResp.Host.MDM.OSSettings.RecoveryLockPassword
+	}
+
+	// =========================================================================
+	// Test 1: MDM on, feature off - hosts should not get recovery lock password
+	// =========================================================================
+	t.Run("MDM on, feature off - no recovery lock password set", func(t *testing.T) {
+		// Ensure recovery lock password is disabled (default)
+		acResp := appConfigResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		require.False(t, acResp.MDM.EnableRecoveryLockPassword.Value)
+
+		host, _ := createAppleSiliconHost()
+
+		// Run cron - should not send any commands
+		runRecoveryLockCron()
+
+		// Verify host has no recovery lock password status
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		assert.Nil(t, rlpStatus.Status, "status should be nil when feature is disabled")
+		assert.False(t, rlpStatus.PasswordAvailable, "password should not be available when feature is disabled")
+	})
+
+	// =========================================================================
+	// Test 2: MDM on, feature enabled - full lifecycle
+	// =========================================================================
+	t.Run("MDM on, feature enabled - full lifecycle", func(t *testing.T) {
+		// Enable recovery lock password
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		// Verify activity was created for enabling recovery lock
+		s.lastActivityMatches(fleet.ActivityTypeEnabledRecoveryLockPasswords{}.ActivityName(),
+			`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+
+		host, mdmClient := createAppleSiliconHost()
+
+		// Initial state: no recovery lock password
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		assert.Nil(t, rlpStatus.Status)
+
+		// Run cron - should send SetRecoveryLock command
+		runRecoveryLockCron()
+
+		// Host should now be in pending state
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status, "status should be set after cron runs")
+		assert.Equal(t, fleet.RecoveryLockStatusPending, *rlpStatus.Status, "status should be pending")
+
+		// Simulate MDM client checking in and receiving the command
+		cmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
+
+		// Acknowledge the command (success)
+		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+
+		// Host should now be in verified state
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status, "status should be verified after acknowledgment")
+		assert.True(t, rlpStatus.PasswordAvailable)
+
+		// Verify activity was created for setting password
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeSetHostRecoveryLockPassword{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
+
+		// Disable recovery lock password
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// =========================================================================
+	// Test 3: MDM command failure - host marked as failed
+	// =========================================================================
+	t.Run("MDM command failure - host marked as failed", func(t *testing.T) {
+		// Enable recovery lock password
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost()
+
+		// Run cron - should send SetRecoveryLock command
+		runRecoveryLockCron()
+
+		// Host should be in pending state
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusPending, *rlpStatus.Status)
+
+		// Simulate MDM client receiving command
+		cmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
+
+		// Simulate error response
+		_, err = mdmClient.Err(cmd.CommandUUID, []mdm.ErrorChain{
+			{ErrorCode: 12066, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "Recovery lock password could not be set"},
+		})
+		require.NoError(t, err)
+
+		// Host should now be in failed state
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusFailed, *rlpStatus.Status, "status should be failed after error")
+		assert.Contains(t, rlpStatus.Detail, "Recovery lock password could not be set")
+
+		// Disable recovery lock password
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// =========================================================================
+	// Test 4: Get recovery lock password API
+	// =========================================================================
+	t.Run("Get recovery lock password API", func(t *testing.T) {
+		// Enable recovery lock password
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost()
+
+		// Run cron and acknowledge command
+		runRecoveryLockCron()
+		cmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+
+		// Get recovery lock password via API
+		var getPasswordResp getHostRecoveryLockPasswordResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
+		assert.NotEmpty(t, getPasswordResp.RecoveryLockPassword.Password)
+		assert.NotZero(t, getPasswordResp.RecoveryLockPassword.UpdatedAt)
+
+		// Verify activity was created for viewing password
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeViewedHostRecoveryLockPassword{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
+
+		// Disable recovery lock password
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// =========================================================================
+	// Test 5: Rotate password API (enterprise feature - initiates rotation)
+	// =========================================================================
+	t.Run("Rotate password API initiates rotation", func(t *testing.T) {
+		// Enable recovery lock password
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost()
+
+		// Run cron and acknowledge command to get to verified state
+		runRecoveryLockCron()
+		cmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+
+		// Get the current password
+		var getPasswordResp getHostRecoveryLockPasswordResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
+		originalPassword := getPasswordResp.RecoveryLockPassword.Password
+
+		// Initiate rotation
+		var rotateResp rotateRecoveryLockPasswordResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateResp)
+
+		// Host should still have a password (pending rotation)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
+		// Password should still be the original until rotation is acknowledged
+		assert.Equal(t, originalPassword, getPasswordResp.RecoveryLockPassword.Password)
+
+		// MDM client receives SetRecoveryLock command for rotation
+		cmd, err = mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
+
+		// Acknowledge the rotation command
+		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+
+		// Password should now be different (rotated)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
+		assert.NotEqual(t, originalPassword, getPasswordResp.RecoveryLockPassword.Password, "password should be different after rotation")
+
+		// Verify activity was created
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeRotatedHostRecoveryLockPassword{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
+
+		// Disable recovery lock password
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// =========================================================================
+	// Test 6: Feature disabled with host in pending state
+	// =========================================================================
+	t.Run("Feature disabled with host in pending state", func(t *testing.T) {
+		// Enable recovery lock password
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost()
+
+		// Run cron - host goes to pending state
+		runRecoveryLockCron()
+
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusPending, *rlpStatus.Status)
+
+		// Disable the feature while host is in pending state
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+
+		// Run cron again - hosts in pending state are NOT claimed for clear
+		// (they haven't received the SetRecoveryLock command yet)
+		runRecoveryLockCron()
+
+		// Host should still be in pending state
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusPending, *rlpStatus.Status)
+
+		// Now simulate the MDM client receiving and acknowledging the SetRecoveryLock command
+		cmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
+		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+
+		// Host is now verified
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
+
+		// Run cron again - now the verified host should be claimed for clear
+		runRecoveryLockCron()
+
+		// Host should be in removing_enforcement state
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusRemovingEnforcement, *rlpStatus.Status)
+	})
+
+	// =========================================================================
+	// Test 7: Feature disabled with host in verified state
+	// =========================================================================
+	t.Run("Feature disabled with host in verified state", func(t *testing.T) {
+		// Enable recovery lock password
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost()
+
+		// Run cron and acknowledge to get to verified state
+		runRecoveryLockCron()
+		cmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
+
+		// Disable the feature
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+
+		// Run cron - should claim host for clear
+		runRecoveryLockCron()
+
+		// Host should be in removing_enforcement state
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusRemovingEnforcement, *rlpStatus.Status)
+
+		// Simulate MDM client receiving ClearRecoveryLock command
+		cmd, err = mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType) // ClearRecoveryLock is also SetRecoveryLock command type
+
+		// Acknowledge clear command
+		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+
+		// Host should no longer have a recovery lock password record
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		assert.Nil(t, rlpStatus.Status)
+		assert.False(t, rlpStatus.PasswordAvailable)
+	})
+
+	// =========================================================================
+	// Test 8: Feature re-enabled with host in removing_enforcement state
+	// =========================================================================
+	t.Run("Feature re-enabled with host in removing_enforcement state", func(t *testing.T) {
+		// Enable recovery lock password
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost()
+
+		// Run cron and acknowledge to get to verified state
+		runRecoveryLockCron()
+		cmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+
+		// Disable feature to trigger clear
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+		runRecoveryLockCron()
+
+		// Verify host is in removing_enforcement state
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusRemovingEnforcement, *rlpStatus.Status)
+
+		// Re-enable feature before device acknowledges clear command
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		// Run cron - should restore host to verified state
+		runRecoveryLockCron()
+
+		// Host should be back to verified state (restored)
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status, "host should be restored to verified when feature is re-enabled")
+
+		// Disable recovery lock password for cleanup
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// =========================================================================
+	// Test 9: Non-Apple Silicon host should not get recovery lock
+	// =========================================================================
+	t.Run("Non-Apple Silicon host should not get recovery lock", func(t *testing.T) {
+		// Enable recovery lock password
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		// Create Intel Mac host (NOT Apple Silicon)
+		host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+		host.CPUType = "x86_64" // Intel, not ARM
+		err := s.ds.UpdateHost(ctx, host)
+		require.NoError(t, err)
+
+		// Run cron - should not send commands for Intel host
+		runRecoveryLockCron()
+
+		// Intel host should not have recovery lock password
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		assert.Nil(t, rlpStatus.Status, "Intel Mac should not get recovery lock")
+
+		// Disable recovery lock password
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// =========================================================================
+	// Test 10: Team-specific recovery lock password
+	// =========================================================================
+	t.Run("Team-specific recovery lock password", func(t *testing.T) {
+		// Ensure global recovery lock is disabled
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+
+		// Create a team with recovery lock enabled
+		teamName := "RecoveryLockTeam-" + uuid.NewString()[:8]
+		var createTeamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: teamName}, http.StatusOK, &createTeamResp)
+		team := createTeamResp.Team
+
+		// Enable recovery lock for the team
+		var modTeamResp teamResponse
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+			MDM: &fleet.TeamPayloadMDM{
+				EnableRecoveryLockPassword: optjson.SetBool(true),
+			},
+		}, http.StatusOK, &modTeamResp)
+		require.True(t, modTeamResp.Team.Config.MDM.EnableRecoveryLockPassword)
+
+		// Verify activity was created
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledRecoveryLockPasswords{}.ActivityName(),
+			fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
+
+		// Create host and add to team
+		host, mdmClient := createAppleSiliconHost()
+		err := s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
+		require.NoError(t, err)
+
+		// Run cron - should send SetRecoveryLock for team host
+		runRecoveryLockCron()
+
+		// Host should be in pending state
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusPending, *rlpStatus.Status)
+
+		// Acknowledge command
+		cmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+
+		// Verify host is verified
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
+
+		// Create another host NOT in team - should not get recovery lock
+		host2, _ := createAppleSiliconHost()
+		runRecoveryLockCron()
+		rlpStatus2 := getHostRecoveryLockStatus(host2.ID)
+		assert.Nil(t, rlpStatus2.Status, "host not in team should not get recovery lock")
+
+		// Disable team recovery lock
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+			MDM: &fleet.TeamPayloadMDM{
+				EnableRecoveryLockPassword: optjson.SetBool(false),
+			},
+		}, http.StatusOK, &modTeamResp)
+	})
+
+	// =========================================================================
+	// Test 11: Failed host state persists error message
+	// =========================================================================
+	t.Run("Failed host state persists error message", func(t *testing.T) {
+		// Enable recovery lock password
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost()
+
+		runRecoveryLockCron()
+
+		cmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+
+		// Simulate specific error
+		errorMsg := "DeviceAlreadyHasPIN"
+		_, err = mdmClient.Err(cmd.CommandUUID, []mdm.ErrorChain{
+			{ErrorCode: 12066, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: errorMsg},
+		})
+		require.NoError(t, err)
+
+		// Verify error message is captured in detail
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusFailed, *rlpStatus.Status)
+		assert.Contains(t, rlpStatus.Detail, errorMsg)
+
+		// Disable recovery lock password
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// =========================================================================
+	// Test 12: Get recovery lock password for non-Apple-Silicon host returns error
+	// =========================================================================
+	t.Run("Get recovery lock password for non-Apple-Silicon host returns error", func(t *testing.T) {
+		// Enable recovery lock password
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		// Create Intel Mac host
+		host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+		host.CPUType = "x86_64"
+		err := s.ds.UpdateHost(ctx, host)
+		require.NoError(t, err)
+
+		// Try to get recovery lock password for Intel host - should fail with validation error
+		res := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusUnprocessableEntity)
+		errMsg := extractServerErrorText(res.Body)
+		assert.Contains(t, errMsg, "Apple Silicon")
+
+		// Disable recovery lock password
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// =========================================================================
+	// Test 13: Multiple hosts in batch
+	// =========================================================================
+	t.Run("Multiple hosts processed in batch", func(t *testing.T) {
+		// Enable recovery lock password
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		// Create multiple hosts
+		var hosts []*fleet.Host
+		var mdmClients []*mdmtest.TestAppleMDMClient
+		for range 3 {
+			h, c := createAppleSiliconHost()
+			hosts = append(hosts, h)
+			mdmClients = append(mdmClients, c)
+		}
+
+		// Run cron - all hosts should be in pending state
+		runRecoveryLockCron()
+
+		for _, h := range hosts {
+			rlpStatus := getHostRecoveryLockStatus(h.ID)
+			require.NotNil(t, rlpStatus.Status, "host %d should have status", h.ID)
+			assert.Equal(t, fleet.RecoveryLockStatusPending, *rlpStatus.Status)
+		}
+
+		// Acknowledge commands for all hosts
+		for _, c := range mdmClients {
+			cmd, err := c.Idle()
+			require.NoError(t, err)
+			require.NotNil(t, cmd)
+			_, err = c.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+
+		// All hosts should be verified
+		for _, h := range hosts {
+			rlpStatus := getHostRecoveryLockStatus(h.ID)
+			require.NotNil(t, rlpStatus.Status)
+			assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
+		}
+
+		// Disable recovery lock password
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// Final cleanup: ensure recovery lock is disabled
+	s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+		"mdm": map[string]any{"enable_recovery_lock_password": false},
+	}, http.StatusOK, &appConfigResponse{})
+}
