@@ -137,6 +137,6 @@ If you dismissed AI tooling before late 2025, I'd genuinely encourage you to try
 <meta name="articleTitle" value="Old IT is dead — GitOps & AI are burying it">
 <meta name="authorFullName" value="Allen Houchins">
 <meta name="authorGitHubUsername" value="allenhouchins">
-<meta name="category" value="guides">
+<meta name="category" value="articles">
 <meta name="publishedOn" value="2026-03-18">
 <meta name="description" value="AI and open-source solutions are enabling the future of device managment, right now.">
