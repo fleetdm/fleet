@@ -36,6 +36,11 @@ module.exports = {
     let eventsToGetDetailsFor = futureGitopsEvents.events;
 
     await sails.helpers.flow.simultaneouslyForEach(eventsToGetDetailsFor, async (event)=>{
+      if(!event.venue_id){
+        // Note: We're excluding events that do not have a venue set.
+        // FUTURE: show these events with a TBA location.
+        return;
+      }
       let eventVenueResponse = await sails.helpers.http.get.with({
         url: `https://www.eventbriteapi.com/v3/venues/${event.venue_id}/`,
         headers: {
@@ -43,9 +48,7 @@ module.exports = {
         },
       }).tolerate((err)=>{
         sails.log.warn(`When a user visited the gitops workshop page, details about a venue for an event (${event.name.text}) could not be obtained from the Eventbrite API. Full error: ${require('util').inspect(err)}`);
-        return {
-          events: [],
-        };
+        return {};
       });
 
       // Convert the ISO timestamps that represent the start and end time of the event into a formatted string.
