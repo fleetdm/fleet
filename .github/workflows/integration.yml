@@ -414,7 +414,11 @@ jobs:
     - name: Rename computer
       shell: powershell
       run: |
-        $ComputerName = "windows-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}"
+        $orbit = "${{ matrix.orbit-channel }}"
+        $osqueryd = "${{ matrix.osqueryd-channel }}"
+        $desktop = "${{ matrix.desktop-channel }}"
+        $ComputerName = "windows-$($orbit[0])-$($osqueryd[0])-$($desktop[0])"
+        echo "Setting computer name to $ComputerName"
         
         Remove-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "Hostname" 
         Remove-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "NV Hostname" 
