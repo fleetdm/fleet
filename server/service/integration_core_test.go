@@ -3757,10 +3757,11 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	assert.Equal(t, 0, listQryResp.InheritedQueryCount)
 
 	// create a query
+	sql := "select * from time;"
 	var createQueryResp createQueryResponse
 	reqQuery := &fleet.QueryPayload{
 		Name:  ptr.String(strings.ReplaceAll(t.Name(), "/", "_")),
-		Query: ptr.String("select * from time;"),
+		Query: ptr.String(sql),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
 	query := createQueryResp.Query
@@ -3803,6 +3804,9 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	var getQryResp getQueryResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d", query.ID), nil, http.StatusOK, &getQryResp)
 	assert.Equal(t, query.ID, getQryResp.Query.ID)
+	assert.Equal(t, query.ID, getQryResp.Report.ID)
+	assert.Equal(t, sql, getQryResp.Query.Query)
+	assert.Equal(t, sql, getQryResp.Report.Query)
 
 	// list scheduled queries in pack, none yet
 	var getInPackResp getScheduledQueriesInPackResponse
