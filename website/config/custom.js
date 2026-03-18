@@ -344,7 +344,6 @@ module.exports.custom = {
     // GTM
     'go-to-market': ['sampfluger88'],
 
-
     // Repo automation and change control settings
     'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath', 'ireedy'], // (« for changing who reviews is automatically requested from for given paths)
     '.gitignore': ['lukeheath', 'rfairburn', 'sampfluger88'],// « what files should not be checked in?
