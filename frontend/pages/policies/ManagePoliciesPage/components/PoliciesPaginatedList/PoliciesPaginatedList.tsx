@@ -20,10 +20,8 @@ import {
 import teamPoliciesAPI, {
   IPoliciesApiParams,
   IPoliciesCountApiParams,
-  AutomationType,
 } from "services/entities/team_policies";
 import globalPoliciesAPI, {
-  GlobalPoliciesAutomationType,
   IGlobalPoliciesApiQueryParams,
 } from "services/entities/global_policies";
 
@@ -168,12 +166,12 @@ function PoliciesPaginatedList(
       orderDirection: "asc" as const,
       orderKey: DEFAULT_SORT_COLUMN,
       teamId,
-      automationType: undefined as GlobalPoliciesAutomationType | undefined,
+      automationType: undefined,
     };
     countQueryKey = {
       query: "",
       teamId,
-      automationType: undefined as GlobalPoliciesAutomationType | undefined,
+      automationType: undefined,
     };
   } else {
     policiesQueryKey = {
@@ -184,13 +182,13 @@ function PoliciesPaginatedList(
       orderKey: DEFAULT_SORT_COLUMN,
       teamId,
       mergeInherited: false,
-      automationType: undefined as AutomationType | undefined,
+      automationType: undefined,
     };
     countQueryKey = {
       query: "",
       teamId,
       mergeInherited: false,
-      automationType: undefined as AutomationType | undefined,
+      automationType: undefined,
     };
   }
 
