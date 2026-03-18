@@ -245,7 +245,7 @@ const EditIconModal = ({
     });
   };
 
-  const { data: customIconData } = useQuery(
+  const { data: customIconData, isError: isCustomIconError } = useQuery(
     ["softwareIcon", softwareId, teamIdForApi, iconUploadedAt],
     () => softwareAPI.getSoftwareIcon(softwareId, teamIdForApi),
     {
@@ -336,6 +336,13 @@ const EditIconModal = ({
   // useQuery does not handle dimension extraction, so this is required for updating
   // state with image details after loading the icon blob in the browser
   useEffect(() => {
+    // If the icon fetch failed, stop showing the spinner and fall back
+    if (isCustomIconError && isFirstLoadWithCustomIcon) {
+      setIsFirstLoadWithCustomIcon(false);
+      resetIconState();
+      return;
+    }
+
     // Handle API custom icon blob conversion and initialization
     if (
       shouldFetchCustomIcon &&
@@ -375,6 +382,8 @@ const EditIconModal = ({
     }
   }, [
     customIconData,
+    isCustomIconError,
+    isFirstLoadWithCustomIcon,
     iconState.status,
     shouldFetchCustomIcon,
     iconState.previewUrl,
@@ -739,25 +748,23 @@ const EditIconModal = ({
       title="Edit appearance"
       onExit={onExitEditIconModal}
     >
-      <>
-        {isFirstLoadWithCustomIcon ? (
-          <Spinner includeContainer={false} />
-        ) : (
-          renderForm()
-        )}
-        <ModalFooter
-          primaryButtons={
-            <Button
-              type="submit"
-              onClick={onClickSave}
-              isLoading={isUpdatingSoftwareInfo}
-              disabled={!canSaveForm || isUpdatingSoftwareInfo}
-            >
-              Save
-            </Button>
-          }
-        />
-      </>
+      {isFirstLoadWithCustomIcon ? (
+        <Spinner includeContainer={false} />
+      ) : (
+        renderForm()
+      )}
+      <ModalFooter
+        primaryButtons={
+          <Button
+            type="submit"
+            onClick={onClickSave}
+            isLoading={isUpdatingSoftwareInfo}
+            disabled={!canSaveForm || isUpdatingSoftwareInfo}
+          >
+            Save
+          </Button>
+        }
+      />
     </Modal>
   );
 };

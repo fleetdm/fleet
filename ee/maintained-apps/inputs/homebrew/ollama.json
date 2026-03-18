@@ -1,0 +1,8 @@
+{
+  "name": "Ollama",
+  "slug": "ollama/darwin",
+  "unique_identifier": "com.electron.ollama",
+  "token": "ollama-app",
+  "installer_format": "zip",
+  "default_categories": ["Developer tools"]
+}

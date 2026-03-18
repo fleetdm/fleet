@@ -241,10 +241,8 @@ const RunScriptDetailsModal = ({
       className={baseClass}
       isHidden={isHidden}
     >
-      <>
-        {renderContent()}
-        {renderFooter()}
-      </>
+      {renderContent()}
+      {renderFooter()}
     </Modal>
   );
 };

@@ -146,14 +146,14 @@ func TestJiraRun(t *testing.T) {
 			`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": []}}`,
 			`"summary":"test-policy policy failed on 0 host(s)"`,
 			[]string{"\\u0026policy_id=1\\u0026policy_response=failing"},
-			"\\u0026team_id=",
+			"\\u0026fleet_id=",
 		},
 		{
 			"failing team policy",
 			fleet.TierPremium,
 			`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": [{"id": 1, "hostname": "test-1"}, {"id": 2, "hostname": "test-2"}]}}`,
 			`"summary":"test-policy-2 policy failed on 2 host(s)"`,
-			[]string{"\\u0026team_id=123\\u0026policy_id=2\\u0026policy_response=failing"},
+			[]string{"\\u0026fleet_id=123\\u0026policy_id=2\\u0026policy_response=failing"},
 			"",
 		},
 		{

@@ -80,11 +80,11 @@ disk_bytes_written = 0
      net_namespace = 4026532309
 ```
 
-This query provides a great deal more context for the network connection observed in Zeek. We can see what command is running (`cmdline`), the path to the executable (`path`), the executing user (`uid`), the start time of the process (`start_time`), and much more.
+This report provides a great deal more context for the network connection observed in Zeek. We can see what command is running (`cmdline`), the path to the executable (`path`), the executing user (`uid`), the start time of the process (`start_time`), and much more.
 
 In this case we clearly observe that the network connection is a connection made with the `netcat` tool to `osquery.io`.
 
-The data retrieved by osquery can be further extended by joining to additional tables. For example, the following query also retrieves the MD5 hash of the process binary:
+The data retrieved by osquery can be further extended by joining to additional tables. For example, the following report also retrieves the MD5 hash of the process binary:
 
 
 ```
@@ -111,7 +111,7 @@ FROM processes JOIN process_open_sockets USING (pid) JOIN hash USING (path)
 
 The `community_id` column can then be used to correlate the events logged by network monitors.
 
-On Linux, the `socket_events` table may produce additional utility as it captures all socket connections, not only those active at the time of query execution.
+On Linux, the `socket_events` table may produce additional utility as it captures all socket connections, not only those active at the time of report execution.
 
 
 <meta name="category" value="guides">
