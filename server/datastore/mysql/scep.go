@@ -54,7 +54,7 @@ func (d *SCEPDepot) CA(_ []byte) ([]*x509.Certificate, *rsa.PrivateKey, error) {
 
 // Serial allocates and returns a new (increasing) serial number.
 func (d *SCEPDepot) Serial() (*big.Int, error) {
-	result, err := d.db.Exec(`INSERT INTO scep_serials () VALUES ();`)
+	result, err := d.db.Exec(`INSERT INTO identity_serials () VALUES ();`)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (d *SCEPDepot) Serial() (*big.Int, error) {
 // - revokeOldCertificate specifies whether to revoke the old certificate once renewed.
 func (d *SCEPDepot) HasCN(cn string, allowTime int, cert *x509.Certificate, revokeOldCertificate bool) (bool, error) {
 	var ct int
-	row := d.db.QueryRow(`SELECT COUNT(*) FROM scep_certificates WHERE name = ?`, cn)
+	row := d.db.QueryRow(`SELECT COUNT(*) FROM identity_certificates WHERE name = ?`, cn)
 	if err := row.Scan(&ct); err != nil {
 		return false, err
 	}
@@ -92,7 +92,7 @@ func (d *SCEPDepot) Put(name string, crt *x509.Certificate) error {
 	}
 	certPEM := certificate.EncodeCertPEM(crt)
 	_, err := d.db.Exec(`
-INSERT INTO scep_certificates
+INSERT INTO identity_certificates
     (serial, name, not_valid_before, not_valid_after, certificate_pem)
 VALUES
     (?, ?, ?, ?, ?)`,

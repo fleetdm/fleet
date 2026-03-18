@@ -24546,14 +24546,14 @@ func (s *integrationEnterpriseTestSuite) TestDeviceAuthenticationMethods() {
 	// Insert certificate into nanomdm tables
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		// Insert serial (scep_serials uses auto-increment but we can insert explicit value)
-		_, err := db.ExecContext(ctx, `INSERT INTO scep_serials (serial) VALUES (?)`, certSerial)
+		_, err := db.ExecContext(ctx, `INSERT INTO identity_serials (serial) VALUES (?)`, certSerial)
 		if err != nil {
 			return err
 		}
 
-		// Insert certificate into scep_certificates
+		// Insert certificate into identity_certificates
 		_, err = db.ExecContext(ctx, `
-			INSERT INTO scep_certificates
+			INSERT INTO identity_certificates
 			(serial, name, not_valid_before, not_valid_after, certificate_pem, revoked)
 			VALUES (?, ?, ?, ?, ?, ?)
 		`,
@@ -24664,13 +24664,13 @@ func (s *integrationEnterpriseTestSuite) TestDeviceAuthenticationMethods() {
 		ipadCertPEM, ipadCertHash, ipadCert := generateTestCertForDeviceAuth(t, ipadCertSerial, ipadHost.UUID)
 
 		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-			_, err := db.ExecContext(ctx, `INSERT INTO scep_serials (serial) VALUES (?)`, ipadCertSerial)
+			_, err := db.ExecContext(ctx, `INSERT INTO identity_serials (serial) VALUES (?)`, ipadCertSerial)
 			if err != nil {
 				return err
 			}
 
 			_, err = db.ExecContext(ctx, `
-				INSERT INTO scep_certificates
+				INSERT INTO identity_certificates
 				(serial, name, not_valid_before, not_valid_after, certificate_pem, revoked)
 				VALUES (?, ?, ?, ?, ?, ?)
 			`,
