@@ -50,7 +50,7 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"google.golang.org/api/androidmanagement/v1"
 
-	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	svc_scep "github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
@@ -134,7 +134,7 @@ type integrationMDMTestSuite struct {
 	appleVPPProxySrvData      map[string]string
 	appleGDMFSrv              *httptest.Server
 	mockedDownloadFleetdmMeta fleetdbase.Metadata
-	scepConfig                *eeservice.SCEPConfigService
+	scepConfig                *svc_scep.SCEPConfigService
 	androidAPIClient          *android_mock.Client
 	androidSvc                android.Service
 	proxyCallbackURL          string
@@ -295,7 +295,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	}
 	s.softwareInstallerStore = softwareInstallerStore
 	scepTimeout := ptr.Duration(10 * time.Second)
-	s.scepConfig = eeservice.NewSCEPConfigService(serverLogger, scepTimeout).(*eeservice.SCEPConfigService)
+	s.scepConfig = svc_scep.NewSCEPConfigService(serverLogger, scepTimeout).(*svc_scep.SCEPConfigService)
 
 	// Create a software title icon store
 	iconDir := s.T().TempDir()
@@ -15989,18 +15989,18 @@ func (s *integrationMDMTestSuite) runSCEPProxyTestWithOptionalSuffix(suffix stri
 	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier+suffix, nil, http.StatusBadRequest, nil, "operation", "GetCACaps")
 	errBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
-	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
+	assert.Contains(t, string(errBody), svc_scep.MessageSCEPProxyNotConfigured)
 	// Provide SCEP operation (GetCACerts)
 	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier+suffix, nil, http.StatusBadRequest, nil, "operation", "GetCACert")
 	errBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
-	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
+	assert.Contains(t, string(errBody), svc_scep.MessageSCEPProxyNotConfigured)
 	// Provide SCEP operation (PKIOperation)
 	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier+suffix, nil, http.StatusBadRequest, nil, "operation", "PKIOperation",
 		"message", message)
 	errBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
-	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
+	assert.Contains(t, string(errBody), svc_scep.MessageSCEPProxyNotConfigured)
 	// Provide SCEP operation (GetNextCACert)
 	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier+suffix, nil, http.StatusBadRequest, nil, "operation", "GetNextCACert")
 	errBody, err = io.ReadAll(res.Body)
@@ -16140,7 +16140,7 @@ func (s *integrationMDMTestSuite) runSCEPProxyTestWithOptionalSuffix(suffix stri
 		{
 			HostUUID:             host.UUID,
 			ProfileUUID:          profileUUID,
-			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.NDESChallengeInvalidAfter)),
+			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-svc_scep.NDESChallengeInvalidAfter)),
 			Type:                 fleet.CAConfigNDES,
 			CAName:               "NDES",
 		},
@@ -16157,7 +16157,7 @@ func (s *integrationMDMTestSuite) runSCEPProxyTestWithOptionalSuffix(suffix stri
 		{
 			HostUUID:             host.UUID,
 			ProfileUUID:          profileUUID,
-			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.NDESChallengeInvalidAfter + time.Minute)),
+			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-svc_scep.NDESChallengeInvalidAfter + time.Minute)),
 			Type:                 fleet.CAConfigNDES,
 			CAName:               "NDES",
 		},
@@ -16281,18 +16281,18 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier+suffix, nil, http.StatusBadRequest, nil, "operation", "GetCACaps")
 	errBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
-	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
+	assert.Contains(t, string(errBody), svc_scep.MessageSCEPProxyNotConfigured)
 	// Provide SCEP operation (GetCACerts)
 	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier+suffix, nil, http.StatusBadRequest, nil, "operation", "GetCACert")
 	errBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
-	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
+	assert.Contains(t, string(errBody), svc_scep.MessageSCEPProxyNotConfigured)
 	// Provide SCEP operation (PKIOperation)
 	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier+suffix, nil, http.StatusBadRequest, nil, "operation", "PKIOperation",
 		"message", message)
 	errBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
-	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
+	assert.Contains(t, string(errBody), svc_scep.MessageSCEPProxyNotConfigured)
 	// Provide SCEP operation (GetNextCACert)
 	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier+suffix, nil, http.StatusBadRequest, nil, "operation", "GetNextCACert")
 	errBody, err = io.ReadAll(res.Body)
@@ -16432,7 +16432,7 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 		{
 			HostUUID:             host.UUID,
 			ProfileUUID:          profileUUID,
-			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.SmallstepChallengeInvalidAfter)),
+			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-svc_scep.SmallstepChallengeInvalidAfter)),
 			Type:                 fleet.CAConfigSmallstep,
 			CAName:               caName,
 		},
@@ -16449,7 +16449,7 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 		{
 			HostUUID:             host.UUID,
 			ProfileUUID:          profileUUID,
-			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.SmallstepChallengeInvalidAfter + time.Minute)),
+			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-svc_scep.SmallstepChallengeInvalidAfter + time.Minute)),
 			Type:                 fleet.CAConfigSmallstep,
 			CAName:               caName,
 		},

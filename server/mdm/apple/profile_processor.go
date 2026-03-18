@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -56,7 +57,7 @@ func ProcessAndEnqueueProfiles(ctx context.Context,
 
 	// Insert variables into profile contents of install targets. Variables may be host-specific.
 	err = preprocessProfileContents(ctx, appConfig, ds,
-		eeservice.NewSCEPConfigService(logger, nil),
+		scep.NewSCEPConfigService(logger, nil),
 		digicert.NewService(digicert.WithLogger(logger)),
 		logger, installTargets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	if err != nil {
@@ -344,7 +345,7 @@ func preprocessProfileContents(
 					// Insert the SCEP challenge into the profile contents
 					challenge, err := scepConfig.GetNDESSCEPChallenge(ctx, *ndesConfig)
 					if err != nil {
-						detail := ndesChallengeErrorToDetail(err)
+						detail := scep.NDESChallengeErrorToDetail(err)
 						err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 							CommandUUID:        target.CmdUUID,
 							HostUUID:           hostUUID,

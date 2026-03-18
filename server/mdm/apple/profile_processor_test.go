@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
@@ -16,7 +17,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	digicert_mock "github.com/fleetdm/fleet/v4/server/mock/digicert"
 	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -46,8 +49,8 @@ func TestPreprocessProfileContents(t *testing.T) {
 			"p1": {CmdUUID: cmdUUID, ProfileIdentifier: "com.add.profile", EnrollmentIDs: []string{hostUUID}},
 		}
 	}
-	hostProfilesToInstallMap := make(map[HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, 1)
-	hostProfilesToInstallMap[HostProfileUUID{HostUUID: hostUUID, ProfileUUID: "p1"}] = &fleet.MDMAppleBulkUpsertHostProfilePayload{
+	hostProfilesToInstallMap := make(map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, 1)
+	hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: hostUUID, ProfileUUID: "p1"}] = &fleet.MDMAppleBulkUpsertHostProfilePayload{
 		ProfileUUID:       "p1",
 		ProfileIdentifier: "com.add.profile",
 		HostUUID:          hostUUID,
@@ -355,7 +358,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 		"p3": []byte("no variables"),
 	}
 	addProfileToInstall := func(hostUUID, profileUUID, profileIdentifier string) {
-		hostProfilesToInstallMap[HostProfileUUID{
+		hostProfilesToInstallMap[fleet.HostProfileUUID{
 			HostUUID:    hostUUID,
 			ProfileUUID: profileUUID,
 		}] = &fleet.MDMAppleBulkUpsertHostProfilePayload{
@@ -414,9 +417,144 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 }
 
+// TestPreprocessProfileContentsDigiCertUPNMultiHost is a regression test for
+// https://github.com/fleetdm/fleet/issues/39324. When the same DigiCert CA is
+// used for multiple hosts in a single batch, the CertificateUserPrincipalNames
+// slice was shared via a shallow copy. In-place variable substitution for Host 1
+// corrupted the cached CA entry, so Host 2 and later hosts received Host 1's
+// substituted UPN instead of their own.
+func TestPreprocessProfileContentsDigiCertUPNIsUniqueForMultipleHosts(t *testing.T) {
+	ctx := context.Background()
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	logger := slog.New(slog.DiscardHandler)
+	appCfg := &fleet.AppConfig{}
+	appCfg.ServerSettings.ServerURL = "https://test.example.com"
+	appCfg.MDM.EnabledAndConfigured = true
+	ds := new(mock.Store)
+
+	svc := scep.NewSCEPConfigService(logger, nil)
+
+	const caName = "myCA"
+	const host1UUID = "host-uuid-1"
+	const host2UUID = "host-uuid-2"
+	const host1Serial = "SERIAL-AAA"
+	const host2Serial = "SERIAL-BBB"
+	const cmdUUID = "cmd-uuid-1"
+
+	// Track which UPNs were sent to GetCertificate per host.
+	upnByHostUUID := make(map[string]string)
+
+	mockDigiCert := &digicert_mock.Service{}
+	mockDigiCert.GetCertificateFunc = func(ctx context.Context, config fleet.DigiCertCA) (*fleet.DigiCertCertificate, error) {
+		// The UPN in config should have been substituted with each host's own
+		// hardware serial. Record it so we can assert correctness later.
+		require.Len(t, config.CertificateUserPrincipalNames, 1)
+		upn := config.CertificateUserPrincipalNames[0]
+		// Determine which host this call is for by checking which serial is in the UPN.
+		switch {
+		case strings.Contains(upn, host1Serial):
+			upnByHostUUID[host1UUID] = upn
+		case strings.Contains(upn, host2Serial):
+			upnByHostUUID[host2UUID] = upn
+		default:
+			t.Errorf("GetCertificate called with unexpected UPN %q", upn)
+		}
+		now := time.Now()
+		return &fleet.DigiCertCertificate{
+			PfxData:        []byte("fake-pfx"),
+			Password:       "fake-password",
+			NotValidBefore: now,
+			NotValidAfter:  now.Add(365 * 24 * time.Hour),
+			SerialNumber:   upn, // reuse upn as serial for easy tracing
+		}, nil
+	}
+
+	// Both hosts share the same profile UUID but are separate enrollment IDs.
+	targets := map[string]*fleet.CmdTarget{
+		"p1": {
+			CmdUUID:           cmdUUID,
+			ProfileIdentifier: "com.apple.security.pkcs12",
+			EnrollmentIDs:     []string{host1UUID, host2UUID},
+		},
+	}
+
+	pending := fleet.MDMDeliveryPending
+	hostProfilesToInstallMap := map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{HostUUID: host1UUID, ProfileUUID: "p1"}: {
+			ProfileUUID:       "p1",
+			ProfileIdentifier: "com.apple.security.pkcs12",
+			HostUUID:          host1UUID,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &pending,
+			CommandUUID:       cmdUUID,
+			Scope:             fleet.PayloadScopeSystem,
+		},
+		{HostUUID: host2UUID, ProfileUUID: "p1"}: {
+			ProfileUUID:       "p1",
+			ProfileIdentifier: "com.apple.security.pkcs12",
+			HostUUID:          host2UUID,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &pending,
+			CommandUUID:       cmdUUID,
+			Scope:             fleet.PayloadScopeSystem,
+		},
+	}
+
+	// Profile contains both DigiCert fleet variables.
+	profileContents := map[string]mobileconfig.Mobileconfig{
+		"p1": []byte("$FLEET_VAR_" + string(fleet.FleetVarDigiCertPasswordPrefix) + caName + " $FLEET_VAR_" + string(fleet.FleetVarDigiCertDataPrefix) + caName),
+	}
+
+	// DigiCert CA whose UPN contains the hardware serial variable.
+	groupedCAs := &fleet.GroupedCertificateAuthorities{
+		DigiCert: []fleet.DigiCertCA{
+			{
+				Name:                          caName,
+				URL:                           "https://digicert.example.com",
+				APIToken:                      "api_token",
+				ProfileID:                     "profile_id",
+				CertificateCommonName:         "common_name",
+				CertificateUserPrincipalNames: []string{"$FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "@example.com"},
+				CertificateSeatID:             "seat_id",
+			},
+		},
+	}
+
+	// Mock datastore: return each host's own hardware serial when queried.
+	hostsByUUID := map[string]*fleet.Host{
+		host1UUID: {ID: 1, UUID: host1UUID, HardwareSerial: host1Serial, Platform: "darwin"},
+		host2UUID: {ID: 2, UUID: host2UUID, HardwareSerial: host2Serial, Platform: "darwin"},
+	}
+	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+		var hosts []*fleet.Host
+		for _, uuid := range uuids {
+			if h, ok := hostsByUUID[uuid]; ok {
+				hosts = append(hosts, h)
+			}
+		}
+		return hosts, nil
+	}
+	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+		return nil
+	}
+	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
+		return nil
+	}
+
+	err := preprocessProfileContents(ctx, appCfg, ds, svc, mockDigiCert, logger, targets, profileContents, hostProfilesToInstallMap, make(map[string]string), groupedCAs)
+	require.NoError(t, err)
+
+	// Both hosts must have received GetCertificate calls with their own serial.
+	require.True(t, mockDigiCert.GetCertificateFuncInvoked, "GetCertificate was never called")
+	require.Contains(t, upnByHostUUID, host1UUID, "GetCertificate was not called for host 1")
+	require.Contains(t, upnByHostUUID, host2UUID, "GetCertificate was not called for host 2")
+	assert.Equal(t, host1Serial+"@example.com", upnByHostUUID[host1UUID], "host 1 UPN should contain its own serial")
+	assert.Equal(t, host2Serial+"@example.com", upnByHostUUID[host2UUID], "host 2 UPN should contain its own serial")
+}
+
 func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 	ctx := context.Background()
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	appCfg := &fleet.AppConfig{}
 	appCfg.ServerSettings.ServerURL = "https://test.example.com"
 	appCfg.MDM.EnabledAndConfigured = true
@@ -434,7 +572,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			"p1": {CmdUUID: cmdUUID, ProfileIdentifier: "com.add.profile", EnrollmentIDs: []string{hostUUID}},
 		}
 	}
-	hostProfilesToInstallMap := map[HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload{
+	hostProfilesToInstallMap := map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{HostUUID: hostUUID, ProfileUUID: "p1"}: {
 			ProfileUUID:       "p1",
 			ProfileIdentifier: "com.add.profile",
@@ -475,6 +613,9 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 	ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
 		return []*fleet.CertificateAuthority{}, nil
 	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
 
 	cases := []struct {
 		desc           string
@@ -488,10 +629,10 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
-				ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 					require.EqualValues(t, 1, hostID)
-					return &fleet.HostEndUser{
-						IdpUserName: "user1@example.com",
+					return &fleet.ScimUser{
+						UserName: "user1@example.com",
 					}, nil
 				}
 			},
@@ -506,10 +647,10 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsernameLocalPart),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
-				ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 					require.EqualValues(t, 1, hostID)
-					return &fleet.HostEndUser{
-						IdpUserName: "user1@example.com",
+					return &fleet.ScimUser{
+						UserName: "user1@example.com",
 					}, nil
 				}
 			},
@@ -524,11 +665,11 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPGroups),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
-				ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 					require.EqualValues(t, 1, hostID)
-					return &fleet.HostEndUser{
-						IdpUserName: "user1@example.com",
-						IdpGroups:   []string{"a", "b"},
+					return &fleet.ScimUser{
+						UserName: "user1@example.com",
+						Groups:   []fleet.ScimUserGroup{{DisplayName: "a"}, {DisplayName: "b"}},
 					}, nil
 				}
 			},
@@ -543,10 +684,10 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			profileContent: strings.Repeat("${FLEET_VAR_"+string(fleet.FleetVarHostEndUserIDPUsername)+"}", 3),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
-				ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 					require.EqualValues(t, 1, hostID)
-					return &fleet.HostEndUser{
-						IdpUserName: "user1@example.com",
+					return &fleet.ScimUser{
+						UserName: "user1@example.com",
 					}, nil
 				}
 			},
@@ -561,11 +702,11 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			profileContent: "${FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername) + "}${FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsernameLocalPart) + "}${FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPGroups) + "}",
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
-				ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 					require.EqualValues(t, 1, hostID)
-					return &fleet.HostEndUser{
-						IdpUserName: "user1@example.com",
-						IdpGroups:   []string{"a", "b"},
+					return &fleet.ScimUser{
+						UserName: "user1@example.com",
+						Groups:   []fleet.ScimUserGroup{{DisplayName: "a"}, {DisplayName: "b"}},
 					}, nil
 				}
 			},
@@ -580,14 +721,17 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
-				ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 					require.EqualValues(t, 1, hostID)
-					return &fleet.HostEndUser{
-						IdpUserName: "idp@example.com",
-						OtherEmails: []fleet.HostDeviceMapping{
-							{
-								Email: "other@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles,
-							},
+					return &fleet.ScimUser{
+						UserName: "idp@example.com",
+						Groups:   []fleet.ScimUserGroup{{DisplayName: "a"}, {DisplayName: "b"}},
+					}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return []*fleet.HostDeviceMapping{
+						{
+							Email: "other@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles,
 						},
 					}, nil
 				}
@@ -603,14 +747,16 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
-				ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 					require.EqualValues(t, 1, hostID)
-					return &fleet.HostEndUser{
-						IdpUserName: "user1@example.com",
-						OtherEmails: []fleet.HostDeviceMapping{
-							{
-								Email: "other@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles,
-							},
+					return &fleet.ScimUser{
+						UserName: "user1@example.com",
+					}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return []*fleet.HostDeviceMapping{
+						{
+							Email: "other@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles,
 						},
 					}, nil
 				}
@@ -626,13 +772,14 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
-				ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 					require.EqualValues(t, 1, hostID)
-					return &fleet.HostEndUser{
-						OtherEmails: []fleet.HostDeviceMapping{
-							{
-								Email: "other@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles,
-							},
+					return &fleet.ScimUser{}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return []*fleet.HostDeviceMapping{
+						{
+							Email: "other@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles,
 						},
 					}, nil
 				}
@@ -647,13 +794,14 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsernameLocalPart),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
-				ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 					require.EqualValues(t, 1, hostID)
-					return &fleet.HostEndUser{
-						OtherEmails: []fleet.HostDeviceMapping{
-							{
-								Email: "other@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles,
-							},
+					return &fleet.ScimUser{}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return []*fleet.HostDeviceMapping{
+						{
+							Email: "other@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles,
 						},
 					}, nil
 				}
@@ -668,14 +816,14 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPGroups),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
-				ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 					require.EqualValues(t, 1, hostID)
-					return &fleet.HostEndUser{}, nil
+					return &fleet.ScimUser{}, nil
 				}
 			},
 			assert: func(output string) {
 				assert.Len(t, targets, 0) // target is not present
-				assert.Contains(t, updatedProfile.Detail, "There is no IdP groups for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.")
+				assert.Contains(t, updatedProfile.Detail, "There are no IdP groups for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.")
 			},
 		},
 		{
@@ -683,14 +831,14 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPDepartment),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
-				ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 					require.EqualValues(t, 1, hostID)
-					return &fleet.HostEndUser{}, nil
+					return &fleet.ScimUser{}, nil
 				}
 			},
 			assert: func(output string) {
 				assert.Len(t, targets, 0) // target is not present
-				assert.Contains(t, updatedProfile.Detail, "There is no IdP department for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.")
+				assert.Contains(t, updatedProfile.Detail, "There is no IdP department for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.")
 			},
 		},
 		{
@@ -698,16 +846,16 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPGroups),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
-				ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 					require.EqualValues(t, 1, hostID)
-					return &fleet.HostEndUser{
-						IdpUserName: "user1@example.com",
+					return &fleet.ScimUser{
+						UserName: "user1@example.com",
 					}, nil
 				}
 			},
 			assert: func(output string) {
 				assert.Len(t, targets, 0) // target is not present
-				assert.Contains(t, updatedProfile.Detail, "There is no IdP groups for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.")
+				assert.Contains(t, updatedProfile.Detail, "There are no IdP groups for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.")
 			},
 		},
 		{
@@ -715,11 +863,11 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPDepartment),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
-				ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 					require.EqualValues(t, 1, hostID)
-					return &fleet.HostEndUser{
-						IdpUserName: "user1@example.com",
-						Department:  "Engineering",
+					return &fleet.ScimUser{
+						UserName:   "user1@example.com",
+						Department: ptr.String("Engineering"),
 					}, nil
 				}
 			},
@@ -734,16 +882,16 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPDepartment),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
-				ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 					require.EqualValues(t, 1, hostID)
-					return &fleet.HostEndUser{
-						IdpUserName: "user1@example.com",
+					return &fleet.ScimUser{
+						UserName: "user1@example.com",
 					}, nil
 				}
 			},
 			assert: func(output string) {
 				assert.Len(t, targets, 0) // target is not present
-				assert.Contains(t, updatedProfile.Detail, "There is no IdP department for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.")
+				assert.Contains(t, updatedProfile.Detail, "There is no IdP department for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.")
 			},
 		},
 		{
@@ -751,11 +899,12 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
-				ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 					require.EqualValues(t, 1, hostID)
-					return &fleet.HostEndUser{
-						IdpUserName: "user1@example.com",
-						IdpFullName: "First Last",
+					return &fleet.ScimUser{
+						UserName:   "user1@example.com",
+						GivenName:  ptr.String("First"),
+						FamilyName: ptr.String("Last"),
 					}, nil
 				}
 			},
@@ -770,11 +919,11 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
-				ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 					require.EqualValues(t, 1, hostID)
-					return &fleet.HostEndUser{
-						IdpUserName: "user1@example.com",
-						IdpFullName: "First",
+					return &fleet.ScimUser{
+						UserName:  "user1@example.com",
+						GivenName: ptr.String("First"),
 					}, nil
 				}
 			},
@@ -789,11 +938,11 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
-				ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 					require.EqualValues(t, 1, hostID)
-					return &fleet.HostEndUser{
-						IdpUserName: "user1@example.com",
-						IdpFullName: "Last",
+					return &fleet.ScimUser{
+						UserName:   "user1@example.com",
+						FamilyName: ptr.String("Last"),
 					}, nil
 				}
 			},
@@ -808,15 +957,15 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
-				ds.GetEndUsersFunc = func(ctx context.Context, hostID uint) (*fleet.HostEndUser, error) {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 					require.EqualValues(t, 1, hostID)
-					return &fleet.HostEndUser{
-						IdpUserName: "user1@example.com",
+					return &fleet.ScimUser{
+						UserName: "user1@example.com",
 					}, nil
 				}
 			},
 			assert: func(output string) {
-				assert.Contains(t, updatedProfile.Detail, fmt.Sprintf("There is no IdP full name for this host. Fleet couldn’t populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPFullname))
+				assert.Contains(t, updatedProfile.Detail, fmt.Sprintf("There is no IdP full name for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPFullname))
 				assert.Len(t, targets, 0)
 			},
 		},

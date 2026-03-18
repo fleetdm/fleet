@@ -742,7 +742,7 @@ func (a *AppleMDM) installProfilesForEnrollingHost(ctx context.Context, hostUUID
 
 	onFailedEnqueuement := func(cmdUUID string, err error) {
 		profile := profileByCmdUUID[cmdUUID]
-		a.Log.ErrorContext(ctx, "failed to install profile", "host_uuid", profile.HostUUID, "profile_uuid", profile.ProfileUUID, "error", err)
+		a.Log.ErrorContext(ctx, "failed to install profile", "host_uuid", hostUUID, "profile_uuid", profile.ProfileUUID, "error", err)
 	}
 
 	// Prepare bulk payloads for database update
