@@ -2534,7 +2534,7 @@ func (ds *Datastore) generatePatchPolicy(ctx context.Context, teamID uint, title
 	switch {
 	case installer.Platform == string(fleet.MacOSPlatform):
 		policy.Query = fmt.Sprintf(
-			"SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') >= 0;",
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);",
 			installer.BundleIdentifier,
 			installer.Version,
 		)
@@ -2543,7 +2543,7 @@ func (ds *Datastore) generatePatchPolicy(ctx context.Context, teamID uint, title
 	case installer.Platform == "windows":
 		// TODO: use upgrade code to improve accuracy?
 		policy.Query = fmt.Sprintf(
-			"SELECT 1 FROM programs WHERE name = '%s' AND version_compare(bundle_short_version, '%s') >= 0;",
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '%s' AND version_compare(bundle_short_version, '%s') < 0);",
 			installer.SoftwareTitle,
 			installer.Version,
 		)
