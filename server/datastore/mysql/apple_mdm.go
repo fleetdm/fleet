@@ -7350,6 +7350,7 @@ func (ds *Datastore) GetHostRecoveryLockPasswordStatus(ctx context.Context, host
 	const stmt = `
 		SELECT
 			status,
+			operation_type,
 			COALESCE(error_message, '') AS detail,
 			encrypted_password IS NOT NULL AS password_available
 		FROM host_recovery_key_passwords
@@ -7357,6 +7358,7 @@ func (ds *Datastore) GetHostRecoveryLockPasswordStatus(ctx context.Context, host
 
 	var row struct {
 		Status            *fleet.MDMDeliveryStatus `db:"status"`
+		OperationType     fleet.MDMOperationType   `db:"operation_type"`
 		Detail            string                   `db:"detail"`
 		PasswordAvailable bool                     `db:"password_available"`
 	}
@@ -7370,14 +7372,15 @@ func (ds *Datastore) GetHostRecoveryLockPasswordStatus(ctx context.Context, host
 	// Treat NULL status as pending (retry state after failed command enqueue)
 	status := row.Status
 	if status == nil {
-		status = ptr.T(fleet.MDMDeliveryPending)
+		status = &fleet.MDMDeliveryPending
 	}
 
-	return &fleet.HostMDMRecoveryLockPassword{
-		Status:            status,
+	result := &fleet.HostMDMRecoveryLockPassword{
 		Detail:            row.Detail,
 		PasswordAvailable: row.PasswordAvailable,
-	}, nil
+	}
+	result.SetRawStatus(status, row.OperationType)
+	return result, nil
 }
 
 func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) ([]string, error) {
