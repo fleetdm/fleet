@@ -143,6 +143,16 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	MutateSoftwareOnIngestion(t.Context(), jetbrainsGoLand, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "2025.3.3", jetbrainsGoLand.Version)
 
+	// Test JetBrains with 2-part version (dot-zero release like "WebStorm 2025.1")
+	jetbrainsWebStorm := &fleet.Software{
+		Name:    "WebStorm 2025.1",
+		Source:  "programs",
+		Vendor:  "JetBrains s.r.o.",
+		Version: "251.23774.424",
+	}
+	MutateSoftwareOnIngestion(t.Context(), jetbrainsWebStorm, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2025.1", jetbrainsWebStorm.Version)
+
 	// Test JetBrains with 4-part version number
 	jetbrainsIntelliJ := &fleet.Software{
 		Name:    "IntelliJ IDEA 2025.3.1.1",
