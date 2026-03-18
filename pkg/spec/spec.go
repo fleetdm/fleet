@@ -453,11 +453,12 @@ func getExclusionZones(s string) [][2]int {
 	return zones
 }
 
-// hostsKeyPresent checks if the "hosts" key is present in raw YAML bytes.
+// hostsKeyPresent checks if the "hosts" key is present in raw spec bytes.
+// The input may be YAML or JSON; YAML is converted to JSON before inspection.
 // Used to distinguish between an omitted hosts key (nil, no-op) and an
 // explicit hosts key with null value (should clear hosts).
-func hostsKeyPresent(rawYAML []byte) bool {
-	jsonBytes, err := yaml.YAMLToJSON(rawYAML)
+func hostsKeyPresent(rawBytes []byte) bool {
+	jsonBytes, err := yaml.YAMLToJSON(rawBytes)
 	if err != nil {
 		return false
 	}
