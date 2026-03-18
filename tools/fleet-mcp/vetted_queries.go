@@ -809,7 +809,6 @@ WHERE minlength >= 15);`,
 
 // GetVettedQueries returns vetted CIS/security queries filtered by platform.
 // Platform: "darwin"/"macos", "windows", "linux", or "all".
-// Optionally filter by level: "L1", "L2", "BL", or "" for all levels.
 func GetVettedQueries(platform string) []VettedQuery {
 	p := strings.ToLower(strings.TrimSpace(platform))
 	if p == "macos" || p == "mac" || p == "osx" {
