@@ -550,7 +550,7 @@ func (fc *FleetClient) resolveTeamNames(teamNames []string) ([]uint, error) {
 
 // GetEndpointsWithFilters retrieves endpoints from Fleet with optional server-side filters.
 func (fc *FleetClient) GetEndpointsWithFilters(teamName, platform, status string) ([]Endpoint, error) {
-	var params []string
+	params := []string{"populate_labels=true"}
 
 	if teamName != "" {
 		teamIDs, err := fc.resolveTeamNames([]string{teamName})
