@@ -525,6 +525,7 @@ module.exports.routes = {
     action: 'microsoft-proxy/view-remediate',
     locals: {
       showConfigurationProfileLayout: true,
+      disableAnalyticsScriptsAndIndexing: true,
     }
   },
 
@@ -532,6 +533,7 @@ module.exports.routes = {
     action: 'microsoft-proxy/view-turn-on-mdm',
     locals: {
       showConfigurationProfileLayout: true,
+      disableAnalyticsScriptsAndIndexing: true,
     }
   },
 
@@ -546,6 +548,7 @@ module.exports.routes = {
     action: 'view-okta-conditional-access-error',
     locals: {
       showConfigurationProfileLayout: true,
+      disableAnalyticsScriptsAndIndexing: true,
     }
   },
 
@@ -1090,6 +1093,7 @@ module.exports.routes = {
   'GET /vulnerability-management': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/software-management' + originalQueryString); },
   'GET /endpoint-ops': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/orchestration' + originalQueryString); },
   'GET /observability': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/orchestration' + originalQueryString); },
+  'GET /signup': '/login#register',
 
   'GET /jnuc-2025': '/articles/free-migration-from-jamf-to-fleet',
   'GET /announcements/global-cloud-platform-simplifies-device-management-with-fleet': '/case-study/fastly',
@@ -1121,7 +1125,7 @@ module.exports.routes = {
   'GET /learn-more-about/chromeos-updates': 'https://support.google.com/chrome/a/answer/6220366',
   'GET /learn-more-about/just-in-time-provisioning': '/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning',
   'GET /learn-more-about/os-updates': '/docs/using-fleet/mdm-os-updates',
-  'GET /sign-in-to/microsoft-automatic-enrollment-tool': 'https://portal.azure.com',
+  'GET /sign-in-to/microsoft-automatic-enrollment-tool': 'https://entra.microsoft.com',
   'GET /learn-more-about/custom-os-settings': '/docs/using-fleet/mdm-custom-os-settings',
   'GET /learn-more-about/ndes': 'https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview', // TODO: Confirm URL
   'GET /learn-more-about/setup-ndes': '/guides/ndes-scep-proxy',
@@ -1225,6 +1229,9 @@ module.exports.routes = {
   'GET /learn-more-about/recovery-lock-passwords': 'https://developer.apple.com/documentation/devicemanagement/set-recovery-lock-command',
   'GET /learn-more-about/startup-security-macos': 'https://support.apple.com/guide/deployment/startup-security-dep5810e849c',
   'GET /learn-more-about/unlock-ios-ipados': 'https://fleetdm.com/guides/lock-wipe-hosts#how-to-unlock-offline-ios-and-ipados-hosts',
+  'GET /learn-more-about/certificates': '/guides/connect-end-user-to-wifi-with-certificate',
+  'GET /learn-more-about/enrollment-profiles': 'https://developer.apple.com/documentation/devicemanagement/profile?changes=l_11_5',
+
   // Sitemap
   // =============================================================================================================
   // This is for search engines, not humans.  Search engines know to visit fleetdm.com/sitemap.xml to download this

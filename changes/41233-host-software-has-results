@@ -1,1 +1,0 @@
-* Fixed pagination on the host software page incorrectly disabling the "Next" button when a software title has multiple installer versions.

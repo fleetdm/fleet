@@ -1398,11 +1398,13 @@ func (ds *Datastore) applyHostFilters(
 
 	mdmAppleProfilesStatusJoin := ""
 	mdmAppleDeclarationsStatusJoin := ""
+	mdmRecoveryLockStatusJoin := ""
 	mdmAndroidProfilesStatusJoin := ""
 	if opt.OSSettingsFilter.IsValid() ||
 		opt.MacOSSettingsFilter.IsValid() {
 		mdmAppleProfilesStatusJoin = sqlJoinMDMAppleProfilesStatus()
 		mdmAppleDeclarationsStatusJoin = sqlJoinMDMAppleDeclarationsStatus()
+		mdmRecoveryLockStatusJoin = sqlJoinRecoveryLockStatus()
 	}
 
 	if opt.OSSettingsFilter.IsValid() {
@@ -1436,6 +1438,7 @@ func (ds *Datastore) applyHostFilters(
     %s
     %s
     %s
+    %s
 	%s
 		WHERE TRUE AND %s AND %s AND %s AND %s AND %s
     `,
@@ -1452,6 +1455,7 @@ func (ds *Datastore) applyHostFilters(
 		connectedToFleetJoin,
 		mdmAppleProfilesStatusJoin,
 		mdmAppleDeclarationsStatusJoin,
+		mdmRecoveryLockStatusJoin,
 		mdmAndroidProfilesStatusJoin,
 		batchScriptExecutionJoin,
 
@@ -3615,7 +3619,7 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 		// We log to help troubleshooting in case this happens.
 		ds.logger.ErrorContext(ctx, "unrecognized platform", "hostID", host.ID, "platform", host.Platform)
 	}
-	query := `SELECT p.id, p.team_id, p.resolution, p.name, p.query, p.description, p.author_id, p.platforms, p.critical, p.created_at, p.updated_at, p.conditional_access_enabled,
+	query := `SELECT p.id, p.team_id, p.resolution, p.name, p.query, p.description, p.author_id, p.platforms, p.critical, p.created_at, p.updated_at, p.conditional_access_enabled, p.type,
 		COALESCE(u.name, '<deleted>') AS author_name,
 		COALESCE(u.email, '') AS author_email,
 		CASE

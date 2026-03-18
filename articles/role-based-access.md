@@ -14,7 +14,7 @@ Maintainers can manage most entities in Fleet, like queries, policies, and label
 
 Unlike admins, maintainers cannot edit higher level settings like application configuration, fleets or users.
 
-### Technician ([coming soon](https://github.com/fleetdm/fleet/issues/35696))
+### Technician
 
 `Applies only to Fleet Premium`
 
@@ -121,7 +121,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                                  | ✅       | ✅         | ✅         | ✅         | ✅    |         |
 | Create, edit, and delete custom variables                                                                                                  | ✅       | ✅         | ✅         | ✅         | ✅    |         |
 
-\* Applies only to Fleet Premium. Technician role ([coming soon](https://github.com/fleetdm/fleet/issues/35696)).
+\* Applies only to Fleet Premium
 
 \** Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 

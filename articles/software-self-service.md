@@ -1,8 +1,30 @@
-# Software self-service
+# Self-service 
 
 _Available in Fleet Premium_
 
-Fleet’s self-service software lets end users update and install approved apps from a curated list on the **Fleet Desktop > Self-service** page. This reduces overhead for IT and keeps teams productive. This guide covers how to add, install, and update self-service software in Fleet.
+Fleet’s self-service lets end users update and install approved apps and run scripts from a curated list on the **Fleet Desktop > Self-service** page. This reduces overhead for IT and keeps teams productive.
+
+## Platforms
+
+Fleet supports self-service software installs on the following platforms:
+
+macOS:
+
+- Custom packages (.pkg, .sh)
+- Fleet-maintained apps
+- App Store apps
+
+Windows: 
+
+- Custom packages (.msi, .exe, .ps1)
+
+Linux: 
+
+- Custom packages (.deb, .rpm, .sh, .tar.gz)
+
+iOS/iPadOS: 
+
+- App Store apps and custom .ipa packages
 
 ## Add software
 
@@ -12,7 +34,7 @@ Fleet’s self-service software lets end users update and install approved apps 
 4. Pick a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps), [app store app](https://fleetdm.com/guides/install-app-store-apps#add-the-app-to-fleet), or upload a [custom package](https://fleetdm.com/guides/deploy-software-packages).
 5. Check **Self-service** to make it available for self-service as soon as it's added.
 
-> Script packages (`.sh` and `.ps1` files) are useful for self-service configuration tasks like connecting to a VPN or configuring printers. Learn more in the [deploy software guide](https://fleetdm.com/guides/deploy-software-packages#script-packages).
+> Use script-only packages (`.sh` and `.ps1` files) for self-service scripts like connecting to a VPN or configuring printers. Learn more in the [deploy software guide](https://fleetdm.com/guides/deploy-software-packages#script-only-packages).
 
 You can also add the software and later make it available in self-service:
 
@@ -122,10 +144,10 @@ When an install, uninstall, or update is triggered by an IT admin or end user in
 - If the host is online, Fleet will poll automatically every 5 seconds to check for completion. When the install, uninstall, or update completes or fails, the status will update without the IT admin or end user having to reload the page.
 - If the host is offline, IT admins see a pending status. When pending, the action has not started on the host. IT admins can cancel pending actions on **Host details > Activity > Upcoming** tab.
 
-<meta name="articleTitle" value="Software self-service">
+<meta name="articleTitle" value="Self-service">
 <meta name="authorFullName" value="Jahziel Villasana-Espinoza">
 <meta name="authorGitHubUsername" value="jahzielv">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2025-06-20">
 <meta name="articleImageUrl" value="../website/assets/images/articles/software-self-service-1600x900@2x.png">
-<meta name="description" value="This guide will walk you through adding apps to Fleet for user self-service.">
+<meta name="description" value="Adding apps and scripts to Fleet for end user self-service.">
