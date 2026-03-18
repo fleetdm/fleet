@@ -5501,8 +5501,6 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 		Specs: []*fleet.LabelSpec{
 			{
 				Name:                name,
-				Query:               "select 1",
-				Platform:            "linux",
 				LabelMembershipType: fleet.LabelMembershipTypeManual,
 			},
 		},

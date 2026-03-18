@@ -2248,6 +2248,118 @@ labels:
 	require.ElementsMatch(t, labelHostIDs, []uint{host1.ID, host2.ID, host3.ID, host5.ID})
 }
 
+func (s *enterpriseIntegrationGitopsTestSuite) TestManualLabelOmitHostsPreservesMembership() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := fleet.User{
+		Name:       "Admin User",
+		Email:      uuid.NewString() + "@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
+	require.NoError(t, user.SetPassword(test.GoodPassword, 10, 10))
+	_, err := s.DS.NewUser(context.Background(), &user)
+	require.NoError(t, err)
+
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	host1, err := s.DS.NewHost(ctx, &fleet.Host{
+		UUID:           "omit-hosts-uuid-1",
+		Hostname:       "omit-hosts-host1",
+		Platform:       "linux",
+		HardwareSerial: "omit-hosts-serial1",
+	})
+	require.NoError(t, err)
+	host2, err := s.DS.NewHost(ctx, &fleet.Host{
+		UUID:           "omit-hosts-uuid-2",
+		Hostname:       "omit-hosts-host2",
+		Platform:       "linux",
+		HardwareSerial: "omit-hosts-serial2",
+	})
+	require.NoError(t, err)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+
+	// Step 1: Apply a manual label with hosts.
+	_, err = globalFile.WriteString(fmt.Sprintf(`
+agent_options:
+controls:
+org_settings:
+  secrets:
+  - secret: test_secret
+policies:
+reports:
+labels:
+  - name: preserve-membership-label
+    description: A manual label
+    label_membership_type: manual
+    hosts:
+    - %s
+    - %s
+`, host1.Hostname, host2.Hostname))
+	require.NoError(t, err)
+
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))
+
+	labels, err := s.DS.LabelsByName(ctx, []string{"preserve-membership-label"}, fleet.TeamFilter{})
+	require.NoError(t, err)
+	label := labels["preserve-membership-label"]
+	labelHosts, err := s.DS.ListHostsInLabel(ctx, fleet.TeamFilter{User: &user}, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, labelHosts, 2)
+
+	// Step 2: Re-apply the same label without the hosts key.
+	require.NoError(t, os.WriteFile(globalFile.Name(), []byte(`
+agent_options:
+controls:
+org_settings:
+  secrets:
+  - secret: test_secret
+policies:
+reports:
+labels:
+  - name: preserve-membership-label
+    description: A manual label
+    label_membership_type: manual
+`), 0o644))
+
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))
+
+	// Verify the hosts are still attached.
+	labelHosts, err = s.DS.ListHostsInLabel(ctx, fleet.TeamFilter{User: &user}, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, labelHosts, 2, "omitting hosts key should preserve existing membership")
+	var hostIDs []uint
+	for _, h := range labelHosts {
+		hostIDs = append(hostIDs, h.ID)
+	}
+	require.ElementsMatch(t, hostIDs, []uint{host1.ID, host2.ID})
+
+	// Step 3: Re-apply with empty hosts to clear membership.
+	require.NoError(t, os.WriteFile(globalFile.Name(), []byte(`
+agent_options:
+controls:
+org_settings:
+  secrets:
+  - secret: test_secret
+policies:
+reports:
+labels:
+  - name: preserve-membership-label
+    description: A manual label
+    label_membership_type: manual
+    hosts: []
+`), 0o644))
+
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))
+
+	// Verify hosts were cleared.
+	labelHosts, err = s.DS.ListHostsInLabel(ctx, fleet.TeamFilter{User: &user}, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, labelHosts, 0, "empty hosts list should clear membership")
+}
+
 func (s *enterpriseIntegrationGitopsTestSuite) TestIPASoftwareInstallers() {
 	t := s.T()
 	ctx := context.Background()
