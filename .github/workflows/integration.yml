@@ -343,7 +343,7 @@ jobs:
       run: |
         sudo apt remove fleet-osquery -y
 
-  orbit-windows-build:
+  fleetd-windows-build:
     timeout-minutes: 10
     strategy:
       matrix:
@@ -384,15 +384,15 @@ jobs:
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
         fleetctl package --type msi --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug
-        mv fleet-osquery.msi orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi
+        mv fleet-osquery.msi fleetd-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi
 
     - name: Upload MSI
       uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
       with:
-        name: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi
-        path: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi
+        name: fleetd-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi
+        path: fleetd-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi
 
-  orbit-windows:
+  fleetd-windows:
     timeout-minutes: 10
     strategy:
       matrix:
@@ -403,7 +403,7 @@ jobs:
         orbit-channel: [ 'stable' ]
         osqueryd-channel: [ 'stable' ]
         desktop-channel: [ 'stable' ]
-    needs: [gen, login, orbit-windows-build]
+    needs: [gen, login, fleetd-windows-build]
     runs-on: windows-latest
     steps:
     - name: Harden Runner
@@ -421,12 +421,12 @@ jobs:
       id: download
       uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
       with:
-        name: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi
+        name: fleetd-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi
 
     - name: Install Orbit
       shell: cmd
       run: |
-        msiexec /i ${{steps.download.outputs.download-path}}\orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi /quiet /passive /lv log.txt
+        msiexec /i ${{steps.download.outputs.download-path}}\fleetd-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi /quiet /passive /lv log.txt
         sleep 120
 
     # We can't very accurately check the install on these Windows hosts since the hostnames tend to
@@ -444,5 +444,5 @@ jobs:
       if: always()
       uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
       with:
-        name: orbit-windows-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}-logs
+        name: fleetd-windows-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}-logs
         path: C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log
