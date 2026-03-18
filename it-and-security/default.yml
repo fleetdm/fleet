@@ -18,11 +18,9 @@ org_settings:
     zendesk: []
   mdm:
     end_user_authentication:
-      entity_id: dogfood-eula.fleetdm.com
-      idp_name: Google Workspace
-      metadata: |-
-        $DOGFOOD_END_USER_SSO_METADATA
-      metadata_url: ""
+      entity_id: fleet-end-users
+      idp_name: Okta
+      metadata_url: "$DOGFOOD_OKTA_METADATA_URL"
     end_user_license_agreement: ../it-and-security/lib/macos/misc/eula.pdf
     apple_business_manager:
       - organization_name: Fleet Device Management Inc.
@@ -58,12 +56,10 @@ org_settings:
     enable_jit_provisioning: true
     enable_sso: true
     enable_sso_idp_login: true
-    entity_id: dogfood.fleetdm.com
+    entity_id: fleet-admins
     idp_image_url: ""
-    idp_name: Google Workspace
-    metadata: |-
-      $DOGFOOD_SSO_METADATA
-    metadata_url: ""
+    idp_name: Okta
+    metadata_url: "$DOGFOOD_OKTA_METADATA_URL"
   webhook_settings:
     failing_policies_webhook:
       destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
