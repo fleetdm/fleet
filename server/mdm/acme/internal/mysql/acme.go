@@ -2,17 +2,15 @@
 package mysql
 
 import (
-	"context"
 	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
-	"go.opentelemetry.io/otel"
 )
 
 // tracer is an OTEL tracer. It has no-op behavior when OTEL is not enabled.
-var tracer = otel.Tracer("github.com/fleetdm/fleet/v4/server/mdm/acme/internal/mysql")
+// var tracer = otel.Tracer("github.com/fleetdm/fleet/v4/server/mdm/acme/internal/mysql")
 
 // Datastore is the MySQL implementation of the activity datastore.
 type Datastore struct {
@@ -26,9 +24,9 @@ func NewDatastore(conns *platform_mysql.DBConnections, logger *slog.Logger) *Dat
 	return &Datastore{primary: conns.Primary, replica: conns.Replica, logger: logger}
 }
 
-func (ds *Datastore) reader(ctx context.Context) *sqlx.DB {
-	return ds.replica
-}
+// func (ds *Datastore) reader(ctx context.Context) *sqlx.DB {
+// 	return ds.replica
+// }
 
 // Ensure Datastore implements types.Datastore
 var _ types.Datastore = (*Datastore)(nil)

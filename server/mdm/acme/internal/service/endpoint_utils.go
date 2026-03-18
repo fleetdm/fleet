@@ -15,14 +15,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-const (
-	// defaultPerPage is used when per_page is not specified but page is specified.
-	defaultPerPage = 20
-
-	// maxPerPage is the maximum allowed value for per_page.
-	maxPerPage = 10000
-)
-
 // encodeResponse encodes the response as JSON.
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response any) error {
 	return eu.EncodeCommonResponse(ctx, w, response,
