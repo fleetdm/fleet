@@ -261,8 +261,8 @@ func (fc *FleetClient) GetEndpoints() ([]Endpoint, error) {
 }
 
 // GetHostByIdentifier fetches full host details (including labels) by hostname, UUID, or serial.
-// Uses GET /api/v1/fleet/hosts/identifier/:identifier which returns complete label data.
-// The list endpoint (GetEndpoints) intentionally omits labels for performance.
+// Uses GET /api/v1/fleet/hosts/identifier/:identifier which returns complete host and label data.
+// Note: GetEndpoints already requests labels via populate_labels=true; this method is for targeted lookups of a single host.
 func (fc *FleetClient) GetHostByIdentifier(identifier string) (*Endpoint, error) {
 	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/identifier/%s", url.PathEscape(identifier))
 	resp, err := fc.makeFleetRequest("GET", endpointPath, nil)
