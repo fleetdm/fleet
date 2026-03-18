@@ -253,6 +253,8 @@ module.exports.custom = {
     'website/package.json': 'eashaw',
     'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
     'website/config/policies.js': ['eashaw', 'mikermcneil'],// (for adding new pages and managing permissions)
+    'website/api/controllers/webhooks/receive-from-clay.js': ['sampfluger88'],
+    'website/api/helpers/salesforce': ['sampfluger88'],
 
     // 🫧 Vulnerability dashboard
     'ee/vulnerability-dashboard': ['eashaw', 'mikermcneil'],// (catch-all)
