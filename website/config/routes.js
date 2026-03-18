@@ -1093,6 +1093,7 @@ module.exports.routes = {
   'GET /vulnerability-management': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/software-management' + originalQueryString); },
   'GET /endpoint-ops': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/orchestration' + originalQueryString); },
   'GET /observability': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/orchestration' + originalQueryString); },
+  'GET /signup': '/login#register',
 
   'GET /jnuc-2025': '/articles/free-migration-from-jamf-to-fleet',
   'GET /announcements/global-cloud-platform-simplifies-device-management-with-fleet': '/case-study/fastly',
