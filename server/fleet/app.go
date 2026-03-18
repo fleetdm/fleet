@@ -273,9 +273,16 @@ type DiskEncryptionConfig struct {
 	BitLockerPINRequired bool
 }
 
+type GitOpsExceptions struct {
+	Labels   bool `json:"labels"`
+	Software bool `json:"software"`
+	Secrets  bool `json:"secrets"`
+}
+
 type UIGitOpsModeConfig struct {
-	GitopsModeEnabled bool   `json:"gitops_mode_enabled"`
-	RepositoryURL     string `json:"repository_url"`
+	GitopsModeEnabled bool             `json:"gitops_mode_enabled"`
+	RepositoryURL     string           `json:"repository_url"`
+	Exceptions        GitOpsExceptions `json:"exceptions"`
 }
 
 func (c *AppConfig) MDMUrl() string {
@@ -1063,6 +1070,9 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 	c.SSOSettings = &ssoSettings
 
 	c.Features.ApplyDefaultsForNewInstalls()
+
+	c.UIGitOpsMode.Exceptions.Secrets = true
+	c.UIGitOpsMode.Exceptions.Labels = false
 
 	c.ApplyDefaults()
 }
