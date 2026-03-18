@@ -210,6 +210,7 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 |------|---------|-------|
 | **API & Integration** | | |
 | `api/` | Fleet API testing scripts using curl + jq | `export FLEET_ENV_PATH=./env && ./tools/api/fleet/me` |
+| `fleet-mcp/` | MCP server exposing Fleet data to AI agents (Claude, Cursor, etc.) via the Model Context Protocol | `go run ./tools/fleet-mcp -fleet-url https://localhost:8080 -fleet-token <token>` - See [fleet-mcp/README.md](fleet-mcp/README.md) |
 | `jira-integration/` | Test Jira ticket creation | `JIRA_PASSWORD=<pwd> go run ./tools/jira-integration -jira-url <url> -jira-username <user> -jira-project-key <key> -cve CVE-2024-1234` |
 | `webhook/` | Test webhook integrations | `go run ./tools/webhook 8082` |
 | `zendesk-integration/` | Test Zendesk ticket creation | `ZENDESK_TOKEN=<token> go run ./tools/zendesk-integration -zendesk-url <url> -zendesk-email <email> -zendesk-group-id <id> -cve CVE-2024-1234` |
