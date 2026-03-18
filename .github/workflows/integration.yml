@@ -444,9 +444,10 @@ jobs:
 
     - name: Install fleetctl
       shell: bash
+      # On Windows we need to set rootca or tls-skip verify. Since this is a test environment we can skip TLS verification.
       run: |
         npm install -g fleetctl
-        fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
+        fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }} --tls-skip-verify
 
     - name: Wait for enrollment
       shell: powershell
