@@ -2,9 +2,12 @@ import React, { useContext, useState } from "react";
 import classnames from "classnames";
 import { noop } from "lodash";
 
+import { REC_LOCK_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
+
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { NotificationContext } from "context/notification";
 import { IHostMdmProfile } from "interfaces/mdm";
+import { getErrorReason } from "interfaces/errors";
 
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import Button from "components/buttons/Button";
@@ -300,17 +303,21 @@ const OSSettingsErrorCell = ({
         "Successfully sent request to rotate Recovery Lock password."
       );
     } catch (e) {
-      renderFlash(
-        "error",
-        "Couldn't send request to rotate Recovery Lock password. Please try again."
-      );
+      const msg = getErrorReason(e).includes("already in progress")
+        ? "Recovery lock password rotation is already in progress for this host."
+        : "Couldn't send request to rotate Recovery Lock password. Please try again.";
+
+      renderFlash("error", msg);
     }
     setIsRotating(false);
   };
 
   const isFailed = profile.status === "failed";
   const isVerified = profile.status === "verified";
-  const showRefetchButton = canResendProfiles && (isFailed || isVerified);
+  const showRefetchButton =
+    canResendProfiles &&
+    (isFailed || isVerified) &&
+    profile.profile_uuid !== REC_LOCK_SYNTHETIC_PROFILE_UUID;
   const showRotateButton =
     canRotateRecoveryLockPassword && (isFailed || isVerified);
   const value = (isFailed && profile.detail) || DEFAULT_EMPTY_CELL_VALUE;
@@ -323,8 +330,6 @@ const OSSettingsErrorCell = ({
         tooltipBreakOnWord
         tooltip={tooltip}
         value={value}
-        // we dont want the default "w250" class so we pass in empty string
-        classes=""
         className={
           isFailed || showRefetchButton || showRotateButton
             ? `${baseClass}__failed-message`

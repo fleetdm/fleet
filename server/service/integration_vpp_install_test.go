@@ -1612,7 +1612,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 			assert.Equal(t, installCmdUUID, cmd.CommandUUID)
 
 			// Points at the expected manifest URL
-			expectedManifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", s.server.URL, titleID, 0)
+			expectedManifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?fleet_id=%d", s.server.URL, titleID, 0)
 			assert.Contains(t, string(cmd.Raw), expectedManifestURL)
 
 			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
@@ -1792,7 +1792,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 			assert.Equal(t, installCmdUUID, cmd.CommandUUID)
 
 			// Points at the expected manifest URL
-			expectedManifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", s.server.URL, titleID, 0)
+			expectedManifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?fleet_id=%d", s.server.URL, titleID, 0)
 			assert.Contains(t, string(cmd.Raw), expectedManifestURL)
 
 			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
@@ -1891,7 +1891,7 @@ func (s *integrationMDMTestSuite) TestGetInHouseAppManifestUnsignedURL() {
 
 	manifest := readManifest(res)
 	require.NotNil(t, manifest)
-	require.Contains(t, string(manifest), fmt.Sprintf("/%d/in_house_app?team_id=%d", titleID, *teamID))
+	require.Contains(t, string(manifest), fmt.Sprintf("/%d/in_house_app?fleet_id=%d", titleID, *teamID))
 }
 
 func (s *integrationMDMTestSuite) addHostIdentityCertificate(hostUUID string, certSerial uint64) {

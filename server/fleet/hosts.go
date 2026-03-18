@@ -593,12 +593,18 @@ type MDMHostData struct {
 }
 
 type HostMDMOSSettings struct {
-	DiskEncryption HostMDMDiskEncryption `json:"disk_encryption" db:"-" csv:"-"`
+	DiskEncryption       HostMDMDiskEncryption       `json:"disk_encryption" db:"-" csv:"-"`
+	RecoveryLockPassword HostMDMRecoveryLockPassword `json:"recovery_lock_password" db:"-" csv:"-"`
 }
 
 type HostMDMDiskEncryption struct {
 	Status *DiskEncryptionStatus `json:"status" db:"-" csv:"-"`
 	Detail string                `json:"detail" db:"-" csv:"-"`
+}
+
+type HostMDMRecoveryLockPassword struct {
+	Status *MDMDeliveryStatus `json:"status" db:"-" csv:"-"`
+	Detail string             `json:"detail" db:"-" csv:"-"`
 }
 
 type DiskEncryptionStatus string
@@ -828,6 +834,11 @@ func (h *Host) IsLUKSSupported() bool {
 	return h.Platform == "ubuntu" ||
 		strings.Contains(h.OSVersion, "Fedora") || // fedora h.Platform reports as "rhel"
 		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro" || h.Platform == "manjaro-arm"
+}
+
+// IsAppleSilicon returns true if the host is a macOS device with an ARM CPU (Apple Silicon).
+func (h *Host) IsAppleSilicon() bool {
+	return h.Platform == "darwin" && h.CPUType != "" && strings.HasPrefix(strings.ToLower(h.CPUType), "arm")
 }
 
 // IsEligibleForWindowsMDMUnenrollment returns true if the host must be

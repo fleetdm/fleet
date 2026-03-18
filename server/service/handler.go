@@ -417,7 +417,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		getSoftwareInstallResultsRequest{})
 	// POST /api/_version_/fleet/software/batch is asynchronous, meaning it will start the process of software download+upload in the background
 	// and will return a request UUID to be used in GET /api/_version_/fleet/software/batch/{request_uuid} to query for the status of the operation.
-	ue.POST("/api/_version_/fleet/software/batch", batchSetSoftwareInstallersEndpoint, batchSetSoftwareInstallersRequest{})
+	ue.WithRequestBodySizeLimit(fleet.MaxSoftwareBatchSize).POST("/api/_version_/fleet/software/batch", batchSetSoftwareInstallersEndpoint, batchSetSoftwareInstallersRequest{})
 	ue.GET("/api/_version_/fleet/software/batch/{request_uuid}", batchSetSoftwareInstallersResultEndpoint, batchSetSoftwareInstallersResultRequest{})
 
 	// software title custom icons
@@ -477,6 +477,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/labels", removeLabelsFromHostEndpoint, removeLabelsFromHostRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/software", getHostSoftwareEndpoint, getHostSoftwareRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/certificates", listHostCertificatesEndpoint, listHostCertificatesRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/recovery_lock_password", getHostRecoveryLockPasswordEndpoint, getHostRecoveryLockPasswordRequest{})
 
 	ue.GET("/api/_version_/fleet/hosts/summary/mdm", getHostMDMSummary, getHostMDMSummaryRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/mdm", getHostMDM, getHostMDMRequest{})
@@ -551,7 +552,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/scripts/batch/{batch_execution_id:[a-zA-Z0-9-]+}/cancel", batchScriptCancelEndpoint, batchScriptCancelRequest{})
 	// Deprecated, will remove in favor of batchScriptExecutionStatusEndpoint when batch script details page is ready.
 	ue.GET("/api/_version_/fleet/scripts/batch/summary/{batch_execution_id:[a-zA-Z0-9-]+}", batchScriptExecutionSummaryEndpoint, batchScriptExecutionSummaryRequest{})
-	ue.GET("/api/_version_/fleet/scripts/batch/{batch_execution_id:[a-zA-Z0-9-]+}/host-results", batchScriptExecutionHostResultsEndpoint, batchScriptExecutionHostResultsRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/scripts/batch/{batch_execution_id:[a-zA-Z0-9-]+}/host-results"). // .../host-results is DEPRECATED but we need to maintain for backwards compatibility because customers may already be using it
+														GET("/api/_version_/fleet/scripts/batch/{batch_execution_id:[a-zA-Z0-9-]+}/host_results", batchScriptExecutionHostResultsEndpoint, batchScriptExecutionHostResultsRequest{})
 	ue.GET("/api/_version_/fleet/scripts/batch/{batch_execution_id:[a-zA-Z0-9-]+}", batchScriptExecutionStatusEndpoint, batchScriptExecutionStatusRequest{})
 	ue.GET("/api/_version_/fleet/scripts/batch", batchScriptExecutionListEndpoint, batchScriptExecutionListRequest{})
 
@@ -561,6 +563,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/lock", lockHostEndpoint, lockHostRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/unlock", unlockHostEndpoint, unlockHostRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/wipe", wipeHostEndpoint, wipeHostRequest{})
+	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/recovery_lock_password/rotate", rotateRecoveryLockPasswordEndpoint, rotateRecoveryLockPasswordRequest{})
 
 	// Generative AI
 	ue.POST("/api/_version_/fleet/autofill/policy", autofillPoliciesEndpoint, autofillPoliciesRequest{})

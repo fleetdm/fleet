@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "4.2.1",
+      "version": "4.3.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.objective-see.lulu.app';"
       },
-      "installer_url": "https://github.com/objective-see/LuLu/releases/download/v4.2.1/LuLu_4.2.1.dmg",
+      "installer_url": "https://github.com/objective-see/LuLu/releases/download/v4.3.0/LuLu_4.3.0.dmg",
       "install_script_ref": "28946026",
       "uninstall_script_ref": "94fe3378",
-      "sha256": "ed580410f38e8cc8f17cd4724182f9b7a6bbb1524797ff8e8019428a285244a0",
+      "sha256": "f123f9b8d126fdfafe17297040f54377aad402ca5bd848d8080f33c436995bfd",
       "default_categories": [
         "Developer tools"
       ]

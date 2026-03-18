@@ -388,6 +388,12 @@ func TestValidateRawKeys(t *testing.T) {
 		require.Len(t, errs, 1)
 		assert.Contains(t, errs[0].Error(), "invalid")
 	})
+
+	t.Run("bool or", func(t *testing.T) {
+		raw := []byte(`{"install_software": {"package_path": "./lib/ruby.yml"}}`)
+		errs := validateRawKeys(raw, reflect.TypeFor[GitOpsPolicySpec](), "test.yml", []string{"policies"})
+		assert.Empty(t, errs)
+	})
 }
 
 func TestFilterWarnings(t *testing.T) {
