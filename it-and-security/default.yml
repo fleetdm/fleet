@@ -20,7 +20,7 @@ org_settings:
     end_user_authentication:
       entity_id: fleet-end-users
       idp_name: Okta
-      metadata_url: "$DOGFOOD_OKTA_METADATA_URL"
+      metadata_url: "$DOGFOOD_OKTA_METADATA_URL_END_USERS"
     end_user_license_agreement: ../it-and-security/lib/macos/misc/eula.pdf
     apple_business_manager:
       - organization_name: Fleet Device Management Inc.
@@ -59,7 +59,7 @@ org_settings:
     entity_id: fleet-admins
     idp_image_url: ""
     idp_name: Okta
-    metadata_url: "$DOGFOOD_OKTA_METADATA_URL"
+    metadata_url: "$DOGFOOD_OKTA_METADATA_URL_ADMINS"
   webhook_settings:
     failing_policies_webhook:
       destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
