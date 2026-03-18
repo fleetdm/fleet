@@ -67,7 +67,7 @@ const CustomLink = ({
     <>
       {multilineText}
       <span className={`${baseClass}__no-wrap`}>
-        {lastWord}
+        <span className={`${baseClass}__last-word`}>{lastWord}</span>
         {newTab && (
           <Icon
             name="external-link"

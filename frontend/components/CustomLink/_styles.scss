@@ -1,18 +1,15 @@
 .custom-link {
   @include link;
-  @include animated-bottom-border($core-fleet-black, $ui-fleet-black-25);
+  font-weight: $regular;
+  text-decoration: underline;
+  text-decoration-color: $ui-fleet-black-75;
+  text-underline-offset: 3px;
 
-  .external-link-icon__outline {
-    transition: fill 0.2s;
-  }
-  .external-link-icon__arrow {
-    transition: stroke 0.2s;
-  }
-
-  // Inverse hover over effect
   &:hover {
+    text-decoration-color: $core-fleet-black;
     .external-link-icon__outline {
-      fill: $ui-fleet-black-75-over;
+      fill: $core-fleet-black;
+      stroke: $core-fleet-black;
     }
     .external-link-icon__arrow {
       stroke: $core-fleet-white;
@@ -28,9 +25,13 @@
 
   &__no-wrap {
     white-space: nowrap;
-    .icon {
-      padding-left: 6px;
-    }
+    display: inline-flex;
+    gap: $pad-xsmall;
+  }
+
+  &__last-word {
+    text-decoration: underline;
+    line-height: normal;
   }
 
   // Variants
@@ -43,15 +44,15 @@
   &--tooltip-link,
   &--flash-message-link {
     font-size: inherit; // Overrides link default font size with parent tooltip font size
-    @include animated-bottom-border($core-fleet-white, $ui-off-white);
+    text-decoration-color: $ui-off-white;
 
     .external-link-icon__outline {
       stroke: $core-fleet-white;
     }
 
-    // Inverse hover over effect
     &:hover {
       color: $ui-off-white;
+      text-decoration-color: $core-fleet-white;
 
       .external-link-icon__outline {
         fill: $ui-off-white;
