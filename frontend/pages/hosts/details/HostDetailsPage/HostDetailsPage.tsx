@@ -26,12 +26,10 @@ import {
   IMacadminsResponse,
   IHostResponse,
   IHostMdmData,
-  IPackStats,
 } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
-import { IQueryStats } from "interfaces/query_stats";
 import {
   IHostSoftware,
   resolveUninstallStatus,
@@ -68,7 +66,6 @@ import {
   isIPadOrIPhone,
   isLinuxLike,
   isWindows,
-  isChrome,
 } from "interfaces/platform";
 
 import Spinner from "components/Spinner";
@@ -112,8 +109,8 @@ import SoftwareInventoryCard from "../cards/Software";
 import SoftwareLibraryCard from "../cards/HostSoftwareLibrary";
 import LocalUserAccountsCard from "../cards/LocalUserAccounts";
 import PoliciesCard from "../cards/Policies";
-import QueriesCard from "../cards/Queries";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
+import HostReportsTab from "../HostReportsTab";
 import CertificatesCard from "../cards/Certificates";
 
 import TransferHostModal from "../../components/TransferHostModal";
@@ -148,7 +145,7 @@ const baseClass = "host-details";
 
 const defaultCardClass = `${baseClass}__card`;
 const fullWidthCardClass = `${baseClass}__card--full-width`;
-const doubleHeightCardClass = `${baseClass}__card--double-height`;
+const tripleHeightCardClass = `${baseClass}__card--triple-height`;
 
 export const REFETCH_HOST_DETAILS_POLLING_INTERVAL = 2000; // 2 seconds
 const BYOD_SW_INSTALL_LEARN_MORE_LINK =
@@ -211,7 +208,6 @@ const HostDetailsPage = ({
     isOnlyObserver,
     filteredHostsPath,
     currentTeam,
-    isAnyMaintainerAdminObserverPlus,
     isMacMdmEnabledAndConfigured,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -276,7 +272,6 @@ const HostDetailsPage = ({
 
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
-  const [schedule, setSchedule] = useState<IQueryStats[]>();
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
   const [
@@ -468,27 +463,6 @@ const HostDetailsPage = ({
           )
         );
         setUsersState(returnedHost.users || []);
-        setSchedule(schedule);
-        if (returnedHost.pack_stats) {
-          const packStatsByType = returnedHost.pack_stats.reduce(
-            (
-              dictionary: {
-                packs: IPackStats[];
-                schedule: IQueryStats[];
-              },
-              pack: IPackStats
-            ) => {
-              if (pack.type === "pack") {
-                dictionary.packs.push(pack);
-              } else {
-                dictionary.schedule.push(...pack.query_stats);
-              }
-              return dictionary;
-            },
-            { packs: [], schedule: [] }
-          );
-          setSchedule(packStatsByType.schedule);
-        }
       },
       onError: (error) => handlePageError(error),
     }
@@ -977,15 +951,6 @@ const HostDetailsPage = ({
     setSelectedCertificate(certificate);
   };
 
-  const onClickAddQuery = () => {
-    router.push(
-      getPathWithQueryParams(PATHS.NEW_REPORT, {
-        fleet_id: currentTeam?.id || location.query.fleet_id,
-        host_id: hostIdFromURL,
-      })
-    );
-  };
-
   const renderActionsDropdown = () => {
     if (!host) {
       return null;
@@ -1079,6 +1044,11 @@ const HostDetailsPage = ({
       pathname: PATHS.HOST_SOFTWARE(hostIdFromURL),
     },
     {
+      name: "Reports",
+      title: "reports",
+      pathname: PATHS.HOST_REPORTS(hostIdFromURL),
+    },
+    {
       name: "Policies",
       title: "policies",
       pathname: PATHS.HOST_POLICIES(hostIdFromURL),
@@ -1152,11 +1122,7 @@ const HostDetailsPage = ({
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
   const isWindowsHost = isWindows(host.platform);
-  const isChromeHost = isChrome(host.platform);
   const isAppleDeviceHost = isAppleDevice(host.platform);
-
-  const isSupportedHostQueriesPlatform =
-    !isIosOrIpadosHost && !isAndroidHost && !isChromeHost;
 
   const canResendProfiles =
     (isAppleDeviceHost || isWindowsHost) &&
@@ -1371,42 +1337,11 @@ const HostDetailsPage = ({
                   )}
                   toggleLocationModal={toggleLocationModal}
                 />
-                <QueriesCard
-                  hostId={host.id}
-                  router={router}
-                  hostPlatform={host.platform}
-                  schedule={schedule}
-                  queryReportsDisabled={
-                    config?.server_settings?.query_reports_disabled
-                  }
-                  canAddQuery={
-                    isAnyMaintainerAdminObserverPlus &&
-                    isSupportedHostQueriesPlatform
-                  }
-                  onClickAddQuery={onClickAddQuery}
-                />
-                <UserCard
-                  className={defaultCardClass}
-                  endUsers={host.end_users ?? []}
-                  canWriteEndUser={
-                    isTeamMaintainerOrTeamAdmin ||
-                    isGlobalAdmin ||
-                    isGlobalMaintainer
-                  }
-                  onClickUpdateUser={(
-                    e:
-                      | React.MouseEvent<HTMLButtonElement>
-                      | React.KeyboardEvent<HTMLButtonElement>
-                  ) => {
-                    e.preventDefault();
-                    setShowUpdateEndUserModal(true);
-                  }}
-                />
                 {showActivityCard && (
                   <ActivityCard
                     className={
                       showAgentOptionsCard
-                        ? doubleHeightCardClass
+                        ? tripleHeightCardClass
                         : defaultCardClass
                     }
                     activeTab={activeActivityTab}
@@ -1460,14 +1395,23 @@ const HostDetailsPage = ({
                     onCancel={onCancelActivity}
                   />
                 )}
-                {showAgentOptionsCard && (
-                  <AgentOptionsCard
-                    className={defaultCardClass}
-                    osqueryData={osqueryData}
-                    wrapFleetHelper={wrapFleetHelper}
-                    isChromeOS={host?.platform === "chrome"}
-                  />
-                )}
+                <UserCard
+                  className={defaultCardClass}
+                  endUsers={host.end_users ?? []}
+                  canWriteEndUser={
+                    isTeamMaintainerOrTeamAdmin ||
+                    isGlobalAdmin ||
+                    isGlobalMaintainer
+                  }
+                  onClickUpdateUser={(
+                    e:
+                      | React.MouseEvent<HTMLButtonElement>
+                      | React.KeyboardEvent<HTMLButtonElement>
+                  ) => {
+                    e.preventDefault();
+                    setShowUpdateEndUserModal(true);
+                  }}
+                />
                 <LabelsCard
                   className={
                     !showActivityCard && !showAgentOptionsCard
@@ -1477,6 +1421,14 @@ const HostDetailsPage = ({
                   labels={host?.labels || []}
                   onLabelClick={onLabelClick}
                 />
+                {showAgentOptionsCard && (
+                  <AgentOptionsCard
+                    className={defaultCardClass}
+                    osqueryData={osqueryData}
+                    wrapFleetHelper={wrapFleetHelper}
+                    isChromeOS={host?.platform === "chrome"}
+                  />
+                )}
                 {showLocalUserAccountsCard && (
                   <LocalUserAccountsCard
                     className={fullWidthCardClass}
@@ -1515,6 +1467,16 @@ const HostDetailsPage = ({
                     {renderSoftwareCard()}
                   </Tabs>
                 </TabNav>
+              </TabPanel>
+              <TabPanel>
+                <HostReportsTab
+                  hostId={host.id}
+                  hostName={host.display_name}
+                  router={router}
+                  saveReportsDisabledInConfig={
+                    config?.server_settings?.query_reports_disabled
+                  }
+                />
               </TabPanel>
               <TabPanel>
                 <PoliciesCard
