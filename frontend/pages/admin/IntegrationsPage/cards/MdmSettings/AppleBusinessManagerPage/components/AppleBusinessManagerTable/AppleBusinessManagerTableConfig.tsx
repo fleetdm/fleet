@@ -6,6 +6,7 @@ import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import {
   APP_CONTEXT_NO_TEAM_ID,
   APP_CONTEXT_NO_TEAM_SUMMARY,
+  ITokenTeam,
 } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
@@ -34,6 +35,11 @@ const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
 const generateActions = () => {
   return DEFAULT_ACTION_OPTIONS;
 };
+
+const getTeamDisplayName = (team: ITokenTeam) =>
+  team.team_id === APP_CONTEXT_NO_TEAM_ID
+    ? APP_CONTEXT_NO_TEAM_SUMMARY.name
+    : team.name;
 
 const RENEW_DATE_CELL_STATUS_CONFIG: IRenewDateCellStatusConfig = {
   warning: {
@@ -120,10 +126,7 @@ export const generateTableConfig = (
     },
     {
       id: "ios_team",
-      accessor: (originalRow) =>
-        originalRow.ios_team.team_id === APP_CONTEXT_NO_TEAM_ID
-          ? APP_CONTEXT_NO_TEAM_SUMMARY.name
-          : originalRow.ios_team.name,
+      accessor: (originalRow) => getTeamDisplayName(originalRow.ios_team),
       Header: () => {
         const titleWithToolTip = (
           <TooltipWrapper
@@ -146,10 +149,7 @@ export const generateTableConfig = (
     },
     {
       id: "ipados_team",
-      accessor: (originalRow) =>
-        originalRow.ipados_team.team_id === APP_CONTEXT_NO_TEAM_ID
-          ? APP_CONTEXT_NO_TEAM_SUMMARY.name
-          : originalRow.ipados_team.name,
+      accessor: (originalRow) => getTeamDisplayName(originalRow.ipados_team),
       Header: () => {
         const titleWithToolTip = (
           <TooltipWrapper
