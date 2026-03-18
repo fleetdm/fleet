@@ -23,8 +23,16 @@ func GetRoutes(svc api.Service, authMiddleware endpoint.Middleware) eu.HandlerRo
 func attachFleetAPIRoutes(r *mux.Router, svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption) {
 	ae := newEndpointerWithAuth(svc, authMiddleware, opts, r)
 
-	// TODO(mna): double-check that it works with HEAD (I think we handle it automatically for GET)
+	// must support HEAD, GET and POST-as-GET for new_nonce as per
+	// https://datatracker.ietf.org/doc/html/rfc8555/#section-6.3 and
+	// https://datatracker.ietf.org/doc/html/rfc8555/#section-7.2
 	ae.GET("/api/mdm/acme/{identifier}/new_nonce", getNewNonceEndpoint, api_http.GetNewNonceRequest{})
+	ae.HEAD("/api/mdm/acme/{identifier}/new_nonce", getNewNonceEndpoint, api_http.GetNewNonceRequest{})
+	ae.POST("/api/mdm/acme/{identifier}/new_nonce", getNewNonceEndpoint, api_http.GetNewNonceRequest{})
+
+	// must support GET and POST-as-GET for directory as per
+	// https://datatracker.ietf.org/doc/html/rfc8555/#section-6.3 and
+	// https://datatracker.ietf.org/doc/html/rfc8555/#section-7.1.1
 	ae.GET("/api/mdm/acme/{identifier}/directory", getDirectoryEndpoint, api_http.GetDirectoryRequest{})
 }
 

@@ -5,6 +5,7 @@ package bootstrap
 import (
 	"log/slog"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/service"
@@ -18,10 +19,11 @@ import (
 func New(
 	dbConns *platform_mysql.DBConnections,
 	authorizer platform_authz.Authorizer,
+	providers acme.DataProviders,
 	logger *slog.Logger,
 ) (api.Service, func(authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc) {
 	ds := mysql.NewDatastore(dbConns, logger)
-	svc := service.NewService(authorizer, ds, logger)
+	svc := service.NewService(authorizer, ds, providers, logger)
 
 	routesFn := func(authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc {
 		return service.GetRoutes(svc, authMiddleware)
