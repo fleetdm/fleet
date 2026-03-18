@@ -37,6 +37,7 @@ windows_entra_tenant_ids:
 windows_migration_enabled: true
 enable_turn_on_windows_mdm_manually: false
 windows_require_bitlocker_pin: false
+apple_require_hardware_attestation: false
 android_enabled_and_configured: true
 enable_disk_encryption: true
 enable_recovery_lock_password: false

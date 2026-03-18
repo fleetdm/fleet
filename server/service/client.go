@@ -2062,6 +2062,12 @@ func (c *Client) DoGitOps(
 			}
 		}
 
+		// Put in default values for apple_require_hardware_attestation
+		mdmAppConfig["apple_require_hardware_attestation"] = incoming.Controls.AppleRequireHardwareAttestation
+		if incoming.Controls.AppleRequireHardwareAttestation == nil {
+			mdmAppConfig["apple_require_hardware_attestation"] = false
+		}
+
 		mdmAppConfig["android_enabled_and_configured"] = incoming.Controls.AndroidEnabledAndConfigured
 		if incoming.Controls.AndroidEnabledAndConfigured != nil {
 			mdmAppConfig["android_enabled_and_configured"] = incoming.Controls.AndroidEnabledAndConfigured
