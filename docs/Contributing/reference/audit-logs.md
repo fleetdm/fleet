@@ -2351,7 +2351,7 @@ This activity contains the following fields:
 
 ## enabled_managed_local_account
 
-Generated when a user turns on create managed local account for a team (or no team).
+Generated when a user turns on create managed local account for a team (or unassigned hosts).
 
 This activity contains the following fields:
 - "team_id": The ID of the team that create managed local account applies to, `null` if it applies to devices that are not in a team.
@@ -2368,7 +2368,7 @@ This activity contains the following fields:
 
 ## disabled_managed_local_account
 
-Generated when a user turns off create managed local account for a team (or no team).
+Generated when a user turns off create managed local account for a team (or unassigned hosts).
 
 This activity contains the following fields:
 - "team_id": The ID of the team that create managed local account applies to, `null` if it applies to devices that are not in a team.
@@ -2402,7 +2402,7 @@ This activity contains the following fields:
 
 ## created_local_managed_account
 
-Generated when a local managed account is created for a host.
+Generated when a local managed account and password is created for a host.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -2414,23 +2414,6 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro"
-}
-```
-
-## escrowed_local_managed_account_password
-
-Generated when a local managed account password is escrowed.
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-
-#### Example
-
-```json
-{
-	"host_id": 123,
-	"host_display_name": "Anna's MacBook Pro"
 }
 ```
 
