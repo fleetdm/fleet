@@ -10945,7 +10945,7 @@ func testGetHostRecoveryLockPasswordStatus(t *testing.T, ds *Datastore) {
 		assert.Nil(t, status)
 	})
 
-	t.Run("returns pending status", func(t *testing.T) {
+	t.Run("returns enforcing status for pending install", func(t *testing.T) {
 		host := test.NewHost(t, ds, "pending-rlp-host", "1.2.6.2", "pendingrlpkey", "pendingrlpuuid", time.Now())
 		pw := apple_mdm.GenerateRecoveryLockPassword()
 		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
@@ -10954,9 +10954,11 @@ func testGetHostRecoveryLockPasswordStatus(t *testing.T, ds *Datastore) {
 		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
 		require.NoError(t, err)
 		require.NotNil(t, status)
+		status.PopulateStatus()
 		require.NotNil(t, status.Status)
-		assert.Equal(t, fleet.MDMDeliveryPending, *status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusEnforcing, *status.Status)
 		assert.Empty(t, status.Detail)
+		assert.True(t, status.PasswordAvailable)
 	})
 
 	t.Run("returns verified status", func(t *testing.T) {
@@ -10970,9 +10972,11 @@ func testGetHostRecoveryLockPasswordStatus(t *testing.T, ds *Datastore) {
 		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
 		require.NoError(t, err)
 		require.NotNil(t, status)
+		status.PopulateStatus()
 		require.NotNil(t, status.Status)
-		assert.Equal(t, fleet.MDMDeliveryVerified, *status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *status.Status)
 		assert.Empty(t, status.Detail)
+		assert.True(t, status.PasswordAvailable)
 	})
 
 	t.Run("returns failed status with error message", func(t *testing.T) {
@@ -10987,8 +10991,9 @@ func testGetHostRecoveryLockPasswordStatus(t *testing.T, ds *Datastore) {
 		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
 		require.NoError(t, err)
 		require.NotNil(t, status)
+		status.PopulateStatus()
 		require.NotNil(t, status.Status)
-		assert.Equal(t, fleet.MDMDeliveryFailed, *status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusFailed, *status.Status)
 		assert.Equal(t, errMsg, status.Detail)
 	})
 
@@ -11005,12 +11010,13 @@ func testGetHostRecoveryLockPasswordStatus(t *testing.T, ds *Datastore) {
 		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
 		require.NoError(t, err)
 		require.NotNil(t, status)
+		status.PopulateStatus()
 		require.NotNil(t, status.Status)
-		assert.Equal(t, fleet.MDMDeliveryVerifying, *status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerifying, *status.Status)
 		assert.Empty(t, status.Detail)
 	})
 
-	t.Run("returns pending status when status column is NULL (retry state)", func(t *testing.T) {
+	t.Run("returns enforcing status when status column is NULL (retry state)", func(t *testing.T) {
 		host := test.NewHost(t, ds, "null-status-host", "1.2.6.6", "nullstatuskey", "nullstatusuuid", time.Now())
 		pw := apple_mdm.GenerateRecoveryLockPassword()
 		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
@@ -11022,10 +11028,60 @@ func testGetHostRecoveryLockPasswordStatus(t *testing.T, ds *Datastore) {
 		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
 		require.NoError(t, err)
 		require.NotNil(t, status)
-		// NULL status is coalesced to pending for API response
+		// NULL status is coalesced to pending, which becomes enforcing
+		status.PopulateStatus()
 		require.NotNil(t, status.Status)
-		assert.Equal(t, fleet.MDMDeliveryPending, *status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusEnforcing, *status.Status)
 		assert.Empty(t, status.Detail)
+	})
+
+	t.Run("returns removing_enforcement status for pending removal after PopulateStatus", func(t *testing.T) {
+		host := test.NewHost(t, ds, "remove-pending-host", "1.2.6.7", "removependingkey", "removependinguuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		err = ds.SetRecoveryLockVerified(ctx, host.UUID)
+		require.NoError(t, err)
+		// Set operation_type to 'remove' and status to 'pending' (simulates pending removal)
+		_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_recovery_key_passwords SET operation_type = ?, status = ? WHERE host_uuid = ?`,
+			fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending, host.UUID)
+		require.NoError(t, err)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+
+		// Before PopulateStatus, Status is nil (raw status is internal)
+		assert.Nil(t, status.Status)
+
+		// After PopulateStatus, Status is removing_enforcement
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusRemovingEnforcement, *status.Status)
+	})
+
+	t.Run("returns failed status when operation_type is remove and status is failed", func(t *testing.T) {
+		host := test.NewHost(t, ds, "remove-failed-host", "1.2.6.8", "removefailedkey", "removefaileduuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		err = ds.SetRecoveryLockVerified(ctx, host.UUID)
+		require.NoError(t, err)
+		// Set operation_type to 'remove' and status to 'failed'
+		errMsg := "ClearRecoveryLock command failed"
+		_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_recovery_key_passwords SET operation_type = ?, status = ?, error_message = ? WHERE host_uuid = ?`,
+			fleet.MDMOperationTypeRemove, fleet.MDMDeliveryFailed, errMsg, host.UUID)
+		require.NoError(t, err)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		assert.Equal(t, errMsg, status.Detail)
+
+		// After PopulateStatus, Status is failed
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusFailed, *status.Status)
 	})
 }
 
