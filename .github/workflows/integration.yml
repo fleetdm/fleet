@@ -78,7 +78,7 @@ jobs:
         cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }} --logfile cloudflared.log &
         until [[ $(cloudflared tunnel --origincert cert.pem info -o json ${{ needs.gen.outputs.subdomain }} | jq '.conns[0].conns[0].is_pending_reconnect') = false ]]; do
           echo "Awaiting tunnel ready..."
-          sleep 5
+          sleep 1
         done
 
     # Download fleet and fleetctl binaries from last successful build on main
@@ -124,12 +124,12 @@ jobs:
           cat hostcount | xargs echo -n
           echo " / $EXPECTED"
           
-          # Show diagnostic info every 60 seconds
-          if [ $((ELAPSED % 60)) -lt 10 ]; then
+          # Show diagnostic info every 10 seconds
+          if [ $((ELAPSED % 10)) -lt 1 ]; then
             ./build/fleetctl get hosts --json || true
           fi
           
-          sleep 10
+          sleep 1
         done
         echo "Success! $EXPECTED hosts enrolled."
 
@@ -223,7 +223,7 @@ jobs:
           echo "Login attempt $ATTEMPT failed, retrying in 5s..."
           sleep 5
         done
-        TOKEN=$(cat ~/.fleet/config| grep token | awk '{ print $2 }')
+        TOKEN=$(./build/fleetctl config get token | awk '{print $3}')
         echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
   orbit-macos:
@@ -262,7 +262,7 @@ jobs:
         until curl -v -fail ${{ needs.gen.outputs.address }}/version;
         do
           echo "Awaiting until fleet server responds..."
-          sleep 10
+          sleep 1
         done
 
     - name: Install Orbit
@@ -281,7 +281,7 @@ jobs:
           CURRENT_TIME=$(date +%s)
           ELAPSED=$((CURRENT_TIME - ENROLLMENT_START))
           echo "Awaiting enrollment... (${ELAPSED}s)"
-          sleep 10
+          sleep 1
         done
 
     - name: Collect orbit logs
@@ -310,9 +310,9 @@ jobs:
         # https://github.com/fleetdm/fleet/issues/8021 (otherwise orbit and osqueryd
         # in the same host are enrolled as two hosts in Fleet).
         # Until then we will just test the `stable` channel in all components.
-        orbit-channel: [ 'stable' ]
-        osqueryd-channel: [ 'stable' ]
-        desktop-channel: [ 'stable' ]
+        orbit-channel: [ 'stable', 'edge' ]
+        osqueryd-channel: [ 'stable', 'edge' ]
+        desktop-channel: [ 'stable', 'edge' ]
     runs-on: ubuntu-latest
     needs: [gen, login]
     steps:
@@ -341,12 +341,12 @@ jobs:
       run: |
         until curl -v -fail ${{ needs.gen.outputs.address }}/version; do
           echo "Awaiting until fleet server responds..."
-          sleep 10
+          sleep 1
         done
 
     - name: Install Orbit
       run: |
-        sudo hostname ubuntu-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
+        sudo hostname ubuntu-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}
         chmod +x ./build/fleetctl
         SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
         echo $SECRET_JSON
@@ -361,7 +361,7 @@ jobs:
           ELAPSED=$((CURRENT_TIME - ENROLLMENT_START))
           echo "Awaiting enrollment... (${ELAPSED}s)"
           sudo systemctl status orbit.service || true
-          sleep 10
+          sleep 1
         done
 
     - name: Collect orbit logs
@@ -410,8 +410,8 @@ jobs:
       run: |
         until curl -v -fail ${{ needs.gen.outputs.address }}/version;
         do
-          echo "Awaiting until fleet server responds..."
-          sleep 10
+          echo "Waiting until fleet server responds..."
+          sleep 1
         done
 
     - name: Build Orbit
