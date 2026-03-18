@@ -411,13 +411,14 @@ jobs:
       with:
         egress-policy: audit
 
+    # We need to use some shenanigans to rename the Windows computer without restarting. Note: Windows computers should not get names longer than 15 characters (confirmed this breaks networking).
     - name: Rename computer
       shell: powershell
       run: |
         $orbit = "${{ matrix.orbit-channel }}"
         $osqueryd = "${{ matrix.osqueryd-channel }}"
         $desktop = "${{ matrix.desktop-channel }}"
-        $ComputerName = "windows-$($orbit[0])-$($osqueryd[0])-$($desktop[0])"
+        $ComputerName = "win-$($orbit[0])-$($osqueryd[0])-$($desktop[0])"
         echo "Setting computer name to $ComputerName"
         
         Remove-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -name "Hostname" 
@@ -446,11 +447,23 @@ jobs:
       shell: cmd
       run: |
         msiexec /i ${{steps.download.outputs.download-path}}\fleetd-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi /quiet /passive /lv log.txt
-        sleep 120
 
-    # We can't very accurately check the install on these Windows hosts since the hostnames tend to
-    # overlap and we can't control the hostnames. Instead we just return and have the run-server job
-    # wait until the expected number of hosts enroll.
+    - name: Wait for enrollment
+      shell: bash
+      run: |
+        orbit="${{ matrix.orbit-channel }}"
+        osqueryd="${{ matrix.osqueryd-channel }}"
+        desktop="${{ matrix.desktop-channel }}"
+        ComputerName="win-${orbit:0:1}-${osqueryd:0:1}-${desktop:0:1}"
+        
+        ENROLLMENT_START=$(date +%s)
+        until fleetctl get hosts | grep -iF $ComputerName;
+        do
+          CURRENT_TIME=$(date +%s)
+          ELAPSED=$((CURRENT_TIME - ENROLLMENT_START))
+          echo "Awaiting enrollment... (${ELAPSED}s)"
+          sleep 1
+        done
 
     - name: Upload orbit install log
       if: always()
