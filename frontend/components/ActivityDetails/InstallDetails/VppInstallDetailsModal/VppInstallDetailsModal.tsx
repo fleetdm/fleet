@@ -20,6 +20,7 @@ import {
 } from "interfaces/software";
 import { ICommandResult } from "interfaces/command";
 import { isAppleDevice, isMacOS } from "interfaces/platform";
+import { secondsToDhms } from "utilities/helpers";
 
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 
@@ -51,6 +52,7 @@ interface IGetStatusMessageProps {
   hostDisplayName: string;
   commandUpdatedAt: string;
   platform?: string;
+  vppVerifyTimeoutSeconds?: number;
   /**  Used only for overriding failed_install/failed_uninstall -> "is installed."
    - From Host -> Software: override based on inventory.
    - From Activity feed: never override (always show the failure).
@@ -70,10 +72,12 @@ export const getStatusMessage = ({
   hostDisplayName,
   commandUpdatedAt,
   platform,
+  vppVerifyTimeoutSeconds,
   canOverrideFailureWithInstalled = false,
   hasInstalledVersionsOnHost = false,
 }: IGetStatusMessageProps) => {
   const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
+  const formattedVerifyTimeout = secondsToDhms(vppVerifyTimeoutSeconds || 600);
   const displayTimestamp =
     ["failed_install", "installed"].includes(displayStatus || "") &&
     commandUpdatedAt
@@ -145,33 +149,23 @@ export const getStatusMessage = ({
   if (displayStatus === "failed_install" && isMDMStatusAcknowledged) {
     return (
       <>
-        {isAppleDevice(platform) ? (
-          <>
-            <div>
-              The host acknowledged the MDM command to install <b>{appName}</b>
-              {!isMyDevicePage && <> on {formattedHost}</>}, but the app failed
-              to install.
-            </div>
-            {platform && isMacOS(platform) && hasInstalledVersionsOnHost && (
-              <div className="vpp-install-details-modal__update-tip">
-                If you&apos;re updating the app and the app is open,{" "}
-                <TooltipWrapper
-                  tipContent="For updates, App Store (VPP) apps on macOS need to be closed."
-                  position="top"
-                >
-                  close it
-                </TooltipWrapper>{" "}
-                and try again.
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            The MDM command (request) to install <b>{appName}</b>
-            {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but
-            the installation has not been verified. Please re-attempt this
-            installation.
-          </>
+        <div>
+          The host acknowledged the MDM command to install <b>{appName}</b>
+          {!isMyDevicePage && <> on {formattedHost}</>}, but the install
+          hasn&apos;t been verified. Fleet marks as failed if the install
+          isn&apos;t verified within {formattedVerifyTimeout}.
+        </div>
+        {platform && isMacOS(platform) && hasInstalledVersionsOnHost && (
+          <div className="vpp-install-details-modal__update-tip">
+            If you&apos;re updating the app and the app is open,{" "}
+            <TooltipWrapper
+              tipContent="For updates, App Store (VPP) apps on macOS need to be closed."
+              position="top"
+            >
+              close it
+            </TooltipWrapper>{" "}
+            and try again.
+          </div>
         )}
       </>
     );
@@ -404,6 +398,11 @@ export const VppInstallDetailsModal = ({
   // messaging for the "NotNow" status, which otherwise would be treated as "pending".
   const isMDMStatusNotNow = vppCommandResult?.status === "NotNow";
   const isMDMStatusAcknowledged = vppCommandResult?.status === "Acknowledged";
+  const vppVerifyTimeoutSeconds = Number(
+    vppCommandResult?.results_metadata?.vpp_verify_timeout_seconds
+  );
+  const isVerificationTimedOut =
+    displayStatus === "failed_install" && isMDMStatusAcknowledged;
 
   // Hide version section from pending installs or failures that aren't overridden to installed (4.82 #31663)
   const shouldShowInventoryVersions =
@@ -430,6 +429,9 @@ export const VppInstallDetailsModal = ({
     hostDisplayName,
     commandUpdatedAt: vppCommandResult?.updated_at || "",
     platform: hostSoftware?.app_store_app?.platform || detailsPlatform,
+    vppVerifyTimeoutSeconds: Number.isFinite(vppVerifyTimeoutSeconds)
+      ? vppVerifyTimeoutSeconds
+      : undefined,
     canOverrideFailureWithInstalled,
     hasInstalledVersionsOnHost,
   });
@@ -438,7 +440,7 @@ export const VppInstallDetailsModal = ({
     if (hostSoftware?.installed_versions?.length) {
       return <InventoryVersions hostSoftware={hostSoftware} />;
     }
-    return "If you uninstalled it outside of Fleet it will still show as installed.";
+    return null;
   };
 
   const renderInstallDetailsSection = () => {
@@ -521,6 +523,12 @@ export const VppInstallDetailsModal = ({
           iconName={iconName}
           message={<span>{statusMessage}</span>}
         />
+        {isVerificationTimedOut && (
+          <p>
+            If the app is installed later, Fleet will update the status when the
+            host is refetched.
+          </p>
+        )}
         {shouldShowInventoryVersions && renderInventoryVersionsSection()}
         {!isPendingInstall &&
           isInstalledByFleet &&
