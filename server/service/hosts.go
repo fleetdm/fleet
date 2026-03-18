@@ -1937,7 +1937,7 @@ func (svc *Service) GetHostQueryReportResults(ctx context.Context, hostID uint, 
 type listHostReportsRequest struct {
 	ID          uint              `url:"id"`
 	ListOptions fleet.ListOptions `url:"list_options"`
-	// IncludeReportsDontStoreResults if true, include queries that don't store results
+	// IncludeReportsDontStoreResults if true, include reports that don't store results
 	// (discard_data=1 AND logging_type != 'snapshot'). Defaults to false when omitted.
 	IncludeReportsDontStoreResults *bool `query:"include_reports_dont_store_results,optional"`
 }

@@ -819,7 +819,7 @@ func testCleanupExcessQueryResultRowsManyQueries(t *testing.T, ds *Datastore) {
 }
 
 func testListHostReports(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 	user := test.NewUser(t, ds, "Test User", "list@example.com", true)
 	host := test.NewHost(t, ds, "host1", "192.168.1.1", "key1", "serial1", time.Now())
 

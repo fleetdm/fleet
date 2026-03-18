@@ -349,7 +349,7 @@ type Service interface {
 	// ListHostReports returns the reports/queries associated with the given host, filtered,
 	// sorted, and paginated according to opts. The bool return value indicates whether
 	// query reports are globally disabled in the org settings.
-	ListHostReports(ctx context.Context, hostID uint, opts ListHostReportsOptions) ([]*HostReport, int, *PaginationMetadata, bool, error)
+	ListHostReports(ctx context.Context, hostID uint, opts ListHostReportsOptions) (rows []*HostReport, total int, metadata *PaginationMetadata, savedReportsDisabled bool, err error)
 	NewQuery(ctx context.Context, p QueryPayload) (*Query, error)
 	ModifyQuery(ctx context.Context, id uint, p QueryPayload) (*Query, error)
 	DeleteQuery(ctx context.Context, teamID *uint, name string) error

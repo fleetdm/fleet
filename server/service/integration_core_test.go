@@ -16045,7 +16045,7 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 
 func (s *integrationTestSuite) TestListHostReports() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	now := time.Now().UTC().Truncate(time.Second)
 	earlier := now.Add(-time.Hour)

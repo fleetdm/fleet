@@ -380,18 +380,11 @@ func (ds *Datastore) ListHostReports(
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "listing host reports")
 	}
 
-	// The count and data queries are intentionally separate (best-effort count):
-	// rows created or deleted between the two calls will cause a minor
-	// inconsistency in the total, but this matches the pattern used by other
-	// paginated endpoints in the codebase and avoids holding a transaction.
 	var total int
 	if err := sqlx.GetContext(ctx, dbReader, &total, countStmt, whereArgs...); err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "counting host reports")
 	}
 
-	// Build pagination metadata. opts.ListOptions.PerPage was mutated to
-	// DefaultPerPage by appendListOptionsWithCursorToSQLSecure when it was 0,
-	// so this comparison is always against the effective page size.
 	metadata := &fleet.PaginationMetadata{HasPreviousResults: opts.ListOptions.Page > 0}
 	if len(queryRows) > int(opts.ListOptions.PerPage) { //nolint:gosec // dismiss G115
 		metadata.HasNextResults = true
