@@ -1126,6 +1126,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
+	ds.GetHostRecoveryLockPasswordStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
+		return nil, nil
+	}
 
 	expectedNilSlice := []fleet.HostMDMAppleProfile(nil)
 	expectedEmptySlice := []fleet.HostMDMAppleProfile{}
@@ -1670,7 +1673,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 	require.True(t, newActivityFuncInvoked)
 
 	// With AwaitingConfiguration - should check for and enqueue SetupExperience items
-	ds.EnqueueSetupExperienceItemsFunc = func(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
+	ds.EnqueueSetupExperienceItemsFunc = func(ctx context.Context, hostPlatform, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
 		require.Equal(t, "darwin", hostPlatformLike)
 		require.Equal(t, uuid, hostUUID)
 		require.Equal(t, wantTeamID, teamID)
@@ -1808,7 +1811,7 @@ func TestMDMTokenUpdateIOS(t *testing.T) {
 		return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
 	}
 
-	ds.EnqueueSetupExperienceItemsFunc = func(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
+	ds.EnqueueSetupExperienceItemsFunc = func(ctx context.Context, hostPlatform, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
 		require.Equal(t, "ios", hostPlatformLike)
 		require.Equal(t, uuid, hostUUID)
 		require.Equal(t, wantTeamID, teamID)
@@ -6895,4 +6898,146 @@ func TestToValidSemVer(t *testing.T) {
 			require.Error(t, err, tc.rawVersion)
 		}
 	}
+}
+
+func TestMDMTokenUpdateSCEPRenewal(t *testing.T) {
+	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ds := new(mock.Store)
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		NewNanoMDMLogger(logger),
+	)
+	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
+	uuid, serial, model, wantTeamID := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1", uint(12)
+
+	t.Run("awaiting configuration continues enrollment", func(t *testing.T) {
+		// When a host re-enrolls via DEP (AwaitingConfiguration=true) while a
+		// SCEP renewal is pending, the handler should clear SCEP refs and
+		// continue with the normal enrollment flow (not short-circuit).
+
+		var newActivityFuncInvoked bool
+		mdmLifecycle := mdmlifecycle.New(ds, logger, func(_ context.Context, _ *fleet.User, activity fleet.ActivityDetails) error {
+			newActivityFuncInvoked = true
+			_, ok := activity.(*fleet.ActivityTypeMDMEnrolled)
+			require.True(t, ok)
+			return nil
+		})
+		svc := MDMAppleCheckinAndCommandService{
+			ds:           ds,
+			mdmLifecycle: mdmLifecycle,
+			commander:    cmdr,
+			logger:       logger,
+		}
+		scepRenewalInProgress := true
+		ds.GetHostMDMCheckinInfoFunc = func(ct context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+			return &fleet.HostMDMCheckinInfo{
+				HostID:                1337,
+				HardwareSerial:        serial,
+				DisplayName:           model,
+				InstalledFromDEP:      true,
+				TeamID:                wantTeamID,
+				DEPAssignedToFleet:    true,
+				SCEPRenewalInProgress: scepRenewalInProgress,
+				Platform:              "darwin",
+			}, nil
+		}
+		ds.CleanSCEPRenewRefsFunc = func(ctx context.Context, hostUUID string) error {
+			require.Equal(t, uuid, hostUUID)
+			scepRenewalInProgress = false
+			return nil
+		}
+		ds.EnqueueSetupExperienceItemsFunc = func(ctx context.Context, hostPlatform, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
+			require.Equal(t, "darwin", hostPlatformLike)
+			require.Equal(t, uuid, hostUUID)
+			require.Equal(t, wantTeamID, teamID)
+			return true, nil
+		}
+		ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
+			return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
+		}
+		ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+			return nil, nil
+		}
+		ds.NewJobFunc = func(ctx context.Context, j *fleet.Job) (*fleet.Job, error) {
+			return j, nil
+		}
+		ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
+			return nil
+		}
+
+		err := svc.TokenUpdate(
+			&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: uuid}},
+			&mdm.TokenUpdate{
+				Enrollment: mdm.Enrollment{
+					AwaitingConfiguration: true,
+					UDID:                  uuid,
+				},
+			},
+		)
+		require.NoError(t, err)
+		require.True(t, ds.CleanSCEPRenewRefsFuncInvoked)
+		require.True(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
+		require.True(t, ds.NewJobFuncInvoked)
+		require.True(t, newActivityFuncInvoked)
+		require.True(t, ds.MDMResetEnrollmentFuncInvoked)
+	})
+
+	t.Run("not awaiting configuration short-circuits", func(t *testing.T) {
+		// When a SCEP renewal is in progress but the host is NOT awaiting
+		// configuration (normal renewal), the handler should clean SCEP refs
+		// and return early without enqueueing setup experience or lifecycle.
+		var newActivityFuncInvoked bool
+		mdmLifecycle := mdmlifecycle.New(ds, logger, func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+			newActivityFuncInvoked = true
+			return nil
+		})
+		svc := MDMAppleCheckinAndCommandService{
+			ds:           ds,
+			mdmLifecycle: mdmLifecycle,
+			commander:    cmdr,
+			logger:       logger,
+		}
+
+		ds.GetHostMDMCheckinInfoFunc = func(ct context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+			return &fleet.HostMDMCheckinInfo{
+				HostID:                1337,
+				HardwareSerial:        serial,
+				DisplayName:           model,
+				InstalledFromDEP:      true,
+				TeamID:                wantTeamID,
+				DEPAssignedToFleet:    true,
+				SCEPRenewalInProgress: true,
+				Platform:              "darwin",
+			}, nil
+		}
+		ds.CleanSCEPRenewRefsFunc = func(ctx context.Context, hostUUID string) error {
+			require.Equal(t, uuid, hostUUID)
+			return nil
+		}
+		ds.CleanSCEPRenewRefsFuncInvoked = false
+		ds.EnqueueSetupExperienceItemsFuncInvoked = false
+		ds.NewJobFuncInvoked = false
+
+		err := svc.TokenUpdate(
+			&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: uuid}},
+			&mdm.TokenUpdate{
+				Enrollment: mdm.Enrollment{
+					UDID: uuid,
+				},
+			},
+		)
+		require.NoError(t, err)
+		require.True(t, ds.CleanSCEPRenewRefsFuncInvoked)
+		require.False(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
+		require.False(t, ds.NewJobFuncInvoked)
+		require.False(t, newActivityFuncInvoked)
+	})
 }

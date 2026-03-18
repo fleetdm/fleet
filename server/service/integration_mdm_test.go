@@ -2961,7 +2961,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMRecoveryLockPassword() {
 		"mdm": { "enable_recovery_lock_password": true }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableRecoveryLockPassword.Value)
-	enabledActID := s.lastActivityMatches(fleet.ActivityTypeEnabledRecoveryLockPassword{}.ActivityName(),
+	enabledActID := s.lastActivityMatches(fleet.ActivityTypeEnabledRecoveryLockPasswords{}.ActivityName(),
 		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
 
 	// check that it's returned by GET /config
@@ -2976,7 +2976,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMRecoveryLockPassword() {
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableRecoveryLockPassword.Value)
 	// verify no new recovery lock password activity was created
-	s.lastActivityMatches(fleet.ActivityTypeEnabledRecoveryLockPassword{}.ActivityName(),
+	s.lastActivityMatches(fleet.ActivityTypeEnabledRecoveryLockPasswords{}.ActivityName(),
 		``, enabledActID)
 
 	// patch with same value should not create new activity
@@ -2985,7 +2985,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMRecoveryLockPassword() {
 		"mdm": { "enable_recovery_lock_password": true }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableRecoveryLockPassword.Value)
-	s.lastActivityMatches(fleet.ActivityTypeEnabledRecoveryLockPassword{}.ActivityName(),
+	s.lastActivityMatches(fleet.ActivityTypeEnabledRecoveryLockPasswords{}.ActivityName(),
 		``, enabledActID)
 
 	// disable recovery lock password
@@ -2994,7 +2994,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMRecoveryLockPassword() {
 		"mdm": { "enable_recovery_lock_password": false }
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableRecoveryLockPassword.Value)
-	s.lastActivityMatches(fleet.ActivityTypeDisabledRecoveryLockPassword{}.ActivityName(),
+	s.lastActivityMatches(fleet.ActivityTypeDisabledRecoveryLockPasswords{}.ActivityName(),
 		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
 
 	// check that it's returned by GET /config
@@ -3372,7 +3372,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 		},
 	}, http.StatusOK, &modResp)
 	require.True(t, modResp.Team.Config.MDM.EnableRecoveryLockPassword)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledRecoveryLockPassword{}.ActivityName(),
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledRecoveryLockPasswords{}.ActivityName(),
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
 
 	// check it's returned by GET
@@ -3381,7 +3381,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 	require.True(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
 
 	// patch with same value should not create new activity
-	lastActID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledRecoveryLockPassword{}.ActivityName(),
+	lastActID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledRecoveryLockPasswords{}.ActivityName(),
 		``, 0)
 	modResp = teamResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
@@ -3390,7 +3390,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 		},
 	}, http.StatusOK, &modResp)
 	require.True(t, modResp.Team.Config.MDM.EnableRecoveryLockPassword)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledRecoveryLockPassword{}.ActivityName(),
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledRecoveryLockPasswords{}.ActivityName(),
 		``, lastActID)
 
 	// disable recovery lock password
@@ -3401,7 +3401,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 		},
 	}, http.StatusOK, &modResp)
 	require.False(t, modResp.Team.Config.MDM.EnableRecoveryLockPassword)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledRecoveryLockPassword{}.ActivityName(),
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledRecoveryLockPasswords{}.ActivityName(),
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
 
 	// check it's returned by GET
@@ -6202,6 +6202,7 @@ func (s *integrationMDMTestSuite) setTokenForTest(t *testing.T, email, password 
 
 func (s *integrationMDMTestSuite) TestSSO() {
 	t := s.T()
+	s.setSkipWorkerJobs(t)
 
 	lastSubmittedProfile := &godep.Profile{}
 	mdmDevice, wantSettings := s.setUpEndUserAuthentication(t, lastSubmittedProfile, true)

@@ -2,6 +2,8 @@
 
 Fleet allows you to configure default fleets for macOS, iOS, and iPadOS devices as they automatically enroll in your instance. This ensures that hosts receive the appropriate apps and configuration profiles at enrollment.
 
+If a host is manually assigned to a different fleet before enrollment, it will enroll to the newly assigned fleet and not the default.
+
 ## Why configure default fleets?
 
 The ability to assign default fleets during device enrollment helps streamline the deployment process. Each host is automatically placed in its correct group, ensuring it receives the necessary configuration profiles and apps without requiring manual assignment.
