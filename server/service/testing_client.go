@@ -765,6 +765,11 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 			require.NoError(t, w.WriteField("labels_exclude_any", l))
 		}
 	}
+	if payload.LabelsIncludeAll != nil {
+		for _, l := range payload.LabelsIncludeAll {
+			require.NoError(t, w.WriteField("labels_include_all", l))
+		}
+	}
 	if payload.AutomaticInstall {
 		require.NoError(t, w.WriteField("automatic_install", "true"))
 	}
@@ -845,6 +850,11 @@ func (ts *withServer) updateSoftwareInstaller(
 	if payload.LabelsExcludeAny != nil {
 		for _, l := range payload.LabelsExcludeAny {
 			require.NoError(t, w.WriteField("labels_exclude_any", l))
+		}
+	}
+	if payload.LabelsIncludeAll != nil {
+		for _, l := range payload.LabelsIncludeAll {
+			require.NoError(t, w.WriteField("labels_include_all", l))
 		}
 	}
 	if payload.Categories != nil {

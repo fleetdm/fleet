@@ -113,6 +113,9 @@ software:
   - app_store_id: com.example.setup-experience-software
     icon:
       path: "../lib/team-a-👍/icons/my-setup-experience-app-android-icon.png"
+    labels_include_all:
+    - Label C
+    - Label D
     platform: android
     self_service: true
     setup_experience: true
@@ -122,6 +125,9 @@ software:
     auto_update_window_start: "01:00"
     icon:
       path: "../lib/team-a-👍/icons/my-ios-auto-update-app-ios-icon.png"
+    labels_include_all:
+    - Label C
+    - Label D
     platform: ios
   fleet_maintained_apps:
   - categories:
@@ -140,6 +146,9 @@ software:
     slug: fma1/darwin
   - icon:
       path: "../lib/team-a-👍/icons/my-windows-fma-windows-icon.png"
+    labels_include_all:
+    - Label A
+    - Label B
     self_service: true
     slug: fma2/windows
   packages:

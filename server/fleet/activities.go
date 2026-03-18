@@ -1091,6 +1091,7 @@ type ActivityTypeAddedSoftware struct {
 	SoftwareTitleID  uint                    `json:"software_title_id"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+	LabelsIncludeAll []ActivitySoftwareLabel `json:"labels_include_all,omitempty"`
 }
 
 func (a ActivityTypeAddedSoftware) ActivityName() string {
@@ -1106,6 +1107,7 @@ type ActivityTypeEditedSoftware struct {
 	SoftwareIconURL     *string                 `json:"software_icon_url"`
 	LabelsIncludeAny    []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny    []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+	LabelsIncludeAll    []ActivitySoftwareLabel `json:"labels_include_all,omitempty"`
 	SoftwareTitleID     uint                    `json:"software_title_id"`
 	SoftwareDisplayName string                  `json:"software_display_name"`
 }
@@ -1123,6 +1125,7 @@ type ActivityTypeDeletedSoftware struct {
 	SoftwareIconURL  *string                 `json:"software_icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+	LabelsIncludeAll []ActivitySoftwareLabel `json:"labels_include_all,omitempty"`
 }
 
 func (a ActivityTypeDeletedSoftware) ActivityName() string {
@@ -1236,6 +1239,7 @@ type ActivityAddedAppStoreApp struct {
 	SelfService      bool                      `json:"self_service"`
 	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
+	LabelsIncludeAll []ActivitySoftwareLabel   `json:"labels_include_all,omitempty"`
 	Configuration    json.RawMessage           `json:"configuration,omitempty"`
 }
 
@@ -1252,6 +1256,7 @@ type ActivityDeletedAppStoreApp struct {
 	SoftwareIconURL  *string                   `json:"software_icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
+	LabelsIncludeAll []ActivitySoftwareLabel   `json:"labels_include_all,omitempty"`
 }
 
 func (a ActivityDeletedAppStoreApp) ActivityName() string {
@@ -1308,6 +1313,7 @@ type ActivityEditedAppStoreApp struct {
 	SoftwareIconURL     *string                   `json:"software_icon_url"`
 	LabelsIncludeAny    []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny    []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
+	LabelsIncludeAll    []ActivitySoftwareLabel   `json:"labels_include_all,omitempty"`
 	SoftwareDisplayName string                    `json:"software_display_name"`
 	Configuration       json.RawMessage           `json:"configuration,omitempty"`
 	AutoUpdateEnabled   *bool                     `json:"auto_update_enabled,omitempty"`
