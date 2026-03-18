@@ -33,7 +33,8 @@ const (
 type EncryptionFlag int32
 
 const (
-	EncryptDataOnly    EncryptionFlag = 0x00000001
+	EncryptDataOnly EncryptionFlag = 0x00000001
+	// EncryptDemandWipe encrypts the entire disk, including (wiping) free space.
 	EncryptDemandWipe  EncryptionFlag = 0x00000002
 	EncryptSynchronous EncryptionFlag = 0x00010000
 )
@@ -427,25 +428,36 @@ func encryptVolumeOnCOMThread(targetVolume string) (string, error) {
 	}
 	defer vol.bitlockerClose()
 
-	// Clean up stale key protectors from previous failed encryption attempts or from other MDM
-	// solutions. This ensures a clean slate for the new encryption attempt. Errors are ignored
-	// since the volume might not have any protectors.
+	// Clean up stale key protectors (recovery passwords, TPM, etc.) that may be left over from
+	// a previous failed encryption attempt or from another MDM solution. Without this, leftover
+	// protectors cause prepareVolume to return ErrorCodeNotDecrypted and subsequent encryption
+	// attempts to silently fail. Failures are logged but not fatal since a fresh volume won't
+	// have any protectors to delete.
 	if err := vol.deleteKeyProtectors(); err != nil {
-		log.Debug().Err(err).Msg("could not delete existing key protectors (may not have any)")
+		log.Debug().Err(err).Msg("could not delete existing key protectors (may not have any), continuing anyway")
 	}
 
-	// Read the OSEncryptionType registry policy to determine the encryption flag. Other MDMs
-	// may set this to require full disk encryption, and it persists after unenrolling.
+	// Read the OSEncryptionType registry policy to determine the encryption flag. If a GPO or
+	// another MDM set this to require full disk encryption (value 1), passing the wrong flag
+	// to Encrypt() would fail with E_INVALIDARG. We honor the policy to avoid this conflict.
+	// If the key is absent or any other value, we default to used-space-only (EncryptDataOnly).
 	encFlag := encryptionFlagFromRegistry()
 
-	// Clean up the orphaned registry key now that we've read it. If it was set by an active
-	// GPO, the GPO will re-apply it on the next policy refresh.
+	// Delete the registry key now that we've read it. If it was orphaned from a previous MDM,
+	// this cleans it up permanently. In practice, customers should not use GPO for BitLocker
+	// policy alongside Fleet MDM since the two will conflict. However, if an active GPO is present,
+	// it will re-apply the key on its next refresh (~90 minutes). Orbit retries every ~30
+	// seconds on failure, so interim retries before the GPO re-applies the key will default to
+	// EncryptDataOnly and fail with E_INVALIDARG. That's expected and the error is reported to
+	// Fleet. Once the GPO restores the key, the next retry reads it and succeeds.
 	deleteOSEncryptionTypeRegistry()
 
 	// Prepare for encryption
 	if err := vol.prepareVolume(VolumeTypeDefault, EncryptionTypeSoftware); err != nil {
-		// If the volume was already prepared from a previous attempt, prepareVolume may return
-		// ErrorCodeNotDecrypted. This is safe to ignore as we can proceed with adding protectors.
+		// A previous failed encryption attempt may have already called PrepareVolume, which sets
+		// BitLocker metadata on the volume. Calling it again returns ErrorCodeNotDecrypted
+		// (FVE_E_NOT_DECRYPTED). This is safe to ignore because the volume is already prepared
+		// and we can proceed with adding protectors and encrypting.
 		var encErr *EncryptionError
 		if !errors.As(err, &encErr) || encErr.Code() != ErrorCodeNotDecrypted {
 			return "", fmt.Errorf("preparing volume for encryption: %w", err)
