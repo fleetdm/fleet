@@ -84,7 +84,8 @@ jobs:
           DOGFOOD_OKTA_CA_CERTIFICATE: ${{ secrets.DOGFOOD_OKTA_CA_CERTIFICATE }}
           DOGFOOD_OKTA_VERIFY_WINDOWS_URL: ${{ secrets.DOGFOOD_OKTA_VERIFY_WINDOWS_URL }}
           DOGFOOD_ENTRA_TENANT_ID: ${{ secrets.DOGFOOD_ENTRA_TENANT_ID }}
-          DOGFOOD_OKTA_METADATA_URL: ${{ secrets.DOGFOOD_OKTA_METADATA_URL }}
+          DOGFOOD_OKTA_METADATA_URL_ADMINS: ${{ secrets.DOGFOOD_OKTA_METADATA_URL_ADMINS }}
+          DOGFOOD_OKTA_METADATA_URL_END_USERS: ${{ secrets.DOGFOOD_OKTA_METADATA_URL_END_USERS }}
 
       - name: Notify on Gitops failure
         if: failure() && github.ref_name == 'main'
