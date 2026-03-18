@@ -1751,6 +1751,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 						return nil, ctxerr.Wrap(ctx, err, "get host recovery lock password status")
 					}
 					if rlpStatus != nil {
+						rlpStatus.PopulateStatus()
 						host.MDM.OSSettings.RecoveryLockPassword = *rlpStatus
 					}
 				}
