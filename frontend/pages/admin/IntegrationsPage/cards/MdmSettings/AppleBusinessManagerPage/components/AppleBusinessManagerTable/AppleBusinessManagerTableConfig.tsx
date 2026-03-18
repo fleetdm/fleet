@@ -6,7 +6,6 @@ import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import {
   APP_CONTEXT_NO_TEAM_ID,
   APP_CONTEXT_NO_TEAM_SUMMARY,
-  ITokenTeam,
 } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
@@ -36,7 +35,7 @@ const generateActions = () => {
   return DEFAULT_ACTION_OPTIONS;
 };
 
-const getTeamDisplayName = (team: ITokenTeam) =>
+const getTeamDisplayName = (team: IMdmAbmToken["ios_team"]) =>
   team.team_id === APP_CONTEXT_NO_TEAM_ID
     ? APP_CONTEXT_NO_TEAM_SUMMARY.name
     : team.name;
