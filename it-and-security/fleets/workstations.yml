@@ -366,3 +366,7 @@ software:
       self_service: true
       categories:
         - Developer tools
+    - slug: microsoft-powerpoint/windows # Microsoft PowerPoint for Windows
+      self_service: true
+      categories:
+        - Productivity
