@@ -81,23 +81,13 @@ jobs:
           sleep 1
         done
 
-    # Download fleet and fleetctl binaries from last successful build on main
-    - name: Download binaries
-      uses: dawidd6/action-download-artifact@5e780fc7bbd0cac69fc73271ed86edf5dcb72d67
-      with:
-        workflow: build-binaries.yaml
-        branch: main
-        name: build
-        path: build
-        check_artifacts: true
-
     - name: Run Fleet server
       timeout-minutes: 15
       run: |
-        chmod +x ./build/fleetctl
-        ./build/fleetctl preview --no-hosts --disable-open-browser
-        ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
-        ./build/fleetctl get enroll-secret
+        npm install -g fleetctl
+        fleetctl preview --no-hosts --disable-open-browser
+        fleetctl config set --address ${{ needs.gen.outputs.address }}
+        fleetctl get enroll-secret
         docker compose -f ~/.fleet/preview/docker-compose.yml logs --follow fleet01 fleet02 &
         
         # Ensure Fleet server is responding before waiting for enrollments
@@ -115,9 +105,9 @@ jobs:
         echo "Fleet server is responding"
         
         # Wait for all of the hosts to be enrolled
-        EXPECTED=3
+        EXPECTED=10
         ENROLLMENT_START=$(date +%s)
-        until [ $(./build/fleetctl get hosts --json | grep -v "No hosts found" | wc -l | tee hostcount) -ge $EXPECTED ]; do
+        until [ $(fleetctl get hosts --json | grep -v "No hosts found" | wc -l | tee hostcount) -ge $EXPECTED ]; do
           CURRENT_TIME=$(date +%s)
           ELAPSED=$((CURRENT_TIME - ENROLLMENT_START))
           echo -n "Waiting for hosts to enroll (${ELAPSED}s): "
@@ -126,7 +116,7 @@ jobs:
           
           # Show diagnostic info every 10 seconds
           if [ $((ELAPSED % 10)) -lt 1 ]; then
-            ./build/fleetctl get hosts --json || true
+            fleetctl get hosts --json || true
           fi
           
           sleep 1
@@ -136,7 +126,7 @@ jobs:
     - name: Show enrolled hosts
       if: always()
       run: |
-        ./build/fleetctl get hosts --json
+        fleetctl get hosts --json
 
     - name: Slack Notification
       if: failure() && github.event_name == 'schedule'
@@ -182,22 +172,13 @@ jobs:
       with:
         egress-policy: audit
 
-    - name: Download binaries
-      uses: dawidd6/action-download-artifact@5e780fc7bbd0cac69fc73271ed86edf5dcb72d67
-      with:
-        workflow: build-binaries.yaml
-        branch: main
-        name: build
-        path: build
-        check_artifacts: true
-
     # Login only here and share the token because otherwise we could hit rate limits.
     - id: login
       name: Attempt login
       timeout-minutes: 5
       run: |
-        chmod +x ./build/fleetctl
-        ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
+        npm install -g fleetctl
+        fleetctl config set --address ${{ needs.gen.outputs.address }}
         
         # Wait for Fleet server to be reachable first
         echo "Waiting for Fleet server to be ready..."
@@ -214,7 +195,7 @@ jobs:
         echo "Fleet server is responding, attempting login..."
         
         ATTEMPT=0
-        until ./build/fleetctl login --email admin@example.com --password preview1337#; do
+        until fleetctl login --email admin@example.com --password preview1337#; do
           ATTEMPT=$((ATTEMPT + 1))
           if [ $ATTEMPT -ge 30 ]; then
             echo "ERROR: Failed to login after $ATTEMPT attempts"
@@ -223,10 +204,10 @@ jobs:
           echo "Login attempt $ATTEMPT failed, retrying in 5s..."
           sleep 5
         done
-        TOKEN=$(./build/fleetctl config get token | awk '{print $3}')
+        TOKEN=$(fleetctl config get token | awk '{print $3}')
         echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
-  orbit-macos:
+  fleetd-macos:
     timeout-minutes: 10
     strategy:
       matrix:
@@ -249,10 +230,7 @@ jobs:
       with:
         egress-policy: audit
 
-    - name: Checkout Code
-      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-
-    - name: Install dependencies
+    - name: Install fleetctl
       run: |
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
@@ -302,7 +280,7 @@ jobs:
       run: |
         sudo ./it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
 
-  orbit-ubuntu:
+  fleetd-ubuntu:
     timeout-minutes: 10
     strategy:
       matrix:
@@ -321,22 +299,10 @@ jobs:
       with:
         egress-policy: audit
 
-    - name: Install dependencies
+    - name: Install fleetctl
       run: |
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
-
-    - name: Checkout Code
-      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-
-    - name: Install Go
-      uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
-      with:
-        go-version-file: 'go.mod'
-
-    - name: Build Fleetctl
-      run: make fleetctl
-
     - name: Wait until fleet address is reachable and fleet responds
       run: |
         until curl -v -fail ${{ needs.gen.outputs.address }}/version; do
@@ -347,13 +313,12 @@ jobs:
     - name: Install Orbit
       run: |
         sudo hostname ubuntu-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}
-        chmod +x ./build/fleetctl
         SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
         echo $SECRET_JSON
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
-        ./build/fleetctl package --type deb --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET  --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug
+        fleetctl package --type deb --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET  --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug
         sudo dpkg -i fleet-osquery*
         ENROLLMENT_START=$(date +%s)
         until fleetctl get hosts | grep -iF $(hostname -s); do
