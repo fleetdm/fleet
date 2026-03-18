@@ -2027,6 +2027,15 @@ func (svc *Service) ListHostReports(
 	if opts.ListOptions.PerPage == 0 {
 		opts.ListOptions.PerPage = 50
 	}
+	// Validate the order key before it reaches the datastore allowlist, so that
+	// invalid values produce a clear 400 Bad Request instead of an internal error.
+	switch opts.ListOptions.OrderKey {
+	case "", "name", "last_fetched":
+		// valid
+	default:
+		return nil, 0, nil, false, fleet.NewInvalidArgumentError("order_key", "must be one of: name, last_fetched")
+	}
+
 	// Default: sort by newest results first. Applies only when the caller has
 	// not specified an order key; explicit sorts (e.g. order_key=name) are
 	// passed through unchanged.

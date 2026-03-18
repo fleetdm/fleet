@@ -126,6 +126,16 @@ func TestListHostReports(t *testing.T) {
 		}
 	})
 
+	t.Run("invalid order_key returns bad request", func(t *testing.T) {
+		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: admin})
+		_, _, _, _, err := svc.ListHostReports(viewerCtx, hostNoTeam.ID, fleet.ListHostReportsOptions{
+			ListOptions: fleet.ListOptions{OrderKey: "invalid_key"},
+		})
+		require.Error(t, err)
+		var invalidArgErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &invalidArgErr)
+	})
+
 	t.Run("unauthenticated gets error", func(t *testing.T) {
 		_, _, _, _, err := svc.ListHostReports(ctx, hostNoTeam.ID, fleet.ListHostReportsOptions{})
 		require.Error(t, err)
