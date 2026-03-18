@@ -182,34 +182,107 @@ This avoids hardcoding channel/platform paths in the service unit file.
 - SSH in as a user (no GUI session) and verify `systemctl --user status fleet-desktop.service` shows inactive — service should NOT start for SSH-only users.
 
 ### 3. Environment Inheritance
-- Check that Fleet Desktop inherits `DISPLAY`, `WAYLAND_DISPLAY`, and `DBUS_SESSION_BUS_ADDRESS` from the user session.
-- Confirm `/opt/orbit/desktop.env` is readable and contains expected env vars.
+- Check that Fleet Desktop inherits session environment variables naturally:
+  ```bash
+  cat /proc/$(pgrep fleet-desktop)/environ | tr '\0' '\n' | grep -E 'DISPLAY|WAYLAND|DBUS'
+  ```
+  Should show `DISPLAY`, `WAYLAND_DISPLAY`, and `DBUS_SESSION_BUS_ADDRESS` inherited from the user session — these are no longer manually constructed by orbit.
+- Confirm the Fleet-specific env file is readable and contains the expected vars:
+  ```bash
+  cat /opt/orbit/desktop.env
+  ```
+  Should show `FLEET_DESKTOP_FLEET_URL`, `FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH`, `FLEET_DESKTOP_TUF_UPDATE_ROOT`, etc.
 
 ### 4. Browser Launch Verification
-- Trigger a browser launch from Fleet Desktop ("My device" link).
-- Confirm the browser opens in the user's session (not as root, no permission errors).
+- Click "My device" in the Fleet Desktop tray icon. The browser should open.
+- Confirm the browser is running as the logged-in user (not root):
+  ```bash
+  ps -eo user,pid,comm | grep -i firefox   # or chromium/google-chrome
+  ```
+  Should show your username, not `root`.
 
 ### 5. Service Management
-- Manually stop/start/restart the service:
-  - `systemctl --user stop fleet-desktop.service`
-  - `systemctl --user start fleet-desktop.service`
-- Check `journalctl --user -u fleet-desktop` — confirm logs go to the user journal, not system journal.
-- Verify orbit logs (`journalctl -u orbit`) show `"managing fleet-desktop as systemd user service"` confirming the new code path is active.
+- Manually stop and start the service, then check the user journal:
+  ```bash
+  systemctl --user stop fleet-desktop.service
+  systemctl --user start fleet-desktop.service
+  journalctl --user -u fleet-desktop --since "2 min ago"
+  ```
+  Should show "Stopping", "Stopped", and "Started" entries in the user journal.
+- Verify orbit logs show the new code path is active (only relevant after an orbit start/restart, not after fleet-desktop-only restarts):
+  ```bash
+  journalctl -u orbit | grep -i desktop
+  ```
+  Should show `"managing fleet-desktop as systemd user service"` and `"restarted fleet-desktop user service"`.
 
 ### 6. Edge Cases
-- **Multiple users**: Log in as two users with graphical sessions; confirm each gets their own Fleet Desktop instance.
-- **Token file**: Ensure `/opt/orbit/identifier` is `0644` and readable by users.
-- **Orbit restart**: Run `systemctl restart orbit`; confirm the fleet-desktop user service gets restarted too.
-- **Token refresh**: After orbit rotates the token, verify permissions stay `0644` (the periodic `ensureTokenReadable` check).
-- **Remove package**: Uninstall Fleet; verify service is disabled and removed, and processes are stopped.
-- **Upgrade**: Simulate upgrade from old package; confirm migration from old runner to user service.
-- **Headless/server distro**: Install on a minimal server with no graphical target — confirm the service is enabled but never starts (no errors from systemd).
+
+- **Multiple users**: Log in as two users with graphical sessions (use "Switch User" to keep both sessions active). Verify each gets their own fleet-desktop instance:
+  ```bash
+  ps -eo user,pid,comm | grep fleet-desktop
+  ```
+  Should show two fleet-desktop processes, one per user.
+
+- **Token file**: Verify `/opt/orbit/identifier` is readable by all users:
+  ```bash
+  ls -la /opt/orbit/identifier
+  ```
+  Should show `-rw-r--r--` (0644) permissions.
+
+- **Orbit restart**: Restart orbit and confirm fleet-desktop gets restarted for all logged-in users:
+  ```bash
+  sudo systemctl restart orbit
+  ps -eo user,pid,comm | grep fleet-desktop
+  ```
+  Should show fleet-desktop processes for all GUI users with new PIDs.
+
+- **Token refresh**: Simulate permission drift and verify orbit corrects it within 30s:
+  ```bash
+  sudo chmod 600 /opt/orbit/identifier
+  ls -la /opt/orbit/identifier    # should show -rw-------
+  sleep 35
+  ls -la /opt/orbit/identifier    # should show -rw-r--r-- again
+  ```
+
+- **Remove package**: Run after step 7. Uninstall and verify full cleanup:
+  ```bash
+  sudo dpkg --purge fleet-osquery
+  systemctl --global is-enabled fleet-desktop.service 2>&1   # should show "not-found"
+  pgrep fleet-desktop                                         # should return nothing
+  ls /usr/lib/systemd/user/fleet-desktop.service 2>&1        # should show "No such file"
+  ls /opt/orbit 2>&1                                          # should show "No such file"
+  ```
+
+- **Upgrade**: Simulate upgrade from old package; confirm migration from old runner to user service. (Deferred to QA)
+- **Headless/server distro**: Install on a minimal server with no graphical target — confirm the service is enabled but never starts (no errors from systemd). (Deferred to QA)
 
 ### 7. Negative/Failure Scenarios
-- Remove `/opt/orbit/desktop.env`; restart service, confirm failure and error logs in `journalctl --user -u fleet-desktop`.
-- Remove user's graphical session; confirm service stops.
-- Kill the `fleet-desktop` process with `kill -9` — confirm systemd restarts it automatically (`Restart=on-failure`).
-- Corrupt the symlink (`rm /opt/orbit/bin/desktop/fleet-desktop`) — confirm the service fails cleanly with a useful error in `journalctl --user`.
+
+- **Kill fleet-desktop process**: Confirm systemd auto-restarts it after `RestartSec=5`:
+  ```bash
+  systemctl --user status fleet-desktop.service   # note the PID
+  kill -9 $(pgrep -u $(whoami) fleet-desktop)
+  sleep 6
+  systemctl --user status fleet-desktop.service   # should show active (running) with a new PID
+  ```
+  Logs should show `"Failed with result 'signal'"` followed by `"Scheduled restart job"` and `"Started fleet-desktop.service"`.
+
+- **Remove env file**: Confirm the service fails cleanly, then orbit recreates the file and the service can be restarted:
+  ```bash
+  sudo rm /opt/orbit/desktop.env
+  systemctl --user restart fleet-desktop.service
+  systemctl --user status fleet-desktop.service
+  ```
+  Should show `inactive (dead)` with `ConditionPathExists=/opt/orbit/desktop.env was not met`. Then wait ~30s for orbit to recreate the file:
+  ```bash
+  sleep 35
+  ls -la /opt/orbit/desktop.env                    # should exist again
+  systemctl --user restart fleet-desktop.service
+  systemctl --user status fleet-desktop.service    # should show active (running)
+  ```
+
+- **Remove user's graphical session**: Confirm service stops. (Deferred to QA)
+- **Corrupt the symlink**: Remove `/opt/orbit/bin/desktop/fleet-desktop` and confirm the service fails cleanly with a useful error in `journalctl --user -u fleet-desktop`. (Deferred to QA)
 
 ### Out of scope (PoC)
 - TUF auto-updates of the desktop binary mid-session. The current flow requires an orbit restart to pick up a new binary, which is unchanged.
