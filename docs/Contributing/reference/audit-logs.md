@@ -2383,7 +2383,7 @@ This activity contains the following fields:
 }
 ```
 
-## read_local_managed_account
+## read_managed_local_account
 
 Generated when a user reads the information for the local managed account for a host.
 
@@ -2400,7 +2400,7 @@ This activity contains the following fields:
 }
 ```
 
-## created_local_managed_account
+## created_managed_local_account
 
 Generated when a local managed account and password is created for a host.
 
