@@ -299,8 +299,8 @@ export const reconcileMutuallyExclusiveHostParams = ({
         [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: scriptBatchExecutionStatus,
         [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: scriptBatchExecutionId,
       };
-    case depProfileError === true:
-      return { dep_profile_error: depProfileError };
+    case !!depProfileError:
+      return { dep_profile_error: true };
     default:
       return {};
   }
