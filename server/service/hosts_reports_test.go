@@ -65,7 +65,9 @@ func TestListHostReports(t *testing.T) {
 		return nil, errors.New("host not found")
 	}
 
-	ds.ListHostReportsFunc = func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
+	var capturedTeamID *uint
+	ds.ListHostReportsFunc = func(ctx context.Context, hostID uint, tID *uint, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
+		capturedTeamID = tID
 		return sampleReports, len(sampleReports), nil, nil
 	}
 
@@ -86,6 +88,8 @@ func TestListHostReports(t *testing.T) {
 		assert.Equal(t, 0, reports[1].NHostResults)
 		assert.Equal(t, map[string]string{"col1": "val1"}, reports[0].FirstResult)
 		assert.Nil(t, reports[1].FirstResult)
+		// host has no team, so nil teamID must be forwarded to the datastore.
+		assert.Nil(t, capturedTeamID)
 	})
 
 	t.Run("admin can list reports for host with team", func(t *testing.T) {
@@ -95,6 +99,8 @@ func TestListHostReports(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 2, count)
 		assert.Len(t, reports, 2)
+		// teamID must be forwarded to the datastore so it can scope queries correctly.
+		assert.Equal(t, &teamID, capturedTeamID)
 	})
 
 	t.Run("observer can list reports", func(t *testing.T) {
@@ -111,6 +117,8 @@ func TestListHostReports(t *testing.T) {
 	})
 
 	t.Run("save_reports_disabled is forwarded from app config", func(t *testing.T) {
+		original := ds.AppConfigFunc
+		t.Cleanup(func() { ds.AppConfigFunc = original })
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{
 				ServerSettings: fleet.ServerSettings{QueryReportsDisabled: true},
@@ -120,10 +128,6 @@ func TestListHostReports(t *testing.T) {
 		_, _, _, disabled, err := svc.ListHostReports(viewerCtx, hostNoTeam.ID, fleet.ListHostReportsOptions{})
 		require.NoError(t, err)
 		assert.True(t, disabled)
-		// restore
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{}, nil
-		}
 	})
 
 	t.Run("invalid order_key returns bad request", func(t *testing.T) {

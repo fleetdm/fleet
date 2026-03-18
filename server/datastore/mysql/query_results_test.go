@@ -1115,6 +1115,12 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 		// so that n_query_results >= capacity, making report_clipped=true.
 		capacity := 3
 		extraHost := test.NewHost(t, ds, "extra-host", "192.168.2.1", "key2", "serial2", time.Now())
+		t.Cleanup(func() {
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `DELETE FROM query_results WHERE host_id = ?`, extraHost.ID)
+				return err
+			})
+		})
 		_, err := ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
 			{QueryID: qSave1.ID, HostID: extraHost.ID, LastFetched: now, Data: ptr.RawMessage([]byte(`{"col":"extra"}`))},
 		}, fleet.DefaultMaxQueryReportRows)
@@ -1136,11 +1142,5 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 		beta := reports[1]
 		assert.Equal(t, "Save Query Beta", beta.Name)
 		assert.False(t, beta.ReportClipped)
-
-		// Clean up extra row so other tests are unaffected.
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `DELETE FROM query_results WHERE host_id = ?`, extraHost.ID)
-			return err
-		})
 	})
 }

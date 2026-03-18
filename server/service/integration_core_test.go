@@ -16126,6 +16126,7 @@ func (s *integrationTestSuite) TestListHostReports() {
 	})
 
 	t.Run("admin can read reports", func(t *testing.T) {
+		s.setTokenForTest(t, TestAdminUserEmail, test.GoodPassword)
 		var resp listHostReportsResponse
 		s.DoJSON("GET", url, nil, http.StatusOK, &resp)
 		require.NoError(t, resp.Err)
