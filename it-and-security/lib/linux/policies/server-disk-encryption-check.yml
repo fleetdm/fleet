@@ -1,0 +1,7 @@
+- name: "Linux - Server disk encryption enabled"
+  query: "SELECT 1 WHERE EXISTS (SELECT * FROM disk_encryption WHERE encrypted = 1);"
+  critical: false
+  description: "This policy checks if disk encryption is enabled on the server."
+  resolution: "Enable disk encryption (LUKS) on the server's root volume."
+  platform: linux
+  calendar_events_enabled: false

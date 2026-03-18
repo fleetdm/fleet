@@ -1,0 +1,7 @@
+- name: "Linux - Server SSH root login disabled"
+  query: "SELECT 1 WHERE EXISTS (SELECT * FROM augeas WHERE path='/files/etc/ssh/sshd_config/PermitRootLogin' AND LOWER(value)=LOWER('no'));"
+  critical: true
+  description: "Ensures SSH root login is disabled on the server. Direct root login should be disabled in favor of using sudo."
+  resolution: "Set 'PermitRootLogin no' in /etc/ssh/sshd_config and restart the sshd service."
+  platform: linux
+  calendar_events_enabled: false
