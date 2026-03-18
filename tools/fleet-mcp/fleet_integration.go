@@ -289,7 +289,7 @@ func (fc *FleetClient) GetHostByIdentifier(identifier string) (*Endpoint, error)
 
 // GetQueries retrieves global and all team-specific queries from Fleet.
 func (fc *FleetClient) GetQueries() ([]Query, error) {
-	resp, err := fc.makeFleetRequest("GET", "/api/v1/fleet/queries", nil)
+	resp, err := fc.makeFleetRequest("GET", "/api/v1/fleet/reports", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get queries: %w", err)
 	}
@@ -311,7 +311,7 @@ func (fc *FleetClient) GetQueries() ([]Query, error) {
 		return result.Queries, nil
 	}
 	for _, team := range teams {
-		teamResp, err := fc.makeFleetRequest("GET", fmt.Sprintf("/api/v1/fleet/queries?team_id=%d", team.ID), nil)
+		teamResp, err := fc.makeFleetRequest("GET", fmt.Sprintf("/api/v1/fleet/reports?team_id=%d", team.ID), nil)
 		if err != nil {
 			logrus.Warnf("team %d queries error: %v", team.ID, err)
 			continue
