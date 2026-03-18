@@ -5,6 +5,7 @@ import { ITokenTeam } from "interfaces/mdm";
 import {
   APP_CONTEXT_NO_TEAM_ID,
   APP_CONTEXT_NO_TEAM_SUMMARY,
+  getTeamDisplayName,
 } from "interfaces/team";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
@@ -14,15 +15,6 @@ import ReactTooltip from "react-tooltip";
 const baseClass = "teams-cell";
 
 const NUM_TEAMS_IN_TOOLTIP = 3;
-
-/** Returns the display name for a token team, normalizing "No team" (team_id 0)
- *  to "Unassigned" to match Fleet's UI convention. */
-const getTeamDisplayName = (team: ITokenTeam): string => {
-  if (team.team_id === APP_CONTEXT_NO_TEAM_ID) {
-    return APP_CONTEXT_NO_TEAM_SUMMARY.name;
-  }
-  return team.name;
-};
 
 const generateCell = (teams: ITokenTeam[] | null) => {
   if (!teams) {
