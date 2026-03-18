@@ -224,7 +224,7 @@ func (p Product) Name() string {
 }
 
 // extractDisplayVersionFromName attempts to extract a Windows display version
-// (e.g., "22H2", "1809") from an OS name string like "Microsoft Windows 10 Pro 22H2".
+// (e.g., "22H2", "23H2", "24H2") from an OS name string like "Microsoft Windows 10 Pro 22H2".
 // Returns an empty string if no display version is found.
 func extractDisplayVersionFromName(name string) string {
 	match := displayVersionPattern.FindString(name)
