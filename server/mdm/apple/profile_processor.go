@@ -101,6 +101,8 @@ func ProcessAndEnqueueProfiles(ctx context.Context,
 		case err != nil:
 			logger.ErrorContext(ctx, fmt.Sprintf("enqueue command to %s profiles", op), "details", err)
 			ch <- remoteResult{err, target.CmdUUID}
+		default:
+			ch <- remoteResult{nil, target.CmdUUID}
 		}
 	}
 	for profUUID, target := range installTargets {
