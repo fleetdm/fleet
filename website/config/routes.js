@@ -930,6 +930,7 @@ module.exports.routes = {
   'GET /case-study/financial-data-company-scales-endpoint-visibility-with-fleet': '/case-study/financial-data-company',
   'GET /articles/fleet-management-software': '/compare/jamf-vs-intune-vs-fleet',
   'GET /articles/mdm-providers-compared': '/compare/workspace-one-vs-fleet',
+  'GET /articles/fleet-vs-jamf-pro-ninjaone-mdm-comparison': '/compare/jamf-vs-ninjaone-vs-fleet',
   'GET /compare/jamf': '/compare/jamf-vs-fleet',
   'GET /compare/fleet-vs-workspace-one': '/compare/workspace-one-vs-fleet',
   'GET /compare/fleet-vs-jamf-vs-intune': '/compare/jamf-vs-intune-vs-fleet',
