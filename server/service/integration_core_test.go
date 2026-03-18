@@ -3765,6 +3765,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	}
 	s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
 	query := createQueryResp.Query
+	assert.Equal(t, query.Query, sql)
+	assert.Equal(t, createQueryResp.Report.Query, sql)
 
 	// listing returns that query
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp)
@@ -3892,6 +3894,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	var modQryResp modifyQueryResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", query.ID), fleet.QueryPayload{Description: ptr.String("updated")}, http.StatusOK, &modQryResp)
 	assert.Equal(t, "updated", modQryResp.Query.Description)
+	assert.Equal(t, sql, modQryResp.Query.Query)
+	assert.Equal(t, sql, modQryResp.Report.Query)
 
 	// TODO(jahziel): check that the query results were deleted
 

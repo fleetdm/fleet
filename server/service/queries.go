@@ -256,6 +256,10 @@ type createQueryRequest struct {
 }
 
 type createQueryResponse struct {
+	// Because `fleet.Query` has a `query` field that we don't want to rename,
+	// it's simpler to just duplicate the query in the response struct rather than
+	// relying on the `renameto` tag here.
+	// TODO - In Fleet 5, remove the extra field.
 	Query  *fleet.Query `json:"query,omitempty"`
 	Report *fleet.Query `json:"report,omitempty"`
 	Err    error        `json:"error,omitempty"`
@@ -395,6 +399,10 @@ type modifyQueryRequest struct {
 }
 
 type modifyQueryResponse struct {
+	// Because `fleet.Query` has a `query` field that we don't want to rename,
+	// it's simpler to just duplicate the query in the response struct rather than
+	// relying on the `renameto` tag here.
+	// TODO - In Fleet 5, remove the extra field.
 	Query  *fleet.Query `json:"query,omitempty"`
 	Report *fleet.Query `json:"report,omitempty"`
 	Err    error        `json:"error,omitempty"`
