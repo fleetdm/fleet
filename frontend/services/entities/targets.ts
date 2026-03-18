@@ -18,7 +18,7 @@ const defaultSelected = {
 };
 
 export interface ITargetsSearchParams {
-  query_id?: number | null;
+  report_id?: number | null;
   query: string;
   excluded_host_ids: number[] | null;
 }
@@ -28,7 +28,7 @@ export interface ITargetsSearchResponse {
 }
 
 export interface ITargetsCountParams {
-  query_id?: number | null;
+  report_id?: number | null;
   selected: ISelectedTargetsForApi | null;
 }
 
@@ -54,7 +54,7 @@ export default {
 
     return sendRequest("POST", TARGETS, {
       query,
-      query_id: queryId,
+      report_id: queryId,
       selected,
     });
   },
@@ -86,7 +86,7 @@ export default {
     const { TARGETS } = endpoints;
     return sendRequest("POST", TARGETS, {
       query,
-      query_id: queryId,
+      report_id: queryId,
       selected,
     }).then((response) => {
       const { targets } = response;

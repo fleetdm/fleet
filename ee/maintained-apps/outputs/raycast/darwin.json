@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "1.104.9",
+      "version": "1.104.10",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.raycast.macos';"
       },
-      "installer_url": "https://releases.raycast.com/releases/1.104.9/download?build=arm",
+      "installer_url": "https://releases.raycast.com/releases/1.104.10/download?build=arm",
       "install_script_ref": "c1fc5fb7",
       "uninstall_script_ref": "9088d881",
-      "sha256": "3fb5b1cd45571588ad6d1508477608a35872c9b72bceafa51a94cd0f3d2ce611",
+      "sha256": "6171329cb1046428656e4fb2df27ced2a60763de5e0b4d2459ff6dce6424e47a",
       "default_categories": [
         "Productivity"
       ]

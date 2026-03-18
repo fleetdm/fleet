@@ -1313,7 +1313,7 @@ func TestMDMConfig(t *testing.T) {
 					ManualAgentInstall: optjson.SetBool(true),
 				},
 			},
-			expectedError: "macos_setup.manual_agent_install Couldn't enable manual_agent_install. To use this option, first specify a bootstrap package.",
+			expectedError: "setup_experience.macos_manual_agent_install Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.",
 		},
 		{
 			name:        "try to disable End User Authentication with Lock End User Info enabled",
@@ -1329,7 +1329,7 @@ func TestMDMConfig(t *testing.T) {
 					IDPName:     "onelogin",
 				}},
 			},
-			expectedError: "Couldn't enable macos_setup.lock_end_user_info because macos_setup.enable_end_user_authentication is not enabled.",
+			expectedError: `"enable_end_user_authentication" must be set to "true"`,
 		},
 	}
 

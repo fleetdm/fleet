@@ -45,17 +45,6 @@ $max-width: 2560px;
   padding: $pad-xxlarge 0 54px 0;
 }
 
-@mixin grey-badge {
-  background-color: $ui-fleet-black-25;
-  color: $core-fleet-white;
-  font-size: $xx-small;
-  font-weight: $bold;
-  padding: 0 $pad-xsmall;
-  border-radius: $border-radius;
-  position: relative;
-  margin-left: $pad-xsmall;
-}
-
 // Used to create a list item with the item data (name, created at, etc...) on
 // the left and the item actions (download, delete, etc...) on the right.
 @mixin list-item {

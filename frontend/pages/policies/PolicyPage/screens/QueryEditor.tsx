@@ -32,6 +32,7 @@ interface IQueryEditorProps {
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
   teamIdForApi?: number;
+  currentAutomatedPolicies?: number[];
 }
 
 const QueryEditor = ({
@@ -49,6 +50,7 @@ const QueryEditor = ({
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
   teamIdForApi,
+  currentAutomatedPolicies,
 }: IQueryEditorProps): JSX.Element | null => {
   const { currentUser, isPremiumTier, filteredPoliciesPath } = useContext(
     AppContext
@@ -205,6 +207,12 @@ const QueryEditor = ({
       lastEditedQueryPlatform,
     });
 
+    // Patch policies: never send query or platform (BE rejects them)
+    if (storedPolicy?.type === "patch") {
+      delete updatedPolicy.query;
+      delete updatedPolicy.platform;
+    }
+
     const updateAPIRequest = () => {
       // storedPolicy.team_id is used for existing policies because selectedTeamId is subject to change
       const team_id = storedPolicy?.team_id ?? undefined;
@@ -275,6 +283,7 @@ const QueryEditor = ({
         onClickAutofillDescription={onClickAutofillDescription}
         onClickAutofillResolution={onClickAutofillResolution}
         resetAiAutofillData={() => setPolicyAutofillData(null)}
+        currentAutomatedPolicies={currentAutomatedPolicies || []}
       />
     </div>
   );
