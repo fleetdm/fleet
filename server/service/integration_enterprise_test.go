@@ -4868,7 +4868,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	t := s.T()
 
 	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"server_settings": {
 			"server_url": "https://localhost:8080"
 		},
@@ -4876,10 +4876,10 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 			"enable_sso": true,
 			"entity_id": "https://localhost:8080",
 			"idp_name": "SimpleSAML",
-			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
+			"metadata_url": "%s",
 			"enable_jit_provisioning": false
 		}
-	}`), http.StatusOK, &acResp)
+	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
 
@@ -4895,15 +4895,15 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 
 	// enable JIT provisioning
 	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"sso_settings": {
 			"enable_sso": true,
 			"entity_id": "https://localhost:8080",
 			"idp_name": "SimpleSAML",
-			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
+			"metadata_url": "%s",
 			"enable_jit_provisioning": true
 		}
-	}`), http.StatusOK, &acResp)
+	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.True(t, acResp.SSOSettings.EnableJITProvisioning)
 
@@ -21075,7 +21075,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOIdPInitiatedLogin() {
 	t := s.T()
 
 	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
         "server_settings": {
           "server_url": "https://localhost:8080"
         },
@@ -21085,9 +21085,9 @@ func (s *integrationEnterpriseTestSuite) TestSSOIdPInitiatedLogin() {
 			"enable_sso_idp_login": true,
 			"entity_id": "sso.test.com",
 			"idp_name": "SimpleSAML",
-			"metadata_url": "http://127.0.0.1:9080/simplesaml/saml2/idp/metadata.php"
+			"metadata_url": "%s"
 		}
-	}`), http.StatusOK, &acResp)
+	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 
 	body := s.LoginSSOUserIDPInitiated("sso_user2", "user123#", "sso.test.com")
