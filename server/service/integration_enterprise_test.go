@@ -12143,6 +12143,21 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			Query: "select 1",
 		}}, http.StatusOK, &labelResp)
 		require.NotZero(t, labelResp.Label.ID)
+		lblA := labelResp.Label
+
+		s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+			Name:  "label_b" + t.Name(),
+			Query: "select 1",
+		}}, http.StatusOK, &labelResp)
+		require.NotZero(t, labelResp.Label.ID)
+		lblB := labelResp.Label
+
+		s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+			Name:  "label_c" + t.Name(),
+			Query: "select 1",
+		}}, http.StatusOK, &labelResp)
+		require.NotZero(t, labelResp.Label.ID)
+		lblC := labelResp.Label
 
 		payload := &fleet.UploadSoftwareInstallerPayload{
 			InstallScript:     "some install script",
@@ -12158,6 +12173,60 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			LabelsIncludeAny: []string{t.Name()},
 		}
 
+		// validate that providing more than 1 type of label
+		// results in an error
+		testCases := []struct {
+			desc    string
+			incAny  []string
+			exclAny []string
+			incAll  []string
+		}{
+			{
+				desc:    "include_any_exclude_any",
+				incAny:  []string{lblA.Name},
+				exclAny: []string{lblB.Name},
+			},
+			{
+				desc:   "include_any_include_all",
+				incAny: []string{lblA.Name},
+				incAll: []string{lblB.Name},
+			},
+			{
+				desc:    "exclude_any_include_all",
+				exclAny: []string{lblA.Name},
+				incAll:  []string{lblB.Name},
+			},
+			{
+				desc:    "all_types",
+				incAny:  []string{lblA.Name},
+				exclAny: []string{lblB.Name},
+				incAll:  []string{lblC.Name},
+			},
+		}
+		for _, tc := range testCases {
+			t.Run(tc.desc, func(t *testing.T) {
+
+				payload := &fleet.UploadSoftwareInstallerPayload{
+					InstallScript:     "some install script",
+					PreInstallQuery:   "some pre install query",
+					PostInstallScript: "some post install script",
+					Filename:          "ruby.deb",
+					// additional fields below are pre-populated so we can re-use the payload later for the test assertions
+					Title:            "ruby",
+					Version:          "1:2.5.1",
+					Source:           "deb_packages",
+					StorageID:        "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+					Platform:         "linux",
+					LabelsIncludeAny: tc.incAny,
+					LabelsIncludeAll: tc.incAll,
+					LabelsExcludeAny: tc.exclAny,
+				}
+
+				s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`)
+
+			})
+		}
+
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 		// check the software installer
@@ -12166,7 +12235,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		// check activity
 		activityData := fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
 		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": false, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}]}`,
-			titleID, labelResp.Label.ID, t.Name())
+			titleID, lblA.ID, lblA.Name)
 		s.lastActivityMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
 
 		// upload again fails
@@ -12184,7 +12253,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		}, http.StatusOK, "")
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
 		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}], "software_display_name": ""}`,
-			titleID, labelResp.Label.ID, t.Name())
+			titleID, lblA.ID, lblA.Name)
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 		// patch the software installer to change the labels
 		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
@@ -12194,12 +12263,12 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 		expectedPayload := *payload
 		expectedPayload.LabelsIncludeAny = nil
-		expectedPayload.LabelsExcludeAny = []string{labelResp.Label.Name}
+		expectedPayload.LabelsExcludeAny = []string{lblA.Name}
 		checkSoftwareInstaller(t, s.ds, &expectedPayload)
 
 		// Create a host and assign the label to it
 		host := createOrbitEnrolledHost(t, "linux", "label_host", s.ds)
-		err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{labelResp.Label.ID: ptr.Bool(true)}, time.Now(), false)
+		err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{lblA.ID: ptr.Bool(true)}, time.Now(), false)
 		require.NoError(t, err)
 
 		// Attempt to install. Should fail because label is "exclude any"
@@ -12213,8 +12282,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		})
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 		expectedPayload.PreInstallQuery = "some other pre install query"
-		expectedPayload.LabelsIncludeAny = nil                            // no change
-		expectedPayload.LabelsExcludeAny = []string{labelResp.Label.Name} // no change
+		expectedPayload.LabelsIncludeAny = nil                 // no change
+		expectedPayload.LabelsExcludeAny = []string{lblA.Name} // no change
 		checkSoftwareInstaller(t, s.ds, &expectedPayload)
 
 		// update the label to be "include any". This should allow for the installation to happen.
@@ -12222,7 +12291,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		w3 := multipart.NewWriter(&b3)
 		require.NoError(t, w3.WriteField("team_id", "0"))
 		require.NoError(t, w3.WriteField("pre_install_query", "some other pre install query"))
-		require.NoError(t, w3.WriteField("labels_include_any", labelResp.Label.Name))
+		require.NoError(t, w3.WriteField("labels_include_any", lblA.Name))
 		w3.Close()
 		headers = map[string]string{
 			"Content-Type":  w3.FormDataContentType(),
@@ -12231,7 +12300,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		}
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), b3.Bytes(), http.StatusOK, headers)
 		expectedPayload.PreInstallQuery = "some other pre install query"
-		expectedPayload.LabelsIncludeAny = []string{labelResp.Label.Name}
+		expectedPayload.LabelsIncludeAny = []string{lblA.Name}
 		expectedPayload.LabelsExcludeAny = nil
 		checkSoftwareInstaller(t, s.ds, &expectedPayload)
 
@@ -12244,7 +12313,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
 		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}], "software_title_id": %d, "software_display_name": ""}`,
-			labelResp.Label.ID, labelResp.Label.Name, titleID)
+			lblA.ID, lblA.Name, titleID)
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
 		// orbit-downloading fails with invalid orbit node key
@@ -12263,7 +12332,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
 		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}]}`,
-			labelResp.Label.ID, labelResp.Label.Name)
+			lblA.ID, lblA.Name)
 		s.lastActivityMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), activityData, 0)
 	})
 

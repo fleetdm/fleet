@@ -736,16 +736,6 @@ func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, exi
 		return false, nil, errors.New("existing installer must be provided")
 	}
 
-	var count int
-	for _, set := range [][]string{includeAny, excludeAny, includeAll} {
-		if len(set) > 0 {
-			count++
-		}
-	}
-	if count > 1 {
-		return false, nil, errors.New("existing installer must have only one label scope")
-	}
-
 	if includeAny == nil && excludeAny == nil && includeAll == nil {
 		// nothing to do
 		return false, nil, nil
