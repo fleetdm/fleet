@@ -129,6 +129,14 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			if err := yaml.Unmarshal(s.Spec, &labelSpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
+			// Distinguish between hosts key omitted (nil, preserve membership)
+			// and hosts key present with null value (clear all hosts). Both
+			// unmarshal to nil, so check the raw YAML for key presence.
+			if labelSpec.Hosts == nil {
+				if hostsKeyPresent(s.Spec) {
+					labelSpec.Hosts = []string{}
+				}
+			}
 			specs.Labels = append(specs.Labels, labelSpec)
 
 		case fleet.PolicyKind:
@@ -443,4 +451,20 @@ func getExclusionZones(s string) [][2]int {
 		}
 	}
 	return zones
+}
+
+// hostsKeyPresent checks if the "hosts" key is present in raw YAML bytes.
+// Used to distinguish between an omitted hosts key (nil, no-op) and an
+// explicit hosts key with null value (should clear hosts).
+func hostsKeyPresent(rawYAML []byte) bool {
+	jsonBytes, err := yaml.YAMLToJSON(rawYAML)
+	if err != nil {
+		return false
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(jsonBytes, &raw); err != nil {
+		return false
+	}
+	_, ok := raw["hosts"]
+	return ok
 }

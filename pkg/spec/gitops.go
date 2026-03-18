@@ -242,6 +242,31 @@ type Label struct {
 	fleet.LabelSpec
 }
 
+// UnmarshalJSON distinguishes between "hosts" key omitted (nil, preserve
+// existing membership) and "hosts" key present with null value (clear all
+// hosts). Both cases produce a nil HostsSlice after default unmarshaling,
+// so we check the raw JSON for the key's presence.
+func (l *Label) UnmarshalJSON(data []byte) error {
+	// Use an alias to prevent infinite recursion.
+	type LabelAlias Label
+	var alias LabelAlias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*l = Label(alias)
+
+	if l.Hosts == nil {
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(data, &raw); err == nil {
+			if _, ok := raw["hosts"]; ok {
+				// "hosts" key was explicitly set to null — clear all hosts.
+				l.Hosts = []string{}
+			}
+		}
+	}
+	return nil
+}
+
 type SoftwarePackage struct {
 	BaseItem
 	fleet.SoftwarePackageSpec

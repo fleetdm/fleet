@@ -1250,6 +1250,16 @@ spec:
   platforms:
     - darwin
 `
+	nullHostsManualLabelSpec = `---
+apiVersion: v1
+kind: label
+spec:
+  name: nullhost_manual_label
+  label_membership_type: manual
+  hosts:
+  platforms:
+    - darwin
+`
 	builtinLabelSpec = `---
 apiVersion: v1
 kind: label
@@ -1951,8 +1961,20 @@ func TestApplyLabels(t *testing.T) {
 	assert.Equal(t, "[+] applied 1 label\n", RunAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	require.Len(t, appliedLabels, 1)
-	assert.Equal(t, "manual_label", appliedLabels[0].Name)
+	assert.Equal(t, "nohost_manual_label", appliedLabels[0].Name)
 	assert.Nil(t, appliedLabels[0].Hosts)
+
+	appliedLabels = nil
+	ds.ApplyLabelSpecsWithAuthorFuncInvoked = false
+
+	name = writeTmpYml(t, nullHostsManualLabelSpec)
+
+	assert.Equal(t, "[+] applied 1 label\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
+	require.Len(t, appliedLabels, 1)
+	assert.Equal(t, "nullhost_manual_label", appliedLabels[0].Name)
+	require.NotNil(t, appliedLabels[0].Hosts)
+	assert.Empty(t, appliedLabels[0].Hosts)
 
 	appliedLabels = nil
 	ds.ApplyLabelSpecsWithAuthorFuncInvoked = false
