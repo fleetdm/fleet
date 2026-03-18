@@ -27,9 +27,7 @@ import (
 
 func TestPreprocessProfileContents(t *testing.T) {
 	ctx := context.Background()
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelDebug,
-	}))
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	appCfg := &fleet.AppConfig{}
 	appCfg.ServerSettings.ServerURL = "https://test.example.com"
 	appCfg.MDM.EnabledAndConfigured = true

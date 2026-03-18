@@ -741,7 +741,7 @@ func newWorkerIntegrationsSchedule(
 		// job, but that's ok - the job will acquire and extend the lock as long as
 		// it runs, the shorter interval is to make sure we don't wait more than
 		// that interval to start a new job when none is running.
-		scheduleInterval = 1 * time.Minute  // schedule a worker to run every 10 seconds if none is running
+		scheduleInterval = 1 * time.Minute  // schedule a worker to run every minute if none is running
 		maxRunTime       = 10 * time.Minute // allow the worker to run for 10 minutes
 	)
 

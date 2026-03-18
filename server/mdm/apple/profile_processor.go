@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/url"
 	"regexp"
 	"slices"
@@ -114,10 +115,7 @@ func ProcessAndEnqueueProfiles(ctx context.Context,
 		go execCmd(profUUID, target, fleet.MDMOperationTypeRemove)
 	}
 
-	wgCons.Add(1)
-	go func() {
-		defer wgCons.Done()
-
+	wgCons.Go(func() {
 		for resp := range ch {
 			if resp.Err == nil && onSuccessfulEnqueue != nil {
 				onSuccessfulEnqueue(resp.CmdUUID)
@@ -125,7 +123,7 @@ func ProcessAndEnqueueProfiles(ctx context.Context,
 				onFailedEnqueue(resp.CmdUUID, resp.Err)
 			}
 		}
-	}()
+	})
 
 	wgProd.Wait()
 	close(ch) // done sending at this point, this triggers end of for loop in consumer
@@ -218,12 +216,11 @@ func preprocessProfileContents(
 				// No extra validation needed for these variables
 
 			case strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertPasswordPrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix)):
-				var caName string
-				if strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertPasswordPrefix)) {
-					caName = strings.TrimPrefix(fleetVar, string(fleet.FleetVarDigiCertPasswordPrefix))
-				} else {
-					caName = strings.TrimPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix))
+				caName, found := strings.CutPrefix(fleetVar, string(fleet.FleetVarDigiCertPasswordPrefix))
+				if !found {
+					caName, _ = strings.CutPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix))
 				}
+
 				if digiCertCAs == nil {
 					digiCertCAs = make(map[string]*fleet.DigiCertCA)
 				}
@@ -237,16 +234,17 @@ func preprocessProfileContents(
 				}
 
 			case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)):
-				var caName string
-				if strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)) {
-					caName = strings.TrimPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix))
-				} else {
-					caName = strings.TrimPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix))
+				caName, found := strings.CutPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix))
+				if !found {
+					caName, _ = strings.CutPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix))
 				}
+
 				if customSCEPCAs == nil {
 					customSCEPCAs = make(map[string]*fleet.CustomSCEPProxyCA)
-					for _, ca := range groupedCAs.CustomScepProxy {
-						customSCEPCAs[ca.Name] = &ca
+					if groupedCAs != nil {
+						for _, ca := range groupedCAs.CustomScepProxy {
+							customSCEPCAs[ca.Name] = &ca
+						}
 					}
 				}
 				err := profiles.IsCustomSCEPConfigured(ctx, customSCEPCAs, caName, fleetVar, func(errMsg string) error {
@@ -262,12 +260,11 @@ func preprocessProfileContents(
 				if smallstepCAs == nil {
 					smallstepCAs = make(map[string]*fleet.SmallstepSCEPProxyCA)
 				}
-				var caName string
-				if strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) {
-					caName = strings.TrimPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix))
-				} else {
-					caName = strings.TrimPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix))
+				caName, found := strings.CutPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix))
+				if !found {
+					caName, _ = strings.CutPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix))
 				}
+
 				configured, err := isSmallstepSCEPConfigured(ctx, groupedCAs, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, smallstepCAs, profUUID, target, caName,
 					fleetVar)
 				if err != nil {
@@ -311,7 +308,7 @@ func preprocessProfileContents(
 			// Use the same UUID for command UUID, which will be the primary key for nano_commands
 			tempCmdUUID := tempProfUUID
 			profile, ok := getHostProfileToInstallByEnrollmentID(hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, enrollmentID, profUUID)
-			if !ok { // Should never happen
+			if !ok || profile == nil { // Should never happen
 				continue
 			}
 			// Fetch the host UUID, which may not be the same as the Enrollment ID, from the profile
@@ -341,6 +338,10 @@ func preprocessProfileContents(
 				switch {
 				case fleetVar == string(fleet.FleetVarNDESSCEPChallenge):
 					if ndesConfig == nil {
+						if groupedCAs == nil || groupedCAs.NDESSCEP == nil {
+							logger.ErrorContext(ctx, "missing NDES CA configuration for profile with NDES variables", "host_uuid", hostUUID, "profile_uuid", profUUID)
+							continue
+						}
 						ndesConfig = groupedCAs.NDESSCEP
 					}
 					logger.DebugContext(ctx, "fetching NDES challenge", "host_uuid", hostUUID, "profile_uuid", profUUID)
@@ -633,9 +634,7 @@ func preprocessProfileContents(
 	}
 	if len(addedTargets) > 0 {
 		// Add the new host-specific targets to the original targets map
-		for profUUID, target := range addedTargets {
-			targets[profUUID] = target
-		}
+		maps.Copy(targets, addedTargets)
 	}
 	return nil
 }
@@ -739,7 +738,7 @@ func isDigiCertConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertific
 	}
 	configured := false
 	var digiCertCA *fleet.DigiCertCA
-	if len(groupedCAs.DigiCert) > 0 {
+	if groupedCAs != nil && len(groupedCAs.DigiCert) > 0 {
 		for _, ca := range groupedCAs.DigiCert {
 			if ca.Name == caName {
 				digiCertCA = &ca
@@ -763,7 +762,7 @@ func isNDESSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertific
 	if !license.IsPremium(ctx) {
 		return fleet.MarkProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "NDES SCEP Proxy requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
 	}
-	if groupedCAs.NDESSCEP == nil {
+	if groupedCAs == nil || groupedCAs.NDESSCEP == nil {
 		return fleet.MarkProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID,
 			"NDES SCEP Proxy is not configured. Please configure in Settings > Integrations > Certificates.", ptr.Time(time.Now().UTC()))
 	}
@@ -783,7 +782,7 @@ func isSmallstepSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCer
 	}
 	configured := false
 	var scepCA *fleet.SmallstepSCEPProxyCA
-	if len(groupedCAs.Smallstep) > 0 {
+	if groupedCAs != nil && len(groupedCAs.Smallstep) > 0 {
 		for _, ca := range groupedCAs.Smallstep {
 			if ca.Name == caName {
 				scepCA = &ca

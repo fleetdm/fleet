@@ -34,7 +34,7 @@ func FindProfilesWithSecrets(
 	for profUUID := range installTargets {
 		p, ok := profileContents[profUUID]
 		if !ok { // Should never happen
-			logger.Error("profile content not found for FindProfilesWithSecrets", "profile_uuid", profUUID)
+			logger.ErrorContext(ctx, "profile content not found for FindProfilesWithSecrets", "profile_uuid", profUUID)
 			continue
 		}
 		profileStr := string(p)
@@ -59,15 +59,9 @@ func MarkProfilesFailed(
 	profilesToUpdate := make([]*MDMAppleBulkUpsertHostProfilePayload, 0, len(target.EnrollmentIDs))
 	for _, enrollmentID := range target.EnrollmentIDs {
 		profile, ok := GetHostProfileToInstallByEnrollmentID(hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, enrollmentID, profUUID)
-		if !ok {
-			// If sending to the user channel the enrollmentID will have to be mapped back to the host UUID.
-			hostUUID, ok := userEnrollmentsToHostUUIDsMap[enrollmentID]
-			if ok {
-				profile, ok = hostProfilesToInstallMap[HostProfileUUID{HostUUID: hostUUID, ProfileUUID: profUUID}]
-			}
-			if !ok {
-				continue
-			}
+		if !ok || profile == nil {
+			// Should never happen
+			continue
 		}
 		profile.Status = &MDMDeliveryFailed
 		profile.Detail = detail
