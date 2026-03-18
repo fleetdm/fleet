@@ -2,7 +2,10 @@ import React from "react";
 import classnames from "classnames";
 
 import { ITokenTeam } from "interfaces/mdm";
-import { APP_CONTEXT_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_SUMMARY } from "interfaces/team";
+import {
+  APP_CONTEXT_NO_TEAM_ID,
+  APP_CONTEXT_NO_TEAM_SUMMARY,
+} from "interfaces/team";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { uniqueId } from "lodash";
