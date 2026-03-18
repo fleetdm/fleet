@@ -449,21 +449,24 @@ jobs:
         msiexec /i ${{steps.download.outputs.download-path}}\fleetd-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi /quiet /passive /lv log.txt
 
     - name: Wait for enrollment
-      shell: bash
+      shell: powershell
       run: |
-        orbit="${{ matrix.orbit-channel }}"
-        osqueryd="${{ matrix.osqueryd-channel }}"
-        desktop="${{ matrix.desktop-channel }}"
-        ComputerName="win-${orbit:0:1}-${osqueryd:0:1}-${desktop:0:1}"
+        $orbit = "${{ matrix.orbit-channel }}"
+        $osqueryd = "${{ matrix.osqueryd-channel }}"
+        $desktop = "${{ matrix.desktop-channel }}"
+        $ComputerName = "win-$($orbit[0])-$($osqueryd[0])-$($desktop[0])"
         
-        ENROLLMENT_START=$(date +%s)
-        until fleetctl get hosts | grep -iF $ComputerName;
-        do
-          CURRENT_TIME=$(date +%s)
-          ELAPSED=$((CURRENT_TIME - ENROLLMENT_START))
-          echo "Awaiting enrollment... (${ELAPSED}s)"
-          sleep 1
-        done
+        $StartTime = Get-Date
+        do {
+            $hosts = fleetctl get hosts
+            if ($hosts -match $ComputerName) {
+                Write-Host "Success! $ComputerName enrolled."
+                break
+            }
+            $Elapsed = [math]::Round(((Get-Date) - $StartTime).TotalSeconds)
+            Write-Host "Awaiting enrollment... (${Elapsed}s)"
+            Start-Sleep -Seconds 1
+        } while ($true)
 
     - name: Upload orbit install log
       if: always()
