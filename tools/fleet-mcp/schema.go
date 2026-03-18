@@ -66,7 +66,6 @@ var osqueryTables = []SchemaTable{
 			{"type", "TEXT", "Whether the account is roaming, local, or system profile [WINDOWS ONLY]"},
 			{"is_hidden", "INTEGER", "IsHidden attribute set in OpenDirectory [MACOS/DARWIN ONLY]"},
 			{"pid_with_namespace", "INTEGER", "Pids that contain a namespace [LINUX ONLY]"},
-			{"email", "TEXT", "LDAP email field description [CHROMEOS ONLY — do not use on other platforms]"},
 		},
 	},
 	{
