@@ -11,6 +11,12 @@ import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
 } from "utilities/url";
+import { AutomationType } from "./team_policies";
+
+export type GlobalPoliciesAutomationType = Exclude<
+  AutomationType,
+  "software" | "scripts" | "conditional_access" | "calendar"
+>;
 
 interface IPoliciesApiParams {
   page?: number;
@@ -18,6 +24,7 @@ interface IPoliciesApiParams {
   orderKey?: string;
   orderDirection?: "asc" | "desc";
   query?: string;
+  automationType?: GlobalPoliciesAutomationType;
 }
 
 export interface IPoliciesQueryKey extends IPoliciesApiParams {
@@ -25,7 +32,7 @@ export interface IPoliciesQueryKey extends IPoliciesApiParams {
 }
 
 export interface IPoliciesCountQueryKey
-  extends Pick<IPoliciesApiParams, "query"> {
+  extends Pick<IPoliciesApiParams, "query" | "automationType"> {
   scope: "policiesCount";
 }
 
@@ -68,6 +75,7 @@ export default {
     orderKey = ORDER_KEY,
     orderDirection: orderDir = ORDER_DIRECTION,
     query,
+    automationType,
   }: IPoliciesApiParams): Promise<ILoadAllPoliciesResponse> => {
     const { GLOBAL_POLICIES } = endpoints;
 
@@ -77,6 +85,7 @@ export default {
       orderKey,
       orderDirection: orderDir,
       query,
+      automationType,
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
@@ -87,11 +96,16 @@ export default {
   },
   getCount: ({
     query,
-  }: Pick<IPoliciesApiParams, "query">): Promise<IPoliciesCountResponse> => {
+    automationType,
+  }: Pick<
+    IPoliciesApiParams,
+    "query" | "automationType"
+  >): Promise<IPoliciesCountResponse> => {
     const { GLOBAL_POLICIES } = endpoints;
     const path = `${GLOBAL_POLICIES}/count`;
     const queryParams = {
       query,
+      automationType,
     };
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);
