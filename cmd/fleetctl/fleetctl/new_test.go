@@ -250,4 +250,3 @@ func TestResolveFleetctlVersionUnknown(t *testing.T) {
 	result := resolveFleetctlVersion("unknown")
 	assert.NotEmpty(t, result)
 }
-

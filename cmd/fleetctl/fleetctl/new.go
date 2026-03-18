@@ -2,6 +2,7 @@ package fleetctl
 
 import (
 	"embed"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -26,8 +27,7 @@ func renderTemplate(content []byte, vars map[string]string) []byte {
 		if len(submatch) < 2 {
 			return match
 		}
-		key := string(submatch[1])
-		if val, ok := vars[key]; ok {
+		if val, ok := vars[string(submatch[1])]; ok {
 			return []byte(val)
 		}
 		return match
@@ -122,10 +122,10 @@ func newCommand() *cli.Command {
 			validateOrgName := func(name string) error {
 				name = cleanOrgName(name)
 				if name == "" {
-					return fmt.Errorf("organization name is required")
+					return errors.New("organization name is required")
 				}
 				if len(name) > 255 {
-					return fmt.Errorf("organization name must be 255 characters or fewer")
+					return errors.New("organization name must be 255 characters or fewer")
 				}
 				return nil
 			}
