@@ -172,14 +172,17 @@ the way that the Fleet server works.
 			var tracerProvider *sdktrace.TracerProvider
 			var meterProvider *sdkmetric.MeterProvider
 			if config.OTELEnabled() {
-				// Create shared resource with service identification attributes
-				res, err := resource.Merge(
-					resource.Default(),
-					resource.NewWithAttributes(
-						semconv.SchemaURL,
+				// Create shared resource with service identification attributes.
+				// OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES env vars can override
+				// the defaults below.
+				res, err := resource.New(context.Background(),
+					resource.WithSchemaURL(semconv.SchemaURL),
+					resource.WithAttributes(
 						semconv.ServiceName("fleet"),
 						semconv.ServiceVersion(version.Version().Version),
 					),
+					resource.WithFromEnv(),
+					resource.WithTelemetrySDK(),
 				)
 				if err != nil {
 					initFatal(err, "Failed to create OTEL resource")

@@ -4,18 +4,13 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Team
 
-
-
-
-
-| Role | Person | Github ID | Responsibilities |
-| ----- | ----- | ----- | ----- |
-| Chief marketing officer | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala)  | [*@akuthiala*](https://github.com/akuthiala) | Set, lead, and manage Fleet’s marketing strategy and execution across all aspects of marketing  Lead or own various functions of marketing as appropriate. |
-| Content specialist | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/)  | [*@irenareedy*](https://github.com/irenareedy) | Manage and scale the Fleet Champions Community program by expanding the size and diversity of customer advocates while increasing the number of Fleet peer reviews across multiple platforms. Lead event execution in close collaboration with the Campaign Manager to ensure conferences, meetups, and community events are planned, coordinated, and delivered successfully. Oversee Fleet’s social media program by working with the Social Media Manager to coordinate content, messaging, and publishing across channels. Maintain the marketing operations board to ensure tasks are assigned, actively worked on, and completed so marketing initiatives remain organized and on track. Own and report on weekly marketing KPIs, tracking progress across initiatives and ensuring visibility into performance and outcomes  |
-| Product education manager | [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/)  | [*@nonpunctual*](https://github.com/nonpunctual) | Create core technical assets to train internal, partners, prospects, and customer teams including Fleet certification program and teaching GitOps workshops.  Be the technical expert in validating all things marketing produces, be the Fleet relationship expert with Macadmins community |
-| Head of demand generation | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/)  | [*@johnjeremiah*](https://github.com/johnjeremiah) | Build pipeline,  Marketing ops |
-| Campaign manager | Hired (to be announced) |  | Build, run and measure all marketing campaigns.   Own Fleet swag strategy and execution |
-
+| Role                               | Contributor(s)
+|:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
+| Chief  Marketing Officer           | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([@akuthiala](https://github.com/akuthiala))_
+| Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
+| Head of Demand Generation          | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/) _([@johnjeremiah](https://github.com/johnjeremiah))_
+| Product Education Manager          | [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/) _([@nonpunctual](https://github.com/nonpunctual))_
+| Marketing Campaign Manager         | [Michael Buck](https://www.linkedin.com/in/michael-buck-chi312/ ) _([@mb-chigoose312](https://github.com/mb-chigoose312))_
 
 
 ## Contact us
@@ -33,6 +28,7 @@ The Marketing department is directly responsible for achieving revenue pipeline�
 ### Marketing assets
 
 The complete list of all marketing assets is listed on [this handbook page](https://fleetdm.com/handbook/marketing/marketing-assets).
+
 
 ### Press boilerplate text
 
@@ -103,7 +99,7 @@ To propose an ad, or a change to an ad:
 
 ### Settle content strategy
 
-The Head of Marketing is the DRI for deploying Fleet's outward-facing content. The content schedule is settled significantly in advance to provide ample time for strategy and planning. Use the following steps to settle content strategy:
+The CMO is the DRI for deploying Fleet's outward-facing content. The content schedule is settled significantly in advance to provide ample time for strategy and planning. Use the following steps to settle content strategy:
 
 1. Using the [content calendar](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=809357993#gid=809357993), propose the content that Fleet will produce in the current quarter, and the strategy behind that content, including:
   - Release date: The date by which the content will be complete and finalized.
@@ -112,8 +108,7 @@ The Head of Marketing is the DRI for deploying Fleet's outward-facing content. T
 2. Attend a 30m meeting with Fleet's Client Platform Engineer & Community Advocate, CTO, and CEO to review and settle the proposed content.
 
 
-
-
+[Planned content for SEO and GEO optimization](https://airtable.com/appiljMCYUZJGeRmH/tblfNFlpMJrrLe3eH/viwe6rmqbyUm8XFIC?blocks=hide) 
 
 
 
