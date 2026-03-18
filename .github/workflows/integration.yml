@@ -124,6 +124,7 @@ jobs:
       if: always()
       run: |
         fleetctl get hosts
+        fleetctl get hosts --json | jq
 
     - name: Slack Notification
       if: failure() && github.event_name == 'schedule'
@@ -351,9 +352,9 @@ jobs:
         # https://github.com/fleetdm/fleet/issues/8021 (otherwise orbit and osqueryd
         # in the same host are enrolled as two hosts in Fleet).
         # Until then we will just test the `stable` channel in all components.
-        orbit-channel: [ 'stable' ]
-        osqueryd-channel: [ 'stable' ]
-        desktop-channel: [ 'stable' ]
+        orbit-channel: [ 'stable', 'edge' ]
+        osqueryd-channel: [ 'stable', 'edge' ]
+        desktop-channel: [ 'stable', 'edge' ]
     runs-on: ubuntu-latest
     needs: [gen, login]
     steps:
@@ -400,9 +401,9 @@ jobs:
         # https://github.com/fleetdm/fleet/issues/8021 (otherwise orbit and osqueryd
         # in the same host are enrolled as two hosts in Fleet).
         # Until then we will just test the `stable` channel in all components.
-        orbit-channel: [ 'stable' ]
-        osqueryd-channel: [ 'stable' ]
-        desktop-channel: [ 'stable' ]
+        orbit-channel: [ 'stable', 'edge' ]
+        osqueryd-channel: [ 'stable', 'edge' ]
+        desktop-channel: [ 'stable', 'edge' ]
     needs: [gen, login, fleetd-windows-build]
     runs-on: windows-latest
     steps:
