@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -263,7 +264,7 @@ func (fc *FleetClient) GetEndpoints() ([]Endpoint, error) {
 // Uses GET /api/v1/fleet/hosts/identifier/:identifier which returns complete label data.
 // The list endpoint (GetEndpoints) intentionally omits labels for performance.
 func (fc *FleetClient) GetHostByIdentifier(identifier string) (*Endpoint, error) {
-	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/identifier/%s", identifier)
+	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/identifier/%s", url.PathEscape(identifier))
 	resp, err := fc.makeFleetRequest("GET", endpointPath, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get host: %w", err)
