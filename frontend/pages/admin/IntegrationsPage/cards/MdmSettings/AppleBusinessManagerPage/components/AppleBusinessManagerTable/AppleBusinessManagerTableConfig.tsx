@@ -3,6 +3,10 @@ import { CellProps, Column } from "react-table";
 
 import { IMdmAbmToken } from "interfaces/mdm";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+import {
+  APP_CONTEXT_NO_TEAM_ID,
+  APP_CONTEXT_NO_TEAM_SUMMARY,
+} from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -90,7 +94,10 @@ export const generateTableConfig = (
     },
     {
       id: "macos_team",
-      accessor: (originalRow) => originalRow.macos_team.name,
+      accessor: (originalRow) =>
+        originalRow.macos_team.team_id === APP_CONTEXT_NO_TEAM_ID
+          ? APP_CONTEXT_NO_TEAM_SUMMARY.name
+          : originalRow.macos_team.name,
       Header: () => {
         const titleWithToolTip = (
           <TooltipWrapper
@@ -113,7 +120,10 @@ export const generateTableConfig = (
     },
     {
       id: "ios_team",
-      accessor: (originalRow) => originalRow.ios_team.name,
+      accessor: (originalRow) =>
+        originalRow.ios_team.team_id === APP_CONTEXT_NO_TEAM_ID
+          ? APP_CONTEXT_NO_TEAM_SUMMARY.name
+          : originalRow.ios_team.name,
       Header: () => {
         const titleWithToolTip = (
           <TooltipWrapper
@@ -136,7 +146,10 @@ export const generateTableConfig = (
     },
     {
       id: "ipados_team",
-      accessor: (originalRow) => originalRow.ipados_team.name,
+      accessor: (originalRow) =>
+        originalRow.ipados_team.team_id === APP_CONTEXT_NO_TEAM_ID
+          ? APP_CONTEXT_NO_TEAM_SUMMARY.name
+          : originalRow.ipados_team.name,
       Header: () => {
         const titleWithToolTip = (
           <TooltipWrapper
