@@ -20,8 +20,12 @@ import {
 import teamPoliciesAPI, {
   IPoliciesApiParams,
   IPoliciesCountApiParams,
+  AutomationType,
 } from "services/entities/team_policies";
-import globalPoliciesAPI from "services/entities/global_policies";
+import globalPoliciesAPI, {
+  GlobalPoliciesAutomationType,
+  IGlobalPoliciesApiQueryParams,
+} from "services/entities/global_policies";
 
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { QueryablePlatform, isQueryablePlatform } from "interfaces/platform";
@@ -164,10 +168,12 @@ function PoliciesPaginatedList(
       orderDirection: "asc" as const,
       orderKey: DEFAULT_SORT_COLUMN,
       teamId,
+      automationType: undefined as GlobalPoliciesAutomationType | undefined,
     };
     countQueryKey = {
       query: "",
       teamId,
+      automationType: undefined as GlobalPoliciesAutomationType | undefined,
     };
   } else {
     policiesQueryKey = {
@@ -178,11 +184,13 @@ function PoliciesPaginatedList(
       orderKey: DEFAULT_SORT_COLUMN,
       teamId,
       mergeInherited: false,
+      automationType: undefined as AutomationType | undefined,
     };
     countQueryKey = {
       query: "",
       teamId,
       mergeInherited: false,
+      automationType: undefined as AutomationType | undefined,
     };
   }
 
@@ -206,11 +214,18 @@ function PoliciesPaginatedList(
     ILoadAllPoliciesResponse,
     Error,
     IFormPolicy[]
-  >([policiesQueryKey], () => globalPoliciesAPI.loadAllNew(policiesQueryKey), {
-    enabled: teamId === APP_CONTEXT_ALL_TEAMS_ID,
-    keepPreviousData: true,
-    select: marshallApiResponse,
-  });
+  >(
+    [policiesQueryKey],
+    () =>
+      globalPoliciesAPI.loadAllNew(
+        policiesQueryKey as IGlobalPoliciesApiQueryParams
+      ),
+    {
+      enabled: teamId === APP_CONTEXT_ALL_TEAMS_ID,
+      keepPreviousData: true,
+      select: marshallApiResponse,
+    }
+  );
 
   // Team policies query
   const { data: teamData, isFetching: teamIsLoading } = useQuery<
@@ -232,10 +247,20 @@ function PoliciesPaginatedList(
     IPoliciesCountResponse,
     Error,
     number
-  >([countQueryKey], () => globalPoliciesAPI.getCount(countQueryKey), {
-    enabled: teamId === APP_CONTEXT_ALL_TEAMS_ID,
-    select: (countResponse: IPoliciesCountResponse) => countResponse.count,
-  });
+  >(
+    [countQueryKey],
+    () =>
+      globalPoliciesAPI.getCount(
+        countQueryKey as Pick<
+          IGlobalPoliciesApiQueryParams,
+          "query" | "automationType"
+        >
+      ),
+    {
+      enabled: teamId === APP_CONTEXT_ALL_TEAMS_ID,
+      select: (countResponse: IPoliciesCountResponse) => countResponse.count,
+    }
+  );
 
   // Team count query
   const { data: teamCount, isFetching: teamIsFetchingCount } = useQuery<

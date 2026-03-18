@@ -18,7 +18,7 @@ export type GlobalPoliciesAutomationType = Exclude<
   "software" | "scripts" | "conditional_access" | "calendar"
 >;
 
-interface IPoliciesApiParams {
+export interface IGlobalPoliciesApiQueryParams {
   page?: number;
   perPage?: number;
   orderKey?: string;
@@ -27,12 +27,12 @@ interface IPoliciesApiParams {
   automationType?: GlobalPoliciesAutomationType;
 }
 
-export interface IPoliciesQueryKey extends IPoliciesApiParams {
+export interface IPoliciesQueryKey extends IGlobalPoliciesApiQueryParams {
   scope: "globalPolicies";
 }
 
 export interface IPoliciesCountQueryKey
-  extends Pick<IPoliciesApiParams, "query" | "automationType"> {
+  extends Pick<IGlobalPoliciesApiQueryParams, "query" | "automationType"> {
   scope: "policiesCount";
 }
 
@@ -76,7 +76,7 @@ export default {
     orderDirection: orderDir = ORDER_DIRECTION,
     query,
     automationType,
-  }: IPoliciesApiParams): Promise<ILoadAllPoliciesResponse> => {
+  }: IGlobalPoliciesApiQueryParams): Promise<ILoadAllPoliciesResponse> => {
     const { GLOBAL_POLICIES } = endpoints;
 
     const queryParams = {
@@ -98,7 +98,7 @@ export default {
     query,
     automationType,
   }: Pick<
-    IPoliciesApiParams,
+    IGlobalPoliciesApiQueryParams,
     "query" | "automationType"
   >): Promise<IPoliciesCountResponse> => {
     const { GLOBAL_POLICIES } = endpoints;

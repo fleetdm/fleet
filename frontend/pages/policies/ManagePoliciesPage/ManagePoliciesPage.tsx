@@ -3,7 +3,7 @@ import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import PATHS from "router/paths";
-import { isEqual, set } from "lodash";
+import { isEqual } from "lodash";
 
 import { getNextLocationPath, wait } from "utilities/helpers";
 

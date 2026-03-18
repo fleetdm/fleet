@@ -11,6 +11,7 @@ import {
 } from "interfaces/policy";
 import { API_NO_TEAM_ID } from "interfaces/team";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+import { GlobalPoliciesAutomationType } from "./global_policies";
 
 export type AutomationType =
   | "software"
@@ -25,7 +26,7 @@ interface IPoliciesApiQueryParams {
   orderKey?: string;
   orderDirection?: "asc" | "desc";
   query?: string;
-  automationType?: AutomationType;
+  automationType?: AutomationType | GlobalPoliciesAutomationType;
 }
 
 export interface IPoliciesApiParams extends IPoliciesApiQueryParams {
