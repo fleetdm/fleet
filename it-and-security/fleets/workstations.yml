@@ -343,8 +343,6 @@ software:
         - "x86-based Windows hosts"
       categories:
         - Productivity
-      labels_include_any:
-        - "x86-based Windows hosts"
     - slug: firefox/windows # Mozilla Firefox for Windows
       self_service: true
       categories:
