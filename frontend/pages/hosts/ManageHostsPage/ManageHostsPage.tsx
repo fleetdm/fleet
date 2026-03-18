@@ -81,6 +81,7 @@ import {
   PolicyResponse,
 } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
+import { strToBool } from "utilities/strings/stringUtils";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
@@ -126,7 +127,6 @@ import DeleteLabelModal from "./components/DeleteLabelModal";
 import LabelFilterSelect from "./components/LabelFilterSelect";
 import HostsFilterBlock from "./components/HostsFilterBlock";
 import RunScriptBatchModal from "./components/RunScriptBatchModal";
-import { strToBool } from "utilities/strings/stringUtils";
 
 interface IManageHostsProps {
   route: RouteProps;
