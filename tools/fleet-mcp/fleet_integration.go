@@ -677,7 +677,7 @@ func (fc *FleetClient) GetVulnerabilityImpact(cveID string) (*VulnerabilityImpac
 
 // CreateSavedQuery creates a new saved query in Fleet
 func (fc *FleetClient) CreateSavedQuery(name, description, sql, platform string) (*Query, error) {
-	endpoint := "/api/v1/fleet/reports/queries"
+	endpoint := "/api/v1/fleet/reports"
 
 	reqBody := CreateQueryRequest{
 		Name:        name,
