@@ -511,7 +511,7 @@ type HostReport struct {
 	// paused saving new results across all hosts.
 	ReportClipped bool `json:"report_clipped"`
 	// StoreResults indicates that the query is configured to store results.
-	// It is false when discard_data=1 and logging_type is not 'snapshot'.
+	// It is true only when discard_data=0 AND logging_type='snapshot'.
 	StoreResults bool `json:"store_results"`
 }
 

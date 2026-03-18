@@ -286,6 +286,7 @@ type hostReportRow struct {
 	Description       string       `db:"description"`
 	LastResultFetched sql.NullTime `db:"last_result_fetched"`
 	DiscardData       bool         `db:"discard_data"`
+	LoggingType       string       `db:"logging_type"`
 }
 
 // ListHostReports returns reports associated with a host, applying
@@ -339,7 +340,7 @@ func (ds *Datastore) ListHostReports(
 	// is available for ORDER BY. The JOIN uses hostID as its only argument, which
 	// must be prepended before the WHERE-clause args.
 	listStmt := `
-		SELECT q.id, q.name, q.description, q.discard_data, qr_stats.last_result_fetched
+		SELECT q.id, q.name, q.description, q.discard_data, q.logging_type, qr_stats.last_result_fetched
 		FROM queries q
 		LEFT JOIN (
 			SELECT query_id, MAX(last_fetched) AS last_result_fetched
@@ -475,7 +476,7 @@ func (ds *Datastore) ListHostReports(
 			QueryID:      qr.QueryID,
 			Name:         qr.Name,
 			Description:  qr.Description,
-			StoreResults: !qr.DiscardData,
+			StoreResults: !qr.DiscardData && qr.LoggingType == fleet.LoggingSnapshot,
 		}
 		if qr.LastResultFetched.Valid {
 			t := qr.LastResultFetched.Time

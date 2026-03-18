@@ -844,6 +844,20 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// Create a query with discard_data=false but logging_type='differential'.
+	// This is the edge case fixed by the StoreResults check: even though
+	// discard_data=0, it does not store snapshot reports, so StoreResults must
+	// be false and it must be excluded by the default filter.
+	qDifferentialNoDiscard, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:        "Differential No Discard Delta",
+		Query:       "SELECT 4",
+		AuthorID:    &user.ID,
+		Saved:       true,
+		DiscardData: false,
+		Logging:     fleet.LoggingDifferential,
+	})
+	require.NoError(t, err)
+
 	// Insert results for qSave1 on our host: two rows.
 	rows1 := []*fleet.ScheduledQueryResultRow{
 		{
@@ -899,12 +913,43 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 		}
 		reports, total, _, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
 		require.NoError(t, err)
-		// All 3 queries are returned including the don't-store-results one.
-		assert.Equal(t, 3, total)
-		require.Len(t, reports, 3)
-		assert.Equal(t, "Discard Query Gamma", reports[0].Name)
-		assert.Equal(t, "Save Query Alpha", reports[1].Name)
-		assert.Equal(t, "Save Query Beta", reports[2].Name)
+		// All 4 queries are returned including both don't-store-results variants.
+		assert.Equal(t, 4, total)
+		require.Len(t, reports, 4)
+		assert.Equal(t, "Differential No Discard Delta", reports[0].Name)
+		assert.Equal(t, "Discard Query Gamma", reports[1].Name)
+		assert.Equal(t, "Save Query Alpha", reports[2].Name)
+		assert.Equal(t, "Save Query Beta", reports[3].Name)
+	})
+
+	t.Run("store_results_field_reflects_both_discard_data_and_logging_type", func(t *testing.T) {
+		// This subtest validates the fix: StoreResults must be true only when
+		// discard_data=0 AND logging_type='snapshot'. A query with discard_data=0
+		// but logging_type='differential' must have StoreResults=false.
+		opts := fleet.ListHostReportsOptions{
+			IncludeReportsDontStoreResults: true,
+			ListOptions:                    fleet.ListOptions{OrderKey: "name"},
+		}
+		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		require.NoError(t, err)
+		require.Len(t, reports, 4)
+
+		byName := make(map[string]*fleet.HostReport, len(reports))
+		for _, r := range reports {
+			byName[r.Name] = r
+		}
+
+		// discard_data=false, logging_type='snapshot' → StoreResults=true
+		require.Contains(t, byName, qSave1.Name)
+		assert.True(t, byName[qSave1.Name].StoreResults, "snapshot query should have StoreResults=true")
+
+		// discard_data=true, logging_type='differential' → StoreResults=false
+		require.Contains(t, byName, qDiscard.Name)
+		assert.False(t, byName[qDiscard.Name].StoreResults, "discard query should have StoreResults=false")
+
+		// discard_data=false, logging_type='differential' → StoreResults=false (the fixed edge case)
+		require.Contains(t, byName, qDifferentialNoDiscard.Name)
+		assert.False(t, byName[qDifferentialNoDiscard.Name].StoreResults, "differential query with discard_data=false should have StoreResults=false")
 	})
 
 	t.Run("first_result_is_most_recent_non_null_row", func(t *testing.T) {
