@@ -150,7 +150,7 @@ jobs:
 
     - name: Cleanup tunnel
       if: always()
-      run: cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }}
+      run: cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }} || true
 
     - name: Upload cloudflared logs
       if: always()
@@ -207,7 +207,7 @@ jobs:
         echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
   fleetd-macos:
-    timeout-minutes: 10
+    timeout-minutes: 5
     strategy:
       matrix:
         orbit-channel: [ 'stable', 'edge' ]
@@ -253,6 +253,16 @@ jobs:
           sleep 1
         done
 
+    - name: Check processes
+      run: |
+        echo "Checking if osqueryd is running..."
+        pgrep -x osqueryd || (echo "ERROR: osqueryd is not running" && exit 1)
+        echo "Checking if orbit is running..."
+        pgrep -x orbit || (echo "ERROR: orbit is not running" && exit 1)
+        echo "Checking if fleet-desktop is running..."
+        pgrep -x fleet-desktop || (echo "ERROR: fleet-desktop is not running" && exit 1)
+        echo "All processes are running."
+
     - name: Collect orbit logs
       if: always()
       run: |
@@ -272,7 +282,7 @@ jobs:
         sudo ./it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
 
   fleetd-ubuntu:
-    timeout-minutes: 10
+    timeout-minutes: 5
     strategy:
       matrix:
         # To run multiple VMs that have the same UUID we need to implement
@@ -320,6 +330,16 @@ jobs:
           sleep 1
         done
 
+    - name: Check processes
+      run: |
+        echo "Checking if osqueryd is running..."
+        pgrep -x osqueryd || (echo "ERROR: osqueryd is not running" && exit 1)
+        echo "Checking if orbit is running..."
+        pgrep -x orbit || (echo "ERROR: orbit is not running" && exit 1)
+        echo "Checking if fleet-desktop is running..."
+        pgrep -x fleet-desktop || (echo "ERROR: fleet-desktop is not running" && exit 1)
+        echo "All processes are running."
+
     - name: Collect orbit logs
       if: always()
       run: |
@@ -338,7 +358,7 @@ jobs:
         sudo apt remove fleet-osquery -y
 
   fleetd-windows-build:
-    timeout-minutes: 10
+    timeout-minutes: 5
     strategy:
       matrix:
         # To run multiple VMs that have the same UUID we need to implement
@@ -387,7 +407,7 @@ jobs:
         path: fleetd-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi
 
   fleetd-windows:
-    timeout-minutes: 10
+    timeout-minutes: 5
     strategy:
       matrix:
         # To run multiple VMs that have the same UUID we need to implement
@@ -463,11 +483,31 @@ jobs:
             Start-Sleep -Seconds 1
         } while ($true)
 
+    - name: Check processes
+      shell: powershell
+      run: |
+        Write-Host "Checking if osqueryd is running..."
+        if (-not (Get-Process -Name "osqueryd" -ErrorAction SilentlyContinue)) {
+          Write-Host "ERROR: osqueryd is not running"
+          exit 1
+        }
+        Write-Host "Checking if orbit is running..."
+        if (-not (Get-Process -Name "orbit" -ErrorAction SilentlyContinue)) {
+          Write-Host "ERROR: orbit is not running"
+          exit 1
+        }
+        Write-Host "Checking if fleet-desktop is running..."
+        if (-not (Get-Process -Name "fleet-desktop" -ErrorAction SilentlyContinue)) {
+          Write-Host "ERROR: fleet-desktop is not running"
+          exit 1
+        }
+        Write-Host "All processes are running."
+
     - name: Upload orbit install log
       if: always()
       uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
       with:
-        name: msiexec-install-log
+        name: msiexec-install-log-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}
         path: log.txt
 
     - name: Upload Orbit logs
