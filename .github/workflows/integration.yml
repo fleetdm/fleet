@@ -97,13 +97,14 @@ jobs:
         # Ensure Fleet server is responding before waiting for enrollments
         echo "Checking Fleet server health..."
         HEALTH_CHECK_COUNT=0
-        until curl -s -o /dev/null -w "%{http_code}" http://localhost:1337/healthz | grep -q "200"; do
+        until HTTP_CODE=$(curl -sS -o /dev/null -w "%{http_code}" http://localhost:1337/healthz) && [[ "$HTTP_CODE" == "200" ]]; do
           HEALTH_CHECK_COUNT=$((HEALTH_CHECK_COUNT + 1))
           if [ $HEALTH_CHECK_COUNT -ge 30 ]; then
             echo "ERROR: Fleet server not responding after 150 seconds"
             docker ps -a --filter "name=fleet"
             exit 1
           fi
+          echo "Health check ${HEALTH_CHECK_COUNT}/30 (HTTP status: ${HTTP_CODE:-connection failed})"
           sleep 5
         done
         echo "Fleet server is responding"
@@ -340,17 +341,11 @@ jobs:
         sleep 30
         sudo systemctl status orbit.service
 
-        cat $HOME/.local/state/Fleet/fleet-desktop.log || true
-        cat $XDG_STATE_HOME/Fleet/fleet-desktop.log || true
-        ps aux | grep fleet
-        ps aux | grep desktop
-
         echo "Checking if osqueryd is running..."
         pgrep -x osqueryd || (echo "ERROR: osqueryd is not running" && exit 1)
         echo "Checking if orbit is running..."
         pgrep -x orbit || (echo "ERROR: orbit is not running" && exit 1)
-        echo "Checking if fleet-desktop is running..."
-        pgrep -x fleet-desktop || (echo "ERROR: fleet-desktop is not running" && exit 1)
+        # Don't check for Fleet Desktop as it doesn't run in the windowless CI environment.
         echo "All processes are running."
 
     - name: Collect orbit logs
