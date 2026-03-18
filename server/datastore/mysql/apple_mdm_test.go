@@ -10957,6 +10957,7 @@ func testGetHostRecoveryLockPasswordStatus(t *testing.T, ds *Datastore) {
 		require.NotNil(t, status.Status)
 		assert.Equal(t, fleet.MDMDeliveryPending, *status.Status)
 		assert.Empty(t, status.Detail)
+		assert.True(t, status.PasswordAvailable)
 	})
 
 	t.Run("returns verified status", func(t *testing.T) {
@@ -10973,6 +10974,7 @@ func testGetHostRecoveryLockPasswordStatus(t *testing.T, ds *Datastore) {
 		require.NotNil(t, status.Status)
 		assert.Equal(t, fleet.MDMDeliveryVerified, *status.Status)
 		assert.Empty(t, status.Detail)
+		assert.True(t, status.PasswordAvailable)
 	})
 
 	t.Run("returns failed status with error message", func(t *testing.T) {
