@@ -311,6 +311,7 @@ const ManageHostsPage = ({
   const scriptBatchExecutionStatus: ScriptBatchHostCountV1 =
     queryParams?.[HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS] ??
     (scriptBatchExecutionId ? "ran" : undefined);
+  const depProfileError = queryParams?.dep_profile_error;
 
   // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;
@@ -351,6 +352,7 @@ const ManageHostsPage = ({
   // scriptBatchExecutionStatus
   // configProfileStatus ||
   // configProfileUUID
+  // depProfileError
 
   const runScriptBatchFilterNotSupported = !!(
     // all above, except acceptable filters
@@ -388,7 +390,8 @@ const ManageHostsPage = ({
       scriptBatchExecutionId ||
       scriptBatchExecutionStatus ||
       configProfileStatus ||
-      configProfileUUID
+      configProfileUUID ||
+      depProfileError
     )
   );
 
@@ -1098,6 +1101,8 @@ const ManageHostsPage = ({
         newQueryParams[
           HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID
         ] = scriptBatchExecutionId;
+      } else if (depProfileError) {
+        newQueryParams.dep_profile_error = depProfileError;
       }
 
       router.replace(
@@ -1986,6 +1991,7 @@ const ManageHostsPage = ({
             scriptBatchExecutionId,
             scriptBatchRanAt: scriptBatchSummary?.created_at || null,
             scriptBatchScriptName: scriptBatchSummary?.script_name || null,
+            depProfileError,
           }}
           selectedLabel={selectedLabel}
           isOnlyObserver={isOnlyObserver}
