@@ -47,7 +47,7 @@ org_settings:
 
   mdm:
     ###########################################################
-    # Uncomment to use single-sign on (SSO) to authenticate
+    # Uncomment to use single sign-on (SSO) to authenticate
     # new computers enrolling in Fleet during end user setup.
     #
     # Read more:

@@ -1,6 +1,7 @@
 package fleetctl
 
 import (
+	"context"
 	"embed"
 	"errors"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"time"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -53,7 +55,9 @@ func resolveFleetctlVersion(appVersion string) string {
 		return m[1]
 	}
 	// Fall back to latest published version from npm.
-	if out, err := exec.Command("npm", "view", "fleetctl", "version").CombinedOutput(); err == nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if out, err := exec.CommandContext(ctx, "npm", "view", "fleetctl", "version").CombinedOutput(); err == nil {
 		if v := strings.TrimSpace(string(out)); semverPattern.MatchString(v) {
 			return v
 		}
