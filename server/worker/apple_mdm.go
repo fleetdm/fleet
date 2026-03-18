@@ -707,8 +707,6 @@ func (a *AppleMDM) installProfilesForEnrollingHost(ctx context.Context, hostUUID
 
 	a.Log.InfoContext(ctx, "installing profiles post-enrollment", "host_uuid", hostUUID, "profile_count", len(profilesToInstall))
 
-	var cmdUUIDs []string
-
 	appConfig, err := a.Datastore.AppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "reading app config")
@@ -716,7 +714,6 @@ func (a *AppleMDM) installProfilesForEnrollingHost(ctx context.Context, hostUUID
 
 	hostProfilesToInstallMap := make(map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(profilesToInstall))
 	installTargets := make(map[string]*fleet.CmdTarget, len(profilesToInstall))
-	profileByCmdUUID := make(map[string]*fleet.MDMAppleBulkUpsertHostProfilePayload)
 	for _, profile := range profilesToInstall {
 		target := &fleet.CmdTarget{
 			CmdUUID:           uuid.NewString(),
@@ -737,25 +734,36 @@ func (a *AppleMDM) installProfilesForEnrollingHost(ctx context.Context, hostUUID
 			Scope:             profile.Scope,
 		}
 		hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: hostUUID, ProfileUUID: profile.ProfileUUID}] = hostProfile
-		profileByCmdUUID[target.CmdUUID] = hostProfile
 	}
 
-	onFailedEnqueuement := func(cmdUUID string, err error) {
-		profile := profileByCmdUUID[cmdUUID]
-		a.Log.ErrorContext(ctx, "failed to install profile", "host_uuid", hostUUID, "profile_uuid", profile.ProfileUUID, "error", err)
-	}
-
-	// Prepare bulk payloads for database update
-	var bulkPayloads []*fleet.MDMAppleBulkUpsertHostProfilePayload
-	onSuccessfulEnqueuement := func(cmdUUID string) {
-		profile := profileByCmdUUID[cmdUUID]
-		cmdUUIDs = append(cmdUUIDs, cmdUUID)
-		bulkPayloads = append(bulkPayloads, profile)
-	}
-
-	err = apple_mdm.ProcessAndEnqueueProfiles(ctx, a.Datastore, a.Log, appConfig, a.Commander, installTargets, nil, hostProfilesToInstallMap, map[string]string{}, onFailedEnqueuement, onSuccessfulEnqueuement)
+	enqueueResult, err := apple_mdm.ProcessAndEnqueueProfiles(ctx, a.Datastore, a.Log, appConfig, a.Commander, installTargets, nil, hostProfilesToInstallMap, map[string]string{})
 	if err != nil {
 		return nil, err
+	}
+
+	// Build cmdUUID→profile index AFTER preprocessing has rewritten CommandUUIDs.
+	profileByCmdUUID := make(map[string]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(hostProfilesToInstallMap))
+	for _, hp := range hostProfilesToInstallMap {
+		if hp.CommandUUID != "" {
+			profileByCmdUUID[hp.CommandUUID] = hp
+		}
+	}
+
+	// Log failures
+	for cmdUUID, enqErr := range enqueueResult.FailedCmdUUIDs {
+		if profile := profileByCmdUUID[cmdUUID]; profile != nil {
+			a.Log.ErrorContext(ctx, "failed to install profile", "host_uuid", hostUUID, "profile_uuid", profile.ProfileUUID, "error", enqErr)
+		}
+	}
+
+	// Collect successes for bulk upsert
+	var cmdUUIDs []string
+	var bulkPayloads []*fleet.MDMAppleBulkUpsertHostProfilePayload
+	for _, cmdUUID := range enqueueResult.SucceededCmdUUIDs {
+		if profile := profileByCmdUUID[cmdUUID]; profile != nil {
+			cmdUUIDs = append(cmdUUIDs, cmdUUID)
+			bulkPayloads = append(bulkPayloads, profile)
+		}
 	}
 
 	// Bulk update database to track all profile installations

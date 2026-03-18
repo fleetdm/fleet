@@ -29,6 +29,14 @@ import (
 // LEGACY VARIABLE
 var fleetVarHostEndUserEmailIDPRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserEmailIDP))
 
+// EnqueueResult holds the results of profile enqueue operations.
+type EnqueueResult struct {
+	// FailedCmdUUIDs maps command UUIDs that failed to enqueue to their errors.
+	FailedCmdUUIDs map[string]error
+	// SucceededCmdUUIDs contains the command UUIDs that were enqueued successfully.
+	SucceededCmdUUIDs []string
+}
+
 func ProcessAndEnqueueProfiles(ctx context.Context,
 	ds fleet.Datastore,
 	logger *slog.Logger,
@@ -37,9 +45,7 @@ func ProcessAndEnqueueProfiles(ctx context.Context,
 	installTargets, removeTargets map[string]*fleet.CmdTarget,
 	hostProfilesToInstallMap map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 	userEnrollmentsToHostUUIDsMap map[string]string,
-	onFailedEnqueue func(cmdUUID string, err error),
-	onSuccessfulEnqueue func(cmdUUID string),
-) error {
+) (*EnqueueResult, error) {
 	// Grab the contents of all the profiles we need to install
 	profileUUIDs := make([]string, 0, len(installTargets))
 	for pUUID := range installTargets {
@@ -48,12 +54,12 @@ func ProcessAndEnqueueProfiles(ctx context.Context,
 
 	profileContents, err := ds.GetMDMAppleProfilesContents(ctx, profileUUIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get profile contents")
+		return nil, ctxerr.Wrap(ctx, err, "get profile contents")
 	}
 
 	groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
+		return nil, ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
 	}
 
 	// Insert variables into profile contents of install targets. Variables may be host-specific.
@@ -62,13 +68,13 @@ func ProcessAndEnqueueProfiles(ctx context.Context,
 		digicert.NewService(digicert.WithLogger(logger)),
 		logger, installTargets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Find the profiles containing secret variables.
 	profilesWithSecrets, err := fleet.FindProfilesWithSecrets(ctx, logger, installTargets, profileContents)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	type remoteResult struct {
@@ -115,12 +121,17 @@ func ProcessAndEnqueueProfiles(ctx context.Context,
 		go execCmd(profUUID, target, fleet.MDMOperationTypeRemove)
 	}
 
+	result := &EnqueueResult{
+		FailedCmdUUIDs:    make(map[string]error),
+		SucceededCmdUUIDs: []string{},
+	}
+
 	wgCons.Go(func() {
 		for resp := range ch {
-			if resp.Err == nil && onSuccessfulEnqueue != nil {
-				onSuccessfulEnqueue(resp.CmdUUID)
-			} else if resp.Err != nil && onFailedEnqueue != nil {
-				onFailedEnqueue(resp.CmdUUID, resp.Err)
+			if resp.Err == nil {
+				result.SucceededCmdUUIDs = append(result.SucceededCmdUUIDs, resp.CmdUUID)
+			} else if resp.Err != nil {
+				result.FailedCmdUUIDs[resp.CmdUUID] = resp.Err
 			}
 		}
 	})
@@ -128,7 +139,7 @@ func ProcessAndEnqueueProfiles(ctx context.Context,
 	wgProd.Wait()
 	close(ch) // done sending at this point, this triggers end of for loop in consumer
 	wgCons.Wait()
-	return nil
+	return result, nil
 }
 
 func preprocessProfileContents(

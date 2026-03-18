@@ -5215,32 +5215,7 @@ func ReconcileAppleProfiles(
 		return ctxerr.Wrap(ctx, err, "updating host profiles")
 	}
 
-	// index the host profiles by cmdUUID, for ease of error processing in the
-	// consumer goroutine below.
-	hostProfsByCmdUUID := make(map[string][]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(installTargets)+len(removeTargets))
-	for _, hp := range hostProfiles {
-		hostProfsByCmdUUID[hp.CommandUUID] = append(hostProfsByCmdUUID[hp.CommandUUID], hp)
-	}
-
-	// Grab all the failed deliveries and update the status so they're picked up
-	// again in the next run.
-	//
-	// Note that if the APNs push failed we won't try again, as the command was
-	// successfully enqueued, this is only to account for internal errors like DB
-	// failures.
-	failed := []*fleet.MDMAppleBulkUpsertHostProfilePayload{}
-	onErrorEnqueuement := func(cmdUUID string, err error) {
-		hostProfs := hostProfsByCmdUUID[cmdUUID]
-		for _, hp := range hostProfs {
-			// clear the command as it failed to enqueue, will need to emit a new command
-			hp.CommandUUID = ""
-			// set status to nil so it is retried on the next cron run
-			hp.Status = nil
-			failed = append(failed, hp)
-		}
-	}
-
-	if err := apple_mdm.ProcessAndEnqueueProfiles(
+	enqueueResult, err := apple_mdm.ProcessAndEnqueueProfiles(
 		ctx,
 		ds,
 		logger,
@@ -5250,10 +5225,27 @@ func ReconcileAppleProfiles(
 		removeTargets,
 		hostProfilesToInstallMap,
 		userEnrollmentsToHostUUIDsMap,
-		onErrorEnqueuement,
-		nil,
-	); err != nil {
+	)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "processing and enqueuing profiles")
+	}
+
+	// Build cmdUUID→hostProfiles index AFTER preprocessing has rewritten CommandUUIDs.
+	hostProfsByCmdUUID := make(map[string][]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(hostProfiles))
+	for _, hp := range hostProfiles {
+		if hp.CommandUUID != "" {
+			hostProfsByCmdUUID[hp.CommandUUID] = append(hostProfsByCmdUUID[hp.CommandUUID], hp)
+		}
+	}
+
+	// Revert failed deliveries so they're retried on the next cron run.
+	var failed []*fleet.MDMAppleBulkUpsertHostProfilePayload
+	for cmdUUID := range enqueueResult.FailedCmdUUIDs {
+		for _, hp := range hostProfsByCmdUUID[cmdUUID] {
+			hp.CommandUUID = ""
+			hp.Status = nil
+			failed = append(failed, hp)
+		}
 	}
 
 	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, failed); err != nil {
