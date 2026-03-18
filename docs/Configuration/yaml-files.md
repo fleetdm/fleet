@@ -324,7 +324,8 @@ The `controls` section allows you to configure scripts and device management (MD
 - `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. (default: `false`). Can only be configured for all teams (`default.yml`).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS, Windows, and Linux hosts (default: `false`).
 - `windows_require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows host during startup. `enable_disk_encryption` must be set to `true`. (default: `false`).
-- `enable_create_local_managed_account` specifies whether or not to create a local admin managed account on macOS hosts (default: `false`).
+- `enable_local_managed_account` specifies whether or not to create a local admin managed account on macOS hosts during Setup Assistant (default: `false`).
+- `end_user_local_account_type` specifies the end user account type. `enable_local_managed_account` must be set to `true`. (default: `admin`).
 
 #### Example
 
