@@ -1776,7 +1776,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 		Description: "Team2 description",
 		Secrets:     []*fleet.EnrollSecret{{Secret: "GHI"}},
 	}
-	tmResp.Team = nil
 	s.DoJSON("POST", "/api/latest/fleet/teams", team2, http.StatusConflict, &tmResp)
 
 	// create a team with reserved team names; should be case-insensitive
@@ -1792,6 +1791,32 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	teamReserved.Name = "AlL TeaMS"
 	r = s.Do("POST", "/api/latest/fleet/teams", teamReserved, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
+
+	// create a team with a whitespace-only name
+	teamWhitespace := &fleet.Team{
+		Name:        "     ",
+		Description: "description",
+		Secrets:     []*fleet.EnrollSecret{{Secret: "whitespace-team"}},
+	}
+	r = s.Do("POST", "/api/latest/fleet/teams", teamWhitespace, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), `may not be empty`)
+
+	// create a team with leading/trailing whitespace — name should be trimmed
+	teamPadded := &fleet.Team{
+		Name:        "  Padded Team  ",
+		Description: "description",
+		Secrets:     []*fleet.EnrollSecret{{Secret: "padded-team"}},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/teams", teamPadded, http.StatusOK, &tmResp)
+	require.Equal(t, "Padded Team", tmResp.Team.Name)
+	paddedTeamID := tmResp.Team.ID
+
+	// rename with leading/trailing whitespace — name should be trimmed
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), fleet.TeamPayload{Name: ptr.String("  Renamed Padded  ")}, http.StatusOK, &tmResp)
+	require.Equal(t, "Renamed Padded", tmResp.Team.Name)
+
+	// clean up
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), nil, http.StatusOK)
 
 	// create a team with too many secrets
 	team3 := &fleet.Team{
@@ -1898,6 +1923,10 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), fleet.TeamPayload{Name: ptr.String("ALL teAMs")}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
+
+	// try to rename to a whitespace-only name
+	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), fleet.TeamPayload{Name: ptr.String("     ")}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), `may not be empty`)
 
 	// Modify team's calendar config
 	modifyCalendar := fleet.TeamPayload{
