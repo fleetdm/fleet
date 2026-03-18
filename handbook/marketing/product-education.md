@@ -6,9 +6,7 @@
 
 ## Fleet training course certification standards
 
-This basic pattern applies to all internal certification for delivering an offically sanctioned Fleet training course.
-
-*The Fleetie seeking certification must:*
+*A Fleetie seeking certification to deliver an offically sanctioned Fleet training course must:*
 
 ```
 1. Take the course they intend to be certified to deliver.
