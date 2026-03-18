@@ -82,7 +82,7 @@ jobs:
         done
 
     - name: Run Fleet server
-      timeout-minutes: 15
+      timeout-minutes: 60
       run: |
         npm install -g fleetctl
         fleetctl preview --no-hosts --disable-open-browser
@@ -116,7 +116,7 @@ jobs:
           
           # Show diagnostic info every 10 seconds
           if [ $((ELAPSED % 10)) -lt 1 ]; then
-            fleetctl get hosts --json || true
+            fleetctl get hosts || true
           fi
           
           sleep 1
@@ -126,7 +126,7 @@ jobs:
     - name: Show enrolled hosts
       if: always()
       run: |
-        fleetctl get hosts --json
+        fleetctl get hosts
 
     - name: Slack Notification
       if: failure() && github.event_name == 'schedule'
