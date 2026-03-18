@@ -172,7 +172,6 @@ jobs:
    outputs:
      token: ${{ steps.login.outputs.token }}
    steps:
-    # Download fleet and fleetctl binaries from last successful build on main
     - name: Harden Runner
       uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
       with:
@@ -188,6 +187,19 @@ jobs:
         
         # Wait for Fleet server to be reachable first
         echo "Waiting for Fleet server to be ready..."
+        
+        # Wait for DNS to propagate by querying 1.1.1.1 directly, bypassing the
+        # system resolver's negative cache (NXDOMAIN is cached when the Cloudflare
+        # tunnel DNS record doesn't exist yet, and the cache persists even after
+        # the record is created).
+        HEALTH_DOMAIN=$(echo "${{ needs.gen.outputs.address }}" | sed 's|https://||')
+        until dig +short @1.1.1.1 "$HEALTH_DOMAIN" | grep -qE '^[0-9]'; do
+          echo "Waiting for DNS to propagate for $HEALTH_DOMAIN..."
+          sleep 5
+        done
+        sudo resolvectl flush-caches 2>/dev/null || sudo systemd-resolve --flush-caches 2>/dev/null || true
+        echo "DNS propagated."
+        
         ATTEMPT=0
         until curl -s -o /dev/null -w "%{http_code}" ${{ needs.gen.outputs.address }}/healthz | grep -q "200"; do
           ATTEMPT=$((ATTEMPT + 1))
@@ -196,6 +208,7 @@ jobs:
             exit 1
           fi
           echo "Waiting for server... attempt $ATTEMPT/60"
+          sudo resolvectl flush-caches 2>/dev/null || true
           sleep 5
         done
         echo "Fleet server is responding, attempting login..."
