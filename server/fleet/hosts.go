@@ -603,8 +603,57 @@ type HostMDMDiskEncryption struct {
 }
 
 type HostMDMRecoveryLockPassword struct {
-	Status *MDMDeliveryStatus `json:"status" db:"-" csv:"-"`
-	Detail string             `json:"detail" db:"-" csv:"-"`
+	Status            *RecoveryLockStatus `json:"status" db:"-" csv:"-"`
+	Detail            string              `json:"detail" db:"-" csv:"-"`
+	PasswordAvailable bool                `json:"password_available" db:"-" csv:"-"`
+	// rawStatus and operationType are used internally to determine the status translation, not serialized.
+	rawStatus     *MDMDeliveryStatus `json:"-" db:"-" csv:"-"`
+	operationType MDMOperationType   `json:"-" db:"-" csv:"-"`
+}
+
+// RecoveryLockStatus represents the status of recovery lock password enforcement.
+type RecoveryLockStatus string
+
+const (
+	RecoveryLockStatusVerified            RecoveryLockStatus = "verified"
+	RecoveryLockStatusPending             RecoveryLockStatus = "pending"
+	RecoveryLockStatusFailed              RecoveryLockStatus = "failed"
+	RecoveryLockStatusRemovingEnforcement RecoveryLockStatus = "removing_enforcement"
+)
+
+func (s RecoveryLockStatus) addrOf() *RecoveryLockStatus {
+	return &s
+}
+
+// PopulateStatus converts the raw MDMDeliveryStatus based on operation type to RecoveryLockStatus.
+func (r *HostMDMRecoveryLockPassword) PopulateStatus() {
+	if r == nil || r.rawStatus == nil {
+		return
+	}
+	switch r.operationType {
+	case MDMOperationTypeRemove:
+		switch {
+		case *r.rawStatus == MDMDeliveryFailed:
+			r.Status = RecoveryLockStatusFailed.addrOf()
+		default:
+			r.Status = RecoveryLockStatusRemovingEnforcement.addrOf()
+		}
+	default:
+		switch *r.rawStatus {
+		case MDMDeliveryFailed:
+			r.Status = RecoveryLockStatusFailed.addrOf()
+		case MDMDeliveryVerified:
+			r.Status = RecoveryLockStatusVerified.addrOf()
+		case MDMDeliveryVerifying, MDMDeliveryPending:
+			r.Status = RecoveryLockStatusPending.addrOf()
+		}
+	}
+}
+
+// SetRawStatus sets the raw status and operation type for later translation.
+func (r *HostMDMRecoveryLockPassword) SetRawStatus(status *MDMDeliveryStatus, opType MDMOperationType) {
+	r.rawStatus = status
+	r.operationType = opType
 }
 
 type DiskEncryptionStatus string
@@ -834,6 +883,11 @@ func (h *Host) IsLUKSSupported() bool {
 	return h.Platform == "ubuntu" ||
 		strings.Contains(h.OSVersion, "Fedora") || // fedora h.Platform reports as "rhel"
 		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro" || h.Platform == "manjaro-arm"
+}
+
+// IsAppleSilicon returns true if the host is a macOS device with an ARM CPU (Apple Silicon).
+func (h *Host) IsAppleSilicon() bool {
+	return h.Platform == "darwin" && h.CPUType != "" && strings.HasPrefix(strings.ToLower(h.CPUType), "arm")
 }
 
 // IsEligibleForWindowsMDMUnenrollment returns true if the host must be

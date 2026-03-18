@@ -443,6 +443,8 @@ type CleanupDiscardedQueryResultsFunc func(ctx context.Context) error
 
 type CleanupExcessQueryResultRowsFunc func(ctx context.Context, maxQueryReportRows int, opts ...fleet.CleanupExcessQueryResultRowsOptions) (map[uint]int, error)
 
+type ListHostReportsFunc func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error)
+
 type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
 type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
@@ -641,7 +643,7 @@ type GetPoliciesWithAssociatedScriptFunc func(ctx context.Context, teamID uint, 
 
 type GetCalendarPoliciesFunc func(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error)
 
-type GetPoliciesForConditionalAccessFunc func(ctx context.Context, teamID uint) ([]uint, error)
+type GetPoliciesForConditionalAccessFunc func(ctx context.Context, teamID uint, platform string) ([]uint, error)
 
 type GetPatchPolicyFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.PatchPolicyData, error)
 
@@ -1046,6 +1048,18 @@ type ClaimHostsForRecoveryLockClearFunc func(ctx context.Context) ([]string, err
 type DeleteHostRecoveryLockPasswordFunc func(ctx context.Context, hostUUID string) error
 
 type GetRecoveryLockOperationTypeFunc func(ctx context.Context, hostUUID string) (fleet.MDMOperationType, error)
+
+type InitiateRecoveryLockRotationFunc func(ctx context.Context, hostUUID string, newPassword string) error
+
+type CompleteRecoveryLockRotationFunc func(ctx context.Context, hostUUID string) error
+
+type FailRecoveryLockRotationFunc func(ctx context.Context, hostUUID string, errorMsg string) error
+
+type ClearRecoveryLockRotationFunc func(ctx context.Context, hostUUID string) error
+
+type GetRecoveryLockRotationStatusFunc func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockRotationStatus, error)
+
+type HasPendingRecoveryLockRotationFunc func(ctx context.Context, hostUUID string) (bool, error)
 
 type ResetRecoveryLockForRetryFunc func(ctx context.Context, hostUUID string) error
 
@@ -2448,6 +2462,9 @@ type DataStore struct {
 	CleanupExcessQueryResultRowsFunc        CleanupExcessQueryResultRowsFunc
 	CleanupExcessQueryResultRowsFuncInvoked bool
 
+	ListHostReportsFunc        ListHostReportsFunc
+	ListHostReportsFuncInvoked bool
+
 	NewTeamFunc        NewTeamFunc
 	NewTeamFuncInvoked bool
 
@@ -3353,6 +3370,24 @@ type DataStore struct {
 
 	GetRecoveryLockOperationTypeFunc        GetRecoveryLockOperationTypeFunc
 	GetRecoveryLockOperationTypeFuncInvoked bool
+
+	InitiateRecoveryLockRotationFunc        InitiateRecoveryLockRotationFunc
+	InitiateRecoveryLockRotationFuncInvoked bool
+
+	CompleteRecoveryLockRotationFunc        CompleteRecoveryLockRotationFunc
+	CompleteRecoveryLockRotationFuncInvoked bool
+
+	FailRecoveryLockRotationFunc        FailRecoveryLockRotationFunc
+	FailRecoveryLockRotationFuncInvoked bool
+
+	ClearRecoveryLockRotationFunc        ClearRecoveryLockRotationFunc
+	ClearRecoveryLockRotationFuncInvoked bool
+
+	GetRecoveryLockRotationStatusFunc        GetRecoveryLockRotationStatusFunc
+	GetRecoveryLockRotationStatusFuncInvoked bool
+
+	HasPendingRecoveryLockRotationFunc        HasPendingRecoveryLockRotationFunc
+	HasPendingRecoveryLockRotationFuncInvoked bool
 
 	ResetRecoveryLockForRetryFunc        ResetRecoveryLockForRetryFunc
 	ResetRecoveryLockForRetryFuncInvoked bool
@@ -5982,6 +6017,13 @@ func (s *DataStore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryRe
 	return s.CleanupExcessQueryResultRowsFunc(ctx, maxQueryReportRows, opts...)
 }
 
+func (s *DataStore) ListHostReports(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListHostReportsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostReportsFunc(ctx, hostID, teamID, opts, maxQueryReportRows)
+}
+
 func (s *DataStore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	s.mu.Lock()
 	s.NewTeamFuncInvoked = true
@@ -6675,11 +6717,11 @@ func (s *DataStore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fle
 	return s.GetCalendarPoliciesFunc(ctx, teamID)
 }
 
-func (s *DataStore) GetPoliciesForConditionalAccess(ctx context.Context, teamID uint) ([]uint, error) {
+func (s *DataStore) GetPoliciesForConditionalAccess(ctx context.Context, teamID uint, platform string) ([]uint, error) {
 	s.mu.Lock()
 	s.GetPoliciesForConditionalAccessFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetPoliciesForConditionalAccessFunc(ctx, teamID)
+	return s.GetPoliciesForConditionalAccessFunc(ctx, teamID, platform)
 }
 
 func (s *DataStore) GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*fleet.PatchPolicyData, error) {
@@ -8094,6 +8136,48 @@ func (s *DataStore) GetRecoveryLockOperationType(ctx context.Context, hostUUID s
 	s.GetRecoveryLockOperationTypeFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetRecoveryLockOperationTypeFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) InitiateRecoveryLockRotation(ctx context.Context, hostUUID string, newPassword string) error {
+	s.mu.Lock()
+	s.InitiateRecoveryLockRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.InitiateRecoveryLockRotationFunc(ctx, hostUUID, newPassword)
+}
+
+func (s *DataStore) CompleteRecoveryLockRotation(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.CompleteRecoveryLockRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.CompleteRecoveryLockRotationFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) FailRecoveryLockRotation(ctx context.Context, hostUUID string, errorMsg string) error {
+	s.mu.Lock()
+	s.FailRecoveryLockRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.FailRecoveryLockRotationFunc(ctx, hostUUID, errorMsg)
+}
+
+func (s *DataStore) ClearRecoveryLockRotation(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.ClearRecoveryLockRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearRecoveryLockRotationFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetRecoveryLockRotationStatus(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockRotationStatus, error) {
+	s.mu.Lock()
+	s.GetRecoveryLockRotationStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetRecoveryLockRotationStatusFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) HasPendingRecoveryLockRotation(ctx context.Context, hostUUID string) (bool, error) {
+	s.mu.Lock()
+	s.HasPendingRecoveryLockRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasPendingRecoveryLockRotationFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error {

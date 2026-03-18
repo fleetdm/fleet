@@ -1229,6 +1229,7 @@ module.exports.routes = {
   'GET /learn-more-about/startup-security-macos': 'https://support.apple.com/guide/deployment/startup-security-dep5810e849c',
   'GET /learn-more-about/unlock-ios-ipados': 'https://fleetdm.com/guides/lock-wipe-hosts#how-to-unlock-offline-ios-and-ipados-hosts',
   'GET /learn-more-about/certificates': '/guides/connect-end-user-to-wifi-with-certificate',
+  'GET /learn-more-about/enrollment-profiles': 'https://developer.apple.com/documentation/devicemanagement/profile?changes=l_11_5',
 
   // Sitemap
   // =============================================================================================================

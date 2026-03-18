@@ -191,6 +191,8 @@ type GetHostQueryReportResultsFunc func(ctx context.Context, hid uint, queryID u
 
 type QueryReportIsClippedFunc func(ctx context.Context, queryID uint, maxQueryReportRows int) (bool, error)
 
+type ListHostReportsFunc func(ctx context.Context, hostID uint, opts fleet.ListHostReportsOptions) (rows []*fleet.HostReport, total int, metadata *fleet.PaginationMetadata, savedReportsDisabled bool, err error)
+
 type NewQueryFunc func(ctx context.Context, p fleet.QueryPayload) (*fleet.Query, error)
 
 type ModifyQueryFunc func(ctx context.Context, id uint, p fleet.QueryPayload) (*fleet.Query, error)
@@ -799,6 +801,8 @@ type UnlockHostFunc func(ctx context.Context, hostID uint) (unlockPIN string, er
 
 type WipeHostFunc func(ctx context.Context, hostID uint, metadata *fleet.MDMWipeMetadata) error
 
+type RotateRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) error
+
 type UploadSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error)
 
 type UpdateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error)
@@ -1149,6 +1153,9 @@ type Service struct {
 
 	QueryReportIsClippedFunc        QueryReportIsClippedFunc
 	QueryReportIsClippedFuncInvoked bool
+
+	ListHostReportsFunc        ListHostReportsFunc
+	ListHostReportsFuncInvoked bool
 
 	NewQueryFunc        NewQueryFunc
 	NewQueryFuncInvoked bool
@@ -2062,6 +2069,9 @@ type Service struct {
 	WipeHostFunc        WipeHostFunc
 	WipeHostFuncInvoked bool
 
+	RotateRecoveryLockPasswordFunc        RotateRecoveryLockPasswordFunc
+	RotateRecoveryLockPasswordFuncInvoked bool
+
 	UploadSoftwareInstallerFunc        UploadSoftwareInstallerFunc
 	UploadSoftwareInstallerFuncInvoked bool
 
@@ -2803,6 +2813,13 @@ func (s *Service) QueryReportIsClipped(ctx context.Context, queryID uint, maxQue
 	s.QueryReportIsClippedFuncInvoked = true
 	s.mu.Unlock()
 	return s.QueryReportIsClippedFunc(ctx, queryID, maxQueryReportRows)
+}
+
+func (s *Service) ListHostReports(ctx context.Context, hostID uint, opts fleet.ListHostReportsOptions) (rows []*fleet.HostReport, total int, metadata *fleet.PaginationMetadata, savedReportsDisabled bool, err error) {
+	s.mu.Lock()
+	s.ListHostReportsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostReportsFunc(ctx, hostID, opts)
 }
 
 func (s *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.Query, error) {
@@ -4931,6 +4948,13 @@ func (s *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.MDM
 	s.WipeHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.WipeHostFunc(ctx, hostID, metadata)
+}
+
+func (s *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.RotateRecoveryLockPasswordFuncInvoked = true
+	s.mu.Unlock()
+	return s.RotateRecoveryLockPasswordFunc(ctx, hostID)
 }
 
 func (s *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {
