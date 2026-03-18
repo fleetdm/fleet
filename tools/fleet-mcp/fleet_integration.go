@@ -916,7 +916,7 @@ func (fc *FleetClient) runMultiHostQuery(hostIDs []uint, sql string, endpointByI
 		return nil, fmt.Errorf("failed to create temporary query: %w", err)
 	}
 	defer func() {
-		delEndpoint := fmt.Sprintf("/api/v1/fleet/queries/id/%d", savedQuery.ID)
+		delEndpoint := fmt.Sprintf("/api/v1/fleet/reports/id/%d", savedQuery.ID)
 		r, _ := fc.makeFleetRequest("DELETE", delEndpoint, nil)
 		if r != nil {
 			r.Body.Close()
