@@ -925,7 +925,7 @@ func (fc *FleetClient) runMultiHostQuery(hostIDs []uint, sql string, endpointByI
 
 	logrus.Infof("Created temp query ID=%d, running against %d hosts", savedQuery.ID, len(hostIDs))
 
-	runEndpoint := fmt.Sprintf("/api/v1/fleet/queries/%d/run", savedQuery.ID)
+	runEndpoint := fmt.Sprintf("/api/v1/fleet/reports/%d/run", savedQuery.ID)
 	resp, err := fc.makeFleetRequest("POST", runEndpoint, MultiQueryRunRequest{HostIDs: hostIDs})
 	if err != nil {
 		return nil, fmt.Errorf("failed to run live query: %w", err)
