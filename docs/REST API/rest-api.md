@@ -11,7 +11,7 @@
 - [Commands](#commands)
 - [Integrations](#integrations-1)
 - [Policies](#policies)
-- [Queries](#queries)
+- [Reports](#reports)
 - [Schedule (deprecated)](#schedule)
 - [Scripts](#scripts)
 - [Sessions](#sessions)
@@ -2923,10 +2923,10 @@ the `software` table.
 
 - `created_at`: the time the row in the database was created, which usually corresponds to the first enrollment of the host.
 - `updated_at`: the last time the row in the database for the `hosts` table was updated.
-- `detail_updated_at`: the last time Fleet updated host data, based on the results from the detail queries (this includes updates to host associated tables, e.g. `host_users`).
-- `label_updated_at`: the last time Fleet updated the label membership for the host based on the results from the queries ran.
+- `detail_updated_at`: the last time Fleet updated host data (this includes updates to host associated tables, e.g. `host_users`).
+- `label_updated_at`: the last time Fleet updated the label membership for the host
 - `last_enrolled_at`: the last time the host enrolled to Fleet.
-- `policy_updated_at`: the last time we updated the policy results for the host based on the queries ran.
+- `policy_updated_at`: the last time we updated the policy results for the host
 - `seen_time`: the last time the host contacted the fleet server, regardless of what operation it was for.
 - `software_updated_at`: the last time software changed for the host in any way.
 - `last_restarted_at`: the last time that the host was restarted.
@@ -4193,7 +4193,7 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 
 ### Refetch host
 
-Flags the host details, labels and policies to be refetched the next time the host checks in for distributed queries. Note that we cannot be certain when the host will actually check in and update the query results. Further requests to the host APIs will indicate that the refetch has been requested through the `refetch_requested` field on the host object.
+Flags the host details, labels and policies to be refetched the next time the host checks in. Note that we cannot be certain when the host will actually check in. Further requests to the host APIs will indicate that the refetch has been requested through the `refetch_requested` field on the host object.
 
 `POST /api/v1/fleet/hosts/:id/refetch`
 
@@ -8629,41 +8629,41 @@ Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fl
 
 ---
 
-## Queries
+## Reports
 
-- [List queries](#list-queries)
-- [Get query](#get-query)
-- [Get query report](#get-query-report)
-- [Get host's query report](#get-hosts-query-report)
-- [Create query](#create-query)
-- [Update query](#update-query)
-- [Delete query by name](#delete-query-by-name)
-- [Delete query by ID](#delete-query-by-id)
-- [Delete queries](#delete-queries)
-- [Run live query](#run-live-query)
+- [List reports](#list-reports)
+- [Get report](#get-report)
+- [Get report data](#get-report-data)
+- [Get host's report data](#get-hosts-report-data)
+- [Create report](#create-report)
+- [Update report](#update-report)
+- [Delete report by name](#delete-report-by-name)
+- [Delete report by ID](#delete-report-by-id)
+- [Delete reports](#delete-reports)
+- [Run live report](#run-live-report)
 
-### List queries
+### List reports
 
-Returns a list of global queries or fleet queries.
+Returns a list of reports. To see each report's data, use the [get report data](#get-report-data) endpoint.
 
-`GET /api/v1/fleet/queries`
+`GET /api/v1/fleet/reports`
 
 #### Parameters
 
 | Name            | Type    | In    | Description                                                                                                                   |
 | --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| order_key       | string  | query | What to order results by. Can be any column in the queries table.                                                             |
+| order_key       | string  | query | What to order results by. Can be any column in the reports table.                                                             |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-| fleet_id         | integer | query | _Available in Fleet Premium_. The ID of the parent fleet for the queries to be listed. When omitted, returns global queries.                  |
+| fleet_id         | integer | query | _Available in Fleet Premium_. The ID of the fleet for the reports to be listed. When omitted, returns global reports.                  |
 | query           | string  | query | Search query keywords. Searchable fields include `name`.                                                                      |
-| merge_inherited | boolean | query | _Available in Fleet Premium_. If `true`, will include global queries in addition to fleet queries when filtering by `fleet_id`. (If no `fleet_id` is provided, this parameter is ignored.) |
-| platform        | string  | query | Return queries that are scheduled to run on this platform. One of: `"macos"`, `"windows"`, `"linux"` (case-insensitive). (Since queries cannot be scheduled to run on `"chrome"` hosts, it's not a valid value here) |
+| merge_inherited | boolean | query | _Available in Fleet Premium_. If `true`, will include global reports in addition to fleet-level reports when filtering by `fleet_id`. (If no `fleet_id` is provided, this parameter is ignored.) |
+| platform        | string  | query | Return reports that are scheduled to run on this platform. One of: `"macos"`, `"windows"`, `"linux"` (case-insensitive). (Since reports cannot be scheduled to run on `"chrome"` hosts, it's not a valid value here) |
 | page                    | integer | query | Page number of the results to fetch. |
 | per_page                | integer | query | Results per page. |
 
 #### Example
 
-`GET /api/v1/fleet/queries`
+`GET /api/v1/fleet/reports`
 
 ##### Default response
 
@@ -8676,8 +8676,49 @@ Returns a list of global queries or fleet queries.
       "created_at": "2021-01-04T21:19:57Z",
       "updated_at": "2021-01-04T21:19:57Z",
       "id": 1,
-      "name": "query1",
-      "description": "query",
+      "name": "report1",
+      "description": "report",
+      "query": "SELECT * FROM osquery_info",
+      "team_id": null,
+      "interval": 3600,
+      "platform": "darwin,windows,linux",
+      "min_osquery_version": "",
+      "automations_enabled": true,
+      "logging": "snapshot",
+      "saved": true,
+      "observer_can_run": true,
+      "discard_data": false,
+      "author_id": 1,
+      "author_name": "noah",
+      "author_email": "noah@example.com",
+      "labels_include_any": [],
+      "packs": [
+        {
+          "created_at": "2021-01-05T21:13:04Z",
+          "updated_at": "2021-01-07T19:12:54Z",
+          "id": 1,
+          "name": "Pack",
+          "description": "Pack",
+          "platform": "",
+          "disabled": true
+        }
+      ],
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p95": 3.00,
+        "total_executions": 3920
+      }
+    }
+  ],
+  "reports": [
+    {
+      "created_at": "2021-01-04T21:19:57Z",
+      "updated_at": "2021-01-04T21:19:57Z",
+      "id": 1,
+      "name": "report1",
+      "description": "report",
       "query": "SELECT * FROM osquery_info",
       "team_id": null,
       "interval": 3600,
@@ -8759,21 +8800,21 @@ Returns a list of global queries or fleet queries.
 }
 ```
 
-### Get query
+### Get report
 
-Returns the query specified by ID.
+Returns the report specified by ID.
 
-`GET /api/v1/fleet/queries/:id`
+`GET /api/v1/fleet/reports/:id`
 
 #### Parameters
 
 | Name | Type    | In   | Description                                |
 | ---- | ------- | ---- | ------------------------------------------ |
-| id   | integer | path | **Required**. The id of the desired query. |
+| id   | integer | path | **Required**. The id of the desired report. |
 
 #### Example
 
-`GET /api/v1/fleet/queries/31`
+`GET /api/v1/fleet/reports/31`
 
 ##### Default response
 
@@ -8823,11 +8864,11 @@ Returns the query specified by ID.
 }
 ```
 
-### Get query report
+### Get report data
 
-Returns the query report specified by ID.
+Returns a specific report's data.
 
-`GET /api/v1/fleet/queries/:id/report`
+`GET /api/v1/fleet/report/:id/report`
 
 #### Parameters
 
@@ -8838,7 +8879,7 @@ Returns the query report specified by ID.
 
 #### Example
 
-`GET /api/v1/fleet/queries/31/report`
+`GET /api/v1/fleet/reports/31/report`
 
 ##### Default response
 
@@ -8847,6 +8888,7 @@ Returns the query report specified by ID.
 ```json
 {
   "query_id": 31,
+  "report_id": 31,
   "report_clipped": false,
   "results": [
     {
@@ -8907,24 +8949,24 @@ If a query has no results stored, then `results` will be an empty array:
 }
 ```
 
-> Note: osquery scheduled queries do not return errors, so only non-error results are included in the report. If you suspect a query may be running into errors, you can use the [live query](#run-live-query) endpoint to get diagnostics.
+> Scheduled reports do not return errors, so only non-error results are included. If you suspect a report may be running into errors, you can use the [live report](#run-live-report) endpoint to get diagnostics.
 
-### Get host's query report
+### Get host's report data
 
-Returns a query report for a single host.
+Returns a specific report's data for a single host.
 
-`GET /api/v1/fleet/hosts/:id/queries/:query_id`
+`GET /api/v1/fleet/hosts/:id/reports/:report_id`
 
 #### Parameters
 
 | Name      | Type    | In    | Description                                |
 | --------- | ------- | ----- | ------------------------------------------ |
 | id        | integer | path  | **Required**. The ID of the desired host.          |
-| query_id  | integer | path  | **Required**. The ID of the desired query.         |
+| report_id  | integer | path  | **Required**. The ID of the desired report.         |
 
 #### Example
 
-`GET /api/v1/fleet/hosts/123/queries/31`
+`GET /api/v1/fleet/hosts/123/reports/31`
 
 ##### Default response
 
@@ -8933,6 +8975,7 @@ Returns a query report for a single host.
 ```json
 {
   "query_id": 31,
+  "report_id": 31,
   "host_id": 1,
   "host_name": "foo",
   "last_fetched": "2021-01-19T17:08:31Z",
@@ -8960,11 +9003,12 @@ Returns a query report for a single host.
 }
 ```
 
-If a query has no results stored for the specified host, then `results` will be an empty array:
+If a report has no results stored for the specified host, then `results` will be an empty array:
 
 ```json
 {
   "query_id": 31,
+  "report_id": 31,
   "host_id": 1,
   "host_name": "foo",
   "last_fetched": "2021-01-19T17:08:31Z",
@@ -8973,42 +9017,42 @@ If a query has no results stored for the specified host, then `results` will be 
 }
 ```
 
-> Note: osquery scheduled queries do not return errors, so only non-error results are included in the report. If you suspect a query may be running into errors, you can use the [live query](#run-live-query) endpoint to get diagnostics.
+> Scheduled reports do not return errors, so only non-error results are included in the report. If you suspect a report may be running into errors, you can use the [live report](#run-live-report) endpoint to get diagnostics.
 
-### Create query
+### Create report
 
-Creates a global query or fleet query.
+Creates a global report or fleet report.
 
-`POST /api/v1/fleet/queries`
+`POST /api/v1/fleet/reports`
 
 #### Parameters
 
 | Name                            | Type    | In   | Description                                                                                                                                            |
 | ------------------------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| name                            | string  | body | **Required**. The name of the query.                                                                                                                   |
-| query                           | string  | body | **Required**. The query in SQL syntax.                                                                                                                 |
+| name                            | string  | body | **Required**. The name of the report.                                                                                                                   |
+| query                           | string  | body | **Required**. The reports in SQL query.                                                                                                             |
 | description                     | string  | body | The query's description.                                                                                                                               |
-| observer_can_run                | boolean | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
-| fleet_id                         | integer | body | _Available in Fleet Premium_. The parent fleet to which the new query should be added. If omitted, the query will be global.                                           |
-| interval                        | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
-| platform                        | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If omitted, runs on all compatible platforms.                        |
-| labels_include_any              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this query. If specified, the query will run on hosts that match **any of these** labels. |
+| observer_can_run                | boolean | body | Whether or not users with the `observer` role can run the report as a live report. This field is only relevant for the `observer` role. The `observer_plus` role can run any report and is not limited by this flag. |
+| fleet_id                         | integer | body | _Available in Fleet Premium_. The fleet to which the new report should be added. If omitted, the report will be global.                                           |
+| interval                        | integer | body | The amount of time, in seconds, the report waits before running. Can be set to `0` to never run. Default: 0.       |
+| platform                        | string  | body | The OS platforms where this report will run (other platforms ignored). Comma-separated string. If omitted, runs on all compatible platforms.                        |
+| labels_include_any              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this report. If specified, the report will run on hosts that match **any of these** labels. |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
-| automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
-| logging                         | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
-| discard_data                    | boolean | body | Whether to skip saving the latest query results for each host. Default: `false`. |
+| automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the report's `interval`. |
+| logging                         | string  | body | The type of log output for this report. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
+| discard_data                    | boolean | body | Whether to skip saving the latest results for each host. If set to `true`, data is still sent to the configured log destination. Default: `false`. |
 
 
 #### Example
 
-`POST /api/v1/fleet/queries`
+`POST /api/v1/fleet/reports`
 
 ##### Request body
 
 ```json
 {
-  "name": "new_query",
-  "description": "This is a new query.",
+  "name": "new_report",
+  "description": "This is a new report.",
   "query": "SELECT * FROM osquery_info",
   "interval": 3600, // Once per hour
   "platform": "darwin,windows,linux",
@@ -9051,34 +9095,58 @@ Creates a global query or fleet query.
     "labels_include_any": [
       "Hosts with Docker installed"
     ]
+  },
+  "report": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 288,
+    "name": "new_query",
+    "query": "SELECT * FROM osquery_info",
+    "description": "This is a new query.",
+    "team_id": null,
+    "interval": 3600,
+    "platform": "darwin,windows,linux",
+    "min_osquery_version": "",
+    "automations_enabled": true,
+    "logging": "snapshot",
+    "saved": true,
+    "author_id": 1,
+    "author_name": "",
+    "author_email": "",
+    "observer_can_run": true,
+    "discard_data": false,
+    "packs": [],
+    "labels_include_any": [
+      "Hosts with Docker installed"
+    ]
   }
 }
 ```
 
-### Update query
+### Update report
 
-Modifies the query specified by ID.
+Modifies the report specified by ID.
 
-`PATCH /api/v1/fleet/queries/:id`
+`PATCH /api/v1/fleet/reports/:id`
 
 #### Parameters
 
 | Name                        | Type    | In   | Description                                                                                                                                            |
 | --------------------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| id                          | integer | path | **Required.** The ID of the query.                                                                                                                     |
-| name                        | string  | body | The name of the query.                                                                                                                                 |
-| query                       | string  | body | The query in SQL syntax.                                                                                                                               |
-| description                 | string  | body | The query's description.                                                                                                                               |
-| observer_can_run            | boolean | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
-| interval                   | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
-| platform                    | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If set to "", runs on all compatible platforms.                    |
-| labels_include_any          | list    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this query. If specified, the query will run on hosts that match **any of these** labels. |
+| id                          | integer | path | **Required.** The ID of the report.                                                                                                                     |
+| name                        | string  | body | The name of the report.                                                                                                                                 |
+| query                       | string  | body | The report's SQL query.                                                                                                                               |
+| description                 | string  | body | The report's description.                                                                                                                               |
+| observer_can_run            | boolean | body | Whether or not users with the `observer` role can run the report as a live report. This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag. |
+| interval                   | integer | body | The amount of time, in seconds, the report waits before running. Can be set to `0` to never run. Default: 0.       |
+| platform                    | string  | body | The OS platforms where this report will run (other platforms ignored). Comma-separated string. If set to "", runs on all compatible platforms.                    |
+| labels_include_any          | list    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this report. If specified, the report will run on hosts that match **any of these** labels. |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
-| automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
+| automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the report's `interval`. |
 | logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
-| discard_data        | boolean  | body | Whether to skip saving the latest query results for each host. |
+| discard_data        | boolean  | body | Whether to skip saving the latest results for each host. If set to `true`, data is still sent to the configured log destination. |
 
-> Note that any of the following conditions will cause the existing query report to be deleted:
+> Note that any of the following conditions will cause the existing report's data to be discarded:
 > - Updating the `query` (SQL) field
 > - Updating the filters for targeted hosts (`platform`, `min_osquery_version`, `labels_include_any`)
 > - Changing `discard_data` from `false` to `true`
@@ -9086,13 +9154,13 @@ Modifies the query specified by ID.
 
 #### Example
 
-`PATCH /api/v1/fleet/queries/2`
+`PATCH /api/v1/fleet/reports/2`
 
 ##### Request body
 
 ```json
 {
-  "name": "new_title_for_my_query",
+  "name": "new_title_for_my_report",
   "interval": 3600, // Once per hour,
   "platform": "",
   "min_osquery_version": "",
@@ -9134,68 +9202,92 @@ Modifies the query specified by ID.
       "Hosts with Docker installed",
       "macOS 13+"
     ]
+  },
+  "report": {
+    "created_at": "2021-01-22T17:23:27Z",
+    "updated_at": "2021-01-22T17:23:27Z",
+    "id": 288,
+    "name": "new_title_for_my_query",
+    "description": "This is a new query.",
+    "query": "SELECT * FROM osquery_info",
+    "team_id": null,
+    "interval": 3600,
+    "platform": "",
+    "min_osquery_version": "",
+    "automations_enabled": false,
+    "logging": "snapshot",
+    "saved": true,
+    "author_id": 1,
+    "author_name": "noah",
+    "observer_can_run": true,
+    "discard_data": true,
+    "packs": [],
+    "labels_include_any": [
+      "Hosts with Docker installed",
+      "macOS 13+"
+    ]
   }
 }
 ```
 
-### Delete query by name
+### Delete report by name
 
-Deletes the query specified by name.
+Deletes the report specified by name.
 
-`DELETE /api/v1/fleet/queries/:name`
+`DELETE /api/v1/fleet/reports/:name`
 
 #### Parameters
 
 | Name | Type       | In   | Description                          |
 | ---- | ---------- | ---- | ------------------------------------ |
-| name | string     | path | **Required.** The name of the query. |
-| fleet_id | integer | body | _Available in Fleet Premium_. The ID of the parent fleet of the query to be deleted. If omitted, Fleet will search among queries in the global context. |
+| name | string     | path | **Required.** The name of the report. |
+| fleet_id | integer | body | _Available in Fleet Premium_. The ID of the report's fleet. If omitted, Fleet will search among only global reports. |
 
 #### Example
 
-`DELETE /api/v1/fleet/queries/foo`
+`DELETE /api/v1/fleet/reports/foo`
 
 ##### Default response
 
 `Status: 200`
 
 
-### Delete query by ID
+### Delete report by ID
 
-Deletes the query specified by ID.
+Deletes the report specified by ID.
 
-`DELETE /api/v1/fleet/queries/id/:id`
+`DELETE /api/v1/fleet/reports/id/:id`
 
 #### Parameters
 
 | Name | Type    | In   | Description                        |
 | ---- | ------- | ---- | ---------------------------------- |
-| id   | integer | path | **Required.** The ID of the query. |
+| id   | integer | path | **Required.** The ID of the report. |
 
 #### Example
 
-`DELETE /api/v1/fleet/queries/id/28`
+`DELETE /api/v1/fleet/reports/id/28`
 
 ##### Default response
 
 `Status: 200`
 
 
-### Delete queries
+### Delete reports
 
-Deletes the queries specified by ID. Returns the count of queries successfully deleted.
+Deletes the reports specified by ID. Returns the count of reports successfully deleted.
 
-`POST /api/v1/fleet/queries/delete`
+`POST /api/v1/fleet/reports/delete`
 
 #### Parameters
 
 | Name | Type  | In   | Description                           |
 | ---- | ----- | ---- | ------------------------------------- |
-| ids  | array | body | **Required.** The IDs of the queries. |
+| ids  | array | body | **Required.** The IDs of the reports. |
 
 #### Example
 
-`POST /api/v1/fleet/queries/delete`
+`POST /api/v1/fleet/reports/delete`
 
 ##### Request body
 
@@ -9217,27 +9309,27 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 }
 ```
 
-### Run live query
+### Run live report
 
 > This updated API endpoint replaced `GET /api/v1/fleet/queries/run` in Fleet 4.43.0, for improved compatibility with many HTTP clients. The [deprecated endpoint](https://github.com/fleetdm/fleet/blob/fleet-v4.42.0/docs/REST%20API/rest-api.md#run-live-query) is maintained for backwards compatibility.
 
-Runs a live query against the specified hosts and responds with the results.
+Runs a live report against the specified hosts and responds with the results.
 
-The live query will stop if the request times out. Timeouts happen if targeted hosts haven't responded after the configured `FLEET_LIVE_QUERY_REST_PERIOD` (default 25 seconds) or if the `distributed_interval` agent option (default 10 seconds) is higher than the `FLEET_LIVE_QUERY_REST_PERIOD`.
+The live report will stop if the request times out. Timeouts happen if targeted hosts haven't responded after the configured `FLEET_LIVE_QUERY_REST_PERIOD` (default 25 seconds) or if the `distributed_interval` agent option (default 10 seconds) is higher than the `FLEET_LIVE_QUERY_REST_PERIOD`.
 
 
-`POST /api/v1/fleet/queries/:id/run`
+`POST /api/v1/fleet/reports/:id/run`
 
 #### Parameters
 
 | Name      | Type  | In   | Description                                                                                                                                                        |
 |-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| query_id | integer | path | **Required**. The ID of the saved query to run. |
+| report_id | integer | path | **Required**. The ID of the saved report to run. |
 | host_ids  | array | body | **Required**. The IDs of the hosts to target. User must be authorized to target all of these hosts.                                                                |
 
 #### Example
 
-`POST /api/v1/fleet/queries/123/run`
+`POST /api/v1/fleet/reports/123/run`
 
 ##### Request body
 
@@ -9252,6 +9344,7 @@ The live query will stop if the request times out. Timeouts happen if targeted h
 ```json
 {
   "query_id": 123,
+  "report_id": 123,
   "targeted_host_count": 4,
   "responded_host_count": 2,
   "results": [
@@ -9290,7 +9383,7 @@ The live query will stop if the request times out. Timeouts happen if targeted h
 
 The [schedule API endpoints](https://github.com/fleetdm/fleet/blob/f6631e27f56b6704c555adfb7a3bb8c6d1a74d98/docs/REST%20API/rest-api.md#schedule) are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 
-Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
+Please use the [reports](#reports) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 ---
 
@@ -11674,7 +11767,7 @@ The `extension_for` field is included when set and when empty, at the same level
 
 ## Targets
 
-In Fleet, targets are used to run queries against specific hosts or groups of hosts. Labels are used to create groups in Fleet.
+In Fleet, targets are used to run reports against specific hosts or groups of hosts. Labels are used to create groups in Fleet.
 
 ### Search targets
 
@@ -12752,7 +12845,7 @@ _Available in Fleet Premium_
 
 ### Translate IDs
 
-Transforms a host name into a host id. For example, the Fleet UI use this endpoint when sending live queries to a set of hosts.
+Transforms a host name into a host id. For example, the Fleet UI use this endpoint when sending live reports to a set of hosts.
 
 `POST /api/v1/fleet/translate`
 
