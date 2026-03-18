@@ -1,0 +1,7 @@
+- name: "Linux - Server sufficient disk space available"
+  query: "SELECT 1 FROM mounts WHERE path = '/' AND CAST(blocks_available AS REAL) / CAST(blocks AS REAL) >= 0.1;"
+  critical: false
+  description: "This policy checks if more than 10% of disk space is available on the root partition. Servers with 10% or less available disk space will fail this policy."
+  resolution: "Free up disk space on the server by removing old logs, temporary files, or expanding the volume."
+  platform: linux
+  calendar_events_enabled: false
