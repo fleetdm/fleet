@@ -1,0 +1,1 @@
+* Updated gopsutil dependency from v3 to v4 (v4.26.2) to fix Fleet agent crashes on macOS M5 CPU.
