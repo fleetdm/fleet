@@ -431,12 +431,6 @@ jobs:
         Set-ItemProperty -path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -name "AltDefaultDomainName" -value $ComputerName
         Set-ItemProperty -path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -name "DefaultDomainName" -value $ComputerName
 
-    - name: Install dependencies
-      shell: bash
-      run: |
-        npm install -g fleetctl
-        fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }} --tls-skip-verify
-
     - name: Download MSI
       id: download
       uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
@@ -447,6 +441,12 @@ jobs:
       shell: cmd
       run: |
         msiexec /i ${{steps.download.outputs.download-path}}\fleetd-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi /quiet /passive /lv log.txt
+
+    - name: Install fleetctl
+      shell: bash
+      run: |
+        npm install -g fleetctl
+        fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
 
     - name: Wait for enrollment
       shell: powershell
