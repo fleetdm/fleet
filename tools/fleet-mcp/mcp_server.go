@@ -442,7 +442,7 @@ func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer 
 	// ==========================================
 	getOsquerySchemaTool := mcp.NewTool("get_osquery_schema",
 		mcp.WithDescription("Get the hardcoded, 100% accurate schema for the most important Fleet/Osquery tables and their columns. Use this before writing SQL queries."),
-		mcp.WithString("platform", mcp.Description("Target platform to filter tables for (e.g. 'macos', 'windows', 'linux', 'chromeos', 'all'). Defaults to 'all'.")),
+		mcp.WithString("platform", mcp.Description("Target platform to filter tables for (e.g. 'macos', 'windows', 'linux', 'all'). Defaults to 'all'.")),
 	)
 	s.AddTool(getOsquerySchemaTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		logrus.Info("Tool invoked: get_osquery_schema")
