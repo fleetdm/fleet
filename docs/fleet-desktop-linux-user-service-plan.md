@@ -240,7 +240,7 @@ This avoids hardcoding channel/platform paths in the service unit file.
   ```bash
   sudo chmod 600 /opt/orbit/identifier
   ls -la /opt/orbit/identifier    # should show -rw-------
-  sleep 35
+  sleep 35 # or just wait 35 seconds
   ls -la /opt/orbit/identifier    # should show -rw-r--r-- again
   ```
 
@@ -252,6 +252,16 @@ This avoids hardcoding channel/platform paths in the service unit file.
   ls /usr/lib/systemd/user/fleet-desktop.service 2>&1        # should show "No such file"
   ls /opt/orbit 2>&1                                          # should show "No such file"
   ```
+
+- **Reboot**: Reboot the machine and log in. Verify fleet-desktop starts automatically after a cold boot:
+  ```bash
+  sudo reboot
+  # After login:
+  systemctl --user status fleet-desktop.service        # should show active (running)
+  journalctl -u orbit --since "5 min ago" | grep -i desktop
+  ```
+  Orbit should log `"managing fleet-desktop as systemd user service"`, and the user service should start shortly after login. This validates the full end-to-end flow: orbit starts on boot, writes the env file, and the user service starts on graphical session login via `WantedBy=graphical-session.target`.
+
 
 - **Upgrade**: Simulate upgrade from old package; confirm migration from old runner to user service. (Deferred to QA)
 - **Headless/server distro**: Install on a minimal server with no graphical target — confirm the service is enabled but never starts (no errors from systemd). (Deferred to QA)
