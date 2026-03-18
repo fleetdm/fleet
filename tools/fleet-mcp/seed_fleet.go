@@ -32,7 +32,11 @@ func SeedFleet() {
 		{
 			Name:        "Standard: MacOS Admin Users",
 			Description: "Lists all local users on macOS devices that have admin privileges.",
-			SQL:         "SELECT * FROM users WHERE admin = 1;",
+			SQL:         "SELECT u.username, u.uid, u.gid, u.directory, u.shell " +
+				"FROM users u " +
+				"JOIN user_groups ug ON u.uid = ug.uid " +
+				"JOIN groups g ON ug.gid = g.gid " +
+				"WHERE g.groupname = 'admin';",
 			Platform:    "darwin",
 		},
 		{
