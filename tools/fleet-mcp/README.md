@@ -8,8 +8,6 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for th
 🔗 **Learn about MCP:** [https://modelcontextprotocol.io/](https://modelcontextprotocol.io/)
 🔗 **Learn about Fleet:** [https://fleetdm.com/](https://fleetdm.com/)
 
-#DevSecOps #CyberSecurity #AI #ModelContextProtocol #FleetDM #OSQuery #GoLang #OpenSource
-
 ---
 
 ## 📺 See it in Action
