@@ -7,7 +7,7 @@ type Directory struct {
 	NewAuthz   string `json:"newAuthz,omitempty"`
 	RevokeCert string `json:"revokeCert,omitempty"`
 	KeyChange  string `json:"keyChange,omitempty"`
-	Meta       Meta   `json:"meta,omitempty"`
+	Meta       Meta   `json:"meta"`
 }
 
 type Meta struct {
@@ -18,4 +18,5 @@ type Meta struct {
 }
 
 // Datastore is the datastore interface for the ACME bounded context.
-type Datastore interface{}
+type Datastore interface {
+}
