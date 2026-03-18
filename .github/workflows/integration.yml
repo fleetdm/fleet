@@ -79,7 +79,7 @@ jobs:
         done
 
     - name: Run Fleet server
-      timeout-minutes: 60
+      timeout-minutes: 120
       run: |
         npm install -g fleetctl
         fleetctl preview --no-hosts --disable-open-browser
@@ -102,7 +102,7 @@ jobs:
         echo "Fleet server is responding"
         
         # Wait for all of the hosts to be enrolled
-        EXPECTED=10
+        EXPECTED=24 # This needs to be updated when the matrix strategies are updated.
         ENROLLMENT_START=$(date +%s)
         until [ $(fleetctl get hosts --json | grep -v "No hosts found" | wc -l | tee hostcount) -ge $EXPECTED ]; do
           CURRENT_TIME=$(date +%s)
@@ -119,6 +119,7 @@ jobs:
           sleep 1
         done
         echo "Success! $EXPECTED hosts enrolled."
+        sleep 60 # Wait to allow clients to confirm their enrollment
 
     - name: Show enrolled hosts
       if: always()
@@ -209,17 +210,9 @@ jobs:
     timeout-minutes: 10
     strategy:
       matrix:
-        # To run multiple VMs that have the same UUID we need to implement
-        # https://github.com/fleetdm/fleet/issues/8021 (otherwise orbit and osqueryd
-        # in the same host are enrolled as two hosts in Fleet).
-        # Until then we will just test the `stable` channel in all components.
-        #
-        # Alternatively, we can bring back the `edge` channel when we decide to upgrade
-        # our worker to macOS 13 in the future, as they changed the virtualization
-        # layer for 13 and now it has random UUIDs (https://github.com/actions/runner-images/issues/7591).
-        orbit-channel: [ 'stable' ]
-        osqueryd-channel: [ 'stable' ]
-        desktop-channel: [ 'stable' ]
+        orbit-channel: [ 'stable', 'edge' ]
+        osqueryd-channel: [ 'stable', 'edge' ]
+        desktop-channel: [ 'stable', 'edge' ]
     runs-on: macos-latest
     needs: [gen, login]
     steps:
