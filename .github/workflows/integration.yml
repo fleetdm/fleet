@@ -332,6 +332,11 @@ jobs:
         sleep 30
         sudo systemctl status orbit.service
 
+        cat $HOME/.local/state/Fleet/fleet-desktop.log || true
+        cat $XDG_STATE_HOME/Fleet/fleet-desktop.log || true
+        ps aux | grep fleet
+        ps aux | grep desktop
+
         echo "Checking if osqueryd is running..."
         pgrep -x osqueryd || (echo "ERROR: osqueryd is not running" && exit 1)
         echo "Checking if orbit is running..."
