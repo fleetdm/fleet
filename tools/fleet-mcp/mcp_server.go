@@ -64,7 +64,7 @@ func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer 
 	// 1b. Get Host Tool (with full label data)
 	// ==========================================
 	getHostTool := mcp.NewTool("get_host",
-		mcp.WithDescription("Get full details for a single host including its labels, team, and platform info. Use this when you need label data — the get_endpoints tool omits labels for performance."),
+		mcp.WithDescription("Get full details for a single host including its labels, team, and platform info. Use this when you need complete data for one host; use get_endpoints when you need to list or filter many hosts."),
 		mcp.WithString("identifier", mcp.Required(), mcp.Description("The host's hostname, display name, UUID, or serial number (e.g. 'dhruvs-macbook-pro.local' or 'Dhruv\\'s MacBook Pro')")),
 	)
 	s.AddTool(getHostTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
