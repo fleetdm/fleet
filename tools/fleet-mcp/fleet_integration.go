@@ -231,7 +231,7 @@ func platformToBuiltinLabel(platform string) string {
 	case "linux":
 		return "All Linux"
 	case "chromeos", "chrome":
-		return "ChromeOS"
+		return "chrome"
 	default:
 		return ""
 	}
