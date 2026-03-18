@@ -37,6 +37,10 @@ func SeedFleet() {
 				"JOIN user_groups ug ON u.uid = ug.uid " +
 				"JOIN groups g ON ug.gid = g.gid " +
 				"WHERE g.groupname = 'admin';",
+				"FROM users u " +
+				"JOIN user_groups ug ON u.uid = ug.uid " +
+				"JOIN groups g ON ug.gid = g.gid " +
+				"WHERE g.groupname = 'admin';",
 			Platform:    "darwin",
 		},
 		{
