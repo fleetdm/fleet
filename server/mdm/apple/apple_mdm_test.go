@@ -748,8 +748,9 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 
 // mockRecoveryLockCommander implements RecoveryLockCommander for testing.
 type mockRecoveryLockCommander struct {
-	setRecoveryLockFn   func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
-	clearRecoveryLockFn func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	setRecoveryLockFn    func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	clearRecoveryLockFn  func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	rotateRecoveryLockFn func(ctx context.Context, hostUUID string, cmdUUID string) error
 }
 
 func (m *mockRecoveryLockCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
@@ -762,6 +763,13 @@ func (m *mockRecoveryLockCommander) SetRecoveryLock(ctx context.Context, hostUUI
 func (m *mockRecoveryLockCommander) ClearRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
 	if m.clearRecoveryLockFn != nil {
 		return m.clearRecoveryLockFn(ctx, hostUUIDs, cmdUUID)
+	}
+	return nil
+}
+
+func (m *mockRecoveryLockCommander) RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error {
+	if m.rotateRecoveryLockFn != nil {
+		return m.rotateRecoveryLockFn(ctx, hostUUID, cmdUUID)
 	}
 	return nil
 }

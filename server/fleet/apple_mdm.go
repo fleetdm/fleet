@@ -1137,8 +1137,9 @@ type HostLocationData struct {
 
 // HostRecoveryLockPassword represents a recovery lock password for a host.
 type HostRecoveryLockPassword struct {
-	Password  string
-	UpdatedAt time.Time
+	Password     string
+	UpdatedAt    time.Time
+	AutoRotateAt *time.Time // When auto-rotation is scheduled (1 hour after password is viewed)
 }
 
 // HostRecoveryLockPasswordPayload contains the data needed to store a recovery lock password.

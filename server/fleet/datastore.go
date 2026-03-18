@@ -1576,6 +1576,15 @@ type Datastore interface {
 	// This is used when a clear command fails with a transient error (not password mismatch).
 	ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error
 
+	// MarkRecoveryLockPasswordViewed sets auto_rotate_at to 1 hour from now.
+	// Called when an admin views the password. Returns the scheduled rotation time.
+	MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error)
+
+	// GetHostsForAutoRotation returns host UUIDs where auto_rotate_at <= now
+	// and are eligible for rotation (verified status, no pending rotation).
+	// Limited to 100 hosts per batch.
+	GetHostsForAutoRotation(ctx context.Context) ([]string, error)
+
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
 	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage, pkgStore MDMBootstrapPackageStore) error

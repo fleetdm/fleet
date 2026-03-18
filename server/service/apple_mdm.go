@@ -7376,8 +7376,35 @@ func NewSetRecoveryLockResultsHandler(
 				if err := ds.CompleteRecoveryLockRotation(ctx, hostUUID); err != nil {
 					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: complete rotation")
 				}
+
+				// Get host info for activity logging - don't fail the operation if this fails
+				var hostID uint
+				var displayName string
+				host, err := ds.HostLiteByIdentifier(ctx, hostUUID)
+				if err != nil {
+					logger.WarnContext(ctx, "RotateRecoveryLock handler: failed to get host for activity logging",
+						"host_uuid", hostUUID,
+						"err", err,
+					)
+				} else {
+					hostID = host.ID
+					displayName = host.Hostname
+
+					// Log the activity (nil user indicates automated/cron action)
+					if err := newActivityFn(ctx, nil, fleet.ActivityTypeRotatedHostRecoveryLockPassword{
+						HostID:          hostID,
+						HostDisplayName: displayName,
+					}); err != nil {
+						logger.WarnContext(ctx, "RotateRecoveryLock handler: failed to create activity",
+							"host_uuid", hostUUID,
+							"err", err,
+						)
+					}
+				}
+
 				logger.InfoContext(ctx, "RotateRecoveryLock acknowledged, password rotated",
 					"host_uuid", hostUUID,
+					"host_id", hostID,
 				)
 
 			case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:

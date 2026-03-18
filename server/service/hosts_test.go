@@ -4734,10 +4734,96 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 				Password: "test-password",
 			}, nil
 		}
+		ds.MarkRecoveryLockPasswordViewedFunc = func(ctx context.Context, hostUUID string) (time.Time, error) {
+			return time.Now().Add(1 * time.Hour), nil
+		}
 
 		userCtx := test.UserContext(ctx, test.UserAdmin)
 		password, err := svc.GetHostRecoveryLockPassword(userCtx, 3)
 		require.NoError(t, err)
 		assert.Equal(t, "test-password", password.Password)
+	})
+
+	t.Run("calls MarkRecoveryLockPasswordViewed and sets auto_rotate_at", func(t *testing.T) {
+		ds := new(mock.Store)
+		opts := &TestServerOpts{}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+		appleSiliconHost := &fleet.Host{
+			ID:       4,
+			Platform: "darwin",
+			UUID:     "apple-silicon-uuid-4",
+			CPUType:  "arm64e",
+		}
+		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return appleSiliconHost, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{
+					EnabledAndConfigured: true,
+				},
+			}, nil
+		}
+		ds.GetHostRecoveryLockPasswordFunc = func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
+			return &fleet.HostRecoveryLockPassword{
+				Password: "test-password-4",
+			}, nil
+		}
+
+		expectedRotateAt := time.Now().Add(1 * time.Hour)
+		markViewedCalled := false
+		ds.MarkRecoveryLockPasswordViewedFunc = func(ctx context.Context, hostUUID string) (time.Time, error) {
+			markViewedCalled = true
+			assert.Equal(t, "apple-silicon-uuid-4", hostUUID)
+			return expectedRotateAt, nil
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		password, err := svc.GetHostRecoveryLockPassword(userCtx, 4)
+		require.NoError(t, err)
+		assert.Equal(t, "test-password-4", password.Password)
+		assert.True(t, markViewedCalled, "MarkRecoveryLockPasswordViewed should be called")
+		require.NotNil(t, password.AutoRotateAt)
+		assert.WithinDuration(t, expectedRotateAt, *password.AutoRotateAt, 1*time.Second)
+	})
+
+	t.Run("continues even if MarkRecoveryLockPasswordViewed fails", func(t *testing.T) {
+		ds := new(mock.Store)
+		opts := &TestServerOpts{}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+		appleSiliconHost := &fleet.Host{
+			ID:       5,
+			Platform: "darwin",
+			UUID:     "apple-silicon-uuid-5",
+			CPUType:  "arm64e",
+		}
+		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return appleSiliconHost, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{
+					EnabledAndConfigured: true,
+				},
+			}, nil
+		}
+		ds.GetHostRecoveryLockPasswordFunc = func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
+			return &fleet.HostRecoveryLockPassword{
+				Password: "test-password-5",
+			}, nil
+		}
+		ds.MarkRecoveryLockPasswordViewedFunc = func(ctx context.Context, hostUUID string) (time.Time, error) {
+			return time.Time{}, errors.New("database error")
+		}
+
+		userCtx := test.UserContext(ctx, test.UserAdmin)
+		// Should still succeed even though MarkRecoveryLockPasswordViewed failed
+		password, err := svc.GetHostRecoveryLockPassword(userCtx, 5)
+		require.NoError(t, err)
+		assert.Equal(t, "test-password-5", password.Password)
+		// AutoRotateAt should be nil since the mark operation failed
+		assert.Nil(t, password.AutoRotateAt)
 	})
 }

@@ -1063,6 +1063,10 @@ type HasPendingRecoveryLockRotationFunc func(ctx context.Context, hostUUID strin
 
 type ResetRecoveryLockForRetryFunc func(ctx context.Context, hostUUID string) error
 
+type MarkRecoveryLockPasswordViewedFunc func(ctx context.Context, hostUUID string) (time.Time, error)
+
+type GetHostsForAutoRotationFunc func(ctx context.Context) ([]string, error)
+
 type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error
 
 type CopyDefaultMDMAppleBootstrapPackageFunc func(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error
@@ -3391,6 +3395,12 @@ type DataStore struct {
 
 	ResetRecoveryLockForRetryFunc        ResetRecoveryLockForRetryFunc
 	ResetRecoveryLockForRetryFuncInvoked bool
+
+	MarkRecoveryLockPasswordViewedFunc        MarkRecoveryLockPasswordViewedFunc
+	MarkRecoveryLockPasswordViewedFuncInvoked bool
+
+	GetHostsForAutoRotationFunc        GetHostsForAutoRotationFunc
+	GetHostsForAutoRotationFuncInvoked bool
 
 	InsertMDMAppleBootstrapPackageFunc        InsertMDMAppleBootstrapPackageFunc
 	InsertMDMAppleBootstrapPackageFuncInvoked bool
@@ -8185,6 +8195,20 @@ func (s *DataStore) ResetRecoveryLockForRetry(ctx context.Context, hostUUID stri
 	s.ResetRecoveryLockForRetryFuncInvoked = true
 	s.mu.Unlock()
 	return s.ResetRecoveryLockForRetryFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error) {
+	s.mu.Lock()
+	s.MarkRecoveryLockPasswordViewedFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkRecoveryLockPasswordViewedFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetHostsForAutoRotation(ctx context.Context) ([]string, error) {
+	s.mu.Lock()
+	s.GetHostsForAutoRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostsForAutoRotationFunc(ctx)
 }
 
 func (s *DataStore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {

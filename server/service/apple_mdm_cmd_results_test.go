@@ -646,6 +646,11 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
+		ds.HostLiteByIdentifierFunc = func(_ context.Context, identifier string) (*fleet.HostLite, error) {
+			assert.Equal(t, hostUUID, identifier)
+			return &fleet.HostLite{ID: 1, Hostname: "test-host"}, nil
+		}
+
 		// These should NOT be called for rotation
 		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, _ string) error {
 			t.Fatal("SetRecoveryLockVerified should not be called for rotation")
@@ -656,7 +661,13 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return "", nil
 		}
 
-		newActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+		var activityCreated bool
+		newActivityFn := func(_ context.Context, _ *fleet.User, activity fleet.ActivityDetails) error {
+			activityCreated = true
+			act, ok := activity.(fleet.ActivityTypeRotatedHostRecoveryLockPassword)
+			assert.True(t, ok, "Activity should be of type ActivityTypeRotatedHostRecoveryLockPassword")
+			assert.Equal(t, uint(1), act.HostID)
+			assert.Equal(t, "test-host", act.HostDisplayName)
 			return nil
 		}
 
@@ -673,6 +684,7 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.True(t, completeRotationCalled, "CompleteRecoveryLockRotation should be called")
+		assert.True(t, activityCreated, "Activity should be created for rotation")
 	})
 
 	t.Run("rotation error fails rotation", func(t *testing.T) {

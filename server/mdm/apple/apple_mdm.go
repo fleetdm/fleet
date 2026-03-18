@@ -1663,6 +1663,7 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 type RecoveryLockCommander interface {
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	ClearRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error
 }
 
 // SendRecoveryLockCommands is the cron job function that sends SetRecoveryLock MDM commands
@@ -1703,6 +1704,11 @@ func sendRecoveryLockCommandsWithCommander(
 
 	// Handle CLEAR password operations (hosts that need their recovery lock cleared)
 	if err := sendClearRecoveryLockCommands(ctx, ds, commander, logger); err != nil {
+		result = multierror.Append(result, err)
+	}
+
+	// Handle AUTO-ROTATION for viewed passwords (password viewed 1+ hour ago)
+	if err := sendAutoRotationCommands(ctx, ds, commander, logger); err != nil {
 		result = multierror.Append(result, err)
 	}
 
@@ -1852,6 +1858,76 @@ func sendClearRecoveryLockCommands(
 	)
 
 	return nil
+}
+
+func sendAutoRotationCommands(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander RecoveryLockCommander,
+	logger *slog.Logger,
+) error {
+	hosts, err := ds.GetHostsForAutoRotation(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get hosts for auto rotation")
+	}
+
+	if len(hosts) == 0 {
+		logger.DebugContext(ctx, "no hosts need auto-rotation")
+		return nil
+	}
+
+	logger.InfoContext(ctx, "performing auto-rotation for viewed passwords", "count", len(hosts))
+
+	var result *multierror.Error
+	for _, hostUUID := range hosts {
+		newPassword := GenerateRecoveryLockPassword()
+
+		// Initiate rotation - stores pending password and validates eligibility
+		if err := ds.InitiateRecoveryLockRotation(ctx, hostUUID, newPassword); err != nil {
+			logger.ErrorContext(ctx, "failed to initiate auto-rotation",
+				"host_uuid", hostUUID,
+				"error", err,
+			)
+			result = multierror.Append(result, err)
+			continue
+		}
+
+		// Enqueue RotateRecoveryLock command
+		cmdUUID := uuid.NewString()
+		if err := commander.RotateRecoveryLock(ctx, hostUUID, cmdUUID); err != nil {
+			var apnsErr *APNSDeliveryError
+			if errors.As(err, &apnsErr) {
+				// Command was persisted but push notification failed - log warning but don't fail.
+				logger.WarnContext(ctx, "auto-rotation command enqueued but APNs push failed",
+					"host_uuid", hostUUID,
+					"command_uuid", cmdUUID,
+					"error", err,
+				)
+				continue
+			}
+
+			// Persistence failed - clear pending rotation so host can be retried
+			logger.ErrorContext(ctx, "failed to enqueue auto-rotation command",
+				"host_uuid", hostUUID,
+				"error", err,
+			)
+			if clearErr := ds.ClearRecoveryLockRotation(ctx, hostUUID); clearErr != nil {
+				logger.ErrorContext(ctx, "failed to clear pending rotation after enqueue failure",
+					"host_uuid", hostUUID,
+					"error", clearErr,
+				)
+			}
+			result = multierror.Append(result, err)
+			continue
+		}
+
+		logger.InfoContext(ctx, "sent auto-rotation command",
+			"host_uuid", hostUUID,
+			"command_uuid", cmdUUID,
+		)
+	}
+
+	return result.ErrorOrNil()
 }
 
 // RecoveryLockPasswordCharset excludes confusing characters (0/O, 1/I/l)

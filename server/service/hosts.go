@@ -3824,8 +3824,9 @@ type getHostRecoveryLockPasswordRequest struct {
 }
 
 type recoveryLockPasswordPayload struct {
-	Password  string    `json:"password"`
-	UpdatedAt time.Time `json:"updated_at"`
+	Password     string     `json:"password"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	AutoRotateAt *time.Time `json:"auto_rotate_at,omitempty"`
 }
 
 type getHostRecoveryLockPasswordResponse struct {
@@ -3845,8 +3846,9 @@ func getHostRecoveryLockPasswordEndpoint(ctx context.Context, request any, svc f
 	return getHostRecoveryLockPasswordResponse{
 		HostID: req.ID,
 		RecoveryLockPassword: &recoveryLockPasswordPayload{
-			Password:  password.Password,
-			UpdatedAt: password.UpdatedAt,
+			Password:     password.Password,
+			UpdatedAt:    password.UpdatedAt,
+			AutoRotateAt: password.AutoRotateAt,
 		},
 	}, nil
 }
@@ -3885,6 +3887,16 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 	password, err := svc.ds.GetHostRecoveryLockPassword(ctx, host.UUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host recovery lock password")
+	}
+
+	// Schedule auto-rotation by marking the password as viewed.
+	// This sets auto_rotate_at to 1 hour from now.
+	rotateAt, err := svc.ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+	if err != nil {
+		// Log error but don't fail the request - viewing the password should still succeed
+		logging.WithErr(ctx, err)
+	} else {
+		password.AutoRotateAt = &rotateAt
 	}
 
 	if err := svc.NewActivity(
