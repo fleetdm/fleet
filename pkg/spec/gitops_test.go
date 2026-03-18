@@ -426,7 +426,7 @@ func TestManualLabelEmptyHostList(t *testing.T) {
 labels:
   - name: TestLabel
     description: Label for testing
-    hosts:
+    hosts: []
     label_membership_type: manual`
 
 	gitops, err := gitOpsFromString(t, config)
