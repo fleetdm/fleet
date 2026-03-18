@@ -8,7 +8,7 @@
 - Added a secondary index on `host_software(software_id)` to improve query performance.
 - Fixed an issue where the "add Fleet-maintained app" endpoint incorrectly added software to the Unassigned fleet.
 - Muted deprecation warnings for body params when the "deprecated-field-names" topic is not enabled.
-Fixed custom app icons not getting set via GitOps when the same software title exists in multiple teams.
+- Fixed custom app icons not getting set via GitOps when the same software title exists in multiple teams.
 
 ## Fleet 4.82.0 (Mar 11, 2026)
 
