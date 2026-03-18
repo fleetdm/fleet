@@ -100,10 +100,7 @@ export const generateTableConfig = (
     },
     {
       id: "macos_team",
-      accessor: (originalRow) =>
-        originalRow.macos_team.team_id === APP_CONTEXT_NO_TEAM_ID
-          ? APP_CONTEXT_NO_TEAM_SUMMARY.name
-          : originalRow.macos_team.name,
+      accessor: (originalRow) => getTeamDisplayName(originalRow.macos_team),
       Header: () => {
         const titleWithToolTip = (
           <TooltipWrapper
