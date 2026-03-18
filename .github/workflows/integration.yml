@@ -68,8 +68,18 @@ jobs:
 
         # Add secret
         echo "$CERT_PEM" | base64 -d > cert.pem
-        # Start tunnel
-        cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }} --logfile cloudflared.log &
+
+        # Create and start the named tunnel using explicit steps.
+        # Note: We cannot use the single `cloudflared tunnel --name <name>` shorthand
+        # because cloudflared 2025.6.1+ introduced a global --output flag (log format,
+        # default "default") that conflicts with the per-subcommand --output flag
+        # (json/yaml). The --name path calls sc.create() using the parent TunnelCommand
+        # context where c.String("output") = "default", causing renderOutput("default")
+        # to fail with "Unknown output format 'default'". The explicit create/route/run
+        # steps each use their own subcommand context, avoiding the conflict.
+        cloudflared tunnel --origincert cert.pem create ${{ needs.gen.outputs.subdomain }}
+        cloudflared tunnel --origincert cert.pem route dns ${{ needs.gen.outputs.subdomain }} ${{ needs.gen.outputs.subdomain }}
+        cloudflared tunnel --origincert cert.pem --url http://localhost:1337 --logfile cloudflared.log run ${{ needs.gen.outputs.subdomain }} &
         until [[ $(cloudflared tunnel --origincert cert.pem info -o json ${{ needs.gen.outputs.subdomain }} | jq '.conns[0].conns[0].is_pending_reconnect') = false ]]; do
           echo "Awaiting tunnel ready..."
           sleep 1
