@@ -264,6 +264,9 @@ jobs:
 
     - name: Check processes
       run: |
+        sleep 30
+        sudo tail -60 /var/log/orbit/orbit.stderr.log
+
         echo "Checking if osqueryd is running..."
         pgrep -x osqueryd || (echo "ERROR: osqueryd is not running" && exit 1)
         echo "Checking if orbit is running..."
