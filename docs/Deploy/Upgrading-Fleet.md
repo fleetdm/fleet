@@ -82,6 +82,7 @@ Fleet follows [Semantic Versioning (SemVer)](https://semver.org/). This means th
 
 + **Experimental features:** [Experimental features](https://fleetdm.com/handbook/company/product-groups#experimental-features) are tagged as such in the API documentation. These features are being rapidly iterated on and are not for use in automated workflows.
 + **Security:** Fleet reserves the right to make breaking changes for security. When no alternative solution is available, security fixes may introduce backward-incompatible changes.
++ **Changes to default values**: Fleet occasionally changes defaults to improve stability or usability. These changes are made thoughtfully and often come from customer feedback ("default session expiration is too short, need to increase the window") or as a bug fix ("default pagination causes a bug, need to decrease the default per-page". Any changes to defaults are weighed carefully against the possibility of breaking existing workflows.
 
 In each of these cases, breaking changes are clearly communicated in the version notes.
 
