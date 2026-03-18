@@ -10,6 +10,9 @@ on:
   workflow_dispatch: # Manual
   schedule:
   - cron: '0 2 * * *' # Nightly 2AM UTC
+  pull_request:
+    paths:
+      - '.github/workflows/integration.yml'
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -136,7 +139,7 @@ jobs:
         ./build/fleetctl get hosts --json
 
     - name: Slack Notification
-      if: failure()
+      if: failure() && github.event_name == 'schedule'
       uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
       with:
         payload: |
