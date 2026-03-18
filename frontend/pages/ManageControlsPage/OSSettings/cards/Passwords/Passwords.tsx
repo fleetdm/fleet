@@ -142,7 +142,8 @@ const Passwords = ({
         content="Manage passwords used for recovery, security, or administrative access across supported platforms."
       />
       {!isPremiumTier && <PremiumFeatureMessage />}
-      {isPremiumTier && !mdmEnabled && (
+      {isPremiumTier && mdmEnabled === undefined && <Spinner />}
+      {isPremiumTier && mdmEnabled === false && (
         <GenericMsgWithNavButton
           header="Manage your hosts"
           buttonText="Turn on"
@@ -151,8 +152,8 @@ const Passwords = ({
           info="MDM must be turned on to apply password settings."
         />
       )}
-      {isPremiumTier && mdmEnabled && showLoading && <Spinner />}
-      {isPremiumTier && mdmEnabled && !showLoading && !isTechnician && (
+      {isPremiumTier && mdmEnabled === true && showLoading && <Spinner />}
+      {isPremiumTier && mdmEnabled === true && !showLoading && !isTechnician && (
         <div className="form passwords-content">
           <div className={`${baseClass}__recovery-lock-header`}>
             <TooltipWrapper tipContent={RECOVERY_LOCK_TOOLTIP_CONTENT}>
