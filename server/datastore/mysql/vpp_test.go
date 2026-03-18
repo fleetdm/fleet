@@ -575,6 +575,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 
 		require.Len(t, meta.LabelsIncludeAny, 2)
 		require.Len(t, meta.LabelsExcludeAny, 0)
+		require.Len(t, meta.LabelsIncludeAll, 0)
 
 		// insert a VPP app with exclude_any labels
 		labeledApp = &fleet.VPPApp{
@@ -599,6 +600,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 
 		require.Len(t, meta.LabelsIncludeAny, 0)
 		require.Len(t, meta.LabelsExcludeAny, 2)
+		require.Len(t, meta.LabelsIncludeAll, 0)
 	})
 
 	// create a host with some non-VPP software
@@ -1939,6 +1941,7 @@ func testSetTeamVPPAppsWithLabels(t *testing.T, ds *Datastore) {
 
 	require.Len(t, app1Meta.LabelsIncludeAny, 2)
 	require.Len(t, app1Meta.LabelsExcludeAny, 0)
+	require.Len(t, app1Meta.LabelsIncludeAll, 0)
 	for _, l := range app1Meta.LabelsIncludeAny {
 		_, ok := app1.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
 		require.True(t, ok)
@@ -1946,6 +1949,7 @@ func testSetTeamVPPAppsWithLabels(t *testing.T, ds *Datastore) {
 
 	require.Len(t, app2Meta.LabelsExcludeAny, 2)
 	require.Len(t, app2Meta.LabelsIncludeAny, 0)
+	require.Len(t, app2Meta.LabelsIncludeAll, 0)
 	for _, l := range app2Meta.LabelsExcludeAny {
 		_, ok := app2.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
 		require.True(t, ok)
@@ -1998,6 +2002,7 @@ func testSetTeamVPPAppsWithLabels(t *testing.T, ds *Datastore) {
 
 	require.Len(t, app1Meta.LabelsIncludeAny, 0)
 	require.Len(t, app1Meta.LabelsExcludeAny, 2)
+	require.Len(t, app1Meta.LabelsIncludeAll, 0)
 	for _, l := range app1Meta.LabelsExcludeAny {
 		_, ok := app1.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
 		require.True(t, ok)
@@ -2005,6 +2010,7 @@ func testSetTeamVPPAppsWithLabels(t *testing.T, ds *Datastore) {
 
 	require.Len(t, app2Meta.LabelsExcludeAny, 0)
 	require.Len(t, app2Meta.LabelsIncludeAny, 2)
+	require.Len(t, app2Meta.LabelsIncludeAll, 0)
 	for _, l := range app2Meta.LabelsIncludeAny {
 		_, ok := app2.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
 		require.True(t, ok)
