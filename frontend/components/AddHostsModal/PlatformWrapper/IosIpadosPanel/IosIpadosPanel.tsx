@@ -35,6 +35,7 @@ const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
         <CustomLink
           url={PATHS.ADMIN_INTEGRATIONS_MDM_APPLE}
           text="Turn on Apple MDM"
+          emphasized
         />{" "}
         to enroll iOS & iPadOS hosts.
       </p>

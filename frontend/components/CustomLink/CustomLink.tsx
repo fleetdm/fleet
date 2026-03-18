@@ -12,6 +12,8 @@ interface ICustomLinkProps {
    * @default false
    */
   newTab?: boolean;
+  /** Emphasizes the link appearance by changing the color to an accent color */
+  emphasized?: boolean;
   /** Icon wraps on new line with last word */
   multiline?: boolean;
   /** Restricts access via keyboard when CustomLink is part of disabled UI */
@@ -32,6 +34,7 @@ const CustomLink = ({
   className,
   newTab = false,
   multiline = false,
+  emphasized = false,
   disableKeyboardNavigation = false,
   variant = "default",
 }: ICustomLinkProps): JSX.Element => {
@@ -50,6 +53,7 @@ const CustomLink = ({
   const customLinkClass = classnames(baseClass, className, {
     [`${baseClass}--${variant}`]: variant !== "default",
     [`${baseClass}--multiline`]: multiline,
+    [`${baseClass}--emphasized`]: emphasized,
   });
 
   // Needed to not trigger clickable parent elements

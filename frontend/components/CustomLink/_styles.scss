@@ -6,6 +6,7 @@
   text-underline-offset: 3px;
 
   &:hover {
+    color: $core-fleet-black;
     text-decoration-color: $core-fleet-black;
     .external-link-icon__outline {
       fill: $core-fleet-black;
@@ -34,28 +35,40 @@
     line-height: normal;
   }
 
+  &--emphasized {
+    color: $core-fleet-green;
+    text-decoration-color: $core-fleet-green;
+
+    &:hover {
+      color: $core-fleet-green-over;
+      text-decoration-color: $core-fleet-green-over;
+    }
+  }
+
   // Variants
   &--tooltip-link,
   &--banner-link,
   &--flash-message-link {
-    color: inherit; // Overrides fleet blue link color with parent color
+    color: inherit; // Overrides default link color with parent color
   }
 
   &--tooltip-link,
   &--flash-message-link {
     font-size: inherit; // Overrides link default font size with parent tooltip font size
-    text-decoration-color: $ui-off-white;
+    text-decoration-color: inherit;
+    text-underline-offset: 2px;
 
     .external-link-icon__outline {
       stroke: $core-fleet-white;
     }
 
     &:hover {
-      color: $ui-off-white;
-      text-decoration-color: $core-fleet-white;
+      color: $ui-fleet-black-5;
+      text-decoration-color: $ui-fleet-black-5;
 
       .external-link-icon__outline {
-        fill: $ui-off-white;
+        fill: $ui-fleet-black-5;
+        stroke: $ui-fleet-black-5;
       }
 
       .external-link-icon__arrow {
