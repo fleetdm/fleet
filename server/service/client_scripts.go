@@ -159,7 +159,7 @@ func (c *Client) validateMacOSSetupScript(fileName string) ([]byte, error) {
 func (c *Client) deleteMacOSSetupScript(teamID *uint) error {
 	var query string
 	if teamID != nil {
-		query = fmt.Sprintf("team_id=%d", *teamID)
+		query = fmt.Sprintf("fleet_id=%d", *teamID)
 	}
 
 	verb, path := "DELETE", "/api/latest/fleet/setup_experience/script"
@@ -181,9 +181,9 @@ func (c *Client) uploadMacOSSetupScript(filename string, data []byte, teamID *ui
 		return err
 	}
 
-	// add the team_id field
+	// add the fleet_id field
 	if teamID != nil {
-		if err := w.WriteField("team_id", fmt.Sprint(*teamID)); err != nil {
+		if err := w.WriteField("fleet_id", fmt.Sprint(*teamID)); err != nil {
 			return err
 		}
 	}
@@ -248,7 +248,7 @@ func (c *Client) GetSetupExperienceScript(teamID uint) (*fleet.Script, error) {
 	verb, path := "GET", "/api/latest/fleet/setup_experience/script"
 	var query string
 	if teamID != 0 {
-		query = fmt.Sprintf("team_id=%d", teamID)
+		query = fmt.Sprintf("fleet_id=%d", teamID)
 	}
 	var responseBody getSetupExperienceScriptResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)

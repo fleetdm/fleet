@@ -1,5 +1,9 @@
 # Fleet 4.82.0 | Fleets and reports, new technician role, and more...
 
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/zeU1IdlyxIY?si=bjoX3-kh8wVN7ECh" title=" title="0" allowfullscreen></iframe>
+</div>
+
 Fleet 4.82.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.82.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
 ## Highlights
@@ -29,7 +33,7 @@ GitHub issue: [#35696](https://github.com/fleetdm/fleet/issues/35696)
 
 ### Self-service scripts on macOS
 
-Fleet now supports self-service scripts through script-only packages on macOS. Upload a `.sh` script and make it available in self-service for end users on macOS hosts. [Learn how]().
+Fleet now supports self-service scripts through script-only packages on macOS. Upload a `.sh` script and make it available in self-service for end users on macOS hosts. [Learn how](https://fleetdm.com/guides/software-self-service).
 
 This makes it easier for IT admins to deliver quick fixes and utility scripts.
 
