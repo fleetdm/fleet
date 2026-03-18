@@ -48,6 +48,69 @@ This contract covers Android osquery behavior implemented in this PR branch:
   - `OsqueryQueryEngine`
   - `TableRegistry` + registered Android tables
 
+### Proposed Android runtime config contract
+This section captures the intended direction for Android runtime configuration so future work can be reviewed against a stable contract before implementation.
+
+#### Decision
+Android runtime config should be delivered through the existing Orbit config endpoint:
+- transport: `POST /api/fleet/orbit/config`
+- auth: existing `orbit_node_key`
+- response envelope: existing `OrbitConfig` payload, extended with an Android-specific subobject
+
+We should not use the osquery config endpoint (`POST /api/osquery/config`) as the primary Android app config transport.
+
+#### Rationale
+- Android already enrolls through Orbit semantics and already calls `POST /api/fleet/orbit/config`.
+- The osquery config payload is validated and shaped as osquery configuration, not Android app behavior configuration.
+- Reusing the Orbit config path avoids creating a second polling/auth/config-delivery mechanism for the Android app.
+- Keeping Android runtime config separate from osquery config avoids mixing app behavior with osquery schedule/pack/options semantics.
+
+#### Proposed shape
+Add an Android-specific section to the server-produced Orbit config payload, for example:
+
+```json
+{
+  "notifications": { "...": "existing orbit fields" },
+  "android": {
+    "distributed_read_interval_seconds": 60,
+    "screen_off_interval_seconds": 300,
+    "idle_interval_seconds": 900,
+    "charging_interval_seconds": 60,
+    "battery_saver_interval_seconds": 1800
+  }
+}
+```
+
+Field names may change, but the contract intent is:
+- Android runtime behavior is expressed in a dedicated Android object.
+- Android-only keys are ignored by Orbit desktop/server clients that do not implement them.
+- The Android app must ignore unknown future fields for forward compatibility.
+
+#### Source of truth and precedence
+The source of truth for Android runtime config should be a new server-side Android runtime config model, not `agent_options.config`.
+
+Expected precedence:
+1. team-scoped Android runtime config, if set
+2. global Android runtime config, if set
+3. Android app local defaults, if server omits the field
+
+#### Explicit non-goals
+The following are not the proposed design:
+- storing Android runtime behavior inside osquery `agent_options.config`
+- relying on osquery platform overrides to drive Android app behavior
+- overloading `mdm.android_settings` for agent polling/runtime behavior
+- creating a separate Android config endpoint unless Orbit config reuse proves insufficient
+
+#### UI direction
+Preferred server UX:
+- add a dedicated Android runtime config UI/API surface
+- keep it separate from Agent options and separate from Android MDM custom settings
+
+Rationale:
+- Agent options are semantically for osquery/Orbit agent behavior already understood by Fleet admins.
+- Android MDM custom settings are OS policy/profile artifacts, not app runtime behavior.
+- A dedicated Android config area makes ownership and validation clearer.
+
 ### Contract rules (must remain true)
 
 #### C1. Enrollment identity ownership
