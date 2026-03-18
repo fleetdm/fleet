@@ -27,7 +27,7 @@ CREATE TABLE `abm_tokens` (
 CREATE TABLE `acme_accounts` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `acme_enrollment_id` int unsigned NOT NULL,
-  `jwk` json NOT NULL,
+  `json_web_key` json NOT NULL,
   `revoked` tinyint(1) NOT NULL DEFAULT '0',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -55,7 +55,7 @@ CREATE TABLE `acme_authorizations` (
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `acme_challenges` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `challenge_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `token` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `acme_authorization_id` int unsigned NOT NULL,
   `status` enum('pending','valid','invalid','processing') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
@@ -70,14 +70,14 @@ CREATE TABLE `acme_challenges` (
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `acme_enrollments` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `identifier` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `path_identifier` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `host_identifier` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `not_valid_after` datetime DEFAULT NULL,
   `revoked` tinyint(1) NOT NULL DEFAULT '0',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_identifier` (`identifier`)
+  UNIQUE KEY `idx_path_identifier` (`path_identifier`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -86,7 +86,7 @@ CREATE TABLE `acme_orders` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `acme_account_id` int unsigned NOT NULL,
   `finalized` tinyint(1) NOT NULL DEFAULT '0',
-  `csr` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `certificate_signing_request` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `identifiers` json NOT NULL,
   `status` enum('pending','ready','processing','valid','invalid') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `issued_certificate_serial` bigint DEFAULT NULL,
