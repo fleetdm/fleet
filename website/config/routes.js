@@ -1093,6 +1093,7 @@ module.exports.routes = {
   'GET /vulnerability-management': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/software-management' + originalQueryString); },
   'GET /endpoint-ops': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/orchestration' + originalQueryString); },
   'GET /observability': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/orchestration' + originalQueryString); },
+  'GET /signup': '/login#register',
 
   'GET /jnuc-2025': '/articles/free-migration-from-jamf-to-fleet',
   'GET /announcements/global-cloud-platform-simplifies-device-management-with-fleet': '/case-study/fastly',
@@ -1230,6 +1231,7 @@ module.exports.routes = {
   'GET /learn-more-about/unlock-ios-ipados': 'https://fleetdm.com/guides/lock-wipe-hosts#how-to-unlock-offline-ios-and-ipados-hosts',
   'GET /learn-more-about/android-web-apps-chrome-required': 'https://fleetdm.com/guides/install-app-store-apps#install-android-web-app-web-clip',
   'GET /learn-more-about/certificates': '/guides/connect-end-user-to-wifi-with-certificate',
+  'GET /learn-more-about/enrollment-profiles': 'https://developer.apple.com/documentation/devicemanagement/profile?changes=l_11_5',
 
   // Sitemap
   // =============================================================================================================

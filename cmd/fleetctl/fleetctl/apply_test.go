@@ -40,6 +40,15 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+var testSAMLIDPMetadataURL = getTestSAMLIDPMetadataURL()
+
+func getTestSAMLIDPMetadataURL() string {
+	if port := os.Getenv("FLEET_SAML_IDP_HTTP_PORT"); port != "" {
+		return "http://localhost:" + port + "/simplesaml/saml2/idp/metadata.php"
+	}
+	return "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+}
+
 var userRoleSpecList = []*fleet.User{
 	{
 		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
@@ -2519,7 +2528,7 @@ spec:
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedAppConfigSet.yml"))
 		require.NoError(t, err)
-		expectedAppCfgSet := fmt.Sprintf(string(b), "", emptyMacosSetup)
+		expectedAppCfgSet := fmt.Sprintf(string(b), "", emptyMacosSetup, "", emptyMacosSetup)
 		expectedAppCfgSetReleaseEnabled := strings.ReplaceAll(expectedAppCfgSet, `enable_release_device_manually: false`, `enable_release_device_manually: true`)
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Empty.yml"))
@@ -3619,7 +3628,7 @@ spec:
 		},
 		{
 			desc: "missing required sso entity_id",
-			spec: `
+			spec: fmt.Sprintf(`
 apiVersion: v1
 kind: config
 spec:
@@ -3628,13 +3637,13 @@ spec:
     entity_id: ""
     issuer_uri: "http://localhost:8080/simplesaml/saml2/idp/SSOService.php"
     idp_name: "SimpleSAML"
-    metadata_url: "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
-`,
+    metadata_url: "%s"
+`, testSAMLIDPMetadataURL),
 			wantErr: `422 Validation Failed: required`,
 		},
 		{
 			desc: "missing required sso idp_name",
-			spec: `
+			spec: fmt.Sprintf(`
 apiVersion: v1
 kind: config
 spec:
@@ -3643,8 +3652,8 @@ spec:
     entity_id: "https://localhost:8080"
     issuer_uri: "http://localhost:8080/simplesaml/saml2/idp/SSOService.php"
     idp_name: ""
-    metadata_url: "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
-`,
+    metadata_url: "%s"
+`, testSAMLIDPMetadataURL),
 			wantErr: `422 Validation Failed: required`,
 		},
 		{

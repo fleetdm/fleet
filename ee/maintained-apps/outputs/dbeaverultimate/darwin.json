@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "25.3.0",
+      "version": "26.0.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.dbeaver.product.ultimate';"
       },
-      "installer_url": "https://dbeaver.com/downloads-ultimate/25.3.0/dbeaver-ue-25.3.0-macos-aarch64.dmg",
+      "installer_url": "https://downloads.dbeaver.net/ultimate/26.0.0/dbeaver-ue-26.0.0-macos-aarch64.dmg",
       "install_script_ref": "dc79ac58",
       "uninstall_script_ref": "7f9a5e0d",
-      "sha256": "84c49656d97a651626b117d688a023ad07097b043e0da236d2a890069eb22a06",
+      "sha256": "0d633329c98a84c339b0e94b84cea77e3de953659354547bb333ed4321e4b449",
       "default_categories": [
         "Developer tools"
       ]

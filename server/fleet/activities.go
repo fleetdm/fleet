@@ -111,6 +111,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeDisabledMacosUpdateNewHosts{},
 
 	ActivityTypeReadHostDiskEncryptionKey{},
+	ActivityTypeViewedHostRecoveryLockPassword{},
 
 	ActivityTypeCreatedMacosProfile{},
 	ActivityTypeDeletedMacosProfile{},
@@ -122,8 +123,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEnabledMacosDiskEncryption{},
 	ActivityTypeDisabledMacosDiskEncryption{},
 
-	ActivityTypeEnabledRecoveryLockPassword{},
-	ActivityTypeDisabledRecoveryLockPassword{},
+	ActivityTypeSetHostRecoveryLockPassword{},
+	ActivityTypeEnabledRecoveryLockPasswords{},
+	ActivityTypeDisabledRecoveryLockPasswords{},
 
 	ActivityTypeEnabledGitOpsMode{},
 	ActivityTypeDisabledGitOpsMode{},
@@ -154,6 +156,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeLockedHost{},
 	ActivityTypeUnlockedHost{},
 	ActivityTypeWipedHost{},
+	ActivityTypeRotatedHostRecoveryLockPassword{},
 
 	ActivityTypeCreatedDeclarationProfile{},
 	ActivityTypeDeletedDeclarationProfile{},
@@ -672,6 +675,19 @@ func (a ActivityTypeReadHostDiskEncryptionKey) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+type ActivityTypeViewedHostRecoveryLockPassword struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeViewedHostRecoveryLockPassword) ActivityName() string {
+	return "viewed_host_recovery_lock_password"
+}
+
+func (a ActivityTypeViewedHostRecoveryLockPassword) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 type ActivityTypeCreatedMacosProfile struct {
 	ProfileName       string  `json:"profile_name"`
 	ProfileIdentifier string  `json:"profile_identifier"`
@@ -741,22 +757,39 @@ func (a ActivityTypeDisabledMacosDiskEncryption) ActivityName() string {
 	return "disabled_macos_disk_encryption"
 }
 
-type ActivityTypeEnabledRecoveryLockPassword struct {
+type ActivityTypeSetHostRecoveryLockPassword struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeSetHostRecoveryLockPassword) ActivityName() string {
+	return "set_host_recovery_lock_password"
+}
+
+func (a ActivityTypeSetHostRecoveryLockPassword) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeSetHostRecoveryLockPassword) WasFromAutomation() bool {
+	return true
+}
+
+type ActivityTypeEnabledRecoveryLockPasswords struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
 }
 
-func (a ActivityTypeEnabledRecoveryLockPassword) ActivityName() string {
-	return "enabled_recovery_lock_password"
+func (a ActivityTypeEnabledRecoveryLockPasswords) ActivityName() string {
+	return "enabled_recovery_lock_passwords"
 }
 
-type ActivityTypeDisabledRecoveryLockPassword struct {
+type ActivityTypeDisabledRecoveryLockPasswords struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
 }
 
-func (a ActivityTypeDisabledRecoveryLockPassword) ActivityName() string {
-	return "disabled_recovery_lock_password"
+func (a ActivityTypeDisabledRecoveryLockPasswords) ActivityName() string {
+	return "disabled_recovery_lock_passwords"
 }
 
 type ActivityTypeEnabledGitOpsMode struct{}
@@ -967,6 +1000,19 @@ func (a ActivityTypeWipedHost) ActivityName() string {
 }
 
 func (a ActivityTypeWipedHost) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type ActivityTypeRotatedHostRecoveryLockPassword struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeRotatedHostRecoveryLockPassword) ActivityName() string {
+	return "rotated_host_recovery_lock_password"
+}
+
+func (a ActivityTypeRotatedHostRecoveryLockPassword) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 

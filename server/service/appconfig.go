@@ -1096,9 +1096,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if oldAppConfig.MDM.EnabledAndConfigured {
 			var act fleet.ActivityDetails
 			if appConfig.MDM.EnableRecoveryLockPassword.Value {
-				act = fleet.ActivityTypeEnabledRecoveryLockPassword{}
+				act = fleet.ActivityTypeEnabledRecoveryLockPasswords{}
 			} else {
-				act = fleet.ActivityTypeDisabledRecoveryLockPassword{}
+				act = fleet.ActivityTypeDisabledRecoveryLockPasswords{}
 			}
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "create activity for app config recovery lock password")
@@ -1487,13 +1487,24 @@ func (svc *Service) validateMDM(
 		invalid.Append("ipados_updates", err.Error())
 	}
 
-	// Always check whether specified versions are supported by Apple (even if they weren't updated)
+	// Only check whether specified versions are supported by Apple if they were updated in this request.
 	// Note that we're validating against the full, non-public asset set of OS versions here because
 	// in our DEP flow the minimum version just acts as the threshold for whether or not to update
 	// the host to the latest, public version. We don't need to install the specified version on the
 	// host during DEP so it doesn't need to be in the public asset set.
-	for k, v := range apple_mdm.ValidateMDMSettingsAppleSupportedOSVersion(*mdm, false) {
-		invalid.Append(k, v.Error())
+	m, err := apple_mdm.ValidateMDMSettingsAppleSupportedOSVersion(*mdm, false)
+	if err != nil {
+		invalid.Append("mdm", fmt.Sprintf("validating Apple OS versions: %v", err))
+		return nil
+	}
+	if v, ok := m["macos"]; ok && updatingMacOSVersion {
+		invalid.Append("macos_updates.minimum_version", v)
+	}
+	if v, ok := m["ios"]; ok && updatingIOSVersion {
+		invalid.Append("ios_updates.minimum_version", v)
+	}
+	if v, ok := m["ipados"]; ok && updatingIPadOSVersion {
+		invalid.Append("ipados_updates.minimum_version", v)
 	}
 
 	if err := mdm.MacOSSetup.Validate(); err != nil {

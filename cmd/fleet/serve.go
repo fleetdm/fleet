@@ -172,14 +172,17 @@ the way that the Fleet server works.
 			var tracerProvider *sdktrace.TracerProvider
 			var meterProvider *sdkmetric.MeterProvider
 			if config.OTELEnabled() {
-				// Create shared resource with service identification attributes
-				res, err := resource.Merge(
-					resource.Default(),
-					resource.NewWithAttributes(
-						semconv.SchemaURL,
+				// Create shared resource with service identification attributes.
+				// OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES env vars can override
+				// the defaults below.
+				res, err := resource.New(context.Background(),
+					resource.WithSchemaURL(semconv.SchemaURL),
+					resource.WithAttributes(
 						semconv.ServiceName("fleet"),
 						semconv.ServiceVersion(version.Version().Version),
 					),
+					resource.WithFromEnv(),
+					resource.WithTelemetrySDK(),
 				)
 				if err != nil {
 					initFatal(err, "Failed to create OTEL resource")
@@ -1485,7 +1488,7 @@ the way that the Fleet server works.
 
 				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay, svc.NewActivity))
 				mdmCheckinAndCommandService.RegisterResultsHandler(fleet.DeviceLocationCmdName, service.NewDeviceLocationResultsHandler(ds, commander, logger))
-				mdmCheckinAndCommandService.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, service.NewSetRecoveryLockResultsHandler(ds, logger))
+				mdmCheckinAndCommandService.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, service.NewSetRecoveryLockResultsHandler(ds, logger, svc.NewActivity))
 
 				hasSCEPChallenge, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
 				if err != nil {

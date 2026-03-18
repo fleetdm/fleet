@@ -5,6 +5,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleet` docker image
 
+### [CVE-2026-22184](https://nvd.nist.gov/vuln/detail/CVE-2026-22184)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** The vulnerability is in zlib's contrib/untgz standalone demo utility, not in the core zlib library.
+- **Products:**: `fleet`,`pkg:apk/alpine/zlib@1.3.1-r2`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-03-13 12:01:11
+
 ### [CVE-2025-9230](https://nvd.nist.gov/vuln/detail/CVE-2025-9230)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -20,6 +28,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:**: `fleet`,`pkg:apk/alpine/libcrypto3`,`pkg:apk/alpine/libssl3`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-01-03 15:15:53
+
+### [CVE-2025-68121](https://nvd.nist.gov/vuln/detail/CVE-2025-68121)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Fleet does not mutate CA pool store between TLS sessions.
+- **Products:**: `fleet`,`pkg:golang/stdlib`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-03-13 13:23:41
 
 ### [CVE-2025-61729](https://nvd.nist.gov/vuln/detail/CVE-2025-61729)
 #### Statement:
