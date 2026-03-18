@@ -126,6 +126,7 @@ import DeleteLabelModal from "./components/DeleteLabelModal";
 import LabelFilterSelect from "./components/LabelFilterSelect";
 import HostsFilterBlock from "./components/HostsFilterBlock";
 import RunScriptBatchModal from "./components/RunScriptBatchModal";
+import { strToBool } from "utilities/strings/stringUtils";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -575,6 +576,7 @@ const ManageHostsPage = ({
         configProfileUUID,
         scriptBatchExecutionStatus,
         scriptBatchExecutionId,
+        depProfileError: strToBool(depProfileError),
       },
     ],
     ({ queryKey }) => hostsAPI.loadHosts(queryKey[0]),
@@ -1342,6 +1344,7 @@ const ManageHostsPage = ({
           osSettings: osSettingsStatus,
           diskEncryptionStatus,
           vulnerability,
+          depProfileError,
         })
       : hostsAPI.transferToTeam(teamId, selectedHostIds);
 
@@ -1844,7 +1847,8 @@ const ManageHostsPage = ({
       lowDiskSpaceHosts ||
       osSettingsStatus ||
       diskEncryptionStatus ||
-      vulnerability
+      vulnerability ||
+      depProfileError
     );
 
     return (

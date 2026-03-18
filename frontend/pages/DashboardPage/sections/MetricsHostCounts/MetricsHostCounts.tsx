@@ -58,6 +58,7 @@ const MetricsHostCounts = ({
   );
 
   // Does not render if abmIssueCount is 0 or undefined (e.g. on non-Apple platforms views)
+  // Currently all undefined is defaulted to 0 upstream
   const ABMIssueHostsCard = abmIssueCount ? (
     <ABMIssueHosts
       abmIssueCount={abmIssueCount}

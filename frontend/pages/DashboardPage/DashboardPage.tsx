@@ -224,7 +224,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         if (isPremiumTier) {
           setMissingCount(data.missing_30_days_count || 0);
           setLowDiskSpaceCount(data.low_disk_space_count || 0);
-          setAbmIssueCount(data.dep_assign_error_count || 4);
+          setAbmIssueCount(data.dep_assign_error_count || 0);
         }
         const macHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "darwin"
