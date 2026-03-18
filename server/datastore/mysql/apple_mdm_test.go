@@ -11012,7 +11012,7 @@ func testGetHostRecoveryLockPasswordStatus(t *testing.T, ds *Datastore) {
 		require.NotNil(t, status)
 		status.PopulateStatus()
 		require.NotNil(t, status.Status)
-		assert.Equal(t, fleet.RecoveryLockStatusVerifying, *status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusPending, *status.Status)
 		assert.Empty(t, status.Detail)
 	})
 

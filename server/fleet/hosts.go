@@ -616,7 +616,6 @@ type RecoveryLockStatus string
 
 const (
 	RecoveryLockStatusVerified            RecoveryLockStatus = "verified"
-	RecoveryLockStatusVerifying           RecoveryLockStatus = "verifying"
 	RecoveryLockStatusPending             RecoveryLockStatus = "pending"
 	RecoveryLockStatusFailed              RecoveryLockStatus = "failed"
 	RecoveryLockStatusRemovingEnforcement RecoveryLockStatus = "removing_enforcement"
@@ -645,9 +644,7 @@ func (r *HostMDMRecoveryLockPassword) PopulateStatus() {
 			r.Status = RecoveryLockStatusFailed.addrOf()
 		case MDMDeliveryVerified:
 			r.Status = RecoveryLockStatusVerified.addrOf()
-		case MDMDeliveryVerifying:
-			r.Status = RecoveryLockStatusVerifying.addrOf()
-		case MDMDeliveryPending:
+		case MDMDeliveryVerifying, MDMDeliveryPending:
 			r.Status = RecoveryLockStatusPending.addrOf()
 		}
 	}
