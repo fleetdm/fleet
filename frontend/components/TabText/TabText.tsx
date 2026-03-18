@@ -45,7 +45,13 @@ const TabText = ({
         {children}
       </div>
       {renderCount()}
-      {showDot && <div className={`${baseClass}__dot`} />}
+      {showDot && (
+        <div
+          className={`${baseClass}__dot`}
+          role="status"
+          aria-label="Configured"
+        />
+      )}
     </div>
   );
 };
