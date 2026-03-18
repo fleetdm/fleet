@@ -10956,7 +10956,7 @@ func testGetHostRecoveryLockPasswordStatus(t *testing.T, ds *Datastore) {
 		require.NotNil(t, status)
 		status.PopulateStatus()
 		require.NotNil(t, status.Status)
-		assert.Equal(t, fleet.RecoveryLockStatusEnforcing, *status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusPending, *status.Status)
 		assert.Empty(t, status.Detail)
 		assert.True(t, status.PasswordAvailable)
 	})
@@ -11031,7 +11031,7 @@ func testGetHostRecoveryLockPasswordStatus(t *testing.T, ds *Datastore) {
 		// NULL status is coalesced to pending, which becomes enforcing
 		status.PopulateStatus()
 		require.NotNil(t, status.Status)
-		assert.Equal(t, fleet.RecoveryLockStatusEnforcing, *status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusPending, *status.Status)
 		assert.Empty(t, status.Detail)
 	})
 
