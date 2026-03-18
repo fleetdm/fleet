@@ -5496,7 +5496,7 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 		&applyResp,
 	)
 
-	// apply an invalid label spec - manual membership without a host specified
+	// apply a valid label spec - manual membership without hosts specified (preserves existing membership)
 	s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
 		Specs: []*fleet.LabelSpec{
 			{
@@ -5506,7 +5506,7 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 				LabelMembershipType: fleet.LabelMembershipTypeManual,
 			},
 		},
-	}, http.StatusUnprocessableEntity, &applyResp,
+	}, http.StatusOK, &applyResp,
 	)
 
 	// apply an invalid label spec - builtin label type

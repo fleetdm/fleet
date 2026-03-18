@@ -1949,9 +1949,14 @@ func TestApplyLabels(t *testing.T) {
 
 	name = writeTmpYml(t, nohostsManualLabelSpec)
 
-	_, err := RunAppNoChecks([]string{"apply", "-f", name})
-	require.Error(t, err)
-	require.ErrorContains(t, err, "declared as manual but contains no `hosts key`")
+	assert.Equal(t, "[+] applied 1 label\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
+	require.Len(t, appliedLabels, 1)
+	assert.Equal(t, "invalid_nohost_manual_label", appliedLabels[0].Name)
+	assert.Nil(t, appliedLabels[0].Hosts)
+
+	appliedLabels = nil
+	ds.ApplyLabelSpecsWithAuthorFuncInvoked = false
 
 	// Apply built-in label (no changes)
 	// The label values below should match the spec.
@@ -1971,7 +1976,7 @@ func TestApplyLabels(t *testing.T) {
 	}
 
 	name = writeTmpYml(t, builtinLabelSpec)
-	_, err = RunAppNoChecks([]string{"apply", "-f", name})
+	_, err := RunAppNoChecks([]string{"apply", "-f", name})
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "Cannot import built-in labels. Please remove labels with a label_type of builtin and try again.")
 	assert.False(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)

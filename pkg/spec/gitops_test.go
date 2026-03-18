@@ -426,12 +426,46 @@ func TestManualLabelEmptyHostList(t *testing.T) {
 labels:
   - name: TestLabel
     description: Label for testing
-    hosts:
+    hosts: []
     label_membership_type: manual`
 
 	gitops, err := gitOpsFromString(t, config)
 	require.NoError(t, err)
-	assert.NotNil(t, gitops.Labels[0].Hosts)
+	require.NotNil(t, gitops.Labels[0].Hosts)
+	assert.Empty(t, gitops.Labels[0].Hosts)
+}
+
+func TestManualLabelOmittedHostList(t *testing.T) {
+	t.Parallel()
+
+	t.Run("hosts key with null value", func(t *testing.T) {
+		t.Parallel()
+		config := getGlobalConfig([]string{})
+		config += `
+labels:
+  - name: TestLabel
+    description: Label for testing
+    hosts:
+    label_membership_type: manual`
+
+		gitops, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+		assert.Nil(t, gitops.Labels[0].Hosts)
+	})
+
+	t.Run("hosts key omitted", func(t *testing.T) {
+		t.Parallel()
+		config := getGlobalConfig([]string{})
+		config += `
+labels:
+  - name: TestLabel
+    description: Label for testing
+    label_membership_type: manual`
+
+		gitops, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+		assert.Nil(t, gitops.Labels[0].Hosts)
+	})
 }
 
 func TestDuplicateQueryNames(t *testing.T) {
