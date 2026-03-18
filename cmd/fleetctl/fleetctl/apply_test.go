@@ -1245,9 +1245,8 @@ spec:
 apiVersion: v1
 kind: label
 spec:
-  name: invalid_nohost_manual_label
+  name: nohost_manual_label
   label_membership_type: manual
-  hosts:
   platforms:
     - darwin
 `
@@ -1952,7 +1951,7 @@ func TestApplyLabels(t *testing.T) {
 	assert.Equal(t, "[+] applied 1 label\n", RunAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	require.Len(t, appliedLabels, 1)
-	assert.Equal(t, "invalid_nohost_manual_label", appliedLabels[0].Name)
+	assert.Equal(t, "manual_label", appliedLabels[0].Name)
 	assert.Nil(t, appliedLabels[0].Hosts)
 
 	appliedLabels = nil
