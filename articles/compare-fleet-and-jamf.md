@@ -13,16 +13,14 @@ Jamf has evolved over two decades as a management solution focused on Apple devi
 
 Fleet and Jamf serve different strategic purposes based on fleet composition and workflow needs.
 
-|                    | Fleet                                                                                                     | Jamf                                                                                          |
-| ------------------ | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Architecture       | API-first design, unified API, osquery validation and data collection                                     | GUI-first, multiple APis                                                                      |
-| Development        | Open-core, public code, contributions welcome                                                             | Proprietary, slow customer feature request intake                                             |
-| Console Management | GUI or GitOps / configuration-as-code console management                                                  | GUI-first, no comprehensive built-in version history or console state management with code    |
-| Platform Support   | Linux, macOS, iOS, iPadOS, Windows, Android, Chromebook                                                   | macOS, iOS, iPadOS, tvOS, visionOS, Android                                                   |
-| Apple MDM          | MDM + DDM protocol, API supports any arbitrary MDM command                                                | MDM protocol, DDM protocol supported in Jamf Cloud only, only specific MDM commands available |
-| Security           | On-demand osquery data collection, YARA rules, event monitoring, CIS benchmark queries publicly available | Deep security features require additional product purchases                                   |
-
-
+| Requirement | Fleet | Jamf |
+| --- | --- | --- |
+| API-first architecture | ✅ | ❌ |
+| Open-source / open-core development | ✅ | ❌ |
+| GitOps / configuration-as-code console management | ✅ | ❌ |
+| Multi-platform support (Linux, Windows, macOS, iOS, iPadOS, Android, Chromebook) | ✅ | ❌ |
+| Full MDM + DDM protocol support on any deployment | ✅ | ❌ |
+| Built-in security features (no additional purchase required) | ✅ | ❌ |
 
 ## Device management workflow comparisons
 
