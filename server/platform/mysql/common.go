@@ -9,10 +9,12 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/XSAM/otelsql"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/ngrok/sqlmw"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // ConnectorFactory creates a driver.Connector for custom database authentication.
@@ -114,6 +116,16 @@ func NewDB(conf *MysqlConfig, opts *DBOptions, otelDriverName string) (*sqlx.DB,
 	if dbError != nil {
 		return nil, dbError
 	}
+
+	// Register DB stats (sql.DBStats [/usr/local/go/src/database/sql/sql.go]) metrics when using OpenTelemetry tracing.
+	if opts.TracingConfig != nil && opts.TracingConfig.TracingEnabled && opts.TracingConfig.TracingType != "elasticapm" {
+		if err := otelsql.RegisterDBStatsMetrics(db.DB, otelsql.WithAttributes(
+			attribute.String("db.system", "mysql"),
+		)); err != nil {
+			opts.Logger.WarnContext(context.Background(), "failed to register DB stats metrics", "err", err)
+		}
+	}
+
 	return db, nil
 }
 

@@ -209,9 +209,46 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "Failed to initialize OTEL metrics exporter")
 				}
+
+				// Create views to rename otelsql metrics to match what OpenTelemetry Signoz expects
+				// Reference: https://opentelemetry.io/docs/specs/semconv/db/database-metrics/
+				dbMetricViews := []sdkmetric.View{
+					sdkmetric.NewView(
+						sdkmetric.Instrument{Name: "db.sql.connection.open"},
+						sdkmetric.Stream{Name: "db.client.connection.count"},
+					),
+					sdkmetric.NewView(
+						sdkmetric.Instrument{Name: "db.sql.connection.max_open"},
+						sdkmetric.Stream{Name: "db.client.connection.max"},
+					),
+					sdkmetric.NewView(
+						sdkmetric.Instrument{Name: "db.sql.connection.wait"},
+						sdkmetric.Stream{Name: "db.client.connection.pending_requests"},
+					),
+					sdkmetric.NewView(
+						sdkmetric.Instrument{Name: "db.sql.connection.wait_duration"},
+						sdkmetric.Stream{Name: "db.client.connection.wait_time"},
+					),
+					sdkmetric.NewView(
+						sdkmetric.Instrument{Name: "db.sql.connection.closed_max_idle"},
+						sdkmetric.Stream{Name: "db.client.connection.idle.max"},
+					),
+					sdkmetric.NewView(
+						sdkmetric.Instrument{Name: "db.sql.connection.closed_max_idle_time"},
+						sdkmetric.Stream{Name: "db.client.connection.idle.min"},
+					),
+					// Keep latency metrics with db.sql prefix
+					// Signoz's "DB Call Metrics" gets latency data from traces, not metrics
+					// sdkmetric.NewView(
+					// 	 sdkmetric.Instrument{Name: "db.sql.latency"},
+					//	 sdkmetric.Stream{Name: "db.client.operation.duration"},
+					// ),
+				}
+
 				meterProvider = sdkmetric.NewMeterProvider(
 					sdkmetric.WithResource(res),
 					sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter)),
+					sdkmetric.WithView(dbMetricViews...),
 				)
 				otel.SetMeterProvider(meterProvider)
 
