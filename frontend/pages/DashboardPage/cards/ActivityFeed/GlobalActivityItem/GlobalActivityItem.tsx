@@ -503,20 +503,11 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  triggeredHostRecoveryLockPasswordRotation: (activity: IActivity) => {
+  rotatedHostRecoveryLockPassword: (activity: IActivity) => {
     return (
       <>
         {" "}
-        triggered a Recovery Lock password rotation for{" "}
-        <b>{activity.details?.host_display_name}</b>.
-      </>
-    );
-  },
-  autoRotatedHostRecoveryLockPassword: (activity: IActivity) => {
-    return (
-      <>
-        {" "}
-        auto-rotated the Recovery Lock password for{" "}
+        rotated the Recovery Lock password for{" "}
         <b>{activity.details?.host_display_name}</b>.
       </>
     );
@@ -1876,13 +1867,8 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.SetHostRecoveryLockPassword: {
       return TAGGED_TEMPLATES.setHostRecoveryLockPassword(activity);
     }
-    case ActivityType.TriggeredHostRecoveryLockPasswordRotation: {
-      return TAGGED_TEMPLATES.triggeredHostRecoveryLockPasswordRotation(
-        activity
-      );
-    }
-    case ActivityType.AutoRotatedHostRecoveryLockPassword: {
-      return TAGGED_TEMPLATES.autoRotatedHostRecoveryLockPassword(activity);
+    case ActivityType.RotatedHostRecoveryLockPassword: {
+      return TAGGED_TEMPLATES.rotatedHostRecoveryLockPassword(activity);
     }
     case ActivityType.CreatedAppleOSProfile: {
       return TAGGED_TEMPLATES.createdAppleOSProfile(activity, isPremiumTier);

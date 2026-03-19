@@ -742,30 +742,15 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
   });
 
-  it("renders a 'triggered_host_recovery_lock_password_rotation' type activity", () => {
+  it("renders a 'rotated_host_recovery_lock_password' type activity", () => {
     const activity = createMockActivity({
-      type: ActivityType.TriggeredHostRecoveryLockPasswordRotation,
+      type: ActivityType.RotatedHostRecoveryLockPassword,
       details: { host_display_name: "Alex's Macbook Air" },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("triggered a Recovery Lock password rotation for", {
-        exact: false,
-      })
-    ).toBeInTheDocument();
-    expect(screen.getByText("Alex's Macbook Air")).toBeInTheDocument();
-  });
-
-  it("renders an 'auto_rotated_host_recovery_lock_password' type activity", () => {
-    const activity = createMockActivity({
-      type: ActivityType.AutoRotatedHostRecoveryLockPassword,
-      details: { host_display_name: "Alex's Macbook Air" },
-    });
-    render(<GlobalActivityItem activity={activity} isPremiumTier />);
-
-    expect(
-      screen.getByText("auto-rotated the Recovery Lock password for", {
+      screen.getByText("rotated the Recovery Lock password for", {
         exact: false,
       })
     ).toBeInTheDocument();
