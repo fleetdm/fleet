@@ -1004,8 +1004,9 @@ func (a ActivityTypeWipedHost) HostIDs() []uint {
 }
 
 type ActivityTypeRotatedHostRecoveryLockPassword struct {
-	HostID          uint   `json:"host_id"`
-	HostDisplayName string `json:"host_display_name"`
+	HostID           uint   `json:"host_id"`
+	HostDisplayName  string `json:"host_display_name"`
+	FromAutoRotation bool   `json:"-"`
 }
 
 func (a ActivityTypeRotatedHostRecoveryLockPassword) ActivityName() string {
@@ -1014,6 +1015,10 @@ func (a ActivityTypeRotatedHostRecoveryLockPassword) ActivityName() string {
 
 func (a ActivityTypeRotatedHostRecoveryLockPassword) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+func (a ActivityTypeRotatedHostRecoveryLockPassword) WasFromAutomation() bool {
+	return a.FromAutoRotation
 }
 
 type ActivityTypeCreatedDeclarationProfile struct {

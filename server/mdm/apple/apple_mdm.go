@@ -1921,7 +1921,7 @@ func sendAutoRotationCommands(
 			continue
 		}
 
-		logger.InfoContext(ctx, "sent auto-rotation command",
+		logger.DebugContext(ctx, "sent auto-rotation command",
 			"host_uuid", hostUUID,
 			"command_uuid", cmdUUID,
 		)

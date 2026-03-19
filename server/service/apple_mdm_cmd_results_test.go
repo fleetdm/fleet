@@ -668,6 +668,7 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			assert.True(t, ok, "Activity should be of type ActivityTypeRotatedHostRecoveryLockPassword")
 			assert.Equal(t, uint(1), act.HostID)
 			assert.Equal(t, "test-host", act.HostDisplayName)
+			assert.True(t, act.FromAutoRotation, "FromAutoRotation should be true for rotation activities")
 			return nil
 		}
 

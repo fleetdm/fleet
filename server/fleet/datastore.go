@@ -1577,7 +1577,7 @@ type Datastore interface {
 	ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error
 
 	// MarkRecoveryLockPasswordViewed sets auto_rotate_at to 1 hour from now.
-	// Called when an admin views the password. Returns the scheduled rotation time.
+	// Called when the password is viewed and returns the scheduled rotation time.
 	MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error)
 
 	// GetHostsForAutoRotation returns host UUIDs where auto_rotate_at <= now

@@ -7392,8 +7392,9 @@ func NewSetRecoveryLockResultsHandler(
 
 					// Log the activity (nil user indicates automated/cron action)
 					if err := newActivityFn(ctx, nil, fleet.ActivityTypeRotatedHostRecoveryLockPassword{
-						HostID:          hostID,
-						HostDisplayName: displayName,
+						HostID:           hostID,
+						HostDisplayName:  displayName,
+						FromAutoRotation: true,
 					}); err != nil {
 						logger.WarnContext(ctx, "RotateRecoveryLock handler: failed to create activity",
 							"host_uuid", hostUUID,
