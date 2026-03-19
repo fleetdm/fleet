@@ -15,7 +15,7 @@ The following are the required keys in the `default.yml` and any `fleets/fleet-n
 ```yaml
 name: # Only fleets/fleet-name.yml
 policies:
-queries:
+reports:
 agent_options:
 controls:
 software:
@@ -54,7 +54,7 @@ The `hostname` host identifier is deprecated. Please use a host's `id`, `hardwar
 
 > `labels` is an optional key: if included in `default.yml`, existing global labels not listed will be deleted. If included in `fleets/fleet-name.yml`, the fleet's existing labels not listed will be deleted. If the `label` key is omitted, existing labels will stay intact. For this reason, enabling [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) _does not_ restrict creating/editing labels via the UI.
 >
-> Any labels referenced in other sections (like [policies](https://fleetdm.com/docs/configuration/yaml-files#policies), [queries](https://fleetdm.com/docs/configuration/yaml-files#queries) or [software](https://fleetdm.com/docs/configuration/yaml-files#software)) _must_ be specified in the `labels` section.
+> Any labels referenced in other sections (like [policies](https://fleetdm.com/docs/configuration/yaml-files#policies), [reports](https://fleetdm.com/docs/configuration/yaml-files#reports) or [software](https://fleetdm.com/docs/configuration/yaml-files#software)) _must_ be specified in the `labels` section.
 
 ### Example
 
@@ -199,9 +199,9 @@ policies:
 
 > Currently, the `run_script` and `install_software` policy automations can only be configured for a fleet (`fleets/fleet-name.yml`) or "Unassigned" (`fleets/unassigned.yml`). The automations can only be added to policies in which the script (or software) is defined in the same fleet (or "Unassigned"). `calendar_events_enabled` can only be configured for policies on a fleet.
 
-## queries
+## reports
 
-Queries can be specified inline in your `default.yml` file or `fleets/fleet-name.yml` files. They can also be specified in separate files in your `lib/` folder.
+Reports can be specified inline in your `default.yml` file or `fleets/fleet-name.yml` files. They can also be specified in separate files in your `lib/` folder.
 
 ### Options
 
@@ -214,7 +214,7 @@ For possible options, see the parameters for the [Create query API endpoint](htt
 `default.yml` or `fleets/fleet-name.yml`
 
 ```yaml
-queries:
+reports:
   - name: Collect failed login attempts
     description: Lists the users at least one failed login attempt and timestamp of failed login. Number of failed login attempts reset to zero after a user successfully logs in.
     query: SELECT users.username, account_policy_data.failed_login_count, account_policy_data.failed_login_timestamp FROM users INNER JOIN account_policy_data using (uid) WHERE account_policy_data.failed_login_count > 0;
@@ -229,7 +229,7 @@ queries:
 
 #### Separate file
 
-`lib/queries-name.queries.yml`
+`lib/reports-name.reports.yml`
 
 ```yaml
 - name: Collect failed login attempts
@@ -251,8 +251,8 @@ queries:
 `default.yml` or `fleets/fleet-name.yml`
 
 ```yaml
-queries:
-  - path: ../lib/queries-name.queries.yml
+reports:
+  - path: ../lib/reports-name.reports.yml
     labels_include_any:
       - Engineering
       - Customer Support
@@ -309,7 +309,7 @@ config:
 
 `default.yml` or `fleets/fleet-name.yml`
 
-> We want `-` for policies and queries because it’s an array. Agent Options we do not use `-` for `path`.
+> We want `-` for policies and reports because it’s an array. Agent Options we do not use `-` for `path`.
 
 ```yaml
 agent_options:
@@ -591,7 +591,7 @@ software:
 - `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3. If you don't want to host the package, add it to Fleet first and then copy the `hash_sha256`.
 - `hash_sha256` specifies the SHA256 hash of the package file. If provided, and a package with that hash was already added to Fleet, the download will be skipped. This speeds up GitOps runs. If a package with that hash doesn't exist in Fleet, Fleet will download the package from the `url` and add the package if the hash matches. Fleet will error if the hash doesn't match. You can specify `hash_sha256` without `url` if the package was already added to Fleet via the UI or the API.
 - `display_name` is the package name that will be displayed in the UI. If not set, `name` will be used instead.
-- `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
+- `pre_install_query.path` is the SQL query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg). Not supported for `.sh` and `.ps1` files.
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg). Not supported for `.sh` and `.ps1` files.
 - `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default. Not supported for `.sh` and `.ps1` files.
@@ -645,7 +645,7 @@ By default, Fleet-maintained apps will be updated to the latest version publishe
 The fields below are all optional.
 
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service**.
-- `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
+- `pre_install_query.path` is the SQL query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `post_install_script.path` is the script that, if supplied, Fleet will run on hosts after the software installs.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
 - `⁠version` specifies the app version. Available versions are listed in the Fleet UI under Actions > Edit software. If omitted, Fleet automatically downloads the latest version found in [Fleet's catalog](https://fleetdm.com/software-catalog). The `version` must be wrapped in quotes (e.g. "147.0.1") so that it is processed as a string.
@@ -662,7 +662,7 @@ Currently, managing users and ticket destinations (Jira and Zendesk) are only su
 
 ### features
 
-The `features` section of the configuration YAML lets you define what predefined queries are sent to the hosts and later on processed by Fleet for different functionalities.
+The `features` section of the configuration YAML lets you turn on/off Fleet features.
 - `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned (default: empty).
 - `enable_host_users` specifies whether or not Fleet collects user data from hosts (default: `true`).
 - `enable_software_inventory` specifies whether or not Fleet collects software inventory from hosts (default: `true`).
@@ -759,7 +759,7 @@ org_settings:
 
 - `ai_features_disabled` disables AI-assisted policy descriptions and resolutions. (default: `false`)
 - `enable_analytics` specifies whether or not to enable Fleet's [usage statistics](https://fleetdm.com/docs/using-fleet/usage-statistics). (default: `true`)
-- `live_query_disabled` disables the ability to run live queries (ad hoc queries executed via the UI or fleetctl). (default: `false`)
+- `live_report_disabled` disables the ability to run live reports (ad hoc reports executed via the UI or fleetctl). (default: `false`)
 - `query_reports_disabled` disables query reports and deletes existing reports. (default: `false`)
 - `query_report_cap` sets the maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at a time and monitoring your infrastructure. (default: `1000`)
 - `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI. (default: `false`)
@@ -775,7 +775,7 @@ org_settings:
   server_settings:
     ai_features_disabled: false
     enable_analytics: true
-    live_query_disabled: false
+    live_report_disabled: false
     query_reports_disabled: false
     scripts_disabled: false
     server_url: https://instance.fleet.com
@@ -1183,8 +1183,7 @@ org_settings:
 The `yara_rules` section lets you define [YARA rules](https://virustotal.github.io/yara/) that will be served by Fleet's [authenticated
 YARA rule](https://fleetdm.com/guides/remote-yara-rules) functionality.
 
-Can only be configured for "All fleets" (`org_settings`). To target rules to specific fleets, target the
-queries referencing the rules to the desired fleets.
+Can only be configured for "All fleets" (`org_settings`). To target rules to specific fleets, target the reports referencing the rules to the desired fleets.
 
 ##### Example
 
