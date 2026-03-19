@@ -88,6 +88,10 @@ func TestPolicies(t *testing.T) {
 		{"PolicyModificationResetsAttemptNumber", testPolicyModificationResetsAttemptNumber},
 		{"TeamPatchPolicy", testTeamPatchPolicy},
 		{"TeamPolicyAutomationFilter", testTeamPolicyAutomationFilter},
+		{"BatchedPolicyMembershipCleanup", testBatchedPolicyMembershipCleanup},
+		{"BatchedPolicyMembershipCleanupOnPolicyUpdate", testBatchedPolicyMembershipCleanupOnPolicyUpdate},
+		{"ApplyPolicySpecsNeedsFullMembershipCleanupFlag", testApplyPolicySpecsNeedsFullMembershipCleanupFlag},
+		{"CleanupPolicyMembershipCrashRecovery", testCleanupPolicyMembershipCrashRecovery},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -7096,6 +7100,425 @@ func testPolicyModificationResetsAttemptNumber(t *testing.T, ds *Datastore) {
 	require.Equal(t, int64(0), *scriptResults[1].AttemptNumber)
 }
 
+// testBatchedPolicyMembershipCleanup verifies that cleanupPolicyMembershipForPolicy and
+// cleanupPolicyMembershipOnPolicyUpdate correctly delete rows in small batches (to reduce lock
+// contention) rather than in a single large DELETE, and that all memberships are fully removed.
+func testBatchedPolicyMembershipCleanup(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// Override batch size to force multiple batches with a small number of hosts.
+	orig := policyMembershipDeleteBatchSize
+	policyMembershipDeleteBatchSize = 2
+	t.Cleanup(func() { policyMembershipDeleteBatchSize = orig })
+
+	// Create a policy and 5 hosts (more than the batch size of 2).
+	pol := newTestPolicy(t, ds, user1, "batch cleanup policy", "", nil)
+	hosts := make([]*fleet.Host, 5)
+	for i := range hosts {
+		id := fmt.Sprintf("batch-cleanup-%d", i)
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:   &id,
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         &id,
+			UUID:            id,
+			Hostname:        id,
+			Platform:        "linux",
+		})
+		require.NoError(t, err)
+		hosts[i] = h
+	}
+
+	// Record failing results for all hosts so they all have policy_membership rows and host_issues entries.
+	for _, h := range hosts {
+		err := ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{pol.ID: ptr.Bool(false)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	// Collect host IDs for scoped host_issues assertions (avoids flakiness if other tests
+	// leave rows in host_issues).
+	hostIDs := make([]uint, len(hosts))
+	for i, h := range hosts {
+		hostIDs[i] = h.ID
+	}
+	hostIssuesQ, hostIssuesArgs, err := sqlx.In(
+		`SELECT COUNT(*) FROM host_issues WHERE host_id IN (?) AND total_issues_count > 0`, hostIDs,
+	)
+	require.NoError(t, err)
+
+	// Confirm all memberships exist.
+	var count int
+	require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, pol.ID))
+	require.Equal(t, 5, count)
+
+	// Confirm all hosts have failing policy issues.
+	require.NoError(t, ds.writer(ctx).Get(&count, hostIssuesQ, hostIssuesArgs...))
+	require.Equal(t, 5, count)
+
+	// Run the full cleanup function directly (simulates what ApplyPolicySpecs triggers when a
+	// query changes — shouldRemoveAllPolicyMemberships == true).
+	err = cleanupPolicyMembershipForPolicy(ctx, ds.reader(ctx), ds.writer(ctx), pol.ID)
+	require.NoError(t, err)
+
+	// All policy_membership rows must be gone.
+	require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, pol.ID))
+	assert.Zero(t, count)
+
+	// host_issues must be updated (no more failing policies for those hosts).
+	require.NoError(t, ds.writer(ctx).Get(&count, hostIssuesQ, hostIssuesArgs...))
+	assert.Zero(t, count)
+}
+
+// testBatchedPolicyMembershipCleanupOnPolicyUpdate verifies that cleanupPolicyMembershipOnPolicyUpdate
+// deletes rows in batches for both the platform and label sections.
+func testBatchedPolicyMembershipCleanupOnPolicyUpdate(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// Override batch size to force multiple batches.
+	orig := policyMembershipDeleteBatchSize
+	policyMembershipDeleteBatchSize = 2
+	t.Cleanup(func() { policyMembershipDeleteBatchSize = orig })
+
+	// ── Part 1: platform-based cleanup ──────────────────────────────────────
+	// Create a windows-only policy.
+	pol := newTestPolicy(t, ds, user1, "batch platform cleanup", "windows", nil)
+
+	// Create 5 linux hosts (wrong platform) + 1 windows host (should remain).
+	winID := "batch-win-0"
+	winHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   &winID,
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         &winID,
+		UUID:            winID,
+		Hostname:        winID,
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	linuxHosts := make([]*fleet.Host, 5)
+	for i := range linuxHosts {
+		id := fmt.Sprintf("batch-lin-%d", i)
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:   &id,
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         &id,
+			UUID:            id,
+			Hostname:        id,
+			Platform:        "linux",
+		})
+		require.NoError(t, err)
+		linuxHosts[i] = h
+	}
+
+	// Record results for all hosts (simulating results arriving before platform filter applied).
+	allHosts := append([]*fleet.Host{winHost}, linuxHosts...)
+	for _, h := range allHosts {
+		err := ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{pol.ID: ptr.Bool(false)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	var count int
+	require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, pol.ID))
+	require.Equal(t, 6, count)
+
+	// Run the platform-aware cleanup (simulates CleanupPolicyMembership cron).
+	err = cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.reader(ctx), ds.writer(ctx), pol.ID, pol.Platform)
+	require.NoError(t, err)
+
+	// Only the windows host should remain.
+	var hostIDs []uint
+	require.NoError(t, ds.writer(ctx).Select(&hostIDs, `SELECT host_id FROM policy_membership WHERE policy_id = ?`, pol.ID))
+	require.ElementsMatch(t, []uint{winHost.ID}, hostIDs)
+
+	// ── Part 2: label-based cleanup ─────────────────────────────────────────
+	// Create a label and a policy that targets only hosts in that label.
+	inclLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "batch-incl-label"})
+	require.NoError(t, err)
+
+	// Create 1 host that belongs to the label (should survive cleanup) and 5
+	// that do not (should be removed in multiple batches of 2).
+	lblID := "batch-lbl-0"
+	lblHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   &lblID,
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         &lblID,
+		UUID:            lblID,
+		Hostname:        lblID,
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddLabelsToHost(ctx, lblHost.ID, []uint{inclLabel.ID}))
+
+	nonLblHosts := make([]*fleet.Host, 5)
+	for i := range nonLblHosts {
+		id := fmt.Sprintf("batch-nonlbl-%d", i)
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:   &id,
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         &id,
+			UUID:            id,
+			Hostname:        id,
+			Platform:        "linux",
+		})
+		require.NoError(t, err)
+		nonLblHosts[i] = h
+	}
+
+	// Create a label-scoped policy (no platform restriction).
+	lblPol := newTestPolicy(t, ds, user1, "batch label cleanup", "", nil)
+	lblPol.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: inclLabel.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, lblPol, false, false))
+
+	// Record policy results for all label-test hosts so policy_membership is populated.
+	labelHosts := append([]*fleet.Host{lblHost}, nonLblHosts...)
+	for _, h := range labelHosts {
+		err := ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{lblPol.ID: ptr.Bool(false)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, lblPol.ID))
+	require.Equal(t, 6, count)
+
+	// Run cleanupPolicyMembershipOnPolicyUpdate with no platform restriction so
+	// only the label-based branch fires.
+	err = cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.reader(ctx), ds.writer(ctx), lblPol.ID, "" /* no platform filter */)
+	require.NoError(t, err)
+
+	// Only the host that belongs to the include label should remain.
+	var lblHostIDs []uint
+	require.NoError(t, ds.writer(ctx).Select(&lblHostIDs, `SELECT host_id FROM policy_membership WHERE policy_id = ?`, lblPol.ID))
+	require.ElementsMatch(t, []uint{lblHost.ID}, lblHostIDs)
+}
+
+// testApplyPolicySpecsNeedsFullMembershipCleanupFlag verifies that:
+//  1. ApplyPolicySpecs sets needs_full_membership_cleanup = 1 inside the transaction when
+//     the query changes (shouldRemoveAllPolicyMemberships == true).
+//  2. The flag is cleared back to 0 after cleanup completes successfully.
+//  3. All policy_membership rows are removed after the cleanup.
+func testApplyPolicySpecsNeedsFullMembershipCleanupFlag(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// Create the policy for the first time.
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{Name: "flag test policy", Query: "select 1;", Platform: "", Type: fleet.PolicyTypeDynamic},
+	}))
+
+	// Find the policy by name so the test is not sensitive to other global policies created by concurrent tests.
+	pols, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	require.NoError(t, err)
+	var pol *fleet.Policy
+	for _, p := range pols {
+		if p.Name == "flag test policy" {
+			pol = p
+			break
+		}
+	}
+	require.NotNil(t, pol, "policy 'flag test policy' not found")
+
+	// Create hosts and record failing results.
+	hosts := make([]*fleet.Host, 3)
+	for i := range hosts {
+		id := fmt.Sprintf("flag-test-%d", i)
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:   &id,
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         &id,
+			UUID:            id,
+			Hostname:        id,
+			Platform:        "linux",
+		})
+		require.NoError(t, err)
+		hosts[i] = h
+	}
+	for _, h := range hosts {
+		err := ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{pol.ID: ptr.Bool(false)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	var count int
+	require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, pol.ID))
+	require.Equal(t, 3, count)
+
+	// Update the query — this triggers shouldRemoveAllPolicyMemberships = true.
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{Name: "flag test policy", Query: "select 2;", Platform: "", Type: fleet.PolicyTypeDynamic},
+	}))
+
+	// The flag must be 0 after successful completion (set inside TX, cleared after cleanup).
+	var flagVal int
+	require.NoError(t, ds.writer(ctx).Get(&flagVal,
+		`SELECT needs_full_membership_cleanup FROM policies WHERE id = ?`, pol.ID))
+	assert.Zero(t, flagVal, "needs_full_membership_cleanup must be cleared after successful cleanup")
+
+	// All memberships must have been removed.
+	require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, pol.ID))
+	assert.Zero(t, count)
+}
+
+// testCleanupPolicyMembershipCrashRecovery verifies two recovery paths when a previous cleanup
+// was interrupted (crash or error after the transaction committed):
+//
+//  1. GitOps retry path: ApplyPolicySpecs detects needs_full_membership_cleanup = 1 and re-runs
+//     the full cleanup itself, without waiting for the cron.
+//  2. Cron safety net path: CleanupPolicyMembership finds needs_full_membership_cleanup = 1 and
+//     finishes the job when no GitOps retry occurs.
+func testCleanupPolicyMembershipCrashRecovery(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	newHosts := func(t *testing.T, n int, prefix string) []*fleet.Host {
+		t.Helper()
+		hosts := make([]*fleet.Host, n)
+		for i := range hosts {
+			id := fmt.Sprintf("%s-%d", prefix, i)
+			h, err := ds.NewHost(ctx, &fleet.Host{
+				OsqueryHostID:   &id,
+				DetailUpdatedAt: time.Now(),
+				LabelUpdatedAt:  time.Now(),
+				PolicyUpdatedAt: time.Now(),
+				SeenTime:        time.Now(),
+				NodeKey:         &id,
+				UUID:            id,
+				Hostname:        id,
+				Platform:        "linux",
+			})
+			require.NoError(t, err)
+			hosts[i] = h
+		}
+		return hosts
+	}
+
+	recordResults := func(t *testing.T, hosts []*fleet.Host, polID uint) {
+		t.Helper()
+		for _, h := range hosts {
+			err := ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{polID: ptr.Bool(false)}, time.Now(), false)
+			require.NoError(t, err)
+		}
+	}
+
+	t.Run("gitops retry re-triggers cleanup", func(t *testing.T) {
+		// Create policy via ApplyPolicySpecs so it exists in the DB.
+		require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+			{Name: "retry recovery policy", Query: "select 1;", Type: fleet.PolicyTypeDynamic},
+		}))
+		pols, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+		require.NoError(t, err)
+		var pol *fleet.Policy
+		for _, p := range pols {
+			if p.Name == "retry recovery policy" {
+				pol = p
+				break
+			}
+		}
+		require.NotNil(t, pol)
+
+		// Record membership rows.
+		hosts := newHosts(t, 4, "retry-recovery")
+		recordResults(t, hosts, pol.ID)
+
+		var count int
+		require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, pol.ID))
+		require.Equal(t, 4, count)
+
+		// Simulate: TX committed with the flag set, but cleanup never ran (crash/error).
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`UPDATE policies SET needs_full_membership_cleanup = 1 WHERE id = ?`, pol.ID)
+		require.NoError(t, err)
+
+		// Retry GitOps with the same spec. ApplyPolicySpecs must detect the flag and
+		// re-run the full cleanup — no cron needed.
+		require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+			{Name: "retry recovery policy", Query: "select 1;", Type: fleet.PolicyTypeDynamic},
+		}))
+
+		// Flag must be cleared by the retry.
+		var flagVal int
+		require.NoError(t, ds.writer(ctx).Get(&flagVal,
+			`SELECT needs_full_membership_cleanup FROM policies WHERE id = ?`, pol.ID))
+		assert.Zero(t, flagVal, "flag must be cleared by the GitOps retry")
+
+		// All memberships must be gone.
+		require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, pol.ID))
+		assert.Zero(t, count, "all policy_membership rows must be removed by the GitOps retry")
+	})
+
+	t.Run("cron cleans up when no gitops retry", func(t *testing.T) {
+		pol := newTestPolicy(t, ds, user1, "cron recovery policy", "", nil)
+
+		hosts := newHosts(t, 4, "cron-recovery")
+		recordResults(t, hosts, pol.ID)
+
+		var count int
+		require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, pol.ID))
+		require.Equal(t, 4, count)
+
+		// Simulate interrupted cleanup: set the flag directly, leave membership rows in place.
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE policies SET needs_full_membership_cleanup = 1 WHERE id = ?`, pol.ID)
+		require.NoError(t, err)
+
+		// CleanupPolicyMembership (cron) should pick up the flag and run the full cleanup.
+		require.NoError(t, ds.CleanupPolicyMembership(ctx, time.Now()))
+
+		// Flag must be cleared.
+		var flagVal int
+		require.NoError(t, ds.writer(ctx).Get(&flagVal,
+			`SELECT needs_full_membership_cleanup FROM policies WHERE id = ?`, pol.ID))
+		assert.Zero(t, flagVal, "flag must be cleared by CleanupPolicyMembership")
+
+		// All memberships must be removed.
+		require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, pol.ID))
+		assert.Zero(t, count, "all policy_membership rows must be cleaned up by the cron safety net")
+	})
+
+	t.Run("cron clears flag when cleanup already completed", func(t *testing.T) {
+		// Simulates: the transaction committed (flag=1), cleanupPolicy ran and
+		// removed all membership rows, but the server crashed before executing
+		// UPDATE policies SET needs_full_membership_cleanup = 0.
+		// The cron must handle this gracefully (no-op cleanup) and clear the flag.
+		pol := newTestPolicy(t, ds, user1, "flag-only recovery policy", "", nil)
+
+		// No membership rows exist — simulating that cleanup already removed them.
+		var count int
+		require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, pol.ID))
+		require.Zero(t, count, "precondition: no membership rows")
+
+		// Set the flag to simulate the crash window between cleanup and flag clear.
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE policies SET needs_full_membership_cleanup = 1 WHERE id = ?`, pol.ID)
+		require.NoError(t, err)
+
+		// CleanupPolicyMembership (cron) should handle this without errors.
+		require.NoError(t, ds.CleanupPolicyMembership(ctx, time.Now()))
+
+		// Flag must be cleared.
+		var flagVal int
+		require.NoError(t, ds.writer(ctx).Get(&flagVal,
+			`SELECT needs_full_membership_cleanup FROM policies WHERE id = ?`, pol.ID))
+		assert.Zero(t, flagVal, "flag must be cleared even when no membership rows remain")
+	})
+}
+
 func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
@@ -7150,7 +7573,7 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 		PatchSoftwareTitleID: &titleID,
 	})
 	require.NoError(t, err)
-	require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') >= 0;", p1.Query)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') < 0);", p1.Query)
 
 	_, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
 		Name:     "p2",
@@ -7172,7 +7595,7 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 	require.Equal(t, "Outdated software might introduce security vulnerabilities or compatibility issues.", p3.Description)
 	require.Equal(t, "Install the latest version from self-service.", *p3.Resolution)
 	require.Equal(t, "darwin", p3.Platform)
-	require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') >= 0;", p3.Query)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') < 0);", p3.Query)
 
 	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{p3.ID})
 	require.NoError(t, err)
@@ -7190,7 +7613,7 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 	require.Equal(t, "description", p4.Description)
 	require.Equal(t, "resolution", *p4.Resolution)
 	require.Equal(t, "darwin", p4.Platform)
-	require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') >= 0;", p4.Query)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') < 0);", p4.Query)
 
 	// test GetPatchPolicy
 	data, err := ds.GetPatchPolicy(ctx, &team1.ID, titleID)
@@ -7237,6 +7660,29 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 		TeamID:            nil,
 		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
+	require.NoError(t, err)
+
+	// Add an FMA.
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{ID: 1})
+	require.NoError(t, err)
+
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "hello",
+		PreInstallQuery:      "SELECT 1",
+		PostInstallScript:    "world",
+		StorageID:            "storage1",
+		Filename:             "maintained1",
+		Title:                "Maintained1",
+		Version:              "1.0",
+		Source:               "apps",
+		Platform:             "darwin",
+		BundleIdentifier:     "fleet.maintained1",
+		UserID:               user1.ID,
+		TeamID:               nil,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: &fma.ID,
+	}
+	_, titleID2, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), payload)
 	require.NoError(t, err)
 
 	test.CreateInsertGlobalVPPToken(t, ds)
@@ -7298,6 +7744,14 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	teamPatchPolicy, err := ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:                 "query 8",
+		Query:                "SELECT 1;",
+		Type:                 fleet.PolicyTypePatch,
+		PatchSoftwareTitleID: &titleID2,
+	})
+	require.NoError(t, err)
+
 	// TODO: test ticket integration policies?
 
 	config := fleet.TeamConfig{}
@@ -7312,7 +7766,7 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	}, "")
 	require.NoError(t, err)
 
-	require.Len(t, merged, 7)
+	require.Len(t, merged, 8)
 	assert.Equal(t, gpol.ID, merged[0].ID)
 	assert.Equal(t, teamInstallerPolicy.ID, merged[1].ID)
 	assert.Equal(t, teamAppStorePolicy.ID, merged[2].ID)
@@ -7320,6 +7774,7 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	assert.Equal(t, teamCalendarPolicy.ID, merged[4].ID)
 	assert.Equal(t, teamConditionalPolicy.ID, merged[5].ID)
 	assert.Equal(t, teamWebhookPolicy.ID, merged[6].ID)
+	assert.Equal(t, teamPatchPolicy.ID, merged[7].ID)
 
 	// Test filters
 	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
@@ -7327,9 +7782,10 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 		OrderDirection: fleet.OrderAscending,
 	}, "software")
 	require.NoError(t, err)
-	require.Len(t, merged, 2)
+	require.Len(t, merged, 3)
 	assert.Equal(t, teamInstallerPolicy.ID, merged[0].ID)
 	assert.Equal(t, teamAppStorePolicy.ID, merged[1].ID)
+	assert.Equal(t, teamPatchPolicy.ID, merged[2].ID)
 
 	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
 		OrderKey:       "name",
@@ -7369,7 +7825,8 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 		OrderDirection: fleet.OrderAscending,
 	}, fleet.ListOptions{}, "software")
 	require.NoError(t, err)
-	require.Len(t, policies, 2)
+	require.Len(t, policies, 3)
 	assert.Equal(t, teamInstallerPolicy.ID, policies[0].ID)
 	assert.Equal(t, teamAppStorePolicy.ID, policies[1].ID)
+	assert.Equal(t, teamPatchPolicy.ID, policies[2].ID)
 }

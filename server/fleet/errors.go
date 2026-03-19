@@ -534,6 +534,11 @@ var (
 	SCEPRenewalIDWithoutURLChallengeErrMsg = "Variable \"$FLEET_VAR_" + string(FleetVarSCEPRenewalID) + "\" can't be used if variables for SCEP URL and Challenge are not specified."
 )
 
+const (
+	// DeleteCAReferencedByTemplatesErrMsg is the error substring used when a CA cannot be deleted because certificate templates still reference it.
+	DeleteCAReferencedByTemplatesErrMsg = "Certificate templates still reference it"
+)
+
 // ConflictError is used to indicate a conflict, such as a UUID conflict in the DB.
 type ConflictError struct {
 	Message string

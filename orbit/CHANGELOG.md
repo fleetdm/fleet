@@ -1,3 +1,7 @@
+## Orbit 1.53.1 (Mar 18, 2026)
+
+* Updated github.com/shirou/gopsutil from v3 to v4 to fix a crash in Apple M5 hardware.
+
 ## Orbit 1.53.0 (Mar 03, 2026)
 
 * Improved GUI user detection in orbit to use the correct active GUI session when starting Fleet Desktop.

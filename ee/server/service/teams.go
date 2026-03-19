@@ -9,6 +9,7 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
@@ -80,6 +81,7 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	if p.Name == nil {
 		return nil, fleet.NewInvalidArgumentError("name", "missing required argument")
 	}
+	*p.Name = strings.TrimSpace(*p.Name)
 	if *p.Name == "" {
 		return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
 	}
@@ -144,6 +146,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		return nil, err
 	}
 	if payload.Name != nil {
+		*payload.Name = strings.TrimSpace(*payload.Name)
 		if *payload.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
 		}
@@ -213,17 +216,23 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 		}
 
-		// Always check whether specified versions are supported by Apple (even if they weren't updated)
+		// Only check whether specified versions are supported by Apple if they were updated in this request.
 		// Note that we're validating against the full, non-public asset set of OS versions here because
 		// in our DEP flow the minimum version just acts as the threshold for whether or not to update
 		// the host to the latest, public version. We don't need to install the specified version on the
 		// host during DEP so it doesn't need to be in the public asset set.
-		if errs := apple_mdm.ValidateMDMSettingsAppleSupportedOSVersion(team.Config.MDM, false); len(errs) > 0 {
-			invalid := &fleet.InvalidArgumentError{}
-			for k, v := range errs {
-				invalid.Append(k, v.Error())
-			}
-			return nil, invalid
+		m, err := apple_mdm.ValidateMDMSettingsAppleSupportedOSVersion(team.Config.MDM, false)
+		if err != nil {
+			return nil, fleet.NewInvalidArgumentError("mdm", err.Error())
+		}
+		if v, ok := m["macos"]; ok && macOSMinVersionUpdated {
+			return nil, fleet.NewInvalidArgumentError("macos_updates.minimum_version", v)
+		}
+		if v, ok := m["ios"]; ok && iOSMinVersionUpdated {
+			return nil, fleet.NewInvalidArgumentError("ios_updates.minimum_version", v)
+		}
+		if v, ok := m["ipados"]; ok && iPadOSMinVersionUpdated {
+			return nil, fleet.NewInvalidArgumentError("ipados_updates.minimum_version", v)
 		}
 
 		if payload.MDM.WindowsUpdates != nil {
@@ -486,9 +495,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	if recoveryLockPasswordUpdated {
 		var act fleet.ActivityDetails
 		if team.Config.MDM.EnableRecoveryLockPassword {
-			act = fleet.ActivityTypeEnabledRecoveryLockPassword{TeamID: &team.ID, TeamName: &team.Name}
+			act = fleet.ActivityTypeEnabledRecoveryLockPasswords{TeamID: &team.ID, TeamName: &team.Name}
 		} else {
-			act = fleet.ActivityTypeDisabledRecoveryLockPassword{TeamID: &team.ID, TeamName: &team.Name}
+			act = fleet.ActivityTypeDisabledRecoveryLockPasswords{TeamID: &team.ID, TeamName: &team.Name}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team recovery lock password")
@@ -1081,6 +1090,10 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			}
 		}
 
+		spec.Name = strings.TrimSpace(spec.Name)
+		if spec.Name == "" {
+			return nil, fleet.NewInvalidArgumentError("name", "name may not be empty")
+		}
 		if fleet.IsReservedTeamName(spec.Name) {
 			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", spec.Name))
 		}
@@ -1116,9 +1129,6 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			case err == nil:
 				// OK
 			case fleet.IsNotFound(err):
-				if spec.Name == "" {
-					return nil, fleet.NewInvalidArgumentError("name", "name may not be empty")
-				}
 				create = true
 			default:
 				return nil, err
@@ -1401,6 +1411,16 @@ func (svc *Service) createTeamFromSpec(
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
 		}
 	}
+
+	if spec.MDM.EnableRecoveryLockPassword.Value && appCfg.MDM.EnabledAndConfigured {
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEnabledRecoveryLockPasswords{TeamID: &tm.ID, TeamName: &tm.Name},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for team recovery lock password")
+		}
+	}
 	return tm, nil
 }
 
@@ -1487,9 +1507,10 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.RequireBitLockerPIN = spec.MDM.RequireBitLockerPIN.Value
 	}
 
+	var didUpdateRecoveryLockPassword bool
 	if spec.MDM.EnableRecoveryLockPassword.Valid {
-		recoveryLockPasswordUpdated := team.Config.MDM.EnableRecoveryLockPassword != spec.MDM.EnableRecoveryLockPassword.Value
-		if recoveryLockPasswordUpdated && !appCfg.MDM.EnabledAndConfigured {
+		didUpdateRecoveryLockPassword = team.Config.MDM.EnableRecoveryLockPassword != spec.MDM.EnableRecoveryLockPassword.Value
+		if didUpdateRecoveryLockPassword && !appCfg.MDM.EnabledAndConfigured {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm.enable_recovery_lock_password",
 				`Couldn't update enable_recovery_lock_password because MDM features aren't turned on in Fleet.`))
 		}
@@ -1717,6 +1738,18 @@ func (svc *Service) editTeamFromSpec(
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
+		}
+	}
+
+	if appCfg.MDM.EnabledAndConfigured && didUpdateRecoveryLockPassword {
+		var act fleet.ActivityDetails
+		if team.Config.MDM.EnableRecoveryLockPassword {
+			act = fleet.ActivityTypeEnabledRecoveryLockPasswords{TeamID: &team.ID, TeamName: &team.Name}
+		} else {
+			act = fleet.ActivityTypeDisabledRecoveryLockPasswords{TeamID: &team.ID, TeamName: &team.Name}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for team recovery lock password")
 		}
 	}
 
