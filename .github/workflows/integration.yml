@@ -43,6 +43,7 @@ jobs:
         echo "address=https://fleet-test-$UUID.fleetuem.com" >> $GITHUB_OUTPUT
 
   run-server:
+    timeout-minutes: 240
     runs-on: ubuntu-latest
     needs: gen
     steps:
@@ -86,7 +87,6 @@ jobs:
         done
 
     - name: Run Fleet server
-      timeout-minutes: 240
       run: |
         npm install -g fleetctl
         fleetctl preview --no-hosts --disable-open-browser
@@ -168,11 +168,11 @@ jobs:
         path: cloudflared.log
 
   login:
+   timeout-minutes: 5
    runs-on: ubuntu-latest
    needs: gen
    outputs:
      token: ${{ steps.login.outputs.token }}
-   timeout-minutes: 5
    steps:
     - name: Harden Runner
       uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
