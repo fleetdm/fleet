@@ -102,3 +102,5 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-03-04">
 <meta name="description" value="How a global gaming platform uses Fleet to gain infrastructure visibility across 135,000+ hosts and container environments."> 
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Gaming platform">
+<meta name="cardBodyForCustomersPage" value="How a gaming platform uses Fleet to gain infrastructure visibility across 135,000+ hosts.">
