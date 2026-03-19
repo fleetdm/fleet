@@ -154,15 +154,17 @@ $max-width: 2560px;
   text-decoration: none;
 
   &:hover {
-    color: $ui-fleet-black-75-over;
+    color: $core-fleet-black;
   }
 
   &:focus-visible {
+    color: $core-fleet-black;
     outline-color: $core-focused-outline;
-    outline-offset: 3px;
+    outline-offset: 1px;
     outline-style: solid;
     outline-width: 1px;
-    border-radius: 2px;
+    border-radius: 4px;
+    text-decoration: none;
   }
 }
 

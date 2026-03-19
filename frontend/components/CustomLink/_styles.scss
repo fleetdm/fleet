@@ -17,6 +17,16 @@
     }
   }
 
+  &:focus-visible {
+    .external-link-icon__outline {
+      fill: $core-fleet-black;
+      stroke: $core-fleet-black;
+    }
+    .external-link-icon__arrow {
+      stroke: $core-fleet-white;
+    }
+  }
+
   // Changing display will break multiline links
   &:not(.custom-link--multiline) {
     display: inline-flex;
@@ -35,6 +45,10 @@
     line-height: normal;
   }
 
+  &:focus-visible &__last-word {
+    text-decoration: none;
+  }
+
   &--emphasized {
     color: $core-fleet-green;
     text-decoration-color: $core-fleet-green;
@@ -43,6 +57,16 @@
       color: $core-fleet-green-over;
       text-decoration-color: $core-fleet-green-over;
     }
+
+    &:focus-visible {
+      color: $core-fleet-green-over;
+      text-decoration-color: $core-fleet-green-over;
+      text-decoration: none;
+    }
+  }
+
+  &--bold {
+    font-weight: $bold;
   }
 
   // Variants
@@ -56,7 +80,6 @@
   &--flash-message-link {
     font-size: inherit; // Overrides link default font size with parent tooltip font size
     text-decoration-color: inherit;
-    text-underline-offset: 2px;
 
     .external-link-icon__outline {
       stroke: $core-fleet-white;
@@ -75,10 +98,26 @@
         stroke: $tooltip-bg;
       }
     }
+
+    &:focus-visible {
+      color: $ui-fleet-black-5;
+      text-decoration: none;
+      outline-color: $ui-fleet-black-5;
+
+      .external-link-icon__outline {
+        fill: $ui-fleet-black-5;
+        stroke: $ui-fleet-black-5;
+      }
+
+      .external-link-icon__arrow {
+        stroke: $tooltip-bg;
+      }
+    }
   }
 
   &--flash-message-link {
-    &:hover {
+    &:hover,
+    &:focus-visible {
       .external-link-icon__arrow {
         stroke: $core-vibrant-red;
       }
