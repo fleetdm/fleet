@@ -3893,11 +3893,9 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 	// This sets auto_rotate_at to 1 hour from now.
 	rotateAt, err := svc.ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
 	if err != nil {
-		// Log error but don't fail the request - viewing the password should still succeed
-		logging.WithErr(ctx, err)
-	} else {
-		password.AutoRotateAt = &rotateAt
+		return nil, ctxerr.Wrap(ctx, err, "mark recovery lock password viewed")
 	}
+	password.AutoRotateAt = &rotateAt
 
 	if err := svc.NewActivity(
 		ctx,

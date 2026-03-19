@@ -4788,7 +4788,7 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 		assert.WithinDuration(t, expectedRotateAt, *password.AutoRotateAt, 1*time.Second)
 	})
 
-	t.Run("continues even if MarkRecoveryLockPasswordViewed fails", func(t *testing.T) {
+	t.Run("fails if MarkRecoveryLockPasswordViewed fails", func(t *testing.T) {
 		ds := new(mock.Store)
 		opts := &TestServerOpts{}
 		svc, ctx := newTestService(t, ds, nil, nil, opts)
@@ -4819,11 +4819,10 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 		}
 
 		userCtx := test.UserContext(ctx, test.UserAdmin)
-		// Should still succeed even though MarkRecoveryLockPasswordViewed failed
+		// Should fail because MarkRecoveryLockPasswordViewed failed
 		password, err := svc.GetHostRecoveryLockPassword(userCtx, 5)
-		require.NoError(t, err)
-		assert.Equal(t, "test-password-5", password.Password)
-		// AutoRotateAt should be nil since the mark operation failed
-		assert.Nil(t, password.AutoRotateAt)
+		require.Error(t, err)
+		assert.Nil(t, password)
+		assert.Contains(t, err.Error(), "mark recovery lock password viewed")
 	})
 }
