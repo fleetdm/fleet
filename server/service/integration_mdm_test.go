@@ -22299,22 +22299,23 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 // - Feature toggled off with hosts in different states
 func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	t := s.T()
-	ctx := t.Context()
 
 	// Create a helper to create an Apple Silicon macOS host (required for recovery lock)
-	createAppleSiliconHost := func() (*fleet.Host, *mdmtest.TestAppleMDMClient) {
+	createAppleSiliconHost := func(t *testing.T) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
+		t.Helper()
 		host, mdmClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 		// Set the CPU type to ARM (Apple Silicon) - required for recovery lock
 		host.CPUType = "arm64"
-		err := s.ds.UpdateHost(ctx, host)
+		err := s.ds.UpdateHost(t.Context(), host)
 		require.NoError(t, err)
 		return host, mdmClient
 	}
 
 	// Helper to run the recovery lock cron job
-	runRecoveryLockCron := func() {
+	runRecoveryLockCron := func(t *testing.T) {
+		t.Helper()
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		err := apple_mdm.SendRecoveryLockCommands(ctx, s.ds, s.mdmCommander, logger)
+		err := apple_mdm.SendRecoveryLockCommands(t.Context(), s.ds, s.mdmCommander, logger)
 		require.NoError(t, err)
 	}
 
@@ -22334,10 +22335,10 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 		require.False(t, acResp.MDM.EnableRecoveryLockPassword.Value)
 
-		host, _ := createAppleSiliconHost()
+		host, _ := createAppleSiliconHost(t)
 
 		// Run cron - should not send any commands
-		runRecoveryLockCron()
+		runRecoveryLockCron(t)
 
 		// Verify host has no recovery lock password status
 		rlpStatus := getHostRecoveryLockStatus(host.ID)
@@ -22358,14 +22359,14 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		s.lastActivityMatches(fleet.ActivityTypeEnabledRecoveryLockPasswords{}.ActivityName(),
 			`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
 
-		host, mdmClient := createAppleSiliconHost()
+		host, mdmClient := createAppleSiliconHost(t)
 
 		// Initial state: no recovery lock password
 		rlpStatus := getHostRecoveryLockStatus(host.ID)
 		assert.Nil(t, rlpStatus.Status)
 
 		// Run cron - should send SetRecoveryLock command
-		runRecoveryLockCron()
+		runRecoveryLockCron(t)
 
 		// Host should now be in pending state
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
@@ -22407,10 +22408,10 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 			"mdm": map[string]any{"enable_recovery_lock_password": true},
 		}, http.StatusOK, &appConfigResponse{})
 
-		host, mdmClient := createAppleSiliconHost()
+		host, mdmClient := createAppleSiliconHost(t)
 
 		// Run cron - should send SetRecoveryLock command
-		runRecoveryLockCron()
+		runRecoveryLockCron(t)
 
 		// Host should be in pending state
 		rlpStatus := getHostRecoveryLockStatus(host.ID)
@@ -22450,10 +22451,10 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 			"mdm": map[string]any{"enable_recovery_lock_password": true},
 		}, http.StatusOK, &appConfigResponse{})
 
-		host, mdmClient := createAppleSiliconHost()
+		host, mdmClient := createAppleSiliconHost(t)
 
 		// Run cron and acknowledge command
-		runRecoveryLockCron()
+		runRecoveryLockCron(t)
 		cmd, err := mdmClient.Idle()
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
@@ -22486,10 +22487,10 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 			"mdm": map[string]any{"enable_recovery_lock_password": true},
 		}, http.StatusOK, &appConfigResponse{})
 
-		host, mdmClient := createAppleSiliconHost()
+		host, mdmClient := createAppleSiliconHost(t)
 
 		// Run cron and acknowledge command to get to verified state
-		runRecoveryLockCron()
+		runRecoveryLockCron(t)
 		cmd, err := mdmClient.Idle()
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
@@ -22546,10 +22547,10 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 			"mdm": map[string]any{"enable_recovery_lock_password": true},
 		}, http.StatusOK, &appConfigResponse{})
 
-		host, mdmClient := createAppleSiliconHost()
+		host, mdmClient := createAppleSiliconHost(t)
 
 		// Run cron - host goes to pending state
-		runRecoveryLockCron()
+		runRecoveryLockCron(t)
 
 		rlpStatus := getHostRecoveryLockStatus(host.ID)
 		require.NotNil(t, rlpStatus.Status)
@@ -22562,7 +22563,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Run cron again - hosts in pending state are NOT claimed for clear
 		// (they haven't received the SetRecoveryLock command yet)
-		runRecoveryLockCron()
+		runRecoveryLockCron(t)
 
 		// Host should still be in pending state
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
@@ -22583,7 +22584,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
 
 		// Run cron again - now the verified host should be claimed for clear
-		runRecoveryLockCron()
+		runRecoveryLockCron(t)
 
 		// Host should be in removing_enforcement state
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
@@ -22600,10 +22601,10 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 			"mdm": map[string]any{"enable_recovery_lock_password": true},
 		}, http.StatusOK, &appConfigResponse{})
 
-		host, mdmClient := createAppleSiliconHost()
+		host, mdmClient := createAppleSiliconHost(t)
 
 		// Run cron and acknowledge to get to verified state
-		runRecoveryLockCron()
+		runRecoveryLockCron(t)
 		cmd, err := mdmClient.Idle()
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
@@ -22620,7 +22621,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		}, http.StatusOK, &appConfigResponse{})
 
 		// Run cron - should claim host for clear
-		runRecoveryLockCron()
+		runRecoveryLockCron(t)
 
 		// Host should be in removing_enforcement state
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
@@ -22652,10 +22653,10 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 			"mdm": map[string]any{"enable_recovery_lock_password": true},
 		}, http.StatusOK, &appConfigResponse{})
 
-		host, mdmClient := createAppleSiliconHost()
+		host, mdmClient := createAppleSiliconHost(t)
 
 		// Run cron and acknowledge to get to verified state
-		runRecoveryLockCron()
+		runRecoveryLockCron(t)
 		cmd, err := mdmClient.Idle()
 		require.NoError(t, err)
 		require.NotNil(t, cmd)
@@ -22666,7 +22667,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
 			"mdm": map[string]any{"enable_recovery_lock_password": false},
 		}, http.StatusOK, &appConfigResponse{})
-		runRecoveryLockCron()
+		runRecoveryLockCron(t)
 
 		// Verify host is in removing_enforcement state
 		rlpStatus := getHostRecoveryLockStatus(host.ID)
@@ -22679,7 +22680,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		}, http.StatusOK, &appConfigResponse{})
 
 		// Run cron - should restore host to verified state
-		runRecoveryLockCron()
+		runRecoveryLockCron(t)
 
 		// Host should be back to verified state (restored)
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
@@ -22704,11 +22705,11 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		// Create Intel Mac host (NOT Apple Silicon)
 		host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 		host.CPUType = "x86_64" // Intel, not ARM
-		err := s.ds.UpdateHost(ctx, host)
+		err := s.ds.UpdateHost(t.Context(), host)
 		require.NoError(t, err)
 
 		// Run cron - should not send commands for Intel host
-		runRecoveryLockCron()
+		runRecoveryLockCron(t)
 
 		// Intel host should not have recovery lock password
 		rlpStatus := getHostRecoveryLockStatus(host.ID)
@@ -22749,12 +22750,12 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 			fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
 
 		// Create host and add to team
-		host, mdmClient := createAppleSiliconHost()
-		err := s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
+		host, mdmClient := createAppleSiliconHost(t)
+		err := s.ds.AddHostsToTeam(t.Context(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// Run cron - should send SetRecoveryLock for team host
-		runRecoveryLockCron()
+		runRecoveryLockCron(t)
 
 		// Host should be in pending state
 		rlpStatus := getHostRecoveryLockStatus(host.ID)
@@ -22774,8 +22775,8 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
 
 		// Create another host NOT in team - should not get recovery lock
-		host2, _ := createAppleSiliconHost()
-		runRecoveryLockCron()
+		host2, _ := createAppleSiliconHost(t)
+		runRecoveryLockCron(t)
 		rlpStatus2 := getHostRecoveryLockStatus(host2.ID)
 		assert.Nil(t, rlpStatus2.Status, "host not in team should not get recovery lock")
 
@@ -22796,9 +22797,9 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 			"mdm": map[string]any{"enable_recovery_lock_password": true},
 		}, http.StatusOK, &appConfigResponse{})
 
-		host, mdmClient := createAppleSiliconHost()
+		host, mdmClient := createAppleSiliconHost(t)
 
-		runRecoveryLockCron()
+		runRecoveryLockCron(t)
 
 		cmd, err := mdmClient.Idle()
 		require.NoError(t, err)
@@ -22835,7 +22836,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		// Create Intel Mac host
 		host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 		host.CPUType = "x86_64"
-		err := s.ds.UpdateHost(ctx, host)
+		err := s.ds.UpdateHost(t.Context(), host)
 		require.NoError(t, err)
 
 		// Try to get recovery lock password for Intel host - should fail with validation error
@@ -22862,13 +22863,13 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		var hosts []*fleet.Host
 		var mdmClients []*mdmtest.TestAppleMDMClient
 		for range 3 {
-			h, c := createAppleSiliconHost()
+			h, c := createAppleSiliconHost(t)
 			hosts = append(hosts, h)
 			mdmClients = append(mdmClients, c)
 		}
 
 		// Run cron - all hosts should be in pending state
-		runRecoveryLockCron()
+		runRecoveryLockCron(t)
 
 		for _, h := range hosts {
 			rlpStatus := getHostRecoveryLockStatus(h.ID)
