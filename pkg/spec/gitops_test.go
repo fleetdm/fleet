@@ -1185,7 +1185,7 @@ policies:
     package_path:
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "install_software must include either a package_path, an app_store_id or a hash_sha256")
+	assert.ErrorContains(t, err, "install_software must include either a package_path, an app_store_id, a hash_sha256, or a slug")
 
 	config = getTeamConfig([]string{"policies"})
 	config += `
@@ -1207,8 +1207,12 @@ policies:
   query: SELECT 1;
   install_software:
     slug: intune-company-portal/darwin
+software:
+  fleet_maintained_apps:
+    - slug: intune-company-portal/darwin
 `
-	gitops, err := gitOpsFromString(t, config)
+	pathSlug, basePathSlug := createTempFile(t, "", config)
+	gitops, err := GitOpsFromFile(pathSlug, basePathSlug, premiumAppConfig(), nopLogf)
 	require.NoError(t, err)
 	require.Len(t, gitops.Policies, 1)
 	assert.NotNil(t, gitops.Policies[0].InstallSoftware)
@@ -1264,6 +1268,17 @@ policies:
 `
 	_, err = gitOpsFromString(t, config)
 	assert.ErrorContains(t, err, "must have only one of hash_sha256 or slug")
+
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  install_software:
+    slug: intune-company-portal/darwin
+`
+	_, err = gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "install_software.slug intune-company-portal/darwin not found on team TeamName")
 
 	// Software has a URL that's too big
 	tooBigURL := fmt.Sprintf("https://ftp.mozilla.org/%s", strings.Repeat("a", 4000-23))
@@ -3296,9 +3311,9 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 				InstallSoftware: installSoftware, // no package_path, app_store_id, or hash_sha256
 			},
 		}
-		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil)
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
 		require.Len(t, errs, 1)
-		assert.Equal(t, errs[0].Error(), `failed to parse policy install_software "my policy": install_software must include either a package_path, an app_store_id or a hash_sha256`)
+		assert.Equal(t, errs[0].Error(), `failed to parse policy install_software "my policy": install_software must include either a package_path, an app_store_id, a hash_sha256, or a slug`)
 	})
 
 	t.Run("unknown key in package_path file", func(t *testing.T) {
@@ -3319,7 +3334,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 			},
 		}
 		packages := []*fleet.SoftwarePackageSpec{{SHA256: sha}}
-		errs := parsePolicyInstallSoftware(".", &teamName, policy, packages, nil)
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, packages, nil, nil)
 		require.Len(t, errs, 1)
 		var unknownErr *ParseUnknownKeyError
 		require.ErrorAs(t, errs[0], &unknownErr)

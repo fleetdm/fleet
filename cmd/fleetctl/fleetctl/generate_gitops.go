@@ -88,7 +88,6 @@ type generateGitopsClient interface {
 	GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error)
 	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
 	GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error)
-	ListFleetMaintainedApps(teamID *uint, query string) ([]fleet.MaintainedApp, error)
 	GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error)
 }
 
@@ -1533,11 +1532,7 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 		// Handle software automation.
 		if policy.InstallSoftware != nil {
 			// Check if this is a Fleet-maintained app
-			if slug, ok := cmd.FMASlugMap[policy.InstallSoftware.SoftwareTitleID]; ok {
-				policySpec["install_software"] = map[string]any{
-					"slug": slug,
-				}
-			} else if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {
+			if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {
 				policySpec["install_software"] = map[string]any{
 					"hash_sha256": software.Hash + " " + software.Comment,
 				}
@@ -1651,21 +1646,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		return nil, nil // software is premium-only
 	}
 
-	// Get Fleet-maintained apps for the team to build slug map
-	query := fmt.Sprintf("team_id=%d&per_page=10000", teamID)
-	fleetMaintainedApps, err := cmd.Client.ListFleetMaintainedApps(&teamID, query)
-	if err != nil {
-		// Log warning but continue - FMAs might not be available
-		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Warning: failed to get Fleet-maintained apps: %s\n", err)
-	} else {
-		for _, app := range fleetMaintainedApps {
-			if app.TitleID != nil && app.Slug != "" {
-				cmd.FMASlugMap[*app.TitleID] = app.Slug
-			}
-		}
-	}
-
-	query = fmt.Sprintf("available_for_install=1&fleet_id=%d", teamID)
+	query := fmt.Sprintf("available_for_install=1&fleet_id=%d", teamID)
 	software, err := cmd.Client.ListSoftwareTitles(query)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software: %s\n", err)

@@ -1385,7 +1385,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	multiError = multierror.Append(multiError, validateRawKeys(policiesRaw, reflect.TypeFor[[]Policy](), filePath, []string{"policies"})...)
 	for _, item := range policies {
 		if item.Path == nil {
-			if errs := parsePolicyInstallSoftware(baseDir, result.TeamName, &item, result.Software.Packages, result.Software.AppStoreApps); errs != nil {
+			if errs := parsePolicyInstallSoftware(baseDir, result.TeamName, &item, result.Software.Packages, result.Software.AppStoreApps, result.Software.FleetMaintainedApps); errs != nil {
 				multiError = multierror.Append(multiError, errs...)
 				continue
 			}
@@ -1421,7 +1421,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 								multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pp.Path, *item.Path),
 							)
 						} else {
-							if errs := parsePolicyInstallSoftware(filepath.Dir(*item.Path), result.TeamName, pp, result.Software.Packages, result.Software.AppStoreApps); errs != nil {
+							if errs := parsePolicyInstallSoftware(filepath.Dir(*item.Path), result.TeamName, pp, result.Software.Packages, result.Software.AppStoreApps, result.Software.FleetMaintainedApps); errs != nil {
 								multiError = multierror.Append(multiError, errs...)
 								continue
 							}
@@ -1520,7 +1520,7 @@ func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *strin
 	return nil
 }
 
-func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec, appStoreApps []*fleet.TeamSpecAppStoreApp) []error {
+func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec, appStoreApps []*fleet.TeamSpecAppStoreApp, fleetMaintainedApps []*fleet.MaintainedAppSpec) []error {
 	installSoftwareObj := policy.InstallSoftware.Other
 	if installSoftwareObj == nil {
 		policy.SoftwareTitleID = ptr.Uint(0) // unset the installer
@@ -1537,8 +1537,9 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		return wrapErrs(errors.New("install_software can only be set on team policies"))
 	}
 	if installSoftwareObj.PackagePath == "" && installSoftwareObj.AppStoreID == "" && installSoftwareObj.HashSHA256 == "" && installSoftwareObj.Slug == "" {
-		return wrapErrs(errors.New("install_software must include either a package_path, an app_store_id or a hash_sha256"))
+		return wrapErrs(errors.New("install_software must include either a package_path, an app_store_id, a hash_sha256, or a slug"))
 	}
+
 	fieldsSet := 0
 	if installSoftwareObj.PackagePath != "" {
 		fieldsSet++
@@ -1614,6 +1615,19 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		}
 		if !appOnTeamFound {
 			errs = append(errs, wrapErr(fmt.Errorf("install_software.app_store_id %s not found on team %s", policy.InstallSoftware.Other.AppStoreID, *teamName)))
+		}
+	}
+
+	if policy.InstallSoftware.Other.Slug != "" {
+		slugOnTeamFound := false
+		for _, app := range fleetMaintainedApps {
+			if app.Slug == policy.InstallSoftware.Other.Slug {
+				slugOnTeamFound = true
+				break
+			}
+		}
+		if !slugOnTeamFound {
+			errs = append(errs, wrapErr(fmt.Errorf("install_software.slug %s not found on team %s", policy.InstallSoftware.Other.Slug, *teamName)))
 		}
 	}
 
