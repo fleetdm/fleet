@@ -1,28 +1,52 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { createMockHostPastActivity } from "__mocks__/activityMock";
+import { ActivityType } from "interfaces/activity";
 
 import RotatedHostRecoveryLockPasswordActivityItem from "./RotatedHostRecoveryLockPassword";
 
 describe("RotatedHostRecoveryLockPasswordActivityItem", () => {
-  it("renders the activity content", () => {
+  it("renders user-triggered rotation activity content", () => {
     render(
       <RotatedHostRecoveryLockPasswordActivityItem
-        activity={createMockHostPastActivity({ actor_full_name: "Test User" })}
+        activity={createMockHostPastActivity({
+          actor_full_name: "Test User",
+          type: ActivityType.TriggeredHostRecoveryLockPasswordRotation,
+        })}
         tab="past"
       />
     );
 
     expect(screen.getByText("Test User")).toBeVisible();
     expect(
-      screen.getByText(/rotated the Recovery Lock password/i)
+      screen.getByText(/triggered a Recovery Lock password rotation/i)
+    ).toBeVisible();
+  });
+
+  it("renders auto-rotation activity content", () => {
+    render(
+      <RotatedHostRecoveryLockPasswordActivityItem
+        activity={createMockHostPastActivity({
+          actor_full_name: "Fleet",
+          type: ActivityType.AutoRotatedHostRecoveryLockPassword,
+        })}
+        tab="past"
+      />
+    );
+
+    expect(screen.getByText("Fleet")).toBeVisible();
+    expect(
+      screen.getByText(/auto-rotated the Recovery Lock password/i)
     ).toBeVisible();
   });
 
   it("does not render the cancel icon", () => {
     render(
       <RotatedHostRecoveryLockPasswordActivityItem
-        activity={createMockHostPastActivity({ actor_full_name: "Test User" })}
+        activity={createMockHostPastActivity({
+          actor_full_name: "Test User",
+          type: ActivityType.TriggeredHostRecoveryLockPasswordRotation,
+        })}
         tab="past"
       />
     );
@@ -33,7 +57,10 @@ describe("RotatedHostRecoveryLockPasswordActivityItem", () => {
   it("does not render the show details icon", () => {
     render(
       <RotatedHostRecoveryLockPasswordActivityItem
-        activity={createMockHostPastActivity({ actor_full_name: "Test User" })}
+        activity={createMockHostPastActivity({
+          actor_full_name: "Test User",
+          type: ActivityType.TriggeredHostRecoveryLockPasswordRotation,
+        })}
         tab="past"
       />
     );

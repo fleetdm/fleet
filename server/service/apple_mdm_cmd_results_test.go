@@ -664,11 +664,10 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 		var activityCreated bool
 		newActivityFn := func(_ context.Context, _ *fleet.User, activity fleet.ActivityDetails) error {
 			activityCreated = true
-			act, ok := activity.(fleet.ActivityTypeRotatedHostRecoveryLockPassword)
-			assert.True(t, ok, "Activity should be of type ActivityTypeRotatedHostRecoveryLockPassword")
+			act, ok := activity.(fleet.ActivityTypeAutoRotatedHostRecoveryLockPassword)
+			assert.True(t, ok, "Activity should be of type ActivityTypeAutoRotatedHostRecoveryLockPassword")
 			assert.Equal(t, uint(1), act.HostID)
 			assert.Equal(t, "test-host", act.HostDisplayName)
-			assert.True(t, act.FromAutoRotation, "FromAutoRotation should be true for rotation activities")
 			return nil
 		}
 
