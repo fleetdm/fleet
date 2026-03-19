@@ -5227,6 +5227,16 @@ func ReconcileAppleProfiles(
 		userEnrollmentsToHostUUIDsMap,
 	)
 	if err != nil {
+		// revert the status of all non-failed profiles to null so they get picked up again in the next cron run.
+		for _, hp := range hostProfiles {
+			if hp.Status != nil && *hp.Status != fleet.MDMDeliveryFailed {
+				hp.Status = nil
+				hp.CommandUUID = ""
+			}
+		}
+		if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles); err != nil {
+			return ctxerr.Wrap(ctx, err, "reverting host profiles after failed enqueue")
+		}
 		return ctxerr.Wrap(ctx, err, "processing and enqueuing profiles")
 	}
 
