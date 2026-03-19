@@ -173,13 +173,13 @@ const PlatformWrapper = ({
       <div className={`${baseClass}__advanced--fleet-certificate`}>
         {type === "plain" ? (
           <div className={`${baseClass}__advanced--heading`}>
-            Download your Fleet certificate
+            Fleet certificate
           </div>
         ) : (
           <div
             className={`${baseClass}__advanced--heading download-certificate--tooltip`}
           >
-            Download your{" "}
+            Your{" "}
             <TooltipWrapper tipContent="A Fleet certificate is required if Fleet is running with a self signed or otherwise untrusted certificate.">
               Fleet certificate:
             </TooltipWrapper>
@@ -200,12 +200,8 @@ const PlatformWrapper = ({
                   <br />
                 </>
               )}
-              <Button
-                variant="inverse"
-                className={`${baseClass}__fleet-certificate-download`}
-                onClick={onDownloadCertificate}
-              >
-                Download
+              <Button variant="inverse" onClick={onDownloadCertificate}>
+                Download certificate
                 <Icon name="download" size="small" />
               </Button>
             </p>
@@ -246,6 +242,7 @@ const PlatformWrapper = ({
               url={`${LEARN_MORE_ABOUT_BASE_LINK}/installing-fleetctl`}
               text="Fleet command-line tool"
               newTab
+              bold
             />
           </span>
         )}
@@ -370,18 +367,11 @@ const PlatformWrapper = ({
           <div>
             <InfoBanner className={`${baseClass}__chrome--instructions`}>
               This works for macOS, Windows, and Linux hosts. To add
-              Chromebooks,&nbsp;
-              <Button
-                variant="text-link-dark"
-                onClick={() => setSelectedTabIndex(3)}
-              >
-                click here
-              </Button>
-              .
+              Chromebooks, select <b>ChromeOS</b> tab above.
             </InfoBanner>
           </div>
           <RevealButton
-            className={baseClass}
+            className={`${baseClass}__reveal-button`}
             isShowing={showPlainOsquery}
             hideText="Plain osquery"
             showText="Plain osquery"
@@ -392,7 +382,7 @@ const PlatformWrapper = ({
             <>
               <div className={`${baseClass}__advanced--enroll-secrets`}>
                 <p className={`${baseClass}__advanced--heading`}>
-                  Download your enroll secret:
+                  Enroll secret
                 </p>
                 <p>
                   Osquery uses an enroll secret to authenticate with the Fleet
@@ -410,9 +400,7 @@ const PlatformWrapper = ({
               </div>
               {renderFleetCertificateBlock("plain")}
               <div className={`${baseClass}__advanced--flagfile`}>
-                <p className={`${baseClass}__advanced--heading`}>
-                  Download your flagfile:
-                </p>
+                <p className={`${baseClass}__advanced--heading`}>Flagfile</p>
                 <p>
                   If using the enroll secret and server certificate downloaded
                   above, use the generated flagfile. In some configurations,
@@ -424,7 +412,7 @@ const PlatformWrapper = ({
                     </span>
                   ) : (
                     <Button variant="inverse" onClick={onDownloadFlagfile}>
-                      Download
+                      Download flagfile
                       <Icon name="download" size="small" />
                     </Button>
                   )}
@@ -437,6 +425,7 @@ const PlatformWrapper = ({
                     url="https://www.osquery.io/downloads"
                     text="osquery"
                     newTab
+                    bold
                   />{" "}
                   installed:
                 </p>

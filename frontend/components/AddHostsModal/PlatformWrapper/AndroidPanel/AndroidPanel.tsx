@@ -48,6 +48,7 @@ const AndroidPanel = ({ enrollSecret }: IAndroidPanelProps) => {
         <CustomLink
           url={PATHS.ADMIN_INTEGRATIONS_MDM_ANDROID}
           text="Turn on Android MDM"
+          emphasized
         />{" "}
         to enroll Android hosts.
       </p>
