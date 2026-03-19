@@ -1,8 +1,8 @@
-# Data platform company uses Fleet to cut costs and improve visibility
+# Data platform company cuts $5–6M in hardware costs with API-driven device management
 
-A global data platform company supports a large workforce across macOS, Windows, Linux, iOS, and Android. With a device count that closely matches its employee count, the team needs a scalable way to manage hardware, security, and compliance.
+A global data platform company supports a large workforce across macOS, Windows, Linux, iOS, and Android. With device count matching its workforce, the team needed a scalable way to manage hardware, security, and compliance.
 
-Fleet helps the company manage devices through APIs and stream telemetry directly into its own data platform.
+Fleet helps the company manage devices through APIs and stream endpoint telemetry directly into its own data platform.
 
 ## At a glance
 
