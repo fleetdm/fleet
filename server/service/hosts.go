@@ -3741,8 +3741,9 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 		return nil, ctxerr.Wrap(ctx, err, "get host")
 	}
 
-	// Require admin or maintainer role (ActionWrite) for this sensitive data
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
+	// Permissions to read recovery lock passwords are exactly the same
+	// as the ones required to read hosts.
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
