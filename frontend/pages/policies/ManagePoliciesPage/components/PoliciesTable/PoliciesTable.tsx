@@ -65,7 +65,8 @@ const PoliciesTable = ({
   const emptyState: IEmptyTableProps = {
     graphicName: "empty-policies",
     header: "You don't have any policies",
-    info: "Add policies to detect device health issues and trigger automations.",
+    info:
+      "Add policies to detect device health issues and trigger automations.",
   };
 
   if (isPremiumTier && !config?.partnerships?.enable_primo) {
@@ -122,12 +123,12 @@ const PoliciesTable = ({
             hasPermissionAndPoliciesToDelete,
           },
           isPremiumTier,
-          config?.partnerships?.enable_primo,
+          config?.partnerships?.enable_primo
         )}
         data={generateDataSet(
           policiesList,
           currentAutomatedPolicies,
-          config?.update_interval?.osquery_policy,
+          config?.update_interval?.osquery_policy
         )}
         isLoading={isLoading}
         defaultSortHeader={sortHeader || DEFAULT_SORT_COLUMN}

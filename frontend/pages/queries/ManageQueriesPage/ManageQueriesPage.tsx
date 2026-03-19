@@ -75,7 +75,7 @@ export const enhanceQuery = (q: ISchedulableQuery): IEnhancedQuery => {
   return {
     ...q,
     performance: getPerformanceImpactDescription(
-      pick(q.stats, ["user_time_p50", "system_time_p50", "total_executions"]),
+      pick(q.stats, ["user_time_p50", "system_time_p50", "total_executions"])
     ),
     targetedPlatforms: getTargetedPlatforms(q.platform),
   };
@@ -99,8 +99,9 @@ const ManageQueriesPage = ({
     isPremiumTier,
     config,
   } = useContext(AppContext);
-  const { setLastEditedQueryBody, setSelectedQueryTargetsByType } =
-    useContext(QueryContext);
+  const { setLastEditedQueryBody, setSelectedQueryTargetsByType } = useContext(
+    QueryContext
+  );
   const { setResetSelectedRows } = useContext(TableContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -121,8 +122,9 @@ const ManageQueriesPage = ({
 
   const [selectedQueryIds, setSelectedQueryIds] = useState<number[]>([]);
   const [showDeleteQueryModal, setShowDeleteQueryModal] = useState(false);
-  const [showManageAutomationsModal, setShowManageAutomationsModal] =
-    useState(false);
+  const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
+    false
+  );
   const [showPreviewDataModal, setShowPreviewDataModal] = useState(false);
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
@@ -162,7 +164,7 @@ const ManageQueriesPage = ({
       refetchOnWindowFocus: false,
       enabled: isRouteOk,
       staleTime: 5000,
-    },
+    }
   );
 
   // Enhance the queries from the response when they are changed.
@@ -186,13 +188,13 @@ const ManageQueriesPage = ({
     (teamId: number) => {
       handleTeamChange(teamId);
     },
-    [handleTeamChange],
+    [handleTeamChange]
   );
 
   const onCreateQueryClick = useCallback(() => {
     setLastEditedQueryBody(DEFAULT_QUERY.query);
     router.push(
-      getPathWithQueryParams(PATHS.NEW_REPORT, { fleet_id: currentTeamId }),
+      getPathWithQueryParams(PATHS.NEW_REPORT, { fleet_id: currentTeamId })
     );
   }, [currentTeamId, router, setLastEditedQueryBody]);
 
@@ -205,7 +207,7 @@ const ManageQueriesPage = ({
       toggleDeleteQueryModal();
       setSelectedQueryIds(selectedTableQueryIds);
     },
-    [toggleDeleteQueryModal, setSelectedQueryIds],
+    [toggleDeleteQueryModal, setSelectedQueryIds]
   );
 
   const toggleManageAutomationsModal = useCallback(() => {
@@ -237,7 +239,7 @@ const ManageQueriesPage = ({
     } catch (errorResponse) {
       renderFlash(
         "error",
-        "There was an error deleting your reports. Please try again later.",
+        "There was an error deleting your reports. Please try again later."
       );
     } finally {
       toggleDeleteQueryModal();
@@ -300,24 +302,24 @@ const ManageQueriesPage = ({
 
       // Query ids added to turn on automations
       const turnOnAutomations = newAutomatedQueryIds.filter(
-        (id) => !previousAutomatedQueryIds.includes(id),
+        (id) => !previousAutomatedQueryIds.includes(id)
       );
       // Query ids removed to turn off automations
       const turnOffAutomations = previousAutomatedQueryIds.filter(
-        (id) => !newAutomatedQueryIds.includes(id),
+        (id) => !newAutomatedQueryIds.includes(id)
       );
 
       // Update query automations using queries/{id} manage_automations parameter
       const updateAutomatedQueries: Promise<any>[] = [];
       turnOnAutomations.map((id) =>
         updateAutomatedQueries.push(
-          queriesAPI.update(id, { automations_enabled: true }),
-        ),
+          queriesAPI.update(id, { automations_enabled: true })
+        )
       );
       turnOffAutomations.map((id) =>
         updateAutomatedQueries.push(
-          queriesAPI.update(id, { automations_enabled: false }),
-        ),
+          queriesAPI.update(id, { automations_enabled: false })
+        )
       );
 
       try {
@@ -328,14 +330,14 @@ const ManageQueriesPage = ({
       } catch (errorResponse) {
         renderFlash(
           "error",
-          `There was an error updating your report automations. Please try again later.`,
+          `There was an error updating your report automations. Please try again later.`
         );
       } finally {
         toggleManageAutomationsModal();
         setIsUpdatingAutomations(false);
       }
     },
-    [renderFlash, refetchQueries, toggleManageAutomationsModal],
+    [renderFlash, refetchQueries, toggleManageAutomationsModal]
   );
 
   const renderModals = () => {
