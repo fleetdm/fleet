@@ -193,7 +193,6 @@ jobs:
           ELAPSED=$(( $(date +%s) - HEALTH_CHECK_START ))
           echo "Health check failed... (${ELAPSED}s)"
           sudo resolvectl flush-caches
-          sudo systemd-resolve --flush-caches
           nslookup ${{ needs.gen.outputs.address }} || true
           sleep 1
         done
@@ -540,7 +539,13 @@ jobs:
   summary:
     needs: [fleetd-macos, fleetd-ubuntu, fleetd-windows]
     runs-on: ubuntu-latest
+    if: always()
     steps:
     - name: Summary
       run: |
         echo "All tests completed!"
+    - name: Cancel workflow if any job failed
+      if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+      run: gh run cancel ${{ github.run_id }}
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
