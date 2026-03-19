@@ -3,10 +3,7 @@ import { CellProps, Column } from "react-table";
 
 import { IMdmAbmToken } from "interfaces/mdm";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-import {
-  APP_CONTEXT_NO_TEAM_ID,
-  APP_CONTEXT_NO_TEAM_SUMMARY,
-} from "interfaces/team";
+import { getTeamDisplayName } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -35,10 +32,6 @@ const generateActions = () => {
   return DEFAULT_ACTION_OPTIONS;
 };
 
-const getTeamDisplayName = (team: IMdmAbmToken["ios_team"]) =>
-  team.team_id === APP_CONTEXT_NO_TEAM_ID
-    ? APP_CONTEXT_NO_TEAM_SUMMARY.name
-    : team.name;
 
 const RENEW_DATE_CELL_STATUS_CONFIG: IRenewDateCellStatusConfig = {
   warning: {
