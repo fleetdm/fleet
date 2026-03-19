@@ -86,7 +86,7 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 		return mdmDevice
 	}
 
-	device := godep.Device{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "darwin", OpType: "added"}
+	device := godep.Device{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"}
 
 	profileAssignmentReqs := []profileAssignmentReq{}
 	s.setSkipWorkerJobs(t)

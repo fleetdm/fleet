@@ -104,7 +104,7 @@ func ProcessAndEnqueueProfiles(ctx context.Context,
 		var e *APNSDeliveryError
 		switch {
 		case errors.As(err, &e):
-			logger.DebugContext(ctx, "sending push notifications, profiles still enqueued", "details", err)
+			logger.DebugContext(ctx, "failed sending push notifications, profiles still enqueued", "details", err)
 		case err != nil:
 			logger.ErrorContext(ctx, fmt.Sprintf("enqueue command to %s profiles", op), "details", err)
 			ch <- remoteResult{err, target.CmdUUID}
@@ -130,7 +130,7 @@ func ProcessAndEnqueueProfiles(ctx context.Context,
 		for resp := range ch {
 			if resp.Err == nil {
 				result.SucceededCmdUUIDs = append(result.SucceededCmdUUIDs, resp.CmdUUID)
-			} else if resp.Err != nil {
+			} else {
 				result.FailedCmdUUIDs[resp.CmdUUID] = resp.Err
 			}
 		}
