@@ -596,6 +596,7 @@ type VulnerabilitiesConfig struct {
 	DisableDataSync             bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
 	RecentVulnerabilityMaxAge   time.Duration `json:"recent_vulnerability_max_age" yaml:"recent_vulnerability_max_age"`
 	DisableWinOSVulnerabilities bool          `json:"disable_win_os_vulnerabilities" yaml:"disable_win_os_vulnerabilities"`
+	OSVForVulnerabilities       bool          `json:"osv_for_vulnerabilities" yaml:"osv_for_vulnerabilities"`
 	MaxConcurrency              int           `json:"max_concurrency" yaml:"max_concurrency"`
 }
 
@@ -1533,6 +1534,11 @@ func (man Manager) addConfigs() {
 		false,
 		"Don't sync installed Windows updates nor perform Windows OS vulnerability processing.",
 	)
+	man.addConfigBool(
+		"vulnerabilities.osv_for_vulnerabilities",
+		true,
+		"Use OSV (osv.dev) format for vulnerability detection instead of OVAL where supported.",
+	)
 	man.addConfigInt(
 		"vulnerabilities.max_concurrency",
 		1,
@@ -1876,6 +1882,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			DisableDataSync:             man.getConfigBool("vulnerabilities.disable_data_sync"),
 			RecentVulnerabilityMaxAge:   man.getConfigDuration("vulnerabilities.recent_vulnerability_max_age"),
 			DisableWinOSVulnerabilities: man.getConfigBool("vulnerabilities.disable_win_os_vulnerabilities"),
+			OSVForVulnerabilities:       man.getConfigBool("vulnerabilities.osv_for_vulnerabilities"),
 			MaxConcurrency:              man.getConfigInt("vulnerabilities.max_concurrency"),
 		},
 		Upgrades: UpgradesConfig{
