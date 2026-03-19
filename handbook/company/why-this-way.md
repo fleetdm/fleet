@@ -130,6 +130,7 @@ The only exceptions are:
   - _vulnerabilities:_ [`fleetdm/vulnerabilities`](https://github.com/fleetdm/vulnerabilities)
   - _nvd:_ [`fleetdm/nvd`](https://github.com/fleetdm/nvd)
 5. **Terraform modules:** Since Terraform clones the entire repo once per tagged version of a module, we maintain a separate repo for Terraform modules at [fleetdm/fleet-terraform](https://github.com/fleetdm/fleet-terraform) to expedite deployments using `terraform init`.
+6. **Demo content:** Since demo environments benefit from a lightweight, standalone repository that can be cloned and run independently, we maintain a separate repo at [`fleetdm/demo`](https://github.com/fleetdm/demo) for demo-related content and configurations.
 
 Besides the exceptions above, Fleet does not use any other repositories.  Other GitHub repositories in `fleetdm` should be archived and made private.
 
