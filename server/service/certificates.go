@@ -697,3 +697,46 @@ func (svc *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.C
 	update.HostUUID = host.UUID
 	return svc.ds.UpsertCertificateStatus(ctx, update)
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Resend Host Certificate Template
+////////////////////////////////////////////////////////////////////////////////
+
+type resendHostCertificateTemplateRequest struct {
+	ID         uint `url:"id"`
+	TemplateID uint `url:"template_id"`
+}
+
+type resendHostCertificateTemplateResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r resendHostCertificateTemplateResponse) Error() error { return r.Err }
+
+func resendHostCertificateTemplateEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*resendHostCertificateTemplateRequest)
+	err := svc.ResendHostCertificateTemplate(ctx, req.ID, req.TemplateID)
+	if err != nil {
+		return resendHostCertificateTemplateResponse{Err: err}, nil
+	}
+
+	return resendHostCertificateTemplateResponse{}, nil
+}
+
+func (svc *Service) ResendHostCertificateTemplate(ctx context.Context, hostID uint, templateID uint) error {
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: host.TeamID}, fleet.ActionResend); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if err := svc.ds.ResendHostCertificateTemplate(ctx, hostID, templateID); err != nil {
+		return ctxerr.Wrap(ctx, err, "resending certificate template")
+	}
+
+	return nil
+}

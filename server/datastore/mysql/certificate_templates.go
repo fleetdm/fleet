@@ -400,3 +400,30 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForNewHost(
 	}
 	return result.RowsAffected()
 }
+
+func (ds *Datastore) ResendHostCertificateTemplate(ctx context.Context, hostID uint, templateID uint) error {
+	const stmt = `
+		UPDATE
+			host_certificate_templates hct
+		INNER JOIN
+			hosts h ON h.uuid = hct.host_uuid
+		SET
+			hct.uuid = UUID_TO_BIN(UUID(), true),
+			hct.status = ?
+		WHERE
+			h.id = ? AND
+			hct.certificate_template_id = ?
+	`
+
+	results, err := ds.writer(ctx).ExecContext(ctx, stmt, fleet.CertificateTemplatePending, hostID, templateID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating host certificate template uuid")
+	}
+
+	affected, _ := results.RowsAffected()
+	if affected == 0 {
+		return ctxerr.Errorf(ctx, "template %d does not exist for host %d", templateID, hostID)
+	}
+
+	return nil
+}
