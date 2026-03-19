@@ -1,6 +1,6 @@
 # Computational research company unifies endpoint management with Fleet
 
-A computational research company builds software that helps accelerate drug discovery and materials science. Its teams rely on macOS, Linux, and Windows devices across a highly technical environment.
+A computational research company develops software that accelerates drug discovery and materials science. Its teams rely on macOS, Linux, and Windows devices across a highly technical environment.
 
 Before Fleet, Linux desktops and servers were less visible and harder to manage. Fleet helps the company bring those systems into a single platform with better automation and stronger policy enforcement.
 
@@ -30,7 +30,7 @@ The team focused on three priorities:
     Manage macOS, Windows, and Linux from one place.
 
 2. **Security and compliance enforcement**  
-    Apply policies automatically and reduce manual work.
+    Automatically apply policies and reduce manual work.
 
 3. **GitOps and osquery support**  
     Manage configuration through code and use SQL-based telemetry for deeper visibility.
