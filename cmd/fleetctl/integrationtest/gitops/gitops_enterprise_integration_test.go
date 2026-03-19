@@ -2305,6 +2305,7 @@ labels:
 	labels, err := s.DS.LabelsByName(ctx, []string{"preserve-membership-label"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	label := labels["preserve-membership-label"]
+	require.NotNil(t, label)
 	labelHosts, err := s.DS.ListHostsInLabel(ctx, fleet.TeamFilter{User: &user}, label.ID, fleet.HostListOptions{})
 	require.NoError(t, err)
 	require.Len(t, labelHosts, 2)
