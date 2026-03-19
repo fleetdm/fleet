@@ -5228,10 +5228,18 @@ func ReconcileAppleProfiles(
 	)
 	if err != nil {
 		// revert the status of all non-failed profiles to null so they get picked up again in the next cron run.
+		// this is fine to do as if we errored out, we only do that before sending a single command
 		for _, hp := range hostProfiles {
 			if hp.Status != nil && *hp.Status != fleet.MDMDeliveryFailed {
 				hp.Status = nil
 				hp.CommandUUID = ""
+			}
+			// also check hostProfilesToInstallMap to cover cases where MarkProfilesFailed was called
+			if hpi, ok := hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: hp.HostUUID, ProfileUUID: hp.ProfileUUID}]; ok {
+				if hpi.Status != nil && *hpi.Status != fleet.MDMDeliveryFailed {
+					hp.Status = nil
+					hp.CommandUUID = ""
+				}
 			}
 		}
 		if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles); err != nil {
