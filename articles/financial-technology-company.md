@@ -36,3 +36,4 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-02-22">
 <meta name="description" value="A financial technology company manages a massive environment of roughly 15,000 endpoints."> 
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Financial technology company">
