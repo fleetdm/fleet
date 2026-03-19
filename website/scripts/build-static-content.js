@@ -735,7 +735,7 @@ module.exports = {
                     }
                   } else {
                     if(!embeddedMetadata.cardTitleForCustomersPage) {
-                      throw new Error(`Failed compiling markdown content: A case study article is missing a "cardTitleForCustomersPage" meta tag at "${path.join(topLvlRepoPath, pageSourcePath)}". To resolve, add a "cardTitleForCustomersPage" meta tag with the tile of this article as it should be displayed on the customers page. (e.g., "AI security company")`);
+                      throw new Error(`Failed compiling markdown content: A case study article is missing a "cardTitleForCustomersPage" meta tag at "${path.join(topLvlRepoPath, pageSourcePath)}". To resolve, add a "cardTitleForCustomersPage" meta tag with the title of this article when it is linked to from the /customers page. (e.g., "AI security company")`);
                     }
                   }
                 }
