@@ -1,0 +1,8 @@
+{
+  "name": "Charles",
+  "unique_identifier": "com.xk72.Charles",
+  "token": "charles",
+  "installer_format": "dmg",
+  "slug": "charles/darwin",
+  "default_categories": ["Developer tools"]
+}

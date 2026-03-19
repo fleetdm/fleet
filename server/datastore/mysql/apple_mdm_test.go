@@ -120,7 +120,9 @@ func TestMDMApple(t *testing.T) {
 		{"RecoveryLockPasswordUpdatedAtChanges", testRecoveryLockPasswordUpdatedAtChanges},
 		{"RecoveryLockStatusMethods", testRecoveryLockStatusMethods},
 		{"GetHostsForRecoveryLockAction", testGetHostsForRecoveryLockAction},
+		{"GetHostRecoveryLockPasswordStatus", testGetHostRecoveryLockPasswordStatus},
 		{"ClaimHostsForRecoveryLockClear", testClaimHostsForRecoveryLockClear},
+		{"RecoveryLockRotation", testRecoveryLockRotation},
 	}
 
 	for _, c := range cases {
@@ -10929,5 +10931,404 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 		require.True(t, found)
 		assert.Equal(t, "remove", opType)
 		assert.Equal(t, "pending", status)
+	})
+}
+
+func testGetHostRecoveryLockPasswordStatus(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("returns nil for host without recovery lock password", func(t *testing.T) {
+		host := test.NewHost(t, ds, "no-rlp-host", "1.2.6.1", "norlpkey", "norlpuuid", time.Now())
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.Nil(t, status)
+	})
+
+	t.Run("returns enforcing status for pending install", func(t *testing.T) {
+		host := test.NewHost(t, ds, "pending-rlp-host", "1.2.6.2", "pendingrlpkey", "pendingrlpuuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusPending, *status.Status)
+		assert.Empty(t, status.Detail)
+		assert.True(t, status.PasswordAvailable)
+	})
+
+	t.Run("returns verified status", func(t *testing.T) {
+		host := test.NewHost(t, ds, "verified-rlp-host", "1.2.6.3", "verifiedrlpkey", "verifiedrlpuuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		err = ds.SetRecoveryLockVerified(ctx, host.UUID)
+		require.NoError(t, err)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *status.Status)
+		assert.Empty(t, status.Detail)
+		assert.True(t, status.PasswordAvailable)
+	})
+
+	t.Run("returns failed status with error message", func(t *testing.T) {
+		host := test.NewHost(t, ds, "failed-rlp-host", "1.2.6.4", "failedrlpkey", "failedrlpuuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		errMsg := "SetRecoveryLock command failed: device rejected"
+		err = ds.SetRecoveryLockFailed(ctx, host.UUID, errMsg)
+		require.NoError(t, err)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusFailed, *status.Status)
+		assert.Equal(t, errMsg, status.Detail)
+	})
+
+	t.Run("returns verifying status", func(t *testing.T) {
+		host := test.NewHost(t, ds, "verifying-rlp-host", "1.2.6.5", "verifyingrlpkey", "verifyingrlpuuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		// Set status to verifying directly via SQL (since there's no SetRecoveryLockVerifying method)
+		_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_recovery_key_passwords SET status = ? WHERE host_uuid = ?`,
+			fleet.MDMDeliveryVerifying, host.UUID)
+		require.NoError(t, err)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusPending, *status.Status)
+		assert.Empty(t, status.Detail)
+	})
+
+	t.Run("returns enforcing status when status column is NULL (retry state)", func(t *testing.T) {
+		host := test.NewHost(t, ds, "null-status-host", "1.2.6.6", "nullstatuskey", "nullstatusuuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		// Clear status to NULL (simulates retry state after failed enqueue)
+		err = ds.ClearRecoveryLockPendingStatus(ctx, []string{host.UUID})
+		require.NoError(t, err)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		// NULL status is coalesced to pending, which becomes enforcing
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusPending, *status.Status)
+		assert.Empty(t, status.Detail)
+	})
+
+	t.Run("returns removing_enforcement status for pending removal after PopulateStatus", func(t *testing.T) {
+		host := test.NewHost(t, ds, "remove-pending-host", "1.2.6.7", "removependingkey", "removependinguuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		err = ds.SetRecoveryLockVerified(ctx, host.UUID)
+		require.NoError(t, err)
+		// Set operation_type to 'remove' and status to 'pending' (simulates pending removal)
+		_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_recovery_key_passwords SET operation_type = ?, status = ? WHERE host_uuid = ?`,
+			fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending, host.UUID)
+		require.NoError(t, err)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+
+		// Before PopulateStatus, Status is nil (raw status is internal)
+		assert.Nil(t, status.Status)
+
+		// After PopulateStatus, Status is removing_enforcement
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusRemovingEnforcement, *status.Status)
+	})
+
+	t.Run("returns failed status when operation_type is remove and status is failed", func(t *testing.T) {
+		host := test.NewHost(t, ds, "remove-failed-host", "1.2.6.8", "removefailedkey", "removefaileduuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		err = ds.SetRecoveryLockVerified(ctx, host.UUID)
+		require.NoError(t, err)
+		// Set operation_type to 'remove' and status to 'failed'
+		errMsg := "ClearRecoveryLock command failed"
+		_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_recovery_key_passwords SET operation_type = ?, status = ?, error_message = ? WHERE host_uuid = ?`,
+			fleet.MDMOperationTypeRemove, fleet.MDMDeliveryFailed, errMsg, host.UUID)
+		require.NoError(t, err)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		assert.Equal(t, errMsg, status.Detail)
+
+		// After PopulateStatus, Status is failed
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusFailed, *status.Status)
+	})
+}
+
+func testRecoveryLockRotation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Helper to set up a host with a verified recovery lock password
+	setupHostWithVerifiedPassword := func(t *testing.T, name, uuid string) *fleet.Host {
+		t.Helper()
+		host := test.NewHost(t, ds, name, "1.2.3."+uuid[:3], name+"key", uuid, time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		err = ds.SetRecoveryLockVerified(ctx, host.UUID)
+		require.NoError(t, err)
+		return host
+	}
+
+	// Helper to get pending rotation state
+	getPendingRotationState := func(t *testing.T, hostUUID string) (hasPending bool, pendingErr *string) {
+		t.Helper()
+		var result struct {
+			HasPending bool    `db:"has_pending"`
+			PendingErr *string `db:"pending_err"`
+		}
+		err := ds.writer(ctx).GetContext(ctx, &result, `
+			SELECT
+				pending_encrypted_password IS NOT NULL AS has_pending,
+				pending_error_message AS pending_err
+			FROM host_recovery_key_passwords
+			WHERE host_uuid = ? AND deleted = 0`, hostUUID)
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		require.NoError(t, err)
+		return result.HasPending, result.PendingErr
+	}
+
+	t.Run("InitiateRecoveryLockRotation success", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "rotate-host", "rotateuuid1")
+
+		// Initiate rotation
+		newPassword := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword)
+		require.NoError(t, err)
+
+		// Verify pending password is set
+		hasPending, _ := getPendingRotationState(t, host.UUID)
+		assert.True(t, hasPending, "pending password should be set")
+
+		// Verify HasPendingRecoveryLockRotation returns true
+		pending, err := ds.HasPendingRecoveryLockRotation(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.True(t, pending)
+	})
+
+	t.Run("InitiateRecoveryLockRotation rejects if already pending", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "double-rotate-host", "doublerotuuid")
+
+		// Initiate first rotation
+		newPassword := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword)
+		require.NoError(t, err)
+
+		// Try to initiate second rotation - should fail
+		err = ds.InitiateRecoveryLockRotation(ctx, host.UUID, "another-password")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "rotation already pending")
+	})
+
+	t.Run("InitiateRecoveryLockRotation rejects pending status", func(t *testing.T) {
+		host := test.NewHost(t, ds, "pending-rotate-host", "1.2.3.100", "pendingrotkey", "pendingrotuuid", time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		// Status is pending after SetHostsRecoveryLockPasswords
+
+		// Try to initiate rotation on pending status - should fail
+		err = ds.InitiateRecoveryLockRotation(ctx, host.UUID, "new-password")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not eligible for rotation")
+	})
+
+	t.Run("InitiateRecoveryLockRotation allows failed status", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "failed-rotate-host", "failedrotuuid")
+
+		// Set to failed status
+		err := ds.SetRecoveryLockFailed(ctx, host.UUID, "previous failure")
+		require.NoError(t, err)
+
+		// Should be able to initiate rotation on failed status
+		newPassword := apple_mdm.GenerateRecoveryLockPassword()
+		err = ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword)
+		require.NoError(t, err)
+
+		hasPending, _ := getPendingRotationState(t, host.UUID)
+		assert.True(t, hasPending)
+	})
+
+	t.Run("CompleteRecoveryLockRotation success", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "complete-rotate-host", "completerotuuid")
+
+		// Get original password
+		origPw, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Initiate rotation with new password
+		newPassword := apple_mdm.GenerateRecoveryLockPassword()
+		err = ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword)
+		require.NoError(t, err)
+
+		// Complete rotation
+		err = ds.CompleteRecoveryLockRotation(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Verify new password is now the active password
+		currentPw, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.NotEqual(t, origPw.Password, currentPw.Password)
+		assert.Equal(t, newPassword, currentPw.Password)
+
+		// Verify pending is cleared
+		hasPending, _ := getPendingRotationState(t, host.UUID)
+		assert.False(t, hasPending)
+
+		// Verify status is verified
+		status, err := ds.GetRecoveryLockRotationStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status.Status)
+		assert.Equal(t, string(fleet.MDMDeliveryVerified), *status.Status)
+	})
+
+	t.Run("FailRecoveryLockRotation preserves pending password", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "fail-rotate-host", "failrotuuid")
+
+		// Initiate rotation
+		newPassword := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword)
+		require.NoError(t, err)
+
+		// Fail rotation
+		err = ds.FailRecoveryLockRotation(ctx, host.UUID, "rotation failed due to device error")
+		require.NoError(t, err)
+
+		// Verify pending password is still there (for potential retry)
+		hasPending, pendingErr := getPendingRotationState(t, host.UUID)
+		assert.True(t, hasPending, "pending password should still be set for retry")
+		require.NotNil(t, pendingErr)
+		assert.Equal(t, "rotation failed due to device error", *pendingErr)
+
+		// Verify rotation status shows the error
+		status, err := ds.GetRecoveryLockRotationStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.True(t, status.HasPendingRotation)
+		require.NotNil(t, status.PendingErrorMessage)
+		assert.Equal(t, "rotation failed due to device error", *status.PendingErrorMessage)
+	})
+
+	t.Run("ClearRecoveryLockRotation removes pending", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "clear-rotate-host", "clearrotuuid")
+
+		// Initiate rotation
+		newPassword := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword)
+		require.NoError(t, err)
+
+		// Clear rotation
+		err = ds.ClearRecoveryLockRotation(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Verify pending is cleared
+		hasPending, _ := getPendingRotationState(t, host.UUID)
+		assert.False(t, hasPending)
+
+		// Verify HasPendingRecoveryLockRotation returns false
+		pending, err := ds.HasPendingRecoveryLockRotation(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.False(t, pending)
+
+		// Verify status restored to verified (since it was verified before rotation)
+		status, err := ds.GetRecoveryLockRotationStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status.Status)
+		assert.Equal(t, string(fleet.MDMDeliveryVerified), *status.Status)
+	})
+
+	t.Run("ClearRecoveryLockRotation restores failed status", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "clear-failed-rotate-host", "clearfailedrotuuid")
+
+		// Set to failed status
+		err := ds.SetRecoveryLockFailed(ctx, host.UUID, "previous failure")
+		require.NoError(t, err)
+
+		// Initiate rotation from failed state
+		newPassword := apple_mdm.GenerateRecoveryLockPassword()
+		err = ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword)
+		require.NoError(t, err)
+
+		// Clear rotation
+		err = ds.ClearRecoveryLockRotation(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Verify pending is cleared
+		hasPending, _ := getPendingRotationState(t, host.UUID)
+		assert.False(t, hasPending)
+
+		// Verify status restored to failed (since error_message still exists from previous failure)
+		status, err := ds.GetRecoveryLockRotationStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status.Status)
+		assert.Equal(t, string(fleet.MDMDeliveryFailed), *status.Status)
+	})
+
+	t.Run("GetRecoveryLockRotationStatus returns all fields", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "status-rotate-host", "statusrotuuid")
+
+		// Get initial status
+		status, err := ds.GetRecoveryLockRotationStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, host.UUID, status.HostUUID)
+		assert.True(t, status.HasPassword)
+		require.NotNil(t, status.Status)
+		assert.Equal(t, string(fleet.MDMDeliveryVerified), *status.Status)
+		assert.Equal(t, string(fleet.MDMOperationTypeInstall), status.OperationType)
+		assert.False(t, status.HasPendingRotation)
+		assert.Nil(t, status.PendingErrorMessage)
+
+		// Initiate rotation
+		newPassword := apple_mdm.GenerateRecoveryLockPassword()
+		err = ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword)
+		require.NoError(t, err)
+
+		// Check status now shows pending rotation
+		status, err = ds.GetRecoveryLockRotationStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.True(t, status.HasPendingRotation)
+	})
+
+	t.Run("GetRecoveryLockRotationStatus not found", func(t *testing.T) {
+		_, err := ds.GetRecoveryLockRotationStatus(ctx, "non-existent-uuid")
+		require.Error(t, err)
+		assert.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("HasPendingRecoveryLockRotation returns false for no record", func(t *testing.T) {
+		pending, err := ds.HasPendingRecoveryLockRotation(ctx, "non-existent-uuid")
+		require.NoError(t, err)
+		assert.False(t, pending)
 	})
 }

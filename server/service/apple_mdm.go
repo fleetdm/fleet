@@ -3463,6 +3463,11 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 			return nil
 		}
 
+		svc.logger.InfoContext(r.Context, "resetting mdm enrollment for old SCEP renewal", "host_uuid", r.ID)
+		if err := svc.ds.MDMResetEnrollment(r.Context, r.ID, false); err != nil {
+			return ctxerr.Wrap(r.Context, err, "failed resetting enrollment for device with old SCEP renewal", "host_uuid", r.ID)
+		}
+
 		// Device is awaiting configuration (wiped DEP device re-enrolling). The pending SCEP
 		// renewal was from the previous enrollment. Continue the normal enrollment flow so
 		// the device gets released from the setup assistant.
@@ -3495,7 +3500,9 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	//         We do check the license before actually _running_ setup experience items.
 	if enqueueSetupExperienceItems {
 		// Enqueue setup experience items and mark the host as being in setup experience
-		hasSetupExpItems, err = svc.ds.EnqueueSetupExperienceItems(r.Context, info.Platform, r.ID, info.TeamID)
+		// NOTE: we don't have PlatformLike field for `info`, but that's fine as this is Apple-specific
+		// flow and the platform is always the same as platform-like.
+		hasSetupExpItems, err = svc.ds.EnqueueSetupExperienceItems(r.Context, info.Platform, info.Platform, r.ID, info.TeamID)
 		if err != nil {
 			return ctxerr.Wrap(r.Context, err, "queueing setup experience tasks")
 		}
@@ -7330,9 +7337,10 @@ func NewRecoveryLockResult(cmdResult *mdm.CommandResults) fleet.MDMCommandResult
 }
 
 // NewSetRecoveryLockResultsHandler processes SetRecoveryLock command results.
-// It handles both SET (install) and CLEAR (remove) operations:
+// It handles SET (install), CLEAR (remove), and ROTATE operations:
 // - SET: When acknowledged, marks the recovery lock as verified. On error, marks as failed.
 // - CLEAR: When acknowledged, deletes the recovery lock password record. On error, marks as failed.
+// - ROTATE: When acknowledged, moves pending password to active. On error, marks rotation as failed.
 func NewSetRecoveryLockResultsHandler(
 	ds fleet.Datastore,
 	logger *slog.Logger,
@@ -7347,6 +7355,47 @@ func NewSetRecoveryLockResultsHandler(
 
 		hostUUID := results.HostUUID()
 		status := rlResult.cmdResult.Status
+
+		// Check if this is a rotation (has pending password)
+		hasPendingRotation, err := ds.HasPendingRecoveryLockRotation(ctx, hostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: check pending rotation")
+		}
+
+		if hasPendingRotation {
+			// This is a rotation result
+			logger.DebugContext(ctx, "SetRecoveryLock rotation result received",
+				"host_uuid", hostUUID,
+				"command_uuid", results.UUID(),
+				"status", status,
+			)
+
+			switch status {
+			case fleet.MDMAppleStatusAcknowledged:
+				// Rotation succeeded - move pending password to active
+				if err := ds.CompleteRecoveryLockRotation(ctx, hostUUID); err != nil {
+					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: complete rotation")
+				}
+				logger.InfoContext(ctx, "RotateRecoveryLock acknowledged, password rotated",
+					"host_uuid", hostUUID,
+				)
+
+			case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
+				errorMsg := apple_mdm.FmtErrorChain(rlResult.cmdResult.ErrorChain)
+				if errorMsg == "" {
+					errorMsg = "RotateRecoveryLock command failed"
+				}
+				if err := ds.FailRecoveryLockRotation(ctx, hostUUID, errorMsg); err != nil {
+					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: fail rotation")
+				}
+				logger.WarnContext(ctx, "RotateRecoveryLock command failed",
+					"host_uuid", hostUUID,
+					"error", errorMsg,
+				)
+			}
+
+			return nil
+		}
 
 		// Get the operation type to determine if this was a SET or CLEAR operation
 		opType, err := ds.GetRecoveryLockOperationType(ctx, hostUUID)

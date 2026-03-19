@@ -1343,6 +1343,92 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	require.Len(t, ts.Policies, 0)
 }
 
+func (s *integrationEnterpriseTestSuite) TestListTeamPoliciesAutomationTypeSoftware() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a team
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: "team_automation_type_" + t.Name(),
+	})
+	require.NoError(t, err)
+
+	// Upload a software installer for the software install policy
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "some install script",
+		Filename:      "ruby.deb",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+	rubyTitleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
+
+	// Upload a second software installer for the patch policy (supported for FMAs)
+	payload2 := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "some install script",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, payload2, http.StatusOK, "")
+	dummyTitleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
+	// Create a Fleet Maintained App and associate it with the dummy installer
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
+			VALUES ('DummyApp', 'dummy-autofilter/darwin', 'darwin', 'com.example.dummy-autofilter')`)
+		require.NoError(t, err)
+		id, err := res.LastInsertId()
+		require.NoError(t, err)
+		_, err = q.ExecContext(ctx, `UPDATE software_installers SET fleet_maintained_app_id = ? WHERE global_or_team_id = ? AND title_id = ?`, id, team.ID, dummyTitleID)
+		require.NoError(t, err)
+		return nil
+	})
+
+	// Create a regular policy (no automation)
+	regularPolicy := teamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), teamPolicyRequest{
+		Name:  "regular policy",
+		Query: "SELECT 1;",
+	}, http.StatusOK, &regularPolicy)
+
+	// Create a software install policy
+	installPolicy := teamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), teamPolicyRequest{
+		Name:            "install software policy",
+		Query:           "SELECT 1 FROM some_table;",
+		SoftwareTitleID: &rubyTitleID,
+	}, http.StatusOK, &installPolicy)
+	require.NotNil(t, installPolicy.Policy.InstallSoftware)
+
+	// Create a patch policy
+	patchPolicy := teamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), teamPolicyRequest{
+		Type:                 ptr.String("patch"),
+		PatchSoftwareTitleID: &dummyTitleID,
+	}, http.StatusOK, &patchPolicy)
+	require.NotNil(t, patchPolicy.Policy.PatchSoftware)
+	require.Equal(t, fleet.PolicyTypePatch, patchPolicy.Policy.Type)
+
+	// List all policies (no filter) - should return all 3
+	listResp := listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Policies, 3)
+
+	// List with automation_type=software - should return install policy and patch policy only
+	listResp = listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, &listResp, "automation_type", "software")
+	require.Len(t, listResp.Policies, 2)
+	policyIDs := []uint{listResp.Policies[0].ID, listResp.Policies[1].ID}
+	assert.Contains(t, policyIDs, installPolicy.Policy.ID)
+	assert.Contains(t, policyIDs, patchPolicy.Policy.ID)
+
+	// List with merge_inherited and automation_type=software
+	listResp = listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, &listResp, "merge_inherited", "true", "automation_type", "software")
+	require.Len(t, listResp.Policies, 2)
+	policyIDs = []uint{listResp.Policies[0].ID, listResp.Policies[1].ID}
+	assert.Contains(t, policyIDs, installPolicy.Policy.ID)
+	assert.Contains(t, policyIDs, patchPolicy.Policy.ID)
+}
+
 func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
 	t := s.T()
 	ctx := context.Background()
@@ -1690,7 +1776,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 		Description: "Team2 description",
 		Secrets:     []*fleet.EnrollSecret{{Secret: "GHI"}},
 	}
-	tmResp.Team = nil
 	s.DoJSON("POST", "/api/latest/fleet/teams", team2, http.StatusConflict, &tmResp)
 
 	// create a team with reserved team names; should be case-insensitive
@@ -1706,6 +1791,32 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	teamReserved.Name = "AlL TeaMS"
 	r = s.Do("POST", "/api/latest/fleet/teams", teamReserved, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
+
+	// create a team with a whitespace-only name
+	teamWhitespace := &fleet.Team{
+		Name:        "     ",
+		Description: "description",
+		Secrets:     []*fleet.EnrollSecret{{Secret: "whitespace-team"}},
+	}
+	r = s.Do("POST", "/api/latest/fleet/teams", teamWhitespace, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), `may not be empty`)
+
+	// create a team with leading/trailing whitespace — name should be trimmed
+	teamPadded := &fleet.Team{
+		Name:        "  Padded Team  ",
+		Description: "description",
+		Secrets:     []*fleet.EnrollSecret{{Secret: "padded-team"}},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/teams", teamPadded, http.StatusOK, &tmResp)
+	require.Equal(t, "Padded Team", tmResp.Team.Name)
+	paddedTeamID := tmResp.Team.ID
+
+	// rename with leading/trailing whitespace — name should be trimmed
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), fleet.TeamPayload{Name: ptr.String("  Renamed Padded  ")}, http.StatusOK, &tmResp)
+	require.Equal(t, "Renamed Padded", tmResp.Team.Name)
+
+	// clean up
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), nil, http.StatusOK)
 
 	// create a team with too many secrets
 	team3 := &fleet.Team{
@@ -1812,6 +1923,10 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), fleet.TeamPayload{Name: ptr.String("ALL teAMs")}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
+
+	// try to rename to a whitespace-only name
+	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), fleet.TeamPayload{Name: ptr.String("     ")}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), `may not be empty`)
 
 	// Modify team's calendar config
 	modifyCalendar := fleet.TeamPayload{
@@ -3247,7 +3362,7 @@ func (s *integrationEnterpriseTestSuite) assertAppleOSUpdatesDeclaration(teamID 
 	require.NoError(t, err)
 
 	require.Contains(t, string(decl.RawJSON), fmt.Sprintf(`"TargetOSVersion": "%s"`, expected.MinimumVersion.Value))
-	require.Contains(t, string(decl.RawJSON), fmt.Sprintf(`"TargetLocalDateTime": "%sT19:00:00"`, expected.Deadline.Value))
+	require.Contains(t, string(decl.RawJSON), fmt.Sprintf(`"TargetLocalDateTime": "%sT12:00:00"`, expected.Deadline.Value))
 }
 
 func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
@@ -4753,7 +4868,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	t := s.T()
 
 	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"server_settings": {
 			"server_url": "https://localhost:8080"
 		},
@@ -4761,10 +4876,10 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 			"enable_sso": true,
 			"entity_id": "https://localhost:8080",
 			"idp_name": "SimpleSAML",
-			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
+			"metadata_url": "%s",
 			"enable_jit_provisioning": false
 		}
-	}`), http.StatusOK, &acResp)
+	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
 
@@ -4780,15 +4895,15 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 
 	// enable JIT provisioning
 	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"sso_settings": {
 			"enable_sso": true,
 			"entity_id": "https://localhost:8080",
 			"idp_name": "SimpleSAML",
-			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
+			"metadata_url": "%s",
 			"enable_jit_provisioning": true
 		}
-	}`), http.StatusOK, &acResp)
+	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.True(t, acResp.SSOSettings.EnableJITProvisioning)
 
@@ -20960,7 +21075,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOIdPInitiatedLogin() {
 	t := s.T()
 
 	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
         "server_settings": {
           "server_url": "https://localhost:8080"
         },
@@ -20970,9 +21085,9 @@ func (s *integrationEnterpriseTestSuite) TestSSOIdPInitiatedLogin() {
 			"enable_sso_idp_login": true,
 			"entity_id": "sso.test.com",
 			"idp_name": "SimpleSAML",
-			"metadata_url": "http://127.0.0.1:9080/simplesaml/saml2/idp/metadata.php"
+			"metadata_url": "%s"
 		}
-	}`), http.StatusOK, &acResp)
+	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 
 	body := s.LoginSSOUserIDPInitiated("sso_user2", "user123#", "sso.test.com")
@@ -21409,7 +21524,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	p3 := pr.Policy
 
 	ctx := context.Background()
-	newHost := func(name string, teamID *uint, platform string) *fleet.Host {
+	newHost := func(name string, teamID *uint, platform string, osVersion string) *fleet.Host {
 		h, err := s.ds.NewHost(ctx, &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -21421,6 +21536,8 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 			Hostname:        fmt.Sprintf("%s.%s.local", name, t.Name()),
 			Platform:        platform,
 			TeamID:          teamID,
+
+			OSVersion: osVersion,
 		})
 		require.NoError(t, err)
 		return h
@@ -21430,10 +21547,11 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	// Test A: host h1 in team t1.
 	//
 
-	h1 := newHost("h1", &t1.ID, "darwin")
+	h1 := newHost("h1", &t1.ID, "darwin", "macOS 15.7.3")
 	orbitKey := setOrbitEnrollment(t, h1, s.ds)
 	h1.OrbitNodeKey = &orbitKey
-	windowsHost1 := newHost("windowsHost1", &t1.ID, "windows")
+
+	windowsHost1 := newHost("windowsHost1", &t1.ID, "windows", "Windows 10 Pro 22H2 10.0.19045.6456")
 	windowsHostorbitKey := setOrbitEnrollment(t, windowsHost1, s.ds)
 	windowsHost1.OrbitNodeKey = &windowsHostorbitKey
 
@@ -21472,6 +21590,12 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 
 	// override value to reduce test time.
 	conditionalAccessSetWaitTime = 250 * time.Millisecond
+
+	var (
+		setDeviceName string
+		setOSName     string
+		setOSVersion  string
+	)
 	mockedConditionalAccessMicrosoftProxyInstance.setComplianceStatusFunc = func(
 		ctx context.Context,
 		tenantID string, secret string,
@@ -21482,6 +21606,9 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 		compliant bool,
 		lastCheckInTime time.Time,
 	) (*conditional_access_microsoft_proxy.SetComplianceStatusResponse, error) {
+		setDeviceName = deviceName
+		setOSName = osName
+		setOSVersion = osVersion
 		return &conditional_access_microsoft_proxy.SetComplianceStatusResponse{
 			MessageID: "messageID",
 		}, nil
@@ -21502,6 +21629,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 		}, nil
 	}
 
+	// Post policy results for the macOS host.
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		h1,
 		map[uint]*bool{
@@ -21527,7 +21655,38 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	require.NotNil(t, h1s.Compliant)
 	require.True(t, *h1s.Compliant) // the two configured policies are passing
 
-	// Enroll to MDM to update managed status.
+	// Check fields to set on Entra are correct.
+	require.Equal(t, h1.Hostname, setDeviceName)
+	require.Equal(t, "15.7.3", setOSVersion)
+	require.Equal(t, "macOS", setOSName)
+
+	// Post policy results for the windows host.
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		windowsHost1,
+		map[uint]*bool{
+			cp1.ID: ptr.Bool(true),
+			cp2.ID: ptr.Bool(true),
+			p3.ID:  ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+
+	time.Sleep(1 * time.Second)
+
+	wh1s, err = s.ds.LoadHostConditionalAccessStatus(ctx, windowsHost1.ID)
+	require.NoError(t, err)
+	require.Equal(t, "entraDeviceIDWindows", wh1s.DeviceID)
+	require.Equal(t, "", wh1s.UserPrincipalName)
+	require.NotNil(t, wh1s.Managed)
+	require.False(t, *wh1s.Managed) // not MDM enrolled
+	require.NotNil(t, wh1s.Compliant)
+	require.True(t, *wh1s.Compliant) // the two configured policies are passing
+
+	// Check fields to set on Entra are correct.
+	require.Equal(t, windowsHost1.Hostname, setDeviceName)
+	require.Equal(t, "10.0.19045.6456", setOSVersion)
+	require.Equal(t, "windows", setOSName)
+
+	// Enroll macOS host to MDM to update managed status.
 	err = s.ds.SetOrUpdateMDMData(ctx,
 		h1.ID, false, true /* enrolled */, s.server.URL, false, /* installedFromDEP */
 		"Fleet" /* MDM name */, "" /* fleetEnrollmentRef */, false, /* isPersonalEnrollment */
@@ -21562,9 +21721,37 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	require.NotNil(t, h1s.Compliant)
 	require.True(t, *h1s.Compliant) // the two configured policies are passing
 
+	// Enroll Windows host to MDM to update managed status.
+	err = s.ds.SetOrUpdateMDMData(ctx,
+		windowsHost1.ID, false, true /* enrolled */, s.server.URL, false, /* installedFromDEP */
+		"Fleet" /* MDM name */, "" /* fleetEnrollmentRef */, false, /* isPersonalEnrollment */
+	)
+	require.NoError(t, err)
+
+	// Publish same policy results.
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		windowsHost1,
+		map[uint]*bool{
+			cp1.ID: ptr.Bool(true),
+			cp2.ID: ptr.Bool(true),
+			p3.ID:  ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+
+	time.Sleep(1 * time.Second)
+
+	wh1s, err = s.ds.LoadHostConditionalAccessStatus(ctx, windowsHost1.ID)
+	require.NoError(t, err)
+	require.Equal(t, "entraDeviceIDWindows", wh1s.DeviceID)
+	require.Equal(t, "", wh1s.UserPrincipalName)
+	require.NotNil(t, wh1s.Managed)
+	require.True(t, *wh1s.Managed) // now should be MDM enrolled
+	require.NotNil(t, wh1s.Compliant)
+	require.True(t, *wh1s.Compliant) // the two configured policies are passing
+
 	setDone = make(chan struct{})
 
-	// Now the host is failing a compliance policy.
+	// Now the macOS host is failing a compliance policy.
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		h1,
 		map[uint]*bool{
@@ -21588,7 +21775,28 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	require.NotNil(t, h1s.Managed)
 	require.True(t, *h1s.Managed)
 	require.NotNil(t, h1s.Compliant)
-	require.False(t, *h1s.Compliant) // now the host is non-compliant
+	require.False(t, *h1s.Compliant) // now the macOS host is non-compliant
+
+	// Now the Windows host is failing a compliance policy.
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		windowsHost1,
+		map[uint]*bool{
+			cp1.ID: ptr.Bool(true),
+			cp2.ID: ptr.Bool(false),
+			p3.ID:  ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+
+	time.Sleep(1 * time.Second)
+
+	wh1s, err = s.ds.LoadHostConditionalAccessStatus(ctx, windowsHost1.ID)
+	require.NoError(t, err)
+	require.Equal(t, "entraDeviceIDWindows", wh1s.DeviceID)
+	require.Equal(t, "", wh1s.UserPrincipalName)
+	require.NotNil(t, wh1s.Managed)
+	require.True(t, *wh1s.Managed)
+	require.NotNil(t, wh1s.Compliant)
+	require.False(t, *wh1s.Compliant) // now the Windows host is non-compliant
 
 	// Now nothing changes so there's no compliance operation on the proxy.
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
@@ -21600,7 +21808,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 		},
 	), http.StatusOK, &distributedResp)
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	h1s, err = s.ds.LoadHostConditionalAccessStatus(ctx, h1.ID)
 	require.NoError(t, err)
@@ -21611,11 +21819,32 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	require.NotNil(t, h1s.Compliant)
 	require.False(t, *h1s.Compliant)
 
+	// Now nothing changes on the Windows host so there's no compliance operation on the proxy.
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		windowsHost1,
+		map[uint]*bool{
+			cp1.ID: ptr.Bool(true),
+			cp2.ID: ptr.Bool(false),
+			p3.ID:  ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+
+	time.Sleep(5 * time.Second)
+
+	wh1s, err = s.ds.LoadHostConditionalAccessStatus(ctx, windowsHost1.ID)
+	require.NoError(t, err)
+	require.Equal(t, "entraDeviceIDWindows", wh1s.DeviceID)
+	require.Equal(t, "", wh1s.UserPrincipalName)
+	require.NotNil(t, wh1s.Managed)
+	require.True(t, *wh1s.Managed)
+	require.NotNil(t, wh1s.Compliant)
+	require.False(t, *wh1s.Compliant)
+
 	//
 	// Test B: host h2 in "No team".
 	//
 
-	h2 := newHost("h2", nil, "darwin")
+	h2 := newHost("h2", nil, "darwin", "macOS 26.3")
 	orbitKey2 := setOrbitEnrollment(t, h2, s.ds)
 	h2.OrbitNodeKey = &orbitKey2
 
@@ -26343,7 +26572,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.NotNil(t, policy.PatchSoftware)
 		require.Equal(t, titleID, policy.PatchSoftware.SoftwareTitleID)
 		require.Equal(t, fleet.PolicyTypePatch, policy.Type)
-		require.Equal(t, fmt.Sprintf(`SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND version_compare(bundle_short_version, '%s') >= 0;`, version), policy.Query)
+		require.Equal(t, fmt.Sprintf(`SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND version_compare(bundle_short_version, '%s') < 0);`, version), policy.Query)
 		require.Equal(t, name, policy.Name)
 	}
 
@@ -26429,7 +26658,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Equal(t, "macOS - DummyApp up to date", policyResp.Policy.Name)
 		require.Equal(t, "Outdated software might introduce security vulnerabilities or compatibility issues.", policyResp.Policy.Description)
 		require.Equal(t, "Install the latest version from self-service.", *policyResp.Policy.Resolution)
-		require.Contains(t, policyResp.Policy.Query, "SELECT 1 FROM apps WHERE bundle_identifier =")
+		require.Equal(t, policyResp.Policy.Query, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.dummy' AND version_compare(bundle_short_version, '1.0.0') < 0);")
 		require.NotNil(t, policyResp.Policy.PatchSoftware)
 		require.Equal(t, titleID, policyResp.Policy.PatchSoftware.SoftwareTitleID)
 		policyID := policyResp.Policy.ID

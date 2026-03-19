@@ -1126,6 +1126,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
+	ds.GetHostRecoveryLockPasswordStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
+		return nil, nil
+	}
 
 	expectedNilSlice := []fleet.HostMDMAppleProfile(nil)
 	expectedEmptySlice := []fleet.HostMDMAppleProfile{}
@@ -1639,8 +1642,8 @@ func TestMDMTokenUpdate(t *testing.T) {
 	err := svc.TokenUpdate(
 		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: uuid}},
 		&mdm.TokenUpdate{
-			Enrollment: mdm.Enrollment{
-				UDID: uuid,
+			TokenUpdateEnrollment: mdm.TokenUpdateEnrollment{
+				Enrollment: mdm.Enrollment{UDID: uuid},
 			},
 		},
 	)
@@ -1659,8 +1662,8 @@ func TestMDMTokenUpdate(t *testing.T) {
 			Params:   map[string]string{"enroll_reference": "abcd"},
 		},
 		&mdm.TokenUpdate{
-			Enrollment: mdm.Enrollment{
-				UDID: uuid,
+			TokenUpdateEnrollment: mdm.TokenUpdateEnrollment{
+				Enrollment: mdm.Enrollment{UDID: uuid},
 			},
 		},
 	)
@@ -1670,7 +1673,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 	require.True(t, newActivityFuncInvoked)
 
 	// With AwaitingConfiguration - should check for and enqueue SetupExperience items
-	ds.EnqueueSetupExperienceItemsFunc = func(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
+	ds.EnqueueSetupExperienceItemsFunc = func(ctx context.Context, hostPlatform, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
 		require.Equal(t, "darwin", hostPlatformLike)
 		require.Equal(t, uuid, hostUUID)
 		require.Equal(t, wantTeamID, teamID)
@@ -1684,9 +1687,11 @@ func TestMDMTokenUpdate(t *testing.T) {
 			Params:   map[string]string{"enroll_reference": "abcd"},
 		},
 		&mdm.TokenUpdate{
-			Enrollment: mdm.Enrollment{
+			TokenUpdateEnrollment: mdm.TokenUpdateEnrollment{
 				AwaitingConfiguration: true,
-				UDID:                  uuid,
+				Enrollment: mdm.Enrollment{
+					UDID: uuid,
+				},
 			},
 		},
 	)
@@ -1720,9 +1725,11 @@ func TestMDMTokenUpdate(t *testing.T) {
 			Params:   map[string]string{"enroll_reference": "abcd"},
 		},
 		&mdm.TokenUpdate{
-			Enrollment: mdm.Enrollment{
+			TokenUpdateEnrollment: mdm.TokenUpdateEnrollment{
 				AwaitingConfiguration: true,
-				UDID:                  uuid,
+				Enrollment: mdm.Enrollment{
+					UDID: uuid,
+				},
 			},
 		},
 	)
@@ -1740,8 +1747,8 @@ func TestMDMTokenUpdate(t *testing.T) {
 			Params:   map[string]string{"enroll_reference": "abcd"},
 		},
 		&mdm.TokenUpdate{
-			Enrollment: mdm.Enrollment{
-				UDID: uuid,
+			TokenUpdateEnrollment: mdm.TokenUpdateEnrollment{
+				Enrollment: mdm.Enrollment{UDID: uuid},
 			},
 		},
 	)
@@ -1808,7 +1815,7 @@ func TestMDMTokenUpdateIOS(t *testing.T) {
 		return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
 	}
 
-	ds.EnqueueSetupExperienceItemsFunc = func(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
+	ds.EnqueueSetupExperienceItemsFunc = func(ctx context.Context, hostPlatform, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
 		require.Equal(t, "ios", hostPlatformLike)
 		require.Equal(t, uuid, hostUUID)
 		require.Equal(t, wantTeamID, teamID)
@@ -1823,8 +1830,8 @@ func TestMDMTokenUpdateIOS(t *testing.T) {
 			Params:   map[string]string{"enroll_reference": "abcd"},
 		},
 		&mdm.TokenUpdate{
-			Enrollment: mdm.Enrollment{
-				UDID: uuid,
+			TokenUpdateEnrollment: mdm.TokenUpdateEnrollment{
+				Enrollment: mdm.Enrollment{UDID: uuid},
 			},
 		},
 	)
@@ -1839,8 +1846,8 @@ func TestMDMTokenUpdateIOS(t *testing.T) {
 			Params:   map[string]string{"enroll_reference": "abcd"},
 		},
 		&mdm.TokenUpdate{
-			Enrollment: mdm.Enrollment{
-				UDID: uuid,
+			TokenUpdateEnrollment: mdm.TokenUpdateEnrollment{
+				Enrollment: mdm.Enrollment{UDID: uuid},
 			},
 		},
 	)
@@ -1872,8 +1879,8 @@ func TestMDMTokenUpdateIOS(t *testing.T) {
 			Params:   map[string]string{"enroll_reference": "abcd"},
 		},
 		&mdm.TokenUpdate{
-			Enrollment: mdm.Enrollment{
-				UDID: uuid,
+			TokenUpdateEnrollment: mdm.TokenUpdateEnrollment{
+				Enrollment: mdm.Enrollment{UDID: uuid},
 			},
 		},
 	)
@@ -1905,8 +1912,8 @@ func TestMDMTokenUpdateIOS(t *testing.T) {
 			Params:   map[string]string{"enroll_reference": "abcd"},
 		},
 		&mdm.TokenUpdate{
-			Enrollment: mdm.Enrollment{
-				UDID: uuid,
+			TokenUpdateEnrollment: mdm.TokenUpdateEnrollment{
+				Enrollment: mdm.Enrollment{UDID: uuid},
 			},
 		},
 	)
@@ -6948,7 +6955,7 @@ func TestMDMTokenUpdateSCEPRenewal(t *testing.T) {
 			scepRenewalInProgress = false
 			return nil
 		}
-		ds.EnqueueSetupExperienceItemsFunc = func(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
+		ds.EnqueueSetupExperienceItemsFunc = func(ctx context.Context, hostPlatform, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
 			require.Equal(t, "darwin", hostPlatformLike)
 			require.Equal(t, uuid, hostUUID)
 			require.Equal(t, wantTeamID, teamID)
@@ -6966,13 +6973,18 @@ func TestMDMTokenUpdateSCEPRenewal(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, j *fleet.Job) (*fleet.Job, error) {
 			return j, nil
 		}
+		ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
+			return nil
+		}
 
 		err := svc.TokenUpdate(
 			&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: uuid}},
 			&mdm.TokenUpdate{
-				Enrollment: mdm.Enrollment{
+				TokenUpdateEnrollment: mdm.TokenUpdateEnrollment{
 					AwaitingConfiguration: true,
-					UDID:                  uuid,
+					Enrollment: mdm.Enrollment{
+						UDID: uuid,
+					},
 				},
 			},
 		)
@@ -6981,6 +6993,7 @@ func TestMDMTokenUpdateSCEPRenewal(t *testing.T) {
 		require.True(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
 		require.True(t, ds.NewJobFuncInvoked)
 		require.True(t, newActivityFuncInvoked)
+		require.True(t, ds.MDMResetEnrollmentFuncInvoked)
 	})
 
 	t.Run("not awaiting configuration short-circuits", func(t *testing.T) {
@@ -7022,8 +7035,8 @@ func TestMDMTokenUpdateSCEPRenewal(t *testing.T) {
 		err := svc.TokenUpdate(
 			&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: uuid}},
 			&mdm.TokenUpdate{
-				Enrollment: mdm.Enrollment{
-					UDID: uuid,
+				TokenUpdateEnrollment: mdm.TokenUpdateEnrollment{
+					Enrollment: mdm.Enrollment{UDID: uuid},
 				},
 			},
 		)

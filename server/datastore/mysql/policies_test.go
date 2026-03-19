@@ -7573,7 +7573,7 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 		PatchSoftwareTitleID: &titleID,
 	})
 	require.NoError(t, err)
-	require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') >= 0;", p1.Query)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') < 0);", p1.Query)
 
 	_, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
 		Name:     "p2",
@@ -7595,7 +7595,7 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 	require.Equal(t, "Outdated software might introduce security vulnerabilities or compatibility issues.", p3.Description)
 	require.Equal(t, "Install the latest version from self-service.", *p3.Resolution)
 	require.Equal(t, "darwin", p3.Platform)
-	require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') >= 0;", p3.Query)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') < 0);", p3.Query)
 
 	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{p3.ID})
 	require.NoError(t, err)
@@ -7613,7 +7613,7 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 	require.Equal(t, "description", p4.Description)
 	require.Equal(t, "resolution", *p4.Resolution)
 	require.Equal(t, "darwin", p4.Platform)
-	require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') >= 0;", p4.Query)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') < 0);", p4.Query)
 
 	// test GetPatchPolicy
 	data, err := ds.GetPatchPolicy(ctx, &team1.ID, titleID)
@@ -7660,6 +7660,29 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 		TeamID:            nil,
 		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	})
+	require.NoError(t, err)
+
+	// Add an FMA.
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{ID: 1})
+	require.NoError(t, err)
+
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "hello",
+		PreInstallQuery:      "SELECT 1",
+		PostInstallScript:    "world",
+		StorageID:            "storage1",
+		Filename:             "maintained1",
+		Title:                "Maintained1",
+		Version:              "1.0",
+		Source:               "apps",
+		Platform:             "darwin",
+		BundleIdentifier:     "fleet.maintained1",
+		UserID:               user1.ID,
+		TeamID:               nil,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: &fma.ID,
+	}
+	_, titleID2, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), payload)
 	require.NoError(t, err)
 
 	test.CreateInsertGlobalVPPToken(t, ds)
@@ -7721,6 +7744,14 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	teamPatchPolicy, err := ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:                 "query 8",
+		Query:                "SELECT 1;",
+		Type:                 fleet.PolicyTypePatch,
+		PatchSoftwareTitleID: &titleID2,
+	})
+	require.NoError(t, err)
+
 	// TODO: test ticket integration policies?
 
 	config := fleet.TeamConfig{}
@@ -7735,7 +7766,7 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	}, "")
 	require.NoError(t, err)
 
-	require.Len(t, merged, 7)
+	require.Len(t, merged, 8)
 	assert.Equal(t, gpol.ID, merged[0].ID)
 	assert.Equal(t, teamInstallerPolicy.ID, merged[1].ID)
 	assert.Equal(t, teamAppStorePolicy.ID, merged[2].ID)
@@ -7743,6 +7774,7 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	assert.Equal(t, teamCalendarPolicy.ID, merged[4].ID)
 	assert.Equal(t, teamConditionalPolicy.ID, merged[5].ID)
 	assert.Equal(t, teamWebhookPolicy.ID, merged[6].ID)
+	assert.Equal(t, teamPatchPolicy.ID, merged[7].ID)
 
 	// Test filters
 	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
@@ -7750,9 +7782,10 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 		OrderDirection: fleet.OrderAscending,
 	}, "software")
 	require.NoError(t, err)
-	require.Len(t, merged, 2)
+	require.Len(t, merged, 3)
 	assert.Equal(t, teamInstallerPolicy.ID, merged[0].ID)
 	assert.Equal(t, teamAppStorePolicy.ID, merged[1].ID)
+	assert.Equal(t, teamPatchPolicy.ID, merged[2].ID)
 
 	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
 		OrderKey:       "name",
@@ -7792,7 +7825,8 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 		OrderDirection: fleet.OrderAscending,
 	}, fleet.ListOptions{}, "software")
 	require.NoError(t, err)
-	require.Len(t, policies, 2)
+	require.Len(t, policies, 3)
 	assert.Equal(t, teamInstallerPolicy.ID, policies[0].ID)
 	assert.Equal(t, teamAppStorePolicy.ID, policies[1].ID)
+	assert.Equal(t, teamPatchPolicy.ID, policies[2].ID)
 }

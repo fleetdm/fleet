@@ -508,6 +508,9 @@ func parseName(raw json.RawMessage, result *GitOps, filePath string, multiError 
 	if err := json.Unmarshal(raw, &result.TeamName); err != nil {
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"name"}, err))
 	}
+	if result.TeamName != nil {
+		*result.TeamName = strings.TrimSpace(*result.TeamName)
+	}
 	if result.TeamName == nil || *result.TeamName == "" {
 		return multierror.Append(multiError, errors.New("team 'name' is required"))
 	}

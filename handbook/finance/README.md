@@ -8,7 +8,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | CFO | [Tina Ong](https://www.linkedin.com/in/ongtina/) _([@rfoo2015](https://github.com/rfoo2015))_
 | Deal Desk       | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_
-| GTM Systems Architect | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ 
+| Head of GTM Architecture | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ 
 
 
 ## Contact us

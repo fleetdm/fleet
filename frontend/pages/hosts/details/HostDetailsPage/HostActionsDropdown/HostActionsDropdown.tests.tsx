@@ -1695,7 +1695,7 @@ describe("Host Actions Dropdown", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("disables the action when profile status is pending", async () => {
+    it("disables the action when password is not available", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -1717,7 +1717,7 @@ describe("Host Actions Dropdown", () => {
           isConnectedToFleetMdm
           hostPlatform="darwin"
           isRecoveryLockPasswordEnabled
-          recoveryLockPasswordProfileStatus="pending"
+          recoveryLockPasswordAvailable={false}
         />
       );
 
@@ -1730,47 +1730,7 @@ describe("Host Actions Dropdown", () => {
       await user.hover(option);
       await waitFor(() => {
         expect(
-          screen.getByText(/Recovery Lock password is unavailable/i)
-        ).toBeInTheDocument();
-      });
-    });
-
-    it("disables the action when profile status is failed", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isGlobalAdmin: true,
-            isPremiumTier: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={null}
-          onSelect={noop}
-          hostStatus="online"
-          hostMdmEnrollmentStatus={null}
-          hostMdmDeviceStatus="unlocked"
-          hostScriptsEnabled
-          isConnectedToFleetMdm
-          hostPlatform="darwin"
-          isRecoveryLockPasswordEnabled
-          recoveryLockPasswordProfileStatus="failed"
-        />
-      );
-
-      await user.click(screen.getByText("Actions"));
-
-      const option = screen.getByText("Show Recovery Lock password");
-      expect(option).toBeInTheDocument();
-      expect(option).toHaveAttribute("aria-disabled", "true");
-
-      await user.hover(option);
-      await waitFor(() => {
-        expect(
-          screen.getByText(/Recovery Lock password is unavailable/i)
+          screen.getByText(/Recovery Lock password is not available/i)
         ).toBeInTheDocument();
       });
     });
