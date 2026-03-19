@@ -12426,7 +12426,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// Create a host and assign the label to it
 		host := createOrbitEnrolledHost(t, "linux", "label_host", s.ds)
-		err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{lblA.ID: ptr.Bool(true)}, time.Now(), false)
+		err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{lblA.ID: new(true)}, time.Now(), false)
 		require.NoError(t, err)
 
 		// Attempt to install. Should fail because label is "exclude any"
@@ -12528,9 +12528,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// patch the installer to update an unrelated field; labels_include_all should be preserved
 		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
-			SelfService:     ptr.Bool(true),
-			InstallScript:   ptr.String("some install script"),
-			PreInstallQuery: ptr.String("some pre install query"),
+			SelfService:     new(true),
+			InstallScript:   new("some install script"),
+			PreInstallQuery: new("some pre install query"),
 			Filename:        "ruby.deb",
 			TitleID:         titleID,
 			TeamID:          nil,
@@ -12544,7 +12544,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// create a host and assign the label — install should succeed since host has all required labels
 		host := createOrbitEnrolledHost(t, "linux", "include_all_label_host", s.ds)
-		err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{labelResp.Label.ID: ptr.Bool(true)}, time.Now(), false)
+		err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{labelResp.Label.ID: new(true)}, time.Now(), false)
 		require.NoError(t, err)
 		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), nil, http.StatusAccepted)
 
@@ -18649,7 +18649,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host,
 		map[uint]*bool{
-			policy3.ID: ptr.Bool(false),
+			policy3.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -18717,7 +18717,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host,
 		map[uint]*bool{
-			policy4.ID: ptr.Bool(false),
+			policy4.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -18741,7 +18741,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host,
 		map[uint]*bool{
-			policy4.ID: ptr.Bool(false),
+			policy4.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	err = s.ds.UpdateHostPolicyCounts(ctx)
