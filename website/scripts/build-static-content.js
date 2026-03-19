@@ -733,6 +733,10 @@ module.exports = {
                         }
                       }
                     }
+                  } else {
+                    if(!embeddedMetadata.cardTitleForCustomersPage) {
+                      throw new Error(`Failed compiling markdown content: A case study article is missing a "cardTitleForCustomersPage" meta tag at "${path.join(topLvlRepoPath, pageSourcePath)}". To resolve, add a "cardTitleForCustomersPage" meta tag with the title of this article when it is linked to from the /customers page. (e.g., "AI security company")`);
+                    }
                   }
                 }
                 // If this is a whitepaper article, we'll check to make sure it has a whitepaperFilename and TODO metatags

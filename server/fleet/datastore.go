@@ -834,8 +834,8 @@ type Datastore interface {
 	ListGlobalPolicies(ctx context.Context, opts ListOptions) ([]*Policy, error)
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
-	CountPolicies(ctx context.Context, teamID *uint, matchQuery string) (int, error)
-	CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string) (int, error)
+	CountPolicies(ctx context.Context, teamID *uint, matchQuery string, automationType string) (int, error)
+	CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string, automationType string) (int, error)
 	UpdateHostPolicyCounts(ctx context.Context) error
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
@@ -854,7 +854,7 @@ type Datastore interface {
 	GetPoliciesWithAssociatedScript(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyScriptData, error)
 	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
 	// GetPoliciesForConditionalAccess returns the team policies that are configured for "Conditional access".
-	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint) ([]uint, error)
+	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint, platform string) ([]uint, error)
 	// GetPatchPolicy returns the patch policy associated with the title id
 	GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*PatchPolicyData, error)
 
@@ -911,8 +911,8 @@ type Datastore interface {
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
-	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, automationFilter string) (teamPolicies, inheritedPolicies []*Policy, err error)
-	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, automationFilter string) ([]*Policy, error)
+	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, automationType string) (teamPolicies, inheritedPolicies []*Policy, err error)
+	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, automationType string) ([]*Policy, error)
 
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)

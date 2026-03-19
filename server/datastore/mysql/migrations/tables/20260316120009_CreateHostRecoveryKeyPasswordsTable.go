@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260311160000, Down_20260311160000)
+	MigrationClient.AddMigration(Up_20260316120009, Down_20260316120009)
 }
 
-func Up_20260311160000(tx *sql.Tx) error {
+func Up_20260316120009(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 		CREATE TABLE host_recovery_key_passwords (
 			host_uuid varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -33,6 +33,6 @@ func Up_20260311160000(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260311160000(tx *sql.Tx) error {
+func Down_20260316120009(tx *sql.Tx) error {
 	return nil
 }
