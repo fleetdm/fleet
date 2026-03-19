@@ -2,7 +2,7 @@
 
 A consumer electronics company supports employees and contractors across a global business. Its environment includes macOS, Windows, and Linux devices used by both business teams and engineers.
 
-Fleet helps the company reduce tool complexity and bring Linux devices into a more consistent management model.
+Existing tools created friction and left Linux unmanaged. Fleet helps the company manage all devices in one place.
 
 ## At a glance
 
@@ -10,9 +10,9 @@ Fleet helps the company reduce tool complexity and bring Linux devices into a mo
 
 * **Devices managed:** ~3,200-3,400 devices
 
-* **Primary requirements:** GitOps workflows, osquery visibility, unified management
+* **Primary requirements:** GitOps workflows, visibility into all devices, unified management
 
-* **Previous challenge:** Jamf and Intune created bottlenecks and did not cover Linux well
+* **Previous challenge:** Jamf and Intune created bottlenecks with weak Linux coverage
 
 ## The challenge
 
@@ -37,7 +37,7 @@ The team focused on three capabilities:
 
 ## The solution
 
-Fleet gave the team a central platform for device compliance, telemetry, and asset tracking.
+Fleet gave the team one platform to track devices, enforce compliance, and query data in real time.
 
 The company integrated Fleet with internal inventory systems and GitHub to automate compliance tracking and keep asset records up to date. Linux enrollment is being rolled out in phases, with a self-service model designed to support adoption without disrupting engineering workflows.
 
@@ -47,9 +47,9 @@ The open development model also helped build trust with technical users who want
 
 Fleet helps the team reduce complexity and improve response time.
 
-* **Improved Linux coverage:** Linux devices are moving into a managed workflow for the first time.
+* **Improved Linux coverage:** Linux devices are now managed for the first time.
 
-* **Faster access to device data:** Teams can act on compliance and security issues sooner.
+* **Faster access to device data:** Teams can act on compliance and security issues faster.
 
 * **Tool consolidation:** Fewer separate management systems are needed across operating systems.
 
