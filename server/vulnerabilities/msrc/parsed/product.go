@@ -21,6 +21,7 @@ var ErrNoMatch = errors.New("no product matches")
 
 func (p Products) GetMatchForOS(ctx context.Context, os fleet.OperatingSystem) (string, error) {
 	var dvMatch, noDvMatch string
+	isServerCoreHost := strings.EqualFold(os.InstallationType, "Server Core")
 
 	for pID, product := range p {
 		normalizedOS := NewProductFromOS(os)
@@ -30,6 +31,12 @@ func (p Products) GetMatchForOS(ctx context.Context, os fleet.OperatingSystem) (
 
 		archMatch := product.Arch() == "all" || normalizedOS.Arch() == "all" || product.Arch() == normalizedOS.Arch()
 		if !archMatch {
+			continue
+		}
+
+		// When the host's installation type is known, only match products
+		// that correspond to the correct installation type (Server Core vs full desktop).
+		if os.InstallationType != "" && product.IsServerCore() != isServerCoreHost {
 			continue
 		}
 
@@ -207,6 +214,11 @@ func (p Product) Name() string {
 	default:
 		return ""
 	}
+}
+
+// IsServerCore returns true if the product name indicates a Server Core installation.
+func (p Product) IsServerCore() bool {
+	return strings.Contains(strings.ToLower(string(p)), "server core")
 }
 
 // Matches checks whehter product A matches product B by checking to see if both are for the same

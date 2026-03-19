@@ -1363,14 +1363,15 @@ func TestDirectIngestOSWindows(t *testing.T) {
 	}{
 		{
 			expected: fleet.OperatingSystem{
-				Name:           "Microsoft Windows 11 Enterprise 21H2",
-				Version:        "10.0.22000.795",
-				Arch:           "64-bit",
-				KernelVersion:  "10.0.22000.795",
-				DisplayVersion: "21H2",
+				Name:             "Microsoft Windows 11 Enterprise 21H2",
+				Version:          "10.0.22000.795",
+				Arch:             "64-bit",
+				KernelVersion:    "10.0.22000.795",
+				DisplayVersion:   "21H2",
+				InstallationType: "Client",
 			},
 			data: []map[string]string{
-				{"name": "Microsoft Windows 11 Enterprise", "display_version": "21H2", "version": "10.0.22000.795", "arch": "64-bit"},
+				{"name": "Microsoft Windows 11 Enterprise", "display_version": "21H2", "version": "10.0.22000.795", "arch": "64-bit", "installation_type": "Client"},
 			},
 		},
 		{
@@ -1383,6 +1384,32 @@ func TestDirectIngestOSWindows(t *testing.T) {
 			},
 			data: []map[string]string{
 				{"name": "Microsoft Windows 10 Enterprise", "display_version": "", "version": "10.0.17763.2183", "arch": "64-bit"},
+			},
+		},
+		{
+			expected: fleet.OperatingSystem{
+				Name:             "Microsoft Windows Server 2022 Datacenter 21H2 (Server Core)",
+				Version:          "10.0.20348.1850",
+				Arch:             "64-bit",
+				KernelVersion:    "10.0.20348.1850",
+				DisplayVersion:   "21H2",
+				InstallationType: "Server Core",
+			},
+			data: []map[string]string{
+				{"name": "Microsoft Windows Server 2022 Datacenter", "display_version": "21H2", "version": "10.0.20348.1850", "arch": "64-bit", "installation_type": "Server Core"},
+			},
+		},
+		{
+			expected: fleet.OperatingSystem{
+				Name:             "Microsoft Windows Server 2022 Datacenter 21H2",
+				Version:          "10.0.20348.1850",
+				Arch:             "64-bit",
+				KernelVersion:    "10.0.20348.1850",
+				DisplayVersion:   "21H2",
+				InstallationType: "Server",
+			},
+			data: []map[string]string{
+				{"name": "Microsoft Windows Server 2022 Datacenter", "display_version": "21H2", "version": "10.0.20348.1850", "arch": "64-bit", "installation_type": "Server"},
 			},
 		},
 	}

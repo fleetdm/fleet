@@ -563,10 +563,11 @@ var msrcWinProducts = Products{
 	"12086": "Windows 11 Version 22H2 for x64-based Systems",
 	"12242": "Windows 11 Version 23H2 for ARM64-based Systems",
 	"12243": "Windows 11 Version 23H2 for x64-based Systems",
-	"11923": "Windows Server 2022",
-	"11924": "Windows Server 2022 (Server Core installation)",
+	"11923": "Windows Server 2022 Version 21H2",
+	"11924": "Windows Server 2022 (Server Core installation) Version 21H2",
 	"12244": "Windows Server 2022, 23H2 Edition (Server Core installation)",
 	"12436": "Windows Server 2025 Version 24H2",
+	"12437": "Windows Server 2025 (Server Core installation) Version 24H2",
 }
 
 func TestMatchesOperatingSystem(t *testing.T) {
@@ -649,9 +650,10 @@ func TestMatchesOperatingSystem(t *testing.T) {
 		{
 			name: "Windows Server 2025 with display version",
 			os: fleet.OperatingSystem{
-				Name:           "Microsoft Windows Server 2025 Datacenter 24H2",
-				Arch:           "64-bit",
-				DisplayVersion: "24H2",
+				Name:             "Microsoft Windows Server 2025 Datacenter 24H2",
+				Arch:             "64-bit",
+				DisplayVersion:   "24H2",
+				InstallationType: "Server",
 			},
 			want: "12436",
 			err:  nil,
@@ -665,11 +667,92 @@ func TestMatchesOperatingSystem(t *testing.T) {
 			want: "",
 			err:  ErrNoMatch,
 		},
+		{
+			name: "Windows Server 2022 full desktop with installation type",
+			os: fleet.OperatingSystem{
+				Name:             "Microsoft Windows Server 2022 Datacenter 21H2",
+				Arch:             "64-bit",
+				DisplayVersion:   "21H2",
+				InstallationType: "Server",
+			},
+			want: "11923",
+			err:  nil,
+		},
+		{
+			name: "Windows Server 2022 Server Core with installation type",
+			os: fleet.OperatingSystem{
+				Name:             "Microsoft Windows Server 2022 Datacenter 21H2",
+				Arch:             "64-bit",
+				DisplayVersion:   "21H2",
+				InstallationType: "Server Core",
+			},
+			want: "11924",
+			err:  nil,
+		},
+		{
+			name: "Windows Server 2025 full desktop with installation type",
+			os: fleet.OperatingSystem{
+				Name:             "Microsoft Windows Server 2025 Datacenter 24H2",
+				Arch:             "64-bit",
+				DisplayVersion:   "24H2",
+				InstallationType: "Server",
+			},
+			want: "12436",
+			err:  nil,
+		},
+		{
+			name: "Windows Server 2025 Server Core with installation type",
+			os: fleet.OperatingSystem{
+				Name:             "Microsoft Windows Server 2025 Datacenter 24H2",
+				Arch:             "64-bit",
+				DisplayVersion:   "24H2",
+				InstallationType: "Server Core",
+			},
+			want: "12437",
+			err:  nil,
+		},
+		{
+			name: "Windows Server 2022 without installation type falls back to either match",
+			os: fleet.OperatingSystem{
+				Name:           "Microsoft Windows Server 2022 Datacenter 21H2",
+				Arch:           "64-bit",
+				DisplayVersion: "21H2",
+			},
+			// When InstallationType is empty, either product ID may match (non-deterministic).
+			// We just verify it doesn't error.
+			want: "", // checked separately below
+			err:  nil,
+		},
 	}
 
 	for _, tt := range tc {
+		if tt.name == "Windows Server 2022 without installation type falls back to either match" {
+			match, err := msrcWinProducts.GetMatchForOS(ctx, tt.os)
+			require.NoError(t, err, tt.name)
+			require.Contains(t, []string{"11923", "11924"}, match, tt.name)
+			continue
+		}
 		match, err := msrcWinProducts.GetMatchForOS(ctx, tt.os)
 		require.ErrorIs(t, err, tt.err, tt.name)
 		require.Equal(t, tt.want, match, tt.name)
+	}
+}
+
+func TestIsServerCore(t *testing.T) {
+	tc := []struct {
+		product  Product
+		expected bool
+	}{
+		{"Windows Server 2022", false},
+		{"Windows Server 2022 (Server Core installation)", true},
+		{"Windows Server 2022, 23H2 Edition (Server Core installation)", true},
+		{"Windows Server, version 1803 (Server Core Installation)", true},
+		{"Windows 11 Version 22H2 for x64-based Systems", false},
+		{"Windows Server 2025 Version 24H2", false},
+		{"Windows Server 2025 (Server Core installation) Version 24H2", true},
+	}
+
+	for _, tt := range tc {
+		require.Equal(t, tt.expected, tt.product.IsServerCore(), string(tt.product))
 	}
 }
