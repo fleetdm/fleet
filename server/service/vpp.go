@@ -205,7 +205,7 @@ func (uploadVPPTokenRequest) DecodeRequest(ctx context.Context, r *http.Request)
 		}
 	}
 
-	if r.MultipartForm.File["token"] == nil || len(r.MultipartForm.File["token"]) == 0 {
+	if len(r.MultipartForm.File["token"]) == 0 {
 		return nil, &fleet.BadRequestError{
 			Message:     "token multipart field is required",
 			InternalErr: err,
@@ -272,7 +272,7 @@ func (patchVPPTokenRenewRequest) DecodeRequest(ctx context.Context, r *http.Requ
 		}
 	}
 
-	if r.MultipartForm.File["token"] == nil || len(r.MultipartForm.File["token"]) == 0 {
+	if len(r.MultipartForm.File["token"]) == 0 {
 		return nil, &fleet.BadRequestError{
 			Message:     "token multipart field is required",
 			InternalErr: err,

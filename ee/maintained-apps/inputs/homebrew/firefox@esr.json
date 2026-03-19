@@ -1,0 +1,8 @@
+{
+  "name": "Mozilla Firefox ESR",
+  "unique_identifier": "org.mozilla.firefox",
+  "token": "firefox@esr",
+  "installer_format": "dmg",
+  "slug": "firefox@esr/darwin",
+  "default_categories": ["Browsers"]
+}

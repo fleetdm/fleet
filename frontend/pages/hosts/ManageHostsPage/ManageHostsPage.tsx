@@ -81,6 +81,7 @@ import {
   PolicyResponse,
 } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
+import { strToBool } from "utilities/strings/stringUtils";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
@@ -311,6 +312,7 @@ const ManageHostsPage = ({
   const scriptBatchExecutionStatus: ScriptBatchHostCountV1 =
     queryParams?.[HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS] ??
     (scriptBatchExecutionId ? "ran" : undefined);
+  const depProfileError = queryParams?.dep_profile_error;
 
   // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;
@@ -351,6 +353,7 @@ const ManageHostsPage = ({
   // scriptBatchExecutionStatus
   // configProfileStatus ||
   // configProfileUUID
+  // depProfileError
 
   const runScriptBatchFilterNotSupported = !!(
     // all above, except acceptable filters
@@ -388,7 +391,8 @@ const ManageHostsPage = ({
       scriptBatchExecutionId ||
       scriptBatchExecutionStatus ||
       configProfileStatus ||
-      configProfileUUID
+      configProfileUUID ||
+      depProfileError
     )
   );
 
@@ -572,6 +576,7 @@ const ManageHostsPage = ({
         configProfileUUID,
         scriptBatchExecutionStatus,
         scriptBatchExecutionId,
+        depProfileError: strToBool(depProfileError),
       },
     ],
     ({ queryKey }) => hostsAPI.loadHosts(queryKey[0]),
@@ -1098,6 +1103,8 @@ const ManageHostsPage = ({
         newQueryParams[
           HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID
         ] = scriptBatchExecutionId;
+      } else if (depProfileError) {
+        newQueryParams.dep_profile_error = depProfileError;
       }
 
       router.replace(
@@ -1337,6 +1344,7 @@ const ManageHostsPage = ({
           osSettings: osSettingsStatus,
           diskEncryptionStatus,
           vulnerability,
+          depProfileError,
         })
       : hostsAPI.transferToTeam(teamId, selectedHostIds);
 
@@ -1839,7 +1847,8 @@ const ManageHostsPage = ({
       lowDiskSpaceHosts ||
       osSettingsStatus ||
       diskEncryptionStatus ||
-      vulnerability
+      vulnerability ||
+      depProfileError
     );
 
     return (
@@ -1986,6 +1995,7 @@ const ManageHostsPage = ({
             scriptBatchExecutionId,
             scriptBatchRanAt: scriptBatchSummary?.created_at || null,
             scriptBatchScriptName: scriptBatchSummary?.script_name || null,
+            depProfileError,
           }}
           selectedLabel={selectedLabel}
           isOnlyObserver={isOnlyObserver}

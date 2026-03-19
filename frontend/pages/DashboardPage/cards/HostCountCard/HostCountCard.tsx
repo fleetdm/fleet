@@ -13,7 +13,7 @@ interface IHostCountCard {
   title: string;
   iconName: IconNames;
   path: string;
-  tooltip?: string;
+  tooltip?: JSX.Element | string;
   notSupported?: boolean;
   className?: string;
   iconPosition?: "top" | "left";
