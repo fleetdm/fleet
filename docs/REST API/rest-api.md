@@ -9052,7 +9052,7 @@ Creates a global report or fleet report.
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the report's `interval`. |
 | logging                         | string  | body | The type of log output for this report. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
-| discard_data                    | boolean | body | Whether to skip saving the latest results for each host. If set to `true`, data is still sent to the configured log destination. Default: `false`. |
+| discard_data                    | boolean | body | Whether to skip saving the latest results for each host. If set to `true`, data is still sent to the configured log destination if `automations_enabled`. Default: `false`. |
 
 
 #### Example
@@ -9156,7 +9156,7 @@ Modifies the report specified by ID.
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the report's `interval`. |
 | logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
-| discard_data        | boolean  | body | Whether to skip saving the latest results for each host. If set to `true`, data is still sent to the configured log destination. |
+| discard_data        | boolean  | body | Whether to skip saving the latest results for each host. If set to `true`, data is still sent to the configured log destination if `automations_enabled`. |
 
 > Note that any of the following conditions will cause the existing report's data to be discarded:
 > - Updating the `query` (SQL) field
@@ -12857,7 +12857,7 @@ _Available in Fleet Premium_
 
 ### Translate IDs
 
-Transforms a host name into a host id. For example, the Fleet UI use this endpoint when sending live reports to a set of hosts.
+Transforms a host name into a host id. For example, the Fleet UI uses this endpoint when sending live reports to a set of hosts.
 
 `POST /api/v1/fleet/translate`
 
