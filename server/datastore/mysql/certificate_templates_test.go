@@ -1357,8 +1357,8 @@ func testResendHostCertificateTemplate(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	testCases := []struct {
-		name           string
-		initialStatus  fleet.CertificateTemplateStatus
+		name          string
+		initialStatus fleet.CertificateTemplateStatus
 	}{
 		{"from verified", fleet.CertificateTemplateVerified},
 		{"from delivered", fleet.CertificateTemplateDelivered},
