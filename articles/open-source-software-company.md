@@ -1,6 +1,6 @@
-# Open-source software company brings Linux into a unified management strategy with Fleet
+# Open-source software company closes the Linux gap in device management with Fleet
 
-A global open-source software company manages a large environment across Windows, macOS, and Linux. Because Linux is central to the company’s business, the team needs device management that supports it with the same depth as other platforms.
+A global open-source software company manages Windows, macOS, and Linux at scale. Linux is central to its business, but existing tools didn’t support it with the same depth as macOS and Windows.
 
 Fleet helps the company adopt Linux as part of a unified endpoint strategy while supporting strict security and audit requirements.
 
@@ -10,9 +10,9 @@ Fleet helps the company adopt Linux as part of a unified endpoint strategy while
 
 * **Devices managed:** ~5,100 devices across Windows, macOS, and Linux
 
-* **Primary requirements:** Self-hosting, GitOps workflows, osquery visibility
+* **Primary requirements:** Self-hosting, GitOps, visibility into their devices
 
-* **Previous challenge:** Existing tools did not provide strong Linux management
+* **Previous challenge:** Weak Linux support in existing tools
 
 ## The challenge
 
@@ -47,17 +47,15 @@ Fleet’s open-source model was a strong fit for the company’s culture and tec
 
 Fleet helped the team close Linux gaps and simplify management across operating systems.
 
-* **Fast rollout:** The migration moved from testing to broad completion within a short timeline.
+* **Fast rollout:** From testing to broad rollout in just a matter of weeks
 
-* **Better Linux coverage:** Linux devices now fit into the same management strategy as macOS and Windows.
+* **Better Linux coverage:** Linux devices now align with macOS and Windows management.
 
 * **Simpler operations:** One platform reduces administrative complexity for a global workforce.
 
 ## Why they recommend Fleet
 
-For this company, the biggest benefit is Linux management with consolidation.
-
-Fleet helps the team manage all major operating systems from one place while staying aligned with its open-source and compliance requirements.
+Fleet lets the team manage Linux, macOS, and Windows in one place, while staying aligned with its open-source and compliance requirements.
 
 ## About Fleet
 
