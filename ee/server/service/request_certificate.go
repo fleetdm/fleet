@@ -136,7 +136,7 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 	}
 	svc.logger.InfoContext(ctx, "Successfully retrieved a certificate from EST", "ca_id", ca.ID, "idp_username", idpUsername)
 	// Wrap the certificate in a PEM block for easier consumption by the client
-	return ptr.String("-----BEGIN CERTIFICATE-----\n" + string(certificate.Certificate) + "\n-----END CERTIFICATE-----\n"), nil
+	return ptr.String("-----BEGIN PKCS7-----\n" + string(certificate.Certificate) + "\n-----END PKCS7-----\n"), nil
 }
 
 func (svc *Service) introspectIDPToken(ctx context.Context, idpClientID, idpToken, idpOauthURL string) (*oauthIntrospectionResponse, error) {
