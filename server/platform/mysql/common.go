@@ -117,11 +117,21 @@ func NewDB(conf *MysqlConfig, opts *DBOptions, otelDriverName string) (*sqlx.DB,
 		return nil, dbError
 	}
 
-	// Register DB stats (sql.DBStats [/usr/local/go/src/database/sql/sql.go]) metrics when using OpenTelemetry tracing.
+	// Register database/sql.DBStats metrics when using OpenTelemetry tracing.
 	if opts.TracingConfig != nil && opts.TracingConfig.TracingEnabled && opts.TracingConfig.TracingType != "elasticapm" {
-		if err := otelsql.RegisterDBStatsMetrics(db.DB, otelsql.WithAttributes(
+		attrs := []attribute.KeyValue{
 			attribute.String("db.system", "mysql"),
-		)); err != nil {
+		}
+		// Parse DSN to extract address and database name for metric differentiation
+		if cfg, err := mysql.ParseDSN(dsn); err == nil {
+			if cfg.Addr != "" {
+				attrs = append(attrs, attribute.String("db.addr", cfg.Addr))
+			}
+			if cfg.DBName != "" {
+				attrs = append(attrs, attribute.String("db.name", cfg.DBName))
+			}
+		}
+		if err := otelsql.RegisterDBStatsMetrics(db.DB, otelsql.WithAttributes(attrs...)); err != nil {
 			opts.Logger.WarnContext(context.Background(), "failed to register DB stats metrics", "err", err)
 		}
 	}

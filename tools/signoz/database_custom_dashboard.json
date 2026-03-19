@@ -425,7 +425,7 @@
             "stackedBarChart": false,
             "thresholds": [],
             "timePreferance": "GLOBAL_TIME",
-            "title": "P95 Latency",
+            "title": "P99 Latency",
             "yAxisUnit": "ms"
         },
         {
@@ -893,7 +893,7 @@
                         {
                             "aggregations": [
                                 {
-                                    "metricName": "db.client.connection.pending_requests",
+                                    "metricName": "db.client.connection.wait_count",
                                     "reduceTo": "avg",
                                     "spaceAggregation": "avg",
                                     "temporality": "",
@@ -1327,7 +1327,7 @@
                         {
                             "aggregations": [
                                 {
-                                    "metricName": "db.client.connection.idle.max",
+                                    "metricName": "db.client.connection.closed.max_idle",
                                     "reduceTo": "avg",
                                     "spaceAggregation": "avg",
                                     "temporality": "",
@@ -1355,7 +1355,7 @@
                         {
                             "aggregations": [
                                 {
-                                    "metricName": "db.client.connection.idle.min",
+                                    "metricName": "db.client.connection.closed.max_idle_time",
                                     "reduceTo": "avg",
                                     "spaceAggregation": "avg",
                                     "temporality": "",
