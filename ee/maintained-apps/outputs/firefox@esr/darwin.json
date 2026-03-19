@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "140.7.1",
+      "version": "140.8.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox';"
       },
-      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/140.7.1esr/mac/en-US/Firefox%20140.7.1esr.dmg",
+      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/140.8.0esr/mac/en-US/Firefox%20140.8.0esr.dmg",
       "install_script_ref": "a1338ebc",
       "uninstall_script_ref": "64890c61",
-      "sha256": "7ba2fd895f5d3ffdfedf94ad9275b0390efe5800fc46ed82e46f205552157279",
+      "sha256": "74b4b71fb52ac01e81157f5714d6d03d07cd990a1a708e933c4538aab49a0a0e",
       "default_categories": [
         "Browsers"
       ]
