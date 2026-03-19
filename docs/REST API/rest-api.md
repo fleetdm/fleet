@@ -7635,13 +7635,25 @@ None.
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2023-11-29T00:00:00Z",
     "terms_expired": false,
+    "macos_team": {
+      "name": "💻 Workstations",
+      "id": 1
+    },
     "macos_fleet": {
       "name": "💻 Workstations",
       "id": 1
     },
+    "ios_team": {
+      "name": "📱🏢 Company-owned iPhones",
+      "id": 2
+    },
     "ios_fleet": {
       "name": "📱🏢 Company-owned iPhones",
       "id": 2
+    },
+    "ipados_team": {
+      "name": "🔳🏢 Company-owned iPads",
+      "id": 3
     },
     "ipados_fleet": {
       "name": "🔳🏢 Company-owned iPads",
