@@ -53,6 +53,7 @@ Configure the server using environment variables or a `.env` file.
 | `LOG_LEVEL` | `info` | Log verbosity: `debug`, `info`, `warn`, `error` |
 | `FLEET_TLS_SKIP_VERIFY` | `false` | Skip TLS certificate verification. **Dev/test only — do not use in production.** |
 | `FLEET_CA_FILE` | *(optional)* | Path to a PEM CA certificate for self-signed Fleet instances |
+| `MCP_AUTH_TOKEN` | *(required in production)* | Bearer token MCP clients must send in the `Authorization` header. Generate with `openssl rand -hex 32`. If unset the server starts unauthenticated (with a warning) — acceptable for local dev only. |
 
 Copy the provided example to get started:
 
@@ -71,8 +72,8 @@ cp .env.example .env
 ### Build
 
 ```bash
-git clone https://github.com/karmine05/fleet-mcp.git
-cd fleet-mcp
+git clone https://github.com/fleetdm/fleet
+cd tools/fleet-mcp
 go mod tidy
 go build -o fleet-mcp .
 ```
@@ -103,6 +104,22 @@ For **Claude Code**, add to your project's `.mcp.json` or global MCP config:
 }
 ```
 
+If `MCP_AUTH_TOKEN` is set, include it in the client config:
+
+```json
+{
+  "mcpServers": {
+    "fleet": {
+      "type": "sse",
+      "url": "https://your-fleet-mcp.onrender.com/sse",
+      "headers": {
+        "Authorization": "Bearer <your-token>"
+      }
+    }
+  }
+}
+```
+
 ### Stdio Transport (Claude Desktop)
 
 Stdio mode runs the binary directly as a subprocess with no network port needed.
@@ -127,6 +144,19 @@ Stdio mode runs the binary directly as a subprocess with no network port needed.
 ```
 
 3. Relaunch Claude Desktop. The Fleet tools will appear in your context.
+
+## Deploying to Render
+
+`tools/fleet-mcp/render.yaml` is a standalone Render Blueprint, separate from the root `render.yaml` used by the main Fleet service.
+
+1. Push `tools/fleet-mcp/render.yaml` to your repo
+2. In the Render dashboard go to **New → Blueprint**
+3. Connect your repo and set the **Blueprint file path** to `tools/fleet-mcp/render.yaml`
+4. During setup, fill in the following environment variables:
+   - `FLEET_BASE_URL` — URL of your Fleet instance
+   - `FLEET_API_KEY` — Fleet API token
+   - `MCP_AUTH_TOKEN` — generate with `openssl rand -hex 32`
+5. `PORT` is injected automatically by Render — no action needed
 
 ## Development
 

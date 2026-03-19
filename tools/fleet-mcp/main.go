@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"net/http"
 	"os"
 	"strings"
 
@@ -43,7 +44,14 @@ func main() {
 
 	logrus.Infof("transport: SSE — listening on :%s", config.Port)
 	sseServer := server.NewSSEServer(mcpServer)
-	if err := sseServer.Start(":" + config.Port); err != nil {
+	var handler http.Handler = sseServer
+	if config.MCPAuthToken != "" {
+		logrus.Info("authentication enabled")
+		handler = bearerAuthMiddleware(config.MCPAuthToken, handler)
+	} else {
+		logrus.Warn("MCP_AUTH_TOKEN is not set — server is unauthenticated")
+	}
+	if err := http.ListenAndServe(":"+config.Port, handler); err != nil {
 		logrus.Fatalf("server error: %v", err)
 	}
 }

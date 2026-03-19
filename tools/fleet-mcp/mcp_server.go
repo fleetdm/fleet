@@ -174,7 +174,12 @@ func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer 
 			return mcp.NewToolResultError("Unexpected data format returned from Fleet"), nil
 		}
 
-		b, err := json.MarshalIndent(dataMap["platform_breakdown"], "", "  ")
+		platformBreakdown, ok := dataMap["platform_breakdown"]
+		if !ok {
+			return mcp.NewToolResultError("platform_breakdown key missing from Fleet response"), nil
+		}
+
+		b, err := json.MarshalIndent(platformBreakdown, "", "  ")
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to format output: %v", err)), nil
 		}

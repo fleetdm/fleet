@@ -15,6 +15,7 @@ type Config struct {
 	LogLevel      logrus.Level
 	TLSSkipVerify bool   // FLEET_TLS_SKIP_VERIFY — skip TLS cert verification (unsafe; for dev only)
 	TLSCAFile     string // FLEET_CA_FILE — path to PEM CA cert for self-signed Fleet instances
+	MCPAuthToken  string // MCP_AUTH_TOKEN — bearer token required on all incoming MCP requests
 }
 
 // LoadConfig loads configuration from environment variables, falling back to .env if present.
@@ -35,6 +36,7 @@ func LoadConfig() *Config {
 		LogLevel:      logLevel,
 		TLSSkipVerify: os.Getenv("FLEET_TLS_SKIP_VERIFY") == "true",
 		TLSCAFile:     os.Getenv("FLEET_CA_FILE"),
+		MCPAuthToken:  os.Getenv("MCP_AUTH_TOKEN"),
 	}
 }
 

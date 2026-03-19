@@ -64,6 +64,10 @@ type AggregateResponse struct {
 func NewFleetClient(baseURL, apiKey string, tlsSkipVerify bool, caFile string) *FleetClient {
 	tlsCfg := &tls.Config{}
 
+	if tlsSkipVerify && caFile != "" {
+		logrus.Fatalf("conflicting TLS settings: tlsSkipVerify and caFile are mutually exclusive — use one or the other, not both")
+	}
+
 	if tlsSkipVerify {
 		logrus.Warn("TLS certificate verification is disabled — do not use in production")
 		tlsCfg.InsecureSkipVerify = true //nolint:gosec
@@ -550,24 +554,22 @@ func (fc *FleetClient) resolveTeamNames(teamNames []string) ([]uint, error) {
 
 // GetEndpointsWithFilters retrieves endpoints from Fleet with optional server-side filters.
 func (fc *FleetClient) GetEndpointsWithFilters(teamName, platform, status string) ([]Endpoint, error) {
-	params := []string{"populate_labels=true"}
+	params := url.Values{}
+	params.Set("populate_labels", "true")
 
 	if teamName != "" {
 		teamIDs, err := fc.resolveTeamNames([]string{teamName})
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve team: %w", err)
 		}
-		params = append(params, fmt.Sprintf("team_id=%d", teamIDs[0]))
+		params.Set("team_id", fmt.Sprintf("%d", teamIDs[0]))
 	}
 
 	if status != "" {
-		params = append(params, fmt.Sprintf("status=%s", status))
+		params.Set("status", status)
 	}
 
-	endpoint := "/api/v1/fleet/hosts"
-	if len(params) > 0 {
-		endpoint += "?" + strings.Join(params, "&")
-	}
+	endpoint := "/api/v1/fleet/hosts?" + params.Encode()
 
 	resp, err := fc.makeFleetRequest("GET", endpoint, nil)
 	if err != nil {
@@ -602,7 +604,7 @@ func (fc *FleetClient) GetEndpointsWithFilters(teamName, platform, status string
 
 // GetPolicyCompliance retrieves policy compliance data
 func (fc *FleetClient) GetPolicyCompliance(policyID string) (*PolicyCompliance, error) {
-	endpoint := fmt.Sprintf("/api/v1/fleet/global/policies/%s", policyID)
+	endpoint := fmt.Sprintf("/api/v1/fleet/global/policies/%s", url.PathEscape(policyID))
 	resp, err := fc.makeFleetRequest("GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get policy compliance: %w", err)
@@ -640,7 +642,7 @@ func (fc *FleetClient) GetPolicyCompliance(policyID string) (*PolicyCompliance, 
 
 // GetVulnerabilityImpact retrieves vulnerability impact data
 func (fc *FleetClient) GetVulnerabilityImpact(cveID string) (*VulnerabilityImpact, error) {
-	endpoint := fmt.Sprintf("/api/v1/fleet/vulnerabilities/%s", cveID)
+	endpoint := fmt.Sprintf("/api/v1/fleet/vulnerabilities/%s", url.PathEscape(cveID))
 	resp, err := fc.makeFleetRequest("GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get vulnerability impact: %w", err)
@@ -740,9 +742,11 @@ func (fc *FleetClient) RunLiveQuery(sql string, hostnames, labels, platforms, te
 
 // resolveTargetHosts resolves targeting parameters into host IDs and a name lookup map.
 // Uses targeted API calls to avoid fetching all hosts.
+// Returns an error listing any selectors that could not be resolved.
 func (fc *FleetClient) resolveTargetHosts(hostnames, labels, platforms, teams []string) ([]uint, map[uint]Endpoint, error) {
 	var hostIDs []uint
 	nameByID := make(map[uint]Endpoint)
+	var unresolved []string
 
 	// Hostname targeting: use GetHostByIdentifier per host (no bulk fetch)
 	if len(hostnames) > 0 {
@@ -750,6 +754,7 @@ func (fc *FleetClient) resolveTargetHosts(hostnames, labels, platforms, teams []
 			host, err := fc.GetHostByIdentifier(strings.TrimSpace(hostname))
 			if err != nil {
 				logrus.Warnf("host lookup failed for %q: %v", hostname, err)
+				unresolved = append(unresolved, "hostname:"+strings.TrimSpace(hostname))
 				continue
 			}
 			hostIDs = append(hostIDs, host.ID)
@@ -767,8 +772,10 @@ func (fc *FleetClient) resolveTargetHosts(hostnames, labels, platforms, teams []
 		for _, l := range labels {
 			labelTargets[strings.ToLower(strings.TrimSpace(l))] = true
 		}
+		resolvedLabels := make(map[string]bool)
 		for _, l := range fleetLabels {
-			if !labelTargets[strings.ToLower(l.Name)] {
+			key := strings.ToLower(l.Name)
+			if !labelTargets[key] {
 				continue
 			}
 			members, err := fc.getLabelHosts(l.ID)
@@ -776,9 +783,15 @@ func (fc *FleetClient) resolveTargetHosts(hostnames, labels, platforms, teams []
 				logrus.Warnf("label host lookup failed for %q: %v", l.Name, err)
 				continue
 			}
+			resolvedLabels[key] = true
 			for _, m := range members {
 				hostIDs = append(hostIDs, m.ID)
 				nameByID[m.ID] = m
+			}
+		}
+		for _, l := range labels {
+			if !resolvedLabels[strings.ToLower(strings.TrimSpace(l))] {
+				unresolved = append(unresolved, "label:"+strings.TrimSpace(l))
 			}
 		}
 	}
@@ -789,10 +802,11 @@ func (fc *FleetClient) resolveTargetHosts(hostnames, labels, platforms, teams []
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to resolve teams: %w", err)
 		}
-		for _, tid := range teamIDs {
+		for i, tid := range teamIDs {
 			members, err := fc.getTeamHosts(tid)
 			if err != nil {
-				logrus.Warnf("team host lookup failed for team ID %d: %v", tid, err)
+				logrus.Warnf("team host lookup failed for %q (ID %d): %v", teams[i], tid, err)
+				unresolved = append(unresolved, "team:"+strings.TrimSpace(teams[i]))
 				continue
 			}
 			for _, m := range members {
@@ -812,6 +826,7 @@ func (fc *FleetClient) resolveTargetHosts(hostnames, labels, platforms, teams []
 			labelName := platformToBuiltinLabel(strings.TrimSpace(p))
 			if labelName == "" {
 				logrus.Warnf("unknown platform %q, skipping", p)
+				unresolved = append(unresolved, "platform:"+strings.TrimSpace(p))
 				continue
 			}
 			found := false
@@ -820,6 +835,7 @@ func (fc *FleetClient) resolveTargetHosts(hostnames, labels, platforms, teams []
 					members, err := fc.getLabelHosts(l.ID)
 					if err != nil {
 						logrus.Warnf("platform label host lookup failed for %q: %v", labelName, err)
+						unresolved = append(unresolved, "platform:"+strings.TrimSpace(p))
 						continue
 					}
 					for _, m := range members {
@@ -832,10 +848,14 @@ func (fc *FleetClient) resolveTargetHosts(hostnames, labels, platforms, teams []
 			}
 			if !found {
 				logrus.Warnf("built-in label %q not found in Fleet, skipping platform %q", labelName, p)
+				unresolved = append(unresolved, "platform:"+strings.TrimSpace(p))
 			}
 		}
 	}
 
+	if len(unresolved) > 0 {
+		return nil, nil, fmt.Errorf("unresolved selectors: %s", strings.Join(unresolved, ", "))
+	}
 	return hostIDs, nameByID, nil
 }
 
