@@ -663,11 +663,24 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:google:chrome:138.0.7204.91:*:*:*:*:linux:*:*": {
-			excludedCVEs:      []string{"CVE-2025-6554"},
+			excludedCVEs: []string{"CVE-2025-6554"},
+			includedCVEs: []cve{
+				// CVE-2026-3913: Critical heap buffer overflow in WebML, fixed in 146.0.7680.71
+				{ID: "CVE-2026-3913", resolvedInVersion: "146.0.7680.71"},
+			},
 			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:google:chrome:138.0.7204.92:*:*:*:*:macos:*:*": {
-			excludedCVEs:      []string{"CVE-2025-6554"},
+			excludedCVEs: []string{"CVE-2025-6554"},
+			includedCVEs: []cve{
+				// CVE-2026-3913: Critical heap buffer overflow in WebML, fixed in 146.0.7680.71
+				{ID: "CVE-2026-3913", resolvedInVersion: "146.0.7680.71"},
+			},
+			continuesToUpdate: true,
+		},
+		// Chrome 146.0.7680.71 is the first version that fixes CVE-2026-3913
+		"cpe:2.3:a:google:chrome:146.0.7680.71:*:*:*:*:linux:*:*": {
+			excludedCVEs:      []string{"CVE-2026-3913"},
 			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:docker:desktop:4.43.2:*:*:*:*:macos:*:*": {
