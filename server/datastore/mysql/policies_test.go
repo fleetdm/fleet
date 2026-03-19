@@ -3523,15 +3523,15 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// no policies
-	globalCount, err := ds.CountPolicies(ctx, nil, "")
+	globalCount, err := ds.CountPolicies(ctx, nil, "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 0, globalCount)
 
-	teamCount, err := ds.CountPolicies(ctx, &tm.ID, "")
+	teamCount, err := ds.CountPolicies(ctx, &tm.ID, "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 0, teamCount)
 
-	mergedCount, err := ds.CountMergedTeamPolicies(ctx, tm.ID, "")
+	mergedCount, err := ds.CountMergedTeamPolicies(ctx, tm.ID, "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 0, mergedCount)
 
@@ -3541,15 +3541,15 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	}
 
-	globalCount, err = ds.CountPolicies(ctx, nil, "")
+	globalCount, err = ds.CountPolicies(ctx, nil, "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 10, globalCount)
 
-	teamCount, err = ds.CountPolicies(ctx, &tm.ID, "")
+	teamCount, err = ds.CountPolicies(ctx, &tm.ID, "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 0, teamCount)
 
-	mergedCount, err = ds.CountMergedTeamPolicies(ctx, tm.ID, "")
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, tm.ID, "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 10, mergedCount)
 
@@ -3559,30 +3559,35 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	}
 
-	teamCount, err = ds.CountPolicies(ctx, &tm.ID, "")
+	teamCount, err = ds.CountPolicies(ctx, &tm.ID, "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 5, teamCount)
 
-	globalCount, err = ds.CountPolicies(ctx, nil, "")
+	globalCount, err = ds.CountPolicies(ctx, nil, "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 10, globalCount)
 
-	mergedCount, err = ds.CountMergedTeamPolicies(ctx, tm.ID, "")
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, tm.ID, "", "")
 	require.NoError(t, err)
 	assert.Equal(t, 15, mergedCount)
 
 	// test filter
-	globalCount, err = ds.CountPolicies(ctx, nil, "global policy 1")
+	globalCount, err = ds.CountPolicies(ctx, nil, "global policy 1", "")
 	require.NoError(t, err)
 	assert.Equal(t, 1, globalCount)
 
-	teamCount, err = ds.CountPolicies(ctx, &tm.ID, "team policy 1")
+	teamCount, err = ds.CountPolicies(ctx, &tm.ID, "team policy 1", "")
 	require.NoError(t, err)
 	assert.Equal(t, 1, teamCount)
 
-	mergedCount, err = ds.CountMergedTeamPolicies(ctx, tm.ID, "policy 1")
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, tm.ID, "policy 1", "")
 	require.NoError(t, err)
 	assert.Equal(t, 2, mergedCount)
+
+	// test automation filter doesn't affect global policy count
+	globalCount, err = ds.CountPolicies(ctx, nil, "", "scripts")
+	require.NoError(t, err)
+	assert.Equal(t, 10, globalCount)
 }
 
 func testUpdatePolicyHostCounts(t *testing.T, ds *Datastore) {
@@ -3812,10 +3817,10 @@ func testPoliciesNameUnicode(t *testing.T, ds *Datastore) {
 	assert.Equal(t, equivalentNames[0], inheritedPolicies[0].Name)
 
 	// CountPolicies
-	count, err := ds.CountPolicies(context.Background(), &team.ID, equivalentNames[1])
+	count, err := ds.CountPolicies(context.Background(), &team.ID, equivalentNames[1], "")
 	assert.NoError(t, err)
 	assert.Equal(t, 1, count)
-	count, err = ds.CountPolicies(context.Background(), nil, equivalentNames[1])
+	count, err = ds.CountPolicies(context.Background(), nil, equivalentNames[1], "")
 	assert.NoError(t, err)
 	assert.Equal(t, 1, count)
 }
@@ -5651,7 +5656,7 @@ func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
 		require.Equal(t, p, globalPolicy)
 		ids = append(ids, globalPolicy.ID)
 	}
-	c, err := ds.CountPolicies(ctx, nil, "")
+	c, err := ds.CountPolicies(ctx, nil, "", "")
 	require.NoError(t, err)
 	require.Equal(t, 2, c)
 	globalPoliciesByID, err := ds.PoliciesByID(ctx, ids)
@@ -5685,10 +5690,10 @@ func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, teamPoliciesByID, 1)
 	require.Equal(t, teamPoliciesByID[teamPolicies[0].ID], teamPolicies[0])
-	c, err = ds.CountMergedTeamPolicies(ctx, team1.ID, "")
+	c, err = ds.CountMergedTeamPolicies(ctx, team1.ID, "", "")
 	require.NoError(t, err)
 	require.Equal(t, 3, c)
-	c, err = ds.CountPolicies(ctx, &team1.ID, "")
+	c, err = ds.CountPolicies(ctx, &team1.ID, "", "")
 	require.NoError(t, err)
 	require.Equal(t, 1, c)
 	mergedTeamPolicies, err := ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, "")
@@ -5733,10 +5738,10 @@ func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
 	require.Len(t, teamPoliciesByID, 2)
 	require.Equal(t, teamPoliciesByID[teamPolicies[0].ID], teamPolicies[0])
 	require.Equal(t, teamPoliciesByID[teamPolicies[1].ID], teamPolicies[1])
-	c, err = ds.CountMergedTeamPolicies(ctx, team2.ID, "")
+	c, err = ds.CountMergedTeamPolicies(ctx, team2.ID, "", "")
 	require.NoError(t, err)
 	require.Equal(t, 4, c)
-	c, err = ds.CountPolicies(ctx, &team2.ID, "")
+	c, err = ds.CountPolicies(ctx, &team2.ID, "", "")
 	require.NoError(t, err)
 	require.Equal(t, 2, c)
 	mergedTeamPolicies, err = ds.ListMergedTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, "")
@@ -5784,10 +5789,10 @@ func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
 	require.Len(t, teamPoliciesByID, 2)
 	require.Equal(t, teamPoliciesByID[teamPolicies[0].ID], teamPolicies[0])
 	require.Equal(t, teamPoliciesByID[teamPolicies[1].ID], teamPolicies[1])
-	c, err = ds.CountMergedTeamPolicies(ctx, fleet.PolicyNoTeamID, "")
+	c, err = ds.CountMergedTeamPolicies(ctx, fleet.PolicyNoTeamID, "", "")
 	require.NoError(t, err)
 	require.Equal(t, 4, c)
-	c, err = ds.CountPolicies(ctx, ptr.Uint(fleet.PolicyNoTeamID), "")
+	c, err = ds.CountPolicies(ctx, ptr.Uint(fleet.PolicyNoTeamID), "", "")
 	require.NoError(t, err)
 	require.Equal(t, 2, c)
 	mergedTeamPolicies, err = ds.ListMergedTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, "")
@@ -7353,7 +7358,11 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	assert.Equal(t, teamWebhookPolicy.ID, merged[6].ID)
 	assert.Equal(t, teamPatchPolicy.ID, merged[7].ID)
 
-	// Test filters
+	mergedCount, err := ds.CountMergedTeamPolicies(ctx, 0, "", "")
+	require.NoError(t, err)
+	assert.Equal(t, 8, mergedCount)
+
+	// Test software
 	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
 		OrderKey:       "name",
 		OrderDirection: fleet.OrderAscending,
@@ -7364,6 +7373,11 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	assert.Equal(t, teamAppStorePolicy.ID, merged[1].ID)
 	assert.Equal(t, teamPatchPolicy.ID, merged[2].ID)
 
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, 0, "", "software")
+	require.NoError(t, err)
+	assert.Equal(t, 3, mergedCount)
+
+	// Test scripts
 	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
 		OrderKey:       "name",
 		OrderDirection: fleet.OrderAscending,
@@ -7372,6 +7386,11 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	require.Len(t, merged, 1)
 	assert.Equal(t, teamScriptPolicy.ID, merged[0].ID)
 
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, 0, "", "scripts")
+	require.NoError(t, err)
+	assert.Equal(t, 1, mergedCount)
+
+	// Test calendar
 	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
 		OrderKey:       "name",
 		OrderDirection: fleet.OrderAscending,
@@ -7380,6 +7399,11 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	require.Len(t, merged, 1)
 	assert.Equal(t, teamCalendarPolicy.ID, merged[0].ID)
 
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, 0, "", "calendar")
+	require.NoError(t, err)
+	assert.Equal(t, 1, mergedCount)
+
+	// Test conditional_access
 	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
 		OrderKey:       "name",
 		OrderDirection: fleet.OrderAscending,
@@ -7388,6 +7412,11 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	require.Len(t, merged, 1)
 	assert.Equal(t, teamConditionalPolicy.ID, merged[0].ID)
 
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, 0, "", "conditional_access")
+	require.NoError(t, err)
+	assert.Equal(t, 1, mergedCount)
+
+	// Test other
 	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
 		OrderKey:       "name",
 		OrderDirection: fleet.OrderAscending,
@@ -7395,6 +7424,10 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, merged, 1)
 	assert.Equal(t, teamWebhookPolicy.ID, merged[0].ID)
+
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, 0, "", "other")
+	require.NoError(t, err)
+	assert.Equal(t, 1, mergedCount)
 
 	// Test not merged
 	policies, _, err := ds.ListTeamPolicies(ctx, 0, fleet.ListOptions{
@@ -7406,4 +7439,8 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	assert.Equal(t, teamInstallerPolicy.ID, policies[0].ID)
 	assert.Equal(t, teamAppStorePolicy.ID, policies[1].ID)
 	assert.Equal(t, teamPatchPolicy.ID, policies[2].ID)
+
+	mergedCount, err = ds.CountPolicies(ctx, ptr.Uint(0), "", "software")
+	require.NoError(t, err)
+	assert.Equal(t, 3, mergedCount)
 }
