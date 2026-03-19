@@ -13,7 +13,7 @@
   frequency: "Weekly"
   description: "Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks."
   moreInfoUrl: "https://fleetdm.com/handbook/it#monitor-compliance-tests"
-  dri: "rfoo2015"
+  dri: "lppepper2"
   autoIssue:
     labels: [":help-it"]
     repo: "confidential"
