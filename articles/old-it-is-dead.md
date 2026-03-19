@@ -1,4 +1,4 @@
-# Old IT is dead — GitOps & AI are burying it
+# Old IT is dead - GitOps & AI are burying it
 
 ![old-IT-is-dead](../website/assets/images/articles/old-IT-is-dead-736x414@2x.png)
 
@@ -113,10 +113,9 @@ The engineering work that requires human creativity, judgment, relationship, and
 - Understanding your organization's actual risk tolerance
 - Navigating a complex stakeholder conversation about a security tradeoff
 - Knowing that the policy that's technically correct will cause a rebellion in the engineering org if you ship it on a Friday
+- Building the trust that makes your IT and security programs actually work
 
-Building the trust that makes your IT and security programs actually work. AI cannot do any of that. 
-
-You can.
+AI cannot do any of that. You can.
 
 What AI can do is handle the eighty percent of your backlog that is well-defined, documented, and implementable, so you can spend your time and energy on the twenty percent that actually requires you.
 
