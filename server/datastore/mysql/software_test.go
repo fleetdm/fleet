@@ -9,7 +9,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
+	"maps"
 	"math/rand"
+	std_slices "slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -7745,7 +7747,8 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 				require.False(t, ok)
 				continue
 			}
-			require.True(t, ok)
+			names := std_slices.Collect(maps.Keys(expectedInstallers))
+			require.Truef(t, ok, "didn't find installer for %s in expectedInstallers (%s)", got.SoftwarePackage.Name, strings.Join(names, ", "))
 			require.Equal(t, want, got.SoftwarePackage)
 		}
 	}
@@ -8086,6 +8089,65 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	checkSoftware(software, installer2.Filename, installer3.Filename, installer4.Filename)
+
+	t.Run("include_all", func(t *testing.T) {
+
+		hostIncludeAll := test.NewHost(t, ds, "host_include_all", "", "host1key_include_all", "host1uuid_include_all", time.Now(), test.WithPlatform("darwin"))
+		nanoEnroll(t, ds, hostIncludeAll, false)
+
+		label4, err := ds.NewLabel(ctx, &fleet.Label{Name: "label4" + t.Name()})
+		require.NoError(t, err)
+
+		// Scope installer1 to include_all: [label1, label4].
+		// hostIncludeAll has neither label yet, so installer1 should be out of scope.
+		err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID1, fleet.LabelIdentsWithScope{
+			LabelScope: fleet.LabelScopeIncludeAll,
+			ByName:     map[string]fleet.LabelIdent{label1.Name: {LabelName: label1.Name, LabelID: label1.ID}, label4.Name: {LabelName: label4.Name, LabelID: label4.ID}},
+		}, softwareTypeInstaller)
+		require.NoError(t, err)
+
+		// host has no labels yet — installer1 is out of scope
+		scoped, err := ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, hostIncludeAll.ID)
+		require.NoError(t, err)
+		require.False(t, scoped)
+
+		software, _, err = ds.ListHostSoftware(ctx, hostIncludeAll, opts)
+		require.NoError(t, err)
+		// installer1 should be absent (out of scope), installer4 absent (no labels on host)
+		checkSoftware(software, installer1.Filename, installer4.Filename)
+
+		// add only label1: host still missing label4, so still out of scope
+		require.NoError(t, ds.AddLabelsToHost(ctx, hostIncludeAll.ID, []uint{label1.ID}))
+		hostIncludeAll.LabelUpdatedAt = time.Now()
+		err = ds.UpdateHost(ctx, hostIncludeAll)
+		require.NoError(t, err)
+		time.Sleep(time.Second)
+
+		scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, hostIncludeAll.ID)
+		require.NoError(t, err)
+		require.False(t, scoped)
+
+		software, _, err = ds.ListHostSoftware(ctx, hostIncludeAll, opts)
+		require.NoError(t, err)
+		checkSoftware(software, installer1.Filename, installer4.Filename)
+
+		// add label4 — host now has both required labels, so installer1 is in scope
+		require.NoError(t, ds.AddLabelsToHost(ctx, hostIncludeAll.ID, []uint{label4.ID}))
+		hostIncludeAll.LabelUpdatedAt = time.Now()
+		err = ds.UpdateHost(ctx, hostIncludeAll)
+		require.NoError(t, err)
+		time.Sleep(time.Second)
+
+		scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, hostIncludeAll.ID)
+		require.NoError(t, err)
+		require.True(t, scoped)
+
+		software, _, err = ds.ListHostSoftware(ctx, hostIncludeAll, opts)
+		require.NoError(t, err)
+		// installer1 is now in scope; installer4 still absent (no labels on host match it)
+		checkSoftware(software, installer4.Filename)
+	})
+
 }
 
 func testListHostSoftwareVulnerableAndVPP(t *testing.T, ds *Datastore) {
@@ -9209,6 +9271,63 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
 	require.NoError(t, err)
 	require.True(t, scoped)
+
+	// --- include_all tests for VPP ---
+	// Create two fresh labels for the include_all scope tests.
+	label5, err := ds.NewLabel(ctx, &fleet.Label{Name: "label5" + t.Name()})
+	require.NoError(t, err)
+	label6, err := ds.NewLabel(ctx, &fleet.Label{Name: "label6" + t.Name()})
+	require.NoError(t, err)
+
+	// Scope the VPP app to include_all: [label5, label6].
+	// host currently has label1 but not label5 or label6.
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), vppAppTeamID, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeIncludeAll,
+		ByName: map[string]fleet.LabelIdent{
+			label5.Name: {LabelName: label5.Name, LabelID: label5.ID},
+			label6.Name: {LabelName: label6.Name, LabelID: label6.ID},
+		},
+	}, softwareTypeVPP)
+	require.NoError(t, err)
+
+	// host has neither required label — out of scope
+	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	require.NoError(t, err)
+	require.False(t, scoped)
+
+	software, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	checkSoftware(software, vppApp.Name)
+
+	// add label5 only — still missing label6, so still out of scope
+	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{label5.ID}))
+	host.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
+	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	require.NoError(t, err)
+	require.False(t, scoped)
+
+	software, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	checkSoftware(software, vppApp.Name)
+
+	// add label6 — host now has both required labels, so VPP app is in scope
+	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{label6.ID}))
+	host.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
+	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+
+	software, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	checkSoftware(software)
 }
 
 func testListHostSoftwareLastOpenedAt(t *testing.T, ds *Datastore) {
