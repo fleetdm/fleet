@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260303180102, Down_20260303180102)
+	MigrationClient.AddMigration(Up_20260316120007, Down_20260316120007)
 }
 
-func Up_20260303180102(tx *sql.Tx) error {
+func Up_20260316120007(tx *sql.Tx) error {
 	// Promote bypass=true policies to critical for teams that have Okta conditional
 	// access enabled, but only when Okta is globally configured.
 	_, err := tx.Exec(`
@@ -39,6 +39,6 @@ func Up_20260303180102(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260303180102(tx *sql.Tx) error {
+func Down_20260316120007(tx *sql.Tx) error {
 	return nil
 }

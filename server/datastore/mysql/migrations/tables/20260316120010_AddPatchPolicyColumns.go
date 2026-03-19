@@ -5,10 +5,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260313173516, Down_20260313173516)
+	MigrationClient.AddMigration(Up_20260316120010, Down_20260316120010)
 }
 
-func Up_20260313173516(tx *sql.Tx) error {
+func Up_20260316120010(tx *sql.Tx) error {
 	return withSteps([]migrationStep{
 		basicMigrationStep(
 			`ALTER TABLE policies ADD COLUMN type ENUM('dynamic', 'patch') NOT NULL DEFAULT 'dynamic'`,
@@ -30,6 +30,6 @@ func Up_20260313173516(tx *sql.Tx) error {
 	}, tx)
 }
 
-func Down_20260313173516(tx *sql.Tx) error {
+func Down_20260316120010(tx *sql.Tx) error {
 	return nil
 }

@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260225143121, Down_20260225143121)
+	MigrationClient.AddMigration(Up_20260316120004, Down_20260316120004)
 }
 
-func Up_20260225143121(tx *sql.Tx) error {
+func Up_20260316120004(tx *sql.Tx) error {
 	return withSteps([]migrationStep{
 		basicMigrationStepWithArgs(
 			"UPDATE host_mdm_windows_profiles SET status = ? WHERE status = ?",
@@ -25,6 +25,6 @@ func Up_20260225143121(tx *sql.Tx) error {
 	}, tx)
 }
 
-func Down_20260225143121(tx *sql.Tx) error {
+func Down_20260316120004(tx *sql.Tx) error {
 	return nil
 }
