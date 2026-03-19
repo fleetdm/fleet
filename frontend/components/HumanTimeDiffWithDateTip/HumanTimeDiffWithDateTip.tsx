@@ -1,9 +1,12 @@
 import React from "react";
+import classnames from "classnames";
 
 import { humanLastSeen, internationalTimeFormat } from "utilities/helpers";
 import { INITIAL_FLEET_DATE } from "utilities/constants";
 import TooltipWrapper from "components/TooltipWrapper";
 import { PlacesType } from "react-tooltip-5";
+
+const baseClass = "human-time-diff-with-date-tip";
 
 interface IHumanTimeDiffWithDateTip {
   timeString: string;
@@ -21,20 +24,22 @@ export const HumanTimeDiffWithDateTip = ({
   tooltipPosition = "top",
 }: IHumanTimeDiffWithDateTip): JSX.Element => {
   if (timeString === "Unavailable" || timeString === "") {
-    return <span>Unavailable</span>;
+    return <span className={baseClass}>Unavailable</span>;
   }
 
   // There are cases where dates are set in Fleet to be the "zero date" which
   // serves as an indicator that a particular date isn't set.
   if (cutoffBeforeFleetLaunch && timeString < INITIAL_FLEET_DATE) {
-    return <span>Never</span>;
+    return <span className={baseClass}>Never</span>;
   }
+
+  const classNames = classnames(baseClass, "date-tooltip");
 
   try {
     return (
       <TooltipWrapper
         showArrow
-        className="date-tooltip"
+        className={classNames}
         tooltipClass="date-tooltip-text"
         tipContent={internationalTimeFormat(new Date(timeString))}
         position={tooltipPosition}

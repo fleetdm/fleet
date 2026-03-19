@@ -1,0 +1,7 @@
+.data-table-block .data-table tbody .human-time-diff-with-date-tip {
+  .component__tooltip-wrapper__element {
+    // needed to prevent the cell text from breaking, which is the usual desired
+    // behaviour. we dont want to break the text for human time diff
+    white-space: nowrap;
+  }
+}
