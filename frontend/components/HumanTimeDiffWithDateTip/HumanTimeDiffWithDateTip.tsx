@@ -33,6 +33,7 @@ export const HumanTimeDiffWithDateTip = ({
   try {
     return (
       <TooltipWrapper
+        showArrow
         className="date-tooltip"
         tooltipClass="date-tooltip-text"
         tipContent={internationalTimeFormat(new Date(timeString))}
