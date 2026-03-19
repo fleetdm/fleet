@@ -5955,7 +5955,7 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "updated_at": "2025-11-13T06:14:20Z",
       "id": 4663,
       "name": "Team: g-software",
-      "description": "Workstations used by fleet g-software",
+      "description": "Workstations used by g-software",
       "query": "",
       "platform": "",
       "label_type": "regular",
