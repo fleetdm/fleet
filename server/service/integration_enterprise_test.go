@@ -27049,7 +27049,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 	patchResp := &modifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, darwinPolicyID), modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			ConditionalAccessEnabled: ptr.Bool(true),
+			ConditionalAccessEnabled: new(true),
 		},
 	}, http.StatusOK, patchResp)
 
@@ -27073,7 +27073,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 	patchResp = &modifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, windowsPolicyID), modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Platform: ptr.String("darwin"),
+			Platform: new("darwin"),
 		},
 	}, http.StatusOK, patchResp)
 
