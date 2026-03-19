@@ -5227,22 +5227,12 @@ func ReconcileAppleProfiles(
 		userEnrollmentsToHostUUIDsMap,
 	)
 	if err != nil {
-		// revert the status of all non-failed profiles to null so they get picked up again in the next cron run.
+		// revert the status of all pending profiles to null so they get picked up again in the next cron run.
 		// this is fine to do as if we errored out, we only do that before sending a single command
 		for _, hp := range hostProfiles {
-			if hp.Status != nil && *hp.Status != fleet.MDMDeliveryFailed {
+			if hp.Status != nil && *hp.Status == fleet.MDMDeliveryPending {
 				hp.Status = nil
 				hp.CommandUUID = ""
-			}
-			// TODO: Are we double checking here? It's all pointers so I think we do get the updates in nested methods
-			// but we should verify that and if so, we can simplify the code by not having to check the map again. But it's not a big operation so it's better to do for now
-
-			// also check hostProfilesToInstallMap to cover cases where MarkProfilesFailed was called
-			if hpi, ok := hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: hp.HostUUID, ProfileUUID: hp.ProfileUUID}]; ok {
-				if hpi.Status != nil && *hpi.Status != fleet.MDMDeliveryFailed {
-					hp.Status = nil
-					hp.CommandUUID = ""
-				}
 			}
 		}
 		if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles); err != nil {

@@ -34,7 +34,7 @@ func FindProfilesWithSecrets(
 	for profUUID := range installTargets {
 		p, ok := profileContents[profUUID]
 		if !ok { // Should never happen
-			return nil, fmt.Errorf("profile content for profile UUID %q not found for FIndProfilesWithSecrets", profUUID)
+			return nil, fmt.Errorf("profile content for profile UUID %q not found for FindProfilesWithSecrets", profUUID)
 		}
 		profileStr := string(p)
 		vars := ContainsPrefixVars(profileStr, ServerSecretPrefix)

@@ -331,11 +331,12 @@ func preprocessProfileContents(
 			hostLite := fleet.Host{UUID: hostUUID}
 			onMismatchedHostCount := func(hostCount int) error {
 				return ctxerr.Wrap(ctx, ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-					CommandUUID:   target.CmdUUID,
-					HostUUID:      hostLite.UUID,
-					Status:        &fleet.MDMDeliveryFailed,
-					Detail:        fmt.Sprintf("Unexpected number of hosts (%d) for UUID %s.", hostCount, hostLite.UUID),
-					OperationType: fleet.MDMOperationTypeInstall,
+					CommandUUID:        target.CmdUUID,
+					HostUUID:           hostLite.UUID,
+					Status:             &fleet.MDMDeliveryFailed,
+					Detail:             fmt.Sprintf("Unexpected number of hosts (%d) for UUID %s.", hostCount, hostLite.UUID),
+					OperationType:      fleet.MDMOperationTypeInstall,
+					VariablesUpdatedAt: variablesUpdatedAt,
 				}), "could not retrieve host by UUID for profile variable substitution")
 			}
 
@@ -469,6 +470,7 @@ func preprocessProfileContents(
 					}
 
 				case fleetVar == string(fleet.FleetVarHostEndUserEmailIDP):
+					// FIXME: if this is used together with a CA, and fail inside getFirstIDPEmail, the profile will fail, but not get the correct variablesUpdatedAt var.
 					email, ok, err := getFirstIDPEmail(ctx, ds, target, hostUUID)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "getting IDP email")
@@ -509,11 +511,12 @@ func preprocessProfileContents(
 					fleetVar == string(fleet.FleetVarHostEndUserIDPFullname):
 					replacedContents, replacedVariable, err := profiles.ReplaceHostEndUserIDPVariables(ctx, ds, fleetVar, hostContents, hostUUID, hostIDForUUIDCache, func(errMsg string) error {
 						err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-							CommandUUID:   target.CmdUUID,
-							HostUUID:      hostUUID,
-							Status:        &fleet.MDMDeliveryFailed,
-							Detail:        errMsg,
-							OperationType: fleet.MDMOperationTypeInstall,
+							CommandUUID:        target.CmdUUID,
+							HostUUID:           hostUUID,
+							Status:             &fleet.MDMDeliveryFailed,
+							Detail:             errMsg,
+							OperationType:      fleet.MDMOperationTypeInstall,
+							VariablesUpdatedAt: variablesUpdatedAt,
 						})
 						return err
 					})
