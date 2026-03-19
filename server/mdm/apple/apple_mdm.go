@@ -1884,6 +1884,20 @@ func sendAutoRotationCommands(
 
 		// Initiate rotation - stores pending password and validates eligibility
 		if err := ds.InitiateRecoveryLockRotation(ctx, hostUUID, newPassword); err != nil {
+			// Check for benign race conditions where host state changed between
+			// GetHostsForAutoRotation and now (e.g., manual rotation started,
+			// password removed, host deleted, etc.)
+			errMsg := err.Error()
+			if fleet.IsNotFound(err) ||
+				strings.Contains(errMsg, "rotation already pending") ||
+				strings.Contains(errMsg, "not eligible for rotation") {
+				logger.DebugContext(ctx, "host lost eligibility for auto-rotation",
+					"host_uuid", hostUUID,
+					"error", err,
+				)
+				continue
+			}
+
 			logger.ErrorContext(ctx, "failed to initiate auto-rotation",
 				"host_uuid", hostUUID,
 				"error", err,
