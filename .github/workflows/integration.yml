@@ -8,15 +8,22 @@ name: Test Fleetctl, Orbit & Preview
 
 on:
   workflow_dispatch: # Manual
+    inputs:
+      retry:
+        description: 'Number of retries attempted so far'
+        type: number
+        default: 0
   schedule:
-  - cron: '0 2 * * *' # Nightly 2AM UTC
+  - cron: '0 5 * * *' # Nightly 5AM UTC
+  - cron: '0 6 * * *' # Nightly 6AM UTC
+  - cron: '0 7 * * *' # Nightly 7AM UTC
   pull_request:
     paths:
       - '.github/workflows/integration.yml'
 
-# This allows a subsequently queued workflow run to interrupt previous runs
+# Each cron schedule gets its own concurrency group. workflow_dispatch and pull_request also get their own.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}-${{ github.event.schedule || github.event_name }}
   cancel-in-progress: true
 
 defaults:
@@ -520,8 +527,8 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
-    - name: Slack Notification
-      # if: failure() && github.event_name == 'schedule'
+    - name: Slack Notification (failure with retries remaining)
+      if: (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && (inputs.retry || 0) < 3
       uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
       with:
         webhook: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
@@ -531,9 +538,47 @@ jobs:
             - type: "section"
               text:
                 type: "mrkdwn"
-                text: "*[TESTING - PLEASE IGNORE - @zwass] Agent integration test result*: ${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+                text: "*[TESTING - PLEASE IGNORE - @zwass] Agent integration test FAILED* (attempt ${{ (inputs.retry || 0) + 1 }}/4, retrying...)\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>"
+
+    - name: Slack Notification (all retries exhausted)
+      if: (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && (inputs.retry || 0) >= 3
+      uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+      with:
+        webhook: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+        webhook-type: incoming-webhook
+        payload: |
+          blocks:
+            - type: "header"
+              text:
+                type: "plain_text"
+                text: "🚨 ALL RETRIES EXHAUSTED — MANUAL INVESTIGATION REQUIRED 🚨"
+            - type: "section"
+              text:
+                type: "mrkdwn"
+                text: "*[TESTING - PLEASE IGNORE - @zwass] Agent integration test FAILED all 4 attempts* :rotating_light:\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>"
+
+    - name: Slack Notification (retry success)
+      if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && (inputs.retry || 0) > 0 }}
+      uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+      with:
+        webhook: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+        webhook-type: incoming-webhook
+        payload: |
+          blocks:
+            - type: "section"
+              text:
+                type: "mrkdwn"
+                text: "*[TESTING - PLEASE IGNORE - @zwass] Agent integration test PASSED after ${{ inputs.retry }} retr${{ inputs.retry == 1 && 'y' || 'ies' }}* :white_check_mark:\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>"
+
+    - name: Retry workflow on failure
+      if: ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && (inputs.retry || 0) < 3 }}
+      run: |
+        gh workflow run integration.yml --repo ${{ github.repository }} --ref ${{ github.ref }} -f retry=${{ (inputs.retry || 0) + 1 }}
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Cancel workflow if any job failed
       if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
-      run: gh run cancel ${{ github.run_id }}
+      run: gh run cancel ${{ github.run_id }} --repo fleetdm/fleet
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
