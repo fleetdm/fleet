@@ -60,7 +60,7 @@
     justify-content: space-between;
     align-items: flex-start;
     gap: $pad-medium;
-    margin-bottom: $pad-small;
+    margin-bottom: px-to-rem(24);
   }
 
   &__header-left {
@@ -101,54 +101,41 @@
   }
 
   &__clipped-badge {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 8px;
-    background-color: $ui-fleet-black-10;
-    border-radius: 4px;
-    font-size: $xx-small;
-    font-weight: $bold;
-    color: $ui-fleet-black-75;
-    white-space: nowrap;
-
-    .icon {
-      width: 16px;
-      height: 16px;
+    .pill-badge__element {
+      background: transparent;
+      font-size: $xx-small;
+      color: $ui-fleet-black-75;
+      border: 1px solid $ui-fleet-black-25;
+      padding: $pad-small;
     }
   }
 
   &__data-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: $pad-small;
-    margin-bottom: $pad-small;
-  }
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: $gap-data-sets $pad-xxlarge;
+    margin-bottom: px-to-rem(24);
 
-  &__data-cell {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: $pad-small;
-    background-color: $ui-fleet-black-5;
-    border-radius: 4px;
-    overflow: hidden;
-  }
+    @media (min-width: $break-sm) {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
 
-  &__data-key {
-    font-size: $xxx-small;
-    font-weight: $bold;
-    color: $ui-fleet-black-75;
-    text-transform: uppercase;
-  }
+    @media (min-width: $break-md) {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
 
-  &__data-value {
-    font-size: $xx-small;
-    color: $core-fleet-black;
-    word-break: break-word;
+    @media (min-width: $break-lg) {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
   }
 
   &__banner-content {
+    display: flex;
+    align-items: center;
+    gap: px-to-rem(24);
+  }
+
+  &__banner-text {
     display: flex;
     align-items: center;
     gap: $pad-small;
@@ -161,14 +148,6 @@
   &__view-full-report {
     margin-left: auto;
     white-space: nowrap;
-    color: $core-vibrant-blue;
-    text-decoration: none;
-    font-weight: $bold;
-    font-size: $xx-small;
-
-    &:hover {
-      text-decoration: underline;
-    }
   }
 }
 

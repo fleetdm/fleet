@@ -196,7 +196,6 @@ const HostReportsTab = ({
     return <DataError />;
   }
 
-  // Empty state: no reports at all (no search active)
   if (totalCount === 0 && !searchQuery) {
     return <EmptyReports isSearching={false} />;
   }
@@ -247,7 +246,6 @@ const HostReportsTab = ({
                 key={report.query_id}
                 report={report}
                 hostName={hostName}
-                hostId={hostId}
                 onShowDetails={onShowDetails}
                 onViewAllHosts={onViewAllHosts}
               />

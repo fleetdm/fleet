@@ -1,17 +1,23 @@
 import React from "react";
+import classnames from "classnames";
 
 import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "pill-badge";
 
 interface IPillBadge {
-  text: string;
+  children?: React.ReactNode;
+  /** @deprecated Use children instead */
+  text?: string;
   tipContent?: JSX.Element | string;
+  className?: string;
 }
 
-const PillBadge = ({ text, tipContent }: IPillBadge) => {
+const PillBadge = ({ children, text, tipContent, className }: IPillBadge) => {
+  const classNames = classnames(baseClass, className);
+
   return (
-    <div className={`${baseClass}__`}>
+    <div className={classNames}>
       <TooltipWrapper
         tipContent={tipContent}
         showArrow
@@ -20,7 +26,7 @@ const PillBadge = ({ text, tipContent }: IPillBadge) => {
         tipOffset={12}
         delayInMs={300}
       >
-        <span className={`${baseClass}__element-text`}>{text}</span>
+        <span className={`${baseClass}__element`}>{children ?? text}</span>
       </TooltipWrapper>
     </div>
   );

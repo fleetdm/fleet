@@ -3,20 +3,22 @@ import React, { useCallback } from "react";
 import { IHostReport } from "services/entities/host_reports";
 import { humanLastSeen } from "utilities/helpers";
 
+import Button from "components/buttons/Button";
 import Card from "components/Card";
+import DataSet from "components/DataSet";
 import Icon from "components/Icon";
 import InfoBanner from "components/InfoBanner";
 import ActionsDropdown from "components/ActionsDropdown";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import TooltipWrapper from "components/TooltipWrapper";
-import PATHS from "router/paths";
+import PillBadge from "components/PillBadge";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 const baseClass = "host-report-card";
+const iconColor = "ui-fleet-black-75";
 
 interface IHostReportCardProps {
   report: IHostReport;
   hostName: string;
-  hostId: number;
   onShowDetails: (report: IHostReport) => void;
   onViewAllHosts: (report: IHostReport) => void;
 }
@@ -24,7 +26,6 @@ interface IHostReportCardProps {
 const HostReportCard = ({
   report,
   hostName,
-  hostId,
   onShowDetails,
   onViewAllHosts,
 }: IHostReportCardProps): JSX.Element => {
@@ -74,69 +75,79 @@ const HostReportCard = ({
     return (
       <div className={`${baseClass}__data-grid`}>
         {entries.map(([key, value]) => (
-          <div key={key} className={`${baseClass}__data-cell`}>
-            <span className={`${baseClass}__data-key`}>{key}</span>
-            <span className={`${baseClass}__data-value`}>{value}</span>
-          </div>
+          <DataSet
+            key={key}
+            title={key}
+            value={<TooltipTruncatedText value={value} />}
+          />
         ))}
       </div>
     );
   };
 
   const renderBanner = () => {
-    // Scenario 5: Report doesn't store results
+    // Report doesn't store results
     if (doesNotStoreResults) {
       return (
         <InfoBanner color="grey" borderRadius="xlarge">
           <div className={`${baseClass}__banner-content`}>
-            <Icon name="info" />
-            Results from this report are not stored in Fleet.
+            <div className={`${baseClass}__banner-text`}>
+              <Icon name="info-outline" color={iconColor} />
+              Results from this report are not stored in Fleet.
+            </div>
           </div>
         </InfoBanner>
       );
     }
 
-    // Scenario 4: Awaiting results
+    // Awaiting results
     if (isAwaitingResults) {
       return (
         <InfoBanner color="grey" borderRadius="xlarge">
           <div className={`${baseClass}__banner-content`}>
-            <Icon name="more" />
-            Fleet is awaiting results from {hostName}.
+            <div className={`${baseClass}__banner-text`}>
+              <Icon name="pending-outline" color={iconColor} />
+              Fleet is awaiting results from {hostName}.
+            </div>
           </div>
         </InfoBanner>
       );
     }
 
-    // Scenario 3: Has run but returned no data
+    // Has run but returned no data
     if (!hasData) {
       return (
         <InfoBanner color="grey" borderRadius="xlarge">
           <div className={`${baseClass}__banner-content`}>
-            <Icon name="check" />
-            This report has run on {hostName}, but returned no data for this
-            host.
+            <div className={`${baseClass}__banner-text`}>
+              <Icon name="check" color={iconColor} />
+              This report has run on {hostName}, but returned no data for this
+              host.
+            </div>
           </div>
         </InfoBanner>
       );
     }
 
-    // Scenario 2: Has data and additional results
+    // Has data and additional results
     if (report.n_host_results > 1) {
       return (
         <InfoBanner color="grey" borderRadius="xlarge">
           <div className={`${baseClass}__banner-content`}>
-            <Icon name="info" />
-            <span>
+            <div className={`${baseClass}__banner-text`}>
+              <Icon name="info-outline" color={iconColor} />
               {report.n_host_results - 1} additional result
               {report.n_host_results - 1 !== 1 ? "s" : ""} not shown
-            </span>
-            <a
-              href={PATHS.HOST_REPORT_RESULTS(hostId, report.query_id)}
+            </div>
+            <Button
               className={`${baseClass}__view-full-report`}
+              variant="inverse"
+              size="small"
+              onClick={() => onShowDetails(report)}
             >
-              View full report &gt;
-            </a>
+              View full report
+              <Icon name="chevron-right" color={iconColor} />
+            </Button>
           </div>
         </InfoBanner>
       );
@@ -159,16 +170,13 @@ const HostReportCard = ({
         </div>
         <div className={`${baseClass}__header-right`}>
           {report.report_clipped && (
-            <TooltipWrapper
+            <PillBadge
+              className={`${baseClass}__clipped-badge`}
               tipContent="This report has paused saving results. If automations are enabled, results are still sent to your log destination."
-              showArrow
-              position="top"
             >
-              <span className={`${baseClass}__clipped-badge`}>
-                <Icon name="warning" />
-                Report clipped
-              </span>
-            </TooltipWrapper>
+              <Icon size="small" name="warning" color="ui-fleet-black-75" />
+              Report clipped
+            </PillBadge>
           )}
           <ActionsDropdown
             options={actionOptions}
