@@ -9971,7 +9971,8 @@ Get a list of all software.
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         }
       ],
-      "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9"
+      "bundle_identifier": "org.mozilla.firefox",
+      "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9",
     },
     {
       "id": 22,
@@ -10005,6 +10006,7 @@ Get a list of all software.
           "vulnerabilities": ["CVE-2023-0987", "CVE-2023-5673", "CVE-2023-1334"]
         },
       ],
+      "bundle_identifier": "com.google.Chrome",
       "hash_sha256": "ca30af561de15bb26186efcbcc59f3936c67d81e071e96fa8afa1e867a67a04f"
     },
     {
