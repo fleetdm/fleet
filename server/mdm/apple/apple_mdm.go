@@ -1930,6 +1930,7 @@ func sendAutoRotationCommands(
 					"host_uuid", hostUUID,
 					"error", clearErr,
 				)
+				result = multierror.Append(result, clearErr)
 			}
 			result = multierror.Append(result, err)
 			continue
