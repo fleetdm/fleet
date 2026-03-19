@@ -147,8 +147,7 @@ const EditTeamsAbmModal = ({
           wrapperClassName={`${baseClass}__form-field form-field--macos`}
           tooltip={
             <>
-              macOS hosts are automatically added to this fleet in Fleet when
-              they appear in Apple Business Manager.
+              macOS hosts are automatically added to this fleet on initial sync from ABM. If a host is manually assigned to a different fleet before enrollment, it will enroll to the newly assigned fleet and not the default.
             </>
           }
         />
