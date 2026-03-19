@@ -87,6 +87,15 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';
 ```
 
+## conditional_access_microsoft_device_id_windows
+
+- Platforms: windows
+
+- Query:
+```sql
+SELECT subject AS device_id FROM certificates WHERE issuer LIKE 'net + windows + MS-Organization-Access%' LIMIT 1;
+```
+
 ## disk_encryption_darwin
 
 - Platforms: darwin
@@ -121,9 +130,44 @@ WITH encrypted(enabled) AS (
 	SELECT 1 FROM encrypted WHERE enabled IS NOT NULL
 ```
 
+## disk_space_darwin
+
+- Platforms: darwin
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'disk_space'
+```
+
+- Query:
+```sql
+SELECT
+    ROUND(bytes_available * 100.0 / bytes_total, 2) AS percent_disk_space_available,
+    ROUND(bytes_available * 10e-10, 2) AS gigs_disk_space_available,
+    ROUND(bytes_total * 10e-10, 2) AS gigs_total_disk_space
+FROM disk_space LIMIT 1;
+```
+
+## disk_space_darwin_legacy
+
+- Platforms: darwin
+
+- Discovery query:
+```sql
+SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'disk_space');
+```
+
+- Query:
+```sql
+SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
+		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
+		FROM mounts WHERE path = '/' LIMIT 1;
+```
+
 ## disk_space_unix
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, darwin
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm
 
 - Query:
 ```sql
@@ -137,9 +181,9 @@ AND blocks_size > 0
 
 -- exclude external storage
 AND path NOT LIKE '/media%' AND path NOT LIKE '/mnt%'
-  
+
 -- exclude device drivers
-AND path NOT LIKE '/dev%' 
+AND path NOT LIKE '/dev%'
 
 -- exclude kernel-related mounts
 AND path NOT LIKE '/proc%'
@@ -150,7 +194,7 @@ AND path NOT LIKE '/run%'
 AND path NOT LIKE '/var/run%'
 
 -- exclude boot files
-AND path NOT LIKE '/boot%' 
+AND path NOT LIKE '/boot%'
 
 -- exclude snap packages
 AND path NOT LIKE '/snap%' AND path NOT LIKE '/var/snap%'
@@ -160,21 +204,21 @@ AND path NOT LIKE '/var/lib/docker%'
 AND path NOT LIKE '/var/lib/containers%'
 
 AND type IN (
-'ext4', 
-'ext3', 
-'ext2', 
-'xfs', 
-'btrfs', 
-'ntfs', 
+'ext4',
+'ext3',
+'ext2',
+'xfs',
+'btrfs',
+'ntfs',
 'vfat',
 'fuseblk', --seen on NTFS and exFAT volumes mounted via FUSE
 'zfs' --also valid storage
 )
 AND (
-device LIKE '/dev/sd%' 
-OR device LIKE '/dev/hd%' 
-OR device LIKE '/dev/vd%' 
-OR device LIKE '/dev/nvme%' 
+device LIKE '/dev/sd%'
+OR device LIKE '/dev/hd%'
+OR device LIKE '/dev/vd%'
+OR device LIKE '/dev/nvme%'
 OR device LIKE '/dev/mapper%'
 OR device LIKE '/dev/md%'
 OR device LIKE '/dev/dm-%'
@@ -642,6 +686,30 @@ SELECT package, MAX(atime) AS last_opened_at
 		CROSS JOIN file USING (path)
 		WHERE type = 'regular' AND regex_match(file.mode, '[1357]', 0)
 		GROUP BY package
+```
+
+## software_go_binaries
+
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, darwin, windows
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'go_binaries'
+```
+
+- Query:
+```sql
+SELECT
+  name AS name,
+  version AS version,
+  '' AS extension_id,
+  '' AS extension_for,
+  'go_binaries' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch,
+  installed_path AS installed_path
+FROM go_binaries
 ```
 
 ## software_jetbrains_plugins

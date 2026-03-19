@@ -303,7 +303,11 @@ func gitopsCommand() *cli.Command {
 					}
 					if !noTeamControls.Defined && !config.Controls.Defined {
 						if appConfig.License.IsPremium() {
-							return fmt.Errorf("'controls' must be set on global config or %s", noTeamFilename)
+							suggestion := ", no-team.yml or unassigned.yml"
+							if noTeamFilename != "" {
+								suggestion = fmt.Sprintf(" or %s", noTeamFilename)
+							}
+							return fmt.Errorf("'controls' must be set on global config%s", suggestion)
 						}
 						return errors.New("'controls' must be set on global config")
 					}
@@ -485,6 +489,15 @@ func gitopsCommand() *cli.Command {
 					return err
 				}
 
+				// Capture CAs before DoGitOps (which deletes the key from OrgSettings).
+				// DoGitOps processes CA creates/updates inline (with skipDeletes=true).
+				// CA deletions are always deferred to a post-op so that team configs can
+				// clean up certificate templates (which have FK references to CAs) first.
+				var deferredCAs any
+				if isGlobalConfig && !flDryRun {
+					deferredCAs = config.OrgSettings["certificate_authorities"]
+				}
+
 				assumptions, err := fleetClient.DoGitOps(
 					c.Context,
 					config,
@@ -501,6 +514,21 @@ func gitopsCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
+
+				// Schedule CA deletions as a post-op after all team configs have been processed.
+				if isGlobalConfig && !flDryRun {
+					allPostOps = append(allPostOps, func() error {
+						groupedCAs, caErr := fleet.ValidateCertificateAuthoritiesSpec(deferredCAs)
+						if caErr != nil {
+							return fmt.Errorf("invalid certificate_authorities: %w", caErr)
+						}
+						if caErr = fleetClient.ApplyCertificateAuthoritiesSpec(*groupedCAs, fleet.ApplySpecOptions{}, fleet.BatchApplyCertificateAuthoritiesOpts{}); caErr != nil {
+							return fmt.Errorf("applying certificate authorities: %w", caErr)
+						}
+						return nil
+					})
+				}
+
 				if config.TeamName != nil {
 					teamNames = append(teamNames, *config.TeamName)
 				} else {

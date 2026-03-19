@@ -1,7 +1,3 @@
-# Fleet vs. Jamf vs. Microsoft Intune: How to choose the right fleet management software
-
-This guide compares Fleet, Jamf Pro, and Microsoft Intune as device management software options, covering platform support, security capabilities, and automation features.
-
 ## Overview
 
 ### Fleet
@@ -101,29 +97,33 @@ Many organizations manage more than one operating system. Separate tools for eac
 
 ## FAQ
 
-### What is device management software for IT teams?
+#### What is device management software for IT teams?
 
 Device management solutions (i.e., device management software) combine reporting, inventory collection, configuration, security, and compliance for devices that are owned and managed by organizations. IT teams use device management solutions to manage laptops, desktops, servers and mobile devices.
 
-### Can one device management solution handle Mac, Windows, and Linux devices?
+#### Can one device management solution handle Mac, Windows, and Linux devices?
 
 Fleet and Intune manage macOS, Windows, Linux, iOS, iPadOS, ChromeOS, and Android from the same console. Jamf Pro is Apple-first with Android support via Jamf for Mobile, but does not support Windows or Linux. Intune supports multiple platforms but with uneven feature depth across operating systems.
 
-### What factors matter most when comparing fleet management software?
+#### What factors matter most when comparing fleet management software?
 
 Platform coverage determines whether you need one tool or several. Security and compliance features affect whether you need additional products. Automation capabilities (GitOps, APIs, scripting) impact how efficiently your team operates. Deployment model (cloud-only vs. self-hosted) matters for organizations with data residency requirements.
 
-### How does Fleet differ from Jamf and Intune as device management software?
+#### How does Fleet differ from Jamf and Intune as device management software?
 
 Fleet provides consistent multi-platform capabilities where Jamf Pro is Apple-first and Intune is Windows-centric. Fleet includes security features like vulnerability detection and file integrity monitoring in the base product rather than as add-ons. Fleet's osquery foundation enables SQL-based queries across the entire device fleet with near real-time reporting. [Try Fleet](https://fleetdm.com/try-fleet) to see multi-platform device management in action.
 
-### How long does it take to roll out device management software?
+#### How long does it take to roll out device management software?
 
 Timelines depends on fleet size and configuration complexity. Fleet supports zero-touch enrollment through Apple Business Manager and Windows Autopilot for automated onboarding. Fleet also provides MDM migration workflows and professional services for organizations transitioning from other solutions. [Schedule a demo](https://fleetdm.com/contact) to discuss your rollout timeline.
 
 <meta name="articleTitle" value="Fleet vs. Jamf vs. Intune: Comparing fleet management software">
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
-<meta name="category" value="articles">
+<meta name="category" value="comparison">
 <meta name="publishedOn" value="2026-02-26">
 <meta name="description" value="Compare the Fleet, Jamf Pro, and Microsoft Intune product offerings.">
+
+<meta name="articleSubtitle" value="How to choose the right fleet management software">
+<meta name="articleSlugInCategory" value="jamf-vs-intune-vs-fleet"> 
+<meta name="introductionTextBlockOne" value="This guide compares Fleet, Jamf Pro, and Microsoft Intune as device management software options, covering platform support, security capabilities, and automation features."> 

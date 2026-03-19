@@ -29,7 +29,7 @@
 -
   task: "🦢🪲🔨💥 Bug bash"
   startedOn: "2025-10-22" 
-  frequency: "Semiweekly" 
+  frequency: "Weekly" 
   description: "Contributors bring bug fixes to review. Head of Product Design provides feedback on UI/CLI/API changes. Goal: Focused time to triage new bugs: https://fleetdm.com/handbook/product-design#triage-new-bugs" 
   moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#bug-bash" 
   dri: "noahtalerman"

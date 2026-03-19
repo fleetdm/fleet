@@ -83,7 +83,7 @@
       "slug": "adobe-creative-cloud/darwin",
       "platform": "darwin",
       "unique_identifier": "com.adobe.acc.AdobeCreativeCloud",
-      "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe’s suite of tools like Photoshop, Illustrator, and Premiere Pro."
+      "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe's suite of tools like Photoshop, Illustrator, and Premiere Pro."
     },
     {
       "name": "Adobe Digital Editions",
@@ -118,14 +118,14 @@
       "slug": "airtame/darwin",
       "platform": "darwin",
       "unique_identifier": "com.airtame.airtame-application",
-      "description": "Airtame is an app that makes shared screens easy to use — for screen sharing, conferencing, digital signage, and alerts."
+      "description": "Airtame is an app that makes shared screens easy to use - for screen sharing, conferencing, digital signage, and alerts."
     },
     {
       "name": "Airtame",
       "slug": "airtame/windows",
       "platform": "windows",
       "unique_identifier": "Airtame 4.15.0",
-      "description": "Airtame is an app that makes shared screens easy to use — for screen sharing, conferencing, digital signage, and alerts."
+      "description": "Airtame is an app that makes shared screens easy to use - for screen sharing, conferencing, digital signage, and alerts."
     },
     {
       "name": "Amazon Chime",
@@ -184,6 +184,13 @@
       "description": "Archaeology is a tool for digging into binary files."
     },
     {
+      "name": "Arduino IDE",
+      "slug": "arduino-ide/darwin",
+      "platform": "darwin",
+      "unique_identifier": "cc.arduino.IDE2",
+      "description": "Arduino IDE is the official development environment for programming Arduino microcontrollers."
+    },
+    {
       "name": "Asana",
       "slug": "asana/darwin",
       "platform": "darwin",
@@ -217,6 +224,13 @@
       "platform": "darwin",
       "unique_identifier": "com.amazonaws.acvc.osx",
       "description": "AWS Client VPN is a managed client-based VPN service to securely access AWS resources."
+    },
+    {
+      "name": "Backblaze",
+      "slug": "backblaze/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.backblaze.bzbmenu",
+      "description": "Backblaze is a data backup and storage service."
     },
     {
       "name": "balenaEtcher",
@@ -329,6 +343,13 @@
       "platform": "darwin",
       "unique_identifier": "com.canva.CanvaDesktop",
       "description": "Canva is a popular online graphic design tool."
+    },
+    {
+      "name": "Charles",
+      "slug": "charles/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.xk72.Charles",
+      "description": "Charles is an HTTP proxy and monitor that lets developers view all HTTP and HTTPS traffic between their machine and the internet."
     },
     {
       "name": "ChatGPT Atlas",
@@ -468,14 +489,14 @@
       "slug": "cursor/darwin",
       "platform": "darwin",
       "unique_identifier": "com.todesktop.230313mzl4w4u92",
-      "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors — all inside your editor."
+      "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors - all inside your editor."
     },
     {
       "name": "Cursor",
       "slug": "cursor/windows",
       "platform": "windows",
       "unique_identifier": "Cursor",
-      "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors — all inside your editor."
+      "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors - all inside your editor."
     },
     {
       "name": "Cyberduck",
@@ -807,6 +828,13 @@
       "description": "Hyper is a terminal built on web technologies."
     },
     {
+      "name": "IINA",
+      "slug": "iina/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.colliderli.iina",
+      "description": "IINA is a modern, free and open-source media player for macOS."
+    },
+    {
       "name": "iMazing Profile Editor",
       "slug": "imazing-profile-editor/darwin",
       "platform": "darwin",
@@ -903,6 +931,20 @@
       "platform": "darwin",
       "unique_identifier": "com.aone.keka",
       "description": "Keka is a file archiver."
+    },
+    {
+      "name": "Krita",
+      "slug": "krita/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.kde.krita",
+      "description": "Krita is a free and open-source digital painting application."
+    },
+    {
+      "name": "Krita",
+      "slug": "krita/windows",
+      "platform": "windows",
+      "unique_identifier": "Krita_x64",
+      "description": "Krita is a free and open-source digital painting application."
     },
     {
       "name": "LastPass",
@@ -1157,6 +1199,20 @@
       "description": "Okta Verify is a multi-factor authentication app that provides secure identity verification and passwordless sign-in for users accessing Okta-protected applications."
     },
     {
+      "name": "Ollama",
+      "slug": "ollama/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.ollama",
+      "description": "Ollama is a tool to get up and running with large language models locally."
+    },
+    {
+      "name": "Ollama",
+      "slug": "ollama/windows",
+      "platform": "windows",
+      "unique_identifier": "Ollama",
+      "description": "Ollama is a tool to get up and running with large language models locally."
+    },
+    {
       "name": "OmniGraffle",
       "slug": "omnigraffle/darwin",
       "platform": "darwin",
@@ -1365,6 +1421,13 @@
       "platform": "darwin",
       "unique_identifier": "com.northpolesec.santa",
       "description": "Santa is a binary authorization system for macOS."
+    },
+    {
+      "name": "Sequel Ace",
+      "slug": "sequel-ace/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sequelace.SequelAce",
+      "description": "Sequel Ace is a MySQL and MariaDB database manager for macOS."
     },
     {
       "name": "Shottr",
@@ -1584,6 +1647,13 @@
       "description": "TextExpander is an application that let's you create and insert pre-made snippets of text anywhere."
     },
     {
+      "name": "The Unarchiver",
+      "slug": "the-unarchiver/darwin",
+      "platform": "darwin",
+      "unique_identifier": "cx.c3.theunarchiver",
+      "description": "The Unarchiver is an archive extraction utility that supports many formats including ZIP, RAR, and 7z."
+    },
+    {
       "name": "Thunderbird",
       "slug": "thunderbird/darwin",
       "platform": "darwin",
@@ -1596,6 +1666,13 @@
       "platform": "darwin",
       "unique_identifier": "com.todoist.mac.Todoist",
       "description": "Todoist is a to do list and a planning center for individuals and teams."
+    },
+    {
+      "name": "Tor Browser",
+      "slug": "tor-browser/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.torproject.torbrowser",
+      "description": "Tor Browser is a privacy-focused web browser that protects against tracking, surveillance, and censorship by routing traffic through the Tor network."
     },
     {
       "name": "Tower",
@@ -1694,6 +1771,13 @@
       "platform": "darwin",
       "unique_identifier": "com.wacom.WacomCenter",
       "description": "Wacom Tablet is a collection of resources for configuring Wacom tablets."
+    },
+    {
+      "name": "Warp",
+      "slug": "warp/darwin",
+      "platform": "darwin",
+      "unique_identifier": "dev.warp.Warp-Stable",
+      "description": "Warp is a modern, AI-powered terminal built for speed and productivity with features like command search, intelligent completions, and collaborative workflows."
     },
     {
       "name": "Webex",
@@ -1806,6 +1890,20 @@
       "platform": "windows",
       "unique_identifier": "Zoom Workplace (X64)",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
+    },
+    {
+      "name": "Zotero",
+      "slug": "zotero/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.zotero.zotero",
+      "description": "Zotero is a free tool for collecting, organizing, citing, and sharing research."
+    },
+    {
+      "name": "Zotero",
+      "slug": "zotero/windows",
+      "platform": "windows",
+      "unique_identifier": "Zotero",
+      "description": "Zotero is a free tool for collecting, organizing, citing, and sharing research."
     }
   ]
 }

@@ -291,8 +291,7 @@ Additional addons are available such as:
 - [Monitoring via Cloudwatch alarms](https://github.com/fleetdm/fleet-terraform/tree/main/addons/monitoring)
 - [Cloudfront for software installers](https://github.com/fleetdm/fleet-terraform/tree/main/addons/cloudfront-software-installers)
 
-Some AWS services used in the provider reference architecture are billed as pay-per-use such as Firehose. This means that osquery scheduled query frequency can have
-a direct correlation to how much these services cost, something to keep in mind when configuring Fleet in AWS.
+Some AWS services used in the provider reference architecture are billed as pay-per-use such as Firehose. This means that osquery scheduled report frequency can have a direct correlation to how much these services cost, something to keep in mind when configuring Fleet in AWS.
 
 ###### AWS Terraform CI/CD IAM permissions
 The following permissions are the minimum required to apply AWS terraform resources:
@@ -344,7 +343,7 @@ GCP reference architecture can be found in [the Fleet repository](https://github
 
 - Cloud Run (Fleet backend)
 - Cloud SQL MySQL 8.0 (Fleet database)
-- Memorystore Redis (Fleet cache & live query orchestrator)
+- Memorystore Redis (Fleet cache & live report orchestrator)
 
 GCP support for add/install software and file carve features is coming soon. Get [community support](https://chat.osquery.io/c/fleet).
 

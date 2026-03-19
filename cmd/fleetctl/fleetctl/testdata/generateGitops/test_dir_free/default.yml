@@ -164,7 +164,6 @@ org_settings:
       destination_url: https://some-failing-policies-webhook-url.com
       enable_failing_policies_webhook: true
       host_batch_size: 2
-      policy_ids:
     host_status_webhook:
       days_count: 5
       destination_url: https://some-host-status-webhook-url.com
@@ -190,6 +189,8 @@ policies:
   platform: darwin
   query: SELECT * FROM global_policy WHERE id = 1
   resolution: Do a global thing
+  type: dynamic
+  webhooks_and_tickets_enabled: false
 reports:
 - automations_enabled: true
   description: This is a global query

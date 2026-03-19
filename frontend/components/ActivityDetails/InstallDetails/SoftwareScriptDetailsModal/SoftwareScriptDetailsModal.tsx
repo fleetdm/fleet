@@ -327,16 +327,14 @@ export const SoftwareScriptDetailsModal = ({
       onEnter={onCancel}
       className={baseClass}
     >
-      <>
-        {renderContent()}
-        <ModalButtons
-          deviceAuthToken={deviceAuthToken}
-          installResultStatus={swInstallResult?.status}
-          hostSoftwareId={hostSoftware?.id}
-          onRerun={onRerun}
-          onCancel={onCancel}
-        />
-      </>
+      {renderContent()}
+      <ModalButtons
+        deviceAuthToken={deviceAuthToken}
+        installResultStatus={swInstallResult?.status}
+        hostSoftwareId={hostSoftware?.id}
+        onRerun={onRerun}
+        onCancel={onCancel}
+      />
     </Modal>
   );
 };

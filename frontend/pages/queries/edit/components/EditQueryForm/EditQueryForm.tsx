@@ -115,6 +115,22 @@ const validateQuerySQL = (query: string) => {
   return { valid, errors };
 };
 
+const getLabelsIncludeAny = (
+  isPremiumTier: boolean | undefined,
+  selectedTargetType: string,
+  selectedLabels: Record<string, boolean>
+): string[] | undefined => {
+  if (!isPremiumTier) {
+    return undefined;
+  }
+  if (selectedTargetType === "Custom") {
+    return Object.entries(selectedLabels)
+      .filter(([, selected]) => selected)
+      .map(([labelName]) => labelName);
+  }
+  return [];
+};
+
 const EditQueryForm = ({
   router,
   location,
@@ -218,12 +234,11 @@ const EditQueryForm = ({
     min_osquery_version: lastEditedQueryMinOsqueryVersion,
     logging: lastEditedQueryLoggingType,
     discard_data: lastEditedQueryDiscardData,
-    labels_include_any:
-      selectedTargetType === "Custom"
-        ? Object.entries(selectedLabels)
-            .filter(([, selected]) => selected)
-            .map(([labelName]) => labelName)
-        : [],
+    labels_include_any: getLabelsIncludeAny(
+      isPremiumTier,
+      selectedTargetType,
+      selectedLabels
+    ),
   };
 
   useEffect(() => {
@@ -834,8 +849,8 @@ const EditQueryForm = ({
               <RevealButton
                 isShowing={showAdvancedOptions}
                 className="advanced-options-toggle"
-                hideText="Hide advanced options"
-                showText="Show advanced options"
+                hideText="Advanced options"
+                showText="Advanced options"
                 caretPosition="after"
                 onClick={toggleAdvancedOptions}
               />
@@ -963,7 +978,7 @@ const EditQueryForm = ({
             location={location}
             initialQueryData={{
               ...updateQueryData,
-              team_id: apiTeamIdForQuery,
+              fleet_id: apiTeamIdForQuery,
             }}
             hostId={hostId}
             onExit={toggleSaveAsNewQueryModal}

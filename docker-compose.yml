@@ -26,7 +26,7 @@ services:
       # This is required by Percona XtraDB server.
       CLUSTER_NAME: fleet
     ports:
-      - "3306:3306"
+      - "${FLEET_MYSQL_PORT:-3306}:3306"
 
   mysql_test:
     image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.44}
@@ -76,7 +76,7 @@ services:
     environment: *mysql-default-environment
     ports:
       # ports 3308 and 3309 are used by the main and replica MySQL containers in tools/mysql-replica-testing/docker-compose.yml
-      - "3310:3306"
+      - "${FLEET_MYSQL_REPLICA_TEST_PORT:-3310}:3306"
     tmpfs:
       - /var/lib/mysql:rw,noexec,nosuid
       - /tmpfs
@@ -85,15 +85,15 @@ services:
   mailhog:
     image: mailhog/mailhog:latest
     ports:
-      - "8025:8025"
-      - "1025:1025"
+      - "${FLEET_MAILHOG_WEB_PORT:-8025}:8025"
+      - "${FLEET_MAILHOG_SMTP_PORT:-1025}:1025"
 
   # SMTP server with Basic Authentication.
   mailpit:
     image: axllent/mailpit:latest
     ports:
-      - "8026:8025"
-      - "1026:1025"
+      - "${FLEET_MAILPIT_WEB_PORT:-8026}:8025"
+      - "${FLEET_MAILPIT_SMTP_PORT:-1026}:1025"
     volumes:
       - ./tools/mailpit/auth.txt:/auth.txt
     command: ["--smtp-auth-file=/auth.txt", "--smtp-auth-allow-insecure=true"]
@@ -102,8 +102,8 @@ services:
   smtp4dev_test:
     image: rnwood/smtp4dev:v3
     ports:
-      - "8028:80"
-      - "1027:25"
+      - "${FLEET_SMTP4DEV_WEB_PORT:-8028}:80"
+      - "${FLEET_SMTP4DEV_SMTP_PORT:-1027}:25"
     volumes:
       - ./tools/smtp4dev:/certs
     environment:
@@ -114,7 +114,7 @@ services:
   redis:
     image: redis:6
     ports:
-      - "6379:6379"
+      - "${FLEET_REDIS_PORT:-6379}:6379"
 
   saml_idp:
     image: fleetdm/docker-idp:latest
@@ -122,15 +122,15 @@ services:
       - ./tools/saml/users.php:/var/www/simplesamlphp/config/authsources.php
       - ./tools/saml/config.php:/var/www/simplesamlphp/metadata/saml20-sp-remote.php
     ports:
-      - "9080:8080"
-      - "9443:8443"
+      - "${FLEET_SAML_IDP_HTTP_PORT:-9080}:8080"
+      - "${FLEET_SAML_IDP_HTTPS_PORT:-9443}:8443"
 
   # CAdvisor container allows monitoring other containers. Useful for
   # development.
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
     ports:
-      - "5678:8080"
+      - "${FLEET_CADVISOR_PORT:-5678}:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /sys:/sys:ro
@@ -139,7 +139,7 @@ services:
   prometheus:
     image: prom/prometheus:latest
     ports:
-      - "9090:9090"
+      - "${FLEET_PROMETHEUS_PORT:-9090}:9090"
     volumes:
       - ./tools/app/prometheus.yml:/etc/prometheus/prometheus.yml
 
@@ -148,22 +148,21 @@ services:
   localstack:
     image: localstack/localstack
     ports:
-      - "4566:4566"
-      - "4571:4571"
+      - "${FLEET_LOCALSTACK_PORT:-4566}:4566"
+      - "${FLEET_LOCALSTACK_LEGACY_PORT:-4571}:4571"
     environment:
       - SERVICES=firehose,kinesis,s3,iam,sts,secretsmanager
 
   # s3 compatible object storage (file carving/software installers)
   s3:
-    image: rustfs/rustfs:1.0.0-alpha.80
+    image: rustfs/rustfs:1.0.0-alpha.85
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${FLEET_S3_PORT:-9000}:9000"
+      - "${FLEET_S3_CONSOLE_PORT:-9001}:9001"
     environment:
       - RUSTFS_ADDRESS=0.0.0.0:9000
       - RUSTFS_CONSOLE_ADDRESS=0.0.0.0:9001
       - RUSTFS_CONSOLE_ENABLE=true
-      - RUSTFS_EXTERNAL_ADDRESS=:9000
       - RUSTFS_ACCESS_KEY=locals3
       - RUSTFS_SECRET_KEY=locals3
     volumes:

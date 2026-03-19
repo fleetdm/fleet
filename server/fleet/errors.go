@@ -25,6 +25,8 @@ var (
 	AndroidMDMNotConfiguredMessage               = "Android MDM isn't turned on. For more information about setting up MDM, please visit https://fleetdm.com/learn-more-about/how-to-connect-android-enterprise"
 	AppleMDMNotConfiguredMessage                 = "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
 	AppleABMDefaultTeamDeprecatedMessage         = "mdm.apple_bm_default_team has been deprecated. Please use the new mdm.apple_business_manager key documented here: https://fleetdm.com/learn-more-about/apple-business-manager-gitops"
+	AppleOSVersionUnsupportedMessage             = "The minimum version isn't supported by Apple."
+	AppleOSVersionDeadlineInvalidMessage         = "The deadline isn't a valid date."
 	CantTurnOffMDMForWindowsHostsMessage         = "Can't turn off MDM for Windows hosts."
 	CantTurnOffMDMForPersonalHostsMessage        = "Couldn't turn off MDM. This command isn't available for personal hosts."
 	CantWipePersonalHostsMessage                 = "Couldn't wipe. This command isn't available for personal hosts."
@@ -530,6 +532,11 @@ const (
 var (
 	NDESSCEPVariablesMissingErrMsg         = fmt.Sprintf("SCEP profile for NDES certificate authority requires: $FLEET_VAR_%s, $FLEET_VAR_%s, and $FLEET_VAR_%s variables.", FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarSCEPRenewalID)
 	SCEPRenewalIDWithoutURLChallengeErrMsg = "Variable \"$FLEET_VAR_" + string(FleetVarSCEPRenewalID) + "\" can't be used if variables for SCEP URL and Challenge are not specified."
+)
+
+const (
+	// DeleteCAReferencedByTemplatesErrMsg is the error substring used when a CA cannot be deleted because certificate templates still reference it.
+	DeleteCAReferencedByTemplatesErrMsg = "Certificate templates still reference it"
 )
 
 // ConflictError is used to indicate a conflict, such as a UUID conflict in the DB.

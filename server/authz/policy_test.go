@@ -30,6 +30,7 @@ const (
 	selectiveList      = fleet.ActionSelectiveList
 	cancelHostActivity = fleet.ActionCancelHostActivity
 	create             = fleet.ActionCreate
+	readSecrets        = fleet.ActionReadSecrets
 )
 
 var auth *Authorizer
@@ -1176,6 +1177,13 @@ func TestAuthorizeQuery(t *testing.T) {
 			{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver},
 		},
 	}
+	twoTeamsObsObs := &fleet.User{
+		ID: 107,
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver},
+			{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver},
+		},
+	}
 	teamObserverPlus := &fleet.User{
 		ID: 104,
 		Teams: []fleet.UserTeam{
@@ -1660,10 +1668,29 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: twoTeamsAdminObs, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: false},
 				{user: twoTeamsAdminObs, object: observerQueryOnTeam3TargetedToTeam1, action: run, allow: false},
 				{user: twoTeamsAdminObs, object: observerQueryOnTeam1TargetedToTeam1, action: run, allow: true},
-				{user: twoTeamsAdminObs, object: observerQueryOnTeam1TargetedToTeam2, action: run, allow: false},         // observer on team 2 cannot run query belonging to team 1
-				{user: twoTeamsAdminObs, object: observerQueryOnTeam1TargetedToTeam1AndTeam2, action: run, allow: false}, // observer on team 2 cannot run query belonging to team 1 targeting both teams
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam1TargetedToTeam2, action: run, allow: false},         // observer on team 2 cannot target team 2 for a team 1 query (observer_can_run only applies to the query's team)
+				{user: twoTeamsAdminObs, object: observerQueryOnTeam1TargetedToTeam1AndTeam2, action: run, allow: false}, // cannot target team 2 which is only accessible as observer (not the query's team)
 				{user: twoTeamsAdminObs, object: observerQueryOnTeam1EmptyTeams, action: run, allow: true},               // admin on team 1 can run team 1 observer_can_run query with empty teams
 				{user: twoTeamsAdminObs, object: observerQueryOnTeam2TargetedToTeam2, action: run, allow: true},          // observer on team 2 can run query belonging to team 2
+			},
+		},
+		{
+			name: "User observer on team 1, observer on team 2",
+			testCases: []authTestCase{
+				{user: twoTeamsObsObs, object: globalQuery, action: read, allow: true},
+				{user: twoTeamsObsObs, object: globalQuery, action: write, allow: false},
+				{user: twoTeamsObsObs, object: globalObserverQueryEmptyTargets, action: run, allow: true},
+				{user: twoTeamsObsObs, object: globalObserverQueryTargetedToTeam1, action: run, allow: true},
+				{user: twoTeamsObsObs, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: true},
+				{user: twoTeamsObsObs, object: globalObserverQueryTargetedToTeam2, action: run, allow: true},
+				{user: twoTeamsObsObs, object: globalObserverQueryTargetedToTeam1AndTeam2AndTeam3, action: run, allow: false}, // not member of team 3
+
+				{user: twoTeamsObsObs, object: observerQueryOnTeam1TargetedToTeam1, action: run, allow: true},
+				{user: twoTeamsObsObs, object: observerQueryOnTeam1TargetedToTeam2, action: run, allow: false},         // observer on team 2 cannot target it for a team 1 query (observer_can_run only applies to the query's team)
+				{user: twoTeamsObsObs, object: observerQueryOnTeam1TargetedToTeam1AndTeam2, action: run, allow: false}, // cannot target team 2 via observer role when the query belongs to team 1
+				{user: twoTeamsObsObs, object: observerQueryOnTeam1EmptyTeams, action: run, allow: true},               // observer on team 1 can run team 1 observer_can_run query with empty teams
+				{user: twoTeamsObsObs, object: observerQueryOnTeam2TargetedToTeam2, action: run, allow: true},          // observer on team 2 can run query belonging to team 2
+				{user: twoTeamsObsObs, object: observerQueryOnTeam3TargetedToTeam1, action: run, allow: false},         // not a member of team 3, cannot run team 3 queries
 			},
 		},
 	})
@@ -2874,40 +2901,69 @@ func TestCertificateAuthorities(t *testing.T) {
 
 	runTestCases(t, []authTestCase{
 		{user: nil, object: certificateAuthority, action: read, allow: false},
-		{user: test.UserGitOps, object: certificateAuthority, action: read, allow: true},
-		{user: test.UserGitOps, object: certificateAuthority, action: write, allow: true},
+		{user: nil, object: certificateAuthority, action: list, allow: false},
+		{user: nil, object: certificateAuthority, action: readSecrets, allow: false},
 
-		{user: test.UserTeamGitOpsTeam1, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserGitOps, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserGitOps, object: certificateAuthority, action: list, allow: true},
+		{user: test.UserGitOps, object: certificateAuthority, action: write, allow: true},
+		{user: test.UserGitOps, object: certificateAuthority, action: readSecrets, allow: true},
+
+		{user: test.UserTeamGitOpsTeam1, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: certificateAuthority, action: list, allow: true},
 		{user: test.UserTeamGitOpsTeam1, object: certificateAuthority, action: write, allow: false},
-		{user: test.UserTeamGitOpsTeam2, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: certificateAuthority, action: readSecrets, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserTeamGitOpsTeam2, object: certificateAuthority, action: list, allow: true},
 		{user: test.UserTeamGitOpsTeam2, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: certificateAuthority, action: readSecrets, allow: false},
 
 		{user: test.UserAdmin, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserAdmin, object: certificateAuthority, action: list, allow: true},
 		{user: test.UserAdmin, object: certificateAuthority, action: write, allow: true},
+		{user: test.UserAdmin, object: certificateAuthority, action: readSecrets, allow: true},
 
-		{user: test.UserTeamAdminTeam1, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserTeamAdminTeam1, object: certificateAuthority, action: list, allow: true},
 		{user: test.UserTeamAdminTeam1, object: certificateAuthority, action: write, allow: false},
-		{user: test.UserTeamAdminTeam2, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: certificateAuthority, action: readSecrets, allow: false},
+		{user: test.UserTeamAdminTeam2, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserTeamAdminTeam2, object: certificateAuthority, action: list, allow: true},
 		{user: test.UserTeamAdminTeam2, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: certificateAuthority, action: readSecrets, allow: false},
 
 		{user: test.UserObserver, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserObserver, object: certificateAuthority, action: list, allow: false},
 		{user: test.UserObserver, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserObserver, object: certificateAuthority, action: readSecrets, allow: false},
 
 		{user: test.UserTeamObserverTeam1, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: certificateAuthority, action: list, allow: false},
 		{user: test.UserTeamObserverTeam1, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: certificateAuthority, action: readSecrets, allow: false},
 		{user: test.UserTeamObserverTeam2, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamObserverTeam2, object: certificateAuthority, action: list, allow: false},
 		{user: test.UserTeamObserverTeam2, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamObserverTeam2, object: certificateAuthority, action: readSecrets, allow: false},
 
-		{user: test.UserMaintainer, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserMaintainer, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserMaintainer, object: certificateAuthority, action: list, allow: true},
 		{user: test.UserMaintainer, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserMaintainer, object: certificateAuthority, action: readSecrets, allow: false},
 
 		{user: test.UserTechnician, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTechnician, object: certificateAuthority, action: list, allow: false},
 		{user: test.UserTechnician, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTechnician, object: certificateAuthority, action: readSecrets, allow: false},
 
-		{user: test.UserTeamMaintainerTeam1, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: certificateAuthority, action: list, allow: true},
 		{user: test.UserTeamMaintainerTeam1, object: certificateAuthority, action: write, allow: false},
-		{user: test.UserTeamMaintainerTeam2, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: certificateAuthority, action: readSecrets, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam2, object: certificateAuthority, action: list, allow: true},
 		{user: test.UserTeamMaintainerTeam2, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: certificateAuthority, action: readSecrets, allow: false},
 	})
 }
 

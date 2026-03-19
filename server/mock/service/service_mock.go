@@ -111,6 +111,8 @@ type SSOSettingsFunc func(ctx context.Context) (*fleet.SessionSSOSettings, error
 
 type LoginFunc func(ctx context.Context, email string, password string, supportsEmailVerification bool) (user *fleet.User, session *fleet.Session, err error)
 
+type GetSessionDurationFunc func(ctx context.Context) time.Duration
+
 type LogoutFunc func(ctx context.Context) (err error)
 
 type CompleteMFAFunc func(ctx context.Context, token string) (*fleet.Session, *fleet.User, error)
@@ -188,6 +190,8 @@ type GetQueryReportResultsFunc func(ctx context.Context, id uint, teamID *uint) 
 type GetHostQueryReportResultsFunc func(ctx context.Context, hid uint, queryID uint) (rows []fleet.HostQueryReportResult, lastFetched *time.Time, err error)
 
 type QueryReportIsClippedFunc func(ctx context.Context, queryID uint, maxQueryReportRows int) (bool, error)
+
+type ListHostReportsFunc func(ctx context.Context, hostID uint, opts fleet.ListHostReportsOptions) (rows []*fleet.HostReport, total int, metadata *fleet.PaginationMetadata, savedReportsDisabled bool, err error)
 
 type NewQueryFunc func(ctx context.Context, p fleet.QueryPayload) (*fleet.Query, error)
 
@@ -294,6 +298,8 @@ type ListHostSoftwareFunc func(ctx context.Context, hostID uint, opts fleet.Host
 type UpdateSoftwareNameFunc func(ctx context.Context, titleID uint, name string) error
 
 type ListHostCertificatesFunc func(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificatePayload, *fleet.PaginationMetadata, error)
+
+type GetHostRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) (*fleet.HostRecoveryLockPassword, error)
 
 type NewAppConfigFunc func(ctx context.Context, p fleet.AppConfig) (info *fleet.AppConfig, err error)
 
@@ -507,7 +513,7 @@ type ListSoftwareByCVEFunc func(ctx context.Context, cve string, teamID *uint) (
 
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, p fleet.NewTeamPolicyPayload) (*fleet.Policy, error)
 
-type ListTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
+type ListTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationType string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
 
 type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 
@@ -515,7 +521,7 @@ type ModifyTeamPolicyFunc func(ctx context.Context, teamID uint, id uint, p flee
 
 type GetTeamPolicyByIDQueriesFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
 
-type CountTeamPoliciesFunc func(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool) (int, int, error)
+type CountTeamPoliciesFunc func(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string) (int, int, error)
 
 type LookupGeoIPFunc func(ctx context.Context, ip string) *fleet.GeoLocation
 
@@ -795,6 +801,8 @@ type UnlockHostFunc func(ctx context.Context, hostID uint) (unlockPIN string, er
 
 type WipeHostFunc func(ctx context.Context, hostID uint, metadata *fleet.MDMWipeMetadata) error
 
+type RotateRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) error
+
 type UploadSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error)
 
 type UpdateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error)
@@ -881,7 +889,7 @@ type UpdateCertificateAuthorityFunc func(ctx context.Context, id uint, p fleet.C
 
 type RequestCertificateFunc func(ctx context.Context, p fleet.RequestCertificatePayload) (*string, error)
 
-type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, groupedCAs fleet.GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error
+type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, groupedCAs fleet.GroupedCertificateAuthorities, opts fleet.BatchApplyCertificateAuthoritiesOpts) error
 
 type GetGroupedCertificateAuthoritiesFunc func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
 
@@ -1026,6 +1034,9 @@ type Service struct {
 	LoginFunc        LoginFunc
 	LoginFuncInvoked bool
 
+	GetSessionDurationFunc        GetSessionDurationFunc
+	GetSessionDurationFuncInvoked bool
+
 	LogoutFunc        LogoutFunc
 	LogoutFuncInvoked bool
 
@@ -1142,6 +1153,9 @@ type Service struct {
 
 	QueryReportIsClippedFunc        QueryReportIsClippedFunc
 	QueryReportIsClippedFuncInvoked bool
+
+	ListHostReportsFunc        ListHostReportsFunc
+	ListHostReportsFuncInvoked bool
 
 	NewQueryFunc        NewQueryFunc
 	NewQueryFuncInvoked bool
@@ -1301,6 +1315,9 @@ type Service struct {
 
 	ListHostCertificatesFunc        ListHostCertificatesFunc
 	ListHostCertificatesFuncInvoked bool
+
+	GetHostRecoveryLockPasswordFunc        GetHostRecoveryLockPasswordFunc
+	GetHostRecoveryLockPasswordFuncInvoked bool
 
 	NewAppConfigFunc        NewAppConfigFunc
 	NewAppConfigFuncInvoked bool
@@ -2052,6 +2069,9 @@ type Service struct {
 	WipeHostFunc        WipeHostFunc
 	WipeHostFuncInvoked bool
 
+	RotateRecoveryLockPasswordFunc        RotateRecoveryLockPasswordFunc
+	RotateRecoveryLockPasswordFuncInvoked bool
+
 	UploadSoftwareInstallerFunc        UploadSoftwareInstallerFunc
 	UploadSoftwareInstallerFuncInvoked bool
 
@@ -2515,6 +2535,13 @@ func (s *Service) Login(ctx context.Context, email string, password string, supp
 	return s.LoginFunc(ctx, email, password, supportsEmailVerification)
 }
 
+func (s *Service) GetSessionDuration(ctx context.Context) time.Duration {
+	s.mu.Lock()
+	s.GetSessionDurationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSessionDurationFunc(ctx)
+}
+
 func (s *Service) Logout(ctx context.Context) (err error) {
 	s.mu.Lock()
 	s.LogoutFuncInvoked = true
@@ -2786,6 +2813,13 @@ func (s *Service) QueryReportIsClipped(ctx context.Context, queryID uint, maxQue
 	s.QueryReportIsClippedFuncInvoked = true
 	s.mu.Unlock()
 	return s.QueryReportIsClippedFunc(ctx, queryID, maxQueryReportRows)
+}
+
+func (s *Service) ListHostReports(ctx context.Context, hostID uint, opts fleet.ListHostReportsOptions) (rows []*fleet.HostReport, total int, metadata *fleet.PaginationMetadata, savedReportsDisabled bool, err error) {
+	s.mu.Lock()
+	s.ListHostReportsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostReportsFunc(ctx, hostID, opts)
 }
 
 func (s *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.Query, error) {
@@ -3157,6 +3191,13 @@ func (s *Service) ListHostCertificates(ctx context.Context, hostID uint, opts fl
 	s.ListHostCertificatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostCertificatesFunc(ctx, hostID, opts)
+}
+
+func (s *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint) (*fleet.HostRecoveryLockPassword, error) {
+	s.mu.Lock()
+	s.GetHostRecoveryLockPasswordFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostRecoveryLockPasswordFunc(ctx, hostID)
 }
 
 func (s *Service) NewAppConfig(ctx context.Context, p fleet.AppConfig) (info *fleet.AppConfig, err error) {
@@ -3901,11 +3942,11 @@ func (s *Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.NewTea
 	return s.NewTeamPolicyFunc(ctx, teamID, p)
 }
 
-func (s *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+func (s *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationType string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 	s.mu.Lock()
 	s.ListTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListTeamPoliciesFunc(ctx, teamID, opts, iopts, mergeInherited)
+	return s.ListTeamPoliciesFunc(ctx, teamID, opts, iopts, mergeInherited, automationType)
 }
 
 func (s *Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
@@ -3929,11 +3970,11 @@ func (s *Service) GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, pol
 	return s.GetTeamPolicyByIDQueriesFunc(ctx, teamID, policyID)
 }
 
-func (s *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool) (int, int, error) {
+func (s *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string) (int, int, error) {
 	s.mu.Lock()
 	s.CountTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
-	return s.CountTeamPoliciesFunc(ctx, teamID, matchQuery, mergeInherited)
+	return s.CountTeamPoliciesFunc(ctx, teamID, matchQuery, mergeInherited, automationType)
 }
 
 func (s *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
@@ -4909,6 +4950,13 @@ func (s *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.MDM
 	return s.WipeHostFunc(ctx, hostID, metadata)
 }
 
+func (s *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.RotateRecoveryLockPasswordFuncInvoked = true
+	s.mu.Unlock()
+	return s.RotateRecoveryLockPasswordFunc(ctx, hostID)
+}
+
 func (s *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {
 	s.mu.Lock()
 	s.UploadSoftwareInstallerFuncInvoked = true
@@ -5210,11 +5258,11 @@ func (s *Service) RequestCertificate(ctx context.Context, p fleet.RequestCertifi
 	return s.RequestCertificateFunc(ctx, p)
 }
 
-func (s *Service) BatchApplyCertificateAuthorities(ctx context.Context, groupedCAs fleet.GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error {
+func (s *Service) BatchApplyCertificateAuthorities(ctx context.Context, groupedCAs fleet.GroupedCertificateAuthorities, opts fleet.BatchApplyCertificateAuthoritiesOpts) error {
 	s.mu.Lock()
 	s.BatchApplyCertificateAuthoritiesFuncInvoked = true
 	s.mu.Unlock()
-	return s.BatchApplyCertificateAuthoritiesFunc(ctx, groupedCAs, dryRun, viaGitOps)
+	return s.BatchApplyCertificateAuthoritiesFunc(ctx, groupedCAs, opts)
 }
 
 func (s *Service) GetGroupedCertificateAuthorities(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {

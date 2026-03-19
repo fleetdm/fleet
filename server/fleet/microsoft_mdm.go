@@ -1670,7 +1670,7 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 // into an MDMDeliveryStatus.
 //
 // If the response starts with "2" (any 2xx response), it returns
-// MDMDeliveryVerifying, otherwise, it returns MDMDeliveryFailed.
+// MDMDeliveryVerified, otherwise, it returns MDMDeliveryFailed.
 func WindowsResponseToDeliveryStatus(resp string) MDMDeliveryStatus {
 	if len(resp) == 0 {
 		return MDMDeliveryPending

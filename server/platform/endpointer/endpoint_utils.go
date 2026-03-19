@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -618,25 +620,6 @@ func MakeDecoder(
 				v = reflect.ValueOf(req)
 			}
 
-			// Log deprecation warnings when deprecated field names are used.
-			if rewriter != nil {
-				if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
-					newNames := make([]string, len(deprecated))
-					for i, old := range deprecated {
-						for _, rule := range aliasRules {
-							if rule.OldKey == old {
-								newNames[i] = rule.NewKey
-								break
-							}
-						}
-					}
-					logging.WithLevel(ctx, slog.LevelWarn)
-					logging.WithExtras(ctx,
-						"deprecated_fields", fmt.Sprintf("%v", deprecated),
-						"deprecation_warning", fmt.Sprintf("use the updated field names (%s) instead", newNames),
-					)
-				}
-			}
 		}
 
 		fields := allFields(v)
@@ -708,16 +691,25 @@ func MakeDecoder(
 				return nil, err
 			}
 
-			// Log deprecation warnings when deprecated field names are used
-			// (bodyDecoder path).
-			if rewriter != nil {
-				if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
-					logging.WithLevel(ctx, slog.LevelWarn)
-					logging.WithExtras(ctx,
-						"deprecated_fields", fmt.Sprintf("%v", deprecated),
-						"deprecation_warning", "use the updated field names instead",
-					)
+		}
+
+		// Log deprecation warnings when deprecated field names are used.
+		if rewriter != nil && platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+			if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
+				newNames := make([]string, len(deprecated))
+				for i, old := range deprecated {
+					for _, rule := range aliasRules {
+						if rule.OldKey == old {
+							newNames[i] = rule.NewKey
+							break
+						}
+					}
 				}
+				logging.WithLevel(ctx, slog.LevelWarn)
+				logging.WithExtras(ctx,
+					"deprecated_fields", fmt.Sprintf("%v", deprecated),
+					"deprecation_warning", fmt.Sprintf("use the updated field names (%s) instead", newNames),
+				)
 			}
 		}
 
@@ -748,7 +740,29 @@ func MakeDecoder(
 	}
 }
 
-func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
+func newNonce() (string, error) {
+	b := make([]byte, 16)
+	if _, err := io.ReadFull(rand.Reader, b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+func WriteBrowserSecurityHeaders(w http.ResponseWriter, serveCSP, includeNonce bool) (string, error) {
+	// This endpoint can optionally return a nonce if needed for the Content-Security-Policy header. In general only
+	// our HTML responses need the nonce, API and other static assets should not include it. We return an empty but
+	// syntactically valid nonce in the unused case since this will still get substituted into HTML templates when unused
+	nonce := "disabled"
+	nonceExtraParam := ""
+	// generate a unique nonce for this response
+	if includeNonce {
+		var err error
+		nonce, err = newNonce()
+		if err != nil {
+			return "", err
+		}
+		nonceExtraParam = fmt.Sprintf(" 'nonce-%s'", nonce)
+	}
 	// Strict-Transport-Security informs browsers that the site should only be
 	// accessed using HTTPS, and that any future attempts to access it using
 	// HTTP should automatically be converted to HTTPS.
@@ -764,6 +778,25 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
 	// Referrer-Policy prevents leaking the origin of the referrer in the
 	// Referer.
 	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+	if serveCSP {
+		// TODO Is https OK for img-src? We allow customers to upload their own images and we have to reach out to gravatar for others.
+		// NB: If default-src ever changes from 'none' make sure to add object-src 'none'
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; base-uri 'self'; connect-src 'self' www.gravatar.com ws: wss:; img-src 'self' www.gravatar.com data: https:; style-src 'self'"+nonceExtraParam+"; font-src 'self'; script-src 'self'"+nonceExtraParam)
+	}
+	return nonce, nil
+}
+
+func BrowserSecurityHeadersHandler(serveCSP bool, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// We don't implement the nonce here in the generic case, however the few endpoints that need it should implement
+		// their own handling
+		_, err := WriteBrowserSecurityHeaders(w, serveCSP, false)
+		if err != nil {
+			http.Error(w, "failed to write browser security headers", http.StatusInternalServerError)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
 }
 
 // handlerKey identifies a registered handler by HTTP method and unversioned path template.
@@ -1117,7 +1150,8 @@ func EncodeCommonResponse(
 	// page and the error will be logged
 	if page, ok := response.(htmlPage); ok {
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-		WriteBrowserSecurityHeaders(w)
+		// This will not return an error if disabled
+		_, _ = WriteBrowserSecurityHeaders(w, false, false)
 		if coder, ok := page.Error().(kithttp.StatusCoder); ok {
 			w.WriteHeader(coder.StatusCode())
 		}
