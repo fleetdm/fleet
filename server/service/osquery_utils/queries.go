@@ -2158,9 +2158,9 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 var (
 	dcvVersionFormat         = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
 	tunnelblickVersionFormat = regexp.MustCompile(`^(.+?)\s*\(build\s+\d+\)$`)
-	// jetbrainsNameVersion extracts version from JetBrains product names like "GoLand 2025.3.3"
-	// or "IntelliJ IDEA 2025.3.1.1" (supports 3 or 4 part versions)
-	jetbrainsNameVersion = regexp.MustCompile(`\s(\d{4}\.\d+\.\d+(?:\.\d+)?)$`)
+	// jetbrainsNameVersion extracts version from JetBrains product names like "WebStorm 2025.1",
+	// "GoLand 2025.3.3", or "IntelliJ IDEA 2025.3.1.1" (supports 2, 3, or 4 part versions)
+	jetbrainsNameVersion = regexp.MustCompile(`\s(\d{4}\.\d+(?:\.\d+){0,2})$`)
 	basicAppSanitizers   = []struct {
 		matchBundleIdentifier string
 		matchName             string

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260228115022(t *testing.T) {
+func TestUp_20260316120006(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Setup AppConfig
@@ -79,7 +79,7 @@ func TestUp_20260228115022(t *testing.T) {
 	require.False(t, finalTeamConfig2.MDM.MacOSSetup.LockEndUserInfo.Value)
 }
 
-func TestUp_20260228115022_AppConfigEUADisabled(t *testing.T) {
+func TestUp_20260316120006_AppConfigEUADisabled(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Setup AppConfig

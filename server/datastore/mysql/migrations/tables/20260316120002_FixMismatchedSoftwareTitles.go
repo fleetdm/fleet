@@ -9,10 +9,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260218175706, Down_20260218175706)
+	MigrationClient.AddMigration(Up_20260316120002, Down_20260316120002)
 }
 
-func Up_20260218175706(tx *sql.Tx) error {
+func Up_20260316120002(tx *sql.Tx) error {
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 
 	// find and fix mismatched software installers
@@ -130,6 +130,6 @@ func getOrInsertTitleID(txx sqlx.Tx, name, bundleIdentifier, source string) (uin
 	return titleID, nil
 }
 
-func Down_20260218175706(tx *sql.Tx) error {
+func Down_20260316120002(tx *sql.Tx) error {
 	return nil
 }

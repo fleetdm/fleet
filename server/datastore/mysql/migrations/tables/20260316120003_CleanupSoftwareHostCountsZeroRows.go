@@ -5,10 +5,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260223000000, Down_20260223000000)
+	MigrationClient.AddMigration(Up_20260316120003, Down_20260316120003)
 }
 
-func Up_20260223000000(tx *sql.Tx) error {
+func Up_20260316120003(tx *sql.Tx) error {
 	// Delete any accumulated zero-count rows from software_host_counts and software_titles_host_counts.
 	// After this migration, the sync process uses an atomic swap table pattern that never produces zero-count rows.
 	// Add CHECK constraints to prevent zero-count rows from being inserted in the future.
@@ -35,6 +35,6 @@ func Up_20260223000000(tx *sql.Tx) error {
 	}, tx)
 }
 
-func Down_20260223000000(tx *sql.Tx) error {
+func Down_20260316120003(tx *sql.Tx) error {
 	return nil
 }
