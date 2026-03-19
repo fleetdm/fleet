@@ -3,6 +3,7 @@ import React from "react";
 import Button from "components/buttons/Button";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const EmptyIntegrationsTable = ({
   className,
@@ -27,12 +28,17 @@ const EmptyIntegrationsTable = ({
         </>
       }
       primaryButton={
-        <Button
-          className={`${className}__add-button`}
-          onClick={onActionButtonClick}
-        >
-          Add
-        </Button>
+        <GitOpsModeTooltipWrapper
+          renderChildren={(disableChildren) => (
+            <Button
+              className={`${className}__add-button`}
+              onClick={onActionButtonClick}
+              disabled={disableChildren}
+            >
+              Add
+            </Button>
+          )}
+        />
       }
     />
   );

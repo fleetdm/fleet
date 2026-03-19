@@ -16,6 +16,7 @@ import mdmAbmAPI, {
 import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
@@ -42,7 +43,13 @@ const AddAbmMessage = ({ onAddAbm }: IAddAbmMessageProps) => {
         Automatically enroll newly purchased Apple hosts when they&apos;re first
         unboxed and set up by your end users.
       </p>
-      <Button onClick={onAddAbm}>Add ABM</Button>
+      <GitOpsModeTooltipWrapper
+        renderChildren={(disableChildren) => (
+          <Button onClick={onAddAbm} disabled={disableChildren}>
+            Add ABM
+          </Button>
+        )}
+      />
     </div>
   );
 };
@@ -84,7 +91,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
         }
       },
       enabled: isPremiumTier,
-    }
+    },
   );
 
   const onEditTokenTeam = (abmToken: IMdmAbmToken) => {
@@ -218,7 +225,13 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
             {isPremiumTier &&
               abmTokens?.length !== 0 &&
               !!config?.mdm.enabled_and_configured && (
-                <Button onClick={onAddAbm}>Add ABM</Button>
+                <GitOpsModeTooltipWrapper
+                  renderChildren={(disableChildren) => (
+                    <Button onClick={onAddAbm} disabled={disableChildren}>
+                      Add ABM
+                    </Button>
+                  )}
+                />
               )}
           </div>
           <>{renderContent()}</>

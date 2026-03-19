@@ -1,6 +1,7 @@
 import React, { useState, useContext, useCallback, useMemo } from "react";
 import { useQuery } from "react-query";
 
+import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { IConfig } from "interfaces/config";
 import {
@@ -13,6 +14,7 @@ import {
 import { IApiError } from "interfaces/errors";
 
 import configAPI from "services/entities/config";
+import { getGitOpsModeTipContent } from "utilities/helpers";
 
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
@@ -40,23 +42,22 @@ const UNKNOWN_ERROR =
   "We experienced an error when attempting to connect. Please try again later.";
 
 const Integrations = (): JSX.Element => {
+  const { config } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
+  const repoURL = config?.gitops.repository_url;
+
   const [showAddIntegrationModal, setShowAddIntegrationModal] = useState(false);
-  const [showDeleteIntegrationModal, setShowDeleteIntegrationModal] = useState(
-    false
-  );
-  const [
-    integrationEditing,
-    setIntegrationEditing,
-  ] = useState<IIntegrationTableData>();
+  const [showDeleteIntegrationModal, setShowDeleteIntegrationModal] =
+    useState(false);
+  const [integrationEditing, setIntegrationEditing] =
+    useState<IIntegrationTableData>();
   const [isUpdatingIntegration, setIsUpdatingIntegration] = useState(false);
-  const [jiraIntegrations, setJiraIntegrations] = useState<
-    IJiraIntegration[]
-  >();
-  const [zendeskIntegrations, setZendeskIntegrations] = useState<
-    IZendeskIntegration[]
-  >();
+  const [jiraIntegrations, setJiraIntegrations] =
+    useState<IJiraIntegration[]>();
+  const [zendeskIntegrations, setZendeskIntegrations] =
+    useState<IZendeskIntegration[]>();
   const [testingConnection, setTestingConnection] = useState(false);
 
   const {
@@ -77,7 +78,7 @@ const Integrations = (): JSX.Element => {
           setZendeskIntegrations(data.zendesk);
         }
       },
-    }
+    },
   );
 
   // TODO: Cleanup useCallbacks, add missing dependencies, use state setter functions, e.g.,
@@ -99,7 +100,7 @@ const Integrations = (): JSX.Element => {
       showDeleteIntegrationModal,
       setShowDeleteIntegrationModal,
       setIntegrationEditing,
-    ]
+    ],
   );
 
   const onAddSubmit = useCallback(
@@ -133,7 +134,7 @@ const Integrations = (): JSX.Element => {
                   integrationSubmitData[integrationSubmitData.length - 1]
                     .group_id}
               </b>
-            </>
+            </>,
           );
           toggleAddIntegrationModal();
           refetchIntegrations();
@@ -142,7 +143,7 @@ const Integrations = (): JSX.Element => {
           if (addError.data?.message.includes("Validation Failed")) {
             if (
               addError.data?.errors[0].reason.includes(
-                "duplicate Jira integration"
+                "duplicate Jira integration",
               )
             ) {
               renderFlash(
@@ -161,7 +162,7 @@ const Integrations = (): JSX.Element => {
                         .group_id}
                   </b>
                   . This integration already exists
-                </>
+                </>,
               );
             } else {
               renderFlash("error", VALIDATION_FAILED_ERROR);
@@ -179,7 +180,7 @@ const Integrations = (): JSX.Element => {
                   {integrationSubmitData[integrationSubmitData.length - 1].url}
                 </b>
                 . Please try again.
-              </>
+              </>,
             );
           }
         })
@@ -187,7 +188,7 @@ const Integrations = (): JSX.Element => {
           setTestingConnection(false);
         });
     },
-    [toggleAddIntegrationModal]
+    [toggleAddIntegrationModal],
   );
 
   const onDeleteSubmit = useCallback(() => {
@@ -222,7 +223,7 @@ const Integrations = (): JSX.Element => {
                 {integrationEditing.projectKey ||
                   integrationEditing.groupId?.toString()}
               </b>
-            </>
+            </>,
           );
           refetchIntegrations();
         })
@@ -237,7 +238,7 @@ const Integrations = (): JSX.Element => {
                   integrationEditing.groupId?.toString()}
               </b>
               . Please try again.
-            </>
+            </>,
           );
         })
         .finally(() => {
@@ -257,16 +258,17 @@ const Integrations = (): JSX.Element => {
         // do nothing
       }
     },
-    [toggleDeleteIntegrationModal]
+    [toggleDeleteIntegrationModal],
   );
 
-  const tableHeaders = useMemo(() => generateTableHeaders(onActionSelection), [
-    onActionSelection,
-  ]);
+  const tableHeaders = useMemo(
+    () => generateTableHeaders(onActionSelection),
+    [onActionSelection],
+  );
 
   const tableData = useMemo(
     () => combineDataSets(jiraIntegrations || [], zendeskIntegrations || []),
-    [jiraIntegrations, zendeskIntegrations]
+    [jiraIntegrations, zendeskIntegrations],
   );
 
   const renderTable = () => {
@@ -283,12 +285,17 @@ const Integrations = (): JSX.Element => {
         defaultSortHeader="name"
         defaultSortDirection="asc"
         isLoading={false}
+        disableActionButton={gitOpsModeEnabled}
         actionButton={{
           name: "add integration",
           buttonText: "Add integration",
           variant: "default",
           onClick: toggleAddIntegrationModal,
           hideButton: !tableData?.length,
+          disabledTooltipContent:
+            gitOpsModeEnabled && repoURL
+              ? getGitOpsModeTipContent(repoURL)
+              : undefined,
         }}
         resultsTitle="integrations"
         emptyComponent={() => (

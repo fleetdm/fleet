@@ -25,6 +25,7 @@ import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
 import TooltipWrapper from "components/TooltipWrapper";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import PageDescription from "components/PageDescription";
@@ -162,21 +163,18 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   // defined redirect behavior if the params are invalid
   const softwareFilter = getSoftwareFilterFromQueryParams(queryParams);
 
-  const softwareVulnFilters = getSoftwareVulnFiltersFromQueryParams(
-    queryParams
-  );
+  const softwareVulnFilters =
+    getSoftwareVulnFiltersFromQueryParams(queryParams);
 
-  const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
-    false
-  );
+  const [showManageAutomationsModal, setShowManageAutomationsModal] =
+    useState(false);
   const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
   const [showPreviewTicketModal, setShowPreviewTicketModal] = useState(false);
   const [showAddSoftwareModal, setShowAddSoftwareModal] = useState(false);
-  const [showSoftwareFiltersModal, setShowSoftwareFiltersModal] = useState(
-    false
-  );
+  const [showSoftwareFiltersModal, setShowSoftwareFiltersModal] =
+    useState(false);
   const [addedSoftwareToken, setAddedSoftwareToken] = useState<string | null>(
-    null
+    null,
   );
 
   const {
@@ -223,7 +221,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     {
       enabled: isRouteOk,
       select: (data) => ("team" in data ? data.team : data),
-    }
+    },
   );
 
   const isSoftwareConfigLoaded =
@@ -247,21 +245,21 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
 
   // TODO: move into manage automations modal
   const onCreateWebhookSubmit = async (
-    configSoftwareAutomations: ISoftwareAutomations
+    configSoftwareAutomations: ISoftwareAutomations,
   ) => {
     try {
       const request = configAPI.update(configSoftwareAutomations);
       await request.then(() => {
         renderFlash(
           "success",
-          "Successfully updated vulnerability automations."
+          "Successfully updated vulnerability automations.",
         );
         refetchSoftwareConfig();
       });
     } catch {
       renderFlash(
         "error",
-        "Could not update vulnerability automations. Please try again."
+        "Could not update vulnerability automations. Please try again.",
       );
     } finally {
       toggleManageAutomationsModal();
@@ -275,7 +273,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       router.push(
         getPathWithQueryParams(PATHS.SOFTWARE_ADD_FLEET_MAINTAINED, {
           fleet_id: currentTeamId,
-        })
+        }),
       );
     }
   }, [currentTeamId, router]);
@@ -284,7 +282,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     (teamId: number) => {
       handleTeamChange(teamId);
     },
-    [handleTeamChange]
+    [handleTeamChange],
   );
 
   const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFiltersParams) => {
@@ -303,7 +301,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
         pathPrefix: location.pathname,
         routeTemplate: "",
         queryParams: convertParamsToSnakeCase(newQueryParams),
-      })
+      }),
     );
     toggleSoftwareFiltersModal();
   };
@@ -318,12 +316,12 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
 
       const navPath = getPathWithQueryParams(
         softwareSubNav[i].pathname,
-        teamIdParam
+        teamIdParam,
       );
 
       router.replace(navPath);
     },
-    [location, router]
+    [location, router],
   );
 
   const renderPageActions = () => {
@@ -361,23 +359,30 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           </TooltipWrapper>
         )}
         {canAddSoftware && (
-          <TooltipWrapper
-            underline={false}
-            tipContent={
-              <div className={`${baseClass}__header__tooltip`}>
-                {isPremiumTier
-                  ? "Select a fleet to add software."
-                  : "This feature is included in Fleet Premium."}
-              </div>
-            }
-            disableTooltip={!isAllTeamsSelected}
-            position="top"
-            showArrow
-          >
-            <Button onClick={onAddSoftware} disabled={isAllTeamsSelected}>
-              <span>Add software</span>
-            </Button>
-          </TooltipWrapper>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <TooltipWrapper
+                underline={false}
+                tipContent={
+                  <div className={`${baseClass}__header__tooltip`}>
+                    {isPremiumTier
+                      ? "Select a fleet to add software."
+                      : "This feature is included in Fleet Premium."}
+                  </div>
+                }
+                disableTooltip={!isAllTeamsSelected || !!disableChildren}
+                position="top"
+                showArrow
+              >
+                <Button
+                  onClick={onAddSoftware}
+                  disabled={isAllTeamsSelected || disableChildren}
+                >
+                  <span>Add software</span>
+                </Button>
+              </TooltipWrapper>
+            )}
+          />
         )}
       </div>
     );
@@ -414,7 +419,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
         {React.cloneElement(children, {
           router,
           isSoftwareEnabled: Boolean(
-            softwareConfig?.features?.enable_software_inventory
+            softwareConfig?.features?.enable_software_inventory,
           ),
           perPage: DEFAULT_PAGE_SIZE,
           orderDirection: sortDirection,

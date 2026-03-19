@@ -35,6 +35,7 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
 import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
 import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
@@ -151,34 +152,22 @@ const HostSoftwareLibrary = ({
   const [hostSoftwareLibraryRes, setHostSoftwareLibraryRes] = useState<
     IGetHostSoftwareResponse | undefined
   >(undefined);
-  const [
-    selectedSoftwareUpdates,
-    setSelectedSoftwareUpdates,
-  ] = useState<IHostSoftware | null>(null);
+  const [selectedSoftwareUpdates, setSelectedSoftwareUpdates] =
+    useState<IHostSoftware | null>(null);
   // these states and modal logic exist at this level instead of the page level to match the similar
   // pattern on
   // the device user page, which facilitates manipulating relevant UI states e.g.
   // "updating..." when the user clicks "Retry" in the SoftwareInstallDetailsModal
-  const [
-    selectedHostSWInstallDetails,
-    setSelectedHostSWInstallDetails,
-  ] = useState<IHostSoftware | null>(null);
-  const [
-    selectedHostSWIpaInstallDetails,
-    setSelectedHostSWIpaInstallDetails,
-  ] = useState<IHostSoftware | null>(null);
-  const [
-    selectedHostSWScriptDetails,
-    setSelectedHostSWScriptDetails,
-  ] = useState<IHostSoftware | null>(null);
-  const [
-    selectedHostSWUninstallDetails,
-    setSelectedHostSWUninstallDetails,
-  ] = useState<ISWUninstallDetailsParentState | null>(null);
-  const [
-    selectedVPPInstallDetails,
-    setSelectedVPPInstallDetails,
-  ] = useState<IVPPHostSoftware | null>(null);
+  const [selectedHostSWInstallDetails, setSelectedHostSWInstallDetails] =
+    useState<IHostSoftware | null>(null);
+  const [selectedHostSWIpaInstallDetails, setSelectedHostSWIpaInstallDetails] =
+    useState<IHostSoftware | null>(null);
+  const [selectedHostSWScriptDetails, setSelectedHostSWScriptDetails] =
+    useState<IHostSoftware | null>(null);
+  const [selectedHostSWUninstallDetails, setSelectedHostSWUninstallDetails] =
+    useState<ISWUninstallDetailsParentState | null>(null);
+  const [selectedVPPInstallDetails, setSelectedVPPInstallDetails] =
+    useState<IVPPHostSoftware | null>(null);
 
   const enhancedSoftware = useMemo(() => {
     if (!hostSoftwareLibraryRes) return [];
@@ -248,15 +237,15 @@ const HostSoftwareLibrary = ({
             .filter(
               (software) =>
                 software.status === "pending_install" ||
-                software.status === "pending_uninstall"
+                software.status === "pending_uninstall",
             )
-            .map((software) => String(software.id))
+            .map((software) => String(software.id)),
         );
 
         // Determine which items just completed
         const previouslyPendingIds = [...pendingSoftwareSetRef.current];
         const completedIds = previouslyPendingIds.filter(
-          (pendingId) => !newPendingSet.has(pendingId)
+          (pendingId) => !newPendingSet.has(pendingId),
         );
 
         if (completedIds.length > 0) {
@@ -270,7 +259,7 @@ const HostSoftwareLibrary = ({
         const setsAreEqual =
           newPendingSet.size === pendingSoftwareSetRef.current.size &&
           [...newPendingSet].every((pendingId) =>
-            pendingSoftwareSetRef.current.has(pendingId)
+            pendingSoftwareSetRef.current.has(pendingId),
           );
 
         if (newPendingSet.size > 0) {
@@ -301,10 +290,10 @@ const HostSoftwareLibrary = ({
         pendingSoftwareSetRef.current = new Set();
         renderFlash(
           "error",
-          "We're having trouble checking pending installs. Please refresh the page."
+          "We're having trouble checking pending installs. Please refresh the page.",
         );
       },
-    }
+    },
   );
 
   // Stop polling if the host goes offline
@@ -326,7 +315,7 @@ const HostSoftwareLibrary = ({
         const setsAreEqual =
           newSet.size === pendingSoftwareSetRef.current.size &&
           [...newSet].every((pendingId) =>
-            pendingSoftwareSetRef.current.has(pendingId)
+            pendingSoftwareSetRef.current.has(pendingId),
           );
         if (!setsAreEqual) {
           pendingSoftwareSetRef.current = newSet;
@@ -340,7 +329,7 @@ const HostSoftwareLibrary = ({
         }
       }
     },
-    [refetchForPendingInstallsOrUninstalls, isHostOnline]
+    [refetchForPendingInstallsOrUninstalls, isHostOnline],
   );
 
   // Cleanup on unmount
@@ -359,7 +348,7 @@ const HostSoftwareLibrary = ({
     const pendingSoftware = hostSoftwareLibraryRes?.software.filter(
       (software) =>
         software.status === "pending_install" ||
-        software.status === "pending_uninstall"
+        software.status === "pending_uninstall",
     );
     const pendingIds = pendingSoftware?.map((s) => String(s.id)) ?? [];
     if (pendingIds.length > 0) {
@@ -403,7 +392,7 @@ const HostSoftwareLibrary = ({
         setSelectedSoftwareUpdates(software);
       }
     },
-    [setSelectedSoftwareUpdates]
+    [setSelectedSoftwareUpdates],
   );
 
   const onSetSelectedHostSWInstallDetails = useCallback(
@@ -412,7 +401,7 @@ const HostSoftwareLibrary = ({
         setSelectedHostSWInstallDetails(hostSW);
       }
     },
-    [setSelectedHostSWInstallDetails]
+    [setSelectedHostSWInstallDetails],
   );
 
   const onSetSelectedHostSWIpaInstallDetails = useCallback(
@@ -421,7 +410,7 @@ const HostSoftwareLibrary = ({
         setSelectedHostSWIpaInstallDetails(hostSW);
       }
     },
-    [setSelectedHostSWIpaInstallDetails]
+    [setSelectedHostSWIpaInstallDetails],
   );
 
   const onSetSelectedHostSWScriptDetails = useCallback(
@@ -430,7 +419,7 @@ const HostSoftwareLibrary = ({
         setSelectedHostSWScriptDetails(hostSW);
       }
     },
-    [setSelectedHostSWScriptDetails]
+    [setSelectedHostSWScriptDetails],
   );
 
   const onSetSelectedHostSWUninstallDetails = useCallback(
@@ -439,7 +428,7 @@ const HostSoftwareLibrary = ({
         setSelectedHostSWUninstallDetails(uninstallDetails);
       }
     },
-    [setSelectedHostSWUninstallDetails]
+    [setSelectedHostSWUninstallDetails],
   );
 
   const onSetSelectedVPPInstallDetails = useCallback(
@@ -448,7 +437,7 @@ const HostSoftwareLibrary = ({
         setSelectedVPPInstallDetails(s);
       }
     },
-    [setSelectedVPPInstallDetails]
+    [setSelectedVPPInstallDetails],
   );
 
   const onInstallOrUninstall = useCallback(() => {
@@ -465,11 +454,11 @@ const HostSoftwareLibrary = ({
 
   const hasSWWriteRole = Boolean(
     isGlobalAdmin ||
-      isGlobalMaintainer ||
-      isTeamAdmin ||
-      isTeamMaintainer ||
-      isGlobalTechnician ||
-      permissions.isTeamTechnician(currentUser, hostTeamId)
+    isGlobalMaintainer ||
+    isTeamAdmin ||
+    isTeamMaintainer ||
+    isGlobalTechnician ||
+    permissions.isTeamTechnician(currentUser, hostTeamId),
   );
 
   const canAddSoftware =
@@ -512,13 +501,13 @@ const HostSoftwareLibrary = ({
           "success",
           <>
             {message()} To see details, go to <b>Details &gt; Activity</b>.
-          </>
+          </>,
         );
       } catch (e) {
         renderFlash("error", getInstallErrorMessage(e));
       }
     },
-    [id, renderFlash, onInstallOrUninstall, isHostOnline]
+    [id, renderFlash, onInstallOrUninstall, isHostOnline],
   );
 
   const onClickUninstallAction = useCallback(
@@ -536,13 +525,13 @@ const HostSoftwareLibrary = ({
               ? "is uninstalling"
               : "will uninstall when the host comes online"}
             . To see details, go to <b>Details &gt; Activity</b>.
-          </>
+          </>,
         );
       } catch (e) {
         renderFlash("error", getUninstallErrorMessage(e));
       }
     },
-    [id, renderFlash, onInstallOrUninstall, isHostOnline]
+    [id, renderFlash, onInstallOrUninstall, isHostOnline],
   );
 
   const tableConfig = useMemo(() => {
@@ -622,10 +611,18 @@ const HostSoftwareLibrary = ({
       <div className={`${baseClass}__header`}>
         <CardHeader subheader="Software available to be installed on this host" />
         {canAddSoftware && (
-          <Button variant="inverse" onClick={onAddSoftware}>
-            <Icon name="plus" />
-            <span>Add software</span>
-          </Button>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <Button
+                variant="inverse"
+                onClick={onAddSoftware}
+                disabled={disableChildren}
+              >
+                <Icon name="plus" />
+                <span>Add software</span>
+              </Button>
+            )}
+          />
         )}
       </div>
       {renderHostSoftware()}
@@ -656,7 +653,7 @@ const HostSoftwareLibrary = ({
             fleetInstallStatus: selectedHostSWIpaInstallDetails.status,
             appName: getDisplayedSoftwareName(
               selectedHostSWIpaInstallDetails.name,
-              selectedHostSWIpaInstallDetails.display_name
+              selectedHostSWIpaInstallDetails.display_name,
             ),
             commandUuid:
               selectedHostSWIpaInstallDetails.software_package?.last_install
@@ -692,7 +689,7 @@ const HostSoftwareLibrary = ({
             hostDisplayName,
             appName: getDisplayedSoftwareName(
               selectedVPPInstallDetails.name,
-              selectedVPPInstallDetails.display_name
+              selectedVPPInstallDetails.display_name,
             ),
             commandUuid: selectedVPPInstallDetails.commandUuid,
             platform,

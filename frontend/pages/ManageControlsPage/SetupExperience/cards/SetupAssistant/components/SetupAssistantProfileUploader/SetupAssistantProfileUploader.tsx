@@ -71,6 +71,7 @@ const SetupAssistantProfileUploader = ({
       onFileUpload={onUploadFile}
       isLoading={showLoading}
       className={baseClass}
+      gitopsCompatible
     />
   );
 };

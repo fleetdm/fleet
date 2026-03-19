@@ -39,6 +39,7 @@ import MainContent from "components/MainContent";
 import TeamsDropdown from "components/TeamsDropdown";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import TooltipWrapper from "components/TooltipWrapper";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import QueriesTable from "./components/QueriesTable";
 import DeleteQueryModal from "./components/DeleteQueryModal";
 import ManageQueryAutomationsModal, {
@@ -75,7 +76,7 @@ export const enhanceQuery = (q: ISchedulableQuery): IEnhancedQuery => {
   return {
     ...q,
     performance: getPerformanceImpactDescription(
-      pick(q.stats, ["user_time_p50", "system_time_p50", "total_executions"])
+      pick(q.stats, ["user_time_p50", "system_time_p50", "total_executions"]),
     ),
     targetedPlatforms: getTargetedPlatforms(q.platform),
   };
@@ -99,9 +100,8 @@ const ManageQueriesPage = ({
     isPremiumTier,
     config,
   } = useContext(AppContext);
-  const { setLastEditedQueryBody, setSelectedQueryTargetsByType } = useContext(
-    QueryContext
-  );
+  const { setLastEditedQueryBody, setSelectedQueryTargetsByType } =
+    useContext(QueryContext);
   const { setResetSelectedRows } = useContext(TableContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -122,9 +122,8 @@ const ManageQueriesPage = ({
 
   const [selectedQueryIds, setSelectedQueryIds] = useState<number[]>([]);
   const [showDeleteQueryModal, setShowDeleteQueryModal] = useState(false);
-  const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
-    false
-  );
+  const [showManageAutomationsModal, setShowManageAutomationsModal] =
+    useState(false);
   const [showPreviewDataModal, setShowPreviewDataModal] = useState(false);
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
@@ -164,7 +163,7 @@ const ManageQueriesPage = ({
       refetchOnWindowFocus: false,
       enabled: isRouteOk,
       staleTime: 5000,
-    }
+    },
   );
 
   // Enhance the queries from the response when they are changed.
@@ -188,13 +187,13 @@ const ManageQueriesPage = ({
     (teamId: number) => {
       handleTeamChange(teamId);
     },
-    [handleTeamChange]
+    [handleTeamChange],
   );
 
   const onCreateQueryClick = useCallback(() => {
     setLastEditedQueryBody(DEFAULT_QUERY.query);
     router.push(
-      getPathWithQueryParams(PATHS.NEW_REPORT, { fleet_id: currentTeamId })
+      getPathWithQueryParams(PATHS.NEW_REPORT, { fleet_id: currentTeamId }),
     );
   }, [currentTeamId, router, setLastEditedQueryBody]);
 
@@ -207,7 +206,7 @@ const ManageQueriesPage = ({
       toggleDeleteQueryModal();
       setSelectedQueryIds(selectedTableQueryIds);
     },
-    [toggleDeleteQueryModal, setSelectedQueryIds]
+    [toggleDeleteQueryModal, setSelectedQueryIds],
   );
 
   const toggleManageAutomationsModal = useCallback(() => {
@@ -235,7 +234,7 @@ const ManageQueriesPage = ({
       }
       renderFlash(
         "success",
-        `Successfully deleted ${bulk ? "reports" : "report"}.`
+        `Successfully deleted ${bulk ? "reports" : "report"}.`,
       );
       setResetSelectedRows(true);
       refetchQueries();
@@ -244,7 +243,7 @@ const ManageQueriesPage = ({
         "error",
         `There was an error deleting your ${
           bulk ? "reports" : "report"
-        }. Please try again later.`
+        }. Please try again later.`,
       );
     } finally {
       toggleDeleteQueryModal();
@@ -307,24 +306,24 @@ const ManageQueriesPage = ({
 
       // Query ids added to turn on automations
       const turnOnAutomations = newAutomatedQueryIds.filter(
-        (id) => !previousAutomatedQueryIds.includes(id)
+        (id) => !previousAutomatedQueryIds.includes(id),
       );
       // Query ids removed to turn off automations
       const turnOffAutomations = previousAutomatedQueryIds.filter(
-        (id) => !newAutomatedQueryIds.includes(id)
+        (id) => !newAutomatedQueryIds.includes(id),
       );
 
       // Update query automations using queries/{id} manage_automations parameter
       const updateAutomatedQueries: Promise<any>[] = [];
       turnOnAutomations.map((id) =>
         updateAutomatedQueries.push(
-          queriesAPI.update(id, { automations_enabled: true })
-        )
+          queriesAPI.update(id, { automations_enabled: true }),
+        ),
       );
       turnOffAutomations.map((id) =>
         updateAutomatedQueries.push(
-          queriesAPI.update(id, { automations_enabled: false })
-        )
+          queriesAPI.update(id, { automations_enabled: false }),
+        ),
       );
 
       try {
@@ -335,14 +334,14 @@ const ManageQueriesPage = ({
       } catch (errorResponse) {
         renderFlash(
           "error",
-          `There was an error updating your report automations. Please try again later.`
+          `There was an error updating your report automations. Please try again later.`,
         );
       } finally {
         toggleManageAutomationsModal();
         setIsUpdatingAutomations(false);
       }
     },
-    [renderFlash, refetchQueries, toggleManageAutomationsModal]
+    [renderFlash, refetchQueries, toggleManageAutomationsModal],
   );
 
   const renderModals = () => {
@@ -443,12 +442,17 @@ const ManageQueriesPage = ({
                     </TooltipWrapper>
                   ))}
                 {canCustomQuery && (
-                  <Button
-                    className={`${baseClass}__create-button`}
-                    onClick={onCreateQueryClick}
-                  >
-                    {isObserverPlus ? "Live report" : "Add report"}
-                  </Button>
+                  <GitOpsModeTooltipWrapper
+                    renderChildren={(disableChildren) => (
+                      <Button
+                        className={`${baseClass}__create-button`}
+                        onClick={onCreateQueryClick}
+                        disabled={disableChildren}
+                      >
+                        {isObserverPlus ? "Live report" : "Add report"}
+                      </Button>
+                    )}
+                  />
                 )}
               </div>
             )}

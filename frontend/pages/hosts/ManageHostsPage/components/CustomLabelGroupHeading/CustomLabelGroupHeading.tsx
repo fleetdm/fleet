@@ -4,6 +4,7 @@
  * https://react-select.com/components
  */
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon/Icon";
 import { ILabel } from "interfaces/label";
 import React, { useRef } from "react";
@@ -14,7 +15,7 @@ import { IEmptyOption, IGroupOption } from "../LabelFilterSelect/helpers";
 const baseClass = "custom-label-group-heading";
 
 const CustomLabelGroupHeading = (
-  props: GroupHeadingProps<ILabel | IEmptyOption, false, IGroupOption>
+  props: GroupHeadingProps<ILabel | IEmptyOption, false, IGroupOption>,
 ) => {
   const { data, selectProps } = props;
   const {
@@ -28,7 +29,7 @@ const CustomLabelGroupHeading = (
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const handleInputClick = (
-    event: React.MouseEvent<HTMLInputElement, MouseEvent>
+    event: React.MouseEvent<HTMLInputElement, MouseEvent>,
   ) => {
     onClickLabelSearchInput && onClickLabelSearchInput(event);
     inputRef.current?.focus();
@@ -47,17 +48,22 @@ const CustomLabelGroupHeading = (
         <span className={`${baseClass}__label-title`}>{props.children}</span>
         <div className={`${baseClass}__add_new_label`}>
           {canAddNewLabels && (
-            <Button
-              variant="brand-inverse-icon"
-              onClick={onAddLabel}
-              iconStroke
-              size="small"
-            >
-              <>
-                Add label
-                <Icon name="plus" color="core-fleet-green" />
-              </>
-            </Button>
+            <GitOpsModeTooltipWrapper
+              renderChildren={(disableChildren) => (
+                <Button
+                  variant="brand-inverse-icon"
+                  onClick={onAddLabel}
+                  iconStroke
+                  size="small"
+                  disabled={disableChildren}
+                >
+                  <>
+                    Add label
+                    <Icon name="plus" color="core-fleet-green" />
+                  </>
+                </Button>
+              )}
+            />
           )}
         </div>
       </div>

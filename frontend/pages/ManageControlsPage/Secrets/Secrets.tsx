@@ -42,11 +42,14 @@ const Secrets = () => {
   const canEdit = isGlobalAdmin || isGlobalMaintainer;
 
   const apiParams = { page: pageNumber, per_page: SECRETS_PAGE_SIZE };
-  const { data, isFetching: isLoading, refetch } = useQuery<
-    IListSecretsResponse,
-    Error,
-    IListSecretsResponse
-  >(["secrets", apiParams], () => secretsAPI.getSecrets(apiParams));
+  const {
+    data,
+    isFetching: isLoading,
+    refetch,
+  } = useQuery<IListSecretsResponse, Error, IListSecretsResponse>(
+    ["secrets", apiParams],
+    () => secretsAPI.getSecrets(apiParams),
+  );
 
   const onClickAddSecret = () => {
     setShowAddModal(true);
@@ -160,7 +163,13 @@ const Secrets = () => {
           info="Add a custom variable to make it available in scripts and profiles."
           primaryButton={
             canEdit ? (
-              <Button onClick={onClickAddSecret}>Add custom variable</Button>
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disableChildren) => (
+                  <Button onClick={onClickAddSecret} disabled={disableChildren}>
+                    Add custom variable
+                  </Button>
+                )}
+              />
             ) : undefined
           }
         />

@@ -18,6 +18,7 @@ import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import PageDescription from "components/PageDescription";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import LabelsTable from "./LabelsTable";
 
@@ -40,13 +41,18 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
   const [labelToDelete, setLabelToDelete] = useState<ILabel | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const { data: labels, isLoading, error, refetch } = useQuery<
-    ILabelsResponse,
-    Error,
-    ILabel[]
-  >(["labels"], () => labelsAPI.loadAll(), {
-    select: (data: ILabelsResponse) => data.labels,
-  });
+  const {
+    data: labels,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery<ILabelsResponse, Error, ILabel[]>(
+    ["labels"],
+    () => labelsAPI.loadAll(),
+    {
+      select: (data: ILabelsResponse) => data.labels,
+    },
+  );
 
   const onCreateLabelClick = useCallback(() => {
     router.push(PATHS.NEW_LABEL);
@@ -63,7 +69,7 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
       } catch {
         renderFlash(
           "error",
-          `Could not delete ${labelToDelete.name}. Please try again.`
+          `Could not delete ${labelToDelete.name}. Please try again.`,
         );
       } finally {
         setLabelToDelete(null);
@@ -87,7 +93,7 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
         default:
       }
     },
-    [router]
+    [router],
   );
 
   const canAddLabel =
@@ -124,12 +130,17 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
           </div>
           {canAddLabel && (
             <div className={`${baseClass}__action-button-container`}>
-              <Button
-                className={`${baseClass}__create-button`}
-                onClick={onCreateLabelClick}
-              >
-                Add label
-              </Button>
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disableChildren) => (
+                  <Button
+                    className={`${baseClass}__create-button`}
+                    onClick={onCreateLabelClick}
+                    disabled={disableChildren}
+                  >
+                    Add label
+                  </Button>
+                )}
+              />
             </div>
           )}
         </div>

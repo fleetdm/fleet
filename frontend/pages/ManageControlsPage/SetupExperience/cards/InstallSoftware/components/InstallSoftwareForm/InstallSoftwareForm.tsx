@@ -44,7 +44,7 @@ const initializeSelectedSoftwareIds = (softwareTitles: ISoftwareTitle[]) => {
 
 const getAddSoftwareUrl = (
   platform: SetupExperiencePlatform,
-  teamId: number
+  teamId: number,
 ) => {
   let path = "";
   switch (platform) {
@@ -92,13 +92,13 @@ const InstallSoftwareForm = ({
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
   const [requireAllSoftwareMacOS, setRequireAllSoftwareMacOS] = useState(
-    savedRequireAllSoftwareMacOS ?? false
+    savedRequireAllSoftwareMacOS ?? false,
   );
   const [isSaving, setIsSaving] = useState(false);
 
   const initialSelectedSoftware = useMemo(
     () => (softwareTitles ? initializeSelectedSoftwareIds(softwareTitles) : []),
-    [softwareTitles]
+    [softwareTitles],
   );
 
   // Track if the user changed the macOS checkbox since the last save.
@@ -111,7 +111,7 @@ const InstallSoftwareForm = ({
   };
 
   const [selectedSoftwareIds, setSelectedSoftwareIds] = useState<number[]>(
-    initialSelectedSoftware
+    initialSelectedSoftware,
   );
 
   const installSoftwareDuringSetupCount = selectedSoftwareIds.length;
@@ -130,9 +130,9 @@ const InstallSoftwareForm = ({
     () =>
       !isEqual(
         selectedSoftwareIds.slice().sort(),
-        initialSelectedSoftware.slice().sort()
+        initialSelectedSoftware.slice().sort(),
       ),
-    [selectedSoftwareIds, initialSelectedSoftware]
+    [selectedSoftwareIds, initialSelectedSoftware],
   );
 
   const shouldUpdateSoftware = isSoftwareSelectionDirty;
@@ -154,7 +154,7 @@ const InstallSoftwareForm = ({
         await mdmAPI.updateSetupExperienceSoftware(
           platform,
           currentTeamId,
-          selectedSoftwareIds
+          selectedSoftwareIds,
         );
         hadSuccess = true;
         // Still let parent refetch even if the macOS call later fails
@@ -175,7 +175,7 @@ const InstallSoftwareForm = ({
       try {
         await mdmAPI.updateRequireAllSoftwareMacOS(
           currentTeamId,
-          requireAllSoftwareMacOS
+          requireAllSoftwareMacOS,
         );
         hadSuccess = true;
         setTouchedRequireAll(false);
@@ -238,12 +238,17 @@ const InstallSoftwareForm = ({
         className={`${baseClass}__empty-table`}
         header="No software available to install"
         primaryButton={
-          <Button
-            className={`${baseClass}__button`}
-            onClick={onClickAddSoftware}
-          >
-            Add software
-          </Button>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <Button
+                className={`${baseClass}__button`}
+                onClick={onClickAddSoftware}
+                disabled={disableChildren}
+              >
+                Add software
+              </Button>
+            )}
+          />
         }
       />
     );

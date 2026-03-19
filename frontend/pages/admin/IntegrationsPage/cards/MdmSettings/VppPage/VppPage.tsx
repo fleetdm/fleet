@@ -19,6 +19,7 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 import PageDescription from "components/PageDescription";
 import EmptyTable from "components/EmptyTable";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import AddVppModal from "./components/AddVppModal";
 import RenewVppModal from "./components/RenewVppModal";
@@ -37,7 +38,15 @@ const AddVppMessage = ({ onAddVpp }: IAddVppMessageProps) => {
     <EmptyTable
       header="Add your VPP"
       info="Install Apple App Store apps purchased through Apple Business Manager."
-      primaryButton={<Button onClick={onAddVpp}>Add VPP</Button>}
+      primaryButton={
+        <GitOpsModeTooltipWrapper
+          renderChildren={(disableChildren) => (
+            <Button onClick={onAddVpp} disabled={disableChildren}>
+              Add VPP
+            </Button>
+          )}
+        />
+      }
     />
   );
 };
@@ -70,7 +79,7 @@ const VppPage = ({ router }: IVppPageProps) => {
         error.status !== 404 && error.status !== 400 && tries <= 3,
       select: (data) => data.vpp_tokens,
       enabled: isPremiumTier,
-    }
+    },
   );
 
   const onEditTokenTeams = (token: IMdmVppToken) => {
@@ -195,7 +204,13 @@ const VppPage = ({ router }: IVppPageProps) => {
             {isPremiumTier &&
               vppTokens?.length !== 0 &&
               !!config?.mdm.enabled_and_configured && (
-                <Button onClick={onAddVpp}>Add VPP</Button>
+                <GitOpsModeTooltipWrapper
+                  renderChildren={(disableChildren) => (
+                    <Button onClick={onAddVpp} disabled={disableChildren}>
+                      Add VPP
+                    </Button>
+                  )}
+                />
               )}
           </div>
           <>{renderContent()}</>
