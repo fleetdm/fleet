@@ -231,6 +231,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEditedHostIdpData{},
 
 	ActivityTypeEditedEnrollSecrets{},
+
+	ActivityTypeCanceledSetupExperience{},
 }
 
 // ActivityDetails is an alias for the canonical ActivityDetails interface defined in server/activity/api.
@@ -1802,4 +1804,19 @@ type ActivityTypeEditedEnrollSecrets struct {
 
 func (a ActivityTypeEditedEnrollSecrets) ActivityName() string {
 	return "edited_enroll_secrets"
+}
+
+type ActivityTypeCanceledSetupExperience struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	SoftwareTitle   string `json:"software_title"`
+	SoftwareTitleID uint   `json:"software_title_id"`
+}
+
+func (a ActivityTypeCanceledSetupExperience) ActivityName() string {
+	return "canceled_setup_experience"
+}
+
+func (a ActivityTypeCanceledSetupExperience) HostIDs() []uint {
+	return []uint{a.HostID}
 }

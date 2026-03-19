@@ -1496,6 +1496,17 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  canceledSetupExperience: (activity: IActivity) => {
+    const { software_title: title, host_display_name: hostName } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        canceled macOS setup experience on <b>{hostName}</b>. <b>{title}</b>{" "}
+        failed to install.
+      </>
+    );
+  },
   createdSavedQuery: (activity: IActivity) => {
     let teamText;
     if (activity.details?.team_id === -1) {
@@ -2132,6 +2143,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.CanceledUninstallSoftware: {
       return TAGGED_TEMPLATES.canceledUninstallSoftware(activity);
+    }
+    case ActivityType.CanceledSetupExperience: {
+      return TAGGED_TEMPLATES.canceledSetupExperience(activity);
     }
     case ActivityType.CreatedSavedQuery: {
       return TAGGED_TEMPLATES.createdSavedQuery(activity);

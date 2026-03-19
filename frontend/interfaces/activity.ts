@@ -141,6 +141,7 @@ export enum ActivityType {
   CanceledInstallAppStoreApp = "canceled_install_app_store_app",
   CanceledInstallSoftware = "canceled_install_software",
   CanceledUninstallSoftware = "canceled_uninstall_software",
+  CanceledSetupExperience = "canceled_setup_experience",
   EnabledAndroidMdm = "enabled_android_mdm",
   DisabledAndroidMdm = "disabled_android_mdm",
   ConfiguredMSEntraConditionalAccess = "added_conditional_access_integration_microsoft",
@@ -180,7 +181,8 @@ export type IHostPastActivityType =
   | ActivityType.CanceledRunScript
   | ActivityType.CanceledInstallAppStoreApp
   | ActivityType.CanceledInstallSoftware
-  | ActivityType.CanceledUninstallSoftware;
+  | ActivityType.CanceledUninstallSoftware
+  | ActivityType.CanceledSetupExperience;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -308,6 +310,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Canceled activity: install App Store (VPP) app",
   canceled_install_software: "Canceled activity: install software",
   canceled_run_script: "Canceled activity: run script",
+  canceled_setup_experience: "Canceled activity: macOS setup experience",
   canceled_uninstall_software: "Canceled activity: uninstall software",
   changed_macos_setup_assistant: "Edited macOS automatic enrollment profile",
   changed_user_global_role: "Edited user's role: global",

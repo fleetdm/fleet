@@ -2082,6 +2082,27 @@ This activity contains the following fields:
 }
 ```
 
+## canceled_setup_experience
+
+Generated when Fleet cancels macOS setup experience because a software failed to install.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software that failed to install.
+- "software_title_id": ID of the software title that failed to install.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Adobe Acrobat.app",
+  "software_title_id": 12334
+}
+```
+
 ## canceled_uninstall_software
 
 Generated when upcoming activity `uninstalled_software` is canceled.
