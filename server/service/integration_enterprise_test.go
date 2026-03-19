@@ -21505,6 +21505,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), teamPolicyRequest{
 		Query:                    "SELECT 1;",
 		Name:                     "Compliance check 1",
+		Platform:                 "darwin,windows",
 		ConditionalAccessEnabled: true,
 	}, http.StatusOK, &pr)
 	cp1 := pr.Policy
@@ -21513,12 +21514,14 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 		Query:                    "SELECT 2;",
 		Name:                     "Compliance check 2",
 		ConditionalAccessEnabled: true,
+		Platform:                 "darwin,windows",
 	}, http.StatusOK, &pr)
 	cp2 := pr.Policy
 	pr = teamPolicyResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), teamPolicyRequest{
 		Query:                    "SELECT 3;",
 		Name:                     "Other policy",
+		Platform:                 "darwin,windows",
 		ConditionalAccessEnabled: false,
 	}, http.StatusOK, &pr)
 	p3 := pr.Policy
@@ -21869,6 +21872,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 		Query:                    "SELECT 1;",
 		Name:                     "Compliance check 1",
 		ConditionalAccessEnabled: true,
+		Platform:                 "darwin,windows",
 	}, http.StatusOK, &pr)
 	cp1 = pr.Policy
 	pr = teamPolicyResponse{}
@@ -22002,6 +22006,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 		Query:                    "SELECT 1;",
 		Name:                     "Compliance check 1",
 		ConditionalAccessEnabled: true,
+		Platform:                 "darwin,windows",
 	}, http.StatusOK, &pr)
 	cp1 := pr.Policy
 	pr = teamPolicyResponse{}
@@ -22009,6 +22014,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 		Query:                    "SELECT 2;",
 		Name:                     "Compliance check 2",
 		ConditionalAccessEnabled: true,
+		Platform:                 "darwin,windows",
 	}, http.StatusOK, &pr)
 	cp2 := pr.Policy
 
