@@ -1442,6 +1442,9 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsPolicyInstallSoftwareSlug() {
 
 	insertedApps := maintained_apps.SyncApps(t, s.ds)
 	require.NotEmpty(t, insertedApps)
+	t.Cleanup(func() {
+		maintained_apps.SyncApps(t, s.ds)
+	})
 
 	var testApp fleet.MaintainedApp
 	for _, app := range insertedApps {
@@ -1514,7 +1517,19 @@ software:
 	client.token = s.getTestAdminToken()
 
 	iconSettings := &fleet.IconGitOpsSettings{ConcurrentUpdates: 1, ConcurrentUploads: 1}
-	_, err = client.DoGitOps(ctx, gitopsCfg, tmpFile.Name(), nil, false, nil, enrichedAppConfig, nil, nil, nil, iconSettings)
+	_, err = client.DoGitOps(
+		ctx,
+		gitopsCfg,
+		tmpFile.Name(),
+		nil,
+		false,
+		nil,
+		enrichedAppConfig,
+		map[string][]fleet.SoftwarePackageResponse{},
+		map[string][]fleet.VPPAppResponse{},
+		map[string][]fleet.ScriptResponse{},
+		iconSettings,
+	)
 	require.NoError(t, err)
 
 	team, err := s.ds.TeamByName(ctx, *gitopsCfg.TeamName)
