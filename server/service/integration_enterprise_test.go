@@ -1509,7 +1509,7 @@ software:
 	enrichedAppConfig := &fleet.EnrichedAppConfig{AppConfig: *appConfig}
 	enrichedAppConfig.License = &fleet.LicenseInfo{Tier: fleet.TierPremium}
 
-	gitopsCfg, err := spec.GitOpsFromFile(tmpFile.Name(), filepath.Dir(tmpFile.Name()), enrichedAppConfig, func(string, ...interface{}) {})
+	gitopsCfg, err := spec.GitOpsFromFile(tmpFile.Name(), filepath.Dir(tmpFile.Name()), enrichedAppConfig, func(string, ...any) {})
 	require.NoError(t, err)
 
 	client, err := NewClient(s.server.URL, false, "", "")

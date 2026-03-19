@@ -1088,7 +1088,7 @@ func TestDoGitOpsPoliciesResolvesInstallSoftwareSlug(t *testing.T) {
 		}},
 	}
 
-	err = client.doGitOpsPolicies(cfg, nil, nil, nil, func(string, ...interface{}) {}, true)
+	err = client.doGitOpsPolicies(cfg, nil, nil, nil, func(string, ...any) {}, true)
 	require.NoError(t, err)
 	require.Len(t, cfg.Policies, 1)
 	require.NotNil(t, cfg.Policies[0].SoftwareTitleID)
